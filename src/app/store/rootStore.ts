@@ -1,26 +1,34 @@
-import { GameSlice } from "./gameSlice";
-import { MapSlice } from "./mapSlice";
-import { CitySlice } from "./citySlice";
-import { ArmySlice } from "./armySlice";
-import { NavySlice } from "./navySlice";
-import { DiplomacySlice } from "./diplomacySlice";
-import { NationSlice } from "./nationSlice";
-import { TradeSlice } from "./tradeSlice";
-import { TransportSlice } from "./transportSlice";
-import { IndustrySlice } from "./industrySlice";
-import { TechnologySlice } from "./technologySlice";
-import { UiSlice } from "./uiSlice";
+import { create } from 'zustand';
+import { createTileSelectionSlice, TileSelectionSlice } from './controls/tileSelectionSlice';
+import { createUiSlice, UiSlice } from './controls/uiSlice';
 
 export type GameStore =
-  & GameSlice
-  & MapSlice
-  & CitySlice
-  & ArmySlice
-  & NavySlice
-  & DiplomacySlice
-  & NationSlice
-  & TradeSlice
-  & TransportSlice
-  & IndustrySlice
-  & TechnologySlice
+  // & GameSlice
+  // & MapSlice
+  // & CitySlice
+  // & ArmySlice
+  // & NavySlice
+  // & DiplomacySlice
+  // & NationSlice
+  // & TradeSlice
+  // & TransportSlice
+  // & IndustrySlice
+  // & TechnologySlice
+  & TileSelectionSlice
   & UiSlice;
+
+  export const useGameStore = create<GameStore>()((...a) => ({
+  // ...createGameSlice(...a),
+  // ...createMapSlice(...a),
+  // ...createCitySlice(...a),
+  // ...createArmySlice(...a),
+  // ...createNavySlice(...a),
+  // ...createDiplomacySlice(...a),
+  // ...createNationSlice(...a),
+  // ...createTradeSlice(...a),
+  // ...createTransportSlice(...a),
+  // ...createIndustrySlice(...a),
+  // ...createTechnologySlice(...a),
+  ...createUiSlice(...a),
+  ...createTileSelectionSlice(...a),
+}));

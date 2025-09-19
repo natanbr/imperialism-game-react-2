@@ -1,3 +1,5 @@
+// Empty createArmySlice for Zustand store composition
+export const createArmySlice = () => ({});
 import { Army } from "@/types/Army";
 
 export interface ArmySlice {

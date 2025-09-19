@@ -1,9 +1,9 @@
 import { GameMap, MapStyle } from "@/types/Map";
-import { Tile, TerrainType } from "@/types/Tile";
 import { ResourceType } from "@/types/Resource";
+import { TerrainType, Tile } from "@/types/Tile";
 
-const width = 15;
-const height = 15;
+const cols = 15;
+const rows = 15;
 
 const terrains: TerrainType[] = [
   TerrainType.DryPlains,
@@ -19,9 +19,9 @@ const terrains: TerrainType[] = [
 ];
 
 export const mockMap: GameMap = {
-  config: { width, height, style: MapStyle.SquareGrid },
-  tiles: Array.from({ length: height }, (_, y) =>
-    Array.from({ length: width }, (_, x) => {
+  config: { cols, rows, style: MapStyle.SquareGrid },
+  tiles: Array.from({ length: rows }, (_, y) =>
+    Array.from({ length: cols }, (_, x) => {
       const terrain = terrains[(x + y) % terrains.length];
       return {
         id: `${x}-${y}`,
@@ -33,8 +33,8 @@ export const mockMap: GameMap = {
           terrain === TerrainType.DryPlains
             ? { type: ResourceType.Grain, level: 1 }
             : terrain === TerrainType.HardwoodForest
-            ? { type: ResourceType.Timber, level: 1 }
-            : undefined,
+              ? { type: ResourceType.Timber, level: 1 }
+              : undefined,
         workers: [],
         explored: true,
         visible: true,

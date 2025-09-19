@@ -8,8 +8,8 @@ export enum MapStyle {
 }
 
 export interface MapConfig {
-  width: number;
-  height: number;
+  cols: number;
+  rows: number;
   style: MapStyle;
   seed?: string;
 }

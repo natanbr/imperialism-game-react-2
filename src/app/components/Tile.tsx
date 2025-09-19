@@ -1,6 +1,7 @@
 import React from "react";
 import { Tile, TerrainType } from "../types/Tile";
 import { ResourceType } from "../types/Resource";
+import { useGameStore } from '../store/rootStore';
 
 interface TileProps {
   tile: Tile;
@@ -42,18 +43,24 @@ const resourceIcons: Partial<Record<ResourceType, string>> = {
 export const TileComponent: React.FC<TileProps> = ({ tile }) => {
   const { terrain, hasRiver, resource } = tile;
 
+  const selectedTileId = useGameStore((s) => s.selectedTileId);
+  const selectTile = useGameStore((s) => s.selectTile);
+  const isSelected = selectedTileId === tile.id;
+
+
   return (
     <div
+      onClick={() => selectTile(tile.id)}
       style={{
-        border: "1px solid #555",
+        border: isSelected ? "2px solid red" : "1px solid #555",
         backgroundColor: terrainColors[terrain] || "#ccc",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
         fontSize: "10px",
-        minWidth: "60px",
-        minHeight: "60px",
+        width: "100px",
+        height: "100px",
       }}
     >
       <div>{terrain}</div>

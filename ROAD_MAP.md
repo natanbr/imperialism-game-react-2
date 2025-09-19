@@ -12,14 +12,14 @@
     - Test: Load the page → see a 15×15 grid with correct text labels.
 
 #### Step 1.2 – Tile Styling
-- Goal: Replace text with simple colored backgrounds + overlay text.
+✅- Goal: Replace text with simple colored backgrounds + overlay text.
     - Details:
     - Assign colors per terrain (e.g., green = forest, brown = hills, blue = water).
     - Overlay resource icons (placeholder emojis or SVGs).
     - Test: Visual scan → each terrain type is distinguishable.
 
 #### Step 1.3 – Tile Interaction
-- Goal: Click a tile to open an info panel.
+✅- Goal: Click a tile to open an info panel.
 - Details:
 - Info panel shows: terrain, resource, owner nation, workers present.
 - Highlight selected tile.
