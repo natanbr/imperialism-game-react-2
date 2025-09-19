@@ -27,19 +27,19 @@
 
 ## Phase 2: Workers (Civilian Units)
 #### Step 2.1 – Worker Placement
-- Goal: Place a worker (Prospector) on a tile.
-- Details:
-- Worker = small icon overlay on tile.
-- Initial game state: 1 Prospector at capital tile.
-- Test: Worker appears on map at start.
+✅- Goal: Place a worker (Prospector) on a tile.
+    - Details:
+    - Worker = small icon overlay on tile.
+    - Initial game state: 1 Prospector at capital tile.
+    - Test: Worker appears on map at start.
 
 #### Step 2.2 – Worker Selection & Movement
 - Goal: Select worker and move to adjacent tile.
-- Details:
-- Click worker → highlight.
-- Click adjacent tile → worker moves there.
-- Movement rules: civilians can move unlimited distance in owned territory (manual), but for now restrict to 1 tile per test step.
-- Test: Select Prospector → move to neighbor tile → icon updates.
+    - Details:
+    - Click worker → highlight.
+    - Click adjacent tile → worker moves there.
+    - Movement rules: civilians can move unlimited distance in owned territory (manual), but for now restrict to 1 tile per test step.
+    - Test: Select Prospector → move to neighbor tile → icon updates.
 
 #### Step 2.3 – Worker Actions
 - Goal: Implement Prospector action.

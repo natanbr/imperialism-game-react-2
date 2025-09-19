@@ -18,11 +18,23 @@ const terrains: TerrainType[] = [
   TerrainType.Capital,
 ];
 
+import { WorkerType, Worker } from "@/types/Workers";
+
 export const mockMap: GameMap = {
   config: { cols, rows, style: MapStyle.SquareGrid },
   tiles: Array.from({ length: rows }, (_, y) =>
     Array.from({ length: cols }, (_, x) => {
       const terrain = terrains[(x + y) % terrains.length];
+      // Place Prospector on the first Capital tile found
+      let workers: Worker[] = [];
+      if (x === 7 && y === 7) {
+        workers = [{
+          id: "prospector-1",
+          type: WorkerType.Prospector,
+          assignedTileId: `${x}-${y}`,
+          efficiency: 100
+        }];
+      }
       return {
         id: `${x}-${y}`,
         x,
@@ -35,7 +47,7 @@ export const mockMap: GameMap = {
             : terrain === TerrainType.HardwoodForest
               ? { type: ResourceType.Timber, level: 1 }
               : undefined,
-        workers: [],
+        workers,
         explored: true,
         visible: true,
       } as Tile;

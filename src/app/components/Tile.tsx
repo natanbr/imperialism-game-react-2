@@ -40,13 +40,17 @@ const resourceIcons: Partial<Record<ResourceType, string>> = {
   [ResourceType.Fish]: "🐟",
 };
 
+import { WorkerType } from "../types/Workers";
+
 export const TileComponent: React.FC<TileProps> = ({ tile }) => {
-  const { terrain, hasRiver, resource } = tile;
+  const { terrain, hasRiver, resource, workers } = tile;
 
   const selectedTileId = useGameStore((s) => s.selectedTileId);
   const selectTile = useGameStore((s) => s.selectTile);
   const isSelected = selectedTileId === tile.id;
 
+  // Only show one Prospector for now (step 2.1)
+  const hasProspector = workers.some(w => w.type === WorkerType.Prospector);
 
   return (
     <div
@@ -61,6 +65,7 @@ export const TileComponent: React.FC<TileProps> = ({ tile }) => {
         fontSize: "10px",
         width: "100px",
         height: "100px",
+        position: "relative",
       }}
     >
       <div>{terrain}</div>
@@ -68,6 +73,21 @@ export const TileComponent: React.FC<TileProps> = ({ tile }) => {
       {resource && (
         <div>
           {resourceIcons[resource.type] || "❓"} (L{resource.level})
+        </div>
+      )}
+      {hasProspector && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: 4,
+            right: 4,
+            fontSize: "22px",
+            pointerEvents: "none",
+            filter: "drop-shadow(0 0 2px #fff)"
+          }}
+          title="Prospector"
+        >
+          ⛏️
         </div>
       )}
     </div>
