@@ -2,6 +2,7 @@ import { Nation } from "@/types/Nation";
 import { GameMap, MapStyle } from "@/types/Map";
 import { TerrainType, Tile } from "@/types/Tile";
 import { ResourceType } from "@/types/Resource";
+import { WorkerType } from "@/types/Workers";
 
 const cols = 5;
 const rows = 5;
@@ -118,6 +119,8 @@ export const mockMap5x5: GameMap = {
         ownerNationId = undefined;
       }
 
+      const isCapital = x === 2 && y === 2;
+
       return {
         id: `${x}-${y}`,
         x,
@@ -132,8 +135,10 @@ export const mockMap5x5: GameMap = {
           ? { type: ResourceType.IronOre, level: 1, discovered: true }
           : undefined,
         ownerNationId,
-        cityId: terrain === TerrainType.Capital ? "capital-1" : undefined,
-        workers: [],
+        cityId: isCapital ? "capital-1" : undefined,
+        workers: isCapital
+          ? [{ id: "worker-1", type: WorkerType.Prospector, nationId: ownerNationId || "nation-1", assignedTileId: `${x}-${y}`, efficiency: 100 }]
+          : [],
         explored: true,
         visible: true,
       } as Tile;

@@ -46,12 +46,18 @@ export const TileComponent: React.FC<TileProps> = ({ tile }) => {
   const { terrain, hasRiver, resource, workers, ownerNationId } = tile;
 
   const selectedTileId = useGameStore((s) => s.selectedTileId);
+  const selectedWorkerId = useGameStore((s) => s.selectedWorkerId);
   const selectTile = useGameStore((s) => s.selectTile);
+  const selectWorker = useGameStore((s) => s.selectWorker);
+  const moveSelectedWorkerToTile = useGameStore((s) => s.moveSelectedWorkerToTile);
   const nations = useGameStore((s) => s.nations);
+
   const isSelected = selectedTileId === tile.id;
 
   // Only show one Prospector for now (step 2.1)
-  const hasProspector = workers.some(w => w.type === WorkerType.Prospector);
+  const prospector = workers.find(w => w.type === WorkerType.Prospector);
+  const hasProspector = !!prospector;
+  const isProspectorSelected = prospector && selectedWorkerId === prospector.id;
 
   // Get the nation color for border
   const ownerNation = ownerNationId ? nations.find(n => n.id === ownerNationId) : null;
@@ -62,9 +68,18 @@ export const TileComponent: React.FC<TileProps> = ({ tile }) => {
     : "#555";
   const borderWidth = ownerNation ? "3px" : "1px";
 
+  const handleTileClick = () => {
+    if (selectedWorkerId) {
+      moveSelectedWorkerToTile(tile.id);
+      selectTile(tile.id);
+      return;
+    }
+    selectTile(tile.id);
+  };
+
   return (
     <div
-      onClick={() => selectTile(tile.id)}
+      onClick={handleTileClick}
       style={{
         border: `${borderWidth} solid ${borderColor}`,
         backgroundColor: terrainColors[terrain] || "#ccc",
@@ -76,6 +91,7 @@ export const TileComponent: React.FC<TileProps> = ({ tile }) => {
         width: "100px",
         height: "100px",
         position: "relative",
+        userSelect: "none",
       }}
     >
       <div>{terrain}</div>
@@ -86,19 +102,25 @@ export const TileComponent: React.FC<TileProps> = ({ tile }) => {
         </div>
       )}
       {hasProspector && (
-        <div
+        <button
+          onClick={(e) => { e.stopPropagation(); selectWorker(prospector!.id); }}
+          title="Prospector"
           style={{
             position: "absolute",
             bottom: 4,
             right: 4,
             fontSize: "22px",
-            pointerEvents: "none",
-            filter: "drop-shadow(0 0 2px #fff)"
+            lineHeight: 1,
+            border: isProspectorSelected ? "2px solid yellow" : "none",
+            borderRadius: 4,
+            background: "transparent",
+            padding: 0,
+            cursor: "pointer",
+            filter: "drop-shadow(0 0 2px #fff)",
           }}
-          title="Prospector"
         >
-          ⛏️
-        </div>
+          👁️
+        </button>
       )}
     </div>
   );

@@ -41,6 +41,8 @@
     - Movement rules: civilians can move unlimited distance in owned territory (manual), but for now restrict to 1 tile per test step.
     - Test: Select Prospector → move to neighbor tile → icon updates.
 
+#### Step 2.2.1 - advance turn button
+ 
 #### Step 2.3 – Worker Actions
 - Goal: Implement Prospector action.
 - Details:

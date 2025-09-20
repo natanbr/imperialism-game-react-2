@@ -14,6 +14,7 @@ export enum WorkerType {
 export interface Worker {
   id: string;
   type: WorkerType;
+  nationId: string; // owner nation of the worker
   assignedTileId?: string;
   efficiency: number; // 0–100
 }
