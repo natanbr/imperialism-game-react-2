@@ -35,7 +35,7 @@ export const mockMap: GameMap = {
           efficiency: 100
         }];
       }
-      return {
+      const tile: Tile = {
         id: `${x}-${y}`,
         x,
         y,
@@ -50,7 +50,13 @@ export const mockMap: GameMap = {
         workers,
         explored: true,
         visible: true,
-      } as Tile;
+      };
+
+      if (x < 5 && y < 5) {
+        tile.ownerNationId = 'red-empire';
+      }
+
+      return tile;
     })
   ),
 };

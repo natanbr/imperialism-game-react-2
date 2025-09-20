@@ -1,34 +1,48 @@
 import { create } from 'zustand';
+import { GameState } from '../types/GameState';
+import { GameMap } from '../types/Map';
+import { Nation } from '../types/Nation';
 import { createTileSelectionSlice, TileSelectionSlice } from './controls/tileSelectionSlice';
-import { createUiSlice, UiSlice } from './controls/uiSlice';
 
-export type GameStore =
-  // & GameSlice
-  // & MapSlice
-  // & CitySlice
-  // & ArmySlice
-  // & NavySlice
-  // & DiplomacySlice
-  // & NationSlice
-  // & TradeSlice
-  // & TransportSlice
-  // & IndustrySlice
-  // & TechnologySlice
-  & TileSelectionSlice
-  & UiSlice;
+export interface NationSlice {
+  nations: Nation[];
+}
 
-  export const useGameStore = create<GameStore>()((...a) => ({
-  // ...createGameSlice(...a),
-  // ...createMapSlice(...a),
-  // ...createCitySlice(...a),
-  // ...createArmySlice(...a),
-  // ...createNavySlice(...a),
-  // ...createDiplomacySlice(...a),
-  // ...createNationSlice(...a),
-  // ...createTradeSlice(...a),
-  // ...createTransportSlice(...a),
-  // ...createIndustrySlice(...a),
-  // ...createTechnologySlice(...a),
-  ...createUiSlice(...a),
-  ...createTileSelectionSlice(...a),
+export interface MapSlice {
+  map: GameMap;
+}
+
+export type GameStore = GameState & TileSelectionSlice & {
+  init: (initialState: Partial<GameState>) => void;
+};
+
+export const useGameStore = create<GameStore>((set, get, api) => ({
+  // Default initial state
+  turn: 1,
+  year: 1900,
+  activeNationId: '',
+  nations: [],
+  cities: [],
+  armies: [],
+  fleets: [],
+  map: { config: { cols: 0, rows: 0, style: 'SquareGrid' as const }, tiles: [] },
+  transportNetwork: { nodes: [], edges: [] },
+  tradeRoutes: [],
+  industry: { factories: [], production: [] },
+  technologies: [],
+  newsLog: [],
+  turnOrder: {
+    phases: [
+      "diplomacy",
+      "trade",
+      "production",
+      "combat",
+      "interceptions",
+      "logistics"
+    ],
+  },
+  difficulty: 'normal',
+
+  init: (initialState: Partial<GameState>) => set(initialState),
+  ...createTileSelectionSlice(set, get, api),
 }));

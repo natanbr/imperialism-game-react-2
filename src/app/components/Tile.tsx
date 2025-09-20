@@ -2,6 +2,7 @@ import React from "react";
 import { Tile, TerrainType } from "../types/Tile";
 import { ResourceType } from "../types/Resource";
 import { useGameStore } from '../store/rootStore';
+import { nationColors } from '../definisions/nationColors';
 
 interface TileProps {
   tile: Tile;
@@ -43,7 +44,7 @@ const resourceIcons: Partial<Record<ResourceType, string>> = {
 import { WorkerType } from "../types/Workers";
 
 export const TileComponent: React.FC<TileProps> = ({ tile }) => {
-  const { terrain, hasRiver, resource, workers } = tile;
+  const { terrain, hasRiver, resource, workers, ownerNationId } = tile;
 
   const selectedTileId = useGameStore((s) => s.selectedTileId);
   const selectTile = useGameStore((s) => s.selectTile);
@@ -52,11 +53,24 @@ export const TileComponent: React.FC<TileProps> = ({ tile }) => {
   // Only show one Prospector for now (step 2.1)
   const hasProspector = workers.some(w => w.type === WorkerType.Prospector);
 
+  const getBorderStyle = () => {
+    if (isSelected) {
+      return "2px solid red";
+    }
+    if (ownerNationId) {
+      const color = nationColors[ownerNationId];
+      if (color) {
+        return `2px solid ${color}`;
+      }
+    }
+    return "1px solid #555";
+  };
+
   return (
     <div
       onClick={() => selectTile(tile.id)}
       style={{
-        border: isSelected ? "2px solid red" : "1px solid #555",
+        border: getBorderStyle(),
         backgroundColor: terrainColors[terrain] || "#ccc",
         display: "flex",
         flexDirection: "column",
