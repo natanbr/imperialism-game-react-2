@@ -43,20 +43,30 @@ const resourceIcons: Partial<Record<ResourceType, string>> = {
 import { WorkerType } from "../types/Workers";
 
 export const TileComponent: React.FC<TileProps> = ({ tile }) => {
-  const { terrain, hasRiver, resource, workers } = tile;
+  const { terrain, hasRiver, resource, workers, ownerNationId } = tile;
 
   const selectedTileId = useGameStore((s) => s.selectedTileId);
   const selectTile = useGameStore((s) => s.selectTile);
+  const nations = useGameStore((s) => s.nations);
   const isSelected = selectedTileId === tile.id;
 
   // Only show one Prospector for now (step 2.1)
   const hasProspector = workers.some(w => w.type === WorkerType.Prospector);
 
+  // Get the nation color for border
+  const ownerNation = ownerNationId ? nations.find(n => n.id === ownerNationId) : null;
+  const borderColor = isSelected 
+    ? "red" 
+    : ownerNation 
+    ? ownerNation.color 
+    : "#555";
+  const borderWidth = ownerNation ? "3px" : "1px";
+
   return (
     <div
       onClick={() => selectTile(tile.id)}
       style={{
-        border: isSelected ? "2px solid red" : "1px solid #555",
+        border: `${borderWidth} solid ${borderColor}`,
         backgroundColor: terrainColors[terrain] || "#ccc",
         display: "flex",
         flexDirection: "column",

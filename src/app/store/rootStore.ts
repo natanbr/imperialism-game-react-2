@@ -1,10 +1,10 @@
 import { create } from 'zustand';
 import { createTileSelectionSlice, TileSelectionSlice } from './controls/tileSelectionSlice';
 import { createUiSlice, UiSlice } from './controls/uiSlice';
+import { createGameStateSlice, GameStateSlice } from './gameSlice';
 
 export type GameStore =
-  // & GameSlice
-  // & MapSlice
+  & GameStateSlice
   // & CitySlice
   // & ArmySlice
   // & NavySlice
@@ -18,8 +18,7 @@ export type GameStore =
   & UiSlice;
 
   export const useGameStore = create<GameStore>()((...a) => ({
-  // ...createGameSlice(...a),
-  // ...createMapSlice(...a),
+  ...createGameStateSlice(...a),
   // ...createCitySlice(...a),
   // ...createArmySlice(...a),
   // ...createNavySlice(...a),

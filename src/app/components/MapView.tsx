@@ -1,19 +1,16 @@
 import { useEdgeScroll } from "@/hooks/useEdgeScroll";
 import { useGameStore } from "@/store/rootStore";
-import { GameMap } from "@/types/Map";
 import React, { useRef } from "react";
 import { TileComponent } from "./Tile";
 
-interface MapViewProps {
-  map: GameMap;
-}
-
-export const MapView: React.FC<MapViewProps> = ({ map }) => {
+export const MapView: React.FC = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   const cameraX = useGameStore((s) => s.cameraX);
   const cameraY = useGameStore((s) => s.cameraY);
   const moveCamera = useGameStore((s) => s.moveCamera);
+  const map = useGameStore((s) => s.map);
+  const nations = useGameStore((s) => s.nations);
 
   useEdgeScroll({ containerRef, onMove: moveCamera });
 

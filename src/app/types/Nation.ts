@@ -5,6 +5,7 @@ import { CityId, NationId, ProvinceId, FleetId, ArmyId } from "./Common";
 export interface Nation {
   id: NationId;
   name: string;
+  color: string;
   treasury: number;
   debt?: number;
   creditLimit?: number;

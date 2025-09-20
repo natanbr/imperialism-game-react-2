@@ -1,14 +1,10 @@
 import React from "react";
 import { TileInfoPanel } from "./TileInfoPanel";
 import { useGameStore } from '../store/rootStore';
-import { GameMap } from '../types/Map';
 
-interface HUDProps {
-    map: GameMap;
-}
-
-export const HUD: React.FC<HUDProps> = ({ map }) => {
+export const HUD: React.FC = () => {
     const selectedTileId = useGameStore((s) => s.selectedTileId);
+    const map = useGameStore((s) => s.map);
 
     return (
         <div
