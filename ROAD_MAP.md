@@ -42,37 +42,38 @@
     - Test: Select Prospector → move to neighbor tile → icon updates.
 
 #### Step 2.2.1 - advance turn button
-- Goal: add a button that advances the turn
+✅ - Goal: add a button that advances the turn
     - Details:
     - Button should be located in the bottom of the hud
     - When clicked it should advance the turn by one
 
 #### Step 2.3 – Worker Actions
-- Goal: Implement Prospector action.
+✅ - Goal: Implement Prospector action.
 - Details:
 - If tile = barren hills/mountains/swamp/desert/tundra → allow “Prospect” action.
 - Action starts a search and id recurce founf itreveals the hidden resource (coal, iron, gold, gems, oil) in the next turn
 - Use manual’s rule: Prospector must discover before Miner/Driller can exploit.
 
 #### Step 2.4 – Additional Worker Types
-- Goal: Add Farmer, Rancher, Forester, Miner, Driller, Engineer.
+✅ - Goal: Add Farmer, Rancher, Forester, Miner, Driller, Engineer.
 - Details:
-- Each worker has valid terrain + action:
-- Farmer → farms/orchards/plantations.
-- Rancher → open range/fertile hills.
-- Forester → hardwood forest.
-- Miner → barren hills/mountains (after prospecting).
-- Driller → swamp/desert/tundra (after prospecting + oil tech).
-- Engineer → build depot, port, fort, rail.
-- Each action improves resource level (per Resource Development Table).
-- Test: Place each worker → perform valid action → tile’s resource level increases.
+    - Each worker has valid terrain + action:
+    - same as prospector, after workers they will it will take them few turns to do their job
+    - add visual indicator when worker finished thier job 
+    - add table for the duration of each worker to comple their job
+    - Farmer → farms/orchards/plantations.
+    - Rancher → open range/fertile hills.
+    - Forester → hardwood forest.
+    - Miner → barren hills/mountains (after prospecting).
+    - Driller → swamp/desert/tundra (after prospecting + oil tech).
+    - Engineer → build depot, port, fort, rail.
+    - Each action improves resource level (per Resource Development Table).
 
 ## Phase 3: Transport Network
 #### Step 3.1 – Capital Auto-Connection
 - Goal: Capital tile acts as depot + port.
 - Details:
 - Any adjacent improved tile auto‑connected to capital.
-- Test: Improve farm next to capital → resource appears in warehouse.
 
 #### Step 3.2 – Engineer Builds Depot
 - Goal: Engineer can build depot on a tile.

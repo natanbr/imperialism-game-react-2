@@ -37,9 +37,9 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
   const selectedWorker = selectedTile.workers.find(w => w.id === selectedWorkerId);
   const canStartAnyJob = !!selectedWorker && !dev && !con && !selectedTile.prospecting;
 
-  const startL1 = () => selectedWorker && startDevelopment(selectedTile.id, selectedWorker.id, selectedWorker.type as any, 1);
-  const startL2 = () => selectedWorker && startDevelopment(selectedTile.id, selectedWorker.id, selectedWorker.type as any, 2);
-  const startL3 = () => selectedWorker && startDevelopment(selectedTile.id, selectedWorker.id, selectedWorker.type as any, 3);
+  const startL1 = () => selectedWorker && startDevelopment(selectedTile.id, selectedWorker.id, selectedWorker.type, 1);
+  const startL2 = () => selectedWorker && startDevelopment(selectedTile.id, selectedWorker.id, selectedWorker.type, 2);
+  const startL3 = () => selectedWorker && startDevelopment(selectedTile.id, selectedWorker.id, selectedWorker.type, 3);
 
   const startDepot = () => selectedWorker && startConstruction(selectedTile.id, selectedWorker.id, "depot");
   const startPort = () => selectedWorker && startConstruction(selectedTile.id, selectedWorker.id, "port");
@@ -72,7 +72,7 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
       )}
 
       {/* Development controls (Farmer/Rancher/Forester/Miner/Driller) */}
-      {canStartAnyJob && selectedWorker && [WorkerType.Farmer, WorkerType.Rancher, WorkerType.Forester, WorkerType.Miner, WorkerType.Driller].includes(selectedWorker.type as any) && (
+      {canStartAnyJob && selectedWorker && [WorkerType.Farmer, WorkerType.Rancher, WorkerType.Forester, WorkerType.Miner, WorkerType.Driller].includes(selectedWorker.type) && (
         <div style={{ marginTop: 10 }}>
           <div style={{ marginBottom: 4 }}><strong>Development:</strong> {workerHint}</div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>

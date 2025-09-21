@@ -7,7 +7,8 @@ import { initWorld } from "@/testing/worldInit";
 import { WorkerType, Worker } from "@/types/Workers";
 import { TerrainType } from "@/types/Tile";
 import { ResourceType } from "@/types/Resource";
-import { WorkerLevelDurationsTurns, EngineerBuildDurationsTurns, ProspectorDiscoveryDurationTurns } from "@/definisions/workerDurations";
+import { runTurnPhases } from "./phases";
+import { WorkerLevelDurationsTurns, EngineerBuildDurationsTurns } from "@/definisions/workerDurations";
 
 export interface GameStateSlice {
   turn: number;
@@ -51,70 +52,13 @@ export const createGameStateSlice: StateCreator<GameStateSlice> = (set, get) => 
     const nextTurn = state.turn + 1;
     const nextYear = state.year + (state.turn % 4 === 0 ? 1 : 0); // Advance year every 4 turns (seasons)
 
-    // Resolve actions started on previous turns
-    const resolvedTiles = state.map.tiles.map(row => row.map(tile => {
-      let t = { ...tile };
-
-      // 1) Prospecting resolves after 1 turn (using configured duration)
-      if (t.prospecting && (nextTurn - t.prospecting.startedOnTurn) >= ProspectorDiscoveryDurationTurns) {
-        let discoveredType: ResourceType | undefined;
-        if (t.terrain === TerrainType.BarrenHills || t.terrain === TerrainType.Mountains) {
-          const options = [ResourceType.Coal, ResourceType.IronOre, ResourceType.Gold, ResourceType.Gems];
-          discoveredType = options[Math.floor(Math.random() * options.length)];
-        } else if (t.terrain === TerrainType.Swamp || t.terrain === TerrainType.Desert || t.terrain === TerrainType.Tundra) {
-          discoveredType = ResourceType.Oil;
-        }
-        const newResource = discoveredType ? { type: discoveredType, level: 1, discovered: true } : t.resource;
-        t = { ...t, resource: newResource, prospecting: undefined };
-      }
-
-      // 2) Development jobs resolve when duration has elapsed
-      if (t.developmentJob && !t.developmentJob.completed) {
-        const elapsed = nextTurn - t.developmentJob.startedOnTurn;
-        if (elapsed >= t.developmentJob.durationTurns) {
-          // Improve resource level if present or create a base resource for certain terrains
-          let newResource = t.resource;
-          if (newResource) {
-            const target = Math.max(newResource.level, t.developmentJob.targetLevel);
-            newResource = { ...newResource, level: target };
-          }
-          t = { ...t, resource: newResource, developmentJob: { ...t.developmentJob, completed: true, completedOnTurn: nextTurn } };
-        }
-      }
-
-      // 3) Construction jobs resolve when duration elapsed
-      if (t.constructionJob && !t.constructionJob.completed) {
-        const elapsed = nextTurn - t.constructionJob.startedOnTurn;
-        if (elapsed >= t.constructionJob.durationTurns) {
-          // Apply building effects
-          let update: any = {};
-          switch (t.constructionJob.kind) {
-            case "depot": update.depot = true; break;
-            case "port": update.port = true; break;
-            case "fort": update.fortLevel = Math.max(1, t.fortLevel || 0); break;
-            case "rail": update.connected = true; break;
-          }
-          t = { ...t, ...update, constructionJob: { ...t.constructionJob, completed: true, completedOnTurn: nextTurn } };
-        }
-      }
-
-      // 4) Auto-clear completion indicator after being shown for 1 turn
-      if (t.developmentJob?.completed && t.developmentJob.completedOnTurn && nextTurn > t.developmentJob.completedOnTurn) {
-        const { developmentJob, ...rest } = t as any;
-        t = { ...rest, developmentJob: undefined } as any;
-      }
-      if (t.constructionJob?.completed && t.constructionJob.completedOnTurn && nextTurn > t.constructionJob.completedOnTurn) {
-        const { constructionJob, ...rest } = t as any;
-        t = { ...rest, constructionJob: undefined } as any;
-      }
-
-      return t;
-    }));
+    // Orchestrate phases
+    const newMap = runTurnPhases(state.map, state.turn, nextTurn);
 
     return {
       turn: nextTurn,
       year: nextYear,
-      map: { ...state.map, tiles: resolvedTiles },
+      map: newMap,
     };
   }),
   addNews: (news: NewsItem) => set((state) => ({ 

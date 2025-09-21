@@ -1,6 +1,8 @@
 // types/Tile.ts
 import { ResourceType } from "./Resource";
-import { Worker, WorkerType } from "./Workers";
+import { Worker } from "./Workers";
+import { DevelopmentJob } from "./jobs/DevelopmentJob";
+import { ConstructionJob } from "./jobs/ConstructionJob";
 
 export enum TerrainType {
   DryPlains = "dryPlains",      // Grain (not improvable)
@@ -39,25 +41,10 @@ export interface Tile {
   prospecting?: { startedOnTurn: number; workerId: string };
 
   // Active development job (Farmer/Rancher/Forester/Miner/Driller)
-  developmentJob?: {
-    workerId: string;
-    workerType: WorkerType;
-    targetLevel: 1 | 2 | 3;    // desired resource level
-    startedOnTurn: number;
-    durationTurns: number;     // total required turns
-    completed?: boolean;       // set true when finished (for UI pulse)
-    completedOnTurn?: number;  // turn when completed; used to auto-clear indicator next turn
-  };
+  developmentJob?: DevelopmentJob;
 
   // Active construction job (Engineer)
-  constructionJob?: {
-    workerId: string;
-    kind: "depot" | "port" | "fort" | "rail";
-    startedOnTurn: number;
-    durationTurns: number;
-    completed?: boolean;
-    completedOnTurn?: number;
-  };
+  constructionJob?: ConstructionJob;
 
   ownerNationId?: string;
   cityId?: string;              // capital or town id
