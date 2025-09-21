@@ -34,7 +34,7 @@
     - Test: Worker appears on map at start.
 
 #### Step 2.2 – Worker Selection & Movement
-- Goal: Select worker and move to adjacent tile.
+✅- Goal: Select worker and move to adjacent tile.
     - Details:
     - Click worker → highlight.
     - Click adjacent tile → worker moves there.
@@ -42,14 +42,17 @@
     - Test: Select Prospector → move to neighbor tile → icon updates.
 
 #### Step 2.2.1 - advance turn button
- 
+- Goal: add a button that advances the turn
+    - Details:
+    - Button should be located in the bottom of the hud
+    - When clicked it should advance the turn by one
+
 #### Step 2.3 – Worker Actions
 - Goal: Implement Prospector action.
 - Details:
 - If tile = barren hills/mountains/swamp/desert/tundra → allow “Prospect” action.
-- Action reveals hidden resource (coal, iron, gold, gems, oil).
+- Action starts a search and id recurce founf itreveals the hidden resource (coal, iron, gold, gems, oil) in the next turn
 - Use manual’s rule: Prospector must discover before Miner/Driller can exploit.
-- Test: Move Prospector to barren hill → click “Prospect” → resource revealed.
 
 #### Step 2.4 – Additional Worker Types
 - Goal: Add Farmer, Rancher, Forester, Miner, Driller, Engineer.

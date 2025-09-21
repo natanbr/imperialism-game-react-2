@@ -30,6 +30,7 @@ export const mockMap: GameMap = {
       if (x === 7 && y === 7) {
         workers = [{
           id: "prospector-1",
+          nationId: "nation-1",
           type: WorkerType.Prospector,
           assignedTileId: `${x}-${y}`,
           efficiency: 100

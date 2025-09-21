@@ -35,6 +35,8 @@ export interface Tile {
     level: number;              // 0..3 (minerals/oil can be 0=none until improved/opened)
     discovered?: boolean;       // for hidden resources (minerals/oil)
   };
+  // Prospecting action state (resolved on next turn)
+  prospecting?: { startedOnTurn: number; workerId: string };
   ownerNationId?: string;
   cityId?: string;              // capital or town id
   workers: Worker[];
