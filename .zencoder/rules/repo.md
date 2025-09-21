@@ -60,6 +60,7 @@ npm run lint
 
 ## Project Architecture
 This project is a React reproduction of the classic strategy game "Imperialism". It uses Next.js as its framework and Tailwind CSS for styling. The project structure is organized into components, hooks, store slices, and types to facilitate modular development.
+**Strict Mode**: Enabled! Always use explicit type, never use any as it result in errors. 
 **State Management**: Zustand for global state with slice pattern
 **Component Structure**:
 - MapView: Main game map display

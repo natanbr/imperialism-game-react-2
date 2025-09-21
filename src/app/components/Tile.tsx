@@ -54,10 +54,11 @@ export const TileComponent: React.FC<TileProps> = ({ tile }) => {
 
   const isSelected = selectedTileId === tile.id;
 
-  // Only show one Prospector for now (step 2.1)
-  const prospector = workers.find(w => w.type === WorkerType.Prospector);
-  const hasProspector = !!prospector;
-  const isProspectorSelected = prospector && selectedWorkerId === prospector.id;
+  // Allow selecting any worker on the tile
+  const isWorkerSelected = (wId: string) => selectedWorkerId === wId;
+
+  // Job completion visual pulse (if any)
+  const jobCompleted = tile.developmentJob?.completed || tile.constructionJob?.completed;
 
   // Get the nation color for border
   const ownerNation = ownerNationId ? nations.find(n => n.id === ownerNationId) : null;
@@ -70,7 +71,7 @@ export const TileComponent: React.FC<TileProps> = ({ tile }) => {
 
   const handleTileClick = () => {
     if (selectedWorkerId) {
-      moveSelectedWorkerToTile(tile.id);
+      moveSelectedWorkerToTile(tile.id, selectedWorkerId);
       selectTile(tile.id);
       return;
     }
@@ -92,6 +93,8 @@ export const TileComponent: React.FC<TileProps> = ({ tile }) => {
         height: "100px",
         position: "relative",
         userSelect: "none",
+        boxShadow: jobCompleted ? "0 0 12px 4px #ffd54f" : undefined,
+        transition: "box-shadow 200ms ease",
       }}
     >
       <div>{terrain}</div>
@@ -101,26 +104,43 @@ export const TileComponent: React.FC<TileProps> = ({ tile }) => {
           {resourceIcons[resource.type] || "❓"} (L{resource.level})
         </div>
       )}
-      {hasProspector && (
-        <button
-          onClick={(e) => { e.stopPropagation(); selectWorker(prospector!.id); }}
-          title="Prospector"
-          style={{
-            position: "absolute",
-            bottom: 4,
-            right: 4,
-            fontSize: "22px",
-            lineHeight: 1,
-            border: isProspectorSelected ? "2px solid yellow" : "none",
-            borderRadius: 4,
-            background: "transparent",
-            padding: 0,
-            cursor: "pointer",
-            filter: "drop-shadow(0 0 2px #fff)",
-          }}
-        >
-          👁️
-        </button>
+      {/* Worker selection buttons (all workers present on tile) */}
+      {workers.length > 0 && (
+        <div style={{ position: "absolute", bottom: 2, right: 2, display: "flex", gap: 4, flexWrap: "wrap", maxWidth: "96px", justifyContent: "flex-end" }}>
+          {workers.map((w) => (
+            <button
+              key={w.id}
+              onClick={(e) => { e.stopPropagation(); selectWorker(w.id); }}
+              title={w.type}
+              style={{
+                fontSize: "16px",
+                lineHeight: 1,
+                border: isWorkerSelected(w.id) ? "2px solid yellow" : "1px solid transparent",
+                borderRadius: 4,
+                background: "rgba(255,255,255,0.2)",
+                padding: "0 2px",
+                cursor: "pointer",
+                filter: "drop-shadow(0 0 2px #fff)",
+              }}
+            >
+              {w.type === WorkerType.Prospector && "👁️"}
+              {w.type === WorkerType.Farmer && "🚜"}
+              {w.type === WorkerType.Rancher && "🐄"}
+              {w.type === WorkerType.Forester && "🌲"}
+              {w.type === WorkerType.Miner && "⛏️"}
+              {w.type === WorkerType.Driller && "🛢️"}
+              {w.type === WorkerType.Engineer && "🛠️"}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Simple icons indicating a job is in progress on this tile */}
+      {tile.developmentJob && !tile.developmentJob.completed && (
+        <div title="Development in progress" style={{ position: "absolute", bottom: 4, right: 4, fontSize: 14 }}>⏳</div>
+      )}
+      {tile.constructionJob && !tile.constructionJob.completed && (
+        <div title="Construction in progress" style={{ position: "absolute", bottom: 4, left: 4, fontSize: 14 }}>🛠️</div>
       )}
     </div>
   );
