@@ -1,30 +1,18 @@
 // Game state slice for Zustand store composition
-import { NewsItem } from "@/types/Common";
-import { Nation } from "@/types/Nation";
-import { GameMap } from "@/types/Map";
-import { StateCreator } from 'zustand';
 import { initWorld } from "@/testing/worldInit";
-import { WorkerType, Worker } from "@/types/Workers";
-import { TerrainType } from "@/types/Tile";
-import { ResourceType } from "@/types/Resource";
-import { runTurnPhases } from "./phases";
-import { WorkerLevelDurationsTurns, EngineerBuildDurationsTurns } from "@/definisions/workerDurations";
-import {
-  PROSPECTABLE_TERRAIN_TYPES,
-  FARMING_TERRAINS,
-  RANCHING_TERRAINS,
-  FORESTRY_TERRAINS,
-  MINING_TERRAINS,
-  DRILLING_TERRAINS,
-} from "../definisions/terrainDefinitions";
-import { MINERAL_RESOURCES } from "../definisions/resourceDefinitions";
+import { NewsItem } from "@/types/Common";
 import { GameState } from "@/types/GameState";
+import { GameMap } from "@/types/Map";
+import { Nation } from "@/types/Nation";
+import { WorkerType } from "@/types/Workers";
+import { StateCreator } from 'zustand';
 import {
   moveSelectedWorkerToTileHelper,
-  startProspectingHelper,
-  startDevelopmentHelper,
   startConstructionHelper,
+  startDevelopmentHelper,
+  startProspectingHelper,
 } from "./helpers/workerHelpers";
+import { runTurnPhases } from "./phases";
 
 export interface GameStateSlice extends GameState {
   // Actions
@@ -58,15 +46,19 @@ export const createGameStateSlice: StateCreator<GameStateSlice> = (set, get) => 
     treaties: [],
     tradePolicies: [],
     grants: [],
-    transportNetwork: { routes: [] },
+    transportNetwork: { railroads: [], shippingLanes: [], capacity: 0 },
     tradeRoutes: [],
-    industry: { factories: [] },
+    industry: {
+      buildings: [],
+      labour: { untrained: 0, trained: 0, expert: 0, availableThisTurn: 0 },
+      power: 0,
+    },
     technologyState: {
       oilDrillingTechUnlocked: false,
       technologies: [],
     },
     turnOrder: {
-      phases: ["diplomacy", "trade", "production", "combat", "interceptions", "logistics"],
+      phases: ["diplomacy", "trade", "production", "combat", "interceptions", "logistics"] as const,
     },
 
     // Actions
@@ -79,34 +71,36 @@ export const createGameStateSlice: StateCreator<GameStateSlice> = (set, get) => 
       const nextTurn = state.turn + 1;
       const nextYear = state.year + (state.turn % 4 === 0 ? 1 : 0); // Advance year every 4 turns (seasons)
 
-    // Orchestrate phases
-    const newMap = runTurnPhases(state.map, state.turn, nextTurn);
+      // Orchestrate phases
+      const newMap = runTurnPhases(state.map, state.turn, nextTurn);
 
-    return {
-      turn: nextTurn,
-      year: nextYear,
-      map: newMap,
-    };
-  }),
+      return {
+        turn: nextTurn,
+        year: nextYear,
+        map: newMap,
+      };
+    }),
     addNews: (news: NewsItem) => set((state) => ({
-        newsLog: [...state.newsLog, news]
+      newsLog: [...state.newsLog, news]
     })),
     setNations: (nations: Nation[]) => set({ nations }),
     setMap: (map: GameMap) => set({ map }),
 
     moveSelectedWorkerToTile: (targetTileId: string, selectedWorkerId: string) => {
-        set((state) => moveSelectedWorkerToTileHelper(state, targetTileId, selectedWorkerId));
+      set((state) => moveSelectedWorkerToTileHelper(state, targetTileId, selectedWorkerId));
     },
 
     startProspecting: (tileId: string, workerId: string) => {
-        set((state) => startProspectingHelper(state, tileId, workerId));
+      set((state) => startProspectingHelper(state, tileId, workerId));
     },
 
     startDevelopment: (tileId: string, workerId: string, workerType: WorkerType, targetLevel: 1 | 2 | 3) => {
-        set((state) => startDevelopmentHelper(state, tileId, workerId, workerType, targetLevel));
+      set((state) => startDevelopmentHelper(state, tileId, workerId, workerType, targetLevel));
     },
 
     startConstruction: (tileId: string, workerId: string, kind: "depot" | "port" | "fort" | "rail") => {
-        set((state) => startConstructionHelper(state, tileId, workerId, kind));
+      set((state) => startConstructionHelper(state, tileId, workerId, kind));
     },
-});
+  };
+
+}

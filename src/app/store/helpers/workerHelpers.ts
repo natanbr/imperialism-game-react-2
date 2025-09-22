@@ -1,17 +1,11 @@
+
+import { MINERAL_RESOURCES } from '@/definisions/resourceDefinitions';
+import { DRILLING_TERRAINS, FARMING_TERRAINS, FORESTRY_TERRAINS, MINING_TERRAINS, PROSPECTABLE_TERRAIN_TYPES, RANCHING_TERRAINS } from '@/definisions/terrainDefinitions';
+import { EngineerBuildDurationsTurns, WorkerLevelDurationsTurns } from "@/definisions/workerDurations";
 import { GameState } from "@/types/GameState";
-import { Worker, WorkerType } from "@/types/Workers";
-import { TerrainType } from "@/types/Tile";
-import {
-  FARMING_TERRAINS,
-  RANCHING_TERRAINS,
-  FORESTRY_TERRAINS,
-  MINING_TERRAINS,
-  DRILLING_TERRAINS,
-  PROSPECTABLE_TERRAIN_TYPES,
-} from "@/app/definisions/terrainDefinitions";
-import { MINERAL_RESOURCES } from "@/app/definisions/resourceDefinitions";
 import { ResourceType } from "@/types/Resource";
-import { WorkerLevelDurationsTurns, EngineerBuildDurationsTurns } from "@/definisions/workerDurations";
+import { TerrainType } from "@/types/Tile";
+import { Worker, WorkerType } from "@/types/Workers";
 
 export const moveSelectedWorkerToTileHelper = (
   state: GameState,

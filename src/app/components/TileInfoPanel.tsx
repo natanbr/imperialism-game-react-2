@@ -14,7 +14,7 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
   const startProspecting = useGameStore((s) => s.startProspecting);
   const startDevelopment = useGameStore((s) => s.startDevelopment);
   const startConstruction = useGameStore((s) => s.startConstruction);
-  const oilDrillingTechUnlocked = useGameStore((s) => s.oilDrillingTechUnlocked);
+  const oilDrillingTechUnlocked = useGameStore((s) => s.technologyState.oilDrillingTechUnlocked);
 
   if (!selectedTile) {
     return <div style={{ padding: "10px" }}>No tile selected</div>;
