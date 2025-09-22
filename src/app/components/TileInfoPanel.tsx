@@ -32,14 +32,23 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
   // New workers: show simple status if a job is running
   const dev = selectedTile.developmentJob;
   const con = selectedTile.constructionJob;
+  const hasActiveDev = !!dev && !dev.completed;
+  const hasActiveCon = !!con && !con.completed;
+  const hasActiveProspecting = !!selectedTile.prospecting;
 
   // Controls: allow starting development/construction using the selected worker
   const selectedWorker = selectedTile.workers.find(w => w.id === selectedWorkerId);
-  const canStartAnyJob = !!selectedWorker && !dev && !con && !selectedTile.prospecting;
+  const canStartAnyJob = !!selectedWorker && !hasActiveDev && !hasActiveCon && !hasActiveProspecting;
 
   const startL1 = () => selectedWorker && startDevelopment(selectedTile.id, selectedWorker.id, selectedWorker.type, 1);
   const startL2 = () => selectedWorker && startDevelopment(selectedTile.id, selectedWorker.id, selectedWorker.type, 2);
   const startL3 = () => selectedWorker && startDevelopment(selectedTile.id, selectedWorker.id, selectedWorker.type, 3);
+
+  // Enable only the next valid level: if resource is undefined or level is N, only N+1 is enabled
+  const currentLevel = selectedTile.resource?.level ?? 0;
+  const enableL1 = currentLevel === 0;
+  const enableL2 = currentLevel === 1;
+  const enableL3 = currentLevel === 2;
 
   const startDepot = () => selectedWorker && startConstruction(selectedTile.id, selectedWorker.id, "depot");
   const startPort = () => selectedWorker && startConstruction(selectedTile.id, selectedWorker.id, "port");
@@ -76,9 +85,9 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
         <div style={{ marginTop: 10 }}>
           <div style={{ marginBottom: 4 }}><strong>Development:</strong> {workerHint}</div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            <button onClick={startL1} title="Target Level 1" style={{ padding: "4px 8px" }}>L1</button>
-            <button onClick={startL2} title="Target Level 2" style={{ padding: "4px 8px" }}>L2</button>
-            <button onClick={startL3} title="Target Level 3" style={{ padding: "4px 8px" }}>L3</button>
+            <button onClick={startL1} title="Target Level 1" style={{ padding: "4px 8px", opacity: enableL1 ? 1 : 0.5, cursor: enableL1 ? "pointer" : "not-allowed" }} disabled={!enableL1}>L1</button>
+            <button onClick={startL2} title="Target Level 2" style={{ padding: "4px 8px", opacity: enableL2 ? 1 : 0.5, cursor: enableL2 ? "pointer" : "not-allowed" }} disabled={!enableL2}>L2</button>
+            <button onClick={startL3} title="Target Level 3" style={{ padding: "4px 8px", opacity: enableL3 ? 1 : 0.5, cursor: enableL3 ? "pointer" : "not-allowed" }} disabled={!enableL3}>L3</button>
           </div>
           {selectedWorker.type === WorkerType.Driller && !oilDrillingTechUnlocked && (
             <div style={{ marginTop: 4, color: "#ffa726" }}>Requires Oil Drilling tech</div>

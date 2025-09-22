@@ -103,7 +103,7 @@ export const TileComponent: React.FC<TileProps> = ({ tile }) => {
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <span>{resourceIcons[resource.type] || "❓"}</span>
           <span aria-label={`Development level ${resource.level}`} style={{ fontSize: 12 }}>
-            {"🏗️".repeat(Math.min(3, Math.max(0, resource.level)))}
+            {"🏗️".repeat(resource.level)}
           </span>
           <span>(L{resource.level})</span>
         </div>

@@ -162,7 +162,8 @@ export const createGameStateSlice: StateCreator<GameStateSlice> = (set, get) => 
 
       // Validate worker is on tile and of given type
       const workerOnTile = tile.workers.some(w => w.id === workerId && w.type === workerType);
-      if (!workerOnTile || tile.developmentJob) return {};
+      // Allow starting a new development if any existing development job is already completed
+      if (!workerOnTile || (tile.developmentJob && !tile.developmentJob.completed)) return {};
 
       // Validate terrain per workerType
       const terrainValid = (

@@ -15,7 +15,7 @@ const resolveProspectingOnTile = (tile: Tile, nextTurn: number): Tile => {
     } else if (t.terrain === TerrainType.Swamp || t.terrain === TerrainType.Desert || t.terrain === TerrainType.Tundra) {
       discoveredType = ResourceType.Oil;
     }
-    const newResource = discoveredType ? { type: discoveredType, level: 1, discovered: true } : t.resource;
+    const newResource = discoveredType ? { type: discoveredType, level: 0, discovered: true } : t.resource;
     t = { ...t, resource: newResource, prospecting: undefined };
   }
   return t;
