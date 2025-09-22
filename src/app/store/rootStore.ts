@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { createTileSelectionSlice, TileSelectionSlice } from './controls/tileSelectionSlice';
-import { createUiSlice, UiSlice } from './controls/uiSlice';
 import { createGameStateSlice, GameStateSlice } from './gameSlice';
+import { createCameraSlice, CameraSlice } from './controls/cameraSlice';
+import { createOverlaySlice, OverlaySlice } from './controls/overlaySlice';
 
 export type GameStore =
   & GameStateSlice
@@ -15,9 +16,10 @@ export type GameStore =
   // & IndustrySlice
   // & TechnologySlice
   & TileSelectionSlice
-  & UiSlice;
+  & CameraSlice
+  & OverlaySlice;
 
-  export const useGameStore = create<GameStore>()((...a) => ({
+export const useGameStore = create<GameStore>()((...a) => ({
   ...createGameStateSlice(...a),
   // ...createCitySlice(...a),
   // ...createArmySlice(...a),
@@ -28,6 +30,7 @@ export type GameStore =
   // ...createTransportSlice(...a),
   // ...createIndustrySlice(...a),
   // ...createTechnologySlice(...a),
-  ...createUiSlice(...a),
+  ...createCameraSlice(...a),
+  ...createOverlaySlice(...a),
   ...createTileSelectionSlice(...a),
 }));

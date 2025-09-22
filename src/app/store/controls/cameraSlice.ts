@@ -1,14 +1,14 @@
 import { StateCreator } from 'zustand';
 
-// store/uiSlice.ts
-export interface UiSlice {
+// store/cameraSlice.ts
+export interface CameraSlice {
   cameraX: number;
   cameraY: number;
   setCamera: (x: number, y: number) => void;
   moveCamera: (dx: number, dy: number) => void;
 }
 
-export const createUiSlice: StateCreator<UiSlice> = (set) => ({
+export const createCameraSlice: StateCreator<CameraSlice> = (set) => ({
   cameraX: 0,
   cameraY: 0,
   setCamera: (x, y) => set({ cameraX: x, cameraY: y }),

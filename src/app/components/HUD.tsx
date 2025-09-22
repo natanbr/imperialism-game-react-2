@@ -8,6 +8,7 @@ export const HUD: React.FC = () => {
     const turn = useGameStore((s) => s.turn);
     const year = useGameStore((s) => s.year);
     const advanceTurn = useGameStore((s) => s.advanceTurn);
+    const openWarehouse = useGameStore((s) => s.openWarehouse);
 
     const selectedTile = map.tiles.flat().find(tile => tile.id === selectedTileId);
 
@@ -40,7 +41,21 @@ export const HUD: React.FC = () => {
         </div>
 
         {/* Bottom controls */}
-        <div style={{ marginTop: 12 }}>
+        <div style={{ marginTop: 12, display: 'grid', gap: 8 }}>
+          <button
+            onClick={openWarehouse}
+            style={{
+              width: "100%",
+              padding: "8px 12px",
+              background: "#1976d2",
+              color: "#fff",
+              border: "none",
+              borderRadius: 4,
+              cursor: "pointer",
+            }}
+          >
+            Open Warehouse 📦
+          </button>
           <button
             onClick={advanceTurn}
             style={{

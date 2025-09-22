@@ -69,10 +69,29 @@
     - Engineer → build depot, port, fort, rail.
     - Each action improves resource level (per Resource Development Table).
 
+### Warehouse
+✅ - Goal: Add warehouse screen (popup modal) showing stockpiles.
+- Details:
+    - add open warehouse button to the hud to open warehouse screen
+    - Display all resources, materials, goods owned by the nation.
+    
+    - Update each turn from transport.
+
 ## Phase 3: Transport Network
+#### Step 3.1 – depot + port improvments
+- Goal: improve depot and port building (by engineer)
+- Details:
+- each capital must have hasriver set to true
+- port can be built only on tile with river=true or a tile adjust to ocean
+- add uniqu icons for port and depot (show icons only if was built)
+- Any adjacent improved tile auto‑connected to capital.
+
 #### Step 3.1 – Capital Auto-Connection
 - Goal: Capital tile acts as depot + port.
 - Details:
+- each capital must have hasriver set to true
+- port can be built only on tile with river=true or a tile adjust to ocean
+- add icons for port and show port icon only if port was built
 - Any adjacent improved tile auto‑connected to capital.
 
 #### Step 3.2 – Engineer Builds Depot
@@ -90,12 +109,6 @@
 - Test: If capacity < production, some resources remain untransported.
 
 ## Phase 4: Industry
-#### Step 4.1 – Warehouse
-- Goal: Add warehouse screen showing stockpiles.
-- Details:
-- Display all resources, materials, goods.
-- Update each turn from transport.
-- Test: Improve farm → grain appears in warehouse.
 
 #### Step 4.2 – Industry Buildings
 - Goal: Add Textile Mill, Lumber Mill, Steel Mill, Food Processing.
