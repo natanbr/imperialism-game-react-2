@@ -68,6 +68,7 @@ export const createGameStateSlice: StateCreator<GameStateSlice> = (set, get) => 
   setMap: (map: GameMap) => set({ map }),
 
   // Movement: allow movement to any owned land tile of same nation
+  // NOTE: Workers cannot move while they have an active job (prospecting/development/construction)
   moveSelectedWorkerToTile: (targetTileId: string, selectedWorkerId: string) => {
     const state = get(); 
 
@@ -85,6 +86,16 @@ export const createGameStateSlice: StateCreator<GameStateSlice> = (set, get) => 
       }
     }
     if (!worker) return;
+
+    // If this worker has an active job on its current tile, block movement
+    const fromTile = map.tiles[fromY]?.[fromX];
+    if (!fromTile) return;
+    const working = (
+      (fromTile.prospecting?.workerId === selectedWorkerId) ||
+      (fromTile.developmentJob && fromTile.developmentJob.workerId === selectedWorkerId && !fromTile.developmentJob.completed) ||
+      (fromTile.constructionJob && fromTile.constructionJob.workerId === selectedWorkerId && !fromTile.constructionJob.completed)
+    );
+    if (working) return; // cannot move while job is in progress
 
     // Locate target tile
     const [tx, ty] = targetTileId.split('-').map(Number);
@@ -175,6 +186,10 @@ export const createGameStateSlice: StateCreator<GameStateSlice> = (set, get) => 
         const hasTech = get().oilDrillingTechUnlocked === true;
         if (!isOil || !tile.resource?.discovered || !hasTech) return {};
       }
+
+      // Sequential development gating: must complete L1 -> L2 -> L3 in order
+      const currentLevel = tile.resource?.level ?? 0;
+      if (targetLevel !== (currentLevel + 1)) return {}; // only allow next level
 
       // Get duration from table; fallback to 1
       const duration = WorkerLevelDurationsTurns[workerType]?.[targetLevel] ?? 1;

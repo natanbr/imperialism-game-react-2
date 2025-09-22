@@ -100,8 +100,12 @@ export const TileComponent: React.FC<TileProps> = ({ tile }) => {
       <div>{terrain}</div>
       {hasRiver && <div style={{ fontSize: "12px" }}>🌊</div>}
       {resource && (
-        <div>
-          {resourceIcons[resource.type] || "❓"} (L{resource.level})
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <span>{resourceIcons[resource.type] || "❓"}</span>
+          <span aria-label={`Development level ${resource.level}`} style={{ fontSize: 12 }}>
+            {"🏗️".repeat(Math.min(3, Math.max(0, resource.level)))}
+          </span>
+          <span>(L{resource.level})</span>
         </div>
       )}
       {/* Worker selection buttons (all workers present on tile) */}
@@ -136,6 +140,9 @@ export const TileComponent: React.FC<TileProps> = ({ tile }) => {
       )}
 
       {/* Simple icons indicating a job is in progress on this tile */}
+      {tile.prospecting && (
+        <div title="Prospecting in progress" style={{ position: "absolute", top: 4, right: 4, fontSize: 14 }}>⏳</div>
+      )}
       {tile.developmentJob && !tile.developmentJob.completed && (
         <div title="Development in progress" style={{ position: "absolute", bottom: 4, right: 4, fontSize: 14 }}>⏳</div>
       )}
