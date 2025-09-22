@@ -1,11 +1,10 @@
-// Empty createDiplomacySlice for Zustand store composition
-export const createDiplomacySlice = () => ({});
-import { Relation, Treaty, TradePolicy, Grant } from "@/types/Diplomacy";
+import { StateCreator } from "zustand";
+import { GameState } from "@/types/GameState";
 
 export interface DiplomacySlice {
-  relations: Relation[];
-  treaties: Treaty[];
-  tradePolicies: TradePolicy[];
-  grants: Grant[];
   // actions: proposeTreaty, declareWar, sendGrant, setTradePolicy...
 }
+
+export const createDiplomacySlice: StateCreator<GameState, [], [], DiplomacySlice> = (set) => ({
+  // initial state for diplomacy slice
+});

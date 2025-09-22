@@ -1,8 +1,10 @@
-// Empty createTradeSlice for Zustand store composition
-export const createTradeSlice = () => ({});
-import { TradeRoute } from "@/types/TradeRoute";
+import { StateCreator } from "zustand";
+import { GameState } from "@/types/GameState";
 
 export interface TradeSlice {
-  tradeRoutes: TradeRoute[];
   // actions: addTradeRoute, cancelTradeRoute, resolveTradeTurn...
 }
+
+export const createTradeSlice: StateCreator<GameState, [], [], TradeSlice> = (set) => ({
+  // initial state for trade slice
+});

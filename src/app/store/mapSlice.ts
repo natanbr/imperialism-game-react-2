@@ -1,8 +1,10 @@
-// Empty createMapSlice for Zustand store composition
-import { GameMap } from "@/types/Map";
-import { StateCreator } from 'zustand';
+import { StateCreator } from "zustand";
+import { GameState } from "@/types/GameState";
 
 export interface MapSlice {
-  map: GameMap;
   // actions: generateMap, revealTile, setOwnership...
 }
+
+export const createMapSlice: StateCreator<GameState, [], [], MapSlice> = (set) => ({
+  // initial state for map slice
+});
