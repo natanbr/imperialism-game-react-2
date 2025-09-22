@@ -1,8 +1,10 @@
-// Empty createTransportSlice for Zustand store composition
-export const createTransportSlice = () => ({});
-import { TransportNetwork } from "@/types/Transport";
+import { StateCreator } from "zustand";
+import { GameState } from "@/types/GameState";
 
 export interface TransportSlice {
-  transportNetwork: TransportNetwork;
   // actions: buildRail, buildDepot, allocateTransportCapacity...
 }
+
+export const createTransportSlice: StateCreator<GameState, [], [], TransportSlice> = (set) => ({
+  // initial state for transport slice
+});

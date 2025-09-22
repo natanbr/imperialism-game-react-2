@@ -1,8 +1,10 @@
-// Empty createArmySlice for Zustand store composition
-export const createArmySlice = () => ({});
-import { Army } from "@/types/Army";
+import { StateCreator } from "zustand";
+import { GameState } from "@/types/GameState";
 
 export interface ArmySlice {
-  armies: Army[];
   // actions: createArmy, moveArmy, mergeArmies, resolveBattle...
 }
+
+export const createArmySlice: StateCreator<GameState, [], [], ArmySlice> = (set) => ({
+  // initial state for army slice
+});

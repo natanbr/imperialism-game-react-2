@@ -2,10 +2,12 @@ import { Tile, TerrainType } from "@/types/Tile";
 import React from "react";
 import { useGameStore } from "../store/rootStore";
 import { WorkerType } from "@/types/Workers";
+import { PROSPECTABLE_TERRAIN_TYPES } from "../definisions/terrainDefinitions";
+import { DEVELOPMENT_WORKER_TYPES } from "../definisions/workerDefinitions";
 
 interface TileInfoPanelProps {
   selectedTile: Tile | undefined;
-}   
+}
 
 export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) => {
   const selectedWorkerId = useGameStore((s) => s.selectedWorkerId);
@@ -18,13 +20,7 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
     return <div style={{ padding: "10px" }}>No tile selected</div>;
   }
 
-  const terrainAllowsProspecting = [
-    TerrainType.BarrenHills,
-    TerrainType.Mountains,
-    TerrainType.Swamp,
-    TerrainType.Desert,
-    TerrainType.Tundra,
-  ].includes(selectedTile.terrain);
+  const terrainAllowsProspecting = PROSPECTABLE_TERRAIN_TYPES.includes(selectedTile.terrain);
 
   const prospectorOnTile = selectedTile.workers.find(w => w.id === selectedWorkerId && w.type === WorkerType.Prospector);
   const canProspect = !!prospectorOnTile && terrainAllowsProspecting && !selectedTile.prospecting;
@@ -81,7 +77,7 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
       )}
 
       {/* Development controls (Farmer/Rancher/Forester/Miner/Driller) */}
-      {canStartAnyJob && selectedWorker && [WorkerType.Farmer, WorkerType.Rancher, WorkerType.Forester, WorkerType.Miner, WorkerType.Driller].includes(selectedWorker.type) && (
+      {canStartAnyJob && selectedWorker && DEVELOPMENT_WORKER_TYPES.includes(selectedWorker.type) && (
         <div style={{ marginTop: 10 }}>
           <div style={{ marginBottom: 4 }}><strong>Development:</strong> {workerHint}</div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>

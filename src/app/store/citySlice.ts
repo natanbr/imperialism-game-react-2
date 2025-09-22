@@ -1,8 +1,10 @@
-// Empty createCitySlice for Zustand store composition
-export const createCitySlice = () => ({});
-import { City } from "@/types/City";
+import { StateCreator } from "zustand";
+import { GameState } from "@/types/GameState";
 
 export interface CitySlice {
-  cities: City[];
   // actions: addCity, queueProduction, completeProduction, updateInfrastructure...
 }
+
+export const createCitySlice: StateCreator<GameState, [], [], CitySlice> = (set) => ({
+  // initial state for city slice
+});

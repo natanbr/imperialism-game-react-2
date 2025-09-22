@@ -7,8 +7,9 @@ import { TradeRoute } from "./TradeRoute";
 import { TransportNetwork } from "./Transport";
 import { GameMap } from "./Map";
 import { IndustryState } from "./Industry";
-import { Technology } from "./Technology";
+import { Technology, TechnologyState } from "./Technology";
 import { NewsItem } from "./Common";
+import { Relation, Treaty, TradePolicy, Grant } from "./Diplomacy";
 
 export interface TurnOrderSummary {
   // Per manual:
@@ -38,13 +39,18 @@ export interface GameState {
   armies: Army[];
   fleets: Fleet[];
 
+  relations: Relation[];
+  treaties: Treaty[];
+  tradePolicies: TradePolicy[];
+  grants: Grant[];
+
   map: GameMap;
   transportNetwork: TransportNetwork;
 
   tradeRoutes: TradeRoute[]; // optional if you model manual trade as global rather than fixed routes
 
   industry: IndustryState;   // if centralized; otherwise per-nation industry states in Nation extensions
-  technologies: Technology[];
+  technologyState: TechnologyState;
 
   newsLog: NewsItem[];
   turnOrder: TurnOrderSummary;

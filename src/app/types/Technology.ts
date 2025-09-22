@@ -11,3 +11,8 @@ export interface Technology {
   purchased: boolean;
   cost: number;
 }
+
+export interface TechnologyState {
+  oilDrillingTechUnlocked: boolean;
+  technologies: Technology[];
+}

@@ -1,8 +1,10 @@
-// Empty createIndustrySlice for Zustand store composition
-export const createIndustrySlice = () => ({});
-import { IndustryState } from "@/types/Industry";
+import { StateCreator } from "zustand";
+import { GameState } from "@/types/GameState";
 
 export interface IndustrySlice {
-  industry: IndustryState;
   // actions: buildFactory, allocateLabour, processProduction...
 }
+
+export const createIndustrySlice: StateCreator<GameState, [], [], IndustrySlice> = (set) => ({
+  // initial state for industry slice
+});

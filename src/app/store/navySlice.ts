@@ -1,8 +1,10 @@
-// Empty createNavySlice for Zustand store composition
-export const createNavySlice = () => ({});
-import { Fleet } from "@/types/Navy";
+import { StateCreator } from "zustand";
+import { GameState } from "@/types/GameState";
 
 export interface NavySlice {
-  fleets: Fleet[];
   // actions: createFleet, moveFleet, blockadePort, resolveNavalBattle...
 }
+
+export const createNavySlice: StateCreator<GameState, [], [], NavySlice> = (set) => ({
+  // initial state for navy slice
+});
