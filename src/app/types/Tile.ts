@@ -53,6 +53,8 @@ export interface Tile {
   visible: boolean;
   port?: boolean;               // built port
   depot?: boolean;              // built rail depot
+  activePort?: boolean;         // computed in transportation-connectivity
+  activeDepot?: boolean;        // computed in transportation-connectivity
   fortLevel?: number;           // 0..3
   connected?: boolean;          // transport connection status
 }

@@ -84,21 +84,29 @@
     - resources are collected from all tiles adjusted to the capital, depot and port and the tile the deport and port is on. 
 
 ### 3.2 - Update map structure 
-- goal: map shuld be structured in a with briks pattern (half tile shift)
+✅ - goal: map shuld be structured in a with briks pattern (half tile shift)
 - Details:
     - add half tile shift to the map.
     - each tile has 2 adjacent tiles on top, two on each side and two bellow. 
     The tiles on top and on bottom has only half lower border shared each
     - document this information about the defenition of adjucent tiles in the repo.md file for next tasks
 
-
 #### Step 3.3 – depot + port improvments
 - Goal: improve depot and port building (by engineer)
 - Details:
-    - each capital must have hasriver set to true
-    - port can be built only on tile with river=true or a tile adjust to ocean
-    - add uniqu icons for port and depot (show icons only if was built)
-    - Any adjacent improved tile auto‑connected to capital.
+    - depot and ports will have a active and inactive state
+    - active depot will transport the resources from the adjacent tiles, inactive doesn't (won't increase the warehouse stockpile)
+    - depot must be connected to the capital via railroad or active port 
+    - railroad must be connected and pass though the land of the same nation
+    - let's add small green and red flag next to the port and depot to indicate if its active or not
+- Architecture guidelines:
+    - the railroad connectivity will be calculated in the `runTurnPhases` as a new step between combat and production
+
+
+- two depots can't be built on adjusent tiles
+- limit the goods trasported by the port depending on nation ships capacity 
+- worker can't start work on the same turn it was moved
+- after city is captrured re-calcualte all railroad connections 
 
 #### Step 3.2 – Engineer Builds Depot
 - Goal: Engineer can build depot on a tile.
@@ -174,6 +182,11 @@
 - Each province = 1 vote.
 - Two leading powers nominated.
 - Test: Trigger council → votes displayed.
+
+## Technical debt
+### TODOS: 
+- generate rivers
+
 
 ✅ Summary
 We now have a step‑by‑step roadmap where:

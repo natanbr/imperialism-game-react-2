@@ -71,10 +71,11 @@ The primary objective is to achieve dominance through the **Council of Governors
 Each turn follows a specific phase order:
 1. **Diplomacy Phase** - Diplomatic offers exchange
 2. **Trade Phase** - Trade deals resolve
-3. **Production Phase** - Industrial production occurs
-4. **Combat Phase** - Military conflicts resolve
-5. **Interceptions Phase** - Blockades cancel trades
-6. **Logistics Phase** - Internal transport + successful trades to warehouse
+3. **Combat Phase** - Military conflicts resolve
+4. **Transportation-Connectivity** - Compute active depots/ports via rail connectivity to capital or ocean ports
+5. **Production Phase** - Industrial production occurs
+6. **Interceptions Phase** - Blockades cancel trades
+7. **Logistics Phase** - Internal transport + successful trades to warehouse
 
 ### Core Game Systems
 

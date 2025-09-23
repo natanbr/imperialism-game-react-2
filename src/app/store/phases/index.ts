@@ -37,8 +37,8 @@ export function runTurnPhases(map: GameMap, currentTurn: number, nextTurn: numbe
   // Subsequent phases (placeholders)
   m = diplomacyPhase(m);
   m = tradePhase(m);
-  m = productionPhase(m);
   m = combatPhase(m);
+  m = productionPhase(m);
   m = interceptionsPhase(m);
   m = logisticsPhase(m);
 

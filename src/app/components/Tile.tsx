@@ -109,12 +109,18 @@ export const TileComponent: React.FC<TileProps> = ({ tile }) => {
         </div>
       )}
 
-      {/* Built infrastructure icons */}
+      {/* Built infrastructure icons with active flags */}
       {tile.depot && (
-        <div title="Depot" style={{ position: "absolute", top: 4, left: 4, fontSize: 16 }}>🏬</div>
+        <div title="Depot" style={{ position: "absolute", top: 4, left: 4, fontSize: 16, display: "flex", alignItems: "center", gap: 2 }}>
+          <span>🏬</span>
+          <span style={{ fontSize: 12 }}>{tile.activeDepot ? "🟢" : "🔴"}</span>
+        </div>
       )}
       {tile.port && (
-        <div title="Port" style={{ position: "absolute", top: 4, left: 22, fontSize: 16 }}>⚓</div>
+        <div title="Port" style={{ position: "absolute", top: 4, left: 28, fontSize: 16, display: "flex", alignItems: "center", gap: 2 }}>
+          <span>⚓</span>
+          <span style={{ fontSize: 12 }}>{tile.activePort ? "🟢" : "🔴"}</span>
+        </div>
       )}
 
       {/* Worker selection buttons (all workers present on tile) */}

@@ -14,9 +14,10 @@ export const runTurnPhases = (state: GameState, nextTurn: number): GameState => 
   const updatedNations = runLogisticsForNations(afterDev, state.nations);
   const afterDip = runDiplomacyPhase(afterDev);
   const afterTrade = runTradePhase(afterDip);
-  const afterProd = runProductionPhase(afterTrade);
-  const afterCombat = runCombatPhase(afterProd);
-  const afterInter = runInterceptionsPhase(afterCombat);
+  const afterCombat = runCombatPhase(afterTrade);
+  const afterConnectivity = runTransportationConnectivity(afterCombat);
+  const afterProd = runProductionPhase(afterConnectivity);
+  const afterInter = runInterceptionsPhase(afterProd);
   const finalMap = runLogisticsPhase(afterInter);
 
 
@@ -108,6 +109,123 @@ export const runTradePhase = (map: GameMap): GameMap => map;
 export const runProductionPhase = (map: GameMap): GameMap => map;
 export const runCombatPhase = (map: GameMap): GameMap => map;
 export const runInterceptionsPhase = (map: GameMap): GameMap => map;
+
+// New step: transportation-connectivity (compute active depots and ports based on connectivity rules)
+export const runTransportationConnectivity = (map: GameMap): GameMap => {
+  const cols = map.config.cols;
+  const rows = map.config.rows;
+  const tiles = map.tiles.map(row => row.map(t => ({ ...t, activeDepot: false, activePort: false })));
+
+  // Utility helpers
+  const key = (x: number, y: number) => `${x},${y}`;
+  const inBounds = (x: number, y: number) => x >= 0 && x < cols && y >= 0 && y < rows;
+  const neighbors = (x: number, y: number) => {
+    const isOddRow = y % 2 === 1;
+    const top: [number, number][] = isOddRow ? [[x, y - 1], [x + 1, y - 1]] : [[x - 1, y - 1], [x, y - 1]];
+    const bottom: [number, number][] = isOddRow ? [[x, y + 1], [x + 1, y + 1]] : [[x - 1, y + 1], [x, y + 1]];
+    const side: [number, number][] = [[x - 1, y], [x + 1, y]];
+    return [...top, ...side, ...bottom].filter(([nx, ny]) => inBounds(nx, ny));
+  };
+
+  // Build rail graph per nation: land tiles with connected=true and same owner
+  type Node = { x: number; y: number };
+  const railGraphByNation = new Map<string, Map<string, Node[]>>();
+  const capitalsByNation = new Map<string, Node>();
+  const portsByNation: Map<string, Node[]> = new Map();
+  const depotsByNation: Map<string, Node[]> = new Map();
+
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      const t = tiles[y][x];
+      if (!t.ownerNationId) continue;
+      const nation = t.ownerNationId;
+      if (t.terrain === TerrainType.Capital) capitalsByNation.set(nation, { x, y });
+      if (t.port) {
+        const arr = portsByNation.get(nation) ?? [];
+        arr.push({ x, y });
+        portsByNation.set(nation, arr);
+      }
+      if (t.depot) {
+        const arr = depotsByNation.get(nation) ?? [];
+        arr.push({ x, y });
+        depotsByNation.set(nation, arr);
+      }
+      // Rail nodes: land only, owned, and connected flag true
+      const isLand = ![TerrainType.Water, TerrainType.Coast, TerrainType.River].includes(t.terrain);
+      if (isLand && t.connected) {
+        const g = railGraphByNation.get(nation) ?? new Map<string, Node[]>();
+        const k = key(x, y);
+        const adj: Node[] = [];
+        for (const [nx, ny] of neighbors(x, y)) {
+          const n = tiles[ny][nx];
+          const nIsLand = ![TerrainType.Water, TerrainType.Coast, TerrainType.River].includes(n.terrain);
+          if (nIsLand && n.connected && n.ownerNationId === nation) {
+            adj.push({ x: nx, y: ny });
+          }
+        }
+        g.set(k, adj);
+        railGraphByNation.set(nation, g);
+      }
+    }
+  }
+
+  // BFS utility within a nation's rail graph
+  const bfs = (nation: string, starts: Node[]): Set<string> => {
+    const g = railGraphByNation.get(nation) ?? new Map<string, Node[]>();
+    const visited = new Set<string>();
+    const queue: Node[] = [];
+    starts.forEach(s => {
+      const k = key(s.x, s.y);
+      if (g.has(k)) {
+        visited.add(k);
+        queue.push(s);
+      }
+    });
+    while (queue.length) {
+      const cur = queue.shift()!;
+      const k = key(cur.x, cur.y);
+      const nbrs = g.get(k) ?? [];
+      for (const n of nbrs) {
+        const nk = key(n.x, n.y);
+        if (!visited.has(nk)) {
+          visited.add(nk);
+          queue.push(n);
+        }
+      }
+    }
+    return visited;
+  };
+
+  // For each nation: active if connected to capital OR to any active port (port connected to ocean)
+  const isOcean = (t: Tile) => t.terrain === TerrainType.Coast || t.terrain === TerrainType.Water;
+  const isAdjacentToOcean = (x: number, y: number) => {
+    return neighbors(x, y).some(([nx, ny]) => isOcean(tiles[ny][nx]));
+  };
+
+  capitalsByNation.forEach((capitalNode, nation) => {
+    const reachableFromCapital = bfs(nation, [capitalNode]);
+
+    // Ports that are on land, owned, and adjacent to ocean are considered valid rail endpoints
+    const candidatePorts = (portsByNation.get(nation) ?? []).filter(p => isAdjacentToOcean(p.x, p.y));
+    const reachableFromPorts = candidatePorts.length ? bfs(nation, candidatePorts) : new Set<string>();
+
+    const allReachable = new Set<string>([...reachableFromCapital, ...reachableFromPorts]);
+
+    // Mark active depot/port if their tile is in reachable set
+    for (const d of (depotsByNation.get(nation) ?? [])) {
+      const k = key(d.x, d.y);
+      if (allReachable.has(k)) tiles[d.y][d.x].activeDepot = true;
+    }
+    for (const p of (portsByNation.get(nation) ?? [])) {
+      const k = key(p.x, p.y);
+      // Port must also be adjacent to ocean
+      if (allReachable.has(k) && isAdjacentToOcean(p.x, p.y)) tiles[p.y][p.x].activePort = true;
+    }
+  });
+
+  return { ...map, tiles };
+};
+
 // Logistics Phase: compute per-tile production and return a map unchanged (warehouse updates are handled in phases via returned totals)
 export const runLogisticsPhase = (map: GameMap): GameMap => map;
 
@@ -140,7 +258,9 @@ export const computeLogisticsTransport = (map: GameMap, activeNationId: string):
   const hubSet = new Set<string>();
   flatTiles.forEach((t) => {
     if (!isOwnedByActive(t)) return;
-    if (t.depot || t.port || t.terrain === TerrainType.Capital) {
+    // Only active depots/ports qualify, capital always qualifies
+    const isActiveHub = (t.depot && t.activeDepot) || (t.port && t.activePort) || (t.terrain === TerrainType.Capital);
+    if (isActiveHub) {
       hubSet.add(`${t.x},${t.y}`);
     }
   });

@@ -3,8 +3,17 @@ import { TerrainType, Tile } from "@/types/Tile";
 import { ResourceType } from "@/types/Resource";
 import { ProspectorDiscoveryDurationTurns } from "@/definisions/workerDurations";
 
+export function nationDevelopmentPhase(map: GameMap, _currentTurn: number, nextTurn: number): GameMap {
+  let tiles = map.tiles;
+  tiles = resolveProspecting(tiles, nextTurn);
+  tiles = resolveDevelopmentJobs(tiles, nextTurn);
+  tiles = resolveConstructionJobs(tiles, nextTurn);
+  tiles = clearCompletionIndicators(tiles, nextTurn);
+  return { ...map, tiles };
+}
+
 // Resolve prospecting discoveries that are due this turn
-export function resolveProspecting(tiles: Tile[][], nextTurn: number): Tile[][] {
+function resolveProspecting(tiles: Tile[][], nextTurn: number): Tile[][] {
   return tiles.map(row => row.map(tile => {
     let t = { ...tile };
     if (t.prospecting && (nextTurn - t.prospecting.startedOnTurn) >= ProspectorDiscoveryDurationTurns) {
@@ -23,7 +32,7 @@ export function resolveProspecting(tiles: Tile[][], nextTurn: number): Tile[][] 
 }
 
 // Resolve development jobs that complete this turn
-export function resolveDevelopmentJobs(tiles: Tile[][], nextTurn: number): Tile[][] {
+function resolveDevelopmentJobs(tiles: Tile[][], nextTurn: number): Tile[][] {
   return tiles.map(row => row.map(tile => {
     let t = { ...tile };
     if (t.developmentJob && !t.developmentJob.completed) {
@@ -42,7 +51,7 @@ export function resolveDevelopmentJobs(tiles: Tile[][], nextTurn: number): Tile[
 }
 
 // Resolve construction jobs that complete this turn
-export function resolveConstructionJobs(tiles: Tile[][], nextTurn: number): Tile[][] {
+function resolveConstructionJobs(tiles: Tile[][], nextTurn: number): Tile[][] {
   return tiles.map(row => row.map(tile => {
     let t: Tile = { ...tile };
     if (t.constructionJob && !t.constructionJob.completed) {
@@ -63,7 +72,7 @@ export function resolveConstructionJobs(tiles: Tile[][], nextTurn: number): Tile
 }
 
 // Clear completion indicators one turn after being shown
-export function clearCompletionIndicators(tiles: Tile[][], nextTurn: number): Tile[][] {
+function clearCompletionIndicators(tiles: Tile[][], nextTurn: number): Tile[][] {
   return tiles.map(row => row.map(tile => {
     let t: Tile = { ...tile };
     if (t.developmentJob?.completed && t.developmentJob.completedOnTurn && nextTurn > t.developmentJob.completedOnTurn) {
@@ -77,11 +86,3 @@ export function clearCompletionIndicators(tiles: Tile[][], nextTurn: number): Ti
 }
 
 // Orchestrates "Nation Development" phase
-export function nationDevelopmentPhase(map: GameMap, _currentTurn: number, nextTurn: number): GameMap {
-  let tiles = map.tiles;
-  tiles = resolveProspecting(tiles, nextTurn);
-  tiles = resolveDevelopmentJobs(tiles, nextTurn);
-  tiles = resolveConstructionJobs(tiles, nextTurn);
-  tiles = clearCompletionIndicators(tiles, nextTurn);
-  return { ...map, tiles };
-}
