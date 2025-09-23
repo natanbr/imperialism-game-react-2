@@ -193,3 +193,7 @@ This summary provides the essential game mechanics, systems, and flow needed for
 - Always respect bounds: 0 ≤ x < cols, 0 ≤ y < rows.
 - Visual shift is purely presentational; logical adjacency depends on row parity as described.
 - Current usage: Logistics/transport adjacency follows these rules; worker movement remains unchanged.
+
+### Shared Map Helpers
+- **getAdjacentTiles(map, x, y)**: Returns neighboring `Tile[]` per brick-pattern adjacency.
+- **isAdjacentToOcean(map, x, y)**: Returns `true` if any neighboring tile is `Coast` or `Water`. Use for port placement rules and coastal checks.

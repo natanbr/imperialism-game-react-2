@@ -6,6 +6,7 @@ import { GameState } from "@/types/GameState";
 import { ResourceType } from "@/types/Resource";
 import { TerrainType } from "@/types/Tile";
 import { Worker, WorkerType } from "@/types/Workers";
+import { isAdjacentToOcean } from "./mapHelpers";
 
 export const moveSelectedWorkerToTileHelper = (
   state: GameState,
@@ -165,6 +166,12 @@ export const startConstructionHelper = (
 
   const workerOnTile = tile.workers.some((w) => w.id === workerId && w.type === WorkerType.Engineer);
   if (!workerOnTile || tile.constructionJob) return state;
+
+  // Rule: Port can be started only if tile has river OR is adjacent to ocean/coast
+  if (kind === "port") {
+    const canBuildPort = tile.hasRiver === true || isAdjacentToOcean(state.map, tx, ty);
+    if (!canBuildPort) return state;
+  }
 
   const duration = EngineerBuildDurationsTurns[kind] ?? 1;
 

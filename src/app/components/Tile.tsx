@@ -108,6 +108,15 @@ export const TileComponent: React.FC<TileProps> = ({ tile }) => {
           <span>(L{resource.level})</span>
         </div>
       )}
+
+      {/* Built infrastructure icons */}
+      {tile.depot && (
+        <div title="Depot" style={{ position: "absolute", top: 4, left: 4, fontSize: 16 }}>🏬</div>
+      )}
+      {tile.port && (
+        <div title="Port" style={{ position: "absolute", top: 4, left: 22, fontSize: 16 }}>⚓</div>
+      )}
+
       {/* Worker selection buttons (all workers present on tile) */}
       {workers.length > 0 && (
         <div style={{ position: "absolute", bottom: 2, right: 2, display: "flex", gap: 4, flexWrap: "wrap", maxWidth: "96px", justifyContent: "flex-end" }}>

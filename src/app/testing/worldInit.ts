@@ -59,7 +59,7 @@ export function generateStaticOneNationMap(cols: number, rows: number): GameMap 
       x,
       y,
       terrain,
-      hasRiver: terrain === TerrainType.River,
+      hasRiver: terrain === TerrainType.River || terrain === TerrainType.Capital,
       resource,
       workers: [],
       explored: true,
