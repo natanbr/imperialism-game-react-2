@@ -74,10 +74,15 @@
 - Details:
     - add open warehouse button to the hud to open warehouse screen
     - Display all resources, materials, goods owned by the nation.
-    
-    - Update each turn from transport.
 
 ## Phase 3: Transport Network
+#### 3.1 Step Update each turn from transport.
+- Goal: update nation resources (warehouse) each turn with the transported resources.
+    - Details:
+    - Each turn, resources are transported along the network.
+    - Resources should be added to the warehouse. 
+    - resources are collected from all tiles adjusted to the capital, depot and port and the tile the deport and port is on. 
+
 #### Step 3.1 – depot + port improvments
 - Goal: improve depot and port building (by engineer)
 - Details:

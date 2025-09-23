@@ -8,13 +8,14 @@ export interface CameraSlice {
   moveCamera: (dx: number, dy: number) => void;
 }
 
-export const createCameraSlice: StateCreator<CameraSlice> = (set) => ({
+export const createCameraSlice: StateCreator<CameraSlice, [], [], CameraSlice> = (set) => ({
   cameraX: 0,
   cameraY: 0,
   setCamera: (x, y) => set({ cameraX: x, cameraY: y }),
+  // Avoid referencing window during SSR; keep simple deltas
   moveCamera: (dx, dy) =>
     set((state) => ({
-      cameraX: Math.min(Math.max(-100, state.cameraX + dx), window.innerWidth),
-      cameraY: Math.min(Math.max(-100, state.cameraY + dy), window.innerHeight),
+      cameraX: state.cameraX + dx,
+      cameraY: state.cameraY + dy,
     })),
 });

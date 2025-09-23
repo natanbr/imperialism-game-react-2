@@ -14,49 +14,10 @@ A Next.js-based implementation of the classic strategy game "Imperialism" using 
   - **definisions**: Game rules and conversion tables
   - **hooks**: Custom React hooks
   - **store**: Zustand state management slices
+    - **phases.ts**: Orchestrates turn advancement and per-phase logic (diplomacy, trade, production, combat, interceptions, logistics). Contains helpers like `runTurnPhases` and `computeLogisticsTransport` used by the game slice.
   - **testing**: Mock data for development
   - **types**: TypeScript type definitions for game entities
 - **public**: Static assets and images
-
-## Language & Runtime
-**Language**: TypeScript
-**Version**: ES2017 target
-**Framework**: Next.js 15.5.3
-**React Version**: 19.1.0
-**Build System**: Next.js with Turbopack
-**Package Manager**: npm
-
-## Dependencies
-**Main Dependencies**:
-- react: 19.1.0
-- react-dom: 19.1.0
-- next: 15.5.3
-- zustand: ^5.0.8 (State management)
-
-**Development Dependencies**:
-- typescript: ^5
-- tailwindcss: ^4
-- eslint: ^9
-- @types/react: ^19
-- @types/node: ^20
-
-## Build & Installation
-```bash
-# Install dependencies
-npm install
-
-# Development server with hot reload
-npm run dev
-
-# Production build
-npm run build
-
-# Start production server
-npm start
-
-# Linting
-npm run lint
-```
 
 ## Project Architecture
 This project is a React reproduction of the classic strategy game "Imperialism". It uses Next.js as its framework and Tailwind CSS for styling. The project structure is organized into components, hooks, store slices, and types to facilitate modular development.
@@ -118,7 +79,7 @@ Each turn follows a specific phase order:
 ### Core Game Systems
 
 #### 1. Territory & Map System
-- **15x15 grid-based map** with various terrain types
+- **grid-based map** with various terrain types
 - **Terrain Types**: Plains, Hills, Mountains, Forest, Swamp, Desert, Tundra, Coast, River, Town, Capital
 - **Provinces**: Territorial units that provide votes in the Council of Governors
 - **Tiles**: Individual map squares that can contain resources, workers, and improvements

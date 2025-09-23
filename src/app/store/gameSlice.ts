@@ -28,7 +28,7 @@ export interface GameStateSlice extends GameState {
   setOilDrillingTech: (unlocked: boolean) => void;
 }
 
-export const createGameStateSlice: StateCreator<GameStateSlice> = (set, get) => {
+export const createGameStateSlice: StateCreator<GameStateSlice, [], [], GameStateSlice> = (set, get, _store) => {
   const { map, nations } = initWorld({ cols: 5, rows: 5 });
 
   return {
@@ -71,13 +71,13 @@ export const createGameStateSlice: StateCreator<GameStateSlice> = (set, get) => 
       const nextTurn = state.turn + 1;
       const nextYear = state.year + (state.turn % 4 === 0 ? 1 : 0); // Advance year every 4 turns (seasons)
 
-      // Orchestrate phases
-      const newMap = runTurnPhases(state.map, state.turn, nextTurn);
+      // Run all phases and get a new game state (map + nations updated via logistics)
+      const phasedState = runTurnPhases(state, nextTurn);
 
       return {
+        ...phasedState,
         turn: nextTurn,
         year: nextYear,
-        map: newMap,
       };
     }),
     addNews: (news: NewsItem) => set((state) => ({
