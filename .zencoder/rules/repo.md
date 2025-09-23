@@ -183,3 +183,13 @@ Each turn follows a specific phase order:
 
 
 This summary provides the essential game mechanics, systems, and flow needed for accurate code generation when implementing features for the Imperialism game remake.
+
+## Map Layout & Adjacency (Brick Pattern)
+- The map uses a brick pattern layout: every odd row is shifted horizontally by half a tile width.
+- Each tile has up to 6 adjacent tiles:
+  - Top neighbors: if row is odd → (x, y-1) and (x+1, y-1); if row is even → (x-1, y-1) and (x, y-1).
+  - Side neighbors: (x-1, y) and (x+1, y).
+  - Bottom neighbors: if row is odd → (x, y+1) and (x+1, y+1); if row is even → (x-1, y+1) and (x, y+1).
+- Always respect bounds: 0 ≤ x < cols, 0 ≤ y < rows.
+- Visual shift is purely presentational; logical adjacency depends on row parity as described.
+- Current usage: Logistics/transport adjacency follows these rules; worker movement remains unchanged.

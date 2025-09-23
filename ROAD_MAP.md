@@ -77,34 +77,35 @@
 
 ## Phase 3: Transport Network
 #### 3.1 Step Update each turn from transport.
-- Goal: update nation resources (warehouse) each turn with the transported resources.
-    - Details:
+✅ - Goal: update nation resources (warehouse) each turn with the transported resources.
+- Details:
     - Each turn, resources are transported along the network.
     - Resources should be added to the warehouse. 
     - resources are collected from all tiles adjusted to the capital, depot and port and the tile the deport and port is on. 
 
-#### Step 3.1 – depot + port improvments
+### 3.2 - Update map structure 
+- goal: map shuld be structured in a with briks pattern (half tile shift)
+- Details:
+    - add half tile shift to the map.
+    - each tile has 2 adjacent tiles on top, two on each side and two bellow. 
+    The tiles on top and on bottom has only half lower border shared each
+    - document this information about the defenition of adjucent tiles in the repo.md file for next tasks
+
+
+#### Step 3.3 – depot + port improvments
 - Goal: improve depot and port building (by engineer)
 - Details:
-- each capital must have hasriver set to true
-- port can be built only on tile with river=true or a tile adjust to ocean
-- add uniqu icons for port and depot (show icons only if was built)
-- Any adjacent improved tile auto‑connected to capital.
-
-#### Step 3.1 – Capital Auto-Connection
-- Goal: Capital tile acts as depot + port.
-- Details:
-- each capital must have hasriver set to true
-- port can be built only on tile with river=true or a tile adjust to ocean
-- add icons for port and show port icon only if port was built
-- Any adjacent improved tile auto‑connected to capital.
+    - each capital must have hasriver set to true
+    - port can be built only on tile with river=true or a tile adjust to ocean
+    - add uniqu icons for port and depot (show icons only if was built)
+    - Any adjacent improved tile auto‑connected to capital.
 
 #### Step 3.2 – Engineer Builds Depot
 - Goal: Engineer can build depot on a tile.
 - Details:
 - Depot connects adjacent improved tiles to network.
 - Show depot icon.
-- Test: Build depot near farm → farm’s output flows to warehouse.
+- check code for cenario: Build depot near farm → farm’s output flows to warehouse.
 
 #### Step 3.3 – Transport Capacity
 - Goal: Add transport capacity limit.

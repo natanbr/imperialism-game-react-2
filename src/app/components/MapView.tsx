@@ -29,13 +29,15 @@ export const MapView: React.FC = () => {
         <div
           style={{
             transform: `translate(${-cameraX}px, ${-cameraY}px)`,
-            display: "grid",
-            gridTemplateColumns: `repeat(${map.config.cols}, auto)`,
             width: 'max-content',
           }}
         >
-          {map.tiles.flat().map((tile) => (
-            <TileComponent key={tile.id} tile={tile} />
+          {map.tiles.map((row, y) => (
+            <div key={y} style={{ display: "flex", marginLeft: y % 2 === 1 ? 50 : 0 }}>
+              {row.map((tile) => (
+                <TileComponent key={tile.id} tile={tile} />
+              ))}
+            </div>
           ))}
         </div>
 

@@ -146,12 +146,20 @@ export const computeLogisticsTransport = (map: GameMap, activeNationId: string):
   });
 
   const inBounds = (x: number, y: number) => x >= 0 && x < cols && y >= 0 && y < rows;
-  const neighbors = (x: number, y: number) => [
-    [x - 1, y],
-    [x + 1, y],
-    [x, y - 1],
-    [x, y + 1],
-  ].filter(([nx, ny]) => inBounds(nx, ny)).map(([nx, ny]) => `${nx},${ny}`);
+  // Brick pattern adjacency: two above, two sides, two below
+  const neighbors = (x: number, y: number) => {
+    const isOddRow = y % 2 === 1; // odd rows are shifted right visually
+    const top: [number, number][] = isOddRow
+      ? [[x, y - 1], [x + 1, y - 1]]
+      : [[x - 1, y - 1], [x, y - 1]];
+    const bottom: [number, number][] = isOddRow
+      ? [[x, y + 1], [x + 1, y + 1]]
+      : [[x - 1, y + 1], [x, y + 1]];
+    const side: [number, number][] = [[x - 1, y], [x + 1, y]];
+    return [...top, ...side, ...bottom]
+      .filter(([nx, ny]) => inBounds(nx, ny))
+      .map(([nx, ny]) => `${nx},${ny}`);
+  };
 
   const isAdjacentToAnyHub = (t: typeof flatTiles[number]) => {
     const here = `${t.x},${t.y}`;
