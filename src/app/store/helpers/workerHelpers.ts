@@ -2,16 +2,16 @@
 import { MINERAL_RESOURCES } from '@/definisions/resourceDefinitions';
 import { DRILLING_TERRAINS, FARMING_TERRAINS, FORESTRY_TERRAINS, MINING_TERRAINS, PROSPECTABLE_TERRAIN_TYPES, RANCHING_TERRAINS } from '@/definisions/terrainDefinitions';
 import { EngineerBuildDurationsTurns, WorkerLevelDurationsTurns } from "@/definisions/workerDurations";
-import { GameState } from "@/types/GameState";
+import { GameStore } from "../rootStore";
 import { ResourceType } from "@/types/Resource";
 import { TerrainType } from "@/types/Tile";
 import { Worker, WorkerType } from "@/types/Workers";
 
 export const moveSelectedWorkerToTileHelper = (
-  state: GameState,
+  state: GameStore,
   targetTileId: string,
   selectedWorkerId: string
-): GameState => {
+): GameStore => {
   if (!selectedWorkerId) return state;
 
   const map = state.map;
@@ -76,10 +76,10 @@ export const moveSelectedWorkerToTileHelper = (
 };
 
 export const startProspectingHelper = (
-  state: GameState,
+  state: GameStore,
   tileId: string,
   workerId: string
-): GameState => {
+): GameStore => {
   const [tx, ty] = tileId.split("-").map(Number);
   const tile = state.map.tiles[ty]?.[tx];
   if (!tile) return state;
@@ -101,12 +101,12 @@ export const startProspectingHelper = (
 };
 
 export const startDevelopmentHelper = (
-  state: GameState,
+  state: GameStore,
   tileId: string,
   workerId: string,
   workerType: WorkerType,
   targetLevel: 1 | 2 | 3
-): GameState => {
+): GameStore => {
   const [tx, ty] = tileId.split("-").map(Number);
   const tile = state.map.tiles[ty]?.[tx];
   if (!tile) return state;
@@ -154,11 +154,11 @@ export const startDevelopmentHelper = (
 };
 
 export const startConstructionHelper = (
-  state: GameState,
+  state: GameStore,
   tileId: string,
   workerId: string,
   kind: "depot" | "port" | "fort" | "rail"
-): GameState => {
+): GameStore => {
   const [tx, ty] = tileId.split("-").map(Number);
   const tile = state.map.tiles[ty]?.[tx];
   if (!tile) return state;
