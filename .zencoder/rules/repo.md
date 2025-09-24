@@ -20,7 +20,7 @@ A Next.js-based implementation of the classic strategy game "Imperialism" using 
 - **public**: Static assets and images
 
 ## Project Architecture
-Must refer to [architecture.md](./architecture.md) for more details on the project's architecture.
+Must refer to [architecture.md](../../docs/architecture.md) for more details on the project's architecture.
 
 ## Entry Points
 **Main Application**: src/app/page.tsx
@@ -28,8 +28,7 @@ Must refer to [architecture.md](./architecture.md) for more details on the proje
 **Store Configuration**: src/app/store/rootStore.ts
 
 ## Game instructions
-Refer to [manual.md](../../manual.md). 
+Refer to [manual.md](../../docs/manual.md). 
 
 ## Project development progress 
-Refer to [ROAD_MAP.md](../../ROAD_MAP.md)
-
+Refer to [ROAD_MAP.md](../../docs/ROAD_MAP.md)
