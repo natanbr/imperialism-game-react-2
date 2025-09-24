@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useMemo } from "react";
 import { useGameStore } from "../store/rootStore";
+import TransportAllocationModal from "./TransportAllocationModal";
 
 // Minimal full-screen Capital screen placeholder with sections per repo.md
 export const CapitalModal: React.FC = () => {
@@ -8,12 +9,16 @@ export const CapitalModal: React.FC = () => {
   const close = useGameStore((s) => s.closeCapital);
   const activeNationId = useGameStore((s) => s.activeNationId);
   const nations = useGameStore((s) => s.nations);
-  const setNationTransportCapacity = useGameStore((s) => s.setNationTransportCapacity);
   const purchaseCapacity = useGameStore((s) => s.purchaseTransportCapacityIncrease);
 
 
   const nation = nations.find((n) => n.id === activeNationId);
 
+  // Transportation of commodities popup state
+  const [isAllocOpen, setAllocOpen] = useState(false);
+
+  const capacity = nation?.transportCapacity ?? 0;
+  
   // Transport UI helpers
   const [buyCount, setBuyCount] = useState<number>(1);
   const { availableCoal, availableIron, maxPurchasable } = useMemo(() => {
@@ -138,6 +143,23 @@ export const CapitalModal: React.FC = () => {
                   style={{ width: 120, background: '#111', color: '#eee', border: '1px solid #333', borderRadius: 4, padding: '4px 6px' }}
                 />
               </div>
+
+              {/* Button to open Transportation of Commodities popup */}
+              <button
+                onClick={() => setAllocOpen(true)}
+                style={{
+                  marginTop: 8,
+                  alignSelf: 'start',
+                  background: '#2a2a2a',
+                  color: '#fff',
+                  border: '1px solid #444',
+                  padding: '6px 10px',
+                  borderRadius: 4,
+                  cursor: 'pointer',
+                }}
+              >
+                Transportation of Commodities
+              </button>
             </div>
           </Section>
 
@@ -156,6 +178,14 @@ export const CapitalModal: React.FC = () => {
           <Section title="Technology">
             <p>Investments, unlocks (e.g., oil drilling, ranchers) (planned).</p>
           </Section>
+
+        {/* Transportation of Commodities Popup */}
+        {isAllocOpen && (
+          <TransportAllocationModal
+            capacity={capacity}
+            onClose={() => setAllocOpen(false)}
+          />
+        )}
         </div>
       </div>
     </div>

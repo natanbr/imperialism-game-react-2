@@ -115,11 +115,6 @@
 - rail can be built only if the adjesent tile already has railroad 
 in other workds HUD railroad button will be enabled only if the adjecent tile can be connected to current tile via railroad
 
-TODOS:
-- two depots can't be built on adjusent tiles
-- limit the goods trasported by the port depending on nation ships capacity 
-- worker can't start work on the same turn it was moved
-- after city is captrured re-calcualte all railroad connections 
 
 #### Step – Capital screen
 ✅ - goal: add the imperializem game capital screen
@@ -136,16 +131,50 @@ TODOS:
 - In the transport section Show slider UI to incrase the transport capacity by X (the sliding value).
 
 ### Fine tune the capactiy
-Goal: improve the transport capacity logic. 
+✅ Goal: improve the transport capacity logic. 
 Details: 
 - there is the total nation transport capacity 
 - each turn the user can buy additional capacity for his nation that will be added during turn calculations in the next turn to the total capacity. 
 - a price of 1 unit of increased capacity will be 1 coal and 1 iron 
 - initialize the game with 100 units of coal and 100 units of iron
 
+#### Step – Nation Cash
+- goal: add the total cash owned by each nation
+- Details:
+    - add the total cash owned by each nation 
+    - for the current player nation add the money amount to the HUD
+
+#### Step – Transportation of comodities
+ - goal: add another screen (popup) to alocat transportation of comodities
+- Details:
+    - add a button to open a new popup showing the transportation of comodities under the transport capacity section
+    - Transportation of goods will list all the comodities/resources (iron, coal, food, wood etc find the availble goods in the resources.ts) 
+    - each comodity will have a range input between 0 (nothing is transported) and max 100 (for now, wie will change this in the future)
+    - the total of all transfered comodities can't exceed the transport capacity
+    - add a button to close the popup
+
 TODOs:
-- nation money 
+- update the max transporation comodities per resource to be the sum of all the goods avaliable for transportation. In other words the sum of the goods collected by each active depot. 
+For example: if we have 2 depots and both of them have 5 units of iron then the maximum capacity will be 10 units of iron.
+The total collected comodities should be recalcualted every turn after the 
+
+- gold transfered will add 100$ per transfered unit to cash 
+- gems transfered will add 1000$ 
+- ways to get cash
+    First, you must expand the trading might of your country. Eve ry time you sell
+    commodities to other countries you receive a cash payment for the sale.
+    Second, gold and gems are not traded. Instead, these commodities provide a cash
+    bonus to you whenever you transport them to industry.
+    Third, you can receive profits from the activities of your Developer unit and other
+    civilian units in those Minor Nations where you have established embassies.
 - show a popup when clicking on the capacity section to distribute the transported capacity per resource
+
+TODOS:
+- two depots can't be built on adjusent tiles
+- limit the goods trasported by the port depending on nation ships capacity 
+- worker can't start work on the same turn it was moved
+- after city is captrured re-calcualte all railroad connections 
+
 
 ## Phase 4: Industry
 
