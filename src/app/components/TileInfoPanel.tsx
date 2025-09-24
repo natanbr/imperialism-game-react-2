@@ -1,4 +1,4 @@
-import { Tile, TerrainType } from "@/types/Tile";
+import { Tile } from "@/types/Tile";
 import React from "react";
 import { useGameStore } from "../store/rootStore";
 import { WorkerType } from "@/types/Workers";

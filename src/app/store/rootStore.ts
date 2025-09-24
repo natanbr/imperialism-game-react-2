@@ -1,39 +1,37 @@
-import { create } from 'zustand';
-import { createTileSelectionSlice, TileSelectionSlice } from './controls/tileSelectionSlice';
-import { createGameStateSlice, GameStateSlice } from './gameSlice';
-import { createCameraSlice, CameraSlice } from './controls/cameraSlice';
-import { createOverlaySlice, OverlaySlice } from './controls/overlaySlice';
-import { createNationSlice, NationSlice } from './nationSlice';
-import { createWorkerActionsSlice, WorkerActionsSlice } from './workerActionsSlice';
+import { create } from "zustand";
+import { createTileSelectionSlice } from "./controls/tileSelectionSlice";
+import { createCameraSlice } from "./controls/cameraSlice";
+import { createOverlaySlice } from "./controls/overlaySlice";
+import { createNationSlice } from "./nationSlice";
+import { createWorkerSlice } from "./workerSlice";
+import { createMapSlice } from "./mapSlice";
+import { createPlayerSlice } from "./playerSlice";
+import { createTurnSlice } from "./turnSlice";
+import { createTechnologySlice } from "./technologySlice";
+import { createTransportSlice } from "./transportSlice";
+import { GameStore } from "./types";
 
-export type GameStore =
-  & GameStateSlice
-  & NationSlice
-  & WorkerActionsSlice
-  // & CitySlice
-  // & ArmySlice
-  // & NavySlice
-  // & DiplomacySlice
-  // & TradeSlice
-  // & TransportSlice
-  // & IndustrySlice
-  // & TechnologySlice
-  & TileSelectionSlice
-  & CameraSlice
-  & OverlaySlice;
+import { createCitySlice } from "./citySlice";
+import { createArmySlice } from "./armySlice";
+import { createNavySlice } from "./navySlice";
+import { createDiplomacySlice } from "./diplomacySlice";
+import { createTradeSlice } from "./tradeSlice";
+import { createIndustrySlice } from "./industrySlice";
 
 export const useGameStore = create<GameStore>()((...a) => ({
-  ...createGameStateSlice(...a),
+  ...createPlayerSlice(...a),
+  ...createTurnSlice(...a),
+  ...createMapSlice(...a),
   ...createNationSlice(...a),
-  ...createWorkerActionsSlice(...a),
-  // ...createCitySlice(...a),
-  // ...createArmySlice(...a),
-  // ...createNavySlice(...a),
-  // ...createDiplomacySlice(...a),
-  // ...createTradeSlice(...a),
-  // ...createTransportSlice(...a),
-  // ...createIndustrySlice(...a),
-  // ...createTechnologySlice(...a),
+  ...createWorkerSlice(...a),
+  ...createTransportSlice(...a),
+  ...createTechnologySlice(...a),
+  ...createCitySlice(...a),
+  ...createArmySlice(...a),
+  ...createNavySlice(...a),
+  ...createDiplomacySlice(...a),
+  ...createTradeSlice(...a),
+  ...createIndustrySlice(...a),
   ...createCameraSlice(...a),
   ...createOverlaySlice(...a),
   ...createTileSelectionSlice(...a),

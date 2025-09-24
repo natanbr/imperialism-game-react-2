@@ -1,10 +1,23 @@
 import { StateCreator } from "zustand";
-import { GameState } from "@/types/GameState";
+import { GameStore } from "./types";
+import { Relation, Treaty, TradePolicy, Grant } from "@/types/Diplomacy";
 
 export interface DiplomacySlice {
-  // actions: proposeTreaty, declareWar, sendGrant, setTradePolicy...
+  relations: Relation[];
+  treaties: Treaty[];
+  tradePolicies: TradePolicy[];
+  grants: Grant[];
 }
 
-export const createDiplomacySlice: StateCreator<GameState, [], [], DiplomacySlice> = (set) => ({
-  // initial state for diplomacy slice
+export const createDiplomacySlice: StateCreator<
+  GameStore,
+  [],
+  [],
+  DiplomacySlice
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+> = (_set) => ({
+  relations: [],
+  treaties: [],
+  tradePolicies: [],
+  grants: [],
 });

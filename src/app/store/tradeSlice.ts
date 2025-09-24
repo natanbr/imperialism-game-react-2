@@ -1,10 +1,19 @@
 import { StateCreator } from "zustand";
-import { GameState } from "@/types/GameState";
+import { GameStore } from "./types";
+import { TradeRoute } from "@/types/TradeRoute";
 
 export interface TradeSlice {
-  // actions: addTradeRoute, cancelTradeRoute, resolveTradeTurn...
+  tradeRoutes: TradeRoute[];
+  addTradeRoute: (tradeRoute: TradeRoute) => void;
 }
 
-export const createTradeSlice: StateCreator<GameState, [], [], TradeSlice> = (set) => ({
-  // initial state for trade slice
+export const createTradeSlice: StateCreator<
+  GameStore,
+  [],
+  [],
+  TradeSlice
+> = (set) => ({
+  tradeRoutes: [],
+  addTradeRoute: (tradeRoute) =>
+    set((state) => ({ tradeRoutes: [...state.tradeRoutes, tradeRoute] })),
 });
