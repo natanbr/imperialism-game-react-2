@@ -139,13 +139,13 @@ Details:
 - initialize the game with 100 units of coal and 100 units of iron
 
 #### Step – Nation Cash
-- goal: add the total cash owned by each nation
+✅ - goal: add the total cash owned by each nation
 - Details:
     - add the total cash owned by each nation 
     - for the current player nation add the money amount to the HUD
 
 #### Step – Transportation of comodities
- - goal: add another screen (popup) to alocat transportation of comodities
+✅ - goal: add another screen (popup) to alocat transportation of comodities
 - Details:
     - add a button to open a new popup showing the transportation of comodities under the transport capacity section
     - Transportation of goods will list all the comodities/resources (iron, coal, food, wood etc find the availble goods in the resources.ts) 
@@ -153,6 +153,7 @@ Details:
     - the total of all transfered comodities can't exceed the transport capacity
     - add a button to close the popup
 
+#### Step – Transportation of comodities 2
 TODOs:
 - update the max transporation comodities per resource to be the sum of all the goods avaliable for transportation. In other words the sum of the goods collected by each active depot. 
 For example: if we have 2 depots and both of them have 5 units of iron then the maximum capacity will be 10 units of iron.
