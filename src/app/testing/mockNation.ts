@@ -1,38 +1,66 @@
+<<<<<<< HEAD
+import { Nation } from '../types/Nation';
+import { NationId } from '../types/Common';
+=======
+<<<<<<< HEAD
+import { Nation } from '../types/Nation';
+import { NationId } from '../types/Common';
+=======
+<<<<<<< HEAD
+import { Nation } from '../types/Nation';
+import { NationId } from '../types/Common';
+
+export const mockNation: Nation = {
+  id: 'red-empire' as NationId,
+  name: 'Red Empire',
+  treasury: 10000,
+  relations: [],
+  tradePolicies: [],
+  grants: [],
+  cities: [],
+  provinces: [],
+  armies: [],
+  fleets: [],
+  colonies: [],
+  merchantMarine: {
+    holds: 10,
+    avgSpeed: 10,
+  },
+  warehouse: {},
+};
+=======
 import { Nation } from "@/types/Nation";
 import { GameMap, MapStyle } from "@/types/Map";
 import { TerrainType, Tile } from "@/types/Tile";
 import { ResourceType } from "@/types/Resource";
 import { WorkerType } from "@/types/Workers";
+>>>>>>> c6deb4a (Apply patch /tmp/f5adf113-6af4-4459-ac50-8603d7e7d20e.patch)
+>>>>>>> 6d9606c (Apply patch /tmp/883455a8-c25e-42f7-ba52-55e24169b2cd.patch)
 
-const cols = 5;
-const rows = 5;
-
-// Mock nations with different colors and names
-export const mockNations: Nation[] = [
-  {
-    id: "nation-1",
-    name: "Britannia",
-    color: "#FF0000", // Red
-    treasury: 1000,
-    debt: 0,
-    creditLimit: 5000,
-    relations: [],
-    tradePolicies: [],
-    grants: [],
-    cities: ["capital-1"],
-    provinces: ["province-1", "province-2"],
-    armies: [],
-    fleets: [],
-    colonies: [],
-    merchantMarine: {
-      holds: 5,
-      avgSpeed: 10
-    },
-    warehouse: {
-      grain: 100,
-      timber: 50
-    }
+export const mockNation: Nation = {
+  id: 'red-empire' as NationId,
+  name: 'Red Empire',
+  treasury: 10000,
+  relations: [],
+  tradePolicies: [],
+  grants: [],
+  cities: [],
+  provinces: [],
+  armies: [],
+  fleets: [],
+  colonies: [],
+  merchantMarine: {
+    holds: 10,
+    avgSpeed: 10,
   },
+<<<<<<< HEAD
+  warehouse: {},
+};
+=======
+<<<<<<< HEAD
+  warehouse: {},
+};
+=======
   {
     id: "nation-2",
     name: "Germania",
@@ -145,3 +173,6 @@ export const mockMap5x5: GameMap = {
     })
   ),
 };
+>>>>>>> 1d172d9 (fix: buid errors)
+>>>>>>> c6deb4a (Apply patch /tmp/f5adf113-6af4-4459-ac50-8603d7e7d20e.patch)
+>>>>>>> 6d9606c (Apply patch /tmp/883455a8-c25e-42f7-ba52-55e24169b2cd.patch)

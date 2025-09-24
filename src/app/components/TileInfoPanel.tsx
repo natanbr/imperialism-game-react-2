@@ -1,67 +1,86 @@
-import { Tile, TerrainType } from "@/types/Tile";
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+import { Tile } from "@/types/Tile";
+=======
+<<<<<<< HEAD
+>>>>>>> 6d9606c (Apply patch /tmp/883455a8-c25e-42f7-ba52-55e24169b2cd.patch)
+import { Tile } from "@/types/Tile";
 import React from "react";
-import { useGameStore } from "../store/rootStore";
-import { WorkerType } from "@/types/Workers";
-import { PROSPECTABLE_TERRAIN_TYPES } from "../definisions/terrainDefinitions";
-import { DEVELOPMENT_WORKER_TYPES } from "../definisions/workerDefinitions";
 
 interface TileInfoPanelProps {
   selectedTile: Tile | undefined;
 }
 
 export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) => {
+<<<<<<< HEAD
+=======
+=======
+import { Tile, TerrainType } from "@/types/Tile";
+>>>>>>> c6deb4a (Apply patch /tmp/f5adf113-6af4-4459-ac50-8603d7e7d20e.patch)
+import React from "react";
+
+interface TileInfoPanelProps {
+  selectedTile: Tile | undefined;
+}
+
+export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) => {
+<<<<<<< HEAD
+=======
   const selectedWorkerId = useGameStore((s) => s.selectedWorkerId);
   const startProspecting = useGameStore((s) => s.startProspecting);
   const startDevelopment = useGameStore((s) => s.startDevelopment);
   const startConstruction = useGameStore((s) => s.startConstruction);
   const oilDrillingTechUnlocked = useGameStore((s) => s.technologyState.oilDrillingTechUnlocked);
+>>>>>>> 1d172d9 (fix: buid errors)
+>>>>>>> c6deb4a (Apply patch /tmp/f5adf113-6af4-4459-ac50-8603d7e7d20e.patch)
+>>>>>>> 6d9606c (Apply patch /tmp/883455a8-c25e-42f7-ba52-55e24169b2cd.patch)
 
   if (!selectedTile) {
     return <div style={{ padding: "10px" }}>No tile selected</div>;
   }
 
-  const terrainAllowsProspecting = PROSPECTABLE_TERRAIN_TYPES.includes(selectedTile.terrain);
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+  // For now, lookup from mockMap
+=======
+<<<<<<< HEAD
+>>>>>>> 6d9606c (Apply patch /tmp/883455a8-c25e-42f7-ba52-55e24169b2cd.patch)
+  // For now, lookup from mockMap
 
-  const prospectorOnTile = selectedTile.workers.find(w => w.id === selectedWorkerId && w.type === WorkerType.Prospector);
-  const canProspect = !!prospectorOnTile && terrainAllowsProspecting && !selectedTile.prospecting;
-
-  // New workers: show simple status if a job is running
-  const dev = selectedTile.developmentJob;
-  const con = selectedTile.constructionJob;
-  const hasActiveDev = !!dev && !dev.completed;
-  const hasActiveCon = !!con && !con.completed;
-  const hasActiveProspecting = !!selectedTile.prospecting;
-
-  // Controls: allow starting development/construction using the selected worker
-  const selectedWorker = selectedTile.workers.find(w => w.id === selectedWorkerId);
-  const canStartAnyJob = !!selectedWorker && !hasActiveDev && !hasActiveCon && !hasActiveProspecting;
-
-  const startL1 = () => selectedWorker && startDevelopment(selectedTile.id, selectedWorker.id, selectedWorker.type, 1);
-  const startL2 = () => selectedWorker && startDevelopment(selectedTile.id, selectedWorker.id, selectedWorker.type, 2);
-  const startL3 = () => selectedWorker && startDevelopment(selectedTile.id, selectedWorker.id, selectedWorker.type, 3);
-
-  // Enable only the next valid level: if resource is undefined or level is N, only N+1 is enabled
-  const currentLevel = selectedTile.resource?.level ?? 0;
-  const enableL1 = currentLevel === 0;
-  const enableL2 = currentLevel === 1;
-  const enableL3 = currentLevel === 2;
-
-  const startDepot = () => selectedWorker && startConstruction(selectedTile.id, selectedWorker.id, "depot");
-  const startPort = () => selectedWorker && startConstruction(selectedTile.id, selectedWorker.id, "port");
-  const startFort = () => selectedWorker && startConstruction(selectedTile.id, selectedWorker.id, "fort");
-  const startRail = () => selectedWorker && startConstruction(selectedTile.id, selectedWorker.id, "rail");
-
-  // Helper: show hints per worker type
-  const workerHint = selectedWorker ? `Selected worker: ${selectedWorker.type}` : "Select a worker on this tile to enable actions";
+  if (!selectedTile) return <div style={{ padding: "10px" }}>Tile not found</div>;
 
   return (
+    <div style={{ padding: "10px", borderLeft: "2px solid #333", minWidth: "200px" }}>
+<<<<<<< HEAD
+=======
+=======
+  const terrainAllowsProspecting = PROSPECTABLE_TERRAIN_TYPES.includes(selectedTile.terrain);
+>>>>>>> c6deb4a (Apply patch /tmp/f5adf113-6af4-4459-ac50-8603d7e7d20e.patch)
+
+  if (!selectedTile) return <div style={{ padding: "10px" }}>Tile not found</div>;
+
+  return (
+<<<<<<< HEAD
+    <div style={{ padding: "10px", borderLeft: "2px solid #333", minWidth: "200px" }}>
+=======
     <div style={{ padding: "10px", borderLeft: "2px solid #333", minWidth: "220px" }}>
+>>>>>>> 1d172d9 (fix: buid errors)
+>>>>>>> c6deb4a (Apply patch /tmp/f5adf113-6af4-4459-ac50-8603d7e7d20e.patch)
+>>>>>>> 6d9606c (Apply patch /tmp/883455a8-c25e-42f7-ba52-55e24169b2cd.patch)
       <h3>Tile Info</h3>
       <p><strong>Terrain:</strong> {selectedTile.terrain}</p>
       <p><strong>River:</strong> {selectedTile.hasRiver ? "Yes" : "No"}</p>
       <p><strong>Resource:</strong> {selectedTile.resource ? `${selectedTile.resource.type} (L${selectedTile.resource.level})` : "None"}</p>
       <p><strong>Owner:</strong> {selectedTile.ownerNationId || "Unclaimed"}</p>
       <p><strong>Workers:</strong> {selectedTile.workers.length > 0 ? selectedTile.workers.map(w => w.type).join(", ") : "None"}</p>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
 
       {/* Prospector action */}
       {selectedTile.prospecting && (
@@ -115,6 +134,9 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
           <strong>Construction:</strong> {con.kind} ({con.completed ? "Done" : `~${con.durationTurns} turns`})
         </div>
       )}
+>>>>>>> 1d172d9 (fix: buid errors)
+>>>>>>> c6deb4a (Apply patch /tmp/f5adf113-6af4-4459-ac50-8603d7e7d20e.patch)
+>>>>>>> 6d9606c (Apply patch /tmp/883455a8-c25e-42f7-ba52-55e24169b2cd.patch)
     </div>
   );
 };

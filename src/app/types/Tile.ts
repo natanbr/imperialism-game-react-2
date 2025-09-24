@@ -1,8 +1,17 @@
 // types/Tile.ts
 import { ResourceType } from "./Resource";
 import { Worker } from "./Workers";
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
 import { DevelopmentJob } from "./jobs/DevelopmentJob";
 import { ConstructionJob } from "./jobs/ConstructionJob";
+>>>>>>> 1d172d9 (fix: buid errors)
+>>>>>>> c6deb4a (Apply patch /tmp/f5adf113-6af4-4459-ac50-8603d7e7d20e.patch)
+>>>>>>> 6d9606c (Apply patch /tmp/883455a8-c25e-42f7-ba52-55e24169b2cd.patch)
 
 export enum TerrainType {
   DryPlains = "dryPlains",      // Grain (not improvable)
@@ -37,6 +46,12 @@ export interface Tile {
     level: number;              // 0..3 (minerals/oil can be 0=none until improved/opened)
     discovered?: boolean;       // for hidden resources (minerals/oil)
   };
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
   // Prospecting action state (resolved on next turn)
   prospecting?: { startedOnTurn: number; workerId: string };
 
@@ -46,6 +61,9 @@ export interface Tile {
   // Active construction job (Engineer)
   constructionJob?: ConstructionJob;
 
+>>>>>>> 1d172d9 (fix: buid errors)
+>>>>>>> c6deb4a (Apply patch /tmp/f5adf113-6af4-4459-ac50-8603d7e7d20e.patch)
+>>>>>>> 6d9606c (Apply patch /tmp/883455a8-c25e-42f7-ba52-55e24169b2cd.patch)
   ownerNationId?: string;
   cityId?: string;              // capital or town id
   workers: Worker[];

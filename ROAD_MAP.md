@@ -34,29 +34,86 @@
     - Test: Worker appears on map at start.
 
 #### Step 2.2 – Worker Selection & Movement
+<<<<<<< HEAD
+- Goal: Select worker and move to adjacent tile.
+=======
+<<<<<<< HEAD
+- Goal: Select worker and move to adjacent tile.
+=======
+<<<<<<< HEAD
+- Goal: Select worker and move to adjacent tile.
+=======
 ✅- Goal: Select worker and move to adjacent tile.
+>>>>>>> 1d172d9 (fix: buid errors)
+>>>>>>> c6deb4a (Apply patch /tmp/f5adf113-6af4-4459-ac50-8603d7e7d20e.patch)
+>>>>>>> 6d9606c (Apply patch /tmp/883455a8-c25e-42f7-ba52-55e24169b2cd.patch)
     - Details:
     - Click worker → highlight.
     - Click adjacent tile → worker moves there.
     - Movement rules: civilians can move unlimited distance in owned territory (manual), but for now restrict to 1 tile per test step.
     - Test: Select Prospector → move to neighbor tile → icon updates.
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+#### Step 2.3 – Worker Actions
+- Goal: Implement Prospector action.
+- Details:
+- If tile = barren hills/mountains/swamp/desert/tundra → allow “Prospect” action.
+- Action reveals hidden resource (coal, iron, gold, gems, oil).
+- Use manual’s rule: Prospector must discover before Miner/Driller can exploit.
+- Test: Move Prospector to barren hill → click “Prospect” → resource revealed.
+
+#### Step 2.4 – Additional Worker Types
+- Goal: Add Farmer, Rancher, Forester, Miner, Driller, Engineer.
+- Details:
+- Each worker has valid terrain + action:
+- Farmer → farms/orchards/plantations.
+- Rancher → open range/fertile hills.
+- Forester → hardwood forest.
+- Miner → barren hills/mountains (after prospecting).
+- Driller → swamp/desert/tundra (after prospecting + oil tech).
+- Engineer → build depot, port, fort, rail.
+- Each action improves resource level (per Resource Development Table).
+- Test: Place each worker → perform valid action → tile’s resource level increases.
+=======
 #### Step 2.2.1 - advance turn button
 ✅ - Goal: add a button that advances the turn
     - Details:
     - Button should be located in the bottom of the hud
     - When clicked it should advance the turn by one
 
+>>>>>>> c6deb4a (Apply patch /tmp/f5adf113-6af4-4459-ac50-8603d7e7d20e.patch)
+>>>>>>> 6d9606c (Apply patch /tmp/883455a8-c25e-42f7-ba52-55e24169b2cd.patch)
 #### Step 2.3 – Worker Actions
-✅ - Goal: Implement Prospector action.
+- Goal: Implement Prospector action.
 - Details:
 - If tile = barren hills/mountains/swamp/desert/tundra → allow “Prospect” action.
-- Action starts a search and id recurce founf itreveals the hidden resource (coal, iron, gold, gems, oil) in the next turn
+- Action reveals hidden resource (coal, iron, gold, gems, oil).
 - Use manual’s rule: Prospector must discover before Miner/Driller can exploit.
+- Test: Move Prospector to barren hill → click “Prospect” → resource revealed.
 
 #### Step 2.4 – Additional Worker Types
-✅ - Goal: Add Farmer, Rancher, Forester, Miner, Driller, Engineer.
+- Goal: Add Farmer, Rancher, Forester, Miner, Driller, Engineer.
 - Details:
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 6d9606c (Apply patch /tmp/883455a8-c25e-42f7-ba52-55e24169b2cd.patch)
+- Each worker has valid terrain + action:
+- Farmer → farms/orchards/plantations.
+- Rancher → open range/fertile hills.
+- Forester → hardwood forest.
+- Miner → barren hills/mountains (after prospecting).
+- Driller → swamp/desert/tundra (after prospecting + oil tech).
+- Engineer → build depot, port, fort, rail.
+- Each action improves resource level (per Resource Development Table).
+- Test: Place each worker → perform valid action → tile’s resource level increases.
+<<<<<<< HEAD
+=======
+=======
     - Each worker has valid terrain + action:
     - same as prospector, after workers they will it will take them few turns to do their job
     - add visual indicator when worker finished thier job 
@@ -68,12 +125,27 @@
     - Driller → swamp/desert/tundra (after prospecting + oil tech).
     - Engineer → build depot, port, fort, rail.
     - Each action improves resource level (per Resource Development Table).
+>>>>>>> 1d172d9 (fix: buid errors)
+>>>>>>> c6deb4a (Apply patch /tmp/f5adf113-6af4-4459-ac50-8603d7e7d20e.patch)
+>>>>>>> 6d9606c (Apply patch /tmp/883455a8-c25e-42f7-ba52-55e24169b2cd.patch)
 
 ## Phase 3: Transport Network
 #### Step 3.1 – Capital Auto-Connection
 - Goal: Capital tile acts as depot + port.
 - Details:
 - Any adjacent improved tile auto‑connected to capital.
+<<<<<<< HEAD
+- Test: Improve farm next to capital → resource appears in warehouse.
+=======
+<<<<<<< HEAD
+- Test: Improve farm next to capital → resource appears in warehouse.
+=======
+<<<<<<< HEAD
+- Test: Improve farm next to capital → resource appears in warehouse.
+=======
+>>>>>>> 1d172d9 (fix: buid errors)
+>>>>>>> c6deb4a (Apply patch /tmp/f5adf113-6af4-4459-ac50-8603d7e7d20e.patch)
+>>>>>>> 6d9606c (Apply patch /tmp/883455a8-c25e-42f7-ba52-55e24169b2cd.patch)
 
 #### Step 3.2 – Engineer Builds Depot
 - Goal: Engineer can build depot on a tile.
