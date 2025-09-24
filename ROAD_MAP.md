@@ -128,13 +128,23 @@ TODOS:
     - the capital screen will contain different sections for the different productions, military etc
 
 #### Step Capital – Transport Capacity 
-- Goal: Add transport capacity limit. 
+✅ - Goal: Add transport capacity limit. 
 - Details:
 - verify each nation has a transport capacity number
 - add transport section to the capital
 - Each turn, only X resources can be moved. 
 - In the transport section Show slider UI to incrase the transport capacity by X (the sliding value).
 
+### Fine tune the capactiy
+Goal: improve the transport capacity logic. 
+Details: 
+- there is the total nation transport capacity 
+- each turn the user can buy additional capacity for his nation that will be added during turn calculations in the next turn to the total capacity. 
+- a price of 1 unit of increased capacity will be 1 coal and 1 iron 
+- initialize the game with 100 units of coal and 100 units of iron
+
+TODOs:
+- nation money 
 - show a popup when clicking on the capacity section to distribute the transported capacity per resource
 
 ## Phase 4: Industry

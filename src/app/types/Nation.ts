@@ -27,6 +27,8 @@ export interface Nation {
 
   // Per-turn internal transport capacity (units of resources)
   transportCapacity: number;
+  // Queued increase purchased this turn; applied at the start of next turn
+  transportCapacityPendingIncrease?: number;
 
   warehouse: Record<string, number>; // ResourceType -> amount
 }

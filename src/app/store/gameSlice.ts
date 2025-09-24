@@ -58,8 +58,22 @@ export const createGameStateSlice: StateCreator<GameStateSlice, [], [], GameStat
       const nextTurn = state.turn + 1;
       const nextYear = state.year + (state.turn % 4 === 0 ? 1 : 0); // Advance year every 4 turns (seasons)
 
+      // Apply any pending transport capacity increases before running phases
+      const nationsWithAppliedCapacity = state.nations.map((n) => {
+        const inc = n.transportCapacityPendingIncrease ?? 0;
+        if (inc > 0) {
+          return {
+            ...n,
+            transportCapacity: Math.max(0, Math.floor((n.transportCapacity ?? 0) + inc)),
+            transportCapacityPendingIncrease: 0,
+          };
+        }
+        return n;
+      });
+      const prePhasesState = { ...state, nations: nationsWithAppliedCapacity };
+
       // Run all phases and get a new game state (map + nations updated via logistics)
-      const phasedState = runTurnPhases(state, nextTurn);
+      const phasedState = runTurnPhases(prePhasesState, nextTurn);
 
       return {
         ...phasedState,

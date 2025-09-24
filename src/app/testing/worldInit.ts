@@ -100,7 +100,8 @@ export function setupSingleNation(map: GameMap): Nation[] {
       colonies: [],
       merchantMarine: { holds: 5, avgSpeed: 10 },
       transportCapacity: 10,
-      warehouse: { grain: 50 },
+      transportCapacityPendingIncrease: 0,
+      warehouse: { grain: 50, coal: 100, ironOre: 100 },
     },
   ];
 

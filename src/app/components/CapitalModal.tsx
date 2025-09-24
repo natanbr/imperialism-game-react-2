@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useState, useMemo } from "react";
 import { useGameStore } from "../store/rootStore";
 
 // Minimal full-screen Capital screen placeholder with sections per repo.md
@@ -9,10 +9,38 @@ export const CapitalModal: React.FC = () => {
   const activeNationId = useGameStore((s) => s.activeNationId);
   const nations = useGameStore((s) => s.nations);
   const setNationTransportCapacity = useGameStore((s) => s.setNationTransportCapacity);
+  const purchaseCapacity = useGameStore((s) => s.purchaseTransportCapacityIncrease);
 
-  if (!isOpen) return null;
 
   const nation = nations.find((n) => n.id === activeNationId);
+
+  // Transport UI helpers
+  const [buyCount, setBuyCount] = useState<number>(1);
+  const { availableCoal, availableIron, maxPurchasable } = useMemo(() => {
+    const stock = nation?.warehouse ?? {};
+    const coal = Number(stock.coal ?? 0);
+    const iron = Number(stock.ironOre ?? 0);
+    const maxByCoal = Math.floor(coal / 1);
+    const maxByIron = Math.floor(iron / 1);
+    return {
+      availableCoal: coal,
+      availableIron: iron,
+      maxPurchasable: Math.max(0, Math.min(maxByCoal, maxByIron)),
+    };
+  }, [nation]);
+
+  const applyDelta = (newValue: number) => {
+    if (!nation) return;
+    const prev = buyCount;
+    const next = Math.max(0, Math.min(Math.floor(newValue) || 0, maxPurchasable));
+    const delta = next - prev;
+    if (delta !== 0) {
+      purchaseCapacity(nation.id, delta); // positive buys, negative refunds
+    }
+    setBuyCount(next);
+  };
+
+  if (!isOpen) return null;
 
   return (
     <div
@@ -92,20 +120,24 @@ export const CapitalModal: React.FC = () => {
           <Section title="Transport">
             <div style={{ display: 'grid', gap: 8 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Capacity per turn</span>
+                <span>Transport Capacity</span>
                 <strong>{nation?.transportCapacity ?? 0}</strong>
+                {nation?.transportCapacityPendingIncrease && (
+                  <span style={{ color: '#ff0' }}>+{nation.transportCapacityPendingIncrease}</span>
+                )}
               </div>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                step={1}
-                value={nation?.transportCapacity ?? 0}
-                onChange={(e) => {
-                  const next = Number(e.target.value);
-                  if (nation) setNationTransportCapacity(nation.id, next);
-                }}
-              />
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <span>Increase capacity </span>
+                <input
+                  type="range"
+                  min={0}
+                  max={maxPurchasable}
+                  step={1}
+                  value={buyCount}
+                  onChange={(e) => applyDelta(Number(e.target.value) || 0)}
+                  style={{ width: 120, background: '#111', color: '#eee', border: '1px solid #333', borderRadius: 4, padding: '4px 6px' }}
+                />
+              </div>
             </div>
           </Section>
 
