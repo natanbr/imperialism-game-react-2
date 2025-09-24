@@ -1,10 +1,18 @@
+import { GameMap } from "@/types/Map";
 import { StateCreator } from "zustand";
-import { GameState } from "@/types/GameState";
 
 export interface MapSlice {
-  // actions: generateMap, revealTile, setOwnership...
+  map: GameMap;
+  setMap: (map: GameMap) => void;
 }
 
-export const createMapSlice: StateCreator<GameState, [], [], MapSlice> = (set) => ({
-  // initial state for map slice
+export const createMapSlice: StateCreator<MapSlice> = (set) => ({
+  map: {
+    config: {
+      cols: 0,
+      rows: 0,
+    },
+    tiles: [],
+  },
+  setMap: (map) => set({ map }),
 });
