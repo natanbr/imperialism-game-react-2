@@ -1,10 +1,23 @@
 import { StateCreator } from "zustand";
-import { GameState } from "@/types/GameState";
+import { GameStore } from "./rootStore";
 
-export interface TechnologySlice {
-  // actions: purchaseTech, unlockTech, applyTechBenefits...
+export interface TechnologyState {
+  oilDrillingTechUnlocked: boolean;
+  technologies: any[]; // Replace 'any' with a proper type later
 }
 
-export const createTechnologySlice: StateCreator<GameState, [], [], TechnologySlice> = (set) => ({
-  // initial state for technology slice
+export interface TechnologySlice {
+  technologyState: TechnologyState;
+  setOilDrillingTech: (unlocked: boolean) => void;
+}
+
+export const createTechnologySlice: StateCreator<GameStore, [], [], TechnologySlice> = (set) => ({
+  technologyState: {
+    oilDrillingTechUnlocked: false,
+    technologies: [],
+  },
+  setOilDrillingTech: (unlocked) =>
+    set((state) => ({
+      technologyState: { ...state.technologyState, oilDrillingTechUnlocked: unlocked },
+    })),
 });

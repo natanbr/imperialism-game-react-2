@@ -1,10 +1,15 @@
+import { TransportNetwork } from "@/types/Transport";
 import { StateCreator } from "zustand";
-import { GameState } from "@/types/GameState";
+import { GameStore } from "./rootStore";
 
 export interface TransportSlice {
-  // actions: buildRail, buildDepot, allocateTransportCapacity...
+  transportNetwork: TransportNetwork;
 }
 
-export const createTransportSlice: StateCreator<GameState, [], [], TransportSlice> = (set) => ({
-  // initial state for transport slice
+export const createTransportSlice: StateCreator<GameStore, [], [], TransportSlice> = (set) => ({
+  transportNetwork: {
+    railroads: [],
+    shippingLanes: [],
+    capacity: 0,
+  },
 });
