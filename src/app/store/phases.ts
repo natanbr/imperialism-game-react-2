@@ -1,106 +1,32 @@
-// Turn phases orchestration and per-phase logic
-import { GameState } from "@/types/GameState";
 import { Nation } from "@/types/Nation";
 import { GameMap } from "@/types/Map";
 import { Tile, TerrainType } from "@/types/Tile";
-import { ResourceType } from "@/types/Resource";
 import { ResourceDevelopmentTable } from "@/definisions/ResourceDevelopment";
-import { ProspectorDiscoveryDurationTurns } from "@/definisions/workerDurations";
+import { developmentSystem } from "./systems/developmentSystem";
+import { GameStore } from "./types";
 
 // Orchestrate all phases and return a new GameState (map + nations updated)
-export const runTurnPhases = (state: GameState, nextTurn: number): GameState => {
+export const runTurnPhases = (
+  state: GameStore,
+  nextTurn: number
+): GameStore => {
   // 1) Development, Diplomacy, Trade, Production, Combat, Interceptions act on the map
-  const afterDev = runNationDevelopmentPhase(state.map, nextTurn);
-  const updatedNations = runLogisticsForNations(afterDev, state.nations);
-  const afterDip = runDiplomacyPhase(afterDev);
+  const afterDev = developmentSystem(state, nextTurn);
+  const afterConnectivity = runTransportationConnectivity(afterDev);
+  const updatedNations = runLogisticsForNations(
+    afterConnectivity.map,
+    afterConnectivity.nations
+  );
+  const afterDip = runDiplomacyPhase(afterConnectivity.map);
   const afterTrade = runTradePhase(afterDip);
   const afterCombat = runCombatPhase(afterTrade);
-  const afterConnectivity = runTransportationConnectivity(afterCombat);
-  const afterProd = runProductionPhase(afterConnectivity);
+
+  const afterProd = runProductionPhase(afterCombat);
   const afterInter = runInterceptionsPhase(afterProd);
   const finalMap = runLogisticsPhase(afterInter);
 
-
   // Return updated state (turn/year handled by caller)
   return { ...state, map: finalMap, nations: updatedNations };
-};
-
-// Nation Development Phase: prospecting, development, construction, and cleanup
-export const runNationDevelopmentPhase = (map: GameMap, nextTurn: number): GameMap => {
-  const tiles: Tile[][] = map.tiles.map(row => row.map(tile => {
-    let t: Tile = { ...tile };
-    t = resolveProspectingOnTile(t, nextTurn);
-    t = resolveDevelopmentJobOnTile(t, nextTurn);
-    t = resolveConstructionJobOnTile(t, nextTurn);
-    t = clearCompletionIndicators(t, nextTurn);
-    return t;
-  }));
-  return { ...map, tiles };
-};
-
-// Resolves prospecting completion for a single tile
-const resolveProspectingOnTile = (tile: Tile, nextTurn: number): Tile => {
-  let t: Tile = { ...tile };
-  if (t.prospecting && (nextTurn - t.prospecting.startedOnTurn) >= ProspectorDiscoveryDurationTurns) {
-    let discoveredType: ResourceType | undefined;
-    if (t.terrain === TerrainType.BarrenHills || t.terrain === TerrainType.Mountains) {
-      const options = [ResourceType.Coal, ResourceType.IronOre, ResourceType.Gold, ResourceType.Gems];
-      discoveredType = options[Math.floor(Math.random() * options.length)];
-    } else if (t.terrain === TerrainType.Swamp || t.terrain === TerrainType.Desert || t.terrain === TerrainType.Tundra) {
-      discoveredType = ResourceType.Oil;
-    }
-    const newResource = discoveredType ? { type: discoveredType, level: 0, discovered: true } : t.resource;
-    t = { ...t, resource: newResource, prospecting: undefined };
-  }
-  return t;
-};
-
-// Resolves development job completion for a single tile
-const resolveDevelopmentJobOnTile = (tile: Tile, nextTurn: number): Tile => {
-  let t: Tile = { ...tile };
-  if (t.developmentJob && !t.developmentJob.completed) {
-    const elapsed = nextTurn - t.developmentJob.startedOnTurn;
-    if (elapsed >= t.developmentJob.durationTurns) {
-      let newResource = t.resource;
-      if (newResource) {
-        const target = Math.max(newResource.level, t.developmentJob.targetLevel);
-        newResource = { ...newResource, level: target };
-      }
-      t = { ...t, resource: newResource, developmentJob: { ...t.developmentJob, completed: true, completedOnTurn: nextTurn } };
-    }
-  }
-  return t;
-};
-
-// Resolves construction job completion for a single tile
-const resolveConstructionJobOnTile = (tile: Tile, nextTurn: number): Tile => {
-  let t: Tile = { ...tile };
-  if (t.constructionJob && !t.constructionJob.completed) {
-    const elapsed = nextTurn - t.constructionJob.startedOnTurn;
-    if (elapsed >= t.constructionJob.durationTurns) {
-      const update: Partial<Tile> = {};
-      switch (t.constructionJob.kind) {
-        case "depot": update.depot = true; break;
-        case "port": update.port = true; break;
-        case "fort": update.fortLevel = Math.max(1, t.fortLevel || 0); break;
-        case "rail": update.connected = true; break;
-      }
-      t = { ...t, ...update, constructionJob: { ...t.constructionJob, completed: true, completedOnTurn: nextTurn } };
-    }
-  }
-  return t;
-};
-
-// Clears completion indicators one turn after completion (UI pulse)
-const clearCompletionIndicators = (tile: Tile, nextTurn: number): Tile => {
-  let t: Tile = { ...tile };
-  if (t.developmentJob?.completed && t.developmentJob.completedOnTurn && nextTurn > t.developmentJob.completedOnTurn) {
-    t = { ...t, developmentJob: undefined };
-  }
-  if (t.constructionJob?.completed && t.constructionJob.completedOnTurn && nextTurn > t.constructionJob.completedOnTurn) {
-    t = { ...t, constructionJob: undefined };
-  }
-  return t;
 };
 
 // Placeholders for remaining phases (extend as systems are implemented)
@@ -111,10 +37,13 @@ export const runCombatPhase = (map: GameMap): GameMap => map;
 export const runInterceptionsPhase = (map: GameMap): GameMap => map;
 
 // New step: transportation-connectivity (compute active depots and ports based on connectivity rules)
-export const runTransportationConnectivity = (map: GameMap): GameMap => {
+export const runTransportationConnectivity = (state: GameStore): GameStore => {
+  const { map } = state;
   const cols = map.config.cols;
   const rows = map.config.rows;
-  const tiles = map.tiles.map(row => row.map(t => ({ ...t, activeDepot: false, activePort: false })));
+  const tiles = map.tiles.map((row) =>
+    row.map((t) => ({ ...t, activeDepot: false, activePort: false }))
+  );
 
   // Utility helpers
   const key = (x: number, y: number) => `${x},${y}`;
@@ -223,7 +152,7 @@ export const runTransportationConnectivity = (map: GameMap): GameMap => {
     }
   });
 
-  return { ...map, tiles };
+  return { ...state, map: { ...map, tiles } };
 };
 
 // Logistics Phase: compute per-tile production and return a map unchanged (warehouse updates are handled in phases via returned totals)

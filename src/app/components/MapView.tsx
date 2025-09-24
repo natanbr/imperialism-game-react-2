@@ -11,7 +11,6 @@ export const MapView: React.FC = () => {
   const cameraY = useGameStore((s) => s.cameraY);
   const moveCamera = useGameStore((s) => s.moveCamera);
   const map = useGameStore((s) => s.map);
-  const nations = useGameStore((s) => s.nations);
 
   useEdgeScroll({ containerRef, onMove: moveCamera });
 

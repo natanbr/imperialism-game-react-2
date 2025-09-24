@@ -1,10 +1,21 @@
 import { StateCreator } from "zustand";
-import { GameState } from "@/types/GameState";
+import { GameStore } from "./types";
+import { IndustryState } from "@/types/Industry";
 
 export interface IndustrySlice {
-  // actions: buildFactory, allocateLabour, processProduction...
+  industry: IndustryState;
 }
 
-export const createIndustrySlice: StateCreator<GameState, [], [], IndustrySlice> = (set) => ({
-  // initial state for industry slice
+export const createIndustrySlice: StateCreator<
+  GameStore,
+  [],
+  [],
+  IndustrySlice
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+> = (_set) => ({
+  industry: {
+    buildings: [],
+    labour: { untrained: 0, trained: 0, expert: 0, availableThisTurn: 0 },
+    power: 0,
+  },
 });

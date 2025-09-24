@@ -7,7 +7,7 @@ import { TradeRoute } from "./TradeRoute";
 import { TransportNetwork } from "./Transport";
 import { GameMap } from "./Map";
 import { IndustryState } from "./Industry";
-import { Technology, TechnologyState } from "./Technology";
+import { TechnologyState } from "./Technology";
 import { NewsItem } from "./Common";
 import { Relation, Treaty, TradePolicy, Grant } from "./Diplomacy";
 

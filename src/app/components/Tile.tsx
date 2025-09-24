@@ -71,8 +71,7 @@ export const TileComponent: React.FC<TileProps> = ({ tile }) => {
 
   const handleTileClick = () => {
     if (selectedWorkerId) {
-      moveSelectedWorkerToTile(tile.id, selectedWorkerId);
-      selectTile(tile.id);
+      moveSelectedWorkerToTile(tile.id);
       return;
     }
     selectTile(tile.id);

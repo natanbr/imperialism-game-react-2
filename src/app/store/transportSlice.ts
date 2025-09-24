@@ -1,10 +1,17 @@
 import { StateCreator } from "zustand";
-import { GameState } from "@/types/GameState";
+import { GameStore } from "./types";
+import { TransportNetwork } from "@/types/Transport";
 
 export interface TransportSlice {
-  // actions: buildRail, buildDepot, allocateTransportCapacity...
+  transportNetwork: TransportNetwork;
 }
 
-export const createTransportSlice: StateCreator<GameState, [], [], TransportSlice> = (set) => ({
-  // initial state for transport slice
+export const createTransportSlice: StateCreator<
+  GameStore,
+  [],
+  [],
+  TransportSlice
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+> = (_set) => ({
+  transportNetwork: { railroads: [], shippingLanes: [], capacity: 0 },
 });

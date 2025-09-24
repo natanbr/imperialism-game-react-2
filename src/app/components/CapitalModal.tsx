@@ -21,15 +21,13 @@ export const CapitalModal: React.FC = () => {
   
   // Transport UI helpers
   const [buyCount, setBuyCount] = useState<number>(1);
-  const { availableCoal, availableIron, maxPurchasable } = useMemo(() => {
+  const { maxPurchasable } = useMemo(() => {
     const stock = nation?.warehouse ?? {};
     const coal = Number(stock.coal ?? 0);
     const iron = Number(stock.ironOre ?? 0);
     const maxByCoal = Math.floor(coal / 1);
     const maxByIron = Math.floor(iron / 1);
     return {
-      availableCoal: coal,
-      availableIron: iron,
       maxPurchasable: Math.max(0, Math.min(maxByCoal, maxByIron)),
     };
   }, [nation]);
