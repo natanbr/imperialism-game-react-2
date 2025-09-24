@@ -7,11 +7,31 @@ import { ResourceType } from "@/types/Resource";
 import { ResourceDevelopmentTable } from "@/definisions/ResourceDevelopment";
 import { ProspectorDiscoveryDurationTurns } from "@/definisions/workerDurations";
 
+import { ResourceAllocation } from "./resourceAllocationSlice";
+
 // Orchestrate all phases and return a new GameState (map + nations updated)
-export const runTurnPhases = (state: GameState, nextTurn: number): GameState => {
+export const runTurnPhases = (
+  state: GameState,
+  nextTurn: number
+): GameState => {
+  // Apply pending transport capacity increases
+  let nations = state.nations.map((nation) => {
+    if (nation.transportCapacityPendingIncrease) {
+      return {
+        ...nation,
+        transportCapacity:
+          (nation.transportCapacity ?? 0) +
+          nation.transportCapacityPendingIncrease,
+        transportCapacityPendingIncrease: 0,
+      };
+    }
+    return nation;
+  });
+
   // 1) Development, Diplomacy, Trade, Production, Combat, Interceptions act on the map
   const afterDev = runNationDevelopmentPhase(state.map, nextTurn);
-  const updatedNations = runLogisticsForNations(afterDev, state.nations);
+  const { nations: updatedNations, resourceAllocations: newResourceAllocations } =
+    runLogisticsForNations(afterDev, nations, state.resourceAllocations);
   const afterDip = runDiplomacyPhase(afterDev);
   const afterTrade = runTradePhase(afterDip);
   const afterCombat = runCombatPhase(afterTrade);
@@ -20,9 +40,13 @@ export const runTurnPhases = (state: GameState, nextTurn: number): GameState => 
   const afterInter = runInterceptionsPhase(afterProd);
   const finalMap = runLogisticsPhase(afterInter);
 
-
   // Return updated state (turn/year handled by caller)
-  return { ...state, map: finalMap, nations: updatedNations };
+  return {
+    ...state,
+    map: finalMap,
+    nations: updatedNations,
+    resourceAllocations: newResourceAllocations,
+  };
 };
 
 // Nation Development Phase: prospecting, development, construction, and cleanup
@@ -229,32 +253,65 @@ export const runTransportationConnectivity = (map: GameMap): GameMap => {
 // Logistics Phase: compute per-tile production and return a map unchanged (warehouse updates are handled in phases via returned totals)
 export const runLogisticsPhase = (map: GameMap): GameMap => map;
 
-export const runLogisticsForNations = (map: GameMap, nations: Nation[]): Nation[] => {
-  return nations.map((nation) => {
-    const transported = computeLogisticsTransport(map, nation.id);
+export const runLogisticsForNations = (
+  map: GameMap,
+  nations: Nation[],
+  resourceAllocations: ResourceAllocation
+): { nations: Nation[]; resourceAllocations: ResourceAllocation } => {
+  const newResourceAllocations: ResourceAllocation = {};
 
-    // Enforce per-nation transport capacity cap
+  const updatedNations = nations.map((nation) => {
+    const availableForTransport = computeLogisticsTransport(map, nation.id);
+
+    Object.entries(availableForTransport).forEach(([resource, amount]) => {
+      newResourceAllocations[resource] = {
+        amount: resourceAllocations[resource]?.amount ?? 0,
+        max: amount,
+      };
+    });
+
+    let transported = availableForTransport;
+
     const cap = Math.max(0, nation.transportCapacity ?? 0);
     let used = 0;
     const capped: Record<string, number> = {};
-    for (const [res, amt] of Object.entries(transported)) {
+
+    const sortedResources = Object.keys(transported).sort((a, b) => {
+      const priorityA = resourceAllocations[a]?.amount ?? 0;
+      const priorityB = resourceAllocations[b]?.amount ?? 0;
+      return priorityB - priorityA;
+    });
+
+    for (const res of sortedResources) {
       if (used >= cap) break;
       const remaining = cap - used;
-      const take = Math.min(amt, remaining);
+      const take = Math.min(transported[res], remaining);
       if (take > 0) {
         capped[res] = take;
         used += take;
       }
     }
 
+    transported = capped;
+
     const newWarehouse = { ...nation.warehouse };
-    Object.entries(capped).forEach(([key, amt]) => {
-      newWarehouse[key] = (newWarehouse[key] ?? 0) + amt;
+    let newCash = nation.cash;
+
+    Object.entries(transported).forEach(([key, amt]) => {
+      if (key === ResourceType.Gold) {
+        newCash += amt * 200;
+      } else if (key === ResourceType.Gems) {
+        newCash += amt * 500;
+      } else {
+        newWarehouse[key] = (newWarehouse[key] ?? 0) + amt;
+      }
     });
 
-    return { ...nation, warehouse: newWarehouse };
+    return { ...nation, warehouse: newWarehouse, cash: newCash };
   });
-}
+
+  return { nations: updatedNations, resourceAllocations: newResourceAllocations };
+};
 // Compute resources to collect to warehouse for the active nation given the latest map
 // - Tiles owned by the nation
 // - Tile is a hub (capital/depot/port) or adjacent (orthogonal) to any hub

@@ -5,11 +5,13 @@ import { createCameraSlice, CameraSlice } from './controls/cameraSlice';
 import { createOverlaySlice, OverlaySlice } from './controls/overlaySlice';
 import { createNationSlice, NationSlice } from './nationSlice';
 import { createWorkerActionsSlice, WorkerActionsSlice } from './workerActionsSlice';
+import { ResourceAllocationSlice, createResourceAllocationSlice } from './resourceAllocationSlice';
 
 export type GameStore =
   & GameStateSlice
   & NationSlice
   & WorkerActionsSlice
+  & ResourceAllocationSlice
   // & CitySlice
   // & ArmySlice
   // & NavySlice
@@ -26,6 +28,7 @@ export const useGameStore = create<GameStore>()((...a) => ({
   ...createGameStateSlice(...a),
   ...createNationSlice(...a),
   ...createWorkerActionsSlice(...a),
+  ...createResourceAllocationSlice(...a),
   // ...createCitySlice(...a),
   // ...createArmySlice(...a),
   // ...createNavySlice(...a),

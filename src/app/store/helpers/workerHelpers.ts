@@ -154,6 +154,23 @@ export const startDevelopmentHelper = (
   return { ...state, map: { ...state.map, tiles: newTiles } };
 };
 
+const getNeighbors = (map, x, y) => {
+  const neighbors = [];
+  const isOddRow = y % 2 === 1;
+  const top = isOddRow ? [[x, y - 1], [x + 1, y - 1]] : [[x - 1, y - 1], [x, y - 1]];
+  const bottom = isOddRow ? [[x, y + 1], [x + 1, y + 1]] : [[x - 1, y + 1], [x, y + 1]];
+  const side = [[x - 1, y], [x + 1, y]];
+  const allNeighbors = [...top, ...side, ...bottom];
+
+  for (const [nx, ny] of allNeighbors) {
+    if (nx >= 0 && nx < map.config.cols && ny >= 0 && ny < map.config.rows) {
+      neighbors.push(map.tiles[ny][nx]);
+    }
+  }
+
+  return neighbors;
+}
+
 export const startConstructionHelper = (
   state: GameState,
   tileId: string,
@@ -171,6 +188,12 @@ export const startConstructionHelper = (
   if (kind === "port") {
     const canBuildPort = tile.hasRiver === true || isAdjacentToOcean(state.map, tx, ty);
     if (!canBuildPort) return state;
+  }
+
+  if (kind === "depot") {
+    const neighbors = getNeighbors(state.map, tx, ty);
+    const hasAdjacentDepot = neighbors.some((n) => n.depot);
+    if (hasAdjacentDepot) return state;
   }
 
   const duration = EngineerBuildDurationsTurns[kind] ?? 1;

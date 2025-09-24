@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useState } from "react";
 import { TileInfoPanel } from "./TileInfoPanel";
 import { useGameStore } from '../store/rootStore';
+import ResourceAllocationModal from "./ResourceAllocationModal";
 
 export const HUD: React.FC = () => {
     const selectedTileId = useGameStore((s) => s.selectedTileId);
@@ -14,9 +15,13 @@ export const HUD: React.FC = () => {
     const nations = useGameStore((s) => s.nations);
     const activeNation = nations.find((n) => n.id === activeNationId);
 
+    const [isAllocationModalOpen, setIsAllocationModalOpen] = useState(false);
+
     const selectedTile = map.tiles.flat().find(tile => tile.id === selectedTileId);
 
     return (
+        <>
+        {isAllocationModalOpen && <ResourceAllocationModal onClose={() => setIsAllocationModalOpen(false)} />}
         <div
         style={{
             position: "absolute",
@@ -104,7 +109,22 @@ export const HUD: React.FC = () => {
           >
             Advance Turn ▶
           </button>
+          <button
+            onClick={() => setIsAllocationModalOpen(true)}
+            style={{
+              width: "100%",
+              padding: "8px 12px",
+              background: "#f39c12",
+              color: "#fff",
+              border: "none",
+              borderRadius: 4,
+              cursor: "pointer",
+            }}
+          >
+            Resource Allocation 📊
+          </button>
         </div>
         </div>
+        </>
     );
 };
