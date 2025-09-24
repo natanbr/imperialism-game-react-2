@@ -92,7 +92,7 @@
     - document this information about the defenition of adjucent tiles in the repo.md file for next tasks
 
 #### Step 3.3 – depot + port improvments
-- Goal: improve depot and port building (by engineer)
+✅ - Goal: improve depot and port building (by engineer)
 - Details:
     - depot and ports will have a active and inactive state
     - active depot will transport the resources from the adjacent tiles, inactive doesn't (won't increase the warehouse stockpile)
@@ -102,25 +102,40 @@
 - Architecture guidelines:
     - the railroad connectivity will be calculated in the `runTurnPhases` as a new step between combat and production
 
+#### Step 3.4 - Visualize railroad connection
+✅ - goal: visualize railroad connection between tiles
+- Details:
+    - for now let's visualize railroads by drawing lines on top of tiles
+    - attaching an image as an example
+    - this code will get more complicate over time therfore I would like it to be contained and extracted into a railroad visualization helper. 
+    - in the attached screenshot the tiles are not visible so I manual drew tiles for example. 
 
+#### Step 3.4.1 - railroad edge case senarios
+✅- capital, port, depot tiles already have railroad starting point 
+- rail can be built only if the adjesent tile already has railroad 
+in other workds HUD railroad button will be enabled only if the adjecent tile can be connected to current tile via railroad
+
+TODOS:
 - two depots can't be built on adjusent tiles
 - limit the goods trasported by the port depending on nation ships capacity 
 - worker can't start work on the same turn it was moved
 - after city is captrured re-calcualte all railroad connections 
 
-#### Step 3.2 – Engineer Builds Depot
-- Goal: Engineer can build depot on a tile.
-- Details:
-- Depot connects adjacent improved tiles to network.
-- Show depot icon.
-- check code for cenario: Build depot near farm → farm’s output flows to warehouse.
+#### Step – Capital screen
+✅ - goal: add the imperializem game capital screen
+ - Details
+    - The capital screen will be a full screen popup
+    - the capital screen will contain different sections for the different productions, military etc
 
-#### Step 3.3 – Transport Capacity
-- Goal: Add transport capacity limit.
+#### Step Capital – Transport Capacity 
+- Goal: Add transport capacity limit. 
 - Details:
-- Each turn, only X resources can be moved.
-- Show slider UI (like manual’s Transport screen).
-- Test: If capacity < production, some resources remain untransported.
+- verify each nation has a transport capacity number
+- add transport section to the capital
+- Each turn, only X resources can be moved. 
+- In the transport section Show slider UI to incrase the transport capacity by X (the sliding value).
+
+- show a popup when clicking on the capacity section to distribute the transported capacity per resource
 
 ## Phase 4: Industry
 

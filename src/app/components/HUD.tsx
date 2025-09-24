@@ -9,6 +9,7 @@ export const HUD: React.FC = () => {
     const year = useGameStore((s) => s.year);
     const advanceTurn = useGameStore((s) => s.advanceTurn);
     const openWarehouse = useGameStore((s) => s.openWarehouse);
+    const openCapital = useGameStore((s) => s.openCapital);
 
     const selectedTile = map.tiles.flat().find(tile => tile.id === selectedTileId);
 
@@ -37,6 +38,21 @@ export const HUD: React.FC = () => {
             <div><strong>Turn:</strong> {turn}</div>
             <div><strong>Year:</strong> {year}</div>
           </div>
+
+          {/* Debug section */}
+          {selectedTile && (
+            <div style={{ marginBottom: 8, padding: 8, border: '1px dashed #555', borderRadius: 4 }}>
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>Debug</div>
+              <div><strong>Tile:</strong> {selectedTile.x},{selectedTile.y} (id {selectedTile.id})</div>
+              {/* <div><strong>Owner:</strong> {selectedTile.ownerNationId || 'Unclaimed'}</div>
+              <div><strong>Terrain:</strong> {selectedTile.terrain}</div>
+              <div><strong>Connected (rail):</strong> {selectedTile.connected ? 'Yes' : 'No'}</div>
+              <div><strong>Depot:</strong> {selectedTile.depot ? 'Yes' : 'No'} {selectedTile.activeDepot ? '(active)' : ''}</div>
+              <div><strong>Port:</strong> {selectedTile.port ? 'Yes' : 'No'} {selectedTile.activePort ? '(active)' : ''}</div>
+              <div><strong>Has River:</strong> {selectedTile.hasRiver ? 'Yes' : 'No'}</div> */}
+            </div>
+          )}
+
           <TileInfoPanel selectedTile={selectedTile} />
         </div>
 
@@ -55,6 +71,20 @@ export const HUD: React.FC = () => {
             }}
           >
             Open Warehouse 📦
+          </button>
+          <button
+            onClick={openCapital}
+            style={{
+              width: "100%",
+              padding: "8px 12px",
+              background: "#8e44ad",
+              color: "#fff",
+              border: "none",
+              borderRadius: 4,
+              cursor: "pointer",
+            }}
+          >
+            Open Capital 🏛️
           </button>
           <button
             onClick={advanceTurn}

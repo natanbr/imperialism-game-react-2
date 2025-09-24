@@ -25,5 +25,8 @@ export interface Nation {
     avgSpeed: number;    // affects interception odds
   };
 
+  // Per-turn internal transport capacity (units of resources)
+  transportCapacity: number;
+
   warehouse: Record<string, number>; // ResourceType -> amount
 }

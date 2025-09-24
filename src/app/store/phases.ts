@@ -233,8 +233,22 @@ export const runLogisticsForNations = (map: GameMap, nations: Nation[]): Nation[
   return nations.map((nation) => {
     const transported = computeLogisticsTransport(map, nation.id);
 
+    // Enforce per-nation transport capacity cap
+    const cap = Math.max(0, nation.transportCapacity ?? 0);
+    let used = 0;
+    const capped: Record<string, number> = {};
+    for (const [res, amt] of Object.entries(transported)) {
+      if (used >= cap) break;
+      const remaining = cap - used;
+      const take = Math.min(amt, remaining);
+      if (take > 0) {
+        capped[res] = take;
+        used += take;
+      }
+    }
+
     const newWarehouse = { ...nation.warehouse };
-    Object.entries(transported).forEach(([key, amt]) => {
+    Object.entries(capped).forEach(([key, amt]) => {
       newWarehouse[key] = (newWarehouse[key] ?? 0) + amt;
     });
 

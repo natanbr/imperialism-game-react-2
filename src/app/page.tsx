@@ -3,6 +3,7 @@
 import { HUD } from './components/HUD';
 import { MapView } from './components/MapView';
 import { WarehouseModal } from './components/WarehouseModal';
+import { CapitalModal } from './components/CapitalModal';
 
 export default function Home() {
 
@@ -11,6 +12,7 @@ export default function Home() {
       <MapView />
       <HUD />
       <WarehouseModal />
+      <CapitalModal />
     </div>
   );
 

@@ -3,14 +3,17 @@ import { createTileSelectionSlice, TileSelectionSlice } from './controls/tileSel
 import { createGameStateSlice, GameStateSlice } from './gameSlice';
 import { createCameraSlice, CameraSlice } from './controls/cameraSlice';
 import { createOverlaySlice, OverlaySlice } from './controls/overlaySlice';
+import { createNationSlice, NationSlice } from './nationSlice';
+import { createWorkerActionsSlice, WorkerActionsSlice } from './workerActionsSlice';
 
 export type GameStore =
   & GameStateSlice
+  & NationSlice
+  & WorkerActionsSlice
   // & CitySlice
   // & ArmySlice
   // & NavySlice
   // & DiplomacySlice
-  // & NationSlice
   // & TradeSlice
   // & TransportSlice
   // & IndustrySlice
@@ -21,11 +24,12 @@ export type GameStore =
 
 export const useGameStore = create<GameStore>()((...a) => ({
   ...createGameStateSlice(...a),
+  ...createNationSlice(...a),
+  ...createWorkerActionsSlice(...a),
   // ...createCitySlice(...a),
   // ...createArmySlice(...a),
   // ...createNavySlice(...a),
   // ...createDiplomacySlice(...a),
-  // ...createNationSlice(...a),
   // ...createTradeSlice(...a),
   // ...createTransportSlice(...a),
   // ...createIndustrySlice(...a),

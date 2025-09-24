@@ -3,15 +3,7 @@ import { initWorld } from "@/testing/worldInit";
 import { NewsItem } from "@/types/Common";
 import { GameState } from "@/types/GameState";
 import { GameMap } from "@/types/Map";
-import { Nation } from "@/types/Nation";
-import { WorkerType } from "@/types/Workers";
 import { StateCreator } from 'zustand';
-import {
-  moveSelectedWorkerToTileHelper,
-  startConstructionHelper,
-  startDevelopmentHelper,
-  startProspectingHelper,
-} from "./helpers/workerHelpers";
 import { runTurnPhases } from "./phases";
 
 export interface GameStateSlice extends GameState {
@@ -19,12 +11,7 @@ export interface GameStateSlice extends GameState {
   setActiveNation: (nationId: string) => void;
   advanceTurn: () => void;
   addNews: (news: NewsItem) => void;
-  setNations: (nations: Nation[]) => void;
   setMap: (map: GameMap) => void;
-  moveSelectedWorkerToTile: (targetTileId: string, selectedWorkerId: string) => void;
-  startProspecting: (tileId: string, workerId: string) => void;
-  startDevelopment: (tileId: string, workerId: string, workerType: WorkerType, targetLevel: 1 | 2 | 3) => void;
-  startConstruction: (tileId: string, workerId: string, kind: "depot" | "port" | "fort" | "rail") => void;
   setOilDrillingTech: (unlocked: boolean) => void;
 }
 
@@ -83,24 +70,7 @@ export const createGameStateSlice: StateCreator<GameStateSlice, [], [], GameStat
     addNews: (news: NewsItem) => set((state) => ({
       newsLog: [...state.newsLog, news]
     })),
-    setNations: (nations: Nation[]) => set({ nations }),
     setMap: (map: GameMap) => set({ map }),
-
-    moveSelectedWorkerToTile: (targetTileId: string, selectedWorkerId: string) => {
-      set((state) => moveSelectedWorkerToTileHelper(state, targetTileId, selectedWorkerId));
-    },
-
-    startProspecting: (tileId: string, workerId: string) => {
-      set((state) => startProspectingHelper(state, tileId, workerId));
-    },
-
-    startDevelopment: (tileId: string, workerId: string, workerType: WorkerType, targetLevel: 1 | 2 | 3) => {
-      set((state) => startDevelopmentHelper(state, tileId, workerId, workerType, targetLevel));
-    },
-
-    startConstruction: (tileId: string, workerId: string, kind: "depot" | "port" | "fort" | "rail") => {
-      set((state) => startConstructionHelper(state, tileId, workerId, kind));
-    },
   };
 
 }

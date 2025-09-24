@@ -4,6 +4,7 @@ import { useGameStore } from "../store/rootStore";
 import { WorkerType } from "@/types/Workers";
 import { PROSPECTABLE_TERRAIN_TYPES } from "../definisions/terrainDefinitions";
 import { DEVELOPMENT_WORKER_TYPES } from "../definisions/workerDefinitions";
+import { canBuildRailAt } from "@/store/helpers/mapHelpers";
 
 interface TileInfoPanelProps {
   selectedTile: Tile | undefined;
@@ -15,6 +16,8 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
   const startDevelopment = useGameStore((s) => s.startDevelopment);
   const startConstruction = useGameStore((s) => s.startConstruction);
   const oilDrillingTechUnlocked = useGameStore((s) => s.technologyState.oilDrillingTechUnlocked);
+  const map = useGameStore((s) => s.map);
+  const activeNationId = useGameStore((s) => s.activeNationId);
 
   if (!selectedTile) {
     return <div style={{ padding: "10px" }}>No tile selected</div>;
@@ -50,6 +53,10 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
   const startPort = () => selectedWorker && startConstruction(selectedTile.id, selectedWorker.id, "port");
   const startFort = () => selectedWorker && startConstruction(selectedTile.id, selectedWorker.id, "fort");
   const startRail = () => selectedWorker && startConstruction(selectedTile.id, selectedWorker.id, "rail");
+
+  // Rail button enabled only if adjacent tile has a starting point (capital/port/depot/connected) and ownership/land rules pass
+  const [tx, ty] = selectedTile.id.split("-").map(Number);
+  const railAllowed = canBuildRailAt(map, tx, ty, activeNationId);
 
   // Helper: show hints per worker type
   const workerHint = selectedWorker ? `Selected worker: ${selectedWorker.type}` : "Select a worker on this tile to enable actions";
@@ -99,7 +106,7 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
             <button onClick={startDepot} style={{ padding: "4px 8px" }}>Depot</button>
             <button onClick={startPort} style={{ padding: "4px 8px" }}>Port</button>
             <button onClick={startFort} style={{ padding: "4px 8px" }}>Fort</button>
-            <button onClick={startRail} style={{ padding: "4px 8px" }}>Rail</button>
+            <button onClick={startRail} style={{ padding: "4px 8px", opacity: railAllowed ? 1 : 0.5, cursor: railAllowed ? "pointer" : "not-allowed" }} disabled={!railAllowed}>Rail</button>
           </div>
         </div>
       )}

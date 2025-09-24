@@ -1,7 +1,8 @@
 import { useEdgeScroll } from "@/hooks/useEdgeScroll";
 import { useGameStore } from "@/store/rootStore";
-import React, { useRef } from "react";
+import React, { useMemo, useRef } from "react";
 import { TileComponent } from "./Tile";
+import { computeRailSegmentsPixels } from "@/store/helpers/mapHelpers";
 
 export const MapView: React.FC = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -13,6 +14,11 @@ export const MapView: React.FC = () => {
   const nations = useGameStore((s) => s.nations);
 
   useEdgeScroll({ containerRef, onMove: moveCamera });
+
+  // Compute rail segments in pixel coordinates for overlay rendering
+  const railSegments = useMemo(() => computeRailSegmentsPixels(map, 100, 50), [map]);
+  const overlayWidth = map.config.cols * 100 + 50; // extra for odd-row shift
+  const overlayHeight = map.config.rows * 100;
 
   return (
     <div style={{ display: "flex" }}>
@@ -30,6 +36,7 @@ export const MapView: React.FC = () => {
           style={{
             transform: `translate(${-cameraX}px, ${-cameraY}px)`,
             width: 'max-content',
+            position: 'relative', // enable absolute SVG overlay positioning
           }}
         >
           {map.tiles.map((row, y) => (
@@ -39,6 +46,26 @@ export const MapView: React.FC = () => {
               ))}
             </div>
           ))}
+
+          {/* Railroad overlay */}
+          <svg
+            width={overlayWidth}
+            height={overlayHeight}
+            style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'none' }}
+          >
+            {railSegments.map((s, i) => (
+              <line
+                key={i}
+                x1={s.x1}
+                y1={s.y1}
+                x2={s.x2}
+                y2={s.y2}
+                stroke="#222"
+                strokeWidth={6}
+                strokeLinecap="round"
+              />
+            ))}
+          </svg>
         </div>
 
       </div>
