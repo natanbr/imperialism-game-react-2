@@ -43,17 +43,7 @@ export const createWorkerSlice: StateCreator<
     }
   },
   clearTile: (tileId: string) => {
-    const { nations, activeNationId } = get();
-    const nation = nations.find((n) => n.id === activeNationId);
-    if (!nation) return;
-
-    const modifiedNation = createClearTile(tileId, nation);
-
-    set((state) => ({
-      nations: state.nations.map((n) =>
-        n.id === activeNationId ? modifiedNation : n
-      ),
-    }));
+    set((state) => createClearTile(state, tileId));
   },
   startProspecting: (tileId: string, workerId: string) => {
     set((state) => startProspectingHelper(state, tileId, workerId));

@@ -1,4 +1,3 @@
-
 import { MINERAL_RESOURCES } from "@/definisions/resourceDefinitions";
 import {
   DRILLING_TERRAINS,
@@ -17,11 +16,19 @@ import { TerrainType } from "@/types/Tile";
 import { Worker, WorkerType } from "@/types/Workers";
 import { GameStore } from "../types";
 import { isAdjacentToOcean } from "./mapHelpers";
-import { Nation } from "@/types/Nation";
 
-export const createClearTile = (tileId: string, nation: Nation): Nation => {
-  // TODO: Implement the logic to clear a tile
-  return nation;
+export const createClearTile = (state: GameStore, tileId: string): GameStore => {
+  const { map } = state;
+  const [tx, ty] = tileId.split("-").map(Number);
+  const tile = map.tiles[ty]?.[tx];
+
+  if (tile) {
+    tile.developmentJob = undefined;
+    tile.constructionJob = undefined;
+    tile.prospecting = undefined;
+  }
+
+  return state;
 };
 
 export const moveSelectedWorkerToTileHelper = (

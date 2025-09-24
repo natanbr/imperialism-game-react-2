@@ -11,13 +11,17 @@ interface TileInfoPanelProps {
 }
 
 export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) => {
-  const selectedWorkerId = useGameStore((s) => s.selectedWorkerId);
-  const startProspecting = useGameStore((s) => s.startProspecting);
-  const startDevelopment = useGameStore((s) => s.startDevelopment);
-  const startConstruction = useGameStore((s) => s.startConstruction);
-  const oilDrillingTechUnlocked = useGameStore((s) => s.technologyState.oilDrillingTechUnlocked);
-  const map = useGameStore((s) => s.map);
-  const activeNationId = useGameStore((s) => s.activeNationId);
+  const {
+    selectedWorkerId,
+    startProspecting,
+    startDevelopment,
+    startConstruction,
+    technologyState,
+    map,
+    activeNationId,
+    clearTile,
+  } = useGameStore();
+  const { oilDrillingTechUnlocked } = technologyState;
 
   if (!selectedTile) {
     return <div style={{ padding: "10px" }}>No tile selected</div>;
@@ -59,7 +63,9 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
   const railAllowed = canBuildRailAt(map, tx, ty, activeNationId);
 
   // Helper: show hints per worker type
-  const workerHint = selectedWorker ? `Selected worker: ${selectedWorker.type}` : "Select a worker on this tile to enable actions";
+  const workerHint = selectedWorker
+    ? `Selected worker: ${selectedWorker.type}`
+    : "Select a worker on this tile to enable actions";
 
   return (
     <div style={{ padding: "10px", borderLeft: "2px solid #333", minWidth: "220px" }}>
@@ -122,6 +128,21 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
           <strong>Construction:</strong> {con.kind} ({con.completed ? "Done" : `~${con.durationTurns} turns`})
         </div>
       )}
+      {/* Clear action */}
+      <button
+        onClick={() => clearTile(selectedTile.id)}
+        style={{
+          marginTop: 8,
+          padding: "6px 10px",
+          borderRadius: 4,
+          border: "1px solid #666",
+          background: "#333",
+          color: "#fff",
+          cursor: "pointer",
+        }}
+      >
+        Clear Tile
+      </button>
     </div>
   );
 };
