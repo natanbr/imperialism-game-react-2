@@ -10,6 +10,9 @@ export const HUD: React.FC = () => {
     const advanceTurn = useGameStore((s) => s.advanceTurn);
     const openWarehouse = useGameStore((s) => s.openWarehouse);
     const openCapital = useGameStore((s) => s.openCapital);
+    const activeNationId = useGameStore((s) => s.activeNationId);
+    const nations = useGameStore((s) => s.nations);
+    const activeNation = nations.find((n) => n.id === activeNationId);
 
     const selectedTile = map.tiles.flat().find(tile => tile.id === selectedTileId);
 
@@ -37,6 +40,7 @@ export const HUD: React.FC = () => {
           <div style={{ marginBottom: 8 }}>
             <div><strong>Turn:</strong> {turn}</div>
             <div><strong>Year:</strong> {year}</div>
+            <div><strong>Cash:</strong> {activeNation?.treasury ?? 0}</div>
           </div>
 
           {/* Debug section */}
