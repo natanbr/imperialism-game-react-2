@@ -10,10 +10,14 @@ export function getAdjacentTiles(map: GameMap, x: number, y: number): Tile[] {
   const inBounds = (cx: number, cy: number) => cx >= 0 && cx < cols && cy >= 0 && cy < rows;
   const isOddRow = y % 2 === 1;
   const neighborCoords: [number, number][] = [
-    ...(isOddRow ? [[x, y - 1], [x + 1, y - 1]] : [[x - 1, y - 1], [x, y - 1]]),
-    [x - 1, y],
-    [x + 1, y],
-    ...(isOddRow ? [[x, y + 1], [x + 1, y + 1]] : [[x - 1, y + 1], [x, y + 1]]),
+    ...(isOddRow
+      ? ([ [x, y - 1] as [number, number], [x + 1, y - 1] as [number, number] ])
+      : ([ [x - 1, y - 1] as [number, number], [x, y - 1] as [number, number] ])),
+    [x - 1, y] as [number, number],
+    [x + 1, y] as [number, number],
+    ...(isOddRow
+      ? ([ [x, y + 1] as [number, number], [x + 1, y + 1] as [number, number] ])
+      : ([ [x - 1, y + 1] as [number, number], [x, y + 1] as [number, number] ])),
   ].filter(([nx, ny]) => inBounds(nx, ny));
 
   return neighborCoords.map(([nx, ny]) => map.tiles[ny][nx]);

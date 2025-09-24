@@ -45,7 +45,7 @@ export const EngineerBuildDurationsTurns: Record<
   depot: 2, // TODO: update from manual
   port: 4,  // TODO: update from manual
   fort: 4,  // TODO: update from manual
-  rail: 3,  // TODO: update from manual
+  rail: 1,  // TODO: update from manual
 };
 
 // Convenience accessor for consumers wanting a single exported object
