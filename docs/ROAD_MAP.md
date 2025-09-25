@@ -187,18 +187,68 @@ TODOS:
 - limit the goods trasported by the port depending on nation ships capacity 
 - worker can't start work on the same turn it was moved
 - after city is captrured re-calcualte all railroad connections 
-
+- military and workers consume food, if no enouth food workers go on stirck
 
 ## Phase 4: Industry
 
-#### Step 4.2 – Industry Buildings
-- Goal: Add Textile Mill, Lumber Mill, Steel Mill, Food Processing.
-- Details:
-- Implement recipes (2 cotton → 1 fabric, etc.).
-- Require labour + inputs.
-- Test: Transport cotton → produce fabric.
+#### Step 4.1 – Organazing the Capital view 
+- Goal: Organazing the Capital view to make space for new features and store 
+Details 
+- capital will have a labour units 
+- in the next steps of phse 4 we will work in extending the capital functionality and view
+- Convert the Warehouse, Trade, Diplomacy, Technology to buttons at the top of the capital view 
+- let's add a two side pannels to the right and left to display capital information (the information displayed in a column):
+   - Available Labour
+   - Types of Workers (untrained, trained, expert)
+   - available electricity (Hidden until Oil technology is researched)
+- let's add a new section to the capital view called Industry which will include the following:
+    - Industry Building (depot, port, railroad)
+- Add cards (similar to Transport) for the following industry buildings:
+  - Trade School (Workers training explained in section 4.2)
+    - add slider 3 sliders for producint uptrained workers, trained workers and expert workers
+  - Textile Mill: add slider for producing goods and upgrade button 
+  - Lumber Mill: add slider for producing goods and upgrade button 
+  - Steel Mill: add slider for producing goods and upgrade button 
+  - Food Processing: add slider for producing food
+  - Furniture Factory: add slider for producing goods and upgrade button 
+  - Clothing Factory: add slider for producing goods and upgrade button 
+  - Fuel Processing (Hidden until Oil technology is researched): add slider for producing goods and upgrade button 
+  - Electricity production (Hidden until Oil technology is researched)
+  - Armory (currently called military)
+  - ship yarn
+- each card will have a slider to produce goods (recipes will be provided in step 4.2)
 
-#### Step 4.3 – Labour & Training
+#### Step 4.2 – Industry
+- Goal: 
+    To the city pannel we should add 
+    Add Textile Mill, Lumber Mill, Steel Mill, Food Processing and workers traning. 
+- Details:
+- Implement Industry Recipes (new file under definision folder):
+    - 1 grain + 1 Fruit + 1 (fish OR Livestock) -> 1 food
+    - 2 wood → 1 lumber
+    - 2 wood → 1 paper
+    - 2 lumber → 1 furniture
+    - 2 cotton OR 2 Wool → 1 fabric
+    - 2 fabric → 1 clothing item
+    - 2 coal AND 2 iron -> 1 steel
+    - hardware: 2 steal -> one hammer (hardware)
+    - 2 untrained workers + 500$ -> trained worker
+    - 2 trained workers + 1000$ -> expert worker
+    - 2 oil -> 1 fuel
+    - 2 fuel + 100 -> 8 electicity units
+- When a new worker is produced:
+    - 1 food + 100$ + chiar + paper -> 1 untrained worker + 1 labour unit
+    - consume 1 untrained worker (and 1 labour unit) during same turn and produce 1 trained workers and 2 labours of unit
+    * 1 untrained workers + 1 labour + 500$ -> 1 trained worker + 2 labour units
+    (untrained worker is used to produce trained worker, when it's produced reduce (consume) it's equivalent labour unit (1 unit))
+    * 1 trained workers + 2 labours + 1000$ -> expert worker + 4 labour units
+    (trained worker is used to produce expert worker, when it's produced reduce (consume) it's equivalent labour unit (2 units))
+
+- Test: add testing for each recipe.
+
+#### 4.3 - Industry building level and cost of upgrade 
+
+#### Step 4.4 – Labour & Training
 - Goal: Add untrained/trained/expert workers.
 - Details:
 - Each worker = 1/2/4 labour.

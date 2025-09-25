@@ -3,14 +3,66 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useGameStore } from "../store/rootStore";
 import TransportAllocationModal from "./TransportAllocationModal";
 
-// Minimal full-screen Capital screen placeholder with sections per repo.md
+// Capital screen organized per Roadmap Step 4.1
+// - Top buttons: Warehouse, Trade, Diplomacy, Technology
+// - Two side panels (left/right): Available Labour, Worker Types, Electricity (hidden until Oil tech)
+// - Center area: sections including Industry with cards and sliders
+
+type SliderSpec = {
+  label: string;
+  min?: number;
+  max?: number;
+  step?: number;
+};
+
+const IndustryCard: React.FC<{
+  title: string;
+  sliders?: SliderSpec[];
+  hidden?: boolean;
+}> = ({ title, sliders = [{ label: "Output" }], hidden }) => {
+  const [values, setValues] = useState<number[]>(
+    () => sliders.map(() => 0)
+  );
+
+  if (hidden) return null;
+
+  return (
+    <div style={{ border: "1px solid #333", borderRadius: 8, padding: 10, background: "#1b1b1b", display: "grid", gap: 8 }}>
+      <div style={{ fontWeight: 700 }}>{title}</div>
+      <div style={{ display: "grid", gap: 6 }}>
+        {sliders.map((s, i) => (
+          <div key={`${title}-${i}`} style={{ display: "grid", gridTemplateColumns: "1fr auto", alignItems: "center", gap: 8 }}>
+            <label style={{ fontSize: 12, opacity: 0.9 }}>{s.label}</label>
+            <input
+              type="range"
+              min={s.min ?? 0}
+              max={s.max ?? 10}
+              step={s.step ?? 1}
+              value={values[i]}
+              onChange={(e) => {
+                const next = [...values];
+                next[i] = Number(e.target.value) || 0;
+                setValues(next);
+              }}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 export const CapitalModal: React.FC = () => {
   const isOpen = useGameStore((s) => s.isCapitalOpen);
   const close = useGameStore((s) => s.closeCapital);
+  const openWarehouse = useGameStore((s) => s.openWarehouse);
+
   const activeNationId = useGameStore((s) => s.activeNationId);
   const nations = useGameStore((s) => s.nations);
-  const purchaseCapacity = useGameStore((s) => s.purchaseTransportCapacityIncrease);
+  const technologyState = useGameStore((s) => s.technologyState);
+  const industry = useGameStore((s) => s.industry);
 
+  const purchaseCapacity = useGameStore((s) => s.purchaseTransportCapacityIncrease);
 
   const nation = nations.find((n) => n.id === activeNationId);
 
@@ -18,13 +70,13 @@ export const CapitalModal: React.FC = () => {
   const [isAllocOpen, setAllocOpen] = useState(false);
 
   const capacity = nation?.transportCapacity ?? 0;
-  
+
   // Transport UI helpers
   const [buyCount, setBuyCount] = useState<number>(0);
   const { availableCoal, availableIron, maxPurchasable } = useMemo(() => {
-    const stock = nation?.warehouse ?? {};
-    const coal = Number(stock.coal ?? 0);
-    const iron = Number(stock.ironOre ?? 0);
+    const stock = nation?.warehouse ?? {} as Record<string, number>;
+    const coal = Number(stock.coal ?? stock.Coal ?? 0);
+    const iron = Number(stock.ironOre ?? stock.IronOre ?? 0);
     const maxByCoal = Math.floor(coal / 1);
     const maxByIron = Math.floor(iron / 1);
     return {
@@ -43,7 +95,7 @@ export const CapitalModal: React.FC = () => {
   const applyDelta = (newValue: number) => {
     if (!nation) return;
     const prev = buyCount;
-    const totalAllowed = prev + maxPurchasable; // can keep previous and add up to current available
+    const totalAllowed = prev + maxPurchasable; // keep previous and add up to available this turn
     const next = Math.max(0, Math.min(Math.floor(newValue) || 0, totalAllowed));
     const delta = next - prev;
     if (delta !== 0) {
@@ -53,6 +105,10 @@ export const CapitalModal: React.FC = () => {
   };
 
   if (!isOpen) return null;
+
+  const oilUnlocked = !!technologyState?.oilDrillingTechUnlocked;
+  const labour = industry?.labour ?? { untrained: 0, trained: 0, expert: 0, availableThisTurn: 0 };
+  const power = industry?.power ?? 0;
 
   return (
     <div
@@ -68,8 +124,8 @@ export const CapitalModal: React.FC = () => {
     >
       <div
         style={{
-          width: "90vw",
-          height: "90vh",
+          width: "92vw",
+          height: "92vh",
           background: "#151515",
           color: "#eee",
           borderRadius: 10,
@@ -78,6 +134,7 @@ export const CapitalModal: React.FC = () => {
           flexDirection: "column",
         }}
       >
+        {/* Header with top action buttons */}
         <div
           style={{
             display: "flex",
@@ -91,6 +148,41 @@ export const CapitalModal: React.FC = () => {
           }}
         >
           <h2 style={{ margin: 0 }}>Capital — {nation?.name ?? "Unknown"}</h2>
+
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={openWarehouse}
+              style={{ background: "#2a2a2a", color: "#fff", border: "1px solid #444", padding: "6px 10px", borderRadius: 4, cursor: "pointer" }}
+              title="Open Warehouse"
+            >
+              Warehouse
+            </button>
+            <button
+              onClick={() => {/* Placeholder for future screen */}}
+              style={{ background: "#2a2a2a", color: "#aaa", border: "1px solid #444", padding: "6px 10px", borderRadius: 4, cursor: "not-allowed" }}
+              title="Trade (coming soon)"
+              disabled
+            >
+              Trade
+            </button>
+            <button
+              onClick={() => {/* Placeholder for future screen */}}
+              style={{ background: "#2a2a2a", color: "#aaa", border: "1px solid #444", padding: "6px 10px", borderRadius: 4, cursor: "not-allowed" }}
+              title="Diplomacy (coming soon)"
+              disabled
+            >
+              Diplomacy
+            </button>
+            <button
+              onClick={() => {/* Placeholder for future screen */}}
+              style={{ background: "#2a2a2a", color: "#aaa", border: "1px solid #444", padding: "6px 10px", borderRadius: 4, cursor: "not-allowed" }}
+              title="Technology (coming soon)"
+              disabled
+            >
+              Technology
+            </button>
+          </div>
+
           <button
             onClick={close}
             style={{
@@ -100,96 +192,127 @@ export const CapitalModal: React.FC = () => {
               padding: "6px 10px",
               borderRadius: 4,
               cursor: "pointer",
+              marginLeft: 12,
             }}
           >
             ✕
           </button>
         </div>
 
-        {/* Content area: basic grid of sections to be implemented */}
-        <div
-          style={{
-            padding: 16,
-            display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
-            gridAutoRows: "minmax(160px, auto)",
-            gap: 12,
-            overflow: "auto",
-          }}
-        >
-          <Section title="Industry">
-            <ul style={{ margin: 0, paddingLeft: 16 }}>
-              <li>Production overview (Textile, Lumber, Steel, Food, etc.)</li>
-              <li>Labor (untrained/trained/expert)</li>
-              <li>Power capacity</li>
-            </ul>
-          </Section>
-
-          <Section title="Warehouse">
-            <p>Quick stock summary of resources, materials, goods.</p>
-          </Section>
-
-          <Section title="Transport">
-            <div style={{ display: 'grid', gap: 8 }}>
-              <div
-                onClick={() => setAllocOpen(true)}
-                style={{ display: 'flex', justifyContent: 'space-between', cursor: 'pointer', padding: '4px 6px', border: '1px dashed #333', borderRadius: 4 }}
-                title="Click to distribute transport capacity per resource"
-              >
-                <span>Transport Capacity</span>
-                <strong>{nation?.transportCapacity ?? 0}</strong>
-                {nation?.transportCapacityPendingIncrease && (
-                  <span style={{ color: '#ff0' }}>+{nation.transportCapacityPendingIncrease}</span>
-                )}
-              </div>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <span>Increase capacity </span>
-                <input
-                  type="range"
-                  min={0}
-                  max={maxPurchasable + buyCount}
-                  step={1}
-                  value={buyCount}
-                  onChange={(e) => applyDelta(Number(e.target.value) || 0)}
-                  style={{ width: 120, background: '#111', color: '#eee', border: '1px solid #333', borderRadius: 4, padding: '4px 6px' }}
-                />
-              </div>
-
-              {/* Button to open Transportation of Commodities popup */}
-              <button
-                onClick={() => setAllocOpen(true)}
-                style={{
-                  marginTop: 8,
-                  alignSelf: 'start',
-                  background: '#2a2a2a',
-                  color: '#fff',
-                  border: '1px solid #444',
-                  padding: '6px 10px',
-                  borderRadius: 4,
-                  cursor: 'pointer',
-                }}
-                title="Open Transportation of Commodities"
-              >
-                Transportation of Commodities
-              </button>
+        {/* Body layout: left sidebar, center content, right sidebar */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 8fr 1fr", gap: 12, padding: 12, height: "100%" }}>
+          {/* Left side panel */}
+          <aside style={{ border: "1px solid #333", borderRadius: 8, padding: 12, background: "#1a1a1a", display: "grid", gap: 8, alignContent: "start" }}>
+            <h3 style={{ marginTop: 0 }}>Capital Info</h3>
+            <div><strong>Available Labour:</strong> {labour.availableThisTurn}</div>
+            <div style={{ borderTop: "1px solid #333", marginTop: 6, paddingTop: 6 }}>
+              <div style={{ marginBottom: 4, fontWeight: 700 }}>Worker Types</div>
+              <div>Untrained: {labour.untrained}</div>
+              <div>Trained: {labour.trained}</div>
+              <div>Expert: {labour.expert}</div>
             </div>
-          </Section>
+            {oilUnlocked && (
+              <div style={{ borderTop: "1px solid #333", marginTop: 6, paddingTop: 6 }}>
+                <div style={{ marginBottom: 4, fontWeight: 700 }}>Electricity</div>
+                <div>Available: {power}</div>
+              </div>
+            )}
+          </aside>
 
-          <Section title="Trade">
-            <p>Bids & offers, merchant marine capacity (planned).</p>
-          </Section>
+          {/* Center content grid */}
+          <main style={{ overflow: "auto" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(260px, 1fr))", gap: 12 }}>
+              <section style={{ gridColumn: "1 / -1" }}>
+                <div style={{ border: "1px solid #333", borderRadius: 8, padding: 12, background: "#1a1a1a" }}>
+                  <h3 style={{ marginTop: 0, marginBottom: 8 }}>Industry</h3>
+                  {/* Industry cards grid */}
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(220px, 1fr))", gap: 10 }}>
+                    <IndustryCard title="Trade School" sliders={[{ label: "Untrained" }, { label: "Trained" }, { label: "Expert" }]} />
+                    <IndustryCard title="Textile Mill" />
+                    <IndustryCard title="Lumber Mill" />
+                    <IndustryCard title="Steel Mill" />
+                    <IndustryCard title="Food Processing" />
+                    <IndustryCard title="Furniture Factory" />
+                    <IndustryCard title="Clothing Factory" />
+                    <IndustryCard title="Fuel Processing" hidden={!oilUnlocked} />
+                    <IndustryCard title="Electricity Production" hidden={!oilUnlocked} />
+                    <IndustryCard title="Armory" sliders={[]} />
+                    <IndustryCard title="Shipyard"  sliders={[]}/>
+                  </div>
+                </div>
+              </section>
 
-          <Section title="Diplomacy">
-            <p>Attitudes, treaties, grants (planned).</p>
-          </Section>
 
-          <Section title="Military">
-            <p>Regiments, recruitment (armaments + horses) (planned).</p>
-          </Section>
+              {/* Existing Transport section */}
+              <section>
+                <div style={{ border: "1px solid #333", borderRadius: 8, padding: 12, background: "#1a1a1a", display: 'grid', gap: 8 }}>
+                  <h3 style={{ marginTop: 0, marginBottom: 8 }}>Transport</h3>
 
-          <Section title="Technology">
-            <p>Investments, unlocks (e.g., oil drilling, ranchers) (planned).</p>
-          </Section>
+                  <div
+                    onClick={() => setAllocOpen(true)}
+                    style={{ display: 'flex', justifyContent: 'space-between', cursor: 'pointer', padding: '4px 6px', border: '1px dashed #333', borderRadius: 4 }}
+                    title="Click to distribute transport capacity per resource"
+                  >
+                    <span>Transport Capacity</span>
+                    <strong>{nation?.transportCapacity ?? 0}</strong>
+                    {nation?.transportCapacityPendingIncrease && (
+                      <span style={{ color: '#ff0' }}>+{nation.transportCapacityPendingIncrease}</span>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <span>Increase capacity </span>
+                    <input
+                      type="range"
+                      min={0}
+                      max={maxPurchasable + buyCount}
+                      step={1}
+                      value={buyCount}
+                      onChange={(e) => applyDelta(Number(e.target.value) || 0)}
+                      style={{ width: 140, background: '#111', color: '#eee', border: '1px solid #333', borderRadius: 4, padding: '4px 6px' }}
+                    />
+                  </div>
+
+                  <button
+                    onClick={() => setAllocOpen(true)}
+                    style={{
+                      marginTop: 4,
+                      alignSelf: 'start',
+                      background: '#2a2a2a',
+                      color: '#fff',
+                      border: '1px solid #444',
+                      padding: '6px 10px',
+                      borderRadius: 4,
+                      cursor: 'pointer',
+                    }}
+                    title="Open Transportation of Commodities"
+                  >
+                    Transportation of Commodities
+                  </button>
+                </div>
+              </section>
+              
+            </div>
+          </main>
+
+          {/* Right side panel (mirrors the required capital info) */}
+          <aside style={{ border: "1px solid #333", borderRadius: 8, padding: 12, background: "#1a1a1a", display: "grid", gap: 8, alignContent: "start" }}>
+            <h3 style={{ marginTop: 0 }}>Capital Info</h3>
+            <div><strong>Available Labour:</strong> {labour.availableThisTurn}</div>
+            <div style={{ borderTop: "1px solid #333", marginTop: 6, paddingTop: 6 }}>
+              <div style={{ marginBottom: 4, fontWeight: 700 }}>Worker Types</div>
+              <div>Untrained: {labour.untrained}</div>
+              <div>Trained: {labour.trained}</div>
+              <div>Expert: {labour.expert}</div>
+            </div>
+            {oilUnlocked && (
+              <div style={{ borderTop: "1px solid #333", marginTop: 6, paddingTop: 6 }}>
+                <div style={{ marginBottom: 4, fontWeight: 700 }}>Electricity</div>
+                <div>Available: {power}</div>
+              </div>
+            )}
+          </aside>
+        </div>
 
         {/* Transportation of Commodities Popup */}
         {isAllocOpen && (
@@ -198,17 +321,9 @@ export const CapitalModal: React.FC = () => {
             onClose={() => setAllocOpen(false)}
           />
         )}
-        </div>
       </div>
     </div>
   );
 };
-
-const Section: React.FC<{ title: string; children?: React.ReactNode }> = ({ title, children }) => (
-  <div style={{ border: "1px solid #333", borderRadius: 8, padding: 12, background: "#1a1a1a" }}>
-    <h3 style={{ marginTop: 0, marginBottom: 8 }}>{title}</h3>
-    {children}
-  </div>
-);
 
 export default CapitalModal;
