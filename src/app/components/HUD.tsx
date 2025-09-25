@@ -10,6 +10,8 @@ export const HUD: React.FC = () => {
     const advanceTurn = useGameStore((s) => s.advanceTurn);
     const openWarehouse = useGameStore((s) => s.openWarehouse);
     const openCapital = useGameStore((s) => s.openCapital);
+    const openTransportAllocation = useGameStore((s) => s.openTransportAllocation);
+    const setCamera = useGameStore((s) => s.setCamera);
     const activeNationId = useGameStore((s) => s.activeNationId);
     const nations = useGameStore((s) => s.nations);
     const activeNation = nations.find((n) => n.id === activeNationId);
@@ -91,19 +93,55 @@ export const HUD: React.FC = () => {
             Open Capital 🏛️
           </button>
           <button
-            onClick={advanceTurn}
+            onClick={openTransportAllocation}
             style={{
               width: "100%",
               padding: "8px 12px",
-              background: "#4caf50",
+              background: "#2a2a2a",
               color: "#fff",
-              border: "none",
+              border: "1px solid #444",
               borderRadius: 4,
               cursor: "pointer",
             }}
           >
-            Advance Turn ▶
+            Transportation of Commodities 🚛
           </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={() => {
+                const cx = Math.floor((map.config.cols * 100 + 50) / 2);
+                const cy = Math.floor((map.config.rows * 100) / 2);
+                setCamera(cx, cy);
+              }}
+              title="Center Camera"
+              style={{
+                flex: 1,
+                padding: "6px 8px",
+                background: "#333",
+                color: "#fff",
+                border: "1px solid #444",
+                borderRadius: 4,
+                cursor: "pointer",
+                fontSize: 12,
+              }}
+            >
+              ⌖ Center
+            </button>
+            <button
+              onClick={advanceTurn}
+              style={{
+                flex: 2,
+                padding: "8px 12px",
+                background: "#4caf50",
+                color: "#fff",
+                border: "none",
+                borderRadius: 4,
+                cursor: "pointer",
+              }}
+            >
+              Advance Turn ▶
+            </button>
+          </div>
         </div>
         </div>
     );

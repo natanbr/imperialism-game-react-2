@@ -10,6 +10,11 @@ export interface OverlaySlice {
   isCapitalOpen: boolean;
   openCapital: () => void;
   closeCapital: () => void;
+
+  // Transport Allocation modal controls (global access)
+  isTransportAllocationOpen: boolean;
+  openTransportAllocation: () => void;
+  closeTransportAllocation: () => void;
 }
 
 export const createOverlaySlice: StateCreator<OverlaySlice, [], [], OverlaySlice> = (set) => ({
@@ -22,4 +27,9 @@ export const createOverlaySlice: StateCreator<OverlaySlice, [], [], OverlaySlice
   isCapitalOpen: false,
   openCapital: () => set({ isCapitalOpen: true }),
   closeCapital: () => set({ isCapitalOpen: false }),
+
+  // Transport Allocation modal
+  isTransportAllocationOpen: false,
+  openTransportAllocation: () => set({ isTransportAllocationOpen: true }),
+  closeTransportAllocation: () => set({ isTransportAllocationOpen: false }),
 });

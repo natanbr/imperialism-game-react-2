@@ -47,6 +47,9 @@ export interface GameState {
   map: GameMap;
   transportNetwork: TransportNetwork;
 
+  // Player-chosen distribution of transport capacity per nation for this turn
+  transportAllocationsByNation?: Record<string, Record<string, number>>;
+
   tradeRoutes: TradeRoute[]; // optional if you model manual trade as global rather than fixed routes
 
   industry: IndustryState;   // if centralized; otherwise per-nation industry states in Nation extensions

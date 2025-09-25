@@ -20,7 +20,7 @@ export const CapitalModal: React.FC = () => {
   const capacity = nation?.transportCapacity ?? 0;
   
   // Transport UI helpers
-  const [buyCount, setBuyCount] = useState<number>(1);
+  const [buyCount, setBuyCount] = useState<number>(0);
   const { availableCoal, availableIron, maxPurchasable } = useMemo(() => {
     const stock = nation?.warehouse ?? {};
     const coal = Number(stock.coal ?? 0);
@@ -124,7 +124,11 @@ export const CapitalModal: React.FC = () => {
 
           <Section title="Transport">
             <div style={{ display: 'grid', gap: 8 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <div
+                onClick={() => setAllocOpen(true)}
+                style={{ display: 'flex', justifyContent: 'space-between', cursor: 'pointer', padding: '4px 6px', border: '1px dashed #333', borderRadius: 4 }}
+                title="Click to distribute transport capacity per resource"
+              >
                 <span>Transport Capacity</span>
                 <strong>{nation?.transportCapacity ?? 0}</strong>
                 {nation?.transportCapacityPendingIncrease && (
@@ -157,6 +161,7 @@ export const CapitalModal: React.FC = () => {
                   borderRadius: 4,
                   cursor: 'pointer',
                 }}
+                title="Open Transportation of Commodities"
               >
                 Transportation of Commodities
               </button>
