@@ -169,10 +169,18 @@ The total collected comodities should be recalcualted every turn after the
 - show a popup when clicking on the capacity section to distribute the transported capacity per resource
 
 #### Step – Work price
-- Goal: Add work price.
+✅ - Goal: Add work price.
 - Details:
-- Each worker has price 
-- Test: Hire worker → cash decreases.
+- Each worker charge for carch per job
+- prospector charge 100$ 
+- l1 stractures cost 100$
+- l2 stractures cost 500$
+- l3 stractures cost 5000$
+- railroad cost 100$
+- depot cost 500$
+- port cost 1000$
+- fort cost 1000$
+- Test: assign worker → cash decreases in the same day.
 
 TODOS:
 - two depots can't be built on adjusent tiles

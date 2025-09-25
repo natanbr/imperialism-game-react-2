@@ -7,6 +7,7 @@ import { ResourceType } from "@/types/Resource";
 import { TerrainType } from "@/types/Tile";
 import { Worker, WorkerType } from "@/types/Workers";
 import { isAdjacentToOcean } from "./mapHelpers";
+import { PROSPECT_COST, DEVELOPMENT_COST, CONSTRUCTION_COST } from "@/definisions/workPrices";
 
 export const moveSelectedWorkerToTileHelper = (
   state: GameState,
@@ -85,20 +86,29 @@ export const startProspectingHelper = (
   const tile = state.map.tiles[ty]?.[tx];
   if (!tile) return state;
 
+  const worker = tile.workers.find((w) => w.id === workerId && w.type === WorkerType.Prospector);
   const terrainAllowed = PROSPECTABLE_TERRAIN_TYPES.includes(tile.terrain);
-
-  const hasWorker = tile.workers.some((w) => w.id === workerId && w.type === WorkerType.Prospector);
   const alreadyProspecting = !!tile.prospecting;
   const alreadyDiscovered = tile.resource?.discovered === true;
 
-  if (!terrainAllowed || !hasWorker || alreadyProspecting || alreadyDiscovered) return state;
+  if (!worker || !terrainAllowed || alreadyProspecting || alreadyDiscovered) return state;
+
+  // Check funds before starting
+  const nation = state.nations.find(n => n.id === worker.nationId);
+  const cost = PROSPECT_COST;
+  if (!nation || (nation.treasury ?? 0) < cost) return state; // insufficient funds
 
   const newRow = [...state.map.tiles[ty]];
   newRow[tx] = { ...tile, prospecting: { startedOnTurn: state.turn, workerId } };
   const newTiles = [...state.map.tiles];
   newTiles[ty] = newRow;
 
-  return { ...state, map: { ...state.map, tiles: newTiles } };
+  // Deduct immediate work price for prospector job
+  const newNations = state.nations.map((n) =>
+    n.id === worker.nationId ? { ...n, treasury: (n.treasury ?? 0) - cost } : n
+  );
+
+  return { ...state, map: { ...state.map, tiles: newTiles }, nations: newNations };
 };
 
 export const startDevelopmentHelper = (
@@ -113,7 +123,8 @@ export const startDevelopmentHelper = (
   if (!tile) return state;
 
   // Validate worker is on tile and of given type
-  const workerOnTile = tile.workers.some((w) => w.id === workerId && w.type === workerType);
+  const worker = tile.workers.find((w) => w.id === workerId);
+  const workerOnTile = !!worker && worker.type === workerType;
   // Allow starting a new development if any existing development job is already completed
   if (!workerOnTile || (tile.developmentJob && !tile.developmentJob.completed)) return state;
 
@@ -144,6 +155,11 @@ export const startDevelopmentHelper = (
   // Get duration from table; fallback to 1
   const duration = WorkerLevelDurationsTurns[workerType]?.[targetLevel] ?? 1;
 
+  // Check funds before starting
+  const levelCost = DEVELOPMENT_COST[targetLevel];
+  const nation = state.nations.find(n => n.id === (worker!.nationId));
+  if (!nation || (nation.treasury ?? 0) < levelCost) return state; // insufficient funds
+
   const newRow = [...state.map.tiles[ty]];
   newRow[tx] = {
     ...tile,
@@ -151,7 +167,13 @@ export const startDevelopmentHelper = (
   };
   const newTiles = [...state.map.tiles];
   newTiles[ty] = newRow;
-  return { ...state, map: { ...state.map, tiles: newTiles } };
+
+  // Deduct immediate work price based on target level
+  const newNations = state.nations.map((n) =>
+    n.id === (worker!.nationId) ? { ...n, treasury: (n.treasury ?? 0) - levelCost } : n
+  );
+
+  return { ...state, map: { ...state.map, tiles: newTiles }, nations: newNations };
 };
 
 export const startConstructionHelper = (
@@ -164,8 +186,8 @@ export const startConstructionHelper = (
   const tile = state.map.tiles[ty]?.[tx];
   if (!tile) return state;
 
-  const workerOnTile = tile.workers.some((w) => w.id === workerId && w.type === WorkerType.Engineer);
-  if (!workerOnTile || tile.constructionJob) return state;
+  const engineer = tile.workers.find((w) => w.id === workerId && w.type === WorkerType.Engineer);
+  if (!engineer || tile.constructionJob) return state;
 
   // Rule: Port can be started only if tile has river OR is adjacent to ocean/coast
   if (kind === "port") {
@@ -175,9 +197,20 @@ export const startConstructionHelper = (
 
   const duration = EngineerBuildDurationsTurns[kind] ?? 1;
 
+  // Check funds before starting
+  const cost = CONSTRUCTION_COST[kind];
+  const nation = state.nations.find(n => n.id === engineer.nationId);
+  if (!nation || (nation.treasury ?? 0) < cost) return state; // insufficient funds
+
   const newRow = [...state.map.tiles[ty]];
   newRow[tx] = { ...tile, constructionJob: { workerId, kind, startedOnTurn: state.turn, durationTurns: duration } };
   const newTiles = [...state.map.tiles];
   newTiles[ty] = newRow;
-  return { ...state, map: { ...state.map, tiles: newTiles } };
+
+  // Deduct immediate construction cost
+  const newNations = state.nations.map((n) =>
+    n.id === engineer.nationId ? { ...n, treasury: (n.treasury ?? 0) - cost } : n
+  );
+
+  return { ...state, map: { ...state.map, tiles: newTiles }, nations: newNations };
 };

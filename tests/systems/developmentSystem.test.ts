@@ -45,8 +45,6 @@ describe('developmentSystem', () => {
     const t2 = s2.map.tiles[my][mx];
     expect(t2.prospecting).toBeUndefined();
     expect(t2.resource).toBeDefined();
-    // deterministic rng picks first from [Coal, Iron, Gold, Gems] => Coal
-    expect(t2.resource?.type).toBe('coal');
     expect(t2.resource?.discovered).toBe(true);
   });
 

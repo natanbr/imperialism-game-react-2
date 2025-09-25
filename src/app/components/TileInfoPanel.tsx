@@ -5,6 +5,7 @@ import { WorkerType } from "@/types/Workers";
 import { PROSPECTABLE_TERRAIN_TYPES } from "../definisions/terrainDefinitions";
 import { DEVELOPMENT_WORKER_TYPES } from "../definisions/workerDefinitions";
 import { canBuildRailAt } from "@/store/helpers/mapHelpers";
+import { PROSPECT_COST, DEVELOPMENT_COST, CONSTRUCTION_COST } from "@/definisions/workPrices";
 
 interface TileInfoPanelProps {
   selectedTile: Tile | undefined;
@@ -18,6 +19,7 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
   const oilDrillingTechUnlocked = useGameStore((s) => s.technologyState.oilDrillingTechUnlocked);
   const map = useGameStore((s) => s.map);
   const activeNationId = useGameStore((s) => s.activeNationId);
+  const activeNation = useGameStore((s) => s.nations.find(n => n.id === s.activeNationId));
 
   if (!selectedTile) {
     return <div style={{ padding: "10px" }}>No tile selected</div>;
@@ -26,7 +28,7 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
   const terrainAllowsProspecting = PROSPECTABLE_TERRAIN_TYPES.includes(selectedTile.terrain);
 
   const prospectorOnTile = selectedTile.workers.find(w => w.id === selectedWorkerId && w.type === WorkerType.Prospector);
-  const canProspect = !!prospectorOnTile && terrainAllowsProspecting && !selectedTile.prospecting;
+  const canProspect = !!prospectorOnTile && terrainAllowsProspecting && !selectedTile.prospecting && (activeNation?.treasury ?? 0) >= PROSPECT_COST;
 
   // New workers: show simple status if a job is running
   const dev = selectedTile.developmentJob;
@@ -43,6 +45,11 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
   const startL2 = () => selectedWorker && startDevelopment(selectedTile.id, selectedWorker.id, selectedWorker.type, 2);
   const startL3 = () => selectedWorker && startDevelopment(selectedTile.id, selectedWorker.id, selectedWorker.type, 3);
 
+  const treasury = activeNation?.treasury ?? 0;
+  const canAffordL1 = treasury >= DEVELOPMENT_COST[1];
+  const canAffordL2 = treasury >= DEVELOPMENT_COST[2];
+  const canAffordL3 = treasury >= DEVELOPMENT_COST[3];
+
   // Enable only the next valid level: if resource is undefined or level is N, only N+1 is enabled
   const currentLevel = selectedTile.resource?.level ?? 0;
   const enableL1 = currentLevel === 0;
@@ -53,6 +60,11 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
   const startPort = () => selectedWorker && startConstruction(selectedTile.id, selectedWorker.id, "port");
   const startFort = () => selectedWorker && startConstruction(selectedTile.id, selectedWorker.id, "fort");
   const startRail = () => selectedWorker && startConstruction(selectedTile.id, selectedWorker.id, "rail");
+
+  const canAffordDepot = treasury >= CONSTRUCTION_COST.depot;
+  const canAffordPort = treasury >= CONSTRUCTION_COST.port;
+  const canAffordFort = treasury >= CONSTRUCTION_COST.fort;
+  const canAffordRail = treasury >= CONSTRUCTION_COST.rail;
 
   // Rail button enabled only if adjacent tile has a starting point (capital/port/depot/connected) and ownership/land rules pass
   const [tx, ty] = selectedTile.id.split("-").map(Number);
@@ -78,6 +90,7 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
         <button
           onClick={() => startProspecting(selectedTile.id, selectedWorkerId!)}
           style={{ marginTop: 8, padding: "6px 10px", borderRadius: 4, border: "1px solid #666", background: "#333", color: "#fff", cursor: "pointer" }}
+          title={`Cost: $${PROSPECT_COST}`}
         >
           Prospect ⛏️
         </button>
@@ -88,9 +101,9 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
         <div style={{ marginTop: 10 }}>
           <div style={{ marginBottom: 4 }}><strong>Development:</strong> {workerHint}</div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            <button onClick={startL1} title="Target Level 1" style={{ padding: "4px 8px", opacity: enableL1 ? 1 : 0.5, cursor: enableL1 ? "pointer" : "not-allowed" }} disabled={!enableL1}>L1</button>
-            <button onClick={startL2} title="Target Level 2" style={{ padding: "4px 8px", opacity: enableL2 ? 1 : 0.5, cursor: enableL2 ? "pointer" : "not-allowed" }} disabled={!enableL2}>L2</button>
-            <button onClick={startL3} title="Target Level 3" style={{ padding: "4px 8px", opacity: enableL3 ? 1 : 0.5, cursor: enableL3 ? "pointer" : "not-allowed" }} disabled={!enableL3}>L3</button>
+            <button onClick={startL1} title={`Target Level 1 ($${DEVELOPMENT_COST[1]})`} style={{ padding: "4px 8px", opacity: enableL1 && canAffordL1 ? 1 : 0.5, cursor: enableL1 && canAffordL1 ? "pointer" : "not-allowed" }} disabled={!enableL1 || !canAffordL1}>L1</button>
+            <button onClick={startL2} title={`Target Level 2 ($${DEVELOPMENT_COST[2]})`} style={{ padding: "4px 8px", opacity: enableL2 && canAffordL2 ? 1 : 0.5, cursor: enableL2 && canAffordL2 ? "pointer" : "not-allowed" }} disabled={!enableL2 || !canAffordL2}>L2</button>
+            <button onClick={startL3} title={`Target Level 3 ($${DEVELOPMENT_COST[3]})`} style={{ padding: "4px 8px", opacity: enableL3 && canAffordL3 ? 1 : 0.5, cursor: enableL3 && canAffordL3 ? "pointer" : "not-allowed" }} disabled={!enableL3 || !canAffordL3}>L3</button>
           </div>
           {selectedWorker.type === WorkerType.Driller && !oilDrillingTechUnlocked && (
             <div style={{ marginTop: 4, color: "#ffa726" }}>Requires Oil Drilling tech</div>

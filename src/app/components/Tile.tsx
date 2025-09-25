@@ -101,7 +101,7 @@ export const TileComponent: React.FC<TileProps> = ({ tile }) => {
       {hasRiver && <div style={{ fontSize: "12px" }}>🌊</div>}
       {resource && (
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-          <span>{resourceIcons[resource.type] || "❓"}</span>
+          <span>{resource.discovered ? resourceIcons[resource.type] : ""}</span>
           <span aria-label={`Development level ${resource.level}`} style={{ fontSize: 12 }}>
             {"🏗️".repeat(resource.level)}
           </span>
