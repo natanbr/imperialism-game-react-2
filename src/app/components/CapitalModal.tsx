@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useGameStore } from "../store/rootStore";
 import TransportAllocationModal from "./TransportAllocationModal";
 
@@ -34,10 +34,17 @@ export const CapitalModal: React.FC = () => {
     };
   }, [nation]);
 
+  // Auto-reset the slider at the start of each new turn
+  const turn = useGameStore((s) => s.turn);
+  useEffect(() => {
+    setBuyCount(0);
+  }, [turn]);
+
   const applyDelta = (newValue: number) => {
     if (!nation) return;
     const prev = buyCount;
-    const next = Math.max(0, Math.min(Math.floor(newValue) || 0, maxPurchasable));
+    const totalAllowed = prev + maxPurchasable; // can keep previous and add up to current available
+    const next = Math.max(0, Math.min(Math.floor(newValue) || 0, totalAllowed));
     const delta = next - prev;
     if (delta !== 0) {
       purchaseCapacity(nation.id, delta); // positive buys, negative refunds
@@ -140,7 +147,7 @@ export const CapitalModal: React.FC = () => {
                 <input
                   type="range"
                   min={0}
-                  max={maxPurchasable}
+                  max={maxPurchasable + buyCount}
                   step={1}
                   value={buyCount}
                   onChange={(e) => applyDelta(Number(e.target.value) || 0)}
