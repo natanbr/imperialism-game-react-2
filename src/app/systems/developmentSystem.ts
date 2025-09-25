@@ -17,7 +17,7 @@ export const developmentSystem = (state: GameState, rng: RngLike): GameState => 
 const runNationDevelopmentPhase = (map: GameMap, nextTurn: number, rng: RngLike): GameMap => {
   const tiles: Tile[][] = map.tiles.map(row => row.map(tile => {
     let t: Tile = { ...tile };
-    t = resolveProspectingOnTile(t, nextTurn, rng);
+    t = resolveProspectingOnTile(t, nextTurn);
     t = resolveDevelopmentJobOnTile(t, nextTurn);
     t = resolveConstructionJobOnTile(t, nextTurn);
     t = clearCompletionIndicators(t, nextTurn);
@@ -26,18 +26,12 @@ const runNationDevelopmentPhase = (map: GameMap, nextTurn: number, rng: RngLike)
   return { ...map, tiles };
 };
 
-const resolveProspectingOnTile = (tile: Tile, nextTurn: number, rng: RngLike): Tile => {
+const resolveProspectingOnTile = (tile: Tile, nextTurn: number): Tile => {
+  // Prospecting no longer selects resource types. It only reveals already-injected hidden resources.
   let t: Tile = { ...tile };
   if (t.prospecting && (nextTurn - t.prospecting.startedOnTurn) >= ProspectorDiscoveryDurationTurns) {
-    let discoveredType: ResourceType | undefined;
-    if (t.terrain === TerrainType.BarrenHills || t.terrain === TerrainType.Mountains) {
-      const options = [ResourceType.Coal, ResourceType.IronOre, ResourceType.Gold, ResourceType.Gems];
-      const idx = Math.floor(rng.next() * options.length);
-      discoveredType = options[idx];
-    } else if (t.terrain === TerrainType.Swamp || t.terrain === TerrainType.Desert || t.terrain === TerrainType.Tundra) {
-      discoveredType = ResourceType.Oil;
-    }
-    const newResource = discoveredType ? { type: discoveredType, level: 0, discovered: true } : t.resource;
+    // If a resource was pre-injected (possibly undiscovered), mark it as discovered and clear the job.
+    const newResource = t.resource ? { ...t.resource, discovered: true } : undefined;
     t = { ...t, resource: newResource, prospecting: undefined };
   }
   return t;

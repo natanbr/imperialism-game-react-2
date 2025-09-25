@@ -44,12 +44,22 @@ export function generateStaticOneNationMap(cols: number, rows: number): GameMap 
       case TerrainType.OpenRange: resource = { type: ResourceType.Livestock, level: 0 }; break;
       case TerrainType.FertileHills: resource = { type: ResourceType.Wool, level: 0 }; break;
       case TerrainType.HardwoodForest: resource = { type: ResourceType.Timber, level: 0 }; break;
-      case TerrainType.BarrenHills:
-      case TerrainType.Mountains:
+      case TerrainType.BarrenHills: {
+        const options = [ResourceType.Coal, ResourceType.IronOre, ResourceType.Gold, ResourceType.Gems];
+        const idx = Math.floor(Math.random() * options.length);
+        resource = { type: options[idx], level: 0, discovered: false }; // hidden until prospected
+        break;
+      }
+      case TerrainType.Mountains: {
+        const options = [ResourceType.Coal, ResourceType.IronOre, ResourceType.Gold, ResourceType.Gems];
+        const idx = Math.floor(Math.random() * options.length);
+        resource = { type: options[idx], level: 0, discovered: false }; // hidden until prospected
+        break;
+      }
       case TerrainType.Swamp:
       case TerrainType.Desert:
       case TerrainType.Tundra:
-        resource = undefined; // prospecting/drilling will discover
+        resource = { type: ResourceType.Oil, level: 0, discovered: false }; // hidden until prospected/drilled
         break;
       default:
         resource = undefined;

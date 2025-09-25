@@ -154,11 +154,9 @@ Details:
     - add a button to close the popup
 
 #### Step – Transportation of comodities 2
-TODOs:
-- update the max transporation comodities per resource to be the sum of all the goods avaliable for transportation. In other words the sum of the goods collected by each active depot. 
+✅ goal: update the max transporation comodities per resource to be the sum of all the goods avaliable for transportation. In other words the sum of the goods collected by each active depot. 
 For example: if we have 2 depots and both of them have 5 units of iron then the maximum capacity will be 10 units of iron.
 The total collected comodities should be recalcualted every turn after the 
-
 - gold transfered will add 100$ per transfered unit to cash 
 - gems transfered will add 1000$ 
 - ways to get cash
@@ -169,6 +167,12 @@ The total collected comodities should be recalcualted every turn after the
     Third, you can receive profits from the activities of your Developer unit and other
     civilian units in those Minor Nations where you have established embassies.
 - show a popup when clicking on the capacity section to distribute the transported capacity per resource
+
+#### Step – Work price
+- Goal: Add work price.
+- Details:
+- Each worker has price 
+- Test: Hire worker → cash decreases.
 
 TODOS:
 - two depots can't be built on adjusent tiles
