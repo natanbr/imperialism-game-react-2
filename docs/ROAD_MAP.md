@@ -182,17 +182,10 @@ The total collected comodities should be recalcualted every turn after the
 - fort cost 1000$
 - Test: assign worker → cash decreases in the same day.
 
-TODOS:
-- two depots can't be built on adjusent tiles
-- limit the goods trasported by the port depending on nation ships capacity 
-- worker can't start work on the same turn it was moved
-- after city is captrured re-calcualte all railroad connections 
-- military and workers consume food, if no enouth food workers go on stirck
-
 ## Phase 4: Industry
 
 #### Step 4.1 – Organazing the Capital view 
-- Goal: Organazing the Capital view to make space for new features and store 
+✅ - Goal: Organazing the Capital view to make space for new features and store 
 Details 
 - capital will have a labour units 
 - in the next steps of phse 4 we will work in extending the capital functionality and view
@@ -254,6 +247,14 @@ Details
 - Each worker = 1/2/4 labour.
 - Training consumes paper + cash.
 - Test: Train worker → labour pool updates.
+
+TODOS:
+- two depots can't be built on adjusent tiles
+- limit the goods trasported by the port depending on nation ships capacity 
+- worker can't start work on the same turn it was moved
+- after city is captrured re-calcualte all railroad connections 
+- military and workers consume food, if no enouth food workers go on stirck
+
 
 ## Phase 5: Trade & Diplomacy
 #### Step 5.1 – Trade Screen
