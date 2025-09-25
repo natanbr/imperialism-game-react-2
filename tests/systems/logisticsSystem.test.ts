@@ -19,17 +19,24 @@ function baseState(): GameState {
   const adj2 = map.tiles[ny2][nx2];
   map.tiles[ny2][nx2] = { ...adj2, resource: { type: ResourceType.Gold, level: 2, discovered: true }, ownerNationId: 'nation-1' };
 
+  // Set industry on each nation
+  const nationsWithIndustry = nations.map(n => ({
+    ...n,
+    transportCapacity: 10,
+    warehouse: { ...n.warehouse },
+    treasury: n.treasury ?? 0,
+  }));
+  
   return {
     turn: 1,
     year: 1900,
     activeNationId: 'nation-1',
-    nations: nations.map(n => ({ ...n, transportCapacity: 10, warehouse: { ...n.warehouse }, treasury: n.treasury ?? 0 })),
+    nations: nationsWithIndustry,
     cities: [], armies: [], fleets: [],
     relations: [], treaties: [], tradePolicies: [], grants: [],
     map: { ...map },
     transportNetwork: { railroads: [], shippingLanes: [], capacity: 0 },
     tradeRoutes: [],
-    industry: { buildings: [], labour: { untrained: 0, trained: 0, expert: 0, availableThisTurn: 0 }, power: 0 },
     technologyState: { technologies: [], oilDrillingTechUnlocked: false },
     newsLog: [],
     turnOrder: { phases: ['diplomacy','trade','production','combat','interceptions','logistics'] },

@@ -13,17 +13,21 @@ function makeBaseState(): GameState {
   const adj = map.tiles[cap.y][Math.min(cap.x + 1, map.config.cols - 1)];
   map.tiles[adj.y][adj.x] = { ...adj, connected: true, depot: true };
 
+  // Set industry on each nation
+  const nationsWithIndustry = nations.map(n => ({
+    ...n,
+  }));
+
   return {
     turn: 1,
     year: 1900,
     activeNationId: 'nation-1',
-    nations: nations.map(n => ({ ...n })),
+    nations: nationsWithIndustry,
     cities: [], armies: [], fleets: [],
     relations: [], treaties: [], tradePolicies: [], grants: [],
     map: { ...map, tiles: map.tiles.map(r => r.map(t => ({ ...t, ownerNationId: t.ownerNationId ?? 'nation-1' }))) },
     transportNetwork: { railroads: [], shippingLanes: [], capacity: 0 },
     tradeRoutes: [],
-    industry: { buildings: [], labour: { untrained: 0, trained: 0, expert: 0, availableThisTurn: 0 }, power: 0 },
     technologyState: { technologies: [], oilDrillingTechUnlocked: false },
     newsLog: [],
     turnOrder: { phases: ['diplomacy','trade','production','combat','interceptions','logistics'] },

@@ -5,17 +5,21 @@ import { initWorld } from '@/testing/worldInit';
 
 function createState(): GameState {
   const { map, nations } = initWorld({ cols: 5, rows: 5 });
+  // Set industry on each nation
+  const nationsWithIndustry = nations.map(n => ({
+    ...n,
+  }));
+  
   return {
     turn: 1,
     year: 1900,
     activeNationId: 'nation-1',
-    nations,
+    nations: nationsWithIndustry,
     cities: [], armies: [], fleets: [],
     relations: [], treaties: [], tradePolicies: [], grants: [],
     map,
     transportNetwork: { railroads: [], shippingLanes: [], capacity: 0 },
     tradeRoutes: [],
-    industry: { buildings: [], labour: { untrained: 0, trained: 0, expert: 0, availableThisTurn: 0 }, power: 0 },
     technologyState: { technologies: [], oilDrillingTechUnlocked: false },
     newsLog: [],
     turnOrder: { phases: [ 'diplomacy','trade','production','combat','interceptions','logistics' ] },

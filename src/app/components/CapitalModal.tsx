@@ -18,11 +18,11 @@ export const CapitalModal: React.FC = () => {
   const activeNationId = useGameStore((s) => s.activeNationId);
   const nations = useGameStore((s) => s.nations);
   const technologyState = useGameStore((s) => s.technologyState);
-  const industry = useGameStore((s) => s.industry);
+  const nation = nations.find((n) => n.id === activeNationId);
+  // Industry is now per-nation
+  const industry = nation?.industry;
 
   const purchaseCapacity = useGameStore((s) => s.purchaseTransportCapacityIncrease);
-
-  const nation = nations.find((n) => n.id === activeNationId);
 
   // Transportation of commodities popup state
   const [isAllocOpen, setAllocOpen] = useState(false);
@@ -31,15 +31,13 @@ export const CapitalModal: React.FC = () => {
 
   // Transport UI helpers
   const [buyCount, setBuyCount] = useState<number>(0);
-  const { availableCoal, availableIron, maxPurchasable } = useMemo(() => {
+  const { maxPurchasable } = useMemo(() => {
     const stock = nation?.warehouse ?? {} as Record<string, number>;
     const coal = Number(stock.coal ?? stock.Coal ?? 0);
     const iron = Number(stock.ironOre ?? stock.IronOre ?? 0);
     const maxByCoal = Math.floor(coal / 1);
     const maxByIron = Math.floor(iron / 1);
     return {
-      availableCoal: coal,
-      availableIron: iron,
       maxPurchasable: Math.max(0, Math.min(maxByCoal, maxByIron)),
     };
   }, [nation]);
@@ -65,8 +63,8 @@ export const CapitalModal: React.FC = () => {
   if (!isOpen) return null;
 
   const oilUnlocked = !!technologyState?.oilDrillingTechUnlocked;
-  const labour = industry?.labour ?? { untrained: 0, trained: 0, expert: 0, availableThisTurn: 0 };
-  const power = industry?.power ?? 0;
+  const workers = industry?.workers ?? { untrained: 0, trained: 0, expert: 0 };
+  const power = industry?.power ?? { total: 0, available: 0, electricity: 0 };
 
   return (
     <div
@@ -162,17 +160,17 @@ export const CapitalModal: React.FC = () => {
           {/* Left side panel */}
           <aside style={{ border: "1px solid #333", borderRadius: 8, padding: 12, background: "#1a1a1a", display: "grid", gap: 8, alignContent: "start" }}>
             <h3 style={{ marginTop: 0 }}>Capital Info</h3>
-            <div><strong>Available Labour:</strong> {labour.availableThisTurn}</div>
+            <div><strong>Workers (Total):</strong> {power.available}</div>
             <div style={{ borderTop: "1px solid #333", marginTop: 6, paddingTop: 6 }}>
               <div style={{ marginBottom: 4, fontWeight: 700 }}>Worker Types</div>
-              <div>Untrained: {labour.untrained}</div>
-              <div>Trained: {labour.trained}</div>
-              <div>Expert: {labour.expert}</div>
+              <div>Untrained: {workers.untrained}</div>
+              <div>Trained: {workers.trained}</div>
+              <div>Expert: {workers.expert}</div>
             </div>
             {oilUnlocked && (
               <div style={{ borderTop: "1px solid #333", marginTop: 6, paddingTop: 6 }}>
                 <div style={{ marginBottom: 4, fontWeight: 700 }}>Electricity</div>
-                <div>Available: {power}</div>
+                <div>Electricity: {power.electricity}</div>
               </div>
             )}
           </aside>
@@ -256,17 +254,17 @@ export const CapitalModal: React.FC = () => {
           {/* Right side panel (mirrors the required capital info) */}
           <aside style={{ border: "1px solid #333", borderRadius: 8, padding: 12, background: "#1a1a1a", display: "grid", gap: 8, alignContent: "start" }}>
             <h3 style={{ marginTop: 0 }}>Capital Info</h3>
-            <div><strong>Available Labour:</strong> {labour.availableThisTurn}</div>
+            <div><strong>Workers (Total):</strong> {power.available}</div>
             <div style={{ borderTop: "1px solid #333", marginTop: 6, paddingTop: 6 }}>
               <div style={{ marginBottom: 4, fontWeight: 700 }}>Worker Types</div>
-              <div>Untrained: {labour.untrained}</div>
-              <div>Trained: {labour.trained}</div>
-              <div>Expert: {labour.expert}</div>
+              <div>Untrained: {workers.untrained}</div>
+              <div>Trained: {workers.trained}</div>
+              <div>Expert: {workers.expert}</div>
             </div>
             {oilUnlocked && (
               <div style={{ borderTop: "1px solid #333", marginTop: 6, paddingTop: 6 }}>
                 <div style={{ marginBottom: 4, fontWeight: 700 }}>Electricity</div>
-                <div>Available: {power}</div>
+                <div>Electricity: {power.electricity}</div>
               </div>
             )}
           </aside>

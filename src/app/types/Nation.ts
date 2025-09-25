@@ -1,6 +1,7 @@
 // types/Nation.ts
 import { Relation, TradePolicy, Grant } from "./Diplomacy";
 import { CityId, NationId, ProvinceId, FleetId, ArmyId } from "./Common";
+import { IndustryState } from './Industry';
 
 export interface Nation {
   id: NationId;
@@ -31,4 +32,5 @@ export interface Nation {
   transportCapacityPendingIncrease?: number;
 
   warehouse: Record<string, number>; // ResourceType -> amount
+  industry: IndustryState;
 }

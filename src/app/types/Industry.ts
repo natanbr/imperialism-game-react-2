@@ -28,15 +28,21 @@ export interface IndustryBuilding {
   outputs: ResourceType[];    // possible outputs
 }
 
-export interface Labour {
+
+export interface Workers {
   untrained: number;  // supply 1 labour each
   trained: number;    // supply 2 labour each
   expert: number;     // supply 4 labour each
-  availableThisTurn: number; // after allocations + power
+}
+
+export interface PowerState {
+  total: number;
+  available: number;
+  electricity: number;
 }
 
 export interface IndustryState {
   buildings: IndustryBuilding[];
-  labour: Labour;
-  power: number; // adds directly to available labour this turn
+  workers: Workers;
+  power: PowerState;
 }

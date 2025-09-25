@@ -6,7 +6,6 @@ import { Fleet } from "./Navy";
 import { TradeRoute } from "./TradeRoute";
 import { TransportNetwork } from "./Transport";
 import { GameMap } from "./Map";
-import { IndustryState } from "./Industry";
 import { Technology, TechnologyState } from "./Technology";
 import { NewsItem } from "./Common";
 import { Relation, Treaty, TradePolicy, Grant } from "./Diplomacy";
@@ -52,7 +51,7 @@ export interface GameState {
 
   tradeRoutes: TradeRoute[]; // optional if you model manual trade as global rather than fixed routes
 
-  industry: IndustryState;   // if centralized; otherwise per-nation industry states in Nation extensions
+  // industry is now per-nation, see Nation.industry
   technologyState: TechnologyState;
 
   newsLog: NewsItem[];

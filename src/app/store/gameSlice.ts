@@ -16,7 +16,6 @@ export interface GameStateSlice {
   tradePolicies: GameState['tradePolicies'];
   grants: GameState['grants'];
   tradeRoutes: GameState['tradeRoutes'];
-  industry: GameState['industry'];
   
   // Actions
   setActiveNation: (nationId: string) => void;
@@ -41,11 +40,6 @@ export const createGameStateSlice: StateCreator<GameStateSlice, [], [], GameStat
     tradePolicies: [],
     grants: [],
     tradeRoutes: [],
-    industry: {
-      buildings: [],
-      labour: { untrained: 0, trained: 0, expert: 0, availableThisTurn: 0 },
-      power: 0,
-    },
 
     // Actions
     setActiveNation: (nationId: string) => set({ activeNationId: nationId }),
