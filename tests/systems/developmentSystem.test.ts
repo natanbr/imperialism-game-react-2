@@ -53,7 +53,7 @@ describe('developmentSystem', () => {
   it('marks construction job complete and applies effect', () => {
     const capital = baseState.map.tiles.flat().find(t => t.terrain === TerrainType.Capital)!;
     const [cx, cy] = [capital.x, capital.y];
-    capital.constructionJob = { kind: 'rail', startedOnTurn: baseState.turn, durationTurns: 1, completed: false };
+    capital.constructionJob = { workerId: 'w1', kind: 'rail', startedOnTurn: baseState.turn, durationTurns: 1, completed: false };
 
     const s2 = developmentSystem(baseState, rng);
     const t2 = s2.map.tiles[cy][cx];
