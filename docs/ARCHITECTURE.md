@@ -86,6 +86,7 @@ All complex, turn-based game logic is implemented in **Systems**.
     const advanceTurn = useGameStore((s) => s.advanceTurn);
     ```
 -   **Actions**: User interactions (like clicking a button) should call action functions from the store (e.g., `advanceTurn()`, `startProspecting()`).
+-   **Organization**: Use a single top-level React component per file. Do not define multiple top-level components in one file. Keep tiny JSX helpers inline only if they are private to the component.
 
 ### Example Data Flow (User Action)
 

@@ -8,49 +8,7 @@ import TransportAllocationModal from "./TransportAllocationModal";
 // - Two side panels (left/right): Available Labour, Worker Types, Electricity (hidden until Oil tech)
 // - Center area: sections including Industry with cards and sliders
 
-type SliderSpec = {
-  label: string;
-  min?: number;
-  max?: number;
-  step?: number;
-};
-
-const IndustryCard: React.FC<{
-  title: string;
-  sliders?: SliderSpec[];
-  hidden?: boolean;
-}> = ({ title, sliders = [{ label: "Output" }], hidden }) => {
-  const [values, setValues] = useState<number[]>(
-    () => sliders.map(() => 0)
-  );
-
-  if (hidden) return null;
-
-  return (
-    <div style={{ border: "1px solid #333", borderRadius: 8, padding: 10, background: "#1b1b1b", display: "grid", gap: 8 }}>
-      <div style={{ fontWeight: 700 }}>{title}</div>
-      <div style={{ display: "grid", gap: 6 }}>
-        {sliders.map((s, i) => (
-          <div key={`${title}-${i}`} style={{ display: "grid", gridTemplateColumns: "1fr auto", alignItems: "center", gap: 8 }}>
-            <label style={{ fontSize: 12, opacity: 0.9 }}>{s.label}</label>
-            <input
-              type="range"
-              min={s.min ?? 0}
-              max={s.max ?? 10}
-              step={s.step ?? 1}
-              value={values[i]}
-              onChange={(e) => {
-                const next = [...values];
-                next[i] = Number(e.target.value) || 0;
-                setValues(next);
-              }}
-            />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
+import IndustryCard from "./IndustryCard";
 
 export const CapitalModal: React.FC = () => {
   const isOpen = useGameStore((s) => s.isCapitalOpen);
