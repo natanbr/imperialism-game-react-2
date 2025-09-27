@@ -36,6 +36,7 @@ export const moveSelectedWorkerToTileHelper = (
   }
   if (!worker) return state;
 
+
   // If this worker has an active job on its current tile, block movement
   const fromTile = map.tiles[fromY]?.[fromX];
   if (!fromTile) return state;
@@ -52,6 +53,9 @@ export const moveSelectedWorkerToTileHelper = (
   // Locate target tile
   const [tx, ty] = targetTileId.split("-").map(Number);
   if (Number.isNaN(tx) || Number.isNaN(ty)) return state;
+
+  // If worker is already on the target tile, do nothing
+  if (fromX === tx && fromY === ty) return state;
 
   const target = map.tiles[ty]?.[tx];
   if (!target) return state;
