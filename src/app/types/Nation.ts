@@ -2,6 +2,7 @@
 import { Relation, TradePolicy, Grant } from "./Diplomacy";
 import { CityId, NationId, ProvinceId, FleetId, ArmyId } from "./Common";
 import { IndustryState } from './Industry';
+import { WarehouseCommodities } from './Resource';
 
 export interface Nation {
   id: NationId;
@@ -31,6 +32,6 @@ export interface Nation {
   // Queued increase purchased this turn; applied at the start of next turn
   transportCapacityPendingIncrease?: number;
 
-  warehouse: Record<string, number>; // ResourceType -> amount
+  warehouse: Record<WarehouseCommodities, number>;
   industry: IndustryState;
 }

@@ -1,5 +1,3 @@
-// types/Resource.ts
-
 export enum CommodityClass {
   Resource = "resource",
   Material = "material",
@@ -7,7 +5,6 @@ export enum CommodityClass {
 }
 
 export enum ResourceType {
-  // Resources
   Grain = "grain",
   Livestock = "livestock",
   Fruit = "fruit",
@@ -24,7 +21,6 @@ export enum ResourceType {
 }
 
 export enum MaterialType {
-  // Materials
   CannedFood = "cannedFood",
   Fabric = "fabric",
   Paper = "paper",
@@ -33,17 +29,30 @@ export enum MaterialType {
   Fuel = "fuel",
 }
 export enum GoodsType {
-  // Goods
+  // Gods
   Clothing = "clothing",
   Furniture = "furniture",
   Hardware = "hardware",
   Armaments = "armaments",
 }
 
-export type CommoditiesType = ResourceType | MaterialType | GoodsType;
+export type CommoditiesType = ResourceType | MaterialType | GoodsType | WorkerType | Fungible;
+
+export type WarehouseCommodities = ResourceType | MaterialType | GoodsType;
 
 export interface Commodities {
   type: CommoditiesType;
   amount: number;
   category: CommodityClass;
+}
+
+export enum WorkerType {
+  Untrained = "untrained",
+  Trained = "trained",
+  Expert = "expert",
+}
+
+export enum Fungible {
+  Labour = "labour",
+  Cash = "cash",
 }

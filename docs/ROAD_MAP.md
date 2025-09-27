@@ -212,7 +212,7 @@ Details
 - each card will have a slider to produce goods (recipes will be provided in step 4.2)
 
 #### Step 4.2 – Industry
-- Goal: 
+✅ - Goal: 
     To the city pannel we should add 
     Add Textile Mill, Lumber Mill, Steel Mill, Food Processing and workers traning. 
 - Details:
@@ -239,7 +239,14 @@ Details
 
 - Test: add testing for each recipe.
 
+#### Step 4.2 – Industry integreation
+- goal let's integreate the recently added processIndustryProduction in step 4.2 to the game logic
+- Details:
+ - in the capital view add to each industry card 
+
 #### 4.3 - Industry building level and cost of upgrade 
+
+
 
 #### Step 4.4 – Labour & Training
 - Goal: Add untrained/trained/expert workers.

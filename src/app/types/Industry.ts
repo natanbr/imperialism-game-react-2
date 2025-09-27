@@ -36,13 +36,13 @@ export interface Workers {
 }
 
 export interface PowerState {
-  total: number;
-  available: number;
+  total: number; // todo rename to total labour
+  available: number; // todo rename to available labour
   electricity: number;
 }
 
 export interface IndustryState {
   buildings: IndustryBuilding[];
   workers: Workers;
-  power: PowerState;
+  power: PowerState; 
 }

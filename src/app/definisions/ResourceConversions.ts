@@ -1,83 +1,151 @@
-// types/Conversions.ts
+import { Recipes, ConversionRecipe } from './RecipeTypes';
+import { ResourceType, MaterialType, GoodsType, WorkerType, Fungible } from '../types/Resource';
 
-import { CommoditiesType, GoodsType, MaterialType, ResourceType } from '../types/Resource';
-
-export interface ConversionRecipe {
-    inputs: { type: CommoditiesType; amount: number }[];
-    outputs: { type: CommoditiesType; amount: number }[];
-    // Optional notes: capacity handled by building, labour cost handled by industry sim
-    note?: string;
-}
-
-// Two-for-one and linked recipes based on manual
 export const ProductionRecipes: ConversionRecipe[] = [
-    // Textile economy
     {
-        inputs: [{ type: ResourceType.Cotton, amount: 2 }],
-        outputs: [{ type: MaterialType.Fabric, amount: 1 }],
-        note: "Textile Mill: 2 cotton -> 1 fabric"
-    },
-    {
-        inputs: [{ type: ResourceType.Wool, amount: 2 }],
-        outputs: [{ type: MaterialType.Fabric, amount: 1 }],
-        note: "Textile Mill: 2 wool -> 1 fabric"
-    },
-    {
-        inputs: [{ type: MaterialType.Fabric, amount: 2 }],
-        outputs: [{ type: GoodsType.Clothing, amount: 1 }],
-        note: "Clothing Factory: 2 fabric -> 1 clothing"
-    },
-
-    // Wood economy
-    {
-        inputs: [{ type: ResourceType.Timber, amount: 2 }],
-        outputs: [{ type: MaterialType.Lumber, amount: 1 }],
-        note: "Lumber Mill: 2 timber -> 1 lumber"
-    },
-    {
-        inputs: [{ type: ResourceType.Timber, amount: 2 }],
-        outputs: [{ type: MaterialType.Paper, amount: 1 }],
-        note: "Lumber Mill: 2 timber -> 1 paper"
-    },
-    {
-        inputs: [{ type: MaterialType.Lumber, amount: 2 }],
-        outputs: [{ type: GoodsType.Furniture, amount: 1 }],
-        note: "Furniture Factory: 2 lumber -> 1 furniture"
-    },
-
-    // Metal economy
-    {
-        inputs: [{ type: ResourceType.IronOre, amount: 1 }, { type: ResourceType.Coal, amount: 1 }],
-        outputs: [{ type: MaterialType.Steel, amount: 1 }],
-        note: "Steel Mill: 1 iron + 1 coal -> 1 steel"
-    },
-    {
-        inputs: [{ type: MaterialType.Steel, amount: 2 }],
-        outputs: [{ type: GoodsType.Hardware, amount: 1 }],
-        note: "Metal Works: 2 steel -> 1 hardware"
-    },
-    {
-        inputs: [{ type: MaterialType.Steel, amount: 2 }],
-        outputs: [{ type: GoodsType.Armaments, amount: 1 }],
-        note: "Metal Works: 2 steel -> 1 armaments"
-    },
-
-    // Oil economy
-    {
-        inputs: [{ type: ResourceType.Oil, amount: 2 }],
-        outputs: [{ type: MaterialType.Fuel, amount: 1 }],
-        note: "Refinery: 2 oil -> 1 fuel"
-    },
-
-    // Food economy (balanced mix)
-    {
+        name: Recipes.FoodProcessing,
         inputs: [
-            { type: ResourceType.Grain, amount: 2 },
+            { type: Fungible.Labour, amount: 2 },
+            { type: [ResourceType.Fish, ResourceType.Livestock], amount: 1 },
+            { type: ResourceType.Grain, amount: 1, },
             { type: ResourceType.Fruit, amount: 1 },
-            { type: ResourceType.Livestock, amount: 1 }, // or fish interchangeably in your sim rules
         ],
-        outputs: [{ type: MaterialType.CannedFood, amount: 2 }],
-        note: "Food Processing: 4 raw foods -> 2 canned food (2 grain, 1 fruit, 1 livestock or fish)",
+        outputs: [{ type: MaterialType.CannedFood, amount: 1 }],
+        note: "Food Processing: 1 grain, 1 fruit, 1 fish or livestock, 2 labour -> 1 canned food",
+    },
+    {
+        name: Recipes.LumberMillLumber,
+        inputs: [
+            { type: Fungible.Labour, amount: 2 },
+            { type: ResourceType.Timber, amount: 2 },
+        ],
+        outputs: [{ type: MaterialType.Lumber, amount: 1 }],
+        note: "Lumber Mill: 2 timber, 2 labour -> 1 lumber",
+    },
+    {
+        name: Recipes.LumberMillPaper,
+        inputs: [
+            { type: Fungible.Labour, amount: 2 },
+            { type: ResourceType.Timber, amount: 2 },
+        ],
+        outputs: [{ type: MaterialType.Paper, amount: 1 }],
+        note: "Lumber Mill: 2 timber, 2 labour -> 1 paper",
+    },
+    {
+        name: Recipes.FurnitureFactory,
+        inputs: [
+            { type: Fungible.Labour, amount: 2 },
+            { type: MaterialType.Lumber, amount: 2 },
+        ],
+        outputs: [{ type: GoodsType.Furniture, amount: 1 }],
+        note: "Furniture Factory: 2 lumber, 2 labour -> 1 furniture",
+    },
+    {
+        name: Recipes.TextileMillFabric,
+        inputs: [
+            { type: Fungible.Labour, amount: 2 },
+            { type: Fungible.Labour, amount: 2 },
+        ],
+        outputs: [{ type: MaterialType.Fabric, amount: 1 }],
+        note: "Textile Mill: 2 cotton or 2 wool, 2 labour -> 1 fabric",
+    },
+    {
+        name: Recipes.ClothingFactory,
+        inputs: [
+            { type: Fungible.Labour, amount: 2 },
+            { type: MaterialType.Fabric, amount: 2 },
+        ],
+        outputs: [{ type: GoodsType.Clothing, amount: 1 }],
+        note: "Clothing Factory: 2 fabric, 2 labour -> 1 clothing",
+    },
+    {
+        name: Recipes.SteelMill,
+        inputs: [
+            { type: Fungible.Labour, amount: 2 },
+            { type: ResourceType.Coal, amount: 2 },
+            { type: ResourceType.IronOre, amount: 2 },
+        ],
+        outputs: [{ type: MaterialType.Steel, amount: 1 }],
+        note: "Steel Mill: 2 coal, 2 iron ore, 2 labour -> 1 steel",
+    },
+    {
+        name: Recipes.Hardware,
+        inputs: [
+            { type: Fungible.Labour, amount: 2 },
+            { type: MaterialType.Steel, amount: 2 },
+        ],
+        outputs: [{ type: GoodsType.Hardware, amount: 1 }],
+        note: "Hardware: 2 steel, 2 labour -> 1 hardware",
+    },
+    {
+        name: Recipes.FuelProcessing,
+        inputs: [
+            { type: Fungible.Labour, amount: 2 },
+            { type: ResourceType.Oil, amount: 2 },
+        ],
+        outputs: [{ type: MaterialType.Fuel, amount: 1 }],
+        note: "Fuel Processing: 2 oil, 2 labour -> 1 fuel",
+    },
+    {
+        name: Recipes.TrainWorkerUntrainedToTrained,
+        inputs: [
+            { type: Fungible.Cash, amount: 500 },
+            { type: Fungible.Labour, amount: 2 },
+            { type: WorkerType.Untrained, amount: 2 },
+        ],
+        outputs: [{ type: WorkerType.Trained, amount: 1 }],
+        note: "Train Worker: 2 untrained_worker, 2 labour, 500 cash -> 1 trained_worker",
+    },
+    {
+        name: Recipes.TrainWorkerTrainedToExpert,
+        inputs: [
+            { type: Fungible.Cash, amount: 1000 },
+            { type: Fungible.Labour, amount: 2 },
+            { type: WorkerType.Trained, amount: 2 },
+        ],
+        outputs: [{ type: WorkerType.Expert, amount: 1 }],
+        note: "Train Worker: 2 trained_worker, 2 labour, 1000 cash -> 1 expert_worker",
+    },
+    {
+        name: Recipes.ProduceUntrainedWorker,
+        inputs: [
+            { type: MaterialType.CannedFood, amount: 1 },
+            { type: GoodsType.Hardware, amount: 1 },
+            { type: GoodsType.Clothing, amount: 1 },
+        ],
+        outputs: [
+            { type: WorkerType.Untrained, amount: 1 },
+            { type: Fungible.Labour, amount: 1 },
+        ],
+        note: "Produce Untrained Worker: 1 canned food, 1 hardware, 1 paper, 2 labour, 100 cash -> 1 untrained_worker, 1 labour",
+    },
+    {
+        name: Recipes.TrainWorkerUntrainedToTrainedWithLabour,
+        inputs: [
+            { type: Fungible.Labour, amount: 1 },
+            { type: WorkerType.Untrained, amount: 1 },
+            { type: MaterialType.Paper, amount: 1 },
+            { type: Fungible.Cash, amount: 100 },
+        ],
+        outputs: [
+            { type: WorkerType.Trained, amount: 1 },
+            { type: Fungible.Labour, amount: 2 },
+        ],
+        note: "Train Worker: 1 untrained_worker, 2 labour, 500 cash -> 1 trained_worker, 2 labour",
+    },
+    {
+        name: Recipes.TrainWorkerTrainedToExpertWithLabour,
+        inputs: [
+            { type: Fungible.Labour, amount: 2 },
+            { type: WorkerType.Trained, amount: 1 },
+            { type: MaterialType.Paper, amount: 2 },
+            { type: Fungible.Cash, amount: 1000 },
+        ],
+        outputs: [
+            { type: WorkerType.Expert, amount: 1 },
+            { type: Fungible.Labour, amount: 4 },
+        ],
+        note: "Train Worker: 1 trained_worker, 2 labour, 1000 cash -> 1 expert_worker, 4 labour",
     },
 ];
 
