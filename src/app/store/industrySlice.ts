@@ -91,8 +91,8 @@ function updateResource(nation: Nation, type: string, delta: number) {
     nation.warehouse[type] = (nation.warehouse[type] ?? 0) + delta;
   } else if (isFungible(type)) {
     if (type === Fungible.Labour) {
-       nation.industry.power.available = (nation.industry.power.available ?? 0) + delta;
-             nation.industry.power.total = (nation.industry.power.total ?? 0) + delta;
+      nation.industry.power.available = (nation.industry.power.available ?? 0) + delta;
+      nation.industry.power.total = (nation.industry.power.total ?? 0) + delta;
     }
     else if (type === Fungible.Cash) nation.treasury = (nation.treasury ?? 0) + delta;
   } else if (isWorker(type)) {
@@ -187,7 +187,6 @@ export const createIndustrySlice: StateCreator<GameState, [], [], IndustrySlice>
         return {};
 
       deductInputs(nation, recipe);
-      deductTreasury(nation, recipe);
       addOutputs(nation, recipe);
       addFungibleOutputs(nation, recipe);
 

@@ -15,8 +15,6 @@ export enum Recipes {
     FuelProcessing = "FuelProcessing",
     ElectricityProduction = "ElectricityProduction",
     // Worker training/production
-    TrainWorkerUntrainedToTrained = "TrainWorkerUntrainedToTrained",
-    TrainWorkerTrainedToExpert = "TrainWorkerTrainedToExpert",
     ProduceUntrainedWorker = "ProduceUntrainedWorker",
     TrainWorkerUntrainedToTrainedWithLabour = "TrainWorkerUntrainedToTrainedWithLabour",
     TrainWorkerTrainedToExpertWithLabour = "TrainWorkerTrainedToExpertWithLabour",
