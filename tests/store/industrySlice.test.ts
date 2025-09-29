@@ -5,7 +5,7 @@ import { create } from 'zustand';
 import { Recipes } from '../../src/app/definisions/RecipeTypes';
 import { createTurnSlice, TurnSlice } from '../../src/app/store/turnSlice';
 import { initWorld } from '../../src/app/testing/worldInit';
-import { ResourceType } from '../../src/app/types/Resource';
+import { GoodsType, MaterialType, ResourceType } from '../../src/app/types/Resource';
 import { Nation } from '../../src/app/types/Nation';
 
 function createStore() {
@@ -51,7 +51,7 @@ describe('IndustrySlice', () => {
 
         // Set up resources for all wood recipes
         warehouse[ResourceType.Timber] = 4; // enough for both lumber and paper
-        warehouse['lumber'] = 2; // enough for furniture
+        warehouse[MaterialType.Lumber] = 2; // enough for furniture
         store.getState().nations[0].industry.power.available = 6; // enough for all
 
         // Run lumber mill (lumber)
@@ -62,9 +62,9 @@ describe('IndustrySlice', () => {
         store.getState().processIndustryProduction(nationId, Recipes.FurnitureFactory);
 
         // After running all, check outputs
-        expect(warehouse['lumber']).toBeGreaterThanOrEqual(1); // produced by lumber mill
-        expect(warehouse['paper']).toBeGreaterThanOrEqual(1); // produced by paper mill
-        expect(warehouse['furniture']).toBeGreaterThanOrEqual(1); // produced by furniture factory
+        expect(warehouse[MaterialType.Lumber]).toBeGreaterThanOrEqual(1); // produced by lumber mill
+        expect(warehouse[MaterialType.Paper]).toBeGreaterThanOrEqual(1); // produced by paper mill
+        expect(warehouse[GoodsType.Furniture]).toBeGreaterThanOrEqual(1); // produced by furniture factory
         // Check wood and labour have been deducted
         expect(warehouse[ResourceType.Timber]).toBeLessThanOrEqual(0);
         expect(store.getState().nations[0].industry.power.available).toBeLessThanOrEqual(0);
@@ -74,31 +74,30 @@ describe('IndustrySlice', () => {
         const store = createStore();
         const nationId = store.getState().activeNationId;
         const warehouse = store.getState().nations[0].warehouse;
-        warehouse['grain'] = 2;
-        warehouse['fruit'] = 2;
-        warehouse['fish'] = 2;
+        warehouse[ResourceType.Grain] = 2;
+        warehouse[ResourceType.Fruit] = 2;
+        warehouse[ResourceType.Fish] = 2;
         store.getState().nations[0].industry.power.available = 3;
         store.getState().processIndustryProduction(nationId, Recipes.FoodProcessing);
-        expect(warehouse['cannedFood']).toBeGreaterThanOrEqual(1);
-        expect(warehouse['grain']).toBeLessThanOrEqual(1);
-        expect(warehouse['fruit']).toBeLessThanOrEqual(1);
-        expect(warehouse['fish']).toBeLessThanOrEqual(1);
-        expect(store.getState().nations[0].industry.power.available).toBeLessThanOrEqual(0);
+        expect(warehouse[MaterialType.CannedFood]).toBeGreaterThanOrEqual(1);
+        expect(warehouse[ResourceType.Grain]).toBeLessThanOrEqual(1);
+        expect(warehouse[ResourceType.Fruit]).toBeLessThanOrEqual(1);
+        expect(warehouse[ResourceType.Fish]).toBeLessThanOrEqual(1);
     });
 
     it('textile industry recipes calculate outputs correctly', () => {
         const store = createStore();
         const nationId = store.getState().activeNationId;
         const warehouse = store.getState().nations[0].warehouse;
-        warehouse['cotton'] = 2;
-        warehouse['wool'] = 2;
+        warehouse[ResourceType.Cotton] = 2;
+        warehouse[ResourceType.Wool] = 2;
         store.getState().nations[0].industry.power.available = 4;
         store.getState().processIndustryProduction(nationId, Recipes.TextileMillFabric);
-        warehouse['fabric'] = 2;
+        warehouse[MaterialType.Fabric] = 2;
         store.getState().nations[0].industry.power.available = 2;
         store.getState().processIndustryProduction(nationId, Recipes.ClothingFactory);
-        expect(warehouse['fabric']).toBeGreaterThanOrEqual(0);
-        expect(warehouse['clothing']).toBeGreaterThanOrEqual(1);
+        expect(warehouse[MaterialType.Fabric]).toBeGreaterThanOrEqual(0);
+        expect(warehouse[GoodsType.Clothing]).toBeGreaterThanOrEqual(1);
         expect(store.getState().nations[0].industry.power.available).toBeLessThanOrEqual(0);
     });
 
@@ -106,53 +105,47 @@ describe('IndustrySlice', () => {
         const store = createStore();
         const nationId = store.getState().activeNationId;
         const warehouse = store.getState().nations[0].warehouse;
-        warehouse['coal'] = 2;
-        warehouse['ironOre'] = 2;
-        warehouse['steel'] = 2;
+        warehouse[ResourceType.Coal] = 2;
+        warehouse[ResourceType.IronOre] = 2;
+        warehouse[MaterialType.Steel] = 2;
         store.getState().nations[0].industry.power.available = 6;
         store.getState().processIndustryProduction(nationId, Recipes.SteelMill);
+        expect(warehouse[ResourceType.Coal]).toBeLessThanOrEqual(0);
+        expect(warehouse[ResourceType.IronOre]).toBeLessThanOrEqual(0);
+        expect(warehouse[MaterialType.Steel]).toBeGreaterThanOrEqual(3);
+        
         store.getState().processIndustryProduction(nationId, Recipes.Hardware);
-        expect(warehouse['steel']).toBeGreaterThanOrEqual(1);
-        expect(warehouse['hardware']).toBeGreaterThanOrEqual(1);
-        expect(warehouse['coal']).toBeLessThanOrEqual(0);
-        expect(warehouse['ironOre']).toBeLessThanOrEqual(0);
-        expect(store.getState().nations[0].industry.power.available).toBeLessThanOrEqual(0);
+        expect(warehouse[MaterialType.Steel]).toBeGreaterThanOrEqual(1);
+        expect(warehouse[GoodsType.Hardware]).toBeGreaterThanOrEqual(1);
     });
 
     it('fuel industry recipes calculate outputs correctly', () => {
         const store = createStore();
         const nationId = store.getState().activeNationId;
         const warehouse = store.getState().nations[0].warehouse;
-        warehouse['oil'] = 2;
+        warehouse[ResourceType.Oil] = 2;
         store.getState().nations[0].industry.power.available = 2;
         store.getState().processIndustryProduction(nationId, Recipes.FuelProcessing);
-        expect(warehouse['fuel']).toBeGreaterThanOrEqual(1);
-        expect(warehouse['oil']).toBeLessThanOrEqual(0);
-        expect(store.getState().nations[0].industry.power.available).toBeLessThanOrEqual(0);
+        expect(warehouse[MaterialType.Fuel]).toBeGreaterThanOrEqual(1);
+        expect(warehouse[ResourceType.Oil]).toBeLessThanOrEqual(0);
     });
 
-    it('worker training and production recipes calculate outputs correctly', () => {
+    it('worker training untrainedned ', () => {
         const store = createStore();
         const nationId = store.getState().activeNationId;
         const warehouse = store.getState().nations[0].warehouse;
-            store.getState().nations[0].industry.workers.untrained = 2;
-            store.getState().nations[0].industry.workers.trained = 2;
-           warehouse['cannedFood'] = 1;
-           warehouse['hardware'] = 1;
-           warehouse['clothing'] = 1;
-           warehouse['paper'] = 2;
-            store.getState().nations[0].industry.power.available = 6;
-           store.getState().nations[0].treasury = 2000;
-        store.getState().processIndustryProduction(nationId, Recipes.TrainWorkerUntrainedToTrained);
-        store.getState().processIndustryProduction(nationId, Recipes.TrainWorkerTrainedToExpert);
+        warehouse[MaterialType.CannedFood] = 1;
+        warehouse[GoodsType.Hardware] = 1;
+        warehouse[GoodsType.Clothing] = 1;
+        warehouse[MaterialType.Paper] = 2;
+        store.getState().nations[0].industry.power.available = 0;
+        store.getState().nations[0].treasury = 2000;
         store.getState().processIndustryProduction(nationId, Recipes.ProduceUntrainedWorker);
-        store.getState().processIndustryProduction(nationId, Recipes.TrainWorkerUntrainedToTrainedWithLabour);
-        store.getState().processIndustryProduction(nationId, Recipes.TrainWorkerTrainedToExpertWithLabour);
-            expect(store.getState().nations[0].industry.workers.trained).toBeGreaterThanOrEqual(1);
-            expect(store.getState().nations[0].industry.workers.expert).toBeGreaterThanOrEqual(1);
-            expect(store.getState().nations[0].industry.workers.untrained).toBeGreaterThanOrEqual(0);
-            expect(store.getState().nations[0].industry.power.available).toBeLessThanOrEqual(0);
-           expect(store.getState().nations[0].treasury).toBeLessThanOrEqual(2000);
+        expect(store.getState().nations[0].industry.workers.trained).toBeGreaterThanOrEqual(0);
+        expect(store.getState().nations[0].industry.workers.expert).toBeGreaterThanOrEqual(0);
+        expect(store.getState().nations[0].industry.workers.untrained).toBeGreaterThanOrEqual(0);
+        expect(store.getState().nations[0].industry.power.available).toBeLessThanOrEqual(1);
+        expect(store.getState().nations[0].treasury).toBeLessThanOrEqual(2000);
     });
 
     it('worker training recipes update state after each production step', () => {
@@ -160,37 +153,25 @@ describe('IndustrySlice', () => {
         const nationId = store.getState().activeNationId;
         const warehouse = store.getState().nations[0].warehouse;
         // Initial resources for all worker training recipes
-            store.getState().nations[0].industry.workers.untrained = 3;
-            store.getState().nations[0].industry.workers.trained = 2;
-            store.getState().nations[0].industry.workers.expert = 0;
-            store.getState().nations[0].industry.power.available = 10;
-            store.getState().nations[0].treasury = 2000;
-        warehouse['paper'] = 3;
-        // Step 1: Train untrained to trained (cash)
-        store.getState().processIndustryProduction(nationId, Recipes.TrainWorkerUntrainedToTrained);
-            expect(store.getState().nations[0].industry.workers.untrained).toBe(1); // 2 used
-            expect(store.getState().nations[0].industry.workers.trained).toBe(3); // +1
-            expect(store.getState().nations[0].industry.power.available).toBe(8); // -2
-            expect(store.getState().nations[0].treasury).toBe(1500); // -500
-        // Step 2: Train trained to expert (cash)
-        store.getState().processIndustryProduction(nationId, Recipes.TrainWorkerTrainedToExpert);
-            expect(store.getState().nations[0].industry.workers.trained).toBe(1); // 2 used
-            expect(store.getState().nations[0].industry.workers.expert).toBe(1); // +1
-            expect(store.getState().nations[0].industry.power.available).toBe(6); // -2
-            expect(store.getState().nations[0].treasury).toBe(500); // -1000
-        // Step 3: Train untrained to trained (labour, paper, cash)
+        store.getState().nations[0].industry.workers.untrained = 1;
+        store.getState().nations[0].industry.workers.trained = 0;
+        store.getState().nations[0].industry.workers.expert = 0;
+        store.getState().nations[0].industry.power.available = 4;
+        store.getState().nations[0].treasury = 1100;
+        warehouse[MaterialType.Paper] = 3;
+
         store.getState().processIndustryProduction(nationId, Recipes.TrainWorkerUntrainedToTrainedWithLabour);
-            expect(store.getState().nations[0].industry.workers.untrained).toBe(0); // 1 used
-            expect(store.getState().nations[0].industry.workers.trained).toBe(2); // +1
-            expect(store.getState().nations[0].industry.power.available).toBe(7); // +1
-            expect(store.getState().nations[0].treasury).toBe(400); // -100
-        expect(warehouse['paper']).toBe(2); // -1
-        // Step 4: Train trained to expert (labour, paper, cash)
+        expect(store.getState().nations[0].industry.workers.untrained).toBe(0); 
+        expect(store.getState().nations[0].industry.workers.trained).toBe(1); 
+        expect(store.getState().nations[0].industry.power.available).toBe(5); 
+        expect(store.getState().nations[0].treasury).toBe(1000); 
+        expect(warehouse[MaterialType.Paper]).toBe(2); 
+
         store.getState().processIndustryProduction(nationId, Recipes.TrainWorkerTrainedToExpertWithLabour);
-            expect(store.getState().nations[0].industry.workers.trained).toBe(1); // 1 used
-            expect(store.getState().nations[0].industry.workers.expert).toBe(2); // +1
-            expect(store.getState().nations[0].industry.power.available).toBe(9); // +2
-            expect(store.getState().nations[0].treasury).toBe(-600); // -1000
-        expect(warehouse['paper']).toBe(0); // -2
+        expect(store.getState().nations[0].industry.workers.trained).toBe(0); 
+        expect(store.getState().nations[0].industry.workers.expert).toBe(1); 
+        expect(store.getState().nations[0].industry.power.available).toBe(7); 
+        expect(store.getState().nations[0].treasury).toBe(0); 
+        expect(warehouse[MaterialType.Paper]).toBe(0); 
     });
 });

@@ -43,7 +43,7 @@ export const ProductionRecipes: ConversionRecipe[] = [
     {
         name: Recipes.TextileMillFabric,
         inputs: [
-            { type: Fungible.Labour, amount: 2 },
+            { type: [ResourceType.Cotton, ResourceType.Wool], amount: 2 },
             { type: Fungible.Labour, amount: 2 },
         ],
         outputs: [{ type: MaterialType.Fabric, amount: 1 }],
@@ -52,8 +52,8 @@ export const ProductionRecipes: ConversionRecipe[] = [
     {
         name: Recipes.ClothingFactory,
         inputs: [
-            { type: Fungible.Labour, amount: 2 },
             { type: MaterialType.Fabric, amount: 2 },
+            { type: Fungible.Labour, amount: 2 },
         ],
         outputs: [{ type: GoodsType.Clothing, amount: 1 }],
         note: "Clothing Factory: 2 fabric, 2 labour -> 1 clothing",
@@ -85,26 +85,6 @@ export const ProductionRecipes: ConversionRecipe[] = [
         ],
         outputs: [{ type: MaterialType.Fuel, amount: 1 }],
         note: "Fuel Processing: 2 oil, 2 labour -> 1 fuel",
-    },
-    {
-        name: Recipes.TrainWorkerUntrainedToTrained,
-        inputs: [
-            { type: Fungible.Cash, amount: 500 },
-            { type: Fungible.Labour, amount: 2 },
-            { type: WorkerType.Untrained, amount: 2 },
-        ],
-        outputs: [{ type: WorkerType.Trained, amount: 1 }],
-        note: "Train Worker: 2 untrained_worker, 2 labour, 500 cash -> 1 trained_worker",
-    },
-    {
-        name: Recipes.TrainWorkerTrainedToExpert,
-        inputs: [
-            { type: Fungible.Cash, amount: 1000 },
-            { type: Fungible.Labour, amount: 2 },
-            { type: WorkerType.Trained, amount: 2 },
-        ],
-        outputs: [{ type: WorkerType.Expert, amount: 1 }],
-        note: "Train Worker: 2 trained_worker, 2 labour, 1000 cash -> 1 expert_worker",
     },
     {
         name: Recipes.ProduceUntrainedWorker,
