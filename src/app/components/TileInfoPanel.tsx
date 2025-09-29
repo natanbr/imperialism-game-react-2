@@ -1,7 +1,7 @@
-import { Tile, TerrainType } from "@/types/Tile";
+import { Tile } from "@/types/Tile";
 import React from "react";
 import { useGameStore } from "../store/rootStore";
-import { WorkerType } from "@/types/Workers";
+import { Worker, WorkerStatus, WorkerType } from "@/types/Workers";
 import { PROSPECTABLE_TERRAIN_TYPES } from "../definisions/terrainDefinitions";
 import { DEVELOPMENT_WORKER_TYPES } from "../definisions/workerDefinitions";
 import { canBuildRailAt } from "@/store/helpers/mapHelpers";
@@ -11,67 +11,94 @@ interface TileInfoPanelProps {
   selectedTile: Tile | undefined;
 }
 
+const WorkerStatusIndicator: React.FC<{ status: WorkerStatus }> = ({ status }) => {
+  const color = {
+    [WorkerStatus.Available]: "green",
+    [WorkerStatus.Moved]: "yellow",
+    [WorkerStatus.Working]: "red",
+  }[status];
+
+  return <span style={{ marginRight: 8, color }}>●</span>;
+};
+
 export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) => {
   const selectedWorkerId = useGameStore((s) => s.selectedWorkerId);
   const startProspecting = useGameStore((s) => s.startProspecting);
   const startDevelopment = useGameStore((s) => s.startDevelopment);
   const startConstruction = useGameStore((s) => s.startConstruction);
+  const cancelJob = useGameStore((s) => s.cancelJob);
   const oilDrillingTechUnlocked = useGameStore((s) => s.technologyState.oilDrillingTechUnlocked);
   const map = useGameStore((s) => s.map);
   const activeNationId = useGameStore((s) => s.activeNationId);
   const activeNation = useGameStore((s) => s.nations.find(n => n.id === s.activeNationId));
+  const setSelectedWorkerId = useGameStore((s) => s.setSelectedWorkerId);
 
   if (!selectedTile) {
     return <div style={{ padding: "10px" }}>No tile selected</div>;
   }
 
   const terrainAllowsProspecting = PROSPECTABLE_TERRAIN_TYPES.includes(selectedTile.terrain);
-
-  const prospectorOnTile = selectedTile.workers.find(w => w.id === selectedWorkerId && w.type === WorkerType.Prospector);
-  const canProspect = !!prospectorOnTile && terrainAllowsProspecting && !selectedTile.prospecting && (activeNation?.treasury ?? 0) >= PROSPECT_COST;
-
-  // New workers: show simple status if a job is running
-  const dev = selectedTile.developmentJob;
-  const con = selectedTile.constructionJob;
-  const hasActiveDev = !!dev && !dev.completed;
-  const hasActiveCon = !!con && !con.completed;
-  const hasActiveProspecting = !!selectedTile.prospecting;
-
-  // Controls: allow starting development/construction using the selected worker
   const selectedWorker = selectedTile.workers.find(w => w.id === selectedWorkerId);
-  const canStartAnyJob = !!selectedWorker && !hasActiveDev && !hasActiveCon && !hasActiveProspecting;
 
-  const startL1 = () => selectedWorker && startDevelopment(selectedTile.id, selectedWorker.id, selectedWorker.type, 1);
-  const startL2 = () => selectedWorker && startDevelopment(selectedTile.id, selectedWorker.id, selectedWorker.type, 2);
-  const startL3 = () => selectedWorker && startDevelopment(selectedTile.id, selectedWorker.id, selectedWorker.type, 3);
+  // A worker can start a job if they are available and haven't moved this turn
+  const canStartJob = selectedWorker && selectedWorker.status === WorkerStatus.Available && !selectedWorker.justMoved;
 
-  const treasury = activeNation?.treasury ?? 0;
-  const canAffordL1 = treasury >= DEVELOPMENT_COST[1];
-  const canAffordL2 = treasury >= DEVELOPMENT_COST[2];
-  const canAffordL3 = treasury >= DEVELOPMENT_COST[3];
+  const handleCancelJob = (workerId: string) => {
+    if (window.confirm("Are you sure you want to cancel this worker's job?")) {
+      cancelJob(selectedTile.id, workerId);
+    }
+  };
 
-  // Enable only the next valid level: if resource is undefined or level is N, only N+1 is enabled
-  const currentLevel = selectedTile.resource?.level ?? 0;
-  const enableL1 = currentLevel === 0;
-  const enableL2 = currentLevel === 1;
-  const enableL3 = currentLevel === 2;
+  const renderWorkerActions = (worker: Worker) => {
+    const isSelected = worker.id === selectedWorkerId;
+    if (!isSelected) return null;
 
-  const startDepot = () => selectedWorker && startConstruction(selectedTile.id, selectedWorker.id, "depot");
-  const startPort = () => selectedWorker && startConstruction(selectedTile.id, selectedWorker.id, "port");
-  const startFort = () => selectedWorker && startConstruction(selectedTile.id, selectedWorker.id, "fort");
-  const startRail = () => selectedWorker && startConstruction(selectedTile.id, selectedWorker.id, "rail");
+    // Prospector actions
+    if (worker.type === WorkerType.Prospector) {
+      const canProspect = canStartJob && terrainAllowsProspecting && !selectedTile.prospecting && (activeNation?.treasury ?? 0) >= PROSPECT_COST;
+      return canProspect && (
+        <button onClick={() => startProspecting(selectedTile.id, worker.id)} title={`Cost: $${PROSPECT_COST}`}>
+          Prospect ⛏️
+        </button>
+      );
+    }
 
-  const canAffordDepot = treasury >= CONSTRUCTION_COST.depot;
-  const canAffordPort = treasury >= CONSTRUCTION_COST.port;
-  const canAffordFort = treasury >= CONSTRUCTION_COST.fort;
-  const canAffordRail = treasury >= CONSTRUCTION_COST.rail;
+    // Development actions
+    if (DEVELOPMENT_WORKER_TYPES.includes(worker.type)) {
+      const treasury = activeNation?.treasury ?? 0;
+      const canAffordL1 = treasury >= DEVELOPMENT_COST[1];
+      const canAffordL2 = treasury >= DEVELOPMENT_COST[2];
+      const canAffordL3 = treasury >= DEVELOPMENT_COST[3];
+      const currentLevel = selectedTile.resource?.level ?? 0;
+      const enableL1 = currentLevel === 0;
+      const enableL2 = currentLevel === 1;
+      const enableL3 = currentLevel === 2;
 
-  // Rail button enabled only if adjacent tile has a starting point (capital/port/depot/connected) and ownership/land rules pass
-  const [tx, ty] = selectedTile.id.split("-").map(Number);
-  const railAllowed = canBuildRailAt(map, tx, ty, activeNationId);
+      return canStartJob && (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+          <button onClick={() => startDevelopment(selectedTile.id, worker.id, worker.type, 1)} title={`L1 ($${DEVELOPMENT_COST[1]})`} disabled={!enableL1 || !canAffordL1}>L1</button>
+          <button onClick={() => startDevelopment(selectedTile.id, worker.id, worker.type, 2)} title={`L2 ($${DEVELOPMENT_COST[2]})`} disabled={!enableL2 || !canAffordL2}>L2</button>
+          <button onClick={() => startDevelopment(selectedTile.id, worker.id, worker.type, 3)} title={`L3 ($${DEVELOPMENT_COST[3]})`} disabled={!enableL3 || !canAffordL3}>L3</button>
+        </div>
+      );
+    }
 
-  // Helper: show hints per worker type
-  const workerHint = selectedWorker ? `Selected worker: ${selectedWorker.type}` : "Select a worker on this tile to enable actions";
+    // Construction actions
+    if (worker.type === WorkerType.Engineer) {
+      const [tx, ty] = selectedTile.id.split("-").map(Number);
+      const railAllowed = canBuildRailAt(map, tx, ty, activeNationId);
+      return canStartJob && (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+          <button onClick={() => startConstruction(selectedTile.id, worker.id, "depot")}>Depot</button>
+          <button onClick={() => startConstruction(selectedTile.id, worker.id, "port")}>Port</button>
+          <button onClick={() => startConstruction(selectedTile.id, worker.id, "fort")}>Fort</button>
+          <button onClick={() => startConstruction(selectedTile.id, worker.id, "rail")} disabled={!railAllowed}>Rail</button>
+        </div>
+      );
+    }
+
+    return null;
+  };
 
   return (
     <div style={{ padding: "10px", borderLeft: "2px solid #333", minWidth: "220px" }}>
@@ -80,59 +107,41 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
       <p><strong>River:</strong> {selectedTile.hasRiver ? "Yes" : "No"}</p>
       <p><strong>Resource:</strong> {selectedTile.resource ? `${selectedTile.resource.type} (L${selectedTile.resource.level})` : "None"}</p>
       <p><strong>Owner:</strong> {selectedTile.ownerNationId || "Unclaimed"}</p>
-      <p><strong>Workers:</strong> {selectedTile.workers.length > 0 ? selectedTile.workers.map(w => w.type).join(", ") : "None"}</p>
 
-      {/* Prospector action */}
+      <div style={{ marginTop: 12 }}>
+        <strong>Workers on Tile:</strong>
+        {selectedTile.workers.length > 0 ? (
+          <ul style={{ listStyle: "none", padding: 0, margin: 0, marginTop: 4 }}>
+            {selectedTile.workers.map(w => (
+              <li key={w.id} onClick={() => setSelectedWorkerId(w.id)} style={{ background: selectedWorkerId === w.id ? '#444' : 'transparent', padding: '4px', borderRadius: '4px', cursor: 'pointer' }}>
+                <WorkerStatusIndicator status={w.status} />
+                <span>{w.type}</span>
+                {w.status === WorkerStatus.Working && (
+                  <button onClick={() => handleCancelJob(w.id)} style={{ marginLeft: 8, padding: '2px 6px', fontSize: 10, background: '#c0392b', color: 'white', border: 'none', borderRadius: 2 }}>
+                    Cancel
+                  </button>
+                )}
+                {renderWorkerActions(w)}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>None</p>
+        )}
+      </div>
+
+      {/* Global job status indicators */}
       {selectedTile.prospecting && (
-        <div style={{ marginTop: 8, color: "#ffd54f" }}>Prospecting in progress… result next turn</div>
+        <div style={{ marginTop: 8, color: "#ffd54f" }}>Prospecting in progress…</div>
       )}
-      {canProspect && (
-        <button
-          onClick={() => startProspecting(selectedTile.id, selectedWorkerId!)}
-          style={{ marginTop: 8, padding: "6px 10px", borderRadius: 4, border: "1px solid #666", background: "#333", color: "#fff", cursor: "pointer" }}
-          title={`Cost: $${PROSPECT_COST}`}
-        >
-          Prospect ⛏️
-        </button>
-      )}
-
-      {/* Development controls (Farmer/Rancher/Forester/Miner/Driller) */}
-      {canStartAnyJob && selectedWorker && DEVELOPMENT_WORKER_TYPES.includes(selectedWorker.type) && (
-        <div style={{ marginTop: 10 }}>
-          <div style={{ marginBottom: 4 }}><strong>Development:</strong> {workerHint}</div>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            <button onClick={startL1} title={`Target Level 1 ($${DEVELOPMENT_COST[1]})`} style={{ padding: "4px 8px", opacity: enableL1 && canAffordL1 ? 1 : 0.5, cursor: enableL1 && canAffordL1 ? "pointer" : "not-allowed" }} disabled={!enableL1 || !canAffordL1}>L1</button>
-            <button onClick={startL2} title={`Target Level 2 ($${DEVELOPMENT_COST[2]})`} style={{ padding: "4px 8px", opacity: enableL2 && canAffordL2 ? 1 : 0.5, cursor: enableL2 && canAffordL2 ? "pointer" : "not-allowed" }} disabled={!enableL2 || !canAffordL2}>L2</button>
-            <button onClick={startL3} title={`Target Level 3 ($${DEVELOPMENT_COST[3]})`} style={{ padding: "4px 8px", opacity: enableL3 && canAffordL3 ? 1 : 0.5, cursor: enableL3 && canAffordL3 ? "pointer" : "not-allowed" }} disabled={!enableL3 || !canAffordL3}>L3</button>
-          </div>
-          {selectedWorker.type === WorkerType.Driller && !oilDrillingTechUnlocked && (
-            <div style={{ marginTop: 4, color: "#ffa726" }}>Requires Oil Drilling tech</div>
-          )}
-        </div>
-      )}
-
-      {/* Construction controls (Engineer) */}
-      {canStartAnyJob && selectedWorker && selectedWorker.type === WorkerType.Engineer && (
-        <div style={{ marginTop: 10 }}>
-          <div style={{ marginBottom: 4 }}><strong>Construction:</strong> {workerHint}</div>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            <button onClick={startDepot} style={{ padding: "4px 8px" }}>Depot</button>
-            <button onClick={startPort} style={{ padding: "4px 8px" }}>Port</button>
-            <button onClick={startFort} style={{ padding: "4px 8px" }}>Fort</button>
-            <button onClick={startRail} style={{ padding: "4px 8px", opacity: railAllowed ? 1 : 0.5, cursor: railAllowed ? "pointer" : "not-allowed" }} disabled={!railAllowed}>Rail</button>
-          </div>
-        </div>
-      )}
-
-      {/* Development and construction status */}
-      {dev && (
+      {selectedTile.developmentJob && !selectedTile.developmentJob.completed && (
         <div style={{ marginTop: 8 }}>
-          <strong>Development:</strong> {dev.workerType} → L{dev.targetLevel} ({dev.completed ? "Done" : `~${dev.durationTurns} turns`})
+          <strong>Development:</strong> {selectedTile.developmentJob.workerType} → L{selectedTile.developmentJob.targetLevel} (~{selectedTile.developmentJob.durationTurns} turns)
         </div>
       )}
-      {con && (
+      {selectedTile.constructionJob && !selectedTile.constructionJob.completed && (
         <div style={{ marginTop: 4 }}>
-          <strong>Construction:</strong> {con.kind} ({con.completed ? "Done" : `~${con.durationTurns} turns`})
+          <strong>Construction:</strong> {selectedTile.constructionJob.kind} (~{selectedTile.constructionJob.durationTurns} turns)
         </div>
       )}
     </div>
