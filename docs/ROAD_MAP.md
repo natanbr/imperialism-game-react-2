@@ -237,7 +237,31 @@ Details
     * 1 trained workers + 2 labours + 1000$ -> expert worker + 4 labour units
     (trained worker is used to produce expert worker, when it's produced reduce (consume) it's equivalent labour unit (2 units))
 
-- Test: add testing for each recipe.
+👁️ - Test: add testing for each recipe.
+
+
+
+### Step
+feature:
+goal - refine worker status and availability for new job
+
+each worker rules and courser:
+- each worker will have just moved state (just moved will reset each new turn for all workers). worker that just moved will not be able to perform any additional action until the just moved was cleared. 
+- for now, let's add a status for each worker (red, yellow, green circle next to the worker)
+   - green available for movement or new job
+   - yellow was just moved 
+   - red in progress with a job 
+- workers that already started working (building rails, farms etc) will have to cancel the progress and will be available for movement (in the same turn) 
+  - add cancel action to the HUD for all workers in progress. if there is no progress  (button will be visible only for red and yellow status) 
+
+
+### Step
+goal - mouse courser should change the icon according to the available game action.
+After a worker was selected and is available for movement or starting new job (green status) a courser will indicate the possible actions, here is a list of workers and their actions:
+- engineer: 
+  1.  the adjust tiles will show rail road icon meaning the engineer can start building the railroad. clicking on that tile will start the job (replacing the existing actions for moving the worker and clicking rail in the hud) 
+  2. the 
+
 
 #### Step 4.2 – Industry integreation
 - goal let's integreate the recently added processIndustryProduction in step 4.2 to the game logic
