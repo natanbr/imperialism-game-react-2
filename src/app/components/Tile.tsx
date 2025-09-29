@@ -105,25 +105,14 @@ const resourceIcons: Partial<Record<ResourceType, string>> = {
 export const TileComponent: React.FC<TileProps> = ({ tile }) => {
   const { terrain, hasRiver, resource, workers, ownerNationId } = tile;
 
-  const {
-    selectedTileId,
-    selectedWorkerId,
-    selectTile,
-    selectWorker,
-    moveSelectedWorkerToTile,
-    nations,
-    map,
-    getWorkerById,
-  } = useGameStore((s) => ({
-    selectedTileId: s.selectedTileId,
-    selectedWorkerId: s.selectedWorkerId,
-    selectTile: s.selectTile,
-    selectWorker: s.selectWorker,
-    moveSelectedWorkerToTile: s.moveSelectedWorkerToTile,
-    nations: s.nations,
-    map: s.map,
-    getWorkerById: s.getWorkerById,
-  }));
+  const selectedTileId = useGameStore((s) => s.selectedTileId);
+  const selectedWorkerId = useGameStore((s) => s.selectedWorkerId);
+  const selectTile = useGameStore((s) => s.selectTile);
+  const selectWorker = useGameStore((s) => s.selectWorker);
+  const moveSelectedWorkerToTile = useGameStore((s) => s.moveSelectedWorkerToTile);
+  const nations = useGameStore((s) => s.nations);
+  const map = useGameStore((s) => s.map);
+  const getWorkerById = useGameStore((s) => s.getWorkerById);
 
   const selectedWorker = useMemo(() => {
     if (!selectedWorkerId) return null;
