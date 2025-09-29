@@ -43,7 +43,7 @@ export const ProductionRecipes: ConversionRecipe[] = [
     {
         name: Recipes.TextileMillFabric,
         inputs: [
-            { type: Fungible.Labour, amount: 2 },
+            { type: [ResourceType.Cotton, ResourceType.Wool], amount: 2 },
             { type: Fungible.Labour, amount: 2 },
         ],
         outputs: [{ type: MaterialType.Fabric, amount: 1 }],

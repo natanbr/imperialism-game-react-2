@@ -1,11 +1,10 @@
-
 import { MINERAL_RESOURCES } from '@/definisions/resourceDefinitions';
 import { DRILLING_TERRAINS, FARMING_TERRAINS, FORESTRY_TERRAINS, MINING_TERRAINS, PROSPECTABLE_TERRAIN_TYPES, RANCHING_TERRAINS } from '@/definisions/terrainDefinitions';
 import { EngineerBuildDurationsTurns, WorkerLevelDurationsTurns } from "@/definisions/workerDurations";
 import { GameState } from "@/types/GameState";
 import { ResourceType } from "@/types/Resource";
 import { TerrainType } from "@/types/Tile";
-import { Worker, WorkerType } from "@/types/Workers";
+import { Worker, WorkerStatus, WorkerType } from "@/types/Workers";
 import { isAdjacentToOcean } from "./mapHelpers";
 import { PROSPECT_COST, DEVELOPMENT_COST, CONSTRUCTION_COST } from "@/definisions/workPrices";
 
@@ -36,10 +35,13 @@ export const moveSelectedWorkerToTileHelper = (
   }
   if (!worker) return state;
 
-
   // If this worker has an active job on its current tile, block movement
   const fromTile = map.tiles[fromY]?.[fromX];
   if (!fromTile) return state;
+
+  // A worker that just moved cannot perform another action in the same turn
+  if (worker.justMoved) return state;
+
   const working =
     fromTile.prospecting?.workerId === selectedWorkerId ||
     (fromTile.developmentJob &&
@@ -72,7 +74,13 @@ export const moveSelectedWorkerToTileHelper = (
         return { ...t, workers: t.workers.filter((w) => w.id !== selectedWorkerId) };
       }
       if (x === tx && y === ty) {
-        return { ...t, workers: [...t.workers, { ...worker!, assignedTileId: `${tx}-${ty}` }] };
+        const movedWorker: Worker = {
+          ...worker!,
+          assignedTileId: `${tx}-${ty}`,
+          justMoved: true,
+          status: WorkerStatus.Moved,
+        };
+        return { ...t, workers: [...t.workers, movedWorker] };
       }
       return t;
     })
@@ -97,13 +105,20 @@ export const startProspectingHelper = (
 
   if (!worker || !terrainAllowed || alreadyProspecting || alreadyDiscovered) return state;
 
+  // A worker that just moved cannot perform another action in the same turn
+  if (worker.justMoved) return state;
+
   // Check funds before starting
   const nation = state.nations.find(n => n.id === worker.nationId);
   const cost = PROSPECT_COST;
   if (!nation || (nation.treasury ?? 0) < cost) return state; // insufficient funds
 
   const newRow = [...state.map.tiles[ty]];
-  newRow[tx] = { ...tile, prospecting: { startedOnTurn: state.turn, workerId } };
+  newRow[tx] = {
+    ...tile,
+    prospecting: { startedOnTurn: state.turn, workerId },
+    workers: tile.workers.map(w => w.id === workerId ? { ...w, status: WorkerStatus.Working } : w),
+  };
   const newTiles = [...state.map.tiles];
   newTiles[ty] = newRow;
 
@@ -129,8 +144,12 @@ export const startDevelopmentHelper = (
   // Validate worker is on tile and of given type
   const worker = tile.workers.find((w) => w.id === workerId);
   const workerOnTile = !!worker && worker.type === workerType;
+
   // Allow starting a new development if any existing development job is already completed
   if (!workerOnTile || (tile.developmentJob && !tile.developmentJob.completed)) return state;
+
+  // A worker that just moved cannot perform another action in the same turn
+  if (worker.justMoved) return state;
 
   // Validate terrain per workerType
   const terrainValid =
@@ -168,6 +187,7 @@ export const startDevelopmentHelper = (
   newRow[tx] = {
     ...tile,
     developmentJob: { workerId, workerType, targetLevel, startedOnTurn: state.turn, durationTurns: duration },
+    workers: tile.workers.map(w => w.id === workerId ? { ...w, status: WorkerStatus.Working } : w),
   };
   const newTiles = [...state.map.tiles];
   newTiles[ty] = newRow;
@@ -193,6 +213,9 @@ export const startConstructionHelper = (
   const engineer = tile.workers.find((w) => w.id === workerId && w.type === WorkerType.Engineer);
   if (!engineer || tile.constructionJob) return state;
 
+  // A worker that just moved cannot perform another action in the same turn
+  if (engineer.justMoved) return state;
+
   // Rule: Port can be started only if tile has river OR is adjacent to ocean/coast
   if (kind === "port") {
     const canBuildPort = tile.hasRiver === true || isAdjacentToOcean(state.map, tx, ty);
@@ -207,7 +230,11 @@ export const startConstructionHelper = (
   if (!nation || (nation.treasury ?? 0) < cost) return state; // insufficient funds
 
   const newRow = [...state.map.tiles[ty]];
-  newRow[tx] = { ...tile, constructionJob: { workerId, kind, startedOnTurn: state.turn, durationTurns: duration } };
+  newRow[tx] = {
+    ...tile,
+    constructionJob: { workerId, kind, startedOnTurn: state.turn, durationTurns: duration },
+    workers: tile.workers.map(w => w.id === workerId ? { ...w, status: WorkerStatus.Working } : w),
+  };
   const newTiles = [...state.map.tiles];
   newTiles[ty] = newRow;
 
@@ -217,4 +244,50 @@ export const startConstructionHelper = (
   );
 
   return { ...state, map: { ...state.map, tiles: newTiles }, nations: newNations };
+};
+
+export const cancelJobHelper = (state: GameState, tileId: string, workerId: string): GameState => {
+  const [tx, ty] = tileId.split("-").map(Number);
+  const tile = state.map.tiles[ty]?.[tx];
+
+  if (!tile) return state;
+
+  const worker = tile.workers.find((w) => w.id === workerId);
+  if (!worker) return state;
+
+  let jobCancelled = false;
+  const newTile = { ...tile };
+
+  // Cancel prospecting
+  if (newTile.prospecting?.workerId === workerId) {
+    newTile.prospecting = undefined;
+    jobCancelled = true;
+  }
+
+  // Cancel development
+  if (newTile.developmentJob?.workerId === workerId) {
+    newTile.developmentJob = undefined;
+    jobCancelled = true;
+  }
+
+  // Cancel construction
+  if (newTile.constructionJob?.workerId === workerId) {
+    newTile.constructionJob = undefined;
+    jobCancelled = true;
+  }
+
+  if (jobCancelled) {
+    newTile.workers = newTile.workers.map((w) =>
+      w.id === workerId ? { ...w, status: WorkerStatus.Available, justMoved: false } : w
+    );
+
+    const newRow = [...state.map.tiles[ty]];
+    newRow[tx] = newTile;
+    const newTiles = [...state.map.tiles];
+    newTiles[ty] = newRow;
+
+    return { ...state, map: { ...state.map, tiles: newTiles } };
+  }
+
+  return state;
 };
