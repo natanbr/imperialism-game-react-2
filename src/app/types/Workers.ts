@@ -1,9 +1,9 @@
 // types/Workers.ts
 
 export enum WorkerStatus {
-  Available = "available", // Green
-  Moved = "moved", // Yellow
-  Working = "working", // Red
+  Available = "available",
+  Moved = "moved",
+  Working = "working",
 }
 
 export enum WorkerType {
@@ -25,4 +25,6 @@ export interface Worker {
   efficiency: number; // 0–100
   status: WorkerStatus;
   justMoved: boolean;
+  jobDescription?: string;
+  previousTileId?: string;
 }

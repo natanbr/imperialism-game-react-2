@@ -2,7 +2,7 @@ import { StateCreator } from 'zustand';
 import { GameState } from '@/types/GameState';
 import { WorkerType } from '@/types/Workers';
 import {
-  cancelJobHelper,
+  cancelActionHelper,
   moveSelectedWorkerToTileHelper,
   startConstructionHelper,
   startDevelopmentHelper,
@@ -10,7 +10,7 @@ import {
 } from './helpers/workerHelpers';
 
 export interface WorkerActionsSlice {
-  moveSelectedWorkerToTile: (targetTileId: string, selectedWorkerId:string) => void;
+  moveSelectedWorkerToTile: (targetTileId: string, selectedWorkerId: string) => void;
   startProspecting: (tileId: string, workerId: string) => void;
   startDevelopment: (
     tileId: string,
@@ -23,7 +23,7 @@ export interface WorkerActionsSlice {
     workerId: string,
     kind: 'depot' | 'port' | 'fort' | 'rail'
   ) => void;
-  cancelJob: (tileId: string, workerId: string) => void;
+  cancelAction: (tileId: string, workerId: string) => void;
 }
 
 export const createWorkerActionsSlice: StateCreator<GameState, [], [], WorkerActionsSlice> = (set) => ({
@@ -39,6 +39,6 @@ export const createWorkerActionsSlice: StateCreator<GameState, [], [], WorkerAct
   startConstruction: (tileId, workerId, kind) =>
     set((state) => startConstructionHelper(state, tileId, workerId, kind)),
 
-  cancelJob: (tileId, workerId) =>
-    set((state) => cancelJobHelper(state, tileId, workerId)),
+  cancelAction: (tileId, workerId) =>
+    set((state) => cancelActionHelper(state, tileId, workerId)),
 });
