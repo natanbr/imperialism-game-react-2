@@ -5,6 +5,7 @@ import { MapView } from './components/MapView';
 import { WarehouseModal } from './components/WarehouseModal';
 import { CapitalModal } from './components/CapitalModal';
 import TransportAllocationModal from './components/TransportAllocationModal';
+import { ConstructionOptionsModal } from './components/ConstructionOptionsModal';
 import { useGameStore } from './store/rootStore';
 
 export default function Home() {
@@ -16,6 +17,7 @@ export default function Home() {
       <HUD />
       <WarehouseModal />
       <CapitalModal />
+      <ConstructionOptionsModal />
       {isTransportAllocationOpen && (
         <TransportAllocationModal
           capacity={useGameStore.getState().nations.find(n => n.id === useGameStore.getState().activeNationId)?.transportCapacity ?? 0}

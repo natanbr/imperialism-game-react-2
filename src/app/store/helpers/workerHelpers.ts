@@ -287,3 +287,172 @@ export const cancelActionHelper = (state: GameState, tileId: string, workerId: s
 
     return state;
 };
+
+export const moveAndStartProspectingHelper = (
+    state: GameState,
+    targetTileId: string,
+    workerId: string,
+): GameState => {
+    const workerInfo = findWorkerAndTile(state, workerId);
+    if (!workerInfo) return state;
+
+    const { worker, tile: fromTile, x: fromX, y: fromY } = workerInfo;
+    if (worker.justMoved || worker.status === WorkerStatus.Working) return state;
+
+    const [tx, ty] = targetTileId.split("-").map(Number);
+    const targetTile = state.map.tiles[ty]?.[tx];
+    if (!targetTile) return state;
+
+    const terrainAllowed = PROSPECTABLE_TERRAIN_TYPES.includes(targetTile.terrain);
+    const alreadyProspecting = !!targetTile.prospecting;
+    const alreadyDiscovered = targetTile.resource?.discovered === true;
+    if (!terrainAllowed || alreadyProspecting || alreadyDiscovered) return state;
+
+    const nation = state.nations.find(n => n.id === worker.nationId);
+    const cost = PROSPECT_COST;
+    if (!nation || (nation.treasury ?? 0) < cost) return state;
+
+    const newTiles = state.map.tiles.map((row, y) => row.map((tile, x) => {
+        if (x === fromX && y === fromY) {
+            return { ...tile, workers: tile.workers.filter(w => w.id !== workerId) };
+        }
+        if (x === tx && y === ty) {
+            const movedWorker = {
+                ...worker,
+                status: WorkerStatus.Working,
+                jobDescription: "Prospecting",
+                assignedTileId: targetTileId,
+                justMoved: true,
+            };
+            return {
+                ...tile,
+                workers: [...tile.workers, movedWorker],
+                prospecting: { startedOnTurn: state.turn, workerId },
+            };
+        }
+        return tile;
+    }));
+
+    const newNations = state.nations.map(n =>
+        n.id === worker.nationId ? { ...n, treasury: (n.treasury ?? 0) - cost } : n
+    );
+
+    return { ...state, map: { ...state.map, tiles: newTiles }, nations: newNations };
+}
+
+export const moveAndStartDevelopmentHelper = (
+    state: GameState,
+    targetTileId: string,
+    workerId: string,
+    workerType: WorkerType,
+    targetLevel: 1 | 2 | 3
+): GameState => {
+    const workerInfo = findWorkerAndTile(state, workerId);
+    if (!workerInfo) return state;
+
+    const { worker, tile: fromTile, x: fromX, y: fromY } = workerInfo;
+    if (worker.justMoved || worker.type !== workerType || worker.status === WorkerStatus.Working) return state;
+
+    const [tx, ty] = targetTileId.split("-").map(Number);
+    const targetTile = state.map.tiles[ty]?.[tx];
+    if (!targetTile || (targetTile.developmentJob && !targetTile.developmentJob.completed)) return state;
+
+    const terrainValid =
+    (workerType === WorkerType.Farmer && FARMING_TERRAINS.includes(targetTile.terrain)) ||
+    (workerType === WorkerType.Rancher && RANCHING_TERRAINS.includes(targetTile.terrain)) ||
+    (workerType === WorkerType.Forester && FORESTRY_TERRAINS.includes(targetTile.terrain)) ||
+    (workerType === WorkerType.Miner && MINING_TERRAINS.includes(targetTile.terrain)) ||
+    (workerType === WorkerType.Driller && DRILLING_TERRAINS.includes(targetTile.terrain));
+    if (!terrainValid) return state;
+
+    const currentLevel = targetTile.resource?.level ?? 0;
+    if (targetLevel !== currentLevel + 1) return state;
+
+    const duration = WorkerLevelDurationsTurns[workerType]?.[targetLevel] ?? 1;
+    const levelCost = DEVELOPMENT_COST[targetLevel];
+    const nation = state.nations.find(n => n.id === worker.nationId);
+    if (!nation || (nation.treasury ?? 0) < levelCost) return state;
+
+    const jobDescription = `Developing ${workerType} L${targetLevel}`;
+    const newTiles = state.map.tiles.map((row, y) => row.map((tile, x) => {
+        if (x === fromX && y === fromY) {
+            return { ...tile, workers: tile.workers.filter(w => w.id !== workerId) };
+        }
+        if (x === tx && y === ty) {
+            const movedWorker = {
+                ...worker,
+                status: WorkerStatus.Working,
+                jobDescription,
+                assignedTileId: targetTileId,
+                justMoved: true,
+            };
+            return {
+                ...tile,
+                workers: [...tile.workers, movedWorker],
+                developmentJob: { workerId, workerType, targetLevel, startedOnTurn: state.turn, durationTurns: duration },
+            };
+        }
+        return tile;
+    }));
+
+    const newNations = state.nations.map(n =>
+        n.id === worker.nationId ? { ...n, treasury: (n.treasury ?? 0) - levelCost } : n
+    );
+
+    return { ...state, map: { ...state.map, tiles: newTiles }, nations: newNations };
+}
+
+export const moveAndStartConstructionHelper = (
+    state: GameState,
+    targetTileId: string,
+    workerId: string,
+    kind: "depot" | "port" | "fort" | "rail"
+): GameState => {
+    const workerInfo = findWorkerAndTile(state, workerId);
+    if (!workerInfo) return state;
+
+    const { worker, tile: fromTile, x: fromX, y: fromY } = workerInfo;
+    if (worker.justMoved || worker.type !== WorkerType.Engineer || worker.status === WorkerStatus.Working) return state;
+
+    const [tx, ty] = targetTileId.split("-").map(Number);
+    const targetTile = state.map.tiles[ty]?.[tx];
+    if (!targetTile || targetTile.constructionJob) return state;
+
+    if (kind === "port") {
+        const canBuildPort = targetTile.hasRiver === true || isAdjacentToOcean(state.map, tx, ty);
+        if (!canBuildPort) return state;
+    }
+
+    const duration = EngineerBuildDurationsTurns[kind] ?? 1;
+    const cost = CONSTRUCTION_COST[kind];
+    const nation = state.nations.find(n => n.id === worker.nationId);
+    if (!nation || (nation.treasury ?? 0) < cost) return state;
+
+    const jobDescription = `Constructing ${kind}`;
+    const newTiles = state.map.tiles.map((row, y) => row.map((tile, x) => {
+        if (x === fromX && y === fromY) {
+            return { ...tile, workers: tile.workers.filter(w => w.id !== workerId) };
+        }
+        if (x === tx && y === ty) {
+            const movedWorker = {
+                ...worker,
+                status: WorkerStatus.Working,
+                jobDescription,
+                assignedTileId: targetTileId,
+                justMoved: true,
+            };
+            return {
+                ...tile,
+                workers: [...tile.workers, movedWorker],
+                constructionJob: { workerId, kind, startedOnTurn: state.turn, durationTurns: duration },
+            };
+        }
+        return tile;
+    }));
+
+    const newNations = state.nations.map(n =>
+        n.id === worker.nationId ? { ...n, treasury: (n.treasury ?? 0) - cost } : n
+    );
+
+    return { ...state, map: { ...state.map, tiles: newTiles }, nations: newNations };
+}
