@@ -91,7 +91,8 @@ function updateResource(nation: Nation, type: string, delta: number) {
     nation.warehouse[type] = (nation.warehouse[type] ?? 0) + delta;
   } else if (isFungible(type)) {
     if (type === Fungible.Labour) {
-      nation.industry.power.available = (nation.industry.power.available ?? 0) + delta;
+       nation.industry.power.available = (nation.industry.power.available ?? 0) + delta;
+             nation.industry.power.total = (nation.industry.power.total ?? 0) + delta;
     }
     else if (type === Fungible.Cash) nation.treasury = (nation.treasury ?? 0) + delta;
   } else if (isWorker(type)) {
@@ -119,22 +120,31 @@ function deductOrInputs(nation: Nation, input: { type: string[]; amount: number 
 
 function deductInputs(nation: Nation, recipe: ConversionRecipe) {
   for (const input of recipe.inputs) {
+    if (input.type === Fungible.Labour || input.type === Fungible.Cash) {
+      deductFungible(nation, input.type, input.amount);
+      continue;
+    }
     if (Array.isArray(input.type)) {
       deductOrInputs(nation, input as { type: string[]; amount: number });
     } else {
-      const currentAmount = getResource(nation, input.type as string);
-      setResource(nation, input.type as string, currentAmount - input.amount);
+      setResource(nation, input.type, getResource(nation, input.type) - input.amount);
     }
   }
 }
 
+function deductTreasury(nation: Nation, recipe: ConversionRecipe) {
+  const price = recipe.inputs.find(i => i.type === Fungible.Cash)?.amount ?? 0;
+  if (price > 0)
+    nation.treasury = (nation.treasury ?? 0) - price;
+}
+
 function addOutputs(nation: Nation, recipe: ConversionRecipe) {
   for (const output of recipe.outputs) {
-    if (isFungible(output.type) || isWorker(output.type)) {
-        updateResource(nation, output.type, output.amount);
-    } else {
-        setResource(nation, output.type, getResource(nation, output.type) + output.amount);
-    }
+    // Only add to warehouse if not Fungible (labour, cash)
+    if (output.type === Fungible.Labour || output.type === Fungible.Cash)
+      continue;
+
+    setResource(nation, output.type, getResource(nation, output.type) + output.amount);
   }
 }
 
@@ -146,25 +156,43 @@ function createWarehouse(): Record<string, number> {
   return warehouse;
 }
 
+function deductFungible(nation: Nation, type: string, amount: number) {
+  if (type === Fungible.Labour) {
+    nation.industry.power.available = (nation.industry.power.available ?? 0) - amount;
+  } else if (type === Fungible.Cash) {
+    nation.treasury = (nation.treasury ?? 0) - amount;
+  }
+}
+
+function addFungibleOutputs(nation: Nation, recipe: ConversionRecipe) {
+  for (const output of recipe.outputs) {
+    if (output.type === Fungible.Labour) {
+      // bug add total
+      nation.industry.power.available = (nation.industry.power.available ?? 0) + output.amount;
+    } else if (output.type === Fungible.Cash) {
+      nation.treasury = (nation.treasury ?? 0) + output.amount;
+    }
+  }
+}
+
 export const createIndustrySlice: StateCreator<GameState, [], [], IndustrySlice> = (set) => ({
   processIndustryProduction: (nationId: string, recipeName: Recipes) => {
     set((state: GameState) => {
-      const originalNation = state.nations.find((n: Nation) => n.id === nationId);
-      if (!originalNation) return {};
-
+      const nation = state.nations.find((n: Nation) => n.id === nationId);
+      if (!nation) return {};
       const recipe = ProductionRecipes.find((r: ConversionRecipe) => r.name === recipeName);
       if (!recipe) return {};
-
-      const nation = JSON.parse(JSON.stringify(originalNation));
 
       if (!hasEnoughInputs(nation, recipe))
         return {};
 
       deductInputs(nation, recipe);
+      deductTreasury(nation, recipe);
       addOutputs(nation, recipe);
+      addFungibleOutputs(nation, recipe);
 
       return {
-        nations: state.nations.map((n: Nation) => n.id === nationId ? nation : n)
+        nations: state.nations.map((n: Nation) => n.id === nationId ? { ...nation } : n)
       };
     });
   },

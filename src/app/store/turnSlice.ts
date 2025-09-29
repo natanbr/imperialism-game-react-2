@@ -1,7 +1,7 @@
 import { StateCreator } from 'zustand';
 import { runTurnPhases } from '@/systems/runTurnPhases';
 import { GameState } from '@/types/GameState';
-import { WorkerStatus } from '@/types/Workers';
+import { Worker, WorkerStatus } from '@/types/Workers';
 
 export interface TurnSlice {
   turn: number;
@@ -33,9 +33,8 @@ export const createTurnSlice: StateCreator<
   
   advanceTurn: () => set((state) => {
     const nextTurn = state.turn + 1;
-    const nextYear = state.year + (state.turn % 4 === 0 ? 1 : 0); // Advance year every 4 turns (seasons)
+    const nextYear = state.year + (state.turn % 4 === 0 ? 1 : 0);
 
-    // Apply any pending transport capacity increases before running phases
     const nationsWithAppliedCapacity = state.nations.map((n) => {
       const inc = n.transportCapacityPendingIncrease ?? 0;
       if (inc > 0) {
@@ -47,44 +46,45 @@ export const createTurnSlice: StateCreator<
       }
       return n;
     });
+
     const prePhasesState = { ...state, nations: nationsWithAppliedCapacity };
 
-    // Run all phases via systems orchestrator (deterministic RNG seeded per turn)
     const phasedState = runTurnPhases(prePhasesState, nextTurn, { seed: nextYear });
 
-    // After turn phases, reset worker states for the new turn
-    const newTiles = phasedState.map.tiles.map(row =>
+    const finalTiles = phasedState.map.tiles.map(row =>
       row.map(tile => {
         if (tile.workers.length === 0) {
           return tile;
         }
-        const newWorkers = tile.workers.map(worker => {
-          // A worker is 'working' if their assigned job on this tile is active and not completed.
+
+        const newWorkers = tile.workers.map((w: Worker) => {
           const isWorking =
-            tile.prospecting?.workerId === worker.id ||
-            (tile.developmentJob && !tile.developmentJob.completed && tile.developmentJob.workerId === worker.id) ||
-            (tile.constructionJob && !tile.constructionJob.completed && tile.constructionJob.workerId === worker.id);
+            (tile.prospecting && tile.prospecting.workerId === w.id) ||
+            (tile.developmentJob && !tile.developmentJob.completed && tile.developmentJob.workerId === w.id) ||
+            (tile.constructionJob && !tile.constructionJob.completed && tile.constructionJob.workerId === w.id);
 
           return {
-            ...worker,
+            ...w,
             justMoved: false,
+            previousTileId: undefined,
             status: isWorking ? WorkerStatus.Working : WorkerStatus.Available,
+            jobDescription: isWorking ? w.jobDescription : undefined,
           };
         });
-        return { ...tile, workers: newWorkers };
+
+        return {
+            ...tile,
+            workers: newWorkers,
+        };
       })
     );
 
-    const finalState = {
+    return {
       ...phasedState,
       map: {
-        ...phasedState.map,
-        tiles: newTiles,
+          ...phasedState.map,
+          tiles: finalTiles,
       },
-    };
-
-    return {
-      ...finalState,
       turn: nextTurn,
       year: nextYear,
     };
