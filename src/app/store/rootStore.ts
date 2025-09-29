@@ -9,6 +9,7 @@ import { createTurnSlice, TurnSlice } from './turnSlice';
 import { createMapSlice, MapSlice } from './mapSlice';
 import { createTechnologySlice, TechnologySlice } from './technologySlice';
 import { createTransportSlice, TransportSlice } from './transportSlice';
+import { ControlsSlice, createControlsSlice } from './controls/controlsSlice';
 
 export type GameStore =
   & GameStateSlice
@@ -26,7 +27,8 @@ export type GameStore =
   // & IndustrySlice
   & TileSelectionSlice
   & CameraSlice
-  & OverlaySlice;
+  & OverlaySlice
+  & ControlsSlice;
 
 export const useGameStore = create<GameStore>()((...a) => ({
   ...createMapSlice(...a), // Initialize map and nations first
@@ -45,4 +47,5 @@ export const useGameStore = create<GameStore>()((...a) => ({
   ...createCameraSlice(...a),
   ...createOverlaySlice(...a),
   ...createTileSelectionSlice(...a),
+  ...createControlsSlice(...a),
 }));
