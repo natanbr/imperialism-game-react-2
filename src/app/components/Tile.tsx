@@ -112,35 +112,35 @@ export const TileComponent: React.FC<TileProps> = ({ tile }) => {
   const moveSelectedWorkerToTile = useGameStore((s) => s.moveSelectedWorkerToTile);
   const nations = useGameStore((s) => s.nations);
   const map = useGameStore((s) => s.map);
-  const getWorkerById = useGameStore((s) => s.getWorkerById);
 
   const selectedWorker = useMemo(() => {
     if (!selectedWorkerId) return null;
-    return getWorkerById(selectedWorkerId);
-  }, [selectedWorkerId, getWorkerById]);
+    for (const row of map.tiles) {
+      for (const t of row) {
+        const worker = t.workers.find(w => w.id === selectedWorkerId);
+        if (worker) return worker;
+      }
+    }
+    return null;
+  }, [selectedWorkerId, map.tiles]);
 
   const possibleAction = getPossibleAction(tile, selectedWorker, map);
 
   const cursor = useMemo(() => {
     if (!possibleAction) return 'auto';
     switch (possibleAction.type) {
-        case 'prospect': return 'url(/icons/prospect-cursor.png), crosshair';
-        case 'develop':
-            const workerType = (possibleAction as any).workerType;
-            if (workerType === WorkerType.Farmer) return 'url(/icons/farm-cursor.png), pointer';
-            if (workerType === WorkerType.Rancher) return 'url(/icons/ranch-cursor.png), pointer';
-            if (workerType === WorkerType.Forester) return 'url(/icons/forest-cursor.png), pointer';
-            if (workerType === WorkerType.Miner) return 'url(/icons/mine-cursor.png), pointer';
-            if (workerType === WorkerType.Driller) return 'url(/icons/drill-cursor.png), pointer';
-            return 'pointer';
-        case 'construct':
-            if (possibleAction.kind === 'rail') return 'url(/icons/rail-cursor.png), pointer';
-            if (possibleAction.kind === 'fort') return 'url(/icons/fort-cursor.png), pointer';
-            return 'pointer';
-        case 'open-construct-modal':
-            return 'url(/icons/build-cursor.png), pointer';
-        default:
-            return 'auto';
+      case 'prospect':
+        return 'crosshair';
+      case 'develop':
+        return 'pointer';
+      case 'construct':
+        if (possibleAction.kind === 'rail') return 'grab';
+        if (possibleAction.kind === 'fort') return 'cell';
+        return 'pointer';
+      case 'open-construct-modal':
+        return 'pointer';
+      default:
+        return 'auto';
     }
   }, [possibleAction]);
 
@@ -160,21 +160,39 @@ export const TileComponent: React.FC<TileProps> = ({ tile }) => {
 
   const handleTileClick = () => {
     if (selectedWorker && possibleAction) {
+      const isSameTile = selectedWorker.assignedTileId === tile.id;
+      const {
+        startProspecting,
+        moveAndStartProspecting,
+        startDevelopment,
+        moveAndStartDevelopment,
+        startConstruction,
+        moveAndStartConstruction,
+        openConstructionModal,
+        selectWorker,
+      } = useGameStore.getState();
+
       switch (possibleAction.type) {
         case 'prospect':
-          useGameStore.getState().moveAndStartProspecting(tile.id, selectedWorker.id);
+          isSameTile
+            ? startProspecting(tile.id, selectedWorker.id)
+            : moveAndStartProspecting(tile.id, selectedWorker.id);
           break;
         case 'develop':
-          useGameStore.getState().moveAndStartDevelopment(tile.id, selectedWorker.id, possibleAction.workerType, possibleAction.level);
+          isSameTile
+            ? startDevelopment(tile.id, selectedWorker.id, possibleAction.workerType, possibleAction.level)
+            : moveAndStartDevelopment(tile.id, selectedWorker.id, possibleAction.workerType, possibleAction.level);
           break;
         case 'construct':
-          useGameStore.getState().moveAndStartConstruction(tile.id, selectedWorker.id, possibleAction.kind);
+          isSameTile
+            ? startConstruction(tile.id, selectedWorker.id, possibleAction.kind)
+            : moveAndStartConstruction(tile.id, selectedWorker.id, possibleAction.kind);
           break;
         case 'open-construct-modal':
-          useGameStore.getState().openConstructionModal(tile.id, selectedWorker.id);
+          openConstructionModal(tile.id, selectedWorker.id);
           return;
       }
-      useGameStore.getState().selectWorker(null);
+      selectWorker(null);
       selectTile(tile.id);
     } else if (selectedWorkerId) {
       moveSelectedWorkerToTile(tile.id, selectedWorkerId);

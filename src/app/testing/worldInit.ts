@@ -9,29 +9,14 @@ export interface WorldInitOptions {
   rows: number;
 }
 
-// Build a static square map (5x4) with one of each terrain type exactly once
+// Build a static square map (5x5) for testing
 export function generateStaticOneNationMap(cols: number, rows: number): GameMap {
   const terrains: TerrainType[] = [
-    TerrainType.Capital,
-    TerrainType.Farm,
-    TerrainType.DryPlains,
-    TerrainType.OpenRange,
-    TerrainType.HorseRanch,
-    TerrainType.Plantation,
-    TerrainType.Orchard,
-    TerrainType.FertileHills,
-    TerrainType.BarrenHills,
-    TerrainType.Mountains,
-    TerrainType.HardwoodForest,
-    TerrainType.ScrubForest,
-    TerrainType.Swamp,
-    TerrainType.Desert,
-    TerrainType.Tundra,
-    TerrainType.Water,
-    TerrainType.River,
-    TerrainType.Town,
-    TerrainType.Coast,
-    // Add more here only if you also expand cols*rows accordingly
+    TerrainType.Capital, TerrainType.Farm, TerrainType.DryPlains, TerrainType.OpenRange, TerrainType.HorseRanch,
+    TerrainType.Plantation, TerrainType.Orchard, TerrainType.FertileHills, TerrainType.BarrenHills, TerrainType.Mountains,
+    TerrainType.HardwoodForest, TerrainType.ScrubForest, TerrainType.Swamp, TerrainType.Desert, TerrainType.Tundra,
+    TerrainType.Water, TerrainType.River, TerrainType.Town, TerrainType.Coast, TerrainType.BarrenHills,
+    TerrainType.Mountains, TerrainType.Water, TerrainType.Farm, TerrainType.OpenRange, TerrainType.HardwoodForest,
   ];
 
   const makeTile = (x: number, y: number, terrain: TerrainType): Tile => {
@@ -46,14 +31,14 @@ export function generateStaticOneNationMap(cols: number, rows: number): GameMap 
       case TerrainType.HardwoodForest: resource = { type: ResourceType.Timber, level: 0 }; break;
       case TerrainType.BarrenHills: {
         const options = [ResourceType.Coal, ResourceType.IronOre, ResourceType.Gold, ResourceType.Gems];
-        const idx = Math.floor(Math.random() * options.length);
-        resource = { type: options[idx], level: 0, discovered: false }; // hidden until prospected
+        const resourceType = options[(x + y) % options.length];
+        resource = { type: resourceType, level: 0, discovered: false }; // hidden until prospected
         break;
       }
       case TerrainType.Mountains: {
         const options = [ResourceType.Coal, ResourceType.IronOre, ResourceType.Gold, ResourceType.Gems];
-        const idx = Math.floor(Math.random() * options.length);
-        resource = { type: options[idx], level: 0, discovered: false }; // hidden until prospected
+        const resourceType = options[(x + y + 1) % options.length];
+        resource = { type: resourceType, level: 0, discovered: false }; // hidden until prospected
         break;
       }
       case TerrainType.Swamp:
