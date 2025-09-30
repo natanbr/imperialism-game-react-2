@@ -30,7 +30,7 @@ export type GameStore =
   & OverlaySlice
   & ControlsSlice;
 
-export const useGameStore = create<GameStore>()((...a) => ({
+export const useGameStore = create<GameStore>((...a) => ({
   ...createMapSlice(...a), // Initialize map and nations first
   ...createGameStateSlice(...a),
   ...createNationSlice(...a),

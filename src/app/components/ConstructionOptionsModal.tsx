@@ -2,15 +2,19 @@
 import React, { useMemo } from "react";
 import { useGameStore } from "../store/rootStore";
 import { isAdjacentToOcean } from "../store/helpers/mapHelpers";
+import { shallow } from "zustand/shallow";
 
 export const ConstructionOptionsModal: React.FC = () => {
-  const { isOpen, tileId, workerId, close, map } = useGameStore((s) => ({
-    isOpen: s.isConstructionModalOpen,
-    tileId: s.constructionModalTileId,
-    workerId: s.constructionModalWorkerId,
-    close: s.closeConstructionModal,
-    map: s.map,
-  }));
+  const { isOpen, tileId, workerId, close, map } = useGameStore(
+    (s) => ({
+      isOpen: s.isConstructionModalOpen,
+      tileId: s.constructionModalTileId,
+      workerId: s.constructionModalWorkerId,
+      close: s.closeConstructionModal,
+      map: s.map,
+    }),
+    shallow,
+  );
 
   const tile = useMemo(() => {
     if (!tileId) return null;

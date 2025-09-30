@@ -7,9 +7,20 @@ import { CapitalModal } from './components/CapitalModal';
 import TransportAllocationModal from './components/TransportAllocationModal';
 import { ConstructionOptionsModal } from './components/ConstructionOptionsModal';
 import { useGameStore } from './store/rootStore';
+import { shallow } from 'zustand/shallow';
 
 export default function Home() {
-  const isTransportAllocationOpen = useGameStore((s) => s.isTransportAllocationOpen);
+  const { isTransportAllocationOpen, activeNation, closeTransportAllocation } =
+    useGameStore(
+      (s) => ({
+        isTransportAllocationOpen: s.isTransportAllocationOpen,
+        activeNation: s.nations.find((n) => n.id === s.activeNationId),
+        closeTransportAllocation: s.closeTransportAllocation,
+      }),
+      shallow,
+    );
+
+  const transportCapacity = activeNation?.transportCapacity ?? 0;
 
   return (
     <div style={{ position: "relative", width: "100vw", height: "100vh", overflow: "hidden" }}>
@@ -20,11 +31,10 @@ export default function Home() {
       <ConstructionOptionsModal />
       {isTransportAllocationOpen && (
         <TransportAllocationModal
-          capacity={useGameStore.getState().nations.find(n => n.id === useGameStore.getState().activeNationId)?.transportCapacity ?? 0}
-          onClose={useGameStore.getState().closeTransportAllocation}
+          capacity={transportCapacity}
+          onClose={closeTransportAllocation}
         />
       )}
     </div>
   );
-
 }
