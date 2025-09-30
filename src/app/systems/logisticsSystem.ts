@@ -1,77 +1,84 @@
 import { ResourceDevelopmentTable } from "@/definisions/ResourceDevelopment";
 import { GameState } from "@/types/GameState";
 import { GameMap } from "@/types/Map";
+import { Nation } from "@/types/Nation";
 import { ResourceType } from "@/types/Resource";
 import { TerrainType } from "@/types/Tile";
+
+const getAllocatedResources = (
+  capacity: number,
+  collected: Record<string, number>,
+  plan?: Record<string, number>
+): Record<string, number> => {
+  const chosen: Record<string, number> = {};
+  let used = 0;
+
+  if (plan) {
+    // Apply player-chosen allocation first
+    for (const [res, requested] of Object.entries(plan)) {
+      if (used >= capacity) break;
+      const available = collected[res] ?? 0;
+      const remaining = capacity - used;
+      const take = Math.max(0, Math.min(Math.floor(requested) || 0, available, remaining));
+      if (take > 0) {
+        chosen[res] = take;
+        used += take;
+      }
+    }
+  }
+
+  // If capacity remains, or if there was no plan, greedily fill from any unplanned resources
+  if (used < capacity) {
+    for (const [res, amt] of Object.entries(collected)) {
+      if (used >= capacity) break;
+      const already = chosen[res] ?? 0;
+      const remainingFromRes = Math.max(0, amt - already);
+      if (remainingFromRes <= 0) continue;
+      const remainingCap = capacity - used;
+      const take = Math.min(remainingFromRes, remainingCap);
+      if (take > 0) {
+        chosen[res] = (chosen[res] ?? 0) + take;
+        used += take;
+      }
+    }
+  }
+
+  return chosen;
+};
+
+const updateNationStateWithTransportedResources = (
+  nation: Nation,
+  transportedResources: Record<string, number>
+): { warehouse: Record<string, number>; treasury: number } => {
+  const newWarehouse = { ...nation.warehouse };
+  let treasury = nation.treasury;
+
+  const goldUnits = transportedResources[ResourceType.Gold] ?? 0;
+  const gemsUnits = transportedResources[ResourceType.Gems] ?? 0;
+  // gold = $100/unit, gems = $1000/unit
+  if (goldUnits > 0) treasury += goldUnits * 100;
+  if (gemsUnits > 0) treasury += gemsUnits * 1000;
+
+  for (const [key, amt] of Object.entries(transportedResources)) {
+    if (key === ResourceType.Gold || key === ResourceType.Gems) continue;
+    newWarehouse[key] = (newWarehouse[key] ?? 0) + amt;
+  }
+
+  return { warehouse: newWarehouse, treasury };
+};
 
 export const logisticsSystem = (state: GameState): GameState => {
   const allocations = state.transportAllocationsByNation ?? {};
 
   const updatedNations = state.nations.map((nation) => {
     const collected = computeLogisticsTransport(state.map, nation.id);
-
-    // Apply player-chosen allocation if present; otherwise default to greedy fill
+    const capacity = Math.max(0, nation.transportCapacity ?? 0);
     const plan = allocations[nation.id];
-    const chosen: Record<string, number> = {};
-    if (plan) {
-      // Clamp to available per resource and total capacity
-      const cap = Math.max(0, nation.transportCapacity ?? 0);
-      let used = 0;
-      for (const [res, requested] of Object.entries(plan)) {
-        if (used >= cap) break;
-        const available = collected[res] ?? 0;
-        const remaining = cap - used;
-        const take = Math.max(0, Math.min(Math.floor(requested) || 0, available, remaining));
-        if (take > 0) {
-          chosen[res] = take;
-          used += take;
-        }
-      }
-      // If capacity remains, greedily fill from any unplanned resources (stable order)
-      if (used < cap) {
-        for (const [res, amt] of Object.entries(collected)) {
-          if (used >= cap) break;
-          const already = chosen[res] ?? 0;
-          const remainingFromRes = Math.max(0, amt - already);
-          if (remainingFromRes <= 0) continue;
-          const remainingCap = cap - used;
-          const take = Math.min(remainingFromRes, remainingCap);
-          if (take > 0) {
-            chosen[res] = already + take;
-            used += take;
-          }
-        }
-      }
-    } else {
-      // Default: greedily take from collected until capacity
-      const cap = Math.max(0, nation.transportCapacity ?? 0);
-      let used = 0;
-      for (const [res, amt] of Object.entries(collected)) {
-        if (used >= cap) break;
-        const remaining = cap - used;
-        const take = Math.min(amt, remaining);
-        if (take > 0) {
-          chosen[res] = take;
-          used += take;
-        }
-      }
-    }
 
-    // Convert gold/gems directly to cash per roadmap; others to warehouse
-    const newWarehouse = { ...nation.warehouse };
-    let treasury = nation.treasury;
-    const goldUnits = chosen[ResourceType.Gold] ?? 0;
-    const gemsUnits = chosen[ResourceType.Gems] ?? 0;
-    // gold = $100/unit, gems = $1000/unit
-    if (goldUnits > 0) treasury += goldUnits * 100;
-    if (gemsUnits > 0) treasury += gemsUnits * 1000;
+    const transported = getAllocatedResources(capacity, collected, plan);
+    const { warehouse, treasury } = updateNationStateWithTransportedResources(nation, transported);
 
-    Object.entries(chosen).forEach(([key, amt]) => {
-      if (key === ResourceType.Gold || key === ResourceType.Gems) return;
-      newWarehouse[key] = (newWarehouse[key] ?? 0) + amt;
-    });
-
-    return { ...nation, warehouse: newWarehouse, treasury };
+    return { ...nation, warehouse, treasury };
   });
 
   return { ...state, nations: updatedNations };
@@ -123,5 +130,3 @@ export const computeLogisticsTransport = (map: GameMap, nationId: string): Recor
 
   return transported;
 };
-
-
