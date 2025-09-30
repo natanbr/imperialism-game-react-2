@@ -4,13 +4,11 @@ import { useGameStore } from "../store/rootStore";
 import { isAdjacentToOcean } from "../store/helpers/mapHelpers";
 
 export const ConstructionOptionsModal: React.FC = () => {
-  const { isOpen, tileId, workerId, close, map } = useGameStore((s) => ({
-    isOpen: s.isConstructionModalOpen,
-    tileId: s.constructionModalTileId,
-    workerId: s.constructionModalWorkerId,
-    close: s.closeConstructionModal,
-    map: s.map,
-  }));
+  const isOpen = useGameStore((s) => s.isConstructionModalOpen);
+  const tileId = useGameStore((s) => s.constructionModalTileId);
+  const workerId = useGameStore((s) => s.constructionModalWorkerId);
+  const close = useGameStore((s) => s.closeConstructionModal);
+  const map = useGameStore((s) => s.map);
 
   const tile = useMemo(() => {
     if (!tileId) return null;
