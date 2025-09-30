@@ -1,9 +1,9 @@
 import { StateCreator } from 'zustand';
-import { GameState } from '@/types/GameState';
+import { GameStore } from '../rootStore';
 
 export interface ControlsSlice {
-  selectedWorkerId: string | null;
-  setSelectedWorkerId: (workerId: string | null) => void;
+  selectedWorkerId: string | undefined;
+  setSelectedWorkerId: (workerId: string | undefined) => void;
   isConstructionModalOpen: boolean;
   constructionModalTileId: string | null;
   constructionModalWorkerId: string | null;
@@ -11,8 +11,8 @@ export interface ControlsSlice {
   closeConstructionModal: () => void;
 }
 
-export const createControlsSlice: StateCreator<GameState, [], [], ControlsSlice> = (set) => ({
-  selectedWorkerId: null,
+export const createControlsSlice: StateCreator<GameStore, [], [], ControlsSlice> = (set) => ({
+  selectedWorkerId: undefined,
   setSelectedWorkerId: (workerId) => set({ selectedWorkerId: workerId }),
   isConstructionModalOpen: false,
   constructionModalTileId: null,
