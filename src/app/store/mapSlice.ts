@@ -1,7 +1,7 @@
 import { StateCreator } from "zustand";
 import { GameState } from "@/types/GameState";
 import { GameMap } from "@/types/Map";
-import { initWorld } from "@/testing/worldInit";
+import { initWorld } from '../testing/worldInit';
 
 export interface MapSlice {
   map: GameMap;

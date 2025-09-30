@@ -1,7 +1,69 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Tile, TerrainType } from "../types/Tile";
 import { ResourceType } from "../types/Resource";
 import { useGameStore } from '../store/rootStore';
+import { Worker, WorkerStatus, WorkerType } from "../types/Workers";
+import { PROSPECTABLE_TERRAIN_TYPES, FARMING_TERRAINS, RANCHING_TERRAINS, FORESTRY_TERRAINS, MINING_TERRAINS, DRILLING_TERRAINS } from "../definisions/terrainDefinitions";
+
+import { canBuildRailAt, isAdjacentToOcean } from "../store/helpers/mapHelpers";
+import { PossibleAction } from "../types/actions";
+
+const getPossibleAction = (tile: Tile, selectedWorker: Worker | null, map: any): PossibleAction => {
+  if (!selectedWorker || selectedWorker.status !== WorkerStatus.Available) return null;
+
+  const { terrain, resource, ownerNationId, developmentJob, constructionJob, fortLevel, depot, port } = tile;
+
+  if (ownerNationId !== selectedWorker.nationId) return null;
+
+  switch (selectedWorker.type) {
+    case WorkerType.Prospector:
+      if (PROSPECTABLE_TERRAIN_TYPES.includes(terrain) && !resource?.discovered && !tile.prospecting) {
+        return { type: 'prospect' };
+      }
+      break;
+    case WorkerType.Engineer:
+      if (!constructionJob) {
+        // Forts in capitals/cities
+        if ((terrain === TerrainType.Capital || terrain === TerrainType.Town) && (fortLevel ?? 0) < 3) {
+          return { type: 'construct', kind: 'fort' };
+        }
+        // Rails
+        if (canBuildRailAt(map, tile.x, tile.y, selectedWorker.nationId)) {
+          return { type: 'construct', kind: 'rail' };
+        }
+        // Depot/Port Modal
+        const isLand = tile.terrain !== TerrainType.Water;
+        if (isLand && !depot && !port) {
+          return { type: 'open-construct-modal' };
+        }
+      }
+      break;
+      case WorkerType.Farmer:
+      case WorkerType.Rancher:
+      case WorkerType.Forester:
+      case WorkerType.Miner:
+      case WorkerType.Driller:
+        if (!developmentJob) {
+          const targetLevel = (resource?.level || 0) + 1;
+          if (targetLevel > 3) return null;
+
+          const terrainMap = {
+            [WorkerType.Farmer]: FARMING_TERRAINS,
+            [WorkerType.Rancher]: RANCHING_TERRAINS,
+            [WorkerType.Forester]: FORESTRY_TERRAINS,
+            [WorkerType.Miner]: MINING_TERRAINS,
+            [WorkerType.Driller]: DRILLING_TERRAINS,
+          };
+
+          if (terrainMap[selectedWorker.type].includes(terrain)) {
+            return { type: 'develop', workerType: selectedWorker.type, level: targetLevel as 1 | 2 | 3 };
+          }
+        }
+        break;
+    }
+
+    return null;
+  };
 
 interface TileProps {
   tile: Tile;
@@ -40,8 +102,6 @@ const resourceIcons: Partial<Record<ResourceType, string>> = {
   [ResourceType.Fish]: "🐟",
 };
 
-import { WorkerType } from "../types/Workers";
-
 export const TileComponent: React.FC<TileProps> = ({ tile }) => {
   const { terrain, hasRiver, resource, workers, ownerNationId } = tile;
 
@@ -51,31 +111,95 @@ export const TileComponent: React.FC<TileProps> = ({ tile }) => {
   const selectWorker = useGameStore((s) => s.selectWorker);
   const moveSelectedWorkerToTile = useGameStore((s) => s.moveSelectedWorkerToTile);
   const nations = useGameStore((s) => s.nations);
+  const map = useGameStore((s) => s.map);
+
+  const selectedWorker = useMemo(() => {
+    if (!selectedWorkerId) return null;
+    for (const row of map.tiles) {
+      for (const t of row) {
+        const worker = t.workers.find(w => w.id === selectedWorkerId);
+        if (worker) return worker;
+      }
+    }
+    return null;
+  }, [selectedWorkerId, map.tiles]);
+
+  const possibleAction = getPossibleAction(tile, selectedWorker, map);
+
+  const cursor = useMemo(() => {
+    if (!possibleAction) return 'auto';
+    switch (possibleAction.type) {
+      case 'prospect':
+        return 'crosshair';
+      case 'develop':
+        return 'pointer';
+      case 'construct':
+        if (possibleAction.kind === 'rail') return 'grab';
+        if (possibleAction.kind === 'fort') return 'cell';
+        return 'pointer';
+      case 'open-construct-modal':
+        return 'pointer';
+      default:
+        return 'auto';
+    }
+  }, [possibleAction]);
 
   const isSelected = selectedTileId === tile.id;
 
-  // Allow selecting any worker on the tile
   const isWorkerSelected = (wId: string) => selectedWorkerId === wId;
 
-  // Job completion visual pulse (if any)
   const jobCompleted = tile.developmentJob?.completed || tile.constructionJob?.completed;
 
-  // Get the nation color for border
   const ownerNation = ownerNationId ? nations.find(n => n.id === ownerNationId) : null;
-  const borderColor = isSelected 
-    ? "red" 
-    : ownerNation 
-    ? ownerNation.color 
+  const borderColor = isSelected
+    ? "red"
+    : ownerNation
+    ? ownerNation.color
     : "#555";
   const borderWidth = ownerNation ? "3px" : "1px";
 
   const handleTileClick = () => {
-    if (selectedWorkerId) {
+    if (selectedWorker && possibleAction) {
+      const isSameTile = selectedWorker.assignedTileId === tile.id;
+      const {
+        startProspecting,
+        moveAndStartProspecting,
+        startDevelopment,
+        moveAndStartDevelopment,
+        startConstruction,
+        moveAndStartConstruction,
+        openConstructionModal,
+        selectWorker,
+      } = useGameStore.getState();
+
+      switch (possibleAction.type) {
+        case 'prospect':
+          isSameTile
+            ? startProspecting(tile.id, selectedWorker.id)
+            : moveAndStartProspecting(tile.id, selectedWorker.id);
+          break;
+        case 'develop':
+          isSameTile
+            ? startDevelopment(tile.id, selectedWorker.id, possibleAction.workerType, possibleAction.level)
+            : moveAndStartDevelopment(tile.id, selectedWorker.id, possibleAction.workerType, possibleAction.level);
+          break;
+        case 'construct':
+          isSameTile
+            ? startConstruction(tile.id, selectedWorker.id, possibleAction.kind)
+            : moveAndStartConstruction(tile.id, selectedWorker.id, possibleAction.kind);
+          break;
+        case 'open-construct-modal':
+          openConstructionModal(tile.id, selectedWorker.id);
+          return;
+      }
+      selectWorker(null);
+      selectTile(tile.id);
+    } else if (selectedWorkerId) {
       moveSelectedWorkerToTile(tile.id, selectedWorkerId);
       selectTile(tile.id);
-      return;
+    } else {
+      selectTile(tile.id);
     }
-    selectTile(tile.id);
   };
 
   return (
@@ -95,6 +219,7 @@ export const TileComponent: React.FC<TileProps> = ({ tile }) => {
         userSelect: "none",
         boxShadow: jobCompleted ? "0 0 12px 4px #ffd54f" : undefined,
         transition: "box-shadow 200ms ease",
+        cursor,
       }}
     >
       <div>{terrain}</div>
