@@ -14,10 +14,12 @@ export const developmentSystem = (state: GameState, rng: RngLike): GameState => 
   return { ...state, map: newMap };
 };
 
+import { MINERAL_RESOURCES } from "@/definisions/resourceDefinitions";
+
 const runNationDevelopmentPhase = (map: GameMap, nextTurn: number, rng: RngLike): GameMap => {
   const tiles: Tile[][] = map.tiles.map(row => row.map(tile => {
     let t: Tile = { ...tile };
-    t = resolveProspectingOnTile(t, nextTurn);
+    t = resolveProspectingOnTile(t, nextTurn, rng);
     t = resolveDevelopmentJobOnTile(t, nextTurn);
     t = resolveConstructionJobOnTile(t, nextTurn);
     t = clearCompletionIndicators(t, nextTurn);
@@ -26,12 +28,38 @@ const runNationDevelopmentPhase = (map: GameMap, nextTurn: number, rng: RngLike)
   return { ...map, tiles };
 };
 
-const resolveProspectingOnTile = (tile: Tile, nextTurn: number): Tile => {
-  // Prospecting no longer selects resource types. It only reveals already-injected hidden resources.
+const discoverResourceOnTile = (tile: Tile, rng: RngLike): Resource | undefined => {
+    if (tile.resource) {
+        return { ...tile.resource, discovered: true };
+    }
+
+    let resourceType: ResourceType;
+    switch (tile.terrain) {
+        case TerrainType.BarrenHills:
+        case TerrainType.Mountains:
+            const minerals = MINERAL_RESOURCES.filter(r => r !== ResourceType.Gold && r !== ResourceType.Gems);
+            resourceType = minerals[Math.floor(rng.next() * minerals.length)];
+            break;
+        case TerrainType.Swamp:
+        case TerrainType.Desert:
+        case TerrainType.Tundra:
+            resourceType = ResourceType.Oil;
+            break;
+        default:
+            return undefined;
+    }
+
+    return {
+        type: resourceType,
+        level: 0,
+        discovered: true,
+    };
+};
+
+const resolveProspectingOnTile = (tile: Tile, nextTurn: number, rng: RngLike): Tile => {
   let t: Tile = { ...tile };
   if (t.prospecting && (nextTurn - t.prospecting.startedOnTurn) >= ProspectorDiscoveryDurationTurns) {
-    // If a resource was pre-injected (possibly undiscovered), mark it as discovered and clear the job.
-    const newResource = t.resource ? { ...t.resource, discovered: true } : undefined;
+    const newResource = discoverResourceOnTile(t, rng);
     t = { ...t, resource: newResource, prospecting: undefined };
   }
   return t;
