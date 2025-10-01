@@ -1,14 +1,14 @@
 import React, { useMemo } from "react";
-import { Tile, TerrainType } from "../types/Tile";
-import { ResourceType } from "../types/Resource";
+import { DRILLING_TERRAINS, FARMING_TERRAINS, FORESTRY_TERRAINS, MINING_TERRAINS, PROSPECTABLE_TERRAIN_TYPES, RANCHING_TERRAINS } from "../definisions/terrainDefinitions";
+import { canBuildRailAt } from "../store/helpers/mapHelpers";
 import { useGameStore } from '../store/rootStore';
-import { Worker, WorkerStatus, WorkerType } from "../types/Workers";
-import { PROSPECTABLE_TERRAIN_TYPES, FARMING_TERRAINS, RANCHING_TERRAINS, FORESTRY_TERRAINS, MINING_TERRAINS, DRILLING_TERRAINS } from "../definisions/terrainDefinitions";
-
-import { canBuildRailAt, isAdjacentToOcean } from "../store/helpers/mapHelpers";
 import { PossibleAction } from "../types/actions";
+import { GameMap } from '../types/Map';
+import { ResourceType } from "../types/Resource";
+import { TerrainType, Tile } from "../types/Tile";
+import { Worker, WorkerStatus, WorkerType } from "../types/Workers";
 
-const getPossibleAction = (tile: Tile, selectedWorker: Worker | null, map: any): PossibleAction => {
+const getPossibleAction = (tile: Tile, selectedWorker: Worker | null, map: GameMap): PossibleAction => {
   if (!selectedWorker || selectedWorker.status !== WorkerStatus.Available) return null;
 
   const { terrain, resource, ownerNationId, developmentJob, constructionJob, fortLevel, depot, port } = tile;
@@ -192,7 +192,7 @@ export const TileComponent: React.FC<TileProps> = ({ tile }) => {
           openConstructionModal(tile.id, selectedWorker.id);
           return;
       }
-      selectWorker(null);
+      selectWorker(undefined);
       selectTile(tile.id);
     } else if (selectedWorkerId) {
       moveSelectedWorkerToTile(tile.id, selectedWorkerId);

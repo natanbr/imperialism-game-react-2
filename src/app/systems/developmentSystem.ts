@@ -1,6 +1,6 @@
 import { GameState } from "@/types/GameState";
 import { GameMap } from "@/types/Map";
-import { Tile, TerrainType } from "@/types/Tile";
+import { Tile, TerrainType, Resource } from "@/types/Tile";
 import { ResourceType } from "@/types/Resource";
 import { ProspectorDiscoveryDurationTurns } from "@/definisions/workerDurations";
 

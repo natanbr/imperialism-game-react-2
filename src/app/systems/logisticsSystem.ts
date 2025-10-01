@@ -61,7 +61,9 @@ const updateNationStateWithTransportedResources = (
 
   for (const [key, amt] of Object.entries(transportedResources)) {
     if (key === ResourceType.Gold || key === ResourceType.Gems) continue;
-    newWarehouse[key] = (newWarehouse[key] ?? 0) + amt;
+    if (key in newWarehouse) {
+      newWarehouse[key as keyof typeof newWarehouse] = (newWarehouse[key as keyof typeof newWarehouse] ?? 0) + amt;
+    }
   }
 
   return { warehouse: newWarehouse, treasury };

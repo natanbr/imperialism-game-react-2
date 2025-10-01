@@ -26,17 +26,19 @@ export enum TerrainType {
   Coast = "coast",
 }
 
+export interface Resource {
+  type: ResourceType;
+  level: number;              // 0..3 (minerals/oil can be 0=none until improved/opened)
+  discovered?: boolean;       // for hidden resources (minerals/oil)
+}
+
 export interface Tile {
   id: string;
   x: number;
   y: number;
   terrain: TerrainType;
   hasRiver?: boolean;           // enables fish + river ports
-  resource?: {
-    type: ResourceType;
-    level: number;              // 0..3 (minerals/oil can be 0=none until improved/opened)
-    discovered?: boolean;       // for hidden resources (minerals/oil)
-  };
+  resource?: Resource;
   // Prospecting action state (resolved on next turn)
   prospecting?: { startedOnTurn: number; workerId: string };
 
