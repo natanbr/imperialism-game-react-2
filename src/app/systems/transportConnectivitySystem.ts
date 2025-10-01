@@ -44,14 +44,14 @@ const runTransportationConnectivity = (map: GameMap): GameMap => {
         arr.push({ x, y });
         depotsByNation.set(nation, arr);
       }
-      const isLand = ![TerrainType.Water, TerrainType.Coast, TerrainType.River].includes(t.terrain);
+      const isLand = ![TerrainType.Water, TerrainType.Coast].includes(t.terrain);
       if (isLand && t.connected) {
         const g = railGraphByNation.get(nation) ?? new Map<string, Node[]>();
         const k = key(x, y);
         const adj: Node[] = [];
         for (const [nx, ny] of neighbors(x, y)) {
           const n = tiles[ny][nx];
-          const nIsLand = ![TerrainType.Water, TerrainType.Coast, TerrainType.River].includes(n.terrain);
+          const nIsLand = ![TerrainType.Water, TerrainType.Coast].includes(n.terrain);
           if (nIsLand && n.connected && n.ownerNationId === nation) {
             adj.push({ x: nx, y: ny });
           }

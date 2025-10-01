@@ -53,6 +53,8 @@ export const moveSelectedWorkerToTileHelper = (
   const sameNation = targetTile.ownerNationId === worker.nationId;
   if (!isLand || !sameNation) return state;
 
+  let autoStartedRail = false;
+
   const newTiles = state.map.tiles.map((row, y) => {
     if (y !== fromY && y !== ty) return row;
     return row.map((tile, x) => {
@@ -60,7 +62,7 @@ export const moveSelectedWorkerToTileHelper = (
         return { ...tile, workers: tile.workers.filter(w => w.id !== selectedWorkerId) };
       }
       if (x === tx && y === ty) {
-        const movedWorker: Worker = {
+        let movedWorker: Worker = {
           ...worker,
           assignedTileId: `${tx}-${ty}`,
           justMoved: true,
@@ -68,13 +70,33 @@ export const moveSelectedWorkerToTileHelper = (
           jobDescription: "Moved",
           previousTileId: fromTile.id,
         };
+
+        const { canBuildRailAt } = require('./mapHelpers');
+        if (worker.type === WorkerType.Engineer && canBuildRailAt(state.map, tx, ty, worker.nationId)) {
+          const nation = state.nations.find(n => n.id === worker.nationId);
+          const cost = CONSTRUCTION_COST.rail;
+          if (nation && (nation.treasury ?? 0) >= cost) {
+            movedWorker = { ...movedWorker, status: WorkerStatus.Working, jobDescription: "Constructing rail" };
+            autoStartedRail = true;
+            return {
+              ...tile,
+              workers: [...tile.workers, movedWorker],
+              constructionJob: { workerId: selectedWorkerId, kind: 'rail', startedOnTurn: state.turn, durationTurns: EngineerBuildDurationsTurns.rail }
+            };
+          }
+        }
+
         return { ...tile, workers: [...tile.workers, movedWorker] };
       }
       return tile;
     });
   });
 
-  return { ...state, map: { ...state.map, tiles: newTiles } };
+  const newNations = autoStartedRail
+    ? state.nations.map(n => n.id === workerInfo.worker.nationId ? { ...n, treasury: (n.treasury ?? 0) - CONSTRUCTION_COST.rail } : n)
+    : state.nations;
+
+  return { ...state, map: { ...state.map, tiles: newTiles }, nations: newNations };
 };
 
 export const startProspectingHelper = (

@@ -15,6 +15,8 @@ const getPossibleAction = (tile: Tile, selectedWorker: Worker | null, map: any):
 
   if (ownerNationId !== selectedWorker.nationId) return null;
 
+  const isSameTile = selectedWorker.assignedTileId === tile.id;
+
   switch (selectedWorker.type) {
     case WorkerType.Prospector:
       if (PROSPECTABLE_TERRAIN_TYPES.includes(terrain) && !resource?.discovered && !tile.prospecting) {
@@ -23,6 +25,11 @@ const getPossibleAction = (tile: Tile, selectedWorker: Worker | null, map: any):
       break;
     case WorkerType.Engineer:
       if (!constructionJob) {
+        const isLand = tile.terrain !== TerrainType.Water;
+        if (isSameTile && isLand && !depot && !port) {
+          return { type: 'open-construct-modal' };
+        }
+
         // Forts in capitals/cities
         if ((terrain === TerrainType.Capital || terrain === TerrainType.Town) && (fortLevel ?? 0) < 3) {
           return { type: 'construct', kind: 'fort' };
@@ -32,7 +39,6 @@ const getPossibleAction = (tile: Tile, selectedWorker: Worker | null, map: any):
           return { type: 'construct', kind: 'rail' };
         }
         // Depot/Port Modal
-        const isLand = tile.terrain !== TerrainType.Water;
         if (isLand && !depot && !port) {
           return { type: 'open-construct-modal' };
         }
@@ -189,7 +195,12 @@ export const TileComponent: React.FC<TileProps> = ({ tile }) => {
             : moveAndStartConstruction(tile.id, selectedWorker.id, possibleAction.kind);
           break;
         case 'open-construct-modal':
-          openConstructionModal(tile.id, selectedWorker.id);
+          if (isSameTile) {
+            openConstructionModal(tile.id, selectedWorker.id);
+          } else {
+            // This case should ideally not be hit if logic is correct, but as a fallback:
+            moveSelectedWorkerToTile(tile.id, selectedWorker.id);
+          }
           return;
       }
       selectWorker(null);
