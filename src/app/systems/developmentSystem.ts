@@ -88,8 +88,14 @@ const resolveConstructionJobOnTile = (tile: Tile, nextTurn: number): Tile => {
     if (elapsed >= t.constructionJob.durationTurns) {
       const update: Partial<Tile> = {};
       switch (t.constructionJob.kind) {
-        case "depot": update.depot = true; break;
-        case "port": update.port = true; break;
+        case "depot":
+          update.depot = true;
+          update.connected = true;
+          break;
+        case "port":
+          update.port = true;
+          update.connected = true;
+          break;
         case "fort": update.fortLevel = Math.max(1, t.fortLevel || 0); break;
         case "rail": update.connected = true; break;
       }

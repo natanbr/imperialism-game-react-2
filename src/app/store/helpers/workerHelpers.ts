@@ -216,7 +216,7 @@ export const startConstructionHelper = (
     if (!tile) return state;
 
     const engineer = tile.workers.find((w) => w.id === workerId && w.type === WorkerType.Engineer);
-    if (!engineer || engineer.justMoved || tile.constructionJob) return state;
+    if (!engineer || engineer.justMoved || (tile.constructionJob && !tile.constructionJob.completed)) return state;
 
     if (kind === "port") {
         const canBuildPort = tile.hasRiver === true || isAdjacentToOcean(state.map, tx, ty);
