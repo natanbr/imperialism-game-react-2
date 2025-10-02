@@ -112,6 +112,7 @@ export const TileComponent: React.FC<TileProps> = ({ tile }) => {
   const moveSelectedWorkerToTile = useGameStore((s) => s.moveSelectedWorkerToTile);
   const nations = useGameStore((s) => s.nations);
   const map = useGameStore((s) => s.map);
+  const transportNetwork = useGameStore((s) => s.transportNetwork);
 
   const selectedWorker = useMemo(() => {
     if (!selectedWorkerId) return null;
@@ -157,6 +158,19 @@ export const TileComponent: React.FC<TileProps> = ({ tile }) => {
     ? ownerNation.color
     : "#555";
   const borderWidth = ownerNation ? "3px" : "1px";
+
+  const nationNetwork = ownerNationId ? transportNetwork.railroadNetworks?.[ownerNationId] : undefined;
+  const depotStatus = useMemo(() => {
+    if (!tile.depot || !nationNetwork) return false;
+    const depotNode = nationNetwork.depots.find(d => d.x === tile.x && d.y === tile.y);
+    return depotNode?.isActive ?? false;
+  }, [tile.depot, tile.x, tile.y, nationNetwork]);
+
+  const portStatus = useMemo(() => {
+    if (!tile.port || !nationNetwork) return false;
+    const portNode = nationNetwork.ports.find(p => p.x === tile.x && p.y === tile.y);
+    return portNode?.isActive ?? false;
+  }, [tile.port, tile.x, tile.y, nationNetwork]);
 
   const handleTileClick = () => {
     if (selectedWorker && possibleAction) {
@@ -238,13 +252,13 @@ export const TileComponent: React.FC<TileProps> = ({ tile }) => {
       {tile.depot && (
         <div title="Depot" style={{ position: "absolute", top: 4, left: 4, fontSize: 16, display: "flex", alignItems: "center", gap: 2 }}>
           <span>🏬</span>
-          <span style={{ fontSize: 12 }}>{tile.activeDepot ? "🟢" : "🔴"}</span>
+          <span style={{ fontSize: 12 }}>{depotStatus ? "🟢" : "🔴"}</span>
         </div>
       )}
       {tile.port && (
         <div title="Port" style={{ position: "absolute", top: 4, left: 28, fontSize: 16, display: "flex", alignItems: "center", gap: 2 }}>
           <span>⚓</span>
-          <span style={{ fontSize: 12 }}>{tile.activePort ? "🟢" : "🔴"}</span>
+          <span style={{ fontSize: 12 }}>{portStatus ? "🟢" : "🔴"}</span>
         </div>
       )}
 

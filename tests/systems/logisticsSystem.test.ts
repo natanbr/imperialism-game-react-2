@@ -4,11 +4,14 @@ import { GameState } from '@/types/GameState';
 import { initWorld } from '@/testing/worldInit';
 import { ResourceType } from '@/types/Resource';
 import { TerrainType } from '@/types/Tile';
+import { initializeRailroadNetworks } from '@/systems/railroadSystem';
+import { Nation } from '@/types/Nation';
 
 function baseState(): GameState {
   const { map, nations } = initWorld({ cols: 5, rows: 5 });
   // Ensure capital exists and at least two adjacent tiles have resources (grain and gold)
   const capital = map.tiles.flat().find(t => t.terrain === TerrainType.Capital)!;
+  map.tiles[capital.y][capital.x] = { ...capital, ownerNationId: 'nation-1' };
   const nx1 = Math.min(capital.x + 1, map.config.cols - 1);
   const ny1 = capital.y;
   const adj1 = map.tiles[ny1][nx1];
@@ -27,7 +30,7 @@ function baseState(): GameState {
     treasury: n.treasury ?? 0,
   }));
   
-  return {
+  let state: GameState = {
     turn: 1,
     year: 1900,
     activeNationId: 'nation-1',
@@ -35,19 +38,26 @@ function baseState(): GameState {
     cities: [], armies: [], fleets: [],
     relations: [], treaties: [], tradePolicies: [], grants: [],
     map: { ...map },
-    transportNetwork: { railroads: [], shippingLanes: [], capacity: 0 },
+    transportNetwork: { shippingLanes: [], capacity: 0 },
     tradeRoutes: [],
-    technologyState: { technologies: [], oilDrillingTechUnlocked: false },
+    technologyState: { researching: {}, advances: {} },
     newsLog: [],
     turnOrder: { phases: ['diplomacy','trade','production','combat','interceptions','logistics'] },
     difficulty: 'normal',
   };
+
+  const railroadNetworks = initializeRailroadNetworks(state.map, state.nations as Nation[]);
+  state.transportNetwork.railroadNetworks = railroadNetworks;
+  // The capital itself is a hub, so no need to set isActive explicitly for this test.
+
+  return state;
 }
 
 describe('computeLogisticsTransport', () => {
   it('collects resources from tiles adjacent to hubs (capital/depot/port)', () => {
     const s1 = baseState();
-    const collected = computeLogisticsTransport(s1.map, 'nation-1');
+    const nationNetwork = s1.transportNetwork.railroadNetworks!['nation-1'];
+    const collected = computeLogisticsTransport(s1.map, 'nation-1', nationNetwork);
     expect(Object.values(collected).some(v => v > 0)).toBe(true);
   });
 });
@@ -66,10 +76,11 @@ describe('logisticsSystem', () => {
 
     const s2 = logisticsSystem(s1);
     const n2 = s2.nations.find(n => n.id === nationId)!;
+    const originalNation = s1.nations.find(n => n.id === nationId)!;
 
     // Treasury increases by gold (2 * $100)
-    expect(n2.treasury).toBeGreaterThanOrEqual((s1.nations.find(n => n.id === nationId)!.treasury ?? 0) + 200);
+    expect(n2.treasury).toBeGreaterThanOrEqual((originalNation.treasury ?? 0) + 200);
     // Warehouse grain increased
-    expect((n2.warehouse[ResourceType.Grain] ?? 0)).toBeGreaterThanOrEqual((s1.nations.find(n => n.id === nationId)!.warehouse[ResourceType.Grain] ?? 0));
+    expect((n2.warehouse[ResourceType.Grain] ?? 0)).toBeGreaterThanOrEqual((originalNation.warehouse[ResourceType.Grain] ?? 0));
   });
 });

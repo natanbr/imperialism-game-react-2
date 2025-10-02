@@ -3,7 +3,8 @@ import { GameState } from "@/types/GameState";
 import { GameMap } from "@/types/Map";
 import { Nation } from "@/types/Nation";
 import { ResourceType } from "@/types/Resource";
-import { TerrainType } from "@/types/Tile";
+import { TerrainType, Tile } from "@/types/Tile";
+import { RailroadNetwork } from "@/types/Transport";
 
 const getAllocatedResources = (
   capacity: number,
@@ -71,9 +72,11 @@ const updateNationStateWithTransportedResources = (
 
 export const logisticsSystem = (state: GameState): GameState => {
   const allocations = state.transportAllocationsByNation ?? {};
+  const railroadNetworks = state.transportNetwork.railroadNetworks;
 
   const updatedNations = state.nations.map((nation) => {
-    const collected = computeLogisticsTransport(state.map, nation.id);
+    const nationNetwork = railroadNetworks ? railroadNetworks[nation.id] : undefined;
+    const collected = computeLogisticsTransport(state.map, nation.id, nationNetwork);
     const capacity = Math.max(0, nation.transportCapacity ?? 0);
     const plan = allocations[nation.id];
 
@@ -86,19 +89,33 @@ export const logisticsSystem = (state: GameState): GameState => {
   return { ...state, nations: updatedNations };
 };
 
-export const computeLogisticsTransport = (map: GameMap, nationId: string): Record<string, number> => {
+export const computeLogisticsTransport = (
+  map: GameMap,
+  nationId: string,
+  network?: RailroadNetwork
+): Record<string, number> => {
   const cols = map.config.cols;
   const rows = map.config.rows;
   const flatTiles = map.tiles.flat();
 
-  const isOwned = (t: typeof flatTiles[number]) => t.ownerNationId === nationId;
+  const isOwned = (t: Tile) => t.ownerNationId === nationId;
 
   const hubSet = new Set<string>();
-  flatTiles.forEach((t) => {
-    if (!isOwned(t)) return;
-    const isActiveHub = (t.depot && t.activeDepot) || (t.port && t.activePort) || (t.terrain === TerrainType.Capital);
-    if (isActiveHub) hubSet.add(`${t.x},${t.y}`);
-  });
+  if (network) {
+    if (network.capital) {
+      hubSet.add(`${network.capital.x},${network.capital.y}`);
+    }
+    network.depots.forEach((d) => {
+      if (d.isActive) {
+        hubSet.add(`${d.x},${d.y}`);
+      }
+    });
+    network.ports.forEach((p) => {
+      if (p.isActive) {
+        hubSet.add(`${p.x},${p.y}`);
+      }
+    });
+  }
 
   const inBounds = (x: number, y: number) => x >= 0 && x < cols && y >= 0 && y < rows;
   const neighbors = (x: number, y: number) => {
@@ -111,7 +128,7 @@ export const computeLogisticsTransport = (map: GameMap, nationId: string): Recor
       .map(([nx, ny]) => `${nx},${ny}`);
   };
 
-  const isAdjacentToAnyHub = (t: typeof flatTiles[number]) => {
+  const isAdjacentToAnyHub = (t: Tile) => {
     const here = `${t.x},${t.y}`;
     if (hubSet.has(here)) return true;
     const adj = neighbors(t.x, t.y);

@@ -2,14 +2,11 @@
 import { GameMap } from "@/types/Map";
 import { Tile, TerrainType } from "@/types/Tile";
 
-// Brick pattern adjacency: every odd row is visually shifted right
-// Returns neighboring Tile instances (up to 6)
-export function getAdjacentTiles(map: GameMap, x: number, y: number): Tile[] {
-  const cols = map.config.cols;
-  const rows = map.config.rows;
+export function getNeighborCoords(map: GameMap, x: number, y: number): [number, number][] {
+  const { cols, rows } = map.config;
   const inBounds = (cx: number, cy: number) => cx >= 0 && cx < cols && cy >= 0 && cy < rows;
   const isOddRow = y % 2 === 1;
-  const neighborCoords: [number, number][] = [
+  const coords: [number, number][] = [
     ...(isOddRow
       ? ([ [x, y - 1] as [number, number], [x + 1, y - 1] as [number, number] ])
       : ([ [x - 1, y - 1] as [number, number], [x, y - 1] as [number, number] ])),
@@ -19,7 +16,13 @@ export function getAdjacentTiles(map: GameMap, x: number, y: number): Tile[] {
       ? ([ [x, y + 1] as [number, number], [x + 1, y + 1] as [number, number] ])
       : ([ [x - 1, y + 1] as [number, number], [x, y + 1] as [number, number] ])),
   ].filter(([nx, ny]) => inBounds(nx, ny));
+  return coords;
+}
 
+// Brick pattern adjacency: every odd row is visually shifted right
+// Returns neighboring Tile instances (up to 6)
+export function getAdjacentTiles(map: GameMap, x: number, y: number): Tile[] {
+  const neighborCoords = getNeighborCoords(map, x, y);
   return neighborCoords.map(([nx, ny]) => map.tiles[ny][nx]);
 }
 
@@ -37,20 +40,8 @@ export function computeRailSegmentsPixels(
   tileSize = 100,
   rowShift = 50
 ): { x1: number; y1: number; x2: number; y2: number }[] {
-  const cols = map.config.cols;
-  const rows = map.config.rows;
-
-  const inBounds = (x: number, y: number) => x >= 0 && x < cols && y >= 0 && y < rows;
+  const { rows } = map.config;
   const isLand = (t: Tile) => ![TerrainType.Water, TerrainType.Coast, TerrainType.River].includes(t.terrain);
-
-  // Brick-pattern neighbor coordinates
-  const neighborCoords = (x: number, y: number): [number, number][] => {
-    const odd = y % 2 === 1;
-    const top: [number, number][] = odd ? [[x, y - 1], [x + 1, y - 1]] : [[x - 1, y - 1], [x, y - 1]];
-    const bottom: [number, number][] = odd ? [[x, y + 1], [x + 1, y + 1]] : [[x - 1, y + 1], [x, y + 1]];
-    const side: [number, number][] = [[x - 1, y], [x + 1, y]];
-    return [...top, ...side, ...bottom].filter(([nx, ny]) => inBounds(nx, ny));
-  };
 
   const centerPx = (x: number, y: number) => {
     const shift = y % 2 === 1 ? rowShift : 0;
@@ -68,11 +59,11 @@ export function computeRailSegmentsPixels(
     (t.connected || t.terrain === TerrainType.Capital || t.depot || t.port);
 
   for (let y = 0; y < rows; y++) {
-    for (let x = 0; x < cols; x++) {
+    for (let x = 0; x < map.config.cols; x++) {
       const t = map.tiles[y][x];
       if (!hasRailVisual(t)) continue;
 
-      for (const [nx, ny] of neighborCoords(x, y)) {
+      for (const [nx, ny] of getNeighborCoords(map, x, y)) {
         if (ny < y || (ny === y && nx <= x)) continue; // deduplicate
         const n = map.tiles[ny][nx];
         if (!hasRailVisual(n) || n.ownerNationId !== t.ownerNationId) continue;

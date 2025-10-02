@@ -3,6 +3,7 @@ import { GameMap } from "@/types/Map";
 import { Tile, TerrainType, Resource } from "@/types/Tile";
 import { ResourceType } from "@/types/Resource";
 import { ProspectorDiscoveryDurationTurns } from "@/definisions/workerDurations";
+import { addRailroad } from "./railroadSystem";
 
 export interface RngLike {
   next: () => number; // [0,1)
@@ -10,14 +11,27 @@ export interface RngLike {
 
 export const developmentSystem = (state: GameState, rng: RngLike): GameState => {
   const nextTurn = state.turn + 1;
-  const newMap = runNationDevelopmentPhase(state.map, nextTurn, rng);
-  return { ...state, map: newMap };
+  let newState = { ...state };
+  const newMap = runNationDevelopmentPhase(newState, nextTurn, rng);
+  newState.map = newMap;
+  for (let y = 0; y < newState.map.config.rows; y++) {
+    for (let x = 0; x < newState.map.config.cols; x++) {
+      let tile = newState.map.tiles[y][x];
+      if (tile.constructionJob?.completed && tile.constructionJob.kind === "rail") {
+        const nationId = tile.ownerNationId;
+        if (nationId) {
+          newState = addRailroad(newState, nationId, { x, y });
+        }
+      }
+    }
+  }
+  return newState;
 };
 
 import { MINERAL_RESOURCES } from "@/definisions/resourceDefinitions";
 
-const runNationDevelopmentPhase = (map: GameMap, nextTurn: number, rng: RngLike): GameMap => {
-  const tiles: Tile[][] = map.tiles.map(row => row.map(tile => {
+const runNationDevelopmentPhase = (state: GameState, nextTurn: number, rng: RngLike): GameMap => {
+  const tiles: Tile[][] = state.map.tiles.map(row => row.map(tile => {
     let t: Tile = { ...tile };
     t = resolveProspectingOnTile(t, nextTurn, rng);
     t = resolveDevelopmentJobOnTile(t, nextTurn);
@@ -25,7 +39,7 @@ const runNationDevelopmentPhase = (map: GameMap, nextTurn: number, rng: RngLike)
     t = clearCompletionIndicators(t, nextTurn);
     return t;
   }));
-  return { ...map, tiles };
+  return { ...state.map, tiles };
 };
 
 const discoverResourceOnTile = (tile: Tile, rng: RngLike): Resource | undefined => {
@@ -91,7 +105,7 @@ const resolveConstructionJobOnTile = (tile: Tile, nextTurn: number): Tile => {
         case "depot": update.depot = true; break;
         case "port": update.port = true; break;
         case "fort": update.fortLevel = Math.max(1, t.fortLevel || 0); break;
-        case "rail": update.connected = true; break;
+        case "rail": break;
       }
       t = { ...t, ...update, constructionJob: { ...t.constructionJob, completed: true, completedOnTurn: nextTurn } };
     }
@@ -109,5 +123,3 @@ const clearCompletionIndicators = (tile: Tile, nextTurn: number): Tile => {
   }
   return t;
 };
-
-

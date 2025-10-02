@@ -1,8 +1,10 @@
 import { developmentSystem } from '@/systems/developmentSystem';
+import { initializeRailroadNetworks } from '@/systems/railroadSystem';
 import { initWorld } from '@/testing/worldInit';
 import { GameState } from '@/types/GameState';
 import { TerrainType } from '@/types/Tile';
 import { describe, expect, it } from 'vitest';
+import { Nation } from '@/types/Nation';
 
 // Deterministic RNG stub
 const rng = { next: () => 0 }; // always pick first option
@@ -28,9 +30,9 @@ describe('developmentSystem', () => {
     tradePolicies: [],
     grants: [],
     map,
-    transportNetwork: { railroads: [], shippingLanes: [], capacity: 0 },
+    transportNetwork: { shippingLanes: [], capacity: 0 },
     tradeRoutes: [],
-    technologyState: { technologies: [], oilDrillingTechUnlocked: false },
+    technologyState: { researching: {}, advances: {} },
     newsLog: [],
     turnOrder: { phases: [
       'diplomacy','trade','production','combat','interceptions','logistics'
@@ -53,13 +55,18 @@ describe('developmentSystem', () => {
   });
 
   it('marks construction job complete and applies effect', () => {
-    const capital = baseState.map.tiles.flat().find(t => t.terrain === TerrainType.Capital)!;
-    const [cx, cy] = [capital.x, capital.y];
-    capital.constructionJob = { workerId: 'w1', kind: 'rail', startedOnTurn: baseState.turn, durationTurns: 1, completed: false };
+    let state = { ...baseState };
+    const railroadNetworks = initializeRailroadNetworks(state.map, state.nations as Nation[]);
+    state.transportNetwork.railroadNetworks = railroadNetworks;
 
-    const s2 = developmentSystem(baseState, rng);
+    const capital = state.map.tiles.flat().find(t => t.terrain === TerrainType.Capital)!;
+    const [cx, cy] = [capital.x, capital.y];
+    state.map.tiles[cy][cx].constructionJob = { workerId: 'w1', kind: 'rail', startedOnTurn: state.turn, durationTurns: 1, completed: false };
+
+    const s2 = developmentSystem(state, rng);
     const t2 = s2.map.tiles[cy][cx];
     expect(t2.constructionJob?.completed).toBe(true);
-    expect(t2.connected).toBe(true);
+    // check that the railroad was added to the network
+    expect(s2.transportNetwork.railroadNetworks!['nation-1'].graph[`${cx},${cy}`]).toBeDefined();
   });
 });
