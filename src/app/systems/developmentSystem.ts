@@ -3,15 +3,28 @@ import { GameMap } from "@/types/Map";
 import { Tile, TerrainType, Resource } from "@/types/Tile";
 import { ResourceType } from "@/types/Resource";
 import { ProspectorDiscoveryDurationTurns } from "@/definisions/workerDurations";
-import { addRailroad } from "./railroadSystem";
+import { addRailroad, initializeRailroadNetworks } from "./railroadSystem";
 
 export interface RngLike {
   next: () => number; // [0,1)
 }
 
 export const developmentSystem = (state: GameState, rng: RngLike): GameState => {
-  const nextTurn = state.turn + 1;
   let newState = { ...state };
+
+  // Lazy initialization of railroad networks
+  if (!newState.transportNetwork.railroadNetworks) {
+    const railroadNetworks = initializeRailroadNetworks(newState.map, newState.nations);
+    newState = {
+      ...newState,
+      transportNetwork: {
+        ...newState.transportNetwork,
+        railroadNetworks,
+      },
+    };
+  }
+
+  const nextTurn = state.turn + 1;
   const newMap = runNationDevelopmentPhase(newState, nextTurn, rng);
   newState.map = newMap;
   for (let y = 0; y < newState.map.config.rows; y++) {

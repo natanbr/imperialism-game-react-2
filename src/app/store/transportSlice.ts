@@ -1,7 +1,6 @@
 import { StateCreator } from "zustand";
 import { GameState } from "@/types/GameState";
 import { TransportNetwork } from "@/types/Transport";
-import { initializeRailroadNetworks } from "../systems/railroadSystem";
 
 export interface TransportSlice {
   transportNetwork: TransportNetwork;
@@ -12,25 +11,19 @@ export interface TransportSlice {
   setTransportAllocations: (nationId: string, allocations: Record<string, number>) => void;
 }
 
-export const createTransportSlice: StateCreator<GameState, [], [], TransportSlice> = (set, get) => {
-  const map = get().map;
-  const nations = get().nations;
-  const railroadNetworks = initializeRailroadNetworks(map, nations);
+export const createTransportSlice: StateCreator<GameState, [], [], TransportSlice> = (set) => ({
+  transportNetwork: {
+    shippingLanes: [],
+    capacity: 0,
+    // railroadNetworks is optional and will be lazy-initialized
+  },
+  setTransportNetwork: (network: TransportNetwork) => set({ transportNetwork: network }),
 
-  return {
-    transportNetwork: {
-      shippingLanes: [],
-      capacity: 0,
-      railroadNetworks,
-    },
-    setTransportNetwork: (network: TransportNetwork) => set({ transportNetwork: network }),
-
-    transportAllocationsByNation: {},
-    setTransportAllocations: (nationId, allocations) => set((state) => ({
-      transportAllocationsByNation: {
-        ...(state.transportAllocationsByNation ?? {}),
-        [nationId]: { ...allocations },
-      }
-    })),
-  };
-};
+  transportAllocationsByNation: {},
+  setTransportAllocations: (nationId, allocations) => set((state) => ({
+    transportAllocationsByNation: {
+      ...(state.transportAllocationsByNation ?? {}),
+      [nationId]: { ...allocations },
+    }
+  })),
+});
