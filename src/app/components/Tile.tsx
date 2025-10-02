@@ -178,6 +178,7 @@ export const TileComponent: React.FC<TileProps> = ({ tile }) => {
       const {
         startProspecting,
         moveAndStartProspecting,
+        moveSelectedWorkerToTile,
         startDevelopment,
         moveAndStartDevelopment,
         startConstruction,
@@ -203,7 +204,9 @@ export const TileComponent: React.FC<TileProps> = ({ tile }) => {
             : moveAndStartConstruction(tile.id, selectedWorker.id, possibleAction.kind);
           break;
         case 'open-construct-modal':
-          openConstructionModal(tile.id, selectedWorker.id);
+           isSameTile
+            ? openConstructionModal(tile.id, selectedWorker.id)
+            : moveSelectedWorkerToTile(tile.id, selectedWorker.id);
           return;
       }
       selectWorker(undefined);
