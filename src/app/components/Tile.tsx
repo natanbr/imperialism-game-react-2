@@ -8,62 +8,93 @@ import { ResourceType } from "../types/Resource";
 import { TerrainType, Tile } from "../types/Tile";
 import { Worker, WorkerStatus, WorkerType } from "../types/Workers";
 
-const getPossibleAction = (tile: Tile, selectedWorker: Worker | null, map: GameMap): PossibleAction => {
-  if (!selectedWorker || selectedWorker.status !== WorkerStatus.Available) return null;
+// WorkerAction interface and concrete classes
+interface WorkerAction {
+  getActions(tile: Tile, map: GameMap, worker: Worker): PossibleAction | null;
+}
 
-  const { terrain, resource, ownerNationId, developmentJob, constructionJob, fortLevel, depot, port } = tile;
-
-  if (ownerNationId !== selectedWorker.nationId) return null;
-
-  switch (selectedWorker.type) {
-    case WorkerType.Prospector:
-      if (PROSPECTABLE_TERRAIN_TYPES.includes(terrain) && !resource?.discovered && !tile.prospecting) {
-        return { type: 'prospect' };
-      }
-      break;
-    case WorkerType.Engineer:
-      if (!constructionJob) {
-        // Forts in capitals/cities
-        if ((terrain === TerrainType.Capital || terrain === TerrainType.Town) && (fortLevel ?? 0) < 3) {
-          return { type: 'construct', kind: 'fort' };
-        }
-        // Rails
-        if (canBuildRailAt(map, tile.x, tile.y, selectedWorker.nationId)) {
-          return { type: 'construct', kind: 'rail' };
-        }
-        // Depot/Port Modal
-        const isLand = tile.terrain !== TerrainType.Water;
-        if (isLand && !depot && !port) {
-          return { type: 'open-construct-modal' };
-        }
-      }
-      break;
-      case WorkerType.Farmer:
-      case WorkerType.Rancher:
-      case WorkerType.Forester:
-      case WorkerType.Miner:
-      case WorkerType.Driller:
-        if (!developmentJob) {
-          const targetLevel = (resource?.level || 0) + 1;
-          if (targetLevel > 3) return null;
-
-          const terrainMap = {
-            [WorkerType.Farmer]: FARMING_TERRAINS,
-            [WorkerType.Rancher]: RANCHING_TERRAINS,
-            [WorkerType.Forester]: FORESTRY_TERRAINS,
-            [WorkerType.Miner]: MINING_TERRAINS,
-            [WorkerType.Driller]: DRILLING_TERRAINS,
-          };
-
-          if (terrainMap[selectedWorker.type].includes(terrain)) {
-            return { type: 'develop', workerType: selectedWorker.type, level: targetLevel as 1 | 2 | 3 };
-          }
-        }
-        break;
+class ProspectorWorker implements WorkerAction {
+  getActions(tile: Tile, map: GameMap, worker: Worker): PossibleAction | null {
+    if (worker.status !== WorkerStatus.Available) return null;
+    if (tile.ownerNationId !== worker.nationId) return null;
+    if (PROSPECTABLE_TERRAIN_TYPES.includes(tile.terrain) && !tile.resource?.discovered && !tile.prospecting) {
+      return { type: "prospect" };
     }
-
     return null;
-  };
+  }
+}
+
+class EngineerWorker implements WorkerAction {
+  getActions(tile: Tile, map: GameMap, worker: Worker): PossibleAction | null {
+    if (worker.status !== WorkerStatus.Available) return null;
+    if (tile.ownerNationId !== worker.nationId) return null;
+    if (!tile.constructionJob) {
+      if ((tile.terrain === TerrainType.Capital || tile.terrain === TerrainType.Town) && (tile.fortLevel ?? 0) < 3) {
+        return { type: "construct", kind: "fort" };
+      }
+      if (canBuildRailAt(map, tile.x, tile.y, worker.nationId)) {
+        return { type: "construct", kind: "rail" };
+      }
+      const isLand = tile.terrain !== TerrainType.Water;
+      if (isLand && !tile.depot && !tile.port) {
+        return { type: "open-construct-modal" };
+      }
+    }
+    return null;
+  }
+}
+
+class DeveloperWorker implements WorkerAction {
+  terrainMap: Record<WorkerType, TerrainType[]>;
+  constructor() {
+    this.terrainMap = {
+      [WorkerType.Prospector]: [],
+      [WorkerType.Engineer]: [],
+      [WorkerType.Farmer]: FARMING_TERRAINS,
+      [WorkerType.Rancher]: RANCHING_TERRAINS,
+      [WorkerType.Forester]: FORESTRY_TERRAINS,
+      [WorkerType.Miner]: MINING_TERRAINS,
+      [WorkerType.Driller]: DRILLING_TERRAINS,
+      [WorkerType.Developer]: [],
+    };
+  }
+  getActions(tile: Tile, map: GameMap, worker: Worker): PossibleAction | null {
+    if (worker.status !== WorkerStatus.Available) return null;
+    if (tile.ownerNationId !== worker.nationId) return null;
+    if (!tile.developmentJob) {
+      const targetLevel = (tile.resource?.level || 0) + 1;
+      if (targetLevel > 3) return null;
+      if (this.terrainMap[worker.type]?.includes(tile.terrain)) {
+        return { type: "develop", workerType: worker.type, level: targetLevel as 1 | 2 | 3 };
+      }
+    }
+    return null;
+  }
+}
+
+function getWorkerInstance(worker: Worker): WorkerAction | null {
+  switch (worker.type) {
+    case WorkerType.Prospector:
+      return new ProspectorWorker();
+    case WorkerType.Engineer:
+      return new EngineerWorker();
+    case WorkerType.Farmer:
+    case WorkerType.Rancher:
+    case WorkerType.Forester:
+    case WorkerType.Miner:
+    case WorkerType.Driller:
+      return new DeveloperWorker();
+    default:
+      return null;
+  }
+}
+
+const getPossibleAction = (tile: Tile, selectedWorker: Worker | null, map: GameMap): PossibleAction => {
+  if (!selectedWorker) return null;
+  const workerInstance = getWorkerInstance(selectedWorker);
+  if (!workerInstance) return null;
+  return workerInstance.getActions(tile, map, selectedWorker);
+};
 
 interface TileProps {
   tile: Tile;
@@ -189,24 +220,32 @@ export const TileComponent: React.FC<TileProps> = ({ tile }) => {
 
       switch (possibleAction.type) {
         case 'prospect':
-          isSameTile
-            ? startProspecting(tile.id, selectedWorker.id)
-            : moveAndStartProspecting(tile.id, selectedWorker.id);
+          if (isSameTile) {
+            startProspecting(tile.id, selectedWorker.id);
+          } else {
+            moveAndStartProspecting(tile.id, selectedWorker.id);
+          }
           break;
         case 'develop':
-          isSameTile
-            ? startDevelopment(tile.id, selectedWorker.id, possibleAction.workerType, possibleAction.level)
-            : moveAndStartDevelopment(tile.id, selectedWorker.id, possibleAction.workerType, possibleAction.level);
+          if (isSameTile) {
+            startDevelopment(tile.id, selectedWorker.id, possibleAction.workerType, possibleAction.level);
+          } else {
+            moveAndStartDevelopment(tile.id, selectedWorker.id, possibleAction.workerType, possibleAction.level);
+          }
           break;
         case 'construct':
-          isSameTile
-            ? startConstruction(tile.id, selectedWorker.id, possibleAction.kind)
-            : moveAndStartConstruction(tile.id, selectedWorker.id, possibleAction.kind);
+          if (isSameTile) {
+            startConstruction(tile.id, selectedWorker.id, possibleAction.kind);
+          } else {
+            moveAndStartConstruction(tile.id, selectedWorker.id, possibleAction.kind);
+          }
           break;
         case 'open-construct-modal':
-           isSameTile
-            ? openConstructionModal(tile.id, selectedWorker.id)
-            : moveSelectedWorkerToTile(tile.id, selectedWorker.id);
+          if (isSameTile) {
+            openConstructionModal(tile.id, selectedWorker.id);
+          } else {
+            moveSelectedWorkerToTile(tile.id, selectedWorker.id);
+          }
           return;
       }
       selectWorker(undefined);

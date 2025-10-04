@@ -1,12 +1,8 @@
-import { MINERAL_RESOURCES } from '@/definisions/resourceDefinitions';
-import { DRILLING_TERRAINS, FARMING_TERRAINS, FORESTRY_TERRAINS, MINING_TERRAINS, PROSPECTABLE_TERRAIN_TYPES, RANCHING_TERRAINS } from '@/definisions/terrainDefinitions';
-import { EngineerBuildDurationsTurns, WorkerLevelDurationsTurns } from "@/definisions/workerDurations";
+import { ProspectorWorker } from '../../workers/ProspectorWorker';
+import { DeveloperWorker } from '../../workers/DeveloperWorker';
 import { GameState } from "@/types/GameState";
-import { ResourceType } from "@/types/Resource";
 import { Tile, TerrainType } from "@/types/Tile";
 import { Worker, WorkerStatus, WorkerType } from "@/types/Workers";
-import { isAdjacentToOcean } from "./mapHelpers";
-import { PROSPECT_COST, DEVELOPMENT_COST, CONSTRUCTION_COST } from "@/definisions/workPrices";
 
 const findWorkerAndTile = (state: GameState, workerId: string): { worker: Worker, tile: Tile, x: number, y: number } | null => {
     for (let y = 0; y < state.map.config.rows; y++) {
@@ -53,180 +49,56 @@ export const moveSelectedWorkerToTileHelper = (
   const sameNation = targetTile.ownerNationId === worker.nationId;
   if (!isLand || !sameNation) return state;
 
-  const newTiles = state.map.tiles.map((row, y) => {
-    if (y !== fromY && y !== ty) return row;
-    return row.map((tile, x) => {
-      if (x === fromX && y === fromY) {
-        return { ...tile, workers: tile.workers.filter(w => w.id !== selectedWorkerId) };
-      }
-      if (x === tx && y === ty) {
-        const movedWorker: Worker = {
-          ...worker,
-          assignedTileId: `${tx}-${ty}`,
-          justMoved: true,
-          status: WorkerStatus.Moved,
-          jobDescription: "Moved",
-          previousTileId: fromTile.id,
-        };
-        return { ...tile, workers: [...tile.workers, movedWorker] };
-      }
-      return tile;
-    });
-  });
-
-  return { ...state, map: { ...state.map, tiles: newTiles } };
+  // Use worker class move logic
+  let workerClass;
+  switch (worker.type) {
+    case WorkerType.Prospector:
+      workerClass = new ProspectorWorker();
+      break;
+    case WorkerType.Developer:
+      workerClass = new DeveloperWorker();
+      break;
+    case WorkerType.Engineer:
+      workerClass = new EngineerWorker();
+      break;
+    // Add other worker types as needed
+    default:
+      return state;
+  }
+  return workerClass.move(state, fromTile, targetTile, worker);
 };
 
-export const startProspectingHelper = (
-  state: GameState,
-  tileId: string,
-  workerId: string
-): GameState => {
+export function startProspectingHelper(state: GameState, tileId: string, workerId: string): GameState {
+    const [tx, ty] = tileId.split("-").map(Number);
+    const tile = state.map.tiles[ty]?.[tx];
+    if (!tile) return state;
+    const worker = tile.workers.find((w) => w.id === workerId && w.type === WorkerType.Prospector);
+    if (!worker) return state;
+    const workerClass = new ProspectorWorker();
+  return workerClass.startWork(state);
+}
+
+export function startDevelopmentHelper(state: GameState, tileId: string, workerId: string, workerType: WorkerType): GameState {
   const [tx, ty] = tileId.split("-").map(Number);
   const tile = state.map.tiles[ty]?.[tx];
   if (!tile) return state;
+  const worker = tile.workers.find((w) => w.id === workerId && w.type === workerType);
+  if (!worker) return state;
+  const workerClass = new DeveloperWorker();
+  return workerClass.startWork(state);
+}
 
-  const worker = tile.workers.find((w) => w.id === workerId && w.type === WorkerType.Prospector);
-  if (!worker || worker.justMoved) return state;
+import { EngineerWorker } from '../../workers/EngineerWorker';
 
-  const terrainAllowed = PROSPECTABLE_TERRAIN_TYPES.includes(tile.terrain);
-  const alreadyProspecting = !!tile.prospecting;
-  const alreadyDiscovered = tile.resource?.discovered === true;
-
-  if (!terrainAllowed || alreadyProspecting || alreadyDiscovered) return state;
-
-  const nation = state.nations.find(n => n.id === worker.nationId);
-  const cost = PROSPECT_COST;
-  if (!nation || (nation.treasury ?? 0) < cost) return state;
-
-  const newTiles = state.map.tiles.map((row, y) => {
-    if (y !== ty) return row;
-    return row.map((t, x) => {
-      if (x !== tx) return t;
-      return {
-        ...t,
-        prospecting: { startedOnTurn: state.turn, workerId },
-        workers: t.workers.map(w =>
-          w.id === workerId ? { ...w, status: WorkerStatus.Working, jobDescription: "Prospecting" } : w
-        ),
-      };
-    });
-  });
-
-  const newNations = state.nations.map(n =>
-    n.id === worker.nationId ? { ...n, treasury: (n.treasury ?? 0) - cost } : n
-  );
-
-  return { ...state, map: { ...state.map, tiles: newTiles }, nations: newNations };
-};
-
-export const startDevelopmentHelper = (
-  state: GameState,
-  tileId: string,
-  workerId: string,
-  workerType: WorkerType,
-  targetLevel: 1 | 2 | 3
-): GameState => {
-    const [tx, ty] = tileId.split("-").map(Number);
-    const tile = state.map.tiles[ty]?.[tx];
-    if (!tile) return state;
-
-    const worker = tile.workers.find((w) => w.id === workerId);
-    if (!worker || worker.justMoved || worker.type !== workerType) return state;
-    if (tile.developmentJob && !tile.developmentJob.completed) return state;
-
-    const terrainValid =
-    (workerType === WorkerType.Farmer && FARMING_TERRAINS.includes(tile.terrain)) ||
-    (workerType === WorkerType.Rancher && RANCHING_TERRAINS.includes(tile.terrain)) ||
-    (workerType === WorkerType.Forester && FORESTRY_TERRAINS.includes(tile.terrain)) ||
-    (workerType === WorkerType.Miner && MINING_TERRAINS.includes(tile.terrain)) ||
-    (workerType === WorkerType.Driller && DRILLING_TERRAINS.includes(tile.terrain));
-    if (!terrainValid) return state;
-
-    if (workerType === WorkerType.Miner) {
-        const isMineral = tile.resource && MINERAL_RESOURCES.includes(tile.resource.type);
-        if (!isMineral || !tile.resource?.discovered) return state;
-    }
-    if (workerType === WorkerType.Driller) {
-        const isOil = tile.resource?.type === ResourceType.Oil;
-        const hasTech = state.technologyState.oilDrillingTechUnlocked === true;
-        if (!isOil || !tile.resource?.discovered || !hasTech) return state;
-    }
-
-    const currentLevel = tile.resource?.level ?? 0;
-    if (targetLevel !== currentLevel + 1) return state;
-
-    const duration = WorkerLevelDurationsTurns[workerType]?.[targetLevel] ?? 1;
-    const levelCost = DEVELOPMENT_COST[targetLevel];
-    const nation = state.nations.find(n => n.id === worker.nationId);
-    if (!nation || (nation.treasury ?? 0) < levelCost) return state;
-
-    const jobDescription = `Developing ${workerType} L${targetLevel}`;
-    const newTiles = state.map.tiles.map((row, y) => {
-        if (y !== ty) return row;
-        return row.map((t, x) => {
-            if (x !== tx) return t;
-            return {
-                ...t,
-                developmentJob: { workerId, workerType, targetLevel, startedOnTurn: state.turn, durationTurns: duration },
-                workers: t.workers.map(w =>
-                    w.id === workerId ? { ...w, status: WorkerStatus.Working, jobDescription } : w
-                ),
-            };
-        });
-    });
-
-    const newNations = state.nations.map(n =>
-        n.id === worker.nationId ? { ...n, treasury: (n.treasury ?? 0) - levelCost } : n
-    );
-
-    return { ...state, map: { ...state.map, tiles: newTiles }, nations: newNations };
-};
-
-export const startConstructionHelper = (
-  state: GameState,
-  tileId: string,
-  workerId: string,
-  kind: "depot" | "port" | "fort" | "rail"
-): GameState => {
-    const [tx, ty] = tileId.split("-").map(Number);
-    const tile = state.map.tiles[ty]?.[tx];
-    if (!tile) return state;
-
-    const engineer = tile.workers.find((w) => w.id === workerId && w.type === WorkerType.Engineer);
-    if (!engineer || engineer.justMoved || tile.constructionJob) return state;
-
-    if (kind === "port") {
-        const canBuildPort = tile.hasRiver === true || isAdjacentToOcean(state.map, tx, ty);
-        if (!canBuildPort) return state;
-    }
-
-    const duration = EngineerBuildDurationsTurns[kind] ?? 1;
-    const cost = CONSTRUCTION_COST[kind];
-    const nation = state.nations.find(n => n.id === engineer.nationId);
-    if (!nation || (nation.treasury ?? 0) < cost) return state;
-
-    const jobDescription = `Constructing ${kind}`;
-    const newTiles = state.map.tiles.map((row, y) => {
-        if (y !== ty) return row;
-        return row.map((t, x) => {
-            if (x !== tx) return t;
-            return {
-                ...t,
-                constructionJob: { workerId, kind, startedOnTurn: state.turn, durationTurns: duration },
-                workers: t.workers.map(w =>
-                    w.id === workerId ? { ...w, status: WorkerStatus.Working, jobDescription } : w
-                ),
-            };
-        });
-    });
-
-    const newNations = state.nations.map(n =>
-        n.id === engineer.nationId ? { ...n, treasury: (n.treasury ?? 0) - cost } : n
-    );
-
-    return { ...state, map: { ...state.map, tiles: newTiles }, nations: newNations };
-};
+export function startConstructionHelper(state: GameState, tileId: string, workerId: string): GameState {
+  const [tx, ty] = tileId.split("-").map(Number);
+  const tile = state.map.tiles[ty]?.[tx];
+  if (!tile) return state;
+  const worker = tile.workers.find((w) => w.id === workerId && w.type === WorkerType.Engineer);
+  if (!worker) return state;
+  const workerClass = new EngineerWorker();
+  return workerClass.startWork(state);
+}
 
 export const cancelActionHelper = (state: GameState, tileId: string, workerId: string): GameState => {
     const [tx, ty] = tileId.split("-").map(Number);
@@ -288,171 +160,38 @@ export const cancelActionHelper = (state: GameState, tileId: string, workerId: s
     return state;
 };
 
-export const moveAndStartProspectingHelper = (
-    state: GameState,
-    targetTileId: string,
-    workerId: string,
-): GameState => {
-    const workerInfo = findWorkerAndTile(state, workerId);
-    if (!workerInfo) return state;
-
-    const { worker, tile: fromTile, x: fromX, y: fromY } = workerInfo;
-    if (worker.justMoved || worker.status === WorkerStatus.Working) return state;
-
-    const [tx, ty] = targetTileId.split("-").map(Number);
-    const targetTile = state.map.tiles[ty]?.[tx];
-    if (!targetTile) return state;
-
-    const terrainAllowed = PROSPECTABLE_TERRAIN_TYPES.includes(targetTile.terrain);
-    const alreadyProspecting = !!targetTile.prospecting;
-    const alreadyDiscovered = targetTile.resource?.discovered === true;
-    if (!terrainAllowed || alreadyProspecting || alreadyDiscovered) return state;
-
-    const nation = state.nations.find(n => n.id === worker.nationId);
-    const cost = PROSPECT_COST;
-    if (!nation || (nation.treasury ?? 0) < cost) return state;
-
-    const newTiles = state.map.tiles.map((row, y) => row.map((tile, x) => {
-        if (x === fromX && y === fromY) {
-            return { ...tile, workers: tile.workers.filter(w => w.id !== workerId) };
-        }
-        if (x === tx && y === ty) {
-            const movedWorker = {
-                ...worker,
-                status: WorkerStatus.Working,
-                jobDescription: "Prospecting",
-                assignedTileId: targetTileId,
-                justMoved: true,
-            };
-            return {
-                ...tile,
-                workers: [...tile.workers, movedWorker],
-                prospecting: { startedOnTurn: state.turn, workerId },
-            };
-        }
-        return tile;
-    }));
-
-    const newNations = state.nations.map(n =>
-        n.id === worker.nationId ? { ...n, treasury: (n.treasury ?? 0) - cost } : n
-    );
-
-    return { ...state, map: { ...state.map, tiles: newTiles }, nations: newNations };
+export function moveAndStartProspectingHelper(state: GameState, targetTileId: string, workerId: string): GameState {
+  const workerInfo = findWorkerAndTile(state, workerId);
+  if (!workerInfo) return state;
+  const { worker, tile: fromTile } = workerInfo;
+  const [tx, ty] = targetTileId.split("-").map(Number);
+  const toTile = state.map.tiles[ty]?.[tx];
+  if (!toTile) return state;
+  const workerClass = new ProspectorWorker();
+  const movedState = workerClass.move(state, fromTile, toTile, worker);
+  return workerClass.startWork(movedState);
 }
 
-export const moveAndStartDevelopmentHelper = (
-    state: GameState,
-    targetTileId: string,
-    workerId: string,
-    workerType: WorkerType,
-    targetLevel: 1 | 2 | 3
-): GameState => {
-    const workerInfo = findWorkerAndTile(state, workerId);
-    if (!workerInfo) return state;
-
-    const { worker, tile: fromTile, x: fromX, y: fromY } = workerInfo;
-    if (worker.justMoved || worker.type !== workerType || worker.status === WorkerStatus.Working) return state;
-
-    const [tx, ty] = targetTileId.split("-").map(Number);
-    const targetTile = state.map.tiles[ty]?.[tx];
-    if (!targetTile || (targetTile.developmentJob && !targetTile.developmentJob.completed)) return state;
-
-    const terrainValid =
-    (workerType === WorkerType.Farmer && FARMING_TERRAINS.includes(targetTile.terrain)) ||
-    (workerType === WorkerType.Rancher && RANCHING_TERRAINS.includes(targetTile.terrain)) ||
-    (workerType === WorkerType.Forester && FORESTRY_TERRAINS.includes(targetTile.terrain)) ||
-    (workerType === WorkerType.Miner && MINING_TERRAINS.includes(targetTile.terrain)) ||
-    (workerType === WorkerType.Driller && DRILLING_TERRAINS.includes(targetTile.terrain));
-    if (!terrainValid) return state;
-
-    const currentLevel = targetTile.resource?.level ?? 0;
-    if (targetLevel !== currentLevel + 1) return state;
-
-    const duration = WorkerLevelDurationsTurns[workerType]?.[targetLevel] ?? 1;
-    const levelCost = DEVELOPMENT_COST[targetLevel];
-    const nation = state.nations.find(n => n.id === worker.nationId);
-    if (!nation || (nation.treasury ?? 0) < levelCost) return state;
-
-    const jobDescription = `Developing ${workerType} L${targetLevel}`;
-    const newTiles = state.map.tiles.map((row, y) => row.map((tile, x) => {
-        if (x === fromX && y === fromY) {
-            return { ...tile, workers: tile.workers.filter(w => w.id !== workerId) };
-        }
-        if (x === tx && y === ty) {
-            const movedWorker = {
-                ...worker,
-                status: WorkerStatus.Working,
-                jobDescription,
-                assignedTileId: targetTileId,
-                justMoved: true,
-            };
-            return {
-                ...tile,
-                workers: [...tile.workers, movedWorker],
-                developmentJob: { workerId, workerType, targetLevel, startedOnTurn: state.turn, durationTurns: duration },
-            };
-        }
-        return tile;
-    }));
-
-    const newNations = state.nations.map(n =>
-        n.id === worker.nationId ? { ...n, treasury: (n.treasury ?? 0) - levelCost } : n
-    );
-
-    return { ...state, map: { ...state.map, tiles: newTiles }, nations: newNations };
+export function moveAndStartDevelopmentHelper(state: GameState, targetTileId: string, workerId: string): GameState {
+  const workerInfo = findWorkerAndTile(state, workerId);
+  if (!workerInfo) return state;
+  const { worker, tile: fromTile } = workerInfo;
+  const [tx, ty] = targetTileId.split("-").map(Number);
+  const toTile = state.map.tiles[ty]?.[tx];
+  if (!toTile) return state;
+  const workerClass = new DeveloperWorker();
+  const movedState = workerClass.move(state, fromTile, toTile, worker);
+  return workerClass.startWork(movedState);
 }
 
-export const moveAndStartConstructionHelper = (
-    state: GameState,
-    targetTileId: string,
-    workerId: string,
-    kind: "depot" | "port" | "fort" | "rail"
-): GameState => {
-    const workerInfo = findWorkerAndTile(state, workerId);
-    if (!workerInfo) return state;
-
-    const { worker, tile: fromTile, x: fromX, y: fromY } = workerInfo;
-    if (worker.justMoved || worker.type !== WorkerType.Engineer || worker.status === WorkerStatus.Working) return state;
-
-    const [tx, ty] = targetTileId.split("-").map(Number);
-    const targetTile = state.map.tiles[ty]?.[tx];
-    if (!targetTile || targetTile.constructionJob) return state;
-
-    if (kind === "port") {
-        const canBuildPort = targetTile.hasRiver === true || isAdjacentToOcean(state.map, tx, ty);
-        if (!canBuildPort) return state;
-    }
-
-    const duration = EngineerBuildDurationsTurns[kind] ?? 1;
-    const cost = CONSTRUCTION_COST[kind];
-    const nation = state.nations.find(n => n.id === worker.nationId);
-    if (!nation || (nation.treasury ?? 0) < cost) return state;
-
-    const jobDescription = `Constructing ${kind}`;
-    const newTiles = state.map.tiles.map((row, y) => row.map((tile, x) => {
-        if (x === fromX && y === fromY) {
-            return { ...tile, workers: tile.workers.filter(w => w.id !== workerId) };
-        }
-        if (x === tx && y === ty) {
-            const movedWorker = {
-                ...worker,
-                status: WorkerStatus.Working,
-                jobDescription,
-                assignedTileId: targetTileId,
-                justMoved: true,
-            };
-            return {
-                ...tile,
-                workers: [...tile.workers, movedWorker],
-                constructionJob: { workerId, kind, startedOnTurn: state.turn, durationTurns: duration },
-            };
-        }
-        return tile;
-    }));
-
-    const newNations = state.nations.map(n =>
-        n.id === worker.nationId ? { ...n, treasury: (n.treasury ?? 0) - cost } : n
-    );
-
-    return { ...state, map: { ...state.map, tiles: newTiles }, nations: newNations };
+export function moveAndStartConstructionHelper(state: GameState, targetTileId: string, workerId: string): GameState {
+  const workerInfo = findWorkerAndTile(state, workerId);
+  if (!workerInfo) return state;
+  const { worker, tile: fromTile } = workerInfo;
+  const [tx, ty] = targetTileId.split("-").map(Number);
+  const toTile = state.map.tiles[ty]?.[tx];
+  if (!toTile) return state;
+  const workerClass = new EngineerWorker();
+  const movedState = workerClass.move(state, fromTile, toTile, worker);
+  return workerClass.startWork(movedState);
 }
