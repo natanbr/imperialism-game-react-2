@@ -8,92 +8,34 @@ import { ResourceType } from "../types/Resource";
 import { TerrainType, Tile } from "../types/Tile";
 import { Worker, WorkerStatus, WorkerType } from "../types/Workers";
 
-// WorkerAction interface and concrete classes
-interface WorkerAction {
-  getActions(tile: Tile, map: GameMap, worker: Worker): PossibleAction | null;
-}
-
-class ProspectorWorker implements WorkerAction {
-  getActions(tile: Tile, map: GameMap, worker: Worker): PossibleAction | null {
-    if (worker.status !== WorkerStatus.Available) return null;
-    if (tile.ownerNationId !== worker.nationId) return null;
-    if (PROSPECTABLE_TERRAIN_TYPES.includes(tile.terrain) && !tile.resource?.discovered && !tile.prospecting) {
-      return { type: "prospect" };
-    }
-    return null;
-  }
-}
-
-class EngineerWorker implements WorkerAction {
-  getActions(tile: Tile, map: GameMap, worker: Worker): PossibleAction | null {
-    if (worker.status !== WorkerStatus.Available) return null;
-    if (tile.ownerNationId !== worker.nationId) return null;
-    if (!tile.constructionJob) {
-      if ((tile.terrain === TerrainType.Capital || tile.terrain === TerrainType.Town) && (tile.fortLevel ?? 0) < 3) {
-        return { type: "construct", kind: "fort" };
-      }
-      if (canBuildRailAt(map, tile.x, tile.y, worker.nationId)) {
-        return { type: "construct", kind: "rail" };
-      }
-      const isLand = tile.terrain !== TerrainType.Water;
-      if (isLand && !tile.depot && !tile.port) {
-        return { type: "open-construct-modal" };
-      }
-    }
-    return null;
-  }
-}
-
-class DeveloperWorker implements WorkerAction {
-  terrainMap: Record<WorkerType, TerrainType[]>;
-  constructor() {
-    this.terrainMap = {
-      [WorkerType.Prospector]: [],
-      [WorkerType.Engineer]: [],
-      [WorkerType.Farmer]: FARMING_TERRAINS,
-      [WorkerType.Rancher]: RANCHING_TERRAINS,
-      [WorkerType.Forester]: FORESTRY_TERRAINS,
-      [WorkerType.Miner]: MINING_TERRAINS,
-      [WorkerType.Driller]: DRILLING_TERRAINS,
-      [WorkerType.Developer]: [],
-    };
-  }
-  getActions(tile: Tile, map: GameMap, worker: Worker): PossibleAction | null {
-    if (worker.status !== WorkerStatus.Available) return null;
-    if (tile.ownerNationId !== worker.nationId) return null;
-    if (!tile.developmentJob) {
-      const targetLevel = (tile.resource?.level || 0) + 1;
-      if (targetLevel > 3) return null;
-      if (this.terrainMap[worker.type]?.includes(tile.terrain)) {
-        return { type: "develop", workerType: worker.type, level: targetLevel as 1 | 2 | 3 };
-      }
-    }
-    return null;
-  }
-}
-
-function getWorkerInstance(worker: Worker): WorkerAction | null {
-  switch (worker.type) {
-    case WorkerType.Prospector:
-      return new ProspectorWorker();
-    case WorkerType.Engineer:
-      return new EngineerWorker();
-    case WorkerType.Farmer:
-    case WorkerType.Rancher:
-    case WorkerType.Forester:
-    case WorkerType.Miner:
-    case WorkerType.Driller:
-      return new DeveloperWorker();
-    default:
-      return null;
-  }
-}
+import { getProspectorActions } from "../workers/ProspectorWorker";
+import { getEngineerActions } from "../workers/EngineerWorker";
+import { getFarmerActions } from "../workers/FarmerWorker";
+import { getRancherActions } from "../workers/RancherWorker";
+import { getForesterActions } from "../workers/ForesterWorker";
+import { getMinerActions } from "../workers/MinerWorker";
+import { getDrillerActions } from "../workers/DrillerWorker";
 
 const getPossibleAction = (tile: Tile, selectedWorker: Worker | null, map: GameMap): PossibleAction => {
   if (!selectedWorker) return null;
-  const workerInstance = getWorkerInstance(selectedWorker);
-  if (!workerInstance) return null;
-  return workerInstance.getActions(tile, map, selectedWorker);
+  switch (selectedWorker.type) {
+    case WorkerType.Prospector:
+      return getProspectorActions(tile, map, selectedWorker);
+    case WorkerType.Engineer:
+      return getEngineerActions(tile, map, selectedWorker);
+    case WorkerType.Farmer:
+      return getFarmerActions(tile, map, selectedWorker);
+    case WorkerType.Rancher:
+      return getRancherActions(tile, map, selectedWorker);
+    case WorkerType.Forester:
+      return getForesterActions(tile, map, selectedWorker);
+    case WorkerType.Miner:
+      return getMinerActions(tile, map, selectedWorker);
+    case WorkerType.Driller:
+      return getDrillerActions(tile, map, selectedWorker);
+    default:
+      return null;
+  }
 };
 
 interface TileProps {
