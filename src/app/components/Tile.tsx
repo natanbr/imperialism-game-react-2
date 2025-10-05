@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import { useGameStore } from '../store/rootStore';
+import { selectSelectedWorkerAndTile } from '../store/selectors';
 import { PossibleAction } from "../types/actions";
 import { GameMap } from '../types/Map';
 import { ResourceType } from "../types/Resource";
@@ -84,16 +85,8 @@ export const TileComponent: React.FC<TileProps> = ({ tile }) => {
   const map = useGameStore((s) => s.map);
   const transportNetwork = useGameStore((s) => s.transportNetwork);
 
-  const selectedWorker = useMemo(() => {
-    if (!selectedWorkerId) return null;
-    for (const row of map.tiles) {
-      for (const t of row) {
-        const worker = t.workers.find(w => w.id === selectedWorkerId);
-        if (worker) return worker;
-      }
-    }
-    return null;
-  }, [selectedWorkerId, map.tiles]);
+  // Efficiently get selected worker and its tile
+  const { worker: selectedWorker } = useGameStore(selectSelectedWorkerAndTile);
 
   // For cursor, use a simple check: highlight if a worker is selected and tile is valid
   const cursor = selectedWorker ? 'pointer' : 'auto';
@@ -134,7 +127,7 @@ export const TileComponent: React.FC<TileProps> = ({ tile }) => {
     }
     const possibleAction = getPossibleAction(tile, workerForAction, map);
     console.log("Tile clicked. Possible action:", possibleAction, "Selected worker:", selectedWorker, "Worker for action:", workerForAction);
-  
+
     if (selectedWorker && possibleAction) {
       const isSameTile = selectedWorker.assignedTileId === tile.id;
       const {
@@ -159,14 +152,14 @@ export const TileComponent: React.FC<TileProps> = ({ tile }) => {
           break;
         case 'develop':
           if (isSameTile) {
-            startDevelopment(tile.id, selectedWorker.id, possibleAction.workerType, possibleAction.level);
+            startDevelopment(tile.id, selectedWorker.id, possibleAction.workerType);
           } else {
             moveAndStartDevelopment(tile.id, selectedWorker.id, possibleAction.workerType, possibleAction.level);
           }
           break;
         case 'construct':
           if (isSameTile) {
-            startConstruction(tile.id, selectedWorker.id, possibleAction.kind);
+            startConstruction(tile.id, selectedWorker.id);
           } else {
             moveAndStartConstruction(tile.id, selectedWorker.id, possibleAction.kind);
           }
