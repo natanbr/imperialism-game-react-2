@@ -1,8 +1,8 @@
 import { GameMap, MapStyle } from "@/types/Map";
-import { TerrainType, Tile } from "@/types/Tile";
 import { Nation } from "@/types/Nation";
-import { Worker, WorkerType } from "@/types/Workers";
 import { ResourceType } from "@/types/Resource";
+import { TerrainType, Tile } from "@/types/Tile";
+import { Worker, WorkerStatus, WorkerType } from "@/types/Workers";
 
 export interface WorldInitOptions {
   cols: number;
@@ -136,6 +136,8 @@ export function initWorkers(map: GameMap, nations: Nation[]): GameMap {
       nationId,
       assignedTileId: tile.id,
       efficiency: 100,
+      status: WorkerStatus.Available,
+      justMoved: false,
     };
     const [x, y] = tile.id.split("-").map(Number);
     withWorkers[y][x] = { ...tile, workers: [...tile.workers, worker] };

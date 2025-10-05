@@ -1,20 +1,17 @@
 import React, { useMemo } from "react";
-import { DRILLING_TERRAINS, FARMING_TERRAINS, FORESTRY_TERRAINS, MINING_TERRAINS, PROSPECTABLE_TERRAIN_TYPES, RANCHING_TERRAINS } from "../definisions/terrainDefinitions";
-import { canBuildRailAt } from "../store/helpers/mapHelpers";
 import { useGameStore } from '../store/rootStore';
 import { PossibleAction } from "../types/actions";
 import { GameMap } from '../types/Map';
 import { ResourceType } from "../types/Resource";
 import { TerrainType, Tile } from "../types/Tile";
-import { Worker, WorkerStatus, WorkerType } from "../types/Workers";
-
-import { getProspectorActions } from "../workers/ProspectorWorker";
+import { Worker, WorkerType } from "../types/Workers";
+import { getDrillerActions } from "../workers/DrillerWorker";
 import { getEngineerActions } from "../workers/EngineerWorker";
 import { getFarmerActions } from "../workers/FarmerWorker";
-import { getRancherActions } from "../workers/RancherWorker";
 import { getForesterActions } from "../workers/ForesterWorker";
 import { getMinerActions } from "../workers/MinerWorker";
-import { getDrillerActions } from "../workers/DrillerWorker";
+import { getProspectorActions } from "../workers/ProspectorWorker";
+import { getRancherActions } from "../workers/RancherWorker";
 
 const getPossibleAction = (tile: Tile, selectedWorker: Worker | null, map: GameMap): PossibleAction => {
   if (!selectedWorker) return null;
@@ -98,25 +95,8 @@ export const TileComponent: React.FC<TileProps> = ({ tile }) => {
     return null;
   }, [selectedWorkerId, map.tiles]);
 
-  const possibleAction = getPossibleAction(tile, selectedWorker, map);
-
-  const cursor = useMemo(() => {
-    if (!possibleAction) return 'auto';
-    switch (possibleAction.type) {
-      case 'prospect':
-        return 'crosshair';
-      case 'develop':
-        return 'pointer';
-      case 'construct':
-        if (possibleAction.kind === 'rail') return 'grab';
-        if (possibleAction.kind === 'fort') return 'cell';
-        return 'pointer';
-      case 'open-construct-modal':
-        return 'pointer';
-      default:
-        return 'auto';
-    }
-  }, [possibleAction]);
+  // For cursor, use a simple check: highlight if a worker is selected and tile is valid
+  const cursor = selectedWorker ? 'pointer' : 'auto';
 
   const isSelected = selectedTileId === tile.id;
 
@@ -146,6 +126,15 @@ export const TileComponent: React.FC<TileProps> = ({ tile }) => {
   }, [tile.port, tile.x, tile.y, nationNetwork]);
 
   const handleTileClick = () => {
+    // Always use the up-to-date worker object from the current tile for action checks
+    let workerForAction = selectedWorker;
+    if (selectedWorker) {
+      const tileWorker = tile.workers.find(w => w.id === selectedWorker.id);
+      if (tileWorker) workerForAction = tileWorker;
+    }
+    const possibleAction = getPossibleAction(tile, workerForAction, map);
+    console.log("Tile clicked. Possible action:", possibleAction, "Selected worker:", selectedWorker, "Worker for action:", workerForAction);
+  
     if (selectedWorker && possibleAction) {
       const isSameTile = selectedWorker.assignedTileId === tile.id;
       const {

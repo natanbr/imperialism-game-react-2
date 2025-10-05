@@ -3,13 +3,15 @@ import { GameState } from '@/types/GameState';
 import { WorkerType } from '@/types/Workers';
 import {
   cancelActionHelper,
-  moveAndStartConstructionHelper,
-  moveAndStartDevelopmentHelper,
-  moveAndStartProspectingHelper,
   moveSelectedWorkerToTileHelper,
-  startConstructionHelper,
-  startDevelopmentHelper,
   startProspectingHelper,
+  startDevelopmentHelper,
+  startConstructionHelper,
+  startDeveloperWork,
+  startEngineerWork,
+  startProspectorWork,
+  moveWorker,
+  moveAndStartWorkerJob,
 } from './helpers/workerHelpers';
 
 export interface WorkerActionsSlice {
@@ -18,13 +20,11 @@ export interface WorkerActionsSlice {
   startDevelopment: (
     tileId: string,
     workerId: string,
-    workerType: WorkerType,
-    targetLevel: 1 | 2 | 3
+    workerType: WorkerType
   ) => void;
   startConstruction: (
     tileId: string,
-    workerId: string,
-    kind: 'depot' | 'port' | 'fort' | 'rail'
+    workerId: string
   ) => void;
   cancelAction: (tileId: string, workerId: string) => void;
   moveAndStartProspecting: (targetTileId: string, workerId: string) => void,
@@ -48,21 +48,21 @@ export const createWorkerActionsSlice: StateCreator<GameState, [], [], WorkerAct
   startProspecting: (tileId, workerId) =>
     set((state) => startProspectingHelper(state, tileId, workerId)),
 
-  startDevelopment: (tileId, workerId, workerType, targetLevel) =>
-    set((state) => startDevelopmentHelper(state, tileId, workerId, workerType, targetLevel)),
+  startDevelopment: (tileId, workerId, workerType) =>
+    set((state) => startDevelopmentHelper(state, tileId, workerId, workerType)),
 
-  startConstruction: (tileId, workerId, kind) =>
-    set((state) => startConstructionHelper(state, tileId, workerId, kind)),
+  startConstruction: (tileId, workerId) =>
+    set((state) => startConstructionHelper(state, tileId, workerId)),
 
   cancelAction: (tileId, workerId) =>
     set((state) => cancelActionHelper(state, tileId, workerId)),
 
   moveAndStartProspecting: (targetTileId, workerId) =>
-    set((state) => moveAndStartProspectingHelper(state, targetTileId, workerId)),
+    set((state) => moveAndStartWorkerJob(state, targetTileId, workerId, moveWorker, startProspectorWork)),
 
-  moveAndStartDevelopment: (targetTileId, workerId, workerType, targetLevel) =>
-    set((state) => moveAndStartDevelopmentHelper(state, targetTileId, workerId, workerType, targetLevel)),
+  moveAndStartDevelopment: (targetTileId, workerId) =>
+    set((state) => moveAndStartWorkerJob(state, targetTileId, workerId, moveWorker, startDeveloperWork)),
 
-  moveAndStartConstruction: (targetTileId, workerId, kind) =>
-    set((state) => moveAndStartConstructionHelper(state, targetTileId, workerId, kind)),
+  moveAndStartConstruction: (targetTileId, workerId) =>
+    set((state) => moveAndStartWorkerJob(state, targetTileId, workerId, moveWorker, startEngineerWork)),
 });

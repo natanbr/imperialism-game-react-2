@@ -1,3 +1,42 @@
+export { startProspectorWork };
+export { startDeveloperWork };
+export { startEngineerWork };
+export { moveWorker };
+export function moveAndStartWorkerJob(
+  state: GameState,
+  targetTileId: string,
+  workerId: string,
+  moveFn: (state: GameState, fromTile: Tile, toTile: Tile, worker: Worker) => GameState,
+  startJobFn: (state: GameState) => GameState
+): GameState {
+  const workerInfo = findWorkerAndTile(state, workerId);
+  if (!workerInfo) return state;
+  const { worker, tile: fromTile } = workerInfo;
+  const [tx, ty] = targetTileId.split("-").map(Number);
+  const toTile = state.map.tiles[ty]?.[tx];
+  if (!toTile) return state;
+  let movedState = moveFn(state, fromTile, toTile, worker);
+  movedState = {
+    ...movedState,
+    map: {
+      ...movedState.map,
+      tiles: movedState.map.tiles.map((row, y) =>
+        row.map((t, x) => {
+          if (x === tx && y === ty) {
+            return {
+              ...t,
+              workers: t.workers.map(w =>
+                w.id === workerId ? { ...w, status: WorkerStatus.Available, justMoved: false } : w
+              ),
+            };
+          }
+          return t;
+        })
+      ),
+    },
+  };
+  return startJobFn(movedState);
+}
 // Removed unused class imports
 import { startProspectorWork } from '../../workers/ProspectorWorker';
 import { startDeveloperWork } from '../../workers/DeveloperWorker';
@@ -145,34 +184,13 @@ export const cancelActionHelper = (state: GameState, tileId: string, workerId: s
 };
 
 export function moveAndStartProspectingHelper(state: GameState, targetTileId: string, workerId: string): GameState {
-  const workerInfo = findWorkerAndTile(state, workerId);
-  if (!workerInfo) return state;
-  const { worker, tile: fromTile } = workerInfo;
-  const [tx, ty] = targetTileId.split("-").map(Number);
-  const toTile = state.map.tiles[ty]?.[tx];
-  if (!toTile) return state;
-  const movedState = moveWorker(state, fromTile, toTile, worker);
-  return startProspectorWork(movedState);
+  return moveAndStartWorkerJob(state, targetTileId, workerId, moveWorker, startProspectorWork);
 }
 
 export function moveAndStartDevelopmentHelper(state: GameState, targetTileId: string, workerId: string): GameState {
-  const workerInfo = findWorkerAndTile(state, workerId);
-  if (!workerInfo) return state;
-  const { worker, tile: fromTile } = workerInfo;
-  const [tx, ty] = targetTileId.split("-").map(Number);
-  const toTile = state.map.tiles[ty]?.[tx];
-  if (!toTile) return state;
-  const movedState = moveWorker(state, fromTile, toTile, worker);
-  return startDeveloperWork(movedState);
+  return moveAndStartWorkerJob(state, targetTileId, workerId, moveWorker, startDeveloperWork);
 }
 
 export function moveAndStartConstructionHelper(state: GameState, targetTileId: string, workerId: string): GameState {
-  const workerInfo = findWorkerAndTile(state, workerId);
-  if (!workerInfo) return state;
-  const { worker, tile: fromTile } = workerInfo;
-  const [tx, ty] = targetTileId.split("-").map(Number);
-  const toTile = state.map.tiles[ty]?.[tx];
-  if (!toTile) return state;
-  const movedState = moveWorker(state, fromTile, toTile, worker);
-  return startEngineerWork(movedState);
+  return moveAndStartWorkerJob(state, targetTileId, workerId, moveWorker, startEngineerWork);
 }
