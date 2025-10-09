@@ -3,6 +3,7 @@ import { Nation } from "@/types/Nation";
 import { ResourceType } from "@/types/Resource";
 import { TerrainType, Tile } from "@/types/Tile";
 import { Worker, WorkerStatus, WorkerType } from "@/types/Workers";
+import { createTileId, parseTileIdToArray } from "@/utils/tileIdUtils";
 
 export interface WorldInitOptions {
   cols: number;
@@ -50,7 +51,7 @@ export function generateStaticOneNationMap(cols: number, rows: number): GameMap 
         resource = undefined;
     }
     return {
-      id: `${x}-${y}`,
+      id: createTileId(x, y),
       x,
       y,
       terrain,
@@ -116,7 +117,7 @@ export function setupSingleNation(map: GameMap): Nation[] {
   // Set capital cityId at the tile with terrain Capital
   const capitalTile = map.tiles.flat().find((tt) => tt.terrain === TerrainType.Capital);
   if (capitalTile) {
-    const [cx, cy] = capitalTile.id.split("-").map(Number);
+    const [cx, cy] = parseTileIdToArray(capitalTile.id);
     map.tiles[cy][cx] = { ...capitalTile, cityId: "capital-1", ownerNationId: "nation-1" };
   }
 
@@ -139,7 +140,7 @@ export function initWorkers(map: GameMap, nations: Nation[]): GameMap {
       status: WorkerStatus.Available,
       justMoved: false,
     };
-    const [x, y] = tile.id.split("-").map(Number);
+    const [x, y] = parseTileIdToArray(tile.id);
     withWorkers[y][x] = { ...tile, workers: [...tile.workers, worker] };
   };
 

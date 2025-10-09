@@ -1,6 +1,7 @@
 import { GameMap, MapStyle } from "@/types/Map";
 import { ResourceType } from "@/types/Resource";
 import { TerrainType, Tile } from "@/types/Tile";
+import { createTileId } from "@/utils/tileIdUtils";
 
 const cols = 15;
 const rows = 15;
@@ -32,12 +33,12 @@ export const mockMap: GameMap = {
           id: "prospector-1",
           nationId: "nation-1",
           type: WorkerType.Prospector,
-          assignedTileId: `${x}-${y}`,
+          assignedTileId: createTileId(x, y),
           efficiency: 100
         }];
       }
       return {
-        id: `${x}-${y}`,
+        id: createTileId(x, y),
         x,
         y,
         terrain,

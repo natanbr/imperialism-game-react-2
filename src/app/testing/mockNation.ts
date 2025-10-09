@@ -3,6 +3,7 @@ import { GameMap, MapStyle } from "@/types/Map";
 import { TerrainType, Tile } from "@/types/Tile";
 import { ResourceType } from "@/types/Resource";
 import { WorkerType } from "@/types/Workers";
+import { createTileId } from "@/utils/tileIdUtils";
 
 const cols = 5;
 const rows = 5;
@@ -122,7 +123,7 @@ export const mockMap5x5: GameMap = {
       const isCapital = x === 2 && y === 2;
 
       return {
-        id: `${x}-${y}`,
+        id: createTileId(x, y),
         x,
         y,
         terrain,
@@ -137,7 +138,7 @@ export const mockMap5x5: GameMap = {
         ownerNationId,
         cityId: isCapital ? "capital-1" : undefined,
         workers: isCapital
-          ? [{ id: "worker-1", type: WorkerType.Prospector, nationId: ownerNationId || "nation-1", assignedTileId: `${x}-${y}`, efficiency: 100 }]
+          ? [{ id: "worker-1", type: WorkerType.Prospector, nationId: ownerNationId || "nation-1", assignedTileId: createTileId(x, y), efficiency: 100 }]
           : [],
         explored: true,
         visible: true,

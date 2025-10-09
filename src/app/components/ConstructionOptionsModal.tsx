@@ -2,6 +2,7 @@
 import React, { useMemo } from "react";
 import { useGameStore } from "../store/rootStore";
 import { isAdjacentToOcean } from "../store/helpers/mapHelpers";
+import { parseTileIdToArray } from "@/utils/tileIdUtils";
 
 export const ConstructionOptionsModal: React.FC = () => {
   const isOpen = useGameStore((s) => s.isConstructionModalOpen);
@@ -12,7 +13,7 @@ export const ConstructionOptionsModal: React.FC = () => {
 
   const tile = useMemo(() => {
     if (!tileId) return null;
-    const [x, y] = tileId.split("-").map(Number);
+    const [x, y] = parseTileIdToArray(tileId);
     return map.tiles[y]?.[x] || null;
   }, [tileId, map.tiles]);
 

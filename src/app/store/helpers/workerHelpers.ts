@@ -12,7 +12,7 @@ export function moveAndStartWorkerJob(
   const workerInfo = findWorkerAndTile(state, workerId);
   if (!workerInfo) return state;
   const { worker, tile: fromTile } = workerInfo;
-  const [tx, ty] = targetTileId.split("-").map(Number);
+  const [tx, ty] = parseTileIdToArray(targetTileId);
   const toTile = state.map.tiles[ty]?.[tx];
   if (!toTile) return state;
   let movedState = moveFn(state, fromTile, toTile, worker);
@@ -45,6 +45,7 @@ import { moveWorker } from '../../workers/moveWorker';
 import { GameState } from "@/types/GameState";
 import { Tile, TerrainType } from "@/types/Tile";
 import { Worker, WorkerStatus, WorkerType } from "@/types/Workers";
+import { parseTileIdToArray } from "@/utils/tileIdUtils";
 
 const findWorkerAndTile = (state: GameState, workerId: string): { worker: Worker, tile: Tile, x: number, y: number } | null => {
     for (let y = 0; y < state.map.config.rows; y++) {
@@ -79,7 +80,7 @@ export const moveSelectedWorkerToTileHelper = (
     (fromTile.constructionJob && !fromTile.constructionJob.completed && fromTile.constructionJob.workerId === selectedWorkerId);
   if (working) return state;
 
-  const [tx, ty] = targetTileId.split("-").map(Number);
+  const [tx, ty] = parseTileIdToArray(targetTileId);
   if (Number.isNaN(tx) || Number.isNaN(ty)) return state;
 
   if (fromX === tx && fromY === ty) return state;
@@ -96,7 +97,7 @@ export const moveSelectedWorkerToTileHelper = (
 };
 
 export function startProspectingHelper(state: GameState, tileId: string, workerId: string): GameState {
-  const [tx, ty] = tileId.split("-").map(Number);
+  const [tx, ty] = parseTileIdToArray(tileId);
   const tile = state.map.tiles[ty]?.[tx];
   if (!tile) return state;
   const worker = tile.workers.find((w: Worker) => w.id === workerId && w.type === WorkerType.Prospector);
@@ -105,7 +106,7 @@ export function startProspectingHelper(state: GameState, tileId: string, workerI
 }
 
 export function startDevelopmentHelper(state: GameState, tileId: string, workerId: string, workerType: WorkerType): GameState {
-  const [tx, ty] = tileId.split("-").map(Number);
+  const [tx, ty] = parseTileIdToArray(tileId);
   const tile = state.map.tiles[ty]?.[tx];
   if (!tile) return state;
   const worker = tile.workers.find((w: Worker) => w.id === workerId && w.type === workerType);
@@ -115,7 +116,7 @@ export function startDevelopmentHelper(state: GameState, tileId: string, workerI
 
 
 export function startConstructionHelper(state: GameState, tileId: string, workerId: string): GameState {
-  const [tx, ty] = tileId.split("-").map(Number);
+  const [tx, ty] = parseTileIdToArray(tileId);
   const tile = state.map.tiles[ty]?.[tx];
   if (!tile) return state;
   const worker = tile.workers.find((w: Worker) => w.id === workerId && w.type === WorkerType.Engineer);
@@ -124,7 +125,7 @@ export function startConstructionHelper(state: GameState, tileId: string, worker
 }
 
 export const cancelActionHelper = (state: GameState, tileId: string, workerId: string): GameState => {
-    const [tx, ty] = tileId.split("-").map(Number);
+    const [tx, ty] = parseTileIdToArray(tileId);
     if (isNaN(tx) || isNaN(ty)) return state;
 
     const tile = state.map.tiles[ty]?.[tx];
@@ -134,7 +135,7 @@ export const cancelActionHelper = (state: GameState, tileId: string, workerId: s
     if (!worker) return state;
 
     if (worker.status === WorkerStatus.Moved && worker.previousTileId) {
-        const [px, py] = worker.previousTileId.split("-").map(Number);
+        const [px, py] = parseTileIdToArray(worker.previousTileId);
         if (isNaN(px) || isNaN(py)) return state;
 
         const newTiles = state.map.tiles.map((row, y) => {

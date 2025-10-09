@@ -6,6 +6,7 @@ import { PROSPECTABLE_TERRAIN_TYPES } from "../definisions/terrainDefinitions";
 import { DEVELOPMENT_WORKER_TYPES } from "../definisions/workerDefinitions";
 import { canBuildRailAt } from "@/store/helpers/mapHelpers";
 import { PROSPECT_COST, DEVELOPMENT_COST, CONSTRUCTION_COST } from "@/definisions/workPrices";
+import { parseTileIdToArray } from "@/utils/tileIdUtils";
 
 interface TileInfoPanelProps {
   selectedTile: Tile | undefined;
@@ -71,7 +72,7 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
     }
 
     if (worker.type === WorkerType.Engineer) {
-      const [tx, ty] = selectedTile.id.split("-").map(Number);
+      const [tx, ty] = parseTileIdToArray(selectedTile.id);
       const railAllowed = canBuildRailAt(map, tx, ty, activeNationId);
 
       const canAfford = (kind: 'depot' | 'port' | 'fort' | 'rail') => (activeNation?.treasury ?? 0) >= CONSTRUCTION_COST[kind];
