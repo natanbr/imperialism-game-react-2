@@ -1623,19 +1623,19 @@ export const HUD: React.FC = () => {
 - [ ] Delete old worker files
 
 #### 1.2 Create Tile ID Utilities
-- [ ] Create `src/app/utils/tileIdUtils.ts`
-- [ ] Implement parsing and creation functions
-- [ ] Add validation and error handling
-- [ ] Replace all instances of manual parsing (10+ files)
-- [ ] Add unit tests for utilities
+- [v] Create `src/app/utils/tileIdUtils.ts`
+- [v] Implement parsing and creation functions
+- [v] Add validation and error handling
+- [v] Replace all instances of manual parsing (10+ files)
+- [v] Add unit tests for utilities
 
 #### 1.3 Extract Game Constants
-- [ ] Create `src/app/constants/gameConstants.ts`
-- [ ] Extract all magic numbers
-- [ ] Extract all magic strings
-- [ ] Extract color mappings
-- [ ] Extract icon mappings
-- [ ] Update all references across codebase
+- [v] Create `src/app/constants/gameConstants.ts`
+- [v] Extract all magic numbers
+- [v] Extract all magic strings
+- [v] Extract color mappings
+- [v] Extract icon mappings
+- [v] Update all references across codebase
 
 **Success Metrics:**
 - ✅ Worker duplication eliminated
@@ -1649,42 +1649,71 @@ export const HUD: React.FC = () => {
 **Priority: HIGH**
 **Estimated Time: 3-4 days**
 **Lines Reduced: ~300**
+**Status: PARTIALLY COMPLETE (2.1 and 2.2 done)**
 
-#### 2.1 Refactor Tile Component
-- [ ] Extract `useTileActions` hook
-- [ ] Extract `useTileVisuals` hook
-- [ ] Extract `useTileClickHandler` hook
-- [ ] Create sub-components (TileBase, TileResource, etc.)
-- [ ] Create Tile.module.css
-- [ ] Replace inline styles with CSS modules
-- [ ] Update component to use new structure
-- [ ] Add component tests
+#### 2.1 Refactor Tile Component ✅ COMPLETE
+- [x] Extract `useTileActions` hook
+- [x] Extract `useTileVisuals` hook
+- [x] Extract `useTileClickHandler` hook
+- [x] Create sub-components (TileBase, TileResource, TileInfrastructure, TileWorkers, TileJobs)
+- [x] Create Tile.module.css
+- [x] Replace inline styles with CSS modules
+- [x] Update component to use new structure (TileRefactored.tsx)
+- [ ] Add component tests (future work)
 
-#### 2.2 Create Design Token System
-- [ ] Create `src/app/styles/tokens.css`
-- [ ] Define color palette
-- [ ] Define spacing scale
-- [ ] Define typography scale
-- [ ] Define component dimensions
-- [ ] Import in global styles
+**Files Created:**
+- `src/app/hooks/useTileActions.ts` - Hook for determining worker actions
+- `src/app/hooks/useTileVisuals.ts` - Hook for computing visual properties
+- `src/app/hooks/useTileClickHandler.ts` - Hook for tile click handling
+- `src/app/components/Tile/TileBase.tsx` - Base tile rendering
+- `src/app/components/Tile/TileResource.tsx` - Resource display
+- `src/app/components/Tile/TileInfrastructure.tsx` - Infrastructure (depot/port)
+- `src/app/components/Tile/TileWorkers.tsx` - Worker buttons
+- `src/app/components/Tile/TileJobs.tsx` - Job indicators
+- `src/app/components/Tile/Tile.module.css` - CSS module styles
+- `src/app/components/TileRefactored.tsx` - Main refactored tile component
 
-#### 2.3 Remove Inline Styles
+**Token Optimization:**
+The new structure optimizes for AI agents:
+- **Modularity**: Each sub-component is in its own file, allowing agents to read only what's needed
+- **Separation of concerns**: Hooks separate logic from presentation
+- **Clear naming**: Self-documenting file and function names reduce context requirements
+- **CSS Modules**: Styles are separate from logic, reducing file size when logic changes
+
+#### 2.2 Create Design Token System ✅ COMPLETE
+- [x] Create `src/app/styles/tokens.css`
+- [x] Define color palette
+- [x] Define spacing scale
+- [x] Define typography scale
+- [x] Define component dimensions
+- [x] Import in global styles
+
+**Files Created:**
+- `src/app/styles/tokens.css` - Design token definitions
+- Updated `src/app/globals.css` - Added tokens import
+
+#### 2.3 Remove Inline Styles (REMAINING WORK)
 - [ ] Convert CapitalModal to CSS modules
 - [ ] Convert WarehouseModal to CSS modules
 - [ ] Convert MapView to CSS modules
 - [ ] Convert remaining components
 - [ ] Verify visual consistency
 
-#### 2.4 Break Down Large Modals
+**Note:** This can be done incrementally as components are modified. The pattern is established.
+
+#### 2.4 Break Down Large Modals (REMAINING WORK)
 - [ ] Split CapitalModal into sub-components
 - [ ] Extract sections into separate files
 - [ ] Create reusable modal patterns
 - [ ] Update imports
 
+**Note:** This is lower priority and can be deferred to future refactoring sessions.
+
 **Success Metrics:**
-- ✅ Tile component under 100 lines
-- ✅ Zero inline style objects
-- ✅ All modals under 150 lines
+- ✅ Tile component structure established (~100 lines in main component)
+- ✅ Design tokens system created
+- ⚠️  Inline styles partially removed (Tile component done, modals pending)
+- ⚠️  Modal breakdown pending
 
 ---
 
@@ -1826,6 +1855,46 @@ The codebase already has good foundations (TypeScript, tests, pure functions). T
 
 ---
 
-**Document Version:** 1.0
-**Date:** 2025-10-08
+**Document Version:** 1.1
+**Date:** 2025-10-09
 **Analysis Tool:** Claude Code
+
+---
+
+## 📅 REFACTORING PROGRESS LOG
+
+### 2025-10-09: Phase 2 Partial Completion
+
+**Completed:**
+- ✅ Phase 2.1: Tile Component Refactoring
+  - Created 3 custom hooks for logic separation
+  - Created 5 sub-components for modular rendering
+  - Implemented CSS modules with design tokens
+  - Reduced main component complexity significantly
+  - **Old Tile.tsx:** 273 lines with inline styles
+  - **New TileRefactored.tsx:** ~100 lines with clean separation
+
+- ✅ Phase 2.2: Design Token System
+  - Created centralized design tokens file
+  - Integrated into global CSS
+  - Established pattern for future component styling
+
+**AI Agent Optimization Improvements:**
+1. **File Modularity**: Components split into logical units that can be read independently
+2. **Naming Conventions**: Self-documenting names reduce need for contextual understanding
+3. **Separation of Concerns**: Logic (hooks) separate from presentation (components) separate from styling (CSS)
+4. **Single Responsibility**: Each file has one clear purpose
+5. **Reduced Token Usage**: Agents can now:
+   - Read just the hook they need without loading entire component
+   - Understand styling without parsing JSX
+   - Modify logic without touching UI code
+
+**Remaining Work:**
+- Phase 2.3: Convert remaining components to CSS modules (CapitalModal, WarehouseModal, MapView)
+- Phase 2.4: Break down large modal components
+- These can be done incrementally as components are modified
+
+**Next Steps:**
+- Consider moving forward with Phase 3 (State Management) or Phase 4 (Code Quality)
+- Or continue with Phase 2.3/2.4 for complete component cleanup
+- Pattern is established, remaining work is mechanical application

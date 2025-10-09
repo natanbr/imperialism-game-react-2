@@ -1,0 +1,46 @@
+/**
+ * Design Tokens
+ * Single source of truth for all design values
+ */
+
+:root {
+  /* Tile dimensions */
+  --tile-width: 100px;
+  --tile-height: 100px;
+  --tile-border-normal: 1px;
+  --tile-border-selected: 3px;
+
+  /* Colors */
+  --color-selected: #ff0000;
+  --color-border-default: #555;
+  --color-job-completed: #ffd54f;
+  --color-background-worker: rgba(255, 255, 255, 0.2);
+  --color-worker-selected: yellow;
+
+  /* Spacing */
+  --spacing-xs: 2px;
+  --spacing-sm: 4px;
+  --spacing-md: 8px;
+  --spacing-lg: 16px;
+
+  /* Font sizes */
+  --font-size-xs: 10px;
+  --font-size-sm: 12px;
+  --font-size-md: 14px;
+  --font-size-lg: 16px;
+
+  /* Transitions */
+  --transition-fast: 200ms ease;
+  --transition-normal: 300ms ease;
+
+  /* Z-index layers */
+  --z-index-base: 0;
+  --z-index-overlay: 10;
+  --z-index-modal: 100;
+
+  /* Shadows */
+  --shadow-sm: 0 0 2px #fff;
+  --shadow-md: 0 0 8px rgba(255, 255, 255, 0.5);
+  --shadow-lg: 0 0 12px 4px var(--color-job-completed);
+  --shadow-worker: drop-shadow(0 0 2px #fff);
+}

@@ -5,7 +5,7 @@
 
 import { ResourceType } from "@/types/Resource";
 import { WorkerType } from "@/types/Workers";
-import { TerrainType } from "@/types/Terrain";
+import { TerrainType } from "@/types/Tile";
 
 /**
  * Tile rendering configuration
@@ -37,6 +37,7 @@ export const RESOURCE_VALUES: Record<ResourceType, number> = {
   [ResourceType.Timber]: 25,
   [ResourceType.Cotton]: 30,
   [ResourceType.Wool]: 35,
+  [ResourceType.Horses]: 40,
   [ResourceType.Coal]: 40,
   [ResourceType.IronOre]: 50,
   [ResourceType.Gold]: 100,
@@ -94,6 +95,7 @@ export const RESOURCE_ICONS: Record<ResourceType, string> = {
   [ResourceType.Timber]: "🪵",
   [ResourceType.Cotton]: "🌿",
   [ResourceType.Wool]: "🐑",
+  [ResourceType.Horses]: "🐴",
   [ResourceType.Coal]: "⚫",
   [ResourceType.IronOre]: "🪨",
   [ResourceType.Gold]: "🟡",

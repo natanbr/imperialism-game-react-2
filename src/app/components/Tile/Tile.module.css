@@ -1,0 +1,133 @@
+/**
+ * Tile component styles
+ */
+
+/* Base tile container */
+.tile {
+  width: var(--tile-width);
+  height: var(--tile-height);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-xs);
+  user-select: none;
+  transition: box-shadow var(--transition-fast);
+}
+
+.tile:hover {
+  box-shadow: var(--shadow-md);
+}
+
+/* Tile with completed job */
+.tileJobCompleted {
+  box-shadow: var(--shadow-lg);
+}
+
+/* Terrain label */
+.terrainLabel {
+  font-size: var(--font-size-xs);
+}
+
+/* River icon */
+.riverIcon {
+  font-size: var(--font-size-sm);
+}
+
+/* Resource container */
+.resource {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.resourceIcon {
+  font-size: var(--font-size-sm);
+}
+
+.resourceLevel {
+  font-size: var(--font-size-sm);
+}
+
+.resourceLevelText {
+  font-size: var(--font-size-xs);
+}
+
+/* Infrastructure */
+.depot,
+.port {
+  position: absolute;
+  top: var(--spacing-sm);
+  font-size: var(--font-size-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.depot {
+  left: var(--spacing-sm);
+}
+
+.port {
+  left: 28px; /* Positioned next to depot */
+}
+
+.statusIndicator {
+  font-size: var(--font-size-sm);
+}
+
+/* Workers container */
+.workers {
+  position: absolute;
+  bottom: var(--spacing-xs);
+  right: var(--spacing-xs);
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+  max-width: 96px;
+  justify-content: flex-end;
+}
+
+.workerButton {
+  font-size: var(--font-size-lg);
+  line-height: 1;
+  border: 1px solid transparent;
+  border-radius: var(--spacing-sm);
+  background: var(--color-background-worker);
+  padding: 0 var(--spacing-xs);
+  cursor: pointer;
+  filter: var(--shadow-worker);
+  transition: border-color var(--transition-fast);
+}
+
+.workerButton:hover {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.workerButtonSelected {
+  border: 2px solid var(--color-worker-selected);
+}
+
+/* Job indicators */
+.jobProspecting,
+.jobDevelopment,
+.jobConstruction {
+  position: absolute;
+  font-size: var(--font-size-md);
+}
+
+.jobProspecting {
+  top: var(--spacing-sm);
+  right: var(--spacing-sm);
+}
+
+.jobDevelopment {
+  bottom: var(--spacing-sm);
+  right: var(--spacing-sm);
+}
+
+.jobConstruction {
+  bottom: var(--spacing-sm);
+  left: var(--spacing-sm);
+}
