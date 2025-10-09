@@ -3,6 +3,7 @@ import { useGameStore } from "@/store/rootStore";
 import React, { useMemo, useRef } from "react";
 import { TileComponent } from "./Tile";
 import { computeRailSegmentsPixels } from "@/store/helpers/mapHelpers";
+import styles from "./MapView.module.css";
 
 export const MapView: React.FC = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -11,7 +12,6 @@ export const MapView: React.FC = () => {
   const cameraY = useGameStore((s) => s.cameraY);
   const moveCamera = useGameStore((s) => s.moveCamera);
   const map = useGameStore((s) => s.map);
-  const nations = useGameStore((s) => s.nations);
 
   useEdgeScroll({ containerRef, onMove: moveCamera });
 
@@ -21,26 +21,16 @@ export const MapView: React.FC = () => {
   const overlayHeight = map.config.rows * 100;
 
   return (
-    <div style={{ display: "flex" }}>
-      <div
-        ref={containerRef}
-        style={{
-          width: "100vw",
-          height: "100vh",
-          overflow: "hidden",
-          border: "2px solid white",
-          position: "relative",
-        }}
-      >
+    <div className={styles.wrapper}>
+      <div ref={containerRef} className={styles.container}>
         <div
+          className={styles.viewport}
           style={{
             transform: `translate(${-cameraX}px, ${-cameraY}px)`,
-            width: 'max-content',
-            position: 'relative', // enable absolute SVG overlay positioning
           }}
         >
           {map.tiles.map((row, y) => (
-            <div key={y} style={{ display: "flex", marginLeft: y % 2 === 1 ? 50 : 0 }}>
+            <div key={y} className={`${styles.row} ${y % 2 === 1 ? styles.rowOdd : ''}`}>
               {row.map((tile) => (
                 <TileComponent key={tile.id} tile={tile} />
               ))}
@@ -51,7 +41,7 @@ export const MapView: React.FC = () => {
           <svg
             width={overlayWidth}
             height={overlayHeight}
-            style={{ position: 'absolute', left: 0, top: 0, pointerEvents: 'none' }}
+            className={styles.railOverlay}
           >
             {railSegments.map((s, i) => (
               <line
@@ -60,14 +50,11 @@ export const MapView: React.FC = () => {
                 y1={s.y1}
                 x2={s.x2}
                 y2={s.y2}
-                stroke="#222"
-                strokeWidth={6}
-                strokeLinecap="round"
+                className={styles.railSegment}
               />
             ))}
           </svg>
         </div>
-
       </div>
     </div>
   );

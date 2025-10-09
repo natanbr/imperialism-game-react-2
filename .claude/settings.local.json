@@ -5,7 +5,10 @@
       "Bash(npm run test:*)",
       "Bash(dir:*)",
       "Bash(timeout 30 npm run dev)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "mcp__playwright__browser_wait_for",
+      "mcp__playwright__browser_navigate",
+      "Bash(npm run dev:*)"
     ],
     "deny": [],
     "ask": []

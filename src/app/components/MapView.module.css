@@ -1,0 +1,39 @@
+/* MapView Component Styles */
+
+.wrapper {
+  display: flex;
+}
+
+.container {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  border: 2px solid white;
+  position: relative;
+}
+
+.viewport {
+  width: max-content;
+  position: relative;
+}
+
+.row {
+  display: flex;
+}
+
+.rowOdd {
+  margin-left: 50px;
+}
+
+.railOverlay {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+}
+
+.railSegment {
+  stroke: #222;
+  stroke-width: 6;
+  stroke-linecap: round;
+}

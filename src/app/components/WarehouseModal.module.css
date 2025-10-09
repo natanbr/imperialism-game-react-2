@@ -1,0 +1,65 @@
+/* WarehouseModal Component Styles */
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.modal {
+  width: 520px;
+  max-height: 80vh;
+  overflow-y: auto;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  border-radius: var(--radius-md);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  padding: var(--spacing-md);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-sm);
+}
+
+.header h3 {
+  margin: 0;
+}
+
+.closeButton {
+  background: var(--color-bg-button);
+  color: var(--color-text-primary);
+  border: none;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.closeButton:hover {
+  background: var(--color-bg-button-hover);
+}
+
+.section {
+  margin-bottom: var(--spacing-sm);
+}
+
+.section h4 {
+  margin: var(--spacing-xs) 0;
+}
+
+.itemRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.itemName {
+  text-transform: capitalize;
+}
