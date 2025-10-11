@@ -28,7 +28,7 @@ export function useWorkerActions(tile: Tile) {
     moveSelectedWorkerToTile: (workerId: string) => moveSelectedWorkerToTile(tile.id, workerId),
     startDevelopment: (workerId: string, workerType: WorkerType) => startDevelopment(tile.id, workerId, workerType),
   moveAndStartDevelopment: (workerId: string, workerType: WorkerType, level: 1 | 2 | 3) => moveAndStartDevelopment(tile.id, workerId, workerType, level),
-    startConstruction: (workerId: string) => startConstruction(tile.id, workerId),
+    startConstruction: (workerId: string, kind: ConstructionKind) => startConstruction(tile.id, workerId, kind),
     moveAndStartConstruction: (workerId: string, kind: ConstructionKind) => moveAndStartConstruction(tile.id, workerId, kind),
     openConstructionModal: (workerId: string) => openConstructionModal(tile.id, workerId),
   };

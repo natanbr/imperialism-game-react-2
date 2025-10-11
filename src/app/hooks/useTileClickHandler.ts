@@ -59,7 +59,7 @@ export function useTileClickHandler(
           break;
         case 'construct':
           if (isSameTile) {
-            startConstruction(tile.id, selectedWorker.id);
+            startConstruction(tile.id, selectedWorker.id, possibleAction.kind);
           } else {
             moveAndStartConstruction(tile.id, selectedWorker.id, possibleAction.kind);
           }

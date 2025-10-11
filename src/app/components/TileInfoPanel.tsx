@@ -50,7 +50,7 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
     if (worker.type === WorkerType.Prospector) {
       const canProspect = !selectedTile.prospecting && (activeNation?.treasury ?? 0) >= PROSPECT_COST && PROSPECTABLE_TERRAIN_TYPES.includes(selectedTile.terrain);
       if (canProspect) {
-        return <button onClick={() => startProspecting(selectedTile.id, worker.id)} title={`Cost: $${PROSPECT_COST}`}>Prospect ⛏️</button>;
+        return <button onClick={() => startProspecting(selectedTile.id, worker.id)} title={`Cost: $${PROSPECT_COST}`} className="btn btn-action">Prospect ⛏️</button>;
       }
     }
 
@@ -65,7 +65,10 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
       const jobLabel = `Develop ${worker.type} L${nextLevel}`;
 
       return (
-        <button onClick={() => startDevelopment(selectedTile.id, worker.id, worker.type, nextLevel)} title={`${jobLabel} ($${DEVELOPMENT_COST[nextLevel]})`} disabled={!canAfford}>
+        <button
+            onClick={() => startDevelopment(selectedTile.id, worker.id, worker.type)}
+            title={`${jobLabel} ($${DEVELOPMENT_COST[nextLevel]})`}
+            disabled={!canAfford} className="btn btn-action">
           {jobLabel}
         </button>
       );
@@ -79,10 +82,10 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
 
       return (
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
-          {!selectedTile.depot && <button onClick={() => startConstruction(selectedTile.id, worker.id, "depot")} disabled={!canAfford('depot')}>Construct Depot</button>}
-          {!selectedTile.port && <button onClick={() => startConstruction(selectedTile.id, worker.id, "port")} disabled={!canAfford('port')}>Construct Port</button>}
-          {<button onClick={() => startConstruction(selectedTile.id, worker.id, "fort")} disabled={!canAfford('fort')}>Construct Fort</button>}
-          {!selectedTile.connected && <button onClick={() => startConstruction(selectedTile.id, worker.id, "rail")} disabled={!railAllowed || !canAfford('rail')}>Construct Rail</button>}
+          {!selectedTile.depot && <button onClick={() => startConstruction(selectedTile.id, worker.id, "depot")} disabled={!canAfford('depot')} className="btn btn-action">Construct Depot</button>}
+          {!selectedTile.port && <button onClick={() => startConstruction(selectedTile.id, worker.id, "port")} disabled={!canAfford('port')} className="btn btn-action">Construct Port</button>}
+          {<button onClick={() => startConstruction(selectedTile.id, worker.id, "fort")} disabled={!canAfford('fort')} className="btn btn-action">Construct Fort</button>}
+          {!selectedTile.connected && <button onClick={() => startConstruction(selectedTile.id, worker.id, "rail")} disabled={!railAllowed || !canAfford('rail')} className="btn btn-action">Construct Rail</button>}
         </div>
       );
     }
@@ -103,11 +106,16 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
         {selectedTile.workers.length > 0 ? (
           <ul style={{ listStyle: "none", padding: 0, margin: 0, marginTop: 4 }}>
             {selectedTile.workers.map(w => (
-              <li key={w.id} onClick={() => setSelectedWorkerId && setSelectedWorkerId(w.id)} style={{ background: selectedWorkerId === w.id ? '#444' : 'transparent', padding: '4px', borderRadius: '4px', cursor: 'pointer' }}>
+              <li key={w.id}
+                onClick={() => setSelectedWorkerId && setSelectedWorkerId(w.id)}
+                style={{ background: selectedWorkerId === w.id ? '#444' : 'transparent', padding: '4px', borderRadius: '4px', cursor: 'pointer' }}>
                 <WorkerStatusIndicator status={w.status} />
                 <span>{w.type} - {w.jobDescription || w.status}</span>
                 {(w.status === WorkerStatus.Moved || w.status === WorkerStatus.Working) && (
-                  <button onClick={() => handleCancelAction(w.id)} style={{ marginLeft: 8, padding: '2px 6px', fontSize: 10, background: '#c0392b', color: 'white', border: 'none', borderRadius: 2 }}>
+                  <button
+                    onClick={() => handleCancelAction(w.id)}
+                    className="btn btn-danger"
+                    style={{ marginLeft: 8, padding: '4px 8px', fontSize: 11, width: 'auto' }}>
                     Cancel
                   </button>
                 )}

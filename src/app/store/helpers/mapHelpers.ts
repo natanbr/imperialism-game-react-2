@@ -83,6 +83,12 @@ export function computeRailSegmentsPixels(
 const isLandTile = (t: Tile) => ![TerrainType.Water, TerrainType.River].includes(t.terrain);
 const hasRailStartingPoint = (t: Tile) => !!(t.connected || t.terrain === TerrainType.Capital || t.depot || t.port);
 
+// Check if two tiles are adjacent to each other
+export function areTilesAdjacent(map: GameMap, x1: number, y1: number, x2: number, y2: number): boolean {
+  const neighborCoords = getNeighborCoords(map, x1, y1);
+  return neighborCoords.some(([nx, ny]) => nx === x2 && ny === y2);
+}
+
 // Can build rail on (x,y) if:
 // - Tile is land and owned by nationId
 // - There exists an adjacent tile of the same nation with a rail starting point

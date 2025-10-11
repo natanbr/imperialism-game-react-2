@@ -13,6 +13,8 @@ import {
   moveWorker,
   moveAndStartWorkerJob,
 } from './helpers/workerHelpers';
+import { handleEngineerMovement } from '@/workers/EngineerWorker';
+import { parseTileIdToArray } from '@/utils/tileIdUtils';
 
 export interface WorkerActionsSlice {
   moveSelectedWorkerToTile: (targetTileId: string, selectedWorkerId: string) => void;
@@ -24,7 +26,8 @@ export interface WorkerActionsSlice {
   ) => void;
   startConstruction: (
     tileId: string,
-    workerId: string
+    workerId: string,
+    kind: 'depot' | 'port' | 'fort' | 'rail'
   ) => void;
   cancelAction: (tileId: string, workerId: string) => void;
   moveAndStartProspecting: (targetTileId: string, workerId: string) => void,
@@ -43,7 +46,38 @@ export interface WorkerActionsSlice {
 
 export const createWorkerActionsSlice: StateCreator<GameState, [], [], WorkerActionsSlice> = (set) => ({
   moveSelectedWorkerToTile: (targetTileId, selectedWorkerId) =>
-    set((state) => moveSelectedWorkerToTileHelper(state, targetTileId, selectedWorkerId)),
+    set((state) => {
+      // Find the worker to check its type
+      let worker = null;
+      let fromTile = null;
+      for (let y = 0; y < state.map.config.rows; y++) {
+        for (let x = 0; x < state.map.config.cols; x++) {
+          const tile = state.map.tiles[y][x];
+          const w = tile.workers.find((w) => w.id === selectedWorkerId);
+          if (w) {
+            worker = w;
+            fromTile = tile;
+            break;
+          }
+        }
+        if (worker) break;
+      }
+
+      // If it's an engineer, try engineer-specific movement first
+      if (worker && worker.type === WorkerType.Engineer && fromTile) {
+        const [tx, ty] = parseTileIdToArray(targetTileId);
+        const targetTile = state.map.tiles[ty]?.[tx];
+        if (targetTile) {
+          const engineerResult = handleEngineerMovement(state, fromTile, targetTile, worker);
+          if (engineerResult) {
+            return engineerResult;
+          }
+        }
+      }
+
+      // Fall back to generic movement for all other cases
+      return moveSelectedWorkerToTileHelper(state, targetTileId, selectedWorkerId);
+    }),
 
   startProspecting: (tileId, workerId) =>
     set((state) => startProspectingHelper(state, tileId, workerId)),
@@ -51,8 +85,8 @@ export const createWorkerActionsSlice: StateCreator<GameState, [], [], WorkerAct
   startDevelopment: (tileId, workerId, workerType) =>
     set((state) => startDevelopmentHelper(state, tileId, workerId, workerType)),
 
-  startConstruction: (tileId, workerId) =>
-    set((state) => startConstructionHelper(state, tileId, workerId)),
+  startConstruction: (tileId, workerId, kind) =>
+    set((state) => startConstructionHelper(state, tileId, workerId, kind)),
 
   cancelAction: (tileId, workerId) =>
     set((state) => cancelActionHelper(state, tileId, workerId)),

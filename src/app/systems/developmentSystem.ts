@@ -3,7 +3,7 @@ import { GameMap } from "@/types/Map";
 import { Tile, TerrainType, Resource } from "@/types/Tile";
 import { ResourceType } from "@/types/Resource";
 import { ProspectorDiscoveryDurationTurns } from "@/definisions/workerDurations";
-import { addRailroad, initializeRailroadNetworks } from "./railroadSystem";
+import { addRailroad, addDepot, addPort, initializeRailroadNetworks } from "./railroadSystem";
 
 export interface RngLike {
   next: () => number; // [0,1)
@@ -27,17 +27,27 @@ export const developmentSystem = (state: GameState, rng: RngLike): GameState => 
   const nextTurn = state.turn + 1;
   const newMap = runNationDevelopmentPhase(newState, nextTurn, rng);
   newState.map = newMap;
+
+  // Add completed construction to railroad networks
   for (let y = 0; y < newState.map.config.rows; y++) {
     for (let x = 0; x < newState.map.config.cols; x++) {
       let tile = newState.map.tiles[y][x];
-      if (tile.constructionJob?.completed && tile.constructionJob.kind === "rail") {
-        const nationId = tile.ownerNationId;
-        if (nationId) {
+      const nationId = tile.ownerNationId;
+
+      if (tile.constructionJob?.completed && nationId) {
+        const { kind } = tile.constructionJob;
+
+        if (kind === "rail") {
           newState = addRailroad(newState, nationId, { x, y });
+        } else if (kind === "depot") {
+          newState = addDepot(newState, nationId, { x, y });
+        } else if (kind === "port") {
+          newState = addPort(newState, nationId, { x, y });
         }
       }
     }
   }
+
   return newState;
 };
 

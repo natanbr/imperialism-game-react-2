@@ -1,7 +1,15 @@
-export { startProspectorWork };
-export { startDeveloperWork };
-export { startEngineerWork };
-export { moveWorker };
+import { EngineerBuildDurationsTurns } from "@/definisions/workerDurations";
+import { GameState } from "@/types/GameState";
+import { TerrainType, Tile } from "@/types/Tile";
+import { Worker, WorkerStatus, WorkerType } from "@/types/Workers";
+import { parseTileIdToArray } from "@/utils/tileIdUtils";
+import { startDeveloperWork } from '../../workers/DeveloperWorker';
+import { startEngineerWork } from '../../workers/EngineerWorker';
+import { moveWorker } from '../../workers/moveWorker';
+import { startProspectorWork } from '../../workers/ProspectorWorker';
+
+export { moveWorker, startDeveloperWork, startEngineerWork, startProspectorWork };
+
 export function moveAndStartWorkerJob(
   state: GameState,
   targetTileId: string,
@@ -37,15 +45,6 @@ export function moveAndStartWorkerJob(
   };
   return startJobFn(movedState);
 }
-// Removed unused class imports
-import { startProspectorWork } from '../../workers/ProspectorWorker';
-import { startDeveloperWork } from '../../workers/DeveloperWorker';
-import { startEngineerWork } from '../../workers/EngineerWorker';
-import { moveWorker } from '../../workers/moveWorker';
-import { GameState } from "@/types/GameState";
-import { Tile, TerrainType } from "@/types/Tile";
-import { Worker, WorkerStatus, WorkerType } from "@/types/Workers";
-import { parseTileIdToArray } from "@/utils/tileIdUtils";
 
 const findWorkerAndTile = (state: GameState, workerId: string): { worker: Worker, tile: Tile, x: number, y: number } | null => {
     for (let y = 0; y < state.map.config.rows; y++) {
@@ -60,6 +59,11 @@ const findWorkerAndTile = (state: GameState, workerId: string): { worker: Worker
     return null;
 }
 
+/**
+ * Generic helper for moving a worker to a target tile.
+ * Handles validation and basic movement logic for all worker types.
+ * Worker-specific behavior should be handled by the caller.
+ */
 export const moveSelectedWorkerToTileHelper = (
   state: GameState,
   targetTileId: string,
@@ -72,8 +76,10 @@ export const moveSelectedWorkerToTileHelper = (
 
   const { worker, tile: fromTile, x: fromX, y: fromY } = workerInfo;
 
+  // Don't allow movement if worker already moved this turn
   if (worker.justMoved) return state;
 
+  // Don't allow movement if worker is currently working on a job
   const working =
     fromTile.prospecting?.workerId === selectedWorkerId ||
     (fromTile.developmentJob && !fromTile.developmentJob.completed && fromTile.developmentJob.workerId === selectedWorkerId) ||
@@ -83,16 +89,18 @@ export const moveSelectedWorkerToTileHelper = (
   const [tx, ty] = parseTileIdToArray(targetTileId);
   if (Number.isNaN(tx) || Number.isNaN(ty)) return state;
 
+  // Don't allow movement to same tile
   if (fromX === tx && fromY === ty) return state;
 
   const targetTile = state.map.tiles[ty]?.[tx];
   if (!targetTile) return state;
 
+  // Validate target tile is land and owned by same nation
   const isLand = targetTile.terrain !== TerrainType.Water && targetTile.terrain !== TerrainType.River;
   const sameNation = targetTile.ownerNationId === worker.nationId;
   if (!isLand || !sameNation) return state;
 
-  // Use pure moveWorker utility
+  // Use pure moveWorker utility for movement
   return moveWorker(state, fromTile, targetTile, worker);
 };
 
@@ -115,13 +123,36 @@ export function startDevelopmentHelper(state: GameState, tileId: string, workerI
 }
 
 
-export function startConstructionHelper(state: GameState, tileId: string, workerId: string): GameState {
+export function startConstructionHelper(state: GameState, tileId: string, workerId: string, kind: 'depot' | 'port' | 'fort' | 'rail'): GameState {
   const [tx, ty] = parseTileIdToArray(tileId);
   const tile = state.map.tiles[ty]?.[tx];
   if (!tile) return state;
   const worker = tile.workers.find((w: Worker) => w.id === workerId && w.type === WorkerType.Engineer);
   if (!worker) return state;
-  return startEngineerWork(state);
+  if (worker.status !== WorkerStatus.Available) return state;
+
+  // Build the specified construction
+  const durationTurns = EngineerBuildDurationsTurns[kind] || 1;
+  const startedOnTurn = state.turn;
+
+  const newTiles = state.map.tiles.map((row, y) =>
+    row.map((t, x) => {
+      if (x === tx && y === ty) {
+        return {
+          ...t,
+          constructionJob: { workerId: worker.id, kind, startedOnTurn, durationTurns },
+          workers: t.workers.map(w =>
+            w.id === worker.id
+              ? { ...w, status: WorkerStatus.Working, jobDescription: `Constructing ${kind}` }
+              : w
+          ),
+        };
+      }
+      return t;
+    })
+  );
+
+  return { ...state, map: { ...state.map, tiles: newTiles } };
 }
 
 export const cancelActionHelper = (state: GameState, tileId: string, workerId: string): GameState => {
