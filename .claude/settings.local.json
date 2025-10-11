@@ -8,7 +8,8 @@
       "Bash(npx tsc:*)",
       "mcp__playwright__browser_wait_for",
       "mcp__playwright__browser_navigate",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(npx vitest run:*)"
     ],
     "deny": [],
     "ask": []
