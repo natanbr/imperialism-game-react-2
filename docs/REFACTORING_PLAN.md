@@ -1,5 +1,35 @@
 # Refactoring Plan
 
+## Issues Identified During Miner Functionality Bug Fix (2025-10-10)
+
+**Note**: These suggestions were identified while fixing the miner functionality bug. They should be properly explored and validated before applying.
+
+### Priority: HIGH
+- **workerHelpers.ts:116-123** - `startDevelopmentHelper` was calling wrong start function (FIXED IN THIS BUG)
+  - **Issue**: Called `startDeveloperWork` for all development worker types instead of worker-specific functions
+  - **Fix Applied**: Created `getStartDevelopmentFunction` helper that maps worker types to correct start functions
+  - **Impact**: All development workers (Farmer, Miner, Rancher, Forester, Driller) now work correctly
+
+- **developmentWorkerFactory.ts:30, 67** - Missing discovered resource check (FIXED IN THIS BUG)
+  - **Issue**: Factory functions didn't check if resources were discovered before allowing development
+  - **Fix Applied**: Added `if (tile.resource.discovered === false) return tile;` check
+  - **Impact**: Miners and Drillers can now only develop resources that were exposed by Prospector
+
+### Priority: MEDIUM
+- **workerActionsSlice.ts:97-136** - `moveAndStartDevelopment` implementation could be cleaner
+  - **Issue**: Duplicated worker lookup logic and complex inline implementation
+  - **Suggested Fix**: Extract to a helper function similar to other worker action helpers
+  - **Impact**: Better code organization and easier testing
+
+- **workerHelpers.ts & workerActionsSlice.ts** - Duplicated `getStartDevelopmentFunction` helper (FIXED 2025-10-10)
+  - **Issue**: Same helper function existed in two files (workerHelpers.ts:125-142 and workerActionsSlice.ts:27-44)
+  - **Fix Applied**: Exported `getStartDevelopmentFunction` from workerHelpers.ts and imported in workerActionsSlice.ts, removed duplicate
+  - **Impact**: DRY principle maintained, single source of truth for worker type mapping
+  - **Root Cause**: Created helper functions in isolation without checking for existing utilities
+  - **Prevention**: Updated fix.md with guidelines to search for existing utilities before creating new ones
+
+---
+
 ## Issues Identified During Depot Connectivity Bug Fix (2025-10-10)
 
 **Note**: These suggestions were identified while fixing the depot connectivity bug. They should be properly explored and validated before applying.

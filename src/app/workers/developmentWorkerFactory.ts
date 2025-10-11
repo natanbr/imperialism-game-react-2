@@ -28,6 +28,8 @@ export function createStartDevelopmentWork(config: DevelopmentWorkerConfig) {
         const worker = tile.workers.find(w => w.type === workerType && w.status === WorkerStatus.Available);
         if (!worker) return tile;
         if (!tile.resource) return tile;
+        // Check if resource is discovered (for minerals/oil that start hidden)
+        if (tile.resource.discovered === false) return tile;
         const targetLevel = (tile.resource.level || 0) + 1;
         if (targetLevel > 3) return tile;
         if (tile.developmentJob) return tile;
@@ -65,7 +67,9 @@ export function createGetDevelopmentActions(config: DevelopmentWorkerConfig) {
     if (worker.status !== WorkerStatus.Available) return null;
     if (tile.ownerNationId !== worker.nationId) return null;
     if (!tile.developmentJob && terrainTypes.includes(tile.terrain)) {
-      const targetLevel = (tile.resource?.level || 0) + 1;
+      // Check if resource exists and is discovered (for minerals/oil)
+      if (!tile.resource || tile.resource.discovered === false) return null;
+      const targetLevel = (tile.resource.level || 0) + 1;
       if (targetLevel > 3) return null;
       return { type: "develop", workerType, level: targetLevel as 1 | 2 | 3 };
     }

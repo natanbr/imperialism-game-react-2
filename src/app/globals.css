@@ -171,7 +171,8 @@ body {
 }
 
 .btn:disabled {
-  opacity: 0.5;
+  background: #666 !important;
+  opacity: 0.6;
   cursor: not-allowed;
 }
 

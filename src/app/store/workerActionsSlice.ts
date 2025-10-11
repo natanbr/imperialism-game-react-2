@@ -7,11 +7,11 @@ import {
   startProspectingHelper,
   startDevelopmentHelper,
   startConstructionHelper,
-  startDeveloperWork,
   startEngineerWork,
   startProspectorWork,
   moveWorker,
   moveAndStartWorkerJob,
+  getStartDevelopmentFunction,
 } from './helpers/workerHelpers';
 import { handleEngineerMovement } from '@/workers/EngineerWorker';
 import { parseTileIdToArray } from '@/utils/tileIdUtils';
@@ -94,8 +94,46 @@ export const createWorkerActionsSlice: StateCreator<GameState, [], [], WorkerAct
   moveAndStartProspecting: (targetTileId, workerId) =>
     set((state) => moveAndStartWorkerJob(state, targetTileId, workerId, moveWorker, startProspectorWork)),
 
-  moveAndStartDevelopment: (targetTileId, workerId) =>
-    set((state) => moveAndStartWorkerJob(state, targetTileId, workerId, moveWorker, startDeveloperWork)),
+  moveAndStartDevelopment: (targetTileId, workerId, workerType) => {
+    // Find the worker to get their type if not provided
+    let type = workerType;
+    if (!type) {
+      for (let y = 0; y < state.map.config.rows; y++) {
+        for (let x = 0; x < state.map.config.cols; x++) {
+          const tile = state.map.tiles[y][x];
+          const worker = tile.workers.find((w) => w.id === workerId);
+          if (worker) {
+            type = worker.type;
+            break;
+          }
+        }
+        if (type) break;
+      }
+    }
+
+    set((state) => {
+      // Get worker type if not already determined
+      let finalType = type;
+      if (!finalType) {
+        for (let y = 0; y < state.map.config.rows; y++) {
+          for (let x = 0; x < state.map.config.cols; x++) {
+            const tile = state.map.tiles[y][x];
+            const worker = tile.workers.find((w) => w.id === workerId);
+            if (worker) {
+              finalType = worker.type;
+              break;
+            }
+          }
+          if (finalType) break;
+        }
+      }
+
+      if (!finalType) return state;
+
+      const startFunction = getStartDevelopmentFunction(finalType);
+      return moveAndStartWorkerJob(state, targetTileId, workerId, moveWorker, startFunction);
+    });
+  },
 
   moveAndStartConstruction: (targetTileId, workerId) =>
     set((state) => moveAndStartWorkerJob(state, targetTileId, workerId, moveWorker, startEngineerWork)),

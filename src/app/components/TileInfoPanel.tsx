@@ -56,19 +56,33 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
 
     if (DEVELOPMENT_WORKER_TYPES.includes(worker.type)) {
       const treasury = activeNation?.treasury ?? 0;
-      const currentLevel = selectedTile.resource?.level ?? 0;
+      const resource = selectedTile.resource;
+
+      // Check if resource exists and is discovered
+      const hasDiscoveredResource = resource && resource.discovered !== false;
+      const currentLevel = resource?.level ?? 0;
       const nextLevel = (currentLevel + 1) as 1 | 2 | 3;
 
       if (nextLevel > 3) return null;
 
       const canAfford = treasury >= DEVELOPMENT_COST[nextLevel];
+      const isEnabled = hasDiscoveredResource && canAfford;
       const jobLabel = `Develop ${worker.type} L${nextLevel}`;
+
+      // Determine the title message
+      let titleMessage = `${jobLabel} ($${DEVELOPMENT_COST[nextLevel]})`;
+      if (!hasDiscoveredResource) {
+        titleMessage = "Resource not discovered - use Prospector first";
+      } else if (!canAfford) {
+        titleMessage = `Not enough funds (need $${DEVELOPMENT_COST[nextLevel]})`;
+      }
 
       return (
         <button
             onClick={() => startDevelopment(selectedTile.id, worker.id, worker.type)}
-            title={`${jobLabel} ($${DEVELOPMENT_COST[nextLevel]})`}
-            disabled={!canAfford} className="btn btn-action">
+            title={titleMessage}
+            disabled={!isEnabled}
+            className="btn btn-action">
           {jobLabel}
         </button>
       );

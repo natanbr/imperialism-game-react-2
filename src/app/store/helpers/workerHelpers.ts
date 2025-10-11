@@ -7,8 +7,13 @@ import { startDeveloperWork } from '../../workers/DeveloperWorker';
 import { startEngineerWork } from '../../workers/EngineerWorker';
 import { moveWorker } from '../../workers/moveWorker';
 import { startProspectorWork } from '../../workers/ProspectorWorker';
+import { startFarmerWork } from '../../workers/FarmerWorker';
+import { startMinerWork } from '../../workers/MinerWorker';
+import { startRancherWork } from '../../workers/RancherWorker';
+import { startForesterWork } from '../../workers/ForesterWorker';
+import { startDrillerWork } from '../../workers/DrillerWorker';
 
-export { moveWorker, startDeveloperWork, startEngineerWork, startProspectorWork };
+export { moveWorker, startDeveloperWork, startEngineerWork, startProspectorWork, startFarmerWork, startMinerWork, startRancherWork, startForesterWork, startDrillerWork };
 
 export function moveAndStartWorkerJob(
   state: GameState,
@@ -113,13 +118,39 @@ export function startProspectingHelper(state: GameState, tileId: string, workerI
   return startProspectorWork(state);
 }
 
+/**
+ * Get the appropriate start function for a development worker type
+ * Centralized mapping to avoid duplication across the codebase
+ */
+export function getStartDevelopmentFunction(workerType: WorkerType): (state: GameState) => GameState {
+  switch (workerType) {
+    case WorkerType.Farmer:
+      return startFarmerWork;
+    case WorkerType.Miner:
+      return startMinerWork;
+    case WorkerType.Rancher:
+      return startRancherWork;
+    case WorkerType.Forester:
+      return startForesterWork;
+    case WorkerType.Driller:
+      return startDrillerWork;
+    case WorkerType.Developer:
+      return startDeveloperWork;
+    default:
+      return startDeveloperWork; // fallback
+  }
+}
+
 export function startDevelopmentHelper(state: GameState, tileId: string, workerId: string, workerType: WorkerType): GameState {
   const [tx, ty] = parseTileIdToArray(tileId);
   const tile = state.map.tiles[ty]?.[tx];
   if (!tile) return state;
   const worker = tile.workers.find((w: Worker) => w.id === workerId && w.type === workerType);
   if (!worker) return state;
-  return startDeveloperWork(state);
+
+  // Use the appropriate start function for this worker type
+  const startFunction = getStartDevelopmentFunction(workerType);
+  return startFunction(state);
 }
 
 
@@ -219,8 +250,9 @@ export function moveAndStartProspectingHelper(state: GameState, targetTileId: st
   return moveAndStartWorkerJob(state, targetTileId, workerId, moveWorker, startProspectorWork);
 }
 
-export function moveAndStartDevelopmentHelper(state: GameState, targetTileId: string, workerId: string): GameState {
-  return moveAndStartWorkerJob(state, targetTileId, workerId, moveWorker, startDeveloperWork);
+export function moveAndStartDevelopmentHelper(state: GameState, targetTileId: string, workerId: string, workerType: WorkerType): GameState {
+  const startFunction = getStartDevelopmentFunction(workerType);
+  return moveAndStartWorkerJob(state, targetTileId, workerId, moveWorker, startFunction);
 }
 
 export function moveAndStartConstructionHelper(state: GameState, targetTileId: string, workerId: string): GameState {
