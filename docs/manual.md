@@ -50,9 +50,12 @@ This document outlines the core definitions and mechanics of the game *Imperiali
 
 ### **Mechanics**
 * [cite_start]**Increasing Transport Capacity**: Built in the **Railyard** on the Industry screen. [cite: 1159, 1569] [cite_start]Construction requires lumber, steel, and available labor. [cite: 1565, 1570]
-* [cite_start]**Network Connection**: For a depot or port to function, it must have a valid connection to the capital city. [cite: 1170, 1176]
-    * [cite_start]**Depots** must be connected by a continuous railroad line to the capital, or to a port that has sea access to the capital. [cite: 1175, 1177, 1178]
-    * [cite_start]**Ports** are almost always connected, unless a downstream province on a river is lost or a sea zone is blockaded by a hostile fleet. [cite: 1183, 1189]
+* **Network Connection & Depot Activation**: For a depot or port to function and be marked as **active**, it must have a valid connection to the capital city or an active port.
+    * **Depots** are activated when they can be reached via the railroad network from the capital or from a port with sea access. The depot itself is considered part of the railroad graph and can serve as a connection point for adjacent rail tiles.
+    * **Ports** are activated when they are adjacent to ocean/water and can be reached via the railroad network from the capital or from another active port. Like depots, ports are included in the railroad graph as connection nodes.
+    * **Capital** is always considered part of the railroad network and serves as the primary connection hub.
+    * **Active Status**: Only active depots and ports can transfer commodities to the national warehouse. The transport connectivity system uses breadth-first search (BFS) to determine which depots and ports are reachable from the capital or active ports.
+    * [cite_start]**Ports** may lose connection if a downstream province on a river is lost or a sea zone is blockaded by a hostile fleet. [cite: 1183, 1189]
 * [cite_start]**Military Transport**: Moving a regiment by train requires five points of transport capacity for each armaments point the unit possesses. [cite: 928, 1162]
 
 ***
@@ -88,6 +91,13 @@ This document outlines the core definitions and mechanics of the game *Imperiali
 * **Resource Development**:
     * [cite_start]The **Prospector** must first search for and find mineral resources (coal, iron, gold, gems) and oil before other units can extract them. [cite: 666]
     * [cite_start]Other civilians (Farmer, Miner, Rancher, etc.) improve the output of a specific resource on a tile. [cite: 655] [cite_start]Output is measured in levels from 0 to 3, with higher levels unlocked by purchasing new technologies. [cite: 656, 706]
+* **Engineer Mechanics**:
+    * **Railroad Construction**: When an Engineer moves to an adjacent tile that doesn't have a railroad connection but is eligible for rail construction, the Engineer automatically begins building a railroad on arrival.
+    * **Infrastructure Selection**: When clicking on a tile where an Engineer is currently positioned, a construction modal opens allowing the player to choose between building a **Depot** or **Port** (if applicable).
+    * **Building Restrictions**:
+        - Depots and Ports cannot be built on the Capital tile
+        - Forts can only be built in Capital or City tiles
+        - Rails are built automatically during adjacent movement, not through manual construction
 * **Working in Minor Nations**:
     1.  [cite_start]An **Embassy** must first be established in the Minor Nation. [cite: 790]
     2.  [cite_start]The **Developer** is used to purchase individual terrain tiles, which are then marked with your flag. [cite: 797, 803]
