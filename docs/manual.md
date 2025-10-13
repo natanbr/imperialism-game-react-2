@@ -47,6 +47,7 @@ This document outlines the core definitions and mechanics of the game *Imperiali
 * [cite_start]**Transport Network**: The system of railroads, depots, and ports used to move commodities from rural collection points to your central industrial warehouse. [cite: 1143, 1153]
 * [cite_start]**Transport Capacity**: The total number of commodity units your network can move each turn. [cite: 1158] [cite_start]This also limits how many military units can be moved by rail. [cite: 925]
 * [cite_start]**Rail Depots and Ports**: Structures built by the Engineer that gather commodities from their own tile and all adjacent tiles. [cite: 682, 1167, 1168]
+* **Capital as Collection Hub**: The capital city automatically functions as a collection point (like a depot), gathering commodities from all adjacent tiles without requiring a separate depot structure.
 
 ### **Mechanics**
 * [cite_start]**Increasing Transport Capacity**: Built in the **Railyard** on the Industry screen. [cite: 1159, 1569] [cite_start]Construction requires lumber, steel, and available labor. [cite: 1565, 1570]
