@@ -14,7 +14,7 @@ export const WarehouseModal: React.FC = () => {
   if (!isOpen) return null;
 
   const nation = nations.find((n) => n.id === activeNationId);
-  const stock = nation?.warehouse ?? {};
+  const stock = nation?.warehouse ?? ({} as Record<string, number>);
 
   // All commodity keys (Resource + Materials + Goods)
   const resourceKeys = Object.values(ResourceType);
@@ -24,7 +24,7 @@ export const WarehouseModal: React.FC = () => {
   const row = (key: string) => (
     <div key={key} className={styles.itemRow}>
       <span className={styles.itemName}>{key}</span>
-      <span>{stock[key] ?? 0}</span>
+      <span>{(stock as Record<string, number>)[key] ?? 0}</span>
     </div>
   );
 

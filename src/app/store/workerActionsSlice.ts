@@ -95,25 +95,9 @@ export const createWorkerActionsSlice: StateCreator<GameState, [], [], WorkerAct
     set((state) => moveAndStartWorkerJob(state, targetTileId, workerId, moveWorker, startProspectorWork)),
 
   moveAndStartDevelopment: (targetTileId, workerId, workerType) => {
-    // Find the worker to get their type if not provided
-    let type = workerType;
-    if (!type) {
-      for (let y = 0; y < state.map.config.rows; y++) {
-        for (let x = 0; x < state.map.config.cols; x++) {
-          const tile = state.map.tiles[y][x];
-          const worker = tile.workers.find((w) => w.id === workerId);
-          if (worker) {
-            type = worker.type;
-            break;
-          }
-        }
-        if (type) break;
-      }
-    }
-
     set((state) => {
       // Get worker type if not already determined
-      let finalType = type;
+      let finalType = workerType;
       if (!finalType) {
         for (let y = 0; y < state.map.config.rows; y++) {
           for (let x = 0; x < state.map.config.cols; x++) {

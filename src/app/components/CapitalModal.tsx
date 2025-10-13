@@ -33,8 +33,8 @@ export const CapitalModal: React.FC = () => {
   const [buyCount, setBuyCount] = useState<number>(0);
   const { maxPurchasable } = useMemo(() => {
     const stock = nation?.warehouse ?? {} as Record<string, number>;
-    const coal = Number(stock.coal ?? stock.Coal ?? 0);
-    const iron = Number(stock.ironOre ?? stock.IronOre ?? 0);
+    const coal = Number(stock.coal ?? 0);
+    const iron = Number(stock.ironOre ?? 0);
     const maxByCoal = Math.floor(coal / 1);
     const maxByIron = Math.floor(iron / 1);
     return {

@@ -19,7 +19,7 @@ const terrains: TerrainType[] = [
   TerrainType.Capital,
 ];
 
-import { WorkerType, Worker } from "@/types/Workers";
+import { WorkerType, Worker, WorkerStatus } from "@/types/Workers";
 
 export const mockMap: GameMap = {
   config: { cols, rows, style: MapStyle.SquareGrid },
@@ -34,7 +34,9 @@ export const mockMap: GameMap = {
           nationId: "nation-1",
           type: WorkerType.Prospector,
           assignedTileId: createTileId(x, y),
-          efficiency: 100
+          efficiency: 100,
+          status: WorkerStatus.Available,
+          justMoved: false
         }];
       }
       return {

@@ -30,6 +30,8 @@ export const TileBase: React.FC<TileBaseProps> = ({
 }) => {
   return (
     <div
+      data-testid="tile"
+      data-terrain={terrain}
       className={`${styles.tile} ${hasJobCompleted ? styles.tileJobCompleted : ''}`}
       style={{
         backgroundColor,

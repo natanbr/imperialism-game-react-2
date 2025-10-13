@@ -32,7 +32,9 @@ export const mockNations: Nation[] = [
     warehouse: {
       grain: 100,
       timber: 50
-    }
+    } as any,
+    transportCapacity: 10,
+    industry: {} as any
   },
   {
     id: "nation-2",
@@ -56,7 +58,9 @@ export const mockNations: Nation[] = [
     warehouse: {
       grain: 80,
       coal: 30
-    }
+    } as any,
+    transportCapacity: 8,
+    industry: {} as any
   },
   {
     id: "nation-3",
@@ -80,7 +84,9 @@ export const mockNations: Nation[] = [
     warehouse: {
       grain: 90,
       wool: 40
-    }
+    } as any,
+    transportCapacity: 9,
+    industry: {} as any
   }
 ];
 

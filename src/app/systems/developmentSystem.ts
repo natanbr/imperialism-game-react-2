@@ -31,7 +31,7 @@ export const developmentSystem = (state: GameState, rng: RngLike): GameState => 
   // Add completed construction to railroad networks
   for (let y = 0; y < newState.map.config.rows; y++) {
     for (let x = 0; x < newState.map.config.cols; x++) {
-      let tile = newState.map.tiles[y][x];
+      const tile = newState.map.tiles[y][x];
       const nationId = tile.ownerNationId;
 
       if (tile.constructionJob?.completed && nationId) {

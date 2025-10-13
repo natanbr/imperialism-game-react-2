@@ -55,7 +55,7 @@ export const TileComponent: React.FC<TileProps> = ({ tile }) => {
     tile,
     isSelected,
     ownerNation,
-    !!selectedWorker
+    possibleAction
   );
   const handleTileClick = useTileClickHandler(tile, selectedWorker, possibleAction);
 

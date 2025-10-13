@@ -30,6 +30,30 @@
 
 ---
 
+## Issues Identified During Cursor Icon Bug Fix (2025-10-10)
+
+**Note**: These issues were identified while fixing the cursor icon bug. They are pre-existing TypeScript/ESLint errors that were blocking the build.
+
+### Priority: HIGH - **FIXED**
+- **useTileVisuals.ts:40** - Cursor logic was not using `possibleAction` to determine cursor style
+  - **Issue**: Cursor was always either 'pointer' or 'auto', regardless of worker action type
+  - **Fix Applied**: Updated hook to accept `possibleAction` parameter and created `getCursorForAction()` helper that maps action types to emoji-based cursor data URIs
+  - **Impact**: Cursors now change based on action: 🔍 for prospect, 🚜 for develop, 🛤️ for rail, 🏰 for fort, 🏗️ for construction modal
+
+- **Tile.tsx:58** - `useTileVisuals` was receiving `!!selectedWorker` instead of `possibleAction`
+  - **Issue**: Hook was only told if a worker was selected, not what action was available
+  - **Fix Applied**: Changed to pass `possibleAction` instead of boolean
+  - **Impact**: Cursor visuals now reflect available actions correctly
+
+### Priority: MEDIUM
+- **Multiple pre-existing TypeScript errors** - Blocking build compilation
+  - **Files Affected**: CapitalModal.tsx, CapitalModal/index.tsx, WarehouseModal.tsx, workerActionsSlice.ts, developmentSystem.ts, mockMap.ts, mockNation.ts
+  - **Issues**: Case sensitivity in warehouse property access, undefined variable references, incomplete mock data, empty interface linting errors, let/const warnings
+  - **Fix Applied**: Fixed all blocking TypeScript compilation errors and critical ESLint errors
+  - **Impact**: Build now compiles successfully (remaining warnings are non-blocking pre-existing issues)
+
+---
+
 ## Issues Identified During Depot Connectivity Bug Fix (2025-10-10)
 
 **Note**: These suggestions were identified while fixing the depot connectivity bug. They should be properly explored and validated before applying.

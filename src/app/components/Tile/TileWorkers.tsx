@@ -24,6 +24,9 @@ export const TileWorkers: React.FC<TileWorkersProps> = ({
       {workers.map((worker) => (
         <button
           key={worker.id}
+          data-testid="worker-button"
+          data-worker-type={worker.type}
+          data-worker-id={worker.id}
           className={`${styles.workerButton} ${
             selectedWorkerId === worker.id ? styles.workerButtonSelected : ''
           }`}
