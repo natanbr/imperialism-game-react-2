@@ -10,6 +10,7 @@ export const useTransportAllocations = (capacity: number) => {
   const activeNationId = useGameStore((s) => s.activeNationId);
   const transportAllocationsByNation = useGameStore((s) => s.transportAllocationsByNation);
   const setTransportAllocations = useGameStore((s) => s.setTransportAllocations);
+  const railroadNetworks = useGameStore((s) => s.transportNetwork.railroadNetworks);
 
   const initialAllocations = useMemo(
     () => transportAllocationsByNation?.[activeNationId] ?? {},
@@ -32,7 +33,11 @@ export const useTransportAllocations = (capacity: number) => {
     });
   }, [initialAllocations]);
 
-  const collected = useMemo(() => computeLogisticsTransport(map, activeNationId), [map, activeNationId]);
+  const nationNetwork = railroadNetworks?.[activeNationId];
+  const collected = useMemo(
+    () => computeLogisticsTransport(map, activeNationId, nationNetwork),
+    [map, activeNationId, nationNetwork]
+  );
 
   const resourceKeys = useMemo(() => Object.values(ResourceType), []);
   const materialKeys = useMemo(() => Object.values(MaterialType), []);

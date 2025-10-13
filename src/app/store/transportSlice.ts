@@ -11,19 +11,25 @@ export interface TransportSlice {
   setTransportAllocations: (nationId: string, allocations: Record<string, number>) => void;
 }
 
-export const createTransportSlice: StateCreator<GameState, [], [], TransportSlice> = (set) => ({
-  transportNetwork: {
-    shippingLanes: [],
-    capacity: 0,
-    // railroadNetworks is optional and will be lazy-initialized
-  },
-  setTransportNetwork: (network: TransportNetwork) => set({ transportNetwork: network }),
+export const createTransportSlice: StateCreator<GameState, [], [], TransportSlice> = (set, get) => {
+  // Preserve railroadNetworks if it was already initialized by mapSlice
+  const existingNetwork = get().transportNetwork;
 
-  transportAllocationsByNation: {},
-  setTransportAllocations: (nationId, allocations) => set((state) => ({
-    transportAllocationsByNation: {
-      ...(state.transportAllocationsByNation ?? {}),
-      [nationId]: { ...allocations },
-    }
-  })),
-});
+  return {
+    transportNetwork: {
+      shippingLanes: [],
+      capacity: 0,
+      // Preserve railroadNetworks if it exists, otherwise it will be lazy-initialized
+      railroadNetworks: existingNetwork?.railroadNetworks,
+    },
+    setTransportNetwork: (network: TransportNetwork) => set({ transportNetwork: network }),
+
+    transportAllocationsByNation: {},
+    setTransportAllocations: (nationId, allocations) => set((state) => ({
+      transportAllocationsByNation: {
+        ...(state.transportAllocationsByNation ?? {}),
+        [nationId]: { ...allocations },
+      }
+    })),
+  };
+};
