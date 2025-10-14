@@ -1,6 +1,6 @@
 You will be implementing a new feature in this codebase:
 
-$ARGUMENTS:
+$ARGUMENTS
 
 IMPORTANT:
 - Before you start, if there are any gaps or assumptions, verify with me and ask questions before proceeding with the implementation.
