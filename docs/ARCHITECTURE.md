@@ -1,130 +1,263 @@
-# Project Architecture & Best Practices
+# Architecture & Development Guidelines
 
-This document outlines the software architecture for the Imperialism game project and provides best practices to ensure a clean, scalable, and maintainable codebase.
+## Overview
+Next.js 15 strategy game with React 19, TypeScript, Zustand state management, and Vitest testing. Turn-based gameplay featuring workers, transport, diplomacy, trade, and combat.
 
-## 1. High-Level Overview
+## Project Structure
 
-The architecture is designed around a clear separation of concerns between **State**, **Logic**, and **UI**.
+```
+src/app/
+├── components/        # React UI components
+├── constants/         # Game constants (gameConstants.ts)
+├── definisions/       # Game rules and data tables
+├── hooks/             # Custom React hooks (logic extraction)
+├── store/             # Zustand state management
+│   ├── helpers/       # Pure state mutation helpers
+│   └── slices/        # Domain-specific state slices
+├── systems/           # Turn-based game logic (pure functions)
+│   └── jobs/          # Worker job resolution
+├── styles/            # CSS modules and design tokens
+├── testing/           # Mock data for tests
+├── types/             # TypeScript type definitions
+├── utils/             # Utility functions
+└── workers/           # Worker type implementations
 
--   **State**: The entire game state is managed by **Zustand**. It is broken down into smaller, domain-specific **slices**.
--   **Logic**: Core game logic, especially turn-based updates, is handled by **Systems**. A system is a pure function that takes the current game state, applies logic, and returns the new state.
--   **UI**: The user interface is built with **React** and **Next.js**. Components are responsible for rendering the state and dispatching user actions.
+tests/                 # Vitest test files (mirrors src/app/)
+docs/                  # Project documentation
+```
 
-This approach ensures that game logic is decoupled from the UI and that the state is managed in a predictable and organized manner.
+## Architecture Layers
 
----
+### 1. State Management (Zustand)
 
-## 2. State Management (`Zustand`)
+**Pattern**: Sliced store - each slice = domain-specific state + actions
 
-We use a "slice" pattern to organize the Zustand store. Each slice represents a specific domain of the game.
+**Location**: `src/app/store/`
 
-### Slices
+**Core Slices**:
+- `gameSlice` - Turn, year
+- `mapSlice` - Tiles grid, terrain, resources
+- `nationSlice` - Nations, warehouses, industry
+- `workerActionsSlice` - Worker commands (move, develop, construct)
+- `turnSlice` - Turn execution orchestration
+- `technologySlice` - Tech research
+- `transportSlice` - Network capacity
+- `industrySlice` - Production recipes
 
--   **Location**: `src/app/store/`
--   **Responsibility**: A slice defines a piece of the game state (`interface`) and the function to create it (`create...Slice`).
--   **Example**: `mapSlice.ts` manages the state of the game map, `nationSlice.ts` manages the state of all nations.
+**UI Slices**:
+- `tileSelectionSlice` - Selected tile/worker
+- `cameraSlice` - Pan/zoom state
+- `overlaySlice` - Modals visibility
+- `controlsSlice` - UI controls
 
-#### **Best Practices for Slices:**
+**Composition**: `rootStore.ts` combines all slices using spread operators
 
-1.  **Single Responsibility**: A slice should manage a single, well-defined domain of the game. For example, all state related to diplomacy should be in `diplomacySlice.ts`.
-2.  **Simple Actions**: Actions within a slice should be simple state updates (e.g., `setMap`, `setActiveNation`). **Complex game logic does not belong in slice actions.**
-3.  **Immutability**: Always treat state as immutable. When updating state, create new objects or arrays instead of mutating existing ones. Use the spread operator (`...`) for this.
+**Selectors**: Memoized with `reselect` in `src/app/store/selectors.ts`
 
-### The Root Store
+### 2. Turn-Based Game Loop
 
--   **File**: `src/app/store/rootStore.ts`
--   **Responsibility**: This file composes all the individual slices into a single, unified `GameStore`.
+**Orchestration**: `src/app/systems/runTurnPhases.ts`
 
-#### **Adding a New Slice:**
+**Phase Order**:
+1. Development - Worker jobs (prospect, farm, mine, etc.)
+2. Diplomacy - Diplomatic offers
+3. Trade - Trade deals
+4. Production - Industrial production
+5. Combat - Military conflicts
+6. Interceptions - Blockades cancel trades
+7. Transport Connectivity - Network graphs
+8. Logistics - Move resources to warehouses
 
-1.  Create your new slice file (e.g., `src/app/store/myNewSlice.ts`).
-2.  Import the slice interface and creator function into `rootStore.ts`.
-3.  Add the slice interface to the `GameStore` type definition.
-4.  Add the slice creator function to the `create<GameStore>()` call.
+**System Contract**: Pure function `(state: GameState, rng?: RNG) => GameState`
 
----
+**Determinism**: Seeded RNG (`src/app/systems/utils/rng.ts`) ensures reproducible outcomes
 
-## 3. Game Logic (`Systems`)
+### 3. Worker System
 
-All complex, turn-based game logic is implemented in **Systems**.
+**Types**: Prospector, Engineer, Miner, Farmer, Rancher, Forester, Driller, Developer
 
-### The System Layer
+**Status**: Available, Moved, Working
 
--   **Location**: `src/app/systems/`
--   **Responsibility**: A system is a pure function that encapsulates a piece of game logic (e.g., processing resource development, resolving trade).
--   **Signature**: A system always takes the entire `GameStore` state as input and returns the updated `GameStore` state.
-    ```typescript
-    export const mySystem = (state: GameStore): GameStore => {
-      // ...logic
-      return { ...state, /* updated parts */ };
-    };
-    ```
+**Architecture**:
+- `src/app/store/helpers/workerHelpers.ts` - Pure state mutation helpers
+- `src/app/hooks/useWorkerActions.ts` - UI interaction hooks
+- `src/app/hooks/useTileInteractions.ts` - Tile click handlers
+- `src/app/systems/jobs/*Job.ts` - Turn-based job resolution
 
-### Turn Phase Orchestration
+**Job Flow**:
+1. Player commands worker action (UI)
+2. Worker status → Working, tile gets job (developmentJob/constructionJob)
+3. Turn execution resolves job (decrements turns, applies effects)
+4. Job completes when turnsRemaining = 0
 
--   **File**: `src/app/store/turnSlice.ts` (the `advanceTurn` action)
--   **Responsibility**: The `advanceTurn` action orchestrates the entire turn sequence by calling each system in the correct order. It passes the state from one system to the next, accumulating changes.
--   **The `phases.ts` file**: This file is a temporary holder for the `runTurnPhases` function, which lists the systems to be run in order.
+### 4. Map & Tiles
 
-#### **Best Practices for Systems:**
+**Structure**: 2D grid `state.map.tiles[y][x]` (row, column indexed)
 
-1.  **Purity**: Systems must be pure functions. They should not have side effects and should produce the same output for the same input. This makes them predictable and easy to test.
-2.  **Single Focus**: Each system should be responsible for one specific aspect of the turn sequence (e.g., `developmentSystem`, `tradeSystem`).
-3.  **Read from State, Return New State**: A system should read any part of the `GameStore` it needs, but it should return a *new* state object with the changes.
+**Tile Properties** (`src/app/types/Tile.ts`):
+- `terrain` - TerrainType (Farm, Mountains, Swamp, etc.)
+- `resource` - Type and level 0-3 (minerals/oil start hidden)
+- `workers` - Array of workers on tile
+- `developmentJob` / `constructionJob` - Active jobs
+- `ownerNationId` / `cityId` - Ownership
+- `port`, `depot`, `fortLevel`, `connected` - Infrastructure
 
----
+**Adjacent Tiles**: Brick pattern with half-tile shift (6 neighbors: 2 top, 2 sides, 2 bottom)
 
-## 4. UI Components & Data Flow
+### 5. Transport System
 
-### Component Responsibilities
+**Capacity**: Per-turn limit (resource units) per nation
 
--   **Location**: `src/app/components/`
--   **Responsibility**: React components are for rendering the UI and handling user input. They should not contain any game logic.
--   **Data Access**: Components access the game state by using the `useGameStore` hook.
-    ```typescript
-    const map = useGameStore((s) => s.map);
-    const advanceTurn = useGameStore((s) => s.advanceTurn);
-    ```
--   **Actions**: User interactions (like clicking a button) should call action functions from the store (e.g., `advanceTurn()`, `startProspecting()`).
--   **Organization**: Use a single top-level React component per file. Do not define multiple top-level components in one file. Keep tiny JSX helpers inline only if they are private to the component.
+**Connectivity**: BFS graph of connected tiles via depots/rails/ports (`transportConnectivitySystem`)
 
-### Example Data Flow (User Action)
+**Logistics**: `logisticsSystem` moves resources from provinces → national warehouse (respects capacity)
 
-1.  **User**: Clicks the "Prospect" button in the `TileInfoPanel` component.
-2.  **Component**: Calls the `startProspecting(tileId, workerId)` action from the `workerSlice`.
-3.  **Store (`workerSlice`)**: The `startProspecting` action calls its corresponding helper (`startProspectingHelper`).
-4.  **Helper (`workerHelpers.ts`)**: The helper function contains the logic to validate the action and returns the new, updated state.
-5.  **Zustand**: Updates the state with the new state object.
-6.  **React**: Re-renders the components that subscribe to the changed piece of state.
+**Allocation**: Players distribute capacity via `TransportAllocationModal`
 
----
+**Rules**:
+- Depots/Ports must connect to capital or active port via railroad
+- Capital acts as depot (collects from adjacent tiles)
+- Only active depots/ports transfer resources
 
-## 5. Example: Adding a "Treasury" Feature
+### 6. Component Architecture
 
-Here is a step-by-step guide to adding a new feature in a way that follows this architecture.
+**Main Page**: `src/app/page.tsx` - Renders MapView, HUD, modals
 
-1.  **Define the State (Slice)**:
-    -   Create `src/app/store/treasurySlice.ts`.
-    -   Define the `TreasurySlice` interface (e.g., `{ treasury: { cash: number } }`).
-    -   Define simple actions like `addCash` and `spendCash`.
+**Component Pattern**: Refactored for modularity
+- **Hooks**: `src/app/hooks/` - Logic separation (useTileActions, useTileVisuals)
+- **Sub-components**: `src/app/components/[Component]/` - Single responsibility
+- **CSS Modules**: `[Component].module.css` with design tokens
+- **Index files**: Re-export for clean imports
 
-2.  **Integrate the Slice**:
-    -   Open `src/app/store/rootStore.ts`.
-    -   Import and add `TreasurySlice` to the `GameStore` type and the `create` function.
+**Example** (Tile component):
+```
+src/app/components/Tile/
+├── Tile.tsx           # Main component (~100 lines)
+├── TileBase.tsx       # Base rendering
+├── TileResource.tsx   # Resource display
+├── TileWorkers.tsx    # Worker buttons
+├── TileJobs.tsx       # Job indicators
+├── Tile.module.css    # All styles
+└── index.ts           # Re-exports
+```
 
-3.  **Implement Logic (System)**:
-    -   If the treasury needs to be updated each turn (e.g., for interest payments), create `src/app/systems/treasurySystem.ts`.
-    -   Write the logic as a pure function: `treasurySystem(state: GameStore): GameStore`.
+**Design Tokens**: `src/app/styles/tokens.css` - Spacing, colors, typography
 
-4.  **Orchestrate the System**:
-    -   Open `src/app/store/phases.ts`.
-    -   Import your new `treasurySystem`.
-    -   Add it to the `runTurnPhases` function in the correct sequence.
+### 7. Type Organization
 
-5.  **Display in UI (Component)**:
-    -   In a React component (e.g., `HUD.tsx`), select the cash from the store:
-        ```typescript
-        const cash = useGameStore((s) => s.treasury.cash);
-        ```
-    -   Render the value.
-    -   If a button needs to modify the cash, call the action: `useGameStore.getState().addCash(100);` (or select the action if it's used frequently).
+**Location**: `src/app/types/`
+
+**Key Files**:
+- `GameState.ts` - Root state + turn order
+- `Nation.ts`, `City.ts`, `Army.ts`, `Navy.ts` - Entities
+- `Tile.ts`, `Map.ts`, `Workers.ts` - Map/workers
+- `Resource.ts`, `Industry.ts`, `Technology.ts` - Economy
+- `Diplomacy.ts`, `TradeRoute.ts`, `Transport.ts` - Systems
+- `jobs/` - Job state types
+- `actions.ts` - UI action types
+
+### 8. Path Aliases
+
+`@/*` → `src/app/*`
+
+Example:
+```typescript
+import { GameState } from '@/types/GameState';
+import { selectActiveNation } from '@/store/selectors';
+```
+
+## Development Workflow
+
+### Adding a Worker Action
+1. Define helper in `store/helpers/workerHelpers.ts` (pure function)
+2. Add action to `WorkerActionsSlice`
+3. Implement job resolution in `systems/jobs/`
+4. Update `developmentSystem.ts` to call resolver
+5. Add UI interaction in `hooks/useWorkerActions.ts`
+6. Write tests in `tests/systems/`
+
+### Adding a System
+1. Create file in `src/app/systems/`
+2. Export pure function `(state: GameState, rng?: RNG) => GameState`
+3. Add to turn order in `runTurnPhases.ts`
+4. Write tests in `tests/systems/`
+
+### Adding a Component
+1. Create component directory: `src/app/components/[Name]/`
+2. Extract logic to hooks: `src/app/hooks/use[Name][Purpose].ts`
+3. Create sub-components for sections
+4. Create CSS module with design tokens
+5. Create index file for exports
+
+## Best Practices
+
+### State Management
+- **Slices**: Single domain responsibility
+- **Actions**: Simple state updates only
+- **Immutability**: Always use spread operators, never mutate
+- **Selectors**: Memoize with `reselect` for derived state
+
+### Systems
+- **Purity**: No side effects, same input → same output
+- **Focus**: One aspect of turn sequence only
+- **Immutability**: Return new state object with changes
+
+### Components
+- **Size**: Keep main component < 150 lines
+- **Logic**: Extract to hooks
+- **Styles**: Use CSS modules + design tokens
+- **Props**: Define interfaces, document with JSDoc
+- **Events**: Use callbacks, extract complex handlers to hooks
+
+### Testing
+- **Location**: `tests/` mirrors `src/app/` structure
+- **Mocks**: Use `src/app/testing/` helpers
+- **Systems**: Test pure functions with input/output assertions
+- **Coverage**: Run `npx vitest run --coverage`
+
+## Code Organization Patterns
+
+### Tile State Modifications
+Always maintain immutability:
+```typescript
+const newTile = { ...oldTile, resource: { ...oldTile.resource, level: 2 } };
+```
+
+### Selectors for Derived State
+```typescript
+export const selectMyData = createSelector(
+  [(state: GameStore) => state.foo, (state: GameStore) => state.bar],
+  (foo, bar) => computeMyData(foo, bar)
+);
+```
+
+### Constants
+Extract to `src/app/constants/gameConstants.ts`:
+```typescript
+export const TILE_CONFIG = {
+  SIZE: 100,
+  BORDER_NORMAL: 1,
+  BORDER_SELECTED: 3,
+} as const;
+```
+
+## Key Files Reference
+
+- **Root Store**: `src/app/store/rootStore.ts`
+- **Turn Orchestration**: `src/app/systems/runTurnPhases.ts`
+- **Game Definitions**: `src/app/definisions/`
+- **Design Tokens**: `src/app/styles/tokens.css`
+- **Game Constants**: `src/app/constants/gameConstants.ts`
+- **Mock Data**: `src/app/testing/`
+- **Main Page**: `src/app/page.tsx`
+
+## Notes for AI Assistants
+
+- **CLAUDE.md** has detailed implementation patterns
+- **docs/manual.md** contains complete game rules
+- **docs/ROADMAP.md** tracks development progress
+- **docs/TECH_DEBT.md** lists refactoring priorities
+- Always read existing code before creating new utilities
+- Follow established patterns for consistency
+- Write tests for all new systems/helpers
+- Use design tokens for all styling
