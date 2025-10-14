@@ -9,7 +9,10 @@
       "mcp__playwright__browser_wait_for",
       "mcp__playwright__browser_navigate",
       "Bash(npm run dev:*)",
-      "Bash(npx vitest run:*)"
+      "Bash(npx vitest run:*)",
+      "Bash(git worktree:*)",
+      "Bash(git merge:*)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []

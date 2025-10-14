@@ -21,3 +21,5 @@ IMPORTANT:
     - In REFACTORING_PLAN.md, clearly mention that these suggestions were identified in the context of this bug fix and have to be properly explored before applying.
 - After implementation, ask me if I want to add unit tests and clarify which functionality to cover.
 - Take a quick look at @docs\manual.md to verify the fixed behaviour is documented correctly. 
+
+no need to ask for edit files permissions, you have the permissions to edit all files in workspace. 
