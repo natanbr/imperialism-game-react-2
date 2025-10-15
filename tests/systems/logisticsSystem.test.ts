@@ -30,8 +30,8 @@ function baseState(): GameState {
     warehouse: { ...n.warehouse },
     treasury: n.treasury ?? 0,
   }));
-  
-  let state: GameState = {
+
+  const stateBeforeRailroads: GameState = {
     turn: 1,
     year: 1900,
     activeNationId: 'nation-1',
@@ -47,8 +47,11 @@ function baseState(): GameState {
     difficulty: 'normal',
   };
 
-  const railroadNetworks = initializeRailroadNetworks(state.map, state.nations as Nation[]);
-  state.transportNetwork.railroadNetworks = railroadNetworks;
+  const railroadNetworks = initializeRailroadNetworks(stateBeforeRailroads.map, stateBeforeRailroads.nations as Nation[]);
+  const state = {
+    ...stateBeforeRailroads,
+    transportNetwork: { ...stateBeforeRailroads.transportNetwork, railroadNetworks }
+  };
   // The capital itself is a hub, so no need to set isActive explicitly for this test.
 
   return state;
@@ -120,7 +123,7 @@ describe('logisticsSystem', () => {
       treasury: n.treasury ?? 0,
     }));
 
-    let state: GameState = {
+    const stateBeforeRailroads: GameState = {
       turn: 1,
       year: 1900,
       activeNationId: nationId,
@@ -136,8 +139,11 @@ describe('logisticsSystem', () => {
       difficulty: 'normal',
     };
 
-    const railroadNetworks = initializeRailroadNetworks(state.map, state.nations as Nation[]);
-    state.transportNetwork.railroadNetworks = railroadNetworks;
+    const railroadNetworks = initializeRailroadNetworks(stateBeforeRailroads.map, stateBeforeRailroads.nations as Nation[]);
+    let state = {
+      ...stateBeforeRailroads,
+      transportNetwork: { ...stateBeforeRailroads.transportNetwork, railroadNetworks }
+    };
 
     // Step 1: Verify no resources collected initially (distant tiles not adjacent to capital)
     const network1 = state.transportNetwork.railroadNetworks![nationId];
@@ -215,7 +221,7 @@ describe('logisticsSystem', () => {
       treasury: n.treasury ?? 0,
     }));
 
-    let state: GameState = {
+    const stateBeforeRailroads: GameState = {
       turn: 1,
       year: 1900,
       activeNationId: nationId,
@@ -232,8 +238,11 @@ describe('logisticsSystem', () => {
     };
 
     // Initialize railroad networks (simulating game start)
-    const railroadNetworks = initializeRailroadNetworks(state.map, state.nations as Nation[]);
-    state.transportNetwork.railroadNetworks = railroadNetworks;
+    const railroadNetworks = initializeRailroadNetworks(stateBeforeRailroads.map, stateBeforeRailroads.nations as Nation[]);
+    const state = {
+      ...stateBeforeRailroads,
+      transportNetwork: { ...stateBeforeRailroads.transportNetwork, railroadNetworks }
+    };
 
     // Verify capital is in the network
     const network = state.transportNetwork.railroadNetworks![nationId];

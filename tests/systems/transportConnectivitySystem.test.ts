@@ -22,7 +22,7 @@ function makeBaseState(): GameState {
     ...n,
   }));
 
-  let state: GameState = {
+  const state: GameState = {
     turn: 1,
     year: 1900,
     activeNationId: 'nation-1',
@@ -85,7 +85,7 @@ describe('transportConnectivitySystem', () => {
 
     const nationsWithIndustry = nations.map(n => ({ ...n }));
 
-    let state: GameState = {
+    const state: GameState = {
       turn: 1,
       year: 1900,
       activeNationId: 'nation-1',
@@ -157,7 +157,7 @@ describe('transportConnectivitySystem', () => {
 
     const nationsWithIndustry = nations.map(n => ({ ...n }));
 
-    let state: GameState = {
+    const state: GameState = {
       turn: 1,
       year: 1900,
       activeNationId: 'nation-1',
@@ -235,7 +235,7 @@ describe('transportConnectivitySystem', () => {
 
     const nationsWithIndustry = nations.map(n => ({ ...n }));
 
-    let state: GameState = {
+    const state: GameState = {
       turn: 1,
       year: 1900,
       activeNationId: 'nation-1',
@@ -292,7 +292,7 @@ describe('transportConnectivitySystem', () => {
 
     const nationsWithIndustry = nations.map(n => ({ ...n }));
 
-    let state: GameState = {
+    const state: GameState = {
       turn: 1,
       year: 1900,
       activeNationId: 'nation-1',
@@ -370,7 +370,7 @@ describe('transportConnectivitySystem', () => {
 
     const nationsWithIndustry = nations.map(n => ({ ...n }));
 
-    let state: GameState = {
+    const state: GameState = {
       turn: 1,
       year: 1900,
       activeNationId: 'nation-1',
@@ -425,7 +425,7 @@ describe('transportConnectivitySystem', () => {
 
     const nationsWithIndustry = nations.map(n => ({ ...n }));
 
-    let state: GameState = {
+    const state: GameState = {
       turn: 1,
       year: 1900,
       activeNationId: 'nation-1',
@@ -506,7 +506,7 @@ describe('transportConnectivitySystem', () => {
 
     const nationsWithIndustry = nations.map(n => ({ ...n }));
 
-    let state: GameState = {
+    const state: GameState = {
       turn: 1,
       year: 1900,
       activeNationId: 'nation-1',
@@ -584,7 +584,7 @@ describe('transportConnectivitySystem', () => {
 
     const nationsWithIndustry = nations.map(n => ({ ...n }));
 
-    let state: GameState = {
+    const state: GameState = {
       turn: 1,
       year: 1900,
       activeNationId: 'nation-1',

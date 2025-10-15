@@ -14,7 +14,7 @@
       "Bash(git merge:*)",
       "Bash(git push:*)",
       "Bash(git add:*)",
-      "Bash(git commit -m \"$(cat <<''EOF''\ndocs: Consolidate and optimize documentation structure\n\nUnified project documentation from 11+ MD files into 4 core files:\n- README.md: Tech stack, commands, quick start, project status\n- docs/ARCHITECTURE.md: Code structure, patterns, workflows\n- docs/ROADMAP.md: Development phases and progress tracking\n- docs/TECH_DEBT.md: Refactoring priorities and completed work\n\nChanges:\n- Removed duplicate/outdated files (6 files deleted)\n- Eliminated content duplication between README and ARCHITECTURE\n- Optimized for token usage and AI agent consumption\n- Clear separation: README for getting started, ARCHITECTURE for code patterns\n- Updated all completed tasks from roadmap\n- Consolidated all refactoring info into TECH_DEBT.md\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")"
+      "Bash(npx eslint:*)"
     ],
     "deny": [],
     "ask": []

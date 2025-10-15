@@ -423,7 +423,6 @@ describe('Miner Worker Functionality', () => {
       const mineralTile = map.tiles.flat().find(
         t => t.terrain === TerrainType.Mountains
       )!;
-      const [mx, my] = parseTileIdToArray(mineralTile.id);
 
       const tileWithDiscoveredResource = {
         ...mineralTile,

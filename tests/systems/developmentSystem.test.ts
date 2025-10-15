@@ -55,9 +55,11 @@ describe('developmentSystem', () => {
   });
 
   it('marks construction job complete and applies effect', () => {
-    let state = { ...baseState };
-    const railroadNetworks = initializeRailroadNetworks(state.map, state.nations as Nation[]);
-    state.transportNetwork.railroadNetworks = railroadNetworks;
+    const railroadNetworks = initializeRailroadNetworks(baseState.map, baseState.nations as Nation[]);
+    const state = {
+      ...baseState,
+      transportNetwork: { ...baseState.transportNetwork, railroadNetworks }
+    };
 
     const capital = state.map.tiles.flat().find(t => t.terrain === TerrainType.Capital)!;
     const [cx, cy] = [capital.x, capital.y];
