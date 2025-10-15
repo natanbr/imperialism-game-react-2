@@ -444,8 +444,10 @@ describe('Miner Worker Functionality', () => {
 
       expect(action).not.toBeNull();
       expect(action?.type).toBe('develop');
-      expect(action?.workerType).toBe(WorkerType.Miner);
-      expect(action?.level).toBe(1);
+      if (action?.type === 'develop') {
+        expect(action.workerType).toBe(WorkerType.Miner);
+        expect(action.level).toBe(1);
+      }
     });
 
     it('should return null for undiscovered resource', () => {

@@ -140,7 +140,7 @@ describe('logisticsSystem', () => {
     };
 
     const railroadNetworks = initializeRailroadNetworks(stateBeforeRailroads.map, stateBeforeRailroads.nations as Nation[]);
-    let state = {
+    let state: GameState = {
       ...stateBeforeRailroads,
       transportNetwork: { ...stateBeforeRailroads.transportNetwork, railroadNetworks }
     };

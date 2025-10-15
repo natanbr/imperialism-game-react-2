@@ -230,7 +230,7 @@ describe('transportConnectivitySystem', () => {
     map.tiles[1][2] = {
       ...map.tiles[1][2],
       terrain: TerrainType.Water,
-      ownerNationId: null
+      ownerNationId: undefined
     };
 
     const nationsWithIndustry = nations.map(n => ({ ...n }));
@@ -579,7 +579,7 @@ describe('transportConnectivitySystem', () => {
     map.tiles[1][2] = {
       ...map.tiles[1][2],
       terrain: TerrainType.Water,
-      ownerNationId: null
+      ownerNationId: undefined
     };
 
     const nationsWithIndustry = nations.map(n => ({ ...n }));
