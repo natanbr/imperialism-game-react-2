@@ -8,10 +8,15 @@ import styles from "./MapView.module.css";
 export const MapView: React.FC = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
+  // Extract all selectors at MapView level to prevent re-renders in child tiles
   const cameraX = useGameStore((s) => s.cameraX);
   const cameraY = useGameStore((s) => s.cameraY);
   const moveCamera = useGameStore((s) => s.moveCamera);
   const map = useGameStore((s) => s.map);
+  const selectedTileId = useGameStore((s) => s.selectedTileId);
+  const selectedWorkerId = useGameStore((s) => s.selectedWorkerId);
+  const nations = useGameStore((s) => s.nations);
+  const transportNetwork = useGameStore((s) => s.transportNetwork);
 
   useEdgeScroll({ containerRef, onMove: moveCamera });
 
@@ -32,7 +37,14 @@ export const MapView: React.FC = () => {
           {map.tiles.map((row, y) => (
             <div key={y} className={`${styles.row} ${y % 2 === 1 ? styles.rowOdd : ''}`}>
               {row.map((tile) => (
-                <TileComponent key={tile.id} tile={tile} />
+                <TileComponent
+                  key={tile.id}
+                  tile={tile}
+                  selectedTileId={selectedTileId}
+                  selectedWorkerId={selectedWorkerId}
+                  nations={nations}
+                  transportNetwork={transportNetwork}
+                />
               ))}
             </div>
           ))}

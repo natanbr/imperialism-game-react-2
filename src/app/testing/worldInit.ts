@@ -4,6 +4,7 @@ import { ResourceType } from "@/types/Resource";
 import { TerrainType, Tile } from "@/types/Tile";
 import { Worker, WorkerStatus, WorkerType } from "@/types/Workers";
 import { createTileId, parseTileIdToArray } from "@/utils/tileIdUtils";
+import { testMap1 } from "./testMap1";
 
 export interface WorldInitOptions {
   cols: number;
@@ -162,7 +163,18 @@ export function initWorkers(map: GameMap, nations: Nation[]): GameMap {
 }
 
 export function initWorld(opts: WorldInitOptions): { map: GameMap; nations: Nation[] } {
-  const map = generateStaticOneNationMap(opts.cols, opts.rows);
+  // Use testMap1 if the requested size is 40x40, otherwise use the generated map
+  let map: GameMap;
+  if (opts.cols === 40 && opts.rows === 40) {
+    // Deep clone testMap1 to avoid mutations
+    map = {
+      ...testMap1,
+      tiles: testMap1.tiles.map(row => row.map(tile => ({ ...tile })))
+    };
+  } else {
+    map = generateStaticOneNationMap(opts.cols, opts.rows);
+  }
+
   const nations = setupSingleNation(map);
   const mapWithWorkers = initWorkers(map, nations);
   return { map: mapWithWorkers, nations };

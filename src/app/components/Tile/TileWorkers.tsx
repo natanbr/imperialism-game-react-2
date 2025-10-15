@@ -12,7 +12,7 @@ export interface TileWorkersProps {
 /**
  * Component to display workers on a tile
  */
-export const TileWorkers: React.FC<TileWorkersProps> = ({
+const TileWorkersInner: React.FC<TileWorkersProps> = ({
   workers,
   selectedWorkerId,
   onWorkerSelect,
@@ -42,3 +42,6 @@ export const TileWorkers: React.FC<TileWorkersProps> = ({
     </div>
   );
 };
+
+export const TileWorkers = React.memo(TileWorkersInner);
+TileWorkers.displayName = 'TileWorkers';

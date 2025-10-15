@@ -30,32 +30,46 @@ function emojiToCursor(emoji: string): string {
 }
 
 /**
+ * Pre-computed cursor cache to avoid repeated SVG generation
+ * This dramatically improves performance by eliminating the need to
+ * generate cursor data URIs on every render
+ */
+const CURSOR_CACHE = {
+  prospect: emojiToCursor('🔍'), // Magnifying glass for prospecting
+  develop: emojiToCursor('🚜'), // Tractor for development
+  constructRail: emojiToCursor('🛤️'), // Railroad track
+  constructFort: emojiToCursor('🏰'), // Fort/castle
+  constructModal: emojiToCursor('🏗️'), // Construction/building
+  pointer: 'pointer',
+  auto: 'auto',
+} as const;
+
+/**
  * Get cursor style based on possible action
  * @param possibleAction - The action that can be performed on this tile
  * @returns CSS cursor value
  */
 function getCursorForAction(possibleAction: PossibleAction): string {
   if (!possibleAction) {
-    return 'auto';
+    return CURSOR_CACHE.auto;
   }
 
   switch (possibleAction.type) {
     case 'prospect':
-      return emojiToCursor('🔍'); // Magnifying glass for prospecting
+      return CURSOR_CACHE.prospect;
     case 'develop':
-      // Different emojis for different development types
-      return emojiToCursor('🚜'); // Tractor for development
+      return CURSOR_CACHE.develop;
     case 'construct':
       if (possibleAction.kind === 'rail') {
-        return emojiToCursor('🛤️'); // Railroad track
+        return CURSOR_CACHE.constructRail;
       } else if (possibleAction.kind === 'fort') {
-        return emojiToCursor('🏰'); // Fort/castle
+        return CURSOR_CACHE.constructFort;
       }
-      return 'pointer';
+      return CURSOR_CACHE.pointer;
     case 'open-construct-modal':
-      return emojiToCursor('🏗️'); // Construction/building
+      return CURSOR_CACHE.constructModal;
     default:
-      return 'pointer';
+      return CURSOR_CACHE.pointer;
   }
 }
 

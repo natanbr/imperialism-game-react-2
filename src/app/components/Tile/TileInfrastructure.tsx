@@ -11,7 +11,7 @@ export interface TileInfrastructureProps {
 /**
  * Component to display infrastructure (depots, ports) on a tile
  */
-export const TileInfrastructure: React.FC<TileInfrastructureProps> = ({
+const TileInfrastructureInner: React.FC<TileInfrastructureProps> = ({
   depot,
   depotActive,
   port,
@@ -38,3 +38,6 @@ export const TileInfrastructure: React.FC<TileInfrastructureProps> = ({
     </>
   );
 };
+
+export const TileInfrastructure = React.memo(TileInfrastructureInner);
+TileInfrastructure.displayName = 'TileInfrastructure';

@@ -2,6 +2,8 @@ import React, { useMemo } from 'react';
 import { useGameStore } from '@/store/rootStore';
 import { selectSelectedWorkerAndTile } from '@/store/selectors';
 import { Tile } from '@/types/Tile';
+import { Nation } from '@/types/Nation';
+import { TransportNetwork } from '@/types/Transport';
 import { useTileActions } from '@/hooks/useTileActions';
 import { useTileVisuals } from '@/hooks/useTileVisuals';
 import { useTileClickHandler } from '@/hooks/useTileClickHandler';
@@ -15,6 +17,10 @@ import {
 
 interface TileProps {
   tile: Tile;
+  selectedTileId: string | undefined;
+  selectedWorkerId: string | undefined;
+  nations: Nation[];
+  transportNetwork: TransportNetwork;
 }
 
 /**
@@ -30,15 +36,22 @@ interface TileProps {
  * - Clear separation of concerns
  * - Easier to test and maintain
  * - Reusable sub-components
+ *
+ * Performance optimizations:
+ * - React.memo to prevent unnecessary re-renders
+ * - Props passed from MapView to avoid Zustand subscriptions in each tile
+ * - Viewport culling at MapView level reduces rendered tiles
  */
-export const TileComponent: React.FC<TileProps> = ({ tile }) => {
-  // Store selectors
-  const selectedTileId = useGameStore((s) => s.selectedTileId);
-  const selectedWorkerId = useGameStore((s) => s.selectedWorkerId);
+const TileComponentInner: React.FC<TileProps> = ({
+  tile,
+  selectedTileId,
+  selectedWorkerId,
+  nations,
+  transportNetwork
+}) => {
+  // Store selectors (only for actions and map reference)
   const selectWorker = useGameStore((s) => s.selectWorker);
-  const nations = useGameStore((s) => s.nations);
   const map = useGameStore((s) => s.map);
-  const transportNetwork = useGameStore((s) => s.transportNetwork);
 
   // Get selected worker
   const { worker: selectedWorker } = useGameStore(selectSelectedWorkerAndTile);
@@ -118,3 +131,6 @@ export const TileComponent: React.FC<TileProps> = ({ tile }) => {
     </TileBase>
   );
 };
+
+export const TileComponent = React.memo(TileComponentInner);
+TileComponent.displayName = 'TileComponent';

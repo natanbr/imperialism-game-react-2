@@ -11,7 +11,7 @@ export interface MapSlice {
 }
 
 export const createMapSlice: StateCreator<GameState, [], [], MapSlice> = (set) => {
-  const { map, nations } = initWorld({ cols: 5, rows: 5 });
+  const { map, nations } = initWorld({ cols: 40, rows: 40 });
 
   // Initialize railroad networks eagerly at game start
   const railroadNetworks = initializeRailroadNetworks(map, nations as Nation[]);

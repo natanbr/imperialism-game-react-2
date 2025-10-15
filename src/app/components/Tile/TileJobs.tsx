@@ -12,7 +12,7 @@ export interface TileJobsProps {
 /**
  * Component to display job indicators on a tile
  */
-export const TileJobs: React.FC<TileJobsProps> = ({
+const TileJobsInner: React.FC<TileJobsProps> = ({
   prospecting,
   developmentJob,
   constructionJob,
@@ -37,3 +37,6 @@ export const TileJobs: React.FC<TileJobsProps> = ({
     </>
   );
 };
+
+export const TileJobs = React.memo(TileJobsInner);
+TileJobs.displayName = 'TileJobs';

@@ -17,7 +17,7 @@ export interface TileBaseProps {
 /**
  * Base tile component that renders the terrain background and border
  */
-export const TileBase: React.FC<TileBaseProps> = ({
+const TileBaseInner: React.FC<TileBaseProps> = ({
   terrain,
   hasRiver,
   backgroundColor,
@@ -46,3 +46,6 @@ export const TileBase: React.FC<TileBaseProps> = ({
     </div>
   );
 };
+
+export const TileBase = React.memo(TileBaseInner);
+TileBase.displayName = 'TileBase';

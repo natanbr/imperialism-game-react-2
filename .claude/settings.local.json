@@ -14,7 +14,9 @@
       "Bash(git merge:*)",
       "Bash(git push:*)",
       "Bash(git add:*)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(npm run test:e2e:*)",
+      "Bash(npm run:*)"
     ],
     "deny": [],
     "ask": []

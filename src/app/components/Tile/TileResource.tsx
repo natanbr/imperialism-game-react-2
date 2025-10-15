@@ -10,7 +10,7 @@ export interface TileResourceProps {
 /**
  * Component to display resource information on a tile
  */
-export const TileResource: React.FC<TileResourceProps> = ({ resource }) => {
+const TileResourceInner: React.FC<TileResourceProps> = ({ resource }) => {
   const icon = resource.discovered ? RESOURCE_ICONS[resource.type] : '';
 
   return (
@@ -26,3 +26,6 @@ export const TileResource: React.FC<TileResourceProps> = ({ resource }) => {
     </div>
   );
 };
+
+export const TileResource = React.memo(TileResourceInner);
+TileResource.displayName = 'TileResource';
