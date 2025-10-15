@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { initWorld } from '@/testing/worldInit';
 import { GameState } from '@/types/GameState';
 import { TerrainType } from '@/types/Tile';
-import { Worker, WorkerType } from '@/types/Workers';
+import { Worker, WorkerType, WorkerStatus } from '@/types/Workers';
 import { startProspectingHelper, startDevelopmentHelper, startConstructionHelper } from '@/store/helpers/workerHelpers';
 import { PROSPECT_COST, DEVELOPMENT_COST, CONSTRUCTION_COST } from '@/definisions/workPrices';
 
@@ -26,7 +26,7 @@ function makeBaseState(): GameState {
     tradePolicies: [],
     grants: [],
     map,
-    transportNetwork: { railroads: [], shippingLanes: [], capacity: 0 },
+    transportNetwork: { shippingLanes: [], capacity: 0 },
     tradeRoutes: [],
     technologyState: { technologies: [], oilDrillingTechUnlocked: false },
     newsLog: [],
@@ -41,7 +41,7 @@ describe('work prices - immediate treasury deduction on job start', () => {
     const mountains = state.map.tiles.flat().find(t => t.terrain === TerrainType.Mountains)!;
 
     // Place a prospector on the mountains tile
-    const prospector: Worker = { id: 'w-pros', type: WorkerType.Prospector, nationId: 'nation-1', assignedTileId: mountains.id, efficiency: 100 };
+    const prospector: Worker = { id: 'w-pros', type: WorkerType.Prospector, nationId: 'nation-1', assignedTileId: mountains.id, efficiency: 100, status: WorkerStatus.Available, justMoved: false };
     const [mx, my] = [mountains.x, mountains.y];
     state.map.tiles[my][mx] = { ...mountains, workers: [...mountains.workers, prospector] };
 
@@ -60,13 +60,13 @@ describe('work prices - immediate treasury deduction on job start', () => {
     const farm = state.map.tiles.flat().find(t => t.terrain === TerrainType.Farm)!;
 
     // Place a farmer on the farm tile
-    const farmer: Worker = { id: 'w-farmer', type: WorkerType.Farmer, nationId: 'nation-1', assignedTileId: farm.id, efficiency: 100 };
+    const farmer: Worker = { id: 'w-farmer', type: WorkerType.Farmer, nationId: 'nation-1', assignedTileId: farm.id, efficiency: 100, status: WorkerStatus.Available, justMoved: false };
     const [fx, fy] = [farm.x, farm.y];
     state.map.tiles[fy][fx] = { ...farm, workers: [...farm.workers, farmer] };
 
     const before = state.nations.find(n => n.id === 'nation-1')!.treasury ?? 0;
 
-    const s2 = startDevelopmentHelper(state, farm.id, farmer.id, farmer.type, 1);
+    const s2 = startDevelopmentHelper(state, farm.id, farmer.id, farmer.type);
 
     const after = s2.nations.find(n => n.id === 'nation-1')!.treasury ?? 0;
     expect(after).toBe(before - DEVELOPMENT_COST[1]);
@@ -81,7 +81,7 @@ describe('work prices - immediate treasury deduction on job start', () => {
     const land = state.map.tiles.flat().find(t => t.terrain !== TerrainType.Water && t.terrain !== TerrainType.River)!;
 
     // Place an engineer on the land tile
-    const engineer: Worker = { id: 'w-eng', type: WorkerType.Engineer, nationId: 'nation-1', assignedTileId: land.id, efficiency: 100 };
+    const engineer: Worker = { id: 'w-eng', type: WorkerType.Engineer, nationId: 'nation-1', assignedTileId: land.id, efficiency: 100, status: WorkerStatus.Available, justMoved: false };
     const [lx, ly] = [land.x, land.y];
     state.map.tiles[ly][lx] = { ...land, workers: [...land.workers, engineer] };
 

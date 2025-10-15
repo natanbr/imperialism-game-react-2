@@ -32,7 +32,7 @@ describe('developmentSystem', () => {
     map,
     transportNetwork: { shippingLanes: [], capacity: 0 },
     tradeRoutes: [],
-    technologyState: { researching: {}, advances: {} },
+    technologyState: { oilDrillingTechUnlocked: false, technologies: [] },
     newsLog: [],
     turnOrder: { phases: [
       'diplomacy','trade','production','combat','interceptions','logistics'

@@ -18,7 +18,7 @@ function createState(): GameState {
     cities: [], armies: [], fleets: [],
     relations: [], treaties: [], tradePolicies: [], grants: [],
     map,
-    transportNetwork: { railroads: [], shippingLanes: [], capacity: 0 },
+    transportNetwork: { shippingLanes: [], capacity: 0 },
     tradeRoutes: [],
     technologyState: { technologies: [], oilDrillingTechUnlocked: false },
     newsLog: [],

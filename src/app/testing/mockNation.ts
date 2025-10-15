@@ -34,7 +34,11 @@ export const mockNations: Nation[] = [
       timber: 50
     } as Record<string, number>,
     transportCapacity: 10,
-    industry: {} as Record<string, number>
+    industry: {
+      buildings: [],
+      workers: { untrained: 0, trained: 0, expert: 0 },
+      power: { total: 0, available: 0, electricity: 0 }
+    }
   },
   {
     id: "nation-2",
@@ -60,7 +64,11 @@ export const mockNations: Nation[] = [
       coal: 30
     } as Record<string, number>,
     transportCapacity: 8,
-    industry: {} as Record<string, number>
+    industry: {
+      buildings: [],
+      workers: { untrained: 0, trained: 0, expert: 0 },
+      power: { total: 0, available: 0, electricity: 0 }
+    }
   },
   {
     id: "nation-3",
@@ -86,7 +94,11 @@ export const mockNations: Nation[] = [
       wool: 40
     } as Record<string, number>,
     transportCapacity: 9,
-    industry: {} as Record<string, number>
+    industry: {
+      buildings: [],
+      workers: { untrained: 0, trained: 0, expert: 0 },
+      power: { total: 0, available: 0, electricity: 0 }
+    }
   }
 ];
 
