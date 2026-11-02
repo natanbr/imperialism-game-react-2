@@ -17,18 +17,21 @@ export interface DevelopmentWorkerConfig {
 }
 
 /**
- * Generic function to start development work for any worker type
+ * Generic function to start development work for any worker type.
+ * The returned function starts `workerId` only; without an id, every available worker of the type.
  */
 export function createStartDevelopmentWork(config: DevelopmentWorkerConfig) {
   const { workerType, jobDescriptionPrefix } = config;
 
-  return function startWork(state: GameState): GameState {
+  return function startWork(state: GameState, workerId?: string): GameState {
     let updated = false;
     const ledger = createTreasuryLedger(state);
     const newTiles = state.map.tiles.map(row =>
       row.map(tile => {
         if (!tile.workers) return tile;
-        const worker = tile.workers.find(w => w.type === workerType && w.status === WorkerStatus.Available);
+        const worker = tile.workers.find(w =>
+          w.type === workerType && w.status === WorkerStatus.Available && (workerId === undefined || w.id === workerId)
+        );
         if (!worker) return tile;
         if (!tile.resource) return tile;
         // Check if resource is discovered (for minerals/oil that start hidden)

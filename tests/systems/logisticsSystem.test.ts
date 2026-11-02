@@ -7,6 +7,7 @@ import { TerrainType } from '@/types/Tile';
 import { initializeRailroadNetworks, addRailroad, addDepot } from '@/systems/railroadSystem';
 import { transportConnectivitySystem } from '@/systems/transportConnectivitySystem';
 import { Nation } from '@/types/Nation';
+import { GOLD_CASH_PER_UNIT } from '@/definisions/cashValues';
 
 function baseState(): GameState {
   const { map, nations } = initWorld({ cols: 5, rows: 5 });
@@ -82,8 +83,8 @@ describe('logisticsSystem', () => {
     const n2 = s2.nations.find(n => n.id === nationId)!;
     const originalNation = s1.nations.find(n => n.id === nationId)!;
 
-    // Treasury increases by gold (2 * $200)
-    expect(n2.treasury).toBeGreaterThanOrEqual((originalNation.treasury ?? 0) + 200);
+    // Treasury increases by exactly the allocated gold (2 units x GOLD_CASH_PER_UNIT)
+    expect(n2.treasury).toBe((originalNation.treasury ?? 0) + 2 * GOLD_CASH_PER_UNIT);
     // Warehouse grain increased
     expect((n2.warehouse[ResourceType.Grain] ?? 0)).toBeGreaterThanOrEqual((originalNation.warehouse[ResourceType.Grain] ?? 0));
   });

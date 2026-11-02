@@ -19,13 +19,16 @@ const terrainMap: Record<WorkerType, TerrainType[]> = {
   [WorkerType.Developer]: [],
 };
 
-export function startDeveloperWork(state: GameState): GameState {
+/** Starts development for `workerId` only; without an id, for every available developer. */
+export function startDeveloperWork(state: GameState, workerId?: string): GameState {
   let updated = false;
   const ledger = createTreasuryLedger(state);
   const newTiles = state.map.tiles.map(row =>
     row.map(tile => {
       if (!tile.workers) return tile;
-      const worker = tile.workers.find(w => w.type === WorkerType.Developer && w.status === WorkerStatus.Available);
+      const worker = tile.workers.find(w =>
+        w.type === WorkerType.Developer && w.status === WorkerStatus.Available && (workerId === undefined || w.id === workerId)
+      );
       if (!worker) return tile;
       if (!tile.resource) return tile;
       const targetLevel = (tile.resource.level || 0) + 1;

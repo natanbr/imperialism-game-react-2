@@ -27,25 +27,6 @@ export const TIME_CONFIG = {
 } as const;
 
 /**
- * Resource monetary values
- */
-export const RESOURCE_VALUES: Record<ResourceType, number> = {
-  [ResourceType.Grain]: 10,
-  [ResourceType.Livestock]: 20,
-  [ResourceType.Fish]: 15,
-  [ResourceType.Fruit]: 12,
-  [ResourceType.Timber]: 25,
-  [ResourceType.Cotton]: 30,
-  [ResourceType.Wool]: 35,
-  [ResourceType.Horses]: 40,
-  [ResourceType.Coal]: 40,
-  [ResourceType.IronOre]: 50,
-  [ResourceType.Gold]: 100,
-  [ResourceType.Gems]: 1000,
-  [ResourceType.Oil]: 75,
-} as const;
-
-/**
  * Worker type icons
  */
 export const WORKER_ICONS: Record<WorkerType, string> = {

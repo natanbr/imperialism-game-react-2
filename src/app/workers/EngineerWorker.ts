@@ -8,13 +8,19 @@ import { TerrainType, Tile } from "../types/Tile";
 import { Worker, WorkerStatus } from "../types/Workers";
 import { PossibleAction } from "../types/actions";
 
-export function startEngineerWork(state: GameState): GameState {
+/**
+ * Starts construction for `workerId` only (without an id, for every available engineer),
+ * picking the kind automatically. To build a chosen kind, use startConstructionHelper.
+ */
+export function startEngineerWork(state: GameState, workerId?: string): GameState {
   let updated = false;
   const ledger = createTreasuryLedger(state);
   const newTiles = state.map.tiles.map(row =>
     row.map(tile => {
       if (!tile.workers) return tile;
-      const worker = tile.workers.find(w => w.type === "engineer" && w.status === WorkerStatus.Available);
+      const worker = tile.workers.find(w =>
+        w.type === "engineer" && w.status === WorkerStatus.Available && (workerId === undefined || w.id === workerId)
+      );
       if (!worker) return tile;
       if (tile.constructionJob) return tile;
       let kind: "depot" | "port" | "fort" | "rail" | undefined;
@@ -61,7 +67,9 @@ export function getEngineerActions(tile: Tile, map: GameMap, worker: Worker): Po
 
 /**
  * Handles engineer-specific movement logic.
- * If moving to an adjacent tile where rail can be built, automatically starts rail construction.
+ * If moving to an adjacent tile where rail can be built, automatically starts rail construction
+ * and charges its price; if the nation cannot afford it, returns the unchanged state so the
+ * move is refused rather than made for free.
  * Otherwise, returns null to indicate normal movement should be used.
  */
 export function handleEngineerMovement(
@@ -75,6 +83,9 @@ export function handleEngineerMovement(
 
   // If moving to adjacent tile and can build rail, handle it specially
   if (isAdjacent && canBuildRail) {
+    const ledger = createTreasuryLedger(state);
+    if (!ledger.tryCharge(worker.nationId, CONSTRUCTION_COST.rail)) return state;
+
     const durationTurns = EngineerBuildDurationsTurns.rail || 1;
     const startedOnTurn = state.turn;
 
@@ -110,7 +121,7 @@ export function handleEngineerMovement(
       })
     );
 
-    return { ...state, map: { ...state.map, tiles: newTilesStep2 } };
+    return { ...state, nations: ledger.nationsAfterCharges(), map: { ...state.map, tiles: newTilesStep2 } };
   }
 
   // Return null to indicate normal movement should be used

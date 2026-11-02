@@ -7,13 +7,16 @@ import { PROSPECT_COST } from "../definisions/workPrices";
 import { createTreasuryLedger } from "../store/helpers/treasuryHelpers";
 import { PROSPECTABLE_TERRAIN_TYPES } from "../definisions/terrainDefinitions";
 
-export function startProspectorWork(state: GameState): GameState {
+/** Starts prospecting for `workerId` only; without an id, for every available prospector. */
+export function startProspectorWork(state: GameState, workerId?: string): GameState {
   let updated = false;
   const ledger = createTreasuryLedger(state);
   const newTiles = state.map.tiles.map(row =>
     row.map(tile => {
       if (!tile.workers) return tile;
-      const worker = tile.workers.find(w => w.type === "prospector" && w.status === WorkerStatus.Available);
+      const worker = tile.workers.find(w =>
+        w.type === "prospector" && w.status === WorkerStatus.Available && (workerId === undefined || w.id === workerId)
+      );
       if (!worker) return tile;
       if (!tile.resource || tile.resource.discovered) return tile;
       if (tile.prospecting) return tile;
