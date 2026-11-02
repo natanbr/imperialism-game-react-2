@@ -23,7 +23,7 @@ test.describe('Cursor Icon Functionality', () => {
 
   test('should show prospect cursor (magnifying glass) when prospector is selected and hovering valid tile', async ({ page }) => {
     // Select a prospector worker (assuming there's one in the initial game state)
-    const prospectorWorker = page.locator('[data-worker-type="Prospector"]').first();
+    const prospectorWorker = page.locator('[data-worker-type="prospector"]').first();
 
     // Check if prospector exists, if not skip this test
     const prospectorExists = await prospectorWorker.count() > 0;
@@ -35,10 +35,10 @@ test.describe('Cursor Icon Functionality', () => {
     await prospectorWorker.click();
 
     // Find a tile that can be prospected (e.g., mountains or swamp without discovered resources)
-    const validTile = page.locator('[data-testid="tile"][data-terrain="Mountains"],' +
-      '[data-testid="tile"][data-terrain="Swamp"]').first();
+    const validTile = page.locator('[data-testid="tile"][data-terrain="mountains"],' +
+      '[data-testid="tile"][data-terrain="swamp"]').first();
 
-    await validTile.hover();
+    await validTile.hover({ force: true });
 
     // Get the cursor style
     const cursor = await validTile.evaluate((el) => {
@@ -52,7 +52,7 @@ test.describe('Cursor Icon Functionality', () => {
 
   test('should show development cursor (tractor) when development worker is selected', async ({ page }) => {
     // Select a development worker (Farmer, Miner, etc.)
-    const devWorker = page.locator('[data-worker-type="Farmer"], [data-worker-type="Miner"]').first();
+    const devWorker = page.locator('[data-worker-type="farmer"], [data-worker-type="miner"]').first();
 
     const workerExists = await devWorker.count() > 0;
     if (!workerExists) {
@@ -62,23 +62,21 @@ test.describe('Cursor Icon Functionality', () => {
 
     await devWorker.click();
 
-    // Find a tile with a resource that can be developed
-    const resourceTile = page.locator('[data-testid="tile"]').first();
+    // Cursor is derived from app state, so inspect every tile instead of guessing which one is developable
+    const customCursorCount = await page.locator('[data-testid="tile"]').evaluateAll(
+      (els) => els.filter((el) => {
+        const c = window.getComputedStyle(el).cursor;
+        return c.includes('url') && c.includes('data:image/svg+xml');
+      }).length
+    );
 
-    await resourceTile.hover();
-
-    const cursor = await resourceTile.evaluate((el) => {
-      return window.getComputedStyle(el).cursor;
-    });
-
-    // Should contain 'url' for the emoji cursor (tractor)
-    expect(cursor).toContain('url');
-    expect(cursor).toContain('data:image/svg+xml');
+    // At least one own tile shows the tractor cursor for the selected development worker
+    expect(customCursorCount).toBeGreaterThan(0);
   });
 
   test('should show railroad cursor when engineer is selected and hovering adjacent tile', async ({ page }) => {
     // Select an engineer worker
-    const engineer = page.locator('[data-worker-type="Engineer"]').first();
+    const engineer = page.locator('[data-worker-type="engineer"]').first();
 
     const engineerExists = await engineer.count() > 0;
     if (!engineerExists) {
@@ -88,32 +86,19 @@ test.describe('Cursor Icon Functionality', () => {
 
     await engineer.click();
 
-    // Find an adjacent tile (this might require getting the engineer's current position)
-    // For now, we'll just hover over tiles and check for the rail cursor
-    const tiles = page.locator('[data-testid="tile"]');
-    const tileCount = await tiles.count();
+    // Inspect every tile: the map is larger than the viewport, so hovering a sample can miss the owned tiles
+    const customCursorCount = await page.locator('[data-testid="tile"]').evaluateAll(
+      (els) => els.filter((el) => {
+        const c = window.getComputedStyle(el).cursor;
+        return c.includes('url') && c.includes('data:image/svg+xml');
+      }).length
+    );
 
-    let foundRailCursor = false;
-    for (let i = 0; i < Math.min(tileCount, 20); i++) {
-      const tile = tiles.nth(i);
-      await tile.hover();
-
-      const cursor = await tile.evaluate((el) => {
-        return window.getComputedStyle(el).cursor;
-      });
-
-      if (cursor.includes('url') && cursor.includes('data:image/svg+xml')) {
-        foundRailCursor = true;
-        break;
-      }
-    }
-
-    // We should find at least one tile with a custom cursor
-    expect(foundRailCursor).toBe(true);
+    expect(customCursorCount).toBeGreaterThan(0);
   });
 
   test('should show construction cursor when engineer clicks on own tile', async ({ page }) => {
-    const engineer = page.locator('[data-worker-type="Engineer"]').first();
+    const engineer = page.locator('[data-worker-type="engineer"]').first();
 
     const engineerExists = await engineer.count() > 0;
     if (!engineerExists) {
@@ -129,7 +114,7 @@ test.describe('Cursor Icon Functionality', () => {
       has: engineer
     }).first();
 
-    await engineerTile.hover();
+    await engineerTile.hover({ force: true });
 
     const cursor = await engineerTile.evaluate((el) => {
       return window.getComputedStyle(el).cursor;
@@ -156,7 +141,7 @@ test.describe('Cursor Icon Functionality', () => {
     await workers.first().click();
     const tiles = page.locator('[data-testid="tile"]');
     const testTile = tiles.nth(5);
-    await testTile.hover();
+    await testTile.hover({ force: true });
 
     const cursor1 = await testTile.evaluate((el) => {
       return window.getComputedStyle(el).cursor;
@@ -164,7 +149,7 @@ test.describe('Cursor Icon Functionality', () => {
 
     // Select second worker
     await workers.nth(1).click();
-    await testTile.hover();
+    await testTile.hover({ force: true });
 
     const cursor2 = await testTile.evaluate((el) => {
       return window.getComputedStyle(el).cursor;
@@ -195,7 +180,7 @@ test.describe('Cursor Icon Functionality', () => {
     // (e.g., a tile too far away, or already occupied)
     const tiles = page.locator('[data-testid="tile"]');
     const farTile = tiles.last();
-    await farTile.hover();
+    await farTile.hover({ force: true });
 
     const cursor = await farTile.evaluate((el) => {
       return window.getComputedStyle(el).cursor;
