@@ -3,6 +3,8 @@ import { GameState } from "@/types/GameState";
 import { TerrainType, Tile } from "@/types/Tile";
 import { Worker, WorkerStatus, WorkerType } from "@/types/Workers";
 import { parseTileIdToArray } from "@/utils/tileIdUtils";
+import { CONSTRUCTION_COST } from "@/definisions/workPrices";
+import { createTreasuryLedger } from "./treasuryHelpers";
 import { startDeveloperWork } from '../../workers/DeveloperWorker';
 import { startEngineerWork } from '../../workers/EngineerWorker';
 import { moveWorker } from '../../workers/moveWorker';
@@ -162,6 +164,9 @@ export function startConstructionHelper(state: GameState, tileId: string, worker
   if (!worker) return state;
   if (worker.status !== WorkerStatus.Available) return state;
 
+  const ledger = createTreasuryLedger(state);
+  if (!ledger.tryCharge(worker.nationId, CONSTRUCTION_COST[kind])) return state;
+
   // Build the specified construction
   const durationTurns = EngineerBuildDurationsTurns[kind] || 1;
   const startedOnTurn = state.turn;
@@ -183,7 +188,7 @@ export function startConstructionHelper(state: GameState, tileId: string, worker
     })
   );
 
-  return { ...state, map: { ...state.map, tiles: newTiles } };
+  return { ...state, nations: ledger.nationsAfterCharges(), map: { ...state.map, tiles: newTiles } };
 }
 
 export const cancelActionHelper = (state: GameState, tileId: string, workerId: string): GameState => {

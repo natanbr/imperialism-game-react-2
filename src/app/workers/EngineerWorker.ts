@@ -1,5 +1,7 @@
 import { EngineerBuildDurationsTurns } from "../definisions/workerDurations";
 import { areTilesAdjacent, canBuildRailAt } from "../store/helpers/mapHelpers";
+import { CONSTRUCTION_COST } from "../definisions/workPrices";
+import { createTreasuryLedger } from "../store/helpers/treasuryHelpers";
 import { GameState } from "../types/GameState";
 import { GameMap } from "../types/Map";
 import { TerrainType, Tile } from "../types/Tile";
@@ -8,6 +10,7 @@ import { PossibleAction } from "../types/actions";
 
 export function startEngineerWork(state: GameState): GameState {
   let updated = false;
+  const ledger = createTreasuryLedger(state);
   const newTiles = state.map.tiles.map(row =>
     row.map(tile => {
       if (!tile.workers) return tile;
@@ -20,6 +23,7 @@ export function startEngineerWork(state: GameState): GameState {
       else if ((tile.fortLevel ?? 0) < 3) kind = "fort";
       else if (canBuildRailAt(state.map, tile.x, tile.y, worker.nationId)) kind = "rail";
       if (!kind) return tile;
+      if (!ledger.tryCharge(worker.nationId, CONSTRUCTION_COST[kind])) return tile;
       const durationTurns = EngineerBuildDurationsTurns[kind] || 1;
       const startedOnTurn = state.turn;
       updated = true;
@@ -34,7 +38,7 @@ export function startEngineerWork(state: GameState): GameState {
       };
     })
   );
-  return updated ? { ...state, map: { ...state.map, tiles: newTiles } } : state;
+  return updated ? { ...state, nations: ledger.nationsAfterCharges(), map: { ...state.map, tiles: newTiles } } : state;
 }
 
 export function getEngineerActions(tile: Tile, map: GameMap, worker: Worker): PossibleAction | null {

@@ -4,6 +4,8 @@ import {Worker, WorkerStatus, WorkerType} from "@/types/Workers";
 import {GameMap} from "@/types/Map";
 import {PossibleAction} from "@/types/actions";
 import {WorkerLevelDurationsTurns} from "@/definisions/workerDurations";
+import {DEVELOPMENT_COST} from "@/definisions/workPrices";
+import {createTreasuryLedger} from "@/store/helpers/treasuryHelpers";
 
 /**
  * Configuration for a development worker type
@@ -22,6 +24,7 @@ export function createStartDevelopmentWork(config: DevelopmentWorkerConfig) {
 
   return function startWork(state: GameState): GameState {
     let updated = false;
+    const ledger = createTreasuryLedger(state);
     const newTiles = state.map.tiles.map(row =>
       row.map(tile => {
         if (!tile.workers) return tile;
@@ -33,6 +36,7 @@ export function createStartDevelopmentWork(config: DevelopmentWorkerConfig) {
         const targetLevel = (tile.resource.level || 0) + 1;
         if (targetLevel > 3) return tile;
         if (tile.developmentJob) return tile;
+        if (!ledger.tryCharge(worker.nationId, DEVELOPMENT_COST[targetLevel as 1 | 2 | 3])) return tile;
         const durationTurns = WorkerLevelDurationsTurns[workerType]?.[targetLevel as 1 | 2 | 3] || 1;
         const newJob = {
           workerId: worker.id,
@@ -53,7 +57,7 @@ export function createStartDevelopmentWork(config: DevelopmentWorkerConfig) {
         };
       })
     );
-    return updated ? { ...state, map: { ...state.map, tiles: newTiles } } : state;
+    return updated ? { ...state, nations: ledger.nationsAfterCharges(), map: { ...state.map, tiles: newTiles } } : state;
   };
 }
 
