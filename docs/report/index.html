@@ -1,0 +1,208 @@
+<title>Imperialism Revival Roadmap</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&family=Playfair+Display:wght@600;700&display=swap">
+<style>
+  /* Layout: one centred column, overview first, detail behind a tab. Data comes from roadmap.json beside this file.
+     Palette: map-paper neutrals with an imperial green accent and a brass highlight. */
+  :root {
+    --bg: #f5f4ef; --surface: #ffffff; --hover: #ecebe4; --line: #e0ded4; --control-line: #8a887c;
+    --ink: #1f2420; --muted: #5d6259;
+    --accent: #1f5c46; --accent-hover: #174636; --accent-soft: #e6f0eb; --on-accent: #ffffff;
+    --brass: #8a6416;
+    --ok: #0e6242; --ok-soft: #e5f3eb; --warn: #6f4a00; --warn-soft: #fbf2de;
+    --bad: #a8231b; --bad-soft: #fbeae8; --hi: #963a0c; --hi-soft: #fceee5;
+    --font: "Source Sans 3", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --heading: "Playfair Display", Georgia, "Times New Roman", serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --radius: 10px; --pill: 999px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121612; --surface: #1a201b; --hover: #222a23; --line: #333d34; --control-line: #8d978c;
+      --ink: #e9ece6; --muted: #aeb6ab;
+      --accent: #7fc7a6; --accent-hover: #9dd8bc; --accent-soft: #1d3329; --on-accent: #121612;
+      --brass: #e0b35a;
+      --ok: #6ccb9a; --ok-soft: #153327; --warn: #e3b45a; --warn-soft: #3a2e14;
+      --bad: #f27c74; --bad-soft: #3f1a1b; --hi: #f0956a; --hi-soft: #3d2115;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #121612; --surface: #1a201b; --hover: #222a23; --line: #333d34; --control-line: #8d978c;
+    --ink: #e9ece6; --muted: #aeb6ab;
+    --accent: #7fc7a6; --accent-hover: #9dd8bc; --accent-soft: #1d3329; --on-accent: #121612;
+    --brass: #e0b35a;
+    --ok: #6ccb9a; --ok-soft: #153327; --warn: #e3b45a; --warn-soft: #3a2e14;
+    --bad: #f27c74; --bad-soft: #3f1a1b; --hi: #f0956a; --hi-soft: #3d2115;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 15px; line-height: 1.55;
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0 56px; }
+  .wrap { max-width: 1040px; margin: 0 auto; }
+  h1, h2, h3 { font-family: var(--heading); font-weight: 700; text-wrap: balance; margin: 0; }
+  h1 { font-size: 28px; line-height: 1.2; }
+  h2 { font-size: 19px; margin-block: 28px 10px; }
+  h3 { font-size: 16px; font-family: var(--font); font-weight: 700; }
+  p { margin: 0; }
+  a { color: var(--accent); } a:hover { color: var(--accent-hover); }
+  .mono { font-family: var(--mono); font-size: 12px; }
+  .muted { color: var(--muted); } .small { font-size: 13px; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+  header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; padding-block: 28px 16px; border-bottom: 2px solid var(--brass); }
+  .eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--brass); font-weight: 700; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px 20px; color: var(--muted); font-size: 13px; }
+  .meta strong { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .tabs { display: flex; gap: 6px; margin-block: 16px 8px; border-bottom: 1px solid var(--line); }
+  .tab { appearance: none; background: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; padding: 8px 12px; font: inherit; font-weight: 600; color: var(--muted); cursor: pointer; }
+  .tab:hover { color: var(--ink); background: var(--hover); border-radius: 6px 6px 0 0; }
+  .tab[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+  .lead { max-width: 72ch; font-size: 16px; margin-block: 14px 4px; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: var(--pill); font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .s-done { background: var(--ok-soft); color: var(--ok); } .s-progress { background: var(--warn-soft); color: var(--warn); }
+  .s-blocked { background: var(--bad-soft); color: var(--bad); } .s-todo { background: var(--hover); color: var(--muted); }
+  .s-deferred { background: var(--accent-soft); color: var(--accent); } .s-review { background: var(--hi-soft); color: var(--hi); }
+  .strip { display: flex; flex-wrap: wrap; gap: 8px; margin-block: 14px 4px; }
+  .milestones { display: grid; gap: 10px; margin-top: 10px; }
+  .ms { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 16px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+  .ms .top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-width: 0; }
+  .ms .date { color: var(--muted); font-size: 13px; white-space: nowrap; }
+  .ms .note { grid-column: 1 / -1; color: var(--muted); max-width: 80ch; }
+  .bar { grid-column: 1 / -1; height: 6px; border-radius: var(--pill); background: var(--hover); overflow: hidden; }
+  .bar > span { display: block; height: 100%; background: var(--accent); border-radius: var(--pill); }
+  .bar.done > span { background: var(--ok); } .bar.blocked > span { background: var(--bad); }
+  .two { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+  .plain-list { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 6px; }
+  .plain-list b { font-weight: 600; }
+  .tier { margin-top: 26px; }
+  .tier-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; margin-bottom: 10px; }
+  .items { display: grid; gap: 8px; }
+  details.item { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); scroll-margin-top: 16px; }
+  details.item > summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px 12px; padding: 12px 14px; }
+  details.item > summary::-webkit-details-marker { display: none; }
+  details.item > summary:hover { background: var(--hover); border-radius: var(--radius); }
+  details.item[open] > summary { border-bottom: 1px solid var(--line); border-radius: var(--radius) var(--radius) 0 0; }
+  .item-id { color: var(--muted); } .item-title { font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+  .item-right { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 6px 10px; color: var(--muted); font-size: 12px; }
+  .item-body { padding: 12px 14px 14px; display: grid; gap: 12px; }
+  .tasks { margin: 0; padding: 0; list-style: none; display: grid; gap: 5px; }
+  .tasks li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 10px; align-items: start; }
+  .box { width: 16px; height: 16px; margin-top: 3px; border: 1.5px solid var(--control-line); border-radius: 4px; display: inline-grid; place-items: center; font-size: 11px; line-height: 1; }
+  .box.on { background: var(--ok); border-color: var(--ok); color: var(--on-accent); } .box.on::after { content: "\2713"; }
+  .tasks li.done { color: var(--muted); }
+  .kv { display: grid; grid-template-columns: 7.5em minmax(0, 1fr); gap: 4px 14px; font-size: 13px; }
+  .kv dt { color: var(--muted); } .kv dd { margin: 0; overflow-wrap: anywhere; }
+  .pill.sm { font-size: 11px; padding: 0 8px; gap: 4px; } .pill.sm::before { width: 6px; height: 6px; }
+  .dq { display: grid; gap: 4px; padding: 10px 12px; border: 1px solid var(--line); border-left: 3px solid var(--brass); border-radius: 8px; background: var(--hover); font-size: 13px; }
+  .dq.done { border-left-color: var(--ok); background: var(--bg); }
+  .dq b { font-weight: 600; } .dq-count { color: var(--brass); font-weight: 700; }
+  .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+  tr:last-child td { border-bottom: 0; } td:first-child { white-space: nowrap; font-weight: 600; }
+  .q { display: grid; gap: 8px; }
+  .q .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 4px; scroll-margin-top: 16px; }
+  .flash { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .notice { margin-top: 16px; padding: 12px 14px; border-radius: var(--radius); background: var(--hi-soft); color: var(--hi); }
+  footer { margin-top: 36px; color: var(--muted); font-size: 12px; }
+  @media (max-width: 560px) { .ms { grid-template-columns: 1fr; } details.item > summary { grid-template-columns: auto minmax(0, 1fr); } .item-right { grid-column: 1 / -1; justify-content: flex-start; } }
+  @media (prefers-reduced-motion: no-preference) { .bar > span { transition: width 400ms ease; } }
+</style>
+<div class="wrap">
+  <header>
+    <div><div class="eyebrow">Side project roadmap</div><h1 id="title">Imperialism Revival</h1></div>
+    <div class="meta"><span>Updated <strong id="updated">…</strong></span><span>Target <strong id="target">…</strong></span><span>Now <strong id="now">…</strong></span></div>
+  </header>
+  <div class="tabs" role="tablist" aria-label="Views">
+    <button class="tab" role="tab" id="tab-overview" aria-controls="overview" aria-selected="true" data-view="overview">Overview</button>
+    <button class="tab" role="tab" id="tab-detail" aria-controls="detail" aria-selected="false" data-view="detail">Detail</button>
+  </div>
+  <section id="overview" class="view" role="tabpanel" aria-labelledby="tab-overview">
+    <p class="lead" id="headline"></p>
+    <div class="strip" id="strip"></div>
+    <h2>Milestones</h2><div class="milestones" id="milestones"></div>
+    <div class="two"><div><h2>Blockers and risks</h2><ul class="plain-list" id="risks"></ul></div><div><h2>Next up</h2><ul class="plain-list" id="next"></ul></div></div>
+  </section>
+  <section id="detail" class="view" role="tabpanel" aria-labelledby="tab-detail" hidden>
+    <p class="lead muted">Work items in milestone order. Open one for its tasks, what it waits on, decisions it needs and the files it touches.</p>
+    <div id="tiers"></div>
+    <h2>What Nathan does, and when</h2>
+    <div class="table-wrap"><table><thead><tr><th>When</th><th>What</th><th>Why</th><th>Item</th></tr></thead><tbody id="needs"></tbody></table></div>
+    <h2>Decisions</h2><div class="q" id="decisions"></div>
+  </section>
+  <div class="notice" id="error" hidden></div>
+  <footer id="footer"></footer>
+</div>
+<script>
+  const STATUS = { 'done': { label: 'Done', cls: 's-done' }, 'in-progress': { label: 'In progress', cls: 's-progress' }, 'in-review': { label: 'In review', cls: 's-review' }, 'blocked': { label: 'Blocked', cls: 's-blocked' }, 'not-started': { label: 'Not started', cls: 's-todo' }, 'deferred': { label: 'After v1', cls: 's-deferred' }, 'open': { label: 'Open', cls: 's-progress' } };
+  const VIEWS = ['overview', 'detail'];
+  const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+  const h = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ESC[c]);
+  const pill = (s, size) => { const x = STATUS[s] || { label: s, cls: 's-todo' }; return `<span class="pill ${x.cls}${size ? ' ' + size : ''}">${h(x.label)}</span>`; };
+  function showView(name) { const view = VIEWS.includes(name) ? name : 'overview'; for (const v of VIEWS) { document.getElementById(v).hidden = v !== view; document.getElementById('tab-' + v).setAttribute('aria-selected', String(v === view)); } }
+  for (const tab of document.querySelectorAll('.tab')) tab.addEventListener('click', () => { const v = tab.dataset.view; if (location.hash !== '#' + v) location.hash = v; else showView(v); });
+  const isAnchor = (n) => /^(item|q)-/.test(n) && document.getElementById(n) !== null;
+  function goTo(id) {
+    const t = document.getElementById(id); if (!t) return;
+    if (location.hash !== '#detail') location.hash = 'detail';
+    showView('detail'); if (t.tagName === 'DETAILS') t.open = true;
+    t.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: no-preference)').matches ? 'smooth' : 'auto', block: 'start' });
+    t.classList.add('flash'); setTimeout(() => t.classList.remove('flash'), 1600);
+  }
+  document.getElementById('detail').addEventListener('click', (e) => { const a = e.target.closest('a[data-goto]'); if (!a) return; e.preventDefault(); goTo(a.dataset.goto); });
+  addEventListener('hashchange', () => { const n = location.hash.slice(1); if (isAnchor(n)) goTo(n); else showView(n); });
+  const gotoLink = (t, l) => `<a class="mono" href="#${h(t)}" data-goto="${h(t)}">${h(l)}</a>`;
+  function renderOverview(o) {
+    document.getElementById('headline').textContent = o.headline;
+    const counts = {}; for (const m of o.milestones) counts[m.status] = (counts[m.status] || 0) + 1;
+    document.getElementById('strip').innerHTML = Object.keys(STATUS).filter((k) => counts[k]).map((k) => `<span class="pill ${STATUS[k].cls}">${counts[k]} ${h(STATUS[k].label.toLowerCase())}</span>`).join('');
+    document.getElementById('milestones').innerHTML = o.milestones.map((m) => {
+      const p = Math.max(0, Math.min(100, Number(m.progress) || 0));
+      const barCls = m.status === 'done' ? 'done' : m.status === 'blocked' ? 'blocked' : '';
+      return `<article class="ms"><div class="top">${pill(m.status)}<h3>${h(m.title)}</h3></div><div class="date">${h(m.date)}</div>
+        <div class="bar ${barCls}" role="progressbar" aria-valuenow="${p}" aria-valuemin="0" aria-valuemax="100" aria-label="${h(m.title)} progress"><span style="width:${p}%"></span></div><p class="note">${h(m.note)}</p></article>`;
+    }).join('');
+    document.getElementById('risks').innerHTML = o.risks.map((r) => `<li><b>${h(r.title)}.</b> ${h(r.text)}</li>`).join('');
+    document.getElementById('next').innerHTML = o.next.map((n) => `<li>${h(n)}</li>`).join('');
+  }
+  function renderDetail(d) {
+    const items = new Map(d.tiers.flatMap((t) => t.items).map((i) => [i.id, i]));
+    const qs = new Map(d.decisions.map((q) => [q.id, q]));
+    const isDone = (q) => q.status === 'done';
+    const decisionsFor = (id) => d.decisions.filter((q) => (q.items || []).includes(id)).sort((a, b) => Number(isDone(a)) - Number(isDone(b)));
+    const refHtml = (r) => { const it = items.get(r), q = qs.get(r); if (!it && !q) return h(r); return `<span style="white-space:nowrap">${gotoLink((it ? 'item-' : 'q-') + r, r)} ${pill((it || q).status, 'sm')}</span>`; };
+    const dq = (q) => `<div class="dq${isDone(q) ? ' done' : ''}"><div><span class="eyebrow">Decision for you · ${h(q.id)}</span> ${pill(q.status, 'sm')}</div><b>${h(q.title)}</b>${q.context ? `<p>${h(q.context)}</p>` : ''}${q.suggestion ? `<p class="muted">Suggestion: ${h(q.suggestion)}</p>` : ''}${isDone(q) && q.ruling ? `<p><b>Ruled:</b> ${h(q.ruling)}</p>` : ''}</div>`;
+    document.getElementById('tiers').innerHTML = d.tiers.map((t) => `<section class="tier"><div class="tier-head"><h2 style="margin:0">${h(t.title)}</h2><span class="muted small">${h(t.subtitle || '')}</span></div><div class="items">${t.items.map((it) => {
+      const tasks = it.tasks || []; const done = tasks.filter((x) => x.done).length; const ds = decisionsFor(it.id); const open = ds.filter((q) => !isDone(q)).length;
+      const taskList = tasks.length ? `<ul class="tasks">${tasks.map((x) => `<li class="${x.done ? 'done' : ''}"><span class="box ${x.done ? 'on' : ''}" aria-hidden="true"></span><span>${h(x.title)}</span></li>`).join('')}</ul>` : '';
+      const waits = it.blockedBy && it.blockedBy.length ? `<dl class="kv"><dt>Waits on</dt><dd>${it.blockedBy.map(refHtml).join(', ')}</dd></dl>` : '';
+      return `<details class="item" id="item-${h(it.id)}"><summary><span class="item-id mono">${h(it.id)}</span><span class="item-title">${h(it.title)}</span><span class="item-right">${open ? `<span class="dq-count">${open} open decision${open > 1 ? 's' : ''}</span>` : ''}${tasks.length ? `<span>${done}/${tasks.length} tasks</span>` : ''}${it.session ? `<span>${h(it.session)}</span>` : ''}${pill(it.status)}</span></summary>
+        <div class="item-body">${taskList}${waits}${ds.map(dq).join('')}
+        <dl class="kv"><dt>Done when</dt><dd>${h(it.doneWhen || '—')}</dd><dt>Evidence</dt><dd>${h(it.evidence || '—')}</dd><dt>Files touched</dt><dd class="mono">${h(it.hot || '—')}</dd></dl></div></details>`;
+    }).join('')}</div></section>`).join('');
+    document.getElementById('needs').innerHTML = d.needs.map((n) => `<tr><td>${h(n.when)}</td><td>${h(n.what)}</td><td class="muted">${h(n.why)}</td><td class="mono">${h(n.item)}</td></tr>`).join('');
+    document.getElementById('decisions').innerHTML = d.decisions.map((q) => `<div class="card" id="q-${h(q.id)}" tabindex="-1"><div><span class="mono muted">${h(q.id)}</span> &nbsp; ${pill(q.status)}</div><b>${h(q.title)}</b>${q.context ? `<span>${h(q.context)}</span>` : ''}${q.suggestion ? `<span class="muted">Suggestion: ${h(q.suggestion)}</span>` : ''}${isDone(q) && q.ruling ? `<span><b>Ruled:</b> ${h(q.ruling)}</span>` : ''}${(q.items || []).length ? `<span class="small muted">Items: ${q.items.map((i) => gotoLink('item-' + i, i)).join(', ')}</span>` : ''}</div>`).join('');
+  }
+  async function load() {
+    try {
+      const res = await fetch('roadmap.json', { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      document.getElementById('title').textContent = data.project;
+      document.getElementById('updated').textContent = data.updated;
+      document.getElementById('target').textContent = data.target;
+      document.getElementById('now').textContent = data.now;
+      renderOverview(data.overview); renderDetail(data.detail);
+      document.getElementById('footer').textContent = `Source of truth: ${data.source}. Sessions edit roadmap.json and republish this page.`;
+      if (isAnchor(location.hash.slice(1))) goTo(location.hash.slice(1));
+    } catch (err) {
+      const b = document.getElementById('error'); b.hidden = false;
+      b.textContent = 'The roadmap data (roadmap.json) could not be loaded: ' + err.message + '.';
+    }
+  }
+  showView(location.hash.slice(1)); load();
+</script>

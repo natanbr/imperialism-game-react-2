@@ -1,25 +1,11 @@
-You will be fixing a bug in this codebase:
+Fix this bug in the Imperialism revival: $ARGUMENTS
 
-$ARGUMENTS
-
-IMPORTANT:
-- Before you start, if there are any gaps or assumptions, verify with me and ask questions before proceeding with the implementation.
-- All code must follow clean code principles and industry-standard React best practices, with an emphasis on:
-    - Keeping files and functions small, modular, well-named and DRY to reduce future token usage.
-    - Prioritizing readability, maintainability, and testability and separation of concerns.
-    - Using functional components, hooks, and TypeScript where appropriate.
-
-## Prevent Code Duplication:
-**Before creating helper functions**: Use Grep to check if similar utility exists in `store/helpers/`, `utils/`, or related files. If found, export and reuse. If creating new, place in shared location and export immediately.
-
-## Additional Guidelines:
-- While fixing the bug and viewing related files, if you recognize any violations from the list above and that type of refactoring is outside of the scope of this bug (a bug fix scope should be limited only to the fix related files), update the @docs/REFACTORING_PLAN.md with your suggestions:
-    - Only add tasks that are not done yet
-    - Write a short description using blue color in the terminal output for easy visibility.
-    - Include a priority for each suggestion.
-    - Only analyze relevant files; do not read unrelated files for this task.
-    - In REFACTORING_PLAN.md, clearly mention that these suggestions were identified in the context of this bug fix and have to be properly explored before applying.
-- After implementation, ask me if I want to add unit tests and clarify which functionality to cover.
-- Take a quick look at @docs\manual.md to verify the fixed behaviour is documented correctly. 
-
-no need to ask for edit files permissions, you have the permissions to edit all files in workspace. 
+Read `docs/FLOW.md` (size S or M) and the "Resuming here" block of `docs/journal.md`.
+1. Reproduce with a failing test first. Paste the red summary into the journal.
+2. Find the root cause, not the symptom. If this bug happened before, explain in the journal
+   why it came back.
+3. Smallest fix inside the files the bug needs. Implementation on Opus 5.5 high (xhigh if it
+   touches the engine, store or turn loop); tests on Sonnet 5.5 high.
+4. Gate: `npm test`, `npm run lint`, `npx tsc --noEmit`, `npm run build`.
+5. Journal entry with the evidence table; commit on a branch; open a PR. Do not merge.
+Do not ask questions; record assumptions with `Objection:` in the journal.
