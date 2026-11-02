@@ -1,3 +1,4 @@
+import { GEMS_CASH_PER_UNIT, GOLD_CASH_PER_UNIT } from "@/definisions/cashValues";
 import { ResourceDevelopmentTable } from "@/definisions/ResourceDevelopment";
 import { GameState } from "@/types/GameState";
 import { GameMap } from "@/types/Map";
@@ -47,7 +48,7 @@ const getAllocatedResources = (
   return chosen;
 };
 
-const updateNationStateWithTransportedResources = (
+export const updateNationStateWithTransportedResources = (
   nation: Nation,
   transportedResources: Record<string, number>
 ): { warehouse: Record<string, number>; treasury: number } => {
@@ -56,9 +57,8 @@ const updateNationStateWithTransportedResources = (
 
   const goldUnits = transportedResources[ResourceType.Gold] ?? 0;
   const gemsUnits = transportedResources[ResourceType.Gems] ?? 0;
-  // gold = $100/unit, gems = $1000/unit
-  if (goldUnits > 0) treasury += goldUnits * 100;
-  if (gemsUnits > 0) treasury += gemsUnits * 1000;
+  if (goldUnits > 0) treasury += goldUnits * GOLD_CASH_PER_UNIT;
+  if (gemsUnits > 0) treasury += gemsUnits * GEMS_CASH_PER_UNIT;
 
   for (const [key, amt] of Object.entries(transportedResources)) {
     if (key === ResourceType.Gold || key === ResourceType.Gems) continue;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { logisticsSystem, computeLogisticsTransport } from '@/systems/logisticsSystem';
+import { logisticsSystem, computeLogisticsTransport, updateNationStateWithTransportedResources } from '@/systems/logisticsSystem';
 import { GameState } from '@/types/GameState';
 import { initWorld } from '@/testing/worldInit';
 import { ResourceType } from '@/types/Resource';
@@ -82,7 +82,7 @@ describe('logisticsSystem', () => {
     const n2 = s2.nations.find(n => n.id === nationId)!;
     const originalNation = s1.nations.find(n => n.id === nationId)!;
 
-    // Treasury increases by gold (2 * $100)
+    // Treasury increases by gold (2 * $200)
     expect(n2.treasury).toBeGreaterThanOrEqual((originalNation.treasury ?? 0) + 200);
     // Warehouse grain increased
     expect((n2.warehouse[ResourceType.Grain] ?? 0)).toBeGreaterThanOrEqual((originalNation.warehouse[ResourceType.Grain] ?? 0));
@@ -384,5 +384,16 @@ describe('logisticsSystem', () => {
 
     // Should not collect any resources since all adjacent tiles are owned by another nation
     expect(Object.keys(collected).length).toBe(0);
+  });
+});
+describe('gold and gems cash value', () => {
+  it('credits $200 per gold unit and $500 per gem unit and keeps them out of the warehouse', () => {
+    const nation = baseState().nations.find(n => n.id === 'nation-1')!;
+    const result = updateNationStateWithTransportedResources(nation, {
+      [ResourceType.Gold]: 3,
+      [ResourceType.Gems]: 2,
+    });
+    expect(result.treasury).toBe(nation.treasury + 3 * 200 + 2 * 500);
+    expect(result.warehouse).toEqual(nation.warehouse);
   });
 });
