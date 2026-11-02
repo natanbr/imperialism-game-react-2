@@ -1,0 +1,397 @@
+{
+  "project": "Imperialism Revival",
+  "updated": "2026-11-02",
+  "target": "v1 playable (M3)",
+  "now": "M0 cleanup + setup",
+  "source": "docs/REVIVAL_PLAN.md and docs/report/roadmap.json in the imperialism-game-react-2 repo",
+  "overview": {
+    "headline": "Plan approved on 2026-11-02. M0 cleanup runs in its own session; this session sets up the rules knowledge base, a light spec-driven flow and this page. No game feature has been built yet.",
+    "milestones": [
+      {
+        "title": "Setup: rules knowledge, light spec flow, progress page",
+        "status": "in-progress",
+        "progress": 70,
+        "date": "Nov 2026",
+        "note": "Flow, commands, CLAUDE.md, plan and this page done. Rules knowledge base still being written."
+      },
+      {
+        "title": "M0 Cleanup: dead code, old tool configs, 3 red tests",
+        "status": "in-progress",
+        "progress": 10,
+        "date": "Nov 2026",
+        "note": "Runs in session m0-cleanup. Ends as a PR against main."
+      },
+      {
+        "title": "M1 Headless core: orders, resolveTurn, seed, two-nation test",
+        "status": "not-started",
+        "progress": 0,
+        "date": "after M0",
+        "note": "The seam AI nations will plug into. Features frozen until it is green."
+      },
+      {
+        "title": "M2 Economic loop: production, buildings, food, real durations",
+        "status": "not-started",
+        "progress": 0,
+        "date": "after M1",
+        "note": "Grain on a farm ends as canned food in the warehouse."
+      },
+      {
+        "title": "M3 Money and score: world market, costs, score, game over (v1)",
+        "status": "not-started",
+        "progress": 0,
+        "date": "after M2",
+        "note": "First version that is a game you can finish."
+      },
+      {
+        "title": "M4 Second nation driven by a scripted player",
+        "status": "not-started",
+        "progress": 0,
+        "date": "after M3",
+        "note": "Proves the (view) => Order[] interface for v3 AI."
+      }
+    ],
+    "risks": [
+      {
+        "title": "Rules gaps",
+        "text": "The manual omits many numbers (recipes, yields, durations). The knowledge base marks each unknown; gaps.md says which ones need gameplay videos."
+      },
+      {
+        "title": "Done by appearance",
+        "text": "The old run ticked boxes when the screen looked right. Every item here needs a test as evidence before it can show Done."
+      }
+    ],
+    "next": [
+      "Answer Q5 and Q6",
+      "Review and merge the M0 PR after its review",
+      "Start M1 with /milestone M1"
+    ]
+  },
+  "detail": {
+    "tiers": [
+      {
+        "title": "Setup",
+        "subtitle": "this session",
+        "items": [
+          {
+            "id": "S1",
+            "title": "Rules knowledge base from manual + web",
+            "status": "in-progress",
+            "session": "revival",
+            "tasks": [
+              {
+                "title": "Extract PDF text once (script, no model tokens)",
+                "done": true
+              },
+              {
+                "title": "Topic files with page citations",
+                "done": false
+              },
+              {
+                "title": "gaps.md ranked for v1",
+                "done": false
+              }
+            ],
+            "doneWhen": "docs/rules has an index, topic files and a gaps list",
+            "evidence": "",
+            "hot": "docs/rules/"
+          },
+          {
+            "id": "S2",
+            "title": "Light spec-driven flow and model policy",
+            "status": "done",
+            "session": "revival",
+            "tasks": [
+              {
+                "title": "Distill the qlue SDD flow",
+                "done": true
+              },
+              {
+                "title": "docs/FLOW.md, requirements.md, journal.md",
+                "done": true
+              },
+              {
+                "title": "New /milestone and /fix commands; CLAUDE.md shrunk to pointers",
+                "done": true
+              },
+              {
+                "title": "Model policy with reasons in the plan",
+                "done": true
+              }
+            ],
+            "doneWhen": "A new session can run a milestone from the plan alone",
+            "evidence": "npm run build green 2026-11-02 (gate includes build)",
+            "hot": "docs/REVIVAL_PLAN.md, CLAUDE.md, .claude/commands/"
+          },
+          {
+            "id": "S3",
+            "title": "Progress page",
+            "status": "done",
+            "session": "revival",
+            "tasks": [
+              {
+                "title": "Page and data file in docs/report",
+                "done": true
+              },
+              {
+                "title": "Publish",
+                "done": true
+              }
+            ],
+            "doneWhen": "Published link works and sessions know how to update it",
+            "evidence": "",
+            "hot": "docs/report/"
+          }
+        ]
+      },
+      {
+        "title": "M0 Cleanup",
+        "subtitle": "session m0-cleanup",
+        "items": [
+          {
+            "id": "M0",
+            "title": "Delete dead code and old configs, fix red tests, gold/gems values, branches",
+            "status": "in-progress",
+            "session": "m0-cleanup",
+            "tasks": [
+              {
+                "title": "Push local main",
+                "done": false
+              },
+              {
+                "title": "Delete dead files and tool configs",
+                "done": false
+              },
+              {
+                "title": "Restore treasury debit (3 red tests)",
+                "done": false
+              },
+              {
+                "title": "Fix e2e selectors",
+                "done": false
+              },
+              {
+                "title": "Gold $200 / gems $500",
+                "done": false
+              },
+              {
+                "title": "Delete superseded branches",
+                "done": false
+              },
+              {
+                "title": "One Sonnet 5.5 xhigh review of the diff before merge",
+                "done": false
+              }
+            ],
+            "doneWhen": "npm test, lint and tsc green; PR open",
+            "evidence": "",
+            "hot": "src/app/store/helpers/workerHelpers.ts, tests/, e2e/"
+          }
+        ]
+      },
+      {
+        "title": "v1",
+        "subtitle": "one PR per milestone",
+        "items": [
+          {
+            "id": "M1",
+            "title": "Headless core",
+            "status": "not-started",
+            "blockedBy": [
+              "M0",
+              "S2"
+            ],
+            "tasks": [
+              {
+                "title": "Order union + validate + apply",
+                "done": false
+              },
+              {
+                "title": "resolveTurn(state, orders, seed)",
+                "done": false
+              },
+              {
+                "title": "Split UI state from game state",
+                "done": false
+              },
+              {
+                "title": "Two-nation 20-turn headless test",
+                "done": false
+              },
+              {
+                "title": "Replay determinism test",
+                "done": false
+              }
+            ],
+            "doneWhen": "Both tests green and the app plays as before through orders",
+            "hot": "src/app/engine/, src/app/store/"
+          },
+          {
+            "id": "M2",
+            "title": "Economic loop",
+            "status": "not-started",
+            "blockedBy": [
+              "M1",
+              "S1"
+            ],
+            "tasks": [
+              {
+                "title": "Recipe engine inside productionSystem",
+                "done": false
+              },
+              {
+                "title": "Mills and factories with capacity and labour",
+                "done": false
+              },
+              {
+                "title": "Food consumption",
+                "done": false
+              },
+              {
+                "title": "Real job durations",
+                "done": false
+              }
+            ],
+            "doneWhen": "Headless test: grain to canned food in the warehouse",
+            "hot": "src/app/engine/systems/"
+          },
+          {
+            "id": "M3",
+            "title": "Money and score (v1 playable)",
+            "status": "not-started",
+            "blockedBy": [
+              "M2"
+            ],
+            "tasks": [
+              {
+                "title": "World market buy/sell",
+                "done": false
+              },
+              {
+                "title": "Recruitment and training cost",
+                "done": false
+              },
+              {
+                "title": "Score + game over screen",
+                "done": false
+              }
+            ],
+            "doneWhen": "40-turn headless game ends with a score; app shows it",
+            "hot": "src/app/engine/, src/app/components/"
+          },
+          {
+            "id": "M4",
+            "title": "Second nation, scripted player",
+            "status": "not-started",
+            "blockedBy": [
+              "M3"
+            ],
+            "tasks": [
+              {
+                "title": "Second capital, territory, workers",
+                "done": false
+              },
+              {
+                "title": "Scripted (view) => Order[] player",
+                "done": false
+              }
+            ],
+            "doneWhen": "You can watch the other nation grow",
+            "hot": "src/app/engine/ai/"
+          }
+        ]
+      },
+      {
+        "title": "After v1",
+        "subtitle": "chosen once v1 is fun",
+        "items": [
+          {
+            "id": "V2",
+            "title": "Real-world complexity layers",
+            "status": "deferred",
+            "doneWhen": "Not designed yet"
+          },
+          {
+            "id": "V3",
+            "title": "AI-driven nations (scripted and LLM behind one interface)",
+            "status": "deferred",
+            "doneWhen": "Not designed yet"
+          }
+        ]
+      }
+    ],
+    "needs": [
+      {
+        "when": "Now",
+        "what": "Answer Q5 and Q6 (cards below)",
+        "why": "They decide how much you are involved in each milestone",
+        "item": "M1"
+      },
+      {
+        "when": "Optional",
+        "what": "NotebookLM research over gameplay videos for the gaps in docs/rules/gaps.md",
+        "why": "Some numbers are not in the manual or online text",
+        "item": "S1"
+      }
+    ],
+    "decisions": [
+      {
+        "id": "Q1",
+        "title": "Continue or restart?",
+        "status": "done",
+        "ruling": "Continue; v1 scope M0 to M4 approved (2026-11-02).",
+        "items": [
+          "M1"
+        ]
+      },
+      {
+        "id": "Q2",
+        "title": "Gold and gems value?",
+        "status": "done",
+        "ruling": "Manual values: $200 gold, $500 gems.",
+        "items": [
+          "M0"
+        ]
+      },
+      {
+        "id": "Q3",
+        "title": "Delete superseded branches and untrack old tool configs?",
+        "status": "done",
+        "ruling": "Yes, including the push to origin.",
+        "items": [
+          "M0"
+        ]
+      },
+      {
+        "id": "Q4",
+        "title": "v3 nation AI: scripted, LLM or both?",
+        "status": "done",
+        "ruling": "Both, behind one (view) => Order[] interface.",
+        "items": [
+          "M4",
+          "V3"
+        ]
+      },
+      {
+        "id": "Q5",
+        "title": "Who merges a milestone PR?",
+        "status": "open",
+        "context": "Low involvement versus your usual PR review. With agent merge you watch this page and can revert; with your merge each milestone waits for you.",
+        "suggestion": "Agent merges after the gate and the milestone review are green; you review on this page and in the running app.",
+        "items": [
+          "M0",
+          "M1"
+        ]
+      },
+      {
+        "id": "Q6",
+        "title": "Run milestones without ultracode workflows?",
+        "status": "open",
+        "context": "Your profile says coding runs as ultracode (build, review, verify per task). In the work repo, review and verify agents were 32% of spend and follow-up rounds 10%.",
+        "suggestion": "Yes for this project: one review per milestone instead of per task, postponed to the milestone end but never skipped.",
+        "items": [
+          "M1"
+        ]
+      }
+    ]
+  }
+}
