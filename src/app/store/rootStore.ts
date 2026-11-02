@@ -19,11 +19,6 @@ export type GameStore =
   & MapSlice
   & TechnologySlice
   & TransportSlice
-  // & CitySlice
-  // & ArmySlice
-  // & NavySlice
-  // & DiplomacySlice
-  // & TradeSlice
   // & IndustrySlice
   & TileSelectionSlice
   & CameraSlice
@@ -38,11 +33,6 @@ export const useGameStore = create<GameStore>()((...a) => ({
   ...createTurnSlice(...a),
   ...createTechnologySlice(...a),
   ...createTransportSlice(...a),
-  // ...createCitySlice(...a),
-  // ...createArmySlice(...a),
-  // ...createNavySlice(...a),
-  // ...createDiplomacySlice(...a),
-  // ...createTradeSlice(...a),
   // ...createIndustrySlice(...a),
   ...createCameraSlice(...a),
   ...createOverlaySlice(...a),

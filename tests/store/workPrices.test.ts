@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { initWorld } from '@/testing/worldInit';
 import { GameState } from '@/types/GameState';
 import { TerrainType } from '@/types/Tile';
+import { ResourceType } from '@/types/Resource';
 import { Worker, WorkerType, WorkerStatus } from '@/types/Workers';
 import { startProspectingHelper, startDevelopmentHelper, startConstructionHelper } from '@/store/helpers/workerHelpers';
 import { PROSPECT_COST, DEVELOPMENT_COST, CONSTRUCTION_COST } from '@/definisions/workPrices';
@@ -94,5 +95,62 @@ describe('work prices - immediate treasury deduction on job start', () => {
     const t2 = s2.map.tiles[ly][lx];
     expect(t2.constructionJob?.workerId).toBe(engineer.id);
     expect(t2.constructionJob?.kind).toBe('depot');
+  });
+});
+
+describe('work prices - every worker type that costs money', () => {
+  const developmentCases: { type: WorkerType; terrain: TerrainType; resource: ResourceType }[] = [
+    { type: WorkerType.Farmer, terrain: TerrainType.Farm, resource: ResourceType.Grain },
+    { type: WorkerType.Rancher, terrain: TerrainType.OpenRange, resource: ResourceType.Livestock },
+    { type: WorkerType.Forester, terrain: TerrainType.HardwoodForest, resource: ResourceType.Timber },
+    { type: WorkerType.Miner, terrain: TerrainType.Mountains, resource: ResourceType.IronOre },
+    { type: WorkerType.Driller, terrain: TerrainType.Desert, resource: ResourceType.Oil },
+    { type: WorkerType.Developer, terrain: TerrainType.Farm, resource: ResourceType.Grain },
+  ];
+
+  function place(state: GameState, tile: { x: number; y: number }, worker: Worker) {
+    const t = state.map.tiles[tile.y][tile.x];
+    state.map.tiles[tile.y][tile.x] = { ...t, workers: [...t.workers, worker] };
+  }
+
+  it.each(developmentCases)('deducts level 1 cost for $type', ({ type, terrain, resource }) => {
+    const state = makeBaseState();
+    state.technologyState = { ...state.technologyState, oilDrillingTechUnlocked: true };
+    const base = state.map.tiles.flat().find(t => t.terrain !== TerrainType.Water && t.terrain !== TerrainType.River)!;
+    state.map.tiles[base.y][base.x] = { ...base, terrain, resource: { type: resource, level: 0, discovered: true }, workers: [] };
+    const worker: Worker = { id: 'w', type, nationId: 'nation-1', assignedTileId: base.id, efficiency: 100, status: WorkerStatus.Available, justMoved: false };
+    place(state, base, worker);
+    const before = state.nations.find(n => n.id === 'nation-1')!.treasury;
+
+    const s2 = startDevelopmentHelper(state, base.id, worker.id, type);
+
+    expect(s2.map.tiles[base.y][base.x].developmentJob?.workerId).toBe('w');
+    expect(s2.nations.find(n => n.id === 'nation-1')!.treasury).toBe(before - DEVELOPMENT_COST[1]);
+  });
+
+  it('does not start work or change the treasury when the nation cannot afford it', () => {
+    const state = makeBaseState();
+    state.nations = state.nations.map(n => ({ ...n, treasury: PROSPECT_COST - 1 }));
+    const mountains = state.map.tiles.flat().find(t => t.terrain === TerrainType.Mountains)!;
+    const prospector: Worker = { id: 'w-pros', type: WorkerType.Prospector, nationId: 'nation-1', assignedTileId: mountains.id, efficiency: 100, status: WorkerStatus.Available, justMoved: false };
+    place(state, mountains, prospector);
+
+    const s2 = startProspectingHelper(state, mountains.id, prospector.id);
+
+    expect(s2.map.tiles[mountains.y][mountains.x].prospecting).toBeUndefined();
+    expect(s2.nations.find(n => n.id === 'nation-1')!.treasury).toBe(PROSPECT_COST - 1);
+  });
+
+  it('does not start construction when the nation cannot afford it', () => {
+    const state = makeBaseState();
+    state.nations = state.nations.map(n => ({ ...n, treasury: CONSTRUCTION_COST.depot - 1 }));
+    const land = state.map.tiles.flat().find(t => t.terrain !== TerrainType.Water && t.terrain !== TerrainType.River)!;
+    const engineer: Worker = { id: 'w-eng', type: WorkerType.Engineer, nationId: 'nation-1', assignedTileId: land.id, efficiency: 100, status: WorkerStatus.Available, justMoved: false };
+    place(state, land, engineer);
+
+    const s2 = startConstructionHelper(state, land.id, engineer.id, 'depot');
+
+    expect(s2.map.tiles[land.y][land.x].constructionJob).toBeUndefined();
+    expect(s2.nations.find(n => n.id === 'nation-1')!.treasury).toBe(CONSTRUCTION_COST.depot - 1);
   });
 });

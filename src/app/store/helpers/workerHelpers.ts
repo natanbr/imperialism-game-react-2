@@ -3,6 +3,9 @@ import { GameState } from "@/types/GameState";
 import { TerrainType, Tile } from "@/types/Tile";
 import { Worker, WorkerStatus, WorkerType } from "@/types/Workers";
 import { parseTileIdToArray } from "@/utils/tileIdUtils";
+import { CONSTRUCTION_COST } from "@/definisions/workPrices";
+import { createTreasuryLedger } from "./treasuryHelpers";
+import { isAdjacentToOcean } from "./mapHelpers";
 import { startDeveloperWork } from '../../workers/DeveloperWorker';
 import { startEngineerWork } from '../../workers/EngineerWorker';
 import { moveWorker } from '../../workers/moveWorker';
@@ -15,12 +18,17 @@ import { startDrillerWork } from '../../workers/DrillerWorker';
 
 export { moveWorker, startDeveloperWork, startEngineerWork, startProspectorWork, startFarmerWork, startMinerWork, startRancherWork, startForesterWork, startDrillerWork };
 
+/**
+ * Moves the worker to the target tile and starts its job there, all or nothing: if the job
+ * cannot be afforded, the original state is returned and the worker stays where it was.
+ * If it does not start for another reason, the worker is only moved.
+ */
 export function moveAndStartWorkerJob(
   state: GameState,
   targetTileId: string,
   workerId: string,
   moveFn: (state: GameState, fromTile: Tile, toTile: Tile, worker: Worker) => GameState,
-  startJobFn: (state: GameState) => GameState
+  startJobFn: (state: GameState, workerId: string) => GameState
 ): GameState {
   const workerInfo = findWorkerAndTile(state, workerId);
   if (!workerInfo) return state;
@@ -28,6 +36,8 @@ export function moveAndStartWorkerJob(
   const [tx, ty] = parseTileIdToArray(targetTileId);
   const toTile = state.map.tiles[ty]?.[tx];
   if (!toTile) return state;
+  // Already on the target (the construction modal does this): a move onto the same tile would drop the worker.
+  if (fromTile.id === toTile.id) return startJobFn(state, workerId);
   let movedState = moveFn(state, fromTile, toTile, worker);
   movedState = {
     ...movedState,
@@ -48,7 +58,12 @@ export function moveAndStartWorkerJob(
       ),
     },
   };
-  return startJobFn(movedState);
+  const startedState = startJobFn(movedState, workerId);
+  if (startedState !== movedState) return startedState;
+  // The job did not start. Refuse the whole action only if money was the reason (retry with a full
+  // treasury); other refusals (e.g. undiscovered resource) keep the plain move.
+  const rich: GameState = { ...movedState, nations: movedState.nations.map(n => ({ ...n, treasury: Number.MAX_SAFE_INTEGER })) };
+  return startJobFn(rich, workerId) !== rich ? state : movedState;
 }
 
 const findWorkerAndTile = (state: GameState, workerId: string): { worker: Worker, tile: Tile, x: number, y: number } | null => {
@@ -115,14 +130,14 @@ export function startProspectingHelper(state: GameState, tileId: string, workerI
   if (!tile) return state;
   const worker = tile.workers.find((w: Worker) => w.id === workerId && w.type === WorkerType.Prospector);
   if (!worker) return state;
-  return startProspectorWork(state);
+  return startProspectorWork(state, workerId);
 }
 
 /**
  * Get the appropriate start function for a development worker type
  * Centralized mapping to avoid duplication across the codebase
  */
-export function getStartDevelopmentFunction(workerType: WorkerType): (state: GameState) => GameState {
+export function getStartDevelopmentFunction(workerType: WorkerType): (state: GameState, workerId?: string) => GameState {
   switch (workerType) {
     case WorkerType.Farmer:
       return startFarmerWork;
@@ -150,7 +165,7 @@ export function startDevelopmentHelper(state: GameState, tileId: string, workerI
 
   // Use the appropriate start function for this worker type
   const startFunction = getStartDevelopmentFunction(workerType);
-  return startFunction(state);
+  return startFunction(state, workerId);
 }
 
 
@@ -161,6 +176,11 @@ export function startConstructionHelper(state: GameState, tileId: string, worker
   const worker = tile.workers.find((w: Worker) => w.id === workerId && w.type === WorkerType.Engineer);
   if (!worker) return state;
   if (worker.status !== WorkerStatus.Available) return state;
+  if (tile.constructionJob && !tile.constructionJob.completed) return state;
+  if (kind === 'port' && !(tile.hasRiver === true || isAdjacentToOcean(state.map, tx, ty))) return state;
+
+  const ledger = createTreasuryLedger(state);
+  if (!ledger.tryCharge(worker.nationId, CONSTRUCTION_COST[kind])) return state;
 
   // Build the specified construction
   const durationTurns = EngineerBuildDurationsTurns[kind] || 1;
@@ -183,7 +203,7 @@ export function startConstructionHelper(state: GameState, tileId: string, worker
     })
   );
 
-  return { ...state, map: { ...state.map, tiles: newTiles } };
+  return { ...state, nations: ledger.nationsAfterCharges(), map: { ...state.map, tiles: newTiles } };
 }
 
 export const cancelActionHelper = (state: GameState, tileId: string, workerId: string): GameState => {
@@ -255,6 +275,12 @@ export function moveAndStartDevelopmentHelper(state: GameState, targetTileId: st
   return moveAndStartWorkerJob(state, targetTileId, workerId, moveWorker, startFunction);
 }
 
-export function moveAndStartConstructionHelper(state: GameState, targetTileId: string, workerId: string): GameState {
-  return moveAndStartWorkerJob(state, targetTileId, workerId, moveWorker, startEngineerWork);
+export function moveAndStartConstructionHelper(
+  state: GameState,
+  targetTileId: string,
+  workerId: string,
+  kind: 'depot' | 'port' | 'fort' | 'rail'
+): GameState {
+  const startFunction = (s: GameState, id: string) => startConstructionHelper(s, targetTileId, id, kind);
+  return moveAndStartWorkerJob(state, targetTileId, workerId, moveWorker, startFunction);
 }

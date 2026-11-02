@@ -1,4 +1,12 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
+
+/** Number of tiles whose computed cursor is the given emoji cursor (see emojiToCursor in useTileVisuals). */
+const countTilesWithEmojiCursor = (page: Page, emoji: string) =>
+  page.locator('[data-testid="tile"]').evaluateAll(
+    (els, encoded) => els.filter((el) => window.getComputedStyle(el).cursor.includes(encoded)).length,
+    encodeURIComponent(emoji)
+  );
+
 
 test.describe('Cursor Icon Functionality', () => {
   test.beforeEach(async ({ page }) => {
@@ -23,20 +31,16 @@ test.describe('Cursor Icon Functionality', () => {
 
   test('should show prospect cursor (magnifying glass) when prospector is selected and hovering valid tile', async ({ page }) => {
     // Select a prospector worker (assuming there's one in the initial game state)
-    const prospectorWorker = page.locator('[data-worker-type="Prospector"]').first();
+    const prospectorWorker = page.locator('[data-worker-type="prospector"]').first();
 
-    // Check if prospector exists, if not skip this test
     const prospectorExists = await prospectorWorker.count() > 0;
-    if (!prospectorExists) {
-      test.skip();
-      return;
-    }
+    expect(prospectorExists, 'worker must exist in the initial game state').toBe(true);
 
     await prospectorWorker.click();
 
     // Find a tile that can be prospected (e.g., mountains or swamp without discovered resources)
-    const validTile = page.locator('[data-testid="tile"][data-terrain="Mountains"],' +
-      '[data-testid="tile"][data-terrain="Swamp"]').first();
+    const validTile = page.locator('[data-testid="tile"][data-terrain="mountains"],' +
+      '[data-testid="tile"][data-terrain="swamp"]').first();
 
     await validTile.hover();
 
@@ -52,74 +56,37 @@ test.describe('Cursor Icon Functionality', () => {
 
   test('should show development cursor (tractor) when development worker is selected', async ({ page }) => {
     // Select a development worker (Farmer, Miner, etc.)
-    const devWorker = page.locator('[data-worker-type="Farmer"], [data-worker-type="Miner"]').first();
+    const devWorker = page.locator('[data-worker-type="farmer"]').first();
 
     const workerExists = await devWorker.count() > 0;
-    if (!workerExists) {
-      test.skip();
-      return;
-    }
+    expect(workerExists, 'worker must exist in the initial game state').toBe(true);
 
     await devWorker.click();
 
-    // Find a tile with a resource that can be developed
-    const resourceTile = page.locator('[data-testid="tile"]').first();
-
-    await resourceTile.hover();
-
-    const cursor = await resourceTile.evaluate((el) => {
-      return window.getComputedStyle(el).cursor;
-    });
-
-    // Should contain 'url' for the emoji cursor (tractor)
-    expect(cursor).toContain('url');
-    expect(cursor).toContain('data:image/svg+xml');
+    // Cursor depends on app state, so check all tiles: own developable tiles show the tractor
+    expect(await countTilesWithEmojiCursor(page, '🚜')).toBeGreaterThan(0);
   });
 
-  test('should show railroad cursor when engineer is selected and hovering adjacent tile', async ({ page }) => {
+  // No tile action produces the rail cursor today: getEngineerActions only returns fort / construct-modal,
+  // and rail is built implicitly on engineer move. Kept as fixme so the gap stays visible instead of passing vacuously.
+  test.fixme('should show railroad cursor when engineer is selected and hovering adjacent tile', async ({ page }) => {
     // Select an engineer worker
-    const engineer = page.locator('[data-worker-type="Engineer"]').first();
+    const engineer = page.locator('[data-worker-type="engineer"]').first();
 
     const engineerExists = await engineer.count() > 0;
-    if (!engineerExists) {
-      test.skip();
-      return;
-    }
+    expect(engineerExists, 'worker must exist in the initial game state').toBe(true);
 
     await engineer.click();
 
-    // Find an adjacent tile (this might require getting the engineer's current position)
-    // For now, we'll just hover over tiles and check for the rail cursor
-    const tiles = page.locator('[data-testid="tile"]');
-    const tileCount = await tiles.count();
-
-    let foundRailCursor = false;
-    for (let i = 0; i < Math.min(tileCount, 20); i++) {
-      const tile = tiles.nth(i);
-      await tile.hover();
-
-      const cursor = await tile.evaluate((el) => {
-        return window.getComputedStyle(el).cursor;
-      });
-
-      if (cursor.includes('url') && cursor.includes('data:image/svg+xml')) {
-        foundRailCursor = true;
-        break;
-      }
-    }
-
-    // We should find at least one tile with a custom cursor
-    expect(foundRailCursor).toBe(true);
+    // A tile next to the engineer's rail network shows the railroad cursor
+    expect(await countTilesWithEmojiCursor(page, '🛤️')).toBeGreaterThan(0);
   });
 
   test('should show construction cursor when engineer clicks on own tile', async ({ page }) => {
-    const engineer = page.locator('[data-worker-type="Engineer"]').first();
+    const engineer = page.locator('[data-worker-type="engineer"]').first();
 
     const engineerExists = await engineer.count() > 0;
-    if (!engineerExists) {
-      test.skip();
-      return;
-    }
+    expect(engineerExists, 'worker must exist in the initial game state').toBe(true);
 
     // Click on the engineer's tile to open construction modal
     await engineer.click();
@@ -135,9 +102,8 @@ test.describe('Cursor Icon Functionality', () => {
       return window.getComputedStyle(el).cursor;
     });
 
-    // Should show construction emoji cursor
-    expect(cursor).toContain('url');
-    expect(cursor).toContain('data:image/svg+xml');
+    // Own tile: fort (capital/town) or construction-modal cursor
+    expect([encodeURIComponent('🏰'), encodeURIComponent('🏗️')].some(c => cursor.includes(c))).toBe(true);
   });
 
   test('should change cursor when switching between different worker types', async ({ page }) => {
@@ -147,10 +113,7 @@ test.describe('Cursor Icon Functionality', () => {
     const workers = page.locator('[data-worker-type]');
     const workerCount = await workers.count();
 
-    if (workerCount < 2) {
-      test.skip();
-      return;
-    }
+    expect(workerCount).toBeGreaterThanOrEqual(2);
 
     // Select first worker
     await workers.first().click();
@@ -184,10 +147,7 @@ test.describe('Cursor Icon Functionality', () => {
     const worker = page.locator('[data-worker-type]').first();
     const workerExists = await worker.count() > 0;
 
-    if (!workerExists) {
-      test.skip();
-      return;
-    }
+    expect(workerExists, 'worker must exist in the initial game state').toBe(true);
 
     await worker.click();
 
@@ -195,7 +155,9 @@ test.describe('Cursor Icon Functionality', () => {
     // (e.g., a tile too far away, or already occupied)
     const tiles = page.locator('[data-testid="tile"]');
     const farTile = tiles.last();
-    await farTile.hover();
+    // force: the HUD action bar overlays the last map tile (Playwright reports it intercepts pointer events);
+    // the assertion reads the tile's computed cursor, which does not depend on the pointer position
+    await farTile.hover({ force: true });
 
     const cursor = await farTile.evaluate((el) => {
       return window.getComputedStyle(el).cursor;

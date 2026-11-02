@@ -4,6 +4,8 @@ import {Worker, WorkerStatus, WorkerType} from "@/types/Workers";
 import {GameMap} from "@/types/Map";
 import {PossibleAction} from "@/types/actions";
 import {WorkerLevelDurationsTurns} from "@/definisions/workerDurations";
+import {DEVELOPMENT_COST} from "@/definisions/workPrices";
+import {createTreasuryLedger} from "@/store/helpers/treasuryHelpers";
 
 /**
  * Configuration for a development worker type
@@ -15,17 +17,21 @@ export interface DevelopmentWorkerConfig {
 }
 
 /**
- * Generic function to start development work for any worker type
+ * Generic function to start development work for any worker type.
+ * The returned function starts `workerId` only; without an id, every available worker of the type.
  */
 export function createStartDevelopmentWork(config: DevelopmentWorkerConfig) {
   const { workerType, jobDescriptionPrefix } = config;
 
-  return function startWork(state: GameState): GameState {
+  return function startWork(state: GameState, workerId?: string): GameState {
     let updated = false;
+    const ledger = createTreasuryLedger(state);
     const newTiles = state.map.tiles.map(row =>
       row.map(tile => {
         if (!tile.workers) return tile;
-        const worker = tile.workers.find(w => w.type === workerType && w.status === WorkerStatus.Available);
+        const worker = tile.workers.find(w =>
+          w.type === workerType && w.status === WorkerStatus.Available && (workerId === undefined || w.id === workerId)
+        );
         if (!worker) return tile;
         if (!tile.resource) return tile;
         // Check if resource is discovered (for minerals/oil that start hidden)
@@ -33,6 +39,7 @@ export function createStartDevelopmentWork(config: DevelopmentWorkerConfig) {
         const targetLevel = (tile.resource.level || 0) + 1;
         if (targetLevel > 3) return tile;
         if (tile.developmentJob) return tile;
+        if (!ledger.tryCharge(worker.nationId, DEVELOPMENT_COST[targetLevel as 1 | 2 | 3])) return tile;
         const durationTurns = WorkerLevelDurationsTurns[workerType]?.[targetLevel as 1 | 2 | 3] || 1;
         const newJob = {
           workerId: worker.id,
@@ -53,7 +60,7 @@ export function createStartDevelopmentWork(config: DevelopmentWorkerConfig) {
         };
       })
     );
-    return updated ? { ...state, map: { ...state.map, tiles: newTiles } } : state;
+    return updated ? { ...state, nations: ledger.nationsAfterCharges(), map: { ...state.map, tiles: newTiles } } : state;
   };
 }
 

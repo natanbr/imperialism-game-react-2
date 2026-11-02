@@ -4,6 +4,8 @@ import { Worker, WorkerType, WorkerStatus } from "../types/Workers";
 import { GameMap } from "../types/Map";
 import { PossibleAction } from "../types/actions";
 import { FARMING_TERRAINS, RANCHING_TERRAINS, FORESTRY_TERRAINS, MINING_TERRAINS, DRILLING_TERRAINS } from "../definisions/terrainDefinitions";
+import { DEVELOPMENT_COST } from "../definisions/workPrices";
+import { createTreasuryLedger } from "../store/helpers/treasuryHelpers";
 import { WorkerLevelDurationsTurns } from "../definisions/workerDurations";
 
 const terrainMap: Record<WorkerType, TerrainType[]> = {
@@ -17,17 +19,22 @@ const terrainMap: Record<WorkerType, TerrainType[]> = {
   [WorkerType.Developer]: [],
 };
 
-export function startDeveloperWork(state: GameState): GameState {
+/** Starts development for `workerId` only; without an id, for every available developer. */
+export function startDeveloperWork(state: GameState, workerId?: string): GameState {
   let updated = false;
+  const ledger = createTreasuryLedger(state);
   const newTiles = state.map.tiles.map(row =>
     row.map(tile => {
       if (!tile.workers) return tile;
-      const worker = tile.workers.find(w => w.type === WorkerType.Developer && w.status === WorkerStatus.Available);
+      const worker = tile.workers.find(w =>
+        w.type === WorkerType.Developer && w.status === WorkerStatus.Available && (workerId === undefined || w.id === workerId)
+      );
       if (!worker) return tile;
       if (!tile.resource) return tile;
       const targetLevel = (tile.resource.level || 0) + 1;
       if (targetLevel > 3) return tile;
       if (tile.developmentJob) return tile;
+      if (!ledger.tryCharge(worker.nationId, DEVELOPMENT_COST[targetLevel as 1 | 2 | 3])) return tile;
       const durationTurns = WorkerLevelDurationsTurns[worker.type]?.[targetLevel as 1 | 2 | 3] || 1;
       const newJob = {
         workerId: worker.id,
@@ -48,7 +55,7 @@ export function startDeveloperWork(state: GameState): GameState {
       };
     })
   );
-  return updated ? { ...state, map: { ...state.map, tiles: newTiles } } : state;
+  return updated ? { ...state, nations: ledger.nationsAfterCharges(), map: { ...state.map, tiles: newTiles } } : state;
 }
 
 export function getDeveloperActions(tile: Tile, map: GameMap, worker: Worker): PossibleAction | null {

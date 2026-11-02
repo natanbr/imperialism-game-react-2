@@ -3,17 +3,24 @@ import { Tile } from "../types/Tile";
 import { Worker, WorkerStatus } from "../types/Workers";
 import { GameMap } from "../types/Map";
 import { PossibleAction } from "../types/actions";
+import { PROSPECT_COST } from "../definisions/workPrices";
+import { createTreasuryLedger } from "../store/helpers/treasuryHelpers";
 import { PROSPECTABLE_TERRAIN_TYPES } from "../definisions/terrainDefinitions";
 
-export function startProspectorWork(state: GameState): GameState {
+/** Starts prospecting for `workerId` only; without an id, for every available prospector. */
+export function startProspectorWork(state: GameState, workerId?: string): GameState {
   let updated = false;
+  const ledger = createTreasuryLedger(state);
   const newTiles = state.map.tiles.map(row =>
     row.map(tile => {
       if (!tile.workers) return tile;
-      const worker = tile.workers.find(w => w.type === "prospector" && w.status === WorkerStatus.Available);
+      const worker = tile.workers.find(w =>
+        w.type === "prospector" && w.status === WorkerStatus.Available && (workerId === undefined || w.id === workerId)
+      );
       if (!worker) return tile;
       if (!tile.resource || tile.resource.discovered) return tile;
       if (tile.prospecting) return tile;
+      if (!ledger.tryCharge(worker.nationId, PROSPECT_COST)) return tile;
       const startedOnTurn = state.turn;
       updated = true;
       return {
@@ -27,7 +34,7 @@ export function startProspectorWork(state: GameState): GameState {
       };
     })
   );
-  return updated ? { ...state, map: { ...state.map, tiles: newTiles } } : state;
+  return updated ? { ...state, nations: ledger.nationsAfterCharges(), map: { ...state.map, tiles: newTiles } } : state;
 }
 
 export function getProspectorActions(tile: Tile, map: GameMap, worker: Worker): PossibleAction | null {

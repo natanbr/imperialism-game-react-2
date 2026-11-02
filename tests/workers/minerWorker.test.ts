@@ -233,7 +233,8 @@ describe('Miner Worker Functionality', () => {
     });
 
     it('should develop mine from level 2 to level 3', () => {
-      const state = { ...baseState };
+      // Level 3 costs more than the default starting treasury
+      const state = { ...baseState, nations: baseState.nations.map(n => ({ ...n, treasury: 10000 })) };
 
       const mineralTile = state.map.tiles.flat().find(
         t => t.terrain === TerrainType.Mountains
