@@ -15,6 +15,7 @@ describe('Miner Worker Functionality', () => {
   const baseState: GameState = {
     turn: 1,
     year: 1900,
+    seed: 0,
     activeNationId: 'nation-1',
     nations,
     cities: [],

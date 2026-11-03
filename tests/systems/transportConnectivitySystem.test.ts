@@ -25,6 +25,7 @@ function makeBaseState(): GameState {
   const state: GameState = {
     turn: 1,
     year: 1900,
+    seed: 0,
     activeNationId: 'nation-1',
     nations: nationsWithIndustry,
     cities: [], armies: [], fleets: [],
@@ -88,6 +89,7 @@ describe('transportConnectivitySystem', () => {
     const state: GameState = {
       turn: 1,
       year: 1900,
+      seed: 0,
       activeNationId: 'nation-1',
       nations: nationsWithIndustry,
       cities: [], armies: [], fleets: [],
@@ -160,6 +162,7 @@ describe('transportConnectivitySystem', () => {
     const state: GameState = {
       turn: 1,
       year: 1900,
+      seed: 0,
       activeNationId: 'nation-1',
       nations: nationsWithIndustry,
       cities: [], armies: [], fleets: [],
@@ -238,6 +241,7 @@ describe('transportConnectivitySystem', () => {
     const state: GameState = {
       turn: 1,
       year: 1900,
+      seed: 0,
       activeNationId: 'nation-1',
       nations: nationsWithIndustry,
       cities: [], armies: [], fleets: [],
@@ -295,6 +299,7 @@ describe('transportConnectivitySystem', () => {
     const state: GameState = {
       turn: 1,
       year: 1900,
+      seed: 0,
       activeNationId: 'nation-1',
       nations: nationsWithIndustry,
       cities: [], armies: [], fleets: [],
@@ -373,6 +378,7 @@ describe('transportConnectivitySystem', () => {
     const state: GameState = {
       turn: 1,
       year: 1900,
+      seed: 0,
       activeNationId: 'nation-1',
       nations: nationsWithIndustry,
       cities: [], armies: [], fleets: [],
@@ -428,6 +434,7 @@ describe('transportConnectivitySystem', () => {
     const state: GameState = {
       turn: 1,
       year: 1900,
+      seed: 0,
       activeNationId: 'nation-1',
       nations: nationsWithIndustry,
       cities: [], armies: [], fleets: [],
@@ -509,6 +516,7 @@ describe('transportConnectivitySystem', () => {
     const state: GameState = {
       turn: 1,
       year: 1900,
+      seed: 0,
       activeNationId: 'nation-1',
       nations: nationsWithIndustry,
       cities: [], armies: [], fleets: [],
@@ -587,6 +595,7 @@ describe('transportConnectivitySystem', () => {
     const state: GameState = {
       turn: 1,
       year: 1900,
+      seed: 0,
       activeNationId: 'nation-1',
       nations: nationsWithIndustry,
       cities: [], armies: [], fleets: [],

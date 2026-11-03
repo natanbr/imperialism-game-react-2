@@ -34,6 +34,7 @@ function makeState(treasury: number): GameState {
   return {
     turn: 1,
     year: 1900,
+    seed: 0,
     activeNationId: NATION,
     nations: nations.map(n => ({ ...n, treasury })),
     cities: [],

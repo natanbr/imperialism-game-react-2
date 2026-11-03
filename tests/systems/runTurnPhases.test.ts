@@ -13,6 +13,7 @@ function createState(): GameState {
   return {
     turn: 1,
     year: 1900,
+    seed: 0,
     activeNationId: 'nation-1',
     nations: nationsWithIndustry,
     cities: [], armies: [], fleets: [],

@@ -31,6 +31,8 @@ export interface TurnOrderSummary {
 export interface GameState {
   turn: number;
   year: number;
+  // Game seed: each turn's RNG is derived from (seed, turn), so replays are deterministic.
+  seed: number;
   activeNationId: string;
 
   nations: Nation[];

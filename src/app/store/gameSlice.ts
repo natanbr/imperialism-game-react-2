@@ -4,6 +4,7 @@ import { GameState } from "@/types/GameState";
 import { StateCreator } from 'zustand';
 
 export interface GameStateSlice {
+  seed: number;
   activeNationId: string;
   difficulty: "introductory" | "easy" | "normal" | "hard" | "nighOnImpossible";
   newsLog: NewsItem[];
@@ -28,6 +29,8 @@ export const createGameStateSlice: StateCreator<GameStateSlice, [], [], GameStat
   const nations = currentState.nations || [];
 
   return {
+    // Fixed until a new-game flow chooses one (M1 part B or later).
+    seed: 1,
     activeNationId: "nation-1",
     difficulty: "normal",
     newsLog: [],
