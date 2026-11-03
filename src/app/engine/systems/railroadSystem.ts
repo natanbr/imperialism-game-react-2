@@ -11,6 +11,7 @@ import { getNeighborCoords } from "../map/mapHelpers";
 
 const key = (x: number, y: number) => `${x},${y}`;
 
+// The builders below mutate only the fresh networks they create themselves.
 const initializeEmptyNetworks = (nations: Nation[]): RailroadNetworks => {
   const networks: RailroadNetworks = {};
   for (const nation of nations) {
@@ -92,36 +93,52 @@ export const initializeRailroadNetworks = (map: GameMap, nations: Nation[]): Rai
   return networks;
 };
 
+/** A copy of the network whose graph lists and node arrays can be changed safely. */
+const cloneNetwork = (network: RailroadNetwork): RailroadNetwork => ({
+  ...network,
+  graph: Object.fromEntries(Object.entries(network.graph).map(([k, nodes]) => [k, nodes.map(n => ({ ...n }))])),
+  ports: network.ports.map(p => ({ ...p })),
+  depots: network.depots.map(d => ({ ...d })),
+});
+
+/** Adds (x, y) to the copied graph and links it both ways to every neighbouring graph node. */
+const linkNode = (map: GameMap, network: RailroadNetwork, { x, y }: RailroadNode): void => {
+  const k = key(x, y);
+  if (!network.graph[k]) {
+    network.graph[k] = [];
+  }
+  for (const [nx, ny] of getNeighborCoords(map, x, y)) {
+    const neighborKey = key(nx, ny);
+    if (!network.graph[neighborKey]) continue;
+    if (!network.graph[k].some((n) => n.x === nx && n.y === ny)) {
+      network.graph[k].push({ x: nx, y: ny });
+    }
+    if (!network.graph[neighborKey].some((n) => n.x === x && n.y === y)) {
+      network.graph[neighborKey].push({ x, y });
+    }
+  }
+};
+
+const withNetwork = (state: GameState, nationId: string, network: RailroadNetwork): GameState => ({
+  ...state,
+  transportNetwork: {
+    ...state.transportNetwork,
+    railroadNetworks: { ...(state.transportNetwork.railroadNetworks ?? {}), [nationId]: network },
+  },
+});
+
 export const addRailroad = (
   state: GameState,
   nationId: string,
   node: RailroadNode
 ): GameState => {
-  const networks = state.transportNetwork.railroadNetworks ?? {};
-  const network = networks[nationId];
-  if (!network) return state;
+  const original = state.transportNetwork.railroadNetworks?.[nationId];
+  if (!original) return state;
+
+  const network = cloneNetwork(original);
+  linkNode(state.map, network, node);
 
   const { x, y } = node;
-  const k = key(x, y);
-  if (!network.graph[k]) {
-    network.graph[k] = [];
-  }
-
-  const neighbors = getNeighborCoords(state.map, x, y);
-  for (const [nx, ny] of neighbors) {
-    const neighborKey = key(nx, ny);
-    if (network.graph[neighborKey]) {
-      if (!network.graph[k].some((n) => n.x === nx && n.y === ny)) {
-        network.graph[k].push({ x: nx, y: ny });
-      }
-      if (!network.graph[neighborKey].some((n) => n.x === x && n.y === y)) {
-        network.graph[neighborKey].push({ x, y });
-      }
-    }
-  }
-
-  const newNetworks = { ...networks, [nationId]: network };
-
   const newTiles = state.map.tiles.map((row, rY) => {
     if (rY !== y) return row;
     return row.map((tile, tX) => {
@@ -130,14 +147,7 @@ export const addRailroad = (
     });
   });
 
-  return {
-    ...state,
-    map: { ...state.map, tiles: newTiles },
-    transportNetwork: {
-      ...state.transportNetwork,
-      railroadNetworks: newNetworks,
-    },
-  };
+  return { ...withNetwork(state, nationId, network), map: { ...state.map, tiles: newTiles } };
 };
 
 export const addDepot = (
@@ -145,46 +155,17 @@ export const addDepot = (
   nationId: string,
   node: RailroadNode
 ): GameState => {
-  const networks = state.transportNetwork.railroadNetworks ?? {};
-  const network = networks[nationId];
-  if (!network) return state;
+  const original = state.transportNetwork.railroadNetworks?.[nationId];
+  if (!original) return state;
 
+  const network = cloneNetwork(original);
   const { x, y } = node;
-  const k = key(x, y);
-
-  // Add depot to the depots array if not already present
   if (!network.depots.some((d) => d.x === x && d.y === y)) {
     network.depots.push({ x, y, isActive: false });
   }
+  linkNode(state.map, network, node);
 
-  // Add depot to the graph
-  if (!network.graph[k]) {
-    network.graph[k] = [];
-  }
-
-  // Connect to adjacent graph nodes (rails, depots, ports, capital)
-  const neighbors = getNeighborCoords(state.map, x, y);
-  for (const [nx, ny] of neighbors) {
-    const neighborKey = key(nx, ny);
-    if (network.graph[neighborKey]) {
-      if (!network.graph[k].some((n) => n.x === nx && n.y === ny)) {
-        network.graph[k].push({ x: nx, y: ny });
-      }
-      if (!network.graph[neighborKey].some((n) => n.x === x && n.y === y)) {
-        network.graph[neighborKey].push({ x, y });
-      }
-    }
-  }
-
-  const newNetworks = { ...networks, [nationId]: network };
-
-  return {
-    ...state,
-    transportNetwork: {
-      ...state.transportNetwork,
-      railroadNetworks: newNetworks,
-    },
-  };
+  return withNetwork(state, nationId, network);
 };
 
 export const addPort = (
@@ -192,44 +173,15 @@ export const addPort = (
   nationId: string,
   node: RailroadNode
 ): GameState => {
-  const networks = state.transportNetwork.railroadNetworks ?? {};
-  const network = networks[nationId];
-  if (!network) return state;
+  const original = state.transportNetwork.railroadNetworks?.[nationId];
+  if (!original) return state;
 
+  const network = cloneNetwork(original);
   const { x, y } = node;
-  const k = key(x, y);
-
-  // Add port to the ports array if not already present
   if (!network.ports.some((p) => p.x === x && p.y === y)) {
     network.ports.push({ x, y, isActive: false });
   }
+  linkNode(state.map, network, node);
 
-  // Add port to the graph
-  if (!network.graph[k]) {
-    network.graph[k] = [];
-  }
-
-  // Connect to adjacent graph nodes (rails, depots, ports, capital)
-  const neighbors = getNeighborCoords(state.map, x, y);
-  for (const [nx, ny] of neighbors) {
-    const neighborKey = key(nx, ny);
-    if (network.graph[neighborKey]) {
-      if (!network.graph[k].some((n) => n.x === nx && n.y === ny)) {
-        network.graph[k].push({ x: nx, y: ny });
-      }
-      if (!network.graph[neighborKey].some((n) => n.x === x && n.y === y)) {
-        network.graph[neighborKey].push({ x, y });
-      }
-    }
-  }
-
-  const newNetworks = { ...networks, [nationId]: network };
-
-  return {
-    ...state,
-    transportNetwork: {
-      ...state.transportNetwork,
-      railroadNetworks: newNetworks,
-    },
-  };
+  return withNetwork(state, nationId, network);
 };
