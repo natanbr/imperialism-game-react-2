@@ -287,3 +287,26 @@ short: at the end of this turn …" on the game-over map; with the fix reverted 
 - Objection: the game-over screen can be closed (to look at the map) and reopened from the HUD's
   "Final scores"; the UI flag `isGameOverHidden` lives in the overlay slice, never in `game`.
 - The HUD turn line now reads "Turn: N of 40"; the old FR-048 component test was updated to it.
+
+## 2026-11-03 M3 review and coordinator gate
+
+Size: L (review). Reviewer: Opus 5.5 high (engine-wide money change). Verdict: merge, nothing
+must-fix. Development 60 in the game-over screenshot is correct (six level-1 start tiles next
+to the capital, off screen). Money probes (forged keys, NaN/fractional amounts, round trips,
+bid and hold limits, 500-turn price bounds, replay) found no leak.
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| Unit tests | `npx vitest run` | `Test Files 36 passed (36)` / `Tests 588 passed (588)` |
+| Types | `npx tsc --noEmit` | exit 0 |
+| Lint | `npm run lint` | `✖ 3 problems (0 errors, 3 warnings)` |
+| Build | `npm run build` | ok |
+| Smoke | `npx playwright test` (default workers) | `10 passed (1.1m)`, `1 skipped` |
+
+Carried forward (can wait):
+- v2 / Q13: own price push gives a small buy-then-sell profit (`market.ts` `nextPrices`); apply the push before settlement or let it decay.
+- M4: clamp `turnLimit` in `newGame` to a whole number >= 1 (NaN never ends the game).
+- M4 UI: warn in the market when offered stock is needed by a standing production order.
+- M4: reset `isGameOverHidden` when a new-game action exists.
+- Q11: an idle game scores 250 from start assets; consider scoring the gain over the start.
+- Rename the `twoNations.test.ts:15` title (asserts coal, iron ore and timber bids).
