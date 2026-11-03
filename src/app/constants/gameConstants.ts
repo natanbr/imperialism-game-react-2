@@ -18,11 +18,11 @@ export const TILE_CONFIG = {
 } as const;
 
 /**
- * Time configuration
+ * Time configuration: a random world starts in Spring 1815, one turn per season (FR-027).
  */
 export const TIME_CONFIG = {
   TURNS_PER_YEAR: 4,
-  STARTING_YEAR: 1900,
+  STARTING_YEAR: 1815,
   STARTING_TURN: 1,
 } as const;
 
@@ -85,22 +85,16 @@ export const RESOURCE_ICONS: Record<ResourceType, string> = {
 } as const;
 
 /**
- * Development configuration
+ * Development configuration. Job durations live only in `definisions/workerDurations.ts` (FR-028).
  */
 export const DEVELOPMENT_CONFIG = {
   MAX_RESOURCE_LEVEL: 3,
   MIN_RESOURCE_LEVEL: 0,
-  PROSPECT_TURNS: 2,
-  DEVELOP_TURNS_BASE: 3,
 } as const;
 
 /**
- * Construction configuration
+ * Construction configuration. Job durations live only in `definisions/workerDurations.ts` (FR-028).
  */
 export const CONSTRUCTION_CONFIG = {
-  DEPOT_BUILD_TURNS: 4,
-  PORT_BUILD_TURNS: 6,
-  FORT_BUILD_TURNS: 5,
-  RAILROAD_BUILD_TURNS: 3,
   MAX_FORT_LEVEL: 3,
 } as const;

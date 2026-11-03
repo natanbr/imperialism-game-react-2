@@ -8,3 +8,7 @@ export type { GameEvent, TurnContext, TurnSystem } from "./turn/context";
 export { createTurnRng, type Rng } from "./rng";
 export { scriptedPlayer, type Player } from "./ai/scriptedPlayer";
 export { newGame, type NewGameOptions } from "./newGame";
+export { seasonOf, type Season } from "./calendar";
+export { labourOf, type Labour } from "./industry/labour";
+export { migrantCap } from "./industry/industryState";
+export { foodForecast, type FoodForecast } from "./industry/foodForecast";

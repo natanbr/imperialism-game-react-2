@@ -4,11 +4,22 @@ import { Tile, TerrainType, Resource } from "@/types/Tile";
 import { ResourceType } from "@/types/Resource";
 import { ProspectorDiscoveryDurationTurns } from "@/definisions/workerDurations";
 import { MINERAL_RESOURCES } from "@/definisions/resourceDefinitions";
+import type { ConstructionKind } from "@/types/jobs/ConstructionJob";
 import type { Rng } from "../rng";
 import type { TurnContext } from "../turn/context";
 import { addRailroad, addDepot, addPort, initializeRailroadNetworks } from "./railroadSystem";
 
-/** Resolves prospecting, development and construction jobs and adds finished rail to the network. */
+interface FinishedConstruction {
+  nationId: string;
+  x: number;
+  y: number;
+  kind: ConstructionKind;
+}
+
+/**
+ * Resolves prospecting, development and construction jobs. A finished job leaves its tile in the
+ * same resolution (FR-032); finished rail, depots and ports join the nation's rail network.
+ */
 export const developmentSystem = (state: GameState, ctx: TurnContext): GameState => {
   let newState = { ...state };
 
@@ -24,56 +35,44 @@ export const developmentSystem = (state: GameState, ctx: TurnContext): GameState
     };
   }
 
-  const newMap = runNationDevelopmentPhase(newState, ctx);
-  newState = { ...newState, map: newMap };
+  const finished: FinishedConstruction[] = [];
+  newState = { ...newState, map: runNationDevelopmentPhase(newState, ctx, finished) };
 
-  // Add completed construction to railroad networks
-  for (let y = 0; y < newState.map.config.rows; y++) {
-    for (let x = 0; x < newState.map.config.cols; x++) {
-      const tile = newState.map.tiles[y][x];
-      const nationId = tile.ownerNationId;
-
-      if (tile.constructionJob?.completed && nationId) {
-        const { kind } = tile.constructionJob;
-
-        if (kind === "rail") {
-          newState = addRailroad(newState, nationId, { x, y });
-        } else if (kind === "depot") {
-          newState = addDepot(newState, nationId, { x, y });
-        } else if (kind === "port") {
-          newState = addPort(newState, nationId, { x, y });
-        }
-      }
-    }
+  for (const { nationId, x, y, kind } of finished) {
+    if (kind === "rail") newState = addRailroad(newState, nationId, { x, y });
+    else if (kind === "depot") newState = addDepot(newState, nationId, { x, y });
+    else if (kind === "port") newState = addPort(newState, nationId, { x, y });
   }
 
   return newState;
 };
 
-const runNationDevelopmentPhase = (state: GameState, ctx: TurnContext): GameMap => {
+const runNationDevelopmentPhase = (state: GameState, ctx: TurnContext, finished: FinishedConstruction[]): GameMap => {
   const { nextTurn, rng } = ctx;
   const tiles: Tile[][] = state.map.tiles.map(row => row.map(tile => {
-    let t: Tile = { ...tile };
+    let t: Tile = tile;
     t = resolveProspectingOnTile(t, nextTurn, rng);
     t = resolveDevelopmentJobOnTile(t, nextTurn);
     t = resolveConstructionJobOnTile(t, nextTurn);
-    emitCompletionEvents(tile, t, ctx);
-    t = clearCompletionIndicators(t, nextTurn);
+    reportCompletions(tile, t, ctx, finished);
     return t;
   }));
   return { ...state.map, tiles };
 };
 
-const emitCompletionEvents = (before: Tile, after: Tile, ctx: TurnContext): void => {
+/** A job that disappeared in this system has finished (cancelling is an order, not a system). */
+const reportCompletions = (before: Tile, after: Tile, ctx: TurnContext, finished: FinishedConstruction[]): void => {
   const nationId = after.ownerNationId;
   if (before.prospecting && !after.prospecting) {
     ctx.emit({ type: "resource-discovered", tileId: after.id, nationId, resource: after.resource?.type });
   }
-  if (after.developmentJob?.completed && !before.developmentJob?.completed) {
-    ctx.emit({ type: "development-completed", tileId: after.id, nationId, level: after.developmentJob.targetLevel });
+  if (before.developmentJob && !after.developmentJob) {
+    ctx.emit({ type: "development-completed", tileId: after.id, nationId, level: before.developmentJob.targetLevel });
   }
-  if (after.constructionJob?.completed && !before.constructionJob?.completed) {
-    ctx.emit({ type: "construction-completed", tileId: after.id, nationId, structure: after.constructionJob.kind });
+  if (before.constructionJob && !after.constructionJob) {
+    const kind = before.constructionJob.kind;
+    ctx.emit({ type: "construction-completed", tileId: after.id, nationId, structure: kind });
+    if (nationId) finished.push({ nationId, x: after.x, y: after.y, kind });
   }
 };
 
@@ -106,55 +105,28 @@ const discoverResourceOnTile = (tile: Tile, rng: Rng): Resource | undefined => {
 };
 
 const resolveProspectingOnTile = (tile: Tile, nextTurn: number, rng: Rng): Tile => {
-  let t: Tile = { ...tile };
-  if (t.prospecting && (nextTurn - t.prospecting.startedOnTurn) >= ProspectorDiscoveryDurationTurns) {
-    const newResource = discoverResourceOnTile(t, rng);
-    t = { ...t, resource: newResource, prospecting: undefined };
+  if (tile.prospecting && (nextTurn - tile.prospecting.startedOnTurn) >= ProspectorDiscoveryDurationTurns) {
+    return { ...tile, resource: discoverResourceOnTile(tile, rng), prospecting: undefined };
   }
-  return t;
+  return tile;
 };
 
 const resolveDevelopmentJobOnTile = (tile: Tile, nextTurn: number): Tile => {
-  let t: Tile = { ...tile };
-  if (t.developmentJob && !t.developmentJob.completed) {
-    const elapsed = nextTurn - t.developmentJob.startedOnTurn;
-    if (elapsed >= t.developmentJob.durationTurns) {
-      let newResource = t.resource;
-      if (newResource) {
-        const target = Math.max(newResource.level, t.developmentJob.targetLevel);
-        newResource = { ...newResource, level: target };
-      }
-      t = { ...t, resource: newResource, developmentJob: { ...t.developmentJob, completed: true, completedOnTurn: nextTurn } };
-    }
-  }
-  return t;
+  const job = tile.developmentJob;
+  if (!job || nextTurn - job.startedOnTurn < job.durationTurns) return tile;
+  const resource = tile.resource ? { ...tile.resource, level: Math.max(tile.resource.level, job.targetLevel) } : tile.resource;
+  return { ...tile, resource, developmentJob: undefined };
 };
 
 const resolveConstructionJobOnTile = (tile: Tile, nextTurn: number): Tile => {
-  let t: Tile = { ...tile };
-  if (t.constructionJob && !t.constructionJob.completed) {
-    const elapsed = nextTurn - t.constructionJob.startedOnTurn;
-    if (elapsed >= t.constructionJob.durationTurns) {
-      const update: Partial<Tile> = {};
-      switch (t.constructionJob.kind) {
-        case "depot": update.depot = true; break;
-        case "port": update.port = true; break;
-        case "fort": update.fortLevel = Math.max(1, t.fortLevel || 0); break;
-        case "rail": break;
-      }
-      t = { ...t, ...update, constructionJob: { ...t.constructionJob, completed: true, completedOnTurn: nextTurn } };
-    }
+  const job = tile.constructionJob;
+  if (!job || nextTurn - job.startedOnTurn < job.durationTurns) return tile;
+  const update: Partial<Tile> = {};
+  switch (job.kind) {
+    case "depot": update.depot = true; break;
+    case "port": update.port = true; break;
+    case "fort": update.fortLevel = Math.max(1, tile.fortLevel || 0); break;
+    case "rail": break;
   }
-  return t;
-};
-
-const clearCompletionIndicators = (tile: Tile, nextTurn: number): Tile => {
-  let t: Tile = { ...tile };
-  if (t.developmentJob?.completed && t.developmentJob.completedOnTurn && nextTurn > t.developmentJob.completedOnTurn) {
-    t = { ...t, developmentJob: undefined };
-  }
-  if (t.constructionJob?.completed && t.constructionJob.completedOnTurn && nextTurn > t.constructionJob.completedOnTurn) {
-    t = { ...t, constructionJob: undefined };
-  }
-  return t;
+  return { ...tile, ...update, constructionJob: undefined };
 };

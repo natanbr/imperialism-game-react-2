@@ -1,58 +1,29 @@
-// src/app/definisions/workerDurations.ts
-// Centralized table for worker job durations (in turns).
-// NOTE: All values are placeholders. Update with real numbers from the manual.
+// Worker job durations in turns: the only table (FR-028). Source: docs/rules/03 section 4.
+// A job ordered on turn T with duration D finishes when turn T + D begins.
+// [NEEDS CLARIFICATION] gaps.md A4: only the miner's level-up and the forester's first improvement
+// are documented (3 turns); every other level-up uses the same 3.
 
 import { WorkerType } from "../types/Workers";
 
-// Prospector: discovery duration (e.g., time to reveal hidden resource)
-export const ProspectorDiscoveryDurationTurns: number = 1; // TODO: update from manual
+/** Prospecting one tile: 1 turn. */
+export const ProspectorDiscoveryDurationTurns: number = 1;
 
-// Level-based development durations for workers that improve resource levels (L1-L3)
-// Keys: WorkerType; Values: { level -> turns }
+const LEVEL_UP_TURNS = 3;
+const levelUps = { 1: LEVEL_UP_TURNS, 2: LEVEL_UP_TURNS, 3: LEVEL_UP_TURNS } as const;
+
+/** Development to level 1, 2, 3 by worker type. */
 export const WorkerLevelDurationsTurns: Partial<Record<WorkerType, Record<1 | 2 | 3, number>>> = {
-  [WorkerType.Farmer]: {
-    1: 2, // TODO: update from manual
-    2: 3, // TODO: update from manual
-    3: 4, // TODO: update from manual
-  },
-  [WorkerType.Rancher]: {
-    1: 2, // TODO: update from manual
-    2: 3, // TODO: update from manual
-    3: 4, // TODO: update from manual
-  },
-  [WorkerType.Forester]: {
-    1: 3, // TODO: update from manual
-    2: 4, // TODO: update from manual
-    3: 5, // TODO: update from manual
-  },
-  [WorkerType.Miner]: {
-    1: 3, // TODO: update from manual
-    2: 4, // TODO: update from manual
-    3: 5, // TODO: update from manual
-  },
-  [WorkerType.Driller]: {
-    1: 3, // TODO: update from manual
-    2: 4, // TODO: update from manual
-    3: 5, // TODO: update from manual
-  },
+  [WorkerType.Farmer]: levelUps,
+  [WorkerType.Rancher]: levelUps,
+  [WorkerType.Forester]: levelUps,
+  [WorkerType.Miner]: levelUps,
+  [WorkerType.Driller]: levelUps,
 };
 
-// Engineer: building durations (single-action tasks, not level-based)
-export const EngineerBuildDurationsTurns: Record<
-  "depot" | "port" | "fort" | "rail",
-  number
-> = {
-  depot: 2, // TODO: update from manual
-  port: 4,  // TODO: update from manual
-  fort: 4,  // TODO: update from manual
-  rail: 1,  // TODO: update from manual
+/** Engineer jobs: rail takes "just one season"; depot, port and fort 3 turns. */
+export const EngineerBuildDurationsTurns: Record<"depot" | "port" | "fort" | "rail", number> = {
+  rail: 1,
+  depot: 3,
+  port: 3,
+  fort: 3,
 };
-
-// Convenience accessor for consumers wanting a single exported object
-export const WorkerDurations = {
-  prospectorDiscovery: ProspectorDiscoveryDurationTurns,
-  levels: WorkerLevelDurationsTurns,
-  engineer: EngineerBuildDurationsTurns,
-};
-
-export default WorkerDurations;

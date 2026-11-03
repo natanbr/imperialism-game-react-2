@@ -1,4 +1,5 @@
 import { StateCreator } from 'zustand';
+import { GameStore } from '../rootStore';
 
 export interface OverlaySlice {
   // Warehouse modal controls
@@ -17,7 +18,7 @@ export interface OverlaySlice {
   closeTransportAllocation: () => void;
 }
 
-export const createOverlaySlice: StateCreator<OverlaySlice, [], [], OverlaySlice> = (set) => ({
+export const createOverlaySlice: StateCreator<GameStore, [], [], OverlaySlice> = (set) => ({
   // Warehouse modal
   isWarehouseOpen: false,
   openWarehouse: () => set({ isWarehouseOpen: true }),
@@ -25,7 +26,8 @@ export const createOverlaySlice: StateCreator<OverlaySlice, [], [], OverlaySlice
 
   // Capital modal
   isCapitalOpen: false,
-  openCapital: () => set({ isCapitalOpen: true }),
+  // A refusal from the map is stale here; only refusals of the dialog's own orders show in it (FR-055).
+  openCapital: () => set({ isCapitalOpen: true, lastRejection: null }),
   closeCapital: () => set({ isCapitalOpen: false }),
 
   // Transport Allocation modal

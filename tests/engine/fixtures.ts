@@ -1,6 +1,8 @@
 // Shared helpers for the engine tests. Not a test file (vitest only runs *.test.ts).
 import { createTwoNationGame } from '@/testing/mockNation';
 import { GameState } from '@/types/GameState';
+import { BuildingType, IndustryBuilding, IndustryState } from '@/types/Industry';
+import { Nation } from '@/types/Nation';
 import { Tile } from '@/types/Tile';
 import { Worker, WorkerStatus, WorkerType } from '@/types/Workers';
 import { createTileId, parseTileIdToArray } from '@/utils/tileIdUtils';
@@ -16,6 +18,7 @@ export const T = {
   range1: createTileId(1, 0), // OpenRange, livestock level 0, adjacent to capital1
   mountains1: createTileId(0, 1), // Mountains, hidden mineral, adjacent to capital1
   orchard1: createTileId(3, 1), // Orchard, not adjacent to capital1
+  homeOrchard1: createTileId(1, 2), // Orchard, fruit level 1, adjacent to capital1 (2 fruit a turn)
   dryPlains1: createTileId(2, 2), // DryPlains, grain level 1, inland, adjacent to capital1
   coastFarm1: createTileId(1, 4), // Farm next to the water row: a port site
   town1: createTileId(3, 2),
@@ -62,6 +65,33 @@ export function setWarehouse(state: GameState, nationId: string, patch: Record<s
     ...state,
     nations: state.nations.map(n => (n.id === nationId ? { ...n, warehouse: { ...n.warehouse, ...patch } } : n)),
   };
+}
+
+/** Every warehouse stock set to 0, then the patch. */
+export function emptyWarehouse(state: GameState, nationId: string, patch: Record<string, number> = {}): GameState {
+  const nation = state.nations.find(n => n.id === nationId)!;
+  const zero = Object.fromEntries(Object.keys(nation.warehouse).map(k => [k, 0]));
+  return setWarehouse(state, nationId, { ...zero, ...patch });
+}
+
+export const nationOf = (state: GameState, nationId: string): Nation => state.nations.find(n => n.id === nationId)!;
+export const industryOf = (state: GameState, nationId: string): IndustryState => nationOf(state, nationId).industry;
+export const stockOf = (state: GameState, nationId: string, key: string): number =>
+  (nationOf(state, nationId).warehouse as Record<string, number>)[key] ?? 0;
+
+/** Test setup: replaces parts of a nation's industry (workers, sick, training, recruits). */
+export function setIndustry(state: GameState, nationId: string, patch: Partial<IndustryState>): GameState {
+  return {
+    ...state,
+    nations: state.nations.map(n => (n.id === nationId ? { ...n, industry: { ...n.industry, ...patch } } : n)),
+  };
+}
+
+/** Test setup: replaces a building's state (capacity, pendingCapacity, orders). */
+export function setBuilding(state: GameState, nationId: string, building: BuildingType, patch: Partial<IndustryBuilding>): GameState {
+  const industry = industryOf(state, nationId);
+  const current: IndustryBuilding = industry.buildings[building] ?? { capacity: 0, pendingCapacity: 0, orders: {} };
+  return setIndustry(state, nationId, { buildings: { ...industry.buildings, [building]: { ...current, ...patch } } });
 }
 
 /** Test setup only: teleports a worker onto a tile as available and unmoved, with optional changes. */
@@ -117,8 +147,8 @@ export function invariantViolations(state: GameState): string[] {
     }
     const jobs: { name: string; workerId: string }[] = [];
     if (tile.prospecting) jobs.push({ name: 'prospecting', workerId: tile.prospecting.workerId });
-    if (tile.developmentJob && !tile.developmentJob.completed) jobs.push({ name: 'development', workerId: tile.developmentJob.workerId });
-    if (tile.constructionJob && !tile.constructionJob.completed) jobs.push({ name: 'construction', workerId: tile.constructionJob.workerId });
+    if (tile.developmentJob) jobs.push({ name: 'development', workerId: tile.developmentJob.workerId });
+    if (tile.constructionJob) jobs.push({ name: 'construction', workerId: tile.constructionJob.workerId });
     for (const job of jobs) {
       const w = tile.workers.find(x => x.id === job.workerId);
       if (!w) problems.push(`orphaned ${job.name} job on ${tile.id}: worker ${job.workerId} is not there`);
@@ -132,6 +162,36 @@ export function invariantViolations(state: GameState): string[] {
   }
   for (const n of state.nations) {
     if (!(n.treasury >= 0)) problems.push(`nation ${n.id} treasury ${n.treasury}`);
+    problems.push(...economyViolations(n));
+  }
+  return problems;
+}
+
+/**
+ * FR-045: no warehouse stock and no worker count is negative; sick workers and trainees are
+ * workers that exist; capacities and standing orders are non-negative numbers.
+ */
+export function economyViolations(n: Nation): string[] {
+  const problems: string[] = [];
+  const bad = (v: unknown) => typeof v !== 'number' || !Number.isFinite(v) || v < 0;
+  for (const [key, amount] of Object.entries(n.warehouse)) {
+    if (bad(amount)) problems.push(`nation ${n.id} warehouse ${key} ${amount}`);
+  }
+  const { workers, sick, training, recruits, buildings } = n.industry;
+  for (const grade of ['untrained', 'trained', 'expert'] as const) {
+    if (bad(workers[grade])) problems.push(`nation ${n.id} ${grade} workers ${workers[grade]}`);
+    if (bad(sick[grade]) || sick[grade] + training[grade] > workers[grade]) {
+      problems.push(`nation ${n.id} ${grade}: ${sick[grade]} sick and ${training[grade]} in training of ${workers[grade]}`);
+    }
+    if (bad(training[grade])) problems.push(`nation ${n.id} ${grade} training ${training[grade]}`);
+  }
+  if (bad(recruits)) problems.push(`nation ${n.id} recruits ${recruits}`);
+  for (const [name, b] of Object.entries(buildings)) {
+    if (!b) continue;
+    if (bad(b.capacity) || bad(b.pendingCapacity)) problems.push(`nation ${n.id} ${name} capacity ${b.capacity}+${b.pendingCapacity}`);
+    for (const [output, amount] of Object.entries(b.orders)) {
+      if (bad(amount)) problems.push(`nation ${n.id} ${name} order ${output} ${amount}`);
+    }
   }
   return problems;
 }

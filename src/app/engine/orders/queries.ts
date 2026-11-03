@@ -10,8 +10,9 @@ import {
   MINING_TERRAINS,
   RANCHING_TERRAINS,
 } from "@/definisions/terrainDefinitions";
+import type { ConstructionKind } from "@/types/jobs/ConstructionJob";
 import { parseTileIdToArray } from "@/utils/tileIdUtils";
-import { isAdjacentToOcean } from "../map/mapHelpers";
+import { canBuildRailAt, getAdjacentTiles, isAdjacentToOcean } from "../map/mapHelpers";
 
 export interface WorkerLocation {
   worker: Worker;
@@ -48,12 +49,12 @@ export function nationById(state: GameState, nationId: string): Nation | undefin
 export const treasuryOf = (state: GameState, nationId: string): number =>
   nationById(state, nationId)?.treasury ?? 0;
 
-/** True if one of the tile's unfinished jobs belongs to the worker. */
+/** True if one of the tile's jobs belongs to the worker (a finished job leaves its tile, FR-032). */
 export function holdsJob(tile: Tile, workerId: string): boolean {
   return (
     tile.prospecting?.workerId === workerId ||
-    (!!tile.developmentJob && !tile.developmentJob.completed && tile.developmentJob.workerId === workerId) ||
-    (!!tile.constructionJob && !tile.constructionJob.completed && tile.constructionJob.workerId === workerId)
+    tile.developmentJob?.workerId === workerId ||
+    tile.constructionJob?.workerId === workerId
   );
 }
 
@@ -67,9 +68,81 @@ export const hasMovedThisTurn = (worker: Worker): boolean =>
 export const isLand = (tile: Tile): boolean =>
   tile.terrain !== TerrainType.Water && tile.terrain !== TerrainType.River;
 
-/** A port needs a river on the tile or an ocean (coast or water) tile next to it. */
+// --- construction sites (FR-030, rules 04 sections 1 and 2) ---------------------------------
+
+/** Technology ids the site rules read. */
+export const TECH = {
+  compoundSteamEngine: "compoundSteamEngine",
+  ironRailroadBridge: "ironRailroadBridge",
+  dynamite: "dynamite",
+} as const;
+
+export const hasTechnology = (state: GameState, id: string): boolean =>
+  state.technologyState.technologies.some((t) => t.id === id && t.purchased);
+
+const HILLS: readonly TerrainType[] = [TerrainType.BarrenHills, TerrainType.FertileHills];
+const isHills = (tile: Tile): boolean => HILLS.includes(tile.terrain);
+const isCapital = (tile: Tile): boolean => tile.terrain === TerrainType.Capital;
+
+/** Hills need Compound Steam Engine, swamp Iron Railroad Bridge, mountains Dynamite. */
+export function railTerrainAllowed(state: GameState, tile: Tile): boolean {
+  if (isHills(tile)) return hasTechnology(state, TECH.compoundSteamEngine);
+  if (tile.terrain === TerrainType.Swamp) return hasTechnology(state, TECH.ironRailroadBridge);
+  if (tile.terrain === TerrainType.Mountains) return hasTechnology(state, TECH.dynamite);
+  return true;
+}
+
+export const isRailSite = (state: GameState, tile: Tile, nationId: string): boolean =>
+  canBuildRailAt(state.map, tile.x, tile.y, nationId) && railTerrainAllowed(state, tile);
+
+/** The capital, a depot or a port, built or under construction. */
+const gathers = (tile: Tile): boolean =>
+  isCapital(tile) ||
+  !!tile.depot ||
+  !!tile.port ||
+  tile.constructionJob?.kind === "depot" ||
+  tile.constructionJob?.kind === "port";
+
+/**
+ * A depot needs a tile without one, not next to the capital, a depot or a port (gaps.md F6: "not
+ * adjacent"; the capital already is a depot), and not on hills before Compound Steam Engine. A
+ * port on the same tile is allowed: the manual tells you to put the depot on a distant port.
+ */
+export const isDepotSite = (state: GameState, tile: Tile): boolean =>
+  !tile.depot &&
+  !isCapital(tile) &&
+  !getAdjacentTiles(state.map, tile.x, tile.y).some(gathers) &&
+  (!isHills(tile) || hasTechnology(state, TECH.compoundSteamEngine));
+
+/**
+ * A port needs a river on the tile or an ocean (coast or water) tile next to it, no port yet (the
+ * capital is one), and no hills or mountains.
+ */
 export const isPortSite = (state: GameState, tile: Tile): boolean =>
-  tile.hasRiver === true || isAdjacentToOcean(state.map, tile.x, tile.y);
+  !tile.port &&
+  !isCapital(tile) &&
+  !isHills(tile) &&
+  tile.terrain !== TerrainType.Mountains &&
+  (tile.hasRiver === true || isAdjacentToOcean(state.map, tile.x, tile.y));
+
+/** The capital starts with a level 1 fort. */
+export const fortLevelOf = (tile: Tile): number => Math.max(tile.fortLevel ?? 0, isCapital(tile) ? 1 : 0);
+
+/** Only level 1 can be built: levels 2 and 3 need technology v1 does not have. */
+export const isFortSite = (tile: Tile): boolean => fortLevelOf(tile) === 0;
+
+export function isConstructionSite(state: GameState, tile: Tile, structure: ConstructionKind, nationId: string): boolean {
+  switch (structure) {
+    case "rail":
+      return isRailSite(state, tile, nationId);
+    case "depot":
+      return isDepotSite(state, tile);
+    case "port":
+      return isPortSite(state, tile);
+    case "fort":
+      return isFortSite(tile);
+  }
+}
 
 /** Terrains each development worker may improve; the generic developer may improve any. */
 export const DEVELOPMENT_TERRAINS: Partial<Record<WorkerType, readonly TerrainType[]>> = {

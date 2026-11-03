@@ -1,134 +1,54 @@
-import { Recipes, ConversionRecipe } from './RecipeTypes';
-import { ResourceType, MaterialType, GoodsType, WorkerType, Fungible } from '../types/Resource';
+// Industry recipes and worker costs from docs/rules/05 (FR-034, FR-039, FR-041, FR-042).
+import type { ProductionOutput, Workers } from "../types/Industry";
+import { GoodsType, MaterialType, ResourceType } from "../types/Resource";
+import type { Recipe } from "./RecipeTypes";
 
-export const ProductionRecipes: ConversionRecipe[] = [
-    {
-        name: Recipes.FoodProcessing,
-        inputs: [
-            { type: Fungible.Labour, amount: 2 },
-            { type: [ResourceType.Fish, ResourceType.Livestock], amount: 1 },
-            { type: ResourceType.Grain, amount: 1, },
-            { type: ResourceType.Fruit, amount: 1 },
-        ],
-        outputs: [{ type: MaterialType.CannedFood, amount: 1 }],
-        note: "Food Processing: 1 grain, 1 fruit, 1 fish or livestock, 2 labour -> 1 canned food",
-    },
-    {
-        name: Recipes.LumberMillLumber,
-        inputs: [
-            { type: Fungible.Labour, amount: 2 },
-            { type: ResourceType.Timber, amount: 2 },
-        ],
-        outputs: [{ type: MaterialType.Lumber, amount: 1 }],
-        note: "Lumber Mill: 2 timber, 2 labour -> 1 lumber",
-    },
-    {
-        name: Recipes.LumberMillPaper,
-        inputs: [
-            { type: Fungible.Labour, amount: 2 },
-            { type: ResourceType.Timber, amount: 2 },
-        ],
-        outputs: [{ type: MaterialType.Paper, amount: 1 }],
-        note: "Lumber Mill: 2 timber, 2 labour -> 1 paper",
-    },
-    {
-        name: Recipes.FurnitureFactory,
-        inputs: [
-            { type: Fungible.Labour, amount: 2 },
-            { type: MaterialType.Lumber, amount: 2 },
-        ],
-        outputs: [{ type: GoodsType.Furniture, amount: 1 }],
-        note: "Furniture Factory: 2 lumber, 2 labour -> 1 furniture",
-    },
-    {
-        name: Recipes.TextileMillFabric,
-        inputs: [
-            { type: [ResourceType.Cotton, ResourceType.Wool], amount: 2 },
-            { type: Fungible.Labour, amount: 2 },
-        ],
-        outputs: [{ type: MaterialType.Fabric, amount: 1 }],
-        note: "Textile Mill: 2 cotton or 2 wool, 2 labour -> 1 fabric",
-    },
-    {
-        name: Recipes.ClothingFactory,
-        inputs: [
-            { type: MaterialType.Fabric, amount: 2 },
-            { type: Fungible.Labour, amount: 2 },
-        ],
-        outputs: [{ type: GoodsType.Clothing, amount: 1 }],
-        note: "Clothing Factory: 2 fabric, 2 labour -> 1 clothing",
-    },
-    {
-        name: Recipes.SteelMill,
-        inputs: [
-            { type: Fungible.Labour, amount: 2 },
-            { type: ResourceType.Coal, amount: 2 },
-            { type: ResourceType.IronOre, amount: 2 },
-        ],
-        outputs: [{ type: MaterialType.Steel, amount: 1 }],
-        note: "Steel Mill: 2 coal, 2 iron ore, 2 labour -> 1 steel",
-    },
-    {
-        name: Recipes.Hardware,
-        inputs: [
-            { type: Fungible.Labour, amount: 2 },
-            { type: MaterialType.Steel, amount: 2 },
-        ],
-        outputs: [{ type: GoodsType.Hardware, amount: 1 }],
-        note: "Hardware: 2 steel, 2 labour -> 1 hardware",
-    },
-    {
-        name: Recipes.FuelProcessing,
-        inputs: [
-            { type: Fungible.Labour, amount: 2 },
-            { type: ResourceType.Oil, amount: 2 },
-        ],
-        outputs: [{ type: MaterialType.Fuel, amount: 1 }],
-        note: "Fuel Processing: 2 oil, 2 labour -> 1 fuel",
-    },
-    {
-        name: Recipes.ProduceUntrainedWorker,
-        inputs: [
-            { type: MaterialType.CannedFood, amount: 1 },
-            { type: GoodsType.Hardware, amount: 1 },
-            { type: GoodsType.Clothing, amount: 1 },
-        ],
-        outputs: [
-            { type: WorkerType.Untrained, amount: 1 },
-            { type: Fungible.Labour, amount: 1 },
-        ],
-        note: "Produce Untrained Worker: 1 canned food, 1 hardware, 1 paper, 2 labour, 100 cash -> 1 untrained_worker, 1 labour",
-    },
-    {
-        name: Recipes.TrainWorkerUntrainedToTrainedWithLabour,
-        inputs: [
-            { type: Fungible.Labour, amount: 1 },
-            { type: WorkerType.Untrained, amount: 1 },
-            { type: MaterialType.Paper, amount: 1 },
-            { type: Fungible.Cash, amount: 100 },
-        ],
-        outputs: [
-            { type: WorkerType.Trained, amount: 1 },
-            { type: Fungible.Labour, amount: 2 },
-        ],
-        note: "Train Worker: 1 untrained_worker, 2 labour, 500 cash -> 1 trained_worker, 2 labour",
-    },
-    {
-        name: Recipes.TrainWorkerTrainedToExpertWithLabour,
-        inputs: [
-            { type: Fungible.Labour, amount: 2 },
-            { type: WorkerType.Trained, amount: 1 },
-            { type: MaterialType.Paper, amount: 2 },
-            { type: Fungible.Cash, amount: 1000 },
-        ],
-        outputs: [
-            { type: WorkerType.Expert, amount: 1 },
-            { type: Fungible.Labour, amount: 4 },
-        ],
-        note: "Train Worker: 1 trained_worker, 2 labour, 1000 cash -> 1 expert_worker, 4 labour",
-    },
-];
+const one = (type: ResourceType | MaterialType, amount: number) => ({ types: [type], amount });
 
-export const CashPerTransport: Record<ResourceType, number> = {
-    gold: 200, gems: 500,
-} as unknown as Record<ResourceType, number>; // narrow use; guard in code
+/**
+ * Per batch. "2 labour + 2 input -> 1 product" everywhere, except steel (1 coal + 1 iron) and
+ * canned food (4 raw food -> 2 cans). [NEEDS CLARIFICATION] gaps.md B6: a single can for one odd
+ * labour unit is not modelled, so canned food runs in batches of 2.
+ */
+export const RECIPES: Readonly<Record<ProductionOutput, Recipe>> = {
+  [MaterialType.Fabric]: { building: "textileMill", batch: 1, labour: 2, inputs: [{ types: [ResourceType.Cotton, ResourceType.Wool], amount: 2 }] },
+  [GoodsType.Clothing]: { building: "clothingFactory", batch: 1, labour: 2, inputs: [one(MaterialType.Fabric, 2)] },
+  [MaterialType.Lumber]: { building: "lumberMill", batch: 1, labour: 2, inputs: [one(ResourceType.Timber, 2)] },
+  [MaterialType.Paper]: { building: "lumberMill", batch: 1, labour: 2, inputs: [one(ResourceType.Timber, 2)] },
+  [GoodsType.Furniture]: { building: "furnitureFactory", batch: 1, labour: 2, inputs: [one(MaterialType.Lumber, 2)] },
+  [MaterialType.Steel]: { building: "steelMill", batch: 1, labour: 2, inputs: [one(ResourceType.Coal, 1), one(ResourceType.IronOre, 1)] },
+  [GoodsType.Hardware]: { building: "metalWorks", batch: 1, labour: 2, inputs: [one(MaterialType.Steel, 2)] },
+  [GoodsType.Armaments]: { building: "metalWorks", batch: 1, labour: 2, inputs: [one(MaterialType.Steel, 2)] },
+  [MaterialType.Fuel]: { building: "refinery", batch: 1, labour: 2, inputs: [one(ResourceType.Oil, 2)] },
+  [MaterialType.CannedFood]: {
+    building: "foodProcessing",
+    batch: 2,
+    labour: 2,
+    inputs: [one(ResourceType.Grain, 2), one(ResourceType.Fruit, 1), { types: [ResourceType.Livestock, ResourceType.Fish], amount: 1 }],
+  },
+};
+
+/** Labour per worker by grade (rules 05 section 4). */
+export const LABOUR_PER_WORKER: Readonly<Workers> = { untrained: 1, trained: 2, expert: 4 };
+
+/** Railyard: one freight car (1 unit of transport capacity) costs 1 lumber + 1 steel + 2 labour. */
+export const FREIGHT_CAR_COST = { lumber: 1, steel: 1, labour: 2 } as const;
+
+/** Trade School: cash and paper per trainee, by the grade trained from (rules 05 section 4). */
+export const TRAINING_COST: Readonly<Record<"untrained" | "trained", { cash: number; paper: number }>> = {
+  untrained: { cash: 100, paper: 1 },
+  trained: { cash: 1000, paper: 2 },
+};
+
+/** The grade a trainee reaches. */
+export const TRAINED_TO = { untrained: "trained", trained: "expert" } as const;
+
+/** Capitol: one migrant costs 1 canned food + 1 clothing + 1 furniture, no cash, no labour. */
+export const MIGRANT_COST: Readonly<Partial<Record<MaterialType | GoodsType, number>>> = {
+  [MaterialType.CannedFood]: 1,
+  [GoodsType.Clothing]: 1,
+  [GoodsType.Furniture]: 1,
+};
+
+/** Expansion: 1 lumber + 1 steel per capacity point added, no labour (rules 05 section 3). */
+export const EXPANSION_COST_PER_POINT = { lumber: 1, steel: 1 } as const;

@@ -51,7 +51,7 @@ describe('developmentSystem', () => {
     expect(t2.resource?.discovered).toBe(true);
   });
 
-  it('marks construction job complete and applies effect', () => {
+  it('FR-032 a finished rail job leaves the tile and joins the network', () => {
     const railroadNetworks = initializeRailroadNetworks(baseState.map, baseState.nations as Nation[]);
     const state = {
       ...baseState,
@@ -60,11 +60,11 @@ describe('developmentSystem', () => {
 
     const capital = state.map.tiles.flat().find(t => t.terrain === TerrainType.Capital)!;
     const [cx, cy] = [capital.x, capital.y];
-    state.map.tiles[cy][cx].constructionJob = { workerId: 'w1', kind: 'rail', startedOnTurn: state.turn, durationTurns: 1, completed: false };
+    state.map.tiles[cy][cx].constructionJob = { workerId: 'w1', kind: 'rail', startedOnTurn: state.turn, durationTurns: 1 };
 
     const s2 = developmentSystem(state, createTurnContext({ turn: state.turn, rng }));
     const t2 = s2.map.tiles[cy][cx];
-    expect(t2.constructionJob?.completed).toBe(true);
+    expect(t2.constructionJob).toBeUndefined();
     // check that the railroad was added to the network
     expect(s2.transportNetwork.railroadNetworks!['nation-1'].graph[`${cx},${cy}`]).toBeDefined();
   });

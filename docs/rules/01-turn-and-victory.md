@@ -4,7 +4,7 @@
 > - One turn = one season (3 months), 4 turns per year, a random game starts in **Spring 1815** and ends by the last Council vote in **1915** at the latest (400 turns). All nations give orders at the same time; resolution always runs in the same fixed phase order (section 1).
 > - The game is won by a Council of Governors vote: 1 vote per province, >2/3 of all votes. First meeting 1825, then every 10 years; the tenth (1915) forces every governor to choose. Only the two top powers are nominated, from three strengths (interior, diplomatic, military).
 > - A score exists but its formula is unknown. v1 must define its own (see section 5); the project plan proposes treasury + industrial capacity + developed tiles.
-> - CODE MISMATCH: start year, phase list and difficulty (list at the bottom).
+> - CODE MISMATCH: phase list and difficulty (list at the bottom). Start year RESOLVED in M2 (FR-027).
 
 Source tags: `[M pN]` manual PDF page marker; `[W#]` web source (see Sources); `[?]` unverified or inferred.
 
@@ -96,10 +96,10 @@ Weights of the three strengths, the exact governor decision rule and the nominee
 
 ## CODE MISMATCH
 
-- CODE MISMATCH: `constants/gameConstants.ts` `TIME_CONFIG.STARTING_YEAR = 1900`; random worlds start Spring 1815. `TURNS_PER_YEAR = 4` is right.
+- RESOLVED in M2 (FR-027), was: `constants/gameConstants.ts` `TIME_CONFIG.STARTING_YEAR = 1900`; random worlds start Spring 1815. `TURNS_PER_YEAR = 4` is right.
 - `types/GameState.ts` `TurnOrderSummary` has six phases (diplomacy, trade, production, combat, interceptions, logistics), matching the manual. `systems/runTurnPhases.ts` runs 8 (development, diplomacy, trade, production, combat, interceptions, transport connectivity, logistics); the two extra phases are internal and acceptable, but the manual puts transport arrival last.
 - `GameState.difficulty` names match; no effect of difficulty exists in code.
-- No Council, score, calendar seasons, cash start ($10,000), or start population in code.
+- No Council or score in code. Calendar seasons, cash start ($10,000) and start population: RESOLVED in M2 (FR-027, FR-043).
 
 ## Sources
 

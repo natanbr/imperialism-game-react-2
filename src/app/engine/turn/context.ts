@@ -2,6 +2,7 @@ import type { GameState } from "@/types/GameState";
 import type { NationId, TileId } from "@/types/Common";
 import type { ResourceType } from "@/types/Resource";
 import type { ConstructionKind } from "@/types/jobs/ConstructionJob";
+import type { BuildingType, ProductionOutput } from "@/types/Industry";
 import type { Order, RejectReason } from "../orders/Order";
 import { createTurnRng, type Rng } from "../rng";
 
@@ -11,6 +12,12 @@ export type GameEvent =
   | { type: "resource-discovered"; tileId: TileId; nationId?: NationId; resource?: ResourceType }
   | { type: "development-completed"; tileId: TileId; nationId?: NationId; level: number }
   | { type: "construction-completed"; tileId: TileId; nationId?: NationId; structure: ConstructionKind }
+  | { type: "goods-produced"; nationId: NationId; output: ProductionOutput; amount: number }
+  | { type: "freight-cars-built"; nationId: NationId; count: number }
+  | { type: "building-expanded"; nationId: NationId; building: BuildingType; capacity: number }
+  | { type: "workers-trained"; nationId: NationId; to: "trained" | "expert"; count: number }
+  | { type: "workers-fed"; nationId: NationId; fed: number; sick: number; starved: number }
+  | { type: "workers-recruited"; nationId: NationId; count: number }
   | { type: "turn-ended"; turn: number; year: number };
 
 /** Everything a system may use besides the state itself (FR-012). */

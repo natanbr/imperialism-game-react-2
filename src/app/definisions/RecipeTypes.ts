@@ -1,28 +1,34 @@
-// RecipeTypes.ts
-// Shared enums and interfaces for industry/resource recipes
+// Types of the industry rule tables (`ResourceConversions.ts`, `industryBuildings.ts`).
+import type { BuildingType, ProductionOutput } from "../types/Industry";
+import type { WarehouseCommodities } from "../types/Resource";
 
-import { CommoditiesType } from '../types/Resource';
-
-export enum Recipes {
-    FoodProcessing = "FoodProcessing",
-    LumberMillLumber = "LumberMillLumber",
-    LumberMillPaper = "LumberMillPaper",
-    FurnitureFactory = "FurnitureFactory",
-    TextileMillFabric = "TextileMillFabric",
-    ClothingFactory = "ClothingFactory",
-    SteelMill = "SteelMill",
-    Hardware = "Hardware",
-    FuelProcessing = "FuelProcessing",
-    ElectricityProduction = "ElectricityProduction",
-    // Worker training/production
-    ProduceUntrainedWorker = "ProduceUntrainedWorker",
-    TrainWorkerUntrainedToTrainedWithLabour = "TrainWorkerUntrainedToTrainedWithLabour",
-    TrainWorkerTrainedToExpertWithLabour = "TrainWorkerTrainedToExpertWithLabour",
+/** `amount` units of any mix of `types` (cotton or wool; livestock or fish). */
+export interface RecipeInput {
+  types: readonly WarehouseCommodities[];
+  amount: number;
 }
 
-export interface ConversionRecipe {
-    name: Recipes;
-    inputs: Array<{ type: CommoditiesType | Array<CommoditiesType>; amount: number }>;
-    outputs: Array<{ type: CommoditiesType; amount: number }>;
-    note?: string;
+/** One batch: the inputs and labour that make `batch` units of the output (FR-034). */
+export interface Recipe {
+  building: BuildingType;
+  batch: number;
+  labour: number;
+  inputs: readonly RecipeInput[];
+}
+
+export type BuildingKind = "mill" | "factory";
+
+export interface BuildingDefinition {
+  /** Mills grow 2, 4, 8, 16, 24 then +8; factories 1, 2, 4, 8, 12 then +4. */
+  kind: BuildingKind;
+  /** What it makes; the first is the default output of a production order. */
+  outputs: readonly ProductionOutput[];
+  /** No capacity limit (food processing). */
+  unlimited: boolean;
+  /** Standing orders are kept between turns (all but food processing). */
+  keepsOrders: boolean;
+  /** Can only be built after Oil Drilling (the refinery). */
+  needsOilDrilling: boolean;
+  /** Built at its first size in a new game (the six mills and factories, gaps.md A6). */
+  builtAtStart: boolean;
 }

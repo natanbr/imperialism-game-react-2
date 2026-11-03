@@ -27,12 +27,12 @@ const sampleOrders = (): Record<string, Order[]> => ({
 });
 
 describe('resolveTurn', () => {
-  it('FR-011 advances the turn by one and the year every fourth turn, as before', () => {
+  it('FR-011 FR-027 advances the turn by one, and the year after winter (turn 4)', () => {
     const t1 = resolveTurn(game(), {}, 1).state;
-    expect([t1.turn, t1.year]).toEqual([2, 1900]);
+    expect([t1.turn, t1.year]).toEqual([2, 1815]);
 
     const t4 = resolveTurn({ ...game(), turn: 4 }, {}, 1).state;
-    expect([t4.turn, t4.year]).toEqual([5, 1901]);
+    expect([t4.turn, t4.year]).toEqual([5, 1816]);
   });
 
   it('FR-011 applies the transport capacity bought last turn and clears the queue', () => {
@@ -63,7 +63,7 @@ describe('resolveTurn', () => {
     expect(s.transportAllocationsByNation?.[N1]).toEqual({ grain: 2 });
     expect(locate(s, W.farmer2)!.tile.id).toBe(T.farm2);
     expect(events).toContainEqual(expect.objectContaining({ type: 'resource-discovered', tileId: T.mountains1, nationId: N1 }));
-    expect(events.at(-1)).toEqual({ type: 'turn-ended', turn: 2, year: 1900 });
+    expect(events.at(-1)).toEqual({ type: 'turn-ended', turn: 2, year: 1815 });
   });
 
   it('FR-011 a refused order becomes an order-rejected event and changes nothing', () => {

@@ -11,7 +11,7 @@ const W = {
   farmer: workerId(N1, WorkerType.Farmer),
   engineer: workerId(N1, WorkerType.Engineer),
 };
-const START = 1000; // nation-1 treasury in the fixture
+const START = 10000; // nation-1 treasury in the fixture
 
 /** Applies and also checks purity: the frozen input must stay unchanged (FR-013). */
 function run(state: GameState, order: Order): GameState {
@@ -51,18 +51,18 @@ describe('applyOrder immediate effects', () => {
     expect(treasury(s, N1)).toBe(START - PROSPECT_COST);
   });
 
-  it('FR-005 startDevelopment starts the next level and charges its price', () => {
+  it('FR-005 FR-028 startDevelopment starts the next level and charges its price', () => {
     const s = run(put(game(), W.farmer, T.farm1), { kind: 'startDevelopment', nationId: N1, workerId: W.farmer, tileId: T.farm1 });
 
-    expect(tileAt(s, T.farm1).developmentJob).toEqual({ workerId: W.farmer, workerType: WorkerType.Farmer, targetLevel: 1, startedOnTurn: 1, durationTurns: 2 });
+    expect(tileAt(s, T.farm1).developmentJob).toEqual({ workerId: W.farmer, workerType: WorkerType.Farmer, targetLevel: 1, startedOnTurn: 1, durationTurns: 3 });
     expect(locate(s, W.farmer)!.worker).toMatchObject({ status: WorkerStatus.Working });
     expect(treasury(s, N1)).toBe(START - DEVELOPMENT_COST[1]);
   });
 
-  it('FR-005 startConstruction builds the named structure and charges its price', () => {
-    const s = run(game(), { kind: 'startConstruction', nationId: N1, workerId: W.engineer, tileId: T.capital1, structure: 'fort' });
+  it('FR-005 FR-028 startConstruction builds the named structure and charges its price', () => {
+    const s = run(put(game(), W.engineer, T.farm1), { kind: 'startConstruction', nationId: N1, workerId: W.engineer, tileId: T.farm1, structure: 'fort' });
 
-    expect(tileAt(s, T.capital1).constructionJob).toEqual({ workerId: W.engineer, kind: 'fort', startedOnTurn: 1, durationTurns: 4 });
+    expect(tileAt(s, T.farm1).constructionJob).toEqual({ workerId: W.engineer, kind: 'fort', startedOnTurn: 1, durationTurns: 3 });
     expect(locate(s, W.engineer)!.worker).toMatchObject({ status: WorkerStatus.Working });
     expect(treasury(s, N1)).toBe(START - CONSTRUCTION_COST.fort);
   });
@@ -105,14 +105,14 @@ describe('applyOrder immediate effects', () => {
     expect(worker).toMatchObject({ status: WorkerStatus.Available, justMoved: false, previousTileId: undefined, assignedTileId: T.capital1 });
   });
 
-  it('FR-005 cancelWorkerAction stops a job without a refund', () => {
+  it('FR-005 FR-031 cancelWorkerAction stops a job and refunds it when it was ordered this turn', () => {
     const started = applyOrder(put(game(), W.farmer, T.farm1), { kind: 'startDevelopment', nationId: N1, workerId: W.farmer, tileId: T.farm1 });
 
     const s = run(started, { kind: 'cancelWorkerAction', nationId: N1, workerId: W.farmer, tileId: T.farm1 });
 
     expect(tileAt(s, T.farm1).developmentJob).toBeUndefined();
     expect(locate(s, W.farmer)!.worker).toMatchObject({ status: WorkerStatus.Available });
-    expect(treasury(s, N1)).toBe(START - DEVELOPMENT_COST[1]);
+    expect(treasury(s, N1)).toBe(START);
   });
 
   it('FR-006 cancelling a move-and-start job leaves the worker moved: no second move this turn', () => {
@@ -134,24 +134,24 @@ describe('applyOrder immediate effects', () => {
     expect(s.transportAllocationsByNation).toEqual({ [N1]: { grain: 3 }, [N2]: { timber: 1 } });
   });
 
-  it('FR-005 FR-010 changeTransportCapacity buys with coal and iron and queues the increase', () => {
-    const s = run(setWarehouse(game(), N1, { coal: 5, ironOre: 3 }), { kind: 'changeTransportCapacity', nationId: N1, delta: 2 });
+  it('FR-005 FR-039 changeTransportCapacity orders cars with lumber and steel and queues the increase', () => {
+    const s = run(setWarehouse(game(), N1, { lumber: 5, steel: 3 }), { kind: 'changeTransportCapacity', nationId: N1, delta: 2 });
 
     const n = s.nations.find(x => x.id === N1)!;
-    expect(n.warehouse.coal).toBe(3);
-    expect(n.warehouse.ironOre).toBe(1);
+    expect(n.warehouse.lumber).toBe(3);
+    expect(n.warehouse.steel).toBe(1);
     expect(n.transportCapacityPendingIncrease).toBe(2);
     expect(n.transportCapacity).toBe(10);
   });
 
-  it('FR-005 FR-010 changeTransportCapacity with a negative delta refunds the queued purchase', () => {
-    const bought = applyOrder(setWarehouse(game(), N1, { coal: 2, ironOre: 2 }), { kind: 'changeTransportCapacity', nationId: N1, delta: 2 });
+  it('FR-005 FR-039 changeTransportCapacity with a negative delta refunds the queued cars', () => {
+    const bought = applyOrder(setWarehouse(game(), N1, { lumber: 2, steel: 2 }), { kind: 'changeTransportCapacity', nationId: N1, delta: 2 });
 
     const s = run(bought, { kind: 'changeTransportCapacity', nationId: N1, delta: -1 });
 
     const n = s.nations.find(x => x.id === N1)!;
-    expect(n.warehouse.coal).toBe(1);
-    expect(n.warehouse.ironOre).toBe(1);
+    expect(n.warehouse.lumber).toBe(1);
+    expect(n.warehouse.steel).toBe(1);
     expect(n.transportCapacityPendingIncrease).toBe(1);
   });
 });

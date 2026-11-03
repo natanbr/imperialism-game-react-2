@@ -3,29 +3,30 @@
 ## Resuming here
 
 - 2026-11-02: plan approved (continue, v1 = M0 to M4). Light flow in `docs/FLOW.md`.
-- M0 merged (PR 9, after one review + fix round). Docs/process merged (PR 10).
-- Rules knowledge base done 2026-11-03: `docs/rules/` (12 files). Code-vs-rules mismatches are
-  tagged `CODE MISMATCH:` in each topic file; M2 fixes them. Top v1 gaps in `docs/rules/gaps.md`.
-- Progress page: https://claude.ai/artifact/JHRFaWQRPk3AYGssSchPBU (data `docs/report/roadmap.json`).
-- M1 part A (engine) done 2026-11-03: `src/app/engine/`, FR-001 to FR-017.
-- M1 part B (store and UI) done 2026-11-03 on branch `claude/m1-headless-core`, pushed, no PR
-  yet: the store is one `GameState` (`game`) plus UI state; the UI only calls `submitOrder` and
-  `advanceTurn`; the adapters are gone. FR-018 to FR-025 tested, `npx vitest run` 270 green,
-  Playwright 7 passed 1 skipped on port 3123. Screenshot `docs/journal/m1-screenshot.png`.
-  Ten objections in the part B entry; read the first two (click fallback, job flags) first.
-- Next: the M1 review (Opus 5.5 high) over `1b79ff3..HEAD` and the orchestrator's app check,
-  then the PR.
-- M1 review fix round done 2026-11-03 (entry at the end): FR-026 own-key checks, lint guard for
-  `new Date()`, `performance.now()` and `crypto`, a replay test that draws from the RNG.
-  `npx vitest run` 280 green.
+- M0 merged (PR 9). Docs/process merged (PR 10). Rules knowledge base in `docs/rules/` (gaps in
+  `docs/rules/gaps.md`). Progress page: https://claude.ai/artifact/JHRFaWQRPk3AYGssSchPBU.
+- M1 done 2026-11-03 on `claude/m1-headless-core` (pushed, no PR yet; entries archived in
+  `docs/journal/archive-M1.md`). Its review fix round is done.
+- M2 part A (engine) done 2026-11-03 on `claude/m2-economic-loop`, stacked on M1, pushed, no PR:
+  production buildings, recipes, labour, food, training, migration, freight cars from lumber +
+  steel + labour, Spring 1815 calendar, real durations and costs, site rules, same-turn refunds,
+  finished jobs leave the tile, the engine owns the start world. FR-027 to FR-045 tested,
+  `npx vitest run` 414 green, Playwright 7 passed 1 skipped on port 3127.
+- M2 part B (UI) done 2026-11-03 on the same branch, pushed, no PR: capital dialog rebuilt
+  (production cards, Expand, labour panel, Trade School, Capitol, freight cars, refusals), HUD
+  date and food warning (`foodForecast`), display names, warehouse groups, start technologies
+  (decision Q8 default), fruit next to every capital. FR-046 to FR-053 tested, 458 unit tests,
+  Playwright 8 passed 1 skipped on port 3131. Screenshots `docs/journal/m2-capital.png`, `m2-warehouse.png`.
+- M2 review done; its fix round done 2026-11-03 on the same branch (FR-054 to FR-059, 472 unit
+  tests, Playwright 8 passed 1 skipped on port 3133). Next: re-review of the fix-round delta only,
+  then the PRs (M1 first).
+- Open decision Q9: freight-car timing. Cars ordered in a turn count for that turn's shipping
+  (FR-039); rules 01 and 04 say "usable next turn". Not changed; Nathan decides.
 
 Carried forward:
-- M2: rail, depot and fort site validation, and a refund on cancel.
-- M2: `completed` and `completedOnTurn` stay in GameState.
-- M2: `industrySlice` becomes an engine system.
-- M2: `engine/newGame.ts` imports the `@/testing/worldInit` fixture.
-- M4: add an order log in the store and queue UI orders into `resolveTurn`, so human and AI
-  orders resolve together and a played game can be replayed.
+- Deferred to a later milestone: river ports and the depot-on-port rule (rules 04 CODE MISMATCH,
+  logic, not data). Also later: world prices (06); University fees; the power plant.
+- M4: an order log in the store, UI orders queued into `resolveTurn` (replay of a played game).
 - UI: the selected tile and owned tiles are both drawn red.
 
 ## 2026-11-02 Revival setup
@@ -34,284 +35,296 @@ Size: L (process). Decisions: continue not restart; gold $200 / gems $500; delet
 branches and untrack old tool configs; v3 AI scripted and LLM behind one interface. Light
 flow adopted from the work-repo SDD flow; reviews batched per milestone to cut cost.
 
-## 2026-11-03 M1 part A: headless core, engine only
+## 2026-11-03 M1 headless core (archived)
+
+Entries in `docs/journal/archive-M1.md`. Engine in `src/app/engine/` (Order, validate, apply,
+resolveTurn, systems `(state, ctx)`, seeded RNG, scripted player); the store holds one
+`GameState` plus UI state and the UI only submits orders. FR-001 to FR-026 tested; 280 unit
+tests, Playwright 7 passed. Two objections went to M2: the job completion flags and the
+`newGame` import of a test fixture (both settled in M2 part A below).
+
+## 2026-11-03 M2 part A: economic loop, engine only
 
 Size: L (milestone part). Night shift, one agent (Opus 5.5), no subagents, no advisor calls.
-Branch `claude/m1-headless-core` from `origin/main` a976dc0. `npm ci` ran without a path error.
+Branch `claude/m2-economic-loop` from `origin/claude/m1-headless-core` 3cef865. `npm ci` clean.
 
 Plan-lite:
-- Change: new `src/app/engine/` (Order union, validate, apply, resolveTurn, systems as
-  `(state, ctx)`, turn RNG, scripted player). Old paths (`src/app/systems/*`,
-  `store/helpers/*`, worker start functions, `turnSlice.advanceTurn`) become thin adapters.
-- Consumers: the store and UI through the adapters today; part B makes the store submit
-  orders directly; v3 AI players call `validateOrder`/`applyOrder`/`resolveTurn`.
-- Test rows: FR-001 `lintGuard`; FR-002 `rng`, `resolveTurn` (seed), `determinism`
-  (interleaving); FR-003/004 `validate`; FR-005 `apply`; FR-006 to FR-009 `validate`, `apply`,
-  `legacyAdapters`; FR-010 `validate`, `apply`; FR-011/012 `resolveTurn`, `purity`; FR-013
-  `purity`, `apply`, `resolveTurn`; FR-014 `determinism`; FR-015/016 `twoNations`; FR-017
-  `legacyAdapters` plus the pre-M1 store and worker tests (all green through the adapters).
-- Verify: `npm run test:engine`, `npx vitest run`, `npm run lint`, `npx tsc --noEmit`, `npm run build`.
-- Objection: two ways to give orders exist (applyOrder now, or the order list to resolveTurn);
-  they could drift. Mitigated by the test "giving the orders to resolveTurn equals applying
-  them first and resolving with none"; part B should pick one path for the UI.
-
-Tasks:
-
-| Task | FRs | Commit |
-|---|---|---|
-| T-01 [test+impl] engine package, lint guard, `seed`, turn RNG, `test:engine` | FR-001, FR-002 | 0077a38 |
-| T-02 [impl] move systems and pure helpers into the engine, `(state, ctx)`, adapters | FR-012 | 6cd41c1 |
-| T-03 [test+impl] rail network helpers stop mutating the input | FR-013 | 276f97e |
-| T-04 [test+impl] Order, validateOrder, applyOrder, legacy adapters, 4 bug fixes | FR-003 to FR-010, FR-017 | 2ff5762 |
-| T-05 [test+impl] resolveTurn; `advanceTurn` delegates to it | FR-002, FR-011, FR-012 | 2f6d1b2 |
-| T-06 [test+impl] scripted player, replay and two-nation 20-turn tests | FR-014 to FR-016 | 8f467e6 |
-| T-07 [docs] journal, requirement status | all | this commit |
-
-Red summaries (each test file written and run before its code):
-- T-01: `Test Files 2 failed (2)` / `Tests 10 failed | 1 passed (11)`; rules missing and
-  `Cannot find module '@/engine/rng'`.
-- T-03: `Tests 5 failed (5)`; `TypeError: Cannot add property 3,1, object is not extensible`
-  (addRailroad pushed into the frozen input's graph).
-- T-04: `Test Files 3 failed | 3 passed (6)` / `Tests 100 failed | 24 passed (124)`. Stubs threw
-  `not implemented`; the 7 legacy regression tests failed on the real bugs, for example
-  `expected 'port' not to be 'port'` (startEngineerWork, inland port) and
-  `expected { workerId: 'nation-1-engineer', …(3) } to deeply equal { workerId: 'someone-else', …(3) }`
-  (rail-on-move overwrote another job).
-- T-05: `Tests 10 failed (10)`; `Error: not implemented`.
-- T-06: `Tests 4 failed | 2 passed (6)`; empty player, `expected 0 to be greater than 20`.
-
-Green summary: `npm run test:engine` `Test Files 9 passed (9)` / `Tests 140 passed (140)`;
-`npx vitest run` `Test Files 19 passed (19)` / `Tests 231 passed (231)` (91 before M1).
-
-Evidence:
-
-| Claim | Command | Result (quoted) |
-|---|---|---|
-| Baseline before M1 | `npx vitest run`, `npm run lint`, `npx tsc --noEmit` | `Tests 91 passed (91)`; `✖ 10 problems (0 errors, 10 warnings)`; exit 0 |
-| FR-001 engine guard | `npx vitest run tests/engine/lintGuard.test.ts` | `11 tests` passed (react, zustand, `@/store`, `../store/...`, `@/components`, `next/link`, window, document, Math.random, Date.now refused; types allowed) |
-| FR-003 to FR-010 orders | `npx vitest run tests/engine/validate.test.ts tests/engine/apply.test.ts` | `Tests 95 passed (95)` |
-| FR-006 to FR-009, FR-017 bugs closed | `tests/engine/legacyAdapters.test.ts` | `10 tests` passed (7 were red before the fix) |
-| FR-011, FR-012, FR-002 turn | `tests/engine/resolveTurn.test.ts` | `10 tests` passed |
-| FR-013 purity | `tests/engine/purity.test.ts` + frozen inputs in apply/validate/resolveTurn | `5 tests` passed |
-| FR-014 replay | `tests/engine/determinism.test.ts` | `3 tests` passed |
-| FR-015, FR-016 two nations | `tests/engine/twoNations.test.ts` | `3 tests` passed; turn 21, year 1905, 0 rejected orders, treasuries 1000/800 → 300/200, 34 constructions and 31 developments completed |
-| All tests | `npx vitest run` | `Test Files 19 passed (19)` / `Tests 231 passed (231)` |
-| Lint | `npm run lint` | `✖ 8 problems (0 errors, 8 warnings)` (all in files M1 did not create; was 10) |
-| Types | `npx tsc --noEmit` | exit 0, no output |
-| Build | `npm run build` | `✓ Compiled successfully in 1960ms`, exit 0 |
-| App check | not run | Playwright reuses any server on :3000 (`reuseExistingServer`), possibly another worktree's; left for the M1 app check |
-
-Decisions taken alone (safest default), each open to review:
-- Objection: the engine's move-and-start is all or nothing for every reason. The store
-  adapter keeps the old UI fallback: a job refused for a reason other than money still makes
-  the plain (validated) move. Part B decides whether to keep that fallback.
-- Objection: a worker that moved and started a job now stays marked as moved (was reset), and
-  cancelling that job leaves it `moved` (was `available`); a second cancel sends it home. This
-  closes the second move per turn (FR-006). One old assertion in `minerWorker.test.ts` changed
-  from `available` to `moved` for this reason.
-- Objection: `minerWorker.test.ts` shared one mutable base state, so the same worker id stood on
-  several tiles; each test now uses `structuredClone(baseState)`. No assertion changed.
-- Objection: validation adds terrain rules the old start functions lacked (prospecting only on
-  prospectable terrain; each development worker only on its terrains, the generic developer
-  anywhere). The UI already offered only these, so nothing visible changes.
-- Objection: rail through `startConstruction` keeps the old rule (no rail-site check; an old
-  test builds rail on the capital tile). Only rail-on-move checks the site. Cancelling a job
-  still refunds nothing. Both are rules questions for M2, not M1.
-- Objection: `changeTransportCapacity` is all or nothing (the store action bought as many as
-  coal and iron allowed); the Capital dialog already clamps to the affordable amount.
-- Objection: the store seed is fixed at 1 until a new-game flow exists. The RNG formula is the
-  old one, now fed `state.seed` instead of the year; it only draws for a prospect on a tile
-  without a resource, which the UI cannot start.
-- Objection: debug and setup setters (`setTransportNetwork`, `setNationTransportCapacity`,
-  `setNations`, `setMap`, `setOilDrillingTech`, `setActiveNation`, `addNews`) are not orders:
-  no UI control calls them and they are not player actions.
-- Objection: the two-nation fixture (`createTwoNationGame` in `mockNation.ts`) hides gold next
-  to each capital so both nations keep an income and the 20-turn game stays active after turn 3.
-
-Part B must do:
-- Remove the adapters: `src/app/systems/{developmentSystem,logisticsSystem,transportConnectivitySystem,railroadSystem,runTurnPhases,utils/rng}.ts`,
-  `store/helpers/{treasuryHelpers,workerHelpers}.ts`, the engine re-exports in
-  `store/helpers/mapHelpers.ts` (keep `computeRailSegmentsPixels`, it is view code),
-  `workers/startEachWorker.ts`, the `start*Work` functions and `handleEngineerMovement`; move the
-  old tests in `tests/systems`, `tests/store`, `tests/workers` that import them to the engine API.
-- Store and UI call sites that still bypass orders: `nationSlice.purchaseTransportCapacityIncrease`
-  (CapitalModal) and `transportSlice.setTransportAllocations` (useTransportAllocations) keep their
-  own logic; `workerActionsSlice` reaches the engine only through the adapters;
-  `turnSlice.advanceTurn` passes no orders and drops the events.
-- UI state inside GameState: `activeNationId`, `turnOrder` (a constant), `newsLog`, worker
-  `jobDescription` (display text), job `completed`/`completedOnTurn` ("for UI pulse"); and the
-  store passes its whole object (camera, overlay, selection, controls, actions) into the engine.
-
-## 2026-11-03 M1 part B: store and UI on the order API
-
-Size: L (milestone part). Night shift, one agent (Opus 5.5, xhigh), no subagents, no advisor
-calls. Branch `claude/m1-headless-core` at 1b79ff3 (part A). `npm ci` ran clean.
-
-Plan-lite:
-- Change: the store holds one `GameState` under `game` beside the UI state; `submitOrder(order)`
-  (validate, then apply) is the only way the UI changes the game; `advanceTurn` calls
-  `resolveTurn(game, {}, game.seed)` and keeps the events; UI fields leave `GameState`; the
-  part A adapters go and their tests move onto the engine API.
-- Consumers: every component and hook that changed game state (tile click, tile panel,
-  construction dialog, capital slider, transport sliders, End turn); M4/v3 AI players, which
-  plug into the same `resolveTurn` call.
-- Test rows: FR-018 store shape (`tests/store/gameStore.test.ts`); FR-019 seed (same file);
-  FR-020, FR-021 submit and turn (`gameStore.test.ts`, spies in `engineBoundary.test.ts`);
-  FR-022 source scan (`uiWritesOnlyOrders.test.ts`); FR-023 click policy
-  (`tests/ui/tileClickOrders.test.ts`, the part A fallback tests move here); FR-024 text
-  helpers (`tests/ui/gameText.test.ts`); FR-025 `e2e/play-turns.spec.ts`.
+- Change: production buildings with capacity and standing orders, a labour pool, a production
+  system (recipe engine out of `store/industrySlice.ts`, deleted), a food system, four new
+  orders (`setProduction`, `expandBuilding`, `trainWorkers`, `recruitWorkers`), freight cars from
+  lumber + steel + labour, and the rules data of `docs/rules/01` to `05` (calendar, durations,
+  costs, sites). The engine owns the start world.
+- Consumers: the store and UI through `submitOrder` (part B builds the dialogs); AI players
+  through the same orders; the scripted player now sets production.
+- Test rows: FR-027 to FR-029 `rulesData`; FR-030 to FR-032 `constructionRules`, `gameText`;
+  FR-033 to FR-036, FR-038, FR-039, FR-041, FR-042 `industry`; FR-037 to FR-039, FR-041
+  `productionSystem`; FR-040, FR-042 `foodSystem`; FR-043 `newGame`, `lintGuard`; FR-044
+  `economicLoop`; FR-045 `twoNations` (with `economyViolations` in every headless invariant
+  check); FR-013 purity inside the system and order tests (deep-frozen inputs).
 - Verify: `npx vitest run`, `npm run lint`, `npx tsc --noEmit`, `npm run build`,
-  `PORT=3123 npx playwright test`.
-- Objection: orders apply when submitted, so `resolveTurn` gets no orders from the UI and the
-  store keeps no order log; a replay of a played game is not possible from the store alone.
-  Chosen because part A's `applyOrder` already does the immediate effects the UI must show
-  (the worker moves, the money goes), and `resolveTurn(s, orders)` equals applying them first.
+  `PORT=3127 npx playwright test`.
+- Objection: production orders are checked against stock and labour when given, but standing
+  orders run later against whatever is there; a nation can hold orders it cannot fill. The
+  production phase clamps them (tested), and lowering an order is always accepted.
 
 Tasks:
 
 | Task | FRs | Commit |
 |---|---|---|
-| T-08 [docs] FR-018 to FR-025, plan; FR-017 replaced | all | 02eb02c |
-| T-09 [refactor] `GameState` loses `activeNationId`, `newsLog`, `turnOrder` | FR-018 | 0c827a0 |
-| T-10 [test+impl] store = `game` + UI state, `submitOrder`, `advanceTurn`, seed, event log, HUD news, click policy; components and hooks build orders | FR-018 to FR-024 | 2941fae |
-| T-13a [test] Playwright port from `PORT`, own dev server | FR-025 | 678ef21 |
-| T-13b [test+fix] e2e plays three turns; edge scroll over the HUD fixed | FR-025 | 878b454 |
-| T-12 [refactor] adapters removed, old tests on the engine API | FR-017 replaced | 6e985a3 |
-| T-11 [test+impl] worker job text derived (`workerJobLabel`), not stored | FR-018, FR-024 | 8d93964 |
-| T-14 [docs] `ARCHITECTURE.md` rewritten | none | 498610a |
-| T-15 [docs] journal, requirement status, screenshot | all | this commit |
+| T-01 [docs] M2 rows, FR-010 replaced | FR-027 to FR-045 | a2686b5 |
+| T-02 [test+impl] calendar, one duration table, job costs | FR-027 to FR-029 | 33bd3d1 |
+| T-03 [test+impl] construction sites, same-turn refund, finished jobs leave the tile | FR-030 to FR-032 | ef28e44 |
+| T-04 [test+impl] buildings, recipes, labour, production, food, industry orders, slice deleted | FR-033 to FR-042 | 71c6177 |
+| T-05 [test] grain to canned food; two nations produce and eat | FR-044, FR-045 | 58b0d3a |
+| T-06 [test+impl] the engine owns the start world | FR-043 | 7dcb394 |
+| T-07 [docs] journal, M1 archive, architecture, requirement status, news text tests | all | this commit |
 
 Red summaries (tests written and run before the code):
-- T-10: `Test Files 5 failed (5)` / `Tests 20 failed | 3 passed (23)`;
-  `TypeError: (0 , createGameStore) is not a function` (18), `Cannot find module
-  '@/hooks/tileClickOrders'`, `Cannot find module '@/components/gameText'`, and the source scan
-  `expected [ …(4) ] to deeply equal []` (4 UI files still called pre-M1 store actions).
-- T-13b: first `element(s) not found` for `[data-tile-id="20-20"]` (tiles had no id); then,
-  after the second Advance Turn, `locator.click: Test timeout of 30000ms exceeded` with
-  `element is not stable`: the map slid down by itself (edge scroll, see decisions).
-- T-11: `Test Files 3 failed | 19 passed (22)` / `Tests 12 failed | 258 passed (270)`;
-  `TypeError: (0 , workerJobLabel) is not a function` (11) and
-  `expected { id: 'nation-1-farmer', …(8) } to not have property "jobDescription"`.
+- T-02: `Tests 9 failed | 1 passed (10)`; for example
+  `expected { depot: 2, port: 4, fort: 4, rail: 1 } to deeply equal { rail: 1, depot: 3, port: 3, fort: 3 }`
+  and `expected 100 to be 150` (rail into a forest). The farmer level 2 test passed at once
+  (that duration was already 3). Then 20 older tests failed on the new prices (fixture treasury
+  1,000 below a $2,000 depot); the fixtures now hold the rules' start cash (10,000 / 8,000).
+- T-03: `Tests 23 failed | 11 passed (34)`; site rows
+  `expected { ok: true } to deeply equal { ok: false, reason: 'invalid-site' }`, refunds
+  `expected 9900 to be 10000`, finished jobs still on the tile.
+- T-04 to T-06 (written together, stubs for `labourOf`, `nextCapacity`, `foodSystem`):
+  `Test Files 6 failed | 23 passed (29)` / `Tests 76 failed | 337 passed (413)`;
+  `TypeError: Cannot read properties of undefined (reading 'untrained')` (24),
+  `Error: not implemented nation-1`, `expected {} to deeply equal { textileMill: 2, ... }`,
+  `expected { ok: false, reason: 'invalid-target' } to deeply equal { ok: false, reason: 'limit-reached' }`.
+- T-06: the FR-043 source scan failed on `engine/newGame.ts` until the move. The ESLint rule for
+  `@/testing` was written before its two lint-guard rows, which passed at once.
+- T-07: the news-text rows for the new events passed at once (written after the code).
 
-Green summary: `npx vitest run` `Test Files 22 passed (22)` / `Tests 270 passed (270)`. From
-231 after part A: +52 in the new store and UI files (8 of them are part A adapter tests moved
-there, 1 is the old turnSlice test), -11 in removed files (`legacyAdapters.test.ts` 10,
-`turnSlice.test.ts` 1), -2 for the dead treasury ledger. `npm run test:engine`
-`Tests 196 passed (196)`.
+Green summary: `npx vitest run` `Test Files 28 passed (28)` / `Tests 414 passed (414)` (280
+before M2: +134; the 7 `industrySlice` store tests were deleted with the slice, their recipes
+are now covered by `industry` and `productionSystem`). `npm run test:engine`
+`Test Files 22 passed (22)` / `Tests 345 passed (345)`.
 
 Evidence:
 
 | Claim | Command | Result (quoted) |
 |---|---|---|
-| Baseline at part A | `npx vitest run`, `npm run lint`, `npx tsc --noEmit` | `Tests 231 passed (231)`; `✖ 8 problems (0 errors, 8 warnings)`; exit 0 |
-| FR-018 to FR-022 store | `npx vitest run` | `tests/store/gameStore.test.ts (17 tests)`, `engineBoundary.test.ts (2 tests)`, `industrySlice.test.ts (7 tests)` passed |
-| FR-022 to FR-024 UI | `npx vitest run` | `tests/ui/tileClickOrders.test.ts (20 tests)`, `gameText.test.ts (9 tests)`, `uiWritesOnlyOrders.test.ts (4 tests)` passed |
-| Old tests on the engine API | `npx vitest run` | `tests/engine/orders/workPricesRegressions.test.ts (23 tests)`, `workPrices.test.ts (11 tests)`, `startConstruction.test.ts (13 tests)`, `tests/engine/systems/*` 19 tests, `tests/workers/minerWorker.test.ts (15 tests)` passed |
-| All unit tests | `npx vitest run` | `Test Files 22 passed (22)` / `Tests 270 passed (270)` |
-| Lint | `npm run lint` | `✖ 4 problems (0 errors, 4 warnings)` (was 8; the 4 left are older: a hook dependency, `industrySlice.ts`, `logisticsSystem.test.ts` twice) |
+| Baseline at M1 | `npx vitest run`, `npm run lint`, `npx tsc --noEmit` | `Tests 280 passed (280)`; `✖ 4 problems (0 errors, 4 warnings)`; exit 0 |
+| FR-027 to FR-029 rules data | `npx vitest run tests/engine/rulesData.test.ts` | `rulesData.test.ts (10 tests)` passed |
+| FR-030 to FR-032 sites, refunds, finished jobs | `npx vitest run tests/engine/constructionRules.test.ts` | `(34 tests)` passed |
+| FR-033 to FR-042 orders and labour | `npx vitest run tests/engine/industry.test.ts` | `(57 tests)` passed |
+| FR-037 to FR-041 production phase | `npx vitest run tests/engine/systems/productionSystem.test.ts` | `(15 tests)` passed |
+| FR-040, FR-042 food | `npx vitest run tests/engine/systems/foodSystem.test.ts` | `(8 tests)` passed |
+| FR-043 start world | `tests/engine/newGame.test.ts`, `lintGuard.test.ts` | `(3 tests)`, `(17 tests)` passed |
+| FR-044 grain to canned food | `npx vitest run tests/engine/economicLoop.test.ts` | `(2 tests)` passed: 4 grain shipped, 1 eaten, 2 cans next turn; without the farm the order is refused |
+| FR-045 two nations, 20 turns | `npx vitest run tests/engine/twoNations.test.ts` | `(4 tests)` passed; nation-1 made 32 lumber, 16 furniture, 2 fabric, 1 clothing; nation-2 19 fabric, 8 clothing, 6 lumber; 100 good meals and 40 sick meals each (no fruit on either fixture map), 0 starved, 0 rejected orders |
+| All unit tests | `npx vitest run` | `Test Files 28 passed (28)` / `Tests 414 passed (414)` |
+| Lint | `npm run lint` | `✖ 3 problems (0 errors, 3 warnings)` (the `industrySlice` warning left with the file) |
 | Types | `npx tsc --noEmit` | exit 0, no output |
-| Build | `npm run build` | `✓ Compiled successfully in 1875ms`, `✓ Generating static pages (4/4)` |
-| FR-025 and the smoke suite | `PORT=3123 npx playwright test --reporter=list` (3123 free before; this checkout's server) | `1 skipped` / `7 passed (23.2s)`, including `play-turns.spec.ts … three times (4.2s)` |
-| App check screenshot | same run with `SCREENSHOT_PATH=docs/journal/m1-screenshot.png` | turn 3, cash 400, prospector selected, rail from 20-20 to 19-20, news "Rail finished at 19-20." |
+| Build | `npm run build` | `✓ Compiled successfully in 2.1s`, `✓ Generating static pages (4/4)` |
+| Smoke suite | `PORT=3127 npx playwright test --reporter=list` (3127 free) | `1 skipped` / `7 passed (23.1s)`, including `play-turns.spec.ts` with the new cash (10000, 9000, 8900, 8800) |
 
-Part A's UI leftovers in `GameState` (part B item 5):
-- `activeNationId`: moved to the store. It says which nation this client plays; the engine
-  treats every nation alike and takes orders for any of them.
-- `turnOrder`: removed. A constant copy of the phase names; `TURN_PHASES` in the engine is the
-  real order and nothing read the copy.
-- `newsLog`: removed. The store's `eventLog` keeps the engine's events per turn for the HUD.
-- worker `jobDescription`: removed. Display text, now derived by `workerJobLabel(tile, worker)`.
-- job `completed` / `completedOnTurn`: kept, because the engine's rules read them (objection
-  below).
-
-Tests deleted (all others moved with their assertions):
-- `legacyAdapters.test.ts` "startEngineerWork never picks a port on an inland tile" and "picks a
-  port on a coastal tile that already has a depot": the automatic construction kind had no
-  caller and is removed; the port-site rule is covered by the FR-009 rows of `validate.test.ts`.
-  Its other 8 tests moved to `tests/ui/tileClickOrders.test.ts` (same assertions, now through
-  the click policy).
-- `workPricesRegressions.test.ts` "treasury ledger" (2 tests): `createTreasuryLedger` had no
-  caller after part A and is deleted.
+Rules gaps, defaults used (each `[NEEDS CLARIFICATION]` in `docs/requirements.md`):
+- A4: every level-up 3 turns; prospecting $100. A6: the six mills and factories built; start
+  warehouse grain 20, fruit, livestock, timber, cotton, wool, coal, iron ore, lumber, steel and
+  canned food 10 each; 4 merchant holds. B3: rail on mountains $300. B6: canned food in batches
+  of 2 (no single can for an odd labour unit); the production order when labour is short is
+  steel, lumber, textile, food, refinery, metal works, furniture, clothing. B7: the untrained
+  take the sick and starved places first; sickness lasts one turn. B8: migrants per turn
+  max(1, floor(provinces / 4)). F6: depots not next to a depot, a port or the capital.
 
 Decisions taken alone (safest default), each open to review:
-- Objection: a click whose job is refused for a reason other than money still moves the
-  worker (the pre-M1 fallback, kept as UI policy in `hooks/tileClickOrders.ts`). When that plain
-  move is accepted it clears the refusal, so the HUD does not say why the job did not start.
-  Dropping the fallback would show the reason, but the click would no longer move a prospector
-  onto a prospectable tile without a hidden resource, which the cursor still offers.
-- Objection: the job flags `completed` / `completedOnTurn` stay in `GameState`. They began as
-  the "done" pulse, but the engine's rules read them: a finished development job blocks a new
-  one on that tile for one more turn. Removing them changes that rule; M2 should settle it from
-  the rules, and then the pulse can read the completion events in the store's `eventLog`.
-- Objection: `submitOrder` refuses orders for a nation other than `activeNationId`
-  (`not-owner`). New rule; a hot-seat or debug view must switch the active nation first.
-- Objection: the debug and setup setters (`setNations`, `setNationTransportCapacity`, `setMap`,
-  `setOilDrillingTech`, `setActiveNation`, `addNews`, `setTransportNetwork`) went with their
-  slices; no code called them. Oil drilling tech can no longer be switched on from the console;
-  a technology order belongs to a later milestone.
-- Objection: Playwright never reuses a running server unless `PW_REUSE_SERVER=1` (before, it
-  reused one outside CI). A run on a busy port now fails instead of testing the wrong app.
-- Objection: fixed a bug the new e2e test found. The map's edge scroll ran while the mouse was
-  on the HUD near the bottom edge, so clicking Advance Turn slid the map down until the mouse
-  moved; the new news panel makes the HUD taller and put the button in that zone. Over the HUD
-  only the right edge scrolls now. No unit test; the e2e spec is the regression test (it failed
-  with `element is not stable` before the fix).
-- Objection: the construction dialog sends `startConstruction` (the engineer stands on the
-  tile) instead of `moveAndStartConstruction`; validation is the same for a worker on its own
-  tile. The capital's capacity slider moves only when its order is accepted.
-- Objection: a new game draws its seed with `Math.random` in the store. The seed shows in the
-  HUD's debug box only once a tile is selected, so the server-rendered page never disagrees
-  with the browser about it.
-- Objection: `getProspectorActions` printed eight `console.log` lines for every tile on every
-  render while a prospector was selected; removed together with `startProspectorWork` from the
-  same file.
-- Not done: `docs/REVIVAL_PLAN.md` section 6 still says rules live in `manual.md` (orchestrator
-  file, outside part B). `store/industrySlice.ts` stays unwired and mutating until M2.
+- Objection: rail into hills, swamp and mountains needs a purchased technology (rules 04
+  section 2), and v1 has no way to buy one, so in the app rail and depots now stop at hills.
+  Faithful to an 1815 start; if v1 should allow it, drop the gate in `railTerrainAllowed`.
+- Objection: `completed` / `completedOnTurn` are gone (FR-032). The rules do not block a tile
+  for a turn after a job; the "done" mark now reads the last turn's events. A finished
+  development no longer blocks a new one on that tile for a turn.
+- Objection: cancelling refunds only a job ordered this turn (rules 03: "can be cancelled until
+  End Turn"); a job from an earlier turn stops for nothing. Expansions have no cancel order yet.
+- Objection: freight cars keep the M1 timing: ordered in a turn, built in that turn's
+  production phase, and they already count for that turn's shipping (the rules say "next
+  turn"; the player sees them next turn either way). Their materials are paid when ordered; a
+  car the labour no longer covers is refunded.
+- Objection: one `workers-fed` event replaces the planned `workers-sick` / `workers-starved`
+  events (FR-040 row amended before its code); a good meal is not news.
+- Objection: the fixture nations have no fruit on their maps, so 2 of 7 workers fall sick every
+  turn in the 20-turn test. Kept: it exercises the sick path; the scripted player cans at most
+  2 food a turn so workers keep raw food.
+- Objection: `Worker.efficiency` stays, unused (rules 03 allow "remove or leave unused";
+  removing it touches every fixture).
+- Objection: the start nation's merchant marine is 4 holds (rules 01), was 5. The test nation of
+  `testing/worldInit` keeps its old values (10 cars, grain/coal/iron stock).
+- Objection: transport logic mismatches of rules 04 (river ports, depot on port, blockades, town
+  development) are logic, not engine data, and stay for a later milestone.
 
-How to see it in the app: `npm run dev`, click the farmer on the capital (20-20), then the farm
-east of it (21-20): the farmer moves and works, cash drops to 500. Press Advance Turn: the HUD
-shows "News, turn 1 (1900)". Select any tile to see the game's seed in the debug box.
+Part B must do (UI, same branch):
+- Capital dialog: a production card per building (`BUILDINGS`, `BUILDING_TEXT`) with sliders that
+  send `setProduction` (show capacity, the other output's share, the red X for missing inputs;
+  lowering always works), an Expand button (`expandBuilding`, cost = next step minus size, in
+  lumber and steel), the refinery only after Oil Drilling. Today the cards are placeholders.
+- Labour panel: `labourOf(nation)` total / committed / free (wired minimally now), workers by
+  grade, sick workers, trainees; Trade School buttons (`trainWorkers`, cost $100 + 1 paper,
+  $1,000 + 2 paper) and Capitol buttons (`recruitWorkers`, limit `migrantCap`).
+- Freight cars: the capital's slider already sends `changeTransportCapacity`; its maximum now
+  reads lumber, steel and free labour. Show the cost in lumber and steel.
+- Food: a warning when the warehouse cannot feed the workforce; the news already shows sick and
+  starved workers (`eventText` for `workers-fed`). Show the season and year (`seasonOf`).
+- News text: `Produced 2 cannedFood.` shows the raw key; give commodities display names.
+- Store call sites: none bypass orders; `CapitalModal` was changed only to compile (labour line,
+  car maximum, electricity box removed). The e2e play test needs a production step.
 
-## 2026-11-03 M1 review fix round
+How to see it in the app today (not checked by eye in this run; the Playwright smoke suite ran
+against this checkout): `npm run dev`; the HUD starts at cash 10000 and year 1815; the capital
+dialog shows "Labour (free / total): 12 / 12" and the freight-car slider (each car takes 1
+lumber, 1 steel and 2 free labour, so at most 6 at the start). The news shows a food line only
+when workers fall sick or starve. Production has no UI yet (part B).
 
-Size: S (review fixes). Night shift, one agent (Opus 5.5), no subagents, no advisor calls.
-Detached checkout of `origin/claude/m1-headless-core` at 25e61d3. `npm ci` ran clean.
+## 2026-11-03 M2 part B: the economy in the UI
 
-Fixes:
-- FR-026 (new): `validate.ts` checks `Object.hasOwn(CONSTRUCTION_COST, structure)` instead of
-  `structure in CONSTRUCTION_COST`; `logisticsSystem.ts` checks `Object.hasOwn(newWarehouse, key)`.
-  The warehouse key comes from data: the collected resources come from the map's tiles and the
-  plan from the `setTransportAllocations` order, both untrusted JSON in a replay log. Before, a
-  key such as `toString` wrote a string into the warehouse.
-- Lint guard (FR-002): `new Date()` with no argument (`no-restricted-syntax`), `performance.now()`
-  (`no-restricted-properties`, next to `Date.now`, because it also catches
-  `const { now } = performance`) and the `crypto` global (`no-restricted-globals`).
-  `new Date(x)` with an argument stays allowed; it does not read the clock.
-- Replay test that draws from the RNG (`tests/engine/determinism.test.ts`): three turns from a
-  blind prospect built directly; seed 3 twice gives deep-equal states, seed 4 finds another
-  mineral.
-- Objection: no order can reach the random draw today (validate refuses prospecting a tile with
-  no resource), so the test builds the state directly; fix in M2.
+Size: L (milestone part). Night shift, one agent (Opus 5.5), no subagents, no advisor calls.
+Detached on `origin/claude/m2-economic-loop` 33940df, pushed to that branch. `npm ci` clean.
+Ultracode was not on for this session; it ran as one agent (build, tests, gate), no separate
+review agent: the M2 review covers it.
+
+Plan-lite:
+- Change: capital dialog rebuilt as `CapitalModal` + `components/capital/` (view model, production
+  card, labour panel, freight cars, CSS module; `IndustryCard` deleted); HUD date and food warning;
+  commodity display names in news and the warehouse; `foodForecast` engine query; start
+  technologies (Q8 default); an orchard next to every capital; the scripted player ships food first.
+- Consumers: the player through the dialogs and HUD; the store selector `selectFoodForecast`;
+  AI players through `foodForecast` and the same orders.
+- Test rows: FR-046, FR-047 `tests/ui/capitalDialog.test.tsx` (every button's exact order, the
+  state after it, refusals, no inline styles); FR-048, FR-050 `gameText`, `warehouseAndHud`;
+  FR-049 `foodForecast` (forecast equals the meal resolveTurn serves, six worlds), `gameText`,
+  `warehouseAndHud`; FR-051 `newGame`; FR-052 `twoNations`, `newGame`; FR-053 `e2e/play-turns`.
+- Verify: `npx vitest run`, `npm run lint`, `npx tsc --noEmit`, `npm run build`,
+  `PORT=3131 SCREENSHOT_DIR=docs/journal npx playwright test --reporter=list`.
+- Objection: `foodForecast` runs the whole turn's phases on a copy to read one number. It is exact
+  and has no second copy of the rules, but it costs a full turn per game change in the HUD
+  (memoized on `game`, a few ms on 40x40) and will grow with combat and trade.
 
 Red summaries (tests written and run before the code):
-- FR-026: `Test Files 2 failed (2)` / `Tests 5 failed | 85 passed (90)`; for `toString`
-  `expected { ok: true } to deeply equal { ok: false, reason: 'invalid-target' }`.
-- Lint guard: `Test Files 1 failed (1)` / `Tests 4 failed | 11 passed (15)`.
-- RNG replay test: passed at once (the behaviour already works). With `createTurnRng` changed
-  for one run to ignore the seed: `Tests 1 failed | 3 passed (4)`,
-  `AssertionError: expected 'ironOre' not to be 'ironOre'`. Reverted; `git status` showed
-  `rng.ts` unchanged.
+- All new rows: `Test Files 5 failed | 26 passed (31)` / `Tests 39 failed | 414 passed (453)`;
+  `TypeError: (0 , foodForecast) is not a function` (5), `(0 , dateText) is not a function`,
+  `(0 , commodityName) is not a function`, `(0 , foodWarningText) is not a function`,
+  `expected 'Produced 2 cannedFood.' to be 'Produced 2 Canned Food.'`,
+  `Unable to find an element by: [data-testid="building-steelMill"]` (and labour-panel,
+  freight-cars), `ENOENT ... scandir '...src\app\components\capital'`,
+  `expected { id: 'compoundSteamEngine', …(1) } to deeply equal { Object (id, has) }`, and
+  `expected 10 to be greater than 10` (the new game's fruit: the second "orchard" of the default
+  map was under the river, so only one orchard fed the capital).
+- FR-052 on the old fixture: `"sick": 2` at turn 10 (expected 0). With the orchard alone and the
+  old scripted player it was still `"sick": 2` from turn 5: the greedy transport fill crowded the
+  fruit out, so the scripted player now ships its workers' fruit and meat first (`mealNeeds`).
+- Two older tests needed the orchard out of the way, not changed in meaning: FR-030 hills now set
+  hills on that tile in the case setup; FR-044 removes the orchard's fruit as it removes the
+  plains' grain.
+
+Green summary: `npx vitest run` `Test Files 31 passed (31)` / `Tests 458 passed (458)` (+44).
 
 Evidence:
 
 | Claim | Command | Result (quoted) |
 |---|---|---|
-| FR-026 rows and the warehouse test | `npx vitest run tests/engine/validate.test.ts tests/engine/systems/logisticsSystem.test.ts` | `Test Files 2 passed (2)` / `Tests 90 passed (90)` |
-| Lint probes | `npx vitest run tests/engine/lintGuard.test.ts` | `Test Files 1 passed (1)` / `Tests 15 passed (15)` |
-| RNG replay test | `npx vitest run tests/engine/determinism.test.ts` | `Tests 4 passed (4)` |
-| All unit tests | `npx vitest run` | `Test Files 22 passed (22)` / `Tests 280 passed (280)` (270 + 10 new) |
-| Lint | `npm run lint` | `✖ 4 problems (0 errors, 4 warnings)` (the same 4 older warnings) |
+| Baseline at part A | `npx vitest run` | `Test Files 28 passed (28)` / `Tests 414 passed (414)` |
+| FR-046, FR-047 capital dialog dispatch | `npx vitest run tests/ui/capitalDialog.test.tsx` | part of `tests/ui` `Tests 64 passed (64)`; 13 rows, each asserts the exact order sent and the game after it |
+| FR-048 to FR-050 HUD, warehouse, names | `npx vitest run tests/ui` | `Test Files 5 passed (5)` / `Tests 64 passed (64)` |
+| FR-049 food forecast | `npx vitest run tests/engine` | `Test Files 23 passed (23)` / `Tests 360 passed (360)` |
+| FR-051, FR-052 start world, food balanced | same | included above (`newGame`, `twoNations`) |
+| All unit tests | `npx vitest run` | `Test Files 31 passed (31)` / `Tests 458 passed (458)` |
+| Lint | `npm run lint` | `✖ 3 problems (0 errors, 3 warnings)` (the same three as part A) |
 | Types | `npx tsc --noEmit` | exit 0, no output |
-| Build | `npm run build` | `✓ Compiled successfully in 1970ms`, `✓ Generating static pages (4/4)` |
+| Build | `npm run build` | `✓ Compiled successfully in 4.6s`, `✓ Generating static pages (4/4)` |
+| FR-053 and the smoke suite | `PORT=3131 SCREENSHOT_DIR=docs/journal npx playwright test --reporter=list` (3131 free) | `1 skipped` / `8 passed (29.5s)`, including `FR-053 order canned food in the capital, end turns until it is made, see it in the warehouse (7.0s)` |
+| Screenshots | the same run | `docs/journal/m2-capital.png` (production cards, canned food 2 of 12), `docs/journal/m2-warehouse.png` (Canned Food 12, Summer 1815, "Produced 2 Canned Food.") |
 
-Commits: b425ee9 (FR-026), 15bdc6e (lint guard), 736365a (RNG replay test), this commit (journal).
+Decisions taken alone (safest default), each open to review:
+- Objection: decision Q8 default applied. A new game holds Compound Steam Engine, Iron Railroad
+  Bridge and Dynamite as purchased (`START_TECHNOLOGIES`, start-state data; FR-051
+  `[NEEDS CLARIFICATION]`). The technology state is one per game in v1, not per nation, so "each
+  nation" is every nation of the game. The test fixtures keep no technology, so FR-030 still
+  tests the gates.
+- Objection: Testing Library and jsdom are new dev dependencies (`@testing-library/react`,
+  `@testing-library/dom`, `jsdom`), so the dialog tests click real buttons. Component tests are
+  `*.test.tsx` with a `@vitest-environment jsdom` line; Vitest skips the app's Tailwind PostCSS.
+- Objection: the scripted player now ships fruit and meat before grain. Without it the fixture
+  orchard's fruit lost the greedy transport fill from turn 5 on. This changes the headless
+  games (FR-015, FR-045, FR-052 all green on the new runs).
+- Objection: the fixture's fertile hills next to each capital became an orchard (fruit level 1),
+  and every fixture orchard is now level 1. The default map's second capital orchard moved from
+  under the river (it never existed on screen) to the south-west neighbour (19-21, was coast).
+- Objection: the new game still has no livestock next to the capital: the meat eater lives on the
+  start stock (10) and then on canned food; the food warning shows when that runs out. Kept, since
+  it is the player's job to develop a ranch; say if v1 should start balanced on meat too.
+- Objection: amount controls are − and + buttons, one batch per click, with "order of max" (max
+  probed with `validateOrder`), not sliders: one click is one order and one refusal. A slider can
+  come back later on top of the same view.
+- Objection: news names a found resource in lower case ("Prospectors found iron ore") and a
+  product in title case ("Produced 2 Canned Food."), as asked; both come from `COMMODITY_TEXT`.
+- Objection: commits were split by topic after the gate passed on the whole tree; the
+  intermediate commits were not gated one by one.
+
+How to see it in the app: `npm run dev`; the HUD shows "Turn: 1" and "Spring 1815". Open Capital:
+seven production cards (steel, lumber, textile, food processing, metal works, furniture,
+clothing), each with inputs, "0 of N" and − / +, and Expand; the Labour panel and Transport on
+the right. Press + on Canned Food (2 of 12), close, Advance Turn: the news says "Produced 2 Canned
+Food." and the warehouse shows Canned Food 12 under Materials, Summer 1815 in the HUD.
+
+## 2026-11-03 M2 review fix round
+
+Size: M (one fix round over the M2 review findings). Night shift, one agent (Opus 5.5), no
+subagents, no advisor calls. Detached on `origin/claude/m2-economic-loop` 539bb01, pushed to that
+branch. `npm ci` clean. Baseline `npx vitest run`: `Test Files 31 passed (31)` / `Tests 458 passed (458)`.
+Ultracode was not on; no separate review agent ran (the re-review of this delta is still due).
+
+New rows FR-054 to FR-059 (`docs/requirements.md`, "M2 review fix round"); FR-041, FR-050, FR-051
+and FR-052 are marked `replaced by` the rows that change them.
+
+| Fix | FR | Red summary (test written and run before the code) | Commit |
+|---|---|---|---|
+| 1 Scripted player makes canned food | FR-054 | `Tests 1 failed \| 5 passed (6)`: `expected { nationId: 'nation-1', …(1) } to deeply equal …` (`cannedFood: false`). The "no sick worker from turn 1" row passed at once: it already held. | 7ca6703 |
+| 2 Stale refusal in the capital | FR-055 | `Tests 1 failed \| 18 passed (19)`: `expected { order: { …(4) }, …(1) } to be null` | 3f7a56b |
+| 3 No gold or gems in the warehouse | FR-056 | `Tests 2 failed \| 25 passed (27)`: `expected [ 'armaments', 'cannedFood', …(21) ] to deeply equal [ …(19) ]`, `expected [ … ] to have a length of 21 but got 23` | 7e48080 |
+| 4 Cancel an expansion | FR-057 | engine `Tests 8 failed \| 58 passed (66)` (`expected { ok: true } to deeply equal { ok: false, reason: 'invalid-amount' }`, cancel-and-re-order state not equal); dialog `Tests 1 failed \| 13 passed (14)`: `Unable to find an accessible element with the role "button" and name "Cancel expansion of Steel mill"`. The food-processing cancel row passed at once (`invalid-target` already). | edb8f66 |
+| 5 Training needs 1 free labour | FR-058 | `Tests 1 failed \| 66 passed (67)`: `expected { ok: false, …(1) } to deeply equal { ok: true }` (1 free labour, trainee of 2) | 661e299 |
+| 6 Rules start technologies | FR-059 | `Tests 2 failed \| 5 passed (7)`: `expected { id: 'highPressureSteamEngine', …(1) } to deeply equal …`, `expected [ 'compoundSteamEngine', …(2) ] to deeply equal [ …(4) ]` | 36d5096 |
+| 7 Rules files: stale mismatch notes | none (docs) | not a behaviour change | 5d75d32 |
+
+Evidence:
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| FR-054 canned food, food balanced from turn 1 | `npx vitest run tests/engine/twoNations.test.ts` | `tests/engine/twoNations.test.ts (6 tests)` passed. A 20-turn probe (removed after use): nation-1 28 lumber, 14 furniture, 22 canned food; nation-2 15 fabric, 6 clothing, 20 canned food; 140 good meals each, 0 sick, 0 starved. The old scripted player on the same probe: no canned food, nation-2 6 fabric, 2 clothing. |
+| FR-055 stale refusal | `npx vitest run tests/store/gameStore.test.ts` | `(19 tests)` passed |
+| FR-056 warehouse list | `npx vitest run tests/ui` | `gameText.test.ts (22 tests)`, `warehouseAndHud.test.tsx (5 tests)` passed |
+| FR-057 cancel expansion | `npx vitest run tests/engine/industry.test.ts tests/ui/capitalDialog.test.tsx` | `industry.test.ts (67 tests)`, `capitalDialog.test.tsx (14 tests)` passed; expand + cancel equals the start state, cancel 4 -> 8 refunds 4 lumber + 4 steel, re-order costs the same 4 |
+| FR-058 training labour | `npx vitest run tests/engine/industry.test.ts` | included above |
+| FR-059 start technologies | `npx vitest run tests/engine/newGame.test.ts` | `(7 tests)` passed |
+| All unit tests | `npx vitest run` | `Test Files 31 passed (31)` / `Tests 472 passed (472)` (+14) |
+| Lint | `npm run lint` | `✖ 3 problems (0 errors, 3 warnings)` (the same three as part A) |
+| Types | `npx tsc --noEmit` | exit 0, no output |
+| Build | `npm run build` | `✓ Compiled successfully in 1978ms`, `✓ Generating static pages (4/4)` |
+| Smoke suite | `PORT=3133 npx playwright test --reporter=list` (3133 free, `PW_REUSE_SERVER` unset) | `1 skipped` / `8 passed (24.4s)` |
+
+Decisions taken alone (safest default), each open to review:
+- Objection: cancelling an expansion extends `expandBuilding` with an optional `delta` (default 1),
+  as `trainWorkers` and `recruitWorkers` cancel with a negative delta, instead of a new
+  `cancelExpansion` order. A negative delta removes this turn's steps, the last first; a positive
+  delta above 1 orders several steps all or nothing. Pending capacity is always this turn's (the
+  production phase applies it), so a cancel never touches an earlier turn's expansion.
+- Objection: the scripted player now ships only the grain the warehouse lacks for one meal plus one
+  canned-food batch, not half its capacity. With the extra fruit and meat on top of half the
+  capacity as grain, nation-2's cotton lost the greedy fill and it made no fabric or clothing.
+- Objection: training needs at least 1 free labour whatever the number of trainees (rules 05
+  section 4: "at least 1 labour must be free to start"). A trainee whose labour was committed
+  leaves production short; the production phase clamps the orders, as it does for sick workers.
+- Objection: High Pressure Steam Engine and Seed Drill gate nothing in the code yet (flat rail and
+  level-1 farms need no technology check); they are start-state data only.
+- Objection: rules files 02 and 04 still list the gold and gems price mismatch and 02 the
+  `RESOURCE_VALUES` mismatch. Both were fixed before M2 (commits bce7a95 and 4dfb367, 2026-11-02),
+  so this M2-only pass left those lines as they are; a later rules pass can mark them.
+- Not changed, decision Q9 for Nathan: freight cars count for this turn's shipping (FR-039); the
+  rules say next turn.
+
+How to see it in the app: `npm run dev`; Open Capital: each capped card has Expand and Cancel;
+Cancel is greyed out until Expand is pressed, and after Cancel the card shows "Capacity 2" and the
+lumber and steel are back. A refusal from the map (for example a prospect without cash) no longer
+shows at the top of the capital dialog. The warehouse has no Gold or Gems rows.

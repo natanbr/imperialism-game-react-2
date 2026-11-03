@@ -157,7 +157,7 @@ describe('move-and-start from a click (moved from the part A adapter tests)', ()
     const s2 = click(moved, tileClickOrders(moved, N1, W.prospector, T.mountains1, { type: 'prospect' }));
 
     expect(s2).toBe(moved);
-    expect(treasury(s2, N1)).toBe(1000);
+    expect(treasury(s2, N1)).toBe(10000);
   });
 
   it('FR-007 an unaffordable move-and-start is refused as a whole: no move, no charge', () => {
@@ -167,11 +167,11 @@ describe('move-and-start from a click (moved from the part A adapter tests)', ()
   });
 
   it('FR-006 when only the job is refused, the worker moves and counts as moved', () => {
-    const fertileHills1 = createTileId(1, 2); // not prospectable, so only the job is refused
-    const s2 = click(game(), tileClickOrders(game(), N1, W.prospector, fertileHills1, { type: 'prospect' }));
+    const orchard1 = createTileId(1, 2); // not prospectable, so only the job is refused
+    const s2 = click(game(), tileClickOrders(game(), N1, W.prospector, orchard1, { type: 'prospect' }));
 
     const { worker, tile } = locate(s2, W.prospector)!;
-    expect(tile.id).toBe(fertileHills1);
+    expect(tile.id).toBe(orchard1);
     expect(worker).toMatchObject({ status: WorkerStatus.Moved, justMoved: true });
     expect(click(s2, moveOrders(s2, N1, W.prospector, T.farm1))).toBe(s2);
   });
@@ -187,7 +187,7 @@ describe('engineer rail-on-move from a click (moved from the part A adapter test
 
     expect(tileAt(s2, T.farm1).constructionJob).toBeUndefined();
     expect(locate(s2, W.engineer)!.tile.id).toBe(T.capital1);
-    expect(treasury(s2, N1)).toBe(1000);
+    expect(treasury(s2, N1)).toBe(10000);
   });
 
   it('FR-006 FR-008 a working engineer is not pulled off its job', () => {
@@ -208,14 +208,14 @@ describe('engineer rail-on-move from a click (moved from the part A adapter test
     const s2 = moveEngineer(state, T.farm1);
 
     expect(tileAt(s2, T.farm1).constructionJob).toEqual(job);
-    expect(treasury(s2, N1)).toBe(1000);
+    expect(treasury(s2, N1)).toBe(10000);
   });
 
   it('FR-008 builds rail and charges once for an available engineer', () => {
     const s2 = moveEngineer(game(), T.farm1);
 
     expect(tileAt(s2, T.farm1).constructionJob).toMatchObject({ kind: 'rail', workerId: W.engineer });
-    expect(treasury(s2, N1)).toBe(1000 - CONSTRUCTION_COST.rail);
+    expect(treasury(s2, N1)).toBe(10000 - CONSTRUCTION_COST.rail);
   });
 
   it('FR-007 FR-008 a rail the nation cannot afford refuses the whole move', () => {

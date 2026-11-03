@@ -83,19 +83,17 @@ const cases: Case[] = [
   { name: 'FR-004 a farmer developing ranch land', setup: s => put(s, W.farmer, T.range1), order: { kind: 'startDevelopment', nationId: N1, workerId: W.farmer, tileId: T.range1 }, expected: 'invalid-site' },
   { name: 'FR-004 a miner developing an undiscovered mineral', setup: s => put(s, W.miner, T.mountains1), order: { kind: 'startDevelopment', nationId: N1, workerId: W.miner, tileId: T.mountains1 }, expected: 'invalid-target' },
   { name: 'FR-004 developing a resource already at level 3', setup: s => setTile(put(s, W.farmer, T.farm1), T.farm1, { resource: { type: ResourceType.Grain, level: 3 } }), order: { kind: 'startDevelopment', nationId: N1, workerId: W.farmer, tileId: T.farm1 }, expected: 'invalid-target' },
-  { name: 'FR-004 developing a tile whose finished job is still shown', setup: s => setTile(put(s, W.farmer, T.farm1), T.farm1, { developmentJob: { workerId: 'other', workerType: WorkerType.Farmer, targetLevel: 1, startedOnTurn: 0, durationTurns: 1, completed: true, completedOnTurn: 1 } }), order: { kind: 'startDevelopment', nationId: N1, workerId: W.farmer, tileId: T.farm1 }, expected: 'tile-occupied' },
   { name: 'FR-004 developing to level 2 without its price', setup: s => setTreasury(setTile(put(s, W.farmer, T.farm1), T.farm1, { resource: { type: ResourceType.Grain, level: 1 } }), N1, DEVELOPMENT_COST[2] - 1), order: { kind: 'startDevelopment', nationId: N1, workerId: W.farmer, tileId: T.farm1 }, expected: 'insufficient-funds' },
   { name: 'FR-006 developing with a farmer that moved this turn', setup: s => put(s, W.farmer, T.farm1, moved), order: { kind: 'startDevelopment', nationId: N1, workerId: W.farmer, tileId: T.farm1 }, expected: 'worker-moved' },
 
   // startConstruction
-  { name: 'FR-004 a depot at the capital is ok', order: { kind: 'startConstruction', nationId: N1, workerId: W.engineer, tileId: T.capital1, structure: 'depot' }, expected: 'ok' },
+  { name: 'FR-004 FR-030 a depot two tiles from the capital is ok', setup: s => put(s, W.engineer, T.orchard1), order: { kind: 'startConstruction', nationId: N1, workerId: W.engineer, tileId: T.orchard1, structure: 'depot' }, expected: 'ok' },
   { name: 'FR-009 a port next to the ocean is ok', setup: s => put(s, W.engineer, T.coastFarm1), order: { kind: 'startConstruction', nationId: N1, workerId: W.engineer, tileId: T.coastFarm1, structure: 'port' }, expected: 'ok' },
-  { name: 'FR-009 a port on a river tile is ok', order: { kind: 'startConstruction', nationId: N1, workerId: W.engineer, tileId: T.capital1, structure: 'port' }, expected: 'ok' },
+  { name: 'FR-009 a port on a river tile is ok', setup: s => put(setTile(s, T.dryPlains1, { hasRiver: true }), W.engineer, T.dryPlains1), order: { kind: 'startConstruction', nationId: N1, workerId: W.engineer, tileId: T.dryPlains1, structure: 'port' }, expected: 'ok' },
   { name: 'FR-009 a port inland without a river', setup: s => put(s, W.engineer, T.dryPlains1), order: { kind: 'startConstruction', nationId: N1, workerId: W.engineer, tileId: T.dryPlains1, structure: 'port' }, expected: 'invalid-site' },
   { name: 'FR-004 building over an unfinished construction job', setup: s => setTile(s, T.capital1, { constructionJob: { workerId: 'other', kind: 'fort', startedOnTurn: 1, durationTurns: 4 } }), order: { kind: 'startConstruction', nationId: N1, workerId: W.engineer, tileId: T.capital1, structure: 'depot' }, expected: 'tile-occupied' },
-  { name: 'FR-004 building where the last construction job is finished is ok', setup: s => setTile(s, T.capital1, { constructionJob: { workerId: 'other', kind: 'fort', startedOnTurn: 0, durationTurns: 1, completed: true, completedOnTurn: 1 } }), order: { kind: 'startConstruction', nationId: N1, workerId: W.engineer, tileId: T.capital1, structure: 'depot' }, expected: 'ok' },
   { name: 'FR-004 construction by a farmer', order: { kind: 'startConstruction', nationId: N1, workerId: W.farmer, tileId: T.capital1, structure: 'depot' }, expected: 'wrong-worker-type' },
-  { name: 'FR-004 a port without its price', setup: s => setTreasury(s, N1, CONSTRUCTION_COST.port - 1), order: { kind: 'startConstruction', nationId: N1, workerId: W.engineer, tileId: T.capital1, structure: 'port' }, expected: 'insufficient-funds' },
+  { name: 'FR-004 a port without its price', setup: s => put(setTreasury(s, N1, CONSTRUCTION_COST.port - 1), W.engineer, T.coastFarm1), order: { kind: 'startConstruction', nationId: N1, workerId: W.engineer, tileId: T.coastFarm1, structure: 'port' }, expected: 'insufficient-funds' },
   { name: 'FR-006 construction with a working engineer', setup: engineerBuildingAtCapital, order: { kind: 'startConstruction', nationId: N1, workerId: W.engineer, tileId: T.capital1, structure: 'fort' }, expected: 'worker-busy' },
 
   // FR-026: orders from a replay log or an AI player are untrusted JSON, so a structure name
@@ -140,12 +138,19 @@ const cases: Case[] = [
   { name: 'FR-010 allocations for an unknown nation', order: { kind: 'setTransportAllocations', nationId: 'nation-9', allocations: { grain: 1 } }, expected: 'unknown-nation' },
 
   // changeTransportCapacity
-  { name: 'FR-010 buying capacity with enough coal and iron is ok', setup: s => setWarehouse(s, N1, { coal: 2, ironOre: 2 }), order: { kind: 'changeTransportCapacity', nationId: N1, delta: 2 }, expected: 'ok' },
-  { name: 'FR-010 buying more capacity than the iron allows', setup: s => setWarehouse(s, N1, { coal: 2, ironOre: 1 }), order: { kind: 'changeTransportCapacity', nationId: N1, delta: 2 }, expected: 'insufficient-resources' },
-  { name: 'FR-010 reducing a queued purchase is ok', setup: s => ({ ...s, nations: s.nations.map(n => (n.id === N1 ? { ...n, transportCapacityPendingIncrease: 2 } : n)) }), order: { kind: 'changeTransportCapacity', nationId: N1, delta: -1 }, expected: 'ok' },
-  { name: 'FR-010 reducing more than was queued', setup: s => ({ ...s, nations: s.nations.map(n => (n.id === N1 ? { ...n, transportCapacityPendingIncrease: 1 } : n)) }), order: { kind: 'changeTransportCapacity', nationId: N1, delta: -2 }, expected: 'invalid-amount' },
-  { name: 'FR-010 a zero change', order: { kind: 'changeTransportCapacity', nationId: N1, delta: 0 }, expected: 'invalid-amount' },
-  { name: 'FR-010 a fractional change', setup: s => setWarehouse(s, N1, { coal: 2, ironOre: 2 }), order: { kind: 'changeTransportCapacity', nationId: N1, delta: 1.5 }, expected: 'invalid-amount' },
+  { name: 'FR-039 ordering cars with enough lumber, steel and labour is ok', setup: s => setWarehouse(s, N1, { lumber: 2, steel: 2 }), order: { kind: 'changeTransportCapacity', nationId: N1, delta: 2 }, expected: 'ok' },
+  { name: 'FR-039 ordering more cars than the steel allows', setup: s => setWarehouse(s, N1, { lumber: 2, steel: 1 }), order: { kind: 'changeTransportCapacity', nationId: N1, delta: 2 }, expected: 'insufficient-resources' },
+  { name: 'FR-039 reducing a queued order is ok', setup: s => ({ ...s, nations: s.nations.map(n => (n.id === N1 ? { ...n, transportCapacityPendingIncrease: 2 } : n)) }), order: { kind: 'changeTransportCapacity', nationId: N1, delta: -1 }, expected: 'ok' },
+  { name: 'FR-039 reducing more than was queued', setup: s => ({ ...s, nations: s.nations.map(n => (n.id === N1 ? { ...n, transportCapacityPendingIncrease: 1 } : n)) }), order: { kind: 'changeTransportCapacity', nationId: N1, delta: -2 }, expected: 'invalid-amount' },
+  { name: 'FR-039 a zero change', order: { kind: 'changeTransportCapacity', nationId: N1, delta: 0 }, expected: 'invalid-amount' },
+  { name: 'FR-039 a fractional change', setup: s => setWarehouse(s, N1, { lumber: 2, steel: 2 }), order: { kind: 'changeTransportCapacity', nationId: N1, delta: 1.5 }, expected: 'invalid-amount' },
+
+  // industry orders (more rows in industry.test.ts)
+  { name: 'FR-036 a production order the stock and labour allow is ok', setup: s => setWarehouse(s, N1, { timber: 4 }), order: { kind: 'setProduction', nationId: N1, building: 'lumberMill', amount: 2 }, expected: 'ok' },
+  { name: 'FR-038 expanding a mill with lumber and steel is ok', setup: s => setWarehouse(s, N1, { lumber: 2, steel: 2 }), order: { kind: 'expandBuilding', nationId: N1, building: 'textileMill' }, expected: 'ok' },
+  { name: 'FR-041 training a worker with cash and paper is ok', setup: s => setWarehouse(s, N1, { paper: 1 }), order: { kind: 'trainWorkers', nationId: N1, from: 'untrained', delta: 1 }, expected: 'ok' },
+  { name: 'FR-042 recruiting a migrant with the three goods is ok', setup: s => setWarehouse(s, N1, { cannedFood: 1, clothing: 1, furniture: 1 }), order: { kind: 'recruitWorkers', nationId: N1, delta: 1 }, expected: 'ok' },
+  { name: 'FR-036 production for an unknown nation', order: { kind: 'setProduction', nationId: 'nation-9', building: 'lumberMill', amount: 1 }, expected: 'unknown-nation' },
 ];
 
 describe('validateOrder', () => {

@@ -6,6 +6,7 @@ import { GoodsType, MaterialType, ResourceType } from "@/types/Resource";
 import { Worker, WorkerStatus, WorkerType } from "@/types/Workers";
 import { createTileId } from "@/utils/tileIdUtils";
 import { initializeRailroadNetworks } from "@/engine/systems/railroadSystem";
+import { createIndustry } from "@/engine/industry/industryState";
 
 const cols = 5;
 const rows = 5;
@@ -16,7 +17,7 @@ export const mockNations: Nation[] = [
     id: "nation-1",
     name: "Britannia",
     color: "#FF0000", // Red
-    treasury: 1000,
+    treasury: 10000,
     debt: 0,
     creditLimit: 5000,
     relations: [],
@@ -36,17 +37,13 @@ export const mockNations: Nation[] = [
       timber: 50
     } as Record<string, number>,
     transportCapacity: 10,
-    industry: {
-      buildings: [],
-      workers: { untrained: 0, trained: 0, expert: 0 },
-      power: { total: 0, available: 0, electricity: 0 }
-    }
+    industry: createIndustry()
   },
   {
     id: "nation-2",
     name: "Germania",
     color: "#0000FF", // Blue
-    treasury: 800,
+    treasury: 8000,
     debt: 0,
     creditLimit: 4000,
     relations: [],
@@ -66,11 +63,7 @@ export const mockNations: Nation[] = [
       coal: 30
     } as Record<string, number>,
     transportCapacity: 8,
-    industry: {
-      buildings: [],
-      workers: { untrained: 0, trained: 0, expert: 0 },
-      power: { total: 0, available: 0, electricity: 0 }
-    }
+    industry: createIndustry()
   },
   {
     id: "nation-3",
@@ -96,11 +89,7 @@ export const mockNations: Nation[] = [
       wool: 40
     } as Record<string, number>,
     transportCapacity: 9,
-    industry: {
-      buildings: [],
-      workers: { untrained: 0, trained: 0, expert: 0 },
-      power: { total: 0, available: 0, electricity: 0 }
-    }
+    industry: createIndustry()
   }
 ];
 
@@ -182,7 +171,7 @@ const TWO_NATION_ROWS = 6;
 const HALF_MAP: TerrainType[][] = [
   [TerrainType.Farm, TerrainType.OpenRange, TerrainType.HardwoodForest, TerrainType.Plantation],
   [TerrainType.Mountains, TerrainType.Capital, TerrainType.Farm, TerrainType.Orchard],
-  [TerrainType.BarrenHills, TerrainType.FertileHills, TerrainType.DryPlains, TerrainType.Town],
+  [TerrainType.BarrenHills, TerrainType.Orchard, TerrainType.DryPlains, TerrainType.Town],
   [TerrainType.Desert, TerrainType.Swamp, TerrainType.Mountains, TerrainType.HardwoodForest],
   [TerrainType.Tundra, TerrainType.Farm, TerrainType.BarrenHills, TerrainType.OpenRange],
 ];
@@ -205,7 +194,7 @@ function fixtureResource(terrain: TerrainType, x: number, y: number): Tile["reso
     case TerrainType.Farm: return { type: ResourceType.Grain, level: 0 };
     case TerrainType.DryPlains: return { type: ResourceType.Grain, level: 1 };
     case TerrainType.Plantation: return { type: ResourceType.Cotton, level: 0 };
-    case TerrainType.Orchard: return { type: ResourceType.Fruit, level: 0 };
+    case TerrainType.Orchard: return { type: ResourceType.Fruit, level: 1 };
     case TerrainType.OpenRange: return { type: ResourceType.Livestock, level: 0 };
     case TerrainType.FertileHills: return { type: ResourceType.Wool, level: 0 };
     case TerrainType.HardwoodForest: return { type: ResourceType.Timber, level: 0 };
@@ -279,7 +268,7 @@ export function createTwoNationGame(seed = 1): GameState {
 
   return {
     turn: 1,
-    year: 1900,
+    year: 1815,
     seed,
     nations,
     cities: [],

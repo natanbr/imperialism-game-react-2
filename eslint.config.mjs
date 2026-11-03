@@ -55,6 +55,10 @@ const eslintConfig = [
               ],
               message: ENGINE_IS_HEADLESS,
             },
+            {
+              group: ["@/testing", "@/testing/*", "**/testing", "**/testing/**"],
+              message: "The engine owns the game's start; test fixtures in src/app/testing are for tests (FR-043).",
+            },
           ],
         },
       ],

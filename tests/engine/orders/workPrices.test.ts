@@ -74,10 +74,10 @@ describe('work prices - immediate treasury deduction on job start', () => {
     expect(t2.developmentJob?.targetLevel).toBe(1);
   });
 
-  it('deducts construction cost when starting a depot construction', () => {
+  it('FR-029 FR-030 deducts construction cost when starting a depot construction', () => {
     const state = makeBaseState();
-    // Pick any land tile (avoid Water/River). Capital is fine.
-    const land = state.map.tiles.flat().find(t => t.terrain !== TerrainType.Water && t.terrain !== TerrainType.River)!;
+    // A depot site (FR-030): the dry plains are not next to the capital.
+    const land = state.map.tiles.flat().find(t => t.terrain === TerrainType.DryPlains)!;
 
     // Place an engineer on the land tile
     const engineer: Worker = { id: 'w-eng', type: WorkerType.Engineer, nationId: 'nation-1', assignedTileId: land.id, efficiency: 100, status: WorkerStatus.Available, justMoved: false };

@@ -1,12 +1,18 @@
 import type { GameState } from "@/types/GameState";
 import type { Tile } from "@/types/Tile";
-import { ResourceType } from "@/types/Resource";
 import { WorkerStatus, type Worker } from "@/types/Workers";
 import type { ConstructionKind } from "@/types/jobs/ConstructionJob";
-import { CONSTRUCTION_COST, DEVELOPMENT_COST, PROSPECT_COST } from "@/definisions/workPrices";
+import { DEVELOPMENT_COST, PROSPECT_COST, constructionCost } from "@/definisions/workPrices";
 import { EngineerBuildDurationsTurns, WorkerLevelDurationsTurns } from "@/definisions/workerDurations";
-import type { CancelWorkerActionOrder, ChangeTransportCapacityOrder, Order, ValidationResult } from "./Order";
+import type { CancelWorkerActionOrder, Order, ValidationResult } from "./Order";
 import { validateOrder } from "./validate";
+import {
+  applyCapacityChange,
+  applyExpandBuilding,
+  applyRecruitWorkers,
+  applySetProduction,
+  applyTrainWorkers,
+} from "./industryOrders";
 import { findWorker, holdsJob, nextResourceLevel, tileById, type WorkerLocation } from "./queries";
 
 /**
@@ -52,7 +58,15 @@ function applyValidOrder(state: GameState, order: Order): GameState {
         },
       };
     case "changeTransportCapacity":
-      return changeCapacity(state, order);
+      return applyCapacityChange(state, order);
+    case "setProduction":
+      return applySetProduction(state, order);
+    case "expandBuilding":
+      return applyExpandBuilding(state, order);
+    case "trainWorkers":
+      return applyTrainWorkers(state, order);
+    case "recruitWorkers":
+      return applyRecruitWorkers(state, order);
   }
 }
 
@@ -126,23 +140,40 @@ const startDevelopment: StartJob = (state, workerId, tileId) => {
 const construction = (kind: ConstructionKind): StartJob => (state, workerId, tileId) => {
   const { worker } = findWorker(state, workerId)!;
   const durationTurns = EngineerBuildDurationsTurns[kind] || 1;
-  return updateTile(charge(state, worker.nationId, CONSTRUCTION_COST[kind]), tileId, (t) => ({
+  const cost = constructionCost(kind, tileById(state, tileId)!.terrain);
+  return updateTile(charge(state, worker.nationId, cost), tileId, (t) => ({
     ...updateWorker(t, workerId, { status: WorkerStatus.Working }),
     constructionJob: { workerId, kind, startedOnTurn: state.turn, durationTurns },
   }));
 };
 
 /**
- * Stops the worker's job (no refund), or undoes this turn's move. A worker that moved this
- * turn stays marked as moved after its job is cancelled, so it cannot move a second time; a
- * second cancel then sends it back.
+ * What the worker's job on this tile cost, if it was ordered this turn: orders can be cancelled
+ * until End Turn and the cash comes back (FR-031). A job from an earlier turn refunds nothing.
+ */
+function refundThisTurn(state: GameState, tile: Tile, workerId: string): number {
+  const now = (startedOnTurn: number) => startedOnTurn === state.turn;
+  let refund = 0;
+  if (tile.prospecting?.workerId === workerId && now(tile.prospecting.startedOnTurn)) refund += PROSPECT_COST;
+  const dev = tile.developmentJob;
+  if (dev?.workerId === workerId && now(dev.startedOnTurn)) refund += DEVELOPMENT_COST[dev.targetLevel] ?? 0;
+  const con = tile.constructionJob;
+  if (con?.workerId === workerId && now(con.startedOnTurn)) refund += constructionCost(con.kind, tile.terrain);
+  return refund;
+}
+
+/**
+ * Stops the worker's job (refunded if ordered this turn), or undoes this turn's move. A worker
+ * that moved this turn stays marked as moved after its job is cancelled, so it cannot move a
+ * second time; a second cancel then sends it back.
  */
 function cancel(state: GameState, order: CancelWorkerActionOrder): GameState {
   const { worker, tile } = findWorker(state, order.workerId)!;
 
   if (worker.status === WorkerStatus.Working || holdsJob(tile, worker.id)) {
     const movedThisTurn = worker.justMoved && !!worker.previousTileId;
-    return updateTile(state, tile.id, (t) => ({
+    const refunded = charge(state, worker.nationId, -refundThisTurn(state, tile, worker.id));
+    return updateTile(refunded, tile.id, (t) => ({
       ...updateWorker(t, worker.id, { status: movedThisTurn ? WorkerStatus.Moved : WorkerStatus.Available }),
       prospecting: t.prospecting?.workerId === worker.id ? undefined : t.prospecting,
       developmentJob: t.developmentJob?.workerId === worker.id ? undefined : t.developmentJob,
@@ -163,20 +194,4 @@ function cancel(state: GameState, order: CancelWorkerActionOrder): GameState {
     if (t.id === homeId) return { ...t, workers: [...t.workers, returned] };
     return t;
   });
-}
-
-function changeCapacity(state: GameState, order: ChangeTransportCapacityOrder): GameState {
-  const { delta } = order;
-  return {
-    ...state,
-    nations: state.nations.map((n) => {
-      if (n.id !== order.nationId) return n;
-      const pending = Math.max(0, Math.floor(n.transportCapacityPendingIncrease ?? 0));
-      const warehouse = { ...n.warehouse };
-      // One coal and one iron ore per unit; a negative delta gives them back.
-      warehouse[ResourceType.Coal] = (warehouse[ResourceType.Coal] ?? 0) - delta;
-      warehouse[ResourceType.IronOre] = (warehouse[ResourceType.IronOre] ?? 0) - delta;
-      return { ...n, warehouse, transportCapacityPendingIncrease: pending + delta };
-    }),
-  };
 }

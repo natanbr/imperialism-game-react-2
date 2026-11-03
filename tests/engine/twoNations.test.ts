@@ -26,6 +26,49 @@ describe('two nations, 20 turns, headless', () => {
     expect(invariantViolations(initial)).toEqual([]);
   });
 
+  it('FR-045 both nations produce goods and feed their workers; no stock or worker count goes negative', () => {
+    const played = play(newGame(11), 20);
+
+    played.forEach((turn, i) => {
+      // invariantViolations includes the FR-045 economy checks (economyViolations).
+      expect({ turn: i + 1, violations: invariantViolations(turn.state) }).toEqual({ turn: i + 1, violations: [] });
+      for (const nationId of TWO_NATION_IDS) {
+        const meal = turn.events.find(e => e.type === 'workers-fed' && e.nationId === nationId);
+        const ate = meal?.type === 'workers-fed' ? meal.fed + meal.sick : 0;
+        expect({ turn: i + 1, nationId, ate: ate > 0 }).toEqual({ turn: i + 1, nationId, ate: true });
+      }
+    });
+    const events = played.flatMap(t => t.events);
+    for (const nationId of TWO_NATION_IDS) {
+      const goods = events.filter(e => e.type === 'goods-produced' && e.nationId === nationId);
+      expect({ nationId, produced: goods.length > 0 }).toEqual({ nationId, produced: true });
+    }
+  });
+
+  it('FR-054 both nations make canned food: the scripted player ships the fruit and meat its canned-food order needs', () => {
+    const events = play(newGame(11), 20).flatMap(t => t.events);
+
+    for (const nationId of TWO_NATION_IDS) {
+      const cans = events.reduce((sum, e) => (e.type === 'goods-produced' && e.nationId === nationId && e.output === 'cannedFood' ? sum + e.amount : sum), 0);
+      expect({ nationId, cannedFood: cans > 0 }).toEqual({ nationId, cannedFood: true });
+    }
+  });
+
+  it('FR-054 food is balanced: from turn 1 on no worker is sick or starving, and no meal is skipped', () => {
+    const played = play(newGame(11), 20);
+
+    played.forEach((turn, i) => {
+      expect({ turn: i + 1, violations: invariantViolations(turn.state) }).toEqual({ turn: i + 1, violations: [] });
+      for (const nationId of TWO_NATION_IDS) {
+        const meal = turn.events.find(e => e.type === 'workers-fed' && e.nationId === nationId);
+        const outcome = meal?.type === 'workers-fed' ? { sick: meal.sick, starved: meal.starved } : 'no meal';
+        expect({ turn: i + 1, nationId, outcome }).toEqual({ turn: i + 1, nationId, outcome: { sick: 0, starved: 0 } });
+        const sick = turn.state.nations.find(n => n.id === nationId)!.industry.sick;
+        expect({ turn: i + 1, nationId, sick }).toEqual({ turn: i + 1, nationId, sick: { untrained: 0, trained: 0, expert: 0 } });
+      }
+    });
+  });
+
   it('FR-015 the game also makes progress: jobs complete and resources are found for both nations', () => {
     const played = play(newGame(11), 20);
     const events = played.flatMap(t => t.events);

@@ -5,7 +5,7 @@ import { createGameStore, randomSeed, EVENT_LOG_TURNS } from '@/store/rootStore'
 import { applyOrder, resolveTurn, type Order } from '@/engine';
 import { WorkerType } from '@/types/Workers';
 import { PROSPECT_COST } from '@/definisions/workPrices';
-import { game, locate, N1, N2, setTreasury, T, treasury, workerId } from '../engine/fixtures';
+import { game, locate, N1, N2, setTreasury, setWarehouse, T, treasury, workerId } from '../engine/fixtures';
 
 const W = {
   prospector: workerId(N1, WorkerType.Prospector),
@@ -37,10 +37,10 @@ describe('FR-018 the store holds one GameState plus UI state', () => {
     for (const key of ['activeNationId', 'newsLog', 'turnOrder']) expect(store.getState().game).not.toHaveProperty(key);
   });
 
-  it('a new game is the pre-M1 start: turn 1, year 1900, nation-1 with its seven workers on the capital', () => {
+  it('FR-027 a new game starts on turn 1 in 1815, nation-1 with its seven workers on the capital', () => {
     const g = createGameStore({ seed: 1 }).getState().game;
 
-    expect(g).toMatchObject({ turn: 1, year: 1900, seed: 1, difficulty: 'normal' });
+    expect(g).toMatchObject({ turn: 1, year: 1815, seed: 1, difficulty: 'normal' });
     expect(g.nations.map(n => n.id)).toEqual(['nation-1']);
     expect(g.map.config).toMatchObject({ cols: 40, rows: 40 });
     const capital = g.map.tiles.flat().find(t => t.cityId === 'capital-1')!;
@@ -154,8 +154,8 @@ describe('FR-021 advanceTurn resolves the turn with the engine and keeps the eve
     expect(store.getState().game).toEqual(resolveTurn(initial, { [N1]: [prospect, moveFarmer] }, initial.seed).state);
   });
 
-  it('advances the turn and applies the transport capacity bought this turn (pre-M1 turnSlice test)', () => {
-    const store = createGameStore({ seed: 1 });
+  it('FR-021 FR-039 advances the turn and builds the freight cars ordered this turn (pre-M1 turnSlice test)', () => {
+    const store = createGameStore({ game: setWarehouse(game(), N1, { lumber: 5, steel: 5 }) });
     const before = store.getState().game;
     expect(store.getState().submitOrder({ kind: 'changeTransportCapacity', nationId: N1, delta: 5 }).ok).toBe(true);
 
@@ -202,5 +202,27 @@ describe('FR-022 only submitOrder and advanceTurn change the game', () => {
     for (const [, action] of actions) (action as (...args: unknown[]) => void)(T.farm1, W.farmer);
 
     expect(store.getState().game).toBe(g);
+  });
+});
+
+describe('FR-055 opening the capital clears a stale refusal', () => {
+  it('a refusal from the map is gone when the capital dialog opens', () => {
+    const store = createGameStore({ game: setTreasury(game(), N1, 0) });
+    store.getState().submitOrder(prospect);
+    expect(store.getState().lastRejection).not.toBeNull();
+
+    store.getState().openCapital();
+
+    expect(store.getState().isCapitalOpen).toBe(true);
+    expect(store.getState().lastRejection).toBeNull();
+  });
+
+  it('a refusal of an order sent while the dialog is open still shows', () => {
+    const store = createGameStore({ game: setTreasury(game(), N1, 0) });
+    store.getState().openCapital();
+
+    store.getState().submitOrder(prospect);
+
+    expect(store.getState().lastRejection).toEqual({ order: prospect, reason: 'insufficient-funds' });
   });
 });

@@ -148,7 +148,6 @@ describe('transportConnectivitySystem', () => {
         kind: 'depot',
         startedOnTurn: 0,
         durationTurns: 1,
-        completed: false
       }
     };
 
@@ -460,7 +459,6 @@ describe('transportConnectivitySystem', () => {
         kind: 'rail',
         startedOnTurn: 0,
         durationTurns: 1,
-        completed: false
       }
     };
 
@@ -473,7 +471,6 @@ describe('transportConnectivitySystem', () => {
         kind: 'depot',
         startedOnTurn: 0,
         durationTurns: 1,
-        completed: false
       }
     };
 
@@ -556,7 +553,6 @@ describe('transportConnectivitySystem', () => {
         kind: 'port',
         startedOnTurn: 0,
         durationTurns: 1,
-        completed: false
       }
     };
 
