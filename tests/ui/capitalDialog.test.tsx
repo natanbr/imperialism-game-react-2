@@ -119,6 +119,25 @@ describe('FR-046 capital dialog: production cards', () => {
     expect(within(card('foodProcessing')).queryByRole('button', { name: /Expand/ })).toBeNull();
   });
 
+  it('FR-057 Cancel sends expandBuilding with delta -1, refunds the step, and is disabled with nothing to cancel', () => {
+    openCapital(stocked());
+    const cancel = () => within(card('steelMill')).getByRole('button', { name: 'Cancel expansion of Steel mill' });
+    expect(cancel()).toHaveProperty('disabled', true);
+
+    fireEvent.click(within(card('steelMill')).getByRole('button', { name: /Expand Steel mill/ }));
+    expect(cancel()).toHaveProperty('disabled', false);
+    fireEvent.click(cancel());
+
+    expect(submitted).toEqual([
+      { kind: 'expandBuilding', nationId: N1, building: 'steelMill' },
+      { kind: 'expandBuilding', nationId: N1, building: 'steelMill', delta: -1 },
+    ]);
+    expect([stockOf(now(), N1, 'lumber'), stockOf(now(), N1, 'steel')]).toEqual([10, 10]);
+    expect(text(within(card('steelMill')).getByTestId('capacity'))).toBe('Capacity 2');
+    expect(cancel()).toHaveProperty('disabled', true);
+    expect(within(card('foodProcessing')).queryByRole('button', { name: /Cancel expansion/ })).toBeNull();
+  });
+
   it('FR-046 a refused order shows its reason in the dialog; the next accepted order clears it', () => {
     openCapital(emptyWarehouse(game(), N1, { lumber: 1, steel: 1 }));
 

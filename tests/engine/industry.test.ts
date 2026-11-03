@@ -62,6 +62,15 @@ const cases: Case[] = [
   { name: 'FR-038 building the refinery after Oil Drilling is ok', setup: () => ({ ...base({ lumber: 2, steel: 2 }), technologyState: { technologies: [], oilDrillingTechUnlocked: true } }), order: { kind: 'expandBuilding', nationId: N1, building: 'refinery' }, expected: 'ok' },
   { name: 'FR-026 FR-038 an inherited name as building (__proto__)', setup: () => base({ lumber: 9, steel: 9 }), order: { kind: 'expandBuilding', nationId: N1, building: '__proto__' as BuildingType }, expected: 'invalid-target' },
 
+  // FR-057 expandBuilding with a delta: cancel this turn's steps, or order several at once
+  { name: 'FR-057 cancelling this turn\'s expansion step is ok', setup: () => setBuilding(base(), N1, 'steelMill', { capacity: 2, pendingCapacity: 2 }), order: { kind: 'expandBuilding', nationId: N1, building: 'steelMill', delta: -1 }, expected: 'ok' },
+  { name: 'FR-057 cancelling with no expansion pending', setup: () => base(), order: { kind: 'expandBuilding', nationId: N1, building: 'steelMill', delta: -1 }, expected: 'invalid-amount' },
+  { name: 'FR-057 cancelling more steps than are pending', setup: () => setBuilding(base(), N1, 'steelMill', { capacity: 2, pendingCapacity: 2 }), order: { kind: 'expandBuilding', nationId: N1, building: 'steelMill', delta: -2 }, expected: 'invalid-amount' },
+  { name: 'FR-057 a zero delta', setup: () => base({ lumber: 9, steel: 9 }), order: { kind: 'expandBuilding', nationId: N1, building: 'steelMill', delta: 0 }, expected: 'invalid-amount' },
+  { name: 'FR-057 a fractional delta', setup: () => base({ lumber: 9, steel: 9 }), order: { kind: 'expandBuilding', nationId: N1, building: 'steelMill', delta: 0.5 }, expected: 'invalid-amount' },
+  { name: 'FR-057 two steps at once are all or nothing (2 -> 4 -> 8 costs 6 + 6)', setup: () => base({ lumber: 5, steel: 9 }), order: { kind: 'expandBuilding', nationId: N1, building: 'steelMill', delta: 2 }, expected: 'insufficient-resources' },
+  { name: 'FR-057 food processing has no expansion to cancel', setup: () => base(), order: { kind: 'expandBuilding', nationId: N1, building: 'foodProcessing', delta: -1 }, expected: 'invalid-target' },
+
   // FR-039 freight cars
   { name: 'FR-039 2 cars with 2 lumber, 2 steel and 4 free labour is ok', setup: () => base({ lumber: 2, steel: 2 }), order: { kind: 'changeTransportCapacity', nationId: N1, delta: 2 }, expected: 'ok' },
   { name: 'FR-039 cars need lumber and steel, not coal and iron', setup: () => base({ coal: 5, ironOre: 5, lumber: 1, steel: 5 }), order: { kind: 'changeTransportCapacity', nationId: N1, delta: 2 }, expected: 'insufficient-resources' },
@@ -182,6 +191,35 @@ describe('industry orders: immediate effects', () => {
     s = run(s, { kind: 'expandBuilding', nationId: N1, building: 'steelMill' });
     expect(industryOf(s, N1).buildings.steelMill).toMatchObject({ capacity: 2, pendingCapacity: 6 });
     expect([stockOf(s, N1, 'lumber'), stockOf(s, N1, 'steel')]).toEqual([0, 0]);
+  });
+
+  it('FR-057 cancelling refunds exactly the last step\'s cost; cancel and re-order nets zero', () => {
+    const before = base({ lumber: 6, steel: 6 });
+    const expand: Order = { kind: 'expandBuilding', nationId: N1, building: 'steelMill' };
+    const cancel: Order = { kind: 'expandBuilding', nationId: N1, building: 'steelMill', delta: -1 };
+
+    // One step and its cancel: the game is as it was.
+    expect(run(run(before, expand), cancel)).toEqual(before);
+
+    // 2 -> 4 (2 points) then 4 -> 8 (4 points); cancelling refunds the 4 of the last step.
+    let s = run(run(before, expand), expand);
+    s = run(s, cancel);
+    expect(industryOf(s, N1).buildings.steelMill).toMatchObject({ capacity: 2, pendingCapacity: 2 });
+    expect([stockOf(s, N1, 'lumber'), stockOf(s, N1, 'steel')]).toEqual([4, 4]);
+
+    // Re-ordering costs the same 4 again and lands where the two steps did.
+    s = run(s, expand);
+    expect(industryOf(s, N1).buildings.steelMill).toMatchObject({ capacity: 2, pendingCapacity: 6 });
+    expect([stockOf(s, N1, 'lumber'), stockOf(s, N1, 'steel')]).toEqual([0, 0]);
+
+    // Cancelling both steps at once gives everything back.
+    expect(run(s, { kind: 'expandBuilding', nationId: N1, building: 'steelMill', delta: -2 })).toEqual(before);
+  });
+
+  it('FR-057 a positive delta orders that many steps at once, as the same steps one by one', () => {
+    const before = base({ lumber: 6, steel: 6 });
+    const expand: Order = { kind: 'expandBuilding', nationId: N1, building: 'steelMill' };
+    expect(run(before, { kind: 'expandBuilding', nationId: N1, building: 'steelMill', delta: 2 })).toEqual(run(run(before, expand), expand));
   });
 
   it('FR-038 a factory grows 1 -> 2 for 1 lumber + 1 steel', () => {

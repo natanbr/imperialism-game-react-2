@@ -68,12 +68,31 @@ export function validateSetProduction(nation: Nation, order: SetProductionOrder)
   return OK;
 }
 
-/** The capacity points one more step adds, counted from the size already ordered this turn. */
-function expansionPoints(nation: Nation, order: ExpandBuildingOrder): number {
-  const def = BUILDINGS[order.building];
+const expansionSteps = (order: ExpandBuildingOrder): number => order.delta ?? 1;
+
+/**
+ * The capacity points the order's steps add, counted from the size already ordered this turn;
+ * negative when it cancels this turn's steps (the last step first). Undefined when a cancel names
+ * more steps than this turn's, or the steps would add more than `budget` points (this bound keeps
+ * a huge delta from looping).
+ */
+function expansionPoints(nation: Nation, order: ExpandBuildingOrder, budget = Infinity): number | undefined {
+  const { kind } = BUILDINGS[order.building];
   const { capacity, pendingCapacity } = buildingOf(nation, order.building);
-  const from = capacity + pendingCapacity;
-  return nextCapacity(def.kind, from) - from;
+  const ordered = capacity + pendingCapacity;
+  const steps = expansionSteps(order);
+  if (steps < 0) {
+    const sizes = [capacity];
+    while (sizes[sizes.length - 1] < ordered) sizes.push(nextCapacity(kind, sizes[sizes.length - 1]));
+    const back = sizes.length - 1 + steps;
+    return back >= 0 ? sizes[back] - ordered : undefined;
+  }
+  let size = ordered;
+  for (let step = 0; step < steps; step++) {
+    size = nextCapacity(kind, size);
+    if (size - ordered > budget) return undefined;
+  }
+  return size - ordered;
 }
 
 export function validateExpandBuilding(state: GameState, nation: Nation, order: ExpandBuildingOrder): ValidationResult {
@@ -81,10 +100,16 @@ export function validateExpandBuilding(state: GameState, nation: Nation, order: 
   const def = BUILDINGS[order.building];
   if (def.unlimited) return reject("invalid-target");
   if (def.needsOilDrilling && !state.technologyState.oilDrillingTechUnlocked) return reject("invalid-target");
-  const points = expansionPoints(nation, order);
+  const steps = expansionSteps(order);
+  if (!isWholeNumber(steps) || steps === 0) return reject("invalid-amount");
+  if (steps < 0) return expansionPoints(nation, order) === undefined ? reject("invalid-amount") : OK;
+
   const stock = stockOf(nation);
-  const enough = has(stock, MaterialType.Lumber, points * EXPANSION_COST_PER_POINT.lumber) && has(stock, MaterialType.Steel, points * EXPANSION_COST_PER_POINT.steel);
-  return enough ? OK : reject("insufficient-resources");
+  const affordable = Math.min(
+    Math.floor((stock[MaterialType.Lumber] ?? 0) / EXPANSION_COST_PER_POINT.lumber),
+    Math.floor((stock[MaterialType.Steel] ?? 0) / EXPANSION_COST_PER_POINT.steel),
+  );
+  return expansionPoints(nation, order, affordable) === undefined ? reject("insufficient-resources") : OK;
 }
 
 export function validateCapacityChange(nation: Nation, order: ChangeTransportCapacityOrder): ValidationResult {
@@ -156,7 +181,7 @@ export const applySetProduction = (state: GameState, order: SetProductionOrder):
 
 export const applyExpandBuilding = (state: GameState, order: ExpandBuildingOrder): GameState =>
   updateNation(state, order.nationId, (nation) => {
-    const points = expansionPoints(nation, order);
+    const points = expansionPoints(nation, order) ?? 0; // validated: defined
     const building = buildingOf(nation, order.building);
     const paid = withStock(nation, {
       [MaterialType.Lumber]: -points * EXPANSION_COST_PER_POINT.lumber,

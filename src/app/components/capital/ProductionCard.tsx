@@ -67,13 +67,23 @@ export const ProductionCard: React.FC<ProductionCardProps> = ({ card, nationId, 
       ))}
 
       {expansion && (
-        <button
-          className={styles.expandButton}
-          aria-label={`Expand ${name}`}
-          onClick={() => submitOrder({ kind: "expandBuilding", nationId, building })}
-        >
-          {`Expand to ${expansion.to} (${expansion.lumber} Lumber, ${expansion.steel} Steel)`}
-        </button>
+        <div className={styles.actionRow}>
+          <button
+            className={styles.expandButton}
+            aria-label={`Expand ${name}`}
+            onClick={() => submitOrder({ kind: "expandBuilding", nationId, building })}
+          >
+            {`Expand to ${expansion.to} (${expansion.lumber} Lumber, ${expansion.steel} Steel)`}
+          </button>
+          <button
+            className={styles.cancelButton}
+            aria-label={`Cancel expansion of ${name}`}
+            disabled={card.pendingCapacity <= 0}
+            onClick={() => submitOrder({ kind: "expandBuilding", nationId, building, delta: -1 })}
+          >
+            Cancel
+          </button>
+        </div>
       )}
     </section>
   );

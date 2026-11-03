@@ -99,10 +99,15 @@ export interface SetProductionOrder extends OrderBase {
   amount: number;
 }
 
-/** Raise a capped building one capacity step, paid with lumber and steel now (FR-038). */
+/**
+ * Raise a capped building `delta` capacity steps (default 1), paid with lumber and steel now
+ * (FR-038). A negative delta cancels that many of this turn's steps, the last first, with a
+ * refund (FR-057).
+ */
 export interface ExpandBuildingOrder extends OrderBase {
   kind: "expandBuilding";
   building: BuildingType;
+  delta?: number;
 }
 
 /** Train `delta` workers one grade up this turn; a negative delta cancels with a refund (FR-041). */
