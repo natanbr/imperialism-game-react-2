@@ -39,8 +39,9 @@ src/app/
     industry/              labour.ts (labourOf: total, committed, free), industryState.ts
                            (createIndustry, buildingOf, migrantCap), foodForecast.ts (the meal
                            this turn would serve)
-    world/                 defaultMap.ts (the 40x40 map), startWorld.ts (start nation, land,
-                           civilians, START_TECHNOLOGIES)
+    world/                 twoIslands.ts (the 24x16 two-island map as a text template,
+                           CAPITAL_SITES), startWorld.ts (start nation, settleIsland, civilians,
+                           START_TECHNOLOGIES)
     turn/                  resolveTurn.ts, phases.ts (TURN_PHASES), context.ts (TurnContext, GameEvent)
     systems/               one file per turn system, each (state, ctx) => state
     map/mapHelpers.ts      neighbours, adjacency, rail sites
@@ -288,9 +289,15 @@ Turn is disabled and the store's `advanceTurn` returns at once, so no empty turn
 sub-components in `components/Tile/` and three hooks: `useTileActions` (which action the
 selected worker offers, from `workers/*`), `useTileVisuals` (colours and the cursor) and
 `useTileClickHandler` (the click, as orders). The HUD shows "Turn: N of 40" and the date ("Spring 1815"), cash, the score, the
-food warning, the selected tile, the news of the last turn and the last refused order (`components/HUD/NewsPanel.tsx`). Edge scroll
-(`hooks/useEdgeScroll.ts`) moves the camera near the window edges; over the HUD only the right
-edge scrolls.
+food warning, the selected tile, the news of the last turn and the last refused order (`components/HUD/NewsPanel.tsx`). The
+camera is the scroll position of MapView's container (FR-083), so the browser keeps it inside the
+map; the store's `cameraX`/`cameraY` mirror it (written on each scroll event) and `setCamera`
+scrolls the container. The first view and the HUD's Center button centre the capital
+(`components/camera.ts`, `cameraOnCapital`); the map has right padding of `--hud-width` so its last
+column can scroll out from under the HUD. Edge scroll (`hooks/useEdgeScroll.ts`) scrolls the
+container near the window edges; over the HUD only the right edge scrolls. e2e specs wait until
+the capital is in view before clicking: the first view scrolls once the page is live, and a click
+before that lands where the scroll moves the map.
 
 ## Testing
 
@@ -306,12 +313,16 @@ fixture (`testing/mockNation.ts`, helpers in `tests/engine/fixtures.ts`); tests 
 use the 5x5 `initWorld` map and one engine order per old helper call
 (`tests/engine/orders/singleNationOrders.ts`). `invariantViolations` in `tests/engine/fixtures.ts`
 also checks the economy after every headless turn: no negative stock or worker count. The engine
-never imports `src/app/testing` (ESLint rule, FR-043).
+never imports `src/app/testing` (ESLint rule, FR-043, now FR-080).
 
 ## Not on the engine yet
 
 - Diplomacy, combat and interceptions are stub systems. Trade is a world market with no Minor
   Nations, no bid/offer matching between nations and no Shipyard (holds do not grow).
-- The map comes from `engine/world/defaultMap.ts` until a map generator exists.
+- The map is a fixed template, `engine/world/twoIslands.ts` (FR-080): the same for every seed, so
+  e2e specs and M4 can name tiles. Island 2 is island 1 shifted 12 columns (a shift along a row
+  keeps the hex neighbours); `settleIsland(map, nationId, cityId, CAPITAL_SITES[i])` puts a capital
+  on island i, raises its farm, orchard and plantation neighbours to level 1 and gives the nation
+  the island. A new game settles only island 1. No coast or river tiles are placed (decision Q16).
 - Transport logic gaps from `docs/rules/04` (river ports, a depot on a port, blockades, town
   development) and the power plant are not modelled.
