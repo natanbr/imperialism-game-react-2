@@ -4,7 +4,7 @@
 > - Map is a hex grid (6 neighbours). A province is a group of tiles (a dozen or more) with one town or the capital; military treats a province as one space, civilians work per tile. A tile holds one terrain and at most one resource.
 > - Coal, iron, gold, gems and oil are hidden until a Prospector searches the tile. Everything else is visible from the terrain type. Yields per development level (section 3) are the same for every nation.
 > - Gold = $200 per unit and gems = $500 per unit when transported (canonical, decision NR-005). Neither enters the warehouse nor the world market.
-> - CODE MISMATCH: see the list at the bottom (start year, gold/gems prices, job costs and durations are placeholders in code).
+> - CODE MISMATCH: see the list at the bottom (gold/gems prices). Start year, job costs and durations: RESOLVED in M2 (FR-027 to FR-029).
 
 Source tags: `[M pN]` manual PDF page marker N; `[W#]` web source listed under Sources; `[?]` unverified or inferred.
 
@@ -103,10 +103,10 @@ Source: [M p93] [M p94]. Feed Grasses is also what makes the Rancher unit builda
 
 ## CODE MISMATCH
 
-- CODE MISMATCH: `src/app/constants/gameConstants.ts` `TIME_CONFIG.STARTING_YEAR = 1900`; a random world starts in spring 1815 and each turn is one quarter. [M p15] [M p60] [W13]
+- RESOLVED in M2 (FR-027), was: `src/app/constants/gameConstants.ts` `TIME_CONFIG.STARTING_YEAR = 1900`; a random world starts in spring 1815 and each turn is one quarter. [M p15] [M p60] [W13]
 - CODE MISMATCH: `gameConstants.ts` `RESOURCE_VALUES` gives gold 100 and gems 1000, and `systems/logisticsSystem.ts` pays gold $100 and gems $1000 per unit. Canonical: gold $200, gems $500. `definisions/ResourceConversions.ts` `CashPerTransport` already says 200/500.
 - CODE MISMATCH: `RESOURCE_VALUES` (grain 10 ... oil 75) are far below observed world prices (raw resources about $60-$180, see 06).
-- CODE MISMATCH: `DEVELOPMENT_CONFIG.PROSPECT_TURNS = 2` in `gameConstants.ts` vs `definisions/workerDurations.ts` 1; sources say 1 turn. [W10]
+- RESOLVED in M2 (FR-028), was: `DEVELOPMENT_CONFIG.PROSPECT_TURNS = 2` in `gameConstants.ts` vs `definisions/workerDurations.ts` 1; sources say 1 turn. [W10]
 - `definisions/ResourceDevelopment.ts` matches the manual table (Fish L0 only, Horses 1). No mismatch.
 - `types/Tile.ts` has `Water`, `River`, `Coast`, `Town`, `Capital` as terrain types; in the rules a river is an overlay on a normal tile (`hasRiver` exists) and the sea is not a land tile. Fish and river-port rules need the overlay.
 

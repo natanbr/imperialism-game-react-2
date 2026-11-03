@@ -4,7 +4,7 @@
 > - All industry happens in the capital. Mills and factories turn inputs into the next level: **2 labour + 2 input units -> 1 output unit** everywhere, except the steel mill (1 coal + 1 iron + 2 labour -> 1 steel) and food processing (4 raw food + 2 labour -> 2 canned food). Output is capped by the building's capacity per turn.
 > - Labour = sum over workers: untrained 1, trained 2, expert 4 (+ power). Every worker eats 1 food per turn; wrong food = sick = no labour; no food = starves.
 > - Growth loop: lumber + steel expand buildings and freight cars; paper trains workers and builds civilians; canned food + clothing + furniture recruit migrants.
-> - CODE MISMATCH: steel mill, food processing and migrant recipes in `definisions/ResourceConversions.ts` do not match the rules (list at the bottom). Production is a stub (`productionSystem`) and no industry buildings exist yet.
+> - CODE MISMATCH: University, Armoury, Shipyard and the power plant are missing (list at the bottom). RESOLVED in M2: the recipes (FR-034), the production buildings, their capacity and the production phase (FR-033, FR-037, FR-038), food (FR-040), training and migration (FR-058, FR-042).
 
 Source tags: `[M pN]` manual PDF page marker; `[W#]` web source (see Sources); `[?]` unverified or inferred.
 
@@ -144,13 +144,13 @@ Migration (Capitol). [M p57]
 
 ## CODE MISMATCH
 
-- CODE MISMATCH: `definisions/ResourceConversions.ts` `SteelMill`: 2 coal + 2 iron + 2 labour -> 1 steel. Rule: 1 coal + 1 iron + 2 labour -> 1 steel. [M p56] [W5]
-- CODE MISMATCH: `FoodProcessing`: 1 grain + 1 fruit + 1 fish-or-livestock + 2 labour -> 1 canned food. Rule: 2 grain + 1 fruit + 1 fish-or-livestock + 2 labour -> 2 canned food. [M p58] [W7]
-- CODE MISMATCH: `ProduceUntrainedWorker` inputs are canned food + hardware + clothing (its own note says hardware + paper + $100). Rule: canned food + clothing + furniture, no cash, no labour. [M p57] [W16]
-- CODE MISMATCH: `ProduceUntrainedWorker` and the training recipes output Labour in the same turn (`+1`, `+2`, `+4`). Rules: migrants arrive next turn; a trainee gives no labour in the training turn. Training costs ($100 + 1 paper, $1,000 + 2 paper) match; the note strings say 500 cash for the first step.
-- `LumberMillLumber`, `LumberMillPaper`, `FurnitureFactory`, `TextileMillFabric`, `ClothingFactory`, `Hardware`, `FuelProcessing` match the rule 2 input + 2 labour -> 1 output. Missing: Armaments recipe (Metal Works), Railyard, University, Armoury, Shipyard, power plant conversion (`ElectricityProduction` is declared but has no recipe).
-- CODE MISMATCH: no capacity per building (`IndustryBuilding.capacity` exists, nothing sets it), no mill/factory start sizes (2 / 1), no expansion steps or lumber + steel cost.
-- Not implemented: food consumption and sickness, migration cap floor(provinces/4), Trade School step limits, production-phase timing (output next turn).
+- RESOLVED in M2 (FR-034), was: `definisions/ResourceConversions.ts` `SteelMill`: 2 coal + 2 iron + 2 labour -> 1 steel. Rule: 1 coal + 1 iron + 2 labour -> 1 steel. [M p56] [W5]
+- RESOLVED in M2 (FR-034), was: `FoodProcessing`: 1 grain + 1 fruit + 1 fish-or-livestock + 2 labour -> 1 canned food. Rule: 2 grain + 1 fruit + 1 fish-or-livestock + 2 labour -> 2 canned food. [M p58] [W7]
+- RESOLVED in M2 (FR-042), was: `ProduceUntrainedWorker` inputs are canned food + hardware + clothing (its own note says hardware + paper + $100). Rule: canned food + clothing + furniture, no cash, no labour. [M p57] [W16]
+- RESOLVED in M2 (FR-042, FR-058), was: `ProduceUntrainedWorker` and the training recipes output Labour in the same turn (`+1`, `+2`, `+4`). Rules: migrants arrive next turn; a trainee gives no labour in the training turn. Training costs ($100 + 1 paper, $1,000 + 2 paper) match; the note strings say 500 cash for the first step.
+- `LumberMillLumber`, `LumberMillPaper`, `FurnitureFactory`, `TextileMillFabric`, `ClothingFactory`, `Hardware`, `FuelProcessing` match the rule 2 input + 2 labour -> 1 output. Missing: University, Armoury, Shipyard, power plant conversion (no recipe). Armaments recipe (Metal Works) and Railyard: RESOLVED in M2 (FR-034, FR-039).
+- RESOLVED in M2 (FR-033, FR-038), was: no capacity per building (`IndustryBuilding.capacity` exists, nothing sets it), no mill/factory start sizes (2 / 1), no expansion steps or lumber + steel cost.
+- RESOLVED in M2 (FR-037, FR-040, FR-042, FR-058), was: not implemented: food consumption and sickness, migration cap floor(provinces/4), Trade School step limits, production-phase timing (output next turn).
 
 ## Sources
 

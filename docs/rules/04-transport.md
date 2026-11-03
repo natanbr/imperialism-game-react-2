@@ -4,7 +4,7 @@
 > - Commodities reach the industry warehouse only through the network: each connected depot or port gathers its own tile + the 6 neighbours; the capital counts as a connected depot and port. Total units moved per turn are capped by transport capacity (freight cars, 1 unit per car); the player chooses what share each commodity gets.
 > - Capacity is bought in the Railyard: 1 lumber + 1 steel + 2 labour per car, no maintenance, available next turn. Standard game starts with about 15 cars [W1].
 > - Connected towns grow by themselves and ship free materials and goods (section 6). This is a large free income and is easy to forget.
-> - CODE MISMATCH: river ports, depot-on-port rule, gold/gems values, start capacity (list at the bottom).
+> - CODE MISMATCH: river ports, depot-on-port rule, gold/gems values (list at the bottom). Start capacity and freight-car costs RESOLVED in M2 (FR-039, FR-043).
 
 Source tags: `[M pN]` manual PDF page marker; `[W#]` web source (see Sources); `[?]` unverified or inferred.
 
@@ -116,10 +116,11 @@ Notes
 - CODE MISMATCH: `systems/logisticsSystem.ts` pays gold $100 and gems $1000 per transported unit; canonical $200 and $500. [M p53]
 - CODE MISMATCH: `systems/transportConnectivitySystem.ts` treats every ocean-adjacent port as a BFS start and uses `isAdjacentToOcean`, so a **river port** can never be active; the manual allows river ports, connected as long as the downstream provinces are owned. [M p49]
 - CODE MISMATCH: the same system activates any depot reachable by rail from any port tile; the manual requires the port tile to hold a depot as well. [M p49]
-- CODE MISMATCH: no blockade logic (sea port cut by undisputed enemy fleet), no province-loss logic, no Railyard build costs (1 lumber + 1 steel + 2 labour per car), no town development. Nation `transportCapacity` starts at 8-10 in mocks/`worldInit.ts`; a standard game starts near 15.
+- CODE MISMATCH: no blockade logic (sea port cut by undisputed enemy fleet), no province-loss logic, no town development.
+- RESOLVED in M2 (FR-039, FR-043), was: no Railyard build costs (1 lumber + 1 steel + 2 labour per car). Nation `transportCapacity` starts at 8-10 in mocks/`worldInit.ts`; a standard game starts near 15. A new game now starts with 15 cars; the test fixtures keep 8-10.
 - `logisticsSystem.ts` collects from hub tile + 6 neighbours with odd-row offset hex adjacency: matches the manual. Capital is a hub: matches. Fish from sea/river tiles is not modelled.
-- CODE MISMATCH: `store/nationSlice.ts` `purchaseTransportCapacityIncrease` charges 1 coal + 1 iron per capacity point; the rule is 1 lumber + 1 steel + 2 labour per car. [W1] [W8]
-- Rail cost by terrain and technology gating (`High Pressure` etc.) are not in `workPrices.ts` (flat 100).
+- RESOLVED in M2 (FR-039), was: `store/nationSlice.ts` `purchaseTransportCapacityIncrease` charges 1 coal + 1 iron per capacity point; the rule is 1 lumber + 1 steel + 2 labour per car. [W1] [W8]
+- RESOLVED in M2 (FR-029, FR-030), was: rail cost by terrain and technology gating (`High Pressure` etc.) are not in `workPrices.ts` (flat 100).
 
 ## Sources
 

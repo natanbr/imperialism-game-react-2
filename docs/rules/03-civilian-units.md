@@ -2,9 +2,9 @@
 
 > **Implementation notes**
 > - Eight civilian types: Prospector, Engineer, Miner, Farmer, Rancher, Forester, Driller (built at the University) and Developer (a diplomatic reward, never built). Civilians have no combat value, no upkeep, no food need, and die if their province falls.
-> - Every build costs one **expert worker** (4 labour) + cash + 2 paper; every job costs cash when ordered. The code charges none of this yet (job debit removed in commit e6b47cf, per REVIVAL_PLAN).
-> - Job durations are known only partly: prospect 1 turn, rail 1 turn, depot/port/fort 3 turns, level-up probably 3 turns [?]. All numbers in `workerDurations.ts` are placeholders.
-> - CODE MISMATCH list at the bottom (costs and durations).
+> - Every build costs one **expert worker** (4 labour) + cash + 2 paper; every job costs cash when ordered. No civilian build exists in code yet; job prices are charged when ordered (RESOLVED in M2, FR-029).
+> - Job durations are known only partly: prospect 1 turn, rail 1 turn, depot/port/fort 3 turns, level-up probably 3 turns [?]. `workerDurations.ts` holds these numbers, 3 for every level-up (RESOLVED in M2, FR-028).
+> - CODE MISMATCH list at the bottom. Costs and durations RESOLVED in M2 (FR-028, FR-029).
 
 Source tags: `[M pN]` manual PDF page marker; `[W#]` web source (see Sources); `[?]` inferred.
 
@@ -100,12 +100,13 @@ General rules
 
 ## CODE MISMATCH
 
-- CODE MISMATCH: `definisions/workPrices.ts` `DEVELOPMENT_COST` = {1: 100, 2: 500, 3: 5000}; wiki says level 2 costs $1,000. [W10] [W11]
-- CODE MISMATCH: `workPrices.ts` `CONSTRUCTION_COST` depot 500, port 1000, fort 1000 vs depot $2,000, port $3,000, fort $5,000 (L1), $7,500 (L2), $10,000 (L3). Rail $100 matches the cheapest terrain; real rail cost depends on terrain. `PROSPECT_COST = 100` is undocumented.
-- CODE MISMATCH: `definisions/workerDurations.ts` (all marked TODO): Farmer/Rancher L1-3 = 2/3/4, Forester/Miner/Driller L1-3 = 3/4/5, depot 2, port 4, fort 4, rail 1. Sources: prospect 1, rail 1, depot/port/fort 3, level-up probably 3 for every level.
-- CODE MISMATCH: `constants/gameConstants.ts` `CONSTRUCTION_CONFIG` depot 4, port 6, fort 5, rail 3 and `DEVELOPMENT_CONFIG.DEVELOP_TURNS_BASE = 3`, `PROSPECT_TURNS = 2` (a second, conflicting set of durations).
+- RESOLVED in M2 (FR-029), was: `definisions/workPrices.ts` `DEVELOPMENT_COST` = {1: 100, 2: 500, 3: 5000}; wiki says level 2 costs $1,000. [W10] [W11]
+- RESOLVED in M2 (FR-029), was: `workPrices.ts` `CONSTRUCTION_COST` depot 500, port 1000, fort 1000 vs depot $2,000, port $3,000, fort $5,000 (L1), $7,500 (L2), $10,000 (L3). Rail $100 matches the cheapest terrain; real rail cost depends on terrain.
+- `PROSPECT_COST = 100` is undocumented (gaps.md A4 default).
+- RESOLVED in M2 (FR-028), was: `definisions/workerDurations.ts` (all marked TODO): Farmer/Rancher L1-3 = 2/3/4, Forester/Miner/Driller L1-3 = 3/4/5, depot 2, port 4, fort 4, rail 1. Sources: prospect 1, rail 1, depot/port/fort 3, level-up probably 3 for every level.
+- RESOLVED in M2 (FR-028), was: `constants/gameConstants.ts` `CONSTRUCTION_CONFIG` depot 4, port 6, fort 5, rail 3 and `DEVELOPMENT_CONFIG.DEVELOP_TURNS_BASE = 3`, `PROSPECT_TURNS = 2` (a second, conflicting set of durations).
 - CODE MISMATCH: `types/Workers.ts` `Worker.efficiency` (0-100) has no counterpart in the rules; remove or leave unused.
-- No University build cost (expert worker + cash + 2 paper) exists in code; `industrySlice.ts` only has worker training recipes.
+- No University build cost (expert worker + cash + 2 paper) exists in code. `industrySlice.ts` was deleted in M2; training is the `trainWorkers` order (FR-058).
 - The Developer rules (embassy gate, 20x price, profit share) are not implemented.
 
 ## Sources
