@@ -3,6 +3,7 @@ import { TerrainType } from '@/types/Tile';
 import styles from './Tile.module.css';
 
 export interface TileBaseProps {
+  tileId: string;
   terrain: TerrainType;
   hasRiver: boolean;
   backgroundColor: string;
@@ -18,6 +19,7 @@ export interface TileBaseProps {
  * Base tile component that renders the terrain background and border
  */
 const TileBaseInner: React.FC<TileBaseProps> = ({
+  tileId,
   terrain,
   hasRiver,
   backgroundColor,
@@ -31,6 +33,7 @@ const TileBaseInner: React.FC<TileBaseProps> = ({
   return (
     <div
       data-testid="tile"
+      data-tile-id={tileId}
       data-terrain={terrain}
       className={`${styles.tile} ${hasJobCompleted ? styles.tileJobCompleted : ''}`}
       style={{

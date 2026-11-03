@@ -10,7 +10,7 @@ export const HUD: React.FC = () => {
     const selectedTile = map.tiles.flat().find(tile => tile.id === selectedTileId);
 
     return (
-        <div className="hud-container">
+        <div className="hud-container" data-edge-scroll="horizontal-only">
             <div>
                 <h2 className="hud-title">HUD</h2>
                 <TurnIndicator />

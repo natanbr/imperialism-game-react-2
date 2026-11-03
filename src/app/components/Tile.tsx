@@ -95,6 +95,7 @@ const TileComponentInner: React.FC<TileProps> = ({
 
   return (
     <TileBase
+      tileId={tile.id}
       terrain={tile.terrain}
       hasRiver={tile.hasRiver ?? false}
       backgroundColor={tileVisuals.terrainColor}
