@@ -138,12 +138,19 @@ const cases: Case[] = [
   { name: 'FR-010 allocations for an unknown nation', order: { kind: 'setTransportAllocations', nationId: 'nation-9', allocations: { grain: 1 } }, expected: 'unknown-nation' },
 
   // changeTransportCapacity
-  { name: 'FR-010 buying capacity with enough coal and iron is ok', setup: s => setWarehouse(s, N1, { coal: 2, ironOre: 2 }), order: { kind: 'changeTransportCapacity', nationId: N1, delta: 2 }, expected: 'ok' },
-  { name: 'FR-010 buying more capacity than the iron allows', setup: s => setWarehouse(s, N1, { coal: 2, ironOre: 1 }), order: { kind: 'changeTransportCapacity', nationId: N1, delta: 2 }, expected: 'insufficient-resources' },
-  { name: 'FR-010 reducing a queued purchase is ok', setup: s => ({ ...s, nations: s.nations.map(n => (n.id === N1 ? { ...n, transportCapacityPendingIncrease: 2 } : n)) }), order: { kind: 'changeTransportCapacity', nationId: N1, delta: -1 }, expected: 'ok' },
-  { name: 'FR-010 reducing more than was queued', setup: s => ({ ...s, nations: s.nations.map(n => (n.id === N1 ? { ...n, transportCapacityPendingIncrease: 1 } : n)) }), order: { kind: 'changeTransportCapacity', nationId: N1, delta: -2 }, expected: 'invalid-amount' },
-  { name: 'FR-010 a zero change', order: { kind: 'changeTransportCapacity', nationId: N1, delta: 0 }, expected: 'invalid-amount' },
-  { name: 'FR-010 a fractional change', setup: s => setWarehouse(s, N1, { coal: 2, ironOre: 2 }), order: { kind: 'changeTransportCapacity', nationId: N1, delta: 1.5 }, expected: 'invalid-amount' },
+  { name: 'FR-039 ordering cars with enough lumber, steel and labour is ok', setup: s => setWarehouse(s, N1, { lumber: 2, steel: 2 }), order: { kind: 'changeTransportCapacity', nationId: N1, delta: 2 }, expected: 'ok' },
+  { name: 'FR-039 ordering more cars than the steel allows', setup: s => setWarehouse(s, N1, { lumber: 2, steel: 1 }), order: { kind: 'changeTransportCapacity', nationId: N1, delta: 2 }, expected: 'insufficient-resources' },
+  { name: 'FR-039 reducing a queued order is ok', setup: s => ({ ...s, nations: s.nations.map(n => (n.id === N1 ? { ...n, transportCapacityPendingIncrease: 2 } : n)) }), order: { kind: 'changeTransportCapacity', nationId: N1, delta: -1 }, expected: 'ok' },
+  { name: 'FR-039 reducing more than was queued', setup: s => ({ ...s, nations: s.nations.map(n => (n.id === N1 ? { ...n, transportCapacityPendingIncrease: 1 } : n)) }), order: { kind: 'changeTransportCapacity', nationId: N1, delta: -2 }, expected: 'invalid-amount' },
+  { name: 'FR-039 a zero change', order: { kind: 'changeTransportCapacity', nationId: N1, delta: 0 }, expected: 'invalid-amount' },
+  { name: 'FR-039 a fractional change', setup: s => setWarehouse(s, N1, { lumber: 2, steel: 2 }), order: { kind: 'changeTransportCapacity', nationId: N1, delta: 1.5 }, expected: 'invalid-amount' },
+
+  // industry orders (more rows in industry.test.ts)
+  { name: 'FR-036 a production order the stock and labour allow is ok', setup: s => setWarehouse(s, N1, { timber: 4 }), order: { kind: 'setProduction', nationId: N1, building: 'lumberMill', amount: 2 }, expected: 'ok' },
+  { name: 'FR-038 expanding a mill with lumber and steel is ok', setup: s => setWarehouse(s, N1, { lumber: 2, steel: 2 }), order: { kind: 'expandBuilding', nationId: N1, building: 'textileMill' }, expected: 'ok' },
+  { name: 'FR-041 training a worker with cash and paper is ok', setup: s => setWarehouse(s, N1, { paper: 1 }), order: { kind: 'trainWorkers', nationId: N1, from: 'untrained', delta: 1 }, expected: 'ok' },
+  { name: 'FR-042 recruiting a migrant with the three goods is ok', setup: s => setWarehouse(s, N1, { cannedFood: 1, clothing: 1, furniture: 1 }), order: { kind: 'recruitWorkers', nationId: N1, delta: 1 }, expected: 'ok' },
+  { name: 'FR-036 production for an unknown nation', order: { kind: 'setProduction', nationId: 'nation-9', building: 'lumberMill', amount: 1 }, expected: 'unknown-nation' },
 ];
 
 describe('validateOrder', () => {

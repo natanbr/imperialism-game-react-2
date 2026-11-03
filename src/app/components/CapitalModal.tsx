@@ -2,10 +2,12 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useGameStore } from "../store/rootStore";
 import TransportAllocationModal from "./TransportAllocationModal";
+import { labourOf } from "@/engine";
+import { FREIGHT_CAR_COST } from "@/definisions/ResourceConversions";
 
 // Capital screen organized per Roadmap Step 4.1
 // - Top buttons: Warehouse, Trade, Diplomacy, Technology
-// - Two side panels (left/right): Available Labour, Worker Types, Electricity (hidden until Oil tech)
+// - Two side panels (left/right): labour (free / total), worker types
 // - Center area: sections including Industry with cards and sliders
 
 import IndustryCard from "./IndustryCard";
@@ -31,15 +33,14 @@ export const CapitalModal: React.FC = () => {
 
   // Transport UI helpers
   const [buyCount, setBuyCount] = useState<number>(0);
+  // A freight car costs 1 lumber + 1 steel + 2 free labour (FR-039); the engine validates the order.
   const { maxPurchasable } = useMemo(() => {
-    const stock = nation?.warehouse ?? {} as Record<string, number>;
-    const coal = Number(stock.coal ?? 0);
-    const iron = Number(stock.ironOre ?? 0);
-    const maxByCoal = Math.floor(coal / 1);
-    const maxByIron = Math.floor(iron / 1);
-    return {
-      maxPurchasable: Math.max(0, Math.min(maxByCoal, maxByIron)),
-    };
+    if (!nation) return { maxPurchasable: 0 };
+    const stock = nation.warehouse as Record<string, number>;
+    const byLumber = Math.floor(Number(stock.lumber ?? 0) / FREIGHT_CAR_COST.lumber);
+    const bySteel = Math.floor(Number(stock.steel ?? 0) / FREIGHT_CAR_COST.steel);
+    const byLabour = Math.floor(labourOf(nation).free / FREIGHT_CAR_COST.labour);
+    return { maxPurchasable: Math.max(0, Math.min(byLumber, bySteel, byLabour)) };
   }, [nation]);
 
   // Auto-reset the slider at the start of each new turn
@@ -64,7 +65,7 @@ export const CapitalModal: React.FC = () => {
 
   const oilUnlocked = !!technologyState?.oilDrillingTechUnlocked;
   const workers = industry?.workers ?? { untrained: 0, trained: 0, expert: 0 };
-  const power = industry?.power ?? { total: 0, available: 0, electricity: 0 };
+  const labour = nation ? labourOf(nation) : { total: 0, committed: 0, free: 0 };
 
   return (
     <div
@@ -160,19 +161,13 @@ export const CapitalModal: React.FC = () => {
           {/* Left side panel */}
           <aside style={{ border: "1px solid #333", borderRadius: 8, padding: 12, background: "#1a1a1a", display: "grid", gap: 8, alignContent: "start" }}>
             <h3 style={{ marginTop: 0 }}>Capital Info</h3>
-            <div><strong>Workers (Total):</strong> {power.available}</div>
+            <div><strong>Labour (free / total):</strong> {labour.free} / {labour.total}</div>
             <div style={{ borderTop: "1px solid #333", marginTop: 6, paddingTop: 6 }}>
               <div style={{ marginBottom: 4, fontWeight: 700 }}>Worker Types</div>
               <div>Untrained: {workers.untrained}</div>
               <div>Trained: {workers.trained}</div>
               <div>Expert: {workers.expert}</div>
             </div>
-            {oilUnlocked && (
-              <div style={{ borderTop: "1px solid #333", marginTop: 6, paddingTop: 6 }}>
-                <div style={{ marginBottom: 4, fontWeight: 700 }}>Electricity</div>
-                <div>Electricity: {power.electricity}</div>
-              </div>
-            )}
           </aside>
 
           {/* Center content grid */}
@@ -254,19 +249,13 @@ export const CapitalModal: React.FC = () => {
           {/* Right side panel (mirrors the required capital info) */}
           <aside style={{ border: "1px solid #333", borderRadius: 8, padding: 12, background: "#1a1a1a", display: "grid", gap: 8, alignContent: "start" }}>
             <h3 style={{ marginTop: 0 }}>Capital Info</h3>
-            <div><strong>Workers (Total):</strong> {power.available}</div>
+            <div><strong>Labour (free / total):</strong> {labour.free} / {labour.total}</div>
             <div style={{ borderTop: "1px solid #333", marginTop: 6, paddingTop: 6 }}>
               <div style={{ marginBottom: 4, fontWeight: 700 }}>Worker Types</div>
               <div>Untrained: {workers.untrained}</div>
               <div>Trained: {workers.trained}</div>
               <div>Expert: {workers.expert}</div>
             </div>
-            {oilUnlocked && (
-              <div style={{ borderTop: "1px solid #333", marginTop: 6, paddingTop: 6 }}>
-                <div style={{ marginBottom: 4, fontWeight: 700 }}>Electricity</div>
-                <div>Electricity: {power.electricity}</div>
-              </div>
-            )}
           </aside>
         </div>
 

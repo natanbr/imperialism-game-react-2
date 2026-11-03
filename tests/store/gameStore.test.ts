@@ -5,7 +5,7 @@ import { createGameStore, randomSeed, EVENT_LOG_TURNS } from '@/store/rootStore'
 import { applyOrder, resolveTurn, type Order } from '@/engine';
 import { WorkerType } from '@/types/Workers';
 import { PROSPECT_COST } from '@/definisions/workPrices';
-import { game, locate, N1, N2, setTreasury, T, treasury, workerId } from '../engine/fixtures';
+import { game, locate, N1, N2, setTreasury, setWarehouse, T, treasury, workerId } from '../engine/fixtures';
 
 const W = {
   prospector: workerId(N1, WorkerType.Prospector),
@@ -154,8 +154,8 @@ describe('FR-021 advanceTurn resolves the turn with the engine and keeps the eve
     expect(store.getState().game).toEqual(resolveTurn(initial, { [N1]: [prospect, moveFarmer] }, initial.seed).state);
   });
 
-  it('advances the turn and applies the transport capacity bought this turn (pre-M1 turnSlice test)', () => {
-    const store = createGameStore({ seed: 1 });
+  it('FR-021 FR-039 advances the turn and builds the freight cars ordered this turn (pre-M1 turnSlice test)', () => {
+    const store = createGameStore({ game: setWarehouse(game(), N1, { lumber: 5, steel: 5 }) });
     const before = store.getState().game;
     expect(store.getState().submitOrder({ kind: 'changeTransportCapacity', nationId: N1, delta: 5 }).ok).toBe(true);
 

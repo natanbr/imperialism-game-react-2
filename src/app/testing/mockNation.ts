@@ -6,6 +6,7 @@ import { GoodsType, MaterialType, ResourceType } from "@/types/Resource";
 import { Worker, WorkerStatus, WorkerType } from "@/types/Workers";
 import { createTileId } from "@/utils/tileIdUtils";
 import { initializeRailroadNetworks } from "@/engine/systems/railroadSystem";
+import { createIndustry } from "@/engine/industry/industryState";
 
 const cols = 5;
 const rows = 5;
@@ -36,11 +37,7 @@ export const mockNations: Nation[] = [
       timber: 50
     } as Record<string, number>,
     transportCapacity: 10,
-    industry: {
-      buildings: [],
-      workers: { untrained: 0, trained: 0, expert: 0 },
-      power: { total: 0, available: 0, electricity: 0 }
-    }
+    industry: createIndustry()
   },
   {
     id: "nation-2",
@@ -66,11 +63,7 @@ export const mockNations: Nation[] = [
       coal: 30
     } as Record<string, number>,
     transportCapacity: 8,
-    industry: {
-      buildings: [],
-      workers: { untrained: 0, trained: 0, expert: 0 },
-      power: { total: 0, available: 0, electricity: 0 }
-    }
+    industry: createIndustry()
   },
   {
     id: "nation-3",
@@ -96,11 +89,7 @@ export const mockNations: Nation[] = [
       wool: 40
     } as Record<string, number>,
     transportCapacity: 9,
-    industry: {
-      buildings: [],
-      workers: { untrained: 0, trained: 0, expert: 0 },
-      power: { total: 0, available: 0, electricity: 0 }
-    }
+    industry: createIndustry()
   }
 ];
 

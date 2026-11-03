@@ -4,11 +4,16 @@ import { WorkerStatus, WorkerType, type Worker } from "@/types/Workers";
 import type { ConstructionKind } from "@/types/jobs/ConstructionJob";
 import { PROSPECTABLE_TERRAIN_TYPES } from "@/definisions/terrainDefinitions";
 import { CONSTRUCTION_COST, DEVELOPMENT_COST, PROSPECT_COST, constructionCost } from "@/definisions/workPrices";
-import { ResourceType } from "@/types/Resource";
+import {
+  validateCapacityChange,
+  validateExpandBuilding,
+  validateRecruitWorkers,
+  validateSetProduction,
+  validateTrainWorkers,
+} from "./industryOrders";
 import { areTilesAdjacent } from "../map/mapHelpers";
 import type {
   CancelWorkerActionOrder,
-  ChangeTransportCapacityOrder,
   MoveAndBuildRailOrder,
   Order,
   RejectReason,
@@ -45,7 +50,8 @@ type Checked<T> = { ok: true; value: T } | { ok: false; reason: RejectReason };
  * what an AI may do.
  */
 export function validateOrder(state: GameState, order: Order): ValidationResult {
-  if (!nationById(state, order.nationId)) return reject("unknown-nation");
+  const nation = nationById(state, order.nationId);
+  if (!nation) return reject("unknown-nation");
 
   switch (order.kind) {
     case "moveWorker":
@@ -69,7 +75,15 @@ export function validateOrder(state: GameState, order: Order): ValidationResult 
     case "setTransportAllocations":
       return validateAllocations(order);
     case "changeTransportCapacity":
-      return validateCapacityChange(state, order);
+      return validateCapacityChange(nation, order);
+    case "setProduction":
+      return validateSetProduction(nation, order);
+    case "expandBuilding":
+      return validateExpandBuilding(state, nation, order);
+    case "trainWorkers":
+      return validateTrainWorkers(nation, order);
+    case "recruitWorkers":
+      return validateRecruitWorkers(nation, order);
     default: {
       const unknown: never = order;
       void unknown;
@@ -191,17 +205,4 @@ const isAmount = (n: unknown): n is number => typeof n === "number" && Number.is
 function validateAllocations(order: SetTransportAllocationsOrder): ValidationResult {
   if (!order.allocations || typeof order.allocations !== "object") return reject("invalid-amount");
   return Object.values(order.allocations).every(isAmount) ? OK : reject("invalid-amount");
-}
-
-function validateCapacityChange(state: GameState, order: ChangeTransportCapacityOrder): ValidationResult {
-  const { delta } = order;
-  if (!Number.isInteger(delta) || delta === 0) return reject("invalid-amount");
-  const nation = nationById(state, order.nationId)!;
-  if (delta > 0) {
-    const coal = nation.warehouse[ResourceType.Coal] ?? 0;
-    const iron = nation.warehouse[ResourceType.IronOre] ?? 0;
-    return coal >= delta && iron >= delta ? OK : reject("insufficient-resources");
-  }
-  const pending = Math.max(0, Math.floor(nation.transportCapacityPendingIncrease ?? 0));
-  return pending >= -delta ? OK : reject("invalid-amount");
 }

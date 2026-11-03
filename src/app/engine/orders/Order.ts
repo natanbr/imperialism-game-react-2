@@ -1,5 +1,6 @@
 import type { NationId, TileId } from "@/types/Common";
 import type { ConstructionKind } from "@/types/jobs/ConstructionJob";
+import type { BuildingType, ProductionOutput, WorkerGrade } from "@/types/Industry";
 
 /**
  * Everything a player (human UI or AI) can do is an Order. Each order names its nation and the
@@ -81,11 +82,39 @@ export interface SetTransportAllocationsOrder extends OrderBase {
 }
 
 /**
- * Buy (`delta` > 0) transport capacity for next turn with one coal and one iron ore per unit,
- * or give back (`delta` < 0) part of this turn's queued purchase for a refund.
+ * Order (`delta` > 0) freight cars in the railyard: 1 lumber + 1 steel each now, 2 labour each in
+ * the production phase. A negative `delta` gives back part of this turn's order for a refund (FR-039).
  */
 export interface ChangeTransportCapacityOrder extends OrderBase {
   kind: "changeTransportCapacity";
+  delta: number;
+}
+
+/** Set a building's standing production order for one of its outputs (FR-036). */
+export interface SetProductionOrder extends OrderBase {
+  kind: "setProduction";
+  building: BuildingType;
+  /** Defaults to the building's first output (lumber, hardware). */
+  output?: ProductionOutput;
+  amount: number;
+}
+
+/** Raise a capped building one capacity step, paid with lumber and steel now (FR-038). */
+export interface ExpandBuildingOrder extends OrderBase {
+  kind: "expandBuilding";
+  building: BuildingType;
+}
+
+/** Train `delta` workers one grade up this turn; a negative delta cancels with a refund (FR-041). */
+export interface TrainWorkersOrder extends OrderBase {
+  kind: "trainWorkers";
+  from: WorkerGrade;
+  delta: number;
+}
+
+/** Recruit `delta` migrants for canned food, clothing and furniture (FR-042). */
+export interface RecruitWorkersOrder extends OrderBase {
+  kind: "recruitWorkers";
   delta: number;
 }
 
@@ -100,7 +129,11 @@ export type Order =
   | MoveAndStartConstructionOrder
   | CancelWorkerActionOrder
   | SetTransportAllocationsOrder
-  | ChangeTransportCapacityOrder;
+  | ChangeTransportCapacityOrder
+  | SetProductionOrder
+  | ExpandBuildingOrder
+  | TrainWorkersOrder
+  | RecruitWorkersOrder;
 
 export type OrderKind = Order["kind"];
 
@@ -116,6 +149,10 @@ export const ORDER_KINDS = [
   "cancelWorkerAction",
   "setTransportAllocations",
   "changeTransportCapacity",
+  "setProduction",
+  "expandBuilding",
+  "trainWorkers",
+  "recruitWorkers",
 ] as const satisfies readonly OrderKind[];
 
 /** Why an order was refused. A fixed list so UIs and AI players can switch on it (FR-004). */
@@ -131,6 +168,8 @@ export type RejectReason =
   | "invalid-site"
   | "insufficient-funds"
   | "insufficient-resources"
+  | "insufficient-labour"
+  | "limit-reached"
   | "invalid-amount";
 
 export type ValidationResult = { ok: true } | { ok: false; reason: RejectReason };

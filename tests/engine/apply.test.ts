@@ -134,24 +134,24 @@ describe('applyOrder immediate effects', () => {
     expect(s.transportAllocationsByNation).toEqual({ [N1]: { grain: 3 }, [N2]: { timber: 1 } });
   });
 
-  it('FR-005 FR-010 changeTransportCapacity buys with coal and iron and queues the increase', () => {
-    const s = run(setWarehouse(game(), N1, { coal: 5, ironOre: 3 }), { kind: 'changeTransportCapacity', nationId: N1, delta: 2 });
+  it('FR-005 FR-039 changeTransportCapacity orders cars with lumber and steel and queues the increase', () => {
+    const s = run(setWarehouse(game(), N1, { lumber: 5, steel: 3 }), { kind: 'changeTransportCapacity', nationId: N1, delta: 2 });
 
     const n = s.nations.find(x => x.id === N1)!;
-    expect(n.warehouse.coal).toBe(3);
-    expect(n.warehouse.ironOre).toBe(1);
+    expect(n.warehouse.lumber).toBe(3);
+    expect(n.warehouse.steel).toBe(1);
     expect(n.transportCapacityPendingIncrease).toBe(2);
     expect(n.transportCapacity).toBe(10);
   });
 
-  it('FR-005 FR-010 changeTransportCapacity with a negative delta refunds the queued purchase', () => {
-    const bought = applyOrder(setWarehouse(game(), N1, { coal: 2, ironOre: 2 }), { kind: 'changeTransportCapacity', nationId: N1, delta: 2 });
+  it('FR-005 FR-039 changeTransportCapacity with a negative delta refunds the queued cars', () => {
+    const bought = applyOrder(setWarehouse(game(), N1, { lumber: 2, steel: 2 }), { kind: 'changeTransportCapacity', nationId: N1, delta: 2 });
 
     const s = run(bought, { kind: 'changeTransportCapacity', nationId: N1, delta: -1 });
 
     const n = s.nations.find(x => x.id === N1)!;
-    expect(n.warehouse.coal).toBe(1);
-    expect(n.warehouse.ironOre).toBe(1);
+    expect(n.warehouse.lumber).toBe(1);
+    expect(n.warehouse.steel).toBe(1);
     expect(n.transportCapacityPendingIncrease).toBe(1);
   });
 });

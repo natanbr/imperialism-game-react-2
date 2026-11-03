@@ -1,7 +1,7 @@
 import type { GameState } from "@/types/GameState";
 import type { Order } from "../orders/Order";
 import { tryApplyOrder } from "../orders/apply";
-import { advanceClock, applyQueuedTransportCapacity, resetWorkers } from "../systems/turnHousekeeping";
+import { advanceClock, resetWorkers } from "../systems/turnHousekeeping";
 import { createTurnContext, type GameEvent } from "./context";
 import { runTurnPhases } from "./phases";
 
@@ -47,10 +47,10 @@ export function applyTurnOrders(
 }
 
 /**
- * Resolves one turn (FR-011). This is the only place where the turn's orders are applied, the
- * queued transport capacity arrives, every system runs, workers are reset and the turn and
- * year advance. `seed` is the game seed (normally `state.seed`); the RNG is derived from it and
- * the turn number, so the same state and orders always give the same result.
+ * Resolves one turn (FR-011). This is the only place where the turn's orders are applied, every
+ * system runs (the production phase builds the freight cars ordered this turn), workers are reset
+ * and the turn and year advance. `seed` is the game seed (normally `state.seed`); the RNG is
+ * derived from it and the turn number, so the same state and orders always give the same result.
  *
  * Giving the orders here is equivalent to applying them with applyOrder first and passing none.
  */
@@ -63,8 +63,7 @@ export function resolveTurn(state: GameState, ordersByNation: OrdersByNation, se
   const { state: ordered, accepted } = applyTurnOrders(state, ordersByNation, emit);
   const ctx = createTurnContext({ turn: ordered.turn, seed, orders: accepted, emit });
 
-  let s = applyQueuedTransportCapacity(ordered, ctx);
-  s = runTurnPhases(s, ctx);
+  let s = runTurnPhases(ordered, ctx);
   s = resetWorkers(s, ctx);
   s = advanceClock(s, ctx);
 

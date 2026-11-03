@@ -8,11 +8,13 @@ import { combatSystem } from "../systems/combatSystem";
 import { interceptionsSystem } from "../systems/interceptionsSystem";
 import { transportConnectivitySystem } from "../systems/transportConnectivitySystem";
 import { logisticsSystem } from "../systems/logisticsSystem";
+import { foodSystem } from "../systems/foodSystem";
 
 /**
- * The turn phases in manual order (jobs first, then diplomacy, trade, production, combat,
- * interceptions, and internal transport last). resolveTurn wraps them with the order phase,
- * the queued-capacity step, the worker reset and the clock.
+ * The turn phases in manual order: jobs first, then diplomacy, trade, production (which also
+ * builds the freight cars ordered this turn), combat, interceptions, internal transport, and the
+ * workers' meal once the shipments have arrived. resolveTurn wraps them with the order phase, the
+ * worker reset and the clock.
  */
 export const TURN_PHASES: readonly TurnSystem[] = [
   developmentSystem,
@@ -23,6 +25,7 @@ export const TURN_PHASES: readonly TurnSystem[] = [
   interceptionsSystem,
   transportConnectivitySystem,
   logisticsSystem,
+  foodSystem,
 ];
 
 export const runTurnPhases = (state: GameState, ctx: TurnContext): GameState =>

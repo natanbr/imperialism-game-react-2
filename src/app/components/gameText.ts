@@ -1,6 +1,7 @@
 // Display text for engine data: worker jobs, refused orders and turn events (FR-024).
 import type { GameEvent, Order, OrderKind, RejectReason } from "@/engine";
 import type { Tile } from "@/types/Tile";
+import type { BuildingType } from "@/types/Industry";
 import { WorkerStatus, WorkerType, type Worker } from "@/types/Workers";
 
 const ORDER_TEXT: Record<OrderKind, string> = {
@@ -14,7 +15,11 @@ const ORDER_TEXT: Record<OrderKind, string> = {
   moveAndStartConstruction: "Move and build",
   cancelWorkerAction: "Cancel",
   setTransportAllocations: "Transport plan",
-  changeTransportCapacity: "Transport capacity",
+  changeTransportCapacity: "Freight cars",
+  setProduction: "Production",
+  expandBuilding: "Expansion",
+  trainWorkers: "Training",
+  recruitWorkers: "Migration",
 };
 
 export const REFUSAL_TEXT: Record<RejectReason, string> = {
@@ -28,7 +33,9 @@ export const REFUSAL_TEXT: Record<RejectReason, string> = {
   "tile-occupied": "another job is under way on that tile",
   "invalid-site": "that tile is not a valid site",
   "insufficient-funds": "not enough money",
-  "insufficient-resources": "not enough coal or iron ore",
+  "insufficient-resources": "not enough goods in the warehouse",
+  "insufficient-labour": "not enough free labour",
+  "limit-reached": "over the limit",
   "invalid-amount": "invalid amount",
 };
 
@@ -37,6 +44,25 @@ export function refusalText({ order, reason }: { order: Order; reason: RejectRea
 }
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+export const BUILDING_TEXT: Record<BuildingType, string> = {
+  textileMill: "Textile mill",
+  clothingFactory: "Clothing factory",
+  lumberMill: "Lumber mill",
+  furnitureFactory: "Furniture factory",
+  steelMill: "Steel mill",
+  metalWorks: "Metal works",
+  refinery: "Refinery",
+  foodProcessing: "Food processing",
+};
+
+/** News of a meal: only bad news is news. */
+function foodNews(sick: number, starved: number): string | null {
+  const parts: string[] = [];
+  if (sick > 0) parts.push(`${sick} worker${sick === 1 ? "" : "s"} ate the wrong food and fell sick`);
+  if (starved > 0) parts.push(`${starved} worker${starved === 1 ? "" : "s"} starved`);
+  return parts.length > 0 ? `${capitalize(parts.join("; "))}.` : null;
+}
 
 /** One line of news for the event, or null when it is not news (the end of the turn). */
 export function eventText(event: GameEvent): string | null {
@@ -49,6 +75,18 @@ export function eventText(event: GameEvent): string | null {
       return `Tile ${event.tileId} developed to level ${event.level}.`;
     case "construction-completed":
       return `${capitalize(event.structure)} finished at ${event.tileId}.`;
+    case "goods-produced":
+      return `Produced ${event.amount} ${event.output}.`;
+    case "freight-cars-built":
+      return `${event.count} freight car${event.count === 1 ? "" : "s"} built.`;
+    case "building-expanded":
+      return `${BUILDING_TEXT[event.building]} expanded to ${event.capacity}.`;
+    case "workers-trained":
+      return `${event.count} worker${event.count === 1 ? "" : "s"} trained to ${event.to}.`;
+    case "workers-fed":
+      return foodNews(event.sick, event.starved);
+    case "workers-recruited":
+      return `${event.count} migrant${event.count === 1 ? "" : "s"} joined the workforce.`;
     case "turn-ended":
       return null;
   }

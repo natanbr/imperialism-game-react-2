@@ -1,12 +1,18 @@
 import type { GameState } from "@/types/GameState";
 import type { Tile } from "@/types/Tile";
-import { ResourceType } from "@/types/Resource";
 import { WorkerStatus, type Worker } from "@/types/Workers";
 import type { ConstructionKind } from "@/types/jobs/ConstructionJob";
 import { DEVELOPMENT_COST, PROSPECT_COST, constructionCost } from "@/definisions/workPrices";
 import { EngineerBuildDurationsTurns, WorkerLevelDurationsTurns } from "@/definisions/workerDurations";
-import type { CancelWorkerActionOrder, ChangeTransportCapacityOrder, Order, ValidationResult } from "./Order";
+import type { CancelWorkerActionOrder, Order, ValidationResult } from "./Order";
 import { validateOrder } from "./validate";
+import {
+  applyCapacityChange,
+  applyExpandBuilding,
+  applyRecruitWorkers,
+  applySetProduction,
+  applyTrainWorkers,
+} from "./industryOrders";
 import { findWorker, holdsJob, nextResourceLevel, tileById, type WorkerLocation } from "./queries";
 
 /**
@@ -52,7 +58,15 @@ function applyValidOrder(state: GameState, order: Order): GameState {
         },
       };
     case "changeTransportCapacity":
-      return changeCapacity(state, order);
+      return applyCapacityChange(state, order);
+    case "setProduction":
+      return applySetProduction(state, order);
+    case "expandBuilding":
+      return applyExpandBuilding(state, order);
+    case "trainWorkers":
+      return applyTrainWorkers(state, order);
+    case "recruitWorkers":
+      return applyRecruitWorkers(state, order);
   }
 }
 
@@ -180,20 +194,4 @@ function cancel(state: GameState, order: CancelWorkerActionOrder): GameState {
     if (t.id === homeId) return { ...t, workers: [...t.workers, returned] };
     return t;
   });
-}
-
-function changeCapacity(state: GameState, order: ChangeTransportCapacityOrder): GameState {
-  const { delta } = order;
-  return {
-    ...state,
-    nations: state.nations.map((n) => {
-      if (n.id !== order.nationId) return n;
-      const pending = Math.max(0, Math.floor(n.transportCapacityPendingIncrease ?? 0));
-      const warehouse = { ...n.warehouse };
-      // One coal and one iron ore per unit; a negative delta gives them back.
-      warehouse[ResourceType.Coal] = (warehouse[ResourceType.Coal] ?? 0) - delta;
-      warehouse[ResourceType.IronOre] = (warehouse[ResourceType.IronOre] ?? 0) - delta;
-      return { ...n, warehouse, transportCapacityPendingIncrease: pending + delta };
-    }),
-  };
 }

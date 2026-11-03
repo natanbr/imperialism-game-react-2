@@ -6,6 +6,9 @@ import type { Order } from "../orders/Order";
 import { applyOrder } from "../orders/apply";
 import { findWorker, nationById, workersOf, type WorkerLocation } from "../orders/queries";
 import { validateOrder } from "../orders/validate";
+import { BUILDING_ORDER, BUILDINGS } from "@/definisions/industryBuildings";
+import { RECIPES } from "@/definisions/ResourceConversions";
+import { buildingOf } from "../industry/industryState";
 
 /**
  * A player is any function from the game state to its orders for this turn. Scripted and,
@@ -39,6 +42,19 @@ export const scriptedPlayer: Player = (state, nationId) => {
     allocations: { [ResourceType.Grain]: Math.floor((nation.transportCapacity ?? 0) / 2) },
   });
   propose({ kind: "changeTransportCapacity", nationId, delta: 1 });
+
+  // Industry: each building's outputs at the most the stock, labour and capacity allow, in the
+  // production order; canned food one batch at a time so the workers keep raw food to eat.
+  for (const building of BUILDING_ORDER) {
+    const def = BUILDINGS[building];
+    for (const output of def.outputs) {
+      const batch = RECIPES[output].batch;
+      const most = def.unlimited ? batch : buildingOf(nationById(view, nationId)!, building).capacity;
+      for (let amount = most - (most % batch); amount > 0; amount -= batch) {
+        if (propose({ kind: "setProduction", nationId, building, output, amount })) break;
+      }
+    }
+  }
 
   const ownTiles = state.map.tiles.flat().filter((t) => t.ownerNationId === nationId);
   for (const { worker } of workersOf(state, nationId)) {

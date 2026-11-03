@@ -5,6 +5,7 @@ import { TerrainType, Tile } from "@/types/Tile";
 import { Worker, WorkerStatus, WorkerType } from "@/types/Workers";
 import { createTileId, parseTileIdToArray } from "@/utils/tileIdUtils";
 import { testMap1 } from "./testMap1";
+import { createIndustry } from "@/engine/industry/industryState";
 
 export interface WorldInitOptions {
   cols: number;
@@ -99,11 +100,7 @@ export function setupSingleNation(map: GameMap): Nation[] {
       transportCapacity: 10,
       transportCapacityPendingIncrease: 0,
       warehouse: { grain: 50, coal: 100, ironOre: 100 } as Record<string, number>,
-      industry: {
-        buildings: [],
-        workers: { untrained: 0, trained: 0, expert: 0 },
-        power: { total: 0, available: 0, electricity: 0 },
-      }
+      industry: createIndustry()
     },
   ];
 
