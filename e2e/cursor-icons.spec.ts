@@ -11,8 +11,10 @@ const countTilesWithEmojiCursor = (page: Page, emoji: string) =>
 test.describe('Cursor Icon Functionality', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
-    // Wait for the game to load
+    // Wait for the game to load: the first view scrolls to the capital once the page is live (FR-083);
+    // a click before that lands where the scroll moves the map
     await page.waitForSelector('[data-testid="tile"]', { timeout: 15000 });
+    await expect(page.locator('[data-testid="tile"][data-terrain="capital"]')).toBeInViewport({ timeout: 15000 });
   });
 
   test('should show default cursor when no worker is selected', async ({ page }) => {
@@ -38,9 +40,9 @@ test.describe('Cursor Icon Functionality', () => {
 
     await prospectorWorker.click();
 
-    // Find a tile that can be prospected (e.g., mountains or swamp without discovered resources)
-    const validTile = page.locator('[data-testid="tile"][data-terrain="mountains"],' +
-      '[data-testid="tile"][data-terrain="swamp"]').first();
+    // A tile that can be prospected: barren hills hide coal or iron ore (the two-island map, FR-080,
+    // has no mountains or swamp)
+    const validTile = page.locator('[data-testid="tile"][data-terrain="barrenHills"]').first();
 
     await validTile.hover();
 
