@@ -3,6 +3,7 @@ import { Tile } from '@/types/Tile';
 import { Worker } from '@/types/Workers';
 import { createSelector } from 'reselect';
 import { completedTileIds } from '@/components/gameText';
+import { foodForecast } from '@/engine';
 import { GameStore } from './rootStore';
 
 const selectNations = (state: GameStore) => state.game.nations;
@@ -17,6 +18,12 @@ export const selectActiveNation = createSelector(
 export const selectTilesCompletedLastTurn = createSelector(
   [(state: GameStore) => state.eventLog],
   (eventLog) => completedTileIds(eventLog.at(-1)?.events ?? [])
+);
+
+/** The meal the active nation's workers would get at the end of this turn (FR-049). */
+export const selectFoodForecast = createSelector(
+  [(state: GameStore) => state.game, selectActiveNationId],
+  (game, activeNationId) => foodForecast(game, activeNationId)
 );
 
 export const selectActiveNationCapacity = createSelector(

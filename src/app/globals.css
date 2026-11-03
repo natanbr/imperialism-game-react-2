@@ -145,6 +145,20 @@ body {
   margin-bottom: 8px;
 }
 
+.turn-date {
+  font-weight: 700;
+}
+
+.food-warning {
+  margin-bottom: 8px;
+  padding: 6px 8px;
+  border: 1px solid #c77d00;
+  border-radius: 4px;
+  background: #3a2a00;
+  color: #ffd27a;
+  font-size: 13px;
+}
+
 .action-buttons-container {
   margin-top: 12px;
   display: grid;
