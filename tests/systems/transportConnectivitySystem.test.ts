@@ -26,7 +26,6 @@ function makeBaseState(): GameState {
     turn: 1,
     year: 1900,
     seed: 0,
-    activeNationId: 'nation-1',
     nations: nationsWithIndustry,
     cities: [], armies: [], fleets: [],
     relations: [], treaties: [], tradePolicies: [], grants: [],
@@ -34,8 +33,6 @@ function makeBaseState(): GameState {
     transportNetwork: { shippingLanes: [], capacity: 0 },
     tradeRoutes: [],
     technologyState: { oilDrillingTechUnlocked: false, technologies: [] },
-    newsLog: [],
-    turnOrder: { phases: ['diplomacy','trade','production','combat','interceptions','logistics'] },
     difficulty: 'normal',
   };
 
@@ -90,7 +87,6 @@ describe('transportConnectivitySystem', () => {
       turn: 1,
       year: 1900,
       seed: 0,
-      activeNationId: 'nation-1',
       nations: nationsWithIndustry,
       cities: [], armies: [], fleets: [],
       relations: [], treaties: [], tradePolicies: [], grants: [],
@@ -98,8 +94,6 @@ describe('transportConnectivitySystem', () => {
       transportNetwork: { shippingLanes: [], capacity: 0 },
       tradeRoutes: [],
       technologyState: { oilDrillingTechUnlocked: false, technologies: [] },
-      newsLog: [],
-      turnOrder: { phases: ['diplomacy','trade','production','combat','interceptions','logistics'] },
       difficulty: 'normal',
     };
 
@@ -163,7 +157,6 @@ describe('transportConnectivitySystem', () => {
       turn: 1,
       year: 1900,
       seed: 0,
-      activeNationId: 'nation-1',
       nations: nationsWithIndustry,
       cities: [], armies: [], fleets: [],
       relations: [], treaties: [], tradePolicies: [], grants: [],
@@ -171,8 +164,6 @@ describe('transportConnectivitySystem', () => {
       transportNetwork: { shippingLanes: [], capacity: 0 },
       tradeRoutes: [],
       technologyState: { oilDrillingTechUnlocked: false, technologies: [] },
-      newsLog: [],
-      turnOrder: { phases: ['diplomacy','trade','production','combat','interceptions','logistics'] },
       difficulty: 'normal',
     };
 
@@ -242,7 +233,6 @@ describe('transportConnectivitySystem', () => {
       turn: 1,
       year: 1900,
       seed: 0,
-      activeNationId: 'nation-1',
       nations: nationsWithIndustry,
       cities: [], armies: [], fleets: [],
       relations: [], treaties: [], tradePolicies: [], grants: [],
@@ -250,8 +240,6 @@ describe('transportConnectivitySystem', () => {
       transportNetwork: { shippingLanes: [], capacity: 0 },
       tradeRoutes: [],
       technologyState: { oilDrillingTechUnlocked: false, technologies: [] },
-      newsLog: [],
-      turnOrder: { phases: ['diplomacy','trade','production','combat','interceptions','logistics'] },
       difficulty: 'normal',
     };
 
@@ -300,7 +288,6 @@ describe('transportConnectivitySystem', () => {
       turn: 1,
       year: 1900,
       seed: 0,
-      activeNationId: 'nation-1',
       nations: nationsWithIndustry,
       cities: [], armies: [], fleets: [],
       relations: [], treaties: [], tradePolicies: [], grants: [],
@@ -308,8 +295,6 @@ describe('transportConnectivitySystem', () => {
       transportNetwork: { shippingLanes: [], capacity: 0 },
       tradeRoutes: [],
       technologyState: { oilDrillingTechUnlocked: false, technologies: [] },
-      newsLog: [],
-      turnOrder: { phases: ['diplomacy','trade','production','combat','interceptions','logistics'] },
       difficulty: 'normal',
     };
 
@@ -379,7 +364,6 @@ describe('transportConnectivitySystem', () => {
       turn: 1,
       year: 1900,
       seed: 0,
-      activeNationId: 'nation-1',
       nations: nationsWithIndustry,
       cities: [], armies: [], fleets: [],
       relations: [], treaties: [], tradePolicies: [], grants: [],
@@ -387,8 +371,6 @@ describe('transportConnectivitySystem', () => {
       transportNetwork: { shippingLanes: [], capacity: 0 },
       tradeRoutes: [],
       technologyState: { oilDrillingTechUnlocked: false, technologies: [] },
-      newsLog: [],
-      turnOrder: { phases: ['diplomacy','trade','production','combat','interceptions','logistics'] },
       difficulty: 'normal',
     };
 
@@ -435,7 +417,6 @@ describe('transportConnectivitySystem', () => {
       turn: 1,
       year: 1900,
       seed: 0,
-      activeNationId: 'nation-1',
       nations: nationsWithIndustry,
       cities: [], armies: [], fleets: [],
       relations: [], treaties: [], tradePolicies: [], grants: [],
@@ -443,8 +424,6 @@ describe('transportConnectivitySystem', () => {
       transportNetwork: { shippingLanes: [], capacity: 0 },
       tradeRoutes: [],
       technologyState: { oilDrillingTechUnlocked: false, technologies: [] },
-      newsLog: [],
-      turnOrder: { phases: ['diplomacy','trade','production','combat','interceptions','logistics'] },
       difficulty: 'normal',
     };
 
@@ -517,7 +496,6 @@ describe('transportConnectivitySystem', () => {
       turn: 1,
       year: 1900,
       seed: 0,
-      activeNationId: 'nation-1',
       nations: nationsWithIndustry,
       cities: [], armies: [], fleets: [],
       relations: [], treaties: [], tradePolicies: [], grants: [],
@@ -525,8 +503,6 @@ describe('transportConnectivitySystem', () => {
       transportNetwork: { shippingLanes: [], capacity: 0 },
       tradeRoutes: [],
       technologyState: { oilDrillingTechUnlocked: false, technologies: [] },
-      newsLog: [],
-      turnOrder: { phases: ['diplomacy','trade','production','combat','interceptions','logistics'] },
       difficulty: 'normal',
     };
 
@@ -596,7 +572,6 @@ describe('transportConnectivitySystem', () => {
       turn: 1,
       year: 1900,
       seed: 0,
-      activeNationId: 'nation-1',
       nations: nationsWithIndustry,
       cities: [], armies: [], fleets: [],
       relations: [], treaties: [], tradePolicies: [], grants: [],
@@ -604,8 +579,6 @@ describe('transportConnectivitySystem', () => {
       transportNetwork: { shippingLanes: [], capacity: 0 },
       tradeRoutes: [],
       technologyState: { oilDrillingTechUnlocked: false, technologies: [] },
-      newsLog: [],
-      turnOrder: { phases: ['diplomacy','trade','production','combat','interceptions','logistics'] },
       difficulty: 'normal',
     };
 

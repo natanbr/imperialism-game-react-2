@@ -281,7 +281,6 @@ export function createTwoNationGame(seed = 1): GameState {
     turn: 1,
     year: 1900,
     seed,
-    activeNationId: TWO_NATION_IDS[0],
     nations,
     cities: [],
     armies: [],
@@ -294,8 +293,6 @@ export function createTwoNationGame(seed = 1): GameState {
     transportNetwork: { shippingLanes: [], capacity: 0, railroadNetworks: initializeRailroadNetworks(map, nations) },
     tradeRoutes: [],
     technologyState: { technologies: [], oilDrillingTechUnlocked: false },
-    newsLog: [],
-    turnOrder: { phases: ["diplomacy", "trade", "production", "combat", "interceptions", "logistics"] },
     difficulty: "normal",
   };
 }

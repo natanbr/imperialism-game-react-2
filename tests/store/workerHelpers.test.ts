@@ -13,7 +13,6 @@ describe('workerHelpers - Engineer Construction', () => {
     turn: 1,
     year: 1900,
     seed: 0,
-    activeNationId: 'nation-1',
     nations,
     cities: [],
     armies: [],
@@ -26,8 +25,6 @@ describe('workerHelpers - Engineer Construction', () => {
     transportNetwork: { shippingLanes: [], capacity: 0 },
     tradeRoutes: [],
     technologyState: { oilDrillingTechUnlocked: false, technologies: [] },
-    newsLog: [],
-    turnOrder: { phases: ['diplomacy', 'trade', 'production', 'combat', 'interceptions', 'logistics'] },
     difficulty: 'normal',
   };
 

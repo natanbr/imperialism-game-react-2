@@ -13,7 +13,6 @@ function createStore() {
   }));
   
   const base: Partial<GameState> = {
-    activeNationId: 'nation-1',
     nations: nationsWithIndustry,
     cities: [], armies: [], fleets: [],
     relations: [], treaties: [], tradePolicies: [], grants: [],
@@ -21,8 +20,6 @@ function createStore() {
     transportNetwork: { shippingLanes: [], capacity: 0 },
     tradeRoutes: [],
     technologyState: { technologies: [], oilDrillingTechUnlocked: false },
-    newsLog: [],
-    turnOrder: { phases: [ 'diplomacy','trade','production','combat','interceptions','logistics' ] },
     difficulty: 'normal',
   };
 

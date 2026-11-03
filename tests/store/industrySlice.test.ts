@@ -28,7 +28,6 @@ function createStore() {
     }));
 
     const base: Partial<GameState> = {
-        activeNationId: 'nation-1',
         nations: nationsWithIndustry,
         map,
     };
@@ -46,7 +45,7 @@ describe('IndustrySlice', () => {
 
     it('wood economy recipes calculate outputs correctly', () => {
         const store = createStore();
-        const nationId = store.getState().activeNationId;
+        const nationId = 'nation-1';
         const warehouse = store.getState().nations[0].warehouse;
 
         // Set up resources for all wood recipes
@@ -72,7 +71,7 @@ describe('IndustrySlice', () => {
 
     it('food industry recipes calculate outputs correctly', () => {
         const store = createStore();
-        const nationId = store.getState().activeNationId;
+        const nationId = 'nation-1';
         const warehouse = store.getState().nations[0].warehouse;
         warehouse[ResourceType.Grain] = 2;
         warehouse[ResourceType.Fruit] = 2;
@@ -87,7 +86,7 @@ describe('IndustrySlice', () => {
 
     it('textile industry recipes calculate outputs correctly', () => {
         const store = createStore();
-        const nationId = store.getState().activeNationId;
+        const nationId = 'nation-1';
         const warehouse = store.getState().nations[0].warehouse;
         warehouse[ResourceType.Cotton] = 2;
         warehouse[ResourceType.Wool] = 2;
@@ -103,7 +102,7 @@ describe('IndustrySlice', () => {
 
     it('metal industry recipes calculate outputs correctly', () => {
         const store = createStore();
-        const nationId = store.getState().activeNationId;
+        const nationId = 'nation-1';
         const warehouse = store.getState().nations[0].warehouse;
         warehouse[ResourceType.Coal] = 2;
         warehouse[ResourceType.IronOre] = 2;
@@ -121,7 +120,7 @@ describe('IndustrySlice', () => {
 
     it('fuel industry recipes calculate outputs correctly', () => {
         const store = createStore();
-        const nationId = store.getState().activeNationId;
+        const nationId = 'nation-1';
         const warehouse = store.getState().nations[0].warehouse;
         warehouse[ResourceType.Oil] = 2;
         store.getState().nations[0].industry.power.available = 2;
@@ -132,7 +131,7 @@ describe('IndustrySlice', () => {
 
     it('worker training untrainedned ', () => {
         const store = createStore();
-        const nationId = store.getState().activeNationId;
+        const nationId = 'nation-1';
         const warehouse = store.getState().nations[0].warehouse;
         warehouse[MaterialType.CannedFood] = 1;
         warehouse[GoodsType.Hardware] = 1;
@@ -150,7 +149,7 @@ describe('IndustrySlice', () => {
 
     it('worker training recipes update state after each production step', () => {
         const store = createStore();
-        const nationId = store.getState().activeNationId;
+        const nationId = 'nation-1';
         const warehouse = store.getState().nations[0].warehouse;
         // Initial resources for all worker training recipes
         store.getState().nations[0].industry.workers.untrained = 1;
