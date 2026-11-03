@@ -2,10 +2,10 @@
   "project": "Imperialism Revival",
   "updated": "2026-11-03",
   "target": "v1 playable (M3)",
-  "now": "M1 and M2 merged; M3 next",
+  "now": "M3 built and reviewed; PR waiting for your merge",
   "source": "docs/REVIVAL_PLAN.md and docs/report/roadmap.json in the imperialism-game-react-2 repo",
   "overview": {
-    "headline": "M0, M1 (headless engine) and M2 (economic loop) are merged into main (PRs 9, 12, 13). Gate on main: 472 tests, tsc, lint, build, Playwright 8 passed. Next: M3 money and score.",
+    "headline": "M3 (money and score, v1 playable) is built, reviewed (verdict: merge, no must-fix) and waits for your merge (PR 14). World market, score in the HUD, game over after 40 turns. Six new decision cards Q10 to Q15.",
     "milestones": [
       {
         "title": "Setup: rules knowledge, light spec flow, progress page",
@@ -37,10 +37,10 @@
       },
       {
         "title": "M3 Money and score: world market, costs, score, game over (v1)",
-        "status": "not-started",
-        "progress": 0,
-        "date": "after M2",
-        "note": "First version that is a game you can finish."
+        "status": "in-review",
+        "progress": 95,
+        "date": "Nov 2026",
+        "note": "PR 14: 588 tests green, 40-turn two-nation game ends with scores and replays identically, market dialog, HUD score, game-over screen. Opus review: merge, nothing must-fix; 6 can-wait items carried to M4/v2."
       },
       {
         "title": "M4 Second nation driven by a scripted player",
@@ -274,26 +274,27 @@
           {
             "id": "M3",
             "title": "Money and score (v1 playable)",
-            "status": "not-started",
+            "status": "in-review",
             "blockedBy": [
               "M2"
             ],
             "tasks": [
               {
                 "title": "World market buy/sell",
-                "done": false
+                "done": true
               },
               {
                 "title": "Recruitment and training cost",
-                "done": false
+                "done": true
               },
               {
                 "title": "Score + game over screen",
-                "done": false
+                "done": true
               }
             ],
             "doneWhen": "40-turn headless game ends with a score; app shows it",
-            "hot": "src/app/engine/, src/app/components/"
+            "hot": "src/app/engine/, src/app/components/",
+            "evidence": "Coordinator gate on 4e723a6: 588/588 tests, tsc ok, lint 0 errors, build ok."
           },
           {
             "id": "M4",
@@ -444,6 +445,66 @@
         "suggestion": "Follow the rules (next turn): v1 aims to be faithful first, and v2 changes are easier from a faithful base.",
         "items": [
           "M2"
+        ]
+      },
+      {
+        "id": "Q10",
+        "title": "Should a new migrant also cost cash?",
+        "status": "open",
+        "context": "The rules charge canned food, clothing and furniture for a migrant, no cash. M3 follows that.",
+        "suggestion": "Keep goods only, as the rules say.",
+        "items": [
+          "M3"
+        ]
+      },
+      {
+        "id": "Q11",
+        "title": "Score weights?",
+        "status": "open",
+        "context": "Score = 1 point per $100 + 10 per building capacity point + 10 per resource level on own tiles. An idle game scores 250, all from the starting assets.",
+        "suggestion": "Keep the weights for v1; in v2 consider scoring the gain over the start.",
+        "items": [
+          "M3"
+        ]
+      },
+      {
+        "id": "Q12",
+        "title": "Game length?",
+        "status": "open",
+        "context": "The game ends after 40 turns (Winter 1824). The original ends on a vote of the Council of Governors, which v1 does not have.",
+        "suggestion": "Keep 40 turns for v1.",
+        "items": [
+          "M3"
+        ]
+      },
+      {
+        "id": "Q13",
+        "title": "Price model?",
+        "status": "open",
+        "context": "Prices move each turn by a seeded random step up to 3% plus 0.5% per net unit traded (cap 3%), bounded 50% to 250% of start. The review found a small built-in profit: buy, let your own buying push the price up, sell next turn (about $72 per two turns on $900 goods).",
+        "suggestion": "Keep for v1; fix the self-push profit in v2 by applying the push before the deal settles.",
+        "items": [
+          "M3"
+        ]
+      },
+      {
+        "id": "Q14",
+        "title": "Should cargo holds limit trade?",
+        "status": "open",
+        "context": "Each unit traded uses one hold; a nation has 4 holds and cannot add more in v1 (no shipyard yet).",
+        "suggestion": "Yes, keep the 4-hold limit; it grows when ships exist.",
+        "items": [
+          "M3"
+        ]
+      },
+      {
+        "id": "Q15",
+        "title": "Should trade orders repeat every turn?",
+        "status": "open",
+        "context": "Today trade orders last one turn, so the player re-enters them each turn. A repeat button was skipped as not trivial.",
+        "suggestion": "Keep one-turn orders; add a repeat button in M4 if playing feels tedious.",
+        "items": [
+          "M3"
         ]
       }
     ]
