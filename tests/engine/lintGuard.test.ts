@@ -45,7 +45,7 @@ describe('engine lint guard', () => {
   it.each([
     ["import { initWorld } from '@/testing/worldInit';", '@/testing'],
     ["import { createTwoNationGame } from '../testing/mockNation';", 'relative testing path'],
-  ])('FR-043 forbids %s (%s) inside src/app/engine', async (importLine) => {
+  ])('FR-080 forbids %s (%s) inside src/app/engine', async (importLine) => {
     const rules = await engineLintRules(`${importLine}\nexport const probe = 1;\n`);
     expect(rules).toContain('no-restricted-imports');
   }, 30_000);

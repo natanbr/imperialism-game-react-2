@@ -21,13 +21,13 @@ function sourceFiles(dir: string): string[] {
   });
 }
 
-describe('FR-043 the engine owns the start of a game', () => {
-  it('FR-043 no engine file imports the test fixtures in src/app/testing', () => {
+describe('FR-080 FR-081 the engine owns the start of a game', () => {
+  it('FR-080 no engine file imports the test fixtures in src/app/testing', () => {
     const offenders = sourceFiles(ENGINE_DIR).filter(file => /from\s+["'](@\/testing|\.\.?\/.*testing)\//.test(readFileSync(file, 'utf8')));
     expect(offenders).toEqual([]);
   });
 
-  it('FR-043 a new game: one nation with $10,000, 4/2/1 workers, 15 freight cars, the six mills and factories, a start warehouse', () => {
+  it('FR-081 a new game: one nation with $10,000, 4/2/1 workers, 15 freight cars, the six mills and factories, a start warehouse', () => {
     const g = newGame({ seed: 7 });
     expect(g.nations).toHaveLength(1);
     const n = g.nations[0];
@@ -46,9 +46,9 @@ describe('FR-043 the engine owns the start of a game', () => {
     });
   });
 
-  it('FR-043 the 40x40 default map with the seven civilians on the capital and the rail network built', () => {
+  it('FR-080 FR-081 the 24x16 two-island map with the seven civilians on the capital and the rail network built', () => {
     const g = newGame({ seed: 7 });
-    expect(g.map.config).toMatchObject({ cols: 40, rows: 40 });
+    expect(g.map.config).toMatchObject({ cols: 24, rows: 16 });
     const capital = g.map.tiles.flat().find(t => t.cityId === 'capital-1')!;
     expect(capital.workers.map(w => w.type).sort()).toEqual([
       WorkerType.Driller, WorkerType.Engineer, WorkerType.Farmer, WorkerType.Forester, WorkerType.Miner, WorkerType.Prospector, WorkerType.Rancher,
@@ -71,11 +71,14 @@ describe('FR-059 start technologies: the rules\' own two and the decision Q8 def
     expect(names).toMatchObject({ highPressureSteamEngine: 'High Pressure Steam Engine', seedDrill: 'Seed Drill' });
   });
 
-  it('FR-059 FR-030 rail and depots are allowed on hills, swamp and mountains of the new game map', () => {
+  // The two-island map has hills but no swamp or mountains (FR-080), so those two are a hills tile
+  // of the new game with its terrain swapped: the rule reads only the terrain and the technologies.
+  it('FR-059 FR-030 rail and depots are allowed on hills, swamp and mountains in a new game', () => {
     const g = newGame({ seed: 7 });
     const tiles = g.map.tiles.flat();
+    const hillsTile = tiles.find(t => t.terrain === TerrainType.BarrenHills)!;
     for (const terrain of [TerrainType.BarrenHills, TerrainType.Swamp, TerrainType.Mountains]) {
-      const tile = tiles.find(t => t.terrain === terrain)!;
+      const tile = { ...hillsTile, terrain };
       expect({ terrain, allowed: railTerrainAllowed(g, tile) }).toEqual({ terrain, allowed: true });
     }
     const hills = tiles.find(t => t.terrain === TerrainType.BarrenHills && !getAdjacentTiles(g.map, t.x, t.y).some(n => n.depot || n.port))!;

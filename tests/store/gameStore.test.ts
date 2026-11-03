@@ -42,7 +42,7 @@ describe('FR-018 the store holds one GameState plus UI state', () => {
 
     expect(g).toMatchObject({ turn: 1, year: 1815, seed: 1, difficulty: 'normal' });
     expect(g.nations.map(n => n.id)).toEqual(['nation-1']);
-    expect(g.map.config).toMatchObject({ cols: 40, rows: 40 });
+    expect(g.map.config).toMatchObject({ cols: 24, rows: 16 });
     const capital = g.map.tiles.flat().find(t => t.cityId === 'capital-1')!;
     expect(capital.workers).toHaveLength(7);
     expect(g.transportNetwork.railroadNetworks?.['nation-1']).toBeDefined();
