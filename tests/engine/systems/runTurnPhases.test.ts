@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { runTurnPhases } from '@/systems/runTurnPhases';
+import { runTurnPhases } from '@/engine/turn/phases';
+import { createTurnContext } from '@/engine/turn/context';
 import { GameState } from '@/types/GameState';
 import { initWorld } from '@/testing/worldInit';
 
@@ -28,7 +29,7 @@ function createState(): GameState {
 describe('runTurnPhases', () => {
   it('returns a new state object and preserves map structure', () => {
     const s1 = createState();
-    const s2 = runTurnPhases(s1, s1.turn + 1, { seed: s1.year + 1 });
+    const s2 = runTurnPhases(s1, createTurnContext({ turn: s1.turn, seed: s1.year + 1 }));
     expect(s2).not.toBe(s1);
     // verify year incremented
     expect(s2.year).toBeGreaterThanOrEqual(s1.year);

@@ -1,5 +1,6 @@
-import { developmentSystem } from '@/systems/developmentSystem';
-import { initializeRailroadNetworks } from '@/systems/railroadSystem';
+import { developmentSystem } from '@/engine/systems/developmentSystem';
+import { createTurnContext } from '@/engine/turn/context';
+import { initializeRailroadNetworks } from '@/engine/systems/railroadSystem';
 import { initWorld } from '@/testing/worldInit';
 import { GameState } from '@/types/GameState';
 import { TerrainType } from '@/types/Tile';
@@ -42,7 +43,7 @@ describe('developmentSystem', () => {
     const [mx, my] = [mountains.x, mountains.y];
     mountains.prospecting = { startedOnTurn: baseState.turn, workerId: 'w1' };
 
-    const s2 = developmentSystem({ ...baseState, map: { ...baseState.map, tiles: baseState.map.tiles } }, rng);
+    const s2 = developmentSystem({ ...baseState, map: { ...baseState.map, tiles: baseState.map.tiles } }, createTurnContext({ turn: baseState.turn, rng }));
     // Turn increment happens in orchestrator; here developmentSystem gets nextTurn = state.turn + 1
     const t2 = s2.map.tiles[my][mx];
     expect(t2.prospecting).toBeUndefined();
@@ -61,7 +62,7 @@ describe('developmentSystem', () => {
     const [cx, cy] = [capital.x, capital.y];
     state.map.tiles[cy][cx].constructionJob = { workerId: 'w1', kind: 'rail', startedOnTurn: state.turn, durationTurns: 1, completed: false };
 
-    const s2 = developmentSystem(state, rng);
+    const s2 = developmentSystem(state, createTurnContext({ turn: state.turn, rng }));
     const t2 = s2.map.tiles[cy][cx];
     expect(t2.constructionJob?.completed).toBe(true);
     // check that the railroad was added to the network

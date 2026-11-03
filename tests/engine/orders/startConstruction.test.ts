@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { startConstructionHelper } from '@/store/helpers/workerHelpers';
+import { startConstruction } from './singleNationOrders';
 import { initWorld } from '@/testing/worldInit';
 import { GameState } from '@/types/GameState';
 import { TerrainType } from '@/types/Tile';
 import { WorkerStatus, WorkerType } from '@/types/Workers';
 import { parseTileIdToArray } from '@/utils/tileIdUtils';
 
-describe('workerHelpers - Engineer Construction', () => {
+describe('startConstruction order - Engineer Construction', () => {
   const { map, nations } = initWorld({ cols: 5, rows: 5 });
 
   const baseState: GameState = {
@@ -28,7 +28,7 @@ describe('workerHelpers - Engineer Construction', () => {
     difficulty: 'normal',
   };
 
-  describe('startConstructionHelper', () => {
+  describe('startConstruction', () => {
     it('should start depot construction when kind is depot', () => {
       const state = { ...baseState };
 
@@ -36,7 +36,7 @@ describe('workerHelpers - Engineer Construction', () => {
       const capitalTile = state.map.tiles.flat().find(t => t.terrain === TerrainType.Capital)!;
       const engineer = capitalTile.workers.find(w => w.type === WorkerType.Engineer)!;
 
-      const result = startConstructionHelper(state, capitalTile.id, engineer.id, 'depot');
+      const result = startConstruction(state, capitalTile.id, engineer.id, 'depot');
 
       const [cx, cy] = parseTileIdToArray(capitalTile.id);
       const updatedTile = result.map.tiles[cy][cx];
@@ -58,7 +58,7 @@ describe('workerHelpers - Engineer Construction', () => {
       const capitalTile = state.map.tiles.flat().find(t => t.terrain === TerrainType.Capital)!;
       const engineer = capitalTile.workers.find(w => w.type === WorkerType.Engineer)!;
 
-      const result = startConstructionHelper(state, capitalTile.id, engineer.id, 'port');
+      const result = startConstruction(state, capitalTile.id, engineer.id, 'port');
 
       const [cx, cy] = parseTileIdToArray(capitalTile.id);
       const updatedTile = result.map.tiles[cy][cx];
@@ -78,7 +78,7 @@ describe('workerHelpers - Engineer Construction', () => {
       const capitalTile = state.map.tiles.flat().find(t => t.terrain === TerrainType.Capital)!;
       const engineer = capitalTile.workers.find(w => w.type === WorkerType.Engineer)!;
 
-      const result = startConstructionHelper(state, capitalTile.id, engineer.id, 'fort');
+      const result = startConstruction(state, capitalTile.id, engineer.id, 'fort');
 
       const [cx, cy] = parseTileIdToArray(capitalTile.id);
       const updatedTile = result.map.tiles[cy][cx];
@@ -98,7 +98,7 @@ describe('workerHelpers - Engineer Construction', () => {
       const capitalTile = state.map.tiles.flat().find(t => t.terrain === TerrainType.Capital)!;
       const engineer = capitalTile.workers.find(w => w.type === WorkerType.Engineer)!;
 
-      const result = startConstructionHelper(state, capitalTile.id, engineer.id, 'rail');
+      const result = startConstruction(state, capitalTile.id, engineer.id, 'rail');
 
       const [cx, cy] = parseTileIdToArray(capitalTile.id);
       const updatedTile = result.map.tiles[cy][cx];
@@ -115,7 +115,7 @@ describe('workerHelpers - Engineer Construction', () => {
     it('should return unchanged state if tile does not exist', () => {
       const state = { ...baseState };
 
-      const result = startConstructionHelper(state, 'invalid-tile-id', 'worker-1', 'depot');
+      const result = startConstruction(state, 'invalid-tile-id', 'worker-1', 'depot');
 
       expect(result).toBe(state);
     });
@@ -125,7 +125,7 @@ describe('workerHelpers - Engineer Construction', () => {
 
       const capitalTile = state.map.tiles.flat().find(t => t.terrain === TerrainType.Capital)!;
 
-      const result = startConstructionHelper(state, capitalTile.id, 'non-existent-worker', 'depot');
+      const result = startConstruction(state, capitalTile.id, 'non-existent-worker', 'depot');
 
       expect(result).toBe(state);
     });
@@ -136,7 +136,7 @@ describe('workerHelpers - Engineer Construction', () => {
       const capitalTile = state.map.tiles.flat().find(t => t.terrain === TerrainType.Capital)!;
       const prospector = capitalTile.workers.find(w => w.type === WorkerType.Prospector)!;
 
-      const result = startConstructionHelper(state, capitalTile.id, prospector.id, 'depot');
+      const result = startConstruction(state, capitalTile.id, prospector.id, 'depot');
 
       expect(result).toBe(state);
     });
@@ -156,7 +156,7 @@ describe('workerHelpers - Engineer Construction', () => {
         ),
       };
 
-      const result = startConstructionHelper(state, capitalTile.id, engineer.id, 'depot');
+      const result = startConstruction(state, capitalTile.id, engineer.id, 'depot');
 
       expect(result).toBe(state);
     });
@@ -176,7 +176,7 @@ describe('workerHelpers - Engineer Construction', () => {
         ),
       };
 
-      const result = startConstructionHelper(state, capitalTile.id, engineer.id, 'depot');
+      const result = startConstruction(state, capitalTile.id, engineer.id, 'depot');
 
       expect(result).toBe(state);
     });
@@ -194,7 +194,7 @@ describe('workerHelpers - Engineer Construction', () => {
       const capitalTile = state.map.tiles.flat().find(t => t.terrain === TerrainType.Capital)!;
       const engineer = capitalTile.workers.find(w => w.type === WorkerType.Engineer)!;
 
-      const result = startConstructionHelper(state, capitalTile.id, engineer.id, 'depot');
+      const result = startConstruction(state, capitalTile.id, engineer.id, 'depot');
 
       const [cx, cy] = parseTileIdToArray(capitalTile.id);
       const updatedTile = result.map.tiles[cy][cx];
@@ -214,7 +214,7 @@ describe('workerHelpers - Engineer Construction', () => {
       const capitalTile = state.map.tiles.flat().find(t => t.terrain === TerrainType.Capital)!;
       const engineer = capitalTile.workers.find(w => w.type === WorkerType.Engineer)!;
 
-      const result = startConstructionHelper(state, capitalTile.id, engineer.id, 'depot');
+      const result = startConstruction(state, capitalTile.id, engineer.id, 'depot');
 
       // Check that other tiles remain unchanged
       const [cx, cy] = parseTileIdToArray(capitalTile.id);
@@ -238,7 +238,7 @@ describe('workerHelpers - Engineer Construction', () => {
       const capitalTile = state.map.tiles.flat().find(t => t.terrain === TerrainType.Capital)!;
       const engineer = capitalTile.workers.find(w => w.type === WorkerType.Engineer)!;
 
-      const result = startConstructionHelper(state, capitalTile.id, engineer.id, 'depot');
+      const result = startConstruction(state, capitalTile.id, engineer.id, 'depot');
 
       const [cx, cy] = parseTileIdToArray(capitalTile.id);
       const updatedTile = result.map.tiles[cy][cx];
@@ -259,7 +259,7 @@ describe('workerHelpers - Engineer Construction', () => {
       const engineer = capitalTile.workers.find(w => w.type === WorkerType.Engineer)!;
       const prospector = capitalTile.workers.find(w => w.type === WorkerType.Prospector)!;
 
-      const result = startConstructionHelper(state, capitalTile.id, engineer.id, 'depot');
+      const result = startConstruction(state, capitalTile.id, engineer.id, 'depot');
 
       const [cx, cy] = parseTileIdToArray(capitalTile.id);
       const updatedTile = result.map.tiles[cy][cx];

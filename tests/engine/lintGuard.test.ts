@@ -14,7 +14,7 @@ describe('engine lint guard', () => {
     ["import { useState } from 'react';", 'react'],
     ["import { create } from 'zustand';", 'zustand'],
     ["import { useGameStore } from '@/store/rootStore';", '@/store'],
-    ["import { createTreasuryLedger } from '../store/helpers/treasuryHelpers';", 'relative store path'],
+    ["import { useGameStore } from '../store/rootStore';", 'relative store path'],
     ["import HUD from '@/components/HUD';", '@/components'],
     ["import Link from 'next/link';", 'next'],
   ])('FR-001 forbids %s (%s) inside src/app/engine', async (importLine) => {

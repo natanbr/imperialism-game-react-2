@@ -1,10 +1,8 @@
-import { GameState } from "../types/GameState";
 import { Tile, TerrainType } from "../types/Tile";
 import { Worker, WorkerType, WorkerStatus } from "../types/Workers";
 import { GameMap } from "../types/Map";
 import { PossibleAction } from "../types/actions";
 import { FARMING_TERRAINS, RANCHING_TERRAINS, FORESTRY_TERRAINS, MINING_TERRAINS, DRILLING_TERRAINS } from "../definisions/terrainDefinitions";
-import { startEachWorker } from "./startEachWorker";
 
 const terrainMap: Record<WorkerType, TerrainType[]> = {
   [WorkerType.Prospector]: [],
@@ -16,16 +14,6 @@ const terrainMap: Record<WorkerType, TerrainType[]> = {
   [WorkerType.Driller]: DRILLING_TERRAINS,
   [WorkerType.Developer]: [],
 };
-
-/** Starts development for `workerId` only; without an id, for every available developer. */
-export function startDeveloperWork(state: GameState, workerId?: string): GameState {
-  return startEachWorker(state, WorkerType.Developer, workerId, (_s, worker, tile) => ({
-    kind: "startDevelopment",
-    nationId: worker.nationId,
-    workerId: worker.id,
-    tileId: tile.id,
-  }));
-}
 
 export function getDeveloperActions(tile: Tile, map: GameMap, worker: Worker): PossibleAction | null {
   if (worker.status !== WorkerStatus.Available) return null;

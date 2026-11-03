@@ -1,9 +1,7 @@
-import {GameState} from "@/types/GameState";
 import {TerrainType, Tile} from "@/types/Tile";
 import {Worker, WorkerStatus, WorkerType} from "@/types/Workers";
 import {GameMap} from "@/types/Map";
 import {PossibleAction} from "@/types/actions";
-import {startEachWorker} from "./startEachWorker";
 
 /**
  * Configuration for a development worker type
@@ -11,29 +9,11 @@ import {startEachWorker} from "./startEachWorker";
 export interface DevelopmentWorkerConfig {
   workerType: WorkerType;
   terrainTypes: TerrainType[];
-  jobDescriptionPrefix: string;
 }
 
 /**
- * Generic function to start development work for any worker type.
- * The returned function starts `workerId` only; without an id, every available worker of the type.
- * Rules, prices and job text come from the engine's startDevelopment order.
- */
-export function createStartDevelopmentWork(config: DevelopmentWorkerConfig) {
-  const { workerType } = config;
-
-  return function startWork(state: GameState, workerId?: string): GameState {
-    return startEachWorker(state, workerType, workerId, (_s, worker, tile) => ({
-      kind: "startDevelopment",
-      nationId: worker.nationId,
-      workerId: worker.id,
-      tileId: tile.id,
-    }));
-  };
-}
-
-/**
- * Generic function to get actions for any development worker type
+ * The action a development worker offers on a tile (the map cursor and click). Starting the job
+ * is a startDevelopment or moveAndStartDevelopment order; the engine's validation decides.
  */
 export function createGetDevelopmentActions(config: DevelopmentWorkerConfig) {
   const { workerType, terrainTypes } = config;

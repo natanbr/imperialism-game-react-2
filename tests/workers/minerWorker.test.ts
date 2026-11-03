@@ -1,13 +1,26 @@
 import { describe, it, expect } from 'vitest';
-import { startDevelopmentHelper, moveAndStartDevelopmentHelper } from '@/store/helpers/workerHelpers';
+import { startDevelopment, moveAndStartDevelopment } from '../engine/orders/singleNationOrders';
+import { submitFirstAccepted, tileClickOrders } from '@/hooks/tileClickOrders';
+import { tryApplyOrder } from '@/engine/orders/apply';
 import { initWorld } from '@/testing/worldInit';
 import { GameState } from '@/types/GameState';
 import { TerrainType } from '@/types/Tile';
 import { WorkerStatus, WorkerType } from '@/types/Workers';
 import { parseTileIdToArray } from '@/utils/tileIdUtils';
 import { ResourceType } from '@/types/Resource';
-import { startMinerWork } from '@/workers/MinerWorker';
 import { getMinerActions } from '@/workers/MinerWorker';
+
+/** A map click with the miner selected, as the UI sends it: move-and-develop, then the plain move. */
+function clickDevelop(state: GameState, workerId: string, tileId: string): GameState {
+  let s = state;
+  const develop = { type: 'develop', workerType: WorkerType.Miner, level: 1 } as const;
+  submitFirstAccepted((order) => {
+    const { state: next, result } = tryApplyOrder(s, order);
+    s = next;
+    return result;
+  }, tileClickOrders(state, 'nation-1', workerId, tileId, develop));
+  return s;
+}
 
 describe('Miner Worker Functionality', () => {
   const { map, nations } = initWorld({ cols: 5, rows: 5 });
@@ -62,7 +75,7 @@ describe('Miner Worker Functionality', () => {
       };
 
       // Try to start development - should return unchanged state
-      const result = startDevelopmentHelper(state, mineralTile.id, miner.id, WorkerType.Miner);
+      const result = startDevelopment(state, mineralTile.id, miner.id);
 
       // State should be unchanged (no development job created)
       expect(result).toBe(state);
@@ -108,7 +121,7 @@ describe('Miner Worker Functionality', () => {
       };
 
       // Start development - should succeed
-      const result = startDevelopmentHelper(state, state.map.tiles[my][mx].id, miner.id, WorkerType.Miner);
+      const result = startDevelopment(state, state.map.tiles[my][mx].id, miner.id);
 
       // Development job should be created
       const resultTile = result.map.tiles[my][mx];
@@ -154,7 +167,7 @@ describe('Miner Worker Functionality', () => {
       };
 
       // Try to start development - should fail
-      const result = startDevelopmentHelper(state, state.map.tiles[my][mx].id, miner.id, WorkerType.Miner);
+      const result = startDevelopment(state, state.map.tiles[my][mx].id, miner.id);
 
       // State should be unchanged
       expect(result).toBe(state);
@@ -190,7 +203,7 @@ describe('Miner Worker Functionality', () => {
         workers: [miner],
       };
 
-      const result = startDevelopmentHelper(state, state.map.tiles[my][mx].id, miner.id, WorkerType.Miner);
+      const result = startDevelopment(state, state.map.tiles[my][mx].id, miner.id);
 
       const resultTile = result.map.tiles[my][mx];
       expect(resultTile.developmentJob?.targetLevel).toBe(1);
@@ -224,7 +237,7 @@ describe('Miner Worker Functionality', () => {
         workers: [miner],
       };
 
-      const result = startDevelopmentHelper(state, state.map.tiles[my][mx].id, miner.id, WorkerType.Miner);
+      const result = startDevelopment(state, state.map.tiles[my][mx].id, miner.id);
 
       const resultTile = result.map.tiles[my][mx];
       expect(resultTile.developmentJob?.targetLevel).toBe(2);
@@ -259,7 +272,7 @@ describe('Miner Worker Functionality', () => {
         workers: [miner],
       };
 
-      const result = startDevelopmentHelper(state, state.map.tiles[my][mx].id, miner.id, WorkerType.Miner);
+      const result = startDevelopment(state, state.map.tiles[my][mx].id, miner.id);
 
       const resultTile = result.map.tiles[my][mx];
       expect(resultTile.developmentJob?.targetLevel).toBe(3);
@@ -293,7 +306,7 @@ describe('Miner Worker Functionality', () => {
         workers: [miner],
       };
 
-      const result = startDevelopmentHelper(state, state.map.tiles[my][mx].id, miner.id, WorkerType.Miner);
+      const result = startDevelopment(state, state.map.tiles[my][mx].id, miner.id);
 
       // State should be unchanged
       expect(result).toBe(state);
@@ -324,7 +337,7 @@ describe('Miner Worker Functionality', () => {
       };
 
       // Move and start development
-      const result = moveAndStartDevelopmentHelper(state, mineralTile.id, miner.id, WorkerType.Miner);
+      const result = moveAndStartDevelopment(state, mineralTile.id, miner.id);
 
       // Check that miner moved to target tile
       const resultTile = result.map.tiles[my][mx];
@@ -356,8 +369,8 @@ describe('Miner Worker Functionality', () => {
       )!;
       expect(mineralTile.resource?.discovered).toBe(false);
 
-      // Try to move and start development
-      const result = moveAndStartDevelopmentHelper(state, mineralTile.id, miner.id, WorkerType.Miner);
+      // Click the tile: the job is refused, so the click falls back to the plain move
+      const result = clickDevelop(state, miner.id, mineralTile.id);
 
       const [mx, my] = parseTileIdToArray(mineralTile.id);
       const resultTile = result.map.tiles[my][mx];
@@ -375,8 +388,8 @@ describe('Miner Worker Functionality', () => {
     });
   });
 
-  describe('startMinerWork Factory Function', () => {
-    it('should use startMinerWork to create development job', () => {
+  describe('starting the miner (was the startMinerWork factory)', () => {
+    it('one startDevelopment order creates the development job', () => {
       const state = structuredClone(baseState);
 
       const mineralTile = state.map.tiles.flat().find(
@@ -404,8 +417,8 @@ describe('Miner Worker Functionality', () => {
         workers: [miner],
       };
 
-      // Use the factory function directly
-      const result = startMinerWork(state);
+      // One order for the miner (the factory started every available miner)
+      const result = startDevelopment(state, mineralTile.id, miner.id);
 
       const resultTile = result.map.tiles[my][mx];
       expect(resultTile.developmentJob).toBeDefined();
@@ -532,7 +545,7 @@ describe('Miner Worker Functionality', () => {
         workers: [miner],
       };
 
-      const result = startDevelopmentHelper(state, state.map.tiles[my][mx].id, miner.id, WorkerType.Miner);
+      const result = startDevelopment(state, state.map.tiles[my][mx].id, miner.id);
 
       const resultTile = result.map.tiles[my][mx];
       expect(resultTile.developmentJob).toBeDefined();
@@ -567,7 +580,7 @@ describe('Miner Worker Functionality', () => {
         workers: [miner],
       };
 
-      const result = startDevelopmentHelper(state, state.map.tiles[my][mx].id, miner.id, WorkerType.Miner);
+      const result = startDevelopment(state, state.map.tiles[my][mx].id, miner.id);
 
       const resultTile = result.map.tiles[my][mx];
       expect(resultTile.developmentJob).toBeDefined();

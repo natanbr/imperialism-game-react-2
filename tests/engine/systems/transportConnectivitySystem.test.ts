@@ -1,12 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { transportConnectivitySystem } from '@/systems/transportConnectivitySystem';
-import { initializeRailroadNetworks } from '@/systems/railroadSystem';
-import { developmentSystem } from '@/systems/developmentSystem';
+import { transportConnectivitySystem } from '@/engine/systems/transportConnectivitySystem';
+import { createTurnContext } from '@/engine/turn/context';
+import { initializeRailroadNetworks } from '@/engine/systems/railroadSystem';
+import { developmentSystem } from '@/engine/systems/developmentSystem';
 import { GameState } from '@/types/GameState';
 import { initWorld } from '@/testing/worldInit';
 import { TerrainType } from '@/types/Tile';
 import { Nation } from '@/types/Nation';
-import { createMulberry32 } from '@/systems/utils/rng';
+import { createMulberry32 } from '@/engine/rng';
 
 function makeBaseState(): GameState {
   const { map, nations } = initWorld({ cols: 5, rows: 5 });
@@ -48,7 +49,7 @@ describe('transportConnectivitySystem', () => {
     const cap = s1.map.tiles.flat().find(t => t.terrain === TerrainType.Capital)!;
     const depotTile = s1.map.tiles[cap.y][Math.min(cap.x + 1, s1.map.config.cols - 1)];
 
-    const s2 = transportConnectivitySystem(s1);
+    const s2 = transportConnectivitySystem(s1, createTurnContext({ turn: s1.turn }));
     const nationNetwork = s2.transportNetwork.railroadNetworks!['nation-1'];
     const depotNode = nationNetwork.depots.find(d => d.x === depotTile.x && d.y === depotTile.y);
 
@@ -101,7 +102,7 @@ describe('transportConnectivitySystem', () => {
     state.transportNetwork.railroadNetworks = railroadNetworks;
 
     // Run connectivity system
-    const resultState = transportConnectivitySystem(state);
+    const resultState = transportConnectivitySystem(state, createTurnContext({ turn: state.turn }));
     const network = resultState.transportNetwork.railroadNetworks!['nation-1'];
 
     // Verify depot at (1,1) is active
@@ -172,7 +173,7 @@ describe('transportConnectivitySystem', () => {
 
     // Run development system to complete the depot construction
     const rng = createMulberry32(12345);
-    const afterDevelopment = developmentSystem(state, rng);
+    const afterDevelopment = developmentSystem(state, createTurnContext({ turn: state.turn, rng }));
 
     // Verify depot was built on tile
     expect(afterDevelopment.map.tiles[1][1].depot).toBe(true);
@@ -186,7 +187,7 @@ describe('transportConnectivitySystem', () => {
     expect(networkAfterDev.graph['1,1']).toBeDefined();
 
     // Run connectivity system to activate the depot
-    const afterConnectivity = transportConnectivitySystem(afterDevelopment);
+    const afterConnectivity = transportConnectivitySystem(afterDevelopment, createTurnContext({ turn: afterDevelopment.turn }));
     const networkAfterConnectivity = afterConnectivity.transportNetwork.railroadNetworks!['nation-1'];
     const depotNodeAfterConnectivity = networkAfterConnectivity.depots.find(d => d.x === 1 && d.y === 1);
 
@@ -247,7 +248,7 @@ describe('transportConnectivitySystem', () => {
     state.transportNetwork.railroadNetworks = railroadNetworks;
 
     // Run connectivity system
-    const resultState = transportConnectivitySystem(state);
+    const resultState = transportConnectivitySystem(state, createTurnContext({ turn: state.turn }));
     const network = resultState.transportNetwork.railroadNetworks!['nation-1'];
 
     // Verify port at (2,0) is active
@@ -302,7 +303,7 @@ describe('transportConnectivitySystem', () => {
     state.transportNetwork.railroadNetworks = railroadNetworks;
 
     // Run connectivity system
-    const resultState = transportConnectivitySystem(state);
+    const resultState = transportConnectivitySystem(state, createTurnContext({ turn: state.turn }));
     const network = resultState.transportNetwork.railroadNetworks!['nation-1'];
 
     // Verify port at (2,0) is inactive (not adjacent to ocean)
@@ -378,7 +379,7 @@ describe('transportConnectivitySystem', () => {
     state.transportNetwork.railroadNetworks = railroadNetworks;
 
     // Run connectivity system
-    const resultState = transportConnectivitySystem(state);
+    const resultState = transportConnectivitySystem(state, createTurnContext({ turn: state.turn }));
     const network = resultState.transportNetwork.railroadNetworks!['nation-1'];
 
     // Verify connected depots are active
@@ -431,7 +432,7 @@ describe('transportConnectivitySystem', () => {
     state.transportNetwork.railroadNetworks = railroadNetworks;
 
     // Run connectivity system
-    const resultState = transportConnectivitySystem(state);
+    const resultState = transportConnectivitySystem(state, createTurnContext({ turn: state.turn }));
     const network = resultState.transportNetwork.railroadNetworks!['nation-1'];
 
     // Verify isolated depot is inactive
@@ -511,14 +512,14 @@ describe('transportConnectivitySystem', () => {
 
     // Run development system to complete both constructions
     const rng = createMulberry32(12345);
-    const afterDevelopment = developmentSystem(state, rng);
+    const afterDevelopment = developmentSystem(state, createTurnContext({ turn: state.turn, rng }));
 
     // Verify both constructions completed
     expect(afterDevelopment.map.tiles[0][1].connected).toBe(true); // Rail built
     expect(afterDevelopment.map.tiles[1][1].depot).toBe(true); // Depot built
 
     // Run connectivity system
-    const afterConnectivity = transportConnectivitySystem(afterDevelopment);
+    const afterConnectivity = transportConnectivitySystem(afterDevelopment, createTurnContext({ turn: afterDevelopment.turn }));
     const network = afterConnectivity.transportNetwork.railroadNetworks!['nation-1'];
 
     // Verify depot is activated (connected through the newly built rail and existing network)
@@ -587,7 +588,7 @@ describe('transportConnectivitySystem', () => {
 
     // Run development system
     const rng = createMulberry32(12345);
-    const afterDevelopment = developmentSystem(state, rng);
+    const afterDevelopment = developmentSystem(state, createTurnContext({ turn: state.turn, rng }));
 
     // Verify port was built
     expect(afterDevelopment.map.tiles[0][2].port).toBe(true);
@@ -598,7 +599,7 @@ describe('transportConnectivitySystem', () => {
     expect(portNodeAfterDev).toBeDefined();
 
     // Run connectivity system
-    const afterConnectivity = transportConnectivitySystem(afterDevelopment);
+    const afterConnectivity = transportConnectivitySystem(afterDevelopment, createTurnContext({ turn: afterDevelopment.turn }));
     const networkAfterConnectivity = afterConnectivity.transportNetwork.railroadNetworks!['nation-1'];
     const portNodeAfterConnectivity = networkAfterConnectivity.ports.find(p => p.x === 2 && p.y === 0);
 

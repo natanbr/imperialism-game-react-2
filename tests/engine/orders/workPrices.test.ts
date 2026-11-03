@@ -4,7 +4,7 @@ import { GameState } from '@/types/GameState';
 import { TerrainType } from '@/types/Tile';
 import { ResourceType } from '@/types/Resource';
 import { Worker, WorkerType, WorkerStatus } from '@/types/Workers';
-import { startProspectingHelper, startDevelopmentHelper, startConstructionHelper } from '@/store/helpers/workerHelpers';
+import { startProspecting, startDevelopment, startConstruction } from './singleNationOrders';
 import { PROSPECT_COST, DEVELOPMENT_COST, CONSTRUCTION_COST } from '@/definisions/workPrices';
 
 function makeBaseState(): GameState {
@@ -46,7 +46,7 @@ describe('work prices - immediate treasury deduction on job start', () => {
 
     const before = state.nations.find(n => n.id === 'nation-1')!.treasury ?? 0;
 
-    const s2 = startProspectingHelper(state, mountains.id, prospector.id);
+    const s2 = startProspecting(state, mountains.id, prospector.id);
 
     const after = s2.nations.find(n => n.id === 'nation-1')!.treasury ?? 0;
     expect(after).toBe(before - PROSPECT_COST);
@@ -65,7 +65,7 @@ describe('work prices - immediate treasury deduction on job start', () => {
 
     const before = state.nations.find(n => n.id === 'nation-1')!.treasury ?? 0;
 
-    const s2 = startDevelopmentHelper(state, farm.id, farmer.id, farmer.type);
+    const s2 = startDevelopment(state, farm.id, farmer.id);
 
     const after = s2.nations.find(n => n.id === 'nation-1')!.treasury ?? 0;
     expect(after).toBe(before - DEVELOPMENT_COST[1]);
@@ -86,7 +86,7 @@ describe('work prices - immediate treasury deduction on job start', () => {
 
     const before = state.nations.find(n => n.id === 'nation-1')!.treasury ?? 0;
 
-    const s2 = startConstructionHelper(state, land.id, engineer.id, 'depot');
+    const s2 = startConstruction(state, land.id, engineer.id, 'depot');
 
     const after = s2.nations.find(n => n.id === 'nation-1')!.treasury ?? 0;
     expect(after).toBe(before - CONSTRUCTION_COST.depot);
@@ -120,7 +120,7 @@ describe('work prices - every worker type that costs money', () => {
     place(state, base, worker);
     const before = state.nations.find(n => n.id === 'nation-1')!.treasury;
 
-    const s2 = startDevelopmentHelper(state, base.id, worker.id, type);
+    const s2 = startDevelopment(state, base.id, worker.id);
 
     expect(s2.map.tiles[base.y][base.x].developmentJob?.workerId).toBe('w');
     expect(s2.nations.find(n => n.id === 'nation-1')!.treasury).toBe(before - DEVELOPMENT_COST[1]);
@@ -133,7 +133,7 @@ describe('work prices - every worker type that costs money', () => {
     const prospector: Worker = { id: 'w-pros', type: WorkerType.Prospector, nationId: 'nation-1', assignedTileId: mountains.id, efficiency: 100, status: WorkerStatus.Available, justMoved: false };
     place(state, mountains, prospector);
 
-    const s2 = startProspectingHelper(state, mountains.id, prospector.id);
+    const s2 = startProspecting(state, mountains.id, prospector.id);
 
     expect(s2.map.tiles[mountains.y][mountains.x].prospecting).toBeUndefined();
     expect(s2.nations.find(n => n.id === 'nation-1')!.treasury).toBe(PROSPECT_COST - 1);
@@ -146,7 +146,7 @@ describe('work prices - every worker type that costs money', () => {
     const engineer: Worker = { id: 'w-eng', type: WorkerType.Engineer, nationId: 'nation-1', assignedTileId: land.id, efficiency: 100, status: WorkerStatus.Available, justMoved: false };
     place(state, land, engineer);
 
-    const s2 = startConstructionHelper(state, land.id, engineer.id, 'depot');
+    const s2 = startConstruction(state, land.id, engineer.id, 'depot');
 
     expect(s2.map.tiles[land.y][land.x].constructionJob).toBeUndefined();
     expect(s2.nations.find(n => n.id === 'nation-1')!.treasury).toBe(CONSTRUCTION_COST.depot - 1);

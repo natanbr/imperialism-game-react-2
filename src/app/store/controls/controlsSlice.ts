@@ -1,5 +1,4 @@
 import { StateCreator } from 'zustand';
-import { GameState } from '@/types/GameState';
 import { GameStore } from '../rootStore';
 
 export interface ControlsSlice {

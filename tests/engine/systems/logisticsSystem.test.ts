@@ -1,11 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { logisticsSystem, computeLogisticsTransport, updateNationStateWithTransportedResources } from '@/systems/logisticsSystem';
+import { logisticsSystem, computeLogisticsTransport, updateNationStateWithTransportedResources } from '@/engine/systems/logisticsSystem';
+import { createTurnContext } from '@/engine/turn/context';
 import { GameState } from '@/types/GameState';
 import { initWorld } from '@/testing/worldInit';
 import { ResourceType } from '@/types/Resource';
 import { TerrainType } from '@/types/Tile';
-import { initializeRailroadNetworks, addRailroad, addDepot } from '@/systems/railroadSystem';
-import { transportConnectivitySystem } from '@/systems/transportConnectivitySystem';
+import { initializeRailroadNetworks, addRailroad, addDepot } from '@/engine/systems/railroadSystem';
+import { transportConnectivitySystem } from '@/engine/systems/transportConnectivitySystem';
 import { Nation } from '@/types/Nation';
 import { GOLD_CASH_PER_UNIT } from '@/definisions/cashValues';
 
@@ -77,7 +78,7 @@ describe('logisticsSystem', () => {
       }
     };
 
-    const s2 = logisticsSystem(s1);
+    const s2 = logisticsSystem(s1, createTurnContext({ turn: s1.turn }));
     const n2 = s2.nations.find(n => n.id === nationId)!;
     const originalNation = s1.nations.find(n => n.id === nationId)!;
 
@@ -170,7 +171,7 @@ describe('logisticsSystem', () => {
     };
 
     // Step 4: Run transport connectivity to activate the depot
-    state = transportConnectivitySystem(state);
+    state = transportConnectivitySystem(state, createTurnContext({ turn: state.turn }));
 
     // Step 5: Verify resources around the active depot are now collected
     const network2 = state.transportNetwork.railroadNetworks![nationId];

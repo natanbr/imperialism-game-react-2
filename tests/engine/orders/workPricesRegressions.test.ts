@@ -4,28 +4,17 @@ import { GameState } from '@/types/GameState';
 import { TerrainType, Tile } from '@/types/Tile';
 import { Worker, WorkerType, WorkerStatus } from '@/types/Workers';
 import {
-  startProspectingHelper,
-  startDevelopmentHelper,
-  startConstructionHelper,
-  moveAndStartProspectingHelper,
-  moveAndStartDevelopmentHelper,
-  moveAndStartConstructionHelper,
-} from '@/store/helpers/workerHelpers';
-import { createTreasuryLedger } from '@/store/helpers/treasuryHelpers';
-import { handleEngineerMovement } from '@/workers/EngineerWorker';
+  startProspecting,
+  startDevelopment,
+  startConstruction,
+  moveAndStartProspecting,
+  moveAndStartDevelopment,
+  moveAndStartConstruction,
+  moveAndBuildRail,
+} from './singleNationOrders';
 import { PROSPECT_COST, DEVELOPMENT_COST, CONSTRUCTION_COST } from '@/definisions/workPrices';
 
 const NATION = 'nation-1';
-
-// moveAndStartConstructionHelper is going to take (state, targetTileId, workerId, kind).
-// Vitest does not type-check, so call it through a loose signature.
-type ConstructionKind = 'depot' | 'port' | 'fort' | 'rail';
-const moveAndConstruct = moveAndStartConstructionHelper as unknown as (
-  state: GameState,
-  targetTileId: string,
-  workerId: string,
-  kind: ConstructionKind
-) => GameState;
 
 /** 5x5 world with every worker removed, so each test places exactly the workers it needs. */
 function makeState(treasury: number): GameState {
@@ -104,7 +93,7 @@ describe('starting a job starts only the clicked worker', () => {
     it('with money for one job, clicking the second prospector starts only the second', () => {
       const { state, tileA, tileB } = twoProspectors(PROSPECT_COST);
 
-      const s2 = startProspectingHelper(state, tileB.id, 'pros-b');
+      const s2 = startProspecting(state, tileB.id, 'pros-b');
 
       expect(tileAt(s2, tileB).prospecting?.workerId).toBe('pros-b');
       expect(tileAt(s2, tileA).prospecting).toBeUndefined();
@@ -116,7 +105,7 @@ describe('starting a job starts only the clicked worker', () => {
     it('with plenty of money, one click starts one prospector and charges exactly one job', () => {
       const { state, tileA, tileB } = twoProspectors(1000);
 
-      const s2 = startProspectingHelper(state, tileA.id, 'pros-a');
+      const s2 = startProspecting(state, tileA.id, 'pros-a');
 
       expect(tileAt(s2, tileA).prospecting?.workerId).toBe('pros-a');
       expect(tileAt(s2, tileB).prospecting).toBeUndefined();
@@ -137,7 +126,7 @@ describe('starting a job starts only the clicked worker', () => {
     it('with money for one job, clicking the second farmer starts only the second', () => {
       const { state, tileA, tileB } = twoFarmers(DEVELOPMENT_COST[1]);
 
-      const s2 = startDevelopmentHelper(state, tileB.id, 'farm-b', WorkerType.Farmer);
+      const s2 = startDevelopment(state, tileB.id, 'farm-b');
 
       expect(tileAt(s2, tileB).developmentJob?.workerId).toBe('farm-b');
       expect(tileAt(s2, tileA).developmentJob).toBeUndefined();
@@ -149,7 +138,7 @@ describe('starting a job starts only the clicked worker', () => {
     it('with plenty of money, one click starts one farmer and charges exactly one job', () => {
       const { state, tileA, tileB } = twoFarmers(1000);
 
-      const s2 = startDevelopmentHelper(state, tileA.id, 'farm-a', WorkerType.Farmer);
+      const s2 = startDevelopment(state, tileA.id, 'farm-a');
 
       expect(tileAt(s2, tileA).developmentJob?.workerId).toBe('farm-a');
       expect(tileAt(s2, tileB).developmentJob).toBeUndefined();
@@ -163,7 +152,7 @@ describe('starting a job starts only the clicked worker', () => {
       place(state, tileA, makeWorker('dev-a', WorkerType.Developer, tileA));
       place(state, tileB, makeWorker('dev-b', WorkerType.Developer, tileB));
 
-      const s2 = startDevelopmentHelper(state, tileB.id, 'dev-b', WorkerType.Developer);
+      const s2 = startDevelopment(state, tileB.id, 'dev-b');
 
       expect(tileAt(s2, tileB).developmentJob?.workerId).toBe('dev-b');
       expect(tileAt(s2, tileA).developmentJob).toBeUndefined();
@@ -188,7 +177,7 @@ describe('starting a job starts only the clicked worker', () => {
       const { state, home, targetA, targetB } = twoEngineers(CONSTRUCTION_COST.depot);
 
       // eng-a (on the capital) is the clicked worker; eng-b sits idle on targetB.
-      const s2 = moveAndConstruct(state, targetA.id, 'eng-a', 'depot');
+      const s2 = moveAndStartConstruction(state, targetA.id, 'eng-a', 'depot');
 
       expect(tileAt(s2, targetA).constructionJob?.workerId).toBe('eng-a');
       expect(tileAt(s2, targetA).constructionJob?.kind).toBe('depot');
@@ -201,7 +190,7 @@ describe('starting a job starts only the clicked worker', () => {
     it('with plenty of money, one click charges exactly one depot', () => {
       const { state, targetA, targetB } = twoEngineers(2000);
 
-      const s2 = moveAndConstruct(state, targetA.id, 'eng-a', 'depot');
+      const s2 = moveAndStartConstruction(state, targetA.id, 'eng-a', 'depot');
 
       expect(tileAt(s2, targetA).constructionJob?.workerId).toBe('eng-a');
       expect(tileAt(s2, targetB).constructionJob).toBeUndefined();
@@ -222,7 +211,7 @@ describe('move-and-start is refused as a whole when the job is unaffordable', ()
     place(state, home, makeWorker('pros', WorkerType.Prospector, home));
     const before = snapshot(state);
 
-    const s2 = moveAndStartProspectingHelper(state, target.id, 'pros');
+    const s2 = moveAndStartProspecting(state, target.id, 'pros');
 
     expect(s2).toEqual(before);
     expect(findWorker(s2, 'pros')!.tile.id).toBe(home.id);
@@ -235,7 +224,7 @@ describe('move-and-start is refused as a whole when the job is unaffordable', ()
     place(state, home, makeWorker('farmer', WorkerType.Farmer, home));
     const before = snapshot(state);
 
-    const s2 = moveAndStartDevelopmentHelper(state, target.id, 'farmer', WorkerType.Farmer);
+    const s2 = moveAndStartDevelopment(state, target.id, 'farmer');
 
     expect(s2).toEqual(before);
     expect(findWorker(s2, 'farmer')!.tile.id).toBe(home.id);
@@ -248,7 +237,7 @@ describe('move-and-start is refused as a whole when the job is unaffordable', ()
     place(state, home, makeWorker('eng', WorkerType.Engineer, home));
     const before = snapshot(state);
 
-    const s2 = moveAndConstruct(state, target.id, 'eng', 'depot');
+    const s2 = moveAndStartConstruction(state, target.id, 'eng', 'depot');
 
     expect(s2).toEqual(before);
     expect(findWorker(s2, 'eng')!.tile.id).toBe(home.id);
@@ -263,7 +252,7 @@ describe('move-and-start when affordable', () => {
     place(state, home, makeWorker('pros', WorkerType.Prospector, home));
     place(state, other, makeWorker('pros-idle', WorkerType.Prospector, other));
 
-    const s2 = moveAndStartProspectingHelper(state, target.id, 'pros');
+    const s2 = moveAndStartProspecting(state, target.id, 'pros');
 
     const found = findWorker(s2, 'pros')!;
     expect(found.tile.id).toBe(target.id);
@@ -281,7 +270,7 @@ describe('move-and-start when affordable', () => {
     place(state, home, makeWorker('farmer', WorkerType.Farmer, home));
     place(state, other, makeWorker('farmer-idle', WorkerType.Farmer, other));
 
-    const s2 = moveAndStartDevelopmentHelper(state, target.id, 'farmer', WorkerType.Farmer);
+    const s2 = moveAndStartDevelopment(state, target.id, 'farmer');
 
     const found = findWorker(s2, 'farmer')!;
     expect(found.tile.id).toBe(target.id);
@@ -299,7 +288,7 @@ describe('move-and-start when affordable', () => {
     place(state, home, makeWorker('eng', WorkerType.Engineer, home));
     place(state, other, makeWorker('eng-idle', WorkerType.Engineer, other));
 
-    const s2 = moveAndConstruct(state, target.id, 'eng', 'depot');
+    const s2 = moveAndStartConstruction(state, target.id, 'eng', 'depot');
 
     const found = findWorker(s2, 'eng')!;
     expect(found.tile.id).toBe(target.id);
@@ -315,7 +304,7 @@ describe('move-and-start when affordable', () => {
 // ---------------------------------------------------------------------------
 // 3. The chosen construction kind must be honoured by move-and-construct
 // ---------------------------------------------------------------------------
-describe('moveAndStartConstructionHelper honours the chosen kind', () => {
+describe('moveAndStartConstruction honours the chosen kind', () => {
   // Town (2,3) touches the Coast tile (3,3); the capital tile has a river.
   function portSite(state: GameState, how: 'ocean' | 'river'): Tile {
     if (how === 'ocean') return tilesOf(state, TerrainType.Town)[0];
@@ -330,7 +319,7 @@ describe('moveAndStartConstructionHelper honours the chosen kind', () => {
     const target = portSite(state, how);
     place(state, home, makeWorker('eng', WorkerType.Engineer, home));
 
-    const s2 = moveAndConstruct(state, target.id, 'eng', 'port');
+    const s2 = moveAndStartConstruction(state, target.id, 'eng', 'port');
 
     expect(tileAt(s2, target).constructionJob?.kind).toBe('port');
     expect(tileAt(s2, target).constructionJob?.workerId).toBe('eng');
@@ -344,7 +333,7 @@ describe('moveAndStartConstructionHelper honours the chosen kind', () => {
     place(state, home, makeWorker('eng', WorkerType.Engineer, home));
     const before = snapshot(state);
 
-    const s2 = moveAndConstruct(state, target.id, 'eng', 'port');
+    const s2 = moveAndStartConstruction(state, target.id, 'eng', 'port');
 
     expect(s2).toEqual(before);
   });
@@ -353,7 +342,7 @@ describe('moveAndStartConstructionHelper honours the chosen kind', () => {
 // ---------------------------------------------------------------------------
 // 4. Rail started by moving an engineer must cost money
 // ---------------------------------------------------------------------------
-describe('handleEngineerMovement rail construction', () => {
+describe('rail-on-move (moveAndBuildRail) construction', () => {
   // Capital (0,0) is a rail starting point; Farm (1,0) is its owned, unconnected neighbour.
   function railScenario(treasury: number) {
     const state = makeState(treasury);
@@ -366,33 +355,32 @@ describe('handleEngineerMovement rail construction', () => {
   }
 
   it('charges the rail price when the rail job starts', () => {
-    const { state, fromTile, toTile, worker } = railScenario(1000);
+    const { state, toTile, worker } = railScenario(1000);
 
-    const s2 = handleEngineerMovement(state, fromTile, toTile, worker);
+    const s2 = moveAndBuildRail(state, toTile.id, worker.id);
 
-    expect(s2).not.toBeNull();
-    expect(tileAt(s2!, toTile).constructionJob?.kind).toBe('rail');
-    expect(tileAt(s2!, toTile).constructionJob?.workerId).toBe('eng');
-    expect(treasuryOf(s2!)).toBe(1000 - CONSTRUCTION_COST.rail);
+    expect(tileAt(s2, toTile).constructionJob?.kind).toBe('rail');
+    expect(tileAt(s2, toTile).constructionJob?.workerId).toBe('eng');
+    expect(treasuryOf(s2)).toBe(1000 - CONSTRUCTION_COST.rail);
   });
 
   it('refuses a free rail when the nation cannot afford it', () => {
-    const { state, fromTile, toTile, worker } = railScenario(CONSTRUCTION_COST.rail - 1);
+    const { state, toTile, worker } = railScenario(CONSTRUCTION_COST.rail - 1);
     const before = snapshot(state);
 
-    const s2 = handleEngineerMovement(state, fromTile, toTile, worker);
+    const s2 = moveAndBuildRail(state, toTile.id, worker.id);
 
-    // Refusal is either null (caller falls back to plain movement) or the unchanged state.
-    if (s2 !== null) expect(s2).toEqual(before);
-    expect(s2 === null || tileAt(s2, toTile).constructionJob === undefined).toBe(true);
+    // Refused as a whole: the unchanged state.
+    expect(s2).toEqual(before);
+    expect(tileAt(s2, toTile).constructionJob).toBeUndefined();
     expect(state).toEqual(before);
   });
 });
 
 // ---------------------------------------------------------------------------
-// 5. startConstructionHelper guards
+// 5. startConstruction guards
 // ---------------------------------------------------------------------------
-describe('startConstructionHelper guards', () => {
+describe('startConstruction guards', () => {
   it('does not overwrite a tile that already has a construction job (no charge)', () => {
     const state = makeState(2000);
     const tile = tilesOf(state, TerrainType.DryPlains)[0];
@@ -404,7 +392,7 @@ describe('startConstructionHelper guards', () => {
     };
     const before = snapshot(state);
 
-    const s2 = startConstructionHelper(state, tile.id, 'eng-2', 'depot');
+    const s2 = startConstruction(state, tile.id, 'eng-2', 'depot');
 
     expect(s2).toEqual(before);
   });
@@ -415,7 +403,7 @@ describe('startConstructionHelper guards', () => {
     place(state, inland, makeWorker('eng', WorkerType.Engineer, inland));
     const before = snapshot(state);
 
-    const s2 = startConstructionHelper(state, inland.id, 'eng', 'port');
+    const s2 = startConstruction(state, inland.id, 'eng', 'port');
 
     expect(s2).toEqual(before);
   });
@@ -430,7 +418,7 @@ describe('move-and-construct when the engineer is already on the target tile', (
     const site = tilesOf(state, TerrainType.DryPlains)[0];
     place(state, site, makeWorker('eng', WorkerType.Engineer, site));
 
-    const s2 = moveAndConstruct(state, site.id, 'eng', 'depot');
+    const s2 = moveAndStartConstruction(state, site.id, 'eng', 'depot');
 
     const found = findWorker(s2, 'eng');
     expect(found?.tile.id).toBe(site.id);
@@ -444,46 +432,25 @@ describe('move-and-construct when the engineer is already on the target tile', (
 // ---------------------------------------------------------------------------
 // Guards that already hold (should stay green)
 // ---------------------------------------------------------------------------
-describe('treasury ledger', () => {
-  it('never lets two charges overspend the treasury', () => {
-    const state = makeState(150);
-    const ledger = createTreasuryLedger(state);
-
-    expect(ledger.tryCharge(NATION, 100)).toBe(true);
-    expect(ledger.tryCharge(NATION, 100)).toBe(false);
-
-    expect(ledger.nationsAfterCharges().find(n => n.id === NATION)!.treasury).toBe(50);
-  });
-
-  it('refuses a charge for an unknown nation and leaves every treasury alone', () => {
-    const state = makeState(500);
-    const ledger = createTreasuryLedger(state);
-
-    expect(ledger.tryCharge('nation-unknown', 1)).toBe(false);
-
-    expect(ledger.nationsAfterCharges().map(n => n.treasury)).toEqual(state.nations.map(n => n.treasury));
-  });
-});
-
 describe('unaffordable jobs (already refused today)', () => {
-  it('startDevelopmentHelper leaves the state unchanged when the nation cannot afford it', () => {
+  it('startDevelopment leaves the state unchanged when the nation cannot afford it', () => {
     const state = makeState(DEVELOPMENT_COST[1] - 1);
     const farm = tilesOf(state, TerrainType.Farm)[0];
     place(state, farm, makeWorker('farmer', WorkerType.Farmer, farm));
     const before = snapshot(state);
 
-    const s2 = startDevelopmentHelper(state, farm.id, 'farmer', WorkerType.Farmer);
+    const s2 = startDevelopment(state, farm.id, 'farmer');
 
     expect(s2).toEqual(before);
   });
 
-  it('startConstructionHelper leaves the state unchanged when the nation cannot afford it', () => {
+  it('startConstruction leaves the state unchanged when the nation cannot afford it', () => {
     const state = makeState(CONSTRUCTION_COST.depot - 1);
     const land = tilesOf(state, TerrainType.DryPlains)[0];
     place(state, land, makeWorker('eng', WorkerType.Engineer, land));
     const before = snapshot(state);
 
-    const s2 = startConstructionHelper(state, land.id, 'eng', 'depot');
+    const s2 = startConstruction(state, land.id, 'eng', 'depot');
 
     expect(s2).toEqual(before);
   });
