@@ -204,3 +204,25 @@ describe('FR-022 only submitOrder and advanceTurn change the game', () => {
     expect(store.getState().game).toBe(g);
   });
 });
+
+describe('FR-055 opening the capital clears a stale refusal', () => {
+  it('a refusal from the map is gone when the capital dialog opens', () => {
+    const store = createGameStore({ game: setTreasury(game(), N1, 0) });
+    store.getState().submitOrder(prospect);
+    expect(store.getState().lastRejection).not.toBeNull();
+
+    store.getState().openCapital();
+
+    expect(store.getState().isCapitalOpen).toBe(true);
+    expect(store.getState().lastRejection).toBeNull();
+  });
+
+  it('a refusal of an order sent while the dialog is open still shows', () => {
+    const store = createGameStore({ game: setTreasury(game(), N1, 0) });
+    store.getState().openCapital();
+
+    store.getState().submitOrder(prospect);
+
+    expect(store.getState().lastRejection).toEqual({ order: prospect, reason: 'insufficient-funds' });
+  });
+});
