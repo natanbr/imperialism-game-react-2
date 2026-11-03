@@ -42,6 +42,14 @@ describe('engine lint guard', () => {
     expect(rules).toContain(rule);
   }, 30_000);
 
+  it.each([
+    ["import { initWorld } from '@/testing/worldInit';", '@/testing'],
+    ["import { createTwoNationGame } from '../testing/mockNation';", 'relative testing path'],
+  ])('FR-043 forbids %s (%s) inside src/app/engine', async (importLine) => {
+    const rules = await engineLintRules(`${importLine}\nexport const probe = 1;\n`);
+    expect(rules).toContain('no-restricted-imports');
+  }, 30_000);
+
   it('FR-001 allows pure imports such as game types and definitions', async () => {
     const rules = await engineLintRules(
       "import type { GameState } from '@/types/GameState';\nimport { PROSPECT_COST } from '@/definisions/workPrices';\n" +

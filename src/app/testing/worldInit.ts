@@ -1,11 +1,13 @@
+// Test fixture: a small one-nation world for the system and order tests. The game's own start
+// lives in the engine (engine/world/startWorld.ts, FR-043); this file reuses its land and
+// civilian helpers and keeps only the test map and the test nation.
 import { GameMap, MapStyle } from "@/types/Map";
 import { Nation } from "@/types/Nation";
 import { ResourceType } from "@/types/Resource";
 import { TerrainType, Tile } from "@/types/Tile";
-import { Worker, WorkerStatus, WorkerType } from "@/types/Workers";
-import { createTileId, parseTileIdToArray } from "@/utils/tileIdUtils";
-import { testMap1 } from "./testMap1";
+import { createTileId } from "@/utils/tileIdUtils";
 import { createIndustry } from "@/engine/industry/industryState";
+import { claimLand, placeStartCivilians, START_CAPITAL_ID, START_NATION_ID } from "@/engine/world/startWorld";
 
 export interface WorldInitOptions {
   cols: number;
@@ -79,100 +81,34 @@ export function generateStaticOneNationMap(cols: number, rows: number): GameMap 
   };
 }
 
-export function setupSingleNation(map: GameMap): Nation[] {
-  const nations: Nation[] = [
-    {
-      id: "nation-1",
-      name: "Testland",
-      color: "#FF0000",
-      treasury: 10000,
-      debt: 0,
-      creditLimit: 5000,
-      relations: [],
-      tradePolicies: [],
-      grants: [],
-      cities: ["capital-1"],
-      provinces: [],
-      armies: [],
-      fleets: [],
-      colonies: [],
-      merchantMarine: { holds: 5, avgSpeed: 10 },
-      transportCapacity: 10,
-      transportCapacityPendingIncrease: 0,
-      warehouse: { grain: 50, coal: 100, ironOre: 100 } as Record<string, number>,
-      industry: createIndustry()
-    },
-  ];
-
-  // Assign ownership: all non-water/river tiles belong to nation-1
-  map.tiles = map.tiles.map((row) =>
-    row.map((t) => {
-      if (t.terrain === TerrainType.Water || t.terrain === TerrainType.River) return t;
-      return { ...t, ownerNationId: "nation-1" };
-    })
-  );
-
-  // Set capital cityId at the tile with terrain Capital
-  const capitalTile = map.tiles.flat().find((tt) => tt.terrain === TerrainType.Capital);
-  if (capitalTile) {
-    const [cx, cy] = parseTileIdToArray(capitalTile.id);
-    map.tiles[cy][cx] = { ...capitalTile, cityId: "capital-1", ownerNationId: "nation-1" };
-  }
-
-  return nations;
-}
-
-export function initWorkers(map: GameMap, nations: Nation[]): GameMap {
-  const withWorkers = map.tiles.map((row) => row.map((t) => ({ ...t })));
-
-  const addWorkerAtCapital = (nationId: string, capitalCityId: string, type: WorkerType, index: number) => {
-    // Find capital tile by cityId
-    const tile = withWorkers.flat().find((tt) => tt.cityId === capitalCityId);
-    if (!tile) return;
-    const worker: Worker = {
-      id: `worker-${nationId}-${index}`,
-      type,
-      nationId,
-      assignedTileId: tile.id,
-      efficiency: 100,
-      status: WorkerStatus.Available,
-      justMoved: false,
-    };
-    const [x, y] = parseTileIdToArray(tile.id);
-    withWorkers[y][x] = { ...tile, workers: [...tile.workers, worker] };
+/** The test nation: $10,000, 10 freight cars, grain, coal and iron in the warehouse, 4/2/1 workers. */
+export function testNation(): Nation {
+  return {
+    id: START_NATION_ID,
+    name: "Testland",
+    color: "#FF0000",
+    treasury: 10000,
+    debt: 0,
+    creditLimit: 5000,
+    relations: [],
+    tradePolicies: [],
+    grants: [],
+    cities: [START_CAPITAL_ID],
+    provinces: [],
+    armies: [],
+    fleets: [],
+    colonies: [],
+    merchantMarine: { holds: 5, avgSpeed: 10 },
+    transportCapacity: 10,
+    transportCapacityPendingIncrease: 0,
+    warehouse: { grain: 50, coal: 100, ironOre: 100 } as Record<string, number>,
+    industry: createIndustry(),
   };
-
-  // Add one of each worker type at each nation's capital for quick testing
-  nations.forEach((n) => {
-    const capitalCityId = n.cities?.[0];
-    if (!capitalCityId) return;
-    let idx = 1;
-    addWorkerAtCapital(n.id, capitalCityId, WorkerType.Prospector, idx++);
-    addWorkerAtCapital(n.id, capitalCityId, WorkerType.Farmer, idx++);
-    addWorkerAtCapital(n.id, capitalCityId, WorkerType.Rancher, idx++);
-    addWorkerAtCapital(n.id, capitalCityId, WorkerType.Forester, idx++);
-    addWorkerAtCapital(n.id, capitalCityId, WorkerType.Miner, idx++);
-    addWorkerAtCapital(n.id, capitalCityId, WorkerType.Driller, idx++);
-    addWorkerAtCapital(n.id, capitalCityId, WorkerType.Engineer, idx++);
-  });
-
-  return { ...map, tiles: withWorkers };
 }
 
+/** The generated `cols` x `rows` test map, owned by the test nation, its civilians on the capital. */
 export function initWorld(opts: WorldInitOptions): { map: GameMap; nations: Nation[] } {
-  // Use testMap1 if the requested size is 40x40, otherwise use the generated map
-  let map: GameMap;
-  if (opts.cols === 40 && opts.rows === 40) {
-    // Deep clone testMap1 to avoid mutations
-    map = {
-      ...testMap1,
-      tiles: testMap1.tiles.map(row => row.map(tile => ({ ...tile })))
-    };
-  } else {
-    map = generateStaticOneNationMap(opts.cols, opts.rows);
-  }
-
-  const nations = setupSingleNation(map);
-  const mapWithWorkers = initWorkers(map, nations);
-  return { map: mapWithWorkers, nations };
+  const nations = [testNation()];
+  const owned = claimLand(generateStaticOneNationMap(opts.cols, opts.rows), START_NATION_ID, START_CAPITAL_ID);
+  return { map: placeStartCivilians(owned, nations), nations };
 }

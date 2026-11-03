@@ -7,7 +7,7 @@ const cols = 40;
 const rows = 40;
 
 /**
- * testMap1 - A realistic, deterministic 40x40 test map
+ * defaultMap - the 40x40 map every new game uses until a map generator exists (was testing/testMap1)
  *
  * Features:
  * - Ocean border (1 tile thick)
@@ -241,7 +241,7 @@ const getTileData = (x: number, y: number): { terrain: TerrainType; resource?: {
   }
 };
 
-export const testMap1: GameMap = {
+export const defaultMap: GameMap = {
   config: { cols, rows, style: MapStyle.SquareGrid },
   tiles: Array.from({ length: rows }, (_, y) =>
     Array.from({ length: cols }, (_, x) => {

@@ -1,21 +1,19 @@
 import type { GameState } from "@/types/GameState";
-import { initWorld } from "@/testing/worldInit";
 import { TIME_CONFIG } from "@/constants/gameConstants";
 import { initializeRailroadNetworks } from "./systems/railroadSystem";
+import { startWorld } from "./world/startWorld";
 
 export interface NewGameOptions {
   seed: number;
-  cols?: number;
-  rows?: number;
 }
 
 /**
- * The start of a game: turn 1, year 1900, the one nation of `initWorld` with its workers on the
- * capital and its rail network built. The 40x40 map is `testing/testMap1`, the only map until a
- * map generator exists. The caller chooses the seed (the store draws one, tests pass 1).
+ * The start of a game (FR-027, FR-043): Spring 1815, the default 40x40 map with one nation, its
+ * workforce, buildings and warehouse, its civilians on the capital and its rail network built.
+ * The caller chooses the seed (the store draws one, tests pass 1).
  */
-export function newGame({ seed, cols = 40, rows = 40 }: NewGameOptions): GameState {
-  const { map, nations } = initWorld({ cols, rows });
+export function newGame({ seed }: NewGameOptions): GameState {
+  const { map, nations } = startWorld();
   return {
     turn: TIME_CONFIG.STARTING_TURN,
     year: TIME_CONFIG.STARTING_YEAR,

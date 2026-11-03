@@ -1,0 +1,52 @@
+import { describe, it, expect } from 'vitest';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+import { newGame } from '@/engine/newGame';
+import { labourOf } from '@/engine/industry/labour';
+import { WorkerType } from '@/types/Workers';
+
+const ENGINE_DIR = join(__dirname, '../../src/app/engine');
+
+function sourceFiles(dir: string): string[] {
+  return readdirSync(dir).flatMap(name => {
+    const path = join(dir, name);
+    return statSync(path).isDirectory() ? sourceFiles(path) : path.endsWith('.ts') ? [path] : [];
+  });
+}
+
+describe('FR-043 the engine owns the start of a game', () => {
+  it('FR-043 no engine file imports the test fixtures in src/app/testing', () => {
+    const offenders = sourceFiles(ENGINE_DIR).filter(file => /from\s+["'](@\/testing|\.\.?\/.*testing)\//.test(readFileSync(file, 'utf8')));
+    expect(offenders).toEqual([]);
+  });
+
+  it('FR-043 a new game: one nation with $10,000, 4/2/1 workers, 15 freight cars, the six mills and factories, a start warehouse', () => {
+    const g = newGame({ seed: 7 });
+    expect(g.nations).toHaveLength(1);
+    const n = g.nations[0];
+
+    expect(n.treasury).toBe(10000);
+    expect(n.transportCapacity).toBe(15);
+    expect(n.industry.workers).toEqual({ untrained: 4, trained: 2, expert: 1 });
+    expect(labourOf(n)).toEqual({ total: 12, committed: 0, free: 12 });
+    const capacities = Object.fromEntries(Object.entries(n.industry.buildings).map(([k, b]) => [k, b!.capacity]));
+    expect(capacities).toEqual({
+      textileMill: 2, lumberMill: 2, steelMill: 2, clothingFactory: 1, furnitureFactory: 1, metalWorks: 1, refinery: 0, foodProcessing: 0,
+    });
+    expect(n.warehouse).toMatchObject({
+      grain: 20, fruit: 10, livestock: 10, timber: 10, cotton: 10, wool: 10, coal: 10, ironOre: 10, lumber: 10, steel: 10, cannedFood: 10,
+      fish: 0, horses: 0, oil: 0, gold: 0, gems: 0, fabric: 0, paper: 0, fuel: 0, clothing: 0, furniture: 0, hardware: 0, armaments: 0,
+    });
+  });
+
+  it('FR-043 the 40x40 default map with the seven civilians on the capital and the rail network built', () => {
+    const g = newGame({ seed: 7 });
+    expect(g.map.config).toMatchObject({ cols: 40, rows: 40 });
+    const capital = g.map.tiles.flat().find(t => t.cityId === 'capital-1')!;
+    expect(capital.workers.map(w => w.type).sort()).toEqual([
+      WorkerType.Driller, WorkerType.Engineer, WorkerType.Farmer, WorkerType.Forester, WorkerType.Miner, WorkerType.Prospector, WorkerType.Rancher,
+    ].sort());
+    expect(g.transportNetwork.railroadNetworks?.['nation-1']).toBeDefined();
+    expect(g.seed).toBe(7);
+  });
+});
