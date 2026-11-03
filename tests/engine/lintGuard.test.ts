@@ -32,6 +32,16 @@ describe('engine lint guard', () => {
     expect(rules.some(r => r === 'no-restricted-globals' || r === 'no-restricted-properties')).toBe(true);
   }, 30_000);
 
+  it.each([
+    ['export const d = new Date();', 'new Date()', 'no-restricted-syntax'],
+    ['export const t = performance.now();', 'performance.now()', 'no-restricted-properties'],
+    ['export const u = crypto.randomUUID();', 'crypto', 'no-restricted-globals'],
+    ['export const b = crypto.getRandomValues(new Uint8Array(4));', 'crypto.getRandomValues', 'no-restricted-globals'],
+  ])('FR-002 forbids %s (%s) inside src/app/engine', async (code, _label, rule) => {
+    const rules = await engineLintRules(`${code}\n`);
+    expect(rules).toContain(rule);
+  }, 30_000);
+
   it('FR-001 allows pure imports such as game types and definitions', async () => {
     const rules = await engineLintRules(
       "import type { GameState } from '@/types/GameState';\nimport { PROSPECT_COST } from '@/definisions/workPrices';\n" +

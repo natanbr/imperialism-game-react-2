@@ -64,11 +64,20 @@ const eslintConfig = [
         { name: "document", message: ENGINE_IS_HEADLESS },
         { name: "localStorage", message: ENGINE_IS_HEADLESS },
         { name: "navigator", message: ENGINE_IS_HEADLESS },
+        { name: "crypto", message: "Use the seeded RNG from the turn context (FR-002)." },
       ],
       "no-restricted-properties": [
         "error",
         { object: "Math", property: "random", message: "Use the seeded RNG from the turn context (FR-002)." },
         { object: "Date", property: "now", message: "The engine must not read the clock (FR-002)." },
+        { object: "performance", property: "now", message: "The engine must not read the clock (FR-002)." },
+      ],
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "NewExpression[callee.name='Date'][arguments.length=0]",
+          message: "The engine must not read the clock (FR-002).",
+        },
       ],
     },
   },
