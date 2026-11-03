@@ -1,16 +1,7 @@
-// The pure map rules moved to the engine in M1; this file keeps the old import path for the
-// UI (part B moves the imports) and the pixel helper, which is view code.
+// View helper for the map's rail overlay (pixel geometry, not game rules).
 import { GameMap } from "@/types/Map";
 import { Tile, TerrainType } from "@/types/Tile";
 import { getNeighborCoords } from "@/engine/map/mapHelpers";
-
-export {
-  getNeighborCoords,
-  getAdjacentTiles,
-  isAdjacentToOcean,
-  areTilesAdjacent,
-  canBuildRailAt,
-} from "@/engine/map/mapHelpers";
 
 // Visualization helper: compute rail line segments in pixel coordinates for the map
 // Each segment connects centers of neighboring land tiles that are both `connected` and owned by the same nation

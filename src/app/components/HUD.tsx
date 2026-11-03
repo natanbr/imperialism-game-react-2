@@ -1,11 +1,12 @@
 import React from "react";
 import { TileInfoPanel } from "./TileInfoPanel";
 import { useGameStore } from '../store/rootStore';
-import { TurnIndicator, NationStats, ActionButtons } from "./HUD/index";
+import { TurnIndicator, NationStats, ActionButtons, NewsPanel } from "./HUD/index";
 
 export const HUD: React.FC = () => {
     const selectedTileId = useGameStore((s) => s.selectedTileId);
-    const map = useGameStore((s) => s.map);
+    const map = useGameStore((s) => s.game.map);
+    const seed = useGameStore((s) => s.game.seed);
     const selectedTile = map.tiles.flat().find(tile => tile.id === selectedTileId);
 
     return (
@@ -20,10 +21,12 @@ export const HUD: React.FC = () => {
                     <div className="hud-debug-section">
                         <div className="hud-debug-title">Debug</div>
                         <div><strong>Tile:</strong> {selectedTile.x},{selectedTile.y} (id {selectedTile.id})</div>
+                        <div><strong>Seed:</strong> {seed}</div>
                     </div>
                 )}
 
                 <TileInfoPanel selectedTile={selectedTile} />
+                <NewsPanel />
             </div>
 
             <ActionButtons />

@@ -1,41 +1,32 @@
 import { create } from 'zustand';
+import { createGameSlice, GameSlice, GameSliceOptions } from './gameSlice';
 import { createTileSelectionSlice, TileSelectionSlice } from './controls/tileSelectionSlice';
-import { createGameStateSlice, GameStateSlice } from './gameSlice';
 import { createCameraSlice, CameraSlice } from './controls/cameraSlice';
 import { createOverlaySlice, OverlaySlice } from './controls/overlaySlice';
-import { createNationSlice, NationSlice } from './nationSlice';
-import { createWorkerActionsSlice, WorkerActionsSlice } from './workerActionsSlice';
-import { createTurnSlice, TurnSlice } from './turnSlice';
-import { createMapSlice, MapSlice } from './mapSlice';
-import { createTechnologySlice, TechnologySlice } from './technologySlice';
-import { createTransportSlice, TransportSlice } from './transportSlice';
 import { ControlsSlice, createControlsSlice } from './controls/controlsSlice';
 
+export { EVENT_LOG_TURNS, randomSeed, type OrderRejection, type TurnReport } from './gameSlice';
+
+/** One engine GameState (`game`) plus UI state: session, selection, camera, overlays, dialogs. */
 export type GameStore =
-  & GameStateSlice
-  & NationSlice
-  & WorkerActionsSlice
-  & TurnSlice
-  & MapSlice
-  & TechnologySlice
-  & TransportSlice
-  // & IndustrySlice
+  & GameSlice
   & TileSelectionSlice
   & CameraSlice
   & OverlaySlice
   & ControlsSlice;
 
-export const useGameStore = create<GameStore>()((...a) => ({
-  ...createMapSlice(...a), // Initialize map and nations first
-  ...createGameStateSlice(...a),
-  ...createNationSlice(...a),
-  ...createWorkerActionsSlice(...a),
-  ...createTurnSlice(...a),
-  ...createTechnologySlice(...a),
-  ...createTransportSlice(...a),
-  // ...createIndustrySlice(...a),
-  ...createCameraSlice(...a),
-  ...createOverlaySlice(...a),
-  ...createTileSelectionSlice(...a),
-  ...createControlsSlice(...a),
-}));
+export type GameStoreOptions = GameSliceOptions;
+
+/** A new store; the app has one (`useGameStore`), tests make their own. */
+export function createGameStore(options: GameStoreOptions = {}) {
+  return create<GameStore>()((...a) => ({
+    ...createGameSlice(options)(...a),
+    ...createCameraSlice(...a),
+    ...createOverlaySlice(...a),
+    ...createTileSelectionSlice(...a),
+    ...createControlsSlice(...a),
+  }));
+}
+
+/** The app's store: a new game with a random seed. */
+export const useGameStore = createGameStore();

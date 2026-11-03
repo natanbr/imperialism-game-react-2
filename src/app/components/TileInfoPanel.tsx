@@ -4,9 +4,10 @@ import { useGameStore } from "../store/rootStore";
 import { Worker, WorkerStatus, WorkerType } from "@/types/Workers";
 import { PROSPECTABLE_TERRAIN_TYPES } from "../definisions/terrainDefinitions";
 import { DEVELOPMENT_WORKER_TYPES } from "../definisions/workerDefinitions";
-import { canBuildRailAt } from "@/store/helpers/mapHelpers";
+import { canBuildRailAt } from "@/engine/map/mapHelpers";
 import { PROSPECT_COST, DEVELOPMENT_COST, CONSTRUCTION_COST } from "@/definisions/workPrices";
 import { parseTileIdToArray } from "@/utils/tileIdUtils";
+import { ConstructionKind } from "@/types/jobs/ConstructionJob";
 
 interface TileInfoPanelProps {
   selectedTile: Tile | undefined;
@@ -25,14 +26,10 @@ const WorkerStatusIndicator: React.FC<{ status: WorkerStatus }> = ({ status }) =
 export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) => {
   const selectedWorkerId = useGameStore((s) => s.selectedWorkerId);
   const setSelectedWorkerId = useGameStore((s) => s.setSelectedWorkerId);
-  const startProspecting = useGameStore((s) => s.startProspecting);
-  const startDevelopment = useGameStore((s) => s.startDevelopment);
-  const startConstruction = useGameStore((s) => s.startConstruction);
-  const cancelAction = useGameStore((s) => s.cancelAction);
-  const oilDrillingTechUnlocked = useGameStore((s) => s.technologyState.oilDrillingTechUnlocked);
-  const map = useGameStore((s) => s.map);
+  const submitOrder = useGameStore((s) => s.submitOrder);
+  const map = useGameStore((s) => s.game.map);
   const activeNationId = useGameStore((s) => s.activeNationId);
-  const activeNation = useGameStore((s) => s.nations.find(n => n.id === s.activeNationId));
+  const activeNation = useGameStore((s) => s.game.nations.find(n => n.id === s.activeNationId));
 
   if (!selectedTile) {
     return <div style={{ padding: "10px" }}>No tile selected</div>;
@@ -40,9 +37,15 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
 
   const handleCancelAction = (workerId: string) => {
     if (window.confirm("Are you sure you want to cancel this action?")) {
-      cancelAction(selectedTile.id, workerId);
+      submitOrder({ kind: "cancelWorkerAction", nationId: activeNationId, workerId, tileId: selectedTile.id });
     }
   };
+  const startProspecting = (workerId: string) =>
+    submitOrder({ kind: "startProspecting", nationId: activeNationId, workerId, tileId: selectedTile.id });
+  const startDevelopment = (workerId: string) =>
+    submitOrder({ kind: "startDevelopment", nationId: activeNationId, workerId, tileId: selectedTile.id });
+  const startConstruction = (workerId: string, structure: ConstructionKind) =>
+    submitOrder({ kind: "startConstruction", nationId: activeNationId, workerId, tileId: selectedTile.id, structure });
 
   const renderWorkerActions = (worker: Worker) => {
     if (worker.status !== WorkerStatus.Available) return null;
@@ -50,7 +53,7 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
     if (worker.type === WorkerType.Prospector) {
       const canProspect = !selectedTile.prospecting && (activeNation?.treasury ?? 0) >= PROSPECT_COST && PROSPECTABLE_TERRAIN_TYPES.includes(selectedTile.terrain);
       if (canProspect) {
-        return <button onClick={() => startProspecting(selectedTile.id, worker.id)} title={`Cost: $${PROSPECT_COST}`} className="btn btn-action">Prospect ⛏️</button>;
+        return <button onClick={() => startProspecting(worker.id)} title={`Cost: $${PROSPECT_COST}`} className="btn btn-action">Prospect ⛏️</button>;
       }
     }
 
@@ -79,7 +82,7 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
 
       return (
         <button
-            onClick={() => startDevelopment(selectedTile.id, worker.id, worker.type)}
+            onClick={() => startDevelopment(worker.id)}
             title={titleMessage}
             disabled={!isEnabled}
             className="btn btn-action">
@@ -92,14 +95,14 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
       const [tx, ty] = parseTileIdToArray(selectedTile.id);
       const railAllowed = canBuildRailAt(map, tx, ty, activeNationId);
 
-      const canAfford = (kind: 'depot' | 'port' | 'fort' | 'rail') => (activeNation?.treasury ?? 0) >= CONSTRUCTION_COST[kind];
+      const canAfford = (kind: ConstructionKind) => (activeNation?.treasury ?? 0) >= CONSTRUCTION_COST[kind];
 
       return (
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
-          {!selectedTile.depot && <button onClick={() => startConstruction(selectedTile.id, worker.id, "depot")} disabled={!canAfford('depot')} className="btn btn-action">Construct Depot</button>}
-          {!selectedTile.port && <button onClick={() => startConstruction(selectedTile.id, worker.id, "port")} disabled={!canAfford('port')} className="btn btn-action">Construct Port</button>}
-          {<button onClick={() => startConstruction(selectedTile.id, worker.id, "fort")} disabled={!canAfford('fort')} className="btn btn-action">Construct Fort</button>}
-          {!selectedTile.connected && <button onClick={() => startConstruction(selectedTile.id, worker.id, "rail")} disabled={!railAllowed || !canAfford('rail')} className="btn btn-action">Construct Rail</button>}
+          {!selectedTile.depot && <button onClick={() => startConstruction(worker.id, "depot")} disabled={!canAfford('depot')} className="btn btn-action">Construct Depot</button>}
+          {!selectedTile.port && <button onClick={() => startConstruction(worker.id, "port")} disabled={!canAfford('port')} className="btn btn-action">Construct Port</button>}
+          {<button onClick={() => startConstruction(worker.id, "fort")} disabled={!canAfford('fort')} className="btn btn-action">Construct Fort</button>}
+          {!selectedTile.connected && <button onClick={() => startConstruction(worker.id, "rail")} disabled={!railAllowed || !canAfford('rail')} className="btn btn-action">Construct Rail</button>}
         </div>
       );
     }

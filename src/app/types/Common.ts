@@ -9,10 +9,3 @@ export type ProvinceId = string;
 export type SeaZoneId = string;
 export type TechId = string;
 export type BuildingId = string;
-
-export interface NewsItem {
-  id: string;
-  turn: number;
-  message: string;
-  type: "diplomacy" | "military" | "economy" | "technology" | "general";
-}

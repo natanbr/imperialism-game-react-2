@@ -2,15 +2,15 @@
 
 import { useMemo, useState, useEffect } from "react";
 import { useGameStore } from "../store/rootStore";
-import { computeLogisticsTransport } from "@/systems/logisticsSystem";
+import { computeLogisticsTransport } from "@/engine/systems/logisticsSystem";
 import { ResourceType, MaterialType, GoodsType } from "@/types/Resource";
 
 export const useTransportAllocations = (capacity: number) => {
-  const map = useGameStore((s) => s.map);
+  const map = useGameStore((s) => s.game.map);
   const activeNationId = useGameStore((s) => s.activeNationId);
-  const transportAllocationsByNation = useGameStore((s) => s.transportAllocationsByNation);
-  const setTransportAllocations = useGameStore((s) => s.setTransportAllocations);
-  const railroadNetworks = useGameStore((s) => s.transportNetwork.railroadNetworks);
+  const transportAllocationsByNation = useGameStore((s) => s.game.transportAllocationsByNation);
+  const submitOrder = useGameStore((s) => s.submitOrder);
+  const railroadNetworks = useGameStore((s) => s.game.transportNetwork.railroadNetworks);
 
   const initialAllocations = useMemo(
     () => transportAllocationsByNation?.[activeNationId] ?? {},
@@ -59,7 +59,7 @@ export const useTransportAllocations = (capacity: number) => {
     if (clamped === currentForKey) return;
     const next = { ...allocations, [key]: clamped };
     setAllocations(next);
-    setTransportAllocations(activeNationId, next);
+    submitOrder({ kind: "setTransportAllocations", nationId: activeNationId, allocations: next });
   };
 
   const sliderMax = (key: string) => Math.max(0, Math.floor(collected[key] ?? 0));

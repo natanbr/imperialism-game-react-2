@@ -4,7 +4,7 @@ import { Worker } from '@/types/Workers';
 import { createSelector } from 'reselect';
 import { GameStore } from './rootStore';
 
-const selectNations = (state: GameStore) => state.nations;
+const selectNations = (state: GameStore) => state.game.nations;
 const selectActiveNationId = (state: GameStore) => state.activeNationId;
 
 export const selectActiveNation = createSelector(
@@ -19,7 +19,7 @@ export const selectActiveNationCapacity = createSelector(
 
 // Efficient selector for selected worker and its tile
 export const selectSelectedWorkerAndTile = createSelector(
-  [(state: GameStore) => state.selectedWorkerId, (state: GameStore) => state.map.tiles],
+  [(state: GameStore) => state.selectedWorkerId, (state: GameStore) => state.game.map.tiles],
   (selectedWorkerId, tiles): { worker: Worker | null, tile: Tile | null } => {
     if (!selectedWorkerId) return { worker: null, tile: null };
     for (const row of tiles) {

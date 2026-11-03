@@ -3,7 +3,6 @@ import { GameState } from '@/types/GameState';
 import { describe, it, expect } from 'vitest';
 import { create } from 'zustand';
 import { Recipes } from '../../src/app/definisions/RecipeTypes';
-import { createTurnSlice, TurnSlice } from '../../src/app/store/turnSlice';
 import { initWorld } from '../../src/app/testing/worldInit';
 import { GoodsType, MaterialType, ResourceType } from '../../src/app/types/Resource';
 import { Nation } from '../../src/app/types/Nation';
@@ -32,9 +31,8 @@ function createStore() {
         map,
     };
 
-    const useStore = create<GameState & TurnSlice & IndustrySlice>()((...a) => ({
+    const useStore = create<GameState & IndustrySlice>()((...a) => ({
         ...base as GameState,
-        ...createTurnSlice(...a),
         ...createIndustrySlice(...a),
     }));
 
