@@ -4,7 +4,7 @@ import { GameState } from "@/types/GameState";
 import { GameMap } from "@/types/Map";
 import { Nation } from "@/types/Nation";
 import { ResourceType } from "@/types/Resource";
-import { TerrainType, Tile } from "@/types/Tile";
+import { Tile } from "@/types/Tile";
 import { RailroadNetwork } from "@/types/Transport";
 import type { TurnSystem } from "../turn/context";
 
