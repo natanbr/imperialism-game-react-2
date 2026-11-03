@@ -103,11 +103,12 @@ A finished job leaves its tile in the resolution that finishes it (FR-032): jobs
 ## Order flow (a player action)
 
 Everything a player can do is an `Order` (`engine/orders/Order.ts`): a union discriminated on
-`kind`, each naming its `nationId` and the exact worker, tile or building. Fifteen kinds today:
+`kind`, each naming its `nationId` and the exact worker, tile or building. Seventeen kinds today:
 moveWorker, moveAndBuildRail, startProspecting, startDevelopment, startConstruction,
 moveAndStartProspecting, moveAndStartDevelopment, moveAndStartConstruction, cancelWorkerAction,
 setTransportAllocations, changeTransportCapacity (freight cars), setProduction, expandBuilding,
-trainWorkers, recruitWorkers.
+trainWorkers, recruitWorkers, sellCommodity, buyCommodity (world market). After game over every
+order is refused with `game-over`.
 
 ```
 click / button / slider
@@ -138,11 +139,14 @@ Orders take effect when they are submitted, so the turn resolves with no orders 
 ```
 store.advanceTurn()
   -> resolveTurn(game, {}, game.seed)                    engine/turn/resolveTurn.ts
+       game over already?  return the same state; each given order -> order-rejected game-over
        applyTurnOrders     orders given here, nations in state order (none from the UI)
-       TURN_PHASES         development, diplomacy, trade, production (freight cars first),
-                           combat, interceptions, transportConnectivity, logistics, food
+       TURN_PHASES         development, diplomacy, trade (deals, then prices), production
+                           (freight cars first), combat, interceptions, transportConnectivity,
+                           logistics, tradeDelivery (units bought), food
        resetWorkers        everyone may move again; working only while the job is unfinished
        advanceClock        turn + 1, year + 1 after winter (turn 1 = Spring 1815)
+       last turn?          turn == turnLimit (40): gameOver = { turn, year, scores }, game-over event
   <- { state, events }
   -> game = state; eventLog += { turn, year, events }; lastRejection = null
 ```
@@ -158,7 +162,8 @@ so a played game cannot be replayed from the store alone (see the journal object
 
 `GameState.seed` is the only random state. A new game draws a seed (`randomSeed()` in the
 store; tests pass 1). Each turn's RNG is `createTurnRng(seed, turn)`, handed to systems in the
-turn context. The same initial state and orders always give the same result
+turn context. The trade phase draws one number per tradeable commodity every turn (after the
+development system's draws), so prices depend only on the seed, the turn and the orders. The same initial state and orders always give the same result
 (`tests/engine/determinism.test.ts`); two scripted nations play 20 turns headlessly in
 `tests/engine/twoNations.test.ts`. The seed shows in the HUD's debug box when a tile is selected.
 
@@ -231,6 +236,30 @@ training) and what the standing orders and this turn's cars commit.
   reach hills, swamp and mountains. The technology state is shared by all nations in v1. The test
   fixtures start with no technology, so the FR-030 site rules keep their tests.
 
+## World market, score and game over
+
+- One market per game (`GameState.market`, `types/Market.ts`), shared by every nation:
+  `prices` (whole dollars, per tradeable commodity), this turn's `orders` by nation
+  (`{ sell, buy }`) and the `deliveries` on their way. `marketOf(state)` falls back to the start
+  market for hand-built states. Rule table: `definisions/marketPrices.ts` (`TRADE_COMMODITIES`,
+  `START_PRICES`, drift, push, bounds, `MAX_BUY_BIDS`).
+- Orders (`engine/orders/tradeOrders.ts`): `sellCommodity` and `buyCommodity` set this turn's
+  amount of one commodity. Offered units leave the warehouse and bids are paid at the world price
+  when ordered; a lower amount gives the difference back. Units sold plus bought are at most the
+  nation's cargo holds (`tradeCapacityOf`), at most 4 commodities bid on, never both sides of
+  one commodity. No raw food, gold or gems.
+- `tradeSystem` (phase 2): pays the sales (`goods-sold`), moves the bids to `deliveries`
+  (`goods-bought`), clears the orders, then `nextPrices` (random drift of at most 3% plus 0.5% per
+  net unit, at most 3%, within 50% to 250% of the start price). `tradeDeliverySystem` (after
+  logistics) puts the deliveries in the warehouse, so bought units are usable next turn but feed
+  this turn's meal.
+- Score (`engine/score/score.ts`): `scoreOf(state, nationId)` = floor(treasury / 100) + 10 per
+  capacity point of the capped buildings + 10 per resource level on own tiles, with the parts;
+  `scoreTable(state)` ranks all nations. Weights: `definisions/scoreWeights.ts`.
+- Game over (`engine/turn/gameOver.ts`): `turnLimitOf(state)` (`newGame({ seed, turnLimit })`,
+  default 40 = Winter 1824); resolving that turn sets `gameOver = { turn, year, scores }`; after it
+  `validateOrder` refuses everything with `game-over` and `resolveTurn` is a no-op.
+
 ## Components
 
 `page.tsx` renders `MapView`, `HUD` and the modals. The capital dialog (`CapitalModal.tsx`)
@@ -265,7 +294,8 @@ never imports `src/app/testing` (ESLint rule, FR-043).
 
 ## Not on the engine yet
 
-- Diplomacy, trade, combat and interceptions are stub systems.
+- Diplomacy, combat and interceptions are stub systems. Trade is a world market with no Minor
+  Nations, no bid/offer matching between nations and no Shipyard (holds do not grow).
 - The map comes from `engine/world/defaultMap.ts` until a map generator exists.
 - Transport logic gaps from `docs/rules/04` (river ports, a depot on a port, blockades, town
   development) and the power plant are not modelled.

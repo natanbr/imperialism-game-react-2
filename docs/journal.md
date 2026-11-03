@@ -6,9 +6,10 @@
   `docs/rules/` (gaps in `gaps.md`). Progress page: https://claude.ai/artifact/JHRFaWQRPk3AYGssSchPBU.
 - M0, M1 and M2 are merged into `main` (PR 9, 10, 12, 13). Their entries are archived in
   `docs/journal/archive-M1.md` and `docs/journal/archive-M2.md`.
-- M3 part A (engine) in progress 2026-11-03 on `claude/m3-money-and-score` from `origin/main`
-  1b0923f: world market (sell, buy, cargo holds, drifting prices), score, game over after 40 turns.
-  FR-060 to FR-072. Part B (UI: market dialog, HUD score, game-over screen) follows on this branch.
+- M3 part A (engine) done 2026-11-03 on `claude/m3-money-and-score` from `origin/main` 1b0923f,
+  pushed, no PR: world market (sell, buy, cargo holds, drifting prices), score, game over after 40
+  turns, scripted player trades. FR-060 to FR-072 tested, `npx vitest run` 559 green. Not run:
+  Playwright, review. Next: part B (UI: market dialog, HUD score, game-over screen; list below).
 - Open decisions: Q9 (freight-car timing, from M2) and Q10 to Q15 (M3, below); each runs on its default.
 
 Carried forward:
@@ -151,3 +152,71 @@ to Sonnet high, but this run has no subagents):
 | FR-070 | `tests/engine/twoNations.test.ts` | the scripted player's turn-1 trade orders (bids for missing inputs, no canned food offered) and FR-016 still holds |
 | FR-071 | `tests/engine/twoNations.test.ts` | 40 turns: sales and bids for both nations, invariants, game over with two scores, 41st resolve no-op, replay deep-equal |
 | FR-072 | `tests/ui/gameText.test.ts` | the news lines and the refusal text |
+
+### Tasks, red summaries, commits
+
+The run was paused once by Nathan between T-01's code and its gate and resumed in the same
+worktree; nothing was lost. T-02 (FR-066) needed no engine code: its rows are in
+`market.test.ts` and went red and green with T-01.
+
+| Task | FR | Red summary (tests written and run before the code) | Commit |
+|---|---|---|---|
+| T-01 world market | FR-060 to FR-066, FR-072 | `Test Files 3 failed (3)` / `Tests 52 failed \| 118 passed (170)`: unknown order kinds refused (`expected { ok: false, reason: 'invalid-target' } to deeply equal { ok: true }`), stubs `Error: not implemented (M3 T-01)`, `expected undefined to be 'Sold 2 Furniture for $1,800.'`. The price-table rows passed at once (data written with the stubs). | 7942faa |
+| T-03 score, game over | FR-067 to FR-069, FR-072 | `Test Files 3 failed (3)` / `Tests 16 failed \| 26 passed (42)`: `Error: not implemented (M3 T-03)`, `expected undefined to be 40`, `expected undefined to be 'Game over at the end of Winter 1824.'`. One expectation of mine was wrong (the fixture's 50 timber make the lumber order valid before the end) and was corrected before the code. | b9eb801 |
+| T-04 scripted player trades, 40 turns | FR-070, FR-071 | `Test Files 1 failed (1)` / `Tests 3 failed \| 9 passed (12)`: `expected [] to deeply equal [ Array(2) ]` (no trade orders). The game-over, 41st-resolve and replay rows passed at once (T-03 made them true). Then the new trading broke FR-054: `Tests 1 failed \| 15 passed (16)`, nation-1 made no canned food in 20 turns (a probe showed kept mill orders, 10 labour, plus the freight car took all 12 labour). Fixed by planning production afresh each turn (FR-070 row updated). | b0c32ce |
+| T-05 docs | none | ARCHITECTURE (orders, turn flow, randomness, new market/score/game-over section), rules 01 and 06 notes, requirement statuses, this entry | this commit |
+
+### Evidence
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| Baseline before M3 | `npx vitest run` | `Test Files 31 passed (31)` / `Tests 472 passed (472)` |
+| FR-060 to FR-066 covered | `npx vitest run tests/engine/market.test.ts tests/engine/validate.test.ts tests/ui/gameText.test.ts tests/engine/purity.test.ts` | `Test Files 4 passed (4)` / `Tests 175 passed (175)`; `market.test.ts (59 tests)` |
+| FR-067 to FR-069 covered | `npx vitest run` (T-03 gate) | `Test Files 34 passed (34)` / `Tests 553 passed (553)`; `gameOver.test.ts (9 tests)`, `score.test.ts (8 tests)` |
+| FR-070, FR-071 covered; FR-014, FR-054 still hold | `npx vitest run tests/engine/twoNations.test.ts tests/engine/determinism.test.ts` | `Tests 17 passed (17)` (with the probe below); `twoNations.test.ts (12 tests)` |
+| 40-turn game result | a probe test (removed after use) on `play(newGame(11), 40)` | game over turn 40, 1824; state turn 41, 1825. nation-2 476 (cash $3,680 = 36, capacity 9 = 90, 35 levels = 350), nation-1 453 ($1,392 = 13, 90, 350). nation-1 sold 74 units for $21,210 (lumber 38, steel 18, fabric 15, ...) and bought 123 (coal 62, iron ore 61) for $16,768; nation-2 sold 37 for $13,614 (fabric 27, hardware 7, ...) and bought 83 for $11,234. Final prices: iron ore 190, coal 145 (bought), lumber 233, fabric 227 (sold). `replayIdentical: true` |
+| All unit tests | `npx vitest run` | `Test Files 34 passed (34)` / `Tests 559 passed (559)` (+87) |
+| Types | `npx tsc --noEmit` | exit 0, no output |
+| Lint | `npm run lint` | `✖ 3 problems (0 errors, 3 warnings)` (the same three as M2) |
+| Build | `npm run build` | `✓ Compiled successfully in 3.8s`, `✓ Generating static pages (4/4)` |
+| Smoke suite | not run | part A changes no UI beyond three news lines and two refusal words; part B runs it |
+
+### Decisions taken alone (safest default), each open to review
+
+- Objection: the market lives in `GameState.market` as an optional field (with `marketOf` giving
+  the start market), as do `turnLimit` and `gameOver`. Required fields would have meant editing
+  about twenty hand-built test states outside this task. `newGame` and the fixture always set them.
+- Objection: trade orders take goods and cash when ordered and last one turn (Q15). This keeps the
+  engine's one rule "an order's effects happen when it is applied" and makes the deal price exact,
+  because prices only change in the trade phase.
+- Objection: bought units go through `market.deliveries` and a delivery step after logistics, not
+  straight into the warehouse in phase 2, so production cannot use them in the turn they are bought
+  (rules 06) and phase 5 (interceptions) has a place to cancel deliveries later.
+- Objection: after game over `resolveTurn` returns the very same object rather than throwing, so
+  the store's End Turn cannot crash; the given orders are reported as refused so nothing is silent.
+  The clock still advances on the last turn (state turn 41, Spring 1825); `gameOver.turn` is 40.
+- Objection: the scripted player now re-plans its production every turn (FR-070). It was the
+  smallest change that keeps FR-054 true with trading; its standing orders no longer carry over.
+
+### Hand-off to part B (UI)
+
+Engine API (all from `@/engine` unless noted):
+- Orders: `{ kind: "sellCommodity", nationId, commodity, amount }` and
+  `{ kind: "buyCommodity", nationId, commodity, amount }`; `amount` is this turn's total for that
+  commodity (0 cancels). Refusals: `invalid-target`, `invalid-amount`, `insufficient-resources`,
+  `insufficient-funds`, `limit-reached`, and `game-over` for every order after the end.
+- Queries: `marketOf(state)` → `{ prices, orders, deliveries }`; `priceOf(market, commodity)`;
+  `tradeOrdersOf(state, nationId)` → `{ sell, buy }`; `tradeCapacityOf(state, nationId)` →
+  `{ holds, used, free }`; `isTradeCommodity(key)`; `scoreOf(state, nationId)` → `{ nationId,
+  treasury, capacity, developedLevels, points: { treasury, industry, development }, total }`;
+  `scoreTable(state)` (ranked); `turnLimitOf(state)`; `isGameOver(state)`; `state.gameOver` →
+  `{ turn, year, scores }`. Lists: `TRADE_COMMODITIES`, `START_PRICES`, `MAX_BUY_BIDS` in
+  `@/definisions/marketPrices`; weights `SCORE_WEIGHTS` in `@/definisions/scoreWeights`.
+- Events: `goods-sold { nationId, commodity, amount, price, income }`, `goods-bought { nationId,
+  commodity, amount, price, cost }`, `game-over { turn, year, scores }` (after `turn-ended`). News
+  lines exist in `components/gameText.ts` (FR-072).
+- To build: a market dialog (prices, stock, this turn's offer and bid per commodity, holds used and
+  free, the most the engine accepts, refusals in plain words); the HUD score (`scoreOf` for the
+  active nation, maybe "turn N of 40"); a game-over screen from `state.gameOver` (ranked scores
+  with their three parts), with End Turn disabled after the end (the store's `advanceTurn` would
+  otherwise log an empty report).
