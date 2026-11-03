@@ -127,7 +127,9 @@ before through the order API.
 
 **M2, Close the economic loop.** Wire the recipe engine into `productionSystem`. Add
 industry buildings with capacity (mill, factory) and labour. Workers eat food. Real job
-durations from the manual. Done when: grain on a farm ends up as canned food in the
+durations from the manual. Fix every `CODE MISMATCH:` line in `docs/rules/02` to `06` (recipes,
+prices, costs, durations, starting year 1815) and close the v1 gaps in `docs/rules/gaps.md`
+that M2 needs, using the documented default where a gap stays open. Done when: grain on a farm ends up as canned food in the
 warehouse through transport and production, proven by a test and visible in the app.
 
 **M3, Money and score.** A world market: sell goods at a fixed-but-drifting price, buy
