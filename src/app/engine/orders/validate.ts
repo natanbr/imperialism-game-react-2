@@ -167,7 +167,7 @@ const checkDevelopment: JobCheck = (state, worker, tile) => {
 const constructionCheck = (structure: ConstructionKind): JobCheck => (state, worker, tile) => {
   if (worker.type !== WorkerType.Engineer) return reject("wrong-worker-type");
   if (tile.ownerNationId !== worker.nationId) return reject("not-owner");
-  if (!(structure in CONSTRUCTION_COST)) return reject("invalid-target");
+  if (!Object.hasOwn(CONSTRUCTION_COST, structure)) return reject("invalid-target");
   if (tile.constructionJob && !tile.constructionJob.completed) return reject("tile-occupied");
   if (structure === "port" && !isPortSite(state, tile)) return reject("invalid-site");
   if (treasuryOf(state, worker.nationId) < CONSTRUCTION_COST[structure]) return reject("insufficient-funds");

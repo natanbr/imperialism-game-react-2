@@ -389,3 +389,12 @@ describe('gold and gems cash value', () => {
     expect(result.warehouse).toEqual(nation.warehouse);
   });
 });
+describe('warehouse keys', () => {
+  it('FR-026 a transported resource named after an Object property never lands in the warehouse', () => {
+    const nation = baseState().nations.find(n => n.id === 'nation-1')!;
+    const result = updateNationStateWithTransportedResources(nation, { toString: 4, constructor: 2 });
+    expect(Object.hasOwn(result.warehouse, 'toString')).toBe(false);
+    expect(Object.hasOwn(result.warehouse, 'constructor')).toBe(false);
+    expect(result.warehouse).toEqual(nation.warehouse);
+  });
+});

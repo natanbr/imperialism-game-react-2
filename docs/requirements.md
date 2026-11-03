@@ -55,3 +55,11 @@ Written 2026-11-03 at the start of M1 part B.
 | FR-023 | A tile click with a worker selected tries its orders in turn and stops at the first one accepted or at `insufficient-funds`: a job on another tile is tried as move-and-start, then as a plain move (pre-M1 behaviour); an engineer moving next to its rail network tries rail-on-move first, then the plain move. Every order carries the active nation's id. | tested |
 | FR-024 | The worker's job text is derived for display from the tile's job and the worker's status (`workerJobLabel`: "Mining to level 1", "Constructing depot", "Prospecting", "Moved"). The HUD shows the last turn's events and the last refused order in plain words. | tested |
 | FR-025 | In the running app a player can, three turns in a row, select a worker, move it and start a job, and end the turn, with no console errors (`e2e/play-turns.spec.ts`). Playwright reads its port from `PORT` (default 3000) and starts this checkout's dev server unless `PW_REUSE_SERVER=1`. | tested |
+
+### M1 review fix round
+
+Written 2026-11-03 after the M1 review.
+
+| Id | Requirement | Status |
+|---|---|---|
+| FR-026 | Orders and data keys are validated against own keys only (untrusted JSON from replay logs and AI players): a name that exists only on `Object.prototype` (`toString`, `constructor`, `__proto__`) is refused as an order target and never written into a nation's warehouse. | tested |

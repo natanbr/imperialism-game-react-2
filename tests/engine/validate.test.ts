@@ -5,6 +5,7 @@ import { GameState } from '@/types/GameState';
 import { ResourceType } from '@/types/Resource';
 import { WorkerStatus, WorkerType } from '@/types/Workers';
 import { CONSTRUCTION_COST, DEVELOPMENT_COST, PROSPECT_COST } from '@/definisions/workPrices';
+import type { ConstructionKind } from '@/types/jobs/ConstructionJob';
 import { createTileId } from '@/utils/tileIdUtils';
 import { deepFreeze, game, N1, N2, put, setTile, setTreasury, setWarehouse, T, workerId } from './fixtures';
 
@@ -96,6 +97,13 @@ const cases: Case[] = [
   { name: 'FR-004 construction by a farmer', order: { kind: 'startConstruction', nationId: N1, workerId: W.farmer, tileId: T.capital1, structure: 'depot' }, expected: 'wrong-worker-type' },
   { name: 'FR-004 a port without its price', setup: s => setTreasury(s, N1, CONSTRUCTION_COST.port - 1), order: { kind: 'startConstruction', nationId: N1, workerId: W.engineer, tileId: T.capital1, structure: 'port' }, expected: 'insufficient-funds' },
   { name: 'FR-006 construction with a working engineer', setup: engineerBuildingAtCapital, order: { kind: 'startConstruction', nationId: N1, workerId: W.engineer, tileId: T.capital1, structure: 'fort' }, expected: 'worker-busy' },
+
+  // FR-026: orders from a replay log or an AI player are untrusted JSON, so a structure name
+  // that only exists on Object.prototype is refused instead of being priced as NaN.
+  { name: 'FR-026 construction of an inherited name (toString)', order: { kind: 'startConstruction', nationId: N1, workerId: W.engineer, tileId: T.capital1, structure: 'toString' as ConstructionKind }, expected: 'invalid-target' },
+  { name: 'FR-026 construction of an inherited name (constructor)', order: { kind: 'startConstruction', nationId: N1, workerId: W.engineer, tileId: T.capital1, structure: 'constructor' as ConstructionKind }, expected: 'invalid-target' },
+  { name: 'FR-026 construction of __proto__', order: { kind: 'startConstruction', nationId: N1, workerId: W.engineer, tileId: T.capital1, structure: '__proto__' as ConstructionKind }, expected: 'invalid-target' },
+  { name: 'FR-026 move-and-build an inherited name (toString)', order: { kind: 'moveAndStartConstruction', nationId: N1, workerId: W.engineer, toTileId: T.farm1, structure: 'toString' as ConstructionKind }, expected: 'invalid-target' },
 
   // moveAndStartProspecting
   { name: 'FR-007 move-and-prospect is ok', order: { kind: 'moveAndStartProspecting', nationId: N1, workerId: W.prospector, toTileId: T.mountains1 }, expected: 'ok' },
