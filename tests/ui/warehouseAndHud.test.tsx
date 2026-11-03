@@ -39,15 +39,15 @@ describe('FR-050 warehouse dialog', () => {
 });
 
 describe('FR-048 FR-049 HUD', () => {
-  it('FR-048 shows the turn and the season and year', () => {
+  it('FR-048 FR-075 shows the turn of the turn limit and the season and year', () => {
     const g = game();
     show(g);
     const { rerender } = render(<TurnIndicator />);
-    expect(text(screen.getByTestId('turn-indicator'))).toBe('Turn: 1 Spring 1815');
+    expect(text(screen.getByTestId('turn-indicator'))).toBe('Turn: 1 of 40 Spring 1815');
 
     show(resolveTurn(g, {}, 1).state);
     rerender(<TurnIndicator />);
-    expect(text(screen.getByTestId('turn-indicator'))).toBe('Turn: 2 Summer 1815');
+    expect(text(screen.getByTestId('turn-indicator'))).toBe('Turn: 2 of 40 Summer 1815');
   });
 
   it('FR-049 no food warning when the forecast feeds everyone', () => {

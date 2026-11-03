@@ -3,7 +3,7 @@ import { Tile } from '@/types/Tile';
 import { Worker } from '@/types/Workers';
 import { createSelector } from 'reselect';
 import { completedTileIds } from '@/components/gameText';
-import { foodForecast } from '@/engine';
+import { foodForecast, scoreOf } from '@/engine';
 import { GameStore } from './rootStore';
 
 const selectNations = (state: GameStore) => state.game.nations;
@@ -24,6 +24,12 @@ export const selectTilesCompletedLastTurn = createSelector(
 export const selectFoodForecast = createSelector(
   [(state: GameStore) => state.game, selectActiveNationId],
   (game, activeNationId) => foodForecast(game, activeNationId)
+);
+
+/** The active nation's score now (FR-075). */
+export const selectActiveScore = createSelector(
+  [(state: GameStore) => state.game, selectActiveNationId],
+  (game, activeNationId) => scoreOf(game, activeNationId)
 );
 
 export const selectActiveNationCapacity = createSelector(

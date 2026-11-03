@@ -4,6 +4,8 @@ import { HUD } from './components/HUD';
 import { MapView } from './components/MapView';
 import { WarehouseModal } from './components/WarehouseModal';
 import { CapitalModal } from './components/CapitalModal';
+import { MarketModal } from './components/MarketModal';
+import { GameOverModal } from './components/GameOverModal';
 import TransportAllocationModal from './components/TransportAllocationModal';
 import { ConstructionOptionsModal } from './components/ConstructionOptionsModal';
 import { useGameStore } from './store/rootStore';
@@ -27,7 +29,9 @@ export default function Home() {
       <HUD />
       <WarehouseModal />
       <CapitalModal />
+      <MarketModal />
       <ConstructionOptionsModal />
+      <GameOverModal />
       {isTransportAllocationOpen && (
         <TransportAllocationModal
           capacity={capacity}

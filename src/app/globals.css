@@ -141,7 +141,7 @@ body {
 }
 
 /* HUD Sub-components Styles */
-.turn-indicator, .nation-stats {
+.turn-indicator, .nation-stats, .hud-score {
   margin-bottom: 8px;
 }
 

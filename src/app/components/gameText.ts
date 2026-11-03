@@ -48,7 +48,8 @@ export function refusalText({ order, reason }: { order: Order; reason: RejectRea
 }
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-const money = (n: number) => `$${n.toLocaleString("en-US")}`;
+/** Dollars with thousands separators: "$1,800". */
+export const money = (n: number) => `$${n.toLocaleString("en-US")}`;
 
 export const BUILDING_TEXT: Record<BuildingType, string> = {
   textileMill: "Textile mill",

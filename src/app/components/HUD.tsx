@@ -1,7 +1,7 @@
 import React from "react";
 import { TileInfoPanel } from "./TileInfoPanel";
 import { useGameStore } from '../store/rootStore';
-import { TurnIndicator, NationStats, ActionButtons, NewsPanel, FoodWarning } from "./HUD/index";
+import { TurnIndicator, NationStats, ActionButtons, NewsPanel, FoodWarning, ScoreIndicator } from "./HUD/index";
 
 export const HUD: React.FC = () => {
     const selectedTileId = useGameStore((s) => s.selectedTileId);
@@ -15,6 +15,7 @@ export const HUD: React.FC = () => {
                 <h2 className="hud-title">HUD</h2>
                 <TurnIndicator />
                 <NationStats />
+                <ScoreIndicator />
                 <FoodWarning />
 
                 {/* Debug section */}
