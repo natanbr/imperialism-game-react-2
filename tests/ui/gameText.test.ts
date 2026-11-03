@@ -13,7 +13,7 @@ import { game, locate, N1, put, T, workerId } from '../engine/fixtures';
 const ALL_REASONS: RejectReason[] = [
   'unknown-nation', 'unknown-worker', 'not-owner', 'wrong-worker-type', 'worker-busy', 'worker-moved',
   'invalid-target', 'tile-occupied', 'invalid-site', 'insufficient-funds', 'insufficient-resources', 'insufficient-labour',
-  'limit-reached', 'invalid-amount',
+  'limit-reached', 'invalid-amount', 'game-over',
 ];
 
 const prospect: Order = { kind: 'moveAndStartProspecting', nationId: 'nation-1', workerId: 'w', toTileId: '3-4' };
@@ -73,6 +73,12 @@ describe('FR-024 turn event text', () => {
     const purchase: Order = { kind: 'buyCommodity', nationId: 'nation-1', commodity: ResourceType.Coal, amount: 9 };
     expect(refusalText({ order: sale, reason: 'insufficient-resources' })).toBe('Sale refused: not enough goods in the warehouse.');
     expect(refusalText({ order: purchase, reason: 'limit-reached' })).toBe('Purchase refused: over the limit.');
+  });
+
+  it('FR-072 the end of the game reads as news, and an order after it is refused in plain words', () => {
+    expect(eventText({ type: 'game-over', turn: 40, year: 1824, scores: [] })).toBe('Game over at the end of Winter 1824.');
+    const sale: Order = { kind: 'sellCommodity', nationId: 'nation-1', commodity: GoodsType.Furniture, amount: 1 };
+    expect(refusalText({ order: sale, reason: 'game-over' })).toBe('Sale refused: the game is over.');
   });
 });
 

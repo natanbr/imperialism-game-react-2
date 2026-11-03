@@ -12,6 +12,7 @@ import {
   validateTrainWorkers,
 } from "./industryOrders";
 import { validateTradeOrder } from "./tradeOrders";
+import { isGameOver } from "../turn/gameOver";
 import { areTilesAdjacent } from "../map/mapHelpers";
 import type {
   CancelWorkerActionOrder,
@@ -51,6 +52,7 @@ type Checked<T> = { ok: true; value: T } | { ok: false; reason: RejectReason };
  * what an AI may do.
  */
 export function validateOrder(state: GameState, order: Order): ValidationResult {
+  if (isGameOver(state)) return reject("game-over");
   const nation = nationById(state, order.nationId);
   if (!nation) return reject("unknown-nation");
 

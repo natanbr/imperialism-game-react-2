@@ -6,6 +6,8 @@ import { START_TECHNOLOGIES, startWorld } from "./world/startWorld";
 
 export interface NewGameOptions {
   seed: number;
+  /** The last turn of the game (FR-068); default 40, Spring 1815 to Winter 1824. */
+  turnLimit?: number;
 }
 
 /**
@@ -13,12 +15,13 @@ export interface NewGameOptions {
  * workforce, buildings and warehouse, its civilians on the capital and its rail network built.
  * The caller chooses the seed (the store draws one, tests pass 1).
  */
-export function newGame({ seed }: NewGameOptions): GameState {
+export function newGame({ seed, turnLimit = TIME_CONFIG.TURN_LIMIT }: NewGameOptions): GameState {
   const { map, nations } = startWorld();
   return {
     turn: TIME_CONFIG.STARTING_TURN,
     year: TIME_CONFIG.STARTING_YEAR,
     seed,
+    turnLimit,
     nations,
     cities: [],
     armies: [],

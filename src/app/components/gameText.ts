@@ -40,6 +40,7 @@ export const REFUSAL_TEXT: Record<RejectReason, string> = {
   "insufficient-labour": "not enough free labour",
   "limit-reached": "over the limit",
   "invalid-amount": "invalid amount",
+  "game-over": "the game is over",
 };
 
 export function refusalText({ order, reason }: { order: Order; reason: RejectReason }): string {
@@ -154,6 +155,8 @@ export function eventText(event: GameEvent): string | null {
       return `Bought ${event.amount} ${commodityName(event.commodity)} for ${money(event.cost)}.`;
     case "turn-ended":
       return null;
+    case "game-over":
+      return `Game over at the end of ${dateText(event.turn, event.year)}.`;
   }
 }
 

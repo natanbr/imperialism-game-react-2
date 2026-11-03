@@ -4,6 +4,7 @@ import type { ResourceType } from "@/types/Resource";
 import type { ConstructionKind } from "@/types/jobs/ConstructionJob";
 import type { BuildingType, ProductionOutput } from "@/types/Industry";
 import type { TradeCommodity } from "@/types/Market";
+import type { Score } from "@/types/Score";
 import type { Order, RejectReason } from "../orders/Order";
 import { createTurnRng, type Rng } from "../rng";
 
@@ -21,7 +22,9 @@ export type GameEvent =
   | { type: "workers-recruited"; nationId: NationId; count: number }
   | { type: "goods-sold"; nationId: NationId; commodity: TradeCommodity; amount: number; price: number; income: number }
   | { type: "goods-bought"; nationId: NationId; commodity: TradeCommodity; amount: number; price: number; cost: number }
-  | { type: "turn-ended"; turn: number; year: number };
+  | { type: "turn-ended"; turn: number; year: number }
+  /** The last turn has resolved (FR-068): the last turn played, its year and the final scores. */
+  | { type: "game-over"; turn: number; year: number; scores: Score[] };
 
 /** Everything a system may use besides the state itself (FR-012). */
 export interface TurnContext {

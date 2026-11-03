@@ -8,6 +8,7 @@ import { createTileId } from "@/utils/tileIdUtils";
 import { initializeRailroadNetworks } from "@/engine/systems/railroadSystem";
 import { createIndustry } from "@/engine/industry/industryState";
 import { startMarket } from "@/engine/market/market";
+import { TIME_CONFIG } from "@/constants/gameConstants";
 
 const cols = 5;
 const rows = 5;
@@ -271,6 +272,7 @@ export function createTwoNationGame(seed = 1): GameState {
     turn: 1,
     year: 1815,
     seed,
+    turnLimit: TIME_CONFIG.TURN_LIMIT,
     nations,
     cities: [],
     armies: [],

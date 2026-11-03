@@ -20,3 +20,7 @@ export {
   tradeOrdersOf,
   type TradeCapacity,
 } from "./market/market";
+export { scoreOf, scoreTable } from "./score/score";
+export { isGameOver, turnLimitOf } from "./turn/gameOver";
+export type { GameOver, Score } from "@/types/Score";
+export type { TradeCommodity, TradeOrders, WorldMarket } from "@/types/Market";

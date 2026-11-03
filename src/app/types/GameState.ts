@@ -9,6 +9,7 @@ import { GameMap } from "./Map";
 import { TechnologyState } from "./Technology";
 import { Relation, Treaty, TradePolicy, Grant } from "./Diplomacy";
 import type { WorldMarket } from "./Market";
+import type { GameOver } from "./Score";
 
 /**
  * The whole game as the engine sees it. Only game data lives here: which nation the human plays,
@@ -40,6 +41,11 @@ export interface GameState {
 
   /** The world market every nation trades on (FR-060); a hand-built state without one uses the start market. */
   market?: WorldMarket;
+
+  /** The last turn of the game (FR-068); 40 when missing. */
+  turnLimit?: number;
+  /** Set when the last turn has resolved; no order or turn changes the state after it (FR-069). */
+  gameOver?: GameOver;
 
   // industry is now per-nation, see Nation.industry
   technologyState: TechnologyState;

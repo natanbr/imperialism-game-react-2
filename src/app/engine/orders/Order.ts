@@ -200,6 +200,8 @@ export type RejectReason =
   | "insufficient-resources"
   | "insufficient-labour"
   | "limit-reached"
-  | "invalid-amount";
+  | "invalid-amount"
+  /** The last turn has resolved; nothing more can be ordered (FR-069). */
+  | "game-over";
 
 export type ValidationResult = { ok: true } | { ok: false; reason: RejectReason };
