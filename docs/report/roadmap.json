@@ -2,10 +2,10 @@
   "project": "Imperialism Revival",
   "updated": "2026-11-03",
   "target": "v1 playable (M3)",
-  "now": "M3 built and reviewed; PR waiting for your merge",
+  "now": "M3 merged (v1 playable); M3.5 small map and clean look started",
   "source": "docs/REVIVAL_PLAN.md and docs/report/roadmap.json in the imperialism-game-react-2 repo",
   "overview": {
-    "headline": "M3 (money and score, v1 playable) is built, reviewed (verdict: merge, no must-fix) and waits for your merge (PR 14). World market, score in the HUD, game over after 40 turns. Six new decision cards Q10 to Q15.",
+    "headline": "v1 is playable on main: M0 to M3 merged (PR 14 for M3). Now M3.5: rail line fix first, then a small two-island map and a minimalist look. Council of Governors vote recorded for v2 (NR-011).",
     "milestones": [
       {
         "title": "Setup: rules knowledge, light spec flow, progress page",
@@ -37,10 +37,17 @@
       },
       {
         "title": "M3 Money and score: world market, costs, score, game over (v1)",
-        "status": "in-review",
-        "progress": 95,
+        "status": "done",
+        "progress": 100,
         "date": "Nov 2026",
-        "note": "PR 14: 588 tests green, 40-turn two-nation game ends with scores and replays identically, market dialog, HUD score, game-over screen. Opus review: merge, nothing must-fix; 6 can-wait items carried to M4/v2."
+        "note": "PR 14: 588 tests green, 40-turn two-nation game ends with scores and replays identically, market dialog, HUD score, game-over screen. Opus review: merge, nothing must-fix. Merged 2026-11-03."
+      },
+      {
+        "title": "M3.5 Small map and clean look: two islands, faint tiles, icons, rail line fix",
+        "status": "in-progress",
+        "progress": 5,
+        "date": "Nov 2026",
+        "note": "Requested by Nathan 2026-11-03 (NR-007 to NR-010). Rail line fix running first."
       },
       {
         "title": "M4 Second nation driven by a scripted player",
@@ -274,7 +281,7 @@
           {
             "id": "M3",
             "title": "Money and score (v1 playable)",
-            "status": "in-review",
+            "status": "done",
             "blockedBy": [
               "M2"
             ],
@@ -470,9 +477,9 @@
       {
         "id": "Q12",
         "title": "Game length?",
-        "status": "open",
+        "status": "settled",
         "context": "The game ends after 40 turns (Winter 1824). The original ends on a vote of the Council of Governors, which v1 does not have.",
-        "suggestion": "Keep 40 turns for v1.",
+        "suggestion": "Settled 2026-11-03: 40 turns in v1; the Council of Governors vote is recorded as NR-011 for v2.",
         "items": [
           "M3"
         ]
