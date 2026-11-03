@@ -15,7 +15,7 @@ const prospect: Order = { kind: 'moveAndStartProspecting', nationId: N1, workerI
 const moveFarmer: Order = { kind: 'moveWorker', nationId: N1, workerId: W.farmer, toTileId: T.farm1 };
 
 const UI_KEYS = ['activeNationId', 'lastRejection', 'eventLog', 'cameraX', 'cameraY', 'selectedTileId', 'selectedWorkerId',
-  'isWarehouseOpen', 'isCapitalOpen', 'isTransportAllocationOpen', 'isConstructionModalOpen'];
+  'isWarehouseOpen', 'isCapitalOpen', 'isMarketOpen', 'isGameOverHidden', 'isTransportAllocationOpen', 'isConstructionModalOpen'];
 
 describe('FR-018 the store holds one GameState plus UI state', () => {
   it('keeps the game under `game` and the UI state beside it, never mixed', () => {
@@ -224,5 +224,36 @@ describe('FR-055 opening the capital clears a stale refusal', () => {
     store.getState().submitOrder(prospect);
 
     expect(store.getState().lastRejection).toEqual({ order: prospect, reason: 'insufficient-funds' });
+  });
+});
+
+describe('FR-077 advanceTurn does nothing after game over', () => {
+  it('the turn that ends the game is logged; a further advanceTurn changes nothing and logs nothing', () => {
+    const store = createGameStore({ game: { ...game(), turnLimit: 1 } });
+    store.getState().advanceTurn();
+    const over = store.getState().game;
+    expect(over.gameOver).toBeDefined();
+    expect(store.getState().eventLog).toHaveLength(1);
+    expect(store.getState().eventLog[0].events.map(e => e.type)).toContain('game-over');
+
+    store.getState().advanceTurn();
+    store.getState().advanceTurn();
+
+    expect(store.getState().game).toBe(over);
+    expect(store.getState().eventLog).toHaveLength(1);
+  });
+
+  it('keeps the last refusal and the event log as they were', () => {
+    const store = createGameStore({ game: { ...game(), turnLimit: 1 } });
+    store.getState().advanceTurn();
+    store.getState().submitOrder(moveFarmer);
+    const rejection = store.getState().lastRejection;
+    expect(rejection).toEqual({ order: moveFarmer, reason: 'game-over' });
+    const log = store.getState().eventLog;
+
+    store.getState().advanceTurn();
+
+    expect(store.getState().eventLog).toBe(log);
+    expect(store.getState().lastRejection).toBe(rejection);
   });
 });

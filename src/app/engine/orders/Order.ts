@@ -1,6 +1,7 @@
 import type { NationId, TileId } from "@/types/Common";
 import type { ConstructionKind } from "@/types/jobs/ConstructionJob";
 import type { BuildingType, ProductionOutput, WorkerGrade } from "@/types/Industry";
+import type { TradeCommodity } from "@/types/Market";
 
 /**
  * Everything a player (human UI or AI) can do is an Order. Each order names its nation and the
@@ -123,6 +124,26 @@ export interface RecruitWorkersOrder extends OrderBase {
   delta: number;
 }
 
+/**
+ * Set this turn's world-market offer of a commodity to `amount` units: they leave the warehouse
+ * now and are paid in the trade phase; a lower amount gives the difference back (FR-061).
+ */
+export interface SellCommodityOrder extends OrderBase {
+  kind: "sellCommodity";
+  commodity: TradeCommodity;
+  amount: number;
+}
+
+/**
+ * Set this turn's world-market bid for a commodity to `amount` units, paid now at the world price;
+ * they reach the warehouse at the end of the turn. A lower amount is refunded (FR-062).
+ */
+export interface BuyCommodityOrder extends OrderBase {
+  kind: "buyCommodity";
+  commodity: TradeCommodity;
+  amount: number;
+}
+
 export type Order =
   | MoveWorkerOrder
   | MoveAndBuildRailOrder
@@ -138,7 +159,9 @@ export type Order =
   | SetProductionOrder
   | ExpandBuildingOrder
   | TrainWorkersOrder
-  | RecruitWorkersOrder;
+  | RecruitWorkersOrder
+  | SellCommodityOrder
+  | BuyCommodityOrder;
 
 export type OrderKind = Order["kind"];
 
@@ -158,6 +181,8 @@ export const ORDER_KINDS = [
   "expandBuilding",
   "trainWorkers",
   "recruitWorkers",
+  "sellCommodity",
+  "buyCommodity",
 ] as const satisfies readonly OrderKind[];
 
 /** Why an order was refused. A fixed list so UIs and AI players can switch on it (FR-004). */
@@ -175,6 +200,8 @@ export type RejectReason =
   | "insufficient-resources"
   | "insufficient-labour"
   | "limit-reached"
-  | "invalid-amount";
+  | "invalid-amount"
+  /** The last turn has resolved; nothing more can be ordered (FR-069). */
+  | "game-over";
 
 export type ValidationResult = { ok: true } | { ok: false; reason: RejectReason };

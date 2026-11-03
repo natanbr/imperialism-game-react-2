@@ -18,12 +18,14 @@ export const TILE_CONFIG = {
 } as const;
 
 /**
- * Time configuration: a random world starts in Spring 1815, one turn per season (FR-027).
+ * Time configuration: a random world starts in Spring 1815, one turn per season (FR-027). A v1
+ * game lasts TURN_LIMIT turns, to Winter 1824 (FR-068; decision Q12, the original runs to 1915).
  */
 export const TIME_CONFIG = {
   TURNS_PER_YEAR: 4,
   STARTING_YEAR: 1815,
   STARTING_TURN: 1,
+  TURN_LIMIT: 40,
 } as const;
 
 /**

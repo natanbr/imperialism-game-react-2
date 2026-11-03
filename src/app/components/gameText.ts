@@ -21,6 +21,8 @@ const ORDER_TEXT: Record<OrderKind, string> = {
   expandBuilding: "Expansion",
   trainWorkers: "Training",
   recruitWorkers: "Migration",
+  sellCommodity: "Sale",
+  buyCommodity: "Purchase",
 };
 
 export const REFUSAL_TEXT: Record<RejectReason, string> = {
@@ -38,6 +40,7 @@ export const REFUSAL_TEXT: Record<RejectReason, string> = {
   "insufficient-labour": "not enough free labour",
   "limit-reached": "over the limit",
   "invalid-amount": "invalid amount",
+  "game-over": "the game is over",
 };
 
 export function refusalText({ order, reason }: { order: Order; reason: RejectReason }): string {
@@ -45,6 +48,8 @@ export function refusalText({ order, reason }: { order: Order; reason: RejectRea
 }
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+/** Dollars with thousands separators: "$1,800". */
+export const money = (n: number) => `$${n.toLocaleString("en-US")}`;
 
 export const BUILDING_TEXT: Record<BuildingType, string> = {
   textileMill: "Textile mill",
@@ -145,8 +150,14 @@ export function eventText(event: GameEvent): string | null {
       return foodNews(event.sick, event.starved);
     case "workers-recruited":
       return `${event.count} migrant${event.count === 1 ? "" : "s"} joined the workforce.`;
+    case "goods-sold":
+      return `Sold ${event.amount} ${commodityName(event.commodity)} for ${money(event.income)}.`;
+    case "goods-bought":
+      return `Bought ${event.amount} ${commodityName(event.commodity)} for ${money(event.cost)}.`;
     case "turn-ended":
       return null;
+    case "game-over":
+      return `Game over at the end of ${dateText(event.turn, event.year)}.`;
   }
 }
 

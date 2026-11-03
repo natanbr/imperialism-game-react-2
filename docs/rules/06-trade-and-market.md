@@ -130,7 +130,7 @@ Relations and colonisation are in 07.
 
 - CODE MISMATCH: `constants/gameConstants.ts` `RESOURCE_VALUES` (grain 10, livestock 20, fish 15, fruit 12, timber 25, cotton 30, wool 35, horses 40, coal 40, iron 50, gold 100, gems 1000, oil 75). Observed market: raw resources about $100, horses $300, materials about $300, goods about $900. Gold/gems are not market goods at all: $200 and $500 cash per unit transported.
 - CODE MISMATCH: `types/TradeRoute.ts` models fixed city-to-city routes with capacity. The rules have no routes: only global bids/offers matched through ranked preference lists plus merchant holds.
-- CODE MISMATCH: `Nation.merchantMarine {holds, avgSpeed}` is right in shape; `tradeSystem` is a stub, no bids/offers, no price model, no Board of Trade order, no 4-bid limit.
+- PARTLY RESOLVED in M3 (FR-060 to FR-065), was: `tradeSystem` is a stub, no bids/offers, no price model, no 4-bid limit. Now: one world market (the world as an unlimited buyer and seller at a drifting price), sell offers and up to 4 buy bids a turn, one hold per unit, no raw food, gold or gems, bought units usable next turn. Still missing: Minor Nations, matching through ranked bidder lists, the Board of Trade order, persistent orders (decision Q15), subsidies. `Nation.merchantMarine {holds, avgSpeed}` is right in shape.
 - `Nation.creditLimit` / `debt` exist but have no rules behind them (limit grows with income, forced sale beyond limit).
 - `types/Diplomacy.ts` `TradePolicy.subsidyPercent` should be limited to 5/10/25/50/100; boycott as a separate flag is right.
 

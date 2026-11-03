@@ -99,7 +99,7 @@ Weights of the three strengths, the exact governor decision rule and the nominee
 - RESOLVED in M2 (FR-027), was: `constants/gameConstants.ts` `TIME_CONFIG.STARTING_YEAR = 1900`; random worlds start Spring 1815. `TURNS_PER_YEAR = 4` is right.
 - `types/GameState.ts` `TurnOrderSummary` has six phases (diplomacy, trade, production, combat, interceptions, logistics), matching the manual. `systems/runTurnPhases.ts` runs 8 (development, diplomacy, trade, production, combat, interceptions, transport connectivity, logistics); the two extra phases are internal and acceptable, but the manual puts transport arrival last.
 - `GameState.difficulty` names match; no effect of difficulty exists in code.
-- No Council or score in code. Calendar seasons, cash start ($10,000) and start population: RESOLVED in M2 (FR-027, FR-043).
+- No Council in code. Calendar seasons, cash start ($10,000) and start population: RESOLVED in M2 (FR-027, FR-043). Score: the project score of section 5 is in M3 (FR-067; weights are decision Q11), with game over after 40 turns, Winter 1824 (FR-068; decision Q12).
 
 ## Sources
 

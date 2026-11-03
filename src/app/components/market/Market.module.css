@@ -1,0 +1,161 @@
+/* The market dialog and the game-over screen (tokens in styles/tokens.css). */
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--color-bg-backdrop);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 75;
+}
+
+.dialog {
+  width: 720px;
+  max-width: calc(100vw - 32px);
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  border-radius: var(--radius-md);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  padding: var(--spacing-lg);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: var(--spacing-md);
+}
+
+.header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.closeButton,
+.stepButton,
+.primaryButton {
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-button);
+  cursor: pointer;
+}
+
+.closeButton {
+  border: none;
+  padding: 6px 10px;
+}
+
+.closeButton:hover,
+.stepButton:hover:not(:disabled),
+.primaryButton:hover {
+  background: var(--color-bg-button-hover);
+}
+
+.stepButton {
+  width: 26px;
+  height: 26px;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.stepButton:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.primaryButton {
+  padding: 8px 14px;
+  background: var(--color-bg-accent);
+  border-color: var(--color-bg-accent);
+}
+
+.primaryButton:hover {
+  background: var(--color-bg-accent-hover);
+}
+
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  margin-bottom: var(--spacing-md);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.summary strong {
+  color: var(--color-text-primary);
+}
+
+.refusal {
+  padding: 8px 12px;
+  margin-bottom: var(--spacing-md);
+  background: #3b1a1a;
+  color: var(--color-text-danger);
+  border: 1px solid #5a2a2a;
+  border-radius: var(--radius-sm);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.table th {
+  text-align: left;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--color-border-strong);
+}
+
+.table td {
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.number {
+  text-align: right;
+}
+
+.table th.number {
+  text-align: right;
+}
+
+.amount {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.amountValue {
+  min-width: 22px;
+  text-align: center;
+  font-weight: 700;
+}
+
+.active {
+  color: var(--color-text-good);
+}
+
+.you {
+  background: rgba(25, 118, 210, 0.18);
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--spacing-lg);
+}
+
+.note {
+  margin: 0 0 var(--spacing-md);
+  color: var(--color-text-muted);
+}
