@@ -15,6 +15,18 @@
   Ten objections in the part B entry; read the first two (click fallback, job flags) first.
 - Next: the M1 review (Opus 5.5 high) over `1b79ff3..HEAD` and the orchestrator's app check,
   then the PR.
+- M1 review fix round done 2026-11-03 (entry at the end): FR-026 own-key checks, lint guard for
+  `new Date()`, `performance.now()` and `crypto`, a replay test that draws from the RNG.
+  `npx vitest run` 280 green.
+
+Carried forward:
+- M2: rail, depot and fort site validation, and a refund on cancel.
+- M2: `completed` and `completedOnTurn` stay in GameState.
+- M2: `industrySlice` becomes an engine system.
+- M2: `engine/newGame.ts` imports the `@/testing/worldInit` fixture.
+- M4: add an order log in the store and queue UI orders into `resolveTurn`, so human and AI
+  orders resolve together and a played game can be replayed.
+- UI: the selected tile and owned tiles are both drawn red.
 
 ## 2026-11-02 Revival setup
 
@@ -259,3 +271,47 @@ Decisions taken alone (safest default), each open to review:
 How to see it in the app: `npm run dev`, click the farmer on the capital (20-20), then the farm
 east of it (21-20): the farmer moves and works, cash drops to 500. Press Advance Turn: the HUD
 shows "News, turn 1 (1900)". Select any tile to see the game's seed in the debug box.
+
+## 2026-11-03 M1 review fix round
+
+Size: S (review fixes). Night shift, one agent (Opus 5.5), no subagents, no advisor calls.
+Detached checkout of `origin/claude/m1-headless-core` at 25e61d3. `npm ci` ran clean.
+
+Fixes:
+- FR-026 (new): `validate.ts` checks `Object.hasOwn(CONSTRUCTION_COST, structure)` instead of
+  `structure in CONSTRUCTION_COST`; `logisticsSystem.ts` checks `Object.hasOwn(newWarehouse, key)`.
+  The warehouse key comes from data: the collected resources come from the map's tiles and the
+  plan from the `setTransportAllocations` order, both untrusted JSON in a replay log. Before, a
+  key such as `toString` wrote a string into the warehouse.
+- Lint guard (FR-002): `new Date()` with no argument (`no-restricted-syntax`), `performance.now()`
+  (`no-restricted-properties`, next to `Date.now`, because it also catches
+  `const { now } = performance`) and the `crypto` global (`no-restricted-globals`).
+  `new Date(x)` with an argument stays allowed; it does not read the clock.
+- Replay test that draws from the RNG (`tests/engine/determinism.test.ts`): three turns from a
+  blind prospect built directly; seed 3 twice gives deep-equal states, seed 4 finds another
+  mineral.
+- Objection: no order can reach the random draw today (validate refuses prospecting a tile with
+  no resource), so the test builds the state directly; fix in M2.
+
+Red summaries (tests written and run before the code):
+- FR-026: `Test Files 2 failed (2)` / `Tests 5 failed | 85 passed (90)`; for `toString`
+  `expected { ok: true } to deeply equal { ok: false, reason: 'invalid-target' }`.
+- Lint guard: `Test Files 1 failed (1)` / `Tests 4 failed | 11 passed (15)`.
+- RNG replay test: passed at once (the behaviour already works). With `createTurnRng` changed
+  for one run to ignore the seed: `Tests 1 failed | 3 passed (4)`,
+  `AssertionError: expected 'ironOre' not to be 'ironOre'`. Reverted; `git status` showed
+  `rng.ts` unchanged.
+
+Evidence:
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| FR-026 rows and the warehouse test | `npx vitest run tests/engine/validate.test.ts tests/engine/systems/logisticsSystem.test.ts` | `Test Files 2 passed (2)` / `Tests 90 passed (90)` |
+| Lint probes | `npx vitest run tests/engine/lintGuard.test.ts` | `Test Files 1 passed (1)` / `Tests 15 passed (15)` |
+| RNG replay test | `npx vitest run tests/engine/determinism.test.ts` | `Tests 4 passed (4)` |
+| All unit tests | `npx vitest run` | `Test Files 22 passed (22)` / `Tests 280 passed (280)` (270 + 10 new) |
+| Lint | `npm run lint` | `✖ 4 problems (0 errors, 4 warnings)` (the same 4 older warnings) |
+| Types | `npx tsc --noEmit` | exit 0, no output |
+| Build | `npm run build` | `✓ Compiled successfully in 1970ms`, `✓ Generating static pages (4/4)` |
+
+Commits: b425ee9 (FR-026), 15bdc6e (lint guard), 736365a (RNG replay test), this commit (journal).
