@@ -27,17 +27,20 @@ DOM globals, `Math.random` or `Date.now`. An ESLint rule enforces this for `src/
 src/app/
   engine/                  the headless core (no UI imports)
     index.ts               public API: Order types, validateOrder, applyOrder, tryApplyOrder,
-                           resolveTurn, newGame, scriptedPlayer, GameEvent, seasonOf, labourOf
-    newGame.ts             the start state: Spring 1815, startWorld(), rail networks built
+                           resolveTurn, newGame, scriptedPlayer, GameEvent, seasonOf, labourOf,
+                           migrantCap, foodForecast
+    newGame.ts             the start state: Spring 1815, startWorld(), START_TECHNOLOGIES, rail
+                           networks built
     calendar.ts            seasons; the year advances after winter
     rng.ts                 seeded RNG: createTurnRng(seed, turn)
     orders/                Order.ts (union + RejectReason), validate.ts, apply.ts,
                            industryOrders.ts (production, expansion, cars, training, migration),
                            queries.ts (read-only lookups and construction-site rules)
     industry/              labour.ts (labourOf: total, committed, free), industryState.ts
-                           (createIndustry, buildingOf, migrantCap)
+                           (createIndustry, buildingOf, migrantCap), foodForecast.ts (the meal
+                           this turn would serve)
     world/                 defaultMap.ts (the 40x40 map), startWorld.ts (start nation, land,
-                           civilians)
+                           civilians, START_TECHNOLOGIES)
     turn/                  resolveTurn.ts, phases.ts (TURN_PHASES), context.ts (TurnContext, GameEvent)
     systems/               one file per turn system, each (state, ctx) => state
     map/mapHelpers.ts      neighbours, adjacency, rail sites
@@ -47,7 +50,10 @@ src/app/
     gameSlice.ts           game, activeNationId, lastRejection, eventLog, submitOrder, advanceTurn
     controls/              UI slices: tile selection, camera, overlays, dialogs
     selectors.ts           memoized selectors (reselect)
-  components/              React components; gameText.ts (display text), railSegments.ts (map overlay)
+  components/              React components; gameText.ts (display text: orders, refusals, news,
+                           commodity names, the date, the food warning), railSegments.ts (map overlay)
+    capital/               the capital dialog's parts: capitalView.ts (what it shows, no React),
+                           ProductionCard, LabourPanel, FreightCars, Capital.module.css
   hooks/                   React hooks; tileClickOrders.ts (what a tile click asks for, no React)
   workers/                 per worker type, the action it offers on a tile (map cursor and click)
   types/                   GameState, Tile, Worker, Nation, Industry, jobs, ...
@@ -59,9 +65,12 @@ src/app/
 tests/
   engine/                  orders, turn, systems, determinism, two nations (npm run test:engine)
   store/                   the store: shape, submitOrder, advanceTurn, what reaches the engine
-  ui/                      click policy, display text, the "UI only submits orders" scan
+  ui/                      click policy, display text, the "UI only submits orders" scan, and
+                           component tests (*.test.tsx, jsdom + Testing Library): capital dialog
+                           order dispatch, warehouse dialog, HUD
   workers/                 the miner's possible actions and job starts
-e2e/                       Playwright smoke suite (cursor icons, three turns played)
+e2e/                       Playwright smoke suite (cursor icons, three turns played, canned food
+                           ordered in the capital; SCREENSHOT_DIR saves the M2 screenshots)
 ```
 
 ## Game state and UI state
@@ -214,13 +223,27 @@ training) and what the standing orders and this turn's cars commit.
   migrant and expansion costs) and `definisions/industryBuildings.ts` (buildings, order, capacity
   steps).
 
+- `foodForecast(state, nationId)` (FR-049) runs the turn's phases on the current state with no
+  further orders and reads the meal: `{ mouths, fed, sick, starved, short }`. The HUD's food
+  warning reads it through `selectFoodForecast` (memoized on `game`).
+- Start technologies (FR-051, decision Q8 default): a new game holds Compound Steam Engine, Iron
+  Railroad Bridge and Dynamite (`START_TECHNOLOGIES` in `world/startWorld.ts`), so rail and depots
+  reach hills, swamp and mountains. The technology state is shared by all nations in v1. The test
+  fixtures start with no technology, so the FR-030 site rules keep their tests.
+
 ## Components
 
-`page.tsx` renders `MapView`, `HUD` and the modals. A tile is `components/Tile.tsx` plus
+`page.tsx` renders `MapView`, `HUD` and the modals. The capital dialog (`CapitalModal.tsx`)
+renders views from `capital/capitalView.ts`: a production card per built building (inputs with
+stock, the standing order and the most `validateOrder` accepts, Expand), the labour panel (labour,
+grades, sick, trainees, Trade School, Capitol) and the freight cars; each button sends one order,
+and `lastRejection` shows as an alert in the dialog. Dialog styles are CSS modules
+(`capital/Capital.module.css`, `WarehouseModal.module.css`) on the tokens in `styles/tokens.css`.
+The warehouse dialog lists every commodity by display name in three groups (`COMMODITY_GROUPS`). A tile is `components/Tile.tsx` plus
 sub-components in `components/Tile/` and three hooks: `useTileActions` (which action the
 selected worker offers, from `workers/*`), `useTileVisuals` (colours and the cursor) and
-`useTileClickHandler` (the click, as orders). The HUD shows turn, cash, the selected tile, the
-news of the last turn and the last refused order (`components/HUD/NewsPanel.tsx`). Edge scroll
+`useTileClickHandler` (the click, as orders). The HUD shows turn and date ("Spring 1815"), cash, the
+food warning, the selected tile, the news of the last turn and the last refused order (`components/HUD/NewsPanel.tsx`). Edge scroll
 (`hooks/useEdgeScroll.ts`) moves the camera near the window edges; over the HUD only the right
 edge scrolls.
 

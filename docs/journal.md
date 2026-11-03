@@ -12,12 +12,15 @@
   steel + labour, Spring 1815 calendar, real durations and costs, site rules, same-turn refunds,
   finished jobs leave the tile, the engine owns the start world. FR-027 to FR-045 tested,
   `npx vitest run` 414 green, Playwright 7 passed 1 skipped on port 3127.
-- Next: M2 part B (UI, same branch, entry "M2 part A", section "Part B must do"), then one M2
-  review (Opus 5.5 high: engine-wide change) over `3cef865..HEAD`, then the PRs (M1 first).
-  Read the M2 part A objections first: food rounding and who goes hungry, rail tech gates.
+- M2 part B (UI) done 2026-11-03 on the same branch, pushed, no PR: capital dialog rebuilt
+  (production cards, Expand, labour panel, Trade School, Capitol, freight cars, refusals), HUD
+  date and food warning (`foodForecast`), display names, warehouse groups, start technologies
+  (decision Q8 default), fruit next to every capital. FR-046 to FR-053 tested, 458 unit tests,
+  Playwright 8 passed 1 skipped on port 3131. Screenshots `docs/journal/m2-capital.png`, `m2-warehouse.png`.
+- Next: one M2 review (Opus 5.5 high: engine-wide change) over `3cef865..HEAD`, then the PRs
+  (M1 first). Read the objections of M2 part A and part B first.
 
 Carried forward:
-- M2 part B: UI for production, buildings, labour, food, training, migration (list in the entry).
 - M3 or later: river ports and the depot-on-port rule (rules 04 CODE MISMATCH, logic, not data);
   world prices (06); University fees; the power plant.
 - M4: an order log in the store, UI orders queued into `resolveTurn` (replay of a played game).
@@ -170,3 +173,94 @@ against this checkout): `npm run dev`; the HUD starts at cash 10000 and year 181
 dialog shows "Labour (free / total): 12 / 12" and the freight-car slider (each car takes 1
 lumber, 1 steel and 2 free labour, so at most 6 at the start). The news shows a food line only
 when workers fall sick or starve. Production has no UI yet (part B).
+
+## 2026-11-03 M2 part B: the economy in the UI
+
+Size: L (milestone part). Night shift, one agent (Opus 5.5), no subagents, no advisor calls.
+Detached on `origin/claude/m2-economic-loop` 33940df, pushed to that branch. `npm ci` clean.
+Ultracode was not on for this session; it ran as one agent (build, tests, gate), no separate
+review agent: the M2 review covers it.
+
+Plan-lite:
+- Change: capital dialog rebuilt as `CapitalModal` + `components/capital/` (view model, production
+  card, labour panel, freight cars, CSS module; `IndustryCard` deleted); HUD date and food warning;
+  commodity display names in news and the warehouse; `foodForecast` engine query; start
+  technologies (Q8 default); an orchard next to every capital; the scripted player ships food first.
+- Consumers: the player through the dialogs and HUD; the store selector `selectFoodForecast`;
+  AI players through `foodForecast` and the same orders.
+- Test rows: FR-046, FR-047 `tests/ui/capitalDialog.test.tsx` (every button's exact order, the
+  state after it, refusals, no inline styles); FR-048, FR-050 `gameText`, `warehouseAndHud`;
+  FR-049 `foodForecast` (forecast equals the meal resolveTurn serves, six worlds), `gameText`,
+  `warehouseAndHud`; FR-051 `newGame`; FR-052 `twoNations`, `newGame`; FR-053 `e2e/play-turns`.
+- Verify: `npx vitest run`, `npm run lint`, `npx tsc --noEmit`, `npm run build`,
+  `PORT=3131 SCREENSHOT_DIR=docs/journal npx playwright test --reporter=list`.
+- Objection: `foodForecast` runs the whole turn's phases on a copy to read one number. It is exact
+  and has no second copy of the rules, but it costs a full turn per game change in the HUD
+  (memoized on `game`, a few ms on 40x40) and will grow with combat and trade.
+
+Red summaries (tests written and run before the code):
+- All new rows: `Test Files 5 failed | 26 passed (31)` / `Tests 39 failed | 414 passed (453)`;
+  `TypeError: (0 , foodForecast) is not a function` (5), `(0 , dateText) is not a function`,
+  `(0 , commodityName) is not a function`, `(0 , foodWarningText) is not a function`,
+  `expected 'Produced 2 cannedFood.' to be 'Produced 2 Canned Food.'`,
+  `Unable to find an element by: [data-testid="building-steelMill"]` (and labour-panel,
+  freight-cars), `ENOENT ... scandir '...src\app\components\capital'`,
+  `expected { id: 'compoundSteamEngine', …(1) } to deeply equal { Object (id, has) }`, and
+  `expected 10 to be greater than 10` (the new game's fruit: the second "orchard" of the default
+  map was under the river, so only one orchard fed the capital).
+- FR-052 on the old fixture: `"sick": 2` at turn 10 (expected 0). With the orchard alone and the
+  old scripted player it was still `"sick": 2` from turn 5: the greedy transport fill crowded the
+  fruit out, so the scripted player now ships its workers' fruit and meat first (`mealNeeds`).
+- Two older tests needed the orchard out of the way, not changed in meaning: FR-030 hills now set
+  hills on that tile in the case setup; FR-044 removes the orchard's fruit as it removes the
+  plains' grain.
+
+Green summary: `npx vitest run` `Test Files 31 passed (31)` / `Tests 458 passed (458)` (+44).
+
+Evidence:
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| Baseline at part A | `npx vitest run` | `Test Files 28 passed (28)` / `Tests 414 passed (414)` |
+| FR-046, FR-047 capital dialog dispatch | `npx vitest run tests/ui/capitalDialog.test.tsx` | part of `tests/ui` `Tests 64 passed (64)`; 13 rows, each asserts the exact order sent and the game after it |
+| FR-048 to FR-050 HUD, warehouse, names | `npx vitest run tests/ui` | `Test Files 5 passed (5)` / `Tests 64 passed (64)` |
+| FR-049 food forecast | `npx vitest run tests/engine` | `Test Files 23 passed (23)` / `Tests 360 passed (360)` |
+| FR-051, FR-052 start world, food balanced | same | included above (`newGame`, `twoNations`) |
+| All unit tests | `npx vitest run` | `Test Files 31 passed (31)` / `Tests 458 passed (458)` |
+| Lint | `npm run lint` | `✖ 3 problems (0 errors, 3 warnings)` (the same three as part A) |
+| Types | `npx tsc --noEmit` | exit 0, no output |
+| Build | `npm run build` | `✓ Compiled successfully in 4.6s`, `✓ Generating static pages (4/4)` |
+| FR-053 and the smoke suite | `PORT=3131 SCREENSHOT_DIR=docs/journal npx playwright test --reporter=list` (3131 free) | `1 skipped` / `8 passed (29.5s)`, including `FR-053 order canned food in the capital, end turns until it is made, see it in the warehouse (7.0s)` |
+| Screenshots | the same run | `docs/journal/m2-capital.png` (production cards, canned food 2 of 12), `docs/journal/m2-warehouse.png` (Canned Food 12, Summer 1815, "Produced 2 Canned Food.") |
+
+Decisions taken alone (safest default), each open to review:
+- Objection: decision Q8 default applied. A new game holds Compound Steam Engine, Iron Railroad
+  Bridge and Dynamite as purchased (`START_TECHNOLOGIES`, start-state data; FR-051
+  `[NEEDS CLARIFICATION]`). The technology state is one per game in v1, not per nation, so "each
+  nation" is every nation of the game. The test fixtures keep no technology, so FR-030 still
+  tests the gates.
+- Objection: Testing Library and jsdom are new dev dependencies (`@testing-library/react`,
+  `@testing-library/dom`, `jsdom`), so the dialog tests click real buttons. Component tests are
+  `*.test.tsx` with a `@vitest-environment jsdom` line; Vitest skips the app's Tailwind PostCSS.
+- Objection: the scripted player now ships fruit and meat before grain. Without it the fixture
+  orchard's fruit lost the greedy transport fill from turn 5 on. This changes the headless
+  games (FR-015, FR-045, FR-052 all green on the new runs).
+- Objection: the fixture's fertile hills next to each capital became an orchard (fruit level 1),
+  and every fixture orchard is now level 1. The default map's second capital orchard moved from
+  under the river (it never existed on screen) to the south-west neighbour (19-21, was coast).
+- Objection: the new game still has no livestock next to the capital: the meat eater lives on the
+  start stock (10) and then on canned food; the food warning shows when that runs out. Kept, since
+  it is the player's job to develop a ranch; say if v1 should start balanced on meat too.
+- Objection: amount controls are − and + buttons, one batch per click, with "order of max" (max
+  probed with `validateOrder`), not sliders: one click is one order and one refusal. A slider can
+  come back later on top of the same view.
+- Objection: news names a found resource in lower case ("Prospectors found iron ore") and a
+  product in title case ("Produced 2 Canned Food."), as asked; both come from `COMMODITY_TEXT`.
+- Objection: commits were split by topic after the gate passed on the whole tree; the
+  intermediate commits were not gated one by one.
+
+How to see it in the app: `npm run dev`; the HUD shows "Turn: 1" and "Spring 1815". Open Capital:
+seven production cards (steel, lumber, textile, food processing, metal works, furniture,
+clothing), each with inputs, "0 of N" and − / +, and Expand; the Labour panel and Transport on
+the right. Press + on Canned Food (2 of 12), close, Advance Turn: the news says "Produced 2 Canned
+Food." and the warehouse shows Canned Food 12 under Materials, Summer 1815 in the HUD.
