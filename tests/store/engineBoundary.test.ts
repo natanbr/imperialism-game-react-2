@@ -53,3 +53,15 @@ describe('the store passes only the GameState to the engine', () => {
     for (const key of STORE_ONLY_KEYS) expect(state).not.toHaveProperty(key);
   });
 });
+
+describe('FR-077 the store does not resolve a turn after game over', () => {
+  it('advanceTurn after the last turn never calls resolveTurn', () => {
+    const store = createGameStore({ game: { ...game(), turnLimit: 1 } });
+    store.getState().advanceTurn();
+    expect(resolveTurn).toHaveBeenCalledTimes(1);
+
+    store.getState().advanceTurn();
+
+    expect(resolveTurn).toHaveBeenCalledTimes(1);
+  });
+});

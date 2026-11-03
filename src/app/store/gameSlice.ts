@@ -1,5 +1,6 @@
 import { StateCreator } from "zustand";
 import {
+  isGameOver,
   newGame,
   resolveTurn,
   tryApplyOrder,
@@ -43,7 +44,7 @@ export interface GameSlice {
 
   /** Validates the order against `game` and, if valid, applies it now (FR-020). */
   submitOrder: (order: Order) => ValidationResult;
-  /** Resolves the turn: `resolveTurn(game, {}, game.seed)`, then logs its events (FR-021). */
+  /** Resolves the turn: `resolveTurn(game, {}, game.seed)`, then logs its events (FR-021); nothing after game over (FR-077). */
   advanceTurn: () => void;
 }
 
@@ -82,6 +83,8 @@ export const createGameSlice =
       // Orders were applied when submitted, so the turn resolves with none (ARCHITECTURE.md, turn flow).
       advanceTurn: () => {
         const { game: current, eventLog } = get();
+        // After the end resolveTurn is a no-op that would still log an empty turn (FR-077).
+        if (isGameOver(current)) return;
         const { state, events } = resolveTurn(current, {}, current.seed);
         const report: TurnReport = { turn: current.turn, year: current.year, events };
         set({ game: state, eventLog: [...eventLog, report].slice(-EVENT_LOG_TURNS), lastRejection: null });
