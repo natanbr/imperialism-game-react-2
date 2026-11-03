@@ -54,6 +54,8 @@ src/app/
                            commodity names, the date, the food warning), railSegments.ts (map overlay)
     capital/               the capital dialog's parts: capitalView.ts (what it shows, no React),
                            ProductionCard, LabourPanel, FreightCars, Capital.module.css
+    market/                the market dialog's view (marketView.ts, no React) and the CSS module
+                           shared by MarketModal and GameOverModal
   hooks/                   React hooks; tileClickOrders.ts (what a tile click asks for, no React)
   workers/                 per worker type, the action it offers on a tile (map cursor and click)
   types/                   GameState, Tile, Worker, Nation, Industry, jobs, ...
@@ -67,10 +69,12 @@ tests/
   store/                   the store: shape, submitOrder, advanceTurn, what reaches the engine
   ui/                      click policy, display text, the "UI only submits orders" scan, and
                            component tests (*.test.tsx, jsdom + Testing Library): capital dialog
-                           order dispatch, warehouse dialog, HUD
+                           order dispatch, warehouse dialog, HUD, market dialog, score and
+                           game-over screen
   workers/                 the miner's possible actions and job starts
 e2e/                       Playwright smoke suite (cursor icons, three turns played, canned food
-                           ordered in the capital; SCREENSHOT_DIR saves the M2 screenshots)
+                           ordered in the capital, a sale on the market, 40 turns to game over;
+                           SCREENSHOT_DIR saves the M2 and M3 screenshots)
 ```
 
 ## Game state and UI state
@@ -268,10 +272,17 @@ stock, the standing order and the most `validateOrder` accepts, Expand), the lab
 grades, sick, trainees, Trade School, Capitol) and the freight cars; each button sends one order,
 and `lastRejection` shows as an alert in the dialog. Dialog styles are CSS modules
 (`capital/Capital.module.css`, `WarehouseModal.module.css`) on the tokens in `styles/tokens.css`.
-The warehouse dialog lists every commodity by display name in three groups (`COMMODITY_GROUPS`). A tile is `components/Tile.tsx` plus
+The warehouse dialog lists every commodity by display name in three groups (`COMMODITY_GROUPS`).
+The market dialog (`MarketModal.tsx`, opened from the HUD or the capital's Trade button) renders
+`market/marketView.ts`: per tradeable commodity its price, stock, offer and bid with "− n +"
+buttons that send `sellCommodity` / `buyCommodity` with this turn's new total, plus cash, cargo
+holds and buy bids; refusals show as in the capital. The game-over screen (`GameOverModal.tsx`)
+shows `state.gameOver.scores` whenever the game is over, unless the player closed it
+(`isGameOverHidden`, reopened by the HUD's "Final scores"). After game over the HUD's Advance
+Turn is disabled and the store's `advanceTurn` returns at once, so no empty turn is logged. A tile is `components/Tile.tsx` plus
 sub-components in `components/Tile/` and three hooks: `useTileActions` (which action the
 selected worker offers, from `workers/*`), `useTileVisuals` (colours and the cursor) and
-`useTileClickHandler` (the click, as orders). The HUD shows turn and date ("Spring 1815"), cash, the
+`useTileClickHandler` (the click, as orders). The HUD shows "Turn: N of 40" and the date ("Spring 1815"), cash, the score, the
 food warning, the selected tile, the news of the last turn and the last refused order (`components/HUD/NewsPanel.tsx`). Edge scroll
 (`hooks/useEdgeScroll.ts`) moves the camera near the window edges; over the HUD only the right
 edge scrolls.

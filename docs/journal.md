@@ -8,8 +8,12 @@
   `docs/journal/archive-M1.md` and `docs/journal/archive-M2.md`.
 - M3 part A (engine) done 2026-11-03 on `claude/m3-money-and-score` from `origin/main` 1b0923f,
   pushed, no PR: world market (sell, buy, cargo holds, drifting prices), score, game over after 40
-  turns, scripted player trades. FR-060 to FR-072 tested, `npx vitest run` 559 green. Not run:
-  Playwright, review. Next: part B (UI: market dialog, HUD score, game-over screen; list below).
+  turns, scripted player trades. FR-060 to FR-072 tested, `npx vitest run` 559 green.
+- M3 part B (UI) done 2026-11-03 on the same branch, pushed, no PR: market dialog (HUD "Open Market"
+  and the capital's Trade button), HUD score and "Turn: N of 40", game-over screen, store ignores
+  End Turn after the end. FR-073 to FR-078 tested; 588 unit tests; Playwright 10 passed, 1 skipped
+  with `--workers=1` (the default 6 workers time out on this loaded machine, see the entry).
+  Next: the M3 review (Sonnet xhigh), then the PR. Not built: Q15 (c) "repeat last turn's trades".
 - Open decisions: Q9 (freight-car timing, from M2) and Q10 to Q15 (M3, below); each runs on its default.
 
 Carried forward:
@@ -220,3 +224,66 @@ Engine API (all from `@/engine` unless noted):
   active nation, maybe "turn N of 40"); a game-over screen from `state.gameOver` (ranked scores
   with their three parts), with End Turn disabled after the end (the store's `advanceTurn` would
   otherwise log an empty report).
+
+## 2026-11-03 M3 part B: market dialog, HUD score, game-over screen
+
+Size: L (milestone part). Unattended, one agent (Opus 5.5), no subagents, no advisor calls.
+Branch `claude/m3-money-and-score` at part A's head ddfa2cd; `npm ci` clean. Ultracode was not on.
+
+Plan-lite:
+- Change: a market dialog (`MarketModal.tsx` on `market/marketView.ts`), opened from the HUD and the
+  capital's Trade button; the HUD score and "Turn: N of 40"; a game-over screen (`GameOverModal.tsx`)
+  with Advance Turn disabled; the store's `advanceTurn` returns at once after game over.
+- Consumers: the player; M4's order log (the market orders are ordinary `submitOrder` calls).
+- Test rows: below. Verify: `npx vitest run tests/ui tests/store`, then the full gate and Playwright.
+- Objection: e2e reaches game over by clicking Advance Turn 40 times (no test seam exists and none
+  was added); it costs about 55 s of the suite. A `?turnLimit=` URL seam would be faster but is a
+  production code path that only tests use, which the brief rules out.
+
+| FR | Test file | What the test asserts |
+|---|---|---|
+| FR-073 | `tests/ui/marketDialog.test.tsx` | closed until opened; 17 rows in `TRADE_COMMODITIES` order by display name, no grain or gold; price (start and drifted, "$1,234"), stock, offer and bid; cash, holds "0 used, 5 free of 5", "Buy bids: 0 of 4"; Close; opened from the HUD button and the capital's (now enabled) Trade button |
+| FR-074 | `tests/ui/marketDialog.test.tsx` | Sell +/− and Buy +/− send exactly one order with the new total and the view updates (stock, cash, holds, bids); − disabled at 0; a refused sale changes nothing and shows "Sale refused: not enough goods in the warehouse."; a sixth unit with 5 holds shows "Sale refused: over the limit."; `openMarket` clears a stale refusal |
+| FR-075 | `tests/ui/scoreAndGameOver.test.tsx`, `warehouseAndHud.test.tsx` | "Score: 220" with "Treasury 100 + industry 90 + development 30" on hover; $2,500 gives 145; "Turn: 1 of 40 Spring 1815", "of 7" with turnLimit 7; after the end "Game over after turn 1 of 1 Spring 1815" (the FR-048 row now expects "of 40"); no food warning after the end |
+| FR-076 | `tests/ui/scoreAndGameOver.test.tsx` | no screen during the game; heading, "The game ended after Spring 1815 (turn 1).", rows in `gameOver.scores` order (nation-2 first with more cash) with rank, name, the three parts and total, "(you)" on the active nation; shows the recorded scores, not a fresh `scoreOf`; Back to the map hides it and Final scores reopens it; Advance Turn enabled before, disabled after |
+| FR-077 | `tests/store/gameStore.test.ts`, `engineBoundary.test.ts` | after the ending turn (logged with its `game-over` event) further `advanceTurn` calls keep `game` the same object, the event log and the last refusal as they were, and never call `resolveTurn` |
+| FR-078 | `e2e/market-and-game-over.spec.ts` | sell 1 lumber in the market (price $300, stock 10 to 9, holds 1 used 3 free of 4), end the turn, news "Sold 1 Lumber for $300." and "Cash: 10300"; 40 Advance Turn clicks, the game-over screen ("Winter 1824 (turn 40)", nation-1 ranked with its parts), Back to the map, Advance Turn disabled, the "n" key logs no turn 41, Final scores reopens it; no console errors in either |
+
+Red summary (tests written and run before the code): `npx vitest run tests/ui/marketDialog.test.tsx
+tests/ui/scoreAndGameOver.test.tsx tests/ui/warehouseAndHud.test.tsx tests/store` gave
+`Test Files 5 failed (5)` / `Tests 4 failed | 25 passed (29)`: `Failed to resolve import
+"@/components/MarketModal"` and `"@/components/GameOverModal"` (the two new suites),
+`expected "resolveTurn" to be called 1 times, but got 2 times`, `expected [ … ] to have a length of 1
+but got 3` (the store logged two empty turns after the end), and `expected 'Turn: 1 Spring 1815' to be
+'Turn: 1 of 40 Spring 1815'`. The food-warning row was added after the first screenshot showed "Food is
+short: at the end of this turn …" on the game-over map; with the fix reverted it gave `Tests 1 failed |
+9 passed (10)`, `expected <div class="food-warning" …(2)></div> to be null`.
+
+### Evidence
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| FR-073 to FR-077 covered | `npx vitest run tests/ui tests/store` | `Test Files 9 passed (9)` / `Tests 117 passed (117)` (before the food-warning row below; 118 with it) |
+| All unit tests (final code) | `npx vitest run` | `Test Files 36 passed (36)` / `Tests 588 passed (588)` (+29) |
+| Types | `npx tsc --noEmit` | exit 0, no output |
+| Lint | `npm run lint` | `✖ 3 problems (0 errors, 3 warnings)` (the same three as M2) |
+| Build (final code) | `npm run build` | `✓ Compiled successfully in 6.8s`, `✓ Generating static pages (4/4)` |
+| Smoke suite, first try | `PORT=3141 npx playwright test --reporter=list` (Playwright starts the server) | `9 failed` / `1 passed (2.4m)`: every failure is `page.goto: Test timeout of 30000ms exceeded` or `net::ERR_ABORTED` while the cold dev server compiled (`GET / 200 in 15994ms` on its first page) under 6 workers; the 40-turn game-over test passed (55.7s) |
+| Smoke suite, warm server, 6 workers | `npm run dev -- --port 3141`, warmed with curl, then `PORT=3141 PW_REUSE_SERVER=1 npx playwright test --reporter=list` | `9 failed` / `1 skipped` / `1 passed (2.0m)`: again only `page.goto` timeouts (`GET / 200 in 40805ms` in the server log with 6 pages at once); the machine's CPU load was 99% with 25 node processes from other sessions |
+| Smoke suite, 1 worker | the same with `--workers=1` | `1 skipped` / `10 passed (2.6m)`, incl. `FR-078 open the market, sell one lumber, … (15.0s)` and `FR-078 end 40 turns, see the game-over screen … (20.0s)`. The food-warning fix was saved during this run |
+| Smoke suite, final code, 1 worker | build, fresh server, `PORT=3141 PW_REUSE_SERVER=1 SCREENSHOT_DIR=docs/journal npx playwright test --reporter=list --workers=1` | `2 failed` / `1 skipped` / `8 passed (9.1m)`: both M3 specs and both `play-turns` specs passed; the 2 failures were `page.goto: Test timeout of 30000ms exceeded` in `cursor-icons.spec.ts` (unchanged); that file alone right after: `1 skipped` / `6 passed (1.4m)` |
+| Screenshots | the final-code run with `SCREENSHOT_DIR=docs/journal` | `docs/journal/m3-market.png`, `docs/journal/m3-game-over.png` (the M2 screenshots it also rewrote were restored from git) |
+
+### Decisions taken alone, each open to review
+
+- Objection: the market rows have no "most the engine accepts" column (the part A hand-off listed
+  it; the part B brief did not). The holds line and the refusal text say why a "+" was refused; a
+  probe column like the capital's is cheap to add later in `marketView.ts`.
+- Objection: "+" buttons stay enabled and the engine judges (the M2 capital pattern), so a refused
+  press shows a refusal rather than a greyed button.
+- Objection: Q15 (c) "repeat last turn's trades" is not built: the last turn's deals exist only as
+  news events, and re-sending them needs an order sequence with partial refusals and a report of
+  what was refused; not trivial, so skipped as the brief allows.
+- Objection: the game-over screen can be closed (to look at the map) and reopened from the HUD's
+  "Final scores"; the UI flag `isGameOverHidden` lives in the overlay slice, never in `game`.
+- The HUD turn line now reads "Turn: N of 40"; the old FR-048 component test was updated to it.
