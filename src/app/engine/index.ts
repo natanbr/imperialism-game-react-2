@@ -1,0 +1,10 @@
+// Public API of the headless game core. The store, the UI and AI players import from here.
+export type { Order, OrderKind, RejectReason, ValidationResult } from "./orders/Order";
+export { ORDER_KINDS } from "./orders/Order";
+export { validateOrder } from "./orders/validate";
+export { applyOrder, tryApplyOrder } from "./orders/apply";
+export { resolveTurn, type OrdersByNation, type TurnResult } from "./turn/resolveTurn";
+export type { GameEvent, TurnContext, TurnSystem } from "./turn/context";
+export { createTurnRng, type Rng } from "./rng";
+export { scriptedPlayer, type Player } from "./ai/scriptedPlayer";
+export { newGame, type NewGameOptions } from "./newGame";

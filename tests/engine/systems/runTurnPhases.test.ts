@@ -1,0 +1,40 @@
+import { describe, it, expect } from 'vitest';
+import { runTurnPhases } from '@/engine/turn/phases';
+import { createTurnContext } from '@/engine/turn/context';
+import { GameState } from '@/types/GameState';
+import { initWorld } from '@/testing/worldInit';
+
+function createState(): GameState {
+  const { map, nations } = initWorld({ cols: 5, rows: 5 });
+  // Set industry on each nation
+  const nationsWithIndustry = nations.map(n => ({
+    ...n,
+  }));
+  
+  return {
+    turn: 1,
+    year: 1900,
+    seed: 0,
+    nations: nationsWithIndustry,
+    cities: [], armies: [], fleets: [],
+    relations: [], treaties: [], tradePolicies: [], grants: [],
+    map,
+    transportNetwork: { shippingLanes: [], capacity: 0 },
+    tradeRoutes: [],
+    technologyState: { technologies: [], oilDrillingTechUnlocked: false },
+    difficulty: 'normal',
+  };
+}
+
+describe('runTurnPhases', () => {
+  it('returns a new state object and preserves map structure', () => {
+    const s1 = createState();
+    const s2 = runTurnPhases(s1, createTurnContext({ turn: s1.turn, seed: s1.year + 1 }));
+    expect(s2).not.toBe(s1);
+    // verify year incremented
+    expect(s2.year).toBeGreaterThanOrEqual(s1.year);
+    // verify map structure preserved
+    expect(s2.map.tiles.length).toBe(s1.map.tiles.length);
+    expect(s2.nations.length).toBe(s1.nations.length);
+  });
+});

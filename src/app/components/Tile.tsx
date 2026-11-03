@@ -51,7 +51,7 @@ const TileComponentInner: React.FC<TileProps> = ({
 }) => {
   // Store selectors (only for actions and map reference)
   const selectWorker = useGameStore((s) => s.selectWorker);
-  const map = useGameStore((s) => s.map);
+  const map = useGameStore((s) => s.game.map);
 
   // Get selected worker
   const { worker: selectedWorker } = useGameStore(selectSelectedWorkerAndTile);
@@ -95,6 +95,7 @@ const TileComponentInner: React.FC<TileProps> = ({
 
   return (
     <TileBase
+      tileId={tile.id}
       terrain={tile.terrain}
       hasRiver={tile.hasRiver ?? false}
       backgroundColor={tileVisuals.terrainColor}

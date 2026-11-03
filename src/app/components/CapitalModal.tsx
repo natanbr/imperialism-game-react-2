@@ -16,13 +16,13 @@ export const CapitalModal: React.FC = () => {
   const openWarehouse = useGameStore((s) => s.openWarehouse);
 
   const activeNationId = useGameStore((s) => s.activeNationId);
-  const nations = useGameStore((s) => s.nations);
-  const technologyState = useGameStore((s) => s.technologyState);
+  const nations = useGameStore((s) => s.game.nations);
+  const technologyState = useGameStore((s) => s.game.technologyState);
   const nation = nations.find((n) => n.id === activeNationId);
   // Industry is now per-nation
   const industry = nation?.industry;
 
-  const purchaseCapacity = useGameStore((s) => s.purchaseTransportCapacityIncrease);
+  const submitOrder = useGameStore((s) => s.submitOrder);
 
   // Transportation of commodities popup state
   const [isAllocOpen, setAllocOpen] = useState(false);
@@ -43,7 +43,7 @@ export const CapitalModal: React.FC = () => {
   }, [nation]);
 
   // Auto-reset the slider at the start of each new turn
-  const turn = useGameStore((s) => s.turn);
+  const turn = useGameStore((s) => s.game.turn);
   useEffect(() => {
     setBuyCount(0);
   }, [turn]);
@@ -54,10 +54,10 @@ export const CapitalModal: React.FC = () => {
     const totalAllowed = prev + maxPurchasable; // keep previous and add up to available this turn
     const next = Math.max(0, Math.min(Math.floor(newValue) || 0, totalAllowed));
     const delta = next - prev;
-    if (delta !== 0) {
-      purchaseCapacity(nation.id, delta); // positive buys, negative refunds
-    }
-    setBuyCount(next);
+    if (delta === 0) return;
+    // Positive buys, negative gives back part of this turn's purchase; all or nothing.
+    const result = submitOrder({ kind: "changeTransportCapacity", nationId: nation.id, delta });
+    if (result.ok) setBuyCount(next);
   };
 
   if (!isOpen) return null;

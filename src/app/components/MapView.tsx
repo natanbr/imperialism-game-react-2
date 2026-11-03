@@ -2,7 +2,7 @@ import { useEdgeScroll } from "@/hooks/useEdgeScroll";
 import { useGameStore } from "@/store/rootStore";
 import React, { useMemo, useRef } from "react";
 import { TileComponent } from "./Tile";
-import { computeRailSegmentsPixels } from "@/store/helpers/mapHelpers";
+import { computeRailSegmentsPixels } from "./railSegments";
 import styles from "./MapView.module.css";
 
 export const MapView: React.FC = () => {
@@ -12,11 +12,11 @@ export const MapView: React.FC = () => {
   const cameraX = useGameStore((s) => s.cameraX);
   const cameraY = useGameStore((s) => s.cameraY);
   const moveCamera = useGameStore((s) => s.moveCamera);
-  const map = useGameStore((s) => s.map);
+  const map = useGameStore((s) => s.game.map);
   const selectedTileId = useGameStore((s) => s.selectedTileId);
   const selectedWorkerId = useGameStore((s) => s.selectedWorkerId);
-  const nations = useGameStore((s) => s.nations);
-  const transportNetwork = useGameStore((s) => s.transportNetwork);
+  const nations = useGameStore((s) => s.game.nations);
+  const transportNetwork = useGameStore((s) => s.game.transportNetwork);
 
   useEdgeScroll({ containerRef, onMove: moveCamera });
 

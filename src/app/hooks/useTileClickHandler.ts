@@ -3,84 +3,45 @@ import { Tile } from '@/types/Tile';
 import { Worker } from '@/types/Workers';
 import { PossibleAction } from '@/types/actions';
 import { useGameStore } from '@/store/rootStore';
+import { moveOrders, submitFirstAccepted, tileClickOrders } from './tileClickOrders';
 
 /**
- * Hook to create a click handler for a tile
+ * Click handler for a tile. With a worker selected, the click becomes orders (see
+ * tileClickOrders) sent through the store's submitOrder; otherwise it selects the tile.
  *
  * @param tile - The tile being clicked
  * @param selectedWorker - The currently selected worker (if any)
- * @param possibleAction - The possible action the worker can perform
- * @returns Click handler function
+ * @param possibleAction - The action the selected worker can perform on this tile
  */
 export function useTileClickHandler(
   tile: Tile,
   selectedWorker: Worker | null,
   possibleAction: PossibleAction
 ) {
-  const selectTile = useGameStore((s) => s.selectTile);
-  const selectWorker = useGameStore((s) => s.selectWorker);
-  const selectedWorkerId = useGameStore((s) => s.selectedWorkerId);
-  const moveSelectedWorkerToTile = useGameStore((s) => s.moveSelectedWorkerToTile);
-
   return useCallback(() => {
-    if (selectedWorker && possibleAction) {
-      const isSameTile = selectedWorker.assignedTileId === tile.id;
-      const {
-        startProspecting,
-        moveAndStartProspecting,
-        moveSelectedWorkerToTile,
-        startDevelopment,
-        moveAndStartDevelopment,
-        startConstruction,
-        moveAndStartConstruction,
-        openConstructionModal,
-        selectWorker,
-      } = useGameStore.getState();
+    const {
+      game,
+      activeNationId,
+      submitOrder,
+      selectedWorkerId,
+      openConstructionModal,
+      selectWorker,
+      selectTile,
+    } = useGameStore.getState();
 
-      switch (possibleAction.type) {
-        case 'prospect':
-          if (isSameTile) {
-            startProspecting(tile.id, selectedWorker.id);
-          } else {
-            moveAndStartProspecting(tile.id, selectedWorker.id);
-          }
-          break;
-        case 'develop':
-          if (isSameTile) {
-            startDevelopment(tile.id, selectedWorker.id, possibleAction.workerType);
-          } else {
-            moveAndStartDevelopment(
-              tile.id,
-              selectedWorker.id,
-              possibleAction.workerType,
-              possibleAction.level
-            );
-          }
-          break;
-        case 'construct':
-          if (isSameTile) {
-            startConstruction(tile.id, selectedWorker.id, possibleAction.kind);
-          } else {
-            moveAndStartConstruction(tile.id, selectedWorker.id, possibleAction.kind);
-          }
-          break;
-        case 'open-construct-modal':
-          if (isSameTile) {
-            openConstructionModal(tile.id, selectedWorker.id);
-          } else {
-            moveSelectedWorkerToTile(tile.id, selectedWorker.id);
-          }
-          selectWorker(undefined);
-          selectTile(tile.id);
-          return;
+    if (selectedWorker && possibleAction) {
+      if (possibleAction.type === 'open-construct-modal' && selectedWorker.assignedTileId === tile.id) {
+        openConstructionModal(tile.id, selectedWorker.id);
+      } else {
+        submitFirstAccepted(submitOrder, tileClickOrders(game, activeNationId, selectedWorker.id, tile.id, possibleAction));
       }
       selectWorker(undefined);
       selectTile(tile.id);
     } else if (selectedWorkerId) {
-      moveSelectedWorkerToTile(tile.id, selectedWorkerId);
+      submitFirstAccepted(submitOrder, moveOrders(game, activeNationId, selectedWorkerId, tile.id));
       selectTile(tile.id);
     } else {
       selectTile(tile.id);
     }
-  }, [tile, selectedWorker, possibleAction, selectedWorkerId, selectTile, selectWorker, moveSelectedWorkerToTile]);
+  }, [tile, selectedWorker, possibleAction]);
 }

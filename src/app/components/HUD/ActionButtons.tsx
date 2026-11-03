@@ -7,7 +7,7 @@ export const ActionButtons: React.FC = () => {
   const openCapital = useGameStore((s) => s.openCapital);
   const openTransportAllocation = useGameStore((s) => s.openTransportAllocation);
   const setCamera = useGameStore((s) => s.setCamera);
-  const map = useGameStore((s) => s.map);
+  const map = useGameStore((s) => s.game.map);
 
   return (
     <div className="action-buttons-container">

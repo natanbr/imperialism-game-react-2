@@ -6,32 +6,18 @@ import { Fleet } from "./Navy";
 import { TradeRoute } from "./TradeRoute";
 import { TransportNetwork } from "./Transport";
 import { GameMap } from "./Map";
-import { Technology, TechnologyState } from "./Technology";
-import { NewsItem } from "./Common";
+import { TechnologyState } from "./Technology";
 import { Relation, Treaty, TradePolicy, Grant } from "./Diplomacy";
 
-export interface TurnOrderSummary {
-  // Per manual:
-  // 1. Diplomatic offers exchange
-  // 2. Trade deals resolve
-  // 3. Industrial production
-  // 4. Military conflicts
-  // 5. Interceptions/blockades cancel trades
-  // 6. Internal transport + successful trades to warehouse
-  phases: [
-    "diplomacy",
-    "trade",
-    "production",
-    "combat",
-    "interceptions",
-    "logistics"
-  ];
-}
-
+/**
+ * The whole game as the engine sees it. Only game data lives here: which nation the human plays,
+ * the news log and display text are UI state and live in the store beside it (FR-018).
+ */
 export interface GameState {
   turn: number;
   year: number;
-  activeNationId: string;
+  // Game seed: each turn's RNG is derived from (seed, turn), so replays are deterministic.
+  seed: number;
 
   nations: Nation[];
   cities: City[];
@@ -54,7 +40,5 @@ export interface GameState {
   // industry is now per-nation, see Nation.industry
   technologyState: TechnologyState;
 
-  newsLog: NewsItem[];
-  turnOrder: TurnOrderSummary;
   difficulty: "introductory" | "easy" | "normal" | "hard" | "nighOnImpossible";
 }

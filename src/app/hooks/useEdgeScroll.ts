@@ -24,6 +24,10 @@ export function useEdgeScroll({ containerRef, onMove, speed = 10, edgeSize = 20 
       if (e.clientY < rect.top + edgeSize) dy = -speed;
       else if (e.clientY > rect.bottom - edgeSize) dy = speed;
 
+      // The HUD lies over the map's right edge. Over it only that edge scrolls, so pressing a HUD
+      // button near the bottom (Advance Turn) does not drag the map down.
+      if (e.target instanceof Element && e.target.closest('[data-edge-scroll="horizontal-only"]')) dy = 0;
+
       if (dx !== 0 || dy !== 0) {
         const step = () => {
           onMove(dx, dy);

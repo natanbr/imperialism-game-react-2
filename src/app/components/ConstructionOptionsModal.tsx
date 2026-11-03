@@ -1,7 +1,7 @@
 "use client";
 import React, { useMemo } from "react";
 import { useGameStore } from "../store/rootStore";
-import { isAdjacentToOcean } from "../store/helpers/mapHelpers";
+import { isPortSite } from "@/engine/orders/queries";
 import { parseTileIdToArray } from "@/utils/tileIdUtils";
 
 export const ConstructionOptionsModal: React.FC = () => {
@@ -9,22 +9,25 @@ export const ConstructionOptionsModal: React.FC = () => {
   const tileId = useGameStore((s) => s.constructionModalTileId);
   const workerId = useGameStore((s) => s.constructionModalWorkerId);
   const close = useGameStore((s) => s.closeConstructionModal);
-  const map = useGameStore((s) => s.map);
+  const game = useGameStore((s) => s.game);
+  const activeNationId = useGameStore((s) => s.activeNationId);
+  const submitOrder = useGameStore((s) => s.submitOrder);
 
   const tile = useMemo(() => {
     if (!tileId) return null;
     const [x, y] = parseTileIdToArray(tileId);
-    return map.tiles[y]?.[x] || null;
-  }, [tileId, map.tiles]);
+    return game.map.tiles[y]?.[x] || null;
+  }, [tileId, game.map.tiles]);
 
   const canBuildPort = useMemo(() => {
     if (!tile) return false;
-    return tile.hasRiver || isAdjacentToOcean(map, tile.x, tile.y);
-  }, [tile, map]);
+    return isPortSite(game, tile);
+  }, [tile, game]);
 
   const handleConstruct = (kind: 'depot' | 'port') => {
     if (tileId && workerId) {
-      useGameStore.getState().moveAndStartConstruction(tileId, workerId, kind);
+      // The dialog opens for the engineer's own tile, so this is a plain start.
+      submitOrder({ kind: "startConstruction", nationId: activeNationId, workerId, tileId, structure: kind });
     }
     close();
   };

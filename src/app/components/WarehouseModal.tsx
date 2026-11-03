@@ -9,7 +9,7 @@ export const WarehouseModal: React.FC = () => {
   const isOpen = useGameStore((s) => s.isWarehouseOpen);
   const close = useGameStore((s) => s.closeWarehouse);
   const activeNationId = useGameStore((s) => s.activeNationId);
-  const nations = useGameStore((s) => s.nations);
+  const nations = useGameStore((s) => s.game.nations);
 
   if (!isOpen) return null;
 
