@@ -2,7 +2,25 @@ import { describe, it, expect } from 'vitest';
 import { scriptedPlayer } from '@/engine/ai/scriptedPlayer';
 import { resolveTurn } from '@/engine/turn/resolveTurn';
 import { TWO_NATION_IDS } from '@/testing/mockNation';
+import { GameState } from '@/types/GameState';
+import { TerrainType } from '@/types/Tile';
+import { WorkerStatus, WorkerType } from '@/types/Workers';
+import { game, N1, put, setTile, T, tileAt, workerId } from './fixtures';
 import { newGame, play, replay } from './headless';
+
+// No order reaches the RNG today (validate refuses prospecting a tile with no resource), so the
+// state is built directly: a prospector already working on a mountain with no known resource
+// makes the development system draw a mineral.
+const blindProspect = (seed: number): GameState => {
+  const prospector = workerId(N1, WorkerType.Prospector);
+  const s = put(game(seed), prospector, T.mountains1, { status: WorkerStatus.Working });
+  return setTile(s, T.mountains1, { terrain: TerrainType.Mountains, resource: undefined, prospecting: { startedOnTurn: 1, workerId: prospector } });
+};
+const runTurns = (state: GameState, turns: number): GameState => {
+  let s = state;
+  for (let i = 0; i < turns; i++) s = resolveTurn(s, {}, s.seed).state;
+  return s;
+};
 
 const orderCount = (log: ReturnType<typeof play>) =>
   log.reduce((n, t) => n + Object.values(t.orders).reduce((m, list) => m + list.length, 0), 0);
@@ -41,5 +59,17 @@ describe('replay determinism', () => {
 
     expect(a).toEqual(aloneA);
     expect(b).toEqual(aloneB);
+  });
+
+  it('FR-002 FR-014 a replay that draws from the RNG: same seed gives deep-equal states, another seed another find', () => {
+    const first = runTurns(blindProspect(3), 3);
+    const again = runTurns(blindProspect(3), 3);
+    const other = runTurns(blindProspect(4), 3);
+
+    const found = tileAt(first, T.mountains1).resource?.type;
+    expect(found).toBeDefined();
+    expect(again).toEqual(first);
+    expect(tileAt(other, T.mountains1).resource?.type).toBeDefined();
+    expect(tileAt(other, T.mountains1).resource?.type).not.toBe(found);
   });
 });
