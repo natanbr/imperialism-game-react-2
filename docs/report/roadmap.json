@@ -1,32 +1,32 @@
 {
   "project": "Imperialism Revival",
-  "updated": "2026-11-02",
+  "updated": "2026-11-03",
   "target": "v1 playable (M3)",
-  "now": "M0 cleanup + setup",
+  "now": "M1 headless core (night shift)",
   "source": "docs/REVIVAL_PLAN.md and docs/report/roadmap.json in the imperialism-game-react-2 repo",
   "overview": {
-    "headline": "Plan approved on 2026-11-02. M0 cleanup runs in its own session; this session sets up the rules knowledge base, a light spec-driven flow and this page. No game feature has been built yet.",
+    "headline": "Setup and M0 are merged into main. M1, the headless order-based engine, is running unattended tonight. Its PR waits for your review before merge.",
     "milestones": [
       {
         "title": "Setup: rules knowledge, light spec flow, progress page",
-        "status": "in-progress",
-        "progress": 70,
+        "status": "done",
+        "progress": 100,
         "date": "Nov 2026",
-        "note": "Flow, commands, CLAUDE.md, plan and this page done. Rules knowledge base still being written."
+        "note": "Rules knowledge base (12 files, source-tagged), light spec flow, /milestone and /fix commands, this page. PRs 10 and 11 merged."
       },
       {
         "title": "M0 Cleanup: dead code, old tool configs, 3 red tests",
-        "status": "in-progress",
-        "progress": 10,
+        "status": "done",
+        "progress": 100,
         "date": "Nov 2026",
-        "note": "Runs in session m0-cleanup. Ends as a PR against main."
+        "note": "PR 9 merged after one review and one fix round: 91 tests green, tsc clean, build ok, e2e 6 pass + 1 fixme."
       },
       {
         "title": "M1 Headless core: orders, resolveTurn, seed, two-nation test",
-        "status": "not-started",
-        "progress": 0,
-        "date": "after M0",
-        "note": "The seam AI nations will plug into. Features frozen until it is green."
+        "status": "in-progress",
+        "progress": 10,
+        "date": "Nov 2026",
+        "note": "Part A (engine, orders, resolveTurn, seed, two-nation test) running; part B (store and UI through orders) follows on the same branch."
       },
       {
         "title": "M2 Economic loop: production, buildings, food, real durations",
@@ -53,17 +53,21 @@
     "risks": [
       {
         "title": "Rules gaps",
-        "text": "The manual omits many numbers (recipes, yields, durations). The knowledge base marks each unknown; gaps.md says which ones need gameplay videos."
+        "text": "Price curve, minor-nation demand, several job durations and the score formula are not in the manual. M2/M3 use documented defaults until closed."
       },
       {
-        "title": "Done by appearance",
-        "text": "The old run ticked boxes when the screen looked right. Every item here needs a test as evidence before it can show Done."
+        "title": "Code disagrees with the rules",
+        "text": "Recipes, prices, costs, durations and the 1900 start year differ from the original game. Listed as CODE MISMATCH lines in docs/rules; M2 fixes them."
+      },
+      {
+        "title": "M1 is the riskiest change",
+        "text": "It touches the store and every action. Gate: two-nation 20-turn test, replay test, e2e smoke, one Opus review."
       }
     ],
     "next": [
-      "Answer Q5 and Q6",
-      "Review and merge the M0 PR after its review",
-      "Start M1 with /milestone M1"
+      "M1 part B: store and UI dispatch orders",
+      "M1 review (Opus 5.5 high), fix round, PR for your review",
+      "Answer Q5 to Q7"
     ]
   },
   "detail": {
@@ -75,7 +79,7 @@
           {
             "id": "S1",
             "title": "Rules knowledge base from manual + web",
-            "status": "in-progress",
+            "status": "done",
             "session": "revival",
             "tasks": [
               {
@@ -84,15 +88,15 @@
               },
               {
                 "title": "Topic files with page citations",
-                "done": false
+                "done": true
               },
               {
                 "title": "gaps.md ranked for v1",
-                "done": false
+                "done": true
               }
             ],
             "doneWhen": "docs/rules has an index, topic files and a gaps list",
-            "evidence": "",
+            "evidence": "12 files, 1,526 lines; v1 topics 55-95% complete per topic (gaps.md)",
             "hot": "docs/rules/"
           },
           {
@@ -150,40 +154,44 @@
           {
             "id": "M0",
             "title": "Delete dead code and old configs, fix red tests, gold/gems values, branches",
-            "status": "in-progress",
+            "status": "done",
             "session": "m0-cleanup",
             "tasks": [
               {
                 "title": "Push local main",
-                "done": false
+                "done": true
               },
               {
                 "title": "Delete dead files and tool configs",
-                "done": false
+                "done": true
               },
               {
                 "title": "Restore treasury debit (3 red tests)",
-                "done": false
+                "done": true
               },
               {
                 "title": "Fix e2e selectors",
-                "done": false
+                "done": true
               },
               {
                 "title": "Gold $200 / gems $500",
-                "done": false
+                "done": true
               },
               {
                 "title": "Delete superseded branches",
-                "done": false
+                "done": true
               },
               {
                 "title": "One Sonnet 5.5 xhigh review of the diff before merge",
+                "done": true
+              },
+              {
+                "title": "Six old branches with unique commits kept (not proven superseded)",
                 "done": false
               }
             ],
             "doneWhen": "npm test, lint and tsc green; PR open",
-            "evidence": "",
+            "evidence": "PR 9 merged bbc40f0; gate re-run by coordinator: 91/91 tests, tsc ok, lint 0 errors, build ok",
             "hot": "src/app/store/helpers/workerHelpers.ts, tests/, e2e/"
           }
         ]
@@ -195,11 +203,8 @@
           {
             "id": "M1",
             "title": "Headless core",
-            "status": "not-started",
-            "blockedBy": [
-              "M0",
-              "S2"
-            ],
+            "status": "in-progress",
+            "blockedBy": [],
             "tasks": [
               {
                 "title": "Order union + validate + apply",
@@ -223,7 +228,8 @@
               }
             ],
             "doneWhen": "Both tests green and the app plays as before through orders",
-            "hot": "src/app/engine/, src/app/store/"
+            "hot": "src/app/engine/, src/app/store/",
+            "session": "night shift"
           },
           {
             "id": "M2",
@@ -321,15 +327,21 @@
     ],
     "needs": [
       {
-        "when": "Now",
-        "what": "Answer Q5 and Q6 (cards below)",
-        "why": "They decide how much you are involved in each milestone",
+        "when": "Morning",
+        "what": "Review the M1 PR in the running app",
+        "why": "Largest change of v1; agent does not merge it (Q5 open)",
+        "item": "M1"
+      },
+      {
+        "when": "Morning",
+        "what": "Answer Q5, Q6, Q7",
+        "why": "They set your involvement and the research path",
         "item": "M1"
       },
       {
         "when": "Optional",
-        "what": "NotebookLM research over gameplay videos for the gaps in docs/rules/gaps.md",
-        "why": "Some numbers are not in the manual or online text",
+        "what": "NotebookLM over gameplay videos (see Q7)",
+        "why": "On-screen values the manual omits",
         "item": "S1"
       }
     ],
@@ -390,6 +402,17 @@
         "suggestion": "Yes for this project: one review per milestone instead of per task, postponed to the milestone end but never skipped.",
         "items": [
           "M1"
+        ]
+      },
+      {
+        "id": "Q7",
+        "title": "Use NotebookLM over gameplay videos to close rules gaps?",
+        "status": "open",
+        "context": "Videos can show on-screen values: university, armoury and shipyard costs, starting state, power plant, score screen, relationship levels; partly price series and job durations. They cannot show hidden formulas (trade-partner weighting, credit, combat, council, AI).",
+        "suggestion": "Yes, but only for that on-screen list, before M3. Hidden formulas get designed defaults instead, which suits v2 changes anyway.",
+        "items": [
+          "S1",
+          "M3"
         ]
       }
     ]
