@@ -76,9 +76,10 @@ describe('FR-050 commodity display names', () => {
     expect(eventText({ type: 'resource-discovered', tileId: '3-4', resource: ResourceType.IronOre })).toBe('Prospectors found iron ore at 3-4.');
   });
 
-  it('FR-050 the warehouse groups: resources, materials, goods, each in a fixed order', () => {
+  it('FR-056 the warehouse groups: resources, materials, goods, each in a fixed order; no gold or gems', () => {
+    const NEVER_STORED: string[] = [ResourceType.Gold, ResourceType.Gems];
     expect(COMMODITY_GROUPS.map(g => g.title)).toEqual(['Resources', 'Materials', 'Goods']);
-    expect(COMMODITY_GROUPS.flatMap(g => g.keys).sort()).toEqual([...ALL].sort());
+    expect(COMMODITY_GROUPS.flatMap(g => g.keys).sort()).toEqual(ALL.filter(k => !NEVER_STORED.includes(k)).sort());
     expect(COMMODITY_GROUPS[1].keys).toContain(MaterialType.CannedFood);
   });
 });

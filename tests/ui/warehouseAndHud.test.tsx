@@ -16,7 +16,7 @@ function show(state: GameState, ui: Partial<ReturnType<typeof useGameStore.getSt
 }
 
 describe('FR-050 warehouse dialog', () => {
-  it('FR-050 lists every commodity by display name with its stock, grouped as resources, materials and goods', () => {
+  it('FR-056 lists every commodity but gold and gems by display name with its stock, grouped as resources, materials and goods', () => {
     show(emptyWarehouse(game(), N1, { cannedFood: 12, ironOre: 3, furniture: 1 }), { isWarehouseOpen: true });
     render(<WarehouseModal />);
 
@@ -30,7 +30,10 @@ describe('FR-050 warehouse dialog', () => {
     expect(text(resources.getByTestId('stock-ironOre'))).toBe('Iron Ore 3');
     expect(text(goods.getByTestId('stock-furniture'))).toBe('Furniture 1');
     const rows = screen.getAllByTestId(/^stock-/);
-    expect(rows).toHaveLength(Object.values(ResourceType).length + Object.values(MaterialType).length + Object.values(GoodsType).length);
+    // Gold and gems never enter the warehouse (rules 05 section 2).
+    expect(rows).toHaveLength(Object.values(ResourceType).length - 2 + Object.values(MaterialType).length + Object.values(GoodsType).length);
+    expect(screen.queryByTestId('stock-gold')).toBeNull();
+    expect(screen.queryByTestId('stock-gems')).toBeNull();
     for (const row of rows) expect(text(row)).not.toMatch(/[a-z][A-Z]/); // no camelCase key on screen
   });
 });

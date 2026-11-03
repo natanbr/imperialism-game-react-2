@@ -88,9 +88,12 @@ export const COMMODITY_TEXT: Record<WarehouseCommodities, string> = {
 export const commodityName = (key: string): string =>
   Object.hasOwn(COMMODITY_TEXT, key) ? COMMODITY_TEXT[key as WarehouseCommodities] : key;
 
-/** The warehouse dialog's groups, in the order the original game lists them. */
+/** Gold and gems are sold as found and never enter the warehouse (rules 05 section 2). */
+const NEVER_STORED: readonly ResourceType[] = [ResourceType.Gold, ResourceType.Gems];
+
+/** The warehouse dialog's groups, in the order the original game lists them (FR-056). */
 export const COMMODITY_GROUPS: readonly { title: string; keys: readonly WarehouseCommodities[] }[] = [
-  { title: "Resources", keys: Object.values(ResourceType) },
+  { title: "Resources", keys: Object.values(ResourceType).filter((r) => !NEVER_STORED.includes(r)) },
   { title: "Materials", keys: Object.values(MaterialType) },
   { title: "Goods", keys: Object.values(GoodsType) },
 ];
