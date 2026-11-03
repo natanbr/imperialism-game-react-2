@@ -1,11 +1,16 @@
-import { EngineerBuildDurationsTurns } from "@/definisions/workerDurations";
+// Store-side adapters from the pre-M1 worker actions to engine orders (FR-017). Every action
+// goes through validateOrder/applyOrder, so the engine's rules hold in the running app.
+// Part B replaces these with direct order submission and removes this file.
 import { GameState } from "@/types/GameState";
-import { TerrainType, Tile } from "@/types/Tile";
-import { Worker, WorkerStatus, WorkerType } from "@/types/Workers";
-import { parseTileIdToArray } from "@/utils/tileIdUtils";
-import { CONSTRUCTION_COST } from "@/definisions/workPrices";
-import { createTreasuryLedger } from "./treasuryHelpers";
-import { isAdjacentToOcean } from "./mapHelpers";
+import { WorkerType } from "@/types/Workers";
+import { ConstructionKind } from "@/types/jobs/ConstructionJob";
+import { applyOrder, tryApplyOrder } from "@/engine/orders/apply";
+import {
+  MoveAndStartConstructionOrder,
+  MoveAndStartDevelopmentOrder,
+  MoveAndStartProspectingOrder,
+} from "@/engine/orders/Order";
+import { findWorker } from "@/engine/orders/queries";
 import { startDeveloperWork } from '../../workers/DeveloperWorker';
 import { startEngineerWork } from '../../workers/EngineerWorker';
 import { moveWorker } from '../../workers/moveWorker';
@@ -18,119 +23,36 @@ import { startDrillerWork } from '../../workers/DrillerWorker';
 
 export { moveWorker, startDeveloperWork, startEngineerWork, startProspectorWork, startFarmerWork, startMinerWork, startRancherWork, startForesterWork, startDrillerWork };
 
-/**
- * Moves the worker to the target tile and starts its job there, all or nothing: if the job
- * cannot be afforded, the original state is returned and the worker stays where it was.
- * If it does not start for another reason, the worker is only moved.
- */
-export function moveAndStartWorkerJob(
-  state: GameState,
-  targetTileId: string,
-  workerId: string,
-  moveFn: (state: GameState, fromTile: Tile, toTile: Tile, worker: Worker) => GameState,
-  startJobFn: (state: GameState, workerId: string) => GameState
-): GameState {
-  const workerInfo = findWorkerAndTile(state, workerId);
-  if (!workerInfo) return state;
-  const { worker, tile: fromTile } = workerInfo;
-  const [tx, ty] = parseTileIdToArray(targetTileId);
-  const toTile = state.map.tiles[ty]?.[tx];
-  if (!toTile) return state;
-  // Already on the target (the construction modal does this): a move onto the same tile would drop the worker.
-  if (fromTile.id === toTile.id) return startJobFn(state, workerId);
-  let movedState = moveFn(state, fromTile, toTile, worker);
-  movedState = {
-    ...movedState,
-    map: {
-      ...movedState.map,
-      tiles: movedState.map.tiles.map((row, y) =>
-        row.map((t, x) => {
-          if (x === tx && y === ty) {
-            return {
-              ...t,
-              workers: t.workers.map(w =>
-                w.id === workerId ? { ...w, status: WorkerStatus.Available, justMoved: false } : w
-              ),
-            };
-          }
-          return t;
-        })
-      ),
-    },
-  };
-  const startedState = startJobFn(movedState, workerId);
-  if (startedState !== movedState) return startedState;
-  // The job did not start. Refuse the whole action only if money was the reason (retry with a full
-  // treasury); other refusals (e.g. undiscovered resource) keep the plain move.
-  const rich: GameState = { ...movedState, nations: movedState.nations.map(n => ({ ...n, treasury: Number.MAX_SAFE_INTEGER })) };
-  return startJobFn(rich, workerId) !== rich ? state : movedState;
-}
+const ownerOf = (state: GameState, workerId: string): string | undefined =>
+  findWorker(state, workerId)?.worker.nationId;
 
-const findWorkerAndTile = (state: GameState, workerId: string): { worker: Worker, tile: Tile, x: number, y: number } | null => {
-    for (let y = 0; y < state.map.config.rows; y++) {
-        for (let x = 0; x < state.map.config.cols; x++) {
-            const tile = state.map.tiles[y][x];
-            const worker = tile.workers.find((w: Worker) => w.id === workerId);
-            if (worker) {
-                return { worker, tile, x, y };
-            }
-        }
-    }
-    return null;
-}
+type MoveAndStartOrder = MoveAndStartProspectingOrder | MoveAndStartDevelopmentOrder | MoveAndStartConstructionOrder;
 
 /**
- * Generic helper for moving a worker to a target tile.
- * Handles validation and basic movement logic for all worker types.
- * Worker-specific behavior should be handled by the caller.
+ * Moves the worker and starts its job, all or nothing (FR-007): an unaffordable job refuses
+ * the whole action by its reason code. Kept UI behaviour until part B: when the job is refused
+ * for another reason, the worker still makes the plain move, which is validated on its own.
  */
+function moveAndStart(state: GameState, order: MoveAndStartOrder): GameState {
+  const { state: next, result } = tryApplyOrder(state, order);
+  if (result.ok || result.reason === "insufficient-funds") return next;
+  return applyOrder(state, { kind: "moveWorker", nationId: order.nationId, workerId: order.workerId, toTileId: order.toTileId });
+}
+
 export const moveSelectedWorkerToTileHelper = (
   state: GameState,
   targetTileId: string,
   selectedWorkerId: string
 ): GameState => {
-  if (!selectedWorkerId) return state;
-
-  const workerInfo = findWorkerAndTile(state, selectedWorkerId);
-  if (!workerInfo) return state;
-
-  const { worker, tile: fromTile, x: fromX, y: fromY } = workerInfo;
-
-  // Don't allow movement if worker already moved this turn
-  if (worker.justMoved) return state;
-
-  // Don't allow movement if worker is currently working on a job
-  const working =
-    fromTile.prospecting?.workerId === selectedWorkerId ||
-    (fromTile.developmentJob && !fromTile.developmentJob.completed && fromTile.developmentJob.workerId === selectedWorkerId) ||
-    (fromTile.constructionJob && !fromTile.constructionJob.completed && fromTile.constructionJob.workerId === selectedWorkerId);
-  if (working) return state;
-
-  const [tx, ty] = parseTileIdToArray(targetTileId);
-  if (Number.isNaN(tx) || Number.isNaN(ty)) return state;
-
-  // Don't allow movement to same tile
-  if (fromX === tx && fromY === ty) return state;
-
-  const targetTile = state.map.tiles[ty]?.[tx];
-  if (!targetTile) return state;
-
-  // Validate target tile is land and owned by same nation
-  const isLand = targetTile.terrain !== TerrainType.Water && targetTile.terrain !== TerrainType.River;
-  const sameNation = targetTile.ownerNationId === worker.nationId;
-  if (!isLand || !sameNation) return state;
-
-  // Use pure moveWorker utility for movement
-  return moveWorker(state, fromTile, targetTile, worker);
+  const nationId = selectedWorkerId ? ownerOf(state, selectedWorkerId) : undefined;
+  if (!nationId) return state;
+  return applyOrder(state, { kind: "moveWorker", nationId, workerId: selectedWorkerId, toTileId: targetTileId });
 };
 
 export function startProspectingHelper(state: GameState, tileId: string, workerId: string): GameState {
-  const [tx, ty] = parseTileIdToArray(tileId);
-  const tile = state.map.tiles[ty]?.[tx];
-  if (!tile) return state;
-  const worker = tile.workers.find((w: Worker) => w.id === workerId && w.type === WorkerType.Prospector);
-  if (!worker) return state;
-  return startProspectorWork(state, workerId);
+  const nationId = ownerOf(state, workerId);
+  if (!nationId) return state;
+  return applyOrder(state, { kind: "startProspecting", nationId, workerId, tileId });
 }
 
 /**
@@ -157,130 +79,47 @@ export function getStartDevelopmentFunction(workerType: WorkerType): (state: Gam
 }
 
 export function startDevelopmentHelper(state: GameState, tileId: string, workerId: string, workerType: WorkerType): GameState {
-  const [tx, ty] = parseTileIdToArray(tileId);
-  const tile = state.map.tiles[ty]?.[tx];
-  if (!tile) return state;
-  const worker = tile.workers.find((w: Worker) => w.id === workerId && w.type === workerType);
-  if (!worker) return state;
-
-  // Use the appropriate start function for this worker type
-  const startFunction = getStartDevelopmentFunction(workerType);
-  return startFunction(state, workerId);
+  const loc = findWorker(state, workerId);
+  if (!loc || loc.worker.type !== workerType) return state;
+  return applyOrder(state, { kind: "startDevelopment", nationId: loc.worker.nationId, workerId, tileId });
 }
 
-
-export function startConstructionHelper(state: GameState, tileId: string, workerId: string, kind: 'depot' | 'port' | 'fort' | 'rail'): GameState {
-  const [tx, ty] = parseTileIdToArray(tileId);
-  const tile = state.map.tiles[ty]?.[tx];
-  if (!tile) return state;
-  const worker = tile.workers.find((w: Worker) => w.id === workerId && w.type === WorkerType.Engineer);
-  if (!worker) return state;
-  if (worker.status !== WorkerStatus.Available) return state;
-  if (tile.constructionJob && !tile.constructionJob.completed) return state;
-  if (kind === 'port' && !(tile.hasRiver === true || isAdjacentToOcean(state.map, tx, ty))) return state;
-
-  const ledger = createTreasuryLedger(state);
-  if (!ledger.tryCharge(worker.nationId, CONSTRUCTION_COST[kind])) return state;
-
-  // Build the specified construction
-  const durationTurns = EngineerBuildDurationsTurns[kind] || 1;
-  const startedOnTurn = state.turn;
-
-  const newTiles = state.map.tiles.map((row, y) =>
-    row.map((t, x) => {
-      if (x === tx && y === ty) {
-        return {
-          ...t,
-          constructionJob: { workerId: worker.id, kind, startedOnTurn, durationTurns },
-          workers: t.workers.map(w =>
-            w.id === worker.id
-              ? { ...w, status: WorkerStatus.Working, jobDescription: `Constructing ${kind}` }
-              : w
-          ),
-        };
-      }
-      return t;
-    })
-  );
-
-  return { ...state, nations: ledger.nationsAfterCharges(), map: { ...state.map, tiles: newTiles } };
+export function startConstructionHelper(state: GameState, tileId: string, workerId: string, kind: ConstructionKind): GameState {
+  const nationId = ownerOf(state, workerId);
+  if (!nationId) return state;
+  return applyOrder(state, { kind: "startConstruction", nationId, workerId, tileId, structure: kind });
 }
 
 export const cancelActionHelper = (state: GameState, tileId: string, workerId: string): GameState => {
-    const [tx, ty] = parseTileIdToArray(tileId);
-    if (isNaN(tx) || isNaN(ty)) return state;
-
-    const tile = state.map.tiles[ty]?.[tx];
-    if (!tile) return state;
-
-    const worker = tile.workers.find((w: Worker) => w.id === workerId);
-    if (!worker) return state;
-
-    if (worker.status === WorkerStatus.Moved && worker.previousTileId) {
-        const [px, py] = parseTileIdToArray(worker.previousTileId);
-        if (isNaN(px) || isNaN(py)) return state;
-
-        const newTiles = state.map.tiles.map((row, y) => {
-            if (y !== ty && y !== py) return row;
-            return row.map((t, x) => {
-                if (x === tx && y === ty) {
-                    return { ...t, workers: t.workers.filter(w => w.id !== workerId) };
-                }
-                if (x === px && y === py) {
-                    const returnedWorker: Worker = {
-                        ...worker,
-                        status: WorkerStatus.Available,
-                        justMoved: false,
-                        jobDescription: undefined,
-                        previousTileId: undefined,
-                        assignedTileId: worker.previousTileId,
-                    };
-                    return { ...t, workers: [...t.workers, returnedWorker] };
-                }
-                return t;
-            });
-        });
-        return { ...state, map: { ...state.map, tiles: newTiles } };
-    }
-
-    if (worker.status === WorkerStatus.Working) {
-        const newTiles = state.map.tiles.map((row, y) => {
-            if (y !== ty) return row;
-            return row.map((t, x) => {
-                if (x !== tx) return t;
-
-                const newTile = { ...t };
-                if (newTile.prospecting?.workerId === workerId) newTile.prospecting = undefined;
-                if (newTile.developmentJob?.workerId === workerId) newTile.developmentJob = undefined;
-                if (newTile.constructionJob?.workerId === workerId) newTile.constructionJob = undefined;
-
-                newTile.workers = newTile.workers.map(w =>
-                    w.id === workerId ? { ...w, status: WorkerStatus.Available, justMoved: false, jobDescription: undefined } : w
-                );
-                return newTile;
-            });
-        });
-        return { ...state, map: { ...state.map, tiles: newTiles } };
-    }
-
-    return state;
+  const nationId = ownerOf(state, workerId);
+  if (!nationId) return state;
+  return applyOrder(state, { kind: "cancelWorkerAction", nationId, workerId, tileId });
 };
 
 export function moveAndStartProspectingHelper(state: GameState, targetTileId: string, workerId: string): GameState {
-  return moveAndStartWorkerJob(state, targetTileId, workerId, moveWorker, startProspectorWork);
+  const nationId = ownerOf(state, workerId);
+  if (!nationId) return state;
+  return moveAndStart(state, { kind: "moveAndStartProspecting", nationId, workerId, toTileId: targetTileId });
 }
 
 export function moveAndStartDevelopmentHelper(state: GameState, targetTileId: string, workerId: string, workerType: WorkerType): GameState {
-  const startFunction = getStartDevelopmentFunction(workerType);
-  return moveAndStartWorkerJob(state, targetTileId, workerId, moveWorker, startFunction);
+  const loc = findWorker(state, workerId);
+  if (!loc) return state;
+  const nationId = loc.worker.nationId;
+  // As before M1: a job for another worker type cannot start, so this is a plain move.
+  if (loc.worker.type !== workerType) {
+    return applyOrder(state, { kind: "moveWorker", nationId, workerId, toTileId: targetTileId });
+  }
+  return moveAndStart(state, { kind: "moveAndStartDevelopment", nationId, workerId, toTileId: targetTileId });
 }
 
 export function moveAndStartConstructionHelper(
   state: GameState,
   targetTileId: string,
   workerId: string,
-  kind: 'depot' | 'port' | 'fort' | 'rail'
+  kind: ConstructionKind
 ): GameState {
-  const startFunction = (s: GameState, id: string) => startConstructionHelper(s, targetTileId, id, kind);
-  return moveAndStartWorkerJob(state, targetTileId, workerId, moveWorker, startFunction);
+  const nationId = ownerOf(state, workerId);
+  if (!nationId) return state;
+  return moveAndStart(state, { kind: "moveAndStartConstruction", nationId, workerId, toTileId: targetTileId, structure: kind });
 }

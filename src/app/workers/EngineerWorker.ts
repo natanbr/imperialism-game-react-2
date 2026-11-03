@@ -1,50 +1,34 @@
-import { EngineerBuildDurationsTurns } from "../definisions/workerDurations";
-import { areTilesAdjacent, canBuildRailAt } from "../store/helpers/mapHelpers";
-import { CONSTRUCTION_COST } from "../definisions/workPrices";
-import { createTreasuryLedger } from "../store/helpers/treasuryHelpers";
+import { areTilesAdjacent, canBuildRailAt } from "@/engine/map/mapHelpers";
+import { tryApplyOrder } from "@/engine/orders/apply";
+import { isPortSite } from "@/engine/orders/queries";
 import { GameState } from "../types/GameState";
 import { GameMap } from "../types/Map";
 import { TerrainType, Tile } from "../types/Tile";
-import { Worker, WorkerStatus } from "../types/Workers";
+import { Worker, WorkerStatus, WorkerType } from "../types/Workers";
+import { ConstructionKind } from "../types/jobs/ConstructionJob";
 import { PossibleAction } from "../types/actions";
+import { startEachWorker } from "./startEachWorker";
+
+/** The pre-M1 automatic choice; a port is only picked where a port may stand (FR-009). */
+function pickConstructionKind(state: GameState, worker: Worker, tile: Tile): ConstructionKind | undefined {
+  if (tile.constructionJob) return undefined;
+  if (!tile.depot) return "depot";
+  if (!tile.port && isPortSite(state, tile)) return "port";
+  if ((tile.fortLevel ?? 0) < 3) return "fort";
+  if (canBuildRailAt(state.map, tile.x, tile.y, worker.nationId)) return "rail";
+  return undefined;
+}
 
 /**
  * Starts construction for `workerId` only (without an id, for every available engineer),
- * picking the kind automatically. To build a chosen kind, use startConstructionHelper.
+ * picking the kind automatically. To build a chosen kind, use a startConstruction order.
  */
 export function startEngineerWork(state: GameState, workerId?: string): GameState {
-  let updated = false;
-  const ledger = createTreasuryLedger(state);
-  const newTiles = state.map.tiles.map(row =>
-    row.map(tile => {
-      if (!tile.workers) return tile;
-      const worker = tile.workers.find(w =>
-        w.type === "engineer" && w.status === WorkerStatus.Available && (workerId === undefined || w.id === workerId)
-      );
-      if (!worker) return tile;
-      if (tile.constructionJob) return tile;
-      let kind: "depot" | "port" | "fort" | "rail" | undefined;
-      if (!tile.depot) kind = "depot";
-      else if (!tile.port) kind = "port";
-      else if ((tile.fortLevel ?? 0) < 3) kind = "fort";
-      else if (canBuildRailAt(state.map, tile.x, tile.y, worker.nationId)) kind = "rail";
-      if (!kind) return tile;
-      if (!ledger.tryCharge(worker.nationId, CONSTRUCTION_COST[kind])) return tile;
-      const durationTurns = EngineerBuildDurationsTurns[kind] || 1;
-      const startedOnTurn = state.turn;
-      updated = true;
-      return {
-        ...tile,
-        constructionJob: { workerId: worker.id, kind, startedOnTurn, durationTurns },
-        workers: tile.workers.map(w =>
-          w.id === worker.id
-            ? { ...w, status: WorkerStatus.Working, jobDescription: `Constructing ${kind}` }
-            : w
-        ),
-      };
-    })
-  );
-  return updated ? { ...state, nations: ledger.nationsAfterCharges(), map: { ...state.map, tiles: newTiles } } : state;
+  return startEachWorker(state, WorkerType.Engineer, workerId, (s, worker, tile) => {
+    const structure = pickConstructionKind(s, worker, tile);
+    if (!structure) return undefined;
+    return { kind: "startConstruction", nationId: worker.nationId, workerId: worker.id, tileId: tile.id, structure };
+  });
 }
 
 export function getEngineerActions(tile: Tile, map: GameMap, worker: Worker): PossibleAction | null {
@@ -66,11 +50,10 @@ export function getEngineerActions(tile: Tile, map: GameMap, worker: Worker): Po
 }
 
 /**
- * Handles engineer-specific movement logic.
- * If moving to an adjacent tile where rail can be built, automatically starts rail construction
- * and charges its price; if the nation cannot afford it, returns the unchanged state so the
- * move is refused rather than made for free.
- * Otherwise, returns null to indicate normal movement should be used.
+ * Engineer rail-on-move, now a moveAndBuildRail order (FR-008, FR-017).
+ * Returns null when the move is not a rail move, or when the rail is refused for a reason other
+ * than money, so the caller falls back to the plain (also validated) move. A rail the nation
+ * cannot afford refuses the whole move, as before: the unchanged state is returned.
  */
 export function handleEngineerMovement(
   state: GameState,
@@ -80,50 +63,14 @@ export function handleEngineerMovement(
 ): GameState | null {
   const isAdjacent = areTilesAdjacent(state.map, fromTile.x, fromTile.y, toTile.x, toTile.y);
   const canBuildRail = canBuildRailAt(state.map, toTile.x, toTile.y, worker.nationId);
+  if (!isAdjacent || !canBuildRail) return null;
 
-  // If moving to adjacent tile and can build rail, handle it specially
-  if (isAdjacent && canBuildRail) {
-    const ledger = createTreasuryLedger(state);
-    if (!ledger.tryCharge(worker.nationId, CONSTRUCTION_COST.rail)) return state;
-
-    const durationTurns = EngineerBuildDurationsTurns.rail || 1;
-    const startedOnTurn = state.turn;
-
-    // Remove worker from source tile
-    const newTilesStep1 = state.map.tiles.map((row, y) =>
-      row.map((t, x) => {
-        if (x === fromTile.x && y === fromTile.y) {
-          return { ...t, workers: t.workers.filter(w => w.id !== worker.id) };
-        }
-        return t;
-      })
-    );
-
-    // Add worker to destination tile with rail construction job
-    const newTilesStep2 = newTilesStep1.map((row, y) =>
-      row.map((t, x) => {
-        if (x === toTile.x && y === toTile.y) {
-          const movedWorker: Worker = {
-            ...worker,
-            status: WorkerStatus.Working,
-            jobDescription: 'Constructing rail',
-            assignedTileId: toTile.id,
-            previousTileId: fromTile.id,
-            justMoved: true,
-          };
-          return {
-            ...t,
-            constructionJob: { workerId: worker.id, kind: 'rail' as const, startedOnTurn, durationTurns },
-            workers: [...t.workers, movedWorker],
-          };
-        }
-        return t;
-      })
-    );
-
-    return { ...state, nations: ledger.nationsAfterCharges(), map: { ...state.map, tiles: newTilesStep2 } };
-  }
-
-  // Return null to indicate normal movement should be used
-  return null;
+  const { state: next, result } = tryApplyOrder(state, {
+    kind: "moveAndBuildRail",
+    nationId: worker.nationId,
+    workerId: worker.id,
+    toTileId: toTile.id,
+  });
+  if (result.ok) return next;
+  return result.reason === "insufficient-funds" ? state : null;
 }

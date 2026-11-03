@@ -36,7 +36,7 @@ describe('Miner Worker Functionality', () => {
 
   describe('Resource Discovery Validation', () => {
     it('should NOT allow miner to start development on undiscovered resource', () => {
-      const state = { ...baseState };
+      const state = structuredClone(baseState);
 
       // Find a mountains/barren hills tile with undiscovered resource
       const mineralTile = state.map.tiles.flat().find(
@@ -74,7 +74,7 @@ describe('Miner Worker Functionality', () => {
     });
 
     it('should allow miner to start development on discovered resource', () => {
-      const state = { ...baseState };
+      const state = structuredClone(baseState);
 
       // Find a mountains/barren hills tile
       const mineralTile = state.map.tiles.flat().find(
@@ -127,7 +127,7 @@ describe('Miner Worker Functionality', () => {
     });
 
     it('should NOT allow miner to start on tile without resource', () => {
-      const state = { ...baseState };
+      const state = structuredClone(baseState);
 
       // Find a mountains tile and remove its resource
       const mineralTile = state.map.tiles.flat().find(
@@ -166,7 +166,7 @@ describe('Miner Worker Functionality', () => {
 
   describe('Sequential Level Development (1, 2, 3)', () => {
     it('should develop mine from level 0 to level 1', () => {
-      const state = { ...baseState };
+      const state = structuredClone(baseState);
 
       const mineralTile = state.map.tiles.flat().find(
         t => t.terrain === TerrainType.Mountains
@@ -200,7 +200,7 @@ describe('Miner Worker Functionality', () => {
     });
 
     it('should develop mine from level 1 to level 2', () => {
-      const state = { ...baseState };
+      const state = structuredClone(baseState);
 
       const mineralTile = state.map.tiles.flat().find(
         t => t.terrain === TerrainType.Mountains
@@ -269,7 +269,7 @@ describe('Miner Worker Functionality', () => {
     });
 
     it('should NOT allow development beyond level 3', () => {
-      const state = { ...baseState };
+      const state = structuredClone(baseState);
 
       const mineralTile = state.map.tiles.flat().find(
         t => t.terrain === TerrainType.Mountains
@@ -307,7 +307,7 @@ describe('Miner Worker Functionality', () => {
 
   describe('Move and Start Functionality', () => {
     it('should move miner to discovered resource tile and start mining', () => {
-      const state = { ...baseState };
+      const state = structuredClone(baseState);
 
       // Find capital tile where miner starts
       const capitalTile = state.map.tiles.flat().find(t => t.terrain === TerrainType.Capital)!;
@@ -348,7 +348,7 @@ describe('Miner Worker Functionality', () => {
     });
 
     it('should NOT start mining when moving to undiscovered resource tile', () => {
-      const state = { ...baseState };
+      const state = structuredClone(baseState);
 
       const capitalTile = state.map.tiles.flat().find(t => t.terrain === TerrainType.Capital)!;
       const miner = capitalTile.workers.find(w => w.type === WorkerType.Miner)!;
@@ -372,14 +372,15 @@ describe('Miner Worker Functionality', () => {
       // No development job should be created
       expect(resultTile.developmentJob).toBeUndefined();
 
-      // Worker should be Available (not Working)
-      expect(movedMiner?.status).toBe(WorkerStatus.Available);
+      // Worker is not working; since M1 it counts as moved this turn (FR-006), so it cannot move again
+      expect(movedMiner?.status).toBe(WorkerStatus.Moved);
+      expect(movedMiner?.justMoved).toBe(true);
     });
   });
 
   describe('startMinerWork Factory Function', () => {
     it('should use startMinerWork to create development job', () => {
-      const state = { ...baseState };
+      const state = structuredClone(baseState);
 
       const mineralTile = state.map.tiles.flat().find(
         t => t.terrain === TerrainType.BarrenHills
@@ -506,7 +507,7 @@ describe('Miner Worker Functionality', () => {
 
   describe('Miner Terrain Restrictions', () => {
     it('should work on BarrenHills terrain', () => {
-      const state = { ...baseState };
+      const state = structuredClone(baseState);
 
       const barrenHillsTile = state.map.tiles.flat().find(
         t => t.terrain === TerrainType.BarrenHills
@@ -541,7 +542,7 @@ describe('Miner Worker Functionality', () => {
     });
 
     it('should work on Mountains terrain', () => {
-      const state = { ...baseState };
+      const state = structuredClone(baseState);
 
       const mountainsTile = state.map.tiles.flat().find(
         t => t.terrain === TerrainType.Mountains

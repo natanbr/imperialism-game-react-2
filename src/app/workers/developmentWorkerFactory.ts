@@ -3,9 +3,7 @@ import {TerrainType, Tile} from "@/types/Tile";
 import {Worker, WorkerStatus, WorkerType} from "@/types/Workers";
 import {GameMap} from "@/types/Map";
 import {PossibleAction} from "@/types/actions";
-import {WorkerLevelDurationsTurns} from "@/definisions/workerDurations";
-import {DEVELOPMENT_COST} from "@/definisions/workPrices";
-import {createTreasuryLedger} from "@/store/helpers/treasuryHelpers";
+import {startEachWorker} from "./startEachWorker";
 
 /**
  * Configuration for a development worker type
@@ -19,48 +17,18 @@ export interface DevelopmentWorkerConfig {
 /**
  * Generic function to start development work for any worker type.
  * The returned function starts `workerId` only; without an id, every available worker of the type.
+ * Rules, prices and job text come from the engine's startDevelopment order.
  */
 export function createStartDevelopmentWork(config: DevelopmentWorkerConfig) {
-  const { workerType, jobDescriptionPrefix } = config;
+  const { workerType } = config;
 
   return function startWork(state: GameState, workerId?: string): GameState {
-    let updated = false;
-    const ledger = createTreasuryLedger(state);
-    const newTiles = state.map.tiles.map(row =>
-      row.map(tile => {
-        if (!tile.workers) return tile;
-        const worker = tile.workers.find(w =>
-          w.type === workerType && w.status === WorkerStatus.Available && (workerId === undefined || w.id === workerId)
-        );
-        if (!worker) return tile;
-        if (!tile.resource) return tile;
-        // Check if resource is discovered (for minerals/oil that start hidden)
-        if (tile.resource.discovered === false) return tile;
-        const targetLevel = (tile.resource.level || 0) + 1;
-        if (targetLevel > 3) return tile;
-        if (tile.developmentJob) return tile;
-        if (!ledger.tryCharge(worker.nationId, DEVELOPMENT_COST[targetLevel as 1 | 2 | 3])) return tile;
-        const durationTurns = WorkerLevelDurationsTurns[workerType]?.[targetLevel as 1 | 2 | 3] || 1;
-        const newJob = {
-          workerId: worker.id,
-          workerType: worker.type,
-          targetLevel: targetLevel as 1 | 2 | 3,
-          startedOnTurn: state.turn,
-          durationTurns,
-        };
-        updated = true;
-        return {
-          ...tile,
-          developmentJob: newJob,
-          workers: tile.workers.map(w =>
-            w.id === worker.id
-              ? { ...w, status: WorkerStatus.Working, jobDescription: `${jobDescriptionPrefix} to level ${targetLevel}` }
-              : w
-          ),
-        };
-      })
-    );
-    return updated ? { ...state, nations: ledger.nationsAfterCharges(), map: { ...state.map, tiles: newTiles } } : state;
+    return startEachWorker(state, workerType, workerId, (_s, worker, tile) => ({
+      kind: "startDevelopment",
+      nationId: worker.nationId,
+      workerId: worker.id,
+      tileId: tile.id,
+    }));
   };
 }
 

@@ -7,11 +7,9 @@ import {
   startProspectingHelper,
   startDevelopmentHelper,
   startConstructionHelper,
-  startProspectorWork,
-  moveWorker,
-  moveAndStartWorkerJob,
+  moveAndStartProspectingHelper,
+  moveAndStartDevelopmentHelper,
   moveAndStartConstructionHelper,
-  getStartDevelopmentFunction,
 } from './helpers/workerHelpers';
 import { handleEngineerMovement } from '@/workers/EngineerWorker';
 import { parseTileIdToArray } from '@/utils/tileIdUtils';
@@ -92,7 +90,7 @@ export const createWorkerActionsSlice: StateCreator<GameState, [], [], WorkerAct
     set((state) => cancelActionHelper(state, tileId, workerId)),
 
   moveAndStartProspecting: (targetTileId, workerId) =>
-    set((state) => moveAndStartWorkerJob(state, targetTileId, workerId, moveWorker, startProspectorWork)),
+    set((state) => moveAndStartProspectingHelper(state, targetTileId, workerId)),
 
   moveAndStartDevelopment: (targetTileId, workerId, workerType) => {
     set((state) => {
@@ -114,8 +112,7 @@ export const createWorkerActionsSlice: StateCreator<GameState, [], [], WorkerAct
 
       if (!finalType) return state;
 
-      const startFunction = getStartDevelopmentFunction(finalType);
-      return moveAndStartWorkerJob(state, targetTileId, workerId, moveWorker, startFunction);
+      return moveAndStartDevelopmentHelper(state, targetTileId, workerId, finalType);
     });
   },
 

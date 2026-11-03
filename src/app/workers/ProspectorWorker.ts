@@ -1,40 +1,19 @@
 import { GameState } from "../types/GameState";
 import { Tile } from "../types/Tile";
-import { Worker, WorkerStatus } from "../types/Workers";
+import { Worker, WorkerStatus, WorkerType } from "../types/Workers";
 import { GameMap } from "../types/Map";
 import { PossibleAction } from "../types/actions";
-import { PROSPECT_COST } from "../definisions/workPrices";
-import { createTreasuryLedger } from "../store/helpers/treasuryHelpers";
 import { PROSPECTABLE_TERRAIN_TYPES } from "../definisions/terrainDefinitions";
+import { startEachWorker } from "./startEachWorker";
 
 /** Starts prospecting for `workerId` only; without an id, for every available prospector. */
 export function startProspectorWork(state: GameState, workerId?: string): GameState {
-  let updated = false;
-  const ledger = createTreasuryLedger(state);
-  const newTiles = state.map.tiles.map(row =>
-    row.map(tile => {
-      if (!tile.workers) return tile;
-      const worker = tile.workers.find(w =>
-        w.type === "prospector" && w.status === WorkerStatus.Available && (workerId === undefined || w.id === workerId)
-      );
-      if (!worker) return tile;
-      if (!tile.resource || tile.resource.discovered) return tile;
-      if (tile.prospecting) return tile;
-      if (!ledger.tryCharge(worker.nationId, PROSPECT_COST)) return tile;
-      const startedOnTurn = state.turn;
-      updated = true;
-      return {
-        ...tile,
-        prospecting: { startedOnTurn, workerId: worker.id },
-        workers: tile.workers.map(w =>
-          w.id === worker.id
-            ? { ...w, status: WorkerStatus.Working, jobDescription: "Prospecting" }
-            : w
-        ),
-      };
-    })
-  );
-  return updated ? { ...state, nations: ledger.nationsAfterCharges(), map: { ...state.map, tiles: newTiles } } : state;
+  return startEachWorker(state, WorkerType.Prospector, workerId, (_s, worker, tile) => ({
+    kind: "startProspecting",
+    nationId: worker.nationId,
+    workerId: worker.id,
+    tileId: tile.id,
+  }));
 }
 
 export function getProspectorActions(tile: Tile, map: GameMap, worker: Worker): PossibleAction | null {
@@ -51,7 +30,7 @@ export function getProspectorActions(tile: Tile, map: GameMap, worker: Worker): 
   console.log("Checking prospector actions for tile:", tile.id, "with terrain:", tile.terrain, "and resource:", tile.resource);
   if (PROSPECTABLE_TERRAIN_TYPES.includes(tile.terrain) && !tile.resource?.discovered && !tile.prospecting) {
     console.log("Returning prospect action");
-    
+
     return { type: "prospect" };
   }
   return null;
