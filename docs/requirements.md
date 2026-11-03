@@ -15,6 +15,11 @@ Status values: `planned`, `tested` (test exists and is green), `replaced`, `drop
 | NR-004 | A visual progress page (overview, detail, blockers, decisions) is kept current at every checkpoint. | planned |
 | NR-005 | Gold is worth $200 and gems $500 per unit (manual values). | planned |
 | NR-006 | Nation AI (v3) supports both scripted and LLM players behind one `(view) => Order[]` interface. | planned |
+| NR-007 | (2026-11-03) The first playable map is much smaller: two islands with a few tile types each, instead of the large continent. | planned (M3.5) |
+| NR-008 | (2026-11-03) Tiles use a faint background colour instead of strong colours, and show icons for what they hold (apples on orchards, fish on coast, trees on forests, as in the original game) wherever an icon fits. An external icon library may be used for more icon choices. | planned (M3.5) |
+| NR-009 | (2026-11-03) The game looks appealing during testing: a minimalist design with a small set of simple colours. | planned (M3.5) |
+| NR-010 | (2026-11-03) Rail built tile by tile is drawn as one continuous line, and a depot shows as connected (green) only when an unbroken rail path joins it to the capital. | planned (fix before M3.5) |
+| NR-011 | (2026-11-03, from decision Q12) The game ends the way the original does: a vote of the Council of Governors, once one nation is strong enough. v1 ends after a fixed 40 turns; the Council vote is kept for a later version (v2, with diplomacy). | deferred (v2) |
 
 ## M1 Headless core
 
