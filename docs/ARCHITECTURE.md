@@ -1,263 +1,217 @@
-# Architecture & Development Guidelines
+# Architecture
+
+How the code is built. Rewritten 2026-11-03 for M1 (headless core). Goals and milestones:
+`docs/REVIVAL_PLAN.md`. Rules of the original game: `docs/rules/README.md`. How work runs:
+`docs/FLOW.md`. Requirements: `docs/requirements.md`.
 
 ## Overview
-Next.js 15 strategy game with React 19, TypeScript, Zustand state management, and Vitest testing. Turn-based gameplay featuring workers, transport, diplomacy, trade, and combat.
 
-## Project Structure
+A web remake of Imperialism (1997): Next.js 15, React 19, TypeScript strict, Zustand, Vitest,
+Playwright. The code has three layers, and each one only depends on the one below it:
+
+```
+components/, hooks/        React: read the store, build Orders, call submitOrder / advanceTurn
+        |
+store/                     Zustand: one GameState (`game`) plus UI state
+        |
+engine/                    headless game core: Orders, validation, turn resolution, systems
+```
+
+The engine never imports React, Zustand, Next, the store, components or hooks, and never uses
+DOM globals, `Math.random` or `Date.now`. An ESLint rule enforces this for `src/app/engine/**`
+(`eslint.config.mjs`, tested by `tests/engine/lintGuard.test.ts`).
+
+## Folders
 
 ```
 src/app/
-├── components/        # React UI components
-├── constants/         # Game constants (gameConstants.ts)
-├── definisions/       # Game rules and data tables
-├── hooks/             # Custom React hooks (logic extraction)
-├── store/             # Zustand state management
-│   ├── helpers/       # Pure state mutation helpers
-│   └── slices/        # Domain-specific state slices
-├── systems/           # Turn-based game logic (pure functions)
-│   └── jobs/          # Worker job resolution
-├── styles/            # CSS modules and design tokens
-├── testing/           # Mock data for tests
-├── types/             # TypeScript type definitions
-├── utils/             # Utility functions
-└── workers/           # Worker type implementations
-
-tests/                 # Vitest test files (mirrors src/app/)
-docs/                  # Project documentation
+  engine/                  the headless core (no UI imports)
+    index.ts               public API: Order types, validateOrder, applyOrder, tryApplyOrder,
+                           resolveTurn, newGame, scriptedPlayer, GameEvent
+    newGame.ts             the start state (testMap1, one nation, rail networks built)
+    rng.ts                 seeded RNG: createTurnRng(seed, turn)
+    orders/                Order.ts (union + RejectReason), validate.ts, apply.ts,
+                           queries.ts (read-only lookups shared by validate, apply and players)
+    turn/                  resolveTurn.ts, phases.ts (TURN_PHASES), context.ts (TurnContext, GameEvent)
+    systems/               one file per turn system, each (state, ctx) => state
+    map/mapHelpers.ts      neighbours, adjacency, rail sites
+    ai/scriptedPlayer.ts   a Player is (state, nationId) => Order[]
+  store/
+    rootStore.ts           createGameStore(options) and the app's useGameStore
+    gameSlice.ts           game, activeNationId, lastRejection, eventLog, submitOrder, advanceTurn
+    controls/              UI slices: tile selection, camera, overlays, dialogs
+    selectors.ts           memoized selectors (reselect)
+    industrySlice.ts       NOT wired into the store; production recipes, moves into the engine in M2
+  components/              React components; gameText.ts (display text), railSegments.ts (map overlay)
+  hooks/                   React hooks; tileClickOrders.ts (what a tile click asks for, no React)
+  workers/                 per worker type, the action it offers on a tile (map cursor and click)
+  types/                   GameState, Tile, Worker, Nation, jobs, ...
+  definisions/             rule tables: prices, durations, terrains, resources, recipes
+  testing/                 worldInit + testMap1 (the app's map), mockNation (two-nation fixture)
+  constants/, styles/, utils/
+tests/
+  engine/                  orders, turn, systems, determinism, two nations (npm run test:engine)
+  store/                   the store: shape, submitOrder, advanceTurn, what reaches the engine
+  ui/                      click policy, display text, the "UI only submits orders" scan
+  workers/                 the miner's possible actions and job starts
+e2e/                       Playwright smoke suite (cursor icons, three turns played)
 ```
 
-## Architecture Layers
+## Game state and UI state
 
-### 1. State Management (Zustand)
+`GameState` (`types/GameState.ts`) is the whole game as the engine sees it: turn, year, `seed`,
+nations, map, transport network and allocations, technology, difficulty. It holds game data
+only (FR-018).
 
-**Pattern**: Sliced store - each slice = domain-specific state + actions
+The store (`store/rootStore.ts`) holds that state under `game`, and UI state beside it:
 
-**Location**: `src/app/store/`
+| Store key | What | Kind |
+|---|---|---|
+| `game` | the `GameState` | game |
+| `activeNationId` | the nation this client plays | session |
+| `lastRejection` | `{ order, reason }` of the last refused order | UI |
+| `eventLog` | `{ turn, year, events }` per resolved turn, last 20 | UI |
+| `selectedTileId`, `selectedWorkerId`, `hoveredTileId` | selection | UI |
+| `cameraX`, `cameraY` | map scroll | UI |
+| `isWarehouseOpen`, `isCapitalOpen`, ... | overlays and dialogs | UI |
 
-**Core Slices**:
-- `gameSlice` - Turn, year
-- `mapSlice` - Tiles grid, terrain, resources
-- `nationSlice` - Nations, warehouses, industry
-- `workerActionsSlice` - Worker commands (move, develop, construct)
-- `turnSlice` - Turn execution orchestration
-- `technologySlice` - Tech research
-- `transportSlice` - Network capacity
-- `industrySlice` - Production recipes
+Only `game` is ever passed to the engine (tested with spies in
+`tests/store/engineBoundary.test.ts`). Display text is derived, not stored: a worker's job text
+comes from `workerJobLabel(tile, worker)`, news lines from `eventText(event)`, refusals from
+`refusalText(...)` (all in `components/gameText.ts`).
 
-**UI Slices**:
-- `tileSelectionSlice` - Selected tile/worker
-- `cameraSlice` - Pan/zoom state
-- `overlaySlice` - Modals visibility
-- `controlsSlice` - UI controls
+Kept in `GameState` on purpose: the jobs' `completed` and `completedOnTurn` flags. A finished
+job stays on its tile until the next turn (the tile's "done" pulse), and the engine's rules read
+the flags: `holdsJob` ignores finished jobs, a finished development job blocks a new one for that
+turn, and the development system clears finished jobs one turn later.
 
-**Composition**: `rootStore.ts` combines all slices using spread operators
+## Order flow (a player action)
 
-**Selectors**: Memoized with `reselect` in `src/app/store/selectors.ts`
+Everything a player can do is an `Order` (`engine/orders/Order.ts`): a union discriminated on
+`kind`, each naming its `nationId` and the exact worker and tile. Eleven kinds today: moveWorker,
+moveAndBuildRail, startProspecting, startDevelopment, startConstruction,
+moveAndStartProspecting, moveAndStartDevelopment, moveAndStartConstruction, cancelWorkerAction,
+setTransportAllocations, changeTransportCapacity.
 
-### 2. Turn-Based Game Loop
-
-**Orchestration**: `src/app/systems/runTurnPhases.ts`
-
-**Phase Order**:
-1. Development - Worker jobs (prospect, farm, mine, etc.)
-2. Diplomacy - Diplomatic offers
-3. Trade - Trade deals
-4. Production - Industrial production
-5. Combat - Military conflicts
-6. Interceptions - Blockades cancel trades
-7. Transport Connectivity - Network graphs
-8. Logistics - Move resources to warehouses
-
-**System Contract**: Pure function `(state: GameState, rng?: RNG) => GameState`
-
-**Determinism**: Seeded RNG (`src/app/systems/utils/rng.ts`) ensures reproducible outcomes
-
-### 3. Worker System
-
-**Types**: Prospector, Engineer, Miner, Farmer, Rancher, Forester, Driller, Developer
-
-**Status**: Available, Moved, Working
-
-**Architecture**:
-- `src/app/store/helpers/workerHelpers.ts` - Pure state mutation helpers
-- `src/app/hooks/useWorkerActions.ts` - UI interaction hooks
-- `src/app/hooks/useTileInteractions.ts` - Tile click handlers
-- `src/app/systems/jobs/*Job.ts` - Turn-based job resolution
-
-**Job Flow**:
-1. Player commands worker action (UI)
-2. Worker status → Working, tile gets job (developmentJob/constructionJob)
-3. Turn execution resolves job (decrements turns, applies effects)
-4. Job completes when turnsRemaining = 0
-
-### 4. Map & Tiles
-
-**Structure**: 2D grid `state.map.tiles[y][x]` (row, column indexed)
-
-**Tile Properties** (`src/app/types/Tile.ts`):
-- `terrain` - TerrainType (Farm, Mountains, Swamp, etc.)
-- `resource` - Type and level 0-3 (minerals/oil start hidden)
-- `workers` - Array of workers on tile
-- `developmentJob` / `constructionJob` - Active jobs
-- `ownerNationId` / `cityId` - Ownership
-- `port`, `depot`, `fortLevel`, `connected` - Infrastructure
-
-**Adjacent Tiles**: Brick pattern with half-tile shift (6 neighbors: 2 top, 2 sides, 2 bottom)
-
-### 5. Transport System
-
-**Capacity**: Per-turn limit (resource units) per nation
-
-**Connectivity**: BFS graph of connected tiles via depots/rails/ports (`transportConnectivitySystem`)
-
-**Logistics**: `logisticsSystem` moves resources from provinces → national warehouse (respects capacity)
-
-**Allocation**: Players distribute capacity via `TransportAllocationModal`
-
-**Rules**:
-- Depots/Ports must connect to capital or active port via railroad
-- Capital acts as depot (collects from adjacent tiles)
-- Only active depots/ports transfer resources
-
-### 6. Component Architecture
-
-**Main Page**: `src/app/page.tsx` - Renders MapView, HUD, modals
-
-**Component Pattern**: Refactored for modularity
-- **Hooks**: `src/app/hooks/` - Logic separation (useTileActions, useTileVisuals)
-- **Sub-components**: `src/app/components/[Component]/` - Single responsibility
-- **CSS Modules**: `[Component].module.css` with design tokens
-- **Index files**: Re-export for clean imports
-
-**Example** (Tile component):
 ```
-src/app/components/Tile/
-├── Tile.tsx           # Main component (~100 lines)
-├── TileBase.tsx       # Base rendering
-├── TileResource.tsx   # Resource display
-├── TileWorkers.tsx    # Worker buttons
-├── TileJobs.tsx       # Job indicators
-├── Tile.module.css    # All styles
-└── index.ts           # Re-exports
+click / button / slider
+  -> hook or component builds Order(s) with nationId = activeNationId
+  -> store.submitOrder(order)
+       order for another nation?   -> refused: not-owner
+       engine tryApplyOrder(game, order)
+         validateOrder(game, order) -> { ok: false, reason }  -> lastRejection = { order, reason }, game unchanged
+                                    -> { ok: true }            -> game = applyOrder(game, order), lastRejection = null
+  <- returns the ValidationResult
 ```
 
-**Design Tokens**: `src/app/styles/tokens.css` - Spacing, colors, typography
+- `validateOrder` never changes the state and returns a reason from a fixed list
+  (`RejectReason`), so the UI and AI players can switch on it.
+- `applyOrder` performs the immediate effects: move the worker, start the job, charge the
+  treasury or warehouse. A refused order returns the same state object.
+- A tile click can try several orders (`hooks/tileClickOrders.ts`): a job on another tile is
+  tried as move-and-start, then as a plain move; an engineer moving next to its rail network
+  tries rail-on-move first. `submitFirstAccepted` stops at the first accepted order, or at
+  `insufficient-funds` (an unaffordable job never turns into a plain move).
+- No component or hook writes the store or calls the engine's apply or resolve functions
+  (`tests/ui/uiWritesOnlyOrders.test.ts` scans the sources).
 
-### 7. Type Organization
+## Turn flow (Advance Turn)
 
-**Location**: `src/app/types/`
+Orders take effect when they are submitted, so the turn resolves with no orders from the UI:
 
-**Key Files**:
-- `GameState.ts` - Root state + turn order
-- `Nation.ts`, `City.ts`, `Army.ts`, `Navy.ts` - Entities
-- `Tile.ts`, `Map.ts`, `Workers.ts` - Map/workers
-- `Resource.ts`, `Industry.ts`, `Technology.ts` - Economy
-- `Diplomacy.ts`, `TradeRoute.ts`, `Transport.ts` - Systems
-- `jobs/` - Job state types
-- `actions.ts` - UI action types
-
-### 8. Path Aliases
-
-`@/*` → `src/app/*`
-
-Example:
-```typescript
-import { GameState } from '@/types/GameState';
-import { selectActiveNation } from '@/store/selectors';
+```
+store.advanceTurn()
+  -> resolveTurn(game, {}, game.seed)                    engine/turn/resolveTurn.ts
+       applyTurnOrders     orders given here, nations in state order (none from the UI)
+       applyQueuedTransportCapacity                      capacity bought last turn arrives
+       TURN_PHASES         development, diplomacy, trade, production, combat,
+                           interceptions, transportConnectivity, logistics
+       resetWorkers        everyone may move again; working only while the job is unfinished
+       advanceClock        turn + 1, year + 1 every fourth turn
+  <- { state, events }
+  -> game = state; eventLog += { turn, year, events }; lastRejection = null
 ```
 
-## Development Workflow
+Why immediate: the UI must show the effect at once (the worker moves, the money goes), and
+`resolveTurn(s, { n: orders })` gives the same result as applying the orders first and resolving
+with none (tested in `tests/engine/resolveTurn.test.ts` and `tests/store/gameStore.test.ts`).
+The `ordersByNation` argument is the seam for other players: from M4 an AI nation's orders go in
+there, `resolveTurn(game, { [ai]: player(game, ai) }, game.seed)`. The store keeps no order log,
+so a played game cannot be replayed from the store alone (see the journal objection).
 
-### Adding a Worker Action
-1. Define helper in `store/helpers/workerHelpers.ts` (pure function)
-2. Add action to `WorkerActionsSlice`
-3. Implement job resolution in `systems/jobs/`
-4. Update `developmentSystem.ts` to call resolver
-5. Add UI interaction in `hooks/useWorkerActions.ts`
-6. Write tests in `tests/systems/`
+## Randomness and replay
 
-### Adding a System
-1. Create file in `src/app/systems/`
-2. Export pure function `(state: GameState, rng?: RNG) => GameState`
-3. Add to turn order in `runTurnPhases.ts`
-4. Write tests in `tests/systems/`
+`GameState.seed` is the only random state. A new game draws a seed (`randomSeed()` in the
+store; tests pass 1). Each turn's RNG is `createTurnRng(seed, turn)`, handed to systems in the
+turn context. The same initial state and orders always give the same result
+(`tests/engine/determinism.test.ts`); two scripted nations play 20 turns headlessly in
+`tests/engine/twoNations.test.ts`. The seed shows in the HUD's debug box when a tile is selected.
 
-### Adding a Component
-1. Create component directory: `src/app/components/[Name]/`
-2. Extract logic to hooks: `src/app/hooks/use[Name][Purpose].ts`
-3. Create sub-components for sections
-4. Create CSS module with design tokens
-5. Create index file for exports
+## How to add an order kind
 
-## Best Practices
+1. `engine/orders/Order.ts`: add the interface, add it to the `Order` union and `ORDER_KINDS`;
+   add a `RejectReason` only if no existing one fits.
+2. `engine/orders/validate.ts`: a `case` with every rule, returning a reason when refused.
+3. `engine/orders/apply.ts`: a `case` with the immediate effects, returning a new state.
+4. `components/gameText.ts`: the order's name in `ORDER_TEXT` (TypeScript asks for it).
+5. The UI builds the order with `nationId: activeNationId` and calls `submitOrder`.
+6. Tests first: rows in `tests/engine/validate.test.ts` and `tests/engine/apply.test.ts` with
+   the FR id; the frozen-input checks there cover purity.
 
-### State Management
-- **Slices**: Single domain responsibility
-- **Actions**: Simple state updates only
-- **Immutability**: Always use spread operators, never mutate
-- **Selectors**: Memoize with `reselect` for derived state
+## How to add a turn system
 
-### Systems
-- **Purity**: No side effects, same input → same output
-- **Focus**: One aspect of turn sequence only
-- **Immutability**: Return new state object with changes
+1. `engine/systems/<name>.ts`: `export const <name>: TurnSystem = (state, ctx) => state`. Never
+   mutate the input; randomness only from `ctx.rng`; report what happened with `ctx.emit(...)`.
+2. A new event type goes into `GameEvent` (`engine/turn/context.ts`) and gets a line in
+   `eventText` (`components/gameText.ts`) so the HUD shows it.
+3. Add the system to `TURN_PHASES` in `engine/turn/phases.ts`, in the manual's phase order.
+4. Tests first in `tests/engine/systems/`; `tests/engine/purity.test.ts` runs every phase on a
+   deep-frozen state.
 
-### Components
-- **Size**: Keep main component < 150 lines
-- **Logic**: Extract to hooks
-- **Styles**: Use CSS modules + design tokens
-- **Props**: Define interfaces, document with JSDoc
-- **Events**: Use callbacks, extract complex handlers to hooks
+## Map and tiles
 
-### Testing
-- **Location**: `tests/` mirrors `src/app/` structure
-- **Mocks**: Use `src/app/testing/` helpers
-- **Systems**: Test pure functions with input/output assertions
-- **Coverage**: Run `npx vitest run --coverage`
+`state.map.tiles[y][x]`; tile ids are `"x-y"` (`utils/tileIdUtils.ts`). Rows are a brick
+pattern: odd rows are shifted half a tile, so each tile has six neighbours
+(`engine/map/mapHelpers.ts`). A tile has terrain, an optional resource (type, level 0 to 3,
+hidden until prospected for minerals and oil), its workers, at most one prospecting,
+development and construction job, the owner, and infrastructure (`port`, `depot`, `fortLevel`,
+`connected`).
 
-## Code Organization Patterns
+## Transport
 
-### Tile State Modifications
-Always maintain immutability:
-```typescript
-const newTile = { ...oldTile, resource: { ...oldTile.resource, level: 2 } };
+Each nation has a per-turn transport capacity. `transportConnectivitySystem` builds the rail
+graph from the capital, depots and ports; `logisticsSystem` moves collected resources into the
+warehouse up to the capacity, following the player's allocation
+(`setTransportAllocations` order) and filling the rest greedily. Capacity is bought with one
+coal and one iron ore per unit (`changeTransportCapacity` order) and arrives next turn.
+
+## Components
+
+`page.tsx` renders `MapView`, `HUD` and the modals. A tile is `components/Tile.tsx` plus
+sub-components in `components/Tile/` and three hooks: `useTileActions` (which action the
+selected worker offers, from `workers/*`), `useTileVisuals` (colours and the cursor) and
+`useTileClickHandler` (the click, as orders). The HUD shows turn, cash, the selected tile, the
+news of the last turn and the last refused order (`components/HUD/NewsPanel.tsx`). Edge scroll
+(`hooks/useEdgeScroll.ts`) moves the camera near the window edges; over the HUD only the right
+edge scrolls.
+
+## Testing
+
+```bash
+npm test                         # all unit tests (Vitest)
+npm run test:engine              # tests/engine only
+PORT=3123 npx playwright test    # e2e on a free port; starts this checkout's dev server
 ```
 
-### Selectors for Derived State
-```typescript
-export const selectMyData = createSelector(
-  [(state: GameStore) => state.foo, (state: GameStore) => state.bar],
-  (foo, bar) => computeMyData(foo, bar)
-);
-```
+Playwright reads `PORT` (default 3000) and starts its own dev server unless `PW_REUSE_SERVER=1`,
+so a run never tests another worktree's server by accident. Engine tests use the two-nation
+fixture (`testing/mockNation.ts`, helpers in `tests/engine/fixtures.ts`); tests that predate M1
+use the 5x5 `initWorld` map and one engine order per old helper call
+(`tests/engine/orders/singleNationOrders.ts`).
 
-### Constants
-Extract to `src/app/constants/gameConstants.ts`:
-```typescript
-export const TILE_CONFIG = {
-  SIZE: 100,
-  BORDER_NORMAL: 1,
-  BORDER_SELECTED: 3,
-} as const;
-```
+## Not on the engine yet
 
-## Key Files Reference
-
-- **Root Store**: `src/app/store/rootStore.ts`
-- **Turn Orchestration**: `src/app/systems/runTurnPhases.ts`
-- **Game Definitions**: `src/app/definisions/`
-- **Design Tokens**: `src/app/styles/tokens.css`
-- **Game Constants**: `src/app/constants/gameConstants.ts`
-- **Mock Data**: `src/app/testing/`
-- **Main Page**: `src/app/page.tsx`
-
-## Notes for AI Assistants
-
-- **CLAUDE.md** has detailed implementation patterns
-- **docs/manual.md** contains complete game rules
-- **docs/ROADMAP.md** tracks development progress
-- **docs/TECH_DEBT.md** lists refactoring priorities
-- Always read existing code before creating new utilities
-- Follow established patterns for consistency
-- Write tests for all new systems/helpers
-- Use design tokens for all styling
+- `store/industrySlice.ts` (production recipes) mutates nations in place and is not part of the
+  store; M2 moves it into `productionSystem`, which is a stub today, like diplomacy, trade,
+  combat and interceptions.
+- The map comes from `testing/testMap1.ts` until a map generator exists.
