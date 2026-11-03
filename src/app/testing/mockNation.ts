@@ -197,6 +197,8 @@ const FIELD_WORKERS = [
   WorkerType.Engineer,
 ];
 
+// `x` is the nation's local column, so both halves hold the same deposits; the mountain next
+// to each capital hides gold, which gives the scripted players an income.
 function fixtureResource(terrain: TerrainType, x: number, y: number): Tile["resource"] {
   const minerals = [ResourceType.Coal, ResourceType.IronOre, ResourceType.Gold, ResourceType.Gems];
   switch (terrain) {
@@ -209,7 +211,7 @@ function fixtureResource(terrain: TerrainType, x: number, y: number): Tile["reso
     case TerrainType.HardwoodForest: return { type: ResourceType.Timber, level: 0 };
     case TerrainType.Mountains:
     case TerrainType.BarrenHills:
-      return { type: minerals[(x + y) % minerals.length], level: 0, discovered: false };
+      return { type: minerals[(x + y + 1) % minerals.length], level: 0, discovered: false };
     case TerrainType.Desert:
     case TerrainType.Swamp:
     case TerrainType.Tundra:
@@ -263,7 +265,7 @@ export function createTwoNationGame(seed = 1): GameState {
       return {
         id, x, y, terrain,
         hasRiver: isCapital,
-        resource: fixtureResource(terrain, x, y),
+        resource: fixtureResource(terrain, local, y),
         ownerNationId: nationId,
         cityId: isCapital ? `capital-${nationIndex + 1}` : undefined,
         workers,
