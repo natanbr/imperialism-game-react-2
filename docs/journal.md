@@ -17,12 +17,15 @@
   date and food warning (`foodForecast`), display names, warehouse groups, start technologies
   (decision Q8 default), fruit next to every capital. FR-046 to FR-053 tested, 458 unit tests,
   Playwright 8 passed 1 skipped on port 3131. Screenshots `docs/journal/m2-capital.png`, `m2-warehouse.png`.
-- Next: one M2 review (Opus 5.5 high: engine-wide change) over `3cef865..HEAD`, then the PRs
-  (M1 first). Read the objections of M2 part A and part B first.
+- M2 review done; its fix round done 2026-11-03 on the same branch (FR-054 to FR-059, 472 unit
+  tests, Playwright 8 passed 1 skipped on port 3133). Next: re-review of the fix-round delta only,
+  then the PRs (M1 first).
+- Open decision Q9: freight-car timing. Cars ordered in a turn count for that turn's shipping
+  (FR-039); rules 01 and 04 say "usable next turn". Not changed; Nathan decides.
 
 Carried forward:
-- M3 or later: river ports and the depot-on-port rule (rules 04 CODE MISMATCH, logic, not data);
-  world prices (06); University fees; the power plant.
+- Deferred to a later milestone: river ports and the depot-on-port rule (rules 04 CODE MISMATCH,
+  logic, not data). Also later: world prices (06); University fees; the power plant.
 - M4: an order log in the store, UI orders queued into `resolveTurn` (replay of a played game).
 - UI: the selected tile and owned tiles are both drawn red.
 
@@ -264,3 +267,64 @@ seven production cards (steel, lumber, textile, food processing, metal works, fu
 clothing), each with inputs, "0 of N" and − / +, and Expand; the Labour panel and Transport on
 the right. Press + on Canned Food (2 of 12), close, Advance Turn: the news says "Produced 2 Canned
 Food." and the warehouse shows Canned Food 12 under Materials, Summer 1815 in the HUD.
+
+## 2026-11-03 M2 review fix round
+
+Size: M (one fix round over the M2 review findings). Night shift, one agent (Opus 5.5), no
+subagents, no advisor calls. Detached on `origin/claude/m2-economic-loop` 539bb01, pushed to that
+branch. `npm ci` clean. Baseline `npx vitest run`: `Test Files 31 passed (31)` / `Tests 458 passed (458)`.
+Ultracode was not on; no separate review agent ran (the re-review of this delta is still due).
+
+New rows FR-054 to FR-059 (`docs/requirements.md`, "M2 review fix round"); FR-041, FR-050, FR-051
+and FR-052 are marked `replaced by` the rows that change them.
+
+| Fix | FR | Red summary (test written and run before the code) | Commit |
+|---|---|---|---|
+| 1 Scripted player makes canned food | FR-054 | `Tests 1 failed \| 5 passed (6)`: `expected { nationId: 'nation-1', …(1) } to deeply equal …` (`cannedFood: false`). The "no sick worker from turn 1" row passed at once: it already held. | 7ca6703 |
+| 2 Stale refusal in the capital | FR-055 | `Tests 1 failed \| 18 passed (19)`: `expected { order: { …(4) }, …(1) } to be null` | 3f7a56b |
+| 3 No gold or gems in the warehouse | FR-056 | `Tests 2 failed \| 25 passed (27)`: `expected [ 'armaments', 'cannedFood', …(21) ] to deeply equal [ …(19) ]`, `expected [ … ] to have a length of 21 but got 23` | 7e48080 |
+| 4 Cancel an expansion | FR-057 | engine `Tests 8 failed \| 58 passed (66)` (`expected { ok: true } to deeply equal { ok: false, reason: 'invalid-amount' }`, cancel-and-re-order state not equal); dialog `Tests 1 failed \| 13 passed (14)`: `Unable to find an accessible element with the role "button" and name "Cancel expansion of Steel mill"`. The food-processing cancel row passed at once (`invalid-target` already). | edb8f66 |
+| 5 Training needs 1 free labour | FR-058 | `Tests 1 failed \| 66 passed (67)`: `expected { ok: false, …(1) } to deeply equal { ok: true }` (1 free labour, trainee of 2) | 661e299 |
+| 6 Rules start technologies | FR-059 | `Tests 2 failed \| 5 passed (7)`: `expected { id: 'highPressureSteamEngine', …(1) } to deeply equal …`, `expected [ 'compoundSteamEngine', …(2) ] to deeply equal [ …(4) ]` | 36d5096 |
+| 7 Rules files: stale mismatch notes | none (docs) | not a behaviour change | 5d75d32 |
+
+Evidence:
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| FR-054 canned food, food balanced from turn 1 | `npx vitest run tests/engine/twoNations.test.ts` | `tests/engine/twoNations.test.ts (6 tests)` passed. A 20-turn probe (removed after use): nation-1 28 lumber, 14 furniture, 22 canned food; nation-2 15 fabric, 6 clothing, 20 canned food; 140 good meals each, 0 sick, 0 starved. The old scripted player on the same probe: no canned food, nation-2 6 fabric, 2 clothing. |
+| FR-055 stale refusal | `npx vitest run tests/store/gameStore.test.ts` | `(19 tests)` passed |
+| FR-056 warehouse list | `npx vitest run tests/ui` | `gameText.test.ts (22 tests)`, `warehouseAndHud.test.tsx (5 tests)` passed |
+| FR-057 cancel expansion | `npx vitest run tests/engine/industry.test.ts tests/ui/capitalDialog.test.tsx` | `industry.test.ts (67 tests)`, `capitalDialog.test.tsx (14 tests)` passed; expand + cancel equals the start state, cancel 4 -> 8 refunds 4 lumber + 4 steel, re-order costs the same 4 |
+| FR-058 training labour | `npx vitest run tests/engine/industry.test.ts` | included above |
+| FR-059 start technologies | `npx vitest run tests/engine/newGame.test.ts` | `(7 tests)` passed |
+| All unit tests | `npx vitest run` | `Test Files 31 passed (31)` / `Tests 472 passed (472)` (+14) |
+| Lint | `npm run lint` | `✖ 3 problems (0 errors, 3 warnings)` (the same three as part A) |
+| Types | `npx tsc --noEmit` | exit 0, no output |
+| Build | `npm run build` | `✓ Compiled successfully in 1978ms`, `✓ Generating static pages (4/4)` |
+| Smoke suite | `PORT=3133 npx playwright test --reporter=list` (3133 free, `PW_REUSE_SERVER` unset) | `1 skipped` / `8 passed (24.4s)` |
+
+Decisions taken alone (safest default), each open to review:
+- Objection: cancelling an expansion extends `expandBuilding` with an optional `delta` (default 1),
+  as `trainWorkers` and `recruitWorkers` cancel with a negative delta, instead of a new
+  `cancelExpansion` order. A negative delta removes this turn's steps, the last first; a positive
+  delta above 1 orders several steps all or nothing. Pending capacity is always this turn's (the
+  production phase applies it), so a cancel never touches an earlier turn's expansion.
+- Objection: the scripted player now ships only the grain the warehouse lacks for one meal plus one
+  canned-food batch, not half its capacity. With the extra fruit and meat on top of half the
+  capacity as grain, nation-2's cotton lost the greedy fill and it made no fabric or clothing.
+- Objection: training needs at least 1 free labour whatever the number of trainees (rules 05
+  section 4: "at least 1 labour must be free to start"). A trainee whose labour was committed
+  leaves production short; the production phase clamps the orders, as it does for sick workers.
+- Objection: High Pressure Steam Engine and Seed Drill gate nothing in the code yet (flat rail and
+  level-1 farms need no technology check); they are start-state data only.
+- Objection: rules files 02 and 04 still list the gold and gems price mismatch and 02 the
+  `RESOURCE_VALUES` mismatch. Both were fixed before M2 (commit bce7a95, M1), so this M2-only
+  pass left those lines as they are.
+- Not changed, decision Q9 for Nathan: freight cars count for this turn's shipping (FR-039); the
+  rules say next turn.
+
+How to see it in the app: `npm run dev`; Open Capital: each capped card has Expand and Cancel;
+Cancel is greyed out until Expand is pressed, and after Cancel the card shows "Capacity 2" and the
+lumber and steel are back. A refusal from the map (for example a prospect without cash) no longer
+shows at the top of the capital dialog. The warehouse has no Gold or Gems rows.
