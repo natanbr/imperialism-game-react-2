@@ -3,13 +3,14 @@ import { describe, it, expect } from 'vitest';
 import { completedTileIds, eventText, refusalText, REFUSAL_TEXT, workerJobLabel } from '@/components/gameText';
 import { resolveTurn, tryApplyOrder, type Order, type RejectReason } from '@/engine';
 import { GameState } from '@/types/GameState';
-import { ResourceType } from '@/types/Resource';
+import { MaterialType, ResourceType } from '@/types/Resource';
 import { WorkerType } from '@/types/Workers';
 import { game, locate, N1, put, T, workerId } from '../engine/fixtures';
 
 const ALL_REASONS: RejectReason[] = [
   'unknown-nation', 'unknown-worker', 'not-owner', 'wrong-worker-type', 'worker-busy', 'worker-moved',
-  'invalid-target', 'tile-occupied', 'invalid-site', 'insufficient-funds', 'insufficient-resources', 'invalid-amount',
+  'invalid-target', 'tile-occupied', 'invalid-site', 'insufficient-funds', 'insufficient-resources', 'insufficient-labour',
+  'limit-reached', 'invalid-amount',
 ];
 
 const prospect: Order = { kind: 'moveAndStartProspecting', nationId: 'nation-1', workerId: 'w', toTileId: '3-4' };
@@ -39,6 +40,19 @@ describe('FR-024 turn event text', () => {
 
   it('the end of the turn is not news', () => {
     expect(eventText({ type: 'turn-ended', turn: 2, year: 1900 })).toBeNull();
+  });
+
+  it('FR-037 to FR-042 industry, food and workforce events read as news; a good meal is not news', () => {
+    const N = 'nation-1';
+    expect(eventText({ type: 'goods-produced', nationId: N, output: MaterialType.CannedFood, amount: 2 })).toBe('Produced 2 cannedFood.');
+    expect(eventText({ type: 'freight-cars-built', nationId: N, count: 1 })).toBe('1 freight car built.');
+    expect(eventText({ type: 'building-expanded', nationId: N, building: 'steelMill', capacity: 4 })).toBe('Steel mill expanded to 4.');
+    expect(eventText({ type: 'workers-trained', nationId: N, to: 'expert', count: 2 })).toBe('2 workers trained to expert.');
+    expect(eventText({ type: 'workers-recruited', nationId: N, count: 1 })).toBe('1 migrant joined the workforce.');
+    expect(eventText({ type: 'workers-fed', nationId: N, fed: 7, sick: 0, starved: 0 })).toBeNull();
+    expect(eventText({ type: 'workers-fed', nationId: N, fed: 3, sick: 2, starved: 1 })).toBe(
+      '2 workers ate the wrong food and fell sick; 1 worker starved.'
+    );
   });
 });
 

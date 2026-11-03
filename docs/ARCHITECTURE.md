@@ -27,11 +27,17 @@ DOM globals, `Math.random` or `Date.now`. An ESLint rule enforces this for `src/
 src/app/
   engine/                  the headless core (no UI imports)
     index.ts               public API: Order types, validateOrder, applyOrder, tryApplyOrder,
-                           resolveTurn, newGame, scriptedPlayer, GameEvent
-    newGame.ts             the start state (testMap1, one nation, rail networks built)
+                           resolveTurn, newGame, scriptedPlayer, GameEvent, seasonOf, labourOf
+    newGame.ts             the start state: Spring 1815, startWorld(), rail networks built
+    calendar.ts            seasons; the year advances after winter
     rng.ts                 seeded RNG: createTurnRng(seed, turn)
     orders/                Order.ts (union + RejectReason), validate.ts, apply.ts,
-                           queries.ts (read-only lookups shared by validate, apply and players)
+                           industryOrders.ts (production, expansion, cars, training, migration),
+                           queries.ts (read-only lookups and construction-site rules)
+    industry/              labour.ts (labourOf: total, committed, free), industryState.ts
+                           (createIndustry, buildingOf, migrantCap)
+    world/                 defaultMap.ts (the 40x40 map), startWorld.ts (start nation, land,
+                           civilians)
     turn/                  resolveTurn.ts, phases.ts (TURN_PHASES), context.ts (TurnContext, GameEvent)
     systems/               one file per turn system, each (state, ctx) => state
     map/mapHelpers.ts      neighbours, adjacency, rail sites
@@ -41,13 +47,14 @@ src/app/
     gameSlice.ts           game, activeNationId, lastRejection, eventLog, submitOrder, advanceTurn
     controls/              UI slices: tile selection, camera, overlays, dialogs
     selectors.ts           memoized selectors (reselect)
-    industrySlice.ts       NOT wired into the store; production recipes, moves into the engine in M2
   components/              React components; gameText.ts (display text), railSegments.ts (map overlay)
   hooks/                   React hooks; tileClickOrders.ts (what a tile click asks for, no React)
   workers/                 per worker type, the action it offers on a tile (map cursor and click)
-  types/                   GameState, Tile, Worker, Nation, jobs, ...
-  definisions/             rule tables: prices, durations, terrains, resources, recipes
-  testing/                 worldInit + testMap1 (the app's map), mockNation (two-nation fixture)
+  types/                   GameState, Tile, Worker, Nation, Industry, jobs, ...
+  definisions/             rule tables: prices (workPrices), durations (workerDurations, the only
+                           one), recipes and worker costs (ResourceConversions), buildings
+                           (industryBuildings), terrains, resources
+  testing/                 test fixtures only: worldInit (5x5 test world), mockNation (two nations)
   constants/, styles/, utils/
 tests/
   engine/                  orders, turn, systems, determinism, two nations (npm run test:engine)
@@ -80,18 +87,18 @@ Only `game` is ever passed to the engine (tested with spies in
 comes from `workerJobLabel(tile, worker)`, news lines from `eventText(event)`, refusals from
 `refusalText(...)` (all in `components/gameText.ts`).
 
-Kept in `GameState` on purpose: the jobs' `completed` and `completedOnTurn` flags. A finished
-job stays on its tile until the next turn (the tile's "done" pulse), and the engine's rules read
-the flags: `holdsJob` ignores finished jobs, a finished development job blocks a new one for that
-turn, and the development system clears finished jobs one turn later.
+A finished job leaves its tile in the resolution that finishes it (FR-032): jobs carry no
+`completed` flags, and the map's "done" pulse reads the last turn's completion events
+(`selectTilesCompletedLastTurn` in `store/selectors.ts`).
 
 ## Order flow (a player action)
 
 Everything a player can do is an `Order` (`engine/orders/Order.ts`): a union discriminated on
-`kind`, each naming its `nationId` and the exact worker and tile. Eleven kinds today: moveWorker,
-moveAndBuildRail, startProspecting, startDevelopment, startConstruction,
+`kind`, each naming its `nationId` and the exact worker, tile or building. Fifteen kinds today:
+moveWorker, moveAndBuildRail, startProspecting, startDevelopment, startConstruction,
 moveAndStartProspecting, moveAndStartDevelopment, moveAndStartConstruction, cancelWorkerAction,
-setTransportAllocations, changeTransportCapacity.
+setTransportAllocations, changeTransportCapacity (freight cars), setProduction, expandBuilding,
+trainWorkers, recruitWorkers.
 
 ```
 click / button / slider
@@ -123,11 +130,10 @@ Orders take effect when they are submitted, so the turn resolves with no orders 
 store.advanceTurn()
   -> resolveTurn(game, {}, game.seed)                    engine/turn/resolveTurn.ts
        applyTurnOrders     orders given here, nations in state order (none from the UI)
-       applyQueuedTransportCapacity                      capacity bought last turn arrives
-       TURN_PHASES         development, diplomacy, trade, production, combat,
-                           interceptions, transportConnectivity, logistics
+       TURN_PHASES         development, diplomacy, trade, production (freight cars first),
+                           combat, interceptions, transportConnectivity, logistics, food
        resetWorkers        everyone may move again; working only while the job is unfinished
-       advanceClock        turn + 1, year + 1 every fourth turn
+       advanceClock        turn + 1, year + 1 after winter (turn 1 = Spring 1815)
   <- { state, events }
   -> game = state; eventLog += { turn, year, events }; lastRejection = null
 ```
@@ -182,8 +188,31 @@ development and construction job, the owner, and infrastructure (`port`, `depot`
 Each nation has a per-turn transport capacity. `transportConnectivitySystem` builds the rail
 graph from the capital, depots and ports; `logisticsSystem` moves collected resources into the
 warehouse up to the capacity, following the player's allocation
-(`setTransportAllocations` order) and filling the rest greedily. Capacity is bought with one
-coal and one iron ore per unit (`changeTransportCapacity` order) and arrives next turn.
+(`setTransportAllocations` order) and filling the rest greedily. Capacity is freight cars from
+the railyard: 1 lumber + 1 steel each when ordered and 2 labour each in the production phase
+(`changeTransportCapacity` order); the cars count for that turn's shipping.
+
+## Industry, labour and food
+
+Each nation has `industry` (`types/Industry.ts`): its production buildings with a capacity, a
+capacity ordered this turn and standing production orders; its industrial workforce (untrained,
+trained, expert); the sick workers and the trainees of this turn; and the migrants ordered this
+turn. Labour is never stored: `labourOf(nation)` derives it (1, 2, 4 per healthy worker not in
+training) and what the standing orders and this turn's cars commit.
+
+- Orders (`engine/orders/industryOrders.ts`): `setProduction` (a standing order per output,
+  checked against capacity, stock and labour; lowering is always allowed), `expandBuilding`
+  (1 lumber + 1 steel per capacity point, counts from next turn), `trainWorkers` (cash + paper,
+  the trainee gives no labour this turn), `recruitWorkers` (canned food + clothing + furniture).
+- `productionSystem` (phase 3): cars first, then each building in `BUILDING_ORDER` makes
+  min(order, capacity, inputs, labour); outputs reach the warehouse after all buildings ran;
+  expansions take effect; food processing forgets its orders; trainees are promoted.
+- `foodSystem` (after logistics): every worker eats one food (preferred raw, then canned, then
+  any raw and falls sick, else starves; the untrained take the bad places first), then this
+  turn's migrants join.
+- Rule tables: `definisions/ResourceConversions.ts` (recipes, labour per worker, car, training,
+  migrant and expansion costs) and `definisions/industryBuildings.ts` (buildings, order, capacity
+  steps).
 
 ## Components
 
@@ -207,11 +236,13 @@ Playwright reads `PORT` (default 3000) and starts its own dev server unless `PW_
 so a run never tests another worktree's server by accident. Engine tests use the two-nation
 fixture (`testing/mockNation.ts`, helpers in `tests/engine/fixtures.ts`); tests that predate M1
 use the 5x5 `initWorld` map and one engine order per old helper call
-(`tests/engine/orders/singleNationOrders.ts`).
+(`tests/engine/orders/singleNationOrders.ts`). `invariantViolations` in `tests/engine/fixtures.ts`
+also checks the economy after every headless turn: no negative stock or worker count. The engine
+never imports `src/app/testing` (ESLint rule, FR-043).
 
 ## Not on the engine yet
 
-- `store/industrySlice.ts` (production recipes) mutates nations in place and is not part of the
-  store; M2 moves it into `productionSystem`, which is a stub today, like diplomacy, trade,
-  combat and interceptions.
-- The map comes from `testing/testMap1.ts` until a map generator exists.
+- Diplomacy, trade, combat and interceptions are stub systems.
+- The map comes from `engine/world/defaultMap.ts` until a map generator exists.
+- Transport logic gaps from `docs/rules/04` (river ports, a depot on a port, blockades, town
+  development) and the power plant are not modelled.
