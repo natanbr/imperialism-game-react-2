@@ -1,5 +1,5 @@
 import type { GameState } from "@/types/GameState";
-import { ResourceType } from "@/types/Resource";
+import { MaterialType, ResourceType } from "@/types/Resource";
 import type { Tile } from "@/types/Tile";
 import { WorkerStatus, WorkerType } from "@/types/Workers";
 import type { Order } from "../orders/Order";
@@ -35,17 +35,21 @@ export const scriptedPlayer: Player = (state, nationId) => {
   const nation = nationById(state, nationId);
   if (!nation) return orders;
 
-  // Ship the fruit and meat the workers eat first, then half the capacity as grain, and leave the
-  // rest to the greedy fill. Always valid, so the nation issues at least one order every turn.
+  // Ship the fruit and meat the workers eat plus one canned-food batch's worth, and the grain
+  // for both that the warehouse lacks; leave the rest to the greedy fill. Shipments arrive after
+  // production, so the extra fruit and meat wait in the warehouse for next turn's canned-food
+  // order (FR-054). Always valid, so the nation issues at least one order every turn.
   const { workers } = nation.industry;
   const needs = mealNeeds(workers.untrained + workers.trained + workers.expert);
+  const canning = cannedFoodBatchInputs();
+  const grainInStock = (nation.warehouse as Record<string, number>)[ResourceType.Grain] ?? 0;
   propose({
     kind: "setTransportAllocations",
     nationId,
     allocations: {
-      [ResourceType.Fruit]: needs.fruit,
-      [ResourceType.Livestock]: needs.meat,
-      [ResourceType.Grain]: Math.floor((nation.transportCapacity ?? 0) / 2),
+      [ResourceType.Fruit]: needs.fruit + canning.fruit,
+      [ResourceType.Livestock]: needs.meat + canning.meat,
+      [ResourceType.Grain]: Math.max(0, needs.grain + canning.grain - grainInStock),
     },
   });
   propose({ kind: "changeTransportCapacity", nationId, delta: 1 });
@@ -73,6 +77,13 @@ export const scriptedPlayer: Player = (state, nationId) => {
   }
   return orders;
 };
+
+/** The fruit and the livestock-or-fish one canned-food batch takes (from the recipe). */
+function cannedFoodBatchInputs(): { grain: number; fruit: number; meat: number } {
+  const amountOf = (type: ResourceType) =>
+    RECIPES[MaterialType.CannedFood].inputs.find((input) => input.types.includes(type))?.amount ?? 0;
+  return { grain: amountOf(ResourceType.Grain), fruit: amountOf(ResourceType.Fruit), meat: amountOf(ResourceType.Livestock) };
+}
 
 /** What this worker could do, best first; validation picks the first one that is allowed. */
 function candidateOrders(nationId: string, { worker, tile }: WorkerLocation, ownTiles: Tile[]): Order[] {

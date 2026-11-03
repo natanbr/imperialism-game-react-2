@@ -45,12 +45,20 @@ describe('two nations, 20 turns, headless', () => {
     }
   });
 
-  it('FR-052 food is balanced: from turn 10 on no worker is sick or starving, and no meal is skipped', () => {
+  it('FR-054 both nations make canned food: the scripted player ships the fruit and meat its canned-food order needs', () => {
+    const events = play(newGame(11), 20).flatMap(t => t.events);
+
+    for (const nationId of TWO_NATION_IDS) {
+      const cans = events.reduce((sum, e) => (e.type === 'goods-produced' && e.nationId === nationId && e.output === 'cannedFood' ? sum + e.amount : sum), 0);
+      expect({ nationId, cannedFood: cans > 0 }).toEqual({ nationId, cannedFood: true });
+    }
+  });
+
+  it('FR-054 food is balanced: from turn 1 on no worker is sick or starving, and no meal is skipped', () => {
     const played = play(newGame(11), 20);
 
     played.forEach((turn, i) => {
       expect({ turn: i + 1, violations: invariantViolations(turn.state) }).toEqual({ turn: i + 1, violations: [] });
-      if (i + 1 < 10) return;
       for (const nationId of TWO_NATION_IDS) {
         const meal = turn.events.find(e => e.type === 'workers-fed' && e.nationId === nationId);
         const outcome = meal?.type === 'workers-fed' ? { sick: meal.sick, starved: meal.starved } : 'no meal';
