@@ -313,8 +313,8 @@ describe('moveAndStartConstruction honours the chosen kind', () => {
     return state.map.tiles[site.y][site.x];
   }
 
-  it.each(['ocean', 'river'] as const)('builds a port (%s site) and charges the port price, not the depot price', how => {
-    const state = makeState(1500);
+  it.each(['ocean', 'river'] as const)('FR-029 builds a port (%s site) and charges the port price, not the depot price', how => {
+    const state = makeState(5000);
     const home = capital(state);
     const target = portSite(state, how);
     place(state, home, makeWorker('eng', WorkerType.Engineer, home));
@@ -323,11 +323,11 @@ describe('moveAndStartConstruction honours the chosen kind', () => {
 
     expect(tileAt(s2, target).constructionJob?.kind).toBe('port');
     expect(tileAt(s2, target).constructionJob?.workerId).toBe('eng');
-    expect(treasuryOf(s2)).toBe(1500 - CONSTRUCTION_COST.port);
+    expect(treasuryOf(s2)).toBe(5000 - CONSTRUCTION_COST.port);
   });
 
-  it('refuses a port the nation can afford only as a depot (600 < 1000), leaving state unchanged', () => {
-    const state = makeState(600);
+  it('FR-029 refuses a port the nation can afford only as a depot (2,500: depot 2,000, port 3,000), leaving state unchanged', () => {
+    const state = makeState(2500);
     const home = capital(state);
     const target = portSite(state, 'ocean');
     place(state, home, makeWorker('eng', WorkerType.Engineer, home));

@@ -84,7 +84,7 @@ export function setupSingleNation(map: GameMap): Nation[] {
       id: "nation-1",
       name: "Testland",
       color: "#FF0000",
-      treasury: 1000,
+      treasury: 10000,
       debt: 0,
       creditLimit: 5000,
       relations: [],

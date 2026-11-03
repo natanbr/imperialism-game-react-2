@@ -16,7 +16,7 @@ export const mockNations: Nation[] = [
     id: "nation-1",
     name: "Britannia",
     color: "#FF0000", // Red
-    treasury: 1000,
+    treasury: 10000,
     debt: 0,
     creditLimit: 5000,
     relations: [],
@@ -46,7 +46,7 @@ export const mockNations: Nation[] = [
     id: "nation-2",
     name: "Germania",
     color: "#0000FF", // Blue
-    treasury: 800,
+    treasury: 8000,
     debt: 0,
     creditLimit: 4000,
     relations: [],
@@ -279,7 +279,7 @@ export function createTwoNationGame(seed = 1): GameState {
 
   return {
     turn: 1,
-    year: 1900,
+    year: 1815,
     seed,
     nations,
     cities: [],

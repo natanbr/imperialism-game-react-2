@@ -3,7 +3,7 @@ import type { Tile } from "@/types/Tile";
 import { WorkerStatus, WorkerType, type Worker } from "@/types/Workers";
 import type { ConstructionKind } from "@/types/jobs/ConstructionJob";
 import { PROSPECTABLE_TERRAIN_TYPES } from "@/definisions/terrainDefinitions";
-import { CONSTRUCTION_COST, DEVELOPMENT_COST, PROSPECT_COST } from "@/definisions/workPrices";
+import { CONSTRUCTION_COST, DEVELOPMENT_COST, PROSPECT_COST, constructionCost } from "@/definisions/workPrices";
 import { ResourceType } from "@/types/Resource";
 import { areTilesAdjacent, canBuildRailAt } from "../map/mapHelpers";
 import type {
@@ -114,7 +114,7 @@ function validateMoveAndBuildRail(state: GameState, order: MoveAndBuildRailOrder
   if (!areTilesAdjacent(state.map, from.x, from.y, to.x, to.y)) return reject("invalid-target");
   if (to.constructionJob && !to.constructionJob.completed) return reject("tile-occupied");
   if (!canBuildRailAt(state.map, to.x, to.y, order.nationId)) return reject("invalid-site");
-  if (treasuryOf(state, order.nationId) < CONSTRUCTION_COST.rail) return reject("insufficient-funds");
+  if (treasuryOf(state, order.nationId) < constructionCost("rail", to.terrain)) return reject("insufficient-funds");
   return OK;
 }
 
@@ -170,7 +170,7 @@ const constructionCheck = (structure: ConstructionKind): JobCheck => (state, wor
   if (!Object.hasOwn(CONSTRUCTION_COST, structure)) return reject("invalid-target");
   if (tile.constructionJob && !tile.constructionJob.completed) return reject("tile-occupied");
   if (structure === "port" && !isPortSite(state, tile)) return reject("invalid-site");
-  if (treasuryOf(state, worker.nationId) < CONSTRUCTION_COST[structure]) return reject("insufficient-funds");
+  if (treasuryOf(state, worker.nationId) < constructionCost(structure, tile.terrain)) return reject("insufficient-funds");
   return OK;
 };
 

@@ -37,10 +37,10 @@ describe('FR-018 the store holds one GameState plus UI state', () => {
     for (const key of ['activeNationId', 'newsLog', 'turnOrder']) expect(store.getState().game).not.toHaveProperty(key);
   });
 
-  it('a new game is the pre-M1 start: turn 1, year 1900, nation-1 with its seven workers on the capital', () => {
+  it('FR-027 a new game starts on turn 1 in 1815, nation-1 with its seven workers on the capital', () => {
     const g = createGameStore({ seed: 1 }).getState().game;
 
-    expect(g).toMatchObject({ turn: 1, year: 1900, seed: 1, difficulty: 'normal' });
+    expect(g).toMatchObject({ turn: 1, year: 1815, seed: 1, difficulty: 'normal' });
     expect(g.nations.map(n => n.id)).toEqual(['nation-1']);
     expect(g.map.config).toMatchObject({ cols: 40, rows: 40 });
     const capital = g.map.tiles.flat().find(t => t.cityId === 'capital-1')!;

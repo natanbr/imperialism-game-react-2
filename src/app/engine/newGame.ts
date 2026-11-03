@@ -1,5 +1,6 @@
 import type { GameState } from "@/types/GameState";
 import { initWorld } from "@/testing/worldInit";
+import { TIME_CONFIG } from "@/constants/gameConstants";
 import { initializeRailroadNetworks } from "./systems/railroadSystem";
 
 export interface NewGameOptions {
@@ -16,8 +17,8 @@ export interface NewGameOptions {
 export function newGame({ seed, cols = 40, rows = 40 }: NewGameOptions): GameState {
   const { map, nations } = initWorld({ cols, rows });
   return {
-    turn: 1,
-    year: 1900,
+    turn: TIME_CONFIG.STARTING_TURN,
+    year: TIME_CONFIG.STARTING_YEAR,
     seed,
     nations,
     cities: [],

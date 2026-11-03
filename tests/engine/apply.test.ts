@@ -11,7 +11,7 @@ const W = {
   farmer: workerId(N1, WorkerType.Farmer),
   engineer: workerId(N1, WorkerType.Engineer),
 };
-const START = 1000; // nation-1 treasury in the fixture
+const START = 10000; // nation-1 treasury in the fixture
 
 /** Applies and also checks purity: the frozen input must stay unchanged (FR-013). */
 function run(state: GameState, order: Order): GameState {
@@ -51,18 +51,18 @@ describe('applyOrder immediate effects', () => {
     expect(treasury(s, N1)).toBe(START - PROSPECT_COST);
   });
 
-  it('FR-005 startDevelopment starts the next level and charges its price', () => {
+  it('FR-005 FR-028 startDevelopment starts the next level and charges its price', () => {
     const s = run(put(game(), W.farmer, T.farm1), { kind: 'startDevelopment', nationId: N1, workerId: W.farmer, tileId: T.farm1 });
 
-    expect(tileAt(s, T.farm1).developmentJob).toEqual({ workerId: W.farmer, workerType: WorkerType.Farmer, targetLevel: 1, startedOnTurn: 1, durationTurns: 2 });
+    expect(tileAt(s, T.farm1).developmentJob).toEqual({ workerId: W.farmer, workerType: WorkerType.Farmer, targetLevel: 1, startedOnTurn: 1, durationTurns: 3 });
     expect(locate(s, W.farmer)!.worker).toMatchObject({ status: WorkerStatus.Working });
     expect(treasury(s, N1)).toBe(START - DEVELOPMENT_COST[1]);
   });
 
-  it('FR-005 startConstruction builds the named structure and charges its price', () => {
-    const s = run(game(), { kind: 'startConstruction', nationId: N1, workerId: W.engineer, tileId: T.capital1, structure: 'fort' });
+  it('FR-005 FR-028 startConstruction builds the named structure and charges its price', () => {
+    const s = run(put(game(), W.engineer, T.farm1), { kind: 'startConstruction', nationId: N1, workerId: W.engineer, tileId: T.farm1, structure: 'fort' });
 
-    expect(tileAt(s, T.capital1).constructionJob).toEqual({ workerId: W.engineer, kind: 'fort', startedOnTurn: 1, durationTurns: 4 });
+    expect(tileAt(s, T.farm1).constructionJob).toEqual({ workerId: W.engineer, kind: 'fort', startedOnTurn: 1, durationTurns: 3 });
     expect(locate(s, W.engineer)!.worker).toMatchObject({ status: WorkerStatus.Working });
     expect(treasury(s, N1)).toBe(START - CONSTRUCTION_COST.fort);
   });

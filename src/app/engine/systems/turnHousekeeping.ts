@@ -3,6 +3,7 @@ import { GameState } from "@/types/GameState";
 import { Worker, WorkerStatus } from "@/types/Workers";
 import type { TurnSystem } from "../turn/context";
 import { holdsJob } from "../orders/queries";
+import { isLastTurnOfYear } from "../calendar";
 
 /** Transport capacity bought last turn becomes usable at the start of this resolution. */
 export const applyQueuedTransportCapacity: TurnSystem = (state: GameState): GameState => ({
@@ -41,9 +42,9 @@ export const resetWorkers: TurnSystem = (state: GameState): GameState => ({
   },
 });
 
-/** The year advances after every fourth turn (pre-M1 rule, kept until M2 fixes the calendar). */
+/** One turn is one season; the year advances after winter (FR-027). */
 export const advanceClock: TurnSystem = (state: GameState): GameState => ({
   ...state,
   turn: state.turn + 1,
-  year: state.year + (state.turn % 4 === 0 ? 1 : 0),
+  year: state.year + (isLastTurnOfYear(state.turn) ? 1 : 0),
 });

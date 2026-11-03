@@ -3,7 +3,7 @@ import type { Tile } from "@/types/Tile";
 import { ResourceType } from "@/types/Resource";
 import { WorkerStatus, type Worker } from "@/types/Workers";
 import type { ConstructionKind } from "@/types/jobs/ConstructionJob";
-import { CONSTRUCTION_COST, DEVELOPMENT_COST, PROSPECT_COST } from "@/definisions/workPrices";
+import { DEVELOPMENT_COST, PROSPECT_COST, constructionCost } from "@/definisions/workPrices";
 import { EngineerBuildDurationsTurns, WorkerLevelDurationsTurns } from "@/definisions/workerDurations";
 import type { CancelWorkerActionOrder, ChangeTransportCapacityOrder, Order, ValidationResult } from "./Order";
 import { validateOrder } from "./validate";
@@ -126,7 +126,8 @@ const startDevelopment: StartJob = (state, workerId, tileId) => {
 const construction = (kind: ConstructionKind): StartJob => (state, workerId, tileId) => {
   const { worker } = findWorker(state, workerId)!;
   const durationTurns = EngineerBuildDurationsTurns[kind] || 1;
-  return updateTile(charge(state, worker.nationId, CONSTRUCTION_COST[kind]), tileId, (t) => ({
+  const cost = constructionCost(kind, tileById(state, tileId)!.terrain);
+  return updateTile(charge(state, worker.nationId, cost), tileId, (t) => ({
     ...updateWorker(t, workerId, { status: WorkerStatus.Working }),
     constructionJob: { workerId, kind, startedOnTurn: state.turn, durationTurns },
   }));
