@@ -9,6 +9,7 @@ import { validateOrder } from "../orders/validate";
 import { BUILDING_ORDER, BUILDINGS } from "@/definisions/industryBuildings";
 import { RECIPES } from "@/definisions/ResourceConversions";
 import { buildingOf } from "../industry/industryState";
+import { mealNeeds } from "../systems/foodSystem";
 
 /**
  * A player is any function from the game state to its orders for this turn. Scripted and,
@@ -34,12 +35,18 @@ export const scriptedPlayer: Player = (state, nationId) => {
   const nation = nationById(state, nationId);
   if (!nation) return orders;
 
-  // Ship half the capacity as grain, leave the rest to the greedy fill. Always valid, so the
-  // nation issues at least one order every turn.
+  // Ship the fruit and meat the workers eat first, then half the capacity as grain, and leave the
+  // rest to the greedy fill. Always valid, so the nation issues at least one order every turn.
+  const { workers } = nation.industry;
+  const needs = mealNeeds(workers.untrained + workers.trained + workers.expert);
   propose({
     kind: "setTransportAllocations",
     nationId,
-    allocations: { [ResourceType.Grain]: Math.floor((nation.transportCapacity ?? 0) / 2) },
+    allocations: {
+      [ResourceType.Fruit]: needs.fruit,
+      [ResourceType.Livestock]: needs.meat,
+      [ResourceType.Grain]: Math.floor((nation.transportCapacity ?? 0) / 2),
+    },
   });
   propose({ kind: "changeTransportCapacity", nationId, delta: 1 });
 

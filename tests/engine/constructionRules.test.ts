@@ -6,6 +6,7 @@ import { resolveTurn } from '@/engine/turn/resolveTurn';
 import { CONSTRUCTION_COST, DEVELOPMENT_COST, PROSPECT_COST } from '@/definisions/workPrices';
 import { GameState } from '@/types/GameState';
 import { ResourceType } from '@/types/Resource';
+import { TerrainType } from '@/types/Tile';
 import { WorkerStatus, WorkerType } from '@/types/Workers';
 import { createTileId } from '@/utils/tileIdUtils';
 import { deepFreeze, game, locate, N1, put, setTile, T, tileAt, treasury, workerId } from './fixtures';
@@ -15,7 +16,10 @@ const FARMER = workerId(N1, WorkerType.Farmer);
 const PROSPECTOR = workerId(N1, WorkerType.Prospector);
 
 // Fixture tiles of nation-1 (see createTwoNationGame): capital (1,1).
-const fertileHills = createTileId(1, 2); // next to the capital
+// The orchard next to the capital, turned into hills by the cases that need hills there.
+const fertileHills = T.homeOrchard1;
+const withHills = (s: GameState): GameState =>
+  setTile(s, fertileHills, { terrain: TerrainType.FertileHills, resource: { type: ResourceType.Wool, level: 0 } });
 const barrenHills = createTileId(0, 2);
 const swamp = createTileId(1, 3);
 const coastHills = createTileId(2, 4); // barren hills next to the water row
@@ -51,8 +55,8 @@ const siteCases: SiteCase[] = [
   { name: 'FR-030 rail started on a tile next to the capital is ok', setup: at(T.farm1), order: build(T.farm1, 'rail'), expected: 'ok' },
   { name: 'FR-030 rail started on a tile with no rail next to it', setup: at(T.orchard1), order: build(T.orchard1, 'rail'), expected: 'invalid-site' },
   { name: 'FR-030 rail started on the capital tile', setup: s => s, order: build(T.capital1, 'rail'), expected: 'invalid-site' },
-  { name: 'FR-030 rail onto hills before Compound Steam Engine', setup: s => s, order: railTo(fertileHills), expected: 'invalid-site' },
-  { name: 'FR-030 rail onto hills with Compound Steam Engine', setup: s => withTech(s, 'compoundSteamEngine'), order: railTo(fertileHills), expected: 'ok' },
+  { name: 'FR-030 rail onto hills before Compound Steam Engine', setup: withHills, order: railTo(fertileHills), expected: 'invalid-site' },
+  { name: 'FR-030 rail onto hills with Compound Steam Engine', setup: s => withTech(withHills(s), 'compoundSteamEngine'), order: railTo(fertileHills), expected: 'ok' },
   { name: 'FR-030 rail onto mountains before Dynamite', setup: s => s, order: railTo(T.mountains1), expected: 'invalid-site' },
   { name: 'FR-030 rail onto mountains with Dynamite', setup: s => withTech(s, 'dynamite'), order: railTo(T.mountains1), expected: 'ok' },
   { name: 'FR-030 rail onto swamp before Iron Railroad Bridge', setup: s => put(setTile(s, T.dryPlains1, { connected: true }), ENGINEER, T.dryPlains1), order: railTo(swamp), expected: 'invalid-site' },

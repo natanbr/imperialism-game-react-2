@@ -4,6 +4,13 @@ import { join } from 'node:path';
 import { newGame } from '@/engine/newGame';
 import { labourOf } from '@/engine/industry/labour';
 import { WorkerType } from '@/types/Workers';
+import { TerrainType } from '@/types/Tile';
+import { ResourceType } from '@/types/Resource';
+import { hasTechnology, isDepotSite, railTerrainAllowed } from '@/engine/orders/queries';
+import { getAdjacentTiles } from '@/engine/map/mapHelpers';
+import { resolveTurn } from '@/engine/turn/resolveTurn';
+import { START_TECHNOLOGIES } from '@/engine/world/startWorld';
+import { createTwoNationGame } from '@/testing/mockNation';
 
 const ENGINE_DIR = join(__dirname, '../../src/app/engine');
 
@@ -48,5 +55,45 @@ describe('FR-043 the engine owns the start of a game', () => {
     ].sort());
     expect(g.transportNetwork.railroadNetworks?.['nation-1']).toBeDefined();
     expect(g.seed).toBe(7);
+  });
+});
+
+describe('FR-051 decision Q8 default: rail on rough terrain from the start', () => {
+  const ROUGH = ['compoundSteamEngine', 'ironRailroadBridge', 'dynamite'];
+
+  it('FR-051 a new game holds Compound Steam Engine, Iron Railroad Bridge and Dynamite as purchased', () => {
+    const g = newGame({ seed: 7 });
+    for (const id of ROUGH) expect({ id, has: hasTechnology(g, id) }).toEqual({ id, has: true });
+    expect(g.technologyState.technologies.map(t => t.id).sort()).toEqual([...ROUGH].sort());
+  });
+
+  it('FR-051 FR-030 rail and depots are allowed on hills, swamp and mountains of the new game map', () => {
+    const g = newGame({ seed: 7 });
+    const tiles = g.map.tiles.flat();
+    for (const terrain of [TerrainType.BarrenHills, TerrainType.Swamp, TerrainType.Mountains]) {
+      const tile = tiles.find(t => t.terrain === terrain)!;
+      expect({ terrain, allowed: railTerrainAllowed(g, tile) }).toEqual({ terrain, allowed: true });
+    }
+    const hills = tiles.find(t => t.terrain === TerrainType.BarrenHills && !getAdjacentTiles(g.map, t.x, t.y).some(n => n.depot || n.port))!;
+    expect(isDepotSite(g, hills)).toBe(true);
+  });
+
+  it('FR-051 the list is start-state data: START_TECHNOLOGIES, and the test fixtures start with none', () => {
+    expect(START_TECHNOLOGIES.map(t => t.id).sort()).toEqual([...ROUGH].sort());
+    expect(START_TECHNOLOGIES.every(t => t.purchased)).toBe(true);
+    expect(createTwoNationGame(1).technologyState.technologies).toEqual([]);
+  });
+});
+
+describe('FR-052 the new game feeds its workers', () => {
+  it('FR-052 the capital has an orchard next to it, and the first meal leaves nobody sick or starving', () => {
+    const g = newGame({ seed: 7 });
+    const capital = g.map.tiles.flat().find(t => t.cityId === 'capital-1')!;
+    const orchards = getAdjacentTiles(g.map, capital.x, capital.y).filter(t => t.resource?.type === ResourceType.Fruit && t.resource.level >= 1);
+    expect(orchards.length).toBeGreaterThan(0);
+
+    const { state, events } = resolveTurn(g, {}, g.seed);
+    expect(events).toContainEqual({ type: 'workers-fed', nationId: 'nation-1', fed: 7, sick: 0, starved: 0 });
+    expect((state.nations[0].warehouse as Record<string, number>).fruit).toBeGreaterThan(10);
   });
 });

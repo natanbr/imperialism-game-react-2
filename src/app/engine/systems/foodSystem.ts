@@ -15,6 +15,18 @@ const RAW_FOOD = [ResourceType.Grain, ResourceType.Fruit, ResourceType.Livestock
 /** Worker slot i prefers, in groups of four: grain, fruit, grain, livestock-or-fish. */
 const PREFERENCE: readonly (readonly ResourceType[])[] = [[ResourceType.Grain], [ResourceType.Fruit], [ResourceType.Grain], MEAT];
 
+/** The raw food `mouths` workers prefer at one meal: grain, fruit and livestock-or-fish. */
+export function mealNeeds(mouths: number): { grain: number; fruit: number; meat: number } {
+  const needs = { grain: 0, fruit: 0, meat: 0 };
+  for (let slot = 0; slot < mouths; slot++) {
+    const preferred = PREFERENCE[slot % PREFERENCE.length];
+    if (preferred === MEAT) needs.meat++;
+    else if (preferred[0] === ResourceType.Fruit) needs.fruit++;
+    else needs.grain++;
+  }
+  return needs;
+}
+
 /** Fed first: the expert, then the trained, then the untrained (preference ignores the grade). */
 const FEEDING_ORDER: readonly WorkerGrade[] = ["expert", "trained", "untrained"];
 /** Who takes a sick or starving place first. [NEEDS CLARIFICATION] gaps.md B7. */

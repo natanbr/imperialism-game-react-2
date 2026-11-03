@@ -18,6 +18,7 @@ export const T = {
   range1: createTileId(1, 0), // OpenRange, livestock level 0, adjacent to capital1
   mountains1: createTileId(0, 1), // Mountains, hidden mineral, adjacent to capital1
   orchard1: createTileId(3, 1), // Orchard, not adjacent to capital1
+  homeOrchard1: createTileId(1, 2), // Orchard, fruit level 1, adjacent to capital1 (2 fruit a turn)
   dryPlains1: createTileId(2, 2), // DryPlains, grain level 1, inland, adjacent to capital1
   coastFarm1: createTileId(1, 4), // Farm next to the water row: a port site
   town1: createTileId(3, 2),

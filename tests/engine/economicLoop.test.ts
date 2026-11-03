@@ -16,6 +16,7 @@ function start(farmHasGrain: boolean): GameState {
   let s = emptyWarehouse(game(), N1, { fruit: 1 });
   s = setIndustry(s, N1, { workers: { untrained: 0, trained: 0, expert: 1 } });
   s = setTile(s, T.dryPlains1, { resource: undefined });
+  s = setTile(s, T.homeOrchard1, { resource: undefined });
   s = setTile(s, T.farm1, { resource: farmHasGrain ? { type: ResourceType.Grain, level: 3 } : undefined });
   return s;
 }

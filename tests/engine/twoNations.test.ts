@@ -45,6 +45,22 @@ describe('two nations, 20 turns, headless', () => {
     }
   });
 
+  it('FR-052 food is balanced: from turn 10 on no worker is sick or starving, and no meal is skipped', () => {
+    const played = play(newGame(11), 20);
+
+    played.forEach((turn, i) => {
+      expect({ turn: i + 1, violations: invariantViolations(turn.state) }).toEqual({ turn: i + 1, violations: [] });
+      if (i + 1 < 10) return;
+      for (const nationId of TWO_NATION_IDS) {
+        const meal = turn.events.find(e => e.type === 'workers-fed' && e.nationId === nationId);
+        const outcome = meal?.type === 'workers-fed' ? { sick: meal.sick, starved: meal.starved } : 'no meal';
+        expect({ turn: i + 1, nationId, outcome }).toEqual({ turn: i + 1, nationId, outcome: { sick: 0, starved: 0 } });
+        const sick = turn.state.nations.find(n => n.id === nationId)!.industry.sick;
+        expect({ turn: i + 1, nationId, sick }).toEqual({ turn: i + 1, nationId, sick: { untrained: 0, trained: 0, expert: 0 } });
+      }
+    });
+  });
+
   it('FR-015 the game also makes progress: jobs complete and resources are found for both nations', () => {
     const played = play(newGame(11), 20);
     const events = played.flatMap(t => t.events);

@@ -167,11 +167,11 @@ describe('move-and-start from a click (moved from the part A adapter tests)', ()
   });
 
   it('FR-006 when only the job is refused, the worker moves and counts as moved', () => {
-    const fertileHills1 = createTileId(1, 2); // not prospectable, so only the job is refused
-    const s2 = click(game(), tileClickOrders(game(), N1, W.prospector, fertileHills1, { type: 'prospect' }));
+    const orchard1 = createTileId(1, 2); // not prospectable, so only the job is refused
+    const s2 = click(game(), tileClickOrders(game(), N1, W.prospector, orchard1, { type: 'prospect' }));
 
     const { worker, tile } = locate(s2, W.prospector)!;
-    expect(tile.id).toBe(fertileHills1);
+    expect(tile.id).toBe(orchard1);
     expect(worker).toMatchObject({ status: WorkerStatus.Moved, justMoved: true });
     expect(click(s2, moveOrders(s2, N1, W.prospector, T.farm1))).toBe(s2);
   });

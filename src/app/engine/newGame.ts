@@ -1,7 +1,7 @@
 import type { GameState } from "@/types/GameState";
 import { TIME_CONFIG } from "@/constants/gameConstants";
 import { initializeRailroadNetworks } from "./systems/railroadSystem";
-import { startWorld } from "./world/startWorld";
+import { START_TECHNOLOGIES, startWorld } from "./world/startWorld";
 
 export interface NewGameOptions {
   seed: number;
@@ -30,7 +30,8 @@ export function newGame({ seed }: NewGameOptions): GameState {
     transportNetwork: { shippingLanes: [], capacity: 0, railroadNetworks: initializeRailroadNetworks(map, nations) },
     transportAllocationsByNation: {},
     tradeRoutes: [],
-    technologyState: { oilDrillingTechUnlocked: false, technologies: [] },
+    // The technology state is shared by all nations in v1, so the start list covers every nation.
+    technologyState: { oilDrillingTechUnlocked: false, technologies: START_TECHNOLOGIES.map((t) => ({ ...t })) },
     difficulty: "normal",
   };
 }

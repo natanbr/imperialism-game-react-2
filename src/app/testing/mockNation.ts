@@ -171,7 +171,7 @@ const TWO_NATION_ROWS = 6;
 const HALF_MAP: TerrainType[][] = [
   [TerrainType.Farm, TerrainType.OpenRange, TerrainType.HardwoodForest, TerrainType.Plantation],
   [TerrainType.Mountains, TerrainType.Capital, TerrainType.Farm, TerrainType.Orchard],
-  [TerrainType.BarrenHills, TerrainType.FertileHills, TerrainType.DryPlains, TerrainType.Town],
+  [TerrainType.BarrenHills, TerrainType.Orchard, TerrainType.DryPlains, TerrainType.Town],
   [TerrainType.Desert, TerrainType.Swamp, TerrainType.Mountains, TerrainType.HardwoodForest],
   [TerrainType.Tundra, TerrainType.Farm, TerrainType.BarrenHills, TerrainType.OpenRange],
 ];
@@ -194,7 +194,7 @@ function fixtureResource(terrain: TerrainType, x: number, y: number): Tile["reso
     case TerrainType.Farm: return { type: ResourceType.Grain, level: 0 };
     case TerrainType.DryPlains: return { type: ResourceType.Grain, level: 1 };
     case TerrainType.Plantation: return { type: ResourceType.Cotton, level: 0 };
-    case TerrainType.Orchard: return { type: ResourceType.Fruit, level: 0 };
+    case TerrainType.Orchard: return { type: ResourceType.Fruit, level: 1 };
     case TerrainType.OpenRange: return { type: ResourceType.Livestock, level: 0 };
     case TerrainType.FertileHills: return { type: ResourceType.Wool, level: 0 };
     case TerrainType.HardwoodForest: return { type: ResourceType.Timber, level: 0 };
