@@ -319,8 +319,8 @@ Decisions taken alone (safest default), each open to review:
 - Objection: High Pressure Steam Engine and Seed Drill gate nothing in the code yet (flat rail and
   level-1 farms need no technology check); they are start-state data only.
 - Objection: rules files 02 and 04 still list the gold and gems price mismatch and 02 the
-  `RESOURCE_VALUES` mismatch. Both were fixed before M2 (commit bce7a95, M1), so this M2-only
-  pass left those lines as they are.
+  `RESOURCE_VALUES` mismatch. Both were fixed before M2 (commits bce7a95 and 4dfb367, 2026-11-02),
+  so this M2-only pass left those lines as they are; a later rules pass can mark them.
 - Not changed, decision Q9 for Nathan: freight cars count for this turn's shipping (FR-039); the
   rules say next turn.
 
