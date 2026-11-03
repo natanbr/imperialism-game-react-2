@@ -7,12 +7,14 @@
 - Rules knowledge base done 2026-11-03: `docs/rules/` (12 files). Code-vs-rules mismatches are
   tagged `CODE MISMATCH:` in each topic file; M2 fixes them. Top v1 gaps in `docs/rules/gaps.md`.
 - Progress page: https://claude.ai/artifact/JHRFaWQRPk3AYGssSchPBU (data `docs/report/roadmap.json`).
-- M1 part A (engine) done 2026-11-03 on branch `claude/m1-headless-core`, pushed, no PR yet:
-  `src/app/engine/` (11 order kinds, validateOrder, applyOrder, resolveTurn, scripted player),
-  FR-001 to FR-017 tested, `npm run test:engine` 140 green. Store and UI still reach the engine
-  through adapters.
-- Next: M1 part B on the same branch (list in the part A entry, "Part B must do"), then the M1
-  review (Opus 5.5 high) and the app check, then the PR.
+- M1 part A (engine) done 2026-11-03: `src/app/engine/`, FR-001 to FR-017.
+- M1 part B (store and UI) done 2026-11-03 on branch `claude/m1-headless-core`, pushed, no PR
+  yet: the store is one `GameState` (`game`) plus UI state; the UI only calls `submitOrder` and
+  `advanceTurn`; the adapters are gone. FR-018 to FR-025 tested, `npx vitest run` 270 green,
+  Playwright 7 passed 1 skipped on port 3123. Screenshot `docs/journal/m1-screenshot.png`.
+  Ten objections in the part B entry; read the first two (click fallback, job flags) first.
+- Next: the M1 review (Opus 5.5 high) over `1b79ff3..HEAD` and the orchestrator's app check,
+  then the PR.
 
 ## 2026-11-02 Revival setup
 
@@ -152,3 +154,108 @@ Plan-lite:
   store keeps no order log; a replay of a played game is not possible from the store alone.
   Chosen because part A's `applyOrder` already does the immediate effects the UI must show
   (the worker moves, the money goes), and `resolveTurn(s, orders)` equals applying them first.
+
+Tasks:
+
+| Task | FRs | Commit |
+|---|---|---|
+| T-08 [docs] FR-018 to FR-025, plan; FR-017 replaced | all | 02eb02c |
+| T-09 [refactor] `GameState` loses `activeNationId`, `newsLog`, `turnOrder` | FR-018 | 0c827a0 |
+| T-10 [test+impl] store = `game` + UI state, `submitOrder`, `advanceTurn`, seed, event log, HUD news, click policy; components and hooks build orders | FR-018 to FR-024 | 2941fae |
+| T-13a [test] Playwright port from `PORT`, own dev server | FR-025 | 678ef21 |
+| T-13b [test+fix] e2e plays three turns; edge scroll over the HUD fixed | FR-025 | 878b454 |
+| T-12 [refactor] adapters removed, old tests on the engine API | FR-017 replaced | 6e985a3 |
+| T-11 [test+impl] worker job text derived (`workerJobLabel`), not stored | FR-018, FR-024 | 8d93964 |
+| T-14 [docs] `ARCHITECTURE.md` rewritten | none | 498610a |
+| T-15 [docs] journal, requirement status, screenshot | all | this commit |
+
+Red summaries (tests written and run before the code):
+- T-10: `Test Files 5 failed (5)` / `Tests 20 failed | 3 passed (23)`;
+  `TypeError: (0 , createGameStore) is not a function` (18), `Cannot find module
+  '@/hooks/tileClickOrders'`, `Cannot find module '@/components/gameText'`, and the source scan
+  `expected [ …(4) ] to deeply equal []` (4 UI files still called pre-M1 store actions).
+- T-13b: first `element(s) not found` for `[data-tile-id="20-20"]` (tiles had no id); then,
+  after the second Advance Turn, `locator.click: Test timeout of 30000ms exceeded` with
+  `element is not stable`: the map slid down by itself (edge scroll, see decisions).
+- T-11: `Test Files 3 failed | 19 passed (22)` / `Tests 12 failed | 258 passed (270)`;
+  `TypeError: (0 , workerJobLabel) is not a function` (11) and
+  `expected { id: 'nation-1-farmer', …(8) } to not have property "jobDescription"`.
+
+Green summary: `npx vitest run` `Test Files 22 passed (22)` / `Tests 270 passed (270)`. From
+231 after part A: +52 in the new store and UI files (8 of them are part A adapter tests moved
+there, 1 is the old turnSlice test), -11 in removed files (`legacyAdapters.test.ts` 10,
+`turnSlice.test.ts` 1), -2 for the dead treasury ledger. `npm run test:engine`
+`Tests 196 passed (196)`.
+
+Evidence:
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| Baseline at part A | `npx vitest run`, `npm run lint`, `npx tsc --noEmit` | `Tests 231 passed (231)`; `✖ 8 problems (0 errors, 8 warnings)`; exit 0 |
+| FR-018 to FR-022 store | `npx vitest run` | `tests/store/gameStore.test.ts (17 tests)`, `engineBoundary.test.ts (2 tests)`, `industrySlice.test.ts (7 tests)` passed |
+| FR-022 to FR-024 UI | `npx vitest run` | `tests/ui/tileClickOrders.test.ts (20 tests)`, `gameText.test.ts (9 tests)`, `uiWritesOnlyOrders.test.ts (4 tests)` passed |
+| Old tests on the engine API | `npx vitest run` | `tests/engine/orders/workPricesRegressions.test.ts (23 tests)`, `workPrices.test.ts (11 tests)`, `startConstruction.test.ts (13 tests)`, `tests/engine/systems/*` 19 tests, `tests/workers/minerWorker.test.ts (15 tests)` passed |
+| All unit tests | `npx vitest run` | `Test Files 22 passed (22)` / `Tests 270 passed (270)` |
+| Lint | `npm run lint` | `✖ 4 problems (0 errors, 4 warnings)` (was 8; the 4 left are older: a hook dependency, `industrySlice.ts`, `logisticsSystem.test.ts` twice) |
+| Types | `npx tsc --noEmit` | exit 0, no output |
+| Build | `npm run build` | `✓ Compiled successfully in 1875ms`, `✓ Generating static pages (4/4)` |
+| FR-025 and the smoke suite | `PORT=3123 npx playwright test --reporter=list` (3123 free before; this checkout's server) | `1 skipped` / `7 passed (23.2s)`, including `play-turns.spec.ts … three times (4.2s)` |
+| App check screenshot | same run with `SCREENSHOT_PATH=docs/journal/m1-screenshot.png` | turn 3, cash 400, prospector selected, rail from 20-20 to 19-20, news "Rail finished at 19-20." |
+
+Part A's UI leftovers in `GameState` (part B item 5):
+- `activeNationId`: moved to the store. It says which nation this client plays; the engine
+  treats every nation alike and takes orders for any of them.
+- `turnOrder`: removed. A constant copy of the phase names; `TURN_PHASES` in the engine is the
+  real order and nothing read the copy.
+- `newsLog`: removed. The store's `eventLog` keeps the engine's events per turn for the HUD.
+- worker `jobDescription`: removed. Display text, now derived by `workerJobLabel(tile, worker)`.
+- job `completed` / `completedOnTurn`: kept, because the engine's rules read them (objection
+  below).
+
+Tests deleted (all others moved with their assertions):
+- `legacyAdapters.test.ts` "startEngineerWork never picks a port on an inland tile" and "picks a
+  port on a coastal tile that already has a depot": the automatic construction kind had no
+  caller and is removed; the port-site rule is covered by the FR-009 rows of `validate.test.ts`.
+  Its other 8 tests moved to `tests/ui/tileClickOrders.test.ts` (same assertions, now through
+  the click policy).
+- `workPricesRegressions.test.ts` "treasury ledger" (2 tests): `createTreasuryLedger` had no
+  caller after part A and is deleted.
+
+Decisions taken alone (safest default), each open to review:
+- Objection: a click whose job is refused for a reason other than money still moves the
+  worker (the pre-M1 fallback, kept as UI policy in `hooks/tileClickOrders.ts`). When that plain
+  move is accepted it clears the refusal, so the HUD does not say why the job did not start.
+  Dropping the fallback would show the reason, but the click would no longer move a prospector
+  onto a prospectable tile without a hidden resource, which the cursor still offers.
+- Objection: the job flags `completed` / `completedOnTurn` stay in `GameState`. They began as
+  the "done" pulse, but the engine's rules read them: a finished development job blocks a new
+  one on that tile for one more turn. Removing them changes that rule; M2 should settle it from
+  the rules, and then the pulse can read the completion events in the store's `eventLog`.
+- Objection: `submitOrder` refuses orders for a nation other than `activeNationId`
+  (`not-owner`). New rule; a hot-seat or debug view must switch the active nation first.
+- Objection: the debug and setup setters (`setNations`, `setNationTransportCapacity`, `setMap`,
+  `setOilDrillingTech`, `setActiveNation`, `addNews`, `setTransportNetwork`) went with their
+  slices; no code called them. Oil drilling tech can no longer be switched on from the console;
+  a technology order belongs to a later milestone.
+- Objection: Playwright never reuses a running server unless `PW_REUSE_SERVER=1` (before, it
+  reused one outside CI). A run on a busy port now fails instead of testing the wrong app.
+- Objection: fixed a bug the new e2e test found. The map's edge scroll ran while the mouse was
+  on the HUD near the bottom edge, so clicking Advance Turn slid the map down until the mouse
+  moved; the new news panel makes the HUD taller and put the button in that zone. Over the HUD
+  only the right edge scrolls now. No unit test; the e2e spec is the regression test (it failed
+  with `element is not stable` before the fix).
+- Objection: the construction dialog sends `startConstruction` (the engineer stands on the
+  tile) instead of `moveAndStartConstruction`; validation is the same for a worker on its own
+  tile. The capital's capacity slider moves only when its order is accepted.
+- Objection: a new game draws its seed with `Math.random` in the store. The seed shows in the
+  HUD's debug box only once a tile is selected, so the server-rendered page never disagrees
+  with the browser about it.
+- Objection: `getProspectorActions` printed eight `console.log` lines for every tile on every
+  render while a prospector was selected; removed together with `startProspectorWork` from the
+  same file.
+- Not done: `docs/REVIVAL_PLAN.md` section 6 still says rules live in `manual.md` (orchestrator
+  file, outside part B). `store/industrySlice.ts` stays unwired and mutating until M2.
+
+How to see it in the app: `npm run dev`, click the farmer on the capital (20-20), then the farm
+east of it (21-20): the farmer moves and works, cash drops to 500. Press Advance Turn: the HUD
+shows "News, turn 1 (1900)". Select any tile to see the game's seed in the debug box.
