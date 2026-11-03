@@ -6,15 +6,12 @@
   `docs/rules/` (gaps in `gaps.md`). Progress page: https://claude.ai/artifact/JHRFaWQRPk3AYGssSchPBU.
 - M0, M1 and M2 are merged into `main` (PR 9, 10, 12, 13). Their entries are archived in
   `docs/journal/archive-M1.md` and `docs/journal/archive-M2.md`.
-- M3 part A (engine) done 2026-11-03 on `claude/m3-money-and-score` from `origin/main` 1b0923f,
-  pushed, no PR: world market (sell, buy, cargo holds, drifting prices), score, game over after 40
-  turns, scripted player trades. FR-060 to FR-072 tested, `npx vitest run` 559 green.
-- M3 part B (UI) done 2026-11-03 on the same branch, pushed, no PR: market dialog (HUD "Open Market"
-  and the capital's Trade button), HUD score and "Turn: N of 40", game-over screen, store ignores
-  End Turn after the end. FR-073 to FR-078 tested; 588 unit tests; Playwright 10 passed, 1 skipped
-  with `--workers=1` (the default 6 workers time out on this loaded machine, see the entry).
-  Next: the M3 review (Sonnet xhigh), then the PR. Not built: Q15 (c) "repeat last turn's trades".
-- Open decisions: Q9 (freight-car timing, from M2) and Q10 to Q15 (M3, below); each runs on its default.
+- M3 (money and score: market, score, game over after 40 turns, market dialog, game-over screen) is
+  merged into `main` (PR 14); FR-060 to FR-078 tested. Not built: Q15 (c) "repeat last turn's trades".
+- M3.5 started 2026-11-03 on `claude/m3-5-look-and-map`: rail line fix done (FR-079, NR-010; the map
+  now draws the engine's rail graph, coast tiles included), pushed, no PR. Next: NR-007 to NR-009.
+- Open decisions: Q9 (freight-car timing, from M2), Q10 to Q15 (M3, below) and Q16 (coast: land or
+  sea, rail fix entry); each runs on its default.
 
 Carried forward:
 - Deferred: river ports and the depot-on-port rule (rules 04); University fees; the power plant.
@@ -310,3 +307,65 @@ Carried forward (can wait):
 - M4: reset `isGameOverHidden` when a new-game action exists.
 - Q11: an idle game scores 250 from start assets; consider scoring the gain over the start.
 - Rename the `twoNations.test.ts:15` title (asserts coal, iron ore and timber bids).
+
+## 2026-11-03 M3.5 rail line fix (FR-079, NR-010)
+
+Size: M (fix in the map's rail overlay plus one engine query). One agent (Opus 5.5), unattended, no
+subagents, no advisor calls. Branch `claude/m3-5-look-and-map` from 607d3dc. Ultracode was not on.
+
+Bug (Nathan's screenshot): rail from the capital 20-20 west through farm, orchard, scrub forest, farm,
+fertile hills, the coast tile 14-20 and the open range 13-20 (depot) stopped on the map at 15-20, yet
+the depot was green. Root cause: `components/railSegments.ts` line 15 rebuilt the line from tile flags
+with its own land test (`not Water, Coast or River`), while the engine counts coast as land: workers
+stand on it (`queries.ts` `isLand`), `claimLand` owns it, `canBuildRailAt` accepts rail there and
+`addRailroad` links it into the graph. So the rail on 14-20 existed, the graph lit the depot correctly,
+and only the drawing dropped the coast tile's two links: two copies of "which tiles carry rail" had
+drifted apart. The filter predates the revival (`2d1917a`); no earlier rail-drawing bug is recorded, so
+not a recurrence. Candidates checked: (a) refusal: no, the order was accepted; (c) another graph for
+the lights: no, the lights read the graph that holds the coast node; (d) the triangle 12-19, 12-20,
+13-20: three mutual neighbours with rail (odd row 19 is shifted right), and the engine joins every pair
+of neighbouring rail tiles, so it is right under the current model.
+
+Plan-lite: change: the overlay draws `railLinksOf(state)` (new, `systems/railroadSystem.ts`, exported
+from `engine/index.ts`: every link of every nation's graph once) and `computeRailSegmentsPixels(links)`
+only turns links into pixels; consumer: `MapView` (memoized on `transportNetwork`); tests: FR-079 in
+`tests/ui/railLine.test.tsx` (the screenshot's line played through the order API on the 40x40 map,
+`MapView` rendered, its lines read back as tile pairs: no gap from the capital to the depot, the coast
+included; the green depot reachable along drawn lines; drawn lines = graph links; every line joins
+neighbours, the triangle included; a depot the rail does not reach is red with no line to it) and
+`tests/engine/railLinks.test.ts`; verify: `npx vitest run tests/ui/railLine.test.tsx`; Objection: below.
+
+Red summary (test written first, run before the fix): `npx vitest run tests/ui/railLine.test.tsx` gave
+`Test Files 1 failed (1)` / `Tests 3 failed | 3 passed (6)`: `expected [ '14-20 15-20', '13-20 14-20' ]
+to deeply equal []` (the coast tile's two links not drawn), `expected false to be true` (the green depot
+not reachable along drawn lines) and `expected [ '12-19 12-20', '12-19 13-20', …(6) ] to deeply equal
+[ '12-19 12-20', '12-19 13-20', …(8) ]` (8 lines drawn, 10 graph links). "The engine accepts rail on the
+coast tile and lights the depot green" passed: the engine side was right.
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| FR-079 covered | `npx vitest run tests/ui/railLine.test.tsx tests/engine/railLinks.test.ts` | `Test Files 2 passed (2)` / `Tests 9 passed (9)` |
+| All unit tests | `npx vitest run` | `Test Files 38 passed (38)` / `Tests 597 passed (597)` (+9) |
+| Types | `npx tsc --noEmit` | exit 0, no output |
+| Lint | `npm run lint` | `✖ 3 problems (0 errors, 3 warnings)` (the same three as M3) |
+| Build | `npm run build` | `✓ Compiled successfully in 5.3s`, `✓ Generating static pages (4/4)` |
+| Smoke, default workers | `PORT=3157 npx playwright test --reporter=list` | `6 failed` / `1 skipped` / `4 passed (1.9m)`: all six `page.goto: Test timeout of 30000ms exceeded` in `cursor-icons.spec.ts` (cold server, as in M3) |
+| Smoke, warm server, 1 worker | `npm run dev -- --port 3157`, then `PORT=3157 PW_REUSE_SERVER=1 npx playwright test <file> --workers=1` | `cursor-icons.spec.ts`: `1 skipped` / `6 passed (1.0m)`; `play-turns.spec.ts` + `market-and-game-over.spec.ts`: `4 passed (1.5m)` |
+| App check | a throwaway Playwright script (deleted, not committed): engineer builds rail 19-20 to 13-20 through the coast, then a depot on 13-20 | `1 passed (38.2s)`, 7 lines drawn (13-20 to 20-20), depot 🟢; `docs/journal/m3-5-rail-line.png` |
+
+Decisions taken alone:
+- Objection: coast tiles stay land (workers and rail allowed), as the engine had them; only the drawing
+  changed. Rules 02 call the sea "not a land tile" and give fish from "coast / sea next to a port", so in
+  the original a coast tile would be sea; but the 40x40 map puts single coast tiles inland (pattern
+  `(7x + 13y) % 12 == 10`), where sea makes no sense. Decision Q16 below.
+- Objection: the overlay now also draws a link between two neighbouring stations without rail (the
+  capital next to a port, a port built next to a depot), because the graph links them and they count
+  for the lights; the old overlay hid them. Rare: a depot may not be built next to the capital, a port
+  or another depot.
+
+**Q16** 🧠 **Should coast tiles be land or sea?**
+- Found: the engine treats coast as land (workers, ownership, rail, depots), the port rule as sea
+  (`isAdjacentToOcean`), rules 02 as sea; the old drawing treated it as sea, which caused this bug.
+- Options: (a) land, as now: rail crosses coast. (b) Sea from M3.5's two-island map (NR-007): no workers
+  or rail on coast (the move and rail orders refuse it as a non-land target), fish for ports (NR-008).
+- 💡 (b) with the new map, where coast lies only along the shore; (a) until then.

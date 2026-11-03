@@ -28,7 +28,7 @@ src/app/
   engine/                  the headless core (no UI imports)
     index.ts               public API: Order types, validateOrder, applyOrder, tryApplyOrder,
                            resolveTurn, newGame, scriptedPlayer, GameEvent, seasonOf, labourOf,
-                           migrantCap, foodForecast
+                           migrantCap, foodForecast, railLinksOf
     newGame.ts             the start state: Spring 1815, startWorld(), START_TECHNOLOGIES, rail
                            networks built
     calendar.ts            seasons; the year advances after winter
@@ -209,6 +209,11 @@ warehouse up to the capacity, following the player's allocation
 (`setTransportAllocations` order) and filling the rest greedily. Capacity is freight cars from
 the railyard: 1 lumber + 1 steel each when ordered and 2 labour each in the production phase
 (`changeTransportCapacity` order); the cars count for that turn's shipping.
+
+The rail graph per nation (`transportNetwork.railroadNetworks`, built in `systems/railroadSystem.ts`)
+has a node for every tile with rail, a depot, a port or the capital, linked to its neighbouring
+nodes. The map's rail overlay draws exactly its links (`railLinksOf`, then
+`components/railSegments.ts` for the pixels), the same graph the depot lights come from (FR-079).
 
 ## Industry, labour and food
 

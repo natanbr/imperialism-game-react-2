@@ -18,7 +18,7 @@ Status values: `planned`, `tested` (test exists and is green), `replaced`, `drop
 | NR-007 | (2026-11-03) The first playable map is much smaller: two islands with a few tile types each, instead of the large continent. | planned (M3.5) |
 | NR-008 | (2026-11-03) Tiles use a faint background colour instead of strong colours, and show icons for what they hold (apples on orchards, fish on coast, trees on forests, as in the original game) wherever an icon fits. An external icon library may be used for more icon choices. | planned (M3.5) |
 | NR-009 | (2026-11-03) The game looks appealing during testing: a minimalist design with a small set of simple colours. | planned (M3.5) |
-| NR-010 | (2026-11-03) Rail built tile by tile is drawn as one continuous line, and a depot shows as connected (green) only when an unbroken rail path joins it to the capital. | planned (fix before M3.5) |
+| NR-010 | (2026-11-03) Rail built tile by tile is drawn as one continuous line, and a depot shows as connected (green) only when an unbroken rail path joins it to the capital. | tested (FR-079) |
 | NR-011 | (2026-11-03, from decision Q12) The game ends the way the original does: a vote of the Council of Governors, once one nation is strong enough. v1 ends after a fixed 40 turns; the Council vote is kept for a later version (v2, with diplomacy). | deferred (v2) |
 
 ## M1 Headless core
@@ -161,3 +161,16 @@ queries only (FR-022); every number it shows comes from `marketOf`, `tradeOrders
 | FR-076 | Game-over screen: WHEN `isGameOver(state)` THEN a game-over screen SHALL show the date of the last turn ("Winter 1824") and every nation's final score from `state.gameOver.scores`, ranked, each with treasury, industry and development points and the total, the active nation marked. The player MAY close it to look at the map and reopen it from the HUD ("Final scores"). The HUD's Advance Turn button SHALL be disabled after game over. | tested |
 | FR-077 | The store after game over: `advanceTurn` SHALL do nothing once the game is over: it does not call `resolveTurn`, adds no report to the event log and leaves `game` as the same object (so neither the button nor the "n" shortcut can log an empty turn). | tested |
 | FR-078 | In the running app a player opens the market, offers one unit of a commodity for sale, ends the turn, and sees the sale in the news and the cash rise by the sale's income; and a player who ends 40 turns sees the game-over screen with the final scores and a disabled Advance Turn button, with no console errors (`e2e/market-and-game-over.spec.ts`). | tested |
+
+## M3.5 Small map and clean look
+
+Plan: `docs/REVIVAL_PLAN.md` M3.5 (NR-007 to NR-010). The rail fix comes first.
+
+### Rail line fix
+
+Bug report (Nathan, 2026-11-03): rail built from the capital west through a coast tile ended at the
+tile before the coast on the map, yet the depot past the coast was green.
+
+| Id | Requirement | Status |
+|---|---|---|
+| FR-079 | Rail line (NR-010): the map SHALL draw one line from tile centre to tile centre for every link of each nation's rail graph (`railLinksOf`), the graph `transportConnectivitySystem` lights the depots from, and nothing else; it SHALL NOT apply a terrain rule of its own. So rail built tile by tile on any tile the engine accepts for rail (`isRailSite`; coast tiles are land in v1) is drawn as one continuous line, every line joins two neighbouring tiles, and a depot is green only when the drawn lines join it to the capital (or to a port: the existing port rule, unchanged). A depot the rail does not reach is red and no line leads to it. [NEEDS CLARIFICATION] decision Q16: whether coast tiles stay land (rail allowed) or become sea in M3.5. | tested |
