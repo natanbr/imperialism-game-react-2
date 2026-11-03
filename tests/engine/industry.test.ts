@@ -22,6 +22,10 @@ const produce = (building: BuildingType, amount: number, output?: ProductionOutp
 const allLabourCommitted = (s: GameState) =>
   setBuilding(setBuilding(setBuilding(s, N1, 'lumberMill', { orders: { lumber: 2 } }), N1, 'steelMill', { orders: { steel: 2 } }), N1, 'textileMill', { orders: { fabric: 2 } });
 
+/** 11 labour (one untrained worker sick), 10 committed (lumber 2, steel 2, fabric 1): 1 free. */
+const oneLabourFree = (s: GameState) =>
+  setIndustry(setBuilding(allLabourCommitted(s), N1, 'textileMill', { orders: { fabric: 1 } }), N1, { sick: { untrained: 1, trained: 0, expert: 0 } });
+
 interface Case {
   name: string;
   setup: () => GameState;
@@ -85,7 +89,8 @@ const cases: Case[] = [
   { name: 'FR-041 a sick worker cannot be trained', setup: () => setIndustry(base({ paper: 9 }), N1, { sick: { untrained: 4, trained: 0, expert: 0 } }), order: { kind: 'trainWorkers', nationId: N1, from: 'untrained', delta: 1 }, expected: 'invalid-amount' },
   { name: 'FR-041 training without the cash', setup: () => setTreasury(base({ paper: 2 }), N1, 999), order: { kind: 'trainWorkers', nationId: N1, from: 'trained', delta: 1 }, expected: 'insufficient-funds' },
   { name: 'FR-041 training without paper', setup: () => base({ paper: 1 }), order: { kind: 'trainWorkers', nationId: N1, from: 'trained', delta: 1 }, expected: 'insufficient-resources' },
-  { name: 'FR-041 a trainee whose labour is committed', setup: () => allLabourCommitted(base({ paper: 1 })), order: { kind: 'trainWorkers', nationId: N1, from: 'untrained', delta: 1 }, expected: 'insufficient-labour' },
+  { name: 'FR-058 training with no free labour', setup: () => allLabourCommitted(base({ paper: 1 })), order: { kind: 'trainWorkers', nationId: N1, from: 'untrained', delta: 1 }, expected: 'insufficient-labour' },
+  { name: 'FR-058 1 free labour is enough to train a trained worker (2 labour)', setup: () => oneLabourFree(base({ paper: 2 })), order: { kind: 'trainWorkers', nationId: N1, from: 'trained', delta: 1 }, expected: 'ok' },
   { name: 'FR-041 a zero change', setup: () => base({ paper: 1 }), order: { kind: 'trainWorkers', nationId: N1, from: 'untrained', delta: 0 }, expected: 'invalid-amount' },
   { name: 'FR-041 cancelling more trainees than ordered', setup: () => base(), order: { kind: 'trainWorkers', nationId: N1, from: 'untrained', delta: -1 }, expected: 'invalid-amount' },
 

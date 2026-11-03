@@ -8,7 +8,6 @@ import { BUILDINGS, nextCapacity } from "@/definisions/industryBuildings";
 import {
   EXPANSION_COST_PER_POINT,
   FREIGHT_CAR_COST,
-  LABOUR_PER_WORKER,
   MIGRANT_COST,
   RECIPES,
   TRAINING_COST,
@@ -140,8 +139,9 @@ export function validateTrainWorkers(nation: Nation, order: TrainWorkersOrder): 
   const cost = TRAINING_COST[from];
   if ((nation.treasury ?? 0) < delta * cost.cash) return reject("insufficient-funds");
   if (!has(stockOf(nation), MaterialType.Paper, delta * cost.paper)) return reject("insufficient-resources");
-  // A trainee gives no labour this turn, so its labour must be free.
-  return labourOf(nation).free >= delta * LABOUR_PER_WORKER[from] ? OK : reject("insufficient-labour");
+  // Rules 05 section 4: at least 1 labour must be free to start training, not the trainee's whole
+  // labour. The trainee gives no labour this turn; production clamps orders it no longer covers.
+  return labourOf(nation).free >= 1 ? OK : reject("insufficient-labour");
 }
 
 export function validateRecruitWorkers(nation: Nation, order: RecruitWorkersOrder): ValidationResult {
