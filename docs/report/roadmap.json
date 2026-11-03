@@ -2,10 +2,10 @@
   "project": "Imperialism Revival",
   "updated": "2026-11-03",
   "target": "v1 playable (M3)",
-  "now": "M1 in review, M2 running",
+  "now": "M1 and M2 waiting for your review",
   "source": "docs/REVIVAL_PLAN.md and docs/report/roadmap.json in the imperialism-game-react-2 repo",
   "overview": {
-    "headline": "M1, the headless order-based engine, is finished and reviewed, waiting for your merge in PR 12. M2 (economic loop) is running tonight, stacked on the M1 branch.",
+    "headline": "Night shift result: M1 (headless engine) and M2 (economic loop) are built, reviewed and fixed. Both wait for your merge (PR 12, then PR 13). M3 not started on purpose: it would stack a third unreviewed PR.",
     "milestones": [
       {
         "title": "Setup: rules knowledge, light spec flow, progress page",
@@ -30,10 +30,10 @@
       },
       {
         "title": "M2 Economic loop: production, buildings, food, real durations",
-        "status": "in-progress",
-        "progress": 5,
+        "status": "in-review",
+        "progress": 95,
         "date": "Nov 2026",
-        "note": "Part A (production, buildings, labour, food, real durations, rule mismatches) running on branch claude/m2-economic-loop, stacked on M1."
+        "note": "PR 13 (stacked on PR 12): 472 tests green, Playwright 8 passed incl. ordering canned food and seeing it in the warehouse. Opus review: no engine bug; 7 small fixes done."
       },
       {
         "title": "M3 Money and score: world market, costs, score, game over (v1)",
@@ -52,6 +52,10 @@
     ],
     "risks": [
       {
+        "title": "Two big unreviewed PRs",
+        "text": "M1 and M2 change about 190 files together. Review M1 first; any change there must be rebased into M2."
+      },
+      {
         "title": "Rules gaps",
         "text": "Price curve, minor-nation demand, several job durations and the score formula are not in the manual. M2/M3 use documented defaults until closed."
       },
@@ -65,9 +69,10 @@
       }
     ],
     "next": [
-      "Review and merge PR 12 (M1)",
-      "M2 part B: UI for production and buildings",
-      "M2 review and PR"
+      "Review PR 12 in the running app, merge",
+      "Review PR 13, merge",
+      "Answer Q5 to Q9",
+      "Then /milestone M3 (world market and score)"
     ]
   },
   "detail": {
@@ -239,31 +244,32 @@
           {
             "id": "M2",
             "title": "Economic loop",
-            "status": "in-progress",
+            "status": "in-review",
             "blockedBy": [
               "M1"
             ],
             "tasks": [
               {
                 "title": "Recipe engine inside productionSystem",
-                "done": false
+                "done": true
               },
               {
                 "title": "Mills and factories with capacity and labour",
-                "done": false
+                "done": true
               },
               {
                 "title": "Food consumption",
-                "done": false
+                "done": true
               },
               {
                 "title": "Real job durations",
-                "done": false
+                "done": true
               }
             ],
             "doneWhen": "Headless test: grain to canned food in the warehouse",
-            "hot": "src/app/engine/systems/",
-            "session": "night shift"
+            "hot": "src/app/engine/systems/, src/app/engine/industry/, src/app/components/capital/",
+            "session": "night shift",
+            "evidence": "Agents: 472/472 tests, lint 0 errors, tsc ok, build ok, Playwright 8 passed. Coordinator checked the fix-round engine diff."
           },
           {
             "id": "M3",
@@ -333,8 +339,8 @@
     "needs": [
       {
         "when": "Morning",
-        "what": "Review PR 12 (M1) in the running app, then merge",
-        "why": "Largest change of v1; the agent does not merge it (Q5 open). M2 is stacked on it",
+        "what": "Review PR 12 (M1), then PR 13 (M2), in the running app; merge",
+        "why": "Agent does not merge them (Q5 open); M2 is stacked on M1",
         "item": "M1"
       },
       {
@@ -418,6 +424,26 @@
         "items": [
           "S1",
           "M3"
+        ]
+      },
+      {
+        "id": "Q8",
+        "title": "Rail on hills, swamp and mountains before a technology shop exists?",
+        "status": "open",
+        "context": "The rules sell these three technologies; v1 cannot buy technology, so rail stopped at the first hill.",
+        "suggestion": "Keep the default built tonight: every nation starts with them. Remove them from the start list when M3 or later adds a technology purchase (one data change).",
+        "items": [
+          "M2"
+        ]
+      },
+      {
+        "id": "Q9",
+        "title": "Freight cars: usable this turn or next turn?",
+        "status": "open",
+        "context": "The rules say a freight car bought now carries goods next turn. The code lets it carry this turn (FR-039), which feels more responsive but differs from the original.",
+        "suggestion": "Follow the rules (next turn): v1 aims to be faithful first, and v2 changes are easier from a faithful base.",
+        "items": [
+          "M2"
         ]
       }
     ]

@@ -7,7 +7,10 @@
 - Rules knowledge base done 2026-11-03: `docs/rules/` (12 files). Code-vs-rules mismatches are
   tagged `CODE MISMATCH:` in each topic file; M2 fixes them. Top v1 gaps in `docs/rules/gaps.md`.
 - Progress page: https://claude.ai/artifact/JHRFaWQRPk3AYGssSchPBU (data `docs/report/roadmap.json`).
-- Next: merge M0, then `/milestone M1`.
+- Night shift 2026-11-03: M1 built and reviewed (PR 12); M2 built and reviewed, stacked on M1
+  (PR 13). Neither merged (only M0 merge was authorized). M3 deliberately not started.
+  Open decisions Q5 to Q9 on the progress page.
+- Next: Nathan reviews PR 12 then PR 13; then `/milestone M3`.
 
 ## 2026-11-02 Revival setup
 
