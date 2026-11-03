@@ -86,6 +86,37 @@ const buildInitialGraph = (map: GameMap, networks: RailroadNetworks): void => {
   }
 };
 
+/** Two neighbouring tiles joined in a nation's rail graph. */
+export interface RailLink {
+  nationId: string;
+  from: RailroadNode;
+  to: RailroadNode;
+}
+
+const before = (a: RailroadNode, b: RailroadNode): boolean => a.y < b.y || (a.y === b.y && a.x < b.x);
+
+/**
+ * Every link of every nation's rail graph, once (FR-079). The map draws exactly these, so the
+ * line on the map is the graph `transportConnectivitySystem` lights the depots from.
+ */
+export function railLinksOf({ transportNetwork }: Pick<GameState, "transportNetwork">): RailLink[] {
+  const links: RailLink[] = [];
+  for (const [nationId, network] of Object.entries(transportNetwork.railroadNetworks ?? {})) {
+    const seen = new Set<string>();
+    for (const [k, neighbours] of Object.entries(network.graph)) {
+      const [x, y] = k.split(",").map(Number);
+      for (const n of neighbours) {
+        const [from, to] = before({ x, y }, n) ? [{ x, y }, { x: n.x, y: n.y }] : [{ x: n.x, y: n.y }, { x, y }];
+        const id = `${key(from.x, from.y)}|${key(to.x, to.y)}`;
+        if (seen.has(id)) continue;
+        seen.add(id);
+        links.push({ nationId, from, to });
+      }
+    }
+  }
+  return links;
+}
+
 export const initializeRailroadNetworks = (map: GameMap, nations: Nation[]): RailroadNetworks => {
   const networks = initializeEmptyNetworks(nations);
   populateNodesFromMap(map, networks);

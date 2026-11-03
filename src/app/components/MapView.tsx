@@ -1,3 +1,4 @@
+import { railLinksOf } from "@/engine";
 import { useEdgeScroll } from "@/hooks/useEdgeScroll";
 import { useGameStore } from "@/store/rootStore";
 import React, { useMemo, useRef } from "react";
@@ -20,8 +21,8 @@ export const MapView: React.FC = () => {
 
   useEdgeScroll({ containerRef, onMove: moveCamera });
 
-  // Compute rail segments in pixel coordinates for overlay rendering
-  const railSegments = useMemo(() => computeRailSegmentsPixels(map, 100, 50), [map]);
+  // The rail graph the depot lights use, drawn as it is (FR-079)
+  const railSegments = useMemo(() => computeRailSegmentsPixels(railLinksOf({ transportNetwork }), 100, 50), [transportNetwork]);
   const overlayWidth = map.config.cols * 100 + 50; // extra for odd-row shift
   const overlayHeight = map.config.rows * 100;
 
