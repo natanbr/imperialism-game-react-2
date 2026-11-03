@@ -2,10 +2,10 @@
   "project": "Imperialism Revival",
   "updated": "2026-11-03",
   "target": "v1 playable (M3)",
-  "now": "M1 headless core (night shift)",
+  "now": "M1 in review, M2 running",
   "source": "docs/REVIVAL_PLAN.md and docs/report/roadmap.json in the imperialism-game-react-2 repo",
   "overview": {
-    "headline": "Setup and M0 are merged into main. M1, the headless order-based engine, is running unattended tonight. Its PR waits for your review before merge.",
+    "headline": "M1, the headless order-based engine, is finished and reviewed, waiting for your merge in PR 12. M2 (economic loop) is running tonight, stacked on the M1 branch.",
     "milestones": [
       {
         "title": "Setup: rules knowledge, light spec flow, progress page",
@@ -23,17 +23,17 @@
       },
       {
         "title": "M1 Headless core: orders, resolveTurn, seed, two-nation test",
-        "status": "in-progress",
-        "progress": 10,
+        "status": "in-review",
+        "progress": 95,
         "date": "Nov 2026",
-        "note": "Part A (engine, orders, resolveTurn, seed, two-nation test) running; part B (store and UI through orders) follows on the same branch."
+        "note": "PR 12: 280 tests green (91 before), two-nation 20-turn and replay tests, Playwright 7 passed incl. a 3-turn play test. Opus review: merge after one fix (done). Waiting for your merge."
       },
       {
         "title": "M2 Economic loop: production, buildings, food, real durations",
-        "status": "not-started",
-        "progress": 0,
-        "date": "after M1",
-        "note": "Grain on a farm ends as canned food in the warehouse."
+        "status": "in-progress",
+        "progress": 5,
+        "date": "Nov 2026",
+        "note": "Part A (production, buildings, labour, food, real durations, rule mismatches) running on branch claude/m2-economic-loop, stacked on M1."
       },
       {
         "title": "M3 Money and score: world market, costs, score, game over (v1)",
@@ -65,9 +65,9 @@
       }
     ],
     "next": [
-      "M1 part B: store and UI dispatch orders",
-      "M1 review (Opus 5.5 high), fix round, PR for your review",
-      "Answer Q5 to Q7"
+      "Review and merge PR 12 (M1)",
+      "M2 part B: UI for production and buildings",
+      "M2 review and PR"
     ]
   },
   "detail": {
@@ -203,41 +203,45 @@
           {
             "id": "M1",
             "title": "Headless core",
-            "status": "in-progress",
+            "status": "in-review",
             "blockedBy": [],
             "tasks": [
               {
                 "title": "Order union + validate + apply",
-                "done": false
+                "done": true
               },
               {
                 "title": "resolveTurn(state, orders, seed)",
-                "done": false
+                "done": true
               },
               {
                 "title": "Split UI state from game state",
-                "done": false
+                "done": true
               },
               {
                 "title": "Two-nation 20-turn headless test",
-                "done": false
+                "done": true
               },
               {
                 "title": "Replay determinism test",
+                "done": true
+              },
+              {
+                "title": "Carried to M4: order log + queued UI orders so human and AI orders resolve together",
                 "done": false
               }
             ],
             "doneWhen": "Both tests green and the app plays as before through orders",
-            "hot": "src/app/engine/, src/app/store/",
-            "session": "night shift"
+            "hot": "src/app/engine/, src/app/store/, src/app/hooks/, eslint.config.mjs",
+            "session": "night shift",
+            "evidence": "Coordinator verified: 280/280 tests, lint 0 errors, tsc ok, build ok (agent); Opus 5.5 high review found 1 medium bug (forged order name made treasury NaN), fixed with tests"
           },
           {
             "id": "M2",
             "title": "Economic loop",
-            "status": "not-started",
+            "status": "in-progress",
             "blockedBy": [
-              "M1",
-              "S1"
+              "M1"
             ],
             "tasks": [
               {
@@ -258,7 +262,8 @@
               }
             ],
             "doneWhen": "Headless test: grain to canned food in the warehouse",
-            "hot": "src/app/engine/systems/"
+            "hot": "src/app/engine/systems/",
+            "session": "night shift"
           },
           {
             "id": "M3",
@@ -328,8 +333,8 @@
     "needs": [
       {
         "when": "Morning",
-        "what": "Review the M1 PR in the running app",
-        "why": "Largest change of v1; agent does not merge it (Q5 open)",
+        "what": "Review PR 12 (M1) in the running app, then merge",
+        "why": "Largest change of v1; the agent does not merge it (Q5 open). M2 is stacked on it",
         "item": "M1"
       },
       {
