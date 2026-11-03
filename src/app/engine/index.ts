@@ -12,3 +12,11 @@ export { seasonOf, type Season } from "./calendar";
 export { labourOf, type Labour } from "./industry/labour";
 export { migrantCap } from "./industry/industryState";
 export { foodForecast, type FoodForecast } from "./industry/foodForecast";
+export {
+  isTradeCommodity,
+  marketOf,
+  priceOf,
+  tradeCapacityOf,
+  tradeOrdersOf,
+  type TradeCapacity,
+} from "./market/market";

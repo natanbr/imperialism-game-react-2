@@ -13,6 +13,7 @@ import {
   applySetProduction,
   applyTrainWorkers,
 } from "./industryOrders";
+import { applyBuyCommodity, applySellCommodity } from "./tradeOrders";
 import { findWorker, holdsJob, nextResourceLevel, tileById, type WorkerLocation } from "./queries";
 
 /**
@@ -67,6 +68,10 @@ function applyValidOrder(state: GameState, order: Order): GameState {
       return applyTrainWorkers(state, order);
     case "recruitWorkers":
       return applyRecruitWorkers(state, order);
+    case "sellCommodity":
+      return applySellCommodity(state, order);
+    case "buyCommodity":
+      return applyBuyCommodity(state, order);
   }
 }
 

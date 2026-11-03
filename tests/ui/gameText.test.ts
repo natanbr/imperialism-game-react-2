@@ -57,6 +57,23 @@ describe('FR-024 turn event text', () => {
       '2 workers ate the wrong food and fell sick; 1 worker starved.'
     );
   });
+
+  it('FR-072 world-market deals read as news, with the display name and the money', () => {
+    const N = 'nation-1';
+    expect(eventText({ type: 'goods-sold', nationId: N, commodity: GoodsType.Furniture, amount: 2, price: 900, income: 1800 })).toBe(
+      'Sold 2 Furniture for $1,800.'
+    );
+    expect(eventText({ type: 'goods-bought', nationId: N, commodity: ResourceType.Coal, amount: 3, price: 100, cost: 300 })).toBe(
+      'Bought 3 Coal for $300.'
+    );
+  });
+
+  it('FR-072 a refused trade order names the sale or the purchase', () => {
+    const sale: Order = { kind: 'sellCommodity', nationId: 'nation-1', commodity: GoodsType.Furniture, amount: 9 };
+    const purchase: Order = { kind: 'buyCommodity', nationId: 'nation-1', commodity: ResourceType.Coal, amount: 9 };
+    expect(refusalText({ order: sale, reason: 'insufficient-resources' })).toBe('Sale refused: not enough goods in the warehouse.');
+    expect(refusalText({ order: purchase, reason: 'limit-reached' })).toBe('Purchase refused: over the limit.');
+  });
 });
 
 describe('FR-050 commodity display names', () => {

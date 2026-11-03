@@ -151,6 +151,10 @@ const cases: Case[] = [
   { name: 'FR-041 training a worker with cash and paper is ok', setup: s => setWarehouse(s, N1, { paper: 1 }), order: { kind: 'trainWorkers', nationId: N1, from: 'untrained', delta: 1 }, expected: 'ok' },
   { name: 'FR-042 recruiting a migrant with the three goods is ok', setup: s => setWarehouse(s, N1, { cannedFood: 1, clothing: 1, furniture: 1 }), order: { kind: 'recruitWorkers', nationId: N1, delta: 1 }, expected: 'ok' },
   { name: 'FR-036 production for an unknown nation', order: { kind: 'setProduction', nationId: 'nation-9', building: 'lumberMill', amount: 1 }, expected: 'unknown-nation' },
+
+  // trade orders (more rows in market.test.ts)
+  { name: 'FR-061 offering timber on the world market is ok', order: { kind: 'sellCommodity', nationId: N1, commodity: ResourceType.Timber, amount: 2 }, expected: 'ok' },
+  { name: 'FR-062 bidding for coal on the world market is ok', order: { kind: 'buyCommodity', nationId: N1, commodity: ResourceType.Coal, amount: 1 }, expected: 'ok' },
 ];
 
 describe('validateOrder', () => {

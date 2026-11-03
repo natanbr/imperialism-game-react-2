@@ -11,6 +11,7 @@ import {
   validateSetProduction,
   validateTrainWorkers,
 } from "./industryOrders";
+import { validateTradeOrder } from "./tradeOrders";
 import { areTilesAdjacent } from "../map/mapHelpers";
 import type {
   CancelWorkerActionOrder,
@@ -84,6 +85,9 @@ export function validateOrder(state: GameState, order: Order): ValidationResult 
       return validateTrainWorkers(nation, order);
     case "recruitWorkers":
       return validateRecruitWorkers(nation, order);
+    case "sellCommodity":
+    case "buyCommodity":
+      return validateTradeOrder(state, nation, order);
     default: {
       const unknown: never = order;
       void unknown;

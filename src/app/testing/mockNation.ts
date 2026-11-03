@@ -7,6 +7,7 @@ import { Worker, WorkerStatus, WorkerType } from "@/types/Workers";
 import { createTileId } from "@/utils/tileIdUtils";
 import { initializeRailroadNetworks } from "@/engine/systems/railroadSystem";
 import { createIndustry } from "@/engine/industry/industryState";
+import { startMarket } from "@/engine/market/market";
 
 const cols = 5;
 const rows = 5;
@@ -281,6 +282,7 @@ export function createTwoNationGame(seed = 1): GameState {
     map,
     transportNetwork: { shippingLanes: [], capacity: 0, railroadNetworks: initializeRailroadNetworks(map, nations) },
     tradeRoutes: [],
+    market: startMarket(),
     technologyState: { technologies: [], oilDrillingTechUnlocked: false },
     difficulty: "normal",
   };
