@@ -25,6 +25,5 @@ export interface Worker {
   efficiency: number; // 0–100
   status: WorkerStatus;
   justMoved: boolean;
-  jobDescription?: string;
   previousTileId?: string;
 }

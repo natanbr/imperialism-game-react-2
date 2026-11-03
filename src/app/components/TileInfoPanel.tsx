@@ -8,6 +8,7 @@ import { canBuildRailAt } from "@/engine/map/mapHelpers";
 import { PROSPECT_COST, DEVELOPMENT_COST, CONSTRUCTION_COST } from "@/definisions/workPrices";
 import { parseTileIdToArray } from "@/utils/tileIdUtils";
 import { ConstructionKind } from "@/types/jobs/ConstructionJob";
+import { workerJobLabel } from "./gameText";
 
 interface TileInfoPanelProps {
   selectedTile: Tile | undefined;
@@ -127,7 +128,7 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
                 onClick={() => setSelectedWorkerId && setSelectedWorkerId(w.id)}
                 style={{ background: selectedWorkerId === w.id ? '#444' : 'transparent', padding: '4px', borderRadius: '4px', cursor: 'pointer' }}>
                 <WorkerStatusIndicator status={w.status} />
-                <span>{w.type} - {w.jobDescription || w.status}</span>
+                <span>{w.type} - {workerJobLabel(selectedTile, w) ?? w.status}</span>
                 {(w.status === WorkerStatus.Moved || w.status === WorkerStatus.Working) && (
                   <button
                     onClick={() => handleCancelAction(w.id)}

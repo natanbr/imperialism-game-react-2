@@ -7,7 +7,7 @@ import { CONSTRUCTION_COST, DEVELOPMENT_COST, PROSPECT_COST } from "@/definision
 import { EngineerBuildDurationsTurns, WorkerLevelDurationsTurns } from "@/definisions/workerDurations";
 import type { CancelWorkerActionOrder, ChangeTransportCapacityOrder, Order, ValidationResult } from "./Order";
 import { validateOrder } from "./validate";
-import { DEVELOPMENT_JOB_PREFIX, findWorker, holdsJob, nextResourceLevel, tileById, type WorkerLocation } from "./queries";
+import { findWorker, holdsJob, nextResourceLevel, tileById, type WorkerLocation } from "./queries";
 
 /**
  * Validates the order and, if it is valid, performs its immediate effects (FR-005). A refused
@@ -88,7 +88,6 @@ function relocate(state: GameState, { worker, tile: from }: WorkerLocation, to: 
     assignedTileId: to.id,
     justMoved: true,
     status: WorkerStatus.Moved,
-    jobDescription: "Moved",
     previousTileId: from.id,
   };
   return mapTiles(state, (t) => {
@@ -109,7 +108,7 @@ function moveThenStart(state: GameState, workerId: string, toTileId: string, sta
 const startProspecting: StartJob = (state, workerId, tileId) => {
   const { worker } = findWorker(state, workerId)!;
   return updateTile(charge(state, worker.nationId, PROSPECT_COST), tileId, (t) => ({
-    ...updateWorker(t, workerId, { status: WorkerStatus.Working, jobDescription: "Prospecting" }),
+    ...updateWorker(t, workerId, { status: WorkerStatus.Working }),
     prospecting: { startedOnTurn: state.turn, workerId },
   }));
 };
@@ -118,9 +117,8 @@ const startDevelopment: StartJob = (state, workerId, tileId) => {
   const { worker, tile } = findWorker(state, workerId)!;
   const targetLevel = nextResourceLevel(tile) as 1 | 2 | 3;
   const durationTurns = WorkerLevelDurationsTurns[worker.type]?.[targetLevel] || 1;
-  const prefix = DEVELOPMENT_JOB_PREFIX[worker.type] ?? "Developing";
   return updateTile(charge(state, worker.nationId, DEVELOPMENT_COST[targetLevel]), tileId, (t) => ({
-    ...updateWorker(t, workerId, { status: WorkerStatus.Working, jobDescription: `${prefix} to level ${targetLevel}` }),
+    ...updateWorker(t, workerId, { status: WorkerStatus.Working }),
     developmentJob: { workerId, workerType: worker.type, targetLevel, startedOnTurn: state.turn, durationTurns },
   }));
 };
@@ -129,7 +127,7 @@ const construction = (kind: ConstructionKind): StartJob => (state, workerId, til
   const { worker } = findWorker(state, workerId)!;
   const durationTurns = EngineerBuildDurationsTurns[kind] || 1;
   return updateTile(charge(state, worker.nationId, CONSTRUCTION_COST[kind]), tileId, (t) => ({
-    ...updateWorker(t, workerId, { status: WorkerStatus.Working, jobDescription: `Constructing ${kind}` }),
+    ...updateWorker(t, workerId, { status: WorkerStatus.Working }),
     constructionJob: { workerId, kind, startedOnTurn: state.turn, durationTurns },
   }));
 };
@@ -145,13 +143,7 @@ function cancel(state: GameState, order: CancelWorkerActionOrder): GameState {
   if (worker.status === WorkerStatus.Working || holdsJob(tile, worker.id)) {
     const movedThisTurn = worker.justMoved && !!worker.previousTileId;
     return updateTile(state, tile.id, (t) => ({
-      ...updateWorker(
-        t,
-        worker.id,
-        movedThisTurn
-          ? { status: WorkerStatus.Moved, jobDescription: "Moved" }
-          : { status: WorkerStatus.Available, jobDescription: undefined }
-      ),
+      ...updateWorker(t, worker.id, { status: movedThisTurn ? WorkerStatus.Moved : WorkerStatus.Available }),
       prospecting: t.prospecting?.workerId === worker.id ? undefined : t.prospecting,
       developmentJob: t.developmentJob?.workerId === worker.id ? undefined : t.developmentJob,
       constructionJob: t.constructionJob?.workerId === worker.id ? undefined : t.constructionJob,
@@ -163,7 +155,6 @@ function cancel(state: GameState, order: CancelWorkerActionOrder): GameState {
     ...worker,
     status: WorkerStatus.Available,
     justMoved: false,
-    jobDescription: undefined,
     previousTileId: undefined,
     assignedTileId: homeId,
   };

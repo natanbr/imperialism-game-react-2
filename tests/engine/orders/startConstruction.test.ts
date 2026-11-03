@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { startConstruction } from './singleNationOrders';
+import { workerJobLabel } from '@/components/gameText';
 import { initWorld } from '@/testing/worldInit';
 import { GameState } from '@/types/GameState';
 import { TerrainType } from '@/types/Tile';
@@ -49,7 +50,7 @@ describe('startConstruction order - Engineer Construction', () => {
 
       const updatedWorker = updatedTile.workers.find(w => w.id === engineer.id)!;
       expect(updatedWorker.status).toBe(WorkerStatus.Working);
-      expect(updatedWorker.jobDescription).toBe('Constructing depot');
+      expect(workerJobLabel(updatedTile, updatedWorker)).toBe('Constructing depot');
     });
 
     it('should start port construction when kind is port', () => {
@@ -69,7 +70,7 @@ describe('startConstruction order - Engineer Construction', () => {
 
       const updatedWorker = updatedTile.workers.find(w => w.id === engineer.id)!;
       expect(updatedWorker.status).toBe(WorkerStatus.Working);
-      expect(updatedWorker.jobDescription).toBe('Constructing port');
+      expect(workerJobLabel(updatedTile, updatedWorker)).toBe('Constructing port');
     });
 
     it('should start fort construction when kind is fort', () => {
@@ -89,7 +90,7 @@ describe('startConstruction order - Engineer Construction', () => {
 
       const updatedWorker = updatedTile.workers.find(w => w.id === engineer.id)!;
       expect(updatedWorker.status).toBe(WorkerStatus.Working);
-      expect(updatedWorker.jobDescription).toBe('Constructing fort');
+      expect(workerJobLabel(updatedTile, updatedWorker)).toBe('Constructing fort');
     });
 
     it('should start rail construction when kind is rail', () => {
@@ -109,7 +110,7 @@ describe('startConstruction order - Engineer Construction', () => {
 
       const updatedWorker = updatedTile.workers.find(w => w.id === engineer.id)!;
       expect(updatedWorker.status).toBe(WorkerStatus.Working);
-      expect(updatedWorker.jobDescription).toBe('Constructing rail');
+      expect(workerJobLabel(updatedTile, updatedWorker)).toBe('Constructing rail');
     });
 
     it('should return unchanged state if tile does not exist', () => {
@@ -268,7 +269,7 @@ describe('startConstruction order - Engineer Construction', () => {
 
       // Prospector should remain unchanged
       expect(updatedProspector.status).toBe(prospector.status);
-      expect(updatedProspector.jobDescription).toBe(prospector.jobDescription);
+      expect(workerJobLabel(updatedTile, updatedProspector)).toBe(workerJobLabel(capitalTile, prospector));
     });
   });
 });

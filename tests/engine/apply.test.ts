@@ -38,7 +38,7 @@ describe('applyOrder immediate effects', () => {
 
     const { worker, tile } = locate(s, W.engineer)!;
     expect(tile.id).toBe(T.farm1);
-    expect(worker).toMatchObject({ status: WorkerStatus.Working, justMoved: true, previousTileId: T.capital1, jobDescription: 'Constructing rail' });
+    expect(worker).toMatchObject({ status: WorkerStatus.Working, justMoved: true, previousTileId: T.capital1 });
     expect(tile.constructionJob).toEqual({ workerId: W.engineer, kind: 'rail', startedOnTurn: 1, durationTurns: 1 });
     expect(treasury(s, N1)).toBe(START - CONSTRUCTION_COST.rail);
   });
@@ -47,7 +47,7 @@ describe('applyOrder immediate effects', () => {
     const s = run(put(game(), W.prospector, T.mountains1), { kind: 'startProspecting', nationId: N1, workerId: W.prospector, tileId: T.mountains1 });
 
     expect(tileAt(s, T.mountains1).prospecting).toEqual({ startedOnTurn: 1, workerId: W.prospector });
-    expect(locate(s, W.prospector)!.worker).toMatchObject({ status: WorkerStatus.Working, jobDescription: 'Prospecting' });
+    expect(locate(s, W.prospector)!.worker).toMatchObject({ status: WorkerStatus.Working });
     expect(treasury(s, N1)).toBe(START - PROSPECT_COST);
   });
 
@@ -55,7 +55,7 @@ describe('applyOrder immediate effects', () => {
     const s = run(put(game(), W.farmer, T.farm1), { kind: 'startDevelopment', nationId: N1, workerId: W.farmer, tileId: T.farm1 });
 
     expect(tileAt(s, T.farm1).developmentJob).toEqual({ workerId: W.farmer, workerType: WorkerType.Farmer, targetLevel: 1, startedOnTurn: 1, durationTurns: 2 });
-    expect(locate(s, W.farmer)!.worker).toMatchObject({ status: WorkerStatus.Working, jobDescription: 'Farming to level 1' });
+    expect(locate(s, W.farmer)!.worker).toMatchObject({ status: WorkerStatus.Working });
     expect(treasury(s, N1)).toBe(START - DEVELOPMENT_COST[1]);
   });
 
@@ -63,7 +63,7 @@ describe('applyOrder immediate effects', () => {
     const s = run(game(), { kind: 'startConstruction', nationId: N1, workerId: W.engineer, tileId: T.capital1, structure: 'fort' });
 
     expect(tileAt(s, T.capital1).constructionJob).toEqual({ workerId: W.engineer, kind: 'fort', startedOnTurn: 1, durationTurns: 4 });
-    expect(locate(s, W.engineer)!.worker).toMatchObject({ status: WorkerStatus.Working, jobDescription: 'Constructing fort' });
+    expect(locate(s, W.engineer)!.worker).toMatchObject({ status: WorkerStatus.Working });
     expect(treasury(s, N1)).toBe(START - CONSTRUCTION_COST.fort);
   });
 
@@ -111,7 +111,7 @@ describe('applyOrder immediate effects', () => {
     const s = run(started, { kind: 'cancelWorkerAction', nationId: N1, workerId: W.farmer, tileId: T.farm1 });
 
     expect(tileAt(s, T.farm1).developmentJob).toBeUndefined();
-    expect(locate(s, W.farmer)!.worker).toMatchObject({ status: WorkerStatus.Available, jobDescription: undefined });
+    expect(locate(s, W.farmer)!.worker).toMatchObject({ status: WorkerStatus.Available });
     expect(treasury(s, N1)).toBe(START - DEVELOPMENT_COST[1]);
   });
 

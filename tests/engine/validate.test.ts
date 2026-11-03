@@ -18,8 +18,8 @@ const W = {
 const barrenHills1 = createTileId(0, 2);
 const enemyBorder = createTileId(4, 1);
 
-const moved = { status: WorkerStatus.Moved, justMoved: true, previousTileId: T.capital1, jobDescription: 'Moved' };
-const working = { status: WorkerStatus.Working, jobDescription: 'busy' };
+const moved = { status: WorkerStatus.Moved, justMoved: true, previousTileId: T.capital1 };
+const working = { status: WorkerStatus.Working };
 
 type Setup = (s: GameState) => GameState;
 interface Case {

@@ -89,15 +89,5 @@ export const DEVELOPMENT_WORKER_TYPES: readonly WorkerType[] = [
   WorkerType.Developer,
 ];
 
-/** Job text shown on the worker, e.g. "Farming to level 2". */
-export const DEVELOPMENT_JOB_PREFIX: Partial<Record<WorkerType, string>> = {
-  [WorkerType.Farmer]: "Farming",
-  [WorkerType.Rancher]: "Ranching",
-  [WorkerType.Forester]: "Forestry",
-  [WorkerType.Miner]: "Mining",
-  [WorkerType.Driller]: "Drilling",
-  [WorkerType.Developer]: "Developing",
-};
-
 /** The level a development job on this tile would reach. */
 export const nextResourceLevel = (tile: Tile): number => (tile.resource?.level || 0) + 1;

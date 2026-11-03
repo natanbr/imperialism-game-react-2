@@ -49,8 +49,8 @@ describe('resolveTurn', () => {
 
     const s = resolveTurn(state, {}, 1).state;
 
-    expect(locate(s, W.engineer)!.worker).toMatchObject({ status: WorkerStatus.Available, justMoved: false, previousTileId: undefined, jobDescription: undefined });
-    expect(locate(s, W.farmer)!.worker).toMatchObject({ status: WorkerStatus.Working, justMoved: false, jobDescription: 'Farming to level 1' });
+    expect(locate(s, W.engineer)!.worker).toMatchObject({ status: WorkerStatus.Available, justMoved: false, previousTileId: undefined });
+    expect(locate(s, W.farmer)!.worker).toMatchObject({ status: WorkerStatus.Working, justMoved: false });
   });
 
   it('FR-011 applies each nation\'s orders, then runs the systems (a one-turn prospect resolves)', () => {

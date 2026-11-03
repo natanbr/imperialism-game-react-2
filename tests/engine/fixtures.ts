@@ -75,7 +75,6 @@ export function put(state: GameState, id: string, tileId: string, patch: Partial
     status: WorkerStatus.Available,
     justMoved: false,
     previousTileId: undefined,
-    jobDescription: undefined,
     ...patch,
   };
   return {

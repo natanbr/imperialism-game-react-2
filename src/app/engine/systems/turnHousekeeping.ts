@@ -33,7 +33,6 @@ export const resetWorkers: TurnSystem = (state: GameState): GameState => ({
             justMoved: false,
             previousTileId: undefined,
             status: isWorking ? WorkerStatus.Working : WorkerStatus.Available,
-            jobDescription: isWorking ? w.jobDescription : undefined,
           };
         });
         return { ...tile, workers };

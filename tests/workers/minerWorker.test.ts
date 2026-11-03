@@ -9,6 +9,7 @@ import { WorkerStatus, WorkerType } from '@/types/Workers';
 import { parseTileIdToArray } from '@/utils/tileIdUtils';
 import { ResourceType } from '@/types/Resource';
 import { getMinerActions } from '@/workers/MinerWorker';
+import { workerJobLabel } from '@/components/gameText';
 
 /** A map click with the miner selected, as the UI sends it: move-and-develop, then the plain move. */
 function clickDevelop(state: GameState, workerId: string, tileId: string): GameState {
@@ -133,7 +134,7 @@ describe('Miner Worker Functionality', () => {
       // Worker should be marked as Working
       const resultWorker = resultTile.workers.find(w => w.id === miner.id)!;
       expect(resultWorker.status).toBe(WorkerStatus.Working);
-      expect(resultWorker.jobDescription).toContain('Mining');
+      expect(workerJobLabel(resultTile, resultWorker)).toContain('Mining');
     });
 
     it('should NOT allow miner to start on tile without resource', () => {
@@ -427,7 +428,7 @@ describe('Miner Worker Functionality', () => {
 
       const resultWorker = resultTile.workers.find(w => w.id === miner.id)!;
       expect(resultWorker.status).toBe(WorkerStatus.Working);
-      expect(resultWorker.jobDescription).toBe('Mining to level 1');
+      expect(workerJobLabel(resultTile, resultWorker)).toBe('Mining to level 1');
     });
   });
 
