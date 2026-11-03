@@ -1,6 +1,6 @@
 // FR-024: display text for the HUD's news and refusals, derived from engine data.
 import { describe, it, expect } from 'vitest';
-import { eventText, refusalText, REFUSAL_TEXT, workerJobLabel } from '@/components/gameText';
+import { completedTileIds, eventText, refusalText, REFUSAL_TEXT, workerJobLabel } from '@/components/gameText';
 import { resolveTurn, tryApplyOrder, type Order, type RejectReason } from '@/engine';
 import { GameState } from '@/types/GameState';
 import { ResourceType } from '@/types/Resource';
@@ -66,8 +66,8 @@ describe('FR-024 worker job label', () => {
     expect(label(order(put(game(), W.prospector, T.mountains1), { kind: 'startProspecting', nationId: N1, workerId: W.prospector, tileId: T.mountains1 }), W.prospector)).toBe('Prospecting');
     expect(label(order(put(game(), W.farmer, T.farm1), { kind: 'startDevelopment', nationId: N1, workerId: W.farmer, tileId: T.farm1 }), W.farmer)).toBe('Farming to level 1');
     expect(label(order(game(), { kind: 'moveAndStartDevelopment', nationId: N1, workerId: W.rancher, toTileId: T.range1 }), W.rancher)).toBe('Ranching to level 1');
-    expect(label(order(game(), { kind: 'startConstruction', nationId: N1, workerId: W.engineer, tileId: T.capital1, structure: 'fort' }), W.engineer)).toBe('Constructing fort');
-    expect(label(order(game(), { kind: 'startConstruction', nationId: N1, workerId: W.engineer, tileId: T.capital1, structure: 'depot' }), W.engineer)).toBe('Constructing depot');
+    expect(label(order(put(game(), W.engineer, T.orchard1), { kind: 'startConstruction', nationId: N1, workerId: W.engineer, tileId: T.orchard1, structure: 'fort' }), W.engineer)).toBe('Constructing fort');
+    expect(label(order(put(game(), W.engineer, T.orchard1), { kind: 'startConstruction', nationId: N1, workerId: W.engineer, tileId: T.orchard1, structure: 'depot' }), W.engineer)).toBe('Constructing depot');
   });
 
   it('a moved worker reads Moved, an idle one has no label', () => {
@@ -97,5 +97,17 @@ describe('FR-024 worker job label', () => {
     const s = order(game(), { kind: 'moveAndStartDevelopment', nationId: N1, workerId: W.farmer, toTileId: T.farm1 });
     expect(locate(s, W.farmer)!.worker).not.toHaveProperty('jobDescription');
     expect(locate(resolveTurn(s, {}, 1).state, W.farmer)!.worker).not.toHaveProperty('jobDescription');
+  });
+});
+
+describe('FR-032 the map marks the tiles whose job finished last turn', () => {
+  it('FR-032 reads the completion events, not job flags', () => {
+    const ids = completedTileIds([
+      { type: 'development-completed', tileId: '2-1', nationId: N1, level: 1 },
+      { type: 'construction-completed', tileId: '3-1', nationId: N1, structure: 'depot' },
+      { type: 'resource-discovered', tileId: '0-1', nationId: N1 },
+      { type: 'turn-ended', turn: 2, year: 1815 },
+    ]);
+    expect([...ids].sort()).toEqual(['2-1', '3-1']);
   });
 });

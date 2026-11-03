@@ -134,16 +134,32 @@ const construction = (kind: ConstructionKind): StartJob => (state, workerId, til
 };
 
 /**
- * Stops the worker's job (no refund), or undoes this turn's move. A worker that moved this
- * turn stays marked as moved after its job is cancelled, so it cannot move a second time; a
- * second cancel then sends it back.
+ * What the worker's job on this tile cost, if it was ordered this turn: orders can be cancelled
+ * until End Turn and the cash comes back (FR-031). A job from an earlier turn refunds nothing.
+ */
+function refundThisTurn(state: GameState, tile: Tile, workerId: string): number {
+  const now = (startedOnTurn: number) => startedOnTurn === state.turn;
+  let refund = 0;
+  if (tile.prospecting?.workerId === workerId && now(tile.prospecting.startedOnTurn)) refund += PROSPECT_COST;
+  const dev = tile.developmentJob;
+  if (dev?.workerId === workerId && now(dev.startedOnTurn)) refund += DEVELOPMENT_COST[dev.targetLevel] ?? 0;
+  const con = tile.constructionJob;
+  if (con?.workerId === workerId && now(con.startedOnTurn)) refund += constructionCost(con.kind, tile.terrain);
+  return refund;
+}
+
+/**
+ * Stops the worker's job (refunded if ordered this turn), or undoes this turn's move. A worker
+ * that moved this turn stays marked as moved after its job is cancelled, so it cannot move a
+ * second time; a second cancel then sends it back.
  */
 function cancel(state: GameState, order: CancelWorkerActionOrder): GameState {
   const { worker, tile } = findWorker(state, order.workerId)!;
 
   if (worker.status === WorkerStatus.Working || holdsJob(tile, worker.id)) {
     const movedThisTurn = worker.justMoved && !!worker.previousTileId;
-    return updateTile(state, tile.id, (t) => ({
+    const refunded = charge(state, worker.nationId, -refundThisTurn(state, tile, worker.id));
+    return updateTile(refunded, tile.id, (t) => ({
       ...updateWorker(t, worker.id, { status: movedThisTurn ? WorkerStatus.Moved : WorkerStatus.Available }),
       prospecting: t.prospecting?.workerId === worker.id ? undefined : t.prospecting,
       developmentJob: t.developmentJob?.workerId === worker.id ? undefined : t.developmentJob,

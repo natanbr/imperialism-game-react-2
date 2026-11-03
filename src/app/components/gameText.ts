@@ -54,6 +54,15 @@ export function eventText(event: GameEvent): string | null {
   }
 }
 
+/** Tiles whose development or construction finished in these events (the map's "done" mark). */
+export function completedTileIds(events: readonly GameEvent[]): ReadonlySet<string> {
+  const ids = new Set<string>();
+  for (const e of events) {
+    if (e.type === "development-completed" || e.type === "construction-completed") ids.add(e.tileId);
+  }
+  return ids;
+}
+
 const DEVELOPMENT_JOB_PREFIX: Partial<Record<WorkerType, string>> = {
   [WorkerType.Farmer]: "Farming",
   [WorkerType.Rancher]: "Ranching",
@@ -72,11 +81,11 @@ export function workerJobLabel(tile: Tile, worker: Worker): string | undefined {
   if (worker.status !== WorkerStatus.Working) return undefined;
   if (tile.prospecting?.workerId === worker.id) return "Prospecting";
   const development = tile.developmentJob;
-  if (development && !development.completed && development.workerId === worker.id) {
+  if (development && development.workerId === worker.id) {
     return `${DEVELOPMENT_JOB_PREFIX[development.workerType] ?? "Developing"} to level ${development.targetLevel}`;
   }
   const construction = tile.constructionJob;
-  if (construction && !construction.completed && construction.workerId === worker.id) {
+  if (construction && construction.workerId === worker.id) {
     return `Constructing ${construction.kind}`;
   }
   return undefined;

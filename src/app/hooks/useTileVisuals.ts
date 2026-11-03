@@ -9,7 +9,6 @@ export interface TileVisuals {
   borderColor: string;
   borderWidth: string;
   cursor: string;
-  hasJobCompleted: boolean;
 }
 
 /**
@@ -101,15 +100,11 @@ export function useTileVisuals(
 
     const cursor = getCursorForAction(possibleAction);
 
-    const hasJobCompleted =
-      tile.developmentJob?.completed || tile.constructionJob?.completed || false;
-
     return {
       terrainColor,
       borderColor,
       borderWidth,
       cursor,
-      hasJobCompleted,
     };
   }, [tile, isSelected, ownerNation, possibleAction]);
 }

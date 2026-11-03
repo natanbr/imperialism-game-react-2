@@ -166,7 +166,7 @@ describe('starting a job starts only the clicked worker', () => {
       const state = makeState(treasury);
       const home = capital(state);
       // targetB (the idle engineer) comes first in map scan order, targetA (the clicked target) later.
-      const targetA = tilesOf(state, TerrainType.Plantation)[0];
+      const targetA = tilesOf(state, TerrainType.DryPlains)[0]; // a depot site (FR-030): not next to the capital
       const targetB = tilesOf(state, TerrainType.Farm)[0];
       place(state, home, makeWorker('eng-a', WorkerType.Engineer, home));
       place(state, targetB, makeWorker('eng-b', WorkerType.Engineer, targetB));

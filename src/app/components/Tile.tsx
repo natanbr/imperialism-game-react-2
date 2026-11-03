@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { useGameStore } from '@/store/rootStore';
-import { selectSelectedWorkerAndTile } from '@/store/selectors';
+import { selectSelectedWorkerAndTile, selectTilesCompletedLastTurn } from '@/store/selectors';
 import { Tile } from '@/types/Tile';
 import { Nation } from '@/types/Nation';
 import { TransportNetwork } from '@/types/Transport';
@@ -55,6 +55,7 @@ const TileComponentInner: React.FC<TileProps> = ({
 
   // Get selected worker
   const { worker: selectedWorker } = useGameStore(selectSelectedWorkerAndTile);
+  const jobJustCompleted = useGameStore((s) => selectTilesCompletedLastTurn(s).has(tile.id));
 
   // Compute derived state
   const isSelected = selectedTileId === tile.id;
@@ -102,7 +103,7 @@ const TileComponentInner: React.FC<TileProps> = ({
       borderColor={tileVisuals.borderColor}
       borderWidth={tileVisuals.borderWidth}
       cursor={tileVisuals.cursor}
-      hasJobCompleted={tileVisuals.hasJobCompleted}
+      hasJobCompleted={jobJustCompleted}
       onClick={handleTileClick}
     >
       {/* Resource display */}

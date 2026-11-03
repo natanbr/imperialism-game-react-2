@@ -2,6 +2,7 @@ import { Nation } from '@/types/Nation';
 import { Tile } from '@/types/Tile';
 import { Worker } from '@/types/Workers';
 import { createSelector } from 'reselect';
+import { completedTileIds } from '@/components/gameText';
 import { GameStore } from './rootStore';
 
 const selectNations = (state: GameStore) => state.game.nations;
@@ -10,6 +11,12 @@ const selectActiveNationId = (state: GameStore) => state.activeNationId;
 export const selectActiveNation = createSelector(
   [selectNations, selectActiveNationId],
   (nations, activeNationId) => nations.find((n: Nation) => n.id === activeNationId)
+);
+
+/** Tiles where a job finished in the last resolved turn: the map's "done" mark (FR-032). */
+export const selectTilesCompletedLastTurn = createSelector(
+  [(state: GameStore) => state.eventLog],
+  (eventLog) => completedTileIds(eventLog.at(-1)?.events ?? [])
 );
 
 export const selectActiveNationCapacity = createSelector(

@@ -117,8 +117,8 @@ export function invariantViolations(state: GameState): string[] {
     }
     const jobs: { name: string; workerId: string }[] = [];
     if (tile.prospecting) jobs.push({ name: 'prospecting', workerId: tile.prospecting.workerId });
-    if (tile.developmentJob && !tile.developmentJob.completed) jobs.push({ name: 'development', workerId: tile.developmentJob.workerId });
-    if (tile.constructionJob && !tile.constructionJob.completed) jobs.push({ name: 'construction', workerId: tile.constructionJob.workerId });
+    if (tile.developmentJob) jobs.push({ name: 'development', workerId: tile.developmentJob.workerId });
+    if (tile.constructionJob) jobs.push({ name: 'construction', workerId: tile.constructionJob.workerId });
     for (const job of jobs) {
       const w = tile.workers.find(x => x.id === job.workerId);
       if (!w) problems.push(`orphaned ${job.name} job on ${tile.id}: worker ${job.workerId} is not there`);

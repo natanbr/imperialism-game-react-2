@@ -105,14 +105,14 @@ describe('applyOrder immediate effects', () => {
     expect(worker).toMatchObject({ status: WorkerStatus.Available, justMoved: false, previousTileId: undefined, assignedTileId: T.capital1 });
   });
 
-  it('FR-005 cancelWorkerAction stops a job without a refund', () => {
+  it('FR-005 FR-031 cancelWorkerAction stops a job and refunds it when it was ordered this turn', () => {
     const started = applyOrder(put(game(), W.farmer, T.farm1), { kind: 'startDevelopment', nationId: N1, workerId: W.farmer, tileId: T.farm1 });
 
     const s = run(started, { kind: 'cancelWorkerAction', nationId: N1, workerId: W.farmer, tileId: T.farm1 });
 
     expect(tileAt(s, T.farm1).developmentJob).toBeUndefined();
     expect(locate(s, W.farmer)!.worker).toMatchObject({ status: WorkerStatus.Available });
-    expect(treasury(s, N1)).toBe(START - DEVELOPMENT_COST[1]);
+    expect(treasury(s, N1)).toBe(START);
   });
 
   it('FR-006 cancelling a move-and-start job leaves the worker moved: no second move this turn', () => {

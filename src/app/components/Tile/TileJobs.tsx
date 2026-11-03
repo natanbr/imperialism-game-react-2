@@ -24,12 +24,12 @@ const TileJobsInner: React.FC<TileJobsProps> = ({
           ⏳
         </div>
       )}
-      {developmentJob && !developmentJob.completed && (
+      {developmentJob && (
         <div className={styles.jobDevelopment} title="Development in progress">
           ⏳
         </div>
       )}
-      {constructionJob && !constructionJob.completed && (
+      {constructionJob && (
         <div className={styles.jobConstruction} title="Construction in progress">
           🛠️
         </div>
