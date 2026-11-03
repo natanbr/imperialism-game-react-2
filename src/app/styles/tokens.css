@@ -10,6 +10,9 @@
   --tile-border-normal: 1px;
   --tile-border-selected: 3px;
 
+  /* The HUD lies over the map's right edge (components/camera.ts HUD_PX) */
+  --hud-width: 250px;
+
   /* Colors */
   --color-selected: #ff0000;
   --color-border-default: #555;

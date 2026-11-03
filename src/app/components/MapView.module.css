@@ -12,9 +12,11 @@
   position: relative;
 }
 
+/* Scrolled by the camera (FR-083). The padding lets the last column scroll out from under the HUD. */
 .viewport {
   width: max-content;
   position: relative;
+  padding-right: var(--hud-width);
 }
 
 .row {

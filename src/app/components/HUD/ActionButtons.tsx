@@ -1,5 +1,6 @@
 import React from "react";
 import { useGameStore } from "@/store/rootStore";
+import { cameraOnCapital } from "../camera";
 
 export const ActionButtons: React.FC = () => {
   const advanceTurn = useGameStore((s) => s.advanceTurn);
@@ -10,7 +11,12 @@ export const ActionButtons: React.FC = () => {
   const showGameOver = useGameStore((s) => s.showGameOver);
   const isOver = useGameStore((s) => s.game.gameOver !== undefined);
   const setCamera = useGameStore((s) => s.setCamera);
-  const map = useGameStore((s) => s.game.map);
+  // The capital back in the middle of the map area (FR-083)
+  const centreOnCapital = () => {
+    const { game, activeNationId } = useGameStore.getState();
+    const camera = cameraOnCapital(game, activeNationId);
+    if (camera) setCamera(camera.x, camera.y);
+  };
 
   return (
     <div className="action-buttons-container">
@@ -33,11 +39,7 @@ export const ActionButtons: React.FC = () => {
       </button>
       <div className="btn-group">
         <button
-          onClick={() => {
-            const cx = Math.floor((map.config.cols * 100 + 50) / 2);
-            const cy = Math.floor((map.config.rows * 100) / 2);
-            setCamera(cx, cy);
-          }}
+          onClick={centreOnCapital}
           title="Center Camera"
           className="btn btn-dark btn-sm flex-1"
         >
