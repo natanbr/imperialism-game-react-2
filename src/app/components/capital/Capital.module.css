@@ -1,0 +1,317 @@
+/* The capital dialog and its parts (tokens in styles/tokens.css). */
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--color-bg-backdrop);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+}
+
+.dialog {
+  width: 94vw;
+  height: 92vh;
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* header */
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+}
+
+.title {
+  margin: 0;
+  font-size: 20px;
+  flex: 1;
+}
+
+.headerButtons {
+  display: flex;
+  gap: var(--spacing-md);
+}
+
+.closeButton {
+  background: var(--color-bg-button);
+  color: var(--color-text-primary);
+  border: none;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.closeButton:hover {
+  background: var(--color-bg-button-hover);
+}
+
+.refusal {
+  padding: 8px 16px;
+  background: #3b1a1a;
+  color: var(--color-text-danger);
+  border-bottom: 1px solid #5a2a2a;
+}
+
+/* layout */
+
+.body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 12px;
+  padding: 12px;
+  flex: 1;
+  min-height: 0;
+}
+
+.industry {
+  overflow: auto;
+  min-height: 0;
+}
+
+.side {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  overflow: auto;
+  min-height: 0;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 10px;
+}
+
+/* panels */
+
+.panel {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  background: var(--color-bg-panel);
+  display: grid;
+  gap: 8px;
+}
+
+.panelTitle {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.panel .panelTitle {
+  margin: 0;
+}
+
+.subTitle {
+  margin: 6px 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.labourLine {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.labourLine span:first-child {
+  font-weight: 700;
+}
+
+.grades {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.gradeRow {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 2px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.gradeName {
+  flex: 1;
+}
+
+.gradeCount {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.sick {
+  color: var(--color-text-danger);
+  font-size: var(--font-size-sm);
+}
+
+.training {
+  color: var(--color-text-good);
+  font-size: var(--font-size-sm);
+}
+
+.note {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+/* production cards */
+
+.card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 10px;
+  background: var(--color-bg-card);
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 15px;
+}
+
+.capacity {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.pending {
+  color: var(--color-text-good);
+}
+
+.output {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "name amount"
+    "inputs amount";
+  column-gap: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--color-border);
+}
+
+.outputName {
+  grid-area: name;
+  font-weight: 700;
+}
+
+.inputs {
+  grid-area: inputs;
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 0;
+  font-size: var(--font-size-sm);
+}
+
+.input {
+  color: var(--color-text-muted);
+}
+
+.inputMissing {
+  color: var(--color-text-danger);
+}
+
+.amount {
+  grid-area: amount;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.amountValue {
+  min-width: 52px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* buttons */
+
+.stepButton,
+.actionButton,
+.cancelButton,
+.secondaryButton,
+.expandButton {
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.stepButton {
+  width: 28px;
+  height: 28px;
+  background: var(--color-bg-button);
+  font-size: 16px;
+  line-height: 1;
+}
+
+.actionButton {
+  flex: 1;
+  padding: 6px 8px;
+  background: var(--color-bg-accent);
+  border-color: transparent;
+  text-align: left;
+}
+
+.actionButton:hover:not(:disabled) {
+  background: var(--color-bg-accent-hover);
+}
+
+.cancelButton,
+.secondaryButton,
+.expandButton {
+  padding: 6px 10px;
+  background: var(--color-bg-button);
+}
+
+.stepButton:hover:not(:disabled),
+.cancelButton:hover:not(:disabled),
+.secondaryButton:hover:not(:disabled),
+.expandButton:hover:not(:disabled) {
+  background: var(--color-bg-button-hover);
+}
+
+.expandButton {
+  justify-self: start;
+}
+
+.stepButton:disabled,
+.actionButton:disabled,
+.cancelButton:disabled,
+.secondaryButton:disabled,
+.expandButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.actionRow {
+  display: flex;
+  gap: 6px;
+}
