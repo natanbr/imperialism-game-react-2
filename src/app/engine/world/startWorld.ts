@@ -32,11 +32,30 @@ const START_STOCK: Partial<Record<WarehouseCommodities, number>> = {
 };
 
 /**
- * Technologies every nation holds at the start (FR-051). [NEEDS CLARIFICATION] decision Q8: the
- * rules sell these (rules 04 section 2), but v1 has no technology purchase, so without them rail
- * would stop at the first hill. When a purchase exists, this list becomes empty.
+ * Technologies every nation holds at the start (FR-059). The first two are the rules' own start
+ * technologies (rules 01 section 3, rules 09). [NEEDS CLARIFICATION] decision Q8: the rules sell
+ * the other three (rules 04 section 2), but v1 has no technology purchase, so without them rail
+ * would stop at the first hill. When a purchase exists, those three leave this list.
  */
 export const START_TECHNOLOGIES: readonly Technology[] = [
+  {
+    id: "highPressureSteamEngine",
+    name: "High Pressure Steam Engine",
+    approximateArrival: [1814, 1814],
+    prerequisites: [],
+    benefits: ["rail through farms, plains, deserts, forests and tundra"],
+    purchased: true,
+    cost: 0,
+  },
+  {
+    id: "seedDrill",
+    name: "Seed Drill",
+    approximateArrival: [1814, 1814],
+    prerequisites: [],
+    benefits: ["farmers raise grain farms and orchards to level 1"],
+    purchased: true,
+    cost: 0,
+  },
   {
     id: "compoundSteamEngine",
     name: "Compound Steam Engine",

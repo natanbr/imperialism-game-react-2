@@ -58,16 +58,20 @@ describe('FR-043 the engine owns the start of a game', () => {
   });
 });
 
-describe('FR-051 decision Q8 default: rail on rough terrain from the start', () => {
+describe('FR-059 start technologies: the rules\' own two and the decision Q8 default for rough terrain', () => {
+  const RULES_START = ['highPressureSteamEngine', 'seedDrill'];
   const ROUGH = ['compoundSteamEngine', 'ironRailroadBridge', 'dynamite'];
+  const ALL_START = [...RULES_START, ...ROUGH];
 
-  it('FR-051 a new game holds Compound Steam Engine, Iron Railroad Bridge and Dynamite as purchased', () => {
+  it('FR-059 a new game holds High Pressure Steam Engine and Seed Drill (rules 01), and Compound Steam Engine, Iron Railroad Bridge and Dynamite (Q8), as purchased', () => {
     const g = newGame({ seed: 7 });
-    for (const id of ROUGH) expect({ id, has: hasTechnology(g, id) }).toEqual({ id, has: true });
-    expect(g.technologyState.technologies.map(t => t.id).sort()).toEqual([...ROUGH].sort());
+    for (const id of ALL_START) expect({ id, has: hasTechnology(g, id) }).toEqual({ id, has: true });
+    expect(g.technologyState.technologies.map(t => t.id).sort()).toEqual([...ALL_START].sort());
+    const names = Object.fromEntries(g.technologyState.technologies.map(t => [t.id, t.name]));
+    expect(names).toMatchObject({ highPressureSteamEngine: 'High Pressure Steam Engine', seedDrill: 'Seed Drill' });
   });
 
-  it('FR-051 FR-030 rail and depots are allowed on hills, swamp and mountains of the new game map', () => {
+  it('FR-059 FR-030 rail and depots are allowed on hills, swamp and mountains of the new game map', () => {
     const g = newGame({ seed: 7 });
     const tiles = g.map.tiles.flat();
     for (const terrain of [TerrainType.BarrenHills, TerrainType.Swamp, TerrainType.Mountains]) {
@@ -78,8 +82,8 @@ describe('FR-051 decision Q8 default: rail on rough terrain from the start', () 
     expect(isDepotSite(g, hills)).toBe(true);
   });
 
-  it('FR-051 the list is start-state data: START_TECHNOLOGIES, and the test fixtures start with none', () => {
-    expect(START_TECHNOLOGIES.map(t => t.id).sort()).toEqual([...ROUGH].sort());
+  it('FR-059 the list is start-state data: START_TECHNOLOGIES, and the test fixtures start with none', () => {
+    expect(START_TECHNOLOGIES.map(t => t.id).sort()).toEqual([...ALL_START].sort());
     expect(START_TECHNOLOGIES.every(t => t.purchased)).toBe(true);
     expect(createTwoNationGame(1).technologyState.technologies).toEqual([]);
   });
