@@ -2,10 +2,10 @@
   "project": "Imperialism Revival",
   "updated": "2026-11-03",
   "target": "v1 playable (M3)",
-  "now": "M1 and M2 waiting for your review",
+  "now": "M1 and M2 merged; M3 next",
   "source": "docs/REVIVAL_PLAN.md and docs/report/roadmap.json in the imperialism-game-react-2 repo",
   "overview": {
-    "headline": "Night shift result: M1 (headless engine) and M2 (economic loop) are built, reviewed and fixed. Both wait for your merge (PR 12, then PR 13). M3 not started on purpose: it would stack a third unreviewed PR.",
+    "headline": "M0, M1 (headless engine) and M2 (economic loop) are merged into main (PRs 9, 12, 13). Gate on main: 472 tests, tsc, lint, build, Playwright 8 passed. Next: M3 money and score.",
     "milestones": [
       {
         "title": "Setup: rules knowledge, light spec flow, progress page",
@@ -23,17 +23,17 @@
       },
       {
         "title": "M1 Headless core: orders, resolveTurn, seed, two-nation test",
-        "status": "in-review",
-        "progress": 95,
+        "status": "done",
+        "progress": 100,
         "date": "Nov 2026",
-        "note": "PR 12: 280 tests green (91 before), two-nation 20-turn and replay tests, Playwright 7 passed incl. a 3-turn play test. Opus review: merge after one fix (done). Waiting for your merge."
+        "note": "PR 12: 280 tests green (91 before), two-nation 20-turn and replay tests, Playwright 7 passed incl. a 3-turn play test. Opus review: merge after one fix (done). Merged 2026-11-03."
       },
       {
         "title": "M2 Economic loop: production, buildings, food, real durations",
-        "status": "in-review",
-        "progress": 95,
+        "status": "done",
+        "progress": 100,
         "date": "Nov 2026",
-        "note": "PR 13 (stacked on PR 12): 472 tests green, Playwright 8 passed incl. ordering canned food and seeing it in the warehouse. Opus review: no engine bug; 7 small fixes done."
+        "note": "PR 13 (stacked on PR 12): 472 tests green, Playwright 8 passed incl. ordering canned food and seeing it in the warehouse. Opus review: no engine bug; 7 small fixes done. Merged 2026-11-03."
       },
       {
         "title": "M3 Money and score: world market, costs, score, game over (v1)",
@@ -208,7 +208,7 @@
           {
             "id": "M1",
             "title": "Headless core",
-            "status": "in-review",
+            "status": "done",
             "blockedBy": [],
             "tasks": [
               {
@@ -244,7 +244,7 @@
           {
             "id": "M2",
             "title": "Economic loop",
-            "status": "in-review",
+            "status": "done",
             "blockedBy": [
               "M1"
             ],
