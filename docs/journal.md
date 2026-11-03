@@ -127,3 +127,28 @@ Part B must do:
 - UI state inside GameState: `activeNationId`, `turnOrder` (a constant), `newsLog`, worker
   `jobDescription` (display text), job `completed`/`completedOnTurn` ("for UI pulse"); and the
   store passes its whole object (camera, overlay, selection, controls, actions) into the engine.
+
+## 2026-11-03 M1 part B: store and UI on the order API
+
+Size: L (milestone part). Night shift, one agent (Opus 5.5, xhigh), no subagents, no advisor
+calls. Branch `claude/m1-headless-core` at 1b79ff3 (part A). `npm ci` ran clean.
+
+Plan-lite:
+- Change: the store holds one `GameState` under `game` beside the UI state; `submitOrder(order)`
+  (validate, then apply) is the only way the UI changes the game; `advanceTurn` calls
+  `resolveTurn(game, {}, game.seed)` and keeps the events; UI fields leave `GameState`; the
+  part A adapters go and their tests move onto the engine API.
+- Consumers: every component and hook that changed game state (tile click, tile panel,
+  construction dialog, capital slider, transport sliders, End turn); M4/v3 AI players, which
+  plug into the same `resolveTurn` call.
+- Test rows: FR-018 store shape (`tests/store/gameStore.test.ts`); FR-019 seed (same file);
+  FR-020, FR-021 submit and turn (`gameStore.test.ts`, spies in `engineBoundary.test.ts`);
+  FR-022 source scan (`uiWritesOnlyOrders.test.ts`); FR-023 click policy
+  (`tests/ui/tileClickOrders.test.ts`, the part A fallback tests move here); FR-024 text
+  helpers (`tests/ui/gameText.test.ts`); FR-025 `e2e/play-turns.spec.ts`.
+- Verify: `npx vitest run`, `npm run lint`, `npx tsc --noEmit`, `npm run build`,
+  `PORT=3123 npx playwright test`.
+- Objection: orders apply when submitted, so `resolveTurn` gets no orders from the UI and the
+  store keeps no order log; a replay of a played game is not possible from the store alone.
+  Chosen because part A's `applyOrder` already does the immediate effects the UI must show
+  (the worker moves, the money goes), and `resolveTurn(s, orders)` equals applying them first.
