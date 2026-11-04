@@ -2,10 +2,10 @@
   "project": "Imperialism Revival",
   "updated": "2026-11-03",
   "target": "v1 playable (M3)",
-  "now": "M3.5 in review (PR 15): waiting for your look approval",
+  "now": "M3.5 merged; M4 next",
   "source": "docs/REVIVAL_PLAN.md and docs/report/roadmap.json in the imperialism-game-react-2 repo",
   "overview": {
-    "headline": "v1 is playable on main (M0 to M3). M3.5 (small two-island map, clean look, rail line fix) is built, reviewed and fixed in PR 15, waiting for your look approval and merge. Next: M4, second nation on island 2.",
+    "headline": "main has v1 playable plus the small two-island map and clean look (M0 to M3.5 merged, PR 15 last). Next: M4, a second nation on island 2 driven by a scripted player.",
     "milestones": [
       {
         "title": "Setup: rules knowledge, light spec flow, progress page",
@@ -44,10 +44,10 @@
       },
       {
         "title": "M3.5 Small map and clean look: two islands, faint tiles, icons, rail line fix",
-        "status": "in-review",
-        "progress": 95,
+        "status": "done",
+        "progress": 100,
         "date": "Nov 2026",
-        "note": "PR 15: rail line fix, 24x16 two-island map, Game Icons, parchment palette, 42 px tiles. 654 tests, Playwright 15 passed. Opus review: merge; 6 small fixes done. Waiting for your look approval and merge."
+        "note": "PR 15: rail line fix, 24x16 two-island map, Game Icons, parchment palette, 42 px tiles. 654 tests, Playwright 15 passed. Opus review: merge; 6 small fixes done. Merged 2026-11-04."
       },
       {
         "title": "M4 Second nation driven by a scripted player",
