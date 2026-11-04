@@ -16,7 +16,7 @@
   background: var(--color-bg-primary);
   color: var(--color-text-primary);
   border-radius: var(--radius-lg);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--shadow-dialog);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -59,9 +59,9 @@
 
 .refusal {
   padding: 8px 16px;
-  background: #3b1a1a;
+  background: var(--color-bg-danger);
   color: var(--color-text-danger);
-  border-bottom: 1px solid #5a2a2a;
+  border-bottom: 1px solid var(--color-bad);
 }
 
 /* layout */
@@ -275,6 +275,7 @@
 .actionButton {
   flex: 1;
   padding: 6px 8px;
+  color: var(--color-on-accent);
   background: var(--color-bg-accent);
   border-color: transparent;
   text-align: left;

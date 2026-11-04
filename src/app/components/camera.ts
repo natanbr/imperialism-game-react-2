@@ -3,11 +3,10 @@
 import type { MapConfig } from "@/types/Map";
 import type { GameState } from "@/types/GameState";
 import type { Tile } from "@/types/Tile";
+import { HUD_PX, TILE_PX } from "@/styles/theme";
 
-/** As MapView draws the map: --tile-width in styles/tokens.css; odd rows are shifted half a tile. */
-export const TILE_PX = 100;
-/** --hud-width in styles/tokens.css. */
-export const HUD_PX = 250;
+// The grid as MapView draws it (FR-088): odd rows are shifted half a tile.
+export { HUD_PX, TILE_PX };
 
 export interface Camera {
   x: number;

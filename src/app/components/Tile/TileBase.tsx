@@ -1,5 +1,6 @@
 import React from 'react';
 import { TerrainType } from '@/types/Tile';
+import { GameIcon } from '../GameIcon';
 import styles from './Tile.module.css';
 
 export interface TileBaseProps {
@@ -7,8 +8,9 @@ export interface TileBaseProps {
   terrain: TerrainType;
   hasRiver: boolean;
   backgroundColor: string;
-  borderColor: string;
-  borderWidth: string;
+  border: string;
+  boxShadow: string | undefined;
+  isSelected: boolean;
   cursor: string;
   hasJobCompleted: boolean;
   onClick: () => void;
@@ -16,15 +18,16 @@ export interface TileBaseProps {
 }
 
 /**
- * Base tile component that renders the terrain background and border
+ * The tile's faint terrain tint and grid line (FR-086); the selected tile adds the accent ring (FR-087).
  */
 const TileBaseInner: React.FC<TileBaseProps> = ({
   tileId,
   terrain,
   hasRiver,
   backgroundColor,
-  borderColor,
-  borderWidth,
+  border,
+  boxShadow,
+  isSelected,
   cursor,
   hasJobCompleted,
   onClick,
@@ -35,16 +38,16 @@ const TileBaseInner: React.FC<TileBaseProps> = ({
       data-testid="tile"
       data-tile-id={tileId}
       data-terrain={terrain}
+      data-selected={isSelected ? 'true' : undefined}
       className={`${styles.tile} ${hasJobCompleted ? styles.tileJobCompleted : ''}`}
-      style={{
-        backgroundColor,
-        border: `${borderWidth} solid ${borderColor}`,
-        cursor,
-      }}
+      style={{ backgroundColor, border, boxShadow, cursor }}
       onClick={onClick}
     >
-      <div className={styles.terrainLabel}>{terrain}</div>
-      {hasRiver && <div className={styles.riverIcon}>🌊</div>}
+      {hasRiver && (
+        <span className={styles.river} title="River">
+          <GameIcon name="GiRiver" />
+        </span>
+      )}
       {children}
     </div>
   );

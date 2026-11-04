@@ -13,6 +13,7 @@ import { areTilesAdjacent, getAdjacentTiles } from '@/engine/map/mapHelpers';
 import type { GameState } from '@/types/GameState';
 import { TerrainType, type Tile } from '@/types/Tile';
 import { createTileId } from '@/utils/tileIdUtils';
+import { TILE_PX } from '@/styles/theme';
 
 const N = 'nation-1';
 const ENGINEER = 'worker-nation-1-7';
@@ -51,19 +52,20 @@ function buildDepot(state: GameState, at: XY): GameState {
   return s;
 }
 
-/** The map's rail overlay read back as tile pairs (MapView draws with 100px tiles, odd rows shifted 50px). */
+/** The map's rail overlay read back as tile pairs (MapView draws on the TILE_PX grid, odd rows shifted half a tile; FR-088). */
 function drawnPairs(state: GameState): [XY, XY][] {
   useGameStore.setState({ ...useGameStore.getInitialState(), game: state, activeNationId: N });
   const { container, unmount } = render(<MapView />);
   const toTile = (px: number, py: number): XY => {
-    const y = (py - 50) / 100;
-    return [(px - 50 - (y % 2 === 1 ? 50 : 0)) / 100, y];
+    const half = TILE_PX / 2;
+    const y = (py - half) / TILE_PX;
+    return [(px - half - (y % 2 === 1 ? half : 0)) / TILE_PX, y];
   };
-  const pairs = [...container.querySelectorAll('svg line')].map((l): [XY, XY] => {
+  const pairs = [...container.querySelectorAll('svg line[data-testid="rail-segment"]')].map((l): [XY, XY] => {
     const n = (name: string) => Number(l.getAttribute(name));
     return [toTile(n('x1'), n('y1')), toTile(n('x2'), n('y2'))];
   });
-  const depotLight = container.querySelector(`[data-tile-id="${createTileId(...DEPOT)}"] [title="Depot"]`)?.textContent ?? '';
+  const depotLight = container.querySelector(`[data-tile-id="${createTileId(...DEPOT)}"] [title="Depot"]`)?.getAttribute('data-connected') ?? '';
   lastDepotLight = depotLight;
   unmount();
   return pairs;
@@ -120,7 +122,7 @@ describe('FR-079 the rail line is drawn as one continuous line (NR-010)', () => 
     expect(LINE.filter(xy => !tileAt(built, xy).connected)).toEqual([]);
     const depot = built.transportNetwork.railroadNetworks![N].depots.find(d => d.x === DEPOT[0] && d.y === DEPOT[1]);
     expect(depot?.isActive).toBe(true);
-    expect(light).toContain('🟢');
+    expect(light).toBe('true'); // drawn with the green dot (FR-085)
   });
 
   it('FR-079 the line built tile by tile along the shore from the capital to the depot has no gap', () => {
@@ -160,7 +162,7 @@ describe('FR-079 a depot the line does not reach is red', () => {
     const depot = s.transportNetwork.railroadNetworks![N].depots.find(d => d.x === DEPOT[0] && d.y === DEPOT[1]);
     expect(depot?.isActive).toBe(false);
     const pairs = drawnPairs(s);
-    expect(lastDepotLight).toContain('🔴');
+    expect(lastDepotLight).toBe('false'); // drawn with the red dot (FR-085)
     expect(reachable(pairs, CAPITAL).has(createTileId(...DEPOT))).toBe(false);
     expect(pairs.flat().some(([x, y]) => (x === SHORE[0] && y === SHORE[1]) || (x === DEPOT[0] && y === DEPOT[1]))).toBe(false);
   }, 30000);

@@ -3,6 +3,8 @@ import React, { useMemo } from "react";
 import { useGameStore } from "../store/rootStore";
 import { isPortSite } from "@/engine/orders/queries";
 import { parseTileIdToArray } from "@/utils/tileIdUtils";
+import { UI_ICONS } from "./icons";
+import { GameIcon } from "./GameIcon";
 
 export const ConstructionOptionsModal: React.FC = () => {
   const isOpen = useGameStore((s) => s.isConstructionModalOpen);
@@ -39,7 +41,7 @@ export const ConstructionOptionsModal: React.FC = () => {
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(0,0,0,0.7)",
+        background: "var(--color-bg-backdrop)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -48,32 +50,28 @@ export const ConstructionOptionsModal: React.FC = () => {
     >
       <div
         style={{
-          background: "#1e1e1e",
-          color: "#eee",
+          background: "var(--color-bg-secondary)",
+          color: "var(--color-text-primary)",
           borderRadius: 8,
           padding: 20,
-          boxShadow: "0 5px 15px rgba(0,0,0,0.5)",
+          boxShadow: "var(--shadow-dialog)",
           width: 300,
         }}
       >
-        <h2 style={{ marginTop: 0, marginBottom: 20, textAlign: "center" }}>Construction Options</h2>
+        <h2 style={{ marginTop: 0, marginBottom: 20, textAlign: "center", fontSize: 18, fontWeight: 700 }}>
+          <GameIcon name={UI_ICONS.construction} /> Construction Options
+        </h2>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <button onClick={() => handleConstruct('depot')}>Build Depot</button>
-          {canBuildPort && <button onClick={() => handleConstruct('port')}>Build Port</button>}
+          <button className="btn btn-primary" onClick={() => handleConstruct('depot')}>
+            Build Depot
+          </button>
+          {canBuildPort && (
+            <button className="btn btn-primary" onClick={() => handleConstruct('port')}>
+              Build Port
+            </button>
+          )}
         </div>
-        <button
-          onClick={close}
-          style={{
-            marginTop: 20,
-            width: "100%",
-            background: "#444",
-            color: "#fff",
-            border: "none",
-            padding: "10px",
-            borderRadius: 4,
-            cursor: "pointer",
-          }}
-        >
+        <button onClick={close} className="btn btn-plain" style={{ marginTop: 20, textAlign: "center" }}>
           Cancel
         </button>
       </div>

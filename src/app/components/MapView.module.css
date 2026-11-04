@@ -4,12 +4,13 @@
   display: flex;
 }
 
+/* Sea colour behind the map, so the space past a map smaller than the screen reads as sea. */
 .container {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  border: 2px solid white;
   position: relative;
+  background: var(--color-sea);
 }
 
 /* Scrolled by the camera (FR-083). The padding lets the last column scroll out from under the HUD. */
@@ -24,18 +25,26 @@
 }
 
 .rowOdd {
-  margin-left: 50px;
+  margin-left: calc(var(--tile-width) / 2);
 }
 
+/* Above the tile backgrounds, below the tile icons and workers (Tile.module.css .layer). */
 .railOverlay {
   position: absolute;
   left: 0;
   top: 0;
   pointer-events: none;
+  z-index: 1;
+}
+
+.territoryBorder {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
 }
 
 .railSegment {
-  stroke: #222;
-  stroke-width: 6;
+  stroke: var(--color-rail);
+  stroke-width: 3;
   stroke-linecap: round;
 }
