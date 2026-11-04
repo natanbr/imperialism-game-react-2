@@ -210,3 +210,17 @@ enough for the whole map on 1280x720. Engine and game rules are unchanged; the c
 | FR-088 | Tile size (NR-008; restates FR-083's sizes): tiles SHALL be 42 px (`TILE_PX` in `styles/theme.ts`, equal to `--tile-width` in `tokens.css`), odd rows shifted 21 px, and the rail and border overlays drawn on the same grid. The 24x16 map (1,029 x 672 px) SHALL fit a 1280x720 screen next to the 250 px HUD without scrolling: the camera stays at 0, 0 there. FR-083's camera rules are unchanged and still apply on a screen too small for the map. | tested |
 | FR-089 | Credits (CC BY 3.0 attribution): the HUD SHALL have an About button that opens a small panel (`role="dialog"`, name "About") with the text "Icons by game-icons.net contributors, CC BY 3.0", a link to https://game-icons.net and a link to the licence (https://creativecommons.org/licenses/by/3.0/), and a close button. | tested |
 | FR-090 | In the running app (`e2e/look.spec.ts`), on a 1280x720 screen a new game SHALL show the whole map left of the HUD without scrolling (the tiles 0-0 and 23-15 inside 1030 x 720, scroll position 0, 0), an icon on every land tile and none on sea, the capital's icon, the About panel's attribution, and a rail line built through the UI from the capital to a depot that shows connected; with no console errors. | tested |
+
+### Review fix round
+
+Written 2026-11-04 after the M3.5 review (verdict "merge, nothing must-fix"); the six findings the
+orchestrator chose to fix before the PR. Visuals, engine and `Nation.color` handling are unchanged.
+
+| Id | Requirement | Status |
+|---|---|---|
+| FR-091 | Ready means scrolled (FR-083, FR-088): the map container's `data-ready="true"` SHALL appear only once the container's scroll position equals the first view's camera, so a reader that sees ready never sees the old 0, 0. The scroll SHALL be applied in the same commit as the camera (a layout effect), not in a later effect. | tested |
+| FR-092 | Center always moves the map (FR-083): WHEN the player presses Center THEN the map container SHALL scroll to the camera on the capital, even when the stored camera already equals that camera (the stored camera can lag the real scroll position). | tested |
+| FR-093 | Depot and port state without colour (FR-085): each depot and port SHALL be named "Depot: connected" / "Depot: not connected" ("Port: …" for ports) as its title and accessible name (`role="img"`), and SHALL show the state by shape as well as colour: a filled green dot when connected, a hollow red ring when not. `data-connected` stays. | tested |
+| FR-094 | Text contrast (WCAG 2.2 AA, 4.5:1 for normal text): in `styles/tokens.css`, `--color-good` and `--color-warn` SHALL reach at least 4.5:1 on `--color-surface`, `--color-good` also on `--color-surface-sunken`, and `--color-ink-muted` at least 4.5:1 on `--color-surface`, `--color-surface-sunken` and `--color-surface-raised`; a unit test computes the ratios from the token values. | tested |
+| FR-095 | Tile names: every tile SHALL have an accessible name (`role="group"`, `aria-label`) built from its terrain's display name, its resource and level when the resource is known, and its owner, for example "Farm, grain, level 1, owned by Testland", "Barren hills, owned by Testland" (resource not yet prospected), "Orchard, fruit, level 0, not owned", "Sea". What the tile draws is unchanged. | tested |
+| FR-096 | The browser tab SHALL be titled "Imperialism" (`metadata.title` in `layout.tsx`), not the template's "Create Next App". | tested |
