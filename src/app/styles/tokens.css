@@ -11,11 +11,12 @@
   /* The HUD lies over the map's right edge (styles/theme.ts HUD_PX) */
   --hud-width: 250px;
 
-  /* Palette (NR-009): parchment land, pale sea, dark grey ink, one accent, one colour per nation */
+  /* Palette (NR-009): parchment land, pale sea, dark grey ink, one accent, one colour per nation.
+     Muted, good and warn text keep 4.5:1 on the surfaces (FR-094, tests/ui/palette.test.ts). */
   --color-land: #f3ecda;
   --color-sea: #d4e4ec;
   --color-ink: #3b3b3b;
-  --color-ink-muted: #6f6a60;
+  --color-ink-muted: #6a655c;
   --color-line: rgba(59, 59, 59, 0.12);
   --color-surface: #faf6ec;
   --color-surface-sunken: #efe8d6;
@@ -25,9 +26,9 @@
   --color-on-accent: #ffffff;
   --color-nation-1: #a8322d;
   --color-nation-2: #2c5c9e;
-  --color-good: #4a8a3c;
+  --color-good: #3b7530;
   --color-bad: #c9483a;
-  --color-warn: #b7791f;
+  --color-warn: #9a6412;
   --color-highlight: #e3b341;
   --color-rail: #4a4a4a;
 

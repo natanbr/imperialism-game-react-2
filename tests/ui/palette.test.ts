@@ -108,6 +108,43 @@ describe('FR-086 the palette is defined once in styles/tokens.css', () => {
   });
 });
 
+/** WCAG 2.2 contrast ratio of two #rrggbb colours: (L1 + 0.05) / (L2 + 0.05), L the relative luminance. */
+function contrast(a: string, b: string): number {
+  const luminance = (hex: string) => {
+    const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
+    if (!m) throw new Error(`not a #rrggbb colour: ${hex}`);
+    const [r, g, b] = m.slice(1).map((v) => {
+      const c = parseInt(v, 16) / 255;
+      return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+describe('FR-094 text contrast: WCAG AA 4.5:1 for normal text', () => {
+  it('FR-094 the contrast formula gives the known ratios', () => {
+    expect(contrast('#000000', '#ffffff')).toBeCloseTo(21, 5);
+    expect(contrast('#777777', '#ffffff')).toBeCloseTo(4.48, 2);
+  });
+
+  it('FR-094 status and muted text reach 4.5:1 on the panel surfaces', () => {
+    const pairs: [string, string][] = [
+      ['--color-good', '--color-surface'],
+      ['--color-good', '--color-surface-sunken'],
+      ['--color-warn', '--color-surface'],
+      ['--color-ink-muted', '--color-surface'],
+      ['--color-ink-muted', '--color-surface-sunken'],
+      ['--color-ink-muted', '--color-surface-raised'],
+    ];
+    const low = pairs
+      .map(([text, bg]) => ({ pair: `${text} on ${bg}`, ratio: Math.round(contrast(valueOf(`var(${text})`), valueOf(`var(${bg})`)) * 100) / 100 }))
+      .filter(({ ratio }) => ratio < 4.5);
+    expect(low).toEqual([]);
+  });
+});
+
 describe('FR-088 tile size: the whole map fits 1280x720 next to the HUD', () => {
   it('FR-088 tiles are 42 px in theme.ts and tokens.css; the HUD width agrees too', () => {
     expect(TILE_PX).toBe(42);
