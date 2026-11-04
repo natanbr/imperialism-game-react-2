@@ -7,6 +7,7 @@ import { useTileActions } from '@/hooks/useTileActions';
 import { useTileVisuals } from '@/hooks/useTileVisuals';
 import { useTileClickHandler } from '@/hooks/useTileClickHandler';
 import { tileIconOf } from './icons';
+import { tileLabel } from './gameText';
 import {
   TileBase,
   TileIcon,
@@ -44,6 +45,7 @@ const TileComponentInner: React.FC<TileProps> = ({
   // Get selected worker
   const { worker: selectedWorker } = useGameStore(selectSelectedWorkerAndTile);
   const jobJustCompleted = useGameStore((s) => selectTilesCompletedLastTurn(s).has(tile.id));
+  const ownerName = useGameStore((s) => (tile.ownerNationId ? s.game.nations.find((n) => n.id === tile.ownerNationId)?.name : undefined));
 
   const isSelected = selectedTileId === tile.id;
 
@@ -75,6 +77,7 @@ const TileComponentInner: React.FC<TileProps> = ({
   return (
     <TileBase
       tileId={tile.id}
+      label={tileLabel(tile, ownerName)}
       terrain={tile.terrain}
       hasRiver={tile.hasRiver ?? false}
       backgroundColor={tileVisuals.terrainColor}

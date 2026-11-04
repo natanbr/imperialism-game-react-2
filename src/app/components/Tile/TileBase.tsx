@@ -5,6 +5,8 @@ import styles from './Tile.module.css';
 
 export interface TileBaseProps {
   tileId: string;
+  /** The accessible name (FR-095); not drawn */
+  label: string;
   terrain: TerrainType;
   hasRiver: boolean;
   backgroundColor: string;
@@ -22,6 +24,7 @@ export interface TileBaseProps {
  */
 const TileBaseInner: React.FC<TileBaseProps> = ({
   tileId,
+  label,
   terrain,
   hasRiver,
   backgroundColor,
@@ -37,6 +40,8 @@ const TileBaseInner: React.FC<TileBaseProps> = ({
     <div
       data-testid="tile"
       data-tile-id={tileId}
+      role="group"
+      aria-label={label}
       data-terrain={terrain}
       data-selected={isSelected ? 'true' : undefined}
       className={`${styles.tile} ${hasJobCompleted ? styles.tileJobCompleted : ''}`}

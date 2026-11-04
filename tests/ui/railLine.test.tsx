@@ -65,7 +65,7 @@ function drawnPairs(state: GameState): [XY, XY][] {
     const n = (name: string) => Number(l.getAttribute(name));
     return [toTile(n('x1'), n('y1')), toTile(n('x2'), n('y2'))];
   });
-  const depotLight = container.querySelector(`[data-tile-id="${createTileId(...DEPOT)}"] [title="Depot"]`)?.getAttribute('data-connected') ?? '';
+  const depotLight = container.querySelector(`[data-tile-id="${createTileId(...DEPOT)}"] [title^="Depot: "]`)?.getAttribute('data-connected') ?? '';
   lastDepotLight = depotLight;
   unmount();
   return pairs;

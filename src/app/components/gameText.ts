@@ -1,6 +1,6 @@
 // Display text for engine data: worker jobs, refused orders and turn events (FR-024).
 import { seasonOf, type FoodForecast, type GameEvent, type Order, type OrderKind, type RejectReason, type Season } from "@/engine";
-import type { Tile } from "@/types/Tile";
+import { TerrainType, type Tile } from "@/types/Tile";
 import type { BuildingType } from "@/types/Industry";
 import { GoodsType, MaterialType, ResourceType, type WarehouseCommodities } from "@/types/Resource";
 import { WorkerStatus, WorkerType, type Worker } from "@/types/Workers";
@@ -88,6 +88,42 @@ export const COMMODITY_TEXT: Record<WarehouseCommodities, string> = {
   [GoodsType.Hardware]: "Hardware",
   [GoodsType.Armaments]: "Armaments",
 };
+
+/** Display names of the terrain types (FR-095). */
+export const TERRAIN_TEXT: Record<TerrainType, string> = {
+  [TerrainType.DryPlains]: "Dry plains",
+  [TerrainType.OpenRange]: "Open range",
+  [TerrainType.HorseRanch]: "Horse ranch",
+  [TerrainType.Plantation]: "Plantation",
+  [TerrainType.Farm]: "Farm",
+  [TerrainType.Orchard]: "Orchard",
+  [TerrainType.FertileHills]: "Fertile hills",
+  [TerrainType.BarrenHills]: "Barren hills",
+  [TerrainType.Mountains]: "Mountains",
+  [TerrainType.HardwoodForest]: "Hardwood forest",
+  [TerrainType.ScrubForest]: "Scrub forest",
+  [TerrainType.Swamp]: "Swamp",
+  [TerrainType.Desert]: "Desert",
+  [TerrainType.Tundra]: "Tundra",
+  [TerrainType.Water]: "Sea",
+  [TerrainType.River]: "River",
+  [TerrainType.Town]: "Town",
+  [TerrainType.Capital]: "Capital",
+  [TerrainType.Coast]: "Coast",
+};
+
+/**
+ * A tile's accessible name (FR-095): terrain, then the resource and its level when known, then the
+ * owner. "Farm, grain, level 1, owned by Testland"; a hidden resource is left out; the sea is "Sea".
+ */
+export function tileLabel(tile: Pick<Tile, "terrain" | "resource" | "ownerNationId">, ownerName: string | undefined): string {
+  if (tile.terrain === TerrainType.Water) return TERRAIN_TEXT[TerrainType.Water];
+  const parts = [TERRAIN_TEXT[tile.terrain]];
+  const { resource } = tile;
+  if (resource && resource.discovered !== false) parts.push(commodityName(resource.type).toLowerCase(), `level ${resource.level}`);
+  parts.push(tile.ownerNationId ? `owned by ${ownerName ?? tile.ownerNationId}` : "not owned");
+  return parts.join(", ");
+}
 
 /** The display name of a commodity; an unknown key is shown as it is. */
 export const commodityName = (key: string): string =>

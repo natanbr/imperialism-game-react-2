@@ -106,8 +106,12 @@
   background: var(--color-good);
 }
 
+/* A hollow ring, same 7 px footprint: the state shows by shape too, not only colour (FR-093) */
 .statusOff {
-  background: var(--color-bad);
+  width: 3px;
+  height: 3px;
+  background: var(--color-surface-raised);
+  border: 2px solid var(--color-bad);
 }
 
 /* Job markers, below the level badge */

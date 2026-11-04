@@ -32,6 +32,9 @@ test('FR-090 the whole map fits 1280x720 next to the HUD, with an icon on every 
   await expect(page.getByTestId('map-scroll')).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
   await expect(tile(page, '2-9')).toBeInViewport({ timeout: 15000 });
   expect(page.viewportSize()).toEqual({ width: 1280, height: 720 });
+  // FR-096 the tab title; FR-095 the tiles are named for assistive technology
+  await expect(page).toHaveTitle('Imperialism');
+  await expect(tile(page, '3-9')).toHaveAccessibleName('Farm, grain, level 1, owned by Testland');
 
   for (const id of ['0-0', '23-0', '0-15', '23-15']) {
     const box = (await tile(page, id).boundingBox())!;
@@ -96,9 +99,11 @@ test.describe('rendered at three times the pixel density', () => {
     await tile(page, '2-7').click();
     await page.getByRole('button', { name: 'Build Depot' }).click();
     await expect(tile(page, '2-7').getByTitle('Construction in progress')).toBeVisible();
-    for (let turn = 4; turn <= 7 && !(await tile(page, '2-7').getByTitle('Depot').count()); turn++) await endTurn(page, turn);
+    for (let turn = 4; turn <= 7 && !(await tile(page, '2-7').getByTitle(/^Depot: /).count()); turn++) await endTurn(page, turn);
 
-    const depot = tile(page, '2-7').getByTitle('Depot');
+    // FR-093: the depot names its state, not only its dot's colour
+    const depot = tile(page, '2-7').getByRole('img', { name: 'Depot: connected' });
+    await expect(depot).toHaveAttribute('title', 'Depot: connected');
     await expect(depot).toHaveAttribute('data-connected', 'true');
     await expect(page.locator('[data-testid="rail-segment"]')).toHaveCount(2);
 
