@@ -8,8 +8,11 @@
   `docs/journal/archive-M1.md`, `-M2.md`, `-M3.md`. Not built from M3: Q15 (c) "repeat last turn's trades".
 - M3.5 on `claude/m3-5-look-and-map` (pushed, no PR): rail line fix (FR-079) and part A, the two-island
   start world (FR-080 to FR-083, NR-007): a 24x16 map, the player on island 1, island 2 unclaimed for
-  M4, the camera opens on the capital. Next: part B (NR-008, NR-009: faint tiles, icons, palette) once
-  Nathan picks an icon set; the whole map fits 1280x720 only with tiles of 42 px or less.
+  M4, the camera opens on the capital. Part B (FR-084 to FR-090, NR-008, NR-009): Game Icons
+  (`react-icons@5.7.0`, CC BY 3.0, credited in the HUD's About), faint tiles with an icon each, one
+  palette in `styles/tokens.css`, 42 px tiles so the whole map fits 1280x720, ownership as a border
+  outline and an accent selection ring. Next: Nathan approves the look from `docs/journal/m3-5-look-*.png`,
+  then the M3.5 review and PR.
 - Open decisions: Q9 (freight-car timing, from M2) and Q10 to Q15 (M3, in `archive-M3.md`), each on
   its default. Q16 settled by the orchestrator: no coast tiles on the new map.
 
@@ -17,7 +20,7 @@ Carried forward:
 - Deferred: river ports and the depot-on-port rule (rules 04); University fees; the power plant.
 - M4: settle nation-2 with `settleIsland(map, "nation-2", "capital-2", CAPITAL_SITES[1])`; an order
   log in the store (replay); the second nation trades on the same world market.
-- UI: the selected tile and owned tiles are both drawn red.
+- UI: the cursors are still emoji; `Nation.color` is unused by the map (the theme colours nations by order).
 
 ## 2026-11-02 Revival setup
 
@@ -228,3 +231,88 @@ Tests changed because of the new map:
   and plantations in the south, a forest strip on the east shore. Rows 14 and 15 are both sea, so the
   islands sit one row above the middle (a shift by one row would change the hex neighbours).
 - The M3 entries moved to `docs/journal/archive-M3.md` (the journal would have passed 400 lines).
+
+## 2026-11-04 M3.5 part B: icons and clean look (FR-084 to FR-090, NR-008, NR-009)
+
+Size: L (milestone part: every map, HUD and dialog component). Unattended, one agent (Opus 5.5), no
+subagents, no advisor calls. Branch `claude/m3-5-look-and-map` from a38c3e3; `npm ci` clean. Ultracode
+was not on. Decisions applied as given (Nathan / orchestrator): Game Icons through `react-icons/gi`,
+faint tints plus an icon per tile, a minimalist palette defined once, tiles small enough for 1280x720.
+
+Plan-lite:
+- Change: `react-icons@5.7.0` (exact; the latest 5.x, 2026-06-30; 6.0 is a beta). `components/icons.ts`
+  (icon per terrain, resource, worker type and UI action; `tileIconOf`), `GameIcon.tsx`;
+  `styles/tokens.css` holds every colour, `styles/theme.ts` names them and holds `TILE_PX = 42`;
+  `components/territoryBorders.ts` draws ownership as border lines; the selection is an accent ring;
+  HUD and dialogs restyled on the tokens; About panel with the CC BY 3.0 attribution.
+- Consumers: the map, HUD, all dialogs; `camera.ts` and the rail overlay read `TILE_PX`.
+- Test rows: below. Verify: `npx vitest run tests/ui`, then the gate and Playwright.
+- Objection: 42 px leaves little room on a crowded tile: the capital's seven workers are 10 px buttons,
+  four to a row (legible as silhouettes, named by their tooltip and the HUD's tile panel). Bigger tiles
+  would bring scrolling back on 1280x720; I kept 42 px.
+
+| FR | Test file | What the test asserts |
+|---|---|---|
+| FR-084 | `tests/ui/icons.test.tsx` | `react-icons` pinned exactly; every `TerrainType`, `ResourceType` and `WorkerType` has an icon, each the export of that name in `react-icons/gi`; the capital, town, depot, port, job markers and actions too |
+| FR-085 | `tests/ui/icons.test.tsx`, `tests/ui/railLine.test.tsx` | `tileIconOf`: capital, known resource, hidden hills show hills then coal once discovered, town, sea none; MapView on the new map: one icon on each of the 200 land tiles, none on sea, capital `GiCapitol`; "L1" on 3-9, no badge at level 0; the 7 worker buttons show their icons; no `\p{Extended_Pictographic}` in the page with every dialog open on a finished game; depot `data-connected` true / false (FR-079 rows, were 🟢 / 🔴) |
+| FR-086 | `tests/ui/palette.test.ts` | every variable `theme.ts` names is defined in `tokens.css`; a tint per terrain, each light (L >= 0.8) and low in colour (chroma <= 0.2); land parchment, sea pale blue, ink dark grey, nation colours strong, accent strong and not a nation colour; no hex, rgb(a), hsl(a) or named colour in `components/`, `hooks/`, `page.tsx`, `globals.css` |
+| FR-087 | `tests/ui/territory.test.tsx` | border sides = sum of (6 - same-owner neighbours) over the 100 owned tiles, none between two owned tiles; side geometry on even and odd rows; one `path` per nation in its colour; the selected tile alone has the accent ring, owned and sea tiles share one grid border, no tile style carries a nation colour |
+| FR-088 | `tests/ui/palette.test.ts`, `tests/ui/camera.test.tsx`, `e2e/islands.spec.ts` | `TILE_PX` 42 = `--tile-width`, `HUD_PX` = `--hud-width`; map 1,029 x 672 fits 1030 x 720; on 1280x720 the camera stays 0, 0; FR-083's numbers redone on 800x450 (capital camera 0, 174; corner 479, 222) |
+| FR-089 | `tests/ui/about.test.tsx` | HUD About opens a dialog "About" with the attribution text and links to game-icons.net and the licence; Close hides it |
+| FR-090 | `e2e/look.spec.ts` | 1280x720: tiles 0-0, 23-0, 0-15, 23-15 are 42 px and inside 1030 x 720, scroll 0, 0, odd rows shifted 21 px; 200 land icons, 0 on sea, capital icon, L1 badge; About attribution; capital and market open; rail 2-8, 2-7 and a depot on 2-7 built through the UI: 2 rail lines, depot connected; no console errors |
+
+Red summary (tests written and run before the code): `npx vitest run tests/ui/icons.test.tsx
+tests/ui/palette.test.ts tests/ui/territory.test.tsx tests/ui/about.test.tsx tests/ui/camera.test.tsx
+tests/ui/railLine.test.tsx` gave `Test Files 6 failed (6)` / `Tests 8 failed | 1 passed (9)`: `Failed to
+resolve import "@/components/icons"`, `Cannot find module '@/styles/theme'`, `Failed to resolve import
+"@/components/territoryBorders"` (icons, palette, territory, rail-line files), `Unable to find an accessible
+element with the role "button" and name /About/`, and the camera rows `expected { width: 2450, height:
+1600 } to deeply equal { width: 1029, height: 672 }`, `expected { x: 0, y: 590 } to deeply equal { x: 0,
+y: 0 }`.
+
+Tests changed, same intent: `tests/ui/camera.test.tsx` (FR-083 numbers for 42 px on an 800x450 screen,
+plus the 1280x720 rows); `tests/ui/railLine.test.tsx` (reads lines on the `TILE_PX` grid, only
+`[data-testid="rail-segment"]` since the overlay now also holds the borders, and the depot's
+`data-connected` instead of the emoji); `e2e/islands.spec.ts` (FR-083 checks on 800x450, the whole-map
+check on the default screen); all e2e specs wait for `map-scroll[data-ready="true"]` (see below).
+
+### Evidence
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| FR-084 to FR-089 covered | `npx vitest run tests/ui` | `Test Files 13 passed (13)` / `Tests 129 passed (129)` |
+| All unit tests | `npx vitest run` | `Test Files 44 passed (44)` / `Tests 643 passed (643)` (+23) |
+| Types | `npx tsc --noEmit` | exit 0, no output |
+| Lint | `npm run lint` | `✖ 3 problems (0 errors, 3 warnings)` (the same three as M3) |
+| Build | `npm run build` | `✓ Compiled successfully in 10.8s`, `✓ Generating static pages (4/4)` |
+| Smoke, warm server, default workers | `npm run dev -- --port 3171`, then `PORT=3171 PW_REUSE_SERVER=1 npx playwright test --reporter=list` | first run `1 failed` / `1 skipped` / `14 passed (40.6s)` (the far-corner test scrolled before the page was live, fixed with `data-ready`); after the fix `5 failed` / `1 skipped` / `10 passed (1.7m)`, all five `Test timeout of 30000ms exceeded` or a 15 s wait, every test 16 to 35 s (the machine was loaded) |
+| Smoke, warm server, 1 worker | the same with `--workers=1` | `1 skipped` / `15 passed (3.5m)`; the skip is the old `test.fixme` rail cursor |
+| FR-090 and screenshots | `PORT=3171 PW_REUSE_SERVER=1 SCREENSHOT_DIR=docs/journal npx playwright test e2e/look.spec.ts --workers=1` | `2 passed (10.6s)`; `docs/journal/m3-5-look-map.png`, `-capital.png`, `-market.png` (1280x720) and `-zoom.png` (a 300 x 260 crop around the capital at 3x pixel density: icons, L1 badges, the selected farm 3-9, rail 2-9 to 2-7 and the depot with its green dot) |
+
+Palette (`styles/tokens.css`): land `--color-land` #f3ecda, sea `--color-sea` #d4e4ec, ink `--color-ink`
+#3b3b3b and `--color-ink-muted` #6f6a60, accent `--color-accent` #1f6f78 (hover #185a62, text on it
+#ffffff), nations `--color-nation-1` #a8322d and `--color-nation-2` #2c5c9e, status `--color-good` #4a8a3c,
+`--color-bad` #c9483a, `--color-warn` #b7791f, `--color-highlight` #e3b341, `--color-rail` #4a4a4a, panels
+`--color-surface` #faf6ec, `-sunken` #efe8d6, `-raised` #fffcf5, grid line rgba(59, 59, 59, 0.12), and one
+`--terrain-<type>` tint per terrain (farm #efe5c2, orchard #f1dcd3, open range #e6e3c6, plantation
+#e1e8cf, hardwood forest #d5e2cc, barren hills #e2d9cc, the rest for the test worlds). The old dark
+dialog tokens (`--color-bg-*`, `--color-text-*`) now point at these, so the dialogs turned light.
+
+Decisions taken alone, each open to review:
+- Objection: the nation colour comes from the theme by the nation's place in `state.nations`, not from
+  `Nation.color` (the engine's start world says #FF0000); changing engine data was out of scope. M4's
+  nation-2 gets `--color-nation-2`. `Nation.color` is now unused by the map.
+- Objection: ownership is drawn as the territory's outline (sides where an owned tile meets another
+  owner or the sea), not a border on every owned tile, which at 42 px turned the island into a red grid.
+- Objection: the cursors stay emoji (SVG data URIs in `useTileVisuals`; `e2e/cursor-icons.spec.ts`
+  reads them). Game Icons as cursors need the SVG markup as a string; left for later.
+- Objection: close buttons show a plain "×", not a Game Icon: the set's cross mark is a brush stroke that
+  read as a bird at button size. "−" / "+" steppers and the "✗" before a missing input stay text.
+- Objection: e2e specs waited for "the capital is in view" as the sign that the page is live; with the
+  whole map on screen the first view no longer scrolls, so that wait passed on the server-rendered HTML
+  and a click could land before React. MapView now sets `data-ready` after its first view and every spec
+  waits for it (one test failed this way before the change).
+- Removed from `constants/gameConstants.ts`: `TILE_CONFIG` (said 100 px), the emoji `WORKER_ICONS`,
+  `RESOURCE_ICONS` and `TERRAIN_COLORS` (replaced by `components/icons.ts` and the tokens).
+- The HUD title shows the nation's name instead of "HUD". The terrain name printed on every tile is gone
+  (the tile panel in the HUD still names the terrain).

@@ -287,17 +287,26 @@ shows `state.gameOver.scores` whenever the game is over, unless the player close
 (`isGameOverHidden`, reopened by the HUD's "Final scores"). After game over the HUD's Advance
 Turn is disabled and the store's `advanceTurn` returns at once, so no empty turn is logged. A tile is `components/Tile.tsx` plus
 sub-components in `components/Tile/` and three hooks: `useTileActions` (which action the
-selected worker offers, from `workers/*`), `useTileVisuals` (colours and the cursor) and
-`useTileClickHandler` (the click, as orders). The HUD shows "Turn: N of 40" and the date ("Spring 1815"), cash, the score, the
+selected worker offers, from `workers/*`), `useTileVisuals` (terrain tint, grid line, the
+selection ring and the cursor) and `useTileClickHandler` (the click, as orders). Look (M3.5 part B):
+icons are Game Icons (CC BY 3.0, credited in the HUD's About panel) from `react-icons/gi`, named
+in `components/icons.ts` (per terrain, resource and worker type; `tileIconOf` picks the one a tile
+shows) and drawn by `GameIcon.tsx` with `data-icon`. Colours are CSS variables defined only in
+`styles/tokens.css`; `styles/theme.ts` names them for TypeScript and holds `TILE_PX` (42) and
+`HUD_PX` (a test checks both files agree, and that no colour literal sits in components, hooks or
+`globals.css`). MapView's SVG overlay draws each nation's territory border
+(`components/territoryBorders.ts`) and the rail, above the tile tints and below the tile icons.
+Cursors are still emoji SVG data URIs (`useTileVisuals`). The HUD shows "Turn: N of 40" and the date ("Spring 1815"), cash, the score, the
 food warning, the selected tile, the news of the last turn and the last refused order (`components/HUD/NewsPanel.tsx`). The
 camera is the scroll position of MapView's container (FR-083), so the browser keeps it inside the
 map; the store's `cameraX`/`cameraY` mirror it (written on each scroll event) and `setCamera`
 scrolls the container. The first view and the HUD's Center button centre the capital
 (`components/camera.ts`, `cameraOnCapital`); the map has right padding of `--hud-width` so its last
 column can scroll out from under the HUD. Edge scroll (`hooks/useEdgeScroll.ts`) scrolls the
-container near the window edges; over the HUD only the right edge scrolls. e2e specs wait until
-the capital is in view before clicking: the first view scrolls once the page is live, and a click
-before that lands where the scroll moves the map.
+container near the window edges; over the HUD only the right edge scrolls. e2e specs wait for
+`data-ready` on `map-scroll` (set after MapView's first view) before clicking: the server-rendered
+map shows before React handles clicks, and on 1280x720 the whole map fits, so the first view no
+longer scrolls.
 
 ## Testing
 
