@@ -384,6 +384,6 @@ Decisions taken alone:
 - Objection: two tiles can share a name (the two level-1 farms by the capital); the name carries no
   coordinates, as the brief's example had none.
 - Objection: the not-connected ring keeps the dot's 7 px footprint (3 px light centre, 2 px red border);
-  at that size the shape difference is small but visible in the zoom; a bigger mark would crowd the tile.
+  at that size the shape difference is small; not checked by eye (no screenshot of an unconnected depot).
 - Objection: `--color-good` went a little darker than the suggested #3d7a31 (4.27:1 on `--color-surface-sunken`,
   the capital dialog's panel colour, where good text may sit); #3b7530 gives 5.16 on surface and 4.55 on sunken.
