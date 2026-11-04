@@ -14,6 +14,7 @@ test.describe('Cursor Icon Functionality', () => {
     // Wait for the game to load: the first view scrolls to the capital once the page is live (FR-083);
     // a click before that lands where the scroll moves the map
     await page.waitForSelector('[data-testid="tile"]', { timeout: 15000 });
+    await expect(page.getByTestId('map-scroll')).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
     await expect(page.locator('[data-testid="tile"][data-terrain="capital"]')).toBeInViewport({ timeout: 15000 });
   });
 

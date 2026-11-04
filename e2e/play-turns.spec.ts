@@ -24,6 +24,7 @@ test('FR-025 move a worker, start a job and end the turn, three times', async ({
 
   await page.goto('/');
   // In view once the page is live and the first view has scrolled to the capital (FR-083)
+  await expect(page.getByTestId('map-scroll')).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
   await expect(tile(page, '2-9')).toBeInViewport({ timeout: 15000 });
   await expect(cash(page)).toContainText('Cash: 10000');
 
@@ -69,6 +70,7 @@ test('FR-053 order canned food in the capital, end turns until it is made, see i
   const cannedFood = page.getByTestId('stock-cannedFood');
 
   await page.goto('/');
+  await expect(page.getByTestId('map-scroll')).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
   await expect(tile(page, '2-9')).toBeInViewport({ timeout: 15000 });
   await expect(page.getByTestId('turn-indicator')).toContainText('Spring 1815');
 

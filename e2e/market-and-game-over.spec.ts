@@ -19,6 +19,7 @@ function collectErrors(page: Page): string[] {
 async function start(page: Page) {
   await page.goto('/');
   // In view once the page is live and the first view has scrolled to the capital (FR-083)
+  await expect(page.getByTestId('map-scroll')).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
   await expect(page.locator('[data-tile-id="2-9"]')).toBeInViewport({ timeout: 15000 });
   await expect(page.getByTestId('turn-indicator')).toContainText('Turn: 1 of 40');
 }
