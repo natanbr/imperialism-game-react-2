@@ -3,7 +3,9 @@
 // FR-088: at 42 px tiles the 24x16 map is 1,029 x 672 px (odd rows are shifted half a tile), so on a
 // 1280x720 screen (map area 1030x720 left of the 250 px HUD) it fits and the camera stays at 0, 0.
 // The camera rules are checked on an 800x450 screen (map area 550x450), too small for the map.
+// FR-091: data-ready only once scrolled. FR-092: Center scrolls the map even when the store already agrees.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { useLayoutEffect } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { MapView } from '@/components/MapView';
 import { ActionButtons } from '@/components/HUD/index';
@@ -79,5 +81,35 @@ describe('FR-083 the map opens on the capital, and Center brings it back', () =>
     useGameStore.getState().setCamera(479, 222);
     fireEvent.click(screen.getByTitle('Center Camera'));
     expect(camera()).toEqual({ x: 0, y: 174 });
+  });
+
+  it('FR-091 in every commit the container is already scrolled to the stored camera, so data-ready never shows with the old scroll', () => {
+    // A sibling after MapView reads the container in its layout effect: that runs in the same commit
+    // as MapView's layout effects but before any passive effect, which is when a reader like an e2e
+    // poll can first see the new DOM.
+    const seen: { camera: { x: number; y: number }; scroll: { x: number; y: number }; ready: string | null }[] = [];
+    const Probe = () => {
+      const x = useGameStore((s) => s.cameraX);
+      const y = useGameStore((s) => s.cameraY);
+      useLayoutEffect(() => {
+        const el = document.querySelector('[data-testid="map-scroll"]')!;
+        seen.push({ camera: { x, y }, scroll: { x: el.scrollLeft, y: el.scrollTop }, ready: el.getAttribute('data-ready') });
+      });
+      return null;
+    };
+    render(<><MapView /><Probe /></>);
+    expect(seen.find((s) => s.ready === 'true')?.scroll).toEqual({ x: 0, y: 174 });
+    expect(seen.filter((s) => s.scroll.x !== s.camera.x || s.scroll.y !== s.camera.y)).toEqual([]);
+  });
+
+  it('FR-092 WHEN the stored camera already equals the capital but the map is scrolled elsewhere THEN Center still scrolls the map back', () => {
+    render(<><MapView /><ActionButtons /></>);
+    const scroller = screen.getByTestId('map-scroll');
+    expect(camera()).toEqual({ x: 0, y: 174 });
+    // The browser scrolled the map and the scroll event has not reached the store yet.
+    scroller.scrollLeft = 479;
+    scroller.scrollTop = 222;
+    fireEvent.click(screen.getByTitle('Center Camera'));
+    expect({ x: scroller.scrollLeft, y: scroller.scrollTop }).toEqual({ x: 0, y: 174 });
   });
 });

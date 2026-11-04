@@ -25,6 +25,8 @@ test.describe('on a screen too small for the whole map', () => {
     const errors = collectErrors(page);
     await page.goto('/');
     await expect(page.getByTestId('map-scroll')).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
+    // FR-091: ready means scrolled, read at once with no waiting
+    expect(await page.getByTestId('map-scroll').evaluate((el) => ({ x: el.scrollLeft, y: el.scrollTop }))).toEqual({ x: 0, y: 174 });
     await expect(tile(page, '2-9')).toBeInViewport({ timeout: 15000 });
     await expect(tile(page, '2-9')).toHaveAttribute('data-terrain', 'capital');
 

@@ -1,7 +1,7 @@
 import { railLinksOf } from "@/engine";
 import { useEdgeScroll } from "@/hooks/useEdgeScroll";
 import { useGameStore } from "@/store/rootStore";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { TileComponent } from "./Tile";
 import { cameraOnCapital } from "./camera";
 import { computeRailSegmentsPixels } from "./railSegments";
@@ -32,21 +32,25 @@ export const MapView: React.FC = () => {
   }, []);
   useEdgeScroll({ containerRef, onMove: scrollBy });
 
-  useEffect(() => {
+  // A layout effect, so the scroll lands in the same commit as the camera (and as `data-ready`), before
+  // anything can read the page (FR-091). `cameraMoves` re-runs it when Center asks for the camera the
+  // store already holds (FR-092).
+  const cameraMoves = useGameStore((s) => s.cameraMoves);
+  useLayoutEffect(() => {
     const el = containerRef.current;
     if (!el) return;
     if (el.scrollLeft !== cameraX) el.scrollLeft = cameraX;
     if (el.scrollTop !== cameraY) el.scrollTop = cameraY;
-  }, [cameraX, cameraY]);
+  }, [cameraX, cameraY, cameraMoves]);
 
   // The first view centres the capital. `data-ready` then tells e2e specs the page is live: the
   // server-rendered map is visible before React handles clicks, and on a screen that holds the whole
   // map (FR-088) the first view no longer scrolls, so "the capital is in view" proves nothing.
   const [ready, setReady] = useState(false);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const { game, activeNationId } = useGameStore.getState();
     const camera = cameraOnCapital(game, activeNationId);
-    if (camera) useGameStore.getState().setCamera(camera.x, camera.y);
+    if (camera) useGameStore.getState().moveCamera(camera.x, camera.y);
     setReady(true);
   }, []);
 

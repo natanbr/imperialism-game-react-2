@@ -7,11 +7,18 @@ import { StateCreator } from 'zustand';
 export interface CameraSlice {
   cameraX: number;
   cameraY: number;
+  /** Counts `moveCamera` calls, so MapView scrolls even when the camera value did not change (FR-092). */
+  cameraMoves: number;
+  /** Mirrors where the browser scrolled the map; does not scroll it. */
   setCamera: (x: number, y: number) => void;
+  /** Scrolls the map there, even if the stored camera already says so: it can lag the real scroll (FR-092). */
+  moveCamera: (x: number, y: number) => void;
 }
 
 export const createCameraSlice: StateCreator<CameraSlice, [], [], CameraSlice> = (set) => ({
   cameraX: 0,
   cameraY: 0,
+  cameraMoves: 0,
   setCamera: (x, y) => set({ cameraX: x, cameraY: y }),
+  moveCamera: (x, y) => set((s) => ({ cameraX: x, cameraY: y, cameraMoves: s.cameraMoves + 1 })),
 });
