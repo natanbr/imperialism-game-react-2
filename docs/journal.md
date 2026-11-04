@@ -11,8 +11,8 @@
   M4, the camera opens on the capital. Part B (FR-084 to FR-090, NR-008, NR-009): Game Icons
   (`react-icons@5.7.0`, CC BY 3.0, credited in the HUD's About), faint tiles with an icon each, one
   palette in `styles/tokens.css`, 42 px tiles so the whole map fits 1280x720, ownership as a border
-  outline and an accent selection ring. Next: Nathan approves the look from `docs/journal/m3-5-look-*.png`,
-  then the M3.5 review and PR.
+  outline and an accent selection ring. Review verdict "merge, nothing must-fix"; review fix round done
+  (FR-091 to FR-096). Next: Nathan approves the look from `docs/journal/m3-5-look-*.png`, then the PR.
 - Open decisions: Q9 (freight-car timing, from M2) and Q10 to Q15 (M3, in `archive-M3.md`), each on
   its default. Q16 settled by the orchestrator: no coast tiles on the new map.
 
@@ -20,7 +20,14 @@ Carried forward:
 - Deferred: river ports and the depot-on-port rule (rules 04); University fees; the power plant.
 - M4: settle nation-2 with `settleIsland(map, "nation-2", "capital-2", CAPITAL_SITES[1])`; an order
   log in the store (replay); the second nation trades on the same world market.
-- UI: the cursors are still emoji; `Nation.color` is unused by the map (the theme colours nations by order).
+- UI: the cursors are still emoji.
+- M4, from the M3.5 review: (1) `Nation.color` trap: the map colours nations by their order in
+  `state.nations` and the engine sets #FF0000; pick the colour by nation id or a palette slot. (2) The
+  capital's worker buttons are 10 px (pending Nathan's look approval). (3) Palette-scan gaps: it misses
+  `fill`/`stroke`/`boxShadow`, other colour names, `oklch()` and similar, and `layout.tsx`. (4) The
+  selection ring is partly covered by the shore border. (5) `act()` warnings in two M3 UI tests.
+  (6) Unused `DEVELOPMENT_CONFIG` / `CONSTRUCTION_CONFIG`. (7) `--color-bad` text (`--color-text-danger`)
+  is 4.35:1 on `--color-surface`, below AA; not in the fix round's list.
 
 ## 2026-11-02 Revival setup
 
@@ -316,3 +323,67 @@ Decisions taken alone, each open to review:
   `RESOURCE_ICONS` and `TERRAIN_COLORS` (replaced by `components/icons.ts` and the tokens).
 - The HUD title shows the nation's name instead of "HUD". The terrain name printed on every tile is gone
   (the tile panel in the HUD still names the terrain).
+
+## 2026-11-04 M3.5 review fix round (FR-091 to FR-096)
+
+Size: M (six review findings, UI only). Unattended, one agent (Opus 5.5), no subagents, no advisor calls.
+Ultracode was not on. Branch `claude/m3-5-look-and-map` from 06a1f7c; `npm ci` clean. Engine, `Nation.color`
+handling, the capital's worker buttons, cursors and the palette-scan scope are unchanged.
+
+Plan-lite:
+- Change: `MapView` applies the camera to the scroll container in a layout effect, first view included
+  (`data-ready` lands in the same commit as the scroll); `cameraSlice.moveCamera` (counts moves in
+  `cameraMoves`) for Center; depot and port `role="img"` named "Depot: connected" / "…: not connected",
+  hollow ring when not connected; `--color-good` #3b7530, `--color-warn` #9a6412, `--color-ink-muted`
+  #6a655c; tiles `role="group"` with `aria-label` from `tileLabel` (`gameText.ts`, new `TERRAIN_TEXT`);
+  tab title "Imperialism".
+- Consumers: MapView, HUD Center, the map tiles, every text using the three tokens.
+- Verify: `npx vitest run tests/ui`, then the gate and Playwright.
+- Objection: FR-091's race did not reproduce in a real browser (the e2e check below passed before the fix):
+  React 19 flushes the effects of a Zustand (sync-lane) commit at once. It shows under `act()`, which
+  batches the camera and `data-ready` into one commit; the layout effect removes the dependency on that
+  React detail.
+
+| FR | Test file | What the test asserts |
+|---|---|---|
+| FR-091 | `tests/ui/camera.test.tsx`, `e2e/islands.spec.ts` | a sibling's layout effect sees, in every commit, the container scrolled to the stored camera, and 0, 174 when `data-ready` first shows; e2e reads the scroll at once after `data-ready` on 800x450: 0, 174 |
+| FR-092 | `tests/ui/camera.test.tsx` | store already at the capital (0, 174), container scrolled to 479, 222 without a scroll event: Center scrolls it back to 0, 174 |
+| FR-093 | `tests/ui/accessibleNames.test.tsx`, `e2e/look.spec.ts`, `tests/ui/railLine.test.tsx` | `role="img"` names and titles "Depot: connected", "Port: not connected" and the reverse, `data-connected` kept; `.statusOff` a light centre in a red border, `.statusOn` a green fill; e2e finds the built depot by the name "Depot: connected" |
+| FR-094 | `tests/ui/palette.test.ts` | WCAG formula (21:1 black on white, 4.48 for #777 on white); good on surface and sunken, warn on surface, muted on surface, sunken and raised all >= 4.5 |
+| FR-095 | `tests/ui/accessibleNames.test.tsx`, `e2e/look.spec.ts` | all 384 tiles are named groups; 3-9 "Farm, grain, level 1, owned by Testland" (two such farms), 2-9 "Capital, owned by Testland", hidden barren hills "Barren hills, owned by Testland", island-2 orchard "Orchard, fruit, level 0, not owned", sea "Sea"; the tile shows no terrain text |
+| FR-096 | `tests/ui/accessibleNames.test.tsx`, `e2e/look.spec.ts` | `layout.tsx` has `title: "Imperialism"` and no template text; the page title is "Imperialism" |
+
+Red summary (tests run before the code): `npx vitest run tests/ui/accessibleNames.test.tsx
+tests/ui/palette.test.ts tests/ui/camera.test.tsx` gave `Test Files 3 failed (3)` / `Tests 9 failed | 16
+passed (25)`: `Unable to find an accessible element with the role "img" and name "Depot: connected"` (and
+"Depot: not connected"), `expected '…background: var(--color-bad);…' to match` the hollow ring, `expected
+[ …(384) ] to deeply equal []` (tiles without names), `expected null to be 'Farm, grain, level 1, owned by
+Testla…'`, `expected 'import type { Metadata } from "next";…' to match /title:\s*"Imperialism"/`,
+`expected { x: +0, y: +0 } to deeply equal { x: +0, y: 174 }` (FR-091), `expected { x: 479, y: 222 } to
+deeply equal { x: +0, y: 174 }` (FR-092), and the contrast row listing four pairs (good on surface 3.90,
+on sunken 3.44, warn on surface 3.37, muted on sunken 4.40). The tile "no terrain text" guard passed, as
+it should. E2E before the code (`e2e/look.spec.ts e2e/islands.spec.ts --workers=1`): `2 failed` / `3
+passed (34.5s)`: `toHaveTitle` `Received: "Create Next App"`, and the depot by its new name `element(s)
+not found`; the FR-091 islands check passed (see the objection).
+
+### Evidence
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| FR-091 to FR-096 covered | `npx vitest run tests/ui` | `Test Files 14 passed (14)` / `Tests 140 passed (140)` |
+| All unit tests | `npx vitest run` | `Test Files 45 passed (45)` / `Tests 654 passed (654)` (+11) |
+| Types | `npx tsc --noEmit` | exit 0, no output |
+| Lint | `npm run lint` | `✖ 3 problems (0 errors, 3 warnings)` (the same three as M3) |
+| Build | `npm run build` (dev server stopped first) | `✓ Compiled successfully in 4.9s`, `✓ Generating static pages (4/4)` |
+| Smoke, warm server, default workers | `npm run dev -- --port 3173`, then `PORT=3173 PW_REUSE_SERVER=1 npx playwright test --reporter=list` | `1 skipped` / `15 passed (52.1s)`; the skip is the old `test.fixme` rail cursor |
+
+Decisions taken alone:
+- Objection: the tile name is a `role="group"` (a named container that can hold the worker buttons), not
+  `button`: a tile holds buttons, and a button inside a button is invalid. Tiles are still not keyboard
+  focusable; out of scope.
+- Objection: two tiles can share a name (the two level-1 farms by the capital); the name carries no
+  coordinates, as the brief's example had none.
+- Objection: the not-connected ring keeps the dot's 7 px footprint (3 px light centre, 2 px red border);
+  at that size the shape difference is small but visible in the zoom; a bigger mark would crowd the tile.
+- Objection: `--color-good` went a little darker than the suggested #3d7a31 (4.27:1 on `--color-surface-sunken`,
+  the capital dialog's panel colour, where good text may sit); #3b7530 gives 5.16 on surface and 4.55 on sunken.
