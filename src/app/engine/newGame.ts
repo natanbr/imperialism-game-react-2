@@ -11,9 +11,10 @@ export interface NewGameOptions {
 }
 
 /**
- * The start of a game (FR-027, FR-043): Spring 1815, the default 40x40 map with one nation, its
- * workforce, buildings and warehouse, its civilians on the capital and its rail network built.
- * The caller chooses the seed (the store draws one, tests pass 1).
+ * The start of a game (FR-027, FR-080, FR-081): Spring 1815, the 24x16 two-island map with one
+ * nation on island 1, its workforce, buildings and warehouse, its civilians on the capital and its
+ * rail network built; island 2 is unclaimed. The caller chooses the seed (the store draws one, tests
+ * pass 1); the map is the same for every seed.
  */
 export function newGame({ seed, turnLimit = TIME_CONFIG.TURN_LIMIT }: NewGameOptions): GameState {
   const { map, nations } = startWorld();

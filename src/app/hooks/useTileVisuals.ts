@@ -1,15 +1,19 @@
 import { useMemo } from 'react';
 import { Tile } from '@/types/Tile';
-import { Nation } from '@/types/Nation';
 import { PossibleAction } from '@/types/actions';
-import { TERRAIN_COLORS } from '@/constants/gameConstants';
+import { TERRAIN_TINT, THEME } from '@/styles/theme';
 
 export interface TileVisuals {
   terrainColor: string;
-  borderColor: string;
-  borderWidth: string;
+  /** The same faint grid line on every tile: ownership is the border overlay (FR-087). */
+  border: string;
+  /** The accent ring of the selected tile, a style no other tile has (FR-087). */
+  boxShadow: string | undefined;
   cursor: string;
 }
+
+const GRID_BORDER = `1px solid ${THEME.line}`;
+const SELECTED_RING = `inset 0 0 0 3px ${THEME.accent}`;
 
 /**
  * Convert an emoji to a cursor data URI
@@ -77,34 +81,20 @@ function getCursorForAction(possibleAction: PossibleAction): string {
  *
  * @param tile - The tile to compute visuals for
  * @param isSelected - Whether this tile is currently selected
- * @param ownerNation - The nation that owns this tile (if any)
  * @param possibleAction - The action that can be performed on this tile
  * @returns Visual properties for rendering the tile
  */
 export function useTileVisuals(
   tile: Tile,
   isSelected: boolean,
-  ownerNation: Nation | null,
   possibleAction: PossibleAction
 ): TileVisuals {
   return useMemo(() => {
-    const terrainColor = TERRAIN_COLORS[tile.terrain] || '#ccc';
-
-    const borderColor = isSelected
-      ? 'red'
-      : ownerNation
-      ? ownerNation.color
-      : '#555';
-
-    const borderWidth = ownerNation ? '3px' : '1px';
-
-    const cursor = getCursorForAction(possibleAction);
-
     return {
-      terrainColor,
-      borderColor,
-      borderWidth,
-      cursor,
+      terrainColor: TERRAIN_TINT[tile.terrain] ?? THEME.land,
+      border: GRID_BORDER,
+      boxShadow: isSelected ? SELECTED_RING : undefined,
+      cursor: getCursorForAction(possibleAction),
     };
-  }, [tile, isSelected, ownerNation, possibleAction]);
+  }, [tile.terrain, isSelected, possibleAction]);
 }

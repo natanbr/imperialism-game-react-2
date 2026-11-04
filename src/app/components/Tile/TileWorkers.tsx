@@ -1,6 +1,7 @@
 import React from 'react';
 import { Worker } from '@/types/Workers';
-import { WORKER_ICONS } from '@/constants/gameConstants';
+import { WORKER_ICONS } from '../icons';
+import { GameIcon } from '../GameIcon';
 import styles from './Tile.module.css';
 
 export interface TileWorkersProps {
@@ -10,7 +11,7 @@ export interface TileWorkersProps {
 }
 
 /**
- * Component to display workers on a tile
+ * The workers on a tile, one button each with its Game Icon (FR-085)
  */
 const TileWorkersInner: React.FC<TileWorkersProps> = ({
   workers,
@@ -35,8 +36,9 @@ const TileWorkersInner: React.FC<TileWorkersProps> = ({
             onWorkerSelect(worker.id);
           }}
           title={worker.type}
+          aria-label={worker.type}
         >
-          {WORKER_ICONS[worker.type]}
+          <GameIcon name={WORKER_ICONS[worker.type]} />
         </button>
       ))}
     </div>

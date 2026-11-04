@@ -4,6 +4,8 @@ import { useGameStore } from "../store/rootStore";
 import { selectActiveNation } from "../store/selectors";
 import { COMMODITY_GROUPS, commodityName } from "./gameText";
 import styles from "./WarehouseModal.module.css";
+import { UI_ICONS } from "./icons";
+import { GameIcon } from "./GameIcon";
 
 /** The active nation's stock of every commodity, by display name, in three groups (FR-050). */
 export const WarehouseModal: React.FC = () => {
@@ -19,9 +21,11 @@ export const WarehouseModal: React.FC = () => {
     <div className={styles.overlay}>
       <div className={styles.modal} role="dialog" aria-label="Warehouse">
         <div className={styles.header}>
-          <h3>Warehouse — {nation?.name ?? "Unknown"}</h3>
+          <h3>
+            <GameIcon name={UI_ICONS.warehouse} /> Warehouse — {nation?.name ?? "Unknown"}
+          </h3>
           <button onClick={close} className={styles.closeButton} aria-label="Close warehouse">
-            ✕
+            <span aria-hidden="true">×</span>
           </button>
         </div>
 

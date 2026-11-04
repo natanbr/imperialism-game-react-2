@@ -9,6 +9,9 @@ import { PROSPECT_COST, DEVELOPMENT_COST, CONSTRUCTION_COST } from "@/definision
 import { parseTileIdToArray } from "@/utils/tileIdUtils";
 import { ConstructionKind } from "@/types/jobs/ConstructionJob";
 import { workerJobLabel } from "./gameText";
+import { UI_ICONS, WORKER_ICONS } from "./icons";
+import { GameIcon } from "./GameIcon";
+import { THEME } from "@/styles/theme";
 
 interface TileInfoPanelProps {
   selectedTile: Tile | undefined;
@@ -16,9 +19,9 @@ interface TileInfoPanelProps {
 
 const WorkerStatusIndicator: React.FC<{ status: WorkerStatus }> = ({ status }) => {
   const color = {
-    [WorkerStatus.Available]: "green",
-    [WorkerStatus.Moved]: "yellow",
-    [WorkerStatus.Working]: "red",
+    [WorkerStatus.Available]: THEME.good,
+    [WorkerStatus.Moved]: THEME.warn,
+    [WorkerStatus.Working]: THEME.bad,
   }[status];
 
   return <span style={{ marginRight: 8, color }}>●</span>;
@@ -54,7 +57,7 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
     if (worker.type === WorkerType.Prospector) {
       const canProspect = !selectedTile.prospecting && (activeNation?.treasury ?? 0) >= PROSPECT_COST && PROSPECTABLE_TERRAIN_TYPES.includes(selectedTile.terrain);
       if (canProspect) {
-        return <button onClick={() => startProspecting(worker.id)} title={`Cost: $${PROSPECT_COST}`} className="btn btn-action">Prospect ⛏️</button>;
+        return <button onClick={() => startProspecting(worker.id)} title={`Cost: $${PROSPECT_COST}`} className="btn btn-action"><GameIcon name={UI_ICONS.prospecting} /> Prospect</button>;
       }
     }
 
@@ -112,7 +115,7 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
   };
 
   return (
-    <div style={{ padding: "10px", borderLeft: "2px solid #333", minWidth: "220px" }}>
+    <div style={{ padding: "8px 0", borderTop: `1px solid ${THEME.line}` }}>
       <h3>Tile Info</h3>
       <p><strong>Terrain:</strong> {selectedTile.terrain}</p>
       <p><strong>River:</strong> {selectedTile.hasRiver ? "Yes" : "No"}</p>
@@ -126,9 +129,9 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
             {selectedTile.workers.map(w => (
               <li key={w.id}
                 onClick={() => setSelectedWorkerId && setSelectedWorkerId(w.id)}
-                style={{ background: selectedWorkerId === w.id ? '#444' : 'transparent', padding: '4px', borderRadius: '4px', cursor: 'pointer' }}>
+                style={{ background: selectedWorkerId === w.id ? THEME.surfaceSunken : 'transparent', padding: '4px', borderRadius: '4px', cursor: 'pointer' }}>
                 <WorkerStatusIndicator status={w.status} />
-                <span>{w.type} - {workerJobLabel(selectedTile, w) ?? w.status}</span>
+                <GameIcon name={WORKER_ICONS[w.type]} /> <span>{w.type} - {workerJobLabel(selectedTile, w) ?? w.status}</span>
                 {(w.status === WorkerStatus.Moved || w.status === WorkerStatus.Working) && (
                   <button
                     onClick={() => handleCancelAction(w.id)}

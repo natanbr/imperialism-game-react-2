@@ -18,7 +18,7 @@
   background: var(--color-bg-secondary);
   color: var(--color-text-primary);
   border-radius: var(--radius-md);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-dialog);
   padding: var(--spacing-lg);
 }
 
@@ -70,6 +70,7 @@
 
 .primaryButton {
   padding: 8px 14px;
+  color: var(--color-on-accent);
   background: var(--color-bg-accent);
   border-color: var(--color-bg-accent);
 }
@@ -94,9 +95,9 @@
 .refusal {
   padding: 8px 12px;
   margin-bottom: var(--spacing-md);
-  background: #3b1a1a;
+  background: var(--color-bg-danger);
   color: var(--color-text-danger);
-  border: 1px solid #5a2a2a;
+  border: 1px solid var(--color-bad);
   border-radius: var(--radius-sm);
 }
 
@@ -146,7 +147,7 @@
 }
 
 .you {
-  background: rgba(25, 118, 210, 0.18);
+  background: var(--color-bg-you);
 }
 
 .footer {

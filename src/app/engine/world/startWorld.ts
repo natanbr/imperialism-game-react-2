@@ -1,13 +1,17 @@
-// The world a new game starts with (FR-043). Test fixtures live in src/app/testing and reuse the
-// land and civilian helpers here.
+// The world a new game starts with (FR-080 to FR-082). Test fixtures live in src/app/testing and
+// reuse the land and civilian helpers here.
 import type { GameMap } from "@/types/Map";
 import type { Nation } from "@/types/Nation";
 import type { Technology } from "@/types/Technology";
 import { GoodsType, MaterialType, ResourceType, type WarehouseCommodities } from "@/types/Resource";
 import { TerrainType } from "@/types/Tile";
 import { WorkerStatus, WorkerType, type Worker } from "@/types/Workers";
+import { FARMING_TERRAINS } from "@/definisions/terrainDefinitions";
 import { createIndustry, START_WORKERS } from "../industry/industryState";
-import { defaultMap } from "./defaultMap";
+import { getNeighborCoords } from "../map/mapHelpers";
+import { CAPITAL_SITES, twoIslandsMap } from "./twoIslands";
+
+export { CAPITAL_SITES };
 
 export const START_NATION_ID = "nation-1";
 export const START_CAPITAL_ID = "capital-1";
@@ -170,9 +174,48 @@ export function placeStartCivilians(map: GameMap, nations: readonly Nation[]): G
   return { ...map, tiles };
 }
 
-/** The default 40x40 map with one nation owning the land and its civilians on the capital. */
+/** "x,y" of every land tile joined to (x, y) by neighbour steps over land: its island. */
+function islandAt(map: GameMap, x: number, y: number): Set<string> {
+  const island = new Set([`${x},${y}`]);
+  const queue: [number, number][] = [[x, y]];
+  while (queue.length) {
+    const [cx, cy] = queue.shift()!;
+    for (const [nx, ny] of getNeighborCoords(map, cx, cy)) {
+      if (!isLandTile(map.tiles[ny][nx].terrain) || island.has(`${nx},${ny}`)) continue;
+      island.add(`${nx},${ny}`);
+      queue.push([nx, ny]);
+    }
+  }
+  return island;
+}
+
+/**
+ * A nation settles an island (FR-081, FR-082): its capital goes on `site`, the farms, orchards and
+ * plantations next to it start at level 1 (rules 02: farms and orchards next to the capital start
+ * at level 1; the plantation too, as on the 40x40 map), and it owns every land tile of the island.
+ * Returns a new map. M4 settles its second nation with this on `CAPITAL_SITES[1]`.
+ */
+export function settleIsland(map: GameMap, nationId: string, capitalCityId: string, site: { x: number; y: number }): GameMap {
+  const island = islandAt(map, site.x, site.y);
+  const nextToCapital = new Set(getNeighborCoords(map, site.x, site.y).map(([x, y]) => `${x},${y}`));
+  const tiles = map.tiles.map((row) =>
+    row.map((t) => {
+      const k = `${t.x},${t.y}`;
+      if (!island.has(k)) return t;
+      if (t.x === site.x && t.y === site.y) {
+        return { ...t, terrain: TerrainType.Capital, resource: undefined, cityId: capitalCityId, ownerNationId: nationId };
+      }
+      const raise = nextToCapital.has(k) && t.resource && FARMING_TERRAINS.includes(t.terrain);
+      const resource = raise ? { ...t.resource!, level: Math.max(t.resource!.level, 1) } : t.resource;
+      return { ...t, resource, ownerNationId: nationId };
+    })
+  );
+  return { ...map, tiles };
+}
+
+/** The two-island map with the player's nation settled on island 1 and its civilians on the capital. */
 export function startWorld(): { map: GameMap; nations: Nation[] } {
   const nations = [createStartNation()];
-  const owned = claimLand(defaultMap, START_NATION_ID, START_CAPITAL_ID);
-  return { map: placeStartCivilians(owned, nations), nations };
+  const settled = settleIsland(twoIslandsMap(), START_NATION_ID, START_CAPITAL_ID, CAPITAL_SITES[0]);
+  return { map: placeStartCivilians(settled, nations), nations };
 }

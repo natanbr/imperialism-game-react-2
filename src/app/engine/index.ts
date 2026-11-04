@@ -22,5 +22,6 @@ export {
 } from "./market/market";
 export { scoreOf, scoreTable } from "./score/score";
 export { isGameOver, turnLimitOf } from "./turn/gameOver";
+export { railLinksOf, type RailLink } from "./systems/railroadSystem";
 export type { GameOver, Score } from "@/types/Score";
 export type { TradeCommodity, TradeOrders, WorldMarket } from "@/types/Market";

@@ -3,6 +3,8 @@ import React from "react";
 import { useGameStore } from "../store/rootStore";
 import { dateText } from "./gameText";
 import styles from "./market/Market.module.css";
+import { UI_ICONS } from "./icons";
+import { GameIcon } from "./GameIcon";
 
 /**
  * The end of the game (FR-076): the recorded final scores (`state.gameOver`), ranked, with their
@@ -23,7 +25,9 @@ export const GameOverModal: React.FC = () => {
     <div className={styles.overlay}>
       <div className={styles.dialog} role="dialog" aria-label="Game over">
         <header className={styles.header}>
-          <h2>Game over</h2>
+          <h2>
+            <GameIcon name={UI_ICONS.finalScores} /> Game over
+          </h2>
         </header>
         <p className={styles.note} data-testid="game-over-date">
           The game ended after {dateText(gameOver.turn, gameOver.year)} (turn {gameOver.turn}).

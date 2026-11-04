@@ -9,6 +9,8 @@ import { ProductionCard } from "./capital/ProductionCard";
 import { LabourPanel } from "./capital/LabourPanel";
 import { FreightCars } from "./capital/FreightCars";
 import styles from "./capital/Capital.module.css";
+import { UI_ICONS } from "./icons";
+import { GameIcon } from "./GameIcon";
 
 /**
  * The capital: production cards, labour, training, migration and freight cars (FR-046, FR-047).
@@ -34,13 +36,15 @@ export const CapitalModal: React.FC = () => {
     <div className={styles.overlay}>
       <div className={styles.dialog} role="dialog" aria-label="Capital">
         <header className={styles.header}>
-          <h2 className={styles.title}>Capital — {nation?.name ?? "Unknown"}</h2>
+          <h2 className={styles.title}>
+            <GameIcon name={UI_ICONS.capital} /> Capital — {nation?.name ?? "Unknown"}
+          </h2>
           <nav className={styles.headerButtons}>
             <button className={styles.secondaryButton} onClick={openWarehouse}>
-              Warehouse
+              <GameIcon name={UI_ICONS.warehouse} /> Warehouse
             </button>
             <button className={styles.secondaryButton} onClick={openMarket}>
-              Trade
+              <GameIcon name={UI_ICONS.market} /> Trade
             </button>
             <button className={styles.secondaryButton} disabled title="Coming in a later milestone">
               Diplomacy
@@ -50,7 +54,7 @@ export const CapitalModal: React.FC = () => {
             </button>
           </nav>
           <button className={styles.closeButton} onClick={close} aria-label="Close capital">
-            ✕
+            <span aria-hidden="true">×</span>
           </button>
         </header>
 

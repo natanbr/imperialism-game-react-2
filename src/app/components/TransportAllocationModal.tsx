@@ -1,6 +1,8 @@
 "use client";
 import React from "react";
 import { useTransportAllocations } from "../hooks/useTransportAllocations";
+import { UI_ICONS } from "./icons";
+import { GameIcon } from "./GameIcon";
 
 interface TransportAllocationModalProps {
   capacity: number;
@@ -65,9 +67,11 @@ const TransportAllocationModal: React.FC<TransportAllocationModalProps> = ({
     <div className="modal-overlay">
       <div className="modal-content">
         <div className="modal-header">
-          <h3 className="modal-title">Transportation of Commodities</h3>
-          <button onClick={onClose} className="modal-close-btn">
-            ✕
+          <h3 className="modal-title">
+            <GameIcon name={UI_ICONS.transport} /> Transportation of Commodities
+          </h3>
+          <button onClick={onClose} className="modal-close-btn" aria-label="Close transport">
+            <span aria-hidden="true">×</span>
           </button>
         </div>
 

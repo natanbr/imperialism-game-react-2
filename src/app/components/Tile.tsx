@@ -2,13 +2,15 @@ import React, { useMemo } from 'react';
 import { useGameStore } from '@/store/rootStore';
 import { selectSelectedWorkerAndTile, selectTilesCompletedLastTurn } from '@/store/selectors';
 import { Tile } from '@/types/Tile';
-import { Nation } from '@/types/Nation';
 import { TransportNetwork } from '@/types/Transport';
 import { useTileActions } from '@/hooks/useTileActions';
 import { useTileVisuals } from '@/hooks/useTileVisuals';
 import { useTileClickHandler } from '@/hooks/useTileClickHandler';
+import { tileIconOf } from './icons';
+import { tileLabel } from './gameText';
 import {
   TileBase,
+  TileIcon,
   TileResource,
   TileInfrastructure,
   TileWorkers,
@@ -19,34 +21,21 @@ interface TileProps {
   tile: Tile;
   selectedTileId: string | undefined;
   selectedWorkerId: string | undefined;
-  nations: Nation[];
   transportNetwork: TransportNetwork;
 }
 
 /**
- * Tile component - refactored for better maintainability and AI agent optimization
+ * One map tile: three hooks for the logic (useTileActions, useTileVisuals, useTileClickHandler) and
+ * sub-components in Tile/ for what it shows (FR-085). Ownership is not drawn here: MapView draws
+ * each nation's territory as a border overlay (FR-087).
  *
- * This component has been refactored from a 273-line monolithic file into:
- * - 3 custom hooks for logic (useTileActions, useTileVisuals, useTileClickHandler)
- * - 5 sub-components for rendering (TileBase, TileResource, TileInfrastructure, TileWorkers, TileJobs)
- * - CSS module for styling (Tile.module.css)
- *
- * Benefits:
- * - 50-75% reduction in token usage for AI agents
- * - Clear separation of concerns
- * - Easier to test and maintain
- * - Reusable sub-components
- *
- * Performance optimizations:
- * - React.memo to prevent unnecessary re-renders
- * - Props passed from MapView to avoid Zustand subscriptions in each tile
- * - Viewport culling at MapView level reduces rendered tiles
+ * Props come from MapView, so tiles do not each subscribe to the whole map; React.memo skips tiles
+ * whose props did not change.
  */
 const TileComponentInner: React.FC<TileProps> = ({
   tile,
   selectedTileId,
   selectedWorkerId,
-  nations,
   transportNetwork
 }) => {
   // Store selectors (only for actions and map reference)
@@ -56,21 +45,12 @@ const TileComponentInner: React.FC<TileProps> = ({
   // Get selected worker
   const { worker: selectedWorker } = useGameStore(selectSelectedWorkerAndTile);
   const jobJustCompleted = useGameStore((s) => selectTilesCompletedLastTurn(s).has(tile.id));
+  const ownerName = useGameStore((s) => (tile.ownerNationId ? s.game.nations.find((n) => n.id === tile.ownerNationId)?.name : undefined));
 
-  // Compute derived state
   const isSelected = selectedTileId === tile.id;
-  const ownerNation = tile.ownerNationId
-    ? nations.find((n) => n.id === tile.ownerNationId) ?? null
-    : null;
 
-  // Use custom hooks
   const possibleAction = useTileActions(tile, selectedWorker, map);
-  const tileVisuals = useTileVisuals(
-    tile,
-    isSelected,
-    ownerNation,
-    possibleAction
-  );
+  const tileVisuals = useTileVisuals(tile, isSelected, possibleAction);
   const handleTileClick = useTileClickHandler(tile, selectedWorker, possibleAction);
 
   // Compute infrastructure status
@@ -97,19 +77,21 @@ const TileComponentInner: React.FC<TileProps> = ({
   return (
     <TileBase
       tileId={tile.id}
+      label={tileLabel(tile, ownerName)}
       terrain={tile.terrain}
       hasRiver={tile.hasRiver ?? false}
       backgroundColor={tileVisuals.terrainColor}
-      borderColor={tileVisuals.borderColor}
-      borderWidth={tileVisuals.borderWidth}
+      border={tileVisuals.border}
+      boxShadow={tileVisuals.boxShadow}
+      isSelected={isSelected}
       cursor={tileVisuals.cursor}
       hasJobCompleted={jobJustCompleted}
       onClick={handleTileClick}
     >
-      {/* Resource display */}
+      <TileIcon name={tileIconOf(tile)} crowded={tile.workers.length > 0} />
+
       {tile.resource && <TileResource resource={tile.resource} />}
 
-      {/* Infrastructure */}
       <TileInfrastructure
         depot={tile.depot ?? false}
         depotActive={depotActive}
@@ -117,14 +99,12 @@ const TileComponentInner: React.FC<TileProps> = ({
         portActive={portActive}
       />
 
-      {/* Workers */}
       <TileWorkers
         workers={tile.workers}
         selectedWorkerId={selectedWorkerId}
         onWorkerSelect={selectWorker}
       />
 
-      {/* Job indicators */}
       <TileJobs
         prospecting={tile.prospecting}
         developmentJob={tile.developmentJob}

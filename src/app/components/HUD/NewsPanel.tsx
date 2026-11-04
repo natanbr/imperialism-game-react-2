@@ -12,7 +12,7 @@ export const NewsPanel: React.FC = () => {
   return (
     <div className="news-panel" data-testid="news-panel">
       {lastRejection && (
-        <div role="status" data-testid="order-refusal" style={{ color: "#f88", marginBottom: 6 }}>
+        <div role="status" data-testid="order-refusal" className="news-refusal">
           {refusalText(lastRejection)}
         </div>
       )}

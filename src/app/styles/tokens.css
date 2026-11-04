@@ -1,38 +1,83 @@
 /**
- * Design Tokens
- * Single source of truth for all design values
+ * Design tokens: the one place colours are defined (FR-086). styles/theme.ts names them for
+ * TypeScript; components, hooks and globals.css use only these variables.
  */
 
 :root {
-  /* Tile dimensions */
-  --tile-width: 100px;
-  --tile-height: 100px;
-  --tile-border-normal: 1px;
-  --tile-border-selected: 3px;
+  /* Tile dimensions (styles/theme.ts TILE_PX; FR-088) */
+  --tile-width: 42px;
+  --tile-height: 42px;
 
-  /* Colors */
-  --color-selected: #ff0000;
-  --color-border-default: #555;
-  --color-job-completed: #ffd54f;
-  --color-background-worker: rgba(255, 255, 255, 0.2);
-  --color-worker-selected: yellow;
+  /* The HUD lies over the map's right edge (styles/theme.ts HUD_PX) */
+  --hud-width: 250px;
 
-  /* Dialogs (warehouse, capital) */
-  --color-bg-backdrop: rgba(0, 0, 0, 0.7);
-  --color-bg-primary: #151515;
-  --color-bg-secondary: #1e1e1e;
-  --color-bg-panel: #1a1a1a;
-  --color-bg-card: #222;
-  --color-bg-button: #2f2f2f;
-  --color-bg-button-hover: #3d3d3d;
-  --color-bg-accent: #1976d2;
-  --color-bg-accent-hover: #1565c0;
-  --color-text-primary: #eee;
-  --color-text-muted: #a8a8a8;
-  --color-text-danger: #ff8a80;
-  --color-text-good: #9ccc65;
-  --color-border: #333;
-  --color-border-strong: #4a4a4a;
+  /* Palette (NR-009): parchment land, pale sea, dark grey ink, one accent, one colour per nation.
+     Muted, good and warn text keep 4.5:1 on the surfaces (FR-094, tests/ui/palette.test.ts). */
+  --color-land: #f3ecda;
+  --color-sea: #d4e4ec;
+  --color-ink: #3b3b3b;
+  --color-ink-muted: #6a655c;
+  --color-line: rgba(59, 59, 59, 0.12);
+  --color-surface: #faf6ec;
+  --color-surface-sunken: #efe8d6;
+  --color-surface-raised: #fffcf5;
+  --color-accent: #1f6f78;
+  --color-accent-strong: #185a62;
+  --color-on-accent: #ffffff;
+  --color-nation-1: #a8322d;
+  --color-nation-2: #2c5c9e;
+  --color-good: #3b7530;
+  --color-bad: #c9483a;
+  --color-warn: #9a6412;
+  --color-highlight: #e3b341;
+  --color-rail: #4a4a4a;
+
+  /* Terrain tints: faint, light and low in colour, so the icons carry the meaning (NR-008) */
+  --terrain-farm: #efe5c2;
+  --terrain-orchard: #f1dcd3;
+  --terrain-openRange: #e6e3c6;
+  --terrain-plantation: #e1e8cf;
+  --terrain-hardwoodForest: #d5e2cc;
+  --terrain-scrubForest: #dde5d0;
+  --terrain-barrenHills: #e2d9cc;
+  --terrain-mountains: #dcd6cf;
+  --terrain-fertileHills: #e4e2c8;
+  --terrain-dryPlains: #efe8cb;
+  --terrain-horseRanch: #e9dfcb;
+  --terrain-swamp: #d8ded2;
+  --terrain-desert: #f2e7c4;
+  --terrain-tundra: #e9eeec;
+  --terrain-water: var(--color-sea);
+  --terrain-river: #c9dde8;
+  --terrain-coast: #dbe8ec;
+  --terrain-town: #f5eedf;
+  --terrain-capital: #f7f0e0;
+
+  /* Map */
+  --color-selected: var(--color-accent);
+  --color-job-completed: var(--color-highlight);
+  --color-background-worker: var(--color-surface-raised);
+  --color-worker-selected: var(--color-accent);
+
+  /* Dialogs and HUD (warehouse, capital, market, game over, construction, transport) */
+  --color-bg-backdrop: rgba(40, 36, 28, 0.45);
+  --color-bg-primary: var(--color-surface);
+  --color-bg-secondary: var(--color-surface);
+  --color-bg-panel: var(--color-surface-sunken);
+  --color-bg-card: var(--color-surface-raised);
+  --color-bg-button: var(--color-surface-raised);
+  --color-bg-button-hover: var(--color-surface-sunken);
+  --color-bg-accent: var(--color-accent);
+  --color-bg-accent-hover: var(--color-accent-strong);
+  --color-bg-danger: #f6e1dc;
+  --color-bg-warn: #f7ead0;
+  --color-bg-you: #dcebec;
+  --color-text-primary: var(--color-ink);
+  --color-text-muted: var(--color-ink-muted);
+  --color-text-danger: var(--color-bad);
+  --color-text-good: var(--color-good);
+  --color-border: #e0d7c2;
+  --color-border-strong: #c8bda4;
   --radius-sm: 4px;
   --radius-md: 8px;
   --radius-lg: 10px;
@@ -59,8 +104,9 @@
   --z-index-modal: 100;
 
   /* Shadows */
-  --shadow-sm: 0 0 2px #fff;
-  --shadow-md: 0 0 8px rgba(255, 255, 255, 0.5);
-  --shadow-lg: 0 0 12px 4px var(--color-job-completed);
-  --shadow-worker: drop-shadow(0 0 2px #fff);
+  --shadow-sm: 0 0 2px var(--color-surface-raised);
+  --shadow-md: inset 0 0 0 1px var(--color-ink-muted);
+  --shadow-lg: inset 0 0 0 2px var(--color-highlight);
+  --shadow-panel: 0 0 10px rgba(40, 36, 28, 0.15);
+  --shadow-dialog: 0 10px 30px rgba(40, 36, 28, 0.25);
 }

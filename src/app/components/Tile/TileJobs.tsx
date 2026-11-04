@@ -1,6 +1,8 @@
 import React from 'react';
 import { DevelopmentJob } from '@/types/jobs/DevelopmentJob';
 import { ConstructionJob } from '@/types/jobs/ConstructionJob';
+import { UI_ICONS } from '../icons';
+import { GameIcon } from '../GameIcon';
 import styles from './Tile.module.css';
 
 export interface TileJobsProps {
@@ -9,32 +11,27 @@ export interface TileJobsProps {
   constructionJob?: ConstructionJob;
 }
 
-/**
- * Component to display job indicators on a tile
- */
-const TileJobsInner: React.FC<TileJobsProps> = ({
-  prospecting,
-  developmentJob,
-  constructionJob,
-}) => {
+/** Markers for the jobs running on a tile; their titles name them (FR-085). */
+const TileJobsInner: React.FC<TileJobsProps> = ({ prospecting, developmentJob, constructionJob }) => {
+  if (!prospecting && !developmentJob && !constructionJob) return null;
   return (
-    <>
+    <span className={styles.jobs}>
       {prospecting && (
-        <div className={styles.jobProspecting} title="Prospecting in progress">
-          ⏳
-        </div>
+        <span className={styles.job} title="Prospecting in progress">
+          <GameIcon name={UI_ICONS.prospecting} />
+        </span>
       )}
       {developmentJob && (
-        <div className={styles.jobDevelopment} title="Development in progress">
-          ⏳
-        </div>
+        <span className={styles.job} title="Development in progress">
+          <GameIcon name={UI_ICONS.development} />
+        </span>
       )}
       {constructionJob && (
-        <div className={styles.jobConstruction} title="Construction in progress">
-          🛠️
-        </div>
+        <span className={styles.job} title="Construction in progress">
+          <GameIcon name={UI_ICONS.construction} />
+        </span>
       )}
-    </>
+    </span>
   );
 };
 

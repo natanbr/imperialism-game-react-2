@@ -138,13 +138,15 @@ industrial capacity + developed tiles) shown in the HUD and a "game over after N
 screen. Done when: a 40-turn headless game ends with a score and the app shows it. **This is
 v1 playable.**
 
+**M3.5, Small map and a clean look (NR-007 to NR-010).** Fix the broken rail line first. Then replace the start world with two small islands with a few tile types, give tiles faint backgrounds and resource icons (an icon library is allowed), and apply a minimalist palette to the map, HUD and dialogs. Done when: a new game opens on the two islands, every tile type and resource shows an icon, and Nathan approves the look from screenshots. The second nation of M4 starts on the second island.
+
 **M4, Second nation on the map.** A second Great Power with its own capital, workers and
 territory, driven by a trivial scripted player (`(view) => Order[]`: develop nearest tile,
 build rail toward it). Both nations trade on the same world market. Done when: the human can
 watch the other nation grow. This is the seam v3 plugs into.
 
 Deferred past v1: nation-to-nation trade with bids and offers, diplomacy and treaties,
-minor nations and colonies, military units and combat, technology tree, Council of
+minor nations and colonies, military units and combat, technology tree, the Council of Governors vote that ends the game (NR-011, decision Q12), Council of
 Governors. These are v1.5 or v2, chosen once v1 is fun.
 
 ## 6. Working rules for this project (replaces the old refactoring phases)

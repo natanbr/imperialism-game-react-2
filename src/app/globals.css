@@ -1,9 +1,10 @@
 @import "tailwindcss";
 @import "./styles/tokens.css";
 
+/* One light theme for the game (FR-086): every colour comes from styles/tokens.css. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: var(--color-sea);
+  --foreground: var(--color-ink);
 }
 
 @theme inline {
@@ -13,24 +14,28 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
 
+a {
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+
+/* Game Icons sit on the text line next to their label (Tailwind's reset makes svg a block) */
+svg[data-icon] {
+  display: inline-block;
+  vertical-align: -0.15em;
+}
+
 /* TransportAllocationModal Styles */
 .modal-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(0,0,0,0.6);
+  background: var(--color-bg-backdrop);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -41,10 +46,10 @@ body {
   width: 720px;
   max-height: 80vh;
   overflow-y: auto;
-  background: #1e1e1e;
-  color: #eee;
-  border-radius: 8px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-dialog);
   padding: 16px;
 }
 
@@ -60,12 +65,16 @@ body {
 }
 
 .modal-close-btn {
-  background: #444;
-  color: #fff;
-  border: none;
+  background: var(--color-bg-button);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border-strong);
   padding: 6px 10px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
+}
+
+.modal-close-btn:hover {
+  background: var(--color-bg-button-hover);
 }
 
 .modal-info-bar {
@@ -103,6 +112,7 @@ body {
 
 .section-range-input {
   width: 200px;
+  accent-color: var(--color-accent);
 }
 
 /* HUD Styles */
@@ -110,29 +120,76 @@ body {
   position: absolute;
   top: 0;
   right: 0;
-  width: 250px;
+  width: var(--hud-width);
   height: 100%;
-  background-color: #222;
-  color: #eee;
+  background-color: var(--color-surface);
+  color: var(--color-ink);
+  border-left: 1px solid var(--color-border);
   padding: 12px;
-  box-shadow: 0 0 10px rgba(0,0,0,0.5);
+  box-shadow: var(--shadow-panel);
   z-index: 10;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  font-size: 14px;
+}
+
+.hud-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .hud-title {
   font-size: 16px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-button);
+  color: var(--color-ink);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.icon-button:hover {
+  background: var(--color-bg-button-hover);
+}
+
+.about-panel {
   margin-bottom: 8px;
+  padding: 8px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  font-size: 12px;
+  display: grid;
+  gap: 4px;
+}
+
+.about-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .hud-debug-section {
   margin-bottom: 8px;
   padding: 8px;
-  border: 1px dashed #555;
-  border-radius: 4px;
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--color-ink-muted);
+  font-size: 12px;
 }
 
 .hud-debug-title {
@@ -152,11 +209,16 @@ body {
 .food-warning {
   margin-bottom: 8px;
   padding: 6px 8px;
-  border: 1px solid #c77d00;
-  border-radius: 4px;
-  background: #3a2a00;
-  color: #ffd27a;
+  border: 1px solid var(--color-warn);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-warn);
+  color: var(--color-ink);
   font-size: 13px;
+}
+
+.news-refusal {
+  color: var(--color-text-danger);
+  margin-bottom: 6px;
 }
 
 .action-buttons-container {
@@ -165,19 +227,22 @@ body {
   gap: 8px;
 }
 
+/* Buttons: one accent colour for the primary action, the rest plain (FR-086) */
 .btn {
   width: 100%;
   padding: 8px 12px;
-  color: #fff;
-  border: none;
-  border-radius: 4px;
+  color: var(--color-ink);
+  background: var(--color-bg-button);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 14px;
+  text-align: left;
   transition: background-color 0.2s, opacity 0.2s;
 }
 
 .btn:hover:not(:disabled) {
-  opacity: 0.9;
+  background: var(--color-bg-button-hover);
 }
 
 .btn:active:not(:disabled) {
@@ -185,78 +250,41 @@ body {
 }
 
 .btn:disabled {
-  background: #666 !important;
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
-.btn-primary {
-  background: #1976d2;
+.btn-plain {
+  background: var(--color-bg-button);
 }
 
-.btn-primary:hover:not(:disabled) {
-  background: #1565c0;
+.btn-primary,
+.btn-action {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-on-accent);
+  text-align: center;
 }
 
-.btn-secondary {
-  background: #8e44ad;
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background: #7d3c98;
-}
-
-.btn-tertiary {
-  background: #2a2a2a;
-  border: 1px solid #444;
-}
-
-.btn-tertiary:hover:not(:disabled) {
-  background: #3a3a3a;
-}
-
-.btn-success {
-  background: #4caf50;
-}
-
-.btn-success:hover:not(:disabled) {
-  background: #45a049;
-}
-
-.btn-dark {
-  background: #333;
-  border: 1px solid #444;
-}
-
-.btn-dark:hover:not(:disabled) {
-  background: #444;
+.btn-primary:hover:not(:disabled),
+.btn-action:hover:not(:disabled) {
+  background: var(--color-accent-strong);
 }
 
 .btn-action {
-  background: #2196f3;
   padding: 6px 10px;
   font-size: 13px;
   width: auto;
 }
 
-.btn-action:hover:not(:disabled) {
-  background: #1976d2;
-}
-
-.btn-warning {
-  background: #ff9800;
-}
-
-.btn-warning:hover:not(:disabled) {
-  background: #f57c00;
-}
-
 .btn-danger {
-  background: #c0392b;
+  background: var(--color-bg-button);
+  border-color: var(--color-bad);
+  color: var(--color-bad);
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: #a93226;
+  background: var(--color-bg-danger);
 }
 
 .btn-group {

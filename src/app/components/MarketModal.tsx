@@ -7,6 +7,8 @@ import type { TradeCommodity } from "@/types/Market";
 import { money, refusalText } from "./gameText";
 import { marketView, type MarketRowView } from "./market/marketView";
 import styles from "./market/Market.module.css";
+import { UI_ICONS } from "./icons";
+import { GameIcon } from "./GameIcon";
 
 interface StepperProps {
   label: string;
@@ -57,9 +59,11 @@ export const MarketModal: React.FC = () => {
     <div className={styles.overlay}>
       <div className={styles.dialog} role="dialog" aria-label="Market">
         <header className={styles.header}>
-          <h2>World market — {nation?.name ?? "Unknown"}</h2>
+          <h2>
+            <GameIcon name={UI_ICONS.market} /> World market — {nation?.name ?? "Unknown"}
+          </h2>
           <button onClick={close} className={styles.closeButton} aria-label="Close market">
-            ✕
+            <span aria-hidden="true">×</span>
           </button>
         </header>
 
