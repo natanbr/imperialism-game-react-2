@@ -67,6 +67,9 @@ or "none").
 8. **Checkpoint.** Journal evidence table filled (claim, command, quoted result). Update
    `docs/report/roadmap.json` and republish the progress page. Commit, push the branch,
    open or update the PR.
+9. **Merge.** When the gate and the milestone review are green, the agent merges the PR
+   with `gh pr merge --match-head-commit <gated sha>` (NR-012). No ultracode workflow
+   unless it is expected to improve the result by far (NR-013).
 
 ## Evidence table (journal)
 
