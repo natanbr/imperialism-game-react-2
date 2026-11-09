@@ -2,7 +2,7 @@
 // FR-075, FR-076: the HUD shows the score and the game length; the game-over screen shows the final
 // ranked scores and the Advance Turn button is disabled after the end.
 import { describe, it, expect } from 'vitest';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { ActionButtons, FoodWarning, ScoreIndicator, TurnIndicator } from '@/components/HUD/index';
 import { GameOverModal } from '@/components/GameOverModal';
 import { useGameStore } from '@/store/rootStore';
@@ -42,7 +42,7 @@ describe('FR-075 HUD score and game length', () => {
     const { rerender } = render(<TurnIndicator />);
     expect(text(screen.getByTestId('turn-indicator'))).toBe('Turn: 1 of 40 Spring 1815');
 
-    show({ ...game(), turnLimit: 7 });
+    act(() => show({ ...game(), turnLimit: 7 }));
     rerender(<TurnIndicator />);
     expect(text(screen.getByTestId('turn-indicator'))).toBe('Turn: 1 of 7 Spring 1815');
   });
@@ -63,7 +63,7 @@ describe('FR-075 food warning after the end', () => {
     const { rerender } = render(<FoodWarning />);
     expect(screen.getByTestId('food-warning')).toBeTruthy();
 
-    show({ ...short, gameOver: { turn: 40, year: 1824, scores: [] } });
+    act(() => show({ ...short, gameOver: { turn: 40, year: 1824, scores: [] } }));
     rerender(<FoodWarning />);
     expect(screen.queryByTestId('food-warning')).toBeNull();
   });
@@ -130,7 +130,7 @@ describe('FR-076 game-over screen', () => {
     expect((screen.getByRole('button', { name: /Advance Turn/ }) as HTMLButtonElement).disabled).toBe(false);
     expect(screen.queryByRole('button', { name: /Final scores/ })).toBeNull();
 
-    show(finished());
+    act(() => show(finished()));
     rerender(<ActionButtons />);
     expect((screen.getByRole('button', { name: /Advance Turn/ }) as HTMLButtonElement).disabled).toBe(true);
   });
