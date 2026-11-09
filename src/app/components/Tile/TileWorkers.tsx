@@ -28,6 +28,7 @@ const TileWorkersInner: React.FC<TileWorkersProps> = ({
           data-testid="worker-button"
           data-worker-type={worker.type}
           data-worker-id={worker.id}
+          data-nation-id={worker.nationId}
           className={`${styles.workerButton} ${
             selectedWorkerId === worker.id ? styles.workerButtonSelected : ''
           }`}

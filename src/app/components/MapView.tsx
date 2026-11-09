@@ -102,6 +102,7 @@ export const MapView: React.FC = () => {
                 y2={s.y2}
                 className={styles.railSegment}
                 data-testid="rail-segment"
+                data-nation-id={s.nationId}
               />
             ))}
           </svg>

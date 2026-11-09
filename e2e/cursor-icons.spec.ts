@@ -15,7 +15,8 @@ test.describe('Cursor Icon Functionality', () => {
     // a click before that lands where the scroll moves the map
     await page.waitForSelector('[data-testid="tile"]', { timeout: 15000 });
     await expect(page.getByTestId('map-scroll')).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
-    await expect(page.locator('[data-testid="tile"][data-terrain="capital"]')).toBeInViewport({ timeout: 15000 });
+    // The player's capital: since M4 nation 2 has one on island 2 too (FR-098)
+    await expect(page.locator('[data-testid="tile"][data-tile-id="2-9"]')).toBeInViewport({ timeout: 15000 });
   });
 
   test('should show default cursor when no worker is selected', async ({ page }) => {

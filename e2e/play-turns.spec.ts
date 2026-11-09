@@ -7,7 +7,8 @@ import { test, expect, Page } from '@playwright/test';
 // Set SCREENSHOT_PATH to also save a screenshot of the map with a worker selected.
 
 const tile = (page: Page, id: string) => page.locator(`[data-tile-id="${id}"]`);
-const worker = (page: Page, type: string) => page.locator(`[data-worker-type="${type}"]`);
+// The player's civilians only: since M4 nation 2's stand on island 2 (FR-098).
+const worker = (page: Page, type: string) => page.locator(`[data-nation-id="nation-1"][data-worker-type="${type}"]`);
 const cash = (page: Page) => page.locator('.nation-stats');
 
 async function endTurn(page: Page, nextTurn: number) {

@@ -53,7 +53,7 @@ test('FR-078 open the market, sell one lumber, end the turn, see the sale and th
   expect(errors).toEqual([]);
 });
 
-test('FR-078 end 40 turns, see the game-over screen with the final scores; Advance Turn is disabled', async ({ page }) => {
+test('FR-078 FR-104 end 40 turns, see the game-over screen with both nations\' final scores; Advance Turn is disabled', async ({ page }) => {
   test.setTimeout(240000);
   const errors = collectErrors(page);
   await start(page);
@@ -66,9 +66,12 @@ test('FR-078 end 40 turns, see the game-over screen with the final scores; Advan
   const over = page.getByRole('dialog', { name: 'Game over' });
   await expect(over).toBeVisible();
   await expect(over.getByTestId('game-over-date')).toHaveText('The game ended after Winter 1824 (turn 40).');
+  // FR-104: both nations are ranked; the scripted nation 2 grows, so the idle player need not be first
   const row = over.getByTestId('final-score-nation-1');
-  await expect(row.getByTestId('rank')).toHaveText('1');
+  const rival = over.getByTestId('final-score-nation-2');
   await expect(row.getByTestId('nation')).toContainText('(you)');
+  await expect(rival.getByTestId('nation')).toHaveText('Valdoria');
+  expect([await row.getByTestId('rank').textContent(), await rival.getByTestId('rank').textContent()].sort()).toEqual(['1', '2']);
   for (const part of ['treasury', 'industry', 'development', 'total']) await expect(row.getByTestId(part)).toHaveText(/^\d+$/);
   if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/m3-game-over.png` });
 

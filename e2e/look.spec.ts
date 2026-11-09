@@ -7,7 +7,8 @@ import { test, expect, Page } from '@playwright/test';
 // Set SCREENSHOT_DIR to also save m3-5-look-map.png, -capital.png, -market.png and -zoom.png there.
 
 const tile = (page: Page, id: string) => page.locator(`[data-tile-id="${id}"]`);
-const worker = (page: Page, type: string) => page.locator(`[data-worker-type="${type}"]`);
+// The player's civilians only: since M4 nation 2's stand on island 2 (FR-098).
+const worker = (page: Page, type: string) => page.locator(`[data-nation-id="nation-1"][data-worker-type="${type}"]`);
 const shot = async (page: Page, name: string, clip?: { x: number; y: number; width: number; height: number }) => {
   if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/m3-5-look-${name}.png`, clip });
 };
@@ -105,7 +106,8 @@ test.describe('rendered at three times the pixel density', () => {
     const depot = tile(page, '2-7').getByRole('img', { name: 'Depot: connected' });
     await expect(depot).toHaveAttribute('title', 'Depot: connected');
     await expect(depot).toHaveAttribute('data-connected', 'true');
-    await expect(page.locator('[data-testid="rail-segment"]')).toHaveCount(2);
+    // Nation 2 lays its own rail meanwhile (FR-102): count the player's lines only
+    await expect(page.locator('[data-testid="rail-segment"][data-nation-id="nation-1"]')).toHaveCount(2);
 
     // The zoom: the capital's corner of island 1, with the farm 3-9 selected
     await page.locator('[data-testid="tile"][data-tile-id="3-9"]').click({ position: { x: 4, y: 4 } });
