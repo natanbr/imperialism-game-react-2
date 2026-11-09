@@ -2,7 +2,7 @@
   "project": "Imperialism Revival",
   "updated": "2026-11-09",
   "target": "v1 playable (M3)",
-  "now": "M3.5 merged; M4 next",
+  "now": "M4 started 2026-11-09: part A (engine: nation 2, scripted player, next-turn freight cars) in progress",
   "source": "docs/REVIVAL_PLAN.md and docs/report/roadmap.json in the imperialism-game-react-2 repo",
   "overview": {
     "headline": "main has v1 playable plus the small two-island map and clean look (M0 to M3.5 merged, PR 15 last). Next: M4, a second nation on island 2 driven by a scripted player.",
@@ -51,7 +51,7 @@
       },
       {
         "title": "M4 Second nation driven by a scripted player",
-        "status": "not-started",
+        "status": "in-progress",
         "progress": 0,
         "date": "after M3",
         "note": "Proves the (view) => Order[] interface for v3 AI."
@@ -306,7 +306,7 @@
           {
             "id": "M4",
             "title": "Second nation, scripted player",
-            "status": "not-started",
+            "status": "in-progress",
             "blockedBy": [
               "M3"
             ],
