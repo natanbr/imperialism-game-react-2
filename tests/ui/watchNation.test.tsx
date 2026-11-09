@@ -210,7 +210,12 @@ describe('FR-108 no orders for another nation', () => {
     openTray();
     pick(WorkerType.Engineer);
     expect(useGameStore.getState().selectedWorkerId).toBe('worker-nation-1-7');
+    // A click on Valdoria's land only selects it for viewing: no order built, so no refusal in the news
+    const ordersBefore = submitted.length;
     fireEvent.click(tileEl(container, '14-8'));
+    expect(submitted).toHaveLength(ordersBefore);
+    expect(useGameStore.getState().lastRejection).toBeNull();
+    expect(useGameStore.getState().selectedTileId).toBe('14-8');
     openTray();
     pick(WorkerType.Farmer);
     fireEvent.click(tileEl(container, '3-9'));
