@@ -53,11 +53,20 @@ describe('FR-095 every tile has an accessible name', () => {
     expect(tiles.filter((t) => t.getAttribute('role') !== 'group' || !t.getAttribute('aria-label'))).toEqual([]);
   });
 
-  it('FR-095 terrain, resource and level, and owner; a hidden resource is not named; the sea is "Sea"', () => {
-    const game = useGameStore.getState().game;
+  it('FR-095 FR-098 terrain, resource and level, and owner; a hidden resource is not named; the sea is "Sea"', () => {
+    // Since M4 island 2 is nation 2's (FR-098), so no land is unowned: one of its orchards is made
+    // ownerless here for the "not owned" name.
+    const start = useGameStore.getState().game;
+    const [theirs, unowned] = start.map.tiles
+      .flat()
+      .filter((t) => t.terrain === TerrainType.Orchard && t.ownerNationId === 'nation-2' && t.resource?.level === 0);
+    const game = {
+      ...start,
+      map: { ...start.map, tiles: start.map.tiles.map((row) => row.map((t) => (t.id === unowned.id ? { ...t, ownerNationId: undefined } : t))) },
+    };
+    useGameStore.setState({ game });
     const tiles = game.map.tiles.flat();
-    const hidden = tiles.find((t) => t.terrain === TerrainType.BarrenHills && t.ownerNationId && t.resource?.discovered === false)!;
-    const unowned = tiles.find((t) => t.terrain === TerrainType.Orchard && !t.ownerNationId)!;
+    const hidden = tiles.find((t) => t.terrain === TerrainType.BarrenHills && t.ownerNationId === 'nation-1' && t.resource?.discovered === false)!;
     const sea = tiles.find((t) => t.terrain === TerrainType.Water)!;
     const { container } = render(<MapView />);
     const label = (id: string) => container.querySelector(`[data-tile-id="${id}"]`)!.getAttribute('aria-label');
@@ -67,7 +76,8 @@ describe('FR-095 every tile has an accessible name', () => {
     expect(label('3-9')).toBe('Farm, grain, level 1, owned by Testland');
     expect(label('2-9')).toBe('Capital, owned by Testland');
     expect(label(hidden.id)).toBe('Barren hills, owned by Testland');
-    expect(label(unowned.id)).toBe(`Orchard, fruit, level ${unowned.resource!.level}, not owned`);
+    expect(label(theirs.id)).toBe('Orchard, fruit, level 0, owned by Valdoria');
+    expect(label(unowned.id)).toBe('Orchard, fruit, level 0, not owned');
     expect(label(sea.id)).toBe('Sea');
     // FR-081: two farms next to the capital start at level 1, so two tiles share this name
     const farms = screen.getAllByRole('group', { name: 'Farm, grain, level 1, owned by Testland' });

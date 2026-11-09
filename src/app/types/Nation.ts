@@ -4,10 +4,16 @@ import { CityId, NationId, ProvinceId, FleetId, ArmyId } from "./Common";
 import { IndustryState } from './Industry';
 import { WarehouseCommodities } from './Resource';
 
+/** Who gives a nation its orders (FR-099): the person at this client, or a scripted player. */
+export type NationController = "human" | "scripted";
+
 export interface Nation {
   id: NationId;
   name: string;
-  color: string;
+  /** Palette slot, 1 for the first nation founded: the map draws it in --color-nation-<slot> (FR-097). */
+  colorSlot: number;
+  /** At End Turn the store asks the player of every non-human nation for its orders (FR-099). */
+  controller: NationController;
   treasury: number;
   debt?: number;
   creditLimit?: number;

@@ -28,10 +28,14 @@ export const THEME = {
   rail: v("color-rail"),
 } as const;
 
-/** One strong colour per nation, by the nation's place in `state.nations`; used only for territory borders. */
+/** One strong colour per palette slot (`Nation.colorSlot`, 1 first); used only for territory borders (FR-097). */
 export const NATION_COLORS: readonly string[] = [v("color-nation-1"), v("color-nation-2")];
 
-export const nationColor = (index: number): string => NATION_COLORS[Math.max(0, index) % NATION_COLORS.length];
+/** The colour of a palette slot; a slot past the last colour wraps round, a missing or bad one is slot 1. */
+export const nationColor = (slot: number | undefined): string => {
+  const index = typeof slot === "number" && Number.isInteger(slot) && slot >= 1 ? slot - 1 : 0;
+  return NATION_COLORS[index % NATION_COLORS.length];
+};
 
 /** A faint background per terrain: --terrain-<type> in tokens.css. */
 export const TERRAIN_TINT: Record<TerrainType, string> = Object.fromEntries(

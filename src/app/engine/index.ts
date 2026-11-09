@@ -7,6 +7,7 @@ export { resolveTurn, type OrdersByNation, type TurnResult } from "./turn/resolv
 export type { GameEvent, TurnContext, TurnSystem } from "./turn/context";
 export { createTurnRng, type Rng } from "./rng";
 export { scriptedPlayer, type Player } from "./ai/scriptedPlayer";
+export { computerOrders, PLAYERS } from "./ai/players";
 export { newGame, type NewGameOptions } from "./newGame";
 export { seasonOf, type Season } from "./calendar";
 export { labourOf, type Labour } from "./industry/labour";

@@ -50,7 +50,8 @@ export function territoryBorderSegments(map: GameMap, nations: readonly Nation[]
         [l, tile.y + 1, left, bottom, mid, bottom],
         [r, tile.y + 1, mid, bottom, right, bottom],
       ];
-      const color = nationColor(nations.findIndex((n) => n.id === owner));
+      // By the owner's palette slot, not its place in `nations` (FR-097).
+      const color = nationColor(nations.find((n) => n.id === owner)?.colorSlot);
       for (const [nx, ny, x1, y1, x2, y2] of sides) {
         const onMap = inside(nx, ny);
         if (onMap && ownerAt(nx, ny) === owner) continue;
