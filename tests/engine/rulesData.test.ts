@@ -59,6 +59,10 @@ describe('FR-028 job durations come from one table', () => {
     }
   });
 
+  it('FR-105 the unused DEVELOPMENT_CONFIG and CONSTRUCTION_CONFIG are gone: gameConstants holds only TIME_CONFIG', () => {
+    expect(Object.keys(gameConstants)).toEqual(['TIME_CONFIG']);
+  });
+
   it('FR-028 a farmer ordered on turn 1 to level 2 finishes when turn 4 begins', () => {
     let s = setTile(game(), T.farm1, { resource: { type: ResourceType.Grain, level: 1 } });
     s = put(s, workerId(N1, WorkerType.Farmer), T.farm1);
