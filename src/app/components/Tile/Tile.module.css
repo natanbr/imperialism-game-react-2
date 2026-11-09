@@ -1,8 +1,9 @@
 /*
  * Tile styles (42 px tiles, FR-088). Layout inside a tile:
  *   top left: level badge, job markers below it   top right: depot / port with status dot
- *   middle: the icon for what the tile holds       bottom: the workers, four to a row
- * The icon, badges and workers sit above MapView's rail and border overlay (z-index 1).
+ *   middle: the icon for what the tile holds       bottom right: the civilians, one 24 px button
+ * Stacking above MapView's rail and border overlay (z-index 1): the selection ring and the icons
+ * and badges (2), the civilians (3), the civilians' tray (6). The HUD (10) stays on top.
  */
 
 .tile {
@@ -28,6 +29,16 @@
   box-shadow: var(--shadow-lg);
 }
 
+/* The selected tile's accent ring (FR-087), its own element above the territory borders and rail
+   lines, so no shore border or rail covers it (FR-110). First in the tile, so badges stay on top. */
+.selectionRing {
+  position: absolute;
+  inset: 0;
+  box-shadow: inset 0 0 0 3px var(--color-selected);
+  z-index: 2;
+  pointer-events: none;
+}
+
 /* The icon for what the tile holds */
 .icon {
   position: absolute;
@@ -41,10 +52,11 @@
   pointer-events: none;
 }
 
+/* Civilians stand on the tile: the icon moves to the top centre, clear of their 24 px button */
 .iconCrowded {
-  top: 3px;
+  top: 1px;
   transform: translateX(-50%);
-  font-size: 16px;
+  font-size: 15px;
 }
 
 .river {
@@ -132,42 +144,104 @@
   color: var(--color-accent);
 }
 
-/* Workers: four 10 px buttons to a row along the bottom */
+/* Civilians: one 24 px button (or another nation's marker) in the bottom right corner, 5 px in,
+   so the count badge on its top right corner stays on the tile and clear of the tile's icon */
 .workers {
   position: absolute;
-  left: 1px;
-  right: 1px;
+  right: 5px;
   bottom: 1px;
   display: flex;
-  flex-wrap: wrap-reverse;
-  justify-content: center;
+  gap: 1px;
   z-index: 3;
 }
 
-.workerButton {
-  width: 10px;
-  height: 10px;
+/* The touch target of a worker button, the stack button and the marker: WCAG 2.2 target size (FR-110) */
+.workerTarget {
+  position: relative;
+  width: 24px;
+  height: 24px;
   padding: 0;
   display: grid;
   place-items: center;
-  font-size: 9px;
+  font-size: 16px;
   line-height: 0;
+  border-radius: 4px;
+}
+
+.workerButton {
   color: var(--color-ink);
-  border: none;
-  border-radius: 2px;
+  border: 1px solid var(--color-border-strong);
   background: var(--color-background-worker);
   cursor: pointer;
 }
 
 .workerButton:hover {
   color: var(--color-accent);
+  border-color: var(--color-accent);
 }
 
 .workerButtonSelected {
   background: var(--color-accent);
+  border-color: var(--color-accent);
   color: var(--color-on-accent);
 }
 
 .workerButtonSelected:hover {
   color: var(--color-on-accent);
+}
+
+/* Another nation's civilians: shown, not a control; a click on it is a click on the tile (FR-108) */
+.workerMarker {
+  color: var(--color-ink-muted);
+  background: var(--color-background-worker);
+  border: 1px dashed var(--color-border-strong);
+}
+
+/* How many civilians a stack or marker holds */
+.count {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 13px;
+  height: 13px;
+  padding: 0 2px;
+  border-radius: 7px;
+  background: var(--color-ink);
+  color: var(--color-surface-raised);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 13px;
+  text-align: center;
+}
+
+/* The tray of the selected tile's civilians, below it (above it on the bottom rows) */
+.tray {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  display: grid;
+  gap: 3px;
+  padding: 4px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 6px;
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-panel);
+}
+
+.trayStart {
+  left: 0;
+  transform: none;
+}
+
+.trayEnd {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+
+.trayAbove {
+  top: auto;
+  bottom: calc(100% + 2px);
 }

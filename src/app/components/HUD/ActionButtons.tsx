@@ -1,6 +1,6 @@
 import React from "react";
 import { useGameStore } from "@/store/rootStore";
-import { cameraOnCapital } from "../camera";
+import { centreOnCapital } from "@/hooks/mapActions";
 import { UI_ICONS } from "../icons";
 import { GameIcon } from "../GameIcon";
 
@@ -12,13 +12,6 @@ export const ActionButtons: React.FC = () => {
   const openTransportAllocation = useGameStore((s) => s.openTransportAllocation);
   const showGameOver = useGameStore((s) => s.showGameOver);
   const isOver = useGameStore((s) => s.game.gameOver !== undefined);
-  const moveCamera = useGameStore((s) => s.moveCamera);
-  // The capital back in the middle of the map area (FR-083), scrolled even if the store already agrees (FR-092)
-  const centreOnCapital = () => {
-    const { game, activeNationId } = useGameStore.getState();
-    const camera = cameraOnCapital(game, activeNationId);
-    if (camera) moveCamera(camera.x, camera.y);
-  };
 
   // One accent colour for the primary action, Advance Turn (FR-086); the rest are plain.
   return (

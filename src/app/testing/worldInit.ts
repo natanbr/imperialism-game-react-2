@@ -86,7 +86,8 @@ export function testNation(): Nation {
   return {
     id: START_NATION_ID,
     name: "Testland",
-    color: "#FF0000",
+    colorSlot: 1,
+    controller: "human",
     treasury: 10000,
     debt: 0,
     creditLimit: 5000,

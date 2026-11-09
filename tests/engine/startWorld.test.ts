@@ -9,6 +9,7 @@ import { resolveTurn } from '@/engine/turn/resolveTurn';
 import { getNeighborCoords } from '@/engine/map/mapHelpers';
 import { computeLogisticsTransport } from '@/engine/systems/logisticsSystem';
 import { CAPITAL_SITES, settleIsland } from '@/engine/world/startWorld';
+import { twoIslandsMap } from '@/engine/world/twoIslands';
 import type { Order } from '@/engine';
 import type { GameMap } from '@/types/Map';
 import { ResourceType } from '@/types/Resource';
@@ -105,8 +106,10 @@ describe('FR-080 a new game is a 24x16 sea with two islands', () => {
     }
   });
 
-  it('FR-080 every resource is at level 0 except on the capital\'s neighbours', () => {
-    const nextToCapital = new Set(neighbours(g.map, capital).map(key));
+  it('FR-080 FR-098 every resource is at level 0 except on the neighbours of the two capitals', () => {
+    const capitals = g.map.tiles.flat().filter(t => t.terrain === TerrainType.Capital);
+    expect(capitals.map(t => t.cityId)).toEqual(['capital-1', 'capital-2']);
+    const nextToCapital = new Set(capitals.flatMap(c => neighbours(g.map, c).map(key)));
     const raised = g.map.tiles.flat().filter(t => (t.resource?.level ?? 0) > 0).map(key);
     expect(raised.every(k => nextToCapital.has(k))).toBe(true);
   });
@@ -135,12 +138,13 @@ describe('FR-081 the player starts on island 1', () => {
     expect(island1.map(key)).toContain(key(capital));
     expect(isShore(g.map, capital)).toBe(true);
     expect(capital.workers).toHaveLength(7);
-    expect(g.map.tiles.flat().filter(t => t.workers.length > 0).map(key)).toEqual([key(capital)]);
+    const withOurWorkers = g.map.tiles.flat().filter(t => t.workers.some(w => w.nationId === 'nation-1'));
+    expect(withOurWorkers.map(key)).toEqual([key(capital)]);
   });
 
   it('FR-081 the nation owns every land tile of island 1 and no other tile', () => {
     expect(island1.filter(t => t.ownerNationId !== 'nation-1').map(key)).toEqual([]);
-    const ownedElsewhere = g.map.tiles.flat().filter(t => t.ownerNationId && t.x >= 12);
+    const ownedElsewhere = g.map.tiles.flat().filter(t => t.ownerNationId === 'nation-1' && t.x >= 12);
     expect(ownedElsewhere.map(key)).toEqual([]);
     expect(g.map.tiles.flat().filter(t => !isLand(t) && t.ownerNationId).map(key)).toEqual([]);
   });
@@ -170,9 +174,16 @@ describe('FR-081 the player starts on island 1', () => {
   });
 });
 
-describe('FR-082 island 2 is unclaimed, with a capital site for M4\'s second nation', () => {
-  it('FR-082 no tile of island 2 has an owner, a city or a worker', () => {
-    expect(island2.filter(t => t.ownerNationId || t.cityId || t.workers.length).map(key)).toEqual([]);
+describe('FR-082 the capital site on island 2, settled by M4\'s second nation', () => {
+  // FR-098 replaces FR-082's unclaimed island 2: the empty map still has nobody there, a new game
+  // gives the whole island to nation 2.
+  it('FR-082 FR-098 the empty map has no owner, city or worker on island 2; a new game gives it all to nation 2', () => {
+    const empty = twoIslandsMap();
+    expect(island2.filter(t => { const e = empty.tiles[t.y][t.x]; return e.ownerNationId || e.cityId || e.workers.length; }).map(key)).toEqual([]);
+    expect(island2.filter(t => t.ownerNationId !== 'nation-2').map(key)).toEqual([]);
+    const withWorkers = island2.filter(t => t.workers.length > 0);
+    expect(withWorkers.map(t => t.cityId)).toEqual(['capital-2']);
+    expect(withWorkers[0].workers.every(w => w.nationId === 'nation-2')).toBe(true);
   });
 
   it('FR-082 CAPITAL_SITES[1] is a flat shore tile of island 2, at the same place on its island as the capital', () => {

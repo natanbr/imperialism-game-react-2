@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // FR-048 to FR-050: the warehouse dialog and the HUD show display names, the date and the food warning.
 import { describe, it, expect } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import { WarehouseModal } from '@/components/WarehouseModal';
 import { FoodWarning, NewsPanel, TurnIndicator } from '@/components/HUD/index';
 import { useGameStore } from '@/store/rootStore';
@@ -10,6 +10,10 @@ import type { GameState } from '@/types/GameState';
 import { GoodsType, MaterialType, ResourceType } from '@/types/Resource';
 import { emptyWarehouse, game, N1, setIndustry, setTile, T } from '../engine/fixtures';
 import { text } from './domText';
+import { failOnActWarnings } from './actWarnings';
+
+// FR-110 (f): every test here fails on a React act() warning
+failOnActWarnings();
 
 function show(state: GameState, ui: Partial<ReturnType<typeof useGameStore.getState>> = {}) {
   useGameStore.setState({ ...useGameStore.getInitialState(), game: state, activeNationId: N1, ...ui });
@@ -45,7 +49,7 @@ describe('FR-048 FR-049 HUD', () => {
     const { rerender } = render(<TurnIndicator />);
     expect(text(screen.getByTestId('turn-indicator'))).toBe('Turn: 1 of 40 Spring 1815');
 
-    show(resolveTurn(g, {}, 1).state);
+    act(() => show(resolveTurn(g, {}, 1).state));
     rerender(<TurnIndicator />);
     expect(text(screen.getByTestId('turn-indicator'))).toBe('Turn: 2 of 40 Summer 1815');
   });

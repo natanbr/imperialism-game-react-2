@@ -70,14 +70,16 @@ test.describe('on a screen too small for the whole map', () => {
   });
 });
 
-test('FR-080 the whole map shows two islands, one capital, no coast tile', async ({ page }) => {
+test('FR-080 FR-098 the whole map shows two islands, a capital on each, no coast tile', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('/');
   await expect(page.getByTestId('map-scroll')).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
   await expect(tile(page, '2-9')).toBeInViewport({ timeout: 15000 });
 
   await expect(page.locator('[data-testid="tile"]')).toHaveCount(24 * 16);
-  await expect(page.locator('[data-terrain="capital"]')).toHaveCount(1);
+  // FR-098: nation 2's capital on island 2, at the same place as the player's on island 1
+  await expect(page.locator('[data-terrain="capital"]')).toHaveCount(2);
+  await expect(tile(page, '14-9')).toHaveAttribute('data-terrain', 'capital');
   await expect(page.locator('[data-terrain="coast"]')).toHaveCount(0);
   await expect(page.locator('[data-terrain="river"]')).toHaveCount(0);
   for (const id of ['0-0', '23-0', '0-15', '23-15', '14-9']) await expect(tile(page, id)).toBeInViewport();

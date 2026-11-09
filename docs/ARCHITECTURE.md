@@ -40,15 +40,17 @@ src/app/
                            (createIndustry, buildingOf, migrantCap), foodForecast.ts (the meal
                            this turn would serve)
     world/                 twoIslands.ts (the 24x16 two-island map as a text template,
-                           CAPITAL_SITES), startWorld.ts (start nation, settleIsland, civilians,
+                           CAPITAL_SITES), startWorld.ts (START_FOUNDINGS, foundNation, settleIsland, civilians,
                            START_TECHNOLOGIES)
     turn/                  resolveTurn.ts, phases.ts (TURN_PHASES), context.ts (TurnContext, GameEvent)
     systems/               one file per turn system, each (state, ctx) => state
     map/mapHelpers.ts      neighbours, adjacency, rail sites
     ai/scriptedPlayer.ts   a Player is (state, nationId) => Order[]
+    ai/players.ts          PLAYERS (controller -> Player) and computerOrders(state) (FR-099)
   store/
     rootStore.ts           createGameStore(options) and the app's useGameStore
-    gameSlice.ts           game, activeNationId, lastRejection, eventLog, submitOrder, advanceTurn
+    gameSlice.ts           game, activeNationId, lastRejection, eventLog, orderLog, submitOrder,
+                           advanceTurn, startNewGame
     controls/              UI slices: tile selection, camera, overlays, dialogs
     selectors.ts           memoized selectors (reselect)
   components/              React components; gameText.ts (display text: orders, refusals, news,
@@ -92,6 +94,8 @@ The store (`store/rootStore.ts`) holds that state under `game`, and UI state bes
 | `activeNationId` | the nation this client plays | session |
 | `lastRejection` | `{ order, reason }` of the last refused order | UI |
 | `eventLog` | `{ turn, year, events }` per resolved turn, last 20 | UI |
+| `orderLog` | `{ turn, nationId, orders }` per nation per resolved turn, all turns (FR-100) | session |
+| `ordersThisTurn` | the active nation's orders applied this turn, logged at End Turn | session |
 | `selectedTileId`, `selectedWorkerId`, `hoveredTileId` | selection | UI |
 | `cameraX`, `cameraY` | map scroll | UI |
 | `isWarehouseOpen`, `isCapitalOpen`, ... | overlays and dialogs | UI |
@@ -139,29 +143,35 @@ click / button / slider
 
 ## Turn flow (Advance Turn)
 
-Orders take effect when they are submitted, so the turn resolves with no orders from the UI:
+The human's orders take effect when they are submitted, so the turn resolves with no orders from the
+UI; the computer nations (controller not "human", FR-099) plan on that state and their orders
+resolve with the turn:
 
 ```
 store.advanceTurn()
-  -> resolveTurn(game, {}, game.seed)                    engine/turn/resolveTurn.ts
+  -> computerOrders(game)                                engine/ai/players.ts (nation 2: scriptedPlayer)
+  -> resolveTurn(game, computerOrders, game.seed)        engine/turn/resolveTurn.ts
        game over already?  return the same state; each given order -> order-rejected game-over
-       applyTurnOrders     orders given here, nations in state order (none from the UI)
+       applyTurnOrders     orders given here, nations in state order (the computer nations')
        TURN_PHASES         development, diplomacy, trade (deals, then prices), production
                            (freight cars first), combat, interceptions, transportConnectivity,
                            logistics, tradeDelivery (units bought), food
+       promoteFreightCars  the cars built this turn go into service (FR-101, NR-016)
        resetWorkers        everyone may move again; working only while the job is unfinished
        advanceClock        turn + 1, year + 1 after winter (turn 1 = Spring 1815)
        last turn?          turn == turnLimit (40): gameOver = { turn, year, scores }, game-over event
   <- { state, events }
-  -> game = state; eventLog += { turn, year, events }; lastRejection = null
+  -> game = state; eventLog += { turn, year, events }; orderLog += one entry per nation
+     (the human's applied orders, the computer nations' orders); lastRejection = null
 ```
 
 Why immediate: the UI must show the effect at once (the worker moves, the money goes), and
 `resolveTurn(s, { n: orders })` gives the same result as applying the orders first and resolving
 with none (tested in `tests/engine/resolveTurn.test.ts` and `tests/store/gameStore.test.ts`).
-The `ordersByNation` argument is the seam for other players: from M4 an AI nation's orders go in
-there, `resolveTurn(game, { [ai]: player(game, ai) }, game.seed)`. The store keeps no order log,
-so a played game cannot be replayed from the store alone (see the journal objection).
+The `ordersByNation` argument is the seam for other players: since M4 a computer nation's orders go
+in there, `resolveTurn(game, computerOrders(game), game.seed)`. The store's `orderLog` holds every
+nation's orders per turn in state order, so replaying it through `resolveTurn` from the start state
+gives the same game (`tests/store/computerNations.test.ts`).
 
 ## Randomness and replay
 
@@ -209,7 +219,8 @@ graph from the capital, depots and ports; `logisticsSystem` moves collected reso
 warehouse up to the capacity, following the player's allocation
 (`setTransportAllocations` order) and filling the rest greedily. Capacity is freight cars from
 the railyard: 1 lumber + 1 steel each when ordered and 2 labour each in the production phase
-(`changeTransportCapacity` order); the cars count for that turn's shipping.
+(`changeTransportCapacity` order); the production phase builds them and `promoteFreightCars` puts
+them in service after the phases, so they carry goods from the next turn (FR-101, NR-016).
 
 The rail graph per nation (`transportNetwork.railroadNetworks`, built in `systems/railroadSystem.ts`)
 has a node for every tile with rail, a depot, a port or the capital, linked to its neighbouring
@@ -287,8 +298,13 @@ shows `state.gameOver.scores` whenever the game is over, unless the player close
 (`isGameOverHidden`, reopened by the HUD's "Final scores"). After game over the HUD's Advance
 Turn is disabled and the store's `advanceTurn` returns at once, so no empty turn is logged. A tile is `components/Tile.tsx` plus
 sub-components in `components/Tile/` and three hooks: `useTileActions` (which action the
-selected worker offers, from `workers/*`), `useTileVisuals` (terrain tint, grid line, the
-selection ring and the cursor) and `useTileClickHandler` (the click, as orders). Look (M3.5 part B):
+selected worker offers, from `workers/*`), `useTileVisuals` (terrain tint, grid line and the
+cursor) and `useTileClickHandler` (the click, as orders). The selection ring is an element of
+`TileBase` above the border overlay (FR-110). `TileWorkers` draws the player's civilians as 24 px
+buttons (one alone, or a stack button with the count whose tray opens while the tile is selected and
+no worker is) and another nation's as a marker, not a button (FR-108, FR-110); the store's
+`selectWorker` / `setSelectedWorkerId` ignore any worker that is not the player's
+(`store/controls/playersWorker.ts`), and the HUD's tile panel shows another nation's tile read-only. Look (M3.5 part B):
 icons are Game Icons (CC BY 3.0, credited in the HUD's About panel) from `react-icons/gi`, named
 in `components/icons.ts` (per terrain, resource and worker type; `tileIconOf` picks the one a tile
 shows) and drawn by `GameIcon.tsx` with `data-icon`. Colours are CSS variables defined only in
@@ -296,8 +312,13 @@ shows) and drawn by `GameIcon.tsx` with `data-icon`. Colours are CSS variables d
 `HUD_PX` (a test checks both files agree, and that no colour literal sits in components, hooks or
 `globals.css`). MapView's SVG overlay draws each nation's territory border
 (`components/territoryBorders.ts`) and the rail, above the tile tints and below the tile icons.
-Cursors are still emoji SVG data URIs (`useTileVisuals`). The HUD shows "Turn: N of 40" and the date ("Spring 1815"), cash, the score, the
-food warning, the selected tile, the news of the last turn and the last refused order (`components/HUD/NewsPanel.tsx`). The
+Cursors are still emoji SVG data URIs (`useTileVisuals`). The HUD shows "Turn: N of 40" and the date ("Spring 1815"), cash, the score, every
+nation ranked by score with its colour swatch and name (`HUD/ScoreTable.tsx`, `NationSwatch.tsx`), the
+food warning, the selected tile, the news of the last turn and the last refused order (`components/HUD/NewsPanel.tsx`;
+`newsLines` puts the player's lines first and names the other nations on theirs). Its information
+scrolls on its own (`.hud-content`); the action buttons stay below it. New game (HUD, asked in place, and
+the game-over screen) calls `hooks/mapActions.ts` `startNewGameOnCapital`: the store's `startNewGame`
+clears the session (selection, dialogs, logs) and the camera goes back to the capital. The
 camera is the scroll position of MapView's container (FR-083), so the browser keeps it inside the
 map; the store's `cameraX`/`cameraY` mirror it (written on each scroll event) and `setCamera`
 scrolls the container. The first view and the HUD's Center button centre the capital

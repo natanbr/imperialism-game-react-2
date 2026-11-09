@@ -70,11 +70,12 @@ function produceNation(nation: Nation, ctx: TurnContext): Nation {
     ctx.emit({ type: "goods-produced", nationId: nation.id, output, amount });
   }
 
+  // The built cars wait in the pending count; promoteFreightCars puts them in service after every
+  // phase, so this turn's shipping uses the old capacity (FR-101, NR-016).
   return {
     ...nation,
     warehouse: stock as Nation["warehouse"],
-    transportCapacity: (nation.transportCapacity ?? 0) + cars,
-    transportCapacityPendingIncrease: 0,
+    transportCapacityPendingIncrease: cars,
     industry: promoteTrainees(nation.id, { ...industry, buildings: finishBuildings(nation.id, industry, ctx) }, ctx),
   };
 }

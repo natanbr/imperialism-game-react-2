@@ -12,7 +12,9 @@
   --hud-width: 250px;
 
   /* Palette (NR-009): parchment land, pale sea, dark grey ink, one accent, one colour per nation.
-     Muted, good and warn text keep 4.5:1 on the surfaces (FR-094, tests/ui/palette.test.ts). */
+     Muted, good, warn and danger text keep 4.5:1 on the surfaces (FR-094, FR-110). Nation 1 is a
+     crimson, apart from the red of "bad" and from nation 2's blue, also for colour-blind eyes (FR-110;
+     both checked in tests/ui/palette.test.ts). */
   --color-land: #f3ecda;
   --color-sea: #d4e4ec;
   --color-ink: #3b3b3b;
@@ -24,10 +26,10 @@
   --color-accent: #1f6f78;
   --color-accent-strong: #185a62;
   --color-on-accent: #ffffff;
-  --color-nation-1: #a8322d;
+  --color-nation-1: #9e2a5b;
   --color-nation-2: #2c5c9e;
   --color-good: #3b7530;
-  --color-bad: #c9483a;
+  --color-bad: #b23b2e;
   --color-warn: #9a6412;
   --color-highlight: #e3b341;
   --color-rail: #4a4a4a;

@@ -18,7 +18,8 @@ export const mockNations: Nation[] = [
   {
     id: "nation-1",
     name: "Britannia",
-    color: "#FF0000", // Red
+    colorSlot: 1,
+    controller: "human",
     treasury: 10000,
     debt: 0,
     creditLimit: 5000,
@@ -44,7 +45,8 @@ export const mockNations: Nation[] = [
   {
     id: "nation-2",
     name: "Germania",
-    color: "#0000FF", // Blue
+    colorSlot: 2,
+    controller: "human",
     treasury: 8000,
     debt: 0,
     creditLimit: 4000,
@@ -70,7 +72,8 @@ export const mockNations: Nation[] = [
   {
     id: "nation-3",
     name: "Francia",
-    color: "#00FF00", // Green
+    colorSlot: 3,
+    controller: "human",
     treasury: 900,
     debt: 0,
     creditLimit: 4500,

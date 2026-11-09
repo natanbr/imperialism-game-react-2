@@ -4,6 +4,7 @@
 import type { IconType } from "react-icons";
 import {
   GiAnchor,
+  GiAnticlockwiseRotation,
   GiBigWave,
   GiCapitol,
   GiCheckeredFlag,
@@ -26,6 +27,7 @@ import {
   GiHouse,
   GiInfo,
   GiMagnifyingGlass,
+  GiMeepleGroup,
   GiMiner,
   GiMountains,
   GiOak,
@@ -56,6 +58,7 @@ import { WorkerType } from "@/types/Workers";
 /** Every Game Icon the UI uses, by its export name. */
 export const GI = {
   GiAnchor,
+  GiAnticlockwiseRotation,
   GiBigWave,
   GiCapitol,
   GiCheckeredFlag,
@@ -78,6 +81,7 @@ export const GI = {
   GiHouse,
   GiInfo,
   GiMagnifyingGlass,
+  GiMeepleGroup,
   GiMiner,
   GiMountains,
   GiOak,
@@ -168,6 +172,9 @@ export const UI_ICONS = {
   advanceTurn: "GiPlayButton",
   finalScores: "GiCheckeredFlag",
   about: "GiInfo",
+  newGame: "GiAnticlockwiseRotation",
+  /** Several civilians on one tile: the stack button (FR-110) */
+  civilians: "GiMeepleGroup",
 } as const satisfies Record<string, IconName>;
 
 /**

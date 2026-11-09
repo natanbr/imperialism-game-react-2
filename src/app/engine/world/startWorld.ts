@@ -1,7 +1,8 @@
-// The world a new game starts with (FR-080 to FR-082). Test fixtures live in src/app/testing and
-// reuse the land and civilian helpers here.
+// The world a new game starts with (FR-080 to FR-082, FR-098). Test fixtures live in src/app/testing
+// and reuse the land and civilian helpers here.
+import type { CityId, NationId } from "@/types/Common";
 import type { GameMap } from "@/types/Map";
-import type { Nation } from "@/types/Nation";
+import type { Nation, NationController } from "@/types/Nation";
 import type { Technology } from "@/types/Technology";
 import { GoodsType, MaterialType, ResourceType, type WarehouseCommodities } from "@/types/Resource";
 import { TerrainType } from "@/types/Tile";
@@ -98,19 +99,37 @@ export function warehouseWith(stock: Partial<Record<WarehouseCommodities, number
   return warehouse;
 }
 
-/** The player's nation at the start of a game (rules 01 section 3 and 05 section 4). */
-export function createStartNation(): Nation {
+/** Who a new nation is and where it starts; everything else is the shared start kit (FR-098). */
+export interface NationFounding {
+  id: NationId;
+  name: string;
+  capitalId: CityId;
+  site: { x: number; y: number };
+  /** Its place in the founding order, 1 first: the map colour (FR-097). */
+  colorSlot: number;
+  controller: NationController;
+}
+
+/** The Great Powers of a new game, in founding order: the player on island 1, a scripted rival on island 2. */
+export const START_FOUNDINGS: readonly NationFounding[] = [
+  { id: START_NATION_ID, name: "Testland", capitalId: START_CAPITAL_ID, site: CAPITAL_SITES[0], colorSlot: 1, controller: "human" },
+  { id: "nation-2", name: "Valdoria", capitalId: "capital-2", site: CAPITAL_SITES[1], colorSlot: 2, controller: "scripted" },
+];
+
+/** A nation at the start of a game: the founding plus the start kit (rules 01 section 3 and 05 section 4). */
+function startNation({ id, name, capitalId, colorSlot, controller }: NationFounding): Nation {
   return {
-    id: START_NATION_ID,
-    name: "Testland",
-    color: "#FF0000",
+    id,
+    name,
+    colorSlot,
+    controller,
     treasury: START_TREASURY,
     debt: 0,
     creditLimit: 5000,
     relations: [],
     tradePolicies: [],
     grants: [],
-    cities: [START_CAPITAL_ID],
+    cities: [capitalId],
     provinces: [],
     armies: [],
     fleets: [],
@@ -193,7 +212,7 @@ function islandAt(map: GameMap, x: number, y: number): Set<string> {
  * A nation settles an island (FR-081, FR-082): its capital goes on `site`, the farms, orchards and
  * plantations next to it start at level 1 (rules 02: farms and orchards next to the capital start
  * at level 1; the plantation too, as on the 40x40 map), and it owns every land tile of the island.
- * Returns a new map. M4 settles its second nation with this on `CAPITAL_SITES[1]`.
+ * Returns a new map. `foundNation` settles each nation of a new game with this (FR-098).
  */
 export function settleIsland(map: GameMap, nationId: string, capitalCityId: string, site: { x: number; y: number }): GameMap {
   const island = islandAt(map, site.x, site.y);
@@ -213,9 +232,25 @@ export function settleIsland(map: GameMap, nationId: string, capitalCityId: stri
   return { ...map, tiles };
 }
 
-/** The two-island map with the player's nation settled on island 1 and its civilians on the capital. */
+/**
+ * Founds one Great Power (FR-098): the nation with the start kit, its island settled from
+ * `founding.site` and its seven civilians on the capital. Every nation of a new game is founded
+ * with this, so all start alike. Returns a new map and the nation.
+ */
+export function foundNation(map: GameMap, founding: NationFounding): { map: GameMap; nation: Nation } {
+  const nation = startNation(founding);
+  const settled = settleIsland(map, founding.id, founding.capitalId, founding.site);
+  return { map: placeStartCivilians(settled, [nation]), nation };
+}
+
+/** The two-island map with each nation of START_FOUNDINGS founded on its island, in founding order. */
 export function startWorld(): { map: GameMap; nations: Nation[] } {
-  const nations = [createStartNation()];
-  const settled = settleIsland(twoIslandsMap(), START_NATION_ID, START_CAPITAL_ID, CAPITAL_SITES[0]);
-  return { map: placeStartCivilians(settled, nations), nations };
+  let map = twoIslandsMap();
+  const nations: Nation[] = [];
+  for (const founding of START_FOUNDINGS) {
+    const founded = foundNation(map, founding);
+    map = founded.map;
+    nations.push(founded.nation);
+  }
+  return { map, nations };
 }

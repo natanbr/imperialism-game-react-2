@@ -128,15 +128,23 @@ svg[data-icon] {
   padding: 12px;
   box-shadow: var(--shadow-panel);
   z-index: 10;
-  overflow-y: auto;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   font-size: 14px;
 }
 
+/* The HUD's information scrolls on its own; the action buttons below it never scroll away */
+.hud-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
 .hud-header {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: 8px;
@@ -159,6 +167,7 @@ svg[data-icon] {
   background: var(--color-bg-button);
   color: var(--color-ink);
   font-size: 12px;
+  white-space: nowrap;
   cursor: pointer;
 }
 
@@ -183,7 +192,77 @@ svg[data-icon] {
   align-items: center;
 }
 
+.tile-note {
+  color: var(--color-ink-muted);
+  font-size: 12px;
+}
+
+.hud-header-actions {
+  display: flex;
+  gap: 4px;
+}
+
+/* New game asks in place before it throws the game away (FR-109) */
+.confirm-panel {
+  margin-bottom: 8px;
+  padding: 8px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  font-size: 13px;
+}
+
+.confirm-panel p {
+  margin: 0 0 6px;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 6px;
+}
+
+/* Every nation's score, ranked (FR-106) */
+.score-table {
+  width: 100%;
+  margin-bottom: 8px;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.score-table th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--color-ink-muted);
+  border-bottom: 1px solid var(--color-border);
+  padding: 0 4px 2px;
+}
+
+.score-table td {
+  padding: 2px 4px;
+}
+
+.score-table .score-number {
+  text-align: right;
+}
+
+.score-you {
+  background: var(--color-bg-you);
+}
+
+/* A nation's colour beside its name: never the only cue (FR-106) */
+.nation-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
+  border-radius: 2px;
+  vertical-align: -1px;
+}
+
 .hud-debug-section {
+  margin-top: 8px;
   margin-bottom: 8px;
   padding: 8px;
   border: 1px dashed var(--color-border-strong);
@@ -222,9 +301,16 @@ svg[data-icon] {
 }
 
 .action-buttons-container {
-  margin-top: 12px;
+  flex: none;
+  margin-top: 8px;
   display: grid;
-  gap: 8px;
+  gap: 6px;
+}
+
+/* Compact, so the HUD's information above keeps most of the height (FR-106, FR-108) */
+.action-buttons-container .btn {
+  padding: 6px 10px;
+  font-size: 13px;
 }
 
 /* Buttons: one accent colour for the primary action, the rest plain (FR-086) */
@@ -280,7 +366,7 @@ svg[data-icon] {
 .btn-danger {
   background: var(--color-bg-button);
   border-color: var(--color-bad);
-  color: var(--color-bad);
+  color: var(--color-text-danger);
 }
 
 .btn-danger:hover:not(:disabled) {

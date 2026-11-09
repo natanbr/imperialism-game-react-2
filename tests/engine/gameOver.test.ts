@@ -29,6 +29,19 @@ describe('FR-068 game length', () => {
     expect(turnLimitOf({ ...game(), turnLimit: 7 })).toBe(7);
   });
 
+  it('FR-105 newGame clamps the turn limit to a whole number from 1 to 400; a value that is not a finite number gives 40', () => {
+    const limit = (turnLimit: number) => engineNewGame({ seed: 1, turnLimit }).turnLimit;
+    expect([0, -5, 0.5, 1, 2.7, 400, 401, 1e9].map(limit)).toEqual([1, 1, 1, 1, 2, 400, 400, 400]);
+    expect([NaN, Infinity, -Infinity].map(limit)).toEqual([40, 40, 40]);
+    expect(engineNewGame({ seed: 1, turnLimit: undefined }).turnLimit).toBe(40);
+  });
+
+  it('FR-105 a NaN turn limit still ends the game after turn 40', () => {
+    let s = { ...engineNewGame({ seed: 1, turnLimit: NaN }), turn: 40, year: 1824 };
+    s = resolve(s).state;
+    expect(s.gameOver).toMatchObject({ turn: 40 });
+  });
+
   it('FR-027 FR-068 turn 40 is Winter 1824, the season before the first Council meeting (Spring 1825)', () => {
     expect(seasonOf(40)).toBe('winter');
     let s = game();

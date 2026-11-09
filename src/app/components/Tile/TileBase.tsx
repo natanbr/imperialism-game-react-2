@@ -11,7 +11,6 @@ export interface TileBaseProps {
   hasRiver: boolean;
   backgroundColor: string;
   border: string;
-  boxShadow: string | undefined;
   isSelected: boolean;
   cursor: string;
   hasJobCompleted: boolean;
@@ -20,7 +19,8 @@ export interface TileBaseProps {
 }
 
 /**
- * The tile's faint terrain tint and grid line (FR-086); the selected tile adds the accent ring (FR-087).
+ * The tile's faint terrain tint and grid line (FR-086); the selected tile adds the accent ring (FR-087)
+ * as an element of its own, drawn above the territory borders and rail (FR-110).
  */
 const TileBaseInner: React.FC<TileBaseProps> = ({
   tileId,
@@ -29,7 +29,6 @@ const TileBaseInner: React.FC<TileBaseProps> = ({
   hasRiver,
   backgroundColor,
   border,
-  boxShadow,
   isSelected,
   cursor,
   hasJobCompleted,
@@ -45,9 +44,10 @@ const TileBaseInner: React.FC<TileBaseProps> = ({
       data-terrain={terrain}
       data-selected={isSelected ? 'true' : undefined}
       className={`${styles.tile} ${hasJobCompleted ? styles.tileJobCompleted : ''}`}
-      style={{ backgroundColor, border, boxShadow, cursor }}
+      style={{ backgroundColor, border, cursor }}
       onClick={onClick}
     >
+      {isSelected && <span className={styles.selectionRing} data-testid="selection-ring" aria-hidden="true" />}
       {hasRiver && (
         <span className={styles.river} title="River">
           <GameIcon name="GiRiver" />

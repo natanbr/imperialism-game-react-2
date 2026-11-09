@@ -13,19 +13,6 @@ export const TIME_CONFIG = {
   STARTING_YEAR: 1815,
   STARTING_TURN: 1,
   TURN_LIMIT: 40,
-} as const;
-
-/**
- * Development configuration. Job durations live only in `definisions/workerDurations.ts` (FR-028).
- */
-export const DEVELOPMENT_CONFIG = {
-  MAX_RESOURCE_LEVEL: 3,
-  MIN_RESOURCE_LEVEL: 0,
-} as const;
-
-/**
- * Construction configuration. Job durations live only in `definisions/workerDurations.ts` (FR-028).
- */
-export const CONSTRUCTION_CONFIG = {
-  MAX_FORT_LEVEL: 3,
+  /** The longest game `newGame` accepts (FR-105); the original runs about 400 turns, 1815 to 1915. */
+  MAX_TURN_LIMIT: 400,
 } as const;

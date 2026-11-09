@@ -5,7 +5,7 @@ import { createCameraSlice, CameraSlice } from './controls/cameraSlice';
 import { createOverlaySlice, OverlaySlice } from './controls/overlaySlice';
 import { ControlsSlice, createControlsSlice } from './controls/controlsSlice';
 
-export { EVENT_LOG_TURNS, randomSeed, type OrderRejection, type TurnReport } from './gameSlice';
+export { EVENT_LOG_TURNS, randomSeed, type OrderLogEntry, type OrderRejection, type TurnReport } from './gameSlice';
 
 /** One engine GameState (`game`) plus UI state: session, selection, camera, overlays, dialogs. */
 export type GameStore =

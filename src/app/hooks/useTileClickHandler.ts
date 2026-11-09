@@ -6,8 +6,9 @@ import { useGameStore } from '@/store/rootStore';
 import { moveOrders, submitFirstAccepted, tileClickOrders } from './tileClickOrders';
 
 /**
- * Click handler for a tile. With a worker selected, the click becomes orders (see
- * tileClickOrders) sent through the store's submitOrder; otherwise it selects the tile.
+ * Click handler for a tile. A tile of another nation is only selected for viewing (FR-108). With a
+ * worker selected, the click becomes orders (see tileClickOrders) sent through the store's
+ * submitOrder; otherwise it selects the tile.
  *
  * @param tile - The tile being clicked
  * @param selectedWorker - The currently selected worker (if any)
@@ -28,6 +29,12 @@ export function useTileClickHandler(
       selectWorker,
       selectTile,
     } = useGameStore.getState();
+
+    // Another nation's tile is only viewed (FR-108): no order, so no refusal in the news
+    if (tile.ownerNationId && tile.ownerNationId !== activeNationId) {
+      selectTile(tile.id);
+      return;
+    }
 
     if (selectedWorker && possibleAction) {
       if (possibleAction.type === 'open-construct-modal' && selectedWorker.assignedTileId === tile.id) {

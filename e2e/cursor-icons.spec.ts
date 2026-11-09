@@ -1,5 +1,8 @@
 import { test, expect, Page } from '@playwright/test';
 
+/** The tray of the player's civilians on the capital 2-9 (FR-110); picking one closes it. */
+const openCapitalTray = (page: Page) => page.locator('[data-tile-id="2-9"] [data-testid="worker-stack"]').click();
+
 /** Number of tiles whose computed cursor is the given emoji cursor (see emojiToCursor in useTileVisuals). */
 const countTilesWithEmojiCursor = (page: Page, emoji: string) =>
   page.locator('[data-testid="tile"]').evaluateAll(
@@ -15,7 +18,10 @@ test.describe('Cursor Icon Functionality', () => {
     // a click before that lands where the scroll moves the map
     await page.waitForSelector('[data-testid="tile"]', { timeout: 15000 });
     await expect(page.getByTestId('map-scroll')).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
-    await expect(page.locator('[data-testid="tile"][data-terrain="capital"]')).toBeInViewport({ timeout: 15000 });
+    // The player's capital: since M4 nation 2 has one on island 2 too (FR-098)
+    await expect(page.locator('[data-testid="tile"][data-tile-id="2-9"]')).toBeInViewport({ timeout: 15000 });
+    // FR-110: the capital's civilians are one stack button; open its tray so each has a button
+    await openCapitalTray(page);
   });
 
   test('should show default cursor when no worker is selected', async ({ page }) => {
@@ -94,10 +100,9 @@ test.describe('Cursor Icon Functionality', () => {
     // Click on the engineer's tile to open construction modal
     await engineer.click();
 
-    // The tile the engineer is on should have a construction cursor
-    const engineerTile = page.locator('[data-testid="tile"]').filter({
-      has: engineer
-    }).first();
+    // The tile the engineer is on should have a construction cursor: the capital, where the tray was
+    // (picking the engineer closed the tray, so the tile is found by its id)
+    const engineerTile = page.locator('[data-testid="tile"][data-tile-id="2-9"]');
 
     await engineerTile.hover();
 
@@ -128,7 +133,8 @@ test.describe('Cursor Icon Functionality', () => {
       return window.getComputedStyle(el).cursor;
     });
 
-    // Select second worker
+    // Select second worker: picking the first closed the tray, so open it again
+    await openCapitalTray(page);
     await workers.nth(1).click();
     await testTile.hover();
 

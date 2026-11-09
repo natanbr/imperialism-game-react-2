@@ -1,5 +1,6 @@
 import { StateCreator } from "zustand";
 import {
+  computerOrders,
   isGameOver,
   newGame,
   resolveTurn,
@@ -29,9 +30,17 @@ export interface OrderRejection {
   reason: RejectReason;
 }
 
+/** One nation's orders for one resolved turn (FR-100); the log of these replays the game. */
+export interface OrderLogEntry {
+  turn: number;
+  nationId: NationId;
+  orders: Order[];
+}
+
 /**
  * The game and the session around it. `game` is the only state the engine sees; everything else
- * here is UI state (FR-018). The UI changes `game` only through `submitOrder` and `advanceTurn`.
+ * here is UI state (FR-018). The UI changes `game` only through `submitOrder` and `advanceTurn`, and
+ * replaces it with `startNewGame`.
  */
 export interface GameSlice {
   game: GameState;
@@ -41,11 +50,20 @@ export interface GameSlice {
   lastRejection: OrderRejection | null;
   /** Oldest first, at most EVENT_LOG_TURNS entries. */
   eventLog: TurnReport[];
+  /** Every nation's orders of every resolved turn, oldest first (FR-100). */
+  orderLog: OrderLogEntry[];
+  /** The active nation's orders applied this turn, in order; logged at End Turn (FR-100). */
+  ordersThisTurn: Order[];
 
   /** Validates the order against `game` and, if valid, applies it now (FR-020). */
   submitOrder: (order: Order) => ValidationResult;
-  /** Resolves the turn: `resolveTurn(game, {}, game.seed)`, then logs its events (FR-021); nothing after game over (FR-077). */
+  /**
+   * Resolves the turn with the computer nations' orders (FR-099) and logs its events (FR-021) and
+   * every nation's orders (FR-100); nothing after game over (FR-077).
+   */
   advanceTurn: () => void;
+  /** Replaces the game with a new one and clears what belonged to the old one (FR-105, FR-109). */
+  startNewGame: (options?: { seed?: number; turnLimit?: number }) => void;
 }
 
 export interface GameSliceOptions {
@@ -68,26 +86,66 @@ export const createGameSlice =
       activeNationId: options.activeNationId ?? game.nations[0]?.id ?? "nation-1",
       lastRejection: null,
       eventLog: [],
+      orderLog: [],
+      ordersThisTurn: [],
 
       submitOrder: (order) => {
-        const { game: current, activeNationId } = get();
+        const { game: current, activeNationId, ordersThisTurn } = get();
         const { state, result } =
           order.nationId === activeNationId
             ? tryApplyOrder(current, order)
             : { state: current, result: { ok: false, reason: "not-owner" } as const };
-        if (result.ok) set({ game: state, lastRejection: null });
+        if (result.ok) set({ game: state, lastRejection: null, ordersThisTurn: [...ordersThisTurn, order] });
         else set({ lastRejection: { order, reason: result.reason } });
         return result;
       },
 
-      // Orders were applied when submitted, so the turn resolves with none (ARCHITECTURE.md, turn flow).
+      // The human's orders were applied when submitted; the computer nations plan on that state and
+      // their orders resolve with the turn (FR-099, ARCHITECTURE.md turn flow).
       advanceTurn: () => {
-        const { game: current, eventLog } = get();
+        const { game: current, eventLog, orderLog, ordersThisTurn, activeNationId } = get();
         // After the end resolveTurn is a no-op that would still log an empty turn (FR-077).
         if (isGameOver(current)) return;
-        const { state, events } = resolveTurn(current, {}, current.seed);
+        const computer = computerOrders(current);
+        const { state, events } = resolveTurn(current, computer, current.seed);
         const report: TurnReport = { turn: current.turn, year: current.year, events };
-        set({ game: state, eventLog: [...eventLog, report].slice(-EVENT_LOG_TURNS), lastRejection: null });
+        // In state order, the order resolveTurn applies them in, so the log replays the game (FR-100).
+        const logged = current.nations.map((n): OrderLogEntry => ({
+          turn: current.turn,
+          nationId: n.id,
+          orders: n.id === activeNationId ? ordersThisTurn : (computer[n.id] ?? []),
+        }));
+        set({
+          game: state,
+          eventLog: [...eventLog, report].slice(-EVENT_LOG_TURNS),
+          orderLog: [...orderLog, ...logged],
+          ordersThisTurn: [],
+          lastRejection: null,
+        });
+      },
+
+      // Nothing of the old game's session survives: selection, dialogs, news, logs (FR-105, FR-109).
+      startNewGame: ({ seed, turnLimit } = {}) => {
+        const next = newGame({ seed: seed ?? randomSeed(), turnLimit });
+        set({
+          game: next,
+          activeNationId: next.nations[0]?.id ?? "nation-1",
+          lastRejection: null,
+          eventLog: [],
+          orderLog: [],
+          ordersThisTurn: [],
+          isGameOverHidden: false,
+          selectedTileId: undefined,
+          hoveredTileId: undefined,
+          selectedWorkerId: undefined,
+          isCapitalOpen: false,
+          isMarketOpen: false,
+          isWarehouseOpen: false,
+          isTransportAllocationOpen: false,
+          isConstructionModalOpen: false,
+          constructionModalTileId: null,
+          constructionModalWorkerId: null,
+        });
       },
     };
   };

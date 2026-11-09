@@ -12,7 +12,7 @@ import { newGame, play, PlayedTurn, replay } from './headless';
 const tradeOrders = (orders: Order[]) => orders.filter(o => o.kind === 'sellCommodity' || o.kind === 'buyCommodity');
 
 describe('FR-070 the scripted player trades', () => {
-  it('FR-070 on turn 1 each nation bids for the steel and lumber inputs it lacks, within its holds (5 and 3)', () => {
+  it('FR-070 FR-105 on turn 1 each nation bids for the coal, iron ore and timber it lacks, within its holds (5 and 3)', () => {
     const state = newGame(11);
 
     expect(tradeOrders(scriptedPlayer(state, 'nation-1'))).toEqual([

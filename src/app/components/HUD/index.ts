@@ -4,3 +4,4 @@ export * from "./ActionButtons";
 export * from "./NewsPanel";
 export * from "./FoodWarning";
 export * from "./ScoreIndicator";
+export * from "./ScoreTable";

@@ -7,13 +7,10 @@ export interface TileVisuals {
   terrainColor: string;
   /** The same faint grid line on every tile: ownership is the border overlay (FR-087). */
   border: string;
-  /** The accent ring of the selected tile, a style no other tile has (FR-087). */
-  boxShadow: string | undefined;
   cursor: string;
 }
 
 const GRID_BORDER = `1px solid ${THEME.line}`;
-const SELECTED_RING = `inset 0 0 0 3px ${THEME.accent}`;
 
 /**
  * Convert an emoji to a cursor data URI
@@ -77,24 +74,21 @@ function getCursorForAction(possibleAction: PossibleAction): string {
 }
 
 /**
- * Hook to compute visual properties for a tile
+ * Hook to compute visual properties for a tile. The selection ring is TileBase's own element (FR-110).
  *
  * @param tile - The tile to compute visuals for
- * @param isSelected - Whether this tile is currently selected
  * @param possibleAction - The action that can be performed on this tile
  * @returns Visual properties for rendering the tile
  */
 export function useTileVisuals(
   tile: Tile,
-  isSelected: boolean,
   possibleAction: PossibleAction
 ): TileVisuals {
   return useMemo(() => {
     return {
       terrainColor: TERRAIN_TINT[tile.terrain] ?? THEME.land,
       border: GRID_BORDER,
-      boxShadow: isSelected ? SELECTED_RING : undefined,
       cursor: getCursorForAction(possibleAction),
     };
-  }, [tile.terrain, isSelected, possibleAction]);
+  }, [tile.terrain, possibleAction]);
 }

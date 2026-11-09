@@ -5,10 +5,13 @@ import { dateText } from "./gameText";
 import styles from "./market/Market.module.css";
 import { UI_ICONS } from "./icons";
 import { GameIcon } from "./GameIcon";
+import { NationSwatch } from "./NationSwatch";
+import { startNewGameOnCapital } from "@/hooks/mapActions";
 
 /**
  * The end of the game (FR-076): the recorded final scores (`state.gameOver`), ranked, with their
- * three parts. Shown whenever the game is over unless the player closed it to look at the map.
+ * three parts, each nation named beside its colour (FR-106). Shown whenever the game is over unless
+ * the player closed it to look at the map; New game starts the next one at once (FR-109).
  */
 export const GameOverModal: React.FC = () => {
   const gameOver = useGameStore((s) => s.game.gameOver);
@@ -19,7 +22,7 @@ export const GameOverModal: React.FC = () => {
 
   if (!gameOver || hidden) return null;
 
-  const nameOf = (id: string) => nations.find((n) => n.id === id)?.name ?? id;
+  const nationOf = (id: string) => nations.find((n) => n.id === id);
 
   return (
     <div className={styles.overlay}>
@@ -51,7 +54,8 @@ export const GameOverModal: React.FC = () => {
                 <tr key={score.nationId} className={you ? styles.you : undefined} data-testid={`final-score-${score.nationId}`}>
                   <td data-testid="rank">{i + 1}</td>
                   <td data-testid="nation">
-                    {nameOf(score.nationId)}
+                    <NationSwatch slot={nationOf(score.nationId)?.colorSlot} />
+                    {nationOf(score.nationId)?.name ?? score.nationId}
                     {you ? " (you)" : ""}
                   </td>
                   <td className={styles.number} data-testid="treasury">{score.points.treasury}</td>
@@ -67,8 +71,11 @@ export const GameOverModal: React.FC = () => {
         </table>
 
         <div className={styles.footer}>
-          <button className={styles.primaryButton} onClick={hide}>
+          <button className={styles.plainButton} onClick={hide}>
             Back to the map
+          </button>
+          <button className={styles.primaryButton} onClick={startNewGameOnCapital}>
+            <GameIcon name={UI_ICONS.newGame} /> New game
           </button>
         </div>
       </div>

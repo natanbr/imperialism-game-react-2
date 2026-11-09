@@ -27,9 +27,9 @@ describe('FR-080 FR-081 the engine owns the start of a game', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('FR-081 a new game: one nation with $10,000, 4/2/1 workers, 15 freight cars, the six mills and factories, a start warehouse', () => {
+  it('FR-081 FR-098 a new game: nation 1 (of two) with $10,000, 4/2/1 workers, 15 freight cars, the six mills and factories, a start warehouse', () => {
     const g = newGame({ seed: 7 });
-    expect(g.nations).toHaveLength(1);
+    expect(g.nations.map(n => n.id)).toEqual(['nation-1', 'nation-2']);
     const n = g.nations[0];
 
     expect(n.treasury).toBe(10000);

@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 // FR-075, FR-076: the HUD shows the score and the game length; the game-over screen shows the final
 // ranked scores and the Advance Turn button is disabled after the end.
-import { describe, it, expect } from 'vitest';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { ActionButtons, FoodWarning, ScoreIndicator, TurnIndicator } from '@/components/HUD/index';
 import { GameOverModal } from '@/components/GameOverModal';
 import { useGameStore } from '@/store/rootStore';
@@ -10,6 +10,10 @@ import { resolveTurn, scoreOf } from '@/engine';
 import type { GameState } from '@/types/GameState';
 import { emptyWarehouse, game, N1, N2, setIndustry, setTile, setTreasury, T } from '../engine/fixtures';
 import { text } from './domText';
+import { actWarnings, failOnActWarnings } from './actWarnings';
+
+// FR-110 (f): every test here fails on a React act() warning
+failOnActWarnings();
 
 function show(state: GameState, ui: Partial<ReturnType<typeof useGameStore.getState>> = {}) {
   useGameStore.setState({ ...useGameStore.getInitialState(), game: state, activeNationId: N1, ...ui });
@@ -42,7 +46,7 @@ describe('FR-075 HUD score and game length', () => {
     const { rerender } = render(<TurnIndicator />);
     expect(text(screen.getByTestId('turn-indicator'))).toBe('Turn: 1 of 40 Spring 1815');
 
-    show({ ...game(), turnLimit: 7 });
+    act(() => show({ ...game(), turnLimit: 7 }));
     rerender(<TurnIndicator />);
     expect(text(screen.getByTestId('turn-indicator'))).toBe('Turn: 1 of 7 Spring 1815');
   });
@@ -63,7 +67,7 @@ describe('FR-075 food warning after the end', () => {
     const { rerender } = render(<FoodWarning />);
     expect(screen.getByTestId('food-warning')).toBeTruthy();
 
-    show({ ...short, gameOver: { turn: 40, year: 1824, scores: [] } });
+    act(() => show({ ...short, gameOver: { turn: 40, year: 1824, scores: [] } }));
     rerender(<FoodWarning />);
     expect(screen.queryByTestId('food-warning')).toBeNull();
   });
@@ -130,8 +134,17 @@ describe('FR-076 game-over screen', () => {
     expect((screen.getByRole('button', { name: /Advance Turn/ }) as HTMLButtonElement).disabled).toBe(false);
     expect(screen.queryByRole('button', { name: /Final scores/ })).toBeNull();
 
-    show(finished());
+    act(() => show(finished()));
     rerender(<ActionButtons />);
     expect((screen.getByRole('button', { name: /Advance Turn/ }) as HTMLButtonElement).disabled).toBe(true);
+  });
+});
+
+describe('FR-110 (f) no act() warning in the M3 UI tests', () => {
+  it("FR-110 (f) the check recognises React's act() warning and ignores other errors", () => {
+    const spy = vi.fn<typeof console.error>();
+    spy('An update to %s inside a test was not wrapped in act(...).', 'HUD');
+    spy('Warning: something else');
+    expect(actWarnings(spy as never)).toEqual(['An update to %s inside a test was not wrapped in act(...). HUD']);
   });
 });

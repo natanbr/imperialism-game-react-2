@@ -2,6 +2,8 @@
 import type { RailLink } from "@/engine";
 
 export interface RailSegment {
+  /** Whose rail graph the link is in. */
+  nationId: string;
   x1: number;
   y1: number;
   x2: number;
@@ -18,9 +20,9 @@ export function computeRailSegmentsPixels(links: readonly RailLink[], tileSize =
     cx: x * tileSize + (y % 2 === 1 ? rowShift : 0) + tileSize / 2,
     cy: y * tileSize + tileSize / 2,
   });
-  return links.map(({ from, to }) => {
+  return links.map(({ nationId, from, to }) => {
     const a = centre(from.x, from.y);
     const b = centre(to.x, to.y);
-    return { x1: a.cx, y1: a.cy, x2: b.cx, y2: b.cy };
+    return { nationId, x1: a.cx, y1: a.cy, x2: b.cx, y2: b.cy };
   });
 }
