@@ -16,6 +16,10 @@
 - 2026-11-09 M4 part B (UI, FR-106 to FR-110) on the same branch, pushed, no PR yet: score table, news
   per nation, Valdoria read-only, New game, 24 px worker buttons, ring above the borders, palette fixes.
   Next: the M4 review (one reviewer, the whole branch), then the PR.
+- 2026-11-09 M4 review fix round on the same branch, pushed, no PR yet: fix items 1 to 6 done (FR-108
+  click on another nation's tile, wider palette scan, act() check, FR-097 wording, FR-111 keyboard use of
+  the tray and New game, FR-106 layout line); review note 5 carried to M5. Next: check the fix commits,
+  then the PR.
 
 Carried forward:
 - Deferred: river ports and the depot-on-port rule (rules 04); University fees; the power plant.
@@ -24,6 +28,9 @@ Carried forward:
 - For the M4 review: the scripted player rails most of island 2 by turn 40 (a dense triangle mesh on the
   map, `docs/journal/m4-game-over.png`) and ends with about $1,500; v3 may want a rail budget.
 - The M3.5 review items (2), (3), (4), (5) and (7) are done in M4 part B (FR-110).
+- M5 design item (M4 review note 5, not fixed in the fix round): a civilian's 24 px button covers the
+  tile's centre, so a click there hits the button instead of the tile (the e2e depot step clicks the
+  corner). Needs a design for where a click on a tile with civilians goes.
 
 ## 2026-11-02 Revival setup
 
@@ -259,3 +266,28 @@ and stay below it, and the Debug box moved after the news).
 | Types | `npx tsc --noEmit` | exit 0, no output |
 | Build | `npm run build` (dev server stopped first) | `✓ Compiled successfully in 8.7s`, `✓ Generating static pages (4/4)` |
 | Smoke | `PORT=3170 npx playwright test --workers=1 --reporter=line` | `1 skipped` / `17 passed (3.1m)`; the skip is the old `test.fixme` rail cursor (+2 tests: `two-nations.spec.ts`) |
+
+## 2026-11-09 M4 review fix round
+
+Size: M (six review items). One agent (Opus 5.5), no subagents, no advisor calls; ultracode was not on.
+Branch `claude/m4-two-nations` from b1e6236, worktree `.claude/worktrees/decisions`. Tests first: each
+new test was run red on the old code before the fix (quoted below).
+
+| Item | Change | Test (title cites the FR) | Red before green |
+|---|---|---|---|
+| 1 FR-108 | `useTileClickHandler`: a tile owned by another nation is only selected, no order | `watchNation.test.tsx` FR-108 "every order the UI builds…": the click on 14-8 with the engineer selected builds no order, `lastRejection` stays null, 14-8 selected | `expected [ { kind: 'moveWorker', …(3) } ] to have a length of +0 but got 1` |
+| 2 FR-110 (e) | Palette scan: named colours in any case, `filter` / `backdrop-filter`, `background-image`, `border-inline-*` / `border-block-*` (and camelCase), `scrollbar-color`, `column-rule`, `-webkit-text-fill-color`, Tailwind `text-[red]` / `bg-[#fff]`; in `.css` files any named colour, hex or colour function on any line, comments blanked | `palette.test.ts` FR-110 self-check: 21 new samples and 5 next-line CSS samples flagged; `var(--color-x)`, `transparent`, `currentColor`, `inherit`, `white-space`, `text-[14px]`, `.filter(` not flagged | planted `border-inline-start:` / `2px solid Red;` in `Tile.module.css` was reported as `Tile.module.css:250`; nothing in `src/app` newly flagged, so no token change |
+| 3 FR-110 (f) | `tests/ui/actWarnings.ts`: `failOnActWarnings()` spies on `console.error`, `afterEach` fails with "FR-110 (f) no act() warning" | used by `scoreAndGameOver.test.tsx` and `warehouseAndHud.test.tsx`; FR-110 (f) self-check of the matcher | a planted store update outside `act()` failed with `FR-110 (f) no act() warning: expected [ Array(1) ] to deeply equal []` |
+| 4 FR-097 | Row now reads crimson #9e2a5b and blue #2c5c9e, "values set by FR-110 (c)" | `palette.test.ts` FR-097: the hex values in the requirements row equal `tokens.css` | the old row named no values (the test reads `[]`) |
+| 5 FR-111 (new) | `TileWorkers`: focus back to the stack after a pick or Escape, Escape closes the tray, stack name "7 civilians, engineer selected", `aria-pressed`; HUD toggle `aria-expanded` / `aria-controls`, focus to the confirm panel (not to Start new game, so a stray Enter does not end the game) | `watchNation.test.tsx` FR-111, 3 tests | with the source change reverted: `Tests 3 failed / 17 passed (20)` |
+| 6 FR-106 | One line on the HUD layout (scrolling content, fixed compact actions, Debug below the news, plain "Back to the map") | not covered: no test checks the layout; the e2e only clicks "Back to the map" by name | n/a |
+| Note 5 | Not fixed; in Carried forward as an M5 design item | n/a | n/a |
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| Unit tests | `npm test` | `Test Files 49 passed (49)` / `Tests 719 passed (719)` (+5 on 714) |
+| No `act()` warning | `npm test`, output searched for "not wrapped in act" | 0 matches |
+| Lint | `npm run lint` | `✖ 3 problems (0 errors, 3 warnings)` (the same 3, in files not touched) |
+| Types | `npx tsc --noEmit` | exit 0, no output |
+| Build | `npm run build` | `✓ Compiled successfully in 4.4s`, `✓ Generating static pages (4/4)` |
+| Smoke | `PORT=3173 npx playwright test --workers=1` | `1 skipped` / `17 passed (1.3m)`; the skip is the old `test.fixme` rail cursor |
