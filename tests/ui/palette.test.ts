@@ -68,20 +68,40 @@ const NAMED_COLOURS = (
   'slateblue slategray slategrey snow springgreen steelblue tan teal thistle tomato turquoise violet wheat white ' +
   'whitesmoke yellow yellowgreen'
 ).split(' ');
-/** CSS properties (kebab-case) and React style keys (camelCase) that take a colour. */
+/**
+ * CSS properties (kebab-case) and React style keys (camelCase) that take a colour; matched without
+ * case, so `borderInlineStart` and `border-inline-start` are both found.
+ */
 const COLOUR_PROPERTY =
-  '(?:color|background(?:-?[cC]olor)?|border(?:-?(?:[tT]op|[rR]ight|[bB]ottom|[lL]eft))?(?:-?[cC]olor)?|outline(?:-?[cC]olor)?|' +
-  'fill|stroke|box-?[sS]hadow|text-?[sS]hadow|caret-?[cC]olor|accent-?[cC]olor|stop-?[cC]olor|flood-?[cC]olor|' +
-  'text-?[dD]ecoration(?:-?[cC]olor)?)';
+  '(?:-?webkit-?)?(?:color|background(?:-?(?:color|image))?|' +
+  'border(?:-?(?:top|right|bottom|left|inline|block)(?:-?(?:start|end))?)?(?:-?color)?|outline(?:-?color)?|' +
+  'fill|stroke|box-?shadow|text-?shadow|caret-?color|accent-?color|stop-?color|flood-?color|lighting-?color|' +
+  'text-?decoration(?:-?color)?|text-?emphasis(?:-?color)?|text-?fill-?color|text-?stroke(?:-?color)?|' +
+  'scrollbar-?color|column-?rule(?:-?color)?|(?:backdrop-?)?filter)';
+const NAMED = `(?<![\\w-])(?:${NAMED_COLOURS.join('|')})(?![\\w-])`;
+const HEX = /#[0-9a-f]{3,8}\b/i;
+const COLOUR_FUNCTION = /\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\(/i;
+const TAILWIND_PREFIX = '(?:bg|text|border|ring|fill|stroke|shadow|outline|from|via|to|divide|accent|caret|decoration)';
 const COLOUR_LITERALS: RegExp[] = [
-  /#[0-9a-fA-F]{3,8}\b/,
-  /\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\(/,
-  // A named colour anywhere in the value of a colour property ("border: 1px solid red", fill="white")
-  new RegExp(`(?<![\\w-])${COLOUR_PROPERTY}\\s*[:=]\\s*\\{?[^;\\n]*?(?<![\\w-])(?:${NAMED_COLOURS.join('|')})(?![\\w-])`),
-  // Tailwind colour classes ("bg-white", "text-red-500")
+  HEX,
+  COLOUR_FUNCTION,
+  // A named colour anywhere in the value of a colour property ("border: 1px solid Red", fill="white")
+  new RegExp(`(?<![\\w-])${COLOUR_PROPERTY}\\s*[:=]\\s*\\{?[^;\\n]*?${NAMED}`, 'i'),
+  // Tailwind colour classes ("bg-white", "text-red-500") and arbitrary values ("text-[red]", "bg-[#fff]")
   /\b(?:bg|text|border|ring|fill|stroke|shadow|outline|from|via|to|divide|accent|caret|decoration)-(?:white|black|(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d{2,3})\b/,
+  new RegExp(`\\b${TAILWIND_PREFIX}-\\[(?:${NAMED}|#|(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\\()`, 'i'),
 ];
 const hasColourLiteral = (line: string): boolean => COLOUR_LITERALS.some((re) => re.test(line));
+/**
+ * In a .css file a value can sit on the line after its property, so any named colour, hex or
+ * colour function on any line counts (comments are stripped first: they may name colours).
+ */
+const NAMED_ANYWHERE = new RegExp(NAMED, 'i');
+const hasCssColourLiteral = (line: string): boolean =>
+  hasColourLiteral(line) || NAMED_ANYWHERE.test(line) || HEX.test(line) || COLOUR_FUNCTION.test(line);
+/** A CSS file's lines with comments blanked, so line numbers stay right. */
+const cssLines = (source: string): string[] =>
+  source.replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, ' ')).split('\n');
 
 describe('FR-086 the palette is defined once in styles/tokens.css', () => {
   it('FR-086 every variable styles/theme.ts names is defined in tokens.css', () => {
@@ -133,8 +153,12 @@ describe('FR-086 the palette is defined once in styles/tokens.css', () => {
       join(ROOT, 'src/app/layout.tsx'),
     ];
     const offenders = files
-      .flatMap((f) => readFileSync(f, 'utf8').split('\n').map((line, i) => ({ f, line, i })))
-      .filter(({ line }) => hasColourLiteral(line))
+      .flatMap((f) => {
+        const source = readFileSync(f, 'utf8');
+        const isCss = f.endsWith('.css');
+        return (isCss ? cssLines(source) : source.split('\n')).map((line, i) => ({ f, line, i, isCss }));
+      })
+      .filter(({ line, isCss }) => (isCss ? hasCssColourLiteral(line) : hasColourLiteral(line)))
       .map(({ f, line, i }) => `${relative(ROOT, f)}:${i + 1}: ${line.trim()}`);
     expect(offenders).toEqual([]);
   });
@@ -161,7 +185,32 @@ describe('FR-086 the palette is defined once in styles/tokens.css', () => {
       "accentColor: 'gold',",
       '<div className="bg-white text-red-500">',
       '<span className="border-slate-200" />',
+      // Found missing in the M4 review: named colours in any case, filters, gradients, logical
+      // borders, scrollbars, column rules, WebKit text fill, Tailwind arbitrary values
+      "color: 'Red',",
+      'border: 1px solid RED;',
+      'filter: drop-shadow(0 0 2px black);',
+      "filter: 'drop-shadow(0 0 2px Black)',",
+      'backdrop-filter: drop-shadow(0 0 1px white);',
+      'background-image: linear-gradient(red, white);',
+      "backgroundImage: 'linear-gradient(red, white)',",
+      'border-inline-start: 2px solid navy;',
+      "borderInlineStart: '2px solid navy',",
+      'border-block-end-color: teal;',
+      "borderBlockStart: '1px solid gray',",
+      'scrollbar-color: gray white;',
+      "scrollbarColor: 'gray white',",
+      'column-rule: 1px solid silver;',
+      'column-rule-color: maroon;',
+      '-webkit-text-fill-color: white;',
+      "WebkitTextFillColor: 'white',",
+      '<span className="text-[red]" />',
+      '<span className="bg-[#fff] border-[rgb(0,0,0)]" />',
+      'color: #ABCDEF;',
+      'color: RGB(0 0 0);',
     ];
+    // In a .css file the value can be on the line after its property
+    const cssFlagged = ['  red;', '    Navy', '  linear-gradient(white, var(--color-sea));', '  #fff;', '  hsl(0 0% 0%);'];
     const clean = [
       'color: var(--color-ink);',
       "boxShadow: 'var(--shadow-dialog)',",
@@ -173,9 +222,28 @@ describe('FR-086 the palette is defined once in styles/tokens.css', () => {
       'grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));',
       '<div className="hud-container btn-plain text-left">',
       'const nationColor = (slot: number) => NATION_COLORS[slot];',
+      'color: inherit;',
+      'border-inline-start: 2px solid var(--color-line);',
+      'filter: drop-shadow(0 0 2px var(--color-ink));',
+      'white-space: nowrap;',
+      '<span className="text-[14px] text-left" />',
+      'const visible = workers.filter((w) => w.nationId === playerId);',
+    ];
+    const cssClean = [
+      ...clean.filter((line) => !line.includes('className') && !line.includes('=>')),
+      '  var(--color-x);',
+      '  transparent;',
+      '  currentColor;',
+      '  inherit;',
+      '.workerMarker {',
+      '  border-inline-start: 1px solid var(--color-line);',
     ];
     expect(flagged.filter((line) => !hasColourLiteral(line))).toEqual([]);
     expect(clean.filter(hasColourLiteral)).toEqual([]);
+    expect([...flagged, ...cssFlagged].filter((line) => !hasCssColourLiteral(line))).toEqual([]);
+    expect(cssClean.filter(hasCssColourLiteral)).toEqual([]);
+    // Comments in .css files are not scanned (they may name colours), and the line numbers stay right
+    expect(cssLines('a {\n  /* the red\n of bad */\n  color: red;\n}').map((l) => l.trim())).toEqual(['a {', '', '', 'color: red;', '}']);
   });
 });
 
