@@ -5,6 +5,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createGameStore } from '@/store/rootStore';
 import { validateOrder } from '@/engine/orders/validate';
 import { resolveTurn } from '@/engine/turn/resolveTurn';
+import { scriptedPlayer } from '@/engine/ai/scriptedPlayer';
 import type { Order } from '@/engine';
 import { WorkerType } from '@/types/Workers';
 import { game, N1, T, workerId } from '../engine/fixtures';
@@ -51,6 +52,20 @@ describe('the store passes only the GameState to the engine', () => {
     expect(orders).toEqual({});
     expect(seed).toBe(5);
     for (const key of STORE_ONLY_KEYS) expect(state).not.toHaveProperty(key);
+  });
+
+  it('FR-099 on a new game advanceTurn passes nation 2\'s scripted orders, and still only the GameState', () => {
+    const store = createGameStore({ seed: 5 });
+    const g = store.getState().game;
+
+    store.getState().advanceTurn();
+
+    expect(resolveTurn).toHaveBeenCalledTimes(1);
+    const [state, orders, seed] = vi.mocked(resolveTurn).mock.calls[0];
+    expect(state).toBe(g);
+    expect(orders).toEqual({ 'nation-2': scriptedPlayer(g, 'nation-2') });
+    expect(seed).toBe(5);
+    for (const key of [...STORE_ONLY_KEYS, 'orderLog', 'startNewGame']) expect(state).not.toHaveProperty(key);
   });
 });
 

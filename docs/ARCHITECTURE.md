@@ -40,15 +40,17 @@ src/app/
                            (createIndustry, buildingOf, migrantCap), foodForecast.ts (the meal
                            this turn would serve)
     world/                 twoIslands.ts (the 24x16 two-island map as a text template,
-                           CAPITAL_SITES), startWorld.ts (start nation, settleIsland, civilians,
+                           CAPITAL_SITES), startWorld.ts (START_FOUNDINGS, foundNation, settleIsland, civilians,
                            START_TECHNOLOGIES)
     turn/                  resolveTurn.ts, phases.ts (TURN_PHASES), context.ts (TurnContext, GameEvent)
     systems/               one file per turn system, each (state, ctx) => state
     map/mapHelpers.ts      neighbours, adjacency, rail sites
     ai/scriptedPlayer.ts   a Player is (state, nationId) => Order[]
+    ai/players.ts          PLAYERS (controller -> Player) and computerOrders(state) (FR-099)
   store/
     rootStore.ts           createGameStore(options) and the app's useGameStore
-    gameSlice.ts           game, activeNationId, lastRejection, eventLog, submitOrder, advanceTurn
+    gameSlice.ts           game, activeNationId, lastRejection, eventLog, orderLog, submitOrder,
+                           advanceTurn, startNewGame
     controls/              UI slices: tile selection, camera, overlays, dialogs
     selectors.ts           memoized selectors (reselect)
   components/              React components; gameText.ts (display text: orders, refusals, news,
@@ -92,6 +94,8 @@ The store (`store/rootStore.ts`) holds that state under `game`, and UI state bes
 | `activeNationId` | the nation this client plays | session |
 | `lastRejection` | `{ order, reason }` of the last refused order | UI |
 | `eventLog` | `{ turn, year, events }` per resolved turn, last 20 | UI |
+| `orderLog` | `{ turn, nationId, orders }` per nation per resolved turn, all turns (FR-100) | session |
+| `ordersThisTurn` | the active nation's orders applied this turn, logged at End Turn | session |
 | `selectedTileId`, `selectedWorkerId`, `hoveredTileId` | selection | UI |
 | `cameraX`, `cameraY` | map scroll | UI |
 | `isWarehouseOpen`, `isCapitalOpen`, ... | overlays and dialogs | UI |
@@ -139,29 +143,35 @@ click / button / slider
 
 ## Turn flow (Advance Turn)
 
-Orders take effect when they are submitted, so the turn resolves with no orders from the UI:
+The human's orders take effect when they are submitted, so the turn resolves with no orders from the
+UI; the computer nations (controller not "human", FR-099) plan on that state and their orders
+resolve with the turn:
 
 ```
 store.advanceTurn()
-  -> resolveTurn(game, {}, game.seed)                    engine/turn/resolveTurn.ts
+  -> computerOrders(game)                                engine/ai/players.ts (nation 2: scriptedPlayer)
+  -> resolveTurn(game, computerOrders, game.seed)        engine/turn/resolveTurn.ts
        game over already?  return the same state; each given order -> order-rejected game-over
-       applyTurnOrders     orders given here, nations in state order (none from the UI)
+       applyTurnOrders     orders given here, nations in state order (the computer nations')
        TURN_PHASES         development, diplomacy, trade (deals, then prices), production
                            (freight cars first), combat, interceptions, transportConnectivity,
                            logistics, tradeDelivery (units bought), food
+       promoteFreightCars  the cars built this turn go into service (FR-101, NR-016)
        resetWorkers        everyone may move again; working only while the job is unfinished
        advanceClock        turn + 1, year + 1 after winter (turn 1 = Spring 1815)
        last turn?          turn == turnLimit (40): gameOver = { turn, year, scores }, game-over event
   <- { state, events }
-  -> game = state; eventLog += { turn, year, events }; lastRejection = null
+  -> game = state; eventLog += { turn, year, events }; orderLog += one entry per nation
+     (the human's applied orders, the computer nations' orders); lastRejection = null
 ```
 
 Why immediate: the UI must show the effect at once (the worker moves, the money goes), and
 `resolveTurn(s, { n: orders })` gives the same result as applying the orders first and resolving
 with none (tested in `tests/engine/resolveTurn.test.ts` and `tests/store/gameStore.test.ts`).
-The `ordersByNation` argument is the seam for other players: from M4 an AI nation's orders go in
-there, `resolveTurn(game, { [ai]: player(game, ai) }, game.seed)`. The store keeps no order log,
-so a played game cannot be replayed from the store alone (see the journal objection).
+The `ordersByNation` argument is the seam for other players: since M4 a computer nation's orders go
+in there, `resolveTurn(game, computerOrders(game), game.seed)`. The store's `orderLog` holds every
+nation's orders per turn in state order, so replaying it through `resolveTurn` from the start state
+gives the same game (`tests/store/computerNations.test.ts`).
 
 ## Randomness and replay
 
@@ -209,7 +219,8 @@ graph from the capital, depots and ports; `logisticsSystem` moves collected reso
 warehouse up to the capacity, following the player's allocation
 (`setTransportAllocations` order) and filling the rest greedily. Capacity is freight cars from
 the railyard: 1 lumber + 1 steel each when ordered and 2 labour each in the production phase
-(`changeTransportCapacity` order); the cars count for that turn's shipping.
+(`changeTransportCapacity` order); the production phase builds them and `promoteFreightCars` puts
+them in service after the phases, so they carry goods from the next turn (FR-101, NR-016).
 
 The rail graph per nation (`transportNetwork.railroadNetworks`, built in `systems/railroadSystem.ts`)
 has a node for every tile with rail, a depot, a port or the capital, linked to its neighbouring

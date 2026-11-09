@@ -14,7 +14,7 @@ const W = {
 const prospect: Order = { kind: 'moveAndStartProspecting', nationId: N1, workerId: W.prospector, toTileId: T.mountains1 };
 const moveFarmer: Order = { kind: 'moveWorker', nationId: N1, workerId: W.farmer, toTileId: T.farm1 };
 
-const UI_KEYS = ['activeNationId', 'lastRejection', 'eventLog', 'cameraX', 'cameraY', 'selectedTileId', 'selectedWorkerId',
+const UI_KEYS = ['activeNationId', 'lastRejection', 'eventLog', 'orderLog', 'ordersThisTurn', 'cameraX', 'cameraY', 'selectedTileId', 'selectedWorkerId',
   'isWarehouseOpen', 'isCapitalOpen', 'isMarketOpen', 'isGameOverHidden', 'isTransportAllocationOpen', 'isConstructionModalOpen'];
 
 describe('FR-018 the store holds one GameState plus UI state', () => {
@@ -191,11 +191,13 @@ describe('FR-021 advanceTurn resolves the turn with the engine and keeps the eve
 });
 
 describe('FR-022 only submitOrder and advanceTurn change the game', () => {
+  // startNewGame (FR-105) replaces the game with a new one rather than changing it, so it is left out
+  // here and tested in tests/store/computerNations.test.ts.
   it('every other store action leaves game as it was', () => {
     const g = game();
     const store = createGameStore({ game: g });
     const actions = Object.entries(store.getState()).filter(
-      ([name, value]) => typeof value === 'function' && name !== 'submitOrder' && name !== 'advanceTurn'
+      ([name, value]) => typeof value === 'function' && !['submitOrder', 'advanceTurn', 'startNewGame'].includes(name)
     );
     expect(actions.length).toBeGreaterThan(10);
 
