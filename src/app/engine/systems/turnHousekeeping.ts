@@ -28,6 +28,20 @@ export const resetWorkers: TurnSystem = (state: GameState): GameState => ({
   },
 });
 
+/**
+ * The freight cars built this turn go into service (FR-101, NR-016): the production phase left
+ * them in `transportCapacityPendingIncrease`; after every phase has run they join the capacity,
+ * so they carry goods from the next turn.
+ */
+export const promoteFreightCars: TurnSystem = (state: GameState): GameState => ({
+  ...state,
+  nations: state.nations.map((nation) => {
+    const built = Math.max(0, Math.floor(nation.transportCapacityPendingIncrease ?? 0));
+    if (built === 0 && (nation.transportCapacityPendingIncrease ?? 0) === 0) return nation;
+    return { ...nation, transportCapacity: (nation.transportCapacity ?? 0) + built, transportCapacityPendingIncrease: 0 };
+  }),
+});
+
 /** One turn is one season; the year advances after winter (FR-027). */
 export const advanceClock: TurnSystem = (state: GameState): GameState => ({
   ...state,

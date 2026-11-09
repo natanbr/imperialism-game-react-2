@@ -229,4 +229,16 @@ describe('FR-047 capital dialog: labour, training, migration, freight cars', () 
     expect(nationOf(now(), N1).transportCapacityPendingIncrease).toBe(1);
     expect(text(within(freight).getByTestId('cars-ordered'))).toContain('1 ordered this turn');
   });
+
+  it('FR-101 the capacity line shows only the cars in service, and the ordered cars say they carry goods from next turn', () => {
+    openCapital(stocked());
+    const freight = screen.getByTestId('freight-cars');
+    const before = text(freight);
+    fireEvent.click(within(freight).getByRole('button', { name: 'Order a freight car' }));
+
+    expect(nationOf(now(), N1).transportCapacityPendingIncrease).toBe(1);
+    expect(text(freight)).toContain(`Transport capacity ${nationOf(now(), N1).transportCapacity} `);
+    expect(before).toContain(`Transport capacity ${nationOf(now(), N1).transportCapacity} `);
+    expect(text(within(freight).getByTestId('cars-ordered'))).toBe('1 ordered this turn, carrying goods from next turn');
+  });
 });

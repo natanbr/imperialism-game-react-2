@@ -109,7 +109,9 @@ describe('FR-037 production phase', () => {
     expect(events).toContainEqual({ type: 'building-expanded', nationId: N1, building: 'lumberMill', capacity: 4 });
   });
 
-  it('FR-039 ordered cars are built first, with 2 labour each, and add to the transport capacity', () => {
+  // FR-101 (NR-016) replaced "add to the transport capacity" here: the built cars wait in the
+  // pending count, and the turn housekeeping puts them in service after every phase.
+  it('FR-039 FR-101 ordered cars are built first, with 2 labour each, and wait in the pending count, not yet in service', () => {
     let start = emptyWarehouse(game(), N1, { timber: 2 });
     start = orders(start, 'lumberMill', { lumber: 1 });
     start = { ...start, nations: start.nations.map(n => (n.id === N1 ? { ...n, transportCapacityPendingIncrease: 2 } : n)) };
@@ -118,19 +120,19 @@ describe('FR-037 production phase', () => {
 
     const { state, events } = produce(start);
 
-    expect(nationOf(state, N1)).toMatchObject({ transportCapacity: 12, transportCapacityPendingIncrease: 0 });
+    expect(nationOf(state, N1)).toMatchObject({ transportCapacity: 10, transportCapacityPendingIncrease: 2 });
     expect(stockOf(state, N1, 'lumber')).toBe(1);
     expect(events).toContainEqual({ type: 'freight-cars-built', nationId: N1, count: 2 });
   });
 
-  it('FR-039 a car the labour no longer covers is not built and its lumber and steel come back', () => {
+  it('FR-039 FR-101 a car the labour no longer covers is not built and its lumber and steel come back', () => {
     let start = emptyWarehouse(game(), N1);
     start = { ...start, nations: start.nations.map(n => (n.id === N1 ? { ...n, transportCapacityPendingIncrease: 3 } : n)) };
     start = setIndustry(start, N1, { sick: { untrained: 4, trained: 2, expert: 0 } }); // 4 labour: 2 cars
 
     const { state } = produce(start);
 
-    expect(nationOf(state, N1)).toMatchObject({ transportCapacity: 12, transportCapacityPendingIncrease: 0 });
+    expect(nationOf(state, N1)).toMatchObject({ transportCapacity: 10, transportCapacityPendingIncrease: 2 });
     expect(stocks(state, ['lumber', 'steel'])).toEqual({ lumber: 1, steel: 1 });
   });
 

@@ -33,9 +33,13 @@ export interface Nation {
     avgSpeed: number;    // affects interception odds
   };
 
-  // Per-turn internal transport capacity (units of resources)
+  /** Freight cars in service: units of goods shipped to the warehouse per turn. */
   transportCapacity: number;
-  // Queued increase purchased this turn; applied at the start of next turn
+  /**
+   * Freight cars ordered this turn, paid when ordered. The production phase builds the ones the
+   * labour covers and leaves that count here; the turn housekeeping then adds them to
+   * transportCapacity, so they carry goods from the next turn (NR-016, FR-101).
+   */
   transportCapacityPendingIncrease?: number;
 
   warehouse: Record<WarehouseCommodities, number>;

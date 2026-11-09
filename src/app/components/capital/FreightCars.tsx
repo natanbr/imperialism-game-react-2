@@ -12,7 +12,7 @@ interface FreightCarsProps {
   onOpenAllocations: () => void;
 }
 
-/** The railyard: freight cars ordered this turn, one at a time (FR-039, FR-047). */
+/** The railyard: freight cars ordered this turn, one at a time (FR-039, FR-047); the capacity is the cars in service (FR-101). */
 export const FreightCars: React.FC<FreightCarsProps> = ({ nationId, capacity, carsOrdered, submitOrder, onOpenAllocations }) => (
   <section className={styles.panel} data-testid="freight-cars" aria-label="Transport">
     <h3 className={styles.panelTitle}>Transport</h3>
@@ -37,7 +37,8 @@ export const FreightCars: React.FC<FreightCarsProps> = ({ nationId, capacity, ca
         Cancel
       </button>
     </div>
-    <div className={styles.note} data-testid="cars-ordered">{`${carsOrdered} ordered this turn`}</div>
+    {/* Cars ordered now are built at the end of the turn and carry goods from the next one (FR-101). */}
+    <div className={styles.note} data-testid="cars-ordered">{`${carsOrdered} ordered this turn, carrying goods from next turn`}</div>
     <div className={styles.note}>
       {`${FREIGHT_CAR_COST.lumber} Lumber, ${FREIGHT_CAR_COST.steel} Steel and ${FREIGHT_CAR_COST.labour} labour per car`}
     </div>
