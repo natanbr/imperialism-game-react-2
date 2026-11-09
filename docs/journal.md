@@ -8,23 +8,22 @@
   `docs/journal/archive-M1.md`, `-M2.md`, `-M3.md`. Not built from M3: Q15 (c) "repeat last turn's trades".
 - M3.5 merged (PR 15): rail line fix, two-island map, Game Icons and the minimalist look (FR-079 to FR-096).
 - 2026-11-09: Nathan settled decisions Q5 to Q15 (NR-012 to NR-018). The agent merges milestone PRs;
-  no ultracode unless clearly worth it; no NotebookLM, follow Imperialism (1997). M4 also moves freight
-  cars to next-turn use (NR-016, changes FR-039).
-- Open decisions: Q9 (freight-car timing, from M2) and Q10 to Q15 (M3, in `archive-M3.md`), each on
-  its default. Q16 settled by the orchestrator: no coast tiles on the new map.
+  no ultracode unless clearly worth it; no NotebookLM, follow Imperialism (1997). Q16 settled by the
+  orchestrator: no coast tiles on the new map.
+- 2026-11-09 M4 part A (engine and store, FR-097 to FR-105) on branch `claude/m4-two-nations`, pushed,
+  no PR yet: nation 2 "Valdoria" on island 2, played by the scripted player at End Turn; freight cars
+  carry goods from the next turn (NR-016). Next: part B (the UI to watch nation 2), then the M4 review.
 
 Carried forward:
 - Deferred: river ports and the depot-on-port rule (rules 04); University fees; the power plant.
-- M4: settle nation-2 with `settleIsland(map, "nation-2", "capital-2", CAPITAL_SITES[1])`; an order
-  log in the store (replay); the second nation trades on the same world market.
-- UI: the cursors are still emoji.
-- M4, from the M3.5 review: (1) `Nation.color` trap: the map colours nations by their order in
-  `state.nations` and the engine sets #FF0000; pick the colour by nation id or a palette slot. (2) The
-  capital's worker buttons are 10 px (pending Nathan's look approval). (3) Palette-scan gaps: it misses
-  `fill`/`stroke`/`boxShadow`, other colour names, `oklch()` and similar, and `layout.tsx`. (4) The
-  selection ring is partly covered by the shore border. (5) `act()` warnings in two M3 UI tests.
-  (6) Unused `DEVELOPMENT_CONFIG` / `CONSTRUCTION_CONFIG`. (7) `--color-bad` text (`--color-text-danger`)
-  is 4.35:1 on `--color-surface`, below AA; not in the fix round's list.
+- UI: the cursors are still emoji. Not built from M3: Q15 (c) "repeat last turn's trades".
+- M4 part B: the news panel mixes both nations' events with no nation name; nation 2's civilians are
+  clickable (their orders are refused `not-owner`); no New game button for `startNewGame`; the NR-016
+  list of other same-turn effects (2026-11-09 M4 part A entry) waits for a decision.
+- From the M3.5 review: (2) the capital's worker buttons are 10 px (pending Nathan's look approval).
+  (3) Palette-scan gaps: `fill`/`stroke`/`boxShadow`, other colour names, `oklch()`, `layout.tsx`.
+  (4) The selection ring is partly covered by the shore border. (5) `act()` warnings in two M3 UI tests.
+  (7) `--color-bad` text is 4.35:1 on `--color-surface`, below AA. Items (1) and (6) done in M4 part A.
 
 ## 2026-11-02 Revival setup
 
@@ -56,331 +55,112 @@ Entries in `docs/journal/archive-M3.md`, with the decision cards Q10 to Q15. One
 Playwright 10 passed, 1 skipped. Merged as PR 14 (review: merge, nothing must-fix; carried-forward list
 in the archive's review entry).
 
-## 2026-11-03 M3.5 rail line fix (FR-079, NR-010)
+## 2026-11-04 M3.5 small map and clean look (archived)
 
-Size: M (fix in the map's rail overlay plus one engine query). One agent (Opus 5.5), unattended, no
-subagents, no advisor calls. Branch `claude/m3-5-look-and-map` from 607d3dc. Ultracode was not on.
+Entries in `docs/journal/archive-M3.5.md`. The rail line fix (FR-079), the 24x16 two-island start
+world with island 2 kept for M4 (FR-080 to FR-083), Game Icons, faint terrain tints, the minimalist
+palette and 42 px tiles (FR-084 to FR-090), and the review fix round (FR-091 to FR-096); 654 unit
+tests, Playwright 15 passed, 1 skipped. Merged as PR 15; the carried-forward list is in "Resuming
+here" and the archive's last entry.
 
-Bug (Nathan's screenshot): rail from the capital 20-20 west through farm, orchard, scrub forest, farm,
-fertile hills, the coast tile 14-20 and the open range 13-20 (depot) stopped on the map at 15-20, yet
-the depot was green. Root cause: `components/railSegments.ts` line 15 rebuilt the line from tile flags
-with its own land test (`not Water, Coast or River`), while the engine counts coast as land: workers
-stand on it (`queries.ts` `isLand`), `claimLand` owns it, `canBuildRailAt` accepts rail there and
-`addRailroad` links it into the graph. So the rail on 14-20 existed, the graph lit the depot correctly,
-and only the drawing dropped the coast tile's two links: two copies of "which tiles carry rail" had
-drifted apart. The filter predates the revival (`2d1917a`); no earlier rail-drawing bug is recorded, so
-not a recurrence. Candidates checked: (a) refusal: no, the order was accepted; (c) another graph for
-the lights: no, the lights read the graph that holds the coast node; (d) the triangle 12-19, 12-20,
-13-20: three mutual neighbours with rail (odd row 19 is shifted right), and the engine joins every pair
-of neighbouring rail tiles, so it is right under the current model.
+## 2026-11-09 M4 part A: second nation, engine and store (FR-097 to FR-105)
 
-Plan-lite: change: the overlay draws `railLinksOf(state)` (new, `systems/railroadSystem.ts`, exported
-from `engine/index.ts`: every link of every nation's graph once) and `computeRailSegmentsPixels(links)`
-only turns links into pixels; consumer: `MapView` (memoized on `transportNetwork`); tests: FR-079 in
-`tests/ui/railLine.test.tsx` (the screenshot's line played through the order API on the 40x40 map,
-`MapView` rendered, its lines read back as tile pairs: no gap from the capital to the depot, the coast
-included; the green depot reachable along drawn lines; drawn lines = graph links; every line joins
-neighbours, the triangle included; a depot the rail does not reach is red with no line to it) and
-`tests/engine/railLinks.test.ts`; verify: `npx vitest run tests/ui/railLine.test.tsx`; Objection: below.
-
-Red summary (test written first, run before the fix): `npx vitest run tests/ui/railLine.test.tsx` gave
-`Test Files 1 failed (1)` / `Tests 3 failed | 3 passed (6)`: `expected [ '14-20 15-20', '13-20 14-20' ]
-to deeply equal []` (the coast tile's two links not drawn), `expected false to be true` (the green depot
-not reachable along drawn lines) and `expected [ '12-19 12-20', '12-19 13-20', …(6) ] to deeply equal
-[ '12-19 12-20', '12-19 13-20', …(8) ]` (8 lines drawn, 10 graph links). "The engine accepts rail on the
-coast tile and lights the depot green" passed: the engine side was right.
-
-| Claim | Command | Result (quoted) |
-|---|---|---|
-| FR-079 covered | `npx vitest run tests/ui/railLine.test.tsx tests/engine/railLinks.test.ts` | `Test Files 2 passed (2)` / `Tests 9 passed (9)` |
-| All unit tests | `npx vitest run` | `Test Files 38 passed (38)` / `Tests 597 passed (597)` (+9) |
-| Types | `npx tsc --noEmit` | exit 0, no output |
-| Lint | `npm run lint` | `✖ 3 problems (0 errors, 3 warnings)` (the same three as M3) |
-| Build | `npm run build` | `✓ Compiled successfully in 5.3s`, `✓ Generating static pages (4/4)` |
-| Smoke, default workers | `PORT=3157 npx playwright test --reporter=list` | `6 failed` / `1 skipped` / `4 passed (1.9m)`: all six `page.goto: Test timeout of 30000ms exceeded` in `cursor-icons.spec.ts` (cold server, as in M3) |
-| Smoke, warm server, 1 worker | `npm run dev -- --port 3157`, then `PORT=3157 PW_REUSE_SERVER=1 npx playwright test <file> --workers=1` | `cursor-icons.spec.ts`: `1 skipped` / `6 passed (1.0m)`; `play-turns.spec.ts` + `market-and-game-over.spec.ts`: `4 passed (1.5m)` |
-| App check | a throwaway Playwright script (deleted, not committed): engineer builds rail 19-20 to 13-20 through the coast, then a depot on 13-20 | `1 passed (38.2s)`, 7 lines drawn (13-20 to 20-20), depot 🟢; `docs/journal/m3-5-rail-line.png` |
-
-Decisions taken alone:
-- Objection: coast tiles stay land (workers and rail allowed), as the engine had them; only the drawing
-  changed. Rules 02 call the sea "not a land tile" and give fish from "coast / sea next to a port", so in
-  the original a coast tile would be sea; but the 40x40 map puts single coast tiles inland (pattern
-  `(7x + 13y) % 12 == 10`), where sea makes no sense. Decision Q16 below.
-- Objection: the overlay now also draws a link between two neighbouring stations without rail (the
-  capital next to a port, a port built next to a depot), because the graph links them and they count
-  for the lights; the old overlay hid them. Rare: a depot may not be built next to the capital, a port
-  or another depot.
-
-**Q16** 🧠 **Should coast tiles be land or sea?**
-- Found: the engine treats coast as land (workers, ownership, rail, depots), the port rule as sea
-  (`isAdjacentToOcean`), rules 02 as sea; the old drawing treated it as sea, which caused this bug.
-- Options: (a) land, as now: rail crosses coast. (b) Sea from M3.5's two-island map (NR-007): no workers
-  or rail on coast (the move and rail orders refuse it as a non-land target), fish for ports (NR-008).
-- 💡 (b) with the new map, where coast lies only along the shore; (a) until then.
-
-## 2026-11-03 M3.5 part A: two-island start world (FR-080 to FR-083, NR-007)
-
-Size: L (milestone part: the start state every game and e2e spec reads). Unattended, one agent (Opus
-5.5), no subagents, no advisor calls; the map, the camera and the specs that click tiles were too
-coupled to split. Branch `claude/m3-5-look-and-map` from 182b5ee; `npm ci` clean. Ultracode was not on.
-Baseline `npx vitest run`: `Tests 1 failed | 596 passed (597)`: the FR-079 red-depot test `Test timed
-out in 5000ms` (rendering the 40x40 map in jsdom on a loaded machine; 5.8 s); it passes on the new map.
-
-**Q16 applied** (decided by the orchestrator): the new map places no coast tiles; the shore is the land
-next to the sea, ports go there, and there is no river. `TerrainType.Coast` and `River` stay in the
-code for the 5x5 test worlds and the port rule (`isAdjacentToOcean` still reads both).
-
-The map (`engine/world/twoIslands.ts`, one character per tile type; odd rows are drawn half a tile
-right; island 2 is island 1 shifted 12 columns; `@` is the capital, a farm on island 2 until settled):
-
-```
-   x   0         1         2
-       012345678901234567890123
- y  0  ~~~~~~~~~~~~~~~~~~~~~~~~    ~ sea          F farm (grain)       O orchard (fruit)
-    1  ~~~TTTTT~~~~~~~TTTTT~~~~    R open range   P plantation         T hardwood forest
-    2  ~~~RTHHTT~~~~~~RTHHTT~~~    H barren hills (hidden coal or iron ore)
-    3  ~~RRTHHTHT~~~~RRTHHTHT~~    @ capital site
-    4  ~~RRRHHRHT~~~~RRRHHRHT~~
-    5  ~~FRRRHRRT~~~~FRRRHRRT~~    island 1: 100 land tiles: F 20 (+ @), O 11, R 25, P 10, T 24,
-    6  ~~FFRRRRRT~~~~FFRRRRRT~~      H 9 (coal on 5-2, 6-3, 5-4, 8-4, 6-5; iron ore on 6-2, 5-3, 8-3, 6-4)
-    7  ~~FOFRRORRT~~~FOFRRORRT~    capital 2-9 (west shore); its neighbours: sea 1-9, farms 2-8 and
-    8  ~~FOFFOFRRT~~~FOFFOFRRT~      3-9, orchards 3-8 and 2-10, plantation 3-10, all level 1
-    9  ~~@FOFFORRT~~~@FOFFORRT~    island 2: the same, unowned; capital site 14-9
-   10  ~~OPFOFFPPT~~~OPFOFFPPT~    sea columns 11 to 13 between the islands
-   11  ~~FOPFOFPPP~~~FOPFOFPPP~
-   12  ~~~FOPFPPT~~~~~FOPFPPT~~
-   13  ~~~~TTTTT~~~~~~~TTTTT~~~
-   14  ~~~~~~~~~~~~~~~~~~~~~~~~
-   15  ~~~~~~~~~~~~~~~~~~~~~~~~
-```
+Size: L (start world, turn loop and store). One agent (Opus 5.5, xhigh), unattended, no subagents, no
+advisor calls; ultracode was not on. Branch `claude/m4-two-nations` from `origin/main` 161e2e0, in the
+worktree `.claude/worktrees/decisions`.
 
 Plan-lite:
-- Change: `twoIslandsMap()` (fixed text template, the same for every seed) replaces the 40x40
-  `defaultMap.ts` (removed); `settleIsland(map, nationId, cityId, site)` puts a capital on a site,
-  raises its farm, orchard and plantation neighbours to level 1 and gives the nation the island (the
-  land joined to the site); `startWorld()` settles island 1 only. UI: the camera becomes the map
-  container's scroll position (`components/camera.ts`), so it stays inside the map; the first view and
-  the Center button centre the capital.
-- Consumers: `newGame` (store, every e2e spec), M4 (`settleIsland` on `CAPITAL_SITES[1]`).
-- Test rows: below. Verify: `npx vitest run tests/engine/startWorld.test.ts tests/ui/camera.test.tsx`,
-  then the full gate and Playwright.
-- Objection: the map does not vary with the seed. A seeded generator would give replay value, but the
-  e2e specs, the rail-line test and M4's second capital need fixed coordinates; a generator can come
-  later behind the same `startWorld()`.
+- Change: `newGame` founds two nations with one helper `foundNation` (palette slot, controller); End
+  Turn asks `computerOrders` (scripted player) for nation 2 and logs every nation's orders; freight cars
+  wait one turn; M3/M3.5 housekeeping.
+- Consumers: the map's borders (slot colour), the store's `advanceTurn`, logistics and the food
+  forecast, the capital dialog's freight line, part B (the UI to watch nation 2).
+- Tests: FR-097 to FR-099 and FR-102 to FR-104 in `tests/engine/secondNation.test.ts`; FR-101 in
+  `tests/engine/freightCars.test.ts`, `systems/productionSystem.test.ts`, `ui/capitalDialog.test.tsx`;
+  FR-099, FR-100, FR-105 (d) in `tests/store/computerNations.test.ts` and `engineBoundary.test.ts`;
+  FR-105 (a, b) in `rulesData.test.ts` and `gameOver.test.ts`; FR-097 also in `ui/territory.test.tsx`.
+- Verify: the gate below.
+- Objection: the human's log entry is every order the store applied, in order, including ones later
+  lowered or cancelled (sell 2, then sell 1). The replay is exact, but the log is not a list of final
+  orders; a v3 replay viewer may want to compact it.
 
-| FR | Test file | What the test asserts |
+Red before green:
+- `npx vitest run tests/engine/secondNation.test.ts`: `Test Files 1 failed (1)`, `Failed to resolve
+  import "@/engine/ai/players"` (no registry yet).
+- FR-101, with `promoteFreightCars` in place and production unchanged: 4 failed, among them
+  `expected 48 to be 45` (3 more units shipped in the turn the cars were ordered) and the forecast
+  `{ mouths: 7, fed: 3, ... }` instead of nobody fed.
+- `npx vitest run tests/store/computerNations.test.ts`: 8 of 9 failed (the state after End Turn
+  differed: nation 2 gave no orders; `orderLog` undefined; `startNewGame is not a function`).
+
+Decisions (each with its objection):
+- Nation 2 is "Valdoria" (fictional), `capital-2` on `CAPITAL_SITES[1]` (14-9), slot 2, scripted.
+  Objection: none.
+- Colours: kept the M3.5 tokens `--color-nation-1` #a8322d (muted red) and `--color-nation-2` #2c5c9e
+  (muted blue), already part of the approved look; only how a nation picks its token changed.
+  Objection: the red is close to `--color-bad` (the unconnected depot ring); part B may want to check.
+- `Nation.controller` is required; every test-fixture nation is "human", so the fixture-based store
+  and UI tests resolve exactly as before. Objection: none.
+- Freight cars reuse `transportCapacityPendingIncrease`: ordered cars before the production phase,
+  built cars after it, added to `transportCapacity` by `promoteFreightCars` after every phase. No new
+  field. Objection: the field means two things within one turn; nothing reads it between production
+  and housekeeping (labour is only checked in the order phase).
+- `startNewGame` is a store action only; no New game button yet (part B). The FR-022 test leaves it
+  out of the "no other action changes the game" sweep because it replaces the game.
+- FR-100 is within the ~40-line budget (about 20 lines in `gameSlice.ts`), so it records the human's
+  orders too, not only the AI's.
+- The scripted player needed no change for FR-102 (numbers below).
+- The M3.5 entries moved to `docs/journal/archive-M3.5.md` to keep this file under 400 lines.
+
+Nation 2 in 10 turns (seed 1, nation 1 idle, `tests/engine/secondNation.test.ts` FR-102): resource
+levels 5 to 17, 10 rail links, score 240 to 310 (treasury 50,
+industry 90, development 170), cash $10,000 to $5,017, freight cars 15 to 21, no order refused. Seeds
+2, 3, 7 and 42 give the same levels and rail, 12 developments finished and 9 resources found,
+and scores 306 to 313 (a throwaway probe, not committed).
+
+Tests whose expectation the new FRs made wrong, and were updated (none skipped or deleted):
+- `startWorld.test.ts`: FR-080 raised levels next to both capitals; FR-081 nation 1's workers and
+  tiles only; FR-082's "island 2 unclaimed" now holds for the empty map, and the new game gives it to
+  nation 2. `newGame.test.ts` FR-081 and `gameStore.test.ts` FR-027: two nation ids.
+- `productionSystem.test.ts`, the two FR-039 car rows: the built cars wait in the pending count.
+- `territory.test.tsx` FR-087: two nations' borders; `accessibleNames.test.tsx` FR-095: the "not
+  owned" orchard is made by the test (no land is unowned now).
+- `gameStore.test.ts` FR-022 leaves out `startNewGame`; FR-018 also checks `orderLog`, `ordersThisTurn`.
+- e2e: two capitals (islands), both nations ranked instead of "nation 1 is rank 1" (game over), the
+  player's workers and rail picked by the new `data-nation-id` (look, play-turns), the player's
+  capital in the cursor spec's wait.
+
+NR-016 ("orders can be changed until End Turn and take effect when the turn ends"): other orders whose
+effect shows within the same turn. Listed, not changed:
+
+| Order | What shows at once | Reversible this turn |
 |---|---|---|
-| FR-080 | `tests/engine/startWorld.test.ts`, `newGame.test.ts`, `lintGuard.test.ts`, `e2e/islands.spec.ts` | 24x16, ids match positions; land found by neighbour steps forms exactly 2 islands that do not touch; sea border; island 1 west of column 12; each island has exactly the six types with their resources; no other terrain and no river anywhere; hills hide coal and iron ore (both on each island); levels 0 except next to the capital; island 2 = island 1 shifted 12 (terrain and resource); the same map for seeds 1 and 123456; no engine file imports `@/testing`; in the app 384 tiles, 1 capital, 0 coast, 0 river, the whole map in view on 2720x1620 |
-| FR-081 | `tests/engine/startWorld.test.ts`, `newGame.test.ts` | the start nation's numbers (unchanged); capital at `CAPITAL_SITES[0]` on a shore tile of island 1 with the 7 civilians, no worker elsewhere; nation-1 owns all of island 1 and nothing else; capital neighbours = sea + 2 farms + 2 orchards + plantation at level 1; the capital ships `{ grain: 4, fruit: 4, cotton: 2 }` (as on the 40x40 map); a canned-food order is accepted and turn 1 gives `workers-fed` 7/0/0, `goods-produced` 2 canned food, 12 in the warehouse |
-| FR-082 | `tests/engine/startWorld.test.ts` | island 2 has no owner, city or worker; `CAPITAL_SITES[1]` = site 1 + 12 columns, a flat shore tile of island 2; `settleIsland` for nation-2 there on a frozen copy makes island 2 a tile-for-tile twin of island 1 (terrain, resource and level, owner, capital) and leaves island 1 deep-equal |
-| FR-083 | `tests/ui/camera.test.tsx`, `e2e/islands.spec.ts` | map 2,450 x 1,600 px; map area = window minus the 250 px HUD; a middle tile is centred (even and odd rows); near an edge the camera stops at it (capital 2-9 gives 0, 590 on 1280x720; the far corner gives 1420, 880); MapView's first view and the Center button set 0, 590; the map moves by scrolling, no transform; in the app the capital is centred (±60 px), the map's left edge stays at the screen edge, also after edge scrolling left; scrolled to the far corner the last tile ends at the HUD and the screen bottom; Center brings the capital back |
+| `moveWorker` and every `moveAnd...` order | the civilian stands on the new tile at once and cannot move again this turn | yes, `cancelWorkerAction` sends it back |
+| job orders (prospect, develop, rail, depot, port, fort) | the cost leaves the treasury when ordered (FR-029), so the HUD cash and score drop at once | yes, refunded if cancelled this turn (FR-031) |
+| `sellCommodity` | the offered units leave the warehouse when ordered (FR-061) | yes, a lower amount returns them |
+| `buyCommodity` | the bid is paid from the treasury when ordered (FR-062) | yes, refunded |
+| `changeTransportCapacity` | 1 lumber + 1 steel per car leave the warehouse; 2 labour per car show as committed (FR-039) | yes |
+| `expandBuilding` | the lumber and steel leave the warehouse (FR-038, FR-057) | yes |
+| `trainWorkers` | cash and paper paid at once (FR-058), and the trainee's labour is gone from this turn's pool at once | yes |
+| `recruitWorkers` | canned food, clothing and furniture leave the warehouse (FR-042) | yes |
 
-Red summary (tests written and run before the code): `npx vitest run tests/engine/startWorld.test.ts
-tests/engine/newGame.test.ts tests/store/gameStore.test.ts tests/ui/railLine.test.tsx
-tests/ui/camera.test.tsx tests/engine/lintGuard.test.ts` gave `Test Files 5 failed | 1 passed (6)` /
-`Tests 17 failed | 46 passed | 5 skipped (68)`: `expected { cols: 40, rows: 40, style: 'square' } to match
-object { cols: 24, rows: 16 }`, `expected [ [ …(1444) ] ] to have a length of 2 but got 1`, `expected [
-'barrenHills', 'coast', …(13) ] to deeply equal [ 'barrenHills', 'farm', …(4) ]`, `Cannot read properties
-of undefined (reading '0')` (no `CAPITAL_SITES`), `Failed to resolve import "@/components/camera"`, and
-the rail-line setup `expected 'dryPlains' to be 'capital'` (its 5 tests skipped). The two FR-081 economy
-rows passed on the old map too: they guard what the new map must keep.
-
-Tests changed because of the new map:
-- `tests/ui/railLine.test.tsx` (FR-079): same intent, new tiles: rail from the capital 2-9 north along
-  the west shore 2-8, 2-7, 2-6, 2-5, 2-4, 2-3 to a depot on 3-2, every one a shore tile (asserted), and
-  the spur 4-2, 3-1 (the triangle 3-1, 3-2, 4-2); the red case stops the rail at 2-4 and walks over 2-3.
-  The two slow tests got a 30 s timeout (they replay about 25 turns; one timed out at 5 s on the old map).
-- `tests/engine/newGame.test.ts`: FR-043 titles now FR-080/FR-081, 24x16; the FR-059 rail-terrain row
-  swaps a hills tile's terrain to swamp and mountains (the new map has neither; the rule reads only the
-  terrain and the technologies). `lintGuard.test.ts`: title FR-080. `tests/store/gameStore.test.ts`: 24x16.
-- `e2e/play-turns.spec.ts`: the farmer develops 3-9, the engineer lays rail on 2-8, the prospector finds
-  coal on 5-2 (was 21-20, 19-20 and oil on 21-18). `market-and-game-over.spec.ts`: waits for 2-9.
-  `cursor-icons.spec.ts`: the prospect cursor hovers barren hills (no mountains or swamp left). All specs
-  now wait until the capital is in view: the first view scrolls once the page is live, and the
-  construction-cursor test failed twice before the wait (its click landed on the tile, not the engineer).
-
-### Evidence
+All are payments or reservations made when the order is given; none changes the map, the market or
+production before End Turn, and every one can be undone until then. The one that changes this turn's
+play is training (the trainee's labour is withdrawn as soon as it is ordered). `setProduction` and
+`setTransportAllocations` already act only at End Turn.
 
 | Claim | Command | Result (quoted) |
 |---|---|---|
-| FR-080 to FR-082 covered (engine) | `npx vitest run tests/engine/startWorld.test.ts tests/engine/newGame.test.ts tests/store/gameStore.test.ts tests/ui/railLine.test.tsx tests/engine/lintGuard.test.ts` | `Test Files 5 passed (5)` / `Tests 68 passed (68)` |
-| FR-083 covered (unit) | `npx vitest run tests/ui/camera.test.tsx tests/ui/railLine.test.tsx tests/store` | `Test Files 4 passed (4)` / `Tests 36 passed (36)` |
-| All unit tests | `npx vitest run` | `Test Files 40 passed (40)` / `Tests 620 passed (620)` (+23); `railLine.test.tsx (6 tests) 3399ms` |
-| Types | `npx tsc --noEmit` (also after the last e2e edit) | exit 0, no output |
-| Lint | `npm run lint` | `✖ 3 problems (0 errors, 3 warnings)` (the same three as M3) |
-| Build | `npm run build` | `✓ Compiled successfully in 6.3s`, `✓ Generating static pages (4/4)` |
-| Smoke, first run | dev server on 3163 warmed with curl, `PORT=3163 PW_REUSE_SERVER=1 npx playwright test --reporter=list` | `2 failed` / `1 skipped` / `11 passed (1.2m)`: my islands spec measured the odd row 0-9 (`Received: 52`, shifted 50 px; now 0-8) and the construction-cursor test above |
-| Smoke, warm server, default workers | the same after the fixes | `1 skipped` / `13 passed (31.7s)` |
-| Smoke, as the brief says | `PORT=3165 npx playwright test --reporter=list` (Playwright starts a cold server, default workers) | `1 skipped` / `13 passed (35.6s)`; the skip is the old `test.fixme` rail cursor |
-| Screenshot | `PORT=3163 PW_REUSE_SERVER=1 SCREENSHOT_DIR=docs/journal npx playwright test e2e/islands.spec.ts -g "whole map"` | `1 passed (6.4s)`; `docs/journal/m3-5-islands.png` (2720x1620, 98 KB, the whole map) |
-
-### Decisions taken alone, each open to review
-
-- Objection: the map is the same for every seed (see plan-lite). "Deterministic from the seed" holds
-  trivially.
-- Objection: 24x16 at 100 px tiles is 2,450 x 1,600 px; on 1280x720 next to the 250 px HUD the map area
-  is 1,030 x 720, so the whole map needs tiles of 42 px or less (24.5 tile widths across with the
-  odd-row shift, 16 down). Tiles were not resized (part B restyles them).
-- Objection: the capital's plantation neighbour starts at level 1 too, not only farms and orchards (rules
-  02); the 40x40 capital had it, so the start economy is unchanged (4 grain, 4 fruit, 2 cotton a turn).
-  The start score is 240, not 250: the old map also had an iron-ore hill at level 1 that was not next to
-  the capital (counted for development, never shipped).
-- Objection: the camera is now the container's scroll position instead of a CSS transform. With a
-  transform, a camera centred on the capital put the tiles above and left of it out of reach of
-  Playwright's scroll-into-view (negative overflow), and edge scrolling ran off the map. The store's
-  `cameraX`/`cameraY` mirror the scroll; `moveCamera` was removed (nothing else used it). The Center
-  button now centres the capital (it used to put the map's centre at the top-left corner).
-- Objection: the capital is on island 1's west shore (it faces the map's west edge, not island 2); the
-  islands are 100 tiles each, forest and hills in the north, open range in the middle, farms, orchards
-  and plantations in the south, a forest strip on the east shore. Rows 14 and 15 are both sea, so the
-  islands sit one row above the middle (a shift by one row would change the hex neighbours).
-- The M3 entries moved to `docs/journal/archive-M3.md` (the journal would have passed 400 lines).
-
-## 2026-11-04 M3.5 part B: icons and clean look (FR-084 to FR-090, NR-008, NR-009)
-
-Size: L (milestone part: every map, HUD and dialog component). Unattended, one agent (Opus 5.5), no
-subagents, no advisor calls. Branch `claude/m3-5-look-and-map` from a38c3e3; `npm ci` clean. Ultracode
-was not on. Decisions applied as given (Nathan / orchestrator): Game Icons through `react-icons/gi`,
-faint tints plus an icon per tile, a minimalist palette defined once, tiles small enough for 1280x720.
-
-Plan-lite:
-- Change: `react-icons@5.7.0` (exact; the latest 5.x, 2026-06-30; 6.0 is a beta). `components/icons.ts`
-  (icon per terrain, resource, worker type and UI action; `tileIconOf`), `GameIcon.tsx`;
-  `styles/tokens.css` holds every colour, `styles/theme.ts` names them and holds `TILE_PX = 42`;
-  `components/territoryBorders.ts` draws ownership as border lines; the selection is an accent ring;
-  HUD and dialogs restyled on the tokens; About panel with the CC BY 3.0 attribution.
-- Consumers: the map, HUD, all dialogs; `camera.ts` and the rail overlay read `TILE_PX`.
-- Test rows: below. Verify: `npx vitest run tests/ui`, then the gate and Playwright.
-- Objection: 42 px leaves little room on a crowded tile: the capital's seven workers are 10 px buttons,
-  four to a row (legible as silhouettes, named by their tooltip and the HUD's tile panel). Bigger tiles
-  would bring scrolling back on 1280x720; I kept 42 px.
-
-| FR | Test file | What the test asserts |
-|---|---|---|
-| FR-084 | `tests/ui/icons.test.tsx` | `react-icons` pinned exactly; every `TerrainType`, `ResourceType` and `WorkerType` has an icon, each the export of that name in `react-icons/gi`; the capital, town, depot, port, job markers and actions too |
-| FR-085 | `tests/ui/icons.test.tsx`, `tests/ui/railLine.test.tsx` | `tileIconOf`: capital, known resource, hidden hills show hills then coal once discovered, town, sea none; MapView on the new map: one icon on each of the 200 land tiles, none on sea, capital `GiCapitol`; "L1" on 3-9, no badge at level 0; the 7 worker buttons show their icons; no `\p{Extended_Pictographic}` in the page with every dialog open on a finished game; depot `data-connected` true / false (FR-079 rows, were 🟢 / 🔴) |
-| FR-086 | `tests/ui/palette.test.ts` | every variable `theme.ts` names is defined in `tokens.css`; a tint per terrain, each light (L >= 0.8) and low in colour (chroma <= 0.2); land parchment, sea pale blue, ink dark grey, nation colours strong, accent strong and not a nation colour; no hex, rgb(a), hsl(a) or named colour in `components/`, `hooks/`, `page.tsx`, `globals.css` |
-| FR-087 | `tests/ui/territory.test.tsx` | border sides = sum of (6 - same-owner neighbours) over the 100 owned tiles, none between two owned tiles; side geometry on even and odd rows; one `path` per nation in its colour; the selected tile alone has the accent ring, owned and sea tiles share one grid border, no tile style carries a nation colour |
-| FR-088 | `tests/ui/palette.test.ts`, `tests/ui/camera.test.tsx`, `e2e/islands.spec.ts` | `TILE_PX` 42 = `--tile-width`, `HUD_PX` = `--hud-width`; map 1,029 x 672 fits 1030 x 720; on 1280x720 the camera stays 0, 0; FR-083's numbers redone on 800x450 (capital camera 0, 174; corner 479, 222) |
-| FR-089 | `tests/ui/about.test.tsx` | HUD About opens a dialog "About" with the attribution text and links to game-icons.net and the licence; Close hides it |
-| FR-090 | `e2e/look.spec.ts` | 1280x720: tiles 0-0, 23-0, 0-15, 23-15 are 42 px and inside 1030 x 720, scroll 0, 0, odd rows shifted 21 px; 200 land icons, 0 on sea, capital icon, L1 badge; About attribution; capital and market open; rail 2-8, 2-7 and a depot on 2-7 built through the UI: 2 rail lines, depot connected; no console errors |
-
-Red summary (tests written and run before the code): `npx vitest run tests/ui/icons.test.tsx
-tests/ui/palette.test.ts tests/ui/territory.test.tsx tests/ui/about.test.tsx tests/ui/camera.test.tsx
-tests/ui/railLine.test.tsx` gave `Test Files 6 failed (6)` / `Tests 8 failed | 1 passed (9)`: `Failed to
-resolve import "@/components/icons"`, `Cannot find module '@/styles/theme'`, `Failed to resolve import
-"@/components/territoryBorders"` (icons, palette, territory, rail-line files), `Unable to find an accessible
-element with the role "button" and name /About/`, and the camera rows `expected { width: 2450, height:
-1600 } to deeply equal { width: 1029, height: 672 }`, `expected { x: 0, y: 590 } to deeply equal { x: 0,
-y: 0 }`.
-
-Tests changed, same intent: `tests/ui/camera.test.tsx` (FR-083 numbers for 42 px on an 800x450 screen,
-plus the 1280x720 rows); `tests/ui/railLine.test.tsx` (reads lines on the `TILE_PX` grid, only
-`[data-testid="rail-segment"]` since the overlay now also holds the borders, and the depot's
-`data-connected` instead of the emoji); `e2e/islands.spec.ts` (FR-083 checks on 800x450, the whole-map
-check on the default screen); all e2e specs wait for `map-scroll[data-ready="true"]` (see below).
-
-### Evidence
-
-| Claim | Command | Result (quoted) |
-|---|---|---|
-| FR-084 to FR-089 covered | `npx vitest run tests/ui` | `Test Files 13 passed (13)` / `Tests 129 passed (129)` |
-| All unit tests | `npx vitest run` | `Test Files 44 passed (44)` / `Tests 643 passed (643)` (+23) |
+| FR-097 to FR-099, FR-102 to FR-104 covered | `npx vitest run tests/engine/secondNation.test.ts` | `Tests 18 passed (18)` |
+| FR-101 covered | `npx vitest run tests/engine/freightCars.test.ts tests/engine/systems/productionSystem.test.ts tests/engine/resolveTurn.test.ts` | `Test Files 3 passed (3)` |
+| FR-099, FR-100, FR-105 (d) covered | `npx vitest run tests/store` | `Test Files 3 passed (3)` |
+| Unit tests | `npm test` | `Test Files 48 passed (48)` / `Tests 691 passed (691)` (+37 on main's 654) |
+| Lint | `npm run lint` | `✖ 3 problems (0 errors, 3 warnings)` (the same 3 warnings as on main) |
 | Types | `npx tsc --noEmit` | exit 0, no output |
-| Lint | `npm run lint` | `✖ 3 problems (0 errors, 3 warnings)` (the same three as M3) |
-| Build | `npm run build` | `✓ Compiled successfully in 10.8s`, `✓ Generating static pages (4/4)` |
-| Smoke, warm server, default workers | `npm run dev -- --port 3171`, then `PORT=3171 PW_REUSE_SERVER=1 npx playwright test --reporter=list` | first run `1 failed` / `1 skipped` / `14 passed (40.6s)` (the far-corner test scrolled before the page was live, fixed with `data-ready`); after the fix `5 failed` / `1 skipped` / `10 passed (1.7m)`, all five `Test timeout of 30000ms exceeded` or a 15 s wait, every test 16 to 35 s (the machine was loaded) |
-| Smoke, warm server, 1 worker | the same with `--workers=1` | `1 skipped` / `15 passed (3.5m)`; the skip is the old `test.fixme` rail cursor |
-| FR-090 and screenshots | `PORT=3171 PW_REUSE_SERVER=1 SCREENSHOT_DIR=docs/journal npx playwright test e2e/look.spec.ts --workers=1` | `2 passed (10.6s)`; `docs/journal/m3-5-look-map.png`, `-capital.png`, `-market.png` (1280x720) and `-zoom.png` (a 300 x 260 crop around the capital at 3x pixel density: icons, L1 badges, the selected farm 3-9, rail 2-9 to 2-7 and the depot with its green dot) |
+| Build | `npm run build` | `✓ Compiled successfully in 8.1s`, `✓ Generating static pages (4/4)` |
+| Smoke | `PORT=3170 npx playwright test --reporter=line --workers=1` | `1 skipped` / `15 passed (3.9m)`; the skip is the old `test.fixme` rail cursor |
 
-Palette (`styles/tokens.css`): land `--color-land` #f3ecda, sea `--color-sea` #d4e4ec, ink `--color-ink`
-#3b3b3b and `--color-ink-muted` #6f6a60, accent `--color-accent` #1f6f78 (hover #185a62, text on it
-#ffffff), nations `--color-nation-1` #a8322d and `--color-nation-2` #2c5c9e, status `--color-good` #4a8a3c,
-`--color-bad` #c9483a, `--color-warn` #b7791f, `--color-highlight` #e3b341, `--color-rail` #4a4a4a, panels
-`--color-surface` #faf6ec, `-sunken` #efe8d6, `-raised` #fffcf5, grid line rgba(59, 59, 59, 0.12), and one
-`--terrain-<type>` tint per terrain (farm #efe5c2, orchard #f1dcd3, open range #e6e3c6, plantation
-#e1e8cf, hardwood forest #d5e2cc, barren hills #e2d9cc, the rest for the test worlds). The old dark
-dialog tokens (`--color-bg-*`, `--color-text-*`) now point at these, so the dialogs turned light.
+The first smoke run with default workers on a cold dev server failed 13 tests, most on `page.goto:
+Test timeout of 30000ms exceeded`; with `--workers=1` (as the brief allows) only the real two-nation
+selector failures were left, fixed in the e2e commit.
 
-Decisions taken alone, each open to review:
-- Objection: the nation colour comes from the theme by the nation's place in `state.nations`, not from
-  `Nation.color` (the engine's start world says #FF0000); changing engine data was out of scope. M4's
-  nation-2 gets `--color-nation-2`. `Nation.color` is now unused by the map.
-- Objection: ownership is drawn as the territory's outline (sides where an owned tile meets another
-  owner or the sea), not a border on every owned tile, which at 42 px turned the island into a red grid.
-- Objection: the cursors stay emoji (SVG data URIs in `useTileVisuals`; `e2e/cursor-icons.spec.ts`
-  reads them). Game Icons as cursors need the SVG markup as a string; left for later.
-- Objection: close buttons show a plain "×", not a Game Icon: the set's cross mark is a brush stroke that
-  read as a bird at button size. "−" / "+" steppers and the "✗" before a missing input stay text.
-- Objection: e2e specs waited for "the capital is in view" as the sign that the page is live; with the
-  whole map on screen the first view no longer scrolls, so that wait passed on the server-rendered HTML
-  and a click could land before React. MapView now sets `data-ready` after its first view and every spec
-  waits for it (one test failed this way before the change).
-- Removed from `constants/gameConstants.ts`: `TILE_CONFIG` (said 100 px), the emoji `WORKER_ICONS`,
-  `RESOURCE_ICONS` and `TERRAIN_COLORS` (replaced by `components/icons.ts` and the tokens).
-- The HUD title shows the nation's name instead of "HUD". The terrain name printed on every tile is gone
-  (the tile panel in the HUD still names the terrain).
-
-## 2026-11-04 M3.5 review fix round (FR-091 to FR-096)
-
-Size: M (six review findings, UI only). Unattended, one agent (Opus 5.5), no subagents, no advisor calls.
-Ultracode was not on. Branch `claude/m3-5-look-and-map` from 06a1f7c; `npm ci` clean. Engine, `Nation.color`
-handling, the capital's worker buttons, cursors and the palette-scan scope are unchanged.
-
-Plan-lite:
-- Change: `MapView` applies the camera to the scroll container in a layout effect, first view included
-  (`data-ready` lands in the same commit as the scroll); `cameraSlice.moveCamera` (counts moves in
-  `cameraMoves`) for Center; depot and port `role="img"` named "Depot: connected" / "…: not connected",
-  hollow ring when not connected; `--color-good` #3b7530, `--color-warn` #9a6412, `--color-ink-muted`
-  #6a655c; tiles `role="group"` with `aria-label` from `tileLabel` (`gameText.ts`, new `TERRAIN_TEXT`);
-  tab title "Imperialism".
-- Consumers: MapView, HUD Center, the map tiles, every text using the three tokens.
-- Verify: `npx vitest run tests/ui`, then the gate and Playwright.
-- Objection: FR-091's race did not reproduce in a real browser (the e2e check below passed before the fix):
-  React 19 flushes the effects of a Zustand (sync-lane) commit at once. It shows under `act()`, which
-  batches the camera and `data-ready` into one commit; the layout effect removes the dependency on that
-  React detail.
-
-| FR | Test file | What the test asserts |
-|---|---|---|
-| FR-091 | `tests/ui/camera.test.tsx`, `e2e/islands.spec.ts` | a sibling's layout effect sees, in every commit, the container scrolled to the stored camera, and 0, 174 when `data-ready` first shows; e2e reads the scroll at once after `data-ready` on 800x450: 0, 174 |
-| FR-092 | `tests/ui/camera.test.tsx` | store already at the capital (0, 174), container scrolled to 479, 222 without a scroll event: Center scrolls it back to 0, 174 |
-| FR-093 | `tests/ui/accessibleNames.test.tsx`, `e2e/look.spec.ts`, `tests/ui/railLine.test.tsx` | `role="img"` names and titles "Depot: connected", "Port: not connected" and the reverse, `data-connected` kept; `.statusOff` a light centre in a red border, `.statusOn` a green fill; e2e finds the built depot by the name "Depot: connected" |
-| FR-094 | `tests/ui/palette.test.ts` | WCAG formula (21:1 black on white, 4.48 for #777 on white); good on surface and sunken, warn on surface, muted on surface, sunken and raised all >= 4.5 |
-| FR-095 | `tests/ui/accessibleNames.test.tsx`, `e2e/look.spec.ts` | all 384 tiles are named groups; 3-9 "Farm, grain, level 1, owned by Testland" (two such farms), 2-9 "Capital, owned by Testland", hidden barren hills "Barren hills, owned by Testland", island-2 orchard "Orchard, fruit, level 0, not owned", sea "Sea"; the tile shows no terrain text |
-| FR-096 | `tests/ui/accessibleNames.test.tsx`, `e2e/look.spec.ts` | `layout.tsx` has `title: "Imperialism"` and no template text; the page title is "Imperialism" |
-
-Red summary (tests run before the code): `npx vitest run tests/ui/accessibleNames.test.tsx
-tests/ui/palette.test.ts tests/ui/camera.test.tsx` gave `Test Files 3 failed (3)` / `Tests 9 failed | 16
-passed (25)`: `Unable to find an accessible element with the role "img" and name "Depot: connected"` (and
-"Depot: not connected"), `expected '…background: var(--color-bad);…' to match` the hollow ring, `expected
-[ …(384) ] to deeply equal []` (tiles without names), `expected null to be 'Farm, grain, level 1, owned by
-Testla…'`, `expected 'import type { Metadata } from "next";…' to match /title:\s*"Imperialism"/`,
-`expected { x: +0, y: +0 } to deeply equal { x: +0, y: 174 }` (FR-091), `expected { x: 479, y: 222 } to
-deeply equal { x: +0, y: 174 }` (FR-092), and the contrast row listing four pairs (good on surface 3.90,
-on sunken 3.44, warn on surface 3.37, muted on sunken 4.40). The tile "no terrain text" guard passed, as
-it should. E2E before the code (`e2e/look.spec.ts e2e/islands.spec.ts --workers=1`): `2 failed` / `3
-passed (34.5s)`: `toHaveTitle` `Received: "Create Next App"`, and the depot by its new name `element(s)
-not found`; the FR-091 islands check passed (see the objection).
-
-### Evidence
-
-| Claim | Command | Result (quoted) |
-|---|---|---|
-| FR-091 to FR-096 covered | `npx vitest run tests/ui` | `Test Files 14 passed (14)` / `Tests 140 passed (140)` |
-| All unit tests | `npx vitest run` | `Test Files 45 passed (45)` / `Tests 654 passed (654)` (+11) |
-| Types | `npx tsc --noEmit` | exit 0, no output |
-| Lint | `npm run lint` | `✖ 3 problems (0 errors, 3 warnings)` (the same three as M3) |
-| Build | `npm run build` (dev server stopped first) | `✓ Compiled successfully in 4.9s`, `✓ Generating static pages (4/4)` |
-| Smoke, warm server, default workers | `npm run dev -- --port 3173`, then `PORT=3173 PW_REUSE_SERVER=1 npx playwright test --reporter=list` | `1 skipped` / `15 passed (52.1s)`; the skip is the old `test.fixme` rail cursor |
-
-Decisions taken alone:
-- Objection: the tile name is a `role="group"` (a named container that can hold the worker buttons), not
-  `button`: a tile holds buttons, and a button inside a button is invalid. Tiles are still not keyboard
-  focusable; out of scope.
-- Objection: two tiles can share a name (the two level-1 farms by the capital); the name carries no
-  coordinates, as the brief's example had none.
-- Objection: the not-connected ring keeps the dot's 7 px footprint (3 px light centre, 2 px red border);
-  at that size the shape difference is small; not checked by eye (no screenshot of an unconnected depot).
-- Objection: `--color-good` went a little darker than the suggested #3d7a31 (4.27:1 on `--color-surface-sunken`,
-  the capital dialog's panel colour, where good text may sit); #3b7530 gives 5.16 on surface and 4.55 on sunken.
