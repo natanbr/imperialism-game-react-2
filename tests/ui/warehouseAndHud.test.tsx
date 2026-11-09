@@ -10,6 +10,10 @@ import type { GameState } from '@/types/GameState';
 import { GoodsType, MaterialType, ResourceType } from '@/types/Resource';
 import { emptyWarehouse, game, N1, setIndustry, setTile, T } from '../engine/fixtures';
 import { text } from './domText';
+import { failOnActWarnings } from './actWarnings';
+
+// FR-110 (f): every test here fails on a React act() warning
+failOnActWarnings();
 
 function show(state: GameState, ui: Partial<ReturnType<typeof useGameStore.getState>> = {}) {
   useGameStore.setState({ ...useGameStore.getInitialState(), game: state, activeNationId: N1, ...ui });
