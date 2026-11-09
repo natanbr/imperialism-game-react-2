@@ -51,6 +51,38 @@ function sourceFiles(dir: string): string[] {
   });
 }
 
+/** Every CSS named colour (CSS Color 4), for the palette scan (FR-110). */
+const NAMED_COLOURS = (
+  'aliceblue antiquewhite aqua aquamarine azure beige bisque black blanchedalmond blue blueviolet brown burlywood ' +
+  'cadetblue chartreuse chocolate coral cornflowerblue cornsilk crimson cyan darkblue darkcyan darkgoldenrod darkgray ' +
+  'darkgreen darkgrey darkkhaki darkmagenta darkolivegreen darkorange darkorchid darkred darksalmon darkseagreen ' +
+  'darkslateblue darkslategray darkslategrey darkturquoise darkviolet deeppink deepskyblue dimgray dimgrey dodgerblue ' +
+  'firebrick floralwhite forestgreen fuchsia gainsboro ghostwhite gold goldenrod gray green greenyellow grey honeydew ' +
+  'hotpink indianred indigo ivory khaki lavender lavenderblush lawngreen lemonchiffon lightblue lightcoral lightcyan ' +
+  'lightgoldenrodyellow lightgray lightgreen lightgrey lightpink lightsalmon lightseagreen lightskyblue lightslategray ' +
+  'lightslategrey lightsteelblue lightyellow lime limegreen linen magenta maroon mediumaquamarine mediumblue ' +
+  'mediumorchid mediumpurple mediumseagreen mediumslateblue mediumspringgreen mediumturquoise mediumvioletred ' +
+  'midnightblue mintcream mistyrose moccasin navajowhite navy oldlace olive olivedrab orange orangered orchid ' +
+  'palegoldenrod palegreen paleturquoise palevioletred papayawhip peachpuff peru pink plum powderblue purple ' +
+  'rebeccapurple red rosybrown royalblue saddlebrown salmon sandybrown seagreen seashell sienna silver skyblue ' +
+  'slateblue slategray slategrey snow springgreen steelblue tan teal thistle tomato turquoise violet wheat white ' +
+  'whitesmoke yellow yellowgreen'
+).split(' ');
+/** CSS properties (kebab-case) and React style keys (camelCase) that take a colour. */
+const COLOUR_PROPERTY =
+  '(?:color|background(?:-?[cC]olor)?|border(?:-?(?:[tT]op|[rR]ight|[bB]ottom|[lL]eft))?(?:-?[cC]olor)?|outline(?:-?[cC]olor)?|' +
+  'fill|stroke|box-?[sS]hadow|text-?[sS]hadow|caret-?[cC]olor|accent-?[cC]olor|stop-?[cC]olor|flood-?[cC]olor|' +
+  'text-?[dD]ecoration(?:-?[cC]olor)?)';
+const COLOUR_LITERALS: RegExp[] = [
+  /#[0-9a-fA-F]{3,8}\b/,
+  /\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\(/,
+  // A named colour anywhere in the value of a colour property ("border: 1px solid red", fill="white")
+  new RegExp(`(?<![\\w-])${COLOUR_PROPERTY}\\s*[:=]\\s*\\{?[^;\\n]*?(?<![\\w-])(?:${NAMED_COLOURS.join('|')})(?![\\w-])`),
+  // Tailwind colour classes ("bg-white", "text-red-500")
+  /\b(?:bg|text|border|ring|fill|stroke|shadow|outline|from|via|to|divide|accent|caret|decoration)-(?:white|black|(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d{2,3})\b/,
+];
+const hasColourLiteral = (line: string): boolean => COLOUR_LITERALS.some((re) => re.test(line));
+
 describe('FR-086 the palette is defined once in styles/tokens.css', () => {
   it('FR-086 every variable styles/theme.ts names is defined in tokens.css', () => {
     const missing = themeVariables().filter((name) => !defined.has(name));
@@ -92,19 +124,123 @@ describe('FR-086 the palette is defined once in styles/tokens.css', () => {
     expect(NATION_COLORS.map(valueOf)).not.toContain(valueOf(THEME.accent));
   });
 
-  it('FR-086 no colour literal in components, hooks or globals.css: they use the tokens', () => {
+  it('FR-086 FR-110 no colour literal in components, hooks, page.tsx, layout.tsx or globals.css: they use the tokens', () => {
     const files = [
       ...sourceFiles(join(ROOT, 'src/app/components')),
       ...sourceFiles(join(ROOT, 'src/app/hooks')),
       join(ROOT, 'src/app/globals.css'),
       join(ROOT, 'src/app/page.tsx'),
+      join(ROOT, 'src/app/layout.tsx'),
     ];
-    const literal = /#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(|(?:color|background|border(?:Color)?)\s*[:=]\s*["']?(?:red|green|yellow|blue|white|black|gr[ae]y)\b/;
     const offenders = files
       .flatMap((f) => readFileSync(f, 'utf8').split('\n').map((line, i) => ({ f, line, i })))
-      .filter(({ line }) => literal.test(line))
+      .filter(({ line }) => hasColourLiteral(line))
       .map(({ f, line, i }) => `${relative(ROOT, f)}:${i + 1}: ${line.trim()}`);
     expect(offenders).toEqual([]);
+  });
+
+  it('FR-110 the scan flags every kind of colour literal it looks for, and not the tokens', () => {
+    const flagged = [
+      "color: '#fff'",
+      'background: rgba(0, 0, 0, 0.5);',
+      'color: hsl(10 50% 50%);',
+      'color: hwb(10 20% 30%);',
+      'color: lab(50% 40 59);',
+      'color: lch(52% 72 50);',
+      'color: oklab(0.6 0.1 0.1);',
+      'fill: oklch(0.6 0.15 30);',
+      'stroke: color(display-p3 1 0 0);',
+      '<path fill="white" />',
+      '<line stroke="crimson" />',
+      "boxShadow: '0 0 2px black',",
+      'box-shadow: inset 0 0 0 3px tomato;',
+      'border: 1px solid rebeccapurple;',
+      "borderTop: '1px solid silver',",
+      'outline-color: navy;',
+      'text-shadow: 0 1px teal;',
+      "accentColor: 'gold',",
+      '<div className="bg-white text-red-500">',
+      '<span className="border-slate-200" />',
+    ];
+    const clean = [
+      'color: var(--color-ink);',
+      "boxShadow: 'var(--shadow-dialog)',",
+      'stroke={b.color}',
+      'fill: none;',
+      "background: selected ? THEME.surfaceSunken : 'transparent',",
+      'color: currentColor;',
+      'transition: box-shadow var(--transition-fast);',
+      'grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));',
+      '<div className="hud-container btn-plain text-left">',
+      'const nationColor = (slot: number) => NATION_COLORS[slot];',
+    ];
+    expect(flagged.filter((line) => !hasColourLiteral(line))).toEqual([]);
+    expect(clean.filter(hasColourLiteral)).toEqual([]);
+  });
+});
+
+/** sRGB #rrggbb to CIE Lab (D65), for colour distances. */
+function lab(hex: string): [number, number, number] {
+  return labOfLinear(linearRgb(hex));
+}
+function linearRgb(hex: string): [number, number, number] {
+  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
+  if (!m) throw new Error(`not a #rrggbb colour: ${hex}`);
+  const [r, g, b] = m.slice(1).map((v) => {
+    const c = parseInt(v, 16) / 255;
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return [r, g, b];
+}
+function labOfLinear([r, g, b]: [number, number, number]): [number, number, number] {
+  const x = (0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047;
+  const y = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  const z = (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883;
+  const f = (t: number) => (t > 216 / 24389 ? Math.cbrt(t) : ((24389 / 27) * t + 16) / 116);
+  return [116 * f(y) - 16, 500 * (f(x) - f(y)), 200 * (f(y) - f(z))];
+}
+/** CIE76 colour distance: about 2.3 is just noticeable; 25 and more reads as a different colour at a glance. */
+const deltaE = (a: [number, number, number], b: [number, number, number]) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+/** Colour vision deficiency on linear RGB (Machado, Oliveira and Fernandes 2009, severity 1). */
+const CVD: Record<string, number[][]> = {
+  deuteranopia: [[0.367322, 0.860646, -0.227968], [0.280085, 0.672501, 0.047413], [-0.01182, 0.04294, 0.968881]],
+  protanopia: [[0.152286, 1.052583, -0.204868], [0.114503, 0.786281, 0.099216], [-0.003882, -0.048116, 1.051998]],
+};
+const simulate = (hex: string, m: number[][]): [number, number, number] => {
+  const c = linearRgb(hex);
+  const clamp = (v: number) => Math.min(1, Math.max(0, v));
+  return labOfLinear([0, 1, 2].map((i) => clamp(m[i][0] * c[0] + m[i][1] * c[1] + m[i][2] * c[2])) as [number, number, number]);
+};
+
+describe('FR-110 (c) the nation colours are told apart', () => {
+  const token = (name: string) => valueOf(`var(${name})`);
+
+  it('FR-110 the distance formula gives the known values', () => {
+    expect(deltaE(lab('#ffffff'), lab('#000000'))).toBeCloseTo(100, 0);
+    expect(deltaE(lab('#a8322d'), lab('#c9483a'))).toBeCloseTo(11.0, 0);
+  });
+
+  it('FR-110 nation 1 is at least 25 from the red of "bad" and from nation 2; each nation at least 25 from the accent and good', () => {
+    const pairs: [string, string][] = [
+      ['--color-nation-1', '--color-bad'],
+      ['--color-nation-1', '--color-nation-2'],
+      ['--color-nation-1', '--color-accent'],
+      ['--color-nation-2', '--color-accent'],
+      ['--color-nation-1', '--color-good'],
+      ['--color-nation-2', '--color-good'],
+    ];
+    const close = pairs
+      .map(([a, b]) => ({ pair: `${a} vs ${b}`, dE: Math.round(deltaE(lab(token(a)), lab(token(b))) * 10) / 10 }))
+      .filter(({ dE }) => dE < 25);
+    expect(close).toEqual([]);
+  });
+
+  it('FR-110 the two nation colours stay at least 20 apart under simulated deuteranopia and protanopia', () => {
+    const apart = Object.entries(CVD).map(([kind, m]) => ({
+      kind,
+      dE: Math.round(deltaE(simulate(token('--color-nation-1'), m), simulate(token('--color-nation-2'), m)) * 10) / 10,
+    }));
+    expect(apart.filter(({ dE }) => dE < 20)).toEqual([]);
   });
 });
 
@@ -129,7 +265,7 @@ describe('FR-094 text contrast: WCAG AA 4.5:1 for normal text', () => {
     expect(contrast('#777777', '#ffffff')).toBeCloseTo(4.48, 2);
   });
 
-  it('FR-094 status and muted text reach 4.5:1 on the panel surfaces', () => {
+  it('FR-094 FR-110 status, muted and danger text reach 4.5:1 on the panel surfaces', () => {
     const pairs: [string, string][] = [
       ['--color-good', '--color-surface'],
       ['--color-good', '--color-surface-sunken'],
@@ -137,6 +273,11 @@ describe('FR-094 text contrast: WCAG AA 4.5:1 for normal text', () => {
       ['--color-ink-muted', '--color-surface'],
       ['--color-ink-muted', '--color-surface-sunken'],
       ['--color-ink-muted', '--color-surface-raised'],
+      // FR-110 (d): refusals in the HUD and dialogs, and the Cancel button
+      ['--color-text-danger', '--color-surface'],
+      ['--color-text-danger', '--color-surface-sunken'],
+      ['--color-text-danger', '--color-surface-raised'],
+      ['--color-text-danger', '--color-bg-danger'],
     ];
     const low = pairs
       .map(([text, bg]) => ({ pair: `${text} on ${bg}`, ratio: Math.round(contrast(valueOf(`var(${text})`), valueOf(`var(${bg})`)) * 100) / 100 }))
