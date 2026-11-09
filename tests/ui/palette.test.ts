@@ -283,6 +283,15 @@ const simulate = (hex: string, m: number[][]): [number, number, number] => {
 describe('FR-110 (c) the nation colours are told apart', () => {
   const token = (name: string) => valueOf(`var(${name})`);
 
+  it('FR-097 the nation colours requirements.md states are the ones in tokens.css', () => {
+    const row = readFileSync(join(ROOT, 'docs/requirements.md'), 'utf8').split('\n').find((l) => l.startsWith('| FR-097 |')) ?? '';
+    const stated = [...row.matchAll(/`(--color-nation-\d)`\s+\w+\s+(#[0-9a-f]{6})/gi)].map((m) => [m[1], m[2].toLowerCase()]);
+    expect(stated).toEqual([
+      ['--color-nation-1', token('--color-nation-1')],
+      ['--color-nation-2', token('--color-nation-2')],
+    ]);
+  });
+
   it('FR-110 the distance formula gives the known values', () => {
     expect(deltaE(lab('#ffffff'), lab('#000000'))).toBeCloseTo(100, 0);
     expect(deltaE(lab('#a8322d'), lab('#c9483a'))).toBeCloseTo(11.0, 0);
