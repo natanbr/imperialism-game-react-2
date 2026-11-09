@@ -2,10 +2,32 @@ import React, { useState } from "react";
 import { TileInfoPanel } from "./TileInfoPanel";
 import { useGameStore } from '../store/rootStore';
 import { selectActiveNation } from "../store/selectors";
-import { TurnIndicator, NationStats, ActionButtons, NewsPanel, FoodWarning, ScoreIndicator } from "./HUD/index";
+import { TurnIndicator, NationStats, ActionButtons, NewsPanel, FoodWarning, ScoreIndicator, ScoreTable } from "./HUD/index";
 import { AboutPanel } from "./HUD/AboutPanel";
 import { UI_ICONS } from "./icons";
 import { GameIcon } from "./GameIcon";
+import { startNewGameOnCapital } from "@/hooks/mapActions";
+
+/** New game throws the running game away, so the HUD asks first, in place (FR-109). */
+const ConfirmNewGame: React.FC<{ onDone: () => void }> = ({ onDone }) => (
+    <div className="confirm-panel" role="group" aria-label="Confirm new game">
+        <p>Start a new game? This game will be lost.</p>
+        <div className="confirm-actions">
+            <button
+                className="btn btn-primary btn-sm"
+                onClick={() => {
+                    startNewGameOnCapital();
+                    onDone();
+                }}
+            >
+                Start new game
+            </button>
+            <button className="btn btn-plain btn-sm" onClick={onDone}>
+                Keep playing
+            </button>
+        </div>
+    </div>
+);
 
 export const HUD: React.FC = () => {
     const selectedTileId = useGameStore((s) => s.selectedTileId);
@@ -13,25 +35,36 @@ export const HUD: React.FC = () => {
     const seed = useGameStore((s) => s.game.seed);
     const nation = useGameStore(selectActiveNation);
     const selectedTile = map.tiles.flat().find(tile => tile.id === selectedTileId);
-    // The credits panel is view state only, so it lives here and not in the store (FR-089)
+    // The credits panel and the New game question are view state only, so they live here (FR-089, FR-109)
     const [isAboutOpen, setAboutOpen] = useState(false);
+    const [isConfirmingNewGame, setConfirmingNewGame] = useState(false);
 
     return (
         <div className="hud-container" data-edge-scroll="horizontal-only">
-            <div>
+            <div className="hud-content">
                 <div className="hud-header">
                     <h2 className="hud-title">{nation?.name ?? "HUD"}</h2>
-                    <button className="icon-button" onClick={() => setAboutOpen((open) => !open)} title="About and credits">
-                        <GameIcon name={UI_ICONS.about} /> About
-                    </button>
+                    <div className="hud-header-actions">
+                        <button className="icon-button" onClick={() => setConfirmingNewGame((open) => !open)} title="Start a new game">
+                            <GameIcon name={UI_ICONS.newGame} /> New game
+                        </button>
+                        <button className="icon-button" onClick={() => setAboutOpen((open) => !open)} title="About and credits">
+                            <GameIcon name={UI_ICONS.about} /> About
+                        </button>
+                    </div>
                 </div>
+                {isConfirmingNewGame && <ConfirmNewGame onDone={() => setConfirmingNewGame(false)} />}
                 {isAboutOpen && <AboutPanel onClose={() => setAboutOpen(false)} />}
                 <TurnIndicator />
                 <NationStats />
                 <ScoreIndicator />
+                <ScoreTable />
                 <FoodWarning />
 
-                {/* Debug section */}
+                <TileInfoPanel selectedTile={selectedTile} />
+                <NewsPanel />
+
+                {/* Debug section, last: the tile's coordinates and the seed, for bug reports */}
                 {selectedTile && (
                     <div className="hud-debug-section">
                         <div className="hud-debug-title">Debug</div>
@@ -39,9 +72,6 @@ export const HUD: React.FC = () => {
                         <div><strong>Seed:</strong> {seed}</div>
                     </div>
                 )}
-
-                <TileInfoPanel selectedTile={selectedTile} />
-                <NewsPanel />
             </div>
 
             <ActionButtons />

@@ -3,7 +3,7 @@ import { Tile } from '@/types/Tile';
 import { Worker } from '@/types/Workers';
 import { createSelector } from 'reselect';
 import { completedTileIds } from '@/components/gameText';
-import { foodForecast, scoreOf } from '@/engine';
+import { foodForecast, scoreOf, scoreTable } from '@/engine';
 import { GameStore } from './rootStore';
 
 const selectNations = (state: GameStore) => state.game.nations;
@@ -31,6 +31,9 @@ export const selectActiveScore = createSelector(
   [(state: GameStore) => state.game, selectActiveNationId],
   (game, activeNationId) => scoreOf(game, activeNationId)
 );
+
+/** Every nation's score now, highest first, ties in founding order (FR-106). */
+export const selectScoreTable = createSelector([(state: GameStore) => state.game], (game) => scoreTable(game));
 
 export const selectActiveNationCapacity = createSelector(
     [selectActiveNation],

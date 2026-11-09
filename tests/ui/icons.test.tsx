@@ -44,7 +44,8 @@ describe('FR-084 icon set: Game Icons through react-icons/gi', () => {
   });
 
   it('FR-084 the capital, infrastructure, job markers and actions have Game Icons', () => {
-    const wanted = ['capital', 'town', 'depot', 'port', 'prospecting', 'development', 'construction', 'warehouse', 'market', 'transport', 'center', 'advanceTurn', 'finalScores', 'about'];
+    // FR-109 New game and FR-110 the civilians' stack are HUD and map actions too
+    const wanted = ['capital', 'town', 'depot', 'port', 'prospecting', 'development', 'construction', 'warehouse', 'market', 'transport', 'center', 'advanceTurn', 'finalScores', 'about', 'newGame', 'civilians'];
     expect(Object.keys(UI_ICONS).sort()).toEqual(wanted.sort());
     for (const name of Object.values(UI_ICONS)) expect(isGameIcon(name), name).toBe(true);
   });
@@ -95,8 +96,9 @@ describe('FR-085 what a tile shows', () => {
     unmount();
   });
 
-  it('FR-085 workers are buttons with their Game Icon', () => {
-    show(game);
+  // FR-110 (a): the capital's seven civilians are one stack button until the tile is selected, then a tray
+  it('FR-085 FR-110 workers are buttons with their Game Icon', () => {
+    show(game, { selectedTileId: '2-9' });
     const { container, unmount } = render(<MapView />);
     const buttons = [...container.querySelectorAll('[data-tile-id="2-9"] [data-testid="worker-button"]')];
     expect(buttons).toHaveLength(7);

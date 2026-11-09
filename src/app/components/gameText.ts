@@ -197,6 +197,26 @@ export function eventText(event: GameEvent): string | null {
   }
 }
 
+/**
+ * The news of a turn as the player reads it (FR-107): the player's own lines first, as `eventText`
+ * words them; then every other nation's lines, each starting with the nation's name ("Valdoria: Rail
+ * finished at 15-8."); then the lines of no nation (game over). Each group keeps the event order.
+ */
+export function newsLines(events: readonly GameEvent[], playerId: string, nameOf: (nationId: string) => string): string[] {
+  const own: string[] = [];
+  const others: string[] = [];
+  const general: string[] = [];
+  for (const event of events) {
+    const line = eventText(event);
+    if (line === null) continue;
+    const nationId = "nationId" in event ? event.nationId : undefined;
+    if (nationId === undefined) general.push(line);
+    else if (nationId === playerId) own.push(line);
+    else others.push(`${nameOf(nationId)}: ${line}`);
+  }
+  return [...own, ...others, ...general];
+}
+
 /** Tiles whose development or construction finished in these events (the map's "done" mark). */
 export function completedTileIds(events: readonly GameEvent[]): ReadonlySet<string> {
   const ids = new Set<string>();

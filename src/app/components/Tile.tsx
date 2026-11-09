@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { useGameStore } from '@/store/rootStore';
 import { selectSelectedWorkerAndTile, selectTilesCompletedLastTurn } from '@/store/selectors';
 import { Tile } from '@/types/Tile';
@@ -16,6 +16,7 @@ import {
   TileWorkers,
   TileJobs,
 } from './Tile/index';
+import type { TrayPlacement } from './Tile/TileWorkers';
 
 interface TileProps {
   tile: Tile;
@@ -40,18 +41,35 @@ const TileComponentInner: React.FC<TileProps> = ({
 }) => {
   // Store selectors (only for actions and map reference)
   const selectWorker = useGameStore((s) => s.selectWorker);
+  const selectTile = useGameStore((s) => s.selectTile);
   const map = useGameStore((s) => s.game.map);
+  const playerId = useGameStore((s) => s.activeNationId);
 
   // Get selected worker
   const { worker: selectedWorker } = useGameStore(selectSelectedWorkerAndTile);
   const jobJustCompleted = useGameStore((s) => selectTilesCompletedLastTurn(s).has(tile.id));
   const ownerName = useGameStore((s) => (tile.ownerNationId ? s.game.nations.find((n) => n.id === tile.ownerNationId)?.name : undefined));
+  // The other nation whose civilians stand here (FR-108); strings, so the subscription stays cheap
+  const otherNationName = useGameStore((s) => {
+    const id = tile.workers.find((w) => w.nationId !== s.activeNationId)?.nationId;
+    return id ? (s.game.nations.find((n) => n.id === id)?.name ?? id) : undefined;
+  });
 
   const isSelected = selectedTileId === tile.id;
 
   const possibleAction = useTileActions(tile, selectedWorker, map);
-  const tileVisuals = useTileVisuals(tile, isSelected, possibleAction);
+  const tileVisuals = useTileVisuals(tile, possibleAction);
   const handleTileClick = useTileClickHandler(tile, selectedWorker, possibleAction);
+
+  // The stack button opens the tray: the tile selected, no worker (FR-110)
+  const openTray = useCallback(() => {
+    selectWorker(undefined);
+    selectTile(tile.id);
+  }, [selectWorker, selectTile, tile.id]);
+  const trayPlacement = useMemo<TrayPlacement>(() => ({
+    align: tile.x <= 1 ? 'start' : tile.x >= map.config.cols - 2 ? 'end' : 'center',
+    above: tile.y >= map.config.rows - 3,
+  }), [tile.x, tile.y, map.config.cols, map.config.rows]);
 
   // Compute infrastructure status
   const nationNetwork = tile.ownerNationId
@@ -82,7 +100,6 @@ const TileComponentInner: React.FC<TileProps> = ({
       hasRiver={tile.hasRiver ?? false}
       backgroundColor={tileVisuals.terrainColor}
       border={tileVisuals.border}
-      boxShadow={tileVisuals.boxShadow}
       isSelected={isSelected}
       cursor={tileVisuals.cursor}
       hasJobCompleted={jobJustCompleted}
@@ -101,8 +118,13 @@ const TileComponentInner: React.FC<TileProps> = ({
 
       <TileWorkers
         workers={tile.workers}
+        playerId={playerId}
+        otherNationName={otherNationName}
         selectedWorkerId={selectedWorkerId}
+        trayOpen={isSelected && !selectedWorkerId}
+        trayPlacement={trayPlacement}
         onWorkerSelect={selectWorker}
+        onOpenTray={openTray}
       />
 
       <TileJobs

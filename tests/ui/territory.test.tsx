@@ -68,7 +68,9 @@ describe('FR-087 territory borders', () => {
 });
 
 describe('FR-087 the selected tile looks different from owned tiles', () => {
-  it('FR-087 the selected tile has the accent ring; owned and unowned tiles share one plain grid border', () => {
+  // FR-110 (b) moved the ring from the tile's own box-shadow to an element of its own above the border
+  // overlay; its accent colour and stacking are checked in watchNation.test.tsx.
+  it('FR-087 FR-110 the selected tile alone has the ring; owned and unowned tiles share one plain grid border', () => {
     show(game, { selectedTileId: '3-9' });
     const { container, unmount } = render(<MapView />);
     const style = (id: string) => (container.querySelector(`[data-tile-id="${id}"]`) as HTMLElement).style;
@@ -76,14 +78,14 @@ describe('FR-087 the selected tile looks different from owned tiles', () => {
     const selected = style('3-9');
     const owned = style('3-8');
     const sea = style('1-9');
-    expect(selected.boxShadow).toContain(THEME.accent);
-    expect(owned.boxShadow).not.toContain(THEME.accent);
     expect(owned.border).toBe(sea.border);
     expect(selected.border).toBe(owned.border);
     // No tile's own style carries a nation colour any more: ownership is the border overlay
     const tiles = [...container.querySelectorAll('[data-testid="tile"]')] as HTMLElement[];
     expect(tiles.filter((t) => NATION_COLORS.some((c) => t.style.cssText.includes(c)))).toEqual([]);
-    expect(tiles.filter((t) => t.style.boxShadow.includes(THEME.accent)).map((t) => t.dataset.tileId)).toEqual(['3-9']);
+    expect(tiles.filter((t) => t.style.cssText.includes(THEME.accent))).toEqual([]);
+    const rings = [...container.querySelectorAll('[data-testid="selection-ring"]')];
+    expect(rings.map((r) => r.closest('[data-testid="tile"]')?.getAttribute('data-tile-id'))).toEqual(['3-9']);
     expect(container.querySelector('[data-tile-id="3-9"]')?.getAttribute('data-selected')).toBe('true');
     unmount();
   });

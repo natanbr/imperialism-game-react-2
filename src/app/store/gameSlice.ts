@@ -62,7 +62,7 @@ export interface GameSlice {
    * every nation's orders (FR-100); nothing after game over (FR-077).
    */
   advanceTurn: () => void;
-  /** Replaces the game with a new one and clears what belonged to the old one (FR-105). */
+  /** Replaces the game with a new one and clears what belonged to the old one (FR-105, FR-109). */
   startNewGame: (options?: { seed?: number; turnLimit?: number }) => void;
 }
 
@@ -124,6 +124,7 @@ export const createGameSlice =
         });
       },
 
+      // Nothing of the old game's session survives: selection, dialogs, news, logs (FR-105, FR-109).
       startNewGame: ({ seed, turnLimit } = {}) => {
         const next = newGame({ seed: seed ?? randomSeed(), turnLimit });
         set({
@@ -134,6 +135,16 @@ export const createGameSlice =
           orderLog: [],
           ordersThisTurn: [],
           isGameOverHidden: false,
+          selectedTileId: undefined,
+          hoveredTileId: undefined,
+          selectedWorkerId: undefined,
+          isCapitalOpen: false,
+          isMarketOpen: false,
+          isWarehouseOpen: false,
+          isTransportAllocationOpen: false,
+          isConstructionModalOpen: false,
+          constructionModalTileId: null,
+          constructionModalWorkerId: null,
         });
       },
     };

@@ -139,3 +139,47 @@ describe('FR-105 startNewGame', () => {
   });
 });
 
+
+describe('FR-109 startNewGame clears the session', () => {
+  it('FR-109 a new game clears the tile and worker selection and closes every dialog', () => {
+    const store = createGameStore({ game: newGame({ seed: 1 }) });
+    store.getState().selectTile('3-9');
+    store.getState().selectWorker('worker-nation-1-2');
+    store.getState().openCapital();
+    store.getState().openMarket();
+    store.getState().openWarehouse();
+    store.getState().openTransportAllocation();
+    store.getState().openConstructionModal('2-9', 'worker-nation-1-7');
+    expect(store.getState()).toMatchObject({ selectedTileId: '3-9', selectedWorkerId: 'worker-nation-1-2', isCapitalOpen: true });
+
+    store.getState().startNewGame({ seed: 2 });
+
+    expect(store.getState()).toMatchObject({
+      selectedTileId: undefined,
+      selectedWorkerId: undefined,
+      isCapitalOpen: false,
+      isMarketOpen: false,
+      isWarehouseOpen: false,
+      isTransportAllocationOpen: false,
+      isConstructionModalOpen: false,
+      constructionModalTileId: null,
+      constructionModalWorkerId: null,
+    });
+  });
+});
+
+describe('FR-108 the store selects only the player\'s workers', () => {
+  it('FR-108 selectWorker and setSelectedWorkerId ignore another nation\'s worker and an unknown id', () => {
+    const store = createGameStore({ game: newGame({ seed: 1 }) });
+    for (const id of ['worker-nation-2-1', 'no-such-worker']) {
+      store.getState().selectWorker(id);
+      store.getState().setSelectedWorkerId(id);
+      expect(store.getState().selectedWorkerId).toBeUndefined();
+    }
+    store.getState().setSelectedWorkerId('worker-nation-1-1');
+    expect(store.getState().selectedWorkerId).toBe('worker-nation-1-1');
+    // Another nation's worker leaves the current selection as it was
+    store.getState().selectWorker('worker-nation-2-1');
+    expect(store.getState().selectedWorkerId).toBe('worker-nation-1-1');
+  });
+});

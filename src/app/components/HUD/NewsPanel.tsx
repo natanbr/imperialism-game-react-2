@@ -1,13 +1,19 @@
 import React from "react";
 import { useGameStore } from "@/store/rootStore";
-import { eventText, refusalText } from "../gameText";
+import { newsLines, refusalText } from "../gameText";
 
-/** The last refused order and the news of the last resolved turn (FR-024). */
+/**
+ * The last refused order and the news of the last resolved turn (FR-024): the player's lines first,
+ * then each other nation's lines under its name (FR-107).
+ */
 export const NewsPanel: React.FC = () => {
   const lastRejection = useGameStore((s) => s.lastRejection);
   const lastReport = useGameStore((s) => s.eventLog[s.eventLog.length - 1]);
+  const activeNationId = useGameStore((s) => s.activeNationId);
+  const nations = useGameStore((s) => s.game.nations);
 
-  const news = lastReport ? lastReport.events.map(eventText).filter((line): line is string => line !== null) : [];
+  const nameOf = (id: string) => nations.find((n) => n.id === id)?.name ?? id;
+  const news = lastReport ? newsLines(lastReport.events, activeNationId, nameOf) : [];
 
   return (
     <div className="news-panel" data-testid="news-panel">

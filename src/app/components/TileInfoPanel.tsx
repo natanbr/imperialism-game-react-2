@@ -8,7 +8,7 @@ import { canBuildRailAt } from "@/engine/map/mapHelpers";
 import { PROSPECT_COST, DEVELOPMENT_COST, CONSTRUCTION_COST } from "@/definisions/workPrices";
 import { parseTileIdToArray } from "@/utils/tileIdUtils";
 import { ConstructionKind } from "@/types/jobs/ConstructionJob";
-import { workerJobLabel } from "./gameText";
+import { commodityName, TERRAIN_TEXT, workerJobLabel } from "./gameText";
 import { UI_ICONS, WORKER_ICONS } from "./icons";
 import { GameIcon } from "./GameIcon";
 import { THEME } from "@/styles/theme";
@@ -27,6 +27,10 @@ const WorkerStatusIndicator: React.FC<{ status: WorkerStatus }> = ({ status }) =
   return <span style={{ marginRight: 8, color }}>●</span>;
 };
 
+/**
+ * The selected tile in the HUD. On the player's land it offers the selected civilian's jobs; another
+ * nation's tile is shown read-only, with no control that builds an order (FR-108).
+ */
 export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) => {
   const selectedWorkerId = useGameStore((s) => s.selectedWorkerId);
   const setSelectedWorkerId = useGameStore((s) => s.setSelectedWorkerId);
@@ -34,10 +38,21 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
   const map = useGameStore((s) => s.game.map);
   const activeNationId = useGameStore((s) => s.activeNationId);
   const activeNation = useGameStore((s) => s.game.nations.find(n => n.id === s.activeNationId));
+  const nations = useGameStore((s) => s.game.nations);
 
   if (!selectedTile) {
     return <div style={{ padding: "10px" }}>No tile selected</div>;
   }
+
+  const owner = selectedTile.ownerNationId ? nations.find((n) => n.id === selectedTile.ownerNationId) : undefined;
+  const ownerName = owner?.name ?? selectedTile.ownerNationId;
+  const isTheirs = selectedTile.ownerNationId !== undefined && selectedTile.ownerNationId !== activeNationId;
+  const resource = selectedTile.resource;
+  const resourceText = !resource
+    ? "None"
+    : resource.discovered === false
+      ? "Not yet prospected"
+      : `${commodityName(resource.type)} (L${resource.level})`;
 
   const handleCancelAction = (workerId: string) => {
     if (window.confirm("Are you sure you want to cancel this action?")) {
@@ -115,24 +130,30 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
   };
 
   return (
-    <div style={{ padding: "8px 0", borderTop: `1px solid ${THEME.line}` }}>
+    <div data-testid="tile-info" style={{ padding: "8px 0", borderTop: `1px solid ${THEME.line}` }}>
       <h3>Tile Info</h3>
-      <p><strong>Terrain:</strong> {selectedTile.terrain}</p>
+      <p><strong>Terrain:</strong> {TERRAIN_TEXT[selectedTile.terrain] ?? selectedTile.terrain}</p>
       <p><strong>River:</strong> {selectedTile.hasRiver ? "Yes" : "No"}</p>
-      <p><strong>Resource:</strong> {selectedTile.resource ? `${selectedTile.resource.type} (L${selectedTile.resource.level})` : "None"}</p>
-      <p><strong>Owner:</strong> {selectedTile.ownerNationId || "Unclaimed"}</p>
+      <p><strong>Resource:</strong> {resourceText}</p>
+      <p data-testid="tile-owner">
+        <strong>Owner:</strong> {ownerName ? `${ownerName}${selectedTile.ownerNationId === activeNationId ? " (you)" : ""}` : "Unclaimed"}
+      </p>
+      {isTheirs && <p className="tile-note">{ownerName}&apos;s land: you can watch it, not give orders here.</p>}
 
       <div style={{ marginTop: 12 }}>
         <strong>Workers on Tile:</strong>
         {selectedTile.workers.length > 0 ? (
           <ul style={{ listStyle: "none", padding: 0, margin: 0, marginTop: 4 }}>
-            {selectedTile.workers.map(w => (
+            {selectedTile.workers.map(w => {
+              // Only the player's civilians can be picked and given orders (FR-108)
+              const own = w.nationId === activeNationId;
+              return (
               <li key={w.id}
-                onClick={() => setSelectedWorkerId && setSelectedWorkerId(w.id)}
-                style={{ background: selectedWorkerId === w.id ? THEME.surfaceSunken : 'transparent', padding: '4px', borderRadius: '4px', cursor: 'pointer' }}>
+                onClick={own ? () => setSelectedWorkerId(w.id) : undefined}
+                style={{ background: own && selectedWorkerId === w.id ? THEME.surfaceSunken : 'transparent', padding: '4px', borderRadius: '4px', cursor: own ? 'pointer' : 'default' }}>
                 <WorkerStatusIndicator status={w.status} />
                 <GameIcon name={WORKER_ICONS[w.type]} /> <span>{w.type} - {workerJobLabel(selectedTile, w) ?? w.status}</span>
-                {(w.status === WorkerStatus.Moved || w.status === WorkerStatus.Working) && (
+                {own && (w.status === WorkerStatus.Moved || w.status === WorkerStatus.Working) && (
                   <button
                     onClick={() => handleCancelAction(w.id)}
                     className="btn btn-danger"
@@ -140,9 +161,10 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
                     Cancel
                   </button>
                 )}
-                {selectedWorkerId === w.id && renderWorkerActions(w)}
+                {own && selectedWorkerId === w.id && renderWorkerActions(w)}
               </li>
-            ))}
+              );
+            })}
           </ul>
         ) : (
           <p>None</p>
