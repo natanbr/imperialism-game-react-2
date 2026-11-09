@@ -6,13 +6,10 @@
   `docs/rules/` (gaps in `gaps.md`). Progress page: https://claude.ai/artifact/JHRFaWQRPk3AYGssSchPBU.
 - M0 to M3 are merged into `main` (PR 9, 10, 12, 13, 14); their entries are archived in
   `docs/journal/archive-M1.md`, `-M2.md`, `-M3.md`. Not built from M3: Q15 (c) "repeat last turn's trades".
-- M3.5 on `claude/m3-5-look-and-map` (pushed, no PR): rail line fix (FR-079) and part A, the two-island
-  start world (FR-080 to FR-083, NR-007): a 24x16 map, the player on island 1, island 2 unclaimed for
-  M4, the camera opens on the capital. Part B (FR-084 to FR-090, NR-008, NR-009): Game Icons
-  (`react-icons@5.7.0`, CC BY 3.0, credited in the HUD's About), faint tiles with an icon each, one
-  palette in `styles/tokens.css`, 42 px tiles so the whole map fits 1280x720, ownership as a border
-  outline and an accent selection ring. Review verdict "merge, nothing must-fix"; review fix round done
-  (FR-091 to FR-096). Next: Nathan approves the look from `docs/journal/m3-5-look-*.png`, then the PR.
+- M3.5 merged (PR 15): rail line fix, two-island map, Game Icons and the minimalist look (FR-079 to FR-096).
+- 2026-11-09: Nathan settled decisions Q5 to Q15 (NR-012 to NR-018). The agent merges milestone PRs;
+  no ultracode unless clearly worth it; no NotebookLM, follow Imperialism (1997). M4 also moves freight
+  cars to next-turn use (NR-016, changes FR-039).
 - Open decisions: Q9 (freight-car timing, from M2) and Q10 to Q15 (M3, in `archive-M3.md`), each on
   its default. Q16 settled by the orchestrator: no coast tiles on the new map.
 
