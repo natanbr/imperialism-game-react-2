@@ -2,7 +2,8 @@ import { test, expect, Page } from '@playwright/test';
 
 // FR-078: the market and the end of the game in the running app. A new game starts with $10,000,
 // 10 lumber at the start price of $300 and 4 cargo holds, and lasts 40 turns (FR-068).
-// Set SCREENSHOT_DIR to also save m3-market.png and m3-game-over.png there.
+// FR-106, FR-109: the game-over screen names both nations beside their colours and starts a new game.
+// Set SCREENSHOT_DIR to also save m3-market.png and m4-game-over.png there.
 
 const cash = (page: Page) => page.locator('.nation-stats');
 const advance = (page: Page) => page.getByRole('button', { name: /Advance Turn/ });
@@ -53,7 +54,7 @@ test('FR-078 open the market, sell one lumber, end the turn, see the sale and th
   expect(errors).toEqual([]);
 });
 
-test('FR-078 FR-104 end 40 turns, see the game-over screen with both nations\' final scores; Advance Turn is disabled', async ({ page }) => {
+test('FR-078 FR-104 FR-109 end 40 turns, see the game-over screen with both nations\' final scores; Advance Turn is disabled; New game starts again', async ({ page }) => {
   test.setTimeout(240000);
   const errors = collectErrors(page);
   await start(page);
@@ -73,7 +74,9 @@ test('FR-078 FR-104 end 40 turns, see the game-over screen with both nations\' f
   await expect(rival.getByTestId('nation')).toHaveText('Valdoria');
   expect([await row.getByTestId('rank').textContent(), await rival.getByTestId('rank').textContent()].sort()).toEqual(['1', '2']);
   for (const part of ['treasury', 'industry', 'development', 'total']) await expect(row.getByTestId(part)).toHaveText(/^\d+$/);
-  if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/m3-game-over.png` });
+  // FR-106: each nation's name beside its colour swatch
+  await expect(rival.getByTestId('swatch')).toBeVisible();
+  if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/m4-game-over.png` });
 
   await over.getByRole('button', { name: 'Back to the map' }).click();
   await expect(over).toHaveCount(0);
@@ -87,6 +90,14 @@ test('FR-078 FR-104 end 40 turns, see the game-over screen with both nations\' f
 
   await page.getByRole('button', { name: /Final scores/ }).click();
   await expect(over).toBeVisible();
+
+  // FR-109: New game on the game-over screen starts the next game at once
+  await over.getByRole('button', { name: /New game/ }).click();
+  await expect(over).toHaveCount(0);
+  await expect(page.getByTestId('turn-indicator')).toContainText('Turn: 1 of 40');
+  await expect(advance(page)).toBeEnabled();
+  await expect(page.getByTestId('news-panel')).not.toContainText('News');
+  await expect(page.getByRole('table', { name: 'Scores' }).getByTestId(/^score-row-/)).toHaveCount(2);
 
   expect(errors).toEqual([]);
 });

@@ -8,7 +8,12 @@ import { test, expect, Page } from '@playwright/test';
 
 const tile = (page: Page, id: string) => page.locator(`[data-tile-id="${id}"]`);
 // The player's civilians only: since M4 nation 2's stand on island 2 (FR-098).
-const worker = (page: Page, type: string) => page.locator(`[data-nation-id="nation-1"][data-worker-type="${type}"]`);
+const worker = (page: Page, type: string) => page.locator(`button[data-nation-id="nation-1"][data-worker-type="${type}"]`);
+// FR-110: the civilians on the capital are one stack button that opens a tray; one alone is its own button
+async function pickWorker(page: Page, type: string) {
+  if ((await worker(page, type).count()) === 0) await tile(page, '2-9').getByTestId('worker-stack').click();
+  await worker(page, type).click();
+}
 const shot = async (page: Page, name: string, clip?: { x: number; y: number; width: number; height: number }) => {
   if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/m3-5-look-${name}.png`, clip });
 };
@@ -57,6 +62,21 @@ test('FR-090 the whole map fits 1280x720 next to the HUD, with an icon on every 
   await expect(tile(page, '3-9').getByTestId('level-badge')).toHaveText('L1');
   await shot(page, 'map');
 
+  // FR-110 (a): the capital's seven civilians are one 24 px stack button; its tray holds a 24 px button each
+  const stack = tile(page, '2-9').getByTestId('worker-stack');
+  await expect(stack).toHaveAttribute('data-count', '7');
+  const size = async (l: ReturnType<Page['locator']>) => (await l.boundingBox())!;
+  expect((await size(stack)).width).toBeGreaterThanOrEqual(24);
+  expect((await size(stack)).height).toBeGreaterThanOrEqual(24);
+  await stack.click();
+  const tray = tile(page, '2-9').getByRole('group', { name: 'Civilians on this tile' });
+  await expect(tray.getByTestId('worker-button')).toHaveCount(7);
+  for (const b of await tray.getByTestId('worker-button').all()) {
+    const box = await size(b);
+    expect(Math.min(box.width, box.height)).toBeGreaterThanOrEqual(24);
+  }
+  await expect(tile(page, '2-9').getByTestId('selection-ring')).toBeVisible();
+
   await page.getByRole('button', { name: /About/ }).click();
   const about = page.getByRole('dialog', { name: 'About' });
   await expect(about).toContainText('Icons by game-icons.net contributors, CC BY 3.0');
@@ -90,14 +110,16 @@ test.describe('rendered at three times the pixel density', () => {
 
     // The engineer lays rail north from the capital, one tile a turn, then builds a depot on 2-7.
     for (const [i, id] of ['2-8', '2-7'].entries()) {
-      await worker(page, 'engineer').click();
+      await pickWorker(page, 'engineer');
       await tile(page, id).click();
       await expect(tile(page, id).getByTitle('Construction in progress')).toBeVisible();
       await endTurn(page, i + 2);
       await expect(page.getByTestId('news-panel')).toContainText(`Rail finished at ${id}.`);
     }
-    await worker(page, 'engineer').click();
-    await tile(page, '2-7').click();
+    await pickWorker(page, 'engineer');
+    // The engineer's own tile, clicked in its free corner: the 24 px worker button covers the tile's
+    // centre since FR-110, and a click on it only selects the worker again
+    await tile(page, '2-7').click({ position: { x: 6, y: 6 } });
     await page.getByRole('button', { name: 'Build Depot' }).click();
     await expect(tile(page, '2-7').getByTitle('Construction in progress')).toBeVisible();
     for (let turn = 4; turn <= 7 && !(await tile(page, '2-7').getByTitle(/^Depot: /).count()); turn++) await endTurn(page, turn);

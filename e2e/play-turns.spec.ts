@@ -8,7 +8,13 @@ import { test, expect, Page } from '@playwright/test';
 
 const tile = (page: Page, id: string) => page.locator(`[data-tile-id="${id}"]`);
 // The player's civilians only: since M4 nation 2's stand on island 2 (FR-098).
-const worker = (page: Page, type: string) => page.locator(`[data-nation-id="nation-1"][data-worker-type="${type}"]`);
+const worker = (page: Page, type: string) => page.locator(`button[data-nation-id="nation-1"][data-worker-type="${type}"]`);
+// FR-110: the civilians on the capital are one stack button; it opens a tray with a button for each.
+// A civilian alone on its tile is its own button.
+async function pickWorker(page: Page, type: string) {
+  if ((await worker(page, type).count()) === 0) await tile(page, '2-9').getByTestId('worker-stack').click();
+  await worker(page, type).click();
+}
 const cash = (page: Page) => page.locator('.nation-stats');
 
 async function endTurn(page: Page, nextTurn: number) {
@@ -30,7 +36,7 @@ test('FR-025 move a worker, start a job and end the turn, three times', async ({
   await expect(cash(page)).toContainText('Cash: 10000');
 
   // Turn 1: the farmer moves to the farm east of the capital and starts farming (level 2, $1,000).
-  await worker(page, 'farmer').click();
+  await pickWorker(page, 'farmer');
   await tile(page, '3-9').click();
   await expect(tile(page, '3-9').locator('[data-worker-type="farmer"]')).toBeVisible();
   await expect(tile(page, '3-9').getByTitle('Development in progress')).toBeVisible();
@@ -39,7 +45,7 @@ test('FR-025 move a worker, start a job and end the turn, three times', async ({
   await expect(page.getByTestId('news-panel')).toContainText('News, turn 1');
 
   // Turn 2: the engineer steps north next to the capital and builds rail there ($100).
-  await worker(page, 'engineer').click();
+  await pickWorker(page, 'engineer');
   await tile(page, '2-8').click();
   await expect(tile(page, '2-8').locator('[data-worker-type="engineer"]')).toBeVisible();
   await expect(tile(page, '2-8').getByTitle('Construction in progress')).toBeVisible();
@@ -48,7 +54,7 @@ test('FR-025 move a worker, start a job and end the turn, three times', async ({
   await expect(page.getByTestId('news-panel')).toContainText('Rail finished at 2-8.');
 
   // Turn 3: the prospector moves onto the hills in the north and prospects them ($100).
-  await worker(page, 'prospector').click();
+  await pickWorker(page, 'prospector');
   if (process.env.SCREENSHOT_PATH) await page.screenshot({ path: process.env.SCREENSHOT_PATH });
   await tile(page, '5-2').click();
   await expect(tile(page, '5-2').locator('[data-worker-type="prospector"]')).toBeVisible();
