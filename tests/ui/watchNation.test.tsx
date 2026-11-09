@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 // M4 part B: the player watches nation 2 (Valdoria, scripted) grow and cannot act for it. FR-106 the
 // score table, FR-107 the news per nation, FR-108 no orders for another nation, FR-109 New game,
-// FR-110 (a, b) 24 px worker buttons and the selection ring above the borders. Real newGame(): nation 1
+// FR-110 (a, b) 24 px worker buttons and the selection ring above the borders, FR-111 keyboard and
+// screen reader use of the tray and New game. Real newGame(): nation 1
 // "Testland" (human, capital 2-9), nation 2 "Valdoria" (scripted, capital 14-9), seven civilians each.
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
@@ -344,5 +345,68 @@ describe('FR-110 (b) the selection ring is drawn above the borders and the rail'
     expect(ring).toMatch(/box-shadow:\s*inset 0 0 0 3px var\(--color-selected\)/);
     expect(ring).toMatch(/pointer-events:\s*none/);
     expect(css('src/app/styles/tokens.css')).toMatch(/--color-selected:\s*var\(--color-accent\);/);
+  });
+});
+
+describe('FR-111 keyboard and screen reader use of the worker tray and New game', () => {
+  it('FR-111 Escape closes the tray and picking from it returns the focus to the stack, whose name says the selected type', () => {
+    show(newGame({ seed: 1 }));
+    const { container } = render(<MapView />);
+    const capital = () => tileEl(container, '2-9');
+    const stack = () => within(capital()).getByTestId('worker-stack');
+    const tray = () => within(capital()).queryByRole('group', { name: 'Civilians on this tile' });
+
+    expect(stack().getAttribute('aria-label')).toBe('7 civilians: choose one');
+    fireEvent.click(stack());
+    const buttons = within(tray()!).getAllByTestId('worker-button');
+    expect(buttons.map((b) => b.getAttribute('aria-pressed'))).toEqual(Array(7).fill('false'));
+
+    // Escape from a tray button closes the tray; the tile stays selected and the focus is on the stack
+    act(() => buttons[2].focus());
+    fireEvent.keyDown(buttons[2], { key: 'Escape' });
+    expect(tray()).toBeNull();
+    expect(document.activeElement).toBe(stack());
+    expect(useGameStore.getState().selectedTileId).toBe('2-9');
+    expect(useGameStore.getState().selectedWorkerId).toBeUndefined();
+
+    // The stack opens it again; picking the engineer closes it with the focus back on the stack
+    fireEvent.click(stack());
+    expect(tray()).not.toBeNull();
+    fireEvent.click(within(tray()!).getAllByTestId('worker-button')[6]);
+    expect(useGameStore.getState().selectedWorkerId).toBe('worker-nation-1-7');
+    expect(tray()).toBeNull();
+    expect(document.activeElement).toBe(stack());
+    expect(stack().getAttribute('aria-label')).toBe(`7 civilians, ${WorkerType.Engineer} selected`);
+    expect(screen.getByRole('button', { name: `7 civilians, ${WorkerType.Engineer} selected` })).toBe(stack());
+  });
+
+  it('FR-111 a lone worker button says whether it is selected (aria-pressed)', () => {
+    show(newGame({ seed: 1 }));
+    const { container } = render(<MapView />);
+    act(() => {
+      useGameStore.getState().submitOrder({ kind: 'moveWorker', nationId: N1, workerId: 'worker-nation-1-2', toTileId: '3-9' });
+    });
+    const button = () => within(tileEl(container, '3-9')).getByTestId('worker-button');
+    expect(button().getAttribute('aria-pressed')).toBe('false');
+    fireEvent.click(button());
+    expect(button().getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('FR-111 the HUD New game toggle says whether the question is open and moves the focus into it', () => {
+    show(newGame({ seed: 1 }));
+    render(<HUD />);
+    const toggle = screen.getByRole('button', { name: /New game/ });
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+
+    fireEvent.click(toggle);
+    const confirm = screen.getByRole('group', { name: 'Confirm new game' });
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(toggle.getAttribute('aria-controls')).toBe(confirm.id);
+    expect(document.activeElement).toBe(confirm);
+    // The first Tab stop inside is Start new game; the focus itself is not on it, so Enter does nothing
+    expect(within(confirm).getAllByRole('button').map(text)).toEqual(['Start new game', 'Keep playing']);
+
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Keep playing' }));
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
   });
 });

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import { Worker } from '@/types/Workers';
 import { UI_ICONS, WORKER_ICONS } from '../icons';
 import { GameIcon } from '../GameIcon';
@@ -38,6 +38,7 @@ const WorkerButton: React.FC<{ worker: Worker; selected: boolean; onSelect: (id:
     }}
     title={worker.type}
     aria-label={worker.type}
+    aria-pressed={selected}
   >
     <GameIcon name={WORKER_ICONS[worker.type]} />
   </button>
@@ -48,6 +49,8 @@ const WorkerButton: React.FC<{ worker: Worker; selected: boolean; onSelect: (id:
  * its own button; several are one stack button with their count, and while the tile is selected (and
  * no worker is) a tray beside the tile holds a button for each. Another nation's civilians are a
  * marker, not a button: a click on it falls through to the tile, which only shows them.
+ * Keyboard (FR-111): Escape closes the tray, and picking from the tray or closing it puts the focus
+ * back on the stack button, so it is not lost when the tray goes.
  */
 const TileWorkersInner: React.FC<TileWorkersProps> = ({
   workers,
@@ -59,12 +62,32 @@ const TileWorkersInner: React.FC<TileWorkersProps> = ({
   onWorkerSelect,
   onOpenTray,
 }) => {
+  const stackRef = useRef<HTMLButtonElement>(null);
+  // Escape hides the tray until it opens again: reset whenever trayOpen changes (React's "adjust
+  // state when a prop changes" pattern, no effect needed)
+  const [dismissed, setDismissed] = useState(false);
+  const [wasOpen, setWasOpen] = useState(trayOpen);
+  if (wasOpen !== trayOpen) {
+    setWasOpen(trayOpen);
+    setDismissed(false);
+  }
   if (workers.length === 0) return null;
   const own = workers.filter((w) => w.nationId === playerId);
   const theirs = workers.filter((w) => w.nationId !== playerId);
   const selectedHere = own.find((w) => w.id === selectedWorkerId);
   const theirName = otherNationName ?? theirs[0]?.nationId;
-  const showTray = own.length > 1 && trayOpen;
+  const showTray = own.length > 1 && trayOpen && !dismissed;
+  const closeOnEscape = (e: React.KeyboardEvent) => {
+    if (e.key !== 'Escape' || !showTray) return;
+    e.stopPropagation();
+    setDismissed(true);
+    stackRef.current?.focus();
+  };
+  const pickFromTray = (workerId: string) => {
+    onWorkerSelect(workerId);
+    stackRef.current?.focus();
+  };
+  const stackName = selectedHere ? `${own.length} civilians, ${selectedHere.type} selected` : `${own.length} civilians: choose one`;
 
   return (
     <>
@@ -86,19 +109,22 @@ const TileWorkersInner: React.FC<TileWorkersProps> = ({
         {own.length === 1 && <WorkerButton worker={own[0]} selected={own[0].id === selectedWorkerId} onSelect={onWorkerSelect} />}
         {own.length > 1 && (
           <button
+            ref={stackRef}
             type="button"
             data-testid="worker-stack"
             data-nation-id={playerId}
             data-count={own.length}
             data-selected-worker={selectedHere?.type}
             aria-expanded={showTray}
-            aria-label={`${own.length} civilians: choose one`}
-            title={selectedHere ? `${own.length} civilians, ${selectedHere.type} selected` : `${own.length} civilians: choose one`}
+            aria-label={stackName}
+            title={stackName}
             className={`${styles.workerTarget} ${styles.workerButton} ${selectedHere ? styles.workerButtonSelected : ''}`}
             onClick={(e) => {
               e.stopPropagation();
+              setDismissed(false);
               onOpenTray();
             }}
+            onKeyDown={closeOnEscape}
           >
             <GameIcon name={selectedHere ? WORKER_ICONS[selectedHere.type] : UI_ICONS.civilians} />
             <span className={styles.count} aria-hidden="true">{own.length}</span>
@@ -117,9 +143,10 @@ const TileWorkersInner: React.FC<TileWorkersProps> = ({
           ].join(' ')}
           style={{ gridTemplateColumns: `repeat(${Math.min(4, own.length)}, auto)` }}
           onClick={(e) => e.stopPropagation()}
+          onKeyDown={closeOnEscape}
         >
           {own.map((worker) => (
-            <WorkerButton key={worker.id} worker={worker} selected={worker.id === selectedWorkerId} onSelect={onWorkerSelect} />
+            <WorkerButton key={worker.id} worker={worker} selected={worker.id === selectedWorkerId} onSelect={pickFromTray} />
           ))}
         </div>
       )}
