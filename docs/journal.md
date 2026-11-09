@@ -12,18 +12,18 @@
   orchestrator: no coast tiles on the new map.
 - 2026-11-09 M4 part A (engine and store, FR-097 to FR-105) on branch `claude/m4-two-nations`, pushed,
   no PR yet: nation 2 "Valdoria" on island 2, played by the scripted player at End Turn; freight cars
-  carry goods from the next turn (NR-016). Next: part B (the UI to watch nation 2), then the M4 review.
+  carry goods from the next turn (NR-016).
+- 2026-11-09 M4 part B (UI, FR-106 to FR-110) on the same branch, pushed, no PR yet: score table, news
+  per nation, Valdoria read-only, New game, 24 px worker buttons, ring above the borders, palette fixes.
+  Next: the M4 review (one reviewer, the whole branch), then the PR.
 
 Carried forward:
 - Deferred: river ports and the depot-on-port rule (rules 04); University fees; the power plant.
 - UI: the cursors are still emoji. Not built from M3: Q15 (c) "repeat last turn's trades".
-- M4 part B: the news panel mixes both nations' events with no nation name; nation 2's civilians are
-  clickable (their orders are refused `not-owner`); no New game button for `startNewGame`; the NR-016
-  list of other same-turn effects (2026-11-09 M4 part A entry) waits for a decision.
-- From the M3.5 review: (2) the capital's worker buttons are 10 px (pending Nathan's look approval).
-  (3) Palette-scan gaps: `fill`/`stroke`/`boxShadow`, other colour names, `oklch()`, `layout.tsx`.
-  (4) The selection ring is partly covered by the shore border. (5) `act()` warnings in two M3 UI tests.
-  (7) `--color-bad` text is 4.35:1 on `--color-surface`, below AA. Items (1) and (6) done in M4 part A.
+- The NR-016 list of other same-turn effects (2026-11-09 M4 part A entry) waits for a decision.
+- For the M4 review: the scripted player rails most of island 2 by turn 40 (a dense triangle mesh on the
+  map, `docs/journal/m4-game-over.png`) and ends with about $1,500; v3 may want a rail budget.
+- The M3.5 review items (2), (3), (4), (5) and (7) are done in M4 part B (FR-110).
 
 ## 2026-11-02 Revival setup
 
@@ -164,3 +164,98 @@ The first smoke run with default workers on a cold dev server failed 13 tests, m
 Test timeout of 30000ms exceeded`; with `--workers=1` (as the brief allows) only the real two-nation
 selector failures were left, fixed in the e2e commit.
 
+## 2026-11-09 M4 part B: watching the second nation (FR-106 to FR-110)
+
+Size: L (the milestone's UI: HUD, map tiles, tile panel, game-over screen, palette). One agent (Opus 5.5,
+xhigh), unattended, no subagents, no advisor calls; ultracode was not on. Branch `claude/m4-two-nations`
+on top of part A (c4f4673), worktree `.claude/worktrees/decisions`.
+
+Plan-lite:
+- Change: HUD score table (`HUD/ScoreTable.tsx`, `NationSwatch.tsx`, `selectScoreTable`); `newsLines` in
+  `gameText.ts` (player first, other nations named); `TileWorkers` draws the player's civilians as 24 px
+  buttons (one alone, or a stack with a tray) and Valdoria's as a marker; the store's `selectWorker` /
+  `setSelectedWorkerId` accept only the player's workers; the tile panel shows another nation's tile
+  read-only; New game in the HUD (asked in place) and on the game-over screen (`hooks/mapActions.ts`);
+  `startNewGame` clears selection and dialogs; the selection ring is `TileBase`'s own element (z-index 2,
+  above the overlay's 1); tokens `--color-nation-1` and `--color-bad`; the palette scan widened.
+- Consumers: the HUD, the map tiles, the game-over screen, the e2e specs that pick civilians.
+- Verify: the gate below, then the screenshots (looked at, fixes listed below).
+- Objection: a crowded tile now needs two clicks to pick a civilian (stack, then the tray), where the
+  10 px buttons needed one; the 24 px target (WCAG 2.2) cannot fit seven civilians on a 42 px tile.
+
+| FR | Test file | What the test asserts |
+|---|---|---|
+| FR-106 | `tests/ui/watchNation.test.tsx`, `e2e/two-nations.spec.ts`, `e2e/market-and-game-over.spec.ts` | HUD rows "1 Testland (you) 240", "2 Valdoria 240" (tie in founding order); swatch `aria-hidden` in `var(--color-nation-1)` / `-2`; a richer Valdoria ranks first with its own colour; the HUD shows "Score: 240" and the table; game-over rows ranked 1 and 2, names, swatches; e2e: 2 rows, swatch visible |
+| FR-107 | `tests/ui/watchNation.test.tsx`, `e2e/two-nations.spec.ts` | `newsLines` order: player's lines, then "Valdoria: …", then game over; after 3 real End Turns every Valdoria event line (11 on turn 3) starts "Valdoria: ", none "Testland"; e2e: the panel shows "Valdoria: " after 5 turns |
+| FR-108 | `tests/ui/watchNation.test.tsx`, `tests/store/computerNations.test.ts`, `e2e/two-nations.spec.ts` | 14-9 holds no button, a marker named "Valdoria: 7 civilians"; the store ignores `worker-nation-2-*` and unknown ids in both select actions; a click on 14-9 shows "Owner: Valdoria", "Capital", 7 civilians, no button; hidden hills show "Not yet prospected"; the player's own tile still has buttons; every order recorded while clicking on Valdoria's land carries `nation-1`; e2e: no button on 14-9, read-only panel, ring visible |
+| FR-109 | `tests/ui/watchNation.test.tsx`, `tests/store/computerNations.test.ts`, `e2e/two-nations.spec.ts`, `e2e/market-and-game-over.spec.ts` | HUD: "Keep playing" keeps the same game; "Start new game" gives turn 1, empty news, no selection, dialogs closed, camera moved once; game-over New game: no game over, turn 1; store: selection and all five dialogs cleared; e2e: both flows |
+| FR-110 | `tests/ui/watchNation.test.tsx`, `tests/ui/palette.test.ts`, `tests/ui/territory.test.tsx`, `e2e/look.spec.ts` | (a) `.workerTarget` 24 x 24 px; stack `data-count` 7, tray with the 7 start civilians and icons, pick closes the tray; one civilian is its own button; e2e: stack and the 7 tray buttons measure >= 24 px. (b) one `selection-ring`, in the selected tile, z-index 2 > overlay 1, accent via `--color-selected`. (c) ΔE76 nation 1 vs bad, nation 2, accent, good all >= 25; nations >= 20 apart under deuteranopia and protanopia. (d) danger text >= 4.5:1 on surface, sunken, raised, bg-danger. (e) scan over `layout.tsx` too, self-check of 20 literal kinds flagged and 10 token lines clean. (f) no `act()` warning |
+
+Red before green: `npx vitest run tests/ui tests/store` gave `Test Files 5 failed | 13 passed (18)` /
+`Tests 23 failed | 176 passed (199)`: `(0 , newsLines) is not a function`, `expected 'worker-nation-2-7' to
+be undefined`, `expected NaN to be greater than or equal to 24` (no `.workerTarget`), `expected [] to have a
+length of 1 but got +0` (no ring element), `{ "dE": 11, "pair": "--color-nation-1 vs --color-bad" }`,
+`{ "pair": "--color-text-danger on --color-surface", "ratio": 4.35 }` (and 3.84 on sunken), the FR-084 icon
+list one short by two, `startNewGame` leaving `selectedTileId` set. The `act()` fix was already in that run:
+0 warnings (5 before, from 4 tests in `scoreAndGameOver.test.tsx` and `warehouseAndHud.test.tsx`).
+
+Decisions (each with its objection):
+- Worker targets (FR-110 a): one civilian is a 24 px button in the tile's bottom right; several are one
+  24 px stack button with the count, and a tray of 24 px buttons opens below the tile while it is selected
+  and no worker is (above it on the bottom rows, edge-aligned near the map's sides). Picking one closes
+  the tray; the stack then shows the picked civilian in the accent colour. Objection: the button covers
+  the tile's centre, so a click there selects the civilian again instead of acting on its own tile; the
+  depot step of `e2e/look.spec.ts` now clicks the tile's corner. Making "click the selected civilian
+  again" act on its tile was rejected: a double click would start a paid job by accident.
+- Valdoria's civilians are a marker of the same size with a dashed border (no button, title names them);
+  a click on it is a click on the tile, which only shows it. Objection: none.
+- Colours (FR-110 c, d): `--color-nation-1` #a8322d (muted red) to #9e2a5b (crimson): ΔE76 11.0 to 35.9
+  from the red of "bad", 59.4 from nation 2's blue, 48.7 / 28.9 from it under deuteranopia / protanopia.
+  `--color-bad` #c9483a to #b23b2e: danger text 5.47:1 on surface, 4.83 sunken, 5.76 raised, 4.70 on
+  bg-danger (was 4.35, 3.84, 4.58, 3.74). `.btn-danger` text now uses `--color-text-danger`. Objection:
+  nation 1 reads crimson rather than red; the minimal palette keeps its size (two values changed).
+- The selection ring (FR-110 b): at 100 % zoom (device scale 3 and 8) the shore border covered only the
+  1 px grid line, not the ring; the overlap shows with sub-pixel scaling and where rail crosses the tile
+  edge. The ring is now an element above the overlay, so nothing can cover it. Objection: none.
+- The palette scan (FR-110 e) found no new literal in the code, so nothing needed a token.
+- News order (FR-107): the player's lines first, then each other nation's under its name, then game over.
+  Objection: the engine's event order is no longer kept across nations.
+- The tile panel (FR-108) shows display names ("Capital", "Barren hills", "Grain (L1)") and no longer
+  names a hidden resource (it printed the raw type, so a hidden coal hill read "coal (L0)"). Objection:
+  none.
+- New game asks in place in the HUD (not `window.confirm`, which Playwright and jsdom dismiss); the
+  game-over screen's button acts at once. Objection: none.
+
+Tests whose expectation the new FRs made wrong, and were updated (none skipped or deleted):
+- `territory.test.tsx` FR-087: the ring is the `selection-ring` element, not the tile's box-shadow (FR-110 b).
+- `icons.test.tsx` FR-084: the UI icon list gains `newGame` and `civilians`; FR-085: the capital is
+  selected first, so its tray shows the 7 worker buttons (FR-110 a).
+- `palette.test.ts`: the scan uses the wider patterns and `layout.tsx`; the FR-094 row adds danger text.
+- `scoreAndGameOver.test.tsx`, `warehouseAndHud.test.tsx`: store updates before `rerender` wrapped in `act()`.
+- e2e: `play-turns`, `look` and `cursor-icons` pick civilians through the capital's stack (FR-110 a); the
+  look spec's depot click goes to the tile's corner; `market-and-game-over` saves `m4-game-over.png`
+  (was `m3-game-over.png`, kept) and ends with New game; new `two-nations.spec.ts` (2 tests).
+
+Screenshots (Playwright, 1280x720 unless noted), looked at:
+- `docs/journal/m4-map.png`: turn 6; Valdoria's rail and developments on island 2, its civilians as
+  dashed markers; HUD table "1 Valdoria 253 / 2 Testland (you) 240"; news lines "Valdoria: …".
+- `docs/journal/m4-valdoria-capital.png`: 14-9 selected (ring), the panel "Owner: Valdoria", the note
+  "Valdoria's land: you can watch it, not give orders here.", its civilian listed, no button.
+- `docs/journal/m4-game-over.png`: turn 40; both nations ranked with swatches (Valdoria 665, Testland 240),
+  "Back to the map" and "New game".
+- `docs/journal/m4-tray-zoom.png` (device scale 3): the capital's stack with "7" and the open tray.
+Fixed after looking: the HUD header's "New game" wrapped onto two lines (buttons no longer wrap; the
+header wraps as a whole); the count badge sat over the capital's icon (moved to the button's top right,
+the button 5 px in from the tile's edge); a click on Advance Turn scrolled the whole HUD, hiding the
+score table and the tile panel (the HUD's information now scrolls alone, the action buttons are compact
+and stay below it, and the Debug box moved after the news).
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| FR-106 to FR-110 covered | `npx vitest run tests/ui tests/store` | `Test Files 18 passed (18)` / `Tests 199 passed (199)`, no stderr |
+| No `act()` warning | `npm test`, output searched for "not wrapped in act" | 0 matches (5 in `npx vitest run tests/ui` on part A, c4f4673) |
+| Unit tests | `npm test` | `Test Files 49 passed (49)` / `Tests 714 passed (714)` (+23 on part A's 691) |
+| Lint | `npm run lint` | `✖ 3 problems (0 errors, 3 warnings)` (the same 3 as part A) |
+| Types | `npx tsc --noEmit` | exit 0, no output |
+| Build | `npm run build` (dev server stopped first) | `✓ Compiled successfully in 8.7s`, `✓ Generating static pages (4/4)` |
+| Smoke | `PORT=3170 npx playwright test --workers=1 --reporter=line` | `1 skipped` / `17 passed (3.1m)`; the skip is the old `test.fixme` rail cursor (+2 tests: `two-nations.spec.ts`) |
