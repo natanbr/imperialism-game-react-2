@@ -20,11 +20,17 @@ export interface TileWorkersProps {
   /** The tile is selected and no worker is: the stack's civilians show in the tray (FR-110). */
   trayOpen: boolean;
   trayPlacement: TrayPlacement;
-  onWorkerSelect: (workerId: string) => void;
+  /**
+   * One of the player's civilians is selected and stands on another tile: a click on this tile's
+   * civilians is a click on the tile, the selected civilian's order for it (FR-115).
+   */
+  passClickToTile: boolean;
+  /** Selects a civilian; undefined deselects (a click on the selected one, FR-115). */
+  onWorkerSelect: (workerId: string | undefined) => void;
   onOpenTray: () => void;
 }
 
-const WorkerButton: React.FC<{ worker: Worker; selected: boolean; onSelect: (id: string) => void }> = ({ worker, selected, onSelect }) => (
+const WorkerButton: React.FC<{ worker: Worker; selected: boolean; passClickToTile: boolean; onSelect: (id: string | undefined) => void }> = ({ worker, selected, passClickToTile, onSelect }) => (
   <button
     type="button"
     data-testid="worker-button"
@@ -33,8 +39,9 @@ const WorkerButton: React.FC<{ worker: Worker; selected: boolean; onSelect: (id:
     data-nation-id={worker.nationId}
     className={`${styles.workerTarget} ${styles.workerButton} ${selected ? styles.workerButtonSelected : ''}`}
     onClick={(e) => {
+      if (passClickToTile) return; // the tile handles it
       e.stopPropagation();
-      onSelect(worker.id);
+      onSelect(selected ? undefined : worker.id);
     }}
     title={worker.type}
     aria-label={worker.type}
@@ -49,6 +56,9 @@ const WorkerButton: React.FC<{ worker: Worker; selected: boolean; onSelect: (id:
  * its own button; several are one stack button with their count, and while the tile is selected (and
  * no worker is) a tray beside the tile holds a button for each. Another nation's civilians are a
  * marker, not a button: a click on it falls through to the tile, which only shows them.
+ * Any tile may hold a stack (FR-115). While a civilian of the player standing elsewhere is selected,
+ * a click here also falls through to the tile, so the selected civilian moves or works here; a click
+ * on the selected civilian's own button deselects it.
  * Keyboard (FR-111): Escape closes the tray, and picking from the tray or closing it puts the focus
  * back on the stack button, so it is not lost when the tray goes.
  */
@@ -59,6 +69,7 @@ const TileWorkersInner: React.FC<TileWorkersProps> = ({
   selectedWorkerId,
   trayOpen,
   trayPlacement,
+  passClickToTile,
   onWorkerSelect,
   onOpenTray,
 }) => {
@@ -83,7 +94,7 @@ const TileWorkersInner: React.FC<TileWorkersProps> = ({
     setDismissed(true);
     stackRef.current?.focus();
   };
-  const pickFromTray = (workerId: string) => {
+  const pickFromTray = (workerId: string | undefined) => {
     onWorkerSelect(workerId);
     stackRef.current?.focus();
   };
@@ -106,7 +117,9 @@ const TileWorkersInner: React.FC<TileWorkersProps> = ({
             {theirs.length > 1 && <span className={styles.count} aria-hidden="true">{theirs.length}</span>}
           </span>
         )}
-        {own.length === 1 && <WorkerButton worker={own[0]} selected={own[0].id === selectedWorkerId} onSelect={onWorkerSelect} />}
+        {own.length === 1 && (
+          <WorkerButton worker={own[0]} selected={own[0].id === selectedWorkerId} passClickToTile={passClickToTile} onSelect={onWorkerSelect} />
+        )}
         {own.length > 1 && (
           <button
             ref={stackRef}
@@ -120,6 +133,7 @@ const TileWorkersInner: React.FC<TileWorkersProps> = ({
             title={stackName}
             className={`${styles.workerTarget} ${styles.workerButton} ${selectedHere ? styles.workerButtonSelected : ''}`}
             onClick={(e) => {
+              if (passClickToTile) return; // the tile handles it
               e.stopPropagation();
               setDismissed(false);
               onOpenTray();
@@ -146,7 +160,7 @@ const TileWorkersInner: React.FC<TileWorkersProps> = ({
           onKeyDown={closeOnEscape}
         >
           {own.map((worker) => (
-            <WorkerButton key={worker.id} worker={worker} selected={worker.id === selectedWorkerId} onSelect={pickFromTray} />
+            <WorkerButton key={worker.id} worker={worker} selected={worker.id === selectedWorkerId} passClickToTile={false} onSelect={pickFromTray} />
           ))}
         </div>
       )}

@@ -93,7 +93,7 @@ Source: [M p93] [M p94]. Feed Grasses is also what makes the Rancher unit builda
 - Oil prospecting in swamp, desert and tundra is possible only after the Oil Drilling technology. [M p30] [M p32]
 - A Miner or Driller can only work a tile already found to hold the mineral; until a mine or derrick is built the tile produces nothing. A new mine or derrick starts at Level 1. [M p31] [M p32]
 - A mined or farmed tile only counts if it is on, or within one tile of, a connected port or rail depot (or next to the capital). [M p31]
-- A tile can be worked by one civilian at a time (civilians cannot share a tile). [W4]
+- A tile can be worked by one civilian at a time [W4] (the wiki says "civilians cannot share a tile"; in the real game several civilians can stand on one tile: source Nathan, 2026-11-10, NR-019).
 - Minor Nations produce 1 coal and 1 iron per tile at level 0 by primitive mining, no mine needed; buying the tile with a Developer drops that to 0 until you open a mine. [M p34]
 
 ## 5. Hex adjacency used by the rules

@@ -56,6 +56,8 @@ const TileComponentInner: React.FC<TileProps> = ({
   });
 
   const isSelected = selectedTileId === tile.id;
+  // A civilian of the player is selected elsewhere: a click on this tile's civilians is its order here (FR-115)
+  const passClickToTile = !!selectedWorkerId && !tile.workers.some((w) => w.id === selectedWorkerId);
 
   const possibleAction = useTileActions(tile, selectedWorker, map);
   const tileVisuals = useTileVisuals(tile, possibleAction);
@@ -123,6 +125,7 @@ const TileComponentInner: React.FC<TileProps> = ({
         selectedWorkerId={selectedWorkerId}
         trayOpen={isSelected && !selectedWorkerId}
         trayPlacement={trayPlacement}
+        passClickToTile={passClickToTile}
         onWorkerSelect={selectWorker}
         onOpenTray={openTray}
       />

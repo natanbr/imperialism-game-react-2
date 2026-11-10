@@ -26,6 +26,7 @@ import {
   DEVELOPMENT_TERRAINS,
   DEVELOPMENT_WORKER_TYPES,
   findWorker,
+  hasJob,
   hasMovedThisTurn,
   holdsJob,
   isLand,
@@ -133,7 +134,7 @@ function validateMoveAndBuildRail(state: GameState, order: MoveAndBuildRailOrder
   if (!target.ok) return target;
   const to = target.value;
   if (!areTilesAdjacent(state.map, from.x, from.y, to.x, to.y)) return reject("invalid-target");
-  if (to.constructionJob) return reject("tile-occupied");
+  if (hasJob(to)) return reject("tile-has-job");
   if (!isRailSite(state, to, order.nationId)) return reject("invalid-site");
   if (treasuryOf(state, order.nationId) < constructionCost("rail", to.terrain)) return reject("insufficient-funds");
   return OK;
@@ -166,7 +167,7 @@ const checkProspecting: JobCheck = (state, worker, tile) => {
   if (tile.ownerNationId !== worker.nationId) return reject("not-owner");
   if (!PROSPECTABLE_TERRAIN_TYPES.includes(tile.terrain)) return reject("invalid-site");
   if (!tile.resource || tile.resource.discovered) return reject("invalid-target");
-  if (tile.prospecting) return reject("tile-occupied");
+  if (hasJob(tile)) return reject("tile-has-job");
   if (treasuryOf(state, worker.nationId) < PROSPECT_COST) return reject("insufficient-funds");
   return OK;
 };
@@ -179,7 +180,7 @@ const checkDevelopment: JobCheck = (state, worker, tile) => {
   if (!tile.resource || tile.resource.discovered === false) return reject("invalid-target");
   const level = nextResourceLevel(tile);
   if (level > 3) return reject("invalid-target");
-  if (tile.developmentJob) return reject("tile-occupied");
+  if (hasJob(tile)) return reject("tile-has-job");
   if (treasuryOf(state, worker.nationId) < DEVELOPMENT_COST[level as 1 | 2 | 3]) return reject("insufficient-funds");
   return OK;
 };
@@ -188,7 +189,7 @@ const constructionCheck = (structure: ConstructionKind): JobCheck => (state, wor
   if (worker.type !== WorkerType.Engineer) return reject("wrong-worker-type");
   if (tile.ownerNationId !== worker.nationId) return reject("not-owner");
   if (!Object.hasOwn(CONSTRUCTION_COST, structure)) return reject("invalid-target");
-  if (tile.constructionJob) return reject("tile-occupied");
+  if (hasJob(tile)) return reject("tile-has-job");
   if (!isConstructionSite(state, tile, structure, worker.nationId)) return reject("invalid-site");
   if (treasuryOf(state, worker.nationId) < constructionCost(structure, tile.terrain)) return reject("insufficient-funds");
   return OK;

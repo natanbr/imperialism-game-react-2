@@ -23,7 +23,7 @@ Source tags: `[M pN]` manual PDF page marker; `[W#]` web source (see Sources); `
 
 General rules
 - Civilians may move any distance per turn within own land, colonies and conquered land. They cannot enter another Great Power's land and cannot enter a Minor Nation before an Embassy exists there. [M p28]
-- Each unit works one tile per job; civilians cannot share a tile. [W3]
+- Each unit works one tile per job; one civilian works a tile at a time (wiki: "civilians cannot share a tile" [W3]). Any number of civilians may stand on the same tile, and new civilians appear around the capital (source: Nathan, from the real game, 2026-11-10; NR-019, FR-112 to FR-114).
 - Orders can be cancelled until End Turn; cancelling refunds the cash. [M p16] [W4]
 - Disband returns the unit to industry as an expert worker (+4 labour per turn); the cash and paper spent are lost; cannot be undone. [M p28]
 - A civilian that finishes a job returns to the unit cycle; units that are working are skipped. [M p25]

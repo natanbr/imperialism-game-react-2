@@ -194,7 +194,8 @@ export type RejectReason =
   | "worker-busy"
   | "worker-moved"
   | "invalid-target"
-  | "tile-occupied"
+  /** The tile already has a job (prospecting, development or construction): one job per tile (FR-113). */
+  | "tile-has-job"
   | "invalid-site"
   | "insufficient-funds"
   | "insufficient-resources"

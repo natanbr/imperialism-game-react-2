@@ -33,7 +33,7 @@ export const REFUSAL_TEXT: Record<RejectReason, string> = {
   "worker-busy": "the worker is busy with a job",
   "worker-moved": "the worker already moved this turn",
   "invalid-target": "not possible on that tile",
-  "tile-occupied": "another job is under way on that tile",
+  "tile-has-job": "another civilian is already working that tile",
   "invalid-site": "that tile is not a valid site",
   "insufficient-funds": "not enough money",
   "insufficient-resources": "not enough goods in the warehouse",
