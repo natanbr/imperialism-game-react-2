@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Worker } from '@/types/Workers';
+import { Worker, WorkerType } from '@/types/Workers';
 import { UI_ICONS, WORKER_ICONS } from '../icons';
 import { GameIcon } from '../GameIcon';
 import styles from './Tile.module.css';
@@ -21,16 +21,20 @@ export interface TileWorkersProps {
   trayOpen: boolean;
   trayPlacement: TrayPlacement;
   /**
-   * One of the player's civilians is selected and stands on another tile: a click on this tile's
-   * civilians is a click on the tile, the selected civilian's order for it (FR-115).
+   * The type of the player's civilian that is selected and stands on another tile, if any: a click on
+   * this tile's civilians is then a click on the tile, the selected civilian's order for it, and their
+   * buttons are named for that (FR-115).
    */
-  passClickToTile: boolean;
+  selectedElsewhere: WorkerType | undefined;
   /** Selects a civilian; undefined deselects (a click on the selected one, FR-115). */
   onWorkerSelect: (workerId: string | undefined) => void;
   onOpenTray: () => void;
 }
 
-const WorkerButton: React.FC<{ worker: Worker; selected: boolean; passClickToTile: boolean; onSelect: (id: string | undefined) => void }> = ({ worker, selected, passClickToTile, onSelect }) => (
+/** The name of a civilian button whose click goes to the tile: what the click does. */
+const moveHere = (type: WorkerType) => `Move ${type} here`;
+
+const WorkerButton: React.FC<{ worker: Worker; selected: boolean; selectedElsewhere: WorkerType | undefined; onSelect: (id: string | undefined) => void }> = ({ worker, selected, selectedElsewhere, onSelect }) => (
   <button
     type="button"
     data-testid="worker-button"
@@ -39,12 +43,12 @@ const WorkerButton: React.FC<{ worker: Worker; selected: boolean; passClickToTil
     data-nation-id={worker.nationId}
     className={`${styles.workerTarget} ${styles.workerButton} ${selected ? styles.workerButtonSelected : ''}`}
     onClick={(e) => {
-      if (passClickToTile) return; // the tile handles it
+      if (selectedElsewhere) return; // the tile handles it
       e.stopPropagation();
       onSelect(selected ? undefined : worker.id);
     }}
-    title={worker.type}
-    aria-label={worker.type}
+    title={selectedElsewhere ? moveHere(selectedElsewhere) : worker.type}
+    aria-label={selectedElsewhere ? moveHere(selectedElsewhere) : worker.type}
     aria-pressed={selected}
   >
     <GameIcon name={WORKER_ICONS[worker.type]} />
@@ -57,8 +61,9 @@ const WorkerButton: React.FC<{ worker: Worker; selected: boolean; passClickToTil
  * no worker is) a tray beside the tile holds a button for each. Another nation's civilians are a
  * marker, not a button: a click on it falls through to the tile, which only shows them.
  * Any tile may hold a stack (FR-115). While a civilian of the player standing elsewhere is selected,
- * a click here also falls through to the tile, so the selected civilian moves or works here; a click
- * on the selected civilian's own button deselects it.
+ * a click here also falls through to the tile, so the selected civilian moves or works here, and the
+ * buttons here are named "Move <type> here" (their icons stay); a click on the selected civilian's own
+ * button deselects it.
  * Keyboard (FR-111): Escape closes the tray, and picking from the tray or closing it puts the focus
  * back on the stack button, so it is not lost when the tray goes.
  */
@@ -69,7 +74,7 @@ const TileWorkersInner: React.FC<TileWorkersProps> = ({
   selectedWorkerId,
   trayOpen,
   trayPlacement,
-  passClickToTile,
+  selectedElsewhere,
   onWorkerSelect,
   onOpenTray,
 }) => {
@@ -98,7 +103,11 @@ const TileWorkersInner: React.FC<TileWorkersProps> = ({
     onWorkerSelect(workerId);
     stackRef.current?.focus();
   };
-  const stackName = selectedHere ? `${own.length} civilians, ${selectedHere.type} selected` : `${own.length} civilians: choose one`;
+  const stackName = selectedElsewhere
+    ? moveHere(selectedElsewhere)
+    : selectedHere
+      ? `${own.length} civilians, ${selectedHere.type} selected`
+      : `${own.length} civilians: choose one`;
 
   return (
     <>
@@ -118,7 +127,7 @@ const TileWorkersInner: React.FC<TileWorkersProps> = ({
           </span>
         )}
         {own.length === 1 && (
-          <WorkerButton worker={own[0]} selected={own[0].id === selectedWorkerId} passClickToTile={passClickToTile} onSelect={onWorkerSelect} />
+          <WorkerButton worker={own[0]} selected={own[0].id === selectedWorkerId} selectedElsewhere={selectedElsewhere} onSelect={onWorkerSelect} />
         )}
         {own.length > 1 && (
           <button
@@ -133,7 +142,7 @@ const TileWorkersInner: React.FC<TileWorkersProps> = ({
             title={stackName}
             className={`${styles.workerTarget} ${styles.workerButton} ${selectedHere ? styles.workerButtonSelected : ''}`}
             onClick={(e) => {
-              if (passClickToTile) return; // the tile handles it
+              if (selectedElsewhere) return; // the tile handles it
               e.stopPropagation();
               setDismissed(false);
               onOpenTray();
@@ -160,7 +169,7 @@ const TileWorkersInner: React.FC<TileWorkersProps> = ({
           onKeyDown={closeOnEscape}
         >
           {own.map((worker) => (
-            <WorkerButton key={worker.id} worker={worker} selected={worker.id === selectedWorkerId} passClickToTile={false} onSelect={pickFromTray} />
+            <WorkerButton key={worker.id} worker={worker} selected={worker.id === selectedWorkerId} selectedElsewhere={undefined} onSelect={pickFromTray} />
           ))}
         </div>
       )}

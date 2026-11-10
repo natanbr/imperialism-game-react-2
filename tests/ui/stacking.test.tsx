@@ -11,6 +11,7 @@ import { newGame, type Order } from '@/engine';
 import { findWorker } from '@/engine/orders/queries';
 import type { GameState } from '@/types/GameState';
 import { WorkerType } from '@/types/Workers';
+import { UI_ICONS, WORKER_ICONS } from '@/components/icons';
 import { failOnActWarnings } from './actWarnings';
 
 failOnActWarnings();
@@ -58,9 +59,15 @@ describe('FR-115 stacks on any tile', { timeout: 20_000 }, () => {
     show(newGame({ seed: 1 }));
     const { container } = render(<MapView />);
     submit({ kind: 'moveWorker', nationId: N1, workerId: RANCHER, toTileId: ORCHARD });
+    const button = () => within(tileEl(container, ORCHARD)).getByTestId('worker-button');
+    expect(button().getAttribute('aria-label')).toBe(WorkerType.Rancher);
     act(() => useGameStore.getState().selectWorker(FORESTER));
 
-    fireEvent.click(within(tileEl(container, ORCHARD)).getByTestId('worker-button'));
+    // The button says what the click does; it keeps the rancher's icon
+    expect(button().getAttribute('aria-label')).toBe(`Move ${WorkerType.Forester} here`);
+    expect(button().getAttribute('title')).toBe(`Move ${WorkerType.Forester} here`);
+    expect(button().querySelector('[data-icon]')?.getAttribute('data-icon')).toBe(WORKER_ICONS[WorkerType.Rancher]);
+    fireEvent.click(button());
 
     expect(tileOf(FORESTER)).toBe(ORCHARD);
     expect(within(tileEl(container, ORCHARD)).getByTestId('worker-stack').getAttribute('data-count')).toBe('2');
@@ -73,8 +80,12 @@ describe('FR-115 stacks on any tile', { timeout: 20_000 }, () => {
     submit({ kind: 'moveWorker', nationId: N1, workerId: FORESTER, toTileId: FARM });
     act(() => useGameStore.getState().selectWorker(FARMER));
 
+    const stack = within(tileEl(container, FARM)).getByTestId('worker-stack');
+    expect(stack.getAttribute('aria-label')).toBe(`Move ${WorkerType.Farmer} here`);
+    expect(stack.getAttribute('title')).toBe(`Move ${WorkerType.Farmer} here`);
+    expect(stack.querySelector('[data-icon]')?.getAttribute('data-icon')).toBe(UI_ICONS.civilians);
     // The farm (grain level 1) is the farmer's to develop: the click on its stack starts the job
-    fireEvent.click(within(tileEl(container, FARM)).getByTestId('worker-stack'));
+    fireEvent.click(stack);
 
     const game = useGameStore.getState().game;
     expect(tileOf(FARMER)).toBe(FARM);
