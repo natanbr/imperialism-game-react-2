@@ -6,6 +6,7 @@ import type { GameState } from "@/types/GameState";
 import { TerrainType, type Tile } from "@/types/Tile";
 import { getNeighborCoords } from "../map/mapHelpers";
 import { hasJob, isDepotSite, isLand, railTerrainAllowed } from "../orders/queries";
+import { constructionCost } from "@/definisions/workPrices";
 
 const key = (x: number, y: number) => `${x},${y}`;
 const keyOf = (tile: Pick<Tile, "x" | "y">) => key(tile.x, tile.y);
@@ -132,6 +133,8 @@ export interface DepotSite {
   gain: number;
   /** Rail tiles needed to join it to the capital's component. */
   railNeeded: number;
+  /** What those rail tiles cost, by their terrain (FR-029). */
+  railCost: number;
 }
 
 /** At least this much new yield a turn makes a depot worth its price. */
@@ -158,9 +161,10 @@ export function bestDepotSite(state: GameState, nationId: string): DepotSite | u
     if (gain < MIN_DEPOT_GAIN) continue;
     const path = railPath(state, nationId, keyOf(tile), component);
     if (!path) continue;
-    const railNeeded = path.slice(1, -1).filter((k) => needsRail(tileAtKey(state, k))).length;
+    const open = path.slice(1, -1).map((k) => tileAtKey(state, k)).filter(needsRail);
+    const railNeeded = open.length;
     if (!best || gain > best.gain || (gain === best.gain && railNeeded < best.railNeeded)) {
-      best = { tileId: tile.id, gain, railNeeded };
+      best = { tileId: tile.id, gain, railNeeded, railCost: open.reduce((sum, t) => sum + constructionCost("rail", t.terrain), 0) };
     }
   }
   return best;

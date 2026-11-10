@@ -11,28 +11,34 @@ import { newGame, play, PlayedTurn, replay } from './headless';
 
 const tradeOrders = (orders: Order[]) => orders.filter(o => o.kind === 'sellCommodity' || o.kind === 'buyCommodity');
 
-describe('FR-070 the scripted player trades', () => {
-  it('FR-070 FR-105 on turn 1 each nation bids for the coal, iron ore and timber it lacks, within its holds (5 and 3)', () => {
+// FR-070 (the M3 trade rule: bid for the planned run's coal, iron and timber; never offer canned food)
+// is replaced by FR-128 (M4.2): the holds go to the best-paid units, then to lumber + steel pairs.
+describe('FR-128 the scripted player trades (replaces FR-070)', () => {
+  it('FR-128 FR-105 on turn 1 each nation bids for lumber + steel pairs within its holds (5 and 3), then offers what is left over', () => {
     const state = newGame(11);
 
     expect(tradeOrders(scriptedPlayer(state, 'nation-1'))).toEqual([
-      { kind: 'buyCommodity', nationId: 'nation-1', commodity: 'coal', amount: 2 },
-      { kind: 'buyCommodity', nationId: 'nation-1', commodity: 'ironOre', amount: 2 },
+      { kind: 'buyCommodity', nationId: 'nation-1', commodity: 'lumber', amount: 1 },
+      { kind: 'buyCommodity', nationId: 'nation-1', commodity: 'steel', amount: 1 },
+      { kind: 'buyCommodity', nationId: 'nation-1', commodity: 'lumber', amount: 2 },
+      { kind: 'buyCommodity', nationId: 'nation-1', commodity: 'steel', amount: 2 },
+      { kind: 'sellCommodity', nationId: 'nation-1', commodity: 'timber', amount: 1 },
     ]);
-    // nation-2 has 30 coal: it needs iron ore and timber, and has holds for 3 units.
+    // nation-2 has holds for 3 units: one pair, then one of its 30 coal.
     expect(tradeOrders(scriptedPlayer(state, 'nation-2'))).toEqual([
-      { kind: 'buyCommodity', nationId: 'nation-2', commodity: 'ironOre', amount: 2 },
-      { kind: 'buyCommodity', nationId: 'nation-2', commodity: 'timber', amount: 1 },
+      { kind: 'buyCommodity', nationId: 'nation-2', commodity: 'lumber', amount: 1 },
+      { kind: 'buyCommodity', nationId: 'nation-2', commodity: 'steel', amount: 1 },
+      { kind: 'sellCommodity', nationId: 'nation-2', commodity: 'coal', amount: 1 },
     ]);
   });
 
-  it('FR-070 surplus goes on sale with up to half the holds first, then the bids; canned food is never offered', () => {
+  it('FR-128 goods that pay more a hold than half a bought pair go first, then the bids; canned food above a meal waits for a free hold', () => {
     const state = setWarehouse(newGame(11), N1, { furniture: 3, cannedFood: 10 });
 
     expect(tradeOrders(scriptedPlayer(state, N1))).toEqual([
-      { kind: 'sellCommodity', nationId: N1, commodity: 'furniture', amount: 2 },
-      { kind: 'buyCommodity', nationId: N1, commodity: 'coal', amount: 2 },
-      { kind: 'buyCommodity', nationId: N1, commodity: 'ironOre', amount: 1 },
+      { kind: 'sellCommodity', nationId: N1, commodity: 'furniture', amount: 3 },
+      { kind: 'buyCommodity', nationId: N1, commodity: 'lumber', amount: 1 },
+      { kind: 'buyCommodity', nationId: N1, commodity: 'steel', amount: 1 },
     ]);
   });
 });
@@ -55,7 +61,18 @@ describe('FR-071 a 40-turn two-nation game on the world market', () => {
       const bought = events.filter(e => e.type === 'goods-bought' && e.nationId === nationId).length;
       expect({ nationId, sold: sold > 0, bought: bought > 0 }).toEqual({ nationId, sold: true, bought: true });
     }
-    expect(events.some(e => e.type === 'goods-sold' && e.commodity === 'cannedFood')).toBe(false);
+    // FR-128 (replaces FR-070's "canned food is never offered"): a canned-food offer leaves a meal of cans
+    played.forEach((turn, i) => {
+      const before = i === 0 ? newGame(11) : played[i - 1].state;
+      for (const nationId of TWO_NATION_IDS) {
+        const offered = turn.orders[nationId].reduce((most, o) => (o.kind === 'sellCommodity' && o.commodity === 'cannedFood' ? Math.max(most, o.amount) : most), 0);
+        const nation = before.nations.find(n => n.id === nationId)!;
+        const { untrained, trained, expert } = nation.industry.workers;
+        const made = turn.events.reduce((sum, e) => (e.type === 'goods-produced' && e.nationId === nationId && e.output === 'cannedFood' ? sum + e.amount : sum), 0);
+        const cans = (nation.warehouse as Record<string, number>).cannedFood + made;
+        expect({ turn: i + 1, nationId, keepsAMeal: offered === 0 || cans - offered >= untrained + trained + expert }).toEqual({ turn: i + 1, nationId, keepsAMeal: true });
+      }
+    });
   });
 
   it('FR-068 FR-071 the game is over after turn 40, Winter 1824, with a score for each nation', () => {
