@@ -168,7 +168,8 @@ const pairsLabourAllows = (nation: Nation): number =>
 /**
  * Every lumber + steel pair in stock becomes capacity (FR-126): first the steel and lumber mills,
  * while they are smaller than the pairs the labour can make, then the building whose next step is
- * cheapest (ties in production order). The refinery needs Oil Drilling and is skipped.
+ * cheapest (ties to the smaller building, then production order: a point scores the same anywhere,
+ * so the factories grow evenly). The refinery needs Oil Drilling and is skipped.
  */
 function planExpansion(view: () => GameState, nationId: string, propose: Propose): void {
   const capped = BUILDING_ORDER.filter((b) => !BUILDINGS[b].unlimited && !BUILDINGS[b].needsOilDrilling);
@@ -182,10 +183,10 @@ function planExpansion(view: () => GameState, nationId: string, propose: Propose
         const size = capacityOf(nation, building);
         const cost = nextCapacity(BUILDINGS[building].kind, size) - size;
         const mill = building === "steelMill" || building === "lumberMill";
-        return { building, cost, first: mill && size < target ? 0 : 1 };
+        return { building, size, cost, first: mill && size < target ? 0 : 1 };
       })
       .filter((step) => step.cost <= pairs)
-      .sort((a, b) => a.first - b.first || a.cost - b.cost);
+      .sort((a, b) => a.first - b.first || a.cost - b.cost || a.size - b.size);
     if (!steps.some(({ building }) => propose({ kind: "expandBuilding", nationId, building }))) return;
   }
 }

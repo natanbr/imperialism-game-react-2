@@ -119,6 +119,14 @@ describe('FR-126 every lumber + steel pair becomes capacity', () => {
     expect(Math.min(w.lumber, w.steel)).toBe(1); // 10 pairs: 2 + 2 + 1 + 1 + 1 + 2, and every next step costs 2 or more
   });
 
+  it('FR-126 equal steps go to the smaller building, so the factories grow evenly', () => {
+    let s = setWarehouse(start(), N2, { lumber: 8, steel: 8 });
+    for (const mill of ['steelMill', 'lumberMill', 'textileMill'] as const) s = setBuilding(s, N2, mill, { capacity: 8 });
+    s = setBuilding(setBuilding(setBuilding(s, N2, 'metalWorks', { capacity: 12 }), N2, 'furnitureFactory', { capacity: 4 }), N2, 'clothingFactory', { capacity: 4 });
+    // Each factory step costs 4 pairs, a mill step 8: the two size-4 factories, not the metal works at 12
+    expect(ofKind(ordersOf(s), 'expandBuilding').map(o => o.building)).toEqual(['furnitureFactory', 'clothingFactory']);
+  });
+
   it('FR-126 lumber and steel are kept for pairs, and offered only on the last turn', () => {
     const s = setWarehouse(start(), N2, { lumber: 3, steel: 0 });
     const offered = (orders: Order[]) => ofKind(orders, 'sellCommodity').filter(o => o.commodity === 'lumber' || o.commodity === 'steel');

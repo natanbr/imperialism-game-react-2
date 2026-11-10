@@ -2,7 +2,8 @@ import { test, expect, Page } from '@playwright/test';
 
 // M4.1 in the running app. FR-122 after 15 End Turns Valdoria (island 2, capital 14-9) has a depot joined
 // to its capital by a few rail lines; FR-121 the market and the capital show commodity icons; FR-119 the
-// capital card shows "P of M". Set SCREENSHOT_DIR to also save m4-1-ai-rail.png and m4-1-icons.png there.
+// capital card shows "P of M". Set SCREENSHOT_DIR to also save m4-1-ai-rail.png and m4-1-icons.png there
+// (RAIL_SHOT names the rail file instead, as M4.2 did with m4-2-ai.png).
 
 const tile = (page: Page, id: string) => page.locator(`[data-tile-id="${id}"]`);
 
@@ -41,7 +42,7 @@ test('FR-122 after 15 End Turns Valdoria has a connected depot and a few rail li
   if (process.env.SCREENSHOT_DIR) {
     const from = (await tile(page, '12-0').boundingBox())!;
     const to = (await tile(page, '23-14').boundingBox())!;
-    await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/m4-1-ai-rail.png`, clip: { x: from.x, y: from.y, width: to.x + to.width - from.x, height: to.y + to.height - from.y } });
+    await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/${process.env.RAIL_SHOT ?? 'm4-1-ai-rail.png'}`, clip: { x: from.x, y: from.y, width: to.x + to.width - from.x, height: to.y + to.height - from.y } });
   }
   expect(errors).toEqual([]);
 });
