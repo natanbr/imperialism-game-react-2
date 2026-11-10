@@ -2,7 +2,7 @@
   "project": "Imperialism Revival",
   "updated": "2026-11-09",
   "target": "v1 playable (M3)",
-  "now": "M4 merged (PR 17); v1 milestones M0 to M4 done. Next: your play-test and the v2 plan",
+  "now": "M4.1 merged (PR 18): shared tiles, production fix, icons, purposeful AI rail. Open: Q16b, Q17, and your next play-test",
   "source": "docs/REVIVAL_PLAN.md and docs/report/roadmap.json in the imperialism-game-react-2 repo",
   "overview": {
     "headline": "main has v1 playable plus the small two-island map and clean look (M0 to M3.5 merged, PR 15 last). Next: M4, a second nation on island 2 driven by a scripted player.",
@@ -512,6 +512,26 @@
         "suggestion": "Settled 2026-11-09 (NR-018): one-turn orders; repeat button only if play feels tedious.",
         "items": [
           "M3"
+        ]
+      },
+      {
+        "id": "Q18",
+        "title": "How should the computer nation score better?",
+        "status": "open",
+        "context": "The new scripted player lays a few rail lines and builds depots as asked (NR-022). It ships far more (268 vs 181 units at turn 15) but scores slightly lower (382 vs 390), because extra goods sit unsold: 4 cargo holds cap sales at 32 units and stock is not scored.",
+        "suggestion": "Accept for v1; play a few games, and make it smarter in the v3 AI work.",
+        "items": [
+          "M4.1"
+        ]
+      },
+      {
+        "id": "Q17",
+        "title": "Where should recruited and trained workers appear?",
+        "status": "open",
+        "context": "v1 creates no civilians after the start; recruits and trained workers join the industry workforce, and there is no University. The start civilians stay on the capital tile (rules 03).",
+        "suggestion": "Leave it until a University exists; spread the start civilians around the capital only if you want that look.",
+        "items": [
+          "M4.1"
         ]
       }
     ]
