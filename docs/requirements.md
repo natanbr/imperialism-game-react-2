@@ -31,6 +31,7 @@ Status values: `planned`, `tested` (test exists and is green), `replaced`, `drop
 | NR-020 | (2026-11-10) A production order that cannot run for lack of inputs SHALL NOT show as producing at full output: the capital dialog shows what will really be made next turn, and after the order is removed it can be added again. Bug found while play-testing; needs a root cause and a regression test. | tested (FR-116 to FR-120) |
 | NR-021 | (2026-11-10) The market and capital industry panels show the commodity icon (coal, wood, food, iron and so on, the same icons as the map) next to each commodity name. | tested (FR-121) |
 | NR-022 | (2026-11-10) The scripted nation builds rail with a purpose (from each developed resource tile toward the capital, along the shortest path), not a mesh over every neighbouring tile, and it builds depots (and ports where needed) so its resources are connected and shipped. | tested (FR-122 to FR-124) |
+| NR-023 | (2026-11-10, answer to decision Q16b: improve the score now) The scripted nation SHALL score at least as high as the M4 scripted player on the same seed at turns 15, 25 and 40, while keeping the purposeful rail and depots of NR-022: it puts the goods it gathers to use (sells within its cargo holds, expands buildings, develops tiles) instead of leaving them unsold. | planned (M4.2) |
 
 ## M1 Headless core
 
