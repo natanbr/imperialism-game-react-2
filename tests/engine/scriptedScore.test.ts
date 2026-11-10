@@ -18,6 +18,7 @@ import { railBound } from './railBound';
 import { emptyWarehouse, invariantViolations, N2, nationOf, setBuilding, setIndustry, setTile, setTreasury, setWarehouse, tileAt } from './fixtures';
 
 const ENGINEER_2 = 'worker-nation-2-7';
+const PROSPECTOR_2 = 'worker-nation-2-1';
 const SEEDS = [1, 2, 3, 4];
 const CHECKPOINTS = [15, 25, 40];
 /** FR-125: at least half again the frozen M4 player's score; measured lowest ratio 1.60 (seed 1, turn 15: 625 vs 390). */
@@ -233,6 +234,50 @@ describe('FR-129 the production run', () => {
     expect(made(ordersOf(s)).cannedFood).toBeGreaterThanOrEqual(3);
     expect(made(ordersOf(lastTurn(start())))).toEqual({});
   });
+
+  it('FR-129 paper for next turn\'s training comes before the pairs: the new game\'s lumber mill makes paper, none when training no longer pays', () => {
+    // No paper in stock: 4 untrained want 1 each and 2 trained 2 each, 8 in all; the lumber mill (2) makes 2 paper and no lumber
+    const s = start();
+    expect(nationOf(s, N2).warehouse.paper).toBe(0);
+    expect(made(ordersOf(s))).toMatchObject({ paper: 2 });
+    expect(made(ordersOf(s)).lumber).toBeUndefined();
+    // 3 turns to go: a worker trained next turn would work only 2 turns (TRAIN_MIN_TURNS 3)
+    expect(made(ordersOf(atTurn(s, turnLimitOf(s) - 3))).paper).toBeUndefined();
+  });
+
+  // 3 experts (12 labour) and no ores: no pair can be made, so the goods show alone
+  const goodsOnly = (stock: Record<string, number>) =>
+    setBuilding(
+      setBuilding(
+        setBuilding(
+          setIndustry(emptyWarehouse(start(), N2, stock), N2, { workers: { untrained: 0, trained: 0, expert: 3 } }),
+          N2, 'furnitureFactory', { capacity: 4 }
+        ),
+        N2, 'textileMill', { capacity: 4 }
+      ),
+      N2, 'lumberMill', { capacity: 4 }
+    );
+
+  it('FR-129 furniture only from the lumber that has no steel to pair with', () => {
+    // 5 lumber, 1 steel: 4 unpaired make 2 furniture (2 lumber each), the last lumber stays with the steel
+    expect(made(ordersOf(goodsOnly({ lumber: 5, steel: 1 })))).toEqual({ furniture: 2 });
+    expect(made(ordersOf(goodsOnly({ lumber: 3, steel: 3 })))).toEqual({});
+  });
+
+  it('FR-129 fabric and spare lumber for next turn\'s goods, not on the turn before the last', () => {
+    // Clothing factory 2 wants 4 fabric (8 labour); furniture factory 4 wants 8 spare lumber, the 4 labour left make 2
+    const s = setBuilding(goodsOnly({ cotton: 10, timber: 10 }), N2, 'clothingFactory', { capacity: 2 });
+    expect(made(ordersOf(s))).toEqual({ fabric: 4, lumber: 2 });
+    expect(made(ordersOf(atTurn(s, turnLimitOf(s) - 1)))).toEqual({});
+  });
+
+  it('FR-129 canned food from raw food above a meal comes last: only from the labour the pairs leave', () => {
+    // The cans (3) already match the workers (3), so only the last step cans food
+    const fed = (stock: Record<string, number>) => goodsOnly({ cannedFood: 3, grain: 20, fruit: 10, livestock: 10, ...stock });
+    const withOres = setBuilding(fed({ coal: 3, ironOre: 3, timber: 10 }), N2, 'steelMill', { capacity: 4 });
+    expect(made(ordersOf(withOres))).toEqual({ steel: 3, lumber: 3 });
+    expect(made(ordersOf(fed({}))).cannedFood ?? 0).toBeGreaterThan(0);
+  });
 });
 
 describe('FR-130 training only when the labour is all used', () => {
@@ -264,6 +309,15 @@ describe('FR-131 development: the cheapest level that pays first', () => {
   it('FR-131 level 2 ($1,000 for 10 points) is started when no level-1 job is open; level 3 ($5,000) never', () => {
     expect(developments(ordersOf(allAtLevel(start(), 1))).length).toBeGreaterThan(0);
     expect(developments(ordersOf(allAtLevel(start(), 2)))).toEqual([]);
+  });
+
+  it('FR-131 the prospector tries the tiles in the FR-123 order: on or next to a depot first, then by distance over land to the capital', () => {
+    const prospector = (s: GameState) => ordersOf(s).filter(o => 'workerId' in o && o.workerId === PROSPECTOR_2);
+    const goTo = (toTileId: string) => [{ kind: 'moveAndStartProspecting', nationId: N2, workerId: PROSPECTOR_2, toTileId }];
+    // Seed 1: of the nine hills he can prospect, 17-4 is nearest the capital
+    expect(prospector(start())).toEqual(goTo('17-4'));
+    // A depot on 20-3, the hills farthest away: it and 20-4 next to it come first, in map order
+    expect(prospector(setTile(start(), '20-3', { depot: true }))).toEqual(goTo('20-3'));
   });
 
   it('FR-131 no job that cannot finish by the last turn', () => {
