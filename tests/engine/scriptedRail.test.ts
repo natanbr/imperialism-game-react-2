@@ -114,6 +114,39 @@ describe('FR-122 the scripted engineer', () => {
     expect(['moveAndBuildRail', 'moveAndStartConstruction']).toContain(engineer[0].kind);
   });
 
+  it('FR-122 when the engineer already stands on the best site (railed), he starts the depot there with startConstruction', () => {
+    // Rail on a site can change which site is best (shorter rail path wins a tie): rail the best site until it stays best
+    let start = newGame({ seed: 1 });
+    let site = bestDepotSite(start, N2)!;
+    for (let i = 0; i < 5 && !start.map.tiles.flat().find(t => t.id === site.tileId)!.connected; i++) {
+      start = setTile(start, site.tileId, { connected: true });
+      site = bestDepotSite(start, N2)!;
+    }
+    expect(start.map.tiles.flat().find(t => t.id === site.tileId)!.connected).toBe(true);
+    // Move the engineer onto that railed site: the best site is now his own tile
+    const engineer = start.map.tiles.flat().flatMap(t => t.workers).find(w => w.id === ENGINEER_2)!;
+    const moved: GameState = {
+      ...start,
+      map: {
+        ...start.map,
+        tiles: start.map.tiles.map(row =>
+          row.map(t => {
+            const workers = t.workers.filter(w => w.id !== ENGINEER_2);
+            return t.id === site.tileId ? { ...t, workers: [...workers, engineer] } : { ...t, workers };
+          })
+        ),
+      },
+    };
+    expect(bestDepotSite(moved, N2)?.tileId).toBe(site.tileId);
+
+    const orders = workerOrders(scriptedPlayer(moved, N2)).filter(o => o.workerId === ENGINEER_2);
+    expect(orders).toEqual([{ kind: 'startConstruction', nationId: N2, workerId: ENGINEER_2, tileId: site.tileId, structure: 'depot' }]);
+    const after = resolveTurn(moved, { [N2]: orders });
+    expect(after.events.filter(e => e.type === 'order-rejected')).toEqual([]);
+    const [x, y] = site.tileId.split('-').map(Number);
+    expect(after.state.map.tiles[y][x].constructionJob?.kind).toBe('depot');
+  });
+
   it('FR-122 when every depot is joined and none is worth building, the engineer gives no order', () => {
     // Nothing on the island yields: no site gains the 2 units a turn a depot needs
     const s = newGame({ seed: 1 });

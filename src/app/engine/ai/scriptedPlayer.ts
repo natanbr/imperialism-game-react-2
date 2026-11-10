@@ -203,7 +203,7 @@ function cannedFoodBatchInputs(): { grain: number; fruit: number; meat: number }
 /** What this civilian could do, best first; validation picks the first one that is allowed. */
 function candidateOrders(view: GameState, nationId: string, { worker, tile }: WorkerLocation): Order[] {
   const workerId = worker.id;
-  if (worker.type === WorkerType.Engineer) return engineerOrders(view, nationId, workerId);
+  if (worker.type === WorkerType.Engineer) return engineerOrders(view, nationId, workerId, tile.id);
   const prospecting = worker.type === WorkerType.Prospector;
   return tilesByReach(view, nationId).map((t): Order => {
     if (t.id === tile.id) {
@@ -220,7 +220,7 @@ function candidateOrders(view: GameState, nationId: string, { worker, tile }: Wo
  * capital's network; else (2), while no depot is being built, the depot that newly gathers most. It
  * lays no rail that joins nothing and builds no port (nothing it ships needs one).
  */
-function engineerOrders(view: GameState, nationId: string, workerId: string): Order[] {
+function engineerOrders(view: GameState, nationId: string, workerId: string, standingOn: string): Order[] {
   const rail = nextRailTiles(view, nationId).flatMap((toTileId): Order[] => [
     { kind: "moveAndBuildRail", nationId, workerId, toTileId },
     { kind: "moveAndStartConstruction", nationId, workerId, toTileId, structure: "rail" },
@@ -229,5 +229,7 @@ function engineerOrders(view: GameState, nationId: string, workerId: string): Or
   const building = view.map.tiles.flat().some((t) => t.ownerNationId === nationId && t.constructionJob?.kind === "depot");
   if (building) return [];
   const site = bestDepotSite(view, nationId);
-  return site ? [{ kind: "moveAndStartConstruction", nationId, workerId, toTileId: site.tileId, structure: "depot" }] : [];
+  if (!site) return [];
+  if (site.tileId === standingOn) return [{ kind: "startConstruction", nationId, workerId, tileId: site.tileId, structure: "depot" }];
+  return [{ kind: "moveAndStartConstruction", nationId, workerId, toTileId: site.tileId, structure: "depot" }];
 }
