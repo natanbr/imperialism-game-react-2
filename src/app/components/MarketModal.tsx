@@ -7,7 +7,7 @@ import type { TradeCommodity } from "@/types/Market";
 import { money, refusalText } from "./gameText";
 import { marketView, type MarketRowView } from "./market/marketView";
 import styles from "./market/Market.module.css";
-import { UI_ICONS } from "./icons";
+import { COMMODITY_ICONS, UI_ICONS } from "./icons";
 import { GameIcon } from "./GameIcon";
 
 interface StepperProps {
@@ -105,7 +105,9 @@ export const MarketModal: React.FC = () => {
             <tbody>
               {view.rows.map((row: MarketRowView) => (
                 <tr key={row.commodity} data-testid={`trade-row-${row.commodity}`}>
-                  <td data-testid="name">{row.name}</td>
+                  <td data-testid="name">
+                    <GameIcon name={COMMODITY_ICONS[row.commodity]} /> {row.name}
+                  </td>
                   <td className={styles.number} data-testid="price">
                     {money(row.price)}
                   </td>

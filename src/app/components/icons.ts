@@ -6,6 +6,7 @@ import {
   GiAnchor,
   GiAnticlockwiseRotation,
   GiBigWave,
+  GiCannedFish,
   GiCapitol,
   GiCheckeredFlag,
   GiCoalPile,
@@ -26,32 +27,41 @@ import {
   GiHourglass,
   GiHouse,
   GiInfo,
+  GiJerrycan,
   GiMagnifyingGlass,
   GiMeepleGroup,
+  GiMetalBar,
   GiMiner,
   GiMountains,
+  GiMusket,
   GiOak,
   GiOilDrum,
   GiOilPump,
   GiOre,
+  GiPaper,
   GiPineTree,
   GiPlayButton,
   GiRailRoad,
   GiRiver,
+  GiRolledCloth,
   GiScales,
   GiSheep,
   GiShinyApple,
+  GiShirt,
   GiSnowflake1,
   GiSpyglass,
   GiSteamLocomotive,
   GiSwamp,
+  GiToolbox,
   GiTrowel,
   GiWaves,
   GiWheat,
   GiWoodAxe,
+  GiWoodenChair,
   GiWoodenCrate,
+  GiWoodPile,
 } from "react-icons/gi";
-import { ResourceType } from "@/types/Resource";
+import { GoodsType, MaterialType, ResourceType, type WarehouseCommodities } from "@/types/Resource";
 import { TerrainType, type Tile } from "@/types/Tile";
 import { WorkerType } from "@/types/Workers";
 
@@ -60,6 +70,7 @@ export const GI = {
   GiAnchor,
   GiAnticlockwiseRotation,
   GiBigWave,
+  GiCannedFish,
   GiCapitol,
   GiCheckeredFlag,
   GiCoalPile,
@@ -80,30 +91,39 @@ export const GI = {
   GiHourglass,
   GiHouse,
   GiInfo,
+  GiJerrycan,
   GiMagnifyingGlass,
   GiMeepleGroup,
+  GiMetalBar,
   GiMiner,
   GiMountains,
+  GiMusket,
   GiOak,
   GiOilDrum,
   GiOilPump,
   GiOre,
+  GiPaper,
   GiPineTree,
   GiPlayButton,
   GiRailRoad,
   GiRiver,
+  GiRolledCloth,
   GiScales,
   GiSheep,
   GiShinyApple,
+  GiShirt,
   GiSnowflake1,
   GiSpyglass,
   GiSteamLocomotive,
   GiSwamp,
+  GiToolbox,
   GiTrowel,
   GiWaves,
   GiWheat,
   GiWoodAxe,
+  GiWoodenChair,
   GiWoodenCrate,
+  GiWoodPile,
 } satisfies Record<string, IconType>;
 
 export type IconName = keyof typeof GI;
@@ -144,6 +164,24 @@ export const RESOURCE_ICONS: Record<ResourceType, IconName> = {
   [ResourceType.Oil]: "GiOilDrum",
   [ResourceType.Gold]: "GiGoldNuggets",
   [ResourceType.Gems]: "GiCutDiamond",
+};
+
+/**
+ * Every warehouse commodity (FR-121): the resources keep their map icons, each material and good has
+ * its own, in the same line-art style. Shown before the name in the market and the capital dialog.
+ */
+export const COMMODITY_ICONS: Record<WarehouseCommodities, IconName> = {
+  ...RESOURCE_ICONS,
+  [MaterialType.Lumber]: "GiWoodPile",
+  [MaterialType.Paper]: "GiPaper",
+  [MaterialType.Steel]: "GiMetalBar",
+  [MaterialType.Fuel]: "GiJerrycan",
+  [MaterialType.Fabric]: "GiRolledCloth",
+  [MaterialType.CannedFood]: "GiCannedFish",
+  [GoodsType.Clothing]: "GiShirt",
+  [GoodsType.Furniture]: "GiWoodenChair",
+  [GoodsType.Hardware]: "GiToolbox",
+  [GoodsType.Armaments]: "GiMusket",
 };
 
 export const WORKER_ICONS: Record<WorkerType, IconName> = {

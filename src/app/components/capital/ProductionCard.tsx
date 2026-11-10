@@ -2,6 +2,8 @@
 import React from "react";
 import type { Order, ValidationResult } from "@/engine";
 import { BUILDING_TEXT } from "../gameText";
+import { COMMODITY_ICONS } from "../icons";
+import { GameIcon } from "../GameIcon";
 import type { BuildingCardView } from "./capitalView";
 import styles from "./Capital.module.css";
 
@@ -32,7 +34,9 @@ export const ProductionCard: React.FC<ProductionCardProps> = ({ card, nationId, 
 
       {card.outputs.map((out) => (
         <div key={out.output} className={styles.output} data-testid={`output-${out.output}`}>
-          <div className={styles.outputName}>{out.name}</div>
+          <div className={styles.outputName} data-testid="output-name">
+            <GameIcon name={COMMODITY_ICONS[out.output]} /> {out.name}
+          </div>
           <ul className={styles.inputs} aria-label={`${out.name} needs`}>
             {out.inputs.map((input) => (
               <li
@@ -43,6 +47,9 @@ export const ProductionCard: React.FC<ProductionCardProps> = ({ card, nationId, 
                 title={input.missing ? "Not enough in the warehouse for one batch" : undefined}
               >
                 {input.missing && <span aria-hidden="true">✗ </span>}
+                {input.types.map((type) => (
+                  <GameIcon key={type} name={COMMODITY_ICONS[type]} />
+                ))}{" "}
                 {`${input.label} (${input.stock})`}
               </li>
             ))}

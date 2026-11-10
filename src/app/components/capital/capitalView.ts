@@ -6,11 +6,14 @@ import { EXPANSION_COST_PER_POINT, RECIPES } from "@/definisions/ResourceConvers
 import type { GameState } from "@/types/GameState";
 import type { BuildingType, ProductionOutput, WorkerGrade, Workers } from "@/types/Industry";
 import type { Nation } from "@/types/Nation";
+import type { WarehouseCommodities } from "@/types/Resource";
 import { commodityName } from "../gameText";
 
 export interface InputView {
   /** The first commodity of the input, used as its id ("cotton" for cotton-or-wool). */
   key: string;
+  /** The commodities it may be made from, for their icons (FR-121). */
+  types: readonly WarehouseCommodities[];
   /** "2 Cotton or Wool" */
   label: string;
   /** In the warehouse, all its types together. */
@@ -70,6 +73,7 @@ function outputView(nation: Nation, plans: Plans, building: BuildingType, output
     const inStock = input.types.reduce((sum, type) => sum + (stock[type] ?? 0), 0);
     return {
       key: input.types[0],
+      types: input.types as readonly WarehouseCommodities[],
       label: `${input.amount} ${input.types.map(commodityName).join(" or ")}`,
       stock: inStock,
       missing: inStock < input.amount,
