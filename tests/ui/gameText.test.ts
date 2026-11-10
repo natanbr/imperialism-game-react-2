@@ -12,7 +12,7 @@ import { game, locate, N1, put, T, workerId } from '../engine/fixtures';
 
 const ALL_REASONS: RejectReason[] = [
   'unknown-nation', 'unknown-worker', 'not-owner', 'wrong-worker-type', 'worker-busy', 'worker-moved',
-  'invalid-target', 'tile-occupied', 'invalid-site', 'insufficient-funds', 'insufficient-resources', 'insufficient-labour',
+  'invalid-target', 'tile-has-job', 'invalid-site', 'insufficient-funds', 'insufficient-resources', 'insufficient-labour',
   'limit-reached', 'invalid-amount', 'game-over',
 ];
 

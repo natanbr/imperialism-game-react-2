@@ -2,6 +2,7 @@ import { GameMap } from "../types/Map";
 import { TerrainType, Tile } from "../types/Tile";
 import { Worker, WorkerStatus } from "../types/Workers";
 import { PossibleAction } from "../types/actions";
+import { hasJob } from "../engine/orders/queries";
 
 /**
  * The action an engineer offers on a tile (the map cursor and click). Rail is not offered here:
@@ -10,7 +11,7 @@ import { PossibleAction } from "../types/actions";
 export function getEngineerActions(tile: Tile, map: GameMap, worker: Worker): PossibleAction | null {
   if (worker.status !== WorkerStatus.Available) return null;
   if (tile.ownerNationId !== worker.nationId) return null;
-  if (!tile.constructionJob) {
+  if (!hasJob(tile)) {
     // Fort can only be built in capital or city
     if ((tile.terrain === TerrainType.Capital || tile.terrain === TerrainType.Town) && (tile.fortLevel ?? 0) < 3) {
       return { type: "construct", kind: "fort" };

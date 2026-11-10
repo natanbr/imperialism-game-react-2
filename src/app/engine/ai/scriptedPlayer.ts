@@ -1,10 +1,10 @@
 import type { GameState } from "@/types/GameState";
 import { MaterialType, ResourceType } from "@/types/Resource";
-import type { Tile } from "@/types/Tile";
 import { WorkerStatus, WorkerType } from "@/types/Workers";
 import type { Order } from "../orders/Order";
 import { applyOrder } from "../orders/apply";
 import { findWorker, nationById, workersOf, type WorkerLocation } from "../orders/queries";
+import { bestDepotSite, nextRailTiles, tilesByReach } from "./railPlan";
 import { validateOrder } from "../orders/validate";
 import type { Nation } from "@/types/Nation";
 import type { BuildingType, ProductionOutput } from "@/types/Industry";
@@ -25,10 +25,12 @@ import { createTurnContext } from "../turn/context";
 export type Player = (state: GameState, nationId: string) => Order[];
 
 /**
- * A tiny greedy player for headless tests. Deterministic: tiles are scanned row by row and
- * workers in map order. It plans on a private copy of the state, applying each order it
- * keeps, so every order it returns is valid in sequence (FR-016). Order of its plan: transport,
- * a freight car, production, world-market trade (FR-070), then the workers' jobs.
+ * A small scripted player. Deterministic: tiles are scanned row by row and workers in map order,
+ * the engineer first. It plans on a private copy of the state, applying each order it keeps, so
+ * every order it returns is valid in sequence (FR-016). Order of its plan: transport, a freight car,
+ * production, world-market trade (FR-070), then the civilians: the engineer joins depots to the
+ * capital by the shortest rail path or starts the depot that gathers most (FR-122), the others work
+ * the tiles the capital and the depots gather from first (FR-123).
  */
 export const scriptedPlayer: Player = (state, nationId) => {
   const orders: Order[] = [];
@@ -86,11 +88,15 @@ export const scriptedPlayer: Player = (state, nationId) => {
 
   planTrade(() => view, nationId, propose);
 
-  const ownTiles = state.map.tiles.flat().filter((t) => t.ownerNationId === nationId);
-  for (const { worker } of workersOf(state, nationId)) {
+  // The engineer plans first, so the depot he starts is paid for and its tiles count as gathered
+  // when the others choose (FR-123). The sort is stable: the others keep their map order.
+  const civilians = workersOf(state, nationId).sort(
+    (a, b) => Number(b.worker.type === WorkerType.Engineer) - Number(a.worker.type === WorkerType.Engineer)
+  );
+  for (const { worker } of civilians) {
     const current = findWorker(view, worker.id);
     if (!current || current.worker.status !== WorkerStatus.Available || current.worker.justMoved) continue;
-    for (const order of candidateOrders(nationId, current, ownTiles)) {
+    for (const order of candidateOrders(view, nationId, current)) {
       if (propose(order)) break;
     }
   }
@@ -194,25 +200,36 @@ function cannedFoodBatchInputs(): { grain: number; fruit: number; meat: number }
   return { grain: amountOf(ResourceType.Grain), fruit: amountOf(ResourceType.Fruit), meat: amountOf(ResourceType.Livestock) };
 }
 
-/** What this worker could do, best first; validation picks the first one that is allowed. */
-function candidateOrders(nationId: string, { worker, tile }: WorkerLocation, ownTiles: Tile[]): Order[] {
+/** What this civilian could do, best first; validation picks the first one that is allowed. */
+function candidateOrders(view: GameState, nationId: string, { worker, tile }: WorkerLocation): Order[] {
   const workerId = worker.id;
-  switch (worker.type) {
-    case WorkerType.Prospector:
-      return [
-        { kind: "startProspecting", nationId, workerId, tileId: tile.id },
-        ...ownTiles.map((t): Order => ({ kind: "moveAndStartProspecting", nationId, workerId, toTileId: t.id })),
-      ];
-    case WorkerType.Engineer:
-      return [
-        ...ownTiles.map((t): Order => ({ kind: "moveAndBuildRail", nationId, workerId, toTileId: t.id })),
-        { kind: "startConstruction", nationId, workerId, tileId: tile.id, structure: "depot" },
-        ...ownTiles.map((t): Order => ({ kind: "moveAndStartConstruction", nationId, workerId, toTileId: t.id, structure: "depot" })),
-      ];
-    default:
-      return [
-        { kind: "startDevelopment", nationId, workerId, tileId: tile.id },
-        ...ownTiles.map((t): Order => ({ kind: "moveAndStartDevelopment", nationId, workerId, toTileId: t.id })),
-      ];
-  }
+  if (worker.type === WorkerType.Engineer) return engineerOrders(view, nationId, workerId, tile.id);
+  const prospecting = worker.type === WorkerType.Prospector;
+  return tilesByReach(view, nationId).map((t): Order => {
+    if (t.id === tile.id) {
+      return prospecting ? { kind: "startProspecting", nationId, workerId, tileId: t.id } : { kind: "startDevelopment", nationId, workerId, tileId: t.id };
+    }
+    return prospecting
+      ? { kind: "moveAndStartProspecting", nationId, workerId, toTileId: t.id }
+      : { kind: "moveAndStartDevelopment", nationId, workerId, toTileId: t.id };
+  });
+}
+
+/**
+ * The engineer (FR-122): (1) the next rail tile of the shortest path joining a built depot to the
+ * capital's network; else (2), while no depot is being built, the depot that newly gathers most. It
+ * lays no rail that joins nothing and builds no port (nothing it ships needs one).
+ */
+function engineerOrders(view: GameState, nationId: string, workerId: string, standingOn: string): Order[] {
+  const rail = nextRailTiles(view, nationId).flatMap((toTileId): Order[] => [
+    { kind: "moveAndBuildRail", nationId, workerId, toTileId },
+    { kind: "moveAndStartConstruction", nationId, workerId, toTileId, structure: "rail" },
+  ]);
+  if (rail.length > 0) return rail;
+  const building = view.map.tiles.flat().some((t) => t.ownerNationId === nationId && t.constructionJob?.kind === "depot");
+  if (building) return [];
+  const site = bestDepotSite(view, nationId);
+  if (!site) return [];
+  if (site.tileId === standingOn) return [{ kind: "startConstruction", nationId, workerId, tileId: site.tileId, structure: "depot" }];
+  return [{ kind: "moveAndStartConstruction", nationId, workerId, toTileId: site.tileId, structure: "depot" }];
 }

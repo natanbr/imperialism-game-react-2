@@ -210,7 +210,8 @@
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-areas:
     "name amount"
-    "inputs amount";
+    "inputs amount"
+    "short short";
   column-gap: 8px;
   padding-top: 6px;
   border-top: 1px solid var(--color-border);
@@ -234,6 +235,14 @@
 }
 
 .inputMissing {
+  color: var(--color-text-danger);
+}
+
+/* A standing order above what the stock or labour allows (FR-119) */
+.shortNote {
+  grid-area: short;
+  margin: 2px 0 0;
+  font-size: var(--font-size-sm);
   color: var(--color-text-danger);
 }
 

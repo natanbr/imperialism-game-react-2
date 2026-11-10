@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { newGame } from '@/engine/newGame';
-import { labourOf } from '@/engine/industry/labour';
+import { labourOf } from '@/engine/industry/productionPlan';
 import { WorkerType } from '@/types/Workers';
 import { TerrainType } from '@/types/Tile';
 import { ResourceType } from '@/types/Resource';
