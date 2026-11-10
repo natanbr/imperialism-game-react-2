@@ -15,7 +15,7 @@ import type { Order } from '@/engine/orders/Order';
 import type { GameState } from '@/types/GameState';
 import { m4ScriptedPlayer } from './m4ScriptedPlayer';
 import { railBound } from './railBound';
-import { emptyWarehouse, N2, nationOf, setBuilding, setIndustry, setTile, setTreasury, setWarehouse, tileAt } from './fixtures';
+import { emptyWarehouse, invariantViolations, N2, nationOf, setBuilding, setIndustry, setTile, setTreasury, setWarehouse, tileAt } from './fixtures';
 
 const ENGINEER_2 = 'worker-nation-2-7';
 const SEEDS = [1, 2, 3, 4];
@@ -39,24 +39,34 @@ const allAtLevel = (s: GameState, level: number): GameState => ({
 });
 
 interface Checkpoint { turn: number; score: number; depotsJoined: number; links: number; bound: number }
-interface Game { checkpoints: Checkpoint[]; refused: number; final: GameState }
+/** FR-125 health: nation 2's meals (`workers-fed`) and the invariants, every turn. */
+interface Health { meals: number; sick: number; starved: number; violations: string[] }
+interface Game { checkpoints: Checkpoint[]; refused: number; health: Health; final: GameState }
 
 /** 40 turns from the real new game; nation 2's orders from `orders`, none for nation 1. */
 function play(orders: (s: GameState) => Order[], seed: number): Game {
   let state = start(seed);
   let refused = 0;
   const checkpoints: Checkpoint[] = [];
+  const health: Health = { meals: 0, sick: 0, starved: 0, violations: [] };
   for (let turn = 1; turn <= 40; turn++) {
     const result = resolveTurn(state, { [N2]: orders(state) }, state.seed);
     refused += result.events.filter(e => e.type === 'order-rejected' && e.nationId === N2).length;
+    for (const e of result.events) {
+      if (e.type !== 'workers-fed' || e.nationId !== N2) continue;
+      health.meals++;
+      health.sick += e.sick;
+      health.starved += e.starved;
+    }
     state = result.state;
+    health.violations.push(...invariantViolations(state).map(v => `turn ${turn}: ${v}`));
     if (!CHECKPOINTS.includes(turn)) continue;
     const component = capitalComponent(state, N2);
     const depotsJoined = state.transportNetwork.railroadNetworks![N2].depots.filter(d => d.isActive && component.has(`${d.x},${d.y}`)).length;
     const links = railLinksOf(state).filter(l => l.nationId === N2).length;
     checkpoints.push({ turn, score: scoreOf(state, N2).total, depotsJoined, links, bound: railBound(state, N2) });
   }
-  return { checkpoints, refused, final: state };
+  return { checkpoints, refused, health, final: state };
 }
 
 describe('FR-125 score acceptance: 40 turns of nation 2 on seeds 1 to 4', () => {
@@ -82,6 +92,12 @@ describe('FR-125 score acceptance: 40 turns of nation 2 on seeds 1 to 4', () => 
 
   it('FR-125 no order of nation 2 is refused on any seed', () => {
     expect(SEEDS.map(seed => now.get(seed)!.refused)).toEqual(SEEDS.map(() => 0));
+  });
+
+  it('FR-125 nation 2 is fed every turn: no worker sick or starved, and no invariant broken, on any seed', () => {
+    expect(SEEDS.map(seed => ({ seed, ...now.get(seed)!.health }))).toEqual(
+      SEEDS.map(seed => ({ seed, meals: 40, sick: 0, starved: 0, violations: [] }))
+    );
   });
 
   it('FR-125 NR-022 holds at each checkpoint: a depot joined to the capital, rail links within the FR-124 bound', () => {
