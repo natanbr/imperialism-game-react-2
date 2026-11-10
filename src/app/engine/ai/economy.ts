@@ -268,10 +268,8 @@ export function planRun(state: GameState, nationId: string): Run {
   const pairs = () => {
     for (let guard = 0; guard < 256; guard++) {
       const first = have(MaterialType.Steel) <= have(MaterialType.Lumber) ? MaterialType.Steel : MaterialType.Lumber;
-      const second = first === MaterialType.Steel ? MaterialType.Lumber : MaterialType.Steel;
       if (make(run, first, 1) > 0) continue;
-      // The scarcer one cannot be made: more of the other only pairs with stock already there.
-      if (have(second) < have(first) && make(run, second, 1) > 0) continue;
+      // The scarcer one (steel when even) cannot be made: one more of the other would have no pair.
       return;
     }
   };
