@@ -34,6 +34,7 @@ interface Run {
   shipped: number;
   /** Units offered on the world market over the turns (each turn's final sell amounts). */
   sold: number;
+  /** The order-rejected events of nation 2 that resolveTurn reported over the turns. */
   refused: number;
 }
 
@@ -45,16 +46,13 @@ function play(player: Player, turns = 15, seed = 1): Run {
   let refused = 0;
   for (let t = 0; t < turns; t++) {
     const orders = player(state, N2);
-    let view = state;
-    for (const order of orders) {
-      if (!validateOrder(view, order).ok) refused++;
-      view = applyOrder(view, order);
-    }
     const sells = new Map<string, number>();
     for (const o of orders) if (o.kind === 'sellCommodity') sells.set(o.commodity, o.amount);
     sold += [...sells.values()].reduce((a, b) => a + b, 0);
     const cars = state.nations.find(n => n.id === N2)!.transportCapacity ?? 0;
-    state = resolveTurn(state, { [N2]: orders }, state.seed).state;
+    const result = resolveTurn(state, { [N2]: orders }, state.seed);
+    refused += result.events.filter(e => e.type === 'order-rejected' && e.nationId === N2).length;
+    state = result.state;
     shipped += Math.min(cars, yieldOf(state));
   }
   return { state, shipped, sold, refused };
@@ -77,6 +75,16 @@ function landDistanceToCapital(s: GameState, from: { x: number; y: number }): nu
     }
   }
   return Infinity;
+}
+
+/**
+ * The rail a player that only joins depots needs: each joined depot's land distance to the capital, + 3.
+ * Only depots in the capital's rail component count: a depot not joined yet has no rail to allow for.
+ */
+function railBound(s: GameState): number {
+  const component = capitalComponent(s, N2);
+  const joined = network(s).depots.filter(d => component.has(`${d.x},${d.y}`));
+  return joined.reduce((sum, d) => sum + landDistanceToCapital(s, d), 0) + 3;
 }
 
 describe('FR-122 the scripted engineer', () => {
@@ -149,10 +157,11 @@ describe('FR-124 AI acceptance: 15 turns of nation 2', () => {
     expect(joined.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('FR-124 its rail links are at most the sum of the depots\' rail distances to the capital + 3 (no mesh)', () => {
-    const bound = network(now.state).depots.reduce((sum, d) => sum + landDistanceToCapital(now.state, d), 0) + 3;
+  it('FR-124 its rail links are at most the sum of the joined depots\' rail distances to the capital + 3 (no mesh)', () => {
     expect(linksOf(now.state)).toBeGreaterThan(0);
-    expect(linksOf(now.state)).toBeLessThanOrEqual(bound);
+    expect(linksOf(now.state)).toBeLessThanOrEqual(railBound(now.state));
+    // The bound tells the players apart: the M4 player's rail breaks it
+    expect(linksOf(m4.state)).toBeGreaterThan(railBound(m4.state));
   });
 
   it('FR-124 its tiles deliver more a turn, and its freight cars carry more over 15 turns, than the M4 player\'s', () => {
@@ -160,7 +169,7 @@ describe('FR-124 AI acceptance: 15 turns of nation 2', () => {
     expect(now.shipped).toBeGreaterThan(m4.shipped);
   });
 
-  it('FR-124 no order of nation 2 is refused, and the same seed gives the same game', () => {
+  it('FR-124 no order of nation 2 is refused (no order-rejected event from resolveTurn), and the same seed gives the same game', () => {
     expect(now.refused).toBe(0);
     expect(play(scriptedPlayer).state).toEqual(now.state);
     // Through the registry too (FR-099): the same orders
@@ -169,7 +178,7 @@ describe('FR-124 AI acceptance: 15 turns of nation 2', () => {
 
   it('FR-124 the numbers, for the journal', () => {
     const row = (r: Run) => ({ depots: network(r.state).depots.length, links: linksOf(r.state), yieldPerTurn: yieldOf(r.state), shipped: r.shipped, sold: r.sold, score: scoreOf(r.state, N2).total });
-    console.log('FR-124 M4.1', JSON.stringify(row(now)), 'M4', JSON.stringify(row(m4)));
+    console.log('FR-124 M4.1', JSON.stringify({ ...row(now), bound: railBound(now.state), refused: now.refused }), 'M4', JSON.stringify({ ...row(m4), bound: railBound(m4.state), refused: m4.refused }));
     expect(row(now).depots).toBeGreaterThan(0);
   });
 });
