@@ -13,7 +13,8 @@ import {
   TRAINING_COST,
 } from "@/definisions/ResourceConversions";
 import { buildingOf, migrantCap } from "../industry/industryState";
-import { healthyWorkers, labourOf, labourPerUnit } from "../industry/labour";
+import { healthyWorkers } from "../industry/labour";
+import { labourOf, planProduction, type ProductionPlan } from "../industry/productionPlan";
 import type {
   ChangeTransportCapacityOrder,
   ExpandBuildingOrder,
@@ -56,15 +57,44 @@ export function validateSetProduction(nation: Nation, order: SetProductionOrder)
     const others = def.outputs.filter((o) => o !== output).reduce((sum, o) => sum + (building.orders[o] ?? 0), 0);
     if (amount + others > building.capacity) return reject("limit-reached");
   }
-  const batches = amount / recipe.batch;
-  const stock = stockOf(nation);
-  for (const input of recipe.inputs) {
-    const available = input.types.reduce((sum, type) => sum + (stock[type] ?? 0), 0);
-    if (available < batches * input.amount) return reject("insufficient-resources");
+  // FR-118: the plan with the new amount must make all of it and no less of anything else; else the
+  // stock (its own or shared with another order) or the labour is short (rules 05: no order above them).
+  const raised = withOrder(nation, order.building, output, amount);
+  if (makesAll(planProduction(raised), planProduction(nation), output, amount)) return OK;
+  const unlimited = { labour: Infinity };
+  const stockAllows = makesAll(planProduction(raised, unlimited), planProduction(nation, unlimited), output, amount);
+  return reject(stockAllows ? "insufficient-labour" : "insufficient-resources");
+}
+
+/** Orders larger than this are not probed (food processing has no capacity limit). */
+const PROBE_LIMIT = 500;
+
+/**
+ * The largest amount of `output` a fresh order may set now: the most the engine accepts with this
+ * output's own standing order cleared (FR-119). A query for the capital dialog; nothing is changed.
+ */
+export function largestOrder(nation: Nation, building: SetProductionOrder["building"], output: ProductionOutput): number {
+  if (!Object.hasOwn(BUILDINGS, building)) return 0;
+  const cleared = withOrder(nation, building, output, 0);
+  const step = RECIPES[output].batch;
+  let best = 0;
+  for (let amount = step; amount <= PROBE_LIMIT; amount += step) {
+    if (!validateSetProduction(cleared, { kind: "setProduction", nationId: nation.id, building, output, amount }).ok) break;
+    best = amount;
   }
-  const { total, committed } = labourOf(nation);
-  if (committed + (amount - current) * labourPerUnit(output) > total) return reject("insufficient-labour");
-  return OK;
+  return best;
+}
+
+/** The nation with one standing order changed (a copy: the nation is not touched). */
+function withOrder(nation: Nation, name: SetProductionOrder["building"], output: ProductionOutput, amount: number): Nation {
+  const building = buildingOf(nation, name);
+  return withIndustry(nation, { buildings: { ...nation.industry.buildings, [name]: { ...building, orders: { ...building.orders, [output]: amount } } } });
+}
+
+/** `after` makes `amount` of `output` and at least what `before` made of every other output. */
+function makesAll(after: ProductionPlan, before: ProductionPlan, output: ProductionOutput, amount: number): boolean {
+  if ((after.made[output] ?? 0) !== amount) return false;
+  return (Object.entries(before.made) as [ProductionOutput, number][]).every(([o, n]) => o === output || (after.made[o] ?? 0) >= n);
 }
 
 const expansionSteps = (order: ExpandBuildingOrder): number => order.delta ?? 1;

@@ -2,13 +2,13 @@ import { describe, it, expect } from 'vitest';
 import { applyOrder } from '@/engine/orders/apply';
 import { Order, RejectReason } from '@/engine/orders/Order';
 import { validateOrder } from '@/engine/orders/validate';
-import { labourOf } from '@/engine/industry/labour';
+import { labourOf } from '@/engine/industry/productionPlan';
 import { BUILDINGS, nextCapacity } from '@/definisions/industryBuildings';
 import { RECIPES } from '@/definisions/ResourceConversions';
 import { GameState } from '@/types/GameState';
 import { BuildingType, ProductionOutput } from '@/types/Industry';
 import {
-  deepFreeze, emptyWarehouse, game, industryOf, N1, nationOf, setBuilding, setIndustry, setTreasury, stockOf, treasury,
+  deepFreeze, emptyWarehouse, game, industryOf, N1, nationOf, setBuilding, setIndustry, setTreasury, setWarehouse, stockOf, treasury,
 } from './fixtures';
 
 // The two-nation fixture: nation-1 has 4 untrained, 2 trained and 1 expert worker (12 labour),
@@ -18,9 +18,12 @@ const base = (patch: Record<string, number> = {}) => emptyWarehouse(game(), N1, 
 const produce = (building: BuildingType, amount: number, output?: ProductionOutput): Order =>
   output ? { kind: 'setProduction', nationId: N1, building, output, amount } : { kind: 'setProduction', nationId: N1, building, amount };
 
-/** Standing orders that use all 12 labour: lumber 2, steel 2, fabric 2 (2 labour each). */
+/**
+ * Standing orders that use all 12 labour: lumber 2, steel 2, fabric 2 (2 labour each), with the
+ * timber, coal, iron and cotton they need: an order commits only the labour it really uses (FR-117).
+ */
 const allLabourCommitted = (s: GameState) =>
-  setBuilding(setBuilding(setBuilding(s, N1, 'lumberMill', { orders: { lumber: 2 } }), N1, 'steelMill', { orders: { steel: 2 } }), N1, 'textileMill', { orders: { fabric: 2 } });
+  setBuilding(setBuilding(setBuilding(setWarehouse(s, N1, { timber: 4, coal: 2, ironOre: 2, cotton: 4 }), N1, 'lumberMill', { orders: { lumber: 2 } }), N1, 'steelMill', { orders: { steel: 2 } }), N1, 'textileMill', { orders: { fabric: 2 } });
 
 /** 11 labour (one untrained worker sick), 10 committed (lumber 2, steel 2, fabric 1): 1 free. */
 const oneLabourFree = (s: GameState) =>
@@ -55,7 +58,7 @@ const cases: Case[] = [
   { name: 'FR-036 more timber than the warehouse holds', setup: () => base({ timber: 3 }), order: produce('lumberMill', 2), expected: 'insufficient-resources' },
   { name: 'FR-034 FR-036 steel needs as much iron as coal', setup: () => base({ coal: 2, ironOre: 1 }), order: produce('steelMill', 2), expected: 'insufficient-resources' },
   { name: 'FR-034 FR-036 canned food needs livestock or fish', setup: () => base({ grain: 2, fruit: 1 }), order: produce('foodProcessing', 2), expected: 'insufficient-resources' },
-  { name: 'FR-035 FR-036 more labour than the nation has left', setup: () => allLabourCommitted(base({ lumber: 2 })), order: produce('furnitureFactory', 1), expected: 'insufficient-labour' },
+  { name: 'FR-035 FR-036 FR-117 more labour than the nation has left', setup: () => allLabourCommitted(base({ lumber: 2 })), order: produce('furnitureFactory', 1), expected: 'insufficient-labour' },
   { name: 'FR-035 FR-036 sick workers give no labour', setup: () => setIndustry(base({ timber: 4 }), N1, { sick: { untrained: 4, trained: 2, expert: 1 } }), order: produce('lumberMill', 2), expected: 'insufficient-labour' },
 
   // FR-038 expandBuilding
@@ -78,7 +81,7 @@ const cases: Case[] = [
   // FR-039 freight cars
   { name: 'FR-039 2 cars with 2 lumber, 2 steel and 4 free labour is ok', setup: () => base({ lumber: 2, steel: 2 }), order: { kind: 'changeTransportCapacity', nationId: N1, delta: 2 }, expected: 'ok' },
   { name: 'FR-039 cars need lumber and steel, not coal and iron', setup: () => base({ coal: 5, ironOre: 5, lumber: 1, steel: 5 }), order: { kind: 'changeTransportCapacity', nationId: N1, delta: 2 }, expected: 'insufficient-resources' },
-  { name: 'FR-039 cars need 2 free labour each', setup: () => allLabourCommitted(base({ lumber: 2, steel: 2 })), order: { kind: 'changeTransportCapacity', nationId: N1, delta: 1 }, expected: 'insufficient-labour' },
+  { name: 'FR-039 FR-117 cars need 2 free labour each', setup: () => allLabourCommitted(base({ lumber: 2, steel: 2 })), order: { kind: 'changeTransportCapacity', nationId: N1, delta: 1 }, expected: 'insufficient-labour' },
   { name: 'FR-039 giving back part of this turn\'s cars is ok', setup: () => ({ ...base(), nations: base().nations.map(n => (n.id === N1 ? { ...n, transportCapacityPendingIncrease: 2 } : n)) }), order: { kind: 'changeTransportCapacity', nationId: N1, delta: -1 }, expected: 'ok' },
 
   // FR-041 trainWorkers
@@ -89,7 +92,7 @@ const cases: Case[] = [
   { name: 'FR-041 a sick worker cannot be trained', setup: () => setIndustry(base({ paper: 9 }), N1, { sick: { untrained: 4, trained: 0, expert: 0 } }), order: { kind: 'trainWorkers', nationId: N1, from: 'untrained', delta: 1 }, expected: 'invalid-amount' },
   { name: 'FR-041 training without the cash', setup: () => setTreasury(base({ paper: 2 }), N1, 999), order: { kind: 'trainWorkers', nationId: N1, from: 'trained', delta: 1 }, expected: 'insufficient-funds' },
   { name: 'FR-041 training without paper', setup: () => base({ paper: 1 }), order: { kind: 'trainWorkers', nationId: N1, from: 'trained', delta: 1 }, expected: 'insufficient-resources' },
-  { name: 'FR-058 training with no free labour', setup: () => allLabourCommitted(base({ paper: 1 })), order: { kind: 'trainWorkers', nationId: N1, from: 'untrained', delta: 1 }, expected: 'insufficient-labour' },
+  { name: 'FR-058 FR-117 training with no free labour', setup: () => allLabourCommitted(base({ paper: 1 })), order: { kind: 'trainWorkers', nationId: N1, from: 'untrained', delta: 1 }, expected: 'insufficient-labour' },
   { name: 'FR-058 1 free labour is enough to train a trained worker (2 labour)', setup: () => oneLabourFree(base({ paper: 2 })), order: { kind: 'trainWorkers', nationId: N1, from: 'trained', delta: 1 }, expected: 'ok' },
   { name: 'FR-041 a zero change', setup: () => base({ paper: 1 }), order: { kind: 'trainWorkers', nationId: N1, from: 'untrained', delta: 0 }, expected: 'invalid-amount' },
   { name: 'FR-041 cancelling more trainees than ordered', setup: () => base(), order: { kind: 'trainWorkers', nationId: N1, from: 'untrained', delta: -1 }, expected: 'invalid-amount' },
@@ -163,10 +166,10 @@ describe('FR-033 FR-034 buildings and recipes', () => {
 });
 
 describe('FR-035 labour', () => {
-  it('FR-035 labour is untrained x1 + trained x2 + expert x4, less sick workers and trainees, and orders commit it', () => {
+  it('FR-035 FR-117 labour is untrained x1 + trained x2 + expert x4, less sick workers and trainees, and orders commit what they make', () => {
     expect(labourOf(nationOf(game(), N1))).toEqual({ total: 12, committed: 0, free: 12 });
 
-    let s = setIndustry(game(), N1, { sick: { untrained: 0, trained: 1, expert: 0 }, training: { untrained: 1, trained: 0, expert: 0 } });
+    let s = setIndustry(emptyWarehouse(game(), N1, { timber: 4, grain: 2, fruit: 1, livestock: 1 }), N1, { sick: { untrained: 0, trained: 1, expert: 0 }, training: { untrained: 1, trained: 0, expert: 0 } });
     s = setBuilding(s, N1, 'lumberMill', { orders: { lumber: 2 } });
     s = setBuilding(s, N1, 'foodProcessing', { orders: { cannedFood: 2 } });
     s = { ...s, nations: s.nations.map(n => (n.id === N1 ? { ...n, transportCapacityPendingIncrease: 1 } : n)) };

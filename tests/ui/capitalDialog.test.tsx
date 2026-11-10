@@ -138,14 +138,16 @@ describe('FR-046 capital dialog: production cards', () => {
     expect(within(card('foodProcessing')).queryByRole('button', { name: /Cancel expansion/ })).toBeNull();
   });
 
-  it('FR-046 a refused order shows its reason in the dialog; the next accepted order clears it', () => {
+  // FR-119 disables More when nothing more can be made, so the refusal comes from Expand here
+  it('FR-046 FR-119 a refused order shows its reason in the dialog; the next accepted order clears it', () => {
     openCapital(emptyWarehouse(game(), N1, { lumber: 1, steel: 1 }));
+    expect(within(card('steelMill')).getByRole('button', { name: 'More Steel' })).toHaveProperty('disabled', true);
 
-    fireEvent.click(within(card('steelMill')).getByRole('button', { name: 'More Steel' }));
+    fireEvent.click(within(card('steelMill')).getByRole('button', { name: /Expand Steel mill/ }));
 
     expect(submitted).toHaveLength(1);
-    expect(text(screen.getByRole('alert'))).toContain('Production refused: not enough goods in the warehouse.');
-    expect(industryOf(now(), N1).buildings.steelMill!.orders.steel ?? 0).toBe(0);
+    expect(text(screen.getByRole('alert'))).toContain('refused: not enough goods in the warehouse.');
+    expect(industryOf(now(), N1).buildings.steelMill!.pendingCapacity).toBe(0);
 
     fireEvent.click(screen.getByRole('button', { name: 'Order a freight car' }));
     expect(screen.queryByRole('alert')).toBeNull();

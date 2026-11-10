@@ -10,8 +10,9 @@ export { scriptedPlayer, type Player } from "./ai/scriptedPlayer";
 export { computerOrders, PLAYERS } from "./ai/players";
 export { newGame, type NewGameOptions } from "./newGame";
 export { seasonOf, type Season } from "./calendar";
-export { labourOf, type Labour } from "./industry/labour";
+export { labourOf, planProduction, type Labour, type ProductionPlan } from "./industry/productionPlan";
 export { migrantCap } from "./industry/industryState";
+export { largestOrder } from "./orders/industryOrders";
 export { foodForecast, type FoodForecast } from "./industry/foodForecast";
 export {
   isTradeCommodity,

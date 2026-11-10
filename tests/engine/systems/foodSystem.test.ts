@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { foodSystem } from '@/engine/systems/foodSystem';
-import { labourOf } from '@/engine/industry/labour';
+import { labourOf } from '@/engine/industry/productionPlan';
 import { createTurnContext, GameEvent } from '@/engine/turn/context';
 import { GameState } from '@/types/GameState';
 import { deepFreeze, economyViolations, emptyWarehouse, game, industryOf, N1, nationOf, setIndustry, stockOf } from '../fixtures';

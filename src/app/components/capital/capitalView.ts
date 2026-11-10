@@ -1,6 +1,6 @@
 // What the capital dialog shows, derived from the game (FR-046, FR-047). No React, no store: the
 // dialog's components render these views and send orders; the engine stays the judge of every order.
-import { labourOf, migrantCap, validateOrder, type Labour } from "@/engine";
+import { labourOf, largestOrder, migrantCap, planProduction, type Labour, type ProductionPlan } from "@/engine";
 import { BUILDING_ORDER, BUILDINGS, nextCapacity } from "@/definisions/industryBuildings";
 import { EXPANSION_COST_PER_POINT, RECIPES } from "@/definisions/ResourceConversions";
 import type { GameState } from "@/types/GameState";
@@ -24,9 +24,14 @@ export interface OutputView {
   name: string;
   /** Units per step of the amount control (2 for canned food). */
   batch: number;
+  /** The standing order. */
   order: number;
-  /** The largest order the engine accepts now (never below the current order). */
+  /** What the production phase will really make of it next (FR-119). */
+  planned: number;
+  /** The largest order the engine accepts now as a fresh order, never below `planned` (FR-119). */
   max: number;
+  /** Why the standing order is above the plan, or null when the plan makes all of it. */
+  short: "inputs" | "labour" | null;
   inputs: InputView[];
 }
 
@@ -47,22 +52,20 @@ export interface BuildingCardView {
 
 type Stock = Record<string, number>;
 
-/** Orders larger than this are not probed (food processing has no capacity limit). */
-const PROBE_LIMIT = 500;
-
-function maxAccepted(state: GameState, nationId: string, building: BuildingType, output: ProductionOutput, from: number, step: number): number {
-  let best = from;
-  for (let amount = from + step; amount <= PROBE_LIMIT; amount += step) {
-    if (!validateOrder(state, { kind: "setProduction", nationId, building, output, amount }).ok) break;
-    best = amount;
-  }
-  return best;
+interface Plans {
+  /** The production phase as ordered. */
+  real: ProductionPlan;
+  /** The same with unlimited labour: only the stock and the capacity limit it. */
+  stockOnly: ProductionPlan;
 }
 
-function outputView(state: GameState, nation: Nation, building: BuildingType, output: ProductionOutput): OutputView {
+function outputView(nation: Nation, plans: Plans, building: BuildingType, output: ProductionOutput): OutputView {
   const recipe = RECIPES[output];
   const stock = nation.warehouse as Stock;
   const order = nation.industry.buildings[building]?.orders[output] ?? 0;
+  const planned = plans.real.made[output] ?? 0;
+  const max = Math.max(planned, largestOrder(nation, building, output));
+  const short = order <= planned ? null : (plans.stockOnly.made[output] ?? 0) < order ? "inputs" : "labour";
   const inputs = recipe.inputs.map((input): InputView => {
     const inStock = input.types.reduce((sum, type) => sum + (stock[type] ?? 0), 0);
     return {
@@ -77,7 +80,9 @@ function outputView(state: GameState, nation: Nation, building: BuildingType, ou
     name: commodityName(output),
     batch: recipe.batch,
     order,
-    max: maxAccepted(state, nation.id, building, output, order, recipe.batch),
+    planned,
+    max,
+    short,
     inputs,
   };
 }
@@ -100,6 +105,7 @@ const isShown = (state: GameState, building: BuildingType, size: number): boolea
 
 /** One card per built production building, in production order. */
 export function productionCards(state: GameState, nation: Nation): BuildingCardView[] {
+  const plans: Plans = { real: planProduction(nation), stockOnly: planProduction(nation, { labour: Infinity }) };
   return BUILDING_ORDER.flatMap((building) => {
     const { capacity = 0, pendingCapacity = 0 } = nation.industry.buildings[building] ?? {};
     if (!isShown(state, building, capacity + pendingCapacity)) return [];
@@ -109,7 +115,7 @@ export function productionCards(state: GameState, nation: Nation): BuildingCardV
       unlimited: def.unlimited,
       capacity,
       pendingCapacity,
-      outputs: def.outputs.map((output) => outputView(state, nation, building, output)),
+      outputs: def.outputs.map((output) => outputView(nation, plans, building, output)),
       expansion: expansionView(state, building, capacity, pendingCapacity),
     }];
   });
