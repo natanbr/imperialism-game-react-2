@@ -58,6 +58,12 @@ export function holdsJob(tile: Tile, workerId: string): boolean {
   );
 }
 
+/**
+ * One job per tile (FR-113, NR-019): any number of civilians may stand on a tile, but only one of
+ * them works it at a time (rules 02 and 03: one civilian works a tile at a time).
+ */
+export const hasJob = (tile: Tile): boolean => !!(tile.prospecting || tile.developmentJob || tile.constructionJob);
+
 export const isWorkerBusy = (tile: Tile, worker: Worker): boolean =>
   worker.status === WorkerStatus.Working || holdsJob(tile, worker.id);
 
