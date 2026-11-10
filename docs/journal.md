@@ -9,7 +9,13 @@
 - 2026-11-10 M4.1 play-test fixes (FR-112 to FR-124) on branch `claude/m4-1-feedback`, pushed, no PR:
   civilians share tiles and one job per tile; a standing order shows and commits only what it makes;
   commodity icons; the scripted player builds depots and joins them by the shortest rail path.
-  Next: Nathan's review, then a PR.
+  Review fix round done (entry below). Next: Nathan's answer on the AI score (OPEN below), then a PR.
+- OPEN for Nathan: the M4.1 scripted player meets NR-022 (purposeful rail, depots) but is not better
+  by score. New player vs the frozen M4 player on this branch's engine, seeds 1 to 3: turn 15 382/390,
+  365/381, 367/396; turn 25 460/469, 461/488, 472/477; turn 40 649/659, 652/674, 664/676. It scores
+  lower in all 9 runs, though it ships more (268 vs 181 units by turn 15, seed 1): the extra goods sit
+  unsold, because 4 cargo holds cap sales at 32 units and warehouse stock is not scored (turn 15, seed
+  1: grain 77, livestock 25, fruit 26, canned food 40). Strategy and score unchanged until he decides.
 
 Carried forward:
 - Deferred: river ports and the depot-on-port rule (rules 04); University fees; the power plant.
@@ -18,8 +24,13 @@ Carried forward:
 - M5 design item (M4 review note 5): partly settled by FR-115 (with a civilian selected elsewhere, a
   click on a tile's civilians is the selected civilian's order there); with none selected, a click on
   a tile's centre still selects its civilian, not the tile.
-- The scripted player (M4.1) spends on depots first: its score at turn 15 is about level with M4's
-  (cash went into depots), its shipping is much higher; v3 may want a smarter budget.
+- The scripted player's score: see OPEN above (it ships more, sells no more, scores lower).
+- M4.1 review note 5: the rail path search (`railPath` in `engine/ai/railPlan.ts`) treats a tile with
+  a temporary job (prospecting, development) as blocked, so the engineer takes a longer route, or finds
+  none, rather than waiting the few turns until the job ends.
+- M4.1 review note 7 (decision 4): Expand, freight cars, training and sales can still cut a standing
+  order without a refusal (as on main, now visible in the dialog), and an older dead order whose inputs
+  come back takes its labour back the next turn, cutting a newer order. Not changed in M4.1.
 
 ## 2026-11-02 Revival setup
 
@@ -115,13 +126,21 @@ Decisions (each with its objection):
    clicks (deselect, then pick); a tile with no selection still selects its civilian on a centre click.
 4. FR-117/FR-118: committed labour follows the plan, so labour freed by a stale order can be given to
    another order. Objection: if the stock returns in the same turn (a cancelled sale), the building
-   order decides who gets the labour; the card shows the short order.
+   order decides who gets the labour; the card shows the short order. Across turns the same holds: a
+   dead order whose inputs arrive later and that comes earlier in `BUILDING_ORDER` takes its labour
+   back the next turn, and the newer order is cut. Expand, freight cars, training and sales can still
+   cut standing orders without a refusal (unchanged from main, now visible in the dialog).
 5. FR-122: no port. Logistics gathers through the capital and active depots, and the world market
    needs only cargo holds, so nothing the scripted player ships needs a port. Objection: a later
    river-port rule (deferred, rules 04) may change this.
-6. FR-123: the engineer plans before the others, so the depot gets the cash first. Objection: the
-   score at turn 15 is about the M4 player's (numbers below): $2,000 per depot leaves the treasury
-   points; the gain shows in shipping and later turns.
+6. FR-123: the engineer plans before the others, so the depot gets the cash first. Objection
+   (corrected in the review fix round; the first text said the spending pays back later, which is
+   false): the new player scores lower than the frozen M4 player in all 9 runs measured on this
+   branch's engine (seeds 1 to 3; turn 15 382/390, 365/381, 367/396; turn 25 460/469, 461/488,
+   472/477; turn 40 649/659, 652/674, 664/676). It ships more (268 vs 181 units by turn 15, seed 1),
+   but the extra goods sit unsold: 4 cargo holds cap sales at 32 units, and stock is not scored (turn
+   15, seed 1: grain 77, livestock 25, fruit 26, canned food 40 in the warehouse). OPEN for Nathan: the
+   player meets NR-022 (purposeful rail, depots) but is not better by score.
 
 Red before green (each new test run on the code before its fix):
 
@@ -154,7 +173,9 @@ Nation 2 after 15 turns (seed 1, nation 1 idle; `scriptedRail.test.ts` FR-124 pr
 | M4.1 player | 3 (2 joined; the third, by the northern hills, is built and not yet joined) | 7 | 36 | 268 | 32 | 382 |
 
 Offered units do not move: the 4 cargo holds cap them (NR-018). The first row is from a run on the
-unchanged code before any M4.1 change (one-off probe, not committed).
+unchanged code before any M4.1 change (one-off probe, not committed). The same M4 player scores 390
+on this branch's engine and 378 on main, probably from FR-113: rail is refused on tiles with a job, so
+it lays 13 links instead of 20 (not isolated by a separate run).
 
 Screenshots (`e2e/m4-1.spec.ts` with `SCREENSHOT_DIR=docs/journal`), looked at:
 - `docs/journal/m4-1-ai-rail.png`: island 2 after 15 End Turns: two straight rail lines from the
@@ -181,3 +202,41 @@ the Capital, order lumber, steel and fabric 2 each and press End Turn six times:
 "0 of 0" with "Order 2: only 0 can be made (short of inputs)", and labour shows 4 committed; (3) open
 the Market: an icon before each name; (4) press End Turn 15 times and scroll to Valdoria's island: a
 few rail lines from the capital to green depots.
+
+## 2026-11-10 M4.1 review fix round
+
+Size: S (five review items). One agent (Opus 5.5, as briefed), no subagents, no advisor calls. Branch
+`claude/m4-1-feedback`, worktree `.claude/worktrees/decisions`. The AI's strategy and the score are
+unchanged (Nathan's decision, OPEN in "Resuming here").
+
+- Journal (item 1): decision 6 corrected (the "pays back later" claim was false; measured scores in
+  it and in "Resuming here"), decision 4 gains the cross-turn case, the M4 table notes 390 here vs 378
+  on main (probably FR-113). The 9 scores and the turn-15 stock were re-measured on this branch after
+  the fixes with a one-off probe (not committed) and match: `t15 s1 382/390 | t15 s2 365/381 | t15 s3
+  367/396 | t25 s1 460/469 | t25 s2 461/488 | t25 s3 472/477 | t40 s1 649/659 | t40 s2 652/674 | t40
+  s3 664/676`, `{"grain":77,"livestock":25,"fruit":26,"cannedFood":40}`.
+- Refusal check (item 2): `scriptedRail.test.ts` counts the `order-rejected` events of nation 2 that
+  `resolveTurn` returns (the old check validated the player's own, already validated orders). It can
+  fail: with an order for an unknown worker added to each turn's orders (then removed) the run gave
+  `× FR-124 no order of nation 2 is refused ...` / `→ expected 15 to be +0`; restored: `Tests 10 passed (10)`.
+- Rail bound (item 3): only depots in the capital's rail component count. New player 7 links, bound
+  10 (passes); frozen M4 player 13 links, bound 11; the test now also asserts that the M4 player breaks it.
+- Engineer on the best site (item 4): `startConstruction` when the best depot site is his own tile.
+  Finding: the old `moveAndStartConstruction` to the same tile was not refused (validate.ts treats a
+  same-tile move-and-start as a plain start; a probe gave `{"ok":true}` and no `order-rejected`), so this
+  is clarity, not a behaviour fix. New FR-122 test: red `"kind": "moveAndStartConstruction"` vs expected
+  `startConstruction`, green after. Score row unchanged (382 vs 390).
+- "Move <type> here" (item 5, review note 6): while a civilian is selected on another tile, that tile's
+  civilian button or stack is named and titled "Move <selected type> here"; the icon stays. FR-115 test
+  red: `expected 'rancher' to be 'Move forester here'`, `expected '2 civilians: choose one' to be 'Move
+  farmer here'`; green after.
+- Review notes 5 and 7: carried forward in "Resuming here".
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| Unit tests | `npm test` | `Test Files 55 passed (55)` / `Tests 768 passed (768)` (+1 on 767). A first run under load from other sessions gave `10 failed`, all `Test timed out`; the 7 files alone: `Tests 84 passed (84)`; the second full run is the one quoted |
+| No `act()` warning | `npm test` output searched for "not wrapped in act" | 0 matches |
+| Lint | `npm run lint` | `✖ 3 problems (0 errors, 3 warnings)` (the same 3, in files not touched) |
+| Types | `npx tsc --noEmit` | exit 0, no output |
+| Build | `npm run build` | `✓ Compiled successfully in 11.5s`, `✓ Generating static pages (4/4)` |
+| Smoke | `PORT=3177 npx playwright test --workers=1` | `1 skipped` / `19 passed (4.8m)`; the skip is the old `test.fixme` rail cursor |
