@@ -27,7 +27,8 @@ const tileEl = (container: HTMLElement, id: string) => container.querySelector(`
 const submit = (order: Order) => act(() => void useGameStore.getState().submitOrder(order));
 const tileOf = (id: string) => findWorker(useGameStore.getState().game, id)?.tile.id;
 
-describe('FR-115 stacks on any tile', () => {
+// Each test renders the whole 24 x 16 map: about 2 s alone, more under a loaded full run
+describe('FR-115 stacks on any tile', { timeout: 20_000 }, () => {
   it('FR-115 two civilians on a farm show as a stack with their count; the tray and the tile panel list both', () => {
     show(newGame({ seed: 1 }));
     const { container } = render(<MapView />);
