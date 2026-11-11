@@ -11,13 +11,12 @@ import { scriptedPlayer, type Player } from '@/engine/ai/scriptedPlayer';
 import { bestDepotSite, capitalComponent, coveredTiles, railPath } from '@/engine/ai/railPlan';
 import { railLinksOf, addDepot } from '@/engine/systems/railroadSystem';
 import { computeLogisticsTransport } from '@/engine/systems/logisticsSystem';
-import { getNeighborCoords } from '@/engine/map/mapHelpers';
 import { scoreOf } from '@/engine/score/score';
 import type { Order } from '@/engine/orders/Order';
 import type { GameState } from '@/types/GameState';
-import { TerrainType } from '@/types/Tile';
 import { m4ScriptedPlayer } from './m4ScriptedPlayer';
 import { setTile } from './fixtures';
+import { landDistanceToCapital as distanceToCapital, railBound as bound } from './railBound';
 
 const N2 = 'nation-2';
 const CAPITAL_2 = '14-9';
@@ -58,34 +57,8 @@ function play(player: Player, turns = 15, seed = 1): Run {
   return { state, shipped, sold, refused };
 }
 
-/** Steps over the nation's land from a tile to its capital (breadth-first). */
-function landDistanceToCapital(s: GameState, from: { x: number; y: number }): number {
-  const capital = s.map.tiles.flat().find(t => t.ownerNationId === N2 && t.terrain === TerrainType.Capital)!;
-  const seen = new Map<string, number>([[`${from.x},${from.y}`, 0]]);
-  const queue = [from];
-  while (queue.length) {
-    const cur = queue.shift()!;
-    const d = seen.get(`${cur.x},${cur.y}`)!;
-    if (cur.x === capital.x && cur.y === capital.y) return d;
-    for (const [x, y] of getNeighborCoords(s.map, cur.x, cur.y)) {
-      const t = s.map.tiles[y][x];
-      if (seen.has(`${x},${y}`) || t.ownerNationId !== N2) continue;
-      seen.set(`${x},${y}`, d + 1);
-      queue.push({ x, y });
-    }
-  }
-  return Infinity;
-}
-
-/**
- * The rail a player that only joins depots needs: each joined depot's land distance to the capital, + 3.
- * Only depots in the capital's rail component count: a depot not joined yet has no rail to allow for.
- */
-function railBound(s: GameState): number {
-  const component = capitalComponent(s, N2);
-  const joined = network(s).depots.filter(d => component.has(`${d.x},${d.y}`));
-  return joined.reduce((sum, d) => sum + landDistanceToCapital(s, d), 0) + 3;
-}
+const landDistanceToCapital = (s: GameState, from: { x: number; y: number }) => distanceToCapital(s, N2, from);
+const railBound = (s: GameState) => bound(s, N2);
 
 describe('FR-122 the scripted engineer', () => {
   it('FR-122 on turn 1 (no depot yet) the engineer starts a depot on the best site and lays no rail', () => {

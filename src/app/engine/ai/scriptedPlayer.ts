@@ -1,22 +1,16 @@
 import type { GameState } from "@/types/GameState";
-import { MaterialType, ResourceType } from "@/types/Resource";
 import { WorkerStatus, WorkerType } from "@/types/Workers";
 import type { Order } from "../orders/Order";
 import { applyOrder } from "../orders/apply";
-import { findWorker, nationById, workersOf, type WorkerLocation } from "../orders/queries";
-import { bestDepotSite, nextRailTiles, tilesByReach } from "./railPlan";
+import type { Tile } from "@/types/Tile";
+import type { Worker } from "@/types/Workers";
+import { CONSTRUCTION_COST, DEVELOPMENT_COST } from "@/definisions/workPrices";
+import { SCORE_WEIGHTS } from "@/definisions/scoreWeights";
+import { EngineerBuildDurationsTurns, WorkerLevelDurationsTurns } from "@/definisions/workerDurations";
+import { findWorker, nationById, nextResourceLevel, workersOf, type WorkerLocation } from "../orders/queries";
 import { validateOrder } from "../orders/validate";
-import type { Nation } from "@/types/Nation";
-import type { BuildingType, ProductionOutput } from "@/types/Industry";
-import { BUILDING_ORDER, BUILDINGS } from "@/definisions/industryBuildings";
-import { FREIGHT_CAR_COST, RECIPES } from "@/definisions/ResourceConversions";
-import { TRADE_COMMODITIES } from "@/definisions/marketPrices";
-import { buildingOf } from "../industry/industryState";
-import { labourPerUnit, labourTotal } from "../industry/labour";
-import { isTradeCommodity, tradeCapacityOf, tradeOrdersOf } from "../market/market";
-import { mealNeeds } from "../systems/foodSystem";
-import { productionSystem } from "../systems/productionSystem";
-import { createTurnContext } from "../turn/context";
+import { bestDepotSite, nextRailTiles, tilesByReach, type DepotSite } from "./railPlan";
+import { planEconomy, turnsAfter } from "./economy";
 
 /**
  * A player is any function from the game state to its orders for this turn. Scripted and,
@@ -27,10 +21,11 @@ export type Player = (state: GameState, nationId: string) => Order[];
 /**
  * A small scripted player. Deterministic: tiles are scanned row by row and workers in map order,
  * the engineer first. It plans on a private copy of the state, applying each order it keeps, so
- * every order it returns is valid in sequence (FR-016). Order of its plan: transport, a freight car,
- * production, world-market trade (FR-070), then the civilians: the engineer joins depots to the
- * capital by the shortest rail path or starts the depot that gathers most (FR-122), the others work
- * the tiles the capital and the depots gather from first (FR-123).
+ * every order it returns is valid in sequence (FR-016). Order of its plan: the economy (transport,
+ * training, freight cars, expansion, production, world-market trade; economy.ts, FR-126 to FR-130),
+ * then the civilians: the engineer joins depots to the capital by the shortest rail path or starts
+ * the depot that gathers most when it pays back (FR-122, FR-132), the prospector works the gathered
+ * tiles first (FR-123) and the developers start the cheapest level that pays first (FR-131).
  */
 export const scriptedPlayer: Player = (state, nationId) => {
   const orders: Order[] = [];
@@ -42,51 +37,9 @@ export const scriptedPlayer: Player = (state, nationId) => {
     return true;
   };
 
-  const nation = nationById(state, nationId);
-  if (!nation) return orders;
+  if (!nationById(state, nationId)) return orders;
 
-  // Ship the fruit and meat the workers eat plus one canned-food batch's worth, and the grain
-  // for both that the warehouse lacks; leave the rest to the greedy fill. Shipments arrive after
-  // production, so the extra fruit and meat wait in the warehouse for next turn's canned-food
-  // order (FR-054). Always valid, so the nation issues at least one order every turn.
-  const { workers } = nation.industry;
-  const needs = mealNeeds(workers.untrained + workers.trained + workers.expert);
-  const canning = cannedFoodBatchInputs();
-  const grainInStock = (nation.warehouse as Record<string, number>)[ResourceType.Grain] ?? 0;
-  propose({
-    kind: "setTransportAllocations",
-    nationId,
-    allocations: {
-      [ResourceType.Fruit]: needs.fruit + canning.fruit,
-      [ResourceType.Livestock]: needs.meat + canning.meat,
-      [ResourceType.Grain]: Math.max(0, needs.grain + canning.grain - grainInStock),
-    },
-  });
-  propose({ kind: "changeTransportCapacity", nationId, delta: 1 });
-
-  // Industry, planned afresh each turn (FR-070): standing orders kept from last turn would hold the
-  // labour, so they are cleared first; then one canned-food batch (so the workers keep raw food to
-  // eat), then each building's outputs at the most the stock, labour and capacity allow, in the
-  // production order.
-  for (const building of BUILDING_ORDER) {
-    for (const [output, amount] of Object.entries(buildingOf(nationById(view, nationId)!, building).orders)) {
-      if ((amount ?? 0) > 0) propose({ kind: "setProduction", nationId, building, output: output as ProductionOutput, amount: 0 });
-    }
-  }
-  const plan: [BuildingType, ProductionOutput][] = [["foodProcessing", MaterialType.CannedFood]];
-  for (const building of BUILDING_ORDER) {
-    for (const output of BUILDINGS[building].outputs) if (building !== "foodProcessing") plan.push([building, output]);
-  }
-  for (const [building, output] of plan) {
-    const def = BUILDINGS[building];
-    const batch = RECIPES[output].batch;
-    const most = def.unlimited ? batch : buildingOf(nationById(view, nationId)!, building).capacity;
-    for (let amount = most - (most % batch); amount > 0; amount -= batch) {
-      if (propose({ kind: "setProduction", nationId, building, output, amount })) break;
-    }
-  }
-
-  planTrade(() => view, nationId, propose);
+  planEconomy(() => view, nationId, propose);
 
   // The engineer plans first, so the depot he starts is paid for and its tiles count as gathered
   // when the others choose (FR-123). The sort is stable: the others keep their map order.
@@ -103,101 +56,29 @@ export const scriptedPlayer: Player = (state, nationId) => {
   return orders;
 };
 
-type Propose = (order: Order) => boolean;
-
-/** Proposes the largest of `most`, `most - 1`, ... 1 that validates; returns it, or 0. */
-function proposeMost(propose: Propose, most: number, order: (amount: number) => Order): number {
-  for (let amount = most; amount > 0; amount--) if (propose(order(amount))) return amount;
-  return 0;
+/**
+ * A depot pays back (FR-132) when what it newly gathers, over the turns it delivers, is worth its
+ * price and its rail: `gain` units a turn at about $100 each (a resource's world price, 1 point),
+ * counted from two turns after the build starts plus one turn per rail tile. So no depot is started
+ * in the last 2 + rail tiles + (20 + rail cost / 100) / gain turns: 12 for the smallest gain (2).
+ */
+function depotPaysBack(view: GameState, site: DepotSite): boolean {
+  const delivering = turnsAfter(view) - (EngineerBuildDurationsTurns.depot - 1) - site.railNeeded;
+  const cost = (CONSTRUCTION_COST.depot + site.railCost) / SCORE_WEIGHTS.dollarsPerPoint;
+  return site.gain * delivering >= cost;
 }
 
 /**
- * World-market orders (FR-070): (1) offer surplus with up to half the holds, (2) bid for the
- * inputs next turn's planned run lacks, (3) offer more surplus with any holds left. Surplus is
- * tradeable stock this turn's production does not use and the planned run does not need; canned
- * food is kept for meals and migrants. `view` is the plan so far, after the production orders.
+ * The level a development job on this tile would reach, when the job pays (FR-131): its 10 points
+ * are at least its price in points (level 1 $100 and level 2 $1,000 do; level 3 at $5,000 = 50
+ * points does not) and it finishes by the last turn.
  */
-function planTrade(view: () => GameState, nationId: string, propose: Propose): void {
-  const start = view();
-  const nation = nationById(start, nationId);
-  if (!nation) return;
-  const { after, leftNow } = projectProduction(start, nationId);
-  const needs = plannedRunNeeds(nation);
-  const needed = new Set<string>(needs.flatMap((need) => need.types));
-  const surplus = TRADE_COMMODITIES.filter((c) => c !== MaterialType.CannedFood && !needed.has(c));
-
-  const offer = (holds: number) => {
-    let budget = holds;
-    for (const commodity of surplus) {
-      if (budget <= 0) return;
-      const offered = tradeOrdersOf(view(), nationId).sell[commodity] ?? 0;
-      const more = Math.min(budget, Math.floor(leftNow[commodity] ?? 0) - offered);
-      budget -= proposeMost(propose, more, (amount) => ({ kind: "sellCommodity", nationId, commodity, amount: offered + amount }));
-    }
-  };
-
-  offer(Math.floor(tradeCapacityOf(start, nationId).holds / 2));
-  for (const { types, amount } of needs) {
-    const buyAs = types.find(isTradeCommodity);
-    if (!buyAs) continue;
-    const bids = tradeOrdersOf(view(), nationId).buy;
-    const have = types.reduce((sum, t) => sum + (after[t] ?? 0) + (isTradeCommodity(t) ? (bids[t] ?? 0) : 0), 0);
-    const lack = Math.min(amount - have, tradeCapacityOf(view(), nationId).free);
-    const current = bids[buyAs] ?? 0;
-    proposeMost(propose, lack, (n) => ({ kind: "buyCommodity", nationId, commodity: buyAs, amount: current + n }));
-  }
-  offer(tradeCapacityOf(view(), nationId).free);
-}
-
-/**
- * The warehouse after this turn's production (`after`) and the stock that production leaves
- * untouched now (`leftNow`: after, less what it makes), from a run of the production phase on
- * the plan. Nothing is kept; systems never mutate their input.
- */
-function projectProduction(state: GameState, nationId: string): { after: Record<string, number>; leftNow: Record<string, number> } {
-  const made: Record<string, number> = {};
-  const ctx = createTurnContext({
-    turn: state.turn,
-    emit: (e) => {
-      if (e.type === "goods-produced" && e.nationId === nationId) made[e.output] = (made[e.output] ?? 0) + e.amount;
-    },
-  });
-  const after = { ...(nationById(productionSystem(state, ctx), nationId)!.warehouse as Record<string, number>) };
-  const leftNow = Object.fromEntries(Object.entries(after).map(([key, n]) => [key, n - (made[key] ?? 0)]));
-  return { after, leftNow };
-}
-
-/**
- * The inputs of next turn's planned run: each built mill and factory in production order, its
- * first output at capacity while the labour lasts, after one canned-food batch and one freight
- * car. Inputs that may be mixed (cotton or wool) stay one group.
- */
-function plannedRunNeeds(nation: Nation): { types: readonly string[]; amount: number }[] {
-  let labour = labourTotal(nation.industry) - RECIPES[MaterialType.CannedFood].labour - FREIGHT_CAR_COST.labour;
-  const needs = new Map<string, { types: readonly string[]; amount: number }>();
-  for (const building of BUILDING_ORDER) {
-    const def = BUILDINGS[building];
-    const { capacity } = buildingOf(nation, building);
-    if (def.unlimited || capacity <= 0) continue;
-    const output = def.outputs[0];
-    const recipe = RECIPES[output];
-    const units = Math.min(capacity, Math.floor(Math.max(0, labour) / labourPerUnit(output)));
-    const batches = Math.floor(units / recipe.batch);
-    if (batches <= 0) continue;
-    labour -= batches * recipe.labour;
-    for (const input of recipe.inputs) {
-      const key = input.types.join("+");
-      needs.set(key, { types: input.types, amount: (needs.get(key)?.amount ?? 0) + batches * input.amount });
-    }
-  }
-  return [...needs.values()];
-}
-
-/** The fruit and the livestock-or-fish one canned-food batch takes (from the recipe). */
-function cannedFoodBatchInputs(): { grain: number; fruit: number; meat: number } {
-  const amountOf = (type: ResourceType) =>
-    RECIPES[MaterialType.CannedFood].inputs.find((input) => input.types.includes(type))?.amount ?? 0;
-  return { grain: amountOf(ResourceType.Grain), fruit: amountOf(ResourceType.Fruit), meat: amountOf(ResourceType.Livestock) };
+function developmentLevel(view: GameState, tile: Tile, worker: Worker): number | undefined {
+  const level = nextResourceLevel(tile);
+  const price = DEVELOPMENT_COST[level as 1 | 2 | 3];
+  if (price === undefined || price / SCORE_WEIGHTS.dollarsPerPoint > SCORE_WEIGHTS.pointsPerLevel) return undefined;
+  const duration = WorkerLevelDurationsTurns[worker.type]?.[level as 1 | 2 | 3] ?? 1;
+  return turnsAfter(view) >= duration - 1 ? level : undefined;
 }
 
 /** What this civilian could do, best first; validation picks the first one that is allowed. */
@@ -205,7 +86,16 @@ function candidateOrders(view: GameState, nationId: string, { worker, tile }: Wo
   const workerId = worker.id;
   if (worker.type === WorkerType.Engineer) return engineerOrders(view, nationId, workerId, tile.id);
   const prospecting = worker.type === WorkerType.Prospector;
-  return tilesByReach(view, nationId).map((t): Order => {
+  let tiles = tilesByReach(view, nationId);
+  if (!prospecting) {
+    // The cheapest level first; the sort is stable, so each level keeps the FR-123 order.
+    tiles = tiles
+      .map((t) => ({ t, level: developmentLevel(view, t, worker) }))
+      .filter((x): x is { t: Tile; level: number } => x.level !== undefined)
+      .sort((a, b) => a.level - b.level)
+      .map(({ t }) => t);
+  }
+  return tiles.map((t): Order => {
     if (t.id === tile.id) {
       return prospecting ? { kind: "startProspecting", nationId, workerId, tileId: t.id } : { kind: "startDevelopment", nationId, workerId, tileId: t.id };
     }
@@ -217,8 +107,8 @@ function candidateOrders(view: GameState, nationId: string, { worker, tile }: Wo
 
 /**
  * The engineer (FR-122): (1) the next rail tile of the shortest path joining a built depot to the
- * capital's network; else (2), while no depot is being built, the depot that newly gathers most. It
- * lays no rail that joins nothing and builds no port (nothing it ships needs one).
+ * capital's network; else (2), while no depot is being built, the depot that newly gathers most, if
+ * it pays back (FR-132). It lays no rail that joins nothing and builds no port (nothing it ships needs one).
  */
 function engineerOrders(view: GameState, nationId: string, workerId: string, standingOn: string): Order[] {
   const rail = nextRailTiles(view, nationId).flatMap((toTileId): Order[] => [
@@ -229,7 +119,7 @@ function engineerOrders(view: GameState, nationId: string, workerId: string, sta
   const building = view.map.tiles.flat().some((t) => t.ownerNationId === nationId && t.constructionJob?.kind === "depot");
   if (building) return [];
   const site = bestDepotSite(view, nationId);
-  if (!site) return [];
+  if (!site || !depotPaysBack(view, site)) return [];
   if (site.tileId === standingOn) return [{ kind: "startConstruction", nationId, workerId, tileId: site.tileId, structure: "depot" }];
   return [{ kind: "moveAndStartConstruction", nationId, workerId, toTileId: site.tileId, structure: "depot" }];
 }

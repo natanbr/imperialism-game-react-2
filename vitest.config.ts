@@ -9,6 +9,11 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['tests/**/*.test.{ts,tsx}'],
+    // UI tests that render the whole map take about 5 s alone and timed out at the 5 s default under a
+    // loaded full run (M4.1 gate); one limit here instead of per-test overrides.
+    testTimeout: 20_000,
+    // Tests slower than this are marked in the report, so a test creeping toward the limit shows.
+    slowTestThreshold: 5000,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],

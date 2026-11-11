@@ -46,6 +46,8 @@ src/app/
     systems/               one file per turn system, each (state, ctx) => state
     map/mapHelpers.ts      neighbours, adjacency, rail sites
     ai/scriptedPlayer.ts   a Player is (state, nationId) => Order[]
+    ai/economy.ts          the scripted player's economy: transport, training, cars, expansion, run, trade
+    ai/railPlan.ts         read-only rail and tile planning: depot sites, rail paths, tilesByReach
     ai/players.ts          PLAYERS (controller -> Player) and computerOrders(state) (FR-099)
   store/
     rootStore.ts           createGameStore(options) and the app's useGameStore

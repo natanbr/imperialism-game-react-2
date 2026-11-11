@@ -230,7 +230,7 @@ describe('FR-108 no orders for another nation', () => {
     expect(useGameStore.getState().game.map.tiles[9][3].workers.map((w) => w.id)).toEqual(['worker-nation-1-2']);
     expect(useGameStore.getState().game.map.tiles[8][14].workers).toEqual([]);
     // It renders the whole page and clicks through it: about 5 s alone, near the 5 s default (M4.1)
-  }, 20_000);
+  });
 });
 
 describe('FR-109 New game', () => {
