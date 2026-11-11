@@ -2,7 +2,7 @@
   "project": "Imperialism Revival",
   "updated": "2026-11-09",
   "target": "v1 playable (M3)",
-  "now": "M4.1 merged (PR 18): shared tiles, production fix, icons, purposeful AI rail. Open: Q16b, Q17, and your next play-test",
+  "now": "M4.2 merged (PR 19): the computer nation scores 1.6 to 2.5 times the M4 player. Open: Q17, Q19, and your next play-test",
   "source": "docs/REVIVAL_PLAN.md and docs/report/roadmap.json in the imperialism-game-react-2 repo",
   "overview": {
     "headline": "main has v1 playable plus the small two-island map and clean look (M0 to M3.5 merged, PR 15 last). Next: M4, a second nation on island 2 driven by a scripted player.",
@@ -517,9 +517,9 @@
       {
         "id": "Q18",
         "title": "How should the computer nation score better?",
-        "status": "open",
+        "status": "settled",
         "context": "The new scripted player lays a few rail lines and builds depots as asked (NR-022). It ships far more (268 vs 181 units at turn 15) but scores slightly lower (382 vs 390), because extra goods sit unsold: 4 cargo holds cap sales at 32 units and stock is not scored.",
-        "suggestion": "Accept for v1; play a few games, and make it smarter in the v3 AI work.",
+        "suggestion": "Settled 2026-11-10: improve the score now. Done in M4.2 (NR-023): the computer scores 1.6 to 2.5 times the M4 player.",
         "items": [
           "M4.1"
         ]
@@ -532,6 +532,16 @@
         "suggestion": "Leave it until a University exists; spread the start civilians around the capital only if you want that look.",
         "items": [
           "M4.1"
+        ]
+      },
+      {
+        "id": "Q19",
+        "title": "How should the score treat idle building capacity?",
+        "status": "open",
+        "context": "After M4.2 the computer nation scores about 1,650 at turn 40 (idle human: 240). 1,080 of those points are building capacity; about 87% of it cannot run, because 7 workers give 28 labour (at most 14 units a turn) against 108 capacity points. The computer never recruits workers.",
+        "suggestion": "Let the computer recruit workers, so it uses its capacity; keep the score formula you know.",
+        "items": [
+          "M4.2"
         ]
       }
     ]
