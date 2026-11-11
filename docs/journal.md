@@ -12,9 +12,13 @@
   and buys pairs under $1,000, develops the cheapest level first, builds a depot only when it pays
   back. Against the frozen M4 player, seeds 1 to 4: turn 15 1.60 to 1.65 times, turn 25 1.76 to 1.81,
   turn 40 2.39 to 2.55; NR-022 kept (rail within the FR-124 bound), 0 refused. Next: review, then a PR.
-- OPEN for Nathan (M4.2 decision 1): the score counts a capacity point in any building, so most of the
-  gain is factory capacity: at turn 40 about 80 of its 108 capacity points are factories that make 1 or
-  2 goods a turn. Kept within NR-023 (no score change); a decision card.
+- OPEN for Nathan (M4.2 decision 1, the score formula): the score counts every capacity point, used or
+  not. At turn 40 (seed 1) nation 2 has 108 capacity points (84 in the three factories), but its 7
+  workers give 28 labour, at most 14 units a turn: about 87% of the capacity can never run. Over the 40
+  turns its factories made clothing 23, furniture 10, hardware 0. The AI never recruits workers.
+  Options: keep the formula; count only capacity in use (the FR-125 1.5x margin must then be measured
+  again); or let the AI recruit workers. Kept within NR-023 (no score change); a decision card.
+- 2026-11-10 M4.2 review fix round on the same branch (entry below); still no PR.
 
 Carried forward:
 - Deferred: river ports and the depot-on-port rule (rules 04); University fees; the power plant.
@@ -302,8 +306,9 @@ NR-022 kept: joined depots 2 / 4 / 4 to 5 and rail links (links / bound) 8 / 10,
 
 Decisions (each with its objection):
 1. FR-126 grows the building that is cheapest to grow, because the score counts a capacity point the
-   same everywhere. Objection: at turn 40 about 80 of the 108 capacity points are factories making 1 or
-   2 goods a turn (steel and lumber go to expansion): it scores well and plays oddly. OPEN for Nathan:
+   same everywhere. Objection: at turn 40 (seed 1) 84 of the 108 capacity points are factories, which
+   made clothing 23, furniture 10 and hardware 0 over the 40 turns (steel and lumber go to expansion;
+   corrected in the review fix round, this said "1 or 2 goods a turn"): it scores well and plays oddly. OPEN for Nathan:
    should the score count only capacity in use, or the AI keep its factories near what it runs? Not
    changed (NR-023: no score change).
 2. FR-125 margin 1.5 times: measured lowest 1.60 (seed 1, turn 15). It fails without buying (1.41), the
@@ -358,3 +363,48 @@ were restored.
 How to see it in the app: `npm run dev`, press End Turn 15 times and scroll to Valdoria's island: two
 rail lines from the capital to depots and level-1 labels across the island (as in `m4-2-ai.png`). The
 scores themselves were measured headless (FR-125), not read in the app.
+
+## 2026-11-10 M4.2 review fix round
+
+Size: S (tests, one dead line, docs). One agent (Opus 5.5), no subagents, no advisor calls; ultracode was
+not on. Same branch `claude/m4-2-ai-score` and worktree `.claude/worktrees/decisions`. No AI behaviour
+or score change: the FR-125 rows print the same before (365beab) and after (`FR-125 seed 1: t15 625/390
+(1.60) ... t25 851/469 (1.81) ... t40 1679/659 (2.55)`; seeds 2 to 4 also unchanged, table above).
+
+- FR-125: the 40-turn acceptance runs now add up nation 2's `workers-fed` events and call
+  `invariantViolations` after every turn: 40 meals, 0 sick, 0 starved, no violation on seeds 1 to 4.
+- FR-129 and FR-131: new tests for paper for next turn's training (the new game's own stock, no paper
+  put in), furniture from unpaired lumber, fabric and spare lumber for next turn, canned food last, and
+  the prospector's tile order. Each was proved by breaking its clause and restoring it:
+
+| Clause broken | Failure (quoted) |
+|---|---|
+| paper line removed | `expected { steel: 2, lumber: 2, fabric: 2 } to match object { paper: 2 }` |
+| furniture line removed | `expected {} to deeply equal { furniture: 2 }` |
+| fabric line removed | `expected { lumber: 4 } to deeply equal { fabric: 4, lumber: 2 }` |
+| spare-lumber line removed | `expected { fabric: 4 } to deeply equal { fabric: 4, lumber: 2 }` |
+| last canned food removed | `expected 0 to be greater than 0` |
+| last canned food moved before the pairs | `expected { cannedFood: 12 } to deeply equal { steel: 3, lumber: 3 }` |
+| prospector in map order | `-     "toTileId": "17-4",` / `+     "toTileId": "17-2",` |
+| depot cover left out of the tile rank | `-     "toTileId": "20-3",` / `+     "toTileId": "17-4",` |
+
+- `economy.ts`: the pair loop's `have(second) < have(first)` branch is gone; the first material is the
+  one with less (steel when even), so it never ran.
+- Docs: `ai/economy.ts` and `ai/railPlan.ts` in ARCHITECTURE; FR-128 "except on the last turn, when
+  nothing is kept"; FR-125 names the health check. `vitest.config.ts`: `slowTestThreshold: 5000`; the
+  report now marks two tests over 5 s (the lint guard 20.2 s, an FR-115 stacking test 5.6 s).
+- Corrected: the factories did not "make 1 or 2 goods a turn". Measured over 40 turns (seed 1):
+  clothing 23, furniture 10, hardware 0. The score-formula decision is in "Resuming here" (OPEN).
+- Found, not changed (it would change the AI): furniture is bounded by `lumber - steel` units, but a
+  furniture takes 2 lumber, so it can use paired lumber. With 4 lumber and 3 steel the run makes 1
+  furniture and leaves 2 lumber with 3 steel: a pair (10 points) gone for a $900 good. FR-129 says
+  "from unpaired lumber"; the matching bound is `floor((lumber - steel) / 2)`. Its effect on the
+  FR-125 numbers is not measured.
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| Unit tests | `npm test` | `Test Files 56 passed (56)` / `Tests 800 passed (800)` (+6 on 794) |
+| Lint | `npm run lint` | `✖ 3 problems (0 errors, 3 warnings)` (the same 3, in files not touched) |
+| Types | `npx tsc --noEmit` | exit 0, no output |
+| Build | `npm run build` | `✓ Compiled successfully in 7.0s`, `✓ Generating static pages (4/4)` |
+| Smoke | `PORT=3181 npx playwright test --workers=1` | `1 skipped` / `19 passed (3.2m)`; the skip is the old `test.fixme` rail cursor |
