@@ -10,7 +10,9 @@
   `docs/journal/archive-M4.1.md` and `-M4.2.md`.
 - 2026-11-12 M4.3 (NR-024 to NR-026, FR-133 to FR-139) on branch `claude/m4-3-transport-ui`, pushed, no
   PR: transport popup with icons, groups by kind, three columns; rail links are the sections built (the
-  triangle bug). Entry below. Next: review, then a PR. Its decision cards are in the entry.
+  triangle bug). Entry below. Reviewed; review fix round done (findings 1 to 3 and 9 fixed, the head-on
+  rail click; 4 to 8 carried forward). Next: re-review of the fix commits, then a PR. Decision cards 1
+  and 3 are open in the entry (card 2 is fixed).
 - OPEN for Nathan (M4.2 decision 1, the score formula): the score counts every capacity point, used or
   not. At turn 40 (seed 1) nation 2 has 108 capacity points (84 in the three factories), but its 7
   workers give 28 labour, at most 14 units a turn: about 87% of the capacity can never run. Over the 40
@@ -31,6 +33,19 @@ Carried forward:
 - M4.1 review note 7 (decision 4): Expand, freight cars, training and sales can still cut a standing
   order without a refusal (as on main, now visible in the dialog), and an older dead order whose inputs
   come back takes its labour back the next turn, cutting a newer order. Not changed in M4.1.
+- M4.3 review finding 4: `isDepotSite` checks only hills; it does not call `railTerrainAllowed`. Today a
+  depot needs no rail on its own tile, so it does not matter; when technologies become lockable, a
+  depot site SHALL also require `railTerrainAllowed` (the section into it is built on it).
+- M4.3 review finding 5: `railPath` (`engine/ai/railPlan.ts`) finds the path with the fewest tiles, not
+  the fewest missing sections, so it can ignore rail already built that a slightly longer path would reuse.
+- M4.3 review finding 6 (hypothesis, not run): the score drop since M4.3 may come partly from
+  `bestDepotSite`'s gain counting every gathered unit equally; weighing each unit by what the economy
+  actually uses (food eaten, inputs of running buildings, what sells) may pick better sites.
+- M4.3 review finding 7: the transport popup's dialog uses `aria-label` where `aria-labelledby` (its
+  visible title) fits; no `aria-modal`, no focus moved into it on open or back on close, and Escape
+  does not close it. Accessibility pass in M5.
+- M4.3 review finding 8: the transport popup lists commodities that rules 04 says can never be shipped,
+  and all materials and goods are 0 / 0 in v1 (no town production). Same as M4.3 decision 3: hide them.
 
 ## 2026-11-02 Revival setup
 
@@ -175,9 +190,11 @@ Decisions for Nathan (cards):
 1. The scripted player's margin over the M4 player fell (lowest 1.60 to 1.55; turn 40 from 2.39-2.55 to
    2.17-2.30). Suggestion: accept (it follows the rules); retune the AI only together with the open
    score-formula decision.
-2. The map offers no click that builds a section between two rail tiles (closing a loop, or joining two
-   networks that meet head on); the engine order exists (`startConstruction` with `fromTileId`).
-   Suggestion: a "Build rail from here" choice in the construction dialog in M5, if play needs it.
+2. ~~The map offers no click that builds a section between two rail tiles (closing a loop, or joining two
+   networks that meet head on).~~ Fixed in the review fix round (below): with the engineer on a rail
+   node, a click on a neighbouring rail node not linked to it builds the section between the two
+   (`moveAndStartConstruction` with `fromTileId`; FR-023, FR-137), so the head-on case and a loop are
+   one click. No dialog choice needed.
 3. The popup lists materials and goods, which are always 0 / 0 in v1 (no town production). Suggestion:
    hide those groups until towns produce.
 
@@ -195,3 +212,49 @@ columns, an icon before each name, no scrolling; (2) select the engineer on the 
 Turn; click the capital, End Turn; click 3-8, End Turn: two lines from the capital and none between 3-8
 and 3-9; (3) build a depot on a tile next to rail: it stays red until the engineer, standing on the rail
 next to it, clicks the depot tile.
+
+### 2026-11-12 M4.3 review fix round
+
+One agent (Opus 5.5, xhigh), no subagents, no advisor calls. Review findings 1, 2, 3 and 9 fixed; 4 to 8
+under "Carried forward".
+
+- Finding 1, a human dead end (FR-023, FR-137): rail line capital 2-9 to 2-5, a depot on 4-5; the engineer
+  on the depot clicks 3-5 (section 4-5 to 3-5), then on 3-5 clicks 2-5. Red first: the click offered
+  `expected [ { kind: 'moveWorker', …(3) } ] to deeply equal [ { …(6) }, …(1) ]`, and the unaffordable
+  case moved the engineer (`expected { ok: true } to deeply equal { ok: false, …(1) }`): `Tests 2 failed |
+  23 passed (25)`. Fix in `hooks/tileClickOrders.ts` `moveOrders`: from a rail node onto a neighbouring
+  rail node with no section between them, `moveAndStartConstruction` (rail, `fromTileId` = his tile), then
+  the plain move. After: `Tests 25 passed (25)`; the depot turns green; a click on a linked or
+  non-adjacent rail tile still only moves; short of money: "Move and build refused: not enough money."
+  and no move. Not changed: a click on a capital or town offers the fort first (`getEngineerActions`),
+  so that join is made from the other side (standing on the capital or town, click the rail tile).
+- Finding 2 (FR-124, FR-125): no rail dead end (a one-link node that is not a depot, a port or the
+  capital) at turns 15, 25 and 40. A per-turn check would fail for both players: a path being laid has a
+  dead-end tip for a few turns (current player, seed 1: turns 4, 5, 10 to 12, 17, 18, 23, 30, 35, 36). The
+  current player: none at any checkpoint, seeds 1 to 4. The frozen M4 player: `[{"seed":1,"turn":40,
+  "deadEnds":["20,4"]},{"seed":2,"turn":25,"deadEnds":["19,3"]},{"seed":2,"turn":40,"deadEnds":["21,3"]},
+  {"seed":3,"turn":40,"deadEnds":["20,4"]},{"seed":4,"turn":25,"deadEnds":["19,3"]},{"seed":4,"turn":40,
+  "deadEnds":["20,5"]}]`; none at turn 15 (one line to its depot), so the failing proof is in FR-125, not
+  FR-124. Trap: the checkpoints pass by timing; if a change moves a build so a tip falls on turn 15, 25 or
+  40, the check needs a "tip of the path under construction" exception, not a weaker invariant.
+- Finding 3 (FR-132): the horizon for the smallest case is now 14 turns (2 + 1 + 21 / 2 = 13.5, a gain of
+  2 and one flat section), in the spec and the `depotPaysBack` comment; the code did not change.
+- Finding 9 (FR-137, FR-139): a depot built on a railed tile keeps its section and is active;
+  `fromTileId` with a depot, port or fort is `invalid-target`, for start and move-and-start.
+
+Acceptance numbers unchanged (before = after, `FR-125 the numbers`): seed 1 t15 616/390 (1.58), t25
+786/468 (1.68), t40 1475/650 (2.27); seed 2 t40 1481/668; seed 3 t15 614/396 (1.55, the lowest), t40
+1437/663; seed 4 t40 1532/665. FR-124: `{"depots":2,"links":7,"yieldPerTurn":33,"shipped":200,"sold":29,
+"score":616,"bound":10,"refused":0}`.
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| Unit tests | `npm test` | `Test Files 58 passed (58)` / `Tests 836 passed (836)` (+8 on 828) |
+| Lint | `npm run lint` | `✖ 3 problems (0 errors, 3 warnings)` (the same 3 as on main) |
+| Types | `npx tsc --noEmit` | exit 0, no output |
+| Build | `npm run build` | `✓ Compiled successfully in 9.2s`, `✓ Generating static pages (4/4)` |
+| Smoke | `PORT=3185 npx playwright test --workers=1` | `1 skipped` / `21 passed (2.8m)` |
+
+How to see it in the app: `npm run dev`; lay rail from the capital up to 2-5 and build a depot on 4-5;
+put the engineer on the depot, click 3-5, End Turn; click 2-5, End Turn: a line 4-5 to 3-5 to 2-5 and the
+depot green.
