@@ -3,7 +3,6 @@
 import { useMemo, useState, useEffect } from "react";
 import { useGameStore } from "../store/rootStore";
 import { computeLogisticsTransport } from "@/engine/systems/logisticsSystem";
-import { ResourceType, MaterialType, GoodsType } from "@/types/Resource";
 
 export const useTransportAllocations = (capacity: number) => {
   const map = useGameStore((s) => s.game.map);
@@ -38,10 +37,6 @@ export const useTransportAllocations = (capacity: number) => {
     () => computeLogisticsTransport(map, activeNationId, nationNetwork),
     [map, activeNationId, nationNetwork]
   );
-
-  const resourceKeys = useMemo(() => Object.values(ResourceType), []);
-  const materialKeys = useMemo(() => Object.values(MaterialType), []);
-  const goodsKeys = useMemo(() => Object.values(GoodsType), []);
 
   const totalAllocated = useMemo(
     () => Object.values(allocations).reduce((a, b) => a + (b || 0), 0),
@@ -90,9 +85,6 @@ export const useTransportAllocations = (capacity: number) => {
     totalAllocated,
     remaining,
     collected,
-    resourceKeys,
-    materialKeys,
-    goodsKeys,
     sliderMax,
   };
 };
