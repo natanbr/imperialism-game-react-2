@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 // M4.3 (NR-024, NR-025) and M4.4 (NR-027): the Transportation of Commodities popup. FR-133 each commodity's
-// icon before its name; FR-134 the groups by kind; FR-135 the popup lists the commodities by group (the
-// columns themselves are checked in the running app, e2e/m4-3.spec.ts); FR-141 only what the network can
-// carry; FR-142 a group all 0 / 0 is hidden.
+// icon before its name; FR-134 the groups by kind; FR-135 the popup lists the commodities by group in as many
+// CSS columns as groups shown (at most 3; the columns drawn are checked in the running app,
+// e2e/m4-3.spec.ts); FR-141 only what the network can carry; FR-142 a group all 0 / 0 is hidden.
 import { describe, it, expect } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import TransportAllocationModal from '@/components/TransportAllocationModal';
@@ -30,6 +30,11 @@ function show(game: GameState = newGame({ seed: 1 })) {
 const dialog = () => screen.getByRole('dialog', { name: 'Transportation of Commodities' });
 const shownRows = () => [...dialog().querySelectorAll('[data-testid^="transport-row-"]')].map(r => r.getAttribute('data-testid')!.replace('transport-row-', ''));
 const shownGroups = () => within(dialog()).queryAllByRole('region').map(s => s.getAttribute('aria-label'));
+/** Nation 1's tiles without a resource: nothing to ship at all. */
+const bareGame = () => {
+  const s = newGame({ seed: 1 });
+  return { ...s, map: { ...s.map, tiles: s.map.tiles.map(row => row.map(t => (t.ownerNationId === 'nation-1' ? { ...t, resource: undefined } : t))) } };
+};
 /** Horses (level 0 gives 1 a turn) on 3-9, next to nation 1's capital. */
 const withHorses = () => {
   const s = newGame({ seed: 1 });
@@ -93,9 +98,7 @@ describe('FR-141 FR-142 what the popup lists', () => {
   });
 
   it('FR-142 with nothing to ship at all, the popup says so instead of an empty list', () => {
-    const s = newGame({ seed: 1 });
-    const bare = { ...s, map: { ...s.map, tiles: s.map.tiles.map(row => row.map(t => (t.ownerNationId === 'nation-1' ? { ...t, resource: undefined } : t))) } };
-    show(bare);
+    show(bareGame());
     expect(shownGroups()).toEqual([]);
     expect(text(dialog())).toContain('Nothing to ship this turn.');
   });
@@ -140,5 +143,19 @@ describe('FR-133 FR-135 the transport popup', () => {
       expect(rows).toEqual(kind.keys.map(k => `transport-row-${k}`));
     }
     expect(dialog().querySelector('.transport-groups')?.children).toHaveLength(kinds.length);
+  });
+
+  // The columns are the groups shown, not a fixed 3: two groups share the width instead of leaving a third
+  // column empty (FR-135, FR-142). v1 can show at most 3 groups (nothing makes materials or goods to ship),
+  // so the cap of 3 itself cannot be reached from the popup yet.
+  it.each([
+    ['a new game shows 2 groups', () => newGame({ seed: 1 }), 2, '2'],
+    ['a horses tile shows 3 groups', withHorses, 3, '3'],
+    ['nothing to ship shows no group and still 1 column', bareGame, 0, '1'],
+  ])('FR-135 the groups share the width in one column each, at most 3: %s', (_name, game, groups, columns) => {
+    show(game());
+    const list = dialog().querySelector('.transport-groups') as HTMLElement;
+    expect(list.children).toHaveLength(groups);
+    expect(list.style.columnCount).toBe(columns);
   });
 });
