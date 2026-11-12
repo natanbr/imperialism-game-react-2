@@ -21,7 +21,10 @@ const ENGINEER_2 = 'worker-nation-2-7';
 const PROSPECTOR_2 = 'worker-nation-2-1';
 const SEEDS = [1, 2, 3, 4];
 const CHECKPOINTS = [15, 25, 40];
-/** FR-125: at least half again the frozen M4 player's score; measured lowest ratio 1.60 (seed 1, turn 15: 625 vs 390). */
+/**
+ * FR-125: at least half again the frozen M4 player's score. Measured lowest ratio 1.55 (seed 3, turn 15: 614 vs 396)
+ * since M4.3, when a depot started needing its own rail section (FR-136); 1.60 before.
+ */
 const MARGIN = 1.5;
 
 const start = (seed = 1): GameState => newGame({ seed });
