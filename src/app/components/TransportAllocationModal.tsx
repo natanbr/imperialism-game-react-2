@@ -3,7 +3,7 @@ import React from "react";
 import { useTransportAllocations } from "../hooks/useTransportAllocations";
 import { COMMODITY_ICONS, UI_ICONS } from "./icons";
 import { GameIcon } from "./GameIcon";
-import { COMMODITY_KINDS } from "./commodityKinds";
+import { transportKinds } from "./commodityKinds";
 import { commodityName } from "./gameText";
 
 interface TransportAllocationModalProps {
@@ -14,9 +14,11 @@ interface TransportAllocationModalProps {
 /**
  * The transport plan (FR-133, FR-135): one slider per commodity, the commodities grouped by kind
  * (FR-134) and the groups laid out in up to three columns, each row the commodity's icon and name.
+ * Only what the network can carry is listed (FR-141), and a group all 0 / 0 is hidden (FR-142).
  */
 const TransportAllocationModal: React.FC<TransportAllocationModalProps> = ({ capacity, onClose }) => {
   const { allocations, handleAllocChange, totalAllocated, remaining, sliderMax } = useTransportAllocations(capacity);
+  const kinds = transportKinds((key) => sliderMax(key) > 0 || (allocations[key] ?? 0) > 0);
 
   return (
     <div className="modal-overlay">
@@ -39,8 +41,10 @@ const TransportAllocationModal: React.FC<TransportAllocationModalProps> = ({ cap
           <span>{remaining}</span>
         </div>
 
-        <div className="transport-groups">
-          {COMMODITY_KINDS.map((kind) => (
+        {kinds.length === 0 && <p className="transport-empty">Nothing to ship this turn.</p>}
+        {/* No more columns than groups shown, so two groups share the width instead of leaving a third empty */}
+        <div className="transport-groups" style={{ columnCount: Math.min(3, Math.max(1, kinds.length)) }}>
+          {kinds.map((kind) => (
             <section key={kind.title} className="transport-group" aria-label={kind.title}>
               <h4 className="transport-group-title">{kind.title}</h4>
               {kind.keys.map((key) => {

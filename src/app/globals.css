@@ -95,6 +95,10 @@ svg[data-icon] {
   margin-bottom: 12px;
 }
 
+.transport-empty {
+  color: var(--color-text-muted);
+}
+
 .transport-group-title {
   margin: 0 0 4px;
   color: var(--color-text-muted);

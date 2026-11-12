@@ -277,6 +277,21 @@ describe('FR-129 the production run', () => {
     expect(made(ordersOf(goodsOnly({ lumber: 3, steel: 3 })))).toEqual({});
   });
 
+  it('FR-140 a furniture takes 2 lumber: lumber that has a steel to pair with is not spent on it', () => {
+    // Every next expansion step costs 4 pairs or more, so up to 3 pairs stay in stock for the run (FR-126)
+    const grown = (stock: Record<string, number>) => {
+      let s = goodsOnly(stock);
+      for (const mill of ['steelMill', 'lumberMill', 'textileMill'] as const) s = setBuilding(s, N2, mill, { capacity: 8 });
+      for (const factory of ['clothingFactory', 'furnitureFactory', 'metalWorks'] as const) s = setBuilding(s, N2, factory, { capacity: 4 });
+      return s;
+    };
+    expect(ofKind(ordersOf(grown({ lumber: 4, steel: 3 })), 'expandBuilding')).toEqual([]);
+    // 4 lumber, 3 steel: 1 unpaired lumber is half a furniture, so none (the old bound, lumber - steel, made 1 and left 2 lumber with 3 steel)
+    expect(made(ordersOf(grown({ lumber: 4, steel: 3 })))).toEqual({});
+    // 6 lumber, 1 steel: 5 unpaired make 2 furniture (the old bound made 3), and the 2 lumber left still pair with the steel
+    expect(made(ordersOf(grown({ lumber: 6, steel: 1 })))).toEqual({ furniture: 2 });
+  });
+
   it('FR-129 fabric and spare lumber for next turn\'s goods, not on the turn before the last', () => {
     // Clothing factory 2 wants 4 fabric (8 labour); furniture factory 4 wants 8 spare lumber, the 4 labour left make 2
     const s = setBuilding(goodsOnly({ cotton: 10, timber: 10 }), N2, 'clothingFactory', { capacity: 2 });

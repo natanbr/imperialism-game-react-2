@@ -275,7 +275,9 @@ export function planRun(state: GameState, nationId: string): Run {
   };
   const goods = () => {
     make(run, GoodsType.Clothing, Infinity);
-    make(run, GoodsType.Furniture, Math.max(0, (start[MaterialType.Lumber] ?? 0) - (start[MaterialType.Steel] ?? 0)));
+    // A furniture takes 2 lumber: only lumber with no steel to pair with is spent (FR-140).
+    const unpaired = (start[MaterialType.Lumber] ?? 0) - (start[MaterialType.Steel] ?? 0);
+    make(run, GoodsType.Furniture, Math.max(0, Math.floor(unpaired / RECIPES[GoodsType.Furniture].inputs[0].amount)));
     if (left < 2) return;
     make(run, MaterialType.Fabric, 2 * capacityOf(nation, "clothingFactory") - (stock[MaterialType.Fabric] ?? 0));
     const spareLumber = have(MaterialType.Lumber) - have(MaterialType.Steel);

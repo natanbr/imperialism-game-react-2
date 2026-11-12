@@ -22,3 +22,24 @@ export const COMMODITY_KINDS: readonly CommodityKind[] = [
   { title: "Materials", keys: Object.values(MaterialType) },
   { title: "Goods", keys: Object.values(GoodsType) },
 ];
+
+/** Rules 04 section 5: made only in the capital or bought, never carried by the rail network (FR-141). */
+export const NEVER_SHIPPED: ReadonlySet<WarehouseCommodities> = new Set([
+  MaterialType.Paper,
+  MaterialType.CannedFood,
+  MaterialType.Fuel,
+  GoodsType.Armaments,
+]);
+
+/** The FR-134 groups as the transport popup lists them: without the commodities never shipped (FR-141). */
+export const SHIPPABLE_KINDS: readonly CommodityKind[] = COMMODITY_KINDS.map((kind) => ({
+  ...kind,
+  keys: kind.keys.filter((key) => !NEVER_SHIPPED.has(key)),
+})).filter((kind) => kind.keys.length > 0);
+
+/**
+ * The groups the transport popup shows (FR-142): those with at least one commodity in use (something
+ * to ship this turn or allocated), each with all the commodities it lists; a group all 0 / 0 is hidden.
+ */
+export const transportKinds = (inUse: (key: WarehouseCommodities) => boolean): CommodityKind[] =>
+  SHIPPABLE_KINDS.filter((kind) => kind.keys.some(inUse));

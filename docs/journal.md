@@ -6,19 +6,17 @@
   `docs/rules/` (gaps in `gaps.md`). Progress page: https://claude.ai/artifact/JHRFaWQRPk3AYGssSchPBU.
 - M0 to M4 are merged into `main` (PR 9, 10, 12 to 15, 17); their entries are archived in
   `docs/journal/archive-M1.md` to `-M4.md`. Decisions Q5 to Q16 settled (NR-012 to NR-018).
-- M4.1 (PR 18, main b4d26ee) and M4.2 (PR 19, main a267a03) are merged; entries archived in
-  `docs/journal/archive-M4.1.md` and `-M4.2.md`.
-- 2026-11-12 M4.3 (NR-024 to NR-026, FR-133 to FR-139) on branch `claude/m4-3-transport-ui`, pushed, no
-  PR: transport popup with icons, groups by kind, three columns; rail links are the sections built (the
-  triangle bug). Entry below. Reviewed; review fix round done (findings 1 to 3 and 9 fixed, the head-on
-  rail click; 4 to 8 carried forward). Next: re-review of the fix commits, then a PR. Decision cards 1
-  and 3 are open in the entry (card 2 is fixed).
-- OPEN for Nathan (M4.2 decision 1, the score formula): the score counts every capacity point, used or
-  not. At turn 40 (seed 1) nation 2 has 108 capacity points (84 in the three factories), but its 7
-  workers give 28 labour, at most 14 units a turn: about 87% of the capacity can never run. Over the 40
-  turns its factories made clothing 23, furniture 10, hardware 0. The AI never recruits workers.
-  Options: keep the formula; count only capacity in use (the FR-125 1.5x margin must then be measured
-  again); or let the AI recruit workers. Kept within NR-023 (no score change); a decision card.
+- M4.1 (PR 18), M4.2 (PR 19) and M4.3 (PR 20, main 274ef62) are merged; entries archived in
+  `docs/journal/archive-M4.1.md` to `-M4.3.md`. Q17, Q19 and Q20 answered as NR-029, NR-028, NR-027.
+- 2026-11-12 M4.4 (NR-027, NR-028; FR-140 to FR-142) on branch `claude/m4-4-recruiting-ai`, pushed, no
+  PR: the transport popup lists only what can be shipped and hides groups that are all 0 / 0; the
+  furniture bound counts 2 lumber a furniture. Recruiting NOT built: the probe shows that inputs bind
+  before labour and that recruiting lowers the score, even with free migrants (the brief: stop and
+  report). Entry below; review fix round done (tests, docs, the probe kept in `scripts/probes/m4-4/`).
+  Next: Nathan's decision M4.4-1, then a PR.
+- OPEN for Nathan (M4.4 decision 1, in the entry): no recruiting AI in v1 (suggested), or recruit anyway
+  at about -6% at turn 40, or first an AI task on transport so labour becomes the limit. The orchestrator
+  took option (a) meanwhile (nothing in the game changes).
 
 Carried forward:
 - Deferred: river ports and the depot-on-port rule (rules 04); University fees; the power plant.
@@ -44,8 +42,13 @@ Carried forward:
 - M4.3 review finding 7: the transport popup's dialog uses `aria-label` where `aria-labelledby` (its
   visible title) fits; no `aria-modal`, no focus moved into it on open or back on close, and Escape
   does not close it. Accessibility pass in M5.
-- M4.3 review finding 8: the transport popup lists commodities that rules 04 says can never be shipped,
-  and all materials and goods are 0 / 0 in v1 (no town production). Same as M4.3 decision 3: hide them.
+- M4.4 review note 7: a stale store entry (an allocation in `transportAllocationsByNation` for a commodity
+  that now has nothing to ship) flashes its group once per open, until the next slider move writes the
+  clamped allocations back. The popup's local state clamps it right after the first render; the store keeps it.
+- M4.4 review note 10: in the lever table the "free worker" rows add a worker who eats raw food, so what they
+  lose is a freight car's load of inputs every turn, not the cost of recruiting. Only the guarded rows (a
+  free worker after a labour-bound turn, R1, R2) support the conclusion that recruiting does not pay; the
+  rows with a free worker every turn (sick and starved workers) say little about a policy.
 
 ## 2026-11-02 Revival setup
 
@@ -105,156 +108,168 @@ Entries in `docs/journal/archive-M4.2.md`, with its review fix round. `engine/ai
 lumber + steel pair becomes capacity, goods fill the holds, pairs bought under $1,000, cheapest
 development level first, depots only when they pay back (FR-125 to FR-132). Against the frozen M4 player,
 seeds 1 to 4: turn 15 1.60 to 1.65 times, turn 25 1.76 to 1.81, turn 40 2.39 to 2.55. Merged as PR 19 (main a267a03).
+## 2026-11-12 M4.3 transport popup and rail links (archived)
 
-## 2026-11-12 M4.3 Transport popup and rail links (FR-133 to FR-139)
+Entries in `docs/journal/archive-M4.3.md`, with its review fix round. The transport popup with icons, groups by
+kind and columns (FR-133 to FR-135); rail links are only the sections built, the triangle bug (FR-136 to
+FR-139); the scripted engineer orders sections. Lowest FR-125 ratio 1.60 to 1.55. Merged as PR 20 (main
+274ef62).
 
-Size: M (one dialog; one engine fix in the rail network, its orders and the scripted engineer). One agent
-(Opus 5.5), no subagents, no advisor calls; ultracode was not on. Branch `claude/m4-3-transport-ui` from main
-a267a03, worktree `.claude/worktrees/decisions`. FR rows first (`docs/requirements.md`, "M4.3").
+## 2026-11-12 M4.4 Recruiting AI and empty groups (FR-140 to FR-142)
+
+Size: M (one dialog; the scripted player's run; a probe). One agent (Opus 5.5), no subagents, no advisor calls;
+ultracode was not on. Branch `claude/m4-4-recruiting-ai` from main 274ef62, worktree `.claude/worktrees/decisions`.
+FR rows first (`docs/requirements.md`, "M4.4").
 
 Plan-lite:
-- Change: the transport popup shows icons and display names, grouped by kind in up to three columns
-  (NR-024, NR-025); the rail graph holds only the sections built (NR-026).
-- Consumers: the popup (HUD and capital), the map's rail lines, `transportConnectivitySystem` (depot
-  lights), logistics, the rail orders' validate and apply, the scripted engineer (`ai/railPlan.ts`).
-- Tests: `railSections.test.ts` (FR-136 to FR-139), `ui/railLine.test.tsx` (FR-079, FR-139),
-  `ui/transportPopup.test.tsx` (FR-133 to FR-135), `e2e/m4-3.spec.ts` (FR-133, FR-135, FR-139).
-- Verify: the gate below.
-- Objection: a depot next to the line is no longer joined by itself; it needs one more section (one
-  engineer turn, $100 to $300), so the scripted player scores a little less (decision 1).
+- Change: the transport popup lists only what rules 04 lets the network carry and hides the groups that are
+  all 0 / 0 (NR-027, FR-141, FR-142); the run's furniture bound counts 2 lumber a furniture (FR-140);
+  recruiting measured before it is built (NR-028; a process step, so no FR row).
+- Consumers: the popup (HUD and capital); `computerOrders` at End Turn and the headless tests.
+- Tests: `ui/transportPopup.test.tsx` (FR-133 to FR-135, FR-141, FR-142), `e2e/m4-3.spec.ts` (FR-135,
+  FR-142), `engine/scriptedScore.test.ts` (FR-140, FR-125).
+- Verify: the gate below and a probe of seeds 1 to 4, turns 1 to 40 (kept in `scripts/probes/m4-4/`: a
+  measurement tool, not a test; `npm test` does not run it).
+- Objection: the probe says recruiting does not pay, so NR-028's main ask is not built (decision 1).
 
-Checked first, at 1280x720 on a952cbc: the popup scrolled (918 px of content in 576 px) and showed the
-keys ("IronOre", "CannedFood") with no icon; the warehouse fitted (553 of 553 px, already in two
-columns per group); the market scrolled 138 px. Group header rows in the market would add three rows,
-so the warehouse and the market keep their layout (FR-135).
+### What limits the scripted player (NR-028)
 
-NR-026 root cause. A rail job recorded only its tile, not the tile it was built from. When it finished,
-`addRailroad` (`systems/railroadSystem.ts`, helper `linkNode`) linked the new tile to every neighbouring
-node of the nation's graph (rail, capital, depot, port); `addDepot` and `addPort` did the same. Rail on
-A, then B from A, then C from A, with C next to B too, therefore also linked B-C (and capital-C when C
-touches the capital). The map draws exactly the graph (FR-079) and the depot lights read it, so the
-two agreed, but both held links nobody built. Rules 04 section 1: a rail section "joins two adjacent
-tiles; built by an Engineer standing in one of them", and a connected depot "has a rail line to the
-capital"; nothing says neighbouring rail tiles join by themselves. So no STOP: connectivity changed too
-(the NR-026 default), not only the drawing.
+Probe: the FR-140 player on the real `newGame()`, nation 2 scripted, nation 1 idle; per turn the labour at
+production (after training and freight cars), the labour the production phase used (`goods-produced` times
+the labour per unit), the capacity and the stock. Files in `scripts/probes/m4-4/`: `m44.probe.ts` (the probe
+and the free-worker injection, set by `FREE_UNTIL`, `FREE_WHEN_BOUND`, `FREE_FROM`, `FREE_CAR`),
+`start.probe.ts`, `sum.mjs` and `show.mjs` (summaries), `recruiting-policies.txt` (R1 and R2, written as a
+definition: the probe applied them by hand to `economy.ts` and reverted them), `vitest.config.ts` and a
+`README.md` with the commands. The unchanged player and two free-worker rows were re-run from the committed
+probe on 2026-11-12 and give the table's numbers; the R1, R2 and more-freight-car rows were not re-run.
 
-Fix: the job records `railFrom` (FR-136): rail-on-move from the engineer's tile when it is a rail node,
-else the target's first rail neighbour; a construction order may name `fromTileId`, which also allows a
-section between two rail tiles (a deliberate loop, or joining two networks; FR-137). A finished rail
-job links to `railFrom` only; a finished depot or port joins with no link. The drawing, the lights,
-logistics and the scripted engineer all read the one graph. Unchanged: `newGame()` (each capital alone,
-no link), the map click policy, and `initializeRailroadNetworks` for a map that already holds rail (test
-maps only: a map stores no sections, so such rail stays linked to its neighbours).
+| Seed | Labour, turns 1-39 | Used | Idle | Idle in turns 1-10 / 11-20 / 21-30 / 31-39 | Units made / capacity points | Turns with less than 2 labour idle |
+|---|---|---|---|---|---|---|
+| 1 | 688 | 498 | 190 (28%) | 29% / 54% / 7% / 24% | 259 / 1672 (15%) | 1-5, 22, 23, 25-27, 39 |
+| 2 | 688 | 496 | 192 (28%) | 30% / 54% / 7% / 24% | 258 / 1648 (16%) | 1-5, 22, 23, 25-27, 39 |
+| 3 | 694 | 492 | 202 (29%) | 32% / 52% / 10% / 26% | 256 / 1652 (15%) | 1-5, 20, 23-26 |
+| 4 | 678 | 484 | 194 (29%) | 29% / 54% / 9% / 26% | 252 / 1688 (15%) | 1-5, 23, 24, 26, 30, 31, 39 |
 
-Red first (the new tests on a952cbc, before the fix): FR-139 (a) `expected [ '2-7 2-8', '2-7 3-8', …(3) ]
-to deeply equal [ '2-7 2-8', '2-8 2-9', '2-8 3-8' ]` (the extra links `2-7 3-8` = B-C and `2-9 3-8` =
-capital-C); the four files `Tests 22 failed | 18 passed (40)`; the straight line (FR-139 (b)) passed, as
-it should. After the fix: `Tests 45 passed (45)` (the four files and the purity test). The popup tests
-against the old popup: `Tests 4 failed | 2 passed (6)` (the two FR-134 mapping tests pass on their own).
+- Two limits stack, and inputs bind at the margin. (1) The workforce: its labour caps use at about 344 units over
+  the game (at 2 labour a unit; seed 1, 339 to 347 over the seeds), 20 to 21% of the 1648 to 1688 capacity
+  points. About 79% of the capacity could never run on this workforce, even with unlimited inputs. (2) The
+  inputs gathered and shipped: the run made about 255 units (252 to 259, 15% of the capacity points), below
+  the labour cap, so at the margin the inputs run out before the labour does. The labour binds only on turns 1
+  to 5 (the start stock) and on 5 or 6 later turns.
+- What that means for recruiting: recruiting alone adds nothing, because inputs bind first. Recruiting plus
+  more inputs is untested, except one combination (a free worker plus a free freight car, no gain: see the
+  lever table and option (c) below); more coal, iron and timber from depots was not tried with recruiting.
+- The M4.2 note "7 workers give 28 labour" was wrong as a number (the real peak is 22 to 24) but right in
+  direction: the workforce is small for the capacity. It counted 7 experts: training brings the 7 to 16
+  labour by turn 4 and to 22 or 24 from turns 24 to 30 (seed 1 ends with 3 trained and 4 experts, 22).
+- Turns 11 to 20 leave half the labour idle: no coal, iron or timber in stock (seed 1: coal and iron 0 from
+  turn 9 to 19, timber 0 from turn 2 to 13) until the depots reach them (coal and iron from turn 20).
+- From turn 20 the freight cars limit: seed 1 at turn 40 gathers 82 units a turn and ships 26; coal 16, iron
+  16 and timber 10 wait in stock at the end. Goods over 40 turns (seed 1): clothing 31, furniture 1,
+  hardware 0, all sold (nothing unsold at the end).
+- A worker eats one raw food a turn, and the meal is shipped before coal, iron and timber (FR-127), so each
+  migrant takes one car's load of inputs every turn, on top of the canned food, clothing and furniture.
 
-Scripted player (FR-138): it plans the missing sections of the shortest path and orders them with
-`fromTileId`, the capital's end first. Scores, nation 2 vs the frozen M4 player (both on today's engine):
+Lever table (sums of seeds 1 to 4; the frozen M4 player: 1547 / 1883 / 2646). A "free" worker is one untrained
+worker added after the turn's resolution with no goods paid, the timing of a recruit ordered that turn (an
+upper bound for any recruiting policy on this player); a turn is labour-bound when its production left less
+than 2 labour idle.
 
-| Seed | Turn 15 before / after | Turn 25 before / after | Turn 40 before / after |
-|---|---|---|---|
-| 1 | 625/390 (1.60) / 616/390 (1.58) | 851/469 (1.81) / 786/468 (1.68) | 1679/659 (2.55) / 1475/650 (2.27) |
-| 2 | 625/381 (1.64) / 624/381 (1.64) | 863/488 (1.77) / 785/471 (1.67) | 1685/674 (2.50) / 1481/668 (2.22) |
-| 3 | 638/396 (1.61) / 614/396 (1.55) | 850/477 (1.78) / 786/471 (1.67) | 1619/676 (2.39) / 1437/663 (2.17) |
-| 4 | 626/380 (1.65) / 617/380 (1.62) | 850/482 (1.76) / 817/473 (1.73) | 1663/674 (2.47) / 1532/665 (2.30) |
+| Step | Turn 15 | Turn 25 | Turn 40 | Lowest ratio | Workers at turn 40 |
+|---|---|---|---|---|---|
+| M4.3 player (start) | 2471 | 3174 | 5925 | 1.55 | 7 |
+| FR-140 furniture bound (kept) | 2471 | 3205 | 5955 | 1.55 | 7 |
+| + a free worker every turn 1 to 10 | 2266 | 2464 | 2972 | 1.01 | 17 |
+| + a free worker every turn 1 to 20 (79 to 81 sick and 7 or 8 starved per seed) | 2266 | 2440 | 2444 | 0.91 | 19 or 20 |
+| + a free worker after each labour-bound turn 1 to 32 | 2448 | 3013 | 4925 | 1.54 | 10 |
+| + the same, turns 6 to 32 (after the start stock) | 2471 | 3235 | 5513 | 1.55 | 9 to 11 |
+| + the same, with a free freight car for each | 2471 | 3235 | 5791 | 1.55 | 9 to 12 |
+| + a free worker and car after each labour-bound turn 1 to 32 | 2484 | 3217 | 5817 | 1.56 | 10 to 12 |
+| Policy R1: recruit on a labour-bound turn, 8 or more turns to go, a meal of cans kept, food for the new mouth, goods from stock | 2471 | 3229 | 6007 | 1.55 | 7 (no recruit: furniture is never in stock) |
+| Policy R2: R1, and the run makes one furniture and the holds keep one clothing for it | 2475 | 3125 | 5605 | 1.57 | 9 (recruits on turns 22 and 29 or 30) |
+| Policy R2 on any turn with the goods in stock | 2112 | 2633 | 4368 | 1.32 (FR-125 fails) | 11 |
 
-FR-125 (at least 1.5 times) still passes; the ratios are lower. Why, from a turn-by-turn probe of seeds 1
-and 4 on both engines (not committed): each depot now takes one more engineer turn and one more rail
-job, so each joins a turn later, and in the first 25 turns the engineer is never idle, so every later
-depot shifts too; the shifted cash and development change which sites win (seed 1 builds 18-6 at turn
-20 instead of 16-2 at turn 17, and 6 depots by turn 40 instead of 4), and the cash goes to depots instead
-of lumber + steel pairs (seed 1 turn 40: capacity 88 against 108). A stricter depot pay-back (x1.5, x2)
-was tried and dropped: turn 40 moved by 0 to +48, turns 15 and 25 not at all. The M4 player moved
-little (seed 1 turn 40: 659 to 650). See decision 1.
+- R1's +52 at turn 40 comes from its other change (one more can kept from the holds), not from a worker: the
+  numbers move by about 50 from small changes, so only the larger differences count.
+- More freight cars (context, not recruiting; FR-127 orders one a turn): up to 2 a turn 2471 / 3060 / 5864,
+  up to 3 a turn 2471 / 3141 / 6041; with a free worker and car after each labour-bound turn on top, 5985
+  and 6013 at turn 40. No change of the car rule was made.
+- Result: no recruiting policy raises the score; even free migrants lower turn 40. The brief says stop and
+  report, so no policy is built, and FR-125 is unchanged (no requirement weakened).
 
-Tests changed because an FR changed (FR-136, FR-137): `railLinks.test.ts` (the chain now has 2 links,
-not the 3 of a triangle), `ui/railLine.test.tsx` (the spur 3-2, 4-2, 3-1 draws 2 sides, not 3),
-`systems/transportConnectivitySystem.test.ts` (a depot finished next to new rail is red until a section
-reaches it), `systems/logisticsSystem.test.ts` (the depot gets its section), `apply.test.ts` (the job
-records `railFrom`), `scriptedRail.test.ts` (FR-124: the M4 player's rail no longer breaks the bound, 10
-links of 11, as its mesh of unbuilt links is gone; it still lays more than its depots need). None skipped
-or deleted.
+Score (FR-125, new / frozen and the ratio; nation 1 idle), and M4.3 for comparison:
 
-Screenshots, looked at: `docs/journal/m4-3-transport.png` (1280x720: three columns, Food and Raw
-materials, Other resources and Materials, Goods; icons before the names; no scroll bar).
-`docs/journal/m4-3-rail.png` (tiles 1-7 to 4-10: lines from the capital to 3-9 and to 3-8, none between
-3-8 and 3-9). Fixed after looking: the first rail picture had the engineer's button and the selection
-ring on 3-8, hiding where the line ends; the test now walks him to 5-9, out of the picture. The gold
-frame on 3-8 is the "job finished this turn" mark.
+| Seed | Turn 15 | Turn 25 | Turn 40 | M4.3 turn 15 / 25 / 40 |
+|---|---|---|---|---|
+| 1 | 616 / 390 (1.58) | 817 / 468 (1.75) | 1493 / 650 (2.30) | 616 / 786 / 1475 |
+| 2 | 624 / 381 (1.64) | 816 / 471 (1.73) | 1496 / 668 (2.24) | 624 / 785 / 1481 |
+| 3 | 614 / 396 (1.55) | 783 / 471 (1.66) | 1490 / 663 (2.25) | 614 / 786 / 1437 |
+| 4 | 617 / 380 (1.62) | 789 / 473 (1.67) | 1476 / 665 (2.22) | 617 / 817 / 1532 |
 
-Decisions for Nathan (cards):
-1. The scripted player's margin over the M4 player fell (lowest 1.60 to 1.55; turn 40 from 2.39-2.55 to
-   2.17-2.30). Suggestion: accept (it follows the rules); retune the AI only together with the open
-   score-formula decision.
-2. ~~The map offers no click that builds a section between two rail tiles (closing a loop, or joining two
-   networks that meet head on).~~ Fixed in the review fix round (below): with the engineer on a rail
-   node, a click on a neighbouring rail node not linked to it builds the section between the two
-   (`moveAndStartConstruction` with `fromTileId`; FR-023, FR-137), so the head-on case and a loop are
-   one click. No dialog choice needed.
-3. The popup lists materials and goods, which are always 0 / 0 in v1 (no town production). Suggestion:
-   hide those groups until towns produce.
+Workers: 7 on every seed at every turn (no recruit). With policy R2 they would be 7 to turn 22, 8 from turn
+23 and 9 from turn 30 or 31. No "recruited at least N by turn 25" test was added: the probe supports N = 0.
 
-| Claim | Command | Result (quoted) |
-|---|---|---|
-| Unit tests | `npm test` | `Test Files 58 passed (58)` / `Tests 828 passed (828)` (+28 on 800) |
-| Lint | `npm run lint` | `✖ 3 problems (0 errors, 3 warnings)` (the same 3 as on main) |
-| Types | `npx tsc --noEmit` | exit 0, no output |
-| Build | `npm run build` | `✓ Compiled successfully in 8.3s`, `✓ Generating static pages (4/4)` |
-| Smoke (at 83a23f3) | `PORT=3183 npx playwright test --workers=1` | `1 skipped` / `21 passed (2.6m)` (+2: `e2e/m4-3.spec.ts`); the skip is the old `test.fixme` rail cursor |
-| Screenshots | `SCREENSHOT_DIR=docs/journal PORT=3183 npx playwright test e2e/m4-3.spec.ts --workers=1` | `2 passed (1.3m)` |
+Decision for Nathan (card M4.4-1): the recruiting AI is not built.
+- What happened: NR-028 asked the AI to recruit so it uses its capacity; the probe shows inputs bind before
+  labour (the labour caps use at about 21% of the capacity, the run makes 15%), and each migrant costs a car's
+  load every turn plus about $1,900 of goods.
+- Options: (a) no recruiting AI in v1, NR-028's recruiting closed as measured (suggestion); (b) build R2 anyway
+  so the AI's workforce grows (7 to 9), at -350 points at turn 40 over the 4 seeds (-6%); the probe saw no
+  refusal and nobody sick or starved, and the 1.5 margin holds (lowest 1.57); (c) an AI task on transport and
+  inputs first (cars, depots for coal, iron and timber), then recruit when labour becomes the limit. No
+  measured gain so far: more freight cars gave +86 (+1.4%), worker plus cars 5985 and 6013 against 5955;
+  changes below about 50 are noise.
+- Objection to (a): the AI never grows its workforce, which a human player would do; the score formula
+  rewards capacity, not output, so the AI's behaviour stays odd (expand, not run).
+- Status: held for Nathan's answer. The orchestrator took (a) meanwhile; the game has no recruiting AI, and
+  NR-028's status in `docs/requirements.md` says so (furniture bound fixed, recruiting not built).
 
-How to see it in the app: `npm run dev`; (1) press "Transportation of Commodities": five groups in three
-columns, an icon before each name, no scrolling; (2) select the engineer on the capital, click 3-9, End
-Turn; click the capital, End Turn; click 3-8, End Turn: two lines from the capital and none between 3-8
-and 3-9; (3) build a depot on a tile next to rail: it stays red until the engineer, standing on the rail
-next to it, clicks the depot tile.
+Red before green:
+- FR-140 on the old bound: `AssertionError: expected { furniture: 1 } to deeply equal {}`; with the fix
+  `Tests 1 passed | 33 skipped (34)`. A first version of the test passed on the old code: on the start
+  buildings the expansion spends every pair before the run, so the test now uses buildings whose next
+  step costs 4 pairs or more.
+- FR-142 on the old popup (with the new `commodityKinds.ts`): `Tests 4 failed | 7 passed (11)`, for example
+  `expected [ 'Food', 'Raw materials', …(3) ] to deeply equal [ 'Food', 'Raw materials' ]`.
 
-### 2026-11-12 M4.3 review fix round
+Tests changed because an FR changed (FR-141, FR-142), none skipped or deleted: `ui/transportPopup.test.tsx`
+(the FR-133 rows are the rows shown, with a horses tile next to the capital so Other resources shows; FR-135
+checks the groups shown) and the FR-135 e2e in `e2e/m4-3.spec.ts` (2 regions, 10 rows and 2 columns at the
+start instead of 5, 23 and 3; the screenshot name comes from `TRANSPORT_SHOT`, default unchanged). New: the
+FR-140 test and five FR-141 and FR-142 tests. Review fix round: three FR-135 cases in
+`ui/transportPopup.test.tsx` (the popup's `columnCount` is 2 for a new game, 3 with a horses tile, 1 with
+nothing to ship); they fail when `Math.min(3, ...)` is lowered to 2 (`expected '2' to be '3'`), when
+`Math.max(1, ...)` becomes `Math.max(0, ...)` (`expected '0' to be '1'`) and when the columns go back to a fixed
+3 (`expected '3' to be '2'`). The cap of 3 itself cannot be reached from the popup in v1 (at most 3 groups
+show), so raising 3 to 4 would not be caught.
 
-One agent (Opus 5.5, xhigh), no subagents, no advisor calls. Review findings 1, 2, 3 and 9 fixed; 4 to 8
-under "Carried forward".
-
-- Finding 1, a human dead end (FR-023, FR-137): rail line capital 2-9 to 2-5, a depot on 4-5; the engineer
-  on the depot clicks 3-5 (section 4-5 to 3-5), then on 3-5 clicks 2-5. Red first: the click offered
-  `expected [ { kind: 'moveWorker', …(3) } ] to deeply equal [ { …(6) }, …(1) ]`, and the unaffordable
-  case moved the engineer (`expected { ok: true } to deeply equal { ok: false, …(1) }`): `Tests 2 failed |
-  23 passed (25)`. Fix in `hooks/tileClickOrders.ts` `moveOrders`: from a rail node onto a neighbouring
-  rail node with no section between them, `moveAndStartConstruction` (rail, `fromTileId` = his tile), then
-  the plain move. After: `Tests 25 passed (25)`; the depot turns green; a click on a linked or
-  non-adjacent rail tile still only moves; short of money: "Move and build refused: not enough money."
-  and no move. Not changed: a click on a capital or town offers the fort first (`getEngineerActions`),
-  so that join is made from the other side (standing on the capital or town, click the rail tile).
-- Finding 2 (FR-124, FR-125): no rail dead end (a one-link node that is not a depot, a port or the
-  capital) at turns 15, 25 and 40. A per-turn check would fail for both players: a path being laid has a
-  dead-end tip for a few turns (current player, seed 1: turns 4, 5, 10 to 12, 17, 18, 23, 30, 35, 36). The
-  current player: none at any checkpoint, seeds 1 to 4. The frozen M4 player: `[{"seed":1,"turn":40,
-  "deadEnds":["20,4"]},{"seed":2,"turn":25,"deadEnds":["19,3"]},{"seed":2,"turn":40,"deadEnds":["21,3"]},
-  {"seed":3,"turn":40,"deadEnds":["20,4"]},{"seed":4,"turn":25,"deadEnds":["19,3"]},{"seed":4,"turn":40,
-  "deadEnds":["20,5"]}]`; none at turn 15 (one line to its depot), so the failing proof is in FR-125, not
-  FR-124. Trap: the checkpoints pass by timing; if a change moves a build so a tip falls on turn 15, 25 or
-  40, the check needs a "tip of the path under construction" exception, not a weaker invariant.
-- Finding 3 (FR-132): the horizon for the smallest case is now 14 turns (2 + 1 + 21 / 2 = 13.5, a gain of
-  2 and one flat section), in the spec and the `depotPaysBack` comment; the code did not change.
-- Finding 9 (FR-137, FR-139): a depot built on a railed tile keeps its section and is active;
-  `fromTileId` with a depot, port or fort is `invalid-target`, for start and move-and-start.
-
-Acceptance numbers unchanged (before = after, `FR-125 the numbers`): seed 1 t15 616/390 (1.58), t25
-786/468 (1.68), t40 1475/650 (2.27); seed 2 t40 1481/668; seed 3 t15 614/396 (1.55, the lowest), t40
-1437/663; seed 4 t40 1532/665. FR-124: `{"depots":2,"links":7,"yieldPerTurn":33,"shipped":200,"sold":29,
-"score":616,"bound":10,"refused":0}`.
+Screenshot `docs/journal/m4-4-popup.png` (`SCREENSHOT_DIR=docs/journal TRANSPORT_SHOT=m4-4-popup.png`, the popup
+test only), looked at: 1280x720, a new game; two groups, Food (Grain 0 / 4, Livestock 0 / 0, Fruit 0 / 4,
+Fish 0 / 0) and Raw materials (Cotton 0 / 2, the rest 0 / 0), side by side, icons before the names, no scroll
+bar; no Materials, Goods, Paper or Canned Food. Fixed after looking: the first picture had the two groups in
+the first two of three columns and the third empty; the columns now follow the groups shown (FR-142).
 
 | Claim | Command | Result (quoted) |
 |---|---|---|
-| Unit tests | `npm test` | `Test Files 58 passed (58)` / `Tests 836 passed (836)` (+8 on 828) |
+| FR-140, FR-125 | `npx vitest run tests/engine/scriptedScore.test.ts tests/engine/scriptedRail.test.ts tests/engine/twoNations.test.ts` | `Tests 57 passed (57)`; `FR-125 seed 1: t15 616/390 (1.58) depots 2 links 7/10 \| t25 817/468 (1.75) depots 4 links 12/20 \| t40 1493/650 (2.30) depots 5 links 14/27` |
+| FR-141, FR-142 | `npx vitest run tests/ui/transportPopup.test.tsx` | `Tests 11 passed (11)` |
+| Unit tests | `npm test` | `Test Files 58 passed (58)` / `Tests 842 passed (842)` (+6 on 836); 0 "not wrapped in act" |
 | Lint | `npm run lint` | `✖ 3 problems (0 errors, 3 warnings)` (the same 3 as on main) |
 | Types | `npx tsc --noEmit` | exit 0, no output |
-| Build | `npm run build` | `✓ Compiled successfully in 9.2s`, `✓ Generating static pages (4/4)` |
-| Smoke | `PORT=3185 npx playwright test --workers=1` | `1 skipped` / `21 passed (2.8m)` |
+| Build | `npm run build` | `✓ Compiled successfully in 12.7s`, `✓ Generating static pages (4/4)` |
+| Smoke | `PORT=3187 npx playwright test --workers=1` | `1 skipped` / `21 passed (4.2m)`; the skip is the old `test.fixme` rail cursor |
+| Screenshot | `SCREENSHOT_DIR=docs/journal TRANSPORT_SHOT=m4-4-popup.png PORT=3187 npx playwright test e2e/m4-3.spec.ts -g "transport popup" --workers=1` | `1 passed (22.7s)` |
 
-How to see it in the app: `npm run dev`; lay rail from the capital up to 2-5 and build a depot on 4-5;
-put the engineer on the depot, click 3-5, End Turn; click 2-5, End Turn: a line 4-5 to 3-5 to 2-5 and the
-depot green.
+How to see it in the app: `npm run dev`, press "Transportation of Commodities": Food and Raw materials side by
+side; no Materials, Goods, Paper or Canned Food rows. Build a depot that reaches a horses, gold or gems tile and
+the Other resources group appears. Recruiting: nothing to see (not built).
+
+Review fix round (2026-11-12; tests and docs only, no production code changed, so no UI or e2e change and the
+Playwright suite was not re-run; the smoke row above is the M4.4 run):
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| Unit tests | `npm test` | `Test Files  58 passed (58)` / `Tests  845 passed (845)` (+3 FR-135 cases on 842) |
+| Lint | `npm run lint` | `✖ 3 problems (0 errors, 3 warnings)` (the same 3; `scripts/probes/m4-4` adds none) |
+| Types | `npx tsc --noEmit` | exit 0, no output |
+| Build | `npm run build` | `✓ Compiled successfully in 6.7s`, `✓ Generating static pages (4/4)` |
