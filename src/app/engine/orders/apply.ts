@@ -14,7 +14,15 @@ import {
   applyTrainWorkers,
 } from "./industryOrders";
 import { applyBuyCommodity, applySellCommodity } from "./tradeOrders";
-import { findWorker, holdsJob, nextResourceLevel, tileById, type WorkerLocation } from "./queries";
+import {
+  findWorker,
+  holdsJob,
+  nextResourceLevel,
+  railConstructionStart,
+  railOnMoveStart,
+  tileById,
+  type WorkerLocation,
+} from "./queries";
 
 /**
  * Validates the order and, if it is valid, performs its immediate effects (FR-005). A refused
@@ -34,20 +42,32 @@ function applyValidOrder(state: GameState, order: Order): GameState {
   switch (order.kind) {
     case "moveWorker":
       return relocate(state, findWorker(state, order.workerId)!, tileById(state, order.toTileId)!);
-    case "moveAndBuildRail":
-      return moveThenStart(state, order.workerId, order.toTileId, construction("rail"));
+    case "moveAndBuildRail": {
+      // The section starts from the tile the engineer leaves, so it is found before he moves (FR-137)
+      const start = railOnMoveStart(state, order.nationId, findWorker(state, order.workerId)!.tile, tileById(state, order.toTileId)!)!;
+      return moveThenStart(state, order.workerId, order.toTileId, construction("rail", start.id));
+    }
     case "startProspecting":
       return startProspecting(state, order.workerId, order.tileId);
     case "startDevelopment":
       return startDevelopment(state, order.workerId, order.tileId);
     case "startConstruction":
-      return construction(order.structure)(state, order.workerId, order.tileId);
+      return construction(order.structure, railStartId(state, order.nationId, order.tileId, order.structure, order.fromTileId))(
+        state,
+        order.workerId,
+        order.tileId
+      );
     case "moveAndStartProspecting":
       return moveThenStart(state, order.workerId, order.toTileId, startProspecting);
     case "moveAndStartDevelopment":
       return moveThenStart(state, order.workerId, order.toTileId, startDevelopment);
     case "moveAndStartConstruction":
-      return moveThenStart(state, order.workerId, order.toTileId, construction(order.structure));
+      return moveThenStart(
+        state,
+        order.workerId,
+        order.toTileId,
+        construction(order.structure, railStartId(state, order.nationId, order.toTileId, order.structure, order.fromTileId))
+      );
     case "cancelWorkerAction":
       return cancel(state, order);
     case "setTransportAllocations":
@@ -142,13 +162,17 @@ const startDevelopment: StartJob = (state, workerId, tileId) => {
   }));
 };
 
-const construction = (kind: ConstructionKind): StartJob => (state, workerId, tileId) => {
+/** The id of the tile a rail construction's section starts from (FR-137); undefined for other structures. */
+const railStartId = (state: GameState, nationId: string, tileId: string, kind: ConstructionKind, fromTileId?: string): string | undefined =>
+  kind === "rail" ? railConstructionStart(state, nationId, tileById(state, tileId)!, fromTileId)!.id : undefined;
+
+const construction = (kind: ConstructionKind, railFrom?: string): StartJob => (state, workerId, tileId) => {
   const { worker } = findWorker(state, workerId)!;
   const durationTurns = EngineerBuildDurationsTurns[kind] || 1;
   const cost = constructionCost(kind, tileById(state, tileId)!.terrain);
   return updateTile(charge(state, worker.nationId, cost), tileId, (t) => ({
     ...updateWorker(t, workerId, { status: WorkerStatus.Working }),
-    constructionJob: { workerId, kind, startedOnTurn: state.turn, durationTurns },
+    constructionJob: { workerId, kind, startedOnTurn: state.turn, durationTurns, ...(railFrom ? { railFrom } : {}) },
   }));
 };
 

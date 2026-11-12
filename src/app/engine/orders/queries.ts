@@ -12,7 +12,8 @@ import {
 } from "@/definisions/terrainDefinitions";
 import type { ConstructionKind } from "@/types/jobs/ConstructionJob";
 import { parseTileIdToArray } from "@/utils/tileIdUtils";
-import { canBuildRailAt, getAdjacentTiles, isAdjacentToOcean } from "../map/mapHelpers";
+import { areTilesAdjacent, canBuildRailAt, getAdjacentTiles, isAdjacentToOcean } from "../map/mapHelpers";
+import { hasRailLink, isRailLinked } from "../systems/railroadSystem";
 
 export interface WorkerLocation {
   worker: Worker;
@@ -100,6 +101,46 @@ export function railTerrainAllowed(state: GameState, tile: Tile): boolean {
 
 export const isRailSite = (state: GameState, tile: Tile, nationId: string): boolean =>
   canBuildRailAt(state.map, tile.x, tile.y, nationId) && railTerrainAllowed(state, tile);
+
+/** A tile a rail section may start from: the nation's own land with rail on it, its capital, a depot or a port. */
+export const isRailNode = (tile: Tile, nationId: string): boolean =>
+  tile.ownerNationId === nationId && isLand(tile) && !!(tile.connected || isCapital(tile) || tile.depot || tile.port);
+
+/**
+ * The tile a rail section onto `to` starts from (FR-137): `named` when it is a rail node of the nation
+ * next to `to` and no section joins the two yet; with no name, and only while no section ends on `to`,
+ * the first neighbour of `to` in map neighbour order that is a rail node. Undefined when there is none.
+ */
+export function railSectionStart(state: GameState, nationId: string, to: Tile, named?: Tile): Tile | undefined {
+  const network = state.transportNetwork.railroadNetworks?.[nationId];
+  if (named) {
+    const joinable = isRailNode(named, nationId) && areTilesAdjacent(state.map, named.x, named.y, to.x, to.y);
+    return joinable && !isRailLinked(network, named, to) ? named : undefined;
+  }
+  if (hasRailLink(network, to)) return undefined;
+  return getAdjacentTiles(state.map, to.x, to.y).find((n) => isRailNode(n, nationId));
+}
+
+/**
+ * The start of the section a rail construction order builds on `tile` (FR-137), or undefined when it
+ * may build none. With `fromTileId` the tile may already have rail; without it the tile must be a rail
+ * site (`isRailSite`) and the section starts from its first rail neighbour.
+ */
+export function railConstructionStart(state: GameState, nationId: string, tile: Tile, fromTileId?: string): Tile | undefined {
+  if (fromTileId === undefined) return isRailSite(state, tile, nationId) ? railSectionStart(state, nationId, tile) : undefined;
+  const named = tileById(state, fromTileId);
+  if (!named || tile.ownerNationId !== nationId || !isLand(tile) || !railTerrainAllowed(state, tile)) return undefined;
+  return railSectionStart(state, nationId, tile, named);
+}
+
+/**
+ * The start of the section rail-on-move builds (FR-137): from the engineer's tile `from` when it is a
+ * rail node, else from the target's first rail neighbour; the target must be a rail site.
+ */
+export function railOnMoveStart(state: GameState, nationId: string, from: Tile, to: Tile): Tile | undefined {
+  if (!isRailSite(state, to, nationId)) return undefined;
+  return railSectionStart(state, nationId, to, isRailNode(from, nationId) ? from : undefined);
+}
 
 /** The capital, a depot or a port, built or under construction. */
 const gathers = (tile: Tile): boolean =>

@@ -170,6 +170,10 @@ describe('logisticsSystem', () => {
       depot: true,
     };
 
+    // Changed in M4.3 (FR-136): a depot next to the line used to be linked to it by itself; now the
+    // rail reaches it only through a section built into it, from the last rail tile of the path.
+    state = addRailroad(state, nationId, { x: distantX, y: distantY }, pathTiles[pathTiles.length - 1]);
+
     // Step 4: Run transport connectivity to activate the depot
     state = transportConnectivitySystem(state, createTurnContext({ turn: state.turn }));
 

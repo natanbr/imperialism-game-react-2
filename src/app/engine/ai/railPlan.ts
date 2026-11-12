@@ -6,6 +6,7 @@ import type { GameState } from "@/types/GameState";
 import { TerrainType, type Tile } from "@/types/Tile";
 import { getNeighborCoords } from "../map/mapHelpers";
 import { hasJob, isDepotSite, isLand, railTerrainAllowed } from "../orders/queries";
+import { isRailLinked } from "../systems/railroadSystem";
 import { constructionCost } from "@/definisions/workPrices";
 
 const key = (x: number, y: number) => `${x},${y}`;
@@ -103,37 +104,54 @@ export function railPath(state: GameState, nationId: string, from: string, targe
   return undefined;
 }
 
-/** A path tile that still needs rail: not yet rail, a depot or the capital. */
-const needsRail = (tile: Tile) => !tile.connected && !tile.depot && tile.terrain !== TerrainType.Capital;
+/** A rail section to build: the job goes on `toTileId`, joining it to the rail node `fromTileId` (FR-137). */
+export interface RailSection {
+  fromTileId: string;
+  toTileId: string;
+}
 
 /**
- * The ids of the rail tiles to try next for each built depot not joined to the capital (FR-122 (1)), depots in
- * map order: per depot, the first unbuilt tile of its shortest path from the capital's end, then the
- * first from the depot's end (the engine checks which can be built now).
+ * The steps of a path (depot first, a tile of the capital's component last) that no section joins yet,
+ * by the index of their depot-side tile (FR-138).
  */
-export function nextRailTiles(state: GameState, nationId: string): string[] {
+function missingSteps(state: GameState, nationId: string, path: string[]): number[] {
+  const network = state.transportNetwork.railroadNetworks?.[nationId];
+  const at = (k: string) => tileAtKey(state, k);
+  return path.slice(0, -1).flatMap((k, i) => (isRailLinked(network, at(k), at(path[i + 1])) ? [] : [i]));
+}
+
+/**
+ * The rail sections to try next for each built depot not joined to the capital (FR-122 (1), FR-138), depots
+ * in map order: per depot, the first missing section of its shortest path from the capital's end (built from
+ * the component outward), then the first from the depot's end (built from the depot's side); the engine
+ * checks which can be built now.
+ */
+export function nextRailSections(state: GameState, nationId: string): RailSection[] {
   const component = capitalComponent(state, nationId);
   if (component.size === 0) return [];
-  const tiles: string[] = [];
+  const id = (k: string) => tileAtKey(state, k).id;
+  const sections: RailSection[] = [];
   for (const tile of state.map.tiles.flat()) {
     if (tile.ownerNationId !== nationId || !tile.depot || component.has(keyOf(tile))) continue;
     const path = railPath(state, nationId, keyOf(tile), component);
     if (!path) continue;
-    const open = path.slice(1, -1).filter((k) => needsRail(tileAtKey(state, k)));
-    if (open.length === 0) continue;
-    tiles.push(tileAtKey(state, open[open.length - 1]).id);
-    if (open.length > 1) tiles.push(tileAtKey(state, open[0]).id);
+    const missing = missingSteps(state, nationId, path);
+    if (missing.length === 0) continue;
+    const last = missing[missing.length - 1];
+    sections.push({ fromTileId: id(path[last + 1]), toTileId: id(path[last]) });
+    const first = missing[0];
+    if (first !== last) sections.push({ fromTileId: id(path[first]), toTileId: id(path[first + 1]) });
   }
-  return tiles;
+  return sections;
 }
 
 export interface DepotSite {
   tileId: string;
   /** Yield a turn of the tiles it newly covers (itself and its neighbours). */
   gain: number;
-  /** Rail tiles needed to join it to the capital's component. */
+  /** Rail sections needed to join it to the capital's component, the one into the depot included (FR-138). */
   railNeeded: number;
-  /** What those rail tiles cost, by their terrain (FR-029). */
+  /** What those sections cost, each by the terrain of the tile it is built on, the one farther from the capital (FR-029). */
   railCost: number;
 }
 
@@ -161,10 +179,10 @@ export function bestDepotSite(state: GameState, nationId: string): DepotSite | u
     if (gain < MIN_DEPOT_GAIN) continue;
     const path = railPath(state, nationId, keyOf(tile), component);
     if (!path) continue;
-    const open = path.slice(1, -1).map((k) => tileAtKey(state, k)).filter(needsRail);
-    const railNeeded = open.length;
+    const builtOn = missingSteps(state, nationId, path).map((i) => tileAtKey(state, path[i]));
+    const railNeeded = builtOn.length;
     if (!best || gain > best.gain || (gain === best.gain && railNeeded < best.railNeeded)) {
-      best = { tileId: tile.id, gain, railNeeded, railCost: open.reduce((sum, t) => sum + constructionCost("rail", t.terrain), 0) };
+      best = { tileId: tile.id, gain, railNeeded, railCost: builtOn.reduce((sum, t) => sum + constructionCost("rail", t.terrain), 0) };
     }
   }
   return best;

@@ -86,7 +86,7 @@ const buildInitialGraph = (map: GameMap, networks: RailroadNetworks): void => {
   }
 };
 
-/** Two neighbouring tiles joined in a nation's rail graph. */
+/** Two neighbouring tiles joined by a rail section in a nation's rail graph. */
 export interface RailLink {
   nationId: string;
   from: RailroadNode;
@@ -95,8 +95,18 @@ export interface RailLink {
 
 const before = (a: RailroadNode, b: RailroadNode): boolean => a.y < b.y || (a.y === b.y && a.x < b.x);
 
+/** True when a section joins the two tiles in the nation's rail graph (FR-136). */
+export function isRailLinked(network: RailroadNetwork | undefined, a: RailroadNode, b: RailroadNode): boolean {
+  return !!network?.graph[key(a.x, a.y)]?.some((n) => n.x === b.x && n.y === b.y);
+}
+
+/** True when at least one section ends on the tile. */
+export function hasRailLink(network: RailroadNetwork | undefined, { x, y }: RailroadNode): boolean {
+  return (network?.graph[key(x, y)]?.length ?? 0) > 0;
+}
+
 /**
- * Every link of every nation's rail graph, once (FR-079). The map draws exactly these, so the
+ * Every rail section of every nation, once (FR-079, FR-136). The map draws exactly these, so the
  * line on the map is the graph `transportConnectivitySystem` lights the depots from.
  */
 export function railLinksOf({ transportNetwork }: Pick<GameState, "transportNetwork">): RailLink[] {
@@ -117,6 +127,11 @@ export function railLinksOf({ transportNetwork }: Pick<GameState, "transportNetw
   return links;
 }
 
+/**
+ * The start network of a map: a node for every capital, depot, port and rail tile. A map stores no
+ * sections, so rail placed on a map before play (hand-made test maps) is linked to every neighbouring
+ * node; `newGame()` places none, so a nation starts with its capital alone (FR-136).
+ */
 export const initializeRailroadNetworks = (map: GameMap, nations: Nation[]): RailroadNetworks => {
   const networks = initializeEmptyNetworks(nations);
   populateNodesFromMap(map, networks);
@@ -132,22 +147,23 @@ const cloneNetwork = (network: RailroadNetwork): RailroadNetwork => ({
   depots: network.depots.map(d => ({ ...d })),
 });
 
-/** Adds (x, y) to the copied graph and links it both ways to every neighbouring graph node. */
-const linkNode = (map: GameMap, network: RailroadNetwork, { x, y }: RailroadNode): void => {
-  const k = key(x, y);
-  if (!network.graph[k]) {
-    network.graph[k] = [];
-  }
-  for (const [nx, ny] of getNeighborCoords(map, x, y)) {
-    const neighborKey = key(nx, ny);
-    if (!network.graph[neighborKey]) continue;
-    if (!network.graph[k].some((n) => n.x === nx && n.y === ny)) {
-      network.graph[k].push({ x: nx, y: ny });
-    }
-    if (!network.graph[neighborKey].some((n) => n.x === x && n.y === y)) {
-      network.graph[neighborKey].push({ x, y });
-    }
-  }
+/** Adds (x, y) to the copied graph if it is not there yet, with no link. */
+const addNode = (network: RailroadNetwork, { x, y }: RailroadNode): void => {
+  network.graph[key(x, y)] ??= [];
+};
+
+/** Joins two tiles in the copied graph, both ways: one rail section (FR-136). */
+const linkSection = (network: RailroadNetwork, a: RailroadNode, b: RailroadNode): void => {
+  addNode(network, a);
+  addNode(network, b);
+  if (!isRailLinked(network, a, b)) network.graph[key(a.x, a.y)].push({ x: b.x, y: b.y });
+  if (!isRailLinked(network, b, a)) network.graph[key(b.x, b.y)].push({ x: a.x, y: a.y });
+};
+
+/** The first neighbour of the tile, in map neighbour order, that is a node of the graph. */
+const firstNeighbourNode = (map: GameMap, network: RailroadNetwork, { x, y }: RailroadNode): RailroadNode | undefined => {
+  const found = getNeighborCoords(map, x, y).find(([nx, ny]) => network.graph[key(nx, ny)]);
+  return found && { x: found[0], y: found[1] };
 };
 
 const withNetwork = (state: GameState, nationId: string, network: RailroadNetwork): GameState => ({
@@ -158,16 +174,24 @@ const withNetwork = (state: GameState, nationId: string, network: RailroadNetwor
   },
 });
 
+/**
+ * Rail laid on `node` by a section from `from` (FR-136): the tile gets rail and joins the graph linked
+ * to `from` only, never to its other rail neighbours. Without `from` (a hand-made job), the section
+ * starts from the tile's first neighbouring node.
+ */
 export const addRailroad = (
   state: GameState,
   nationId: string,
-  node: RailroadNode
+  node: RailroadNode,
+  from?: RailroadNode
 ): GameState => {
   const original = state.transportNetwork.railroadNetworks?.[nationId];
   if (!original) return state;
 
   const network = cloneNetwork(original);
-  linkNode(state.map, network, node);
+  const start = from ?? firstNeighbourNode(state.map, network, node);
+  if (start) linkSection(network, node, start);
+  else addNode(network, node);
 
   const { x, y } = node;
   const newTiles = state.map.tiles.map((row, rY) => {
@@ -181,6 +205,7 @@ export const addRailroad = (
   return { ...withNetwork(state, nationId, network), map: { ...state.map, tiles: newTiles } };
 };
 
+/** A finished depot joins the graph with no link: a section built into or out of it joins it (FR-136). */
 export const addDepot = (
   state: GameState,
   nationId: string,
@@ -194,11 +219,12 @@ export const addDepot = (
   if (!network.depots.some((d) => d.x === x && d.y === y)) {
     network.depots.push({ x, y, isActive: false });
   }
-  linkNode(state.map, network, node);
+  addNode(network, node);
 
   return withNetwork(state, nationId, network);
 };
 
+/** A finished port joins the graph with no link, like a depot (FR-136). */
 export const addPort = (
   state: GameState,
   nationId: string,
@@ -212,7 +238,7 @@ export const addPort = (
   if (!network.ports.some((p) => p.x === x && p.y === y)) {
     network.ports.push({ x, y, isActive: false });
   }
-  linkNode(state.map, network, node);
+  addNode(network, node);
 
   return withNetwork(state, nationId, network);
 };

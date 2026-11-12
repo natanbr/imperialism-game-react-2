@@ -6,8 +6,13 @@ import { moveOrders, submitFirstAccepted, tileClickOrders } from '@/hooks/tileCl
 import { tryApplyOrder, type Order, type ValidationResult } from '@/engine';
 import { GameState } from '@/types/GameState';
 import { WorkerStatus, WorkerType } from '@/types/Workers';
-import { CONSTRUCTION_COST, PROSPECT_COST } from '@/definisions/workPrices';
+import { CONSTRUCTION_COST, PROSPECT_COST, constructionCost } from '@/definisions/workPrices';
 import { createTileId } from '@/utils/tileIdUtils';
+import { newGame } from '@/engine/newGame';
+import { resolveTurn } from '@/engine/turn/resolveTurn';
+import { addDepot, addRailroad, isRailLinked } from '@/engine/systems/railroadSystem';
+import { getEngineerActions } from '@/workers/EngineerWorker';
+import { refusalText } from '@/components/gameText';
 import { game, locate, N1, N2, put, setTile, setTreasury, T, tileAt, treasury, workerId } from '../engine/fixtures';
 
 const W = {
@@ -133,6 +138,93 @@ describe('FR-023 submitFirstAccepted stops at the first accepted order or at ins
 
   it('returns nothing for no orders', () => {
     expect(submitFirstAccepted(() => ({ ok: true }), [])).toBeUndefined();
+  });
+});
+
+describe('FR-023 FR-137 a click between two rail nodes builds the section that joins them (M4.3 review finding 1)', () => {
+  // The real new game: nation 1's capital 2-9, a rail line 2-9 -> 2-8 -> 2-7 -> 2-6 -> 2-5, a depot on 4-5.
+  const ENGINEER = 'worker-nation-1-7';
+  const DEPOT = '4-5';
+  const MIDDLE = '3-5';
+  const LINE_END = '2-5';
+  const xy = (tileId: string) => { const [x, y] = tileId.split('-').map(Number); return { x, y }; };
+  const linked = (s: GameState, a: string, b: string) => isRailLinked(s.transportNetwork.railroadNetworks![N1], xy(a), xy(b));
+  const depotLit = (s: GameState) => s.transportNetwork.railroadNetworks![N1].depots.find(d => createTileId(d.x, d.y) === DEPOT)!.isActive;
+  /** The orders the map asks for when the player clicks `tileId` with the engineer selected (useTileClickHandler). */
+  const clickOrders = (s: GameState, tileId: string) => {
+    const { worker } = locate(s, ENGINEER)!;
+    return tileClickOrders(s, N1, ENGINEER, tileId, getEngineerActions(tileAt(s, tileId), s.map, worker));
+  };
+  const endTurn = (s: GameState) => resolveTurn(s, {}, s.seed).state;
+  const moveOnly = (toTileId: string): Order[] => [{ kind: 'moveWorker', nationId: N1, workerId: ENGINEER, toTileId }];
+
+  function lineWithDepot(): GameState {
+    let s = newGame({ seed: 1 });
+    const line = ['2-9', '2-8', '2-7', '2-6', LINE_END];
+    for (let i = 1; i < line.length; i++) s = addRailroad(s, N1, xy(line[i]), xy(line[i - 1]));
+    s = addDepot(setTile(s, DEPOT, { depot: true }), N1, xy(DEPOT));
+    return put(s, ENGINEER, DEPOT);
+  }
+  /** The engineer built 4-5 -> 3-5 from the depot and stands on 3-5, the turn after. */
+  const besideLine = () => {
+    const s = lineWithDepot();
+    return endTurn(click(s, clickOrders(s, MIDDLE)));
+  };
+
+  it('FR-137 the head-on case: from the depot to 3-5, then from 3-5 onto the line end 2-5, joins the depot', () => {
+    expect(depotLit(endTurn(lineWithDepot()))).toBe(false);
+
+    // On the depot, click 3-5 (no rail): rail-on-move builds the section 4-5 -> 3-5
+    let s = besideLine();
+    expect(linked(s, DEPOT, MIDDLE)).toBe(true);
+    expect(locate(s, ENGINEER)!.tile.id).toBe(MIDDLE);
+    expect(depotLit(s)).toBe(false);
+
+    // On 3-5, click its rail neighbour 2-5: the section 3-5 -> 2-5 first, then the plain move
+    expect(clickOrders(s, LINE_END)).toEqual([
+      { kind: 'moveAndStartConstruction', nationId: N1, workerId: ENGINEER, toTileId: LINE_END, structure: 'rail', fromTileId: MIDDLE },
+      ...moveOnly(LINE_END),
+    ]);
+    const before = treasury(s, N1);
+    s = click(s, clickOrders(s, LINE_END));
+    expect(treasury(s, N1)).toBe(before - constructionCost('rail', tileAt(s, LINE_END).terrain));
+    s = endTurn(s);
+    expect(linked(s, MIDDLE, LINE_END)).toBe(true);
+    expect(depotLit(s)).toBe(true);
+  });
+
+  it('FR-137 a click on a neighbour already linked to the engineer\'s tile only moves', () => {
+    const s = put(lineWithDepot(), ENGINEER, '2-6');
+    expect(clickOrders(s, LINE_END)).toEqual(moveOnly(LINE_END));
+    // Once 3-5 -> 2-5 is built, the same click from 3-5 only moves too
+    let joined = besideLine();
+    joined = endTurn(click(joined, clickOrders(joined, LINE_END)));
+    joined = put(joined, ENGINEER, MIDDLE);
+    expect(clickOrders(joined, LINE_END)).toEqual(moveOnly(LINE_END));
+  });
+
+  it('FR-137 a click on a rail tile that is not next to the engineer is a plain move, as before', () => {
+    expect(clickOrders(besideLine(), '2-7')).toEqual(moveOnly('2-7'));
+  });
+
+  it('FR-137 a click onto a rail node from a tile without rail is a plain move (no section can start there)', () => {
+    const s = put(lineWithDepot(), ENGINEER, '3-6');
+    expect(tileAt(s, '3-6').connected).toBeFalsy();
+    expect(clickOrders(s, LINE_END)).toEqual(moveOnly(LINE_END));
+  });
+
+  it('FR-007 FR-023 a join the nation cannot afford refuses the whole click with "not enough money": no move, no charge', () => {
+    const s = setTreasury(besideLine(), N1, constructionCost('rail', tileAt(besideLine(), LINE_END).terrain) - 1);
+    const orders = clickOrders(s, LINE_END);
+    let after = s;
+    const last = submitFirstAccepted((order) => {
+      const { state: next, result } = tryApplyOrder(after, order);
+      after = next;
+      return result;
+    }, orders);
+    expect(last).toEqual({ ok: false, reason: 'insufficient-funds' });
+    expect(after).toBe(s);
+    expect(refusalText({ order: orders[0], reason: 'insufficient-funds' })).toBe('Move and build refused: not enough money.');
   });
 });
 

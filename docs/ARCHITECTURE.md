@@ -225,9 +225,15 @@ the railyard: 1 lumber + 1 steel each when ordered and 2 labour each in the prod
 them in service after the phases, so they carry goods from the next turn (FR-101, NR-016).
 
 The rail graph per nation (`transportNetwork.railroadNetworks`, built in `systems/railroadSystem.ts`)
-has a node for every tile with rail, a depot, a port or the capital, linked to its neighbouring
-nodes. The map's rail overlay draws exactly its links (`railLinksOf`, then
-`components/railSegments.ts` for the pixels), the same graph the depot lights come from (FR-079).
+has a node for every tile with rail, a depot, a port or the capital, and one link per rail section
+built (FR-136): a rail job records the tile its section starts from (`constructionJob.railFrom`, chosen
+by the order, FR-137), and when it finishes the tile is linked to that tile only. Neighbouring rail tiles
+are not linked by themselves, and a finished depot or port joins no section until one is built into or
+out of it. (Only a map that already holds rail, a hand-made test map, starts with every neighbouring
+pair linked: a map stores no sections.) The map's rail overlay draws exactly the links (`railLinksOf`,
+then `components/railSegments.ts` for the pixels); the depot lights (`transportConnectivitySystem`),
+logistics and the scripted player's planning (`ai/railPlan.ts`, which orders missing sections, FR-138)
+read the same graph (FR-079).
 
 ## Industry, labour and food
 

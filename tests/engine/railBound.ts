@@ -24,6 +24,23 @@ export function landDistanceToCapital(s: GameState, nationId: string, from: { x:
 }
 
 /**
+ * The dead ends of a nation's rail (M4.3 review finding 2): the nodes with exactly one link that are not
+ * a depot or a port, the capital excepted, as "x,y" keys. Rail that only joins depots ends in depots.
+ */
+export function railDeadEnds(s: GameState, nationId: string): string[] {
+  const graph = s.transportNetwork.railroadNetworks![nationId].graph;
+  return Object.entries(graph)
+    .filter(([, links]) => links.length === 1)
+    .map(([k]) => k)
+    .filter(k => {
+      const [x, y] = k.split(',').map(Number);
+      const t = s.map.tiles[y][x];
+      return t.terrain !== TerrainType.Capital && !t.depot && !t.port;
+    })
+    .sort();
+}
+
+/**
  * The rail a player that only joins depots needs: each joined depot's land distance to the capital, + 3.
  * Only depots in the capital's rail component count: a depot not joined yet has no rail to allow for.
  */

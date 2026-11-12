@@ -1,71 +1,26 @@
 "use client";
 import React from "react";
 import { useTransportAllocations } from "../hooks/useTransportAllocations";
-import { UI_ICONS } from "./icons";
+import { COMMODITY_ICONS, UI_ICONS } from "./icons";
 import { GameIcon } from "./GameIcon";
+import { COMMODITY_KINDS } from "./commodityKinds";
+import { commodityName } from "./gameText";
 
 interface TransportAllocationModalProps {
   capacity: number;
   onClose: () => void;
 }
 
-const Section = ({
-  title,
-  keys,
-  allocations,
-  sliderMax,
-  handleAllocChange,
-}: {
-  title: string;
-  keys: string[];
-  allocations: Record<string, number>;
-  sliderMax: (key: string) => number;
-  handleAllocChange: (key: string, value: number) => void;
-}) => (
-  <section className="section">
-    <h4 className="section-title">{title}</h4>
-    <div className="section-grid">
-      {keys.map((k) => (
-        <React.Fragment key={k}>
-          <label className="section-label">{k}</label>
-          <div className="section-input-container">
-            <input
-              type="range"
-              min={0}
-              max={sliderMax(k)}
-              step={1}
-              value={allocations[k] ?? 0}
-              onChange={(e) => handleAllocChange(k, Number(e.target.value) || 0)}
-              className="section-range-input"
-            />
-            <span>
-              {allocations[k] ?? 0} / {sliderMax(k)}
-            </span>
-          </div>
-        </React.Fragment>
-      ))}
-    </div>
-  </section>
-);
-
-const TransportAllocationModal: React.FC<TransportAllocationModalProps> = ({
-  capacity,
-  onClose,
-}) => {
-  const {
-    allocations,
-    handleAllocChange,
-    totalAllocated,
-    remaining,
-    resourceKeys,
-    materialKeys,
-    goodsKeys,
-    sliderMax,
-  } = useTransportAllocations(capacity);
+/**
+ * The transport plan (FR-133, FR-135): one slider per commodity, the commodities grouped by kind
+ * (FR-134) and the groups laid out in up to three columns, each row the commodity's icon and name.
+ */
+const TransportAllocationModal: React.FC<TransportAllocationModalProps> = ({ capacity, onClose }) => {
+  const { allocations, handleAllocChange, totalAllocated, remaining, sliderMax } = useTransportAllocations(capacity);
 
   return (
     <div className="modal-overlay">
-      <div className="modal-content">
+      <div className="modal-content" role="dialog" aria-label="Transportation of Commodities">
         <div className="modal-header">
           <h3 className="modal-title">
             <GameIcon name={UI_ICONS.transport} /> Transportation of Commodities
@@ -84,27 +39,35 @@ const TransportAllocationModal: React.FC<TransportAllocationModalProps> = ({
           <span>{remaining}</span>
         </div>
 
-        <Section
-          title="Resources"
-          keys={resourceKeys}
-          allocations={allocations}
-          sliderMax={sliderMax}
-          handleAllocChange={handleAllocChange}
-        />
-        <Section
-          title="Materials"
-          keys={materialKeys}
-          allocations={allocations}
-          sliderMax={sliderMax}
-          handleAllocChange={handleAllocChange}
-        />
-        <Section
-          title="Goods"
-          keys={goodsKeys}
-          allocations={allocations}
-          sliderMax={sliderMax}
-          handleAllocChange={handleAllocChange}
-        />
+        <div className="transport-groups">
+          {COMMODITY_KINDS.map((kind) => (
+            <section key={kind.title} className="transport-group" aria-label={kind.title}>
+              <h4 className="transport-group-title">{kind.title}</h4>
+              {kind.keys.map((key) => {
+                const inputId = `transport-${key}`;
+                return (
+                  <div key={key} className="transport-row" data-testid={`transport-row-${key}`}>
+                    <label htmlFor={inputId} className="transport-name" data-testid="name">
+                      <GameIcon name={COMMODITY_ICONS[key]} /> {commodityName(key)}
+                    </label>
+                    <input
+                      id={inputId}
+                      type="range"
+                      min={0}
+                      max={sliderMax(key)}
+                      step={1}
+                      value={allocations[key] ?? 0}
+                      onChange={(e) => handleAllocChange(key, Number(e.target.value) || 0)}
+                    />
+                    <span className="transport-amount">
+                      {allocations[key] ?? 0} / {sliderMax(key)}
+                    </span>
+                  </div>
+                );
+              })}
+            </section>
+          ))}
+        </div>
       </div>
     </div>
   );

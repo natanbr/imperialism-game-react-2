@@ -9,7 +9,7 @@ import { SCORE_WEIGHTS } from "@/definisions/scoreWeights";
 import { EngineerBuildDurationsTurns, WorkerLevelDurationsTurns } from "@/definisions/workerDurations";
 import { findWorker, nationById, nextResourceLevel, workersOf, type WorkerLocation } from "../orders/queries";
 import { validateOrder } from "../orders/validate";
-import { bestDepotSite, nextRailTiles, tilesByReach, type DepotSite } from "./railPlan";
+import { bestDepotSite, nextRailSections, tilesByReach, type DepotSite } from "./railPlan";
 import { planEconomy, turnsAfter } from "./economy";
 
 /**
@@ -59,8 +59,9 @@ export const scriptedPlayer: Player = (state, nationId) => {
 /**
  * A depot pays back (FR-132) when what it newly gathers, over the turns it delivers, is worth its
  * price and its rail: `gain` units a turn at about $100 each (a resource's world price, 1 point),
- * counted from two turns after the build starts plus one turn per rail tile. So no depot is started
- * in the last 2 + rail tiles + (20 + rail cost / 100) / gain turns: 12 for the smallest gain (2).
+ * counted from two turns after the build starts plus one turn per rail section (FR-138). So no depot is
+ * started in the last 2 + rail sections + (20 + rail cost / 100) / gain turns: at least 14 turns after
+ * this one for a gain of 2 and the one flat section every depot needs (2 + 1 + 21 / 2 = 13.5).
  */
 function depotPaysBack(view: GameState, site: DepotSite): boolean {
   const delivering = turnsAfter(view) - (EngineerBuildDurationsTurns.depot - 1) - site.railNeeded;
@@ -106,15 +107,15 @@ function candidateOrders(view: GameState, nationId: string, { worker, tile }: Wo
 }
 
 /**
- * The engineer (FR-122): (1) the next rail tile of the shortest path joining a built depot to the
- * capital's network; else (2), while no depot is being built, the depot that newly gathers most, if
- * it pays back (FR-132). It lays no rail that joins nothing and builds no port (nothing it ships needs one).
+ * The engineer (FR-122, FR-138): (1) the next missing rail section of the shortest path joining a built
+ * depot to the capital's network, naming its start; else (2), while no depot is being built, the depot
+ * that newly gathers most, if it pays back (FR-132). It lays no rail that joins nothing and builds no
+ * port (nothing it ships needs one).
  */
 function engineerOrders(view: GameState, nationId: string, workerId: string, standingOn: string): Order[] {
-  const rail = nextRailTiles(view, nationId).flatMap((toTileId): Order[] => [
-    { kind: "moveAndBuildRail", nationId, workerId, toTileId },
-    { kind: "moveAndStartConstruction", nationId, workerId, toTileId, structure: "rail" },
-  ]);
+  const rail = nextRailSections(view, nationId).map(
+    ({ fromTileId, toTileId }): Order => ({ kind: "moveAndStartConstruction", nationId, workerId, toTileId, structure: "rail", fromTileId })
+  );
   if (rail.length > 0) return rail;
   const building = view.map.tiles.flat().some((t) => t.ownerNationId === nationId && t.constructionJob?.kind === "depot");
   if (building) return [];

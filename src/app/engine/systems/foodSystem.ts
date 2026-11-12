@@ -10,7 +10,8 @@ import type { TurnContext, TurnSystem } from "../turn/context";
 type Stock = Record<string, number>;
 
 const MEAT = [ResourceType.Livestock, ResourceType.Fish] as const;
-const RAW_FOOD = [ResourceType.Grain, ResourceType.Fruit, ResourceType.Livestock, ResourceType.Fish] as const;
+/** The raw foods a worker eats (rules 05 section 5); the transport popup groups them as Food (FR-134). */
+export const RAW_FOOD = [ResourceType.Grain, ResourceType.Fruit, ResourceType.Livestock, ResourceType.Fish] as const;
 
 /** Worker slot i prefers, in groups of four: grain, fruit, grain, livestock-or-fish. */
 const PREFERENCE: readonly (readonly ResourceType[])[] = [[ResourceType.Grain], [ResourceType.Fruit], [ResourceType.Grain], MEAT];

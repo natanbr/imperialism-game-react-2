@@ -43,7 +43,7 @@ svg[data-icon] {
 }
 
 .modal-content {
-  width: 720px;
+  width: min(1000px, calc(100vw - 32px));
   max-height: 80vh;
   overflow-y: auto;
   background: var(--color-bg-secondary);
@@ -84,35 +84,47 @@ svg[data-icon] {
   align-items: center;
 }
 
-/* Section Component Styles */
-.section {
+/* The commodities by kind in up to three columns, 1 on a narrow screen; a group never splits (FR-135) */
+.transport-groups {
+  columns: 17rem 3;
+  column-gap: 24px;
+}
+
+.transport-group {
+  break-inside: avoid;
   margin-bottom: 12px;
 }
 
-.section-title {
-  margin: 8px 0;
+.transport-group-title {
+  margin: 0 0 4px;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
-.section-grid {
+.transport-row {
   display: grid;
-  grid-template-columns: 1fr auto;
-  row-gap: 6px;
-  column-gap: 10px;
-}
-
-.section-label {
-  text-transform: capitalize;
-}
-
-.section-input-container {
-  display: flex;
-  gap: 8px;
+  grid-template-columns: 7.5rem minmax(4rem, 1fr) 3.5rem;
   align-items: center;
+  column-gap: 8px;
+  min-height: 28px;
+  border-bottom: 1px solid var(--color-border);
 }
 
-.section-range-input {
-  width: 200px;
+.transport-name {
+  white-space: nowrap;
+}
+
+.transport-row input[type="range"] {
+  width: 100%;
   accent-color: var(--color-accent);
+}
+
+.transport-amount {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 /* HUD Styles */
