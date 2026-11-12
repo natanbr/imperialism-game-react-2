@@ -1,10 +1,11 @@
 import { test, expect, Page } from '@playwright/test';
 
 // M4.3 in the running app. FR-133 FR-135: on the default 1280x720 screen the Transportation of Commodities
-// popup shows every commodity with its icon, grouped by kind in three columns, without scrolling; on a
-// narrow screen the groups stack in one column. FR-139: the engineer builds rail from the capital 2-9 to
-// 3-9, walks back, and builds from the capital to 3-8; the three tiles are neighbours, yet the map draws
-// two lines, not a triangle. Set SCREENSHOT_DIR to also save m4-3-transport.png and m4-3-rail.png there.
+// popup shows the commodities with their icons, grouped by kind in columns, without scrolling; on a
+// narrow screen the groups stack in one column. FR-142 (M4.4): groups that are all 0 / 0 are hidden, so the
+// start shows two groups. FR-139: the engineer builds rail from the capital 2-9 to 3-9, walks back, and
+// builds from the capital to 3-8; the three tiles are neighbours, yet the map draws two lines, not a
+// triangle. Set SCREENSHOT_DIR to also save m4-3-transport.png (or TRANSPORT_SHOT) and m4-3-rail.png there.
 
 const tile = (page: Page, id: string) => page.locator(`[data-tile-id="${id}"]`);
 const worker = (page: Page, type: string) => page.locator(`button[data-nation-id="nation-1"][data-worker-type="${type}"]`);
@@ -55,7 +56,7 @@ async function endTurn(page: Page, nextTurn: number) {
 const columnsOf = (page: Page) =>
   page.locator('.transport-group').evaluateAll((els) => [...new Set(els.map((e) => Math.round(e.getBoundingClientRect().left)))]);
 
-test('FR-133 FR-135 the transport popup shows every commodity with its icon, by kind in three columns, without scrolling at 1280x720', async ({ page }) => {
+test('FR-133 FR-135 FR-142 the transport popup shows what can be shipped with its icon, by kind in columns, the empty groups hidden, without scrolling at 1280x720', async ({ page }) => {
   const errors = collectErrors(page);
   await start(page);
   expect(page.viewportSize()).toEqual({ width: 1280, height: 720 });
@@ -63,8 +64,13 @@ test('FR-133 FR-135 the transport popup shows every commodity with its icon, by 
   await page.getByRole('button', { name: /Transportation of Commodities/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Transportation of Commodities' });
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole('region')).toHaveCount(5);
-  await expect(dialog.locator('[data-testid^="transport-row-"]')).toHaveCount(23);
+  // FR-142: at the start only Food and Raw materials have something to ship (grain, fruit, cotton);
+  // Other resources, Materials and Goods are all 0 / 0 and hidden (M4.3 showed 5 groups and 23 rows)
+  await expect(dialog.getByRole('region')).toHaveCount(2);
+  await expect(dialog.getByRole('region').nth(0)).toHaveAttribute('aria-label', 'Food');
+  await expect(dialog.getByRole('region').nth(1)).toHaveAttribute('aria-label', 'Raw materials');
+  await expect(dialog.locator('[data-testid^="transport-row-"]')).toHaveCount(10);
+  await expect(dialog.getByTestId('transport-row-cannedFood')).toHaveCount(0);
   await expect(dialog.getByTestId('transport-row-ironOre').getByTestId('name')).toHaveText(/Iron Ore/);
   await expect(dialog.getByTestId('transport-row-ironOre').locator('svg')).toHaveAttribute('data-icon', 'GiOre');
   await expect(dialog.getByRole('slider', { name: 'Grain' })).toHaveAttribute('max', '4');
@@ -73,8 +79,9 @@ test('FR-133 FR-135 the transport popup shows every commodity with its icon, by 
   const box = await dialog.evaluate((el) => ({ scroll: el.scrollHeight, client: el.clientHeight }));
   expect(box.scroll).toBeLessThanOrEqual(box.client);
   for (const row of await dialog.locator('[data-testid^="transport-row-"]').all()) await expect(row).toBeInViewport({ ratio: 1 });
-  expect(await columnsOf(page)).toHaveLength(3);
-  if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/m4-3-transport.png` });
+  // Two groups, side by side: fewer columns than the three of M4.3
+  expect(await columnsOf(page)).toHaveLength(2);
+  if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/${process.env.TRANSPORT_SHOT ?? 'm4-3-transport.png'}` });
 
   // A slider still sends the plan: one grain
   await dialog.getByRole('slider', { name: 'Grain' }).fill('1');
