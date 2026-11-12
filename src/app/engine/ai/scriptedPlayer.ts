@@ -60,7 +60,8 @@ export const scriptedPlayer: Player = (state, nationId) => {
  * A depot pays back (FR-132) when what it newly gathers, over the turns it delivers, is worth its
  * price and its rail: `gain` units a turn at about $100 each (a resource's world price, 1 point),
  * counted from two turns after the build starts plus one turn per rail section (FR-138). So no depot is
- * started in the last 2 + rail sections + (20 + rail cost / 100) / gain turns.
+ * started in the last 2 + rail sections + (20 + rail cost / 100) / gain turns: at least 14 turns after
+ * this one for a gain of 2 and the one flat section every depot needs (2 + 1 + 21 / 2 = 13.5).
  */
 function depotPaysBack(view: GameState, site: DepotSite): boolean {
   const delivering = turnsAfter(view) - (EngineerBuildDurationsTurns.depot - 1) - site.railNeeded;
