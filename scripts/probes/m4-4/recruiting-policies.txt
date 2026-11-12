@@ -1,0 +1,27 @@
+M4.4 probe-only recruiting policies R1 and R2 (described here, never merged into the game; the probe applied them
+by hand to src/app/engine/ai/economy.ts on top of the FR-140 bound and reverted them). This file is the definition,
+not an applicable diff; the function and helper names are the ones economy.ts has.
+
+planEconomy: ... planExpansion(view, nationId, propose); PROBE_planRecruiting(view, nationId, propose); proposeRun(...); planTrade(...)
+
+const PROBE_R = Number(process.env.PROBE_R ?? 0);          // 1: recruit from stock only; 2: also make and keep the goods
+const PROBE_ALWAYS = !!process.env.PROBE_ALWAYS;            // recruit even when the run leaves labour idle
+function PROBE_planRecruiting(view, nationId, propose) {
+  if (!PROBE_R) return;
+  const state = view();
+  if (turnsAfter(state) < 8) return;
+  if (!PROBE_ALWAYS && planRun(state, nationId).labour >= 2) return;      // FR-130's "labour-bound" test
+  const nation = nationOf(state, nationId); const stock = nation.warehouse; const mouths = mouthsOf(nation);
+  if ((stock.cannedFood ?? 0) < mouths + 1) return;                     // a meal of cans stays
+  const gathered = gatheredOf(state, nationId); const needs = mealNeeds(mouths + 1);
+  if (gathered.grain + stock.grain < needs.grain || gathered.fruit + stock.fruit < needs.fruit
+      || gathered.livestock + stock.livestock < needs.meat) return;     // the new mouth can be fed
+  propose({ kind: "recruitWorkers", nationId, delta: 1 });              // validation needs clothing + furniture + can
+}
+planRun goods(): after the furniture line,
+  if (PROBE_R === 2 && left >= 9 && have(furniture) === 0) make(run, furniture, 1);   // one furniture for next turn's recruit
+nextUseOf(): cannedFood: mouths + (PROBE_R ? 1 : 0); and when PROBE_R === 2 and turnsAfter >= 9 keep clothing 1, furniture 1 from the holds.
+
+Free-worker upper bound (scripts/probes/m4-4/m44.probe.ts, in the probe itself): after resolveTurn of turn t, add 1 untrained worker to nation 2
+(FREE_UNTIL=n: every turn up to n; FREE_WHEN_BOUND=n with FREE_FROM=m: only after a turn m..n whose production left
+less than 2 labour idle; FREE_CAR=1: also +1 freight car). Same timing as a recruit ordered on turn t.
