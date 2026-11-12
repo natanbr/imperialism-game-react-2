@@ -151,9 +151,33 @@ describe('FR-137 which section an order builds', () => {
   });
 
   it('FR-137 fromTileId on a depot, port or fort is refused with invalid-target', () => {
-    const s = put(game(), ENGINEER, T.orchard1);
-    const depot: Order = { kind: 'startConstruction', nationId: N1, workerId: ENGINEER, tileId: T.orchard1, structure: 'depot', fromTileId: T.farm1 };
-    expect(outcome(s, depot)).toBe('invalid-target');
+    const s = put(addRailroad(game(), N1, at(T.farm1), at(T.capital1)), ENGINEER, T.orchard1);
+    const named = (structure: 'depot' | 'port' | 'fort'): Order => ({ kind: 'startConstruction', nationId: N1, workerId: ENGINEER, tileId: T.orchard1, structure, fromTileId: T.farm1 });
+    const moveNamed = (structure: 'depot' | 'port' | 'fort'): Order => ({ kind: 'moveAndStartConstruction', nationId: N1, workerId: ENGINEER, toTileId: T.town1, structure, fromTileId: T.farm1 });
+    expect((['depot', 'port', 'fort'] as const).map(k => [outcome(s, named(k)), outcome(s, moveNamed(k))])).toEqual([
+      ['invalid-target', 'invalid-target'],
+      ['invalid-target', 'invalid-target'],
+      ['invalid-target', 'invalid-target'],
+    ]);
+    // Without the name the same structures are judged on their site as before (the depot is allowed here)
+    expect(outcome(s, { kind: 'startConstruction', nationId: N1, workerId: ENGINEER, tileId: T.orchard1, structure: 'depot' })).toBe('ok');
+  });
+
+  it('FR-137 FR-139 a depot built on a tile that already has rail keeps its section and is active', () => {
+    // Rail 1-1 -> 2-1 -> 3-1; the engineer builds a depot on 3-1, which keeps the section from 2-1
+    let s = addRailroad(addRailroad(game(), N1, at(T.farm1), at(T.capital1)), N1, at(T.orchard1), at(T.farm1));
+    s = put(s, ENGINEER, T.orchard1);
+    const order: Order = { kind: 'startConstruction', nationId: N1, workerId: ENGINEER, tileId: T.orchard1, structure: 'depot' };
+    expect(outcome(s, order)).toBe('ok');
+    s = applyOrder(s, order);
+    for (let i = 0; i < 5 && !tileAt(s, T.orchard1).depot; i++) {
+      const ctx = createTurnContext({ turn: s.turn + i });
+      s = transportConnectivitySystem(developmentSystem(s, ctx), ctx);
+    }
+    const network = s.transportNetwork.railroadNetworks![N1];
+    expect(tileAt(s, T.orchard1)).toMatchObject({ depot: true, connected: true });
+    expect(links(s)).toEqual([pair(T.capital1, T.farm1), pair(T.farm1, T.orchard1)].sort());
+    expect(network.depots.find(d => d.x === 3 && d.y === 1)?.isActive).toBe(true);
   });
 });
 
