@@ -7,18 +7,27 @@ import { MINERAL_RESOURCES } from "@/definisions/resourceDefinitions";
 import type { ConstructionKind } from "@/types/jobs/ConstructionJob";
 import type { Rng } from "../rng";
 import type { TurnContext } from "../turn/context";
+import { parseTileIdToArray } from "@/utils/tileIdUtils";
 import { addRailroad, addDepot, addPort, initializeRailroadNetworks } from "./railroadSystem";
+
+const coordsOf = (tileId: string) => {
+  const [x, y] = parseTileIdToArray(tileId);
+  return { x, y };
+};
 
 interface FinishedConstruction {
   nationId: string;
   x: number;
   y: number;
   kind: ConstructionKind;
+  /** Rail: the tile the section was built from (FR-136). */
+  railFrom?: string;
 }
 
 /**
  * Resolves prospecting, development and construction jobs. A finished job leaves its tile in the
- * same resolution (FR-032); finished rail, depots and ports join the nation's rail network.
+ * same resolution (FR-032); finished rail, depots and ports join the nation's rail network, a rail
+ * section linked to the tile it was built from only (FR-136).
  */
 export const developmentSystem = (state: GameState, ctx: TurnContext): GameState => {
   let newState = { ...state };
@@ -38,8 +47,8 @@ export const developmentSystem = (state: GameState, ctx: TurnContext): GameState
   const finished: FinishedConstruction[] = [];
   newState = { ...newState, map: runNationDevelopmentPhase(newState, ctx, finished) };
 
-  for (const { nationId, x, y, kind } of finished) {
-    if (kind === "rail") newState = addRailroad(newState, nationId, { x, y });
+  for (const { nationId, x, y, kind, railFrom } of finished) {
+    if (kind === "rail") newState = addRailroad(newState, nationId, { x, y }, railFrom ? coordsOf(railFrom) : undefined);
     else if (kind === "depot") newState = addDepot(newState, nationId, { x, y });
     else if (kind === "port") newState = addPort(newState, nationId, { x, y });
   }
@@ -70,9 +79,9 @@ const reportCompletions = (before: Tile, after: Tile, ctx: TurnContext, finished
     ctx.emit({ type: "development-completed", tileId: after.id, nationId, level: before.developmentJob.targetLevel });
   }
   if (before.constructionJob && !after.constructionJob) {
-    const kind = before.constructionJob.kind;
+    const { kind, railFrom } = before.constructionJob;
     ctx.emit({ type: "construction-completed", tileId: after.id, nationId, structure: kind });
-    if (nationId) finished.push({ nationId, x: after.x, y: after.y, kind });
+    if (nationId) finished.push({ nationId, x: after.x, y: after.y, kind, railFrom });
   }
 };
 

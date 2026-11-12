@@ -18,7 +18,11 @@ export interface MoveWorkerOrder extends OrderBase {
   toTileId: TileId;
 }
 
-/** Engineer moves onto an adjacent tile and starts a rail there (the map's rail-on-move). */
+/**
+ * Engineer moves onto an adjacent tile without rail and builds the rail section from the tile he
+ * leaves, when that is a rail node (the map's rail-on-move); else from the target's first rail
+ * neighbour (FR-137).
+ */
 export interface MoveAndBuildRailOrder extends OrderBase {
   kind: "moveAndBuildRail";
   workerId: string;
@@ -45,6 +49,11 @@ export interface StartConstructionOrder extends OrderBase {
   workerId: string;
   tileId: TileId;
   structure: ConstructionKind;
+  /**
+   * Rail only: the neighbouring rail node the section starts from; the tile may then already have
+   * rail (FR-137). Without it, the tile's first rail neighbour, onto a tile without rail.
+   */
+  fromTileId?: TileId;
 }
 
 /** Move, then start prospecting on the target; all or nothing (FR-007). */
@@ -67,6 +76,8 @@ export interface MoveAndStartConstructionOrder extends OrderBase {
   workerId: string;
   toTileId: TileId;
   structure: ConstructionKind;
+  /** Rail only: as on `startConstruction` (FR-137). */
+  fromTileId?: TileId;
 }
 
 /** Undo this turn's move, or stop the worker's job, for the worker on `tileId`. */

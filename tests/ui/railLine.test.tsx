@@ -141,14 +141,40 @@ describe('FR-079 the rail line is drawn as one continuous line (NR-010)', () => 
     expect(drawn).toEqual([...graphPairs(built)].sort());
   });
 
-  it('FR-079 every drawn segment joins two neighbouring tiles (the triangle 3-1, 3-2, 4-2 is three neighbours)', () => {
+  // Changed in M4.3 (FR-136 replaced FR-079's "linked to every neighbouring node"): this case asserted that
+  // all three sides of the triangle 3-1, 3-2, 4-2 were drawn, though only two sections were built.
+  it('FR-079 FR-136 every drawn segment joins two neighbouring tiles; the spur 3-2 -> 4-2 -> 3-1 draws its two sections, not the third side 3-1/3-2', () => {
     const notNeighbours = pairs.filter(([a, b]) => !areTilesAdjacent(built.map, a[0], a[1], b[0], b[1]));
     expect(notNeighbours).toEqual([]);
+    expect(areTilesAdjacent(built.map, 3, 1, 3, 2)).toBe(true);
     const drawn = new Set(pairs.map(([a, b]) => pairKey(a, b)));
-    expect(drawn.has(pairKey([3, 1], [3, 2]))).toBe(true);
-    expect(drawn.has(pairKey([3, 1], [4, 2]))).toBe(true);
     expect(drawn.has(pairKey([3, 2], [4, 2]))).toBe(true);
+    expect(drawn.has(pairKey([4, 2], [3, 1]))).toBe(true);
+    expect(drawn.has(pairKey([3, 1], [3, 2]))).toBe(false);
   });
+});
+
+describe('FR-139 the play-test triangle: three neighbouring tiles built from one of them draw two lines', () => {
+  // Capital 2-9, A = 3-9 east of it, B = 3-8 next to both; the engineer builds A from the capital, walks back,
+  // then builds B from the capital: two sections, so two lines, and the side A/B stays undrawn.
+  const A: XY = [3, 9];
+  const B: XY = [3, 8];
+
+  it('FR-139 the map draws capital-A and capital-B and no A-B; a section built on purpose between A and B adds the third line', () => {
+    let s = newGame({ seed: 1 });
+    s = buildRail(s, A);
+    s = play(s, { kind: 'moveWorker', nationId: N, workerId: ENGINEER, toTileId: createTileId(...CAPITAL) });
+    s = buildRail(s, B);
+    expect(areTilesAdjacent(s.map, ...A, ...B)).toBe(true);
+    const two = drawnPairs(s).map(([a, b]) => pairKey(a, b)).sort();
+    expect(two).toEqual([pairKey(CAPITAL, A), pairKey(CAPITAL, B)].sort());
+    expect(two).toEqual([...graphPairs(s)].sort());
+
+    // The engineer stands on B and names A as the start of the section
+    s = play(s, { kind: 'startConstruction', nationId: N, workerId: ENGINEER, tileId: createTileId(...B), structure: 'rail', fromTileId: createTileId(...A) });
+    const three = drawnPairs(s).map(([a, b]) => pairKey(a, b)).sort();
+    expect(three).toEqual([pairKey(CAPITAL, A), pairKey(CAPITAL, B), pairKey(A, B)].sort());
+  }, 30000);
 });
 
 describe('FR-079 a depot the line does not reach is red', () => {

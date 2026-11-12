@@ -166,8 +166,11 @@ describe('FR-124 AI acceptance: 15 turns of nation 2', () => {
   it('FR-124 its rail links are at most the sum of the joined depots\' rail distances to the capital + 3 (no mesh)', () => {
     expect(linksOf(now.state)).toBeGreaterThan(0);
     expect(linksOf(now.state)).toBeLessThanOrEqual(railBound(now.state));
-    // The bound tells the players apart: the M4 player's rail breaks it
-    expect(linksOf(m4.state)).toBeGreaterThan(railBound(m4.state));
+    // Changed in M4.3 (FR-136): this line asserted that the M4 player's rail breaks the bound (13 links of 11).
+    // Those were mostly links nobody built: every pair of neighbouring rail tiles was linked. Its rail is now
+    // a tree of the sections it built (10 links), within the bound's slack of 3, yet still more rail than
+    // its joined depots need (the bound less the slack).
+    expect(linksOf(m4.state)).toBeGreaterThan(railBound(m4.state) - 3);
   });
 
   it('FR-124 its tiles deliver more a turn, and its freight cars carry more over 15 turns, than the M4 player\'s', () => {

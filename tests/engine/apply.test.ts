@@ -33,13 +33,14 @@ describe('applyOrder immediate effects', () => {
     expect(treasury(s, N1)).toBe(START);
   });
 
-  it('FR-005 FR-008 moveAndBuildRail moves the engineer, starts rail and charges once', () => {
+  // Changed in M4.3 (FR-137): the rail job now records the tile its section starts from.
+  it('FR-005 FR-008 FR-137 moveAndBuildRail moves the engineer, starts rail from the capital he leaves and charges once', () => {
     const s = run(game(), { kind: 'moveAndBuildRail', nationId: N1, workerId: W.engineer, toTileId: T.farm1 });
 
     const { worker, tile } = locate(s, W.engineer)!;
     expect(tile.id).toBe(T.farm1);
     expect(worker).toMatchObject({ status: WorkerStatus.Working, justMoved: true, previousTileId: T.capital1 });
-    expect(tile.constructionJob).toEqual({ workerId: W.engineer, kind: 'rail', startedOnTurn: 1, durationTurns: 1 });
+    expect(tile.constructionJob).toEqual({ workerId: W.engineer, kind: 'rail', startedOnTurn: 1, durationTurns: 1, railFrom: T.capital1 });
     expect(treasury(s, N1)).toBe(START - CONSTRUCTION_COST.rail);
   });
 

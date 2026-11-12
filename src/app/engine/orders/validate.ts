@@ -31,10 +31,11 @@ import {
   holdsJob,
   isLand,
   isConstructionSite,
-  isRailSite,
   isWorkerBusy,
   nationById,
   nextResourceLevel,
+  railConstructionStart,
+  railOnMoveStart,
   tileById,
   treasuryOf,
   type WorkerLocation,
@@ -67,13 +68,13 @@ export function validateOrder(state: GameState, order: Order): ValidationResult 
     case "startDevelopment":
       return validateStart(state, order.nationId, order.workerId, order.tileId, checkDevelopment);
     case "startConstruction":
-      return validateStart(state, order.nationId, order.workerId, order.tileId, constructionCheck(order.structure));
+      return validateStart(state, order.nationId, order.workerId, order.tileId, constructionCheck(order.structure, order.fromTileId));
     case "moveAndStartProspecting":
       return validateMoveAndStart(state, order.nationId, order.workerId, order.toTileId, checkProspecting);
     case "moveAndStartDevelopment":
       return validateMoveAndStart(state, order.nationId, order.workerId, order.toTileId, checkDevelopment);
     case "moveAndStartConstruction":
-      return validateMoveAndStart(state, order.nationId, order.workerId, order.toTileId, constructionCheck(order.structure));
+      return validateMoveAndStart(state, order.nationId, order.workerId, order.toTileId, constructionCheck(order.structure, order.fromTileId));
     case "cancelWorkerAction":
       return validateCancel(state, order);
     case "setTransportAllocations":
@@ -135,7 +136,7 @@ function validateMoveAndBuildRail(state: GameState, order: MoveAndBuildRailOrder
   const to = target.value;
   if (!areTilesAdjacent(state.map, from.x, from.y, to.x, to.y)) return reject("invalid-target");
   if (hasJob(to)) return reject("tile-has-job");
-  if (!isRailSite(state, to, order.nationId)) return reject("invalid-site");
+  if (!railOnMoveStart(state, order.nationId, from, to)) return reject("invalid-site");
   if (treasuryOf(state, order.nationId) < constructionCost("rail", to.terrain)) return reject("insufficient-funds");
   return OK;
 }
@@ -185,12 +186,18 @@ const checkDevelopment: JobCheck = (state, worker, tile) => {
   return OK;
 };
 
-const constructionCheck = (structure: ConstructionKind): JobCheck => (state, worker, tile) => {
+/** `fromTileId` names the start of a rail section (FR-137); no other structure takes one. */
+const constructionCheck = (structure: ConstructionKind, fromTileId?: string): JobCheck => (state, worker, tile) => {
   if (worker.type !== WorkerType.Engineer) return reject("wrong-worker-type");
   if (tile.ownerNationId !== worker.nationId) return reject("not-owner");
   if (!Object.hasOwn(CONSTRUCTION_COST, structure)) return reject("invalid-target");
+  if (fromTileId !== undefined && structure !== "rail") return reject("invalid-target");
   if (hasJob(tile)) return reject("tile-has-job");
-  if (!isConstructionSite(state, tile, structure, worker.nationId)) return reject("invalid-site");
+  const site =
+    structure === "rail"
+      ? !!railConstructionStart(state, worker.nationId, tile, fromTileId)
+      : isConstructionSite(state, tile, structure, worker.nationId);
+  if (!site) return reject("invalid-site");
   if (treasuryOf(state, worker.nationId) < constructionCost(structure, tile.terrain)) return reject("insufficient-funds");
   return OK;
 };

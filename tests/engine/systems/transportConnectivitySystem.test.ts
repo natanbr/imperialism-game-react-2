@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { transportConnectivitySystem } from '@/engine/systems/transportConnectivitySystem';
 import { createTurnContext } from '@/engine/turn/context';
-import { initializeRailroadNetworks } from '@/engine/systems/railroadSystem';
+import { addRailroad, initializeRailroadNetworks } from '@/engine/systems/railroadSystem';
 import { developmentSystem } from '@/engine/systems/developmentSystem';
 import { GameState } from '@/types/GameState';
 import { initWorld } from '@/testing/worldInit';
@@ -519,10 +519,15 @@ describe('transportConnectivitySystem', () => {
     const afterConnectivity = transportConnectivitySystem(afterDevelopment, createTurnContext({ turn: afterDevelopment.turn }));
     const network = afterConnectivity.transportNetwork.railroadNetworks!['nation-1'];
 
-    // Verify depot is activated (connected through the newly built rail and existing network)
+    // Changed in M4.3 (FR-136): the depot used to light up because it was linked to every rail tile next to
+    // it. A finished depot joins no section by itself: it stays unconnected until a section is built into it.
     const depotNode = network.depots.find(d => d.x === 1 && d.y === 1);
     expect(depotNode).toBeDefined();
-    expect(depotNode?.isActive).toBe(true);
+    expect(depotNode?.isActive).toBe(false);
+
+    // FR-136: the section (1,0) -> depot (1,1) joins it to the capital through the new rail
+    const joined = transportConnectivitySystem(addRailroad(afterDevelopment, 'nation-1', { x: 1, y: 1 }, { x: 1, y: 0 }), createTurnContext({ turn: afterDevelopment.turn }));
+    expect(joined.transportNetwork.railroadNetworks!['nation-1'].depots.find(d => d.x === 1 && d.y === 1)?.isActive).toBe(true);
   });
 
   it('integrates port construction with development system and activates it when adjacent to ocean', () => {
