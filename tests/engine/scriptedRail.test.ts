@@ -16,7 +16,7 @@ import type { Order } from '@/engine/orders/Order';
 import type { GameState } from '@/types/GameState';
 import { m4ScriptedPlayer } from './m4ScriptedPlayer';
 import { setTile } from './fixtures';
-import { landDistanceToCapital as distanceToCapital, railBound as bound } from './railBound';
+import { landDistanceToCapital as distanceToCapital, railBound as bound, railDeadEnds } from './railBound';
 
 const N2 = 'nation-2';
 const CAPITAL_2 = '14-9';
@@ -171,6 +171,14 @@ describe('FR-124 AI acceptance: 15 turns of nation 2', () => {
     // a tree of the sections it built (10 links), within the bound's slack of 3, yet still more rail than
     // its joined depots need (the bound less the slack).
     expect(linksOf(m4.state)).toBeGreaterThan(railBound(m4.state) - 3);
+  });
+
+  it('FR-124 its rail has no dead end at turn 15: every node with one link is a depot or a port (the capital excepted)', () => {
+    // A checkpoint invariant, not a per-turn one: while a path is being laid its tip is a dead end for a few
+    // turns (seed 1: turns 4, 5, 10 to 12). The frozen M4 player has none at turn 15 either (one line to its
+    // depot); that the invariant can fail is shown at the FR-125 checkpoints (tests/engine/scriptedScore.test.ts).
+    expect(railDeadEnds(now.state, N2)).toEqual([]);
+    expect(railDeadEnds(m4.state, N2)).toEqual([]);
   });
 
   it('FR-124 its tiles deliver more a turn, and its freight cars carry more over 15 turns, than the M4 player\'s', () => {

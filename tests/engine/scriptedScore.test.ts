@@ -14,7 +14,7 @@ import { turnLimitOf } from '@/engine/turn/gameOver';
 import type { Order } from '@/engine/orders/Order';
 import type { GameState } from '@/types/GameState';
 import { m4ScriptedPlayer } from './m4ScriptedPlayer';
-import { railBound } from './railBound';
+import { railBound, railDeadEnds } from './railBound';
 import { emptyWarehouse, invariantViolations, N2, nationOf, setBuilding, setIndustry, setTile, setTreasury, setWarehouse, tileAt } from './fixtures';
 
 const ENGINEER_2 = 'worker-nation-2-7';
@@ -42,7 +42,7 @@ const allAtLevel = (s: GameState, level: number): GameState => ({
   map: { ...s.map, tiles: s.map.tiles.map(row => row.map(t => (t.ownerNationId === N2 && t.resource ? { ...t, resource: { ...t.resource, level } } : t))) },
 });
 
-interface Checkpoint { turn: number; score: number; depotsJoined: number; links: number; bound: number }
+interface Checkpoint { turn: number; score: number; depotsJoined: number; links: number; bound: number; deadEnds: string[] }
 /** FR-125 health: nation 2's meals (`workers-fed`) and the invariants, every turn. */
 interface Health { meals: number; sick: number; starved: number; violations: string[] }
 interface Game { checkpoints: Checkpoint[]; refused: number; health: Health; final: GameState }
@@ -68,7 +68,7 @@ function play(orders: (s: GameState) => Order[], seed: number): Game {
     const component = capitalComponent(state, N2);
     const depotsJoined = state.transportNetwork.railroadNetworks![N2].depots.filter(d => d.isActive && component.has(`${d.x},${d.y}`)).length;
     const links = railLinksOf(state).filter(l => l.nationId === N2).length;
-    checkpoints.push({ turn, score: scoreOf(state, N2).total, depotsJoined, links, bound: railBound(state, N2) });
+    checkpoints.push({ turn, score: scoreOf(state, N2).total, depotsJoined, links, bound: railBound(state, N2), deadEnds: railDeadEnds(state, N2) });
   }
   return { checkpoints, refused, health, final: state };
 }
@@ -112,6 +112,16 @@ describe('FR-125 score acceptance: 40 turns of nation 2 on seeds 1 to 4', () => 
         });
       }
     }
+  });
+
+  it('FR-125 NR-022 no dead end at any checkpoint: every rail node with one link is a depot or a port (the capital excepted)', () => {
+    // Checked at turns 15, 25 and 40 only: a path being laid has a dead-end tip for a few turns (FR-124 test).
+    const deadEnds = (games: Map<number, Game>) => SEEDS.flatMap(seed => games.get(seed)!.checkpoints.map(c => ({ seed, turn: c.turn, deadEnds: c.deadEnds })));
+    console.log('FR-125 dead ends, frozen M4 player:', JSON.stringify(deadEnds(m4).filter(r => r.deadEnds.length)));
+    expect(deadEnds(now)).toEqual(SEEDS.flatMap(seed => CHECKPOINTS.map(turn => ({ seed, turn, deadEnds: [] }))));
+    // The invariant can fail: the frozen M4 player lays rail to resource tiles, not to depots, and by turn 40 it
+    // ends on a tile with neither on every seed
+    expect(SEEDS.map(seed => m4.get(seed)!.checkpoints[2].deadEnds.length > 0)).toEqual(SEEDS.map(() => true));
   });
 
   it('FR-125 the same seed gives the same game', () => {
