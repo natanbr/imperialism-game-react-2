@@ -2,7 +2,7 @@
   "project": "Imperialism Revival",
   "updated": "2026-11-09",
   "target": "v1 playable (M3)",
-  "now": "M4.2 merged (PR 19): the computer nation scores 1.6 to 2.5 times the M4 player. Open: Q17, Q19, and your next play-test",
+  "now": "M4.3 merged (PR 20): transport popup icons and groups, rail links are the sections built. Open: Q17, Q19, Q20 and your next play-test",
   "source": "docs/REVIVAL_PLAN.md and docs/report/roadmap.json in the imperialism-game-react-2 repo",
   "overview": {
     "headline": "main has v1 playable plus the small two-island map and clean look (M0 to M3.5 merged, PR 15 last). Next: M4, a second nation on island 2 driven by a scripted player.",
@@ -542,6 +542,16 @@
         "suggestion": "Let the computer recruit workers, so it uses its capacity; keep the score formula you know.",
         "items": [
           "M4.2"
+        ]
+      },
+      {
+        "id": "Q20",
+        "title": "Hide the Materials and Goods groups in the transport popup until something produces them?",
+        "status": "open",
+        "context": "In v1 all materials and goods show 0 / 0 in the transport popup, and the rules say some (paper, canned food, armaments) can never be shipped.",
+        "suggestion": "Hide those groups until towns produce them.",
+        "items": [
+          "M4.3"
         ]
       }
     ]
