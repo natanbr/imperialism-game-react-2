@@ -17,8 +17,8 @@
 - 2026-11-13 M5 (FR-144 to FR-160, FR-235) merged (PR 23, main 0bfd870; entries archived in
   `docs/journal/archive-M5.md`). The app plays the continent. Card Q22 (the continent's tilt) still open.
 - 2026-11-13 M6 Diplomacy in progress on `claude/m6-diplomacy` (worktree `imperialism-game-revival-fee36d`):
-  engine half first (FR-161 to FR-176, FR-180/181 engine parts), then the UI half (FR-175 dialog, FR-177 to
-  FR-179, the FR-180 e2e).
+  engine half done (FR-161 to FR-174, FR-176, FR-180/181 engine parts tested, API in its journal entry); next the
+  UI half (FR-175 dialog, FR-177 to FR-179, the FR-180 e2e), then the milestone review.
 
 Carried forward:
 - Deferred: river ports and the depot-on-port rule (rules 04); University fees; the power plant.
@@ -157,3 +157,87 @@ The continent world (two Great Power islands of 4 provinces each, Arvelia as the
 Pellis on islands), minor nations apart from `nations`, `state.diplomacy` by pair, intents, `ctx.rngFor`, province and
 minor borders on the map, the minor tile panel. FR-144 to FR-160 and FR-235 tested; 976 unit tests, Playwright 24
 passed, 1 skipped; every v1 baseline unchanged on two-islands. Merged as PR 23 (main 0bfd870).
+
+## 2026-11-13 M6 Diplomacy, engine half (FR-161 to FR-174, FR-176, FR-180 and FR-181 engine parts)
+
+Size: L (engine-wide: new order kinds, a turn phase, new state, the scripted player). One engine agent (Opus 5.5, xhigh,
+no subagents, no advisor call), started by the M6 workflow. Branch `claude/m6-diplomacy` from main 0bfd870 (worktree
+`imperialism-game-revival-fee36d`). The UI agent builds FR-175 (the dialog), FR-177 to FR-179 and the FR-180 e2e next.
+
+Plan-lite:
+- Change: five order kinds that store diplomacy intents (`orders/diplomacyOrders.ts`); the diplomacy phase that resolves
+  them by kind in `intentOrder` (`systems/diplomacySystem.ts`); `state.proposals` for a human's answer next turn; the
+  FR-174 answers and peace offers (`diplomacy/scriptedAnswers.ts`, `ai/diplomacy.ts`); nine events and their news text.
+- Consumers: the UI half (Diplomacy screen, Accept Offer, e2e); M7 (trade reads consulates, subsidies, boycotts and war,
+  and adds +1 a deal); M8 (`militaryStrength` reads the armies); M9 (attacks read `warActive`, conquest writes
+  `War.captures`, peace already drops `attack` intents).
+- Tests: FR-161 `orders/diplomacyOrders.test.ts`, `validate.test.ts`, `apply.test.ts`; FR-162 `validate.test.ts` (43 rows)
+  and `ui/gameText.test.ts`; FR-163 to FR-173 and FR-180 `diplomacy.test.ts` and `store/diplomacyStore.test.ts`; FR-174,
+  FR-181 `scriptedDiplomacy.test.ts` with `scriptedScore` and `continentScore` unchanged; FR-176 `ui/gameText.test.ts`,
+  `ui/diplomacyNews.test.tsx`.
+- Verify: the gate (`npm test`, `npm run lint`, `npx tsc --noEmit`, `npm run build`).
+- Objection: the relation sizes (Q24) and the scripted thresholds (Q29) are remake guesses, and in M6 only grants, pacts
+  and wars move relations; whether the nine levels feel right can only be judged once M7 adds +1 a trade.
+
+Red before green (the six engine and text files written first, run on main's code): `Test Files 6 failed (6)`,
+`Tests 67 failed | 149 passed (216)`. Three files failed to load (`Cannot find module '@/engine/diplomacy/queries'`:
+`diplomacy.test.ts`, `scriptedDiplomacy.test.ts`, `orders/diplomacyOrders.test.ts`); `validate.test.ts` 38 of 143 (the five
+FR-161 accepted rows, every FR-162 row expecting a new reason or "ok"); `apply.test.ts` 4 of 23; `gameText.test.ts` 25 of
+50. Passing at red (guards): the FR-162 rows expecting `invalid-target` and the apply "refused, same object" row, since an
+unknown order kind already fell to `invalid-target`. Written after the engine: `diplomacyNews.test.tsx` failed on the
+old news panel (`Tests 1 failed (1)`, the line read "Consulate opened in minor-1."); `store/diplomacyStore.test.ts`.
+
+Decisions (defaults taken, nobody to ask):
+1. `proposal-received` carries the receiving human as `nationId` (and `fromId`), so "Valdoria offers us an alliance." is
+   in the player's own news, not under "Valdoria:". FR-176 says "the acting Great Power". Objection: one event type reads
+   the other way round; the alternative puts the player's own offer under another nation's name.
+2. An accepted alliance or peace between two Great Powers emits `overture-done` for each of them (proposer first).
+3. Both sides proposing peace (or an alliance) to each other in the same turn agree at once, whoever answers by rule.
+4. `already-in-place` also for an embassy, pact, alliance or peace already ordered this turn (FR-162 names consulate and
+   war only); answers and grants replace instead (FR-161).
+5. A war's relation effects use the levels at the start of the war step, are summed per pair and clamped once; the pair
+   loses 40 once per war even with two declarers. So the declarations' order changes nothing (FR-173). `relation-changed`
+   compares each pair's level at the start and the end of the phase (one event per Great Power, none if it went back).
+6. FR-174 (c): "no province changed hands in the last 3 turns" = no capture on turns T-3 to T-1 at the phase of turn T
+   (combat runs after diplomacy). `War.captures` (M9 writes them) and `War.lastPeaceOffer` (the 3-turn wait) are new.
+7. `militaryStrength(state, countryId)` sums FPN x health / 100 over `state.armies` units that are not militia, so it is
+   0 until M8 and condition (b) never fires in M6 (both 0, not "below"); M8 may change the Army shape it reads.
+8. A once-grant to a target with a standing locked grant pays both; a new locked grant replaces the standing one and is
+   paid once that turn. "grant" withdrawn twice (stop already queued) is refused; give a new locked grant to resume.
+9. A trade policy that fails at resolution (a subsidy at war or without a consulate) fails whole, boycott part too.
+10. `GameState.proposals` is optional (newGame sets `[]`; a hand-built state reads `[]` via `proposalsOf`, as `market?`),
+    so the 21 hand-built test states needed no setup line. `Intent.kind` stays a string; M6 narrows its own kinds as
+    `DiplomacyIntent`, so the M5 intents test with kind "test" is unchanged. `addIntent` is generic to keep the fields.
+11. `eventText(event, nameOf?)` names countries (ids by default); `newsLines` passes its `nameOf`. The HUD's NewsPanel
+    (a UI file, one line) now also names minor nations.
+12. ORDER_TEXT names: "Overture", "Grant", "Trade policy", "Withdrawal", "Answer".
+
+Engine API for the UI half (all from `@/engine`): orders `proposeOverture { nationId, overture, targetId }`, `giveGrant
+{ nationId, targetId, amount, locked }`, `setTradePolicy { nationId, targetId, subsidyPercent, boycott }`,
+`withdrawOverture { nationId, overture | "grant" | "trade-policy", targetId }`, `answerProposal { nationId, proposalId,
+accept }`; `OVERTURES`, `OVERTURE_COST`, `GRANT_AMOUNTS`, `GRANT_POINTS`, `SUBSIDY_PERCENTS`; `relationOf`,
+`relationLevel`, `RELATION_SWATCHES`, `countryName`; `isAtWar`, `warBetween` (`since` for "At war since turn 5"),
+`warActive`, `holdsConsulate`, `holdsEmbassy`; `diplomacyIntentsOf(state, nationId, targetId?)` (this turn's intents with
+`cost`; kinds consulate to peace, "grant" with `amount`/`locked`, "grant-stop", "trade-policy" with
+`subsidyPercent`/`boycott`, "answer"); `pendingProposalsFor(state, nationId)` (FR-175: open, unanswered, oldest first),
+`proposalAnswer`, `proposalsOf`; `validateOrder` + `REFUSAL_TEXT` for the disabled controls (FR-178); `eventText(event,
+nameOf)`, `newsLines`. Types `Overture`, `WithdrawableOverture`, `Proposal`, `ProposalKind`, `GrantAmount`,
+`SubsidyPercent`, `War`, `DiplomacyIntent`, `DiplomacyOrder`. Not added: the `isDiplomacyOpen` store flag (FR-177; the
+FR-160 reset guard in `store/computerNations.test.ts` will ask `startNewGame` to reset it).
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| Red run, 6 files | `npx vitest run` of the six engine and text files | `Test Files 6 failed (6)`, `Tests 67 failed \| 149 passed (216)` |
+| FR-161 to FR-174, FR-176, FR-180 engine | `npx vitest run` of the eight M6 files | `Test Files 8 passed (8)`, `Tests 317 passed (317)` |
+| Guards bite (7 mutants) | `node mutate.mjs` (scratch): pact 0 points; consulate step before war; stored order, not `intentOrder`; peace (c) after 5 turns; embassy without consulate; -40 per declaration; locked repeat paid twice | each `Tests 1 failed` or more (1, 1, 1, 3, 2, 1, 5) |
+| FR-181, FR-159 v1 baselines | `npm test` console; `git diff --stat 0bfd870 HEAD -- <the eight v1 files> m4ScriptedPlayer.ts continentScore.test.ts` | `FR-125 seed 1: t15 616/390 (1.58) ... t40 1493/650 (2.30)` as in M5; `FR-157 nation 2 score at turn 40: [[1,1493],[2,1496],[3,1490],[4,1476]]`; no diff |
+| Engine commit alone (50a4b17) | the phase files set aside, `npx tsc --noEmit`, `npm test` | exit 0; `Test Files 69 passed (69)`, `Tests 1075 passed (1075)` |
+| Unit tests | `npm test` | `Test Files 73 passed (73)`, `Tests 1157 passed (1157)` (+181 on 976); 0 "not wrapped in act" |
+| Lint | `npm run lint`; `npx eslint . --ignore-pattern ".gate/**"` | `✖ 4 problems (0 errors, 4 warnings)`; without `.gate`: `✖ 3 problems (0 errors, 3 warnings)` (as in M5) |
+| Types | `npx tsc --noEmit` | exit 0, no output |
+| Build | `npm run build` | `✓ Compiled successfully in 3.2s`, `✓ Generating static pages (4/4)` |
+
+Not run here: Playwright (not in this agent's gate; the UI half adds `e2e/m6-diplomacy.spec.ts`).
+
+How to see it in the app: not yet; no control builds a diplomacy order until the UI half. Headless:
+`npx vitest run tests/store/diplomacyStore.test.ts` plays a consulate, an embassy and a war on Lorran through the store.

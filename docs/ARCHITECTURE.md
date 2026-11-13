@@ -37,8 +37,13 @@ src/app/
                            for the per-system streams (FR-150)
     diplomacy/relations.ts the diplomacy state (FR-151): pairKey, startDiplomacy, relationOf,
                            relationLevel, RELATION_SWATCHES
+    diplomacy/queries.ts   M6 reads: isAtWar, warBetween, warActive, holdsConsulate/Embassy,
+                           diplomacyIntentsOf (this turn's, with cost), proposalsOf,
+                           pendingProposalsFor, proposalAnswer, militaryStrength (FR-204, 0 before M8)
+    diplomacy/scriptedAnswers.ts  FR-174: acceptsAlliance, acceptsPeace, losingWar
     orders/                Order.ts (union + RejectReason), validate.ts, apply.ts,
                            industryOrders.ts (production, expansion, cars, training, migration),
+                           diplomacyOrders.ts (the five diplomacy orders: validate and apply),
                            queries.ts (read-only lookups and construction-site rules)
     industry/              labour.ts (labourOf: total, committed, free), industryState.ts
                            (createIndustry, buildingOf, migrantCap), foodForecast.ts (the meal
@@ -57,6 +62,7 @@ src/app/
     ai/economy.ts          the scripted player's economy: transport, training, cars, expansion, run, trade
     ai/railPlan.ts         read-only rail and tile planning: depot sites, rail paths, tilesByReach
     ai/players.ts          PLAYERS (controller -> Player) and computerOrders(state) (FR-099)
+    ai/diplomacy.ts        the scripted player's peace offers when losing a war (FR-174)
   store/
     rootStore.ts           createGameStore(options) and the app's useGameStore
     gameSlice.ts           game, activeNationId, lastRejection, eventLog, orderLog, submitOrder,
@@ -74,7 +80,9 @@ src/app/
   types/                   GameState, Tile, Worker, Nation, Industry, jobs, ...
   definisions/             rule tables: prices (workPrices), durations (workerDurations, the only
                            one), recipes and worker costs (ResourceConversions), buildings
-                           (industryBuildings), terrains, resources
+                           (industryBuildings), terrains, resources, diplomacy numbers
+                           (diplomacyRules: overture costs, grant sizes and points, war effects,
+                           the scripted answer thresholds)
   testing/                 test fixtures only: worldInit (5x5 test world), mockNation (two nations)
   constants/, styles/, utils/
 tests/
@@ -121,11 +129,33 @@ only (FR-018).
   player's hubs and reach); a depot site is blocked only by its own country's capital, depot or port.
 - **Diplomacy** (FR-151): `state.diplomacy[pairKey(a, b)]`, one entry per pair with at least one
   Great Power: points 0 to 89 (level floor(points / 10) on nine swatches), consulates, embassies,
-  pact, alliance, war, boycotts, subsidies, locked grants. M6 adds the overtures that change it.
+  pact, alliance, war (`{ aggressors, since, captures?, lastPeaceOffer? }`), boycotts, subsidies,
+  locked grants.
 - **Intents** (FR-152): an order that involves a second country (M6 to M9) stores an intent with
   `addIntent`; a phase resolves the turn's intents nation by nation in `intentOrder(state, turn)`
   (founding order rotated by the turn); `resolveTurn` drops the resolved turn's intents after the
-  phases.
+  phases. `Intent` is the stored shape (`kind` a string); each milestone narrows its own kinds
+  (M6: `DiplomacyIntent` in `types/Intent.ts`).
+
+### Diplomacy (M6)
+
+- **Orders** (FR-161, FR-162): `proposeOverture` (consulate, embassy, pact, alliance, war, peace),
+  `giveGrant`, `setTradePolicy`, `withdrawOverture`, `answerProposal` (`orders/diplomacyOrders.ts`).
+  Each stores an intent and changes nothing of the target; a consulate ($500), an embassy ($5,000)
+  and a grant are paid when ordered and refunded in full on a withdrawal.
+- **The phase** (`systems/diplomacySystem.ts`, FR-163 to FR-173): the turn's diplomacy intents by kind
+  (peace, war, consulate, embassy, pact, alliance, grants then the locked repeats, trade policies),
+  each kind in `intentOrder`; every intent is checked again and fails with its cost refunded
+  (`overture-failed`). It runs before the trade phase, so a consulate or policy counts in that turn's
+  trades. It works on its own copies and draws no random number.
+- **Proposals** (FR-166): an alliance or a peace to a human Great Power becomes `state.proposals`
+  (`{ id, fromId, toId, kind, turn }`, optional on a hand-built state, read through `proposalsOf`),
+  answered with `answerProposal` on the next turn; one still open at that End Turn is refused and
+  removed. A scripted Great Power answers by `scriptedAnswers.ts` (FR-174) in the same End Turn; a
+  minor always accepts peace.
+- **Relations** (FR-168, FR-172): grants, a pact and wars move the points (trade deals come in M7);
+  a war's effects are summed per pair and clamped once, so the declarations' order changes nothing;
+  `relation-changed` is emitted once per Great Power of a pair whose level moved in the phase.
 
 The store (`store/rootStore.ts`) holds that state under `game`, and UI state beside it:
 
@@ -405,9 +435,10 @@ never imports `src/app/testing` (ESLint rule, FR-043, now FR-080).
 
 ## Not on the engine yet
 
-- Diplomacy, combat and interceptions are stub systems (M5 adds their state: diplomacy, intents and
-  the random streams, but no order or phase uses them yet). Trade is a world market on both worlds,
-  with no bid/offer matching between nations and no Shipyard (holds do not grow).
+- Combat and interceptions are stub systems (diplomacy is built in M6). Trade is a world market on
+  both worlds, with no bid/offer matching between nations and no Shipyard (holds do not grow), so a
+  boycott, a subsidy and a war do not change any trade yet (M7), and no army or province capture
+  exists (M8, M9): `militaryStrength` is 0 and the FR-174 peace conditions (a) and (b) never fire.
 - The maps are fixed templates, `engine/world/twoIslands.ts` (FR-080) and the continent's minor land in
   `engine/world/continent.ts` (FR-145): the same for every seed, so
   e2e specs and M4 can name tiles. Island 2 is island 1 shifted 12 columns (a shift along a row
