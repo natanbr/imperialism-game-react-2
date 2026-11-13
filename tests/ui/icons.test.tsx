@@ -3,7 +3,7 @@
 // shows one icon for what it holds, the sea none; level badges; depot and port lights; no emoji on the
 // map, in the HUD or in the dialogs.
 import { describe, it, expect } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, within } from '@testing-library/react';
 import * as gi from 'react-icons/gi';
 import Home from '@/page';
 import { MapView } from '@/components/MapView';
@@ -44,8 +44,8 @@ describe('FR-084 icon set: Game Icons through react-icons/gi', () => {
   });
 
   it('FR-084 the capital, infrastructure, job markers and actions have Game Icons', () => {
-    // FR-109 New game and FR-110 the civilians' stack are HUD and map actions too
-    const wanted = ['capital', 'town', 'depot', 'port', 'prospecting', 'development', 'construction', 'warehouse', 'market', 'transport', 'center', 'advanceTurn', 'finalScores', 'about', 'newGame', 'civilians'];
+    // FR-109 New game and FR-110 the civilians' stack are HUD and map actions too; FR-177 the Diplomacy screen
+    const wanted = ['capital', 'town', 'depot', 'port', 'prospecting', 'development', 'construction', 'warehouse', 'market', 'transport', 'center', 'advanceTurn', 'finalScores', 'about', 'newGame', 'civilians', 'diplomacy'];
     expect(Object.keys(UI_ICONS).sort()).toEqual(wanted.sort());
     for (const name of Object.values(UI_ICONS)) expect(isGameIcon(name), name).toBe(true);
   });
@@ -123,7 +123,8 @@ describe('FR-085 what a tile shows', () => {
       selectedTileId: '2-9',
     });
     const { container, unmount } = render(<Home />);
-    expect(container.querySelector('[role="dialog"][aria-label="Game over"]')).not.toBeNull();
+    // FR-236: dialogs are named by their title (aria-labelledby), not aria-label
+    expect(within(container).getByRole('dialog', { name: 'Game over' })).toBeTruthy();
     const emoji = (container.textContent ?? '').match(/\p{Extended_Pictographic}/gu) ?? [];
     expect(emoji).toEqual([]);
     unmount();

@@ -14,9 +14,11 @@
 - 2026-11-12 night shift (NR-030): v2 planning and implementation. Plan on branch `claude/v2-plan`
   (this worktree, the old docs worktree `imperialism-game-revival-fee36d`); one branch per milestone
   after it. The progress page files now live on these branches too (copied from the docs branch).
-- 2026-11-13 M5 on `claude/m5-world`: engine half (FR-144 to FR-152, FR-156 engine, FR-157 to FR-159) and UI half
-  (FR-153 to FR-156, FR-160) tested; the app plays the continent. Milestone review done; its fix round (19 findings)
-  and a QA fix round (FR-235) are committed. Next: the re-review of the fix delta, then card Q22 (the continent's tilt).
+- 2026-11-13 M5 (FR-144 to FR-160, FR-235) merged (PR 23, main 0bfd870; entries archived in
+  `docs/journal/archive-M5.md`). The app plays the continent. Card Q22 (the continent's tilt) still open.
+- 2026-11-13 M6 Diplomacy on `claude/m6-diplomacy` (worktree `imperialism-game-revival-fee36d`): engine, UI, review fix
+  round, QA fix round and the fixes of its review (QA review F1 to F4) done, FR-161 to FR-181 and FR-236 to FR-241 tested;
+  not pushed. Next: the PR; add the decision card "who receives a grant" (fix round decision 3) at the checkpoint.
 
 Carried forward:
 - Deferred: river ports and the depot-on-port rule (rules 04); University fees; the power plant.
@@ -39,9 +41,6 @@ Carried forward:
 - M4.3 review finding 6 (hypothesis, not run): the score drop since M4.3 may come partly from
   `bestDepotSite`'s gain counting every gathered unit equally; weighing each unit by what the economy
   actually uses (food eaten, inputs of running buildings, what sells) may pick better sites.
-- M4.3 review finding 7: the transport popup's dialog uses `aria-label` where `aria-labelledby` (its
-  visible title) fits; no `aria-modal`, no focus moved into it on open or back on close, and Escape
-  does not close it. Accessibility pass in M5.
 - M4.4 review note 7: a stale store entry (an allocation in `transportAllocationsByNation` for a commodity
   that now has nothing to ship) flashes its group once per open, until the next slider move writes the
   clamped allocations back. The popup's local state clamps it right after the first render; the store keeps it.
@@ -148,251 +147,149 @@ was re-run with web pages only), rules writer (Sonnet 5.5 xhigh), spot-check (So
 - Objection: one province per minor and one army per province make war short (one battle takes a minor);
   acceptable for a first playable war, revisit after Nathan plays.
 
-## 2026-11-13 M5 World and seams for v2, engine half (FR-144 to FR-152, FR-156 engine, FR-157 to FR-159)
+## 2026-11-13 M5 World and seams for v2 (archived)
 
-Size: L (engine-wide: state shape, new world, turn context). One engine agent (Opus 5.5, xhigh, no subagents,
-no advisor call), started by the M5 workflow; ultracode is the workflow's own setting. Branch `claude/m5-world`
-(worktree `imperialism-game-revival-fee36d`) from main c378816. The UI agent builds FR-153 to FR-156 (UI) and
-FR-160 next, against the API below.
+Entries in `docs/journal/archive-M5.md`: engine half, UI half, review fix round (19 findings), QA fix round (FR-235).
+The continent world (two Great Power islands of 4 provinces each, Arvelia as the land bridge, Sundmark, Lorran and
+Pellis on islands), minor nations apart from `nations`, `state.diplomacy` by pair, intents, `ctx.rngFor`, province and
+minor borders on the map, the minor tile panel. FR-144 to FR-160 and FR-235 tested; 976 unit tests, Playwright 24
+passed, 1 skipped; every v1 baseline unchanged on two-islands. Merged as PR 23 (main 0bfd870).
 
-Plan-lite:
-- Change: `newGame` gets a `world` (registry `WORLDS`: "two-islands" stays the engine default, "continent" the
-  store's); the continent's minor nations, provinces, diplomacy state and intents enter `GameState`; the old
-  relation, treaty, policy, grant and `Nation.provinces` fields go; `ctx.rngFor(name)` for new systems.
-- Consumers: the store (`startNewGame({ world })`), the UI agent (map borders, minor tiles, tile panel), M6 to
-  M9 (diplomacy, trade, armies, war write into `diplomacy`, `intents`, `provinces` and draw from `rngFor`).
-- Tests: FR-144 `engine/worlds.test.ts`, `store/gameStore.test.ts`; FR-145 `engine/continentWorld.test.ts`;
-  FR-146, FR-149, FR-156 `engine/minorNations.test.ts`; FR-147, FR-148 `engine/provinces.test.ts` (+ the
-  FR-042 rows of `engine/industry.test.ts`); FR-149 `engine/validate.test.ts`; FR-150 `engine/rngStreams.test.ts`
-  and the scan in `engine/purity.test.ts`; FR-151 `engine/diplomacyState.test.ts`; FR-152
-  `engine/intents.test.ts`; FR-157, FR-158 `engine/continentScore.test.ts`; FR-159 the eight v1 files, unchanged.
-- Verify: the gate (`npm test`, `npm run lint`, `npx tsc --noEmit`, `npm run build`).
-- Objection: the store now starts the continent while the screens still name a minor's tile "Unclaimed" and
-  draw no province or minor border; until the UI half lands, the app shows the new land without its names
-  (checked: the page renders on a continent game, 3 turns end, no error).
+## 2026-11-13 M6 Diplomacy, engine half and UI half (archived)
 
-Red before green (all new tests written first, then run against main's code):
-`npx vitest run` of the 12 M5 files gave `Test Files 10 failed | 2 passed (12)`, `Tests 18 failed | 200 passed
-(218)`. Five files failed to load for the missing modules (`Cannot find module '@/engine/world/worlds'`,
-`world/countries`, `world/provinces`, `diplomacy/relations`, `turn/intents`); rngStreams 7 of 8 failed
-(`rngFor` and `fnv1a32` missing); continentWorld 2 failed (the minor land was sea); validate 6 FR-149 rows
-failed (the targets were sea, so `invalid-target`, not `not-owner`); industry 1 (the 8-province row); the store
-2 (the store built two-islands). The two passing files: the FR-150 scan in purity.test.ts (a guard: main
-already read `ctx.rng` in the two systems only) and continentScore.test.ts (the world option was ignored, so
-both "worlds" were two-islands; it compares only after the continent exists).
+Entries in `docs/journal/archive-M6.md`, with their plan-lite, red runs, decisions and evidence tables. Engine half (FR-161
+to FR-174, FR-176, FR-180 and FR-181 engine parts): five diplomacy order kinds stored as intents, the diplomacy phase,
+`state.proposals`, the scripted answers and peace offers, nine events; the engine API the UI uses is listed there; 1157
+unit tests. UI half (FR-175, FR-177 to FR-179, the FR-180 e2e): the Diplomacy screen, Accept Offer, the relation colours;
+1189 unit tests, Playwright 25 passed, 1 skipped.
 
-Decisions (defaults taken, nobody to ask):
-1. The continent founds the Great Powers on the two-island map, then adds the minor land: `settleIsland`
-   claims an island by flooding over land, and Arvelia would hand both islands and itself to nation 1.
-   Objection: the continent's start depends on the two-island builder; a change there changes both worlds
-   (intended: FR-145 asks the islands to be identical).
-2. `GameState.worldId` is optional (absent on a hand-built test state); `minorNations`, `provinces`,
-   `diplomacy` and `intents` are required, so the 21 hand-built test states (fixtures and system tests) got setup lines (empty lists, and
-   `startDiplomacy` in the two-nation fixture); no assertion changed. Objection: none.
-3. `ctx.rngFor(name)` seeds with the turn being resolved (`ctx.turn`), as FR-150 says; `ctx.rng` keeps its
-   `turn + 1` from before M1. One stream per name and context, so a second call goes on. Objection: two
-   conventions side by side; changing `ctx.rng` would move every v1 baseline.
-4. `Intent.kind` is a string until M6 narrows it to its union; `addIntent` gives ids "intent-<turn>-<n>".
-5. `transferProvince` moves ownership only (the province's `ownerId`, the tiles' `ownerNationId`); rail,
-   civilians and jobs on the land are M9's. It throws on an unknown province or country.
-6. `countryOfTile` answers the province owner first, then `ownerNationId` (two-islands has no provinces).
-   `relationLevel` is undefined for two minors (no entry).
-7. The FR-105 store test now calls `startNewGame({ seed: 12, world: "two-islands" })` (the FR-160 rule for a
-   store test that pins the engine default), so its assertion is unchanged.
-8. `migrantCap(state, nationId)` replaced `migrantCap(nation)`; the capital dialog's `labourView(state, nation)`
-   and `CapitalModal` changed one line each to pass the state (UI files touched only for this signature).
+## 2026-11-13 M6 Diplomacy, review fix round
 
-Notes for the UI agent and M6 to M9 (seams found, nothing changed for them):
-- On the continent 9-4, 14-4 and 14-5 are no longer next to the sea, so they stop being port sites (Arvelia's
-  land is there). No player builds ports, and FR-158 shows nation 2 unchanged.
-- `isDepotSite` treats any Capital tile as a gathering tile, a minor's capital included; in M5 no Great Power
-  tile is next to a minor capital, so it does not matter until land changes hands (M9).
-- The tile panel shows a minor tile as "Owner: Unclaimed" until FR-155.
-
-Engine API for the UI half (all from `@/engine`): `WORLDS`, `DEFAULT_WORLD`, type `WorldId`; `countryName(state,
-id)`, `isGreatPower`, `isMinorNation`, `minorNationById`, `countryOfTile(state, tile)`, `minorNationAt(state,
-tile)`; `provinceOf(state, tileId)`, `provinceById`, `provincesOf(state, countryId)`, `adjacentProvinces`,
-`transferProvince`; `pairKey`, `relationOf`, `relationLevel`, `RELATION_SWATCHES`; `intentOrder`,
-`byIntentOrder`, `addIntent`; `RNG_STREAMS`; types `CountryId`, `MinorNation`, `Province`, `PairDiplomacy`,
-`DiplomacyState`, `Intent`. Tiles carry `provinceId`; a minor's tiles have no `ownerNationId`; minor capitals
-are Capital tiles with no `cityId`. Store: `startNewGame({ seed, turnLimit, world })`, `createGameStore({ world })`,
-`APP_WORLD` = "continent".
-
-| Claim | Command | Result (quoted) |
-|---|---|---|
-| Red run, 12 M5 files | `npx vitest run tests/engine/worlds.test.ts ... tests/store/gameStore.test.ts` (12 files) | `Test Files 10 failed \| 2 passed (12)`, `Tests 18 failed \| 200 passed (218)` |
-| FR-144 to FR-152, FR-156 engine, FR-157, FR-158 | `npx vitest run` of the 12 files + `tests/store/computerNations.test.ts` | `Test Files 13 passed (13)`, `Tests 278 passed (278)` |
-| FR-157 | same run, console | `FR-157 nation 2 score at turn 40: [[1,1493],[2,1496],[3,1490],[4,1476]]` (the two-islands FR-125 numbers) |
-| FR-159 v1 baselines | `npx vitest run tests/engine/scriptedScore.test.ts tests/engine/twoNations.test.ts tests/engine/startWorld.test.ts tests/engine/newGame.test.ts tests/engine/secondNation.test.ts tests/engine/determinism.test.ts tests/engine/railSections.test.ts tests/engine/scriptedRail.test.ts` | `Test Files 8 passed (8)`, `Tests 125 passed (125)`; `FR-125 seed 1: t15 616/390 (1.58) ... t40 1493/650 (2.30)` as in M4.4 |
-| FR-159 files unchanged | `git diff --stat c378816 HEAD -- <the eight files> tests/engine/m4ScriptedPlayer.ts` | no output |
-| Unit tests | `npm test` | `Test Files 66 passed (66)`, `Tests 932 passed (932)` (+87 on 845) |
-| Lint | `npm run lint` | `✖ 3 problems (0 errors, 3 warnings)` (the same 3 as on main) |
-| Types | `npx tsc --noEmit` | exit 0, no output |
-| Build | `npm run build` | `✓ Compiled successfully in 9.1s`, `✓ Generating static pages (4/4)` |
-| Engine commit alone | store files at main, then `npx tsc --noEmit` and `npm test` | exit 0; `Test Files 66 passed (66)`, `Tests 929 passed (929)` |
-
-Not run here: the Playwright smoke suite (not in this agent's gate). e2e specs that pin two-island facts of the
-app's default game (for example `e2e/islands.spec.ts`) are FR-160's, with the UI half.
-
-How to see it in the app: `npm run dev`; a new game is the continent: land in the channel between the islands
-(Arvelia in the north joins them, three small islands elsewhere). The minors' names, province borders and the
-tile panel text come with the UI half.
-
-## 2026-11-13 M5 World and seams for v2, UI half (FR-153 to FR-156, FR-160)
-
-Size: M (map overlay, tile names, tile panel, click policy; e2e on the new default). One UI agent (Opus 5.5, xhigh,
-no subagents, no advisor call), started by the M5 workflow after the engine half; same branch and worktree.
-
-Plan-lite:
-- Change: MapView draws dotted province lines, the Great Power borders and dashed minor borders
-  (`territoryBorders.ts`); a minor capital shows the minor's name (`Tile/TileName.tsx`); tile names, the click and
-  the tile panel ask `countryOfTile`, so a minor's tile is "owned by Arvelia", only viewed, and the panel shows
-  "Arvelia (minor nation)" and the province; two tokens `--color-minor`, `--color-province-border`.
-- Consumers: the player on the continent default; M6 to M9 (the Diplomacy screen and armies reuse the minor
-  colour, the province lines and the `countryOfTile` click rule).
-- Tests: FR-153 `ui/provinceMap.test.tsx`; FR-154 `ui/palette.test.ts`; FR-155 `ui/accessibleNames.test.tsx`,
-  `ui/minorTiles.test.tsx`; FR-156 `ui/watchNation.test.tsx`; FR-160 `store/computerNations.test.ts` (flag reset
-  guard), `e2e/m5-world.spec.ts` and three e2e specs moved to the continent.
-- Verify: the gate and `PORT=3160 npx playwright test --workers=1 --reporter=line`.
-- Objection: the minor border lies on the same line as a Great Power's where Arvelia meets it, so that edge shows
-  slate dashes over the nation colour rather than two separate lines (accepted: it reads as a shared border).
-
-Red before green: the five new or extended UI files and the store file before any source change gave
-`Test Files 4 failed | 2 passed (6)`, `Tests 10 failed | 55 passed (65)`: `provinceBorderSegments is not a function`
-(provinceMap), `undefined --color-minor` (palette, 4), `'Hardwood forest, timber, level 1, not owned'`
-(accessibleNames), `'Owner: Unclaimed'` for Arvelia and Sundmark, the engineer's click on minor land sending
-`moveWorker` orders, no `tile-province` (minorTiles, 5). The FR-156 UI rows and the FR-160 flag guard passed at
-once (guards: the HUD and the game-over screen already iterate `state.nations` only). The three e2e specs as on
-main, run on the continent: `3 failed`, `1 skipped`, `8 passed (48.7s)`: capitals `Expected: 2 Received: 6`
-(islands), land tiles `Expected: 200 Received: 226` (look), prospect cursor `Received string: "auto"` (cursor-icons:
-the first barren hills in page order is now Lorran's 13-1).
-
-Decisions (defaults taken, nobody to ask):
-1. Colours (FR-154, searched over the RGB cube against the test's own formulas): `--color-minor` #788098, a neutral
-   slate: dE 30.9 or more from both nation colours and "bad", 22.8 or more under deuteranopia and protanopia, 2.7:1
-   on the land. A warm ochre failed against "bad" under deuteranopia (7); every colour with more margin is near
-   black or a loud blue. `--color-province-border` #7a6e5e (warm grey): 3.45:1 or more on every land tint.
-   Objection: a slate border is quieter than the nation borders; the dashes and the name tags carry the minor.
-2. Line shapes: Great Power solid 2 px; province dots (`stroke-dasharray: 0 4`, round caps); minor dashes (`5 3`).
-   Drawing order: province lines, Great Power borders, minor borders, rail. One province path per owner of several
-   provinces (2 on a new game), one minor path per minor (4).
-3. The minor's name is a small tag at the bottom of its capital tile, the capital icon moved up as when civilians
-   stand there; `aria-hidden`, since the tile's name already says "Capital, owned by Arvelia".
-4. A click on any tile of another country (`countryOfTile`, a minor's included) only selects it, so a civilian
-   order onto minor land is never built and no refusal reaches the news (FR-149 by the click, FR-155).
-5. The panel: "Owner: Arvelia (minor nation)", "Province: …" (only when the tile has one), the note "Arvelia is a
-   minor nation: you can watch its land, not give orders here."; a Great Power's tile keeps its owner line.
-6. FR-160: no UI test built its game from the store default (all use `newGame({ seed })`, the engine default
-   two-islands), so none needed a `world` line. The e2e specs that pinned two-island facts of the app's game now
-   pin the continent, with the same tile ids: `islands.spec.ts` counts 6 capitals and names all six,
-   `look.spec.ts` 226 land tiles with an icon each, `cursor-icons.spec.ts` hovers the player's 5-2 by id. The new
-   spec is `e2e/m5-world.spec.ts`, the name FR-160 gives (the workflow brief said `e2e/m5.spec.ts`).
-   Objection: changing an assertion of an existing spec; each change follows the world, none loosens a check.
-7. `docs/journal.md` kept under 400 lines by archiving the merged M4.4 entry to `docs/journal/archive-M4.4.md`.
-
-Screenshot `docs/journal/m5-world.png` (1280x720, new game, seed random), looked at: the four name tags (Lorran,
-Arvelia, Sundmark, Pellis) on their capitals, dashed slate outlines around each minor, dotted lines splitting each
-island into 4 provinces, the nation borders unchanged; with Arvelia's forest selected the panel reads "Owner:
-Arvelia (minor nation)", "Province: Arvelia" and offers no button.
-
-| Claim | Command | Result (quoted) |
-|---|---|---|
-| Red run | `npx vitest run tests/ui/provinceMap.test.tsx tests/ui/palette.test.ts tests/ui/accessibleNames.test.tsx tests/ui/minorTiles.test.tsx tests/ui/watchNation.test.tsx tests/store/computerNations.test.ts` | `Test Files 4 failed \| 2 passed (6)`, `Tests 10 failed \| 55 passed (65)` |
-| FR-153 to FR-156, FR-160 | the same files and `tests/ui/territory.test.tsx` | `Test Files 7 passed (7)`, `Tests 80 passed (80)` |
-| e2e, old specs on the continent | the three specs as on main, `PORT=3160 npx playwright test ... --workers=1 --reporter=line` | `3 failed`, `1 skipped`, `8 passed (48.7s)` |
-| e2e smoke | `PORT=3160 npx playwright test --workers=1 --reporter=line` | `1 skipped`, `22 passed (1.3m)` (the skip is the old `test.fixme` rail cursor) |
-| Unit tests | `npm test` | `Test Files 68 passed (68)`, `Tests 956 passed (956)` (+24 on 932); 0 "not wrapped in act" |
-| FR-159 untouched | `git diff --stat c378816 HEAD -- <the eight v1 files> tests/engine/m4ScriptedPlayer.ts`, `git diff --stat -- src/app/engine tests/engine` | no output (the UI half changes no engine file and no v1 baseline) |
-| Lint | `npm run lint` | `✖ 3 problems (0 errors, 3 warnings)` (the same 3 as on main) |
-| Types | `npx tsc --noEmit` | exit 0, no output |
-| Build | `npm run build` | `✓ Compiled successfully in 4.4s`, `✓ Generating static pages (4/4)` |
-
-How to see it in the app: `npm run dev`; a new game shows Lorran, Arvelia, Sundmark and Pellis named on the map,
-each outlined in slate dashes, and dotted lines splitting each island into four provinces. Click the farm next to
-the capital: "Province: Testland South-West". Pick the engineer and click Arvelia's land: the tile is only viewed
-("Owner: Arvelia (minor nation)", no button, no refusal in the news).
-
-## 2026-11-13 M5 World and seams for v2, review fix round
-
-Size: M (one fix round on the milestone review: 1 major, 18 minor findings). One fix agent (Opus 5.5, xhigh, no
-subagents, no advisor call), started by the M5 workflow; same branch and worktree. The M5 rows were amended in place
-(not merged yet, so no new ids). A behaviour fix has a test that failed on the code before it; a test-strength fix
-shows its new check failing on a mutant the old check let through.
+Size: M (one fix round on three milestone reviews: 1 blocker, 2 major, 17 minor; three overlap). One fix agent (Opus 5.5,
+xhigh, no subagents, no advisor call), started by the M6 workflow; same branch and worktree, not pushed. Review ids: A =
+the first review (R1 to R11), B = the second (R1 to R5), F = the third (F1 to F4). The M6 rows were amended in place (not
+merged yet, so no new ids; the M5 precedent). A behaviour fix has a test that failed on the code before it; a guard test
+shows its check failing on a mutant (`scripts/probes/m6/review-mutants.mjs`, committed so the result can be re-run).
 
 | Finding | What changed | Test |
 |---|---|---|
-| F1 (major) FR-157/158 never checked the world played | each game's final state must be on the world it names (worldId, 4 minors, 12 provinces; two-islands 0, 0) | continentScore.test.ts, rows "played on the continent", "each pair compares" |
-| F2 turn-40 scores "as on two-islands" not asserted | FR-157 also plays the current player on two-islands and asserts the same turn-40 score per seed | continentScore.test.ts |
-| R3 FR-158 compared nation 2 only | both nations every turn, and a second run with both nations played by the frozen M4 player | continentScore.test.ts, 4 new seed rows |
-| E3 no world invariant over 40 turns | `worldViolations(state, start)` in fixtures.ts (tile and province name each other, owner = province's Great Power or none, minors, provinces and minor tiles as at the start, same diplomacy pairs, no intent left), after every turn of every FR-157/158 game; a self-check row sees 4 kinds of breakage | continentScore.test.ts |
-| R2, E4 FR-150 scan only knew `ctx.rng` | any receiver (`.rng`), `['rng']`, `rng` in any destructuring incl. parameters; `turn/context.ts` allowed (it builds the stream); 9 read and 6 non-read samples | purity.test.ts |
-| R4 owner-write scan missed `{ ...tile, ownerNationId }` | shorthand in an object literal counts as a write, a destructuring pattern does not; 6 write and 6 read samples | provinces.test.ts |
-| E1 a taken minor capital became the new owner's "capital" | `isGreatPowerCapital(state, tile)` (queries.ts): Capital terrain that is not a minor's capital; used by the depot rule and the scripted player's hubs and reach (railPlan.ts) | provinces.test.ts "not its capital" |
-| R5 a neighbour's capital, depot or port blocked a depot | `isDepotSite` counts a neighbour only when it has the tile's owner | provinces.test.ts "blocked only by its own country's" |
-| E2 colony relation had two homes | `Nation.colonies` removed (read nowhere); `MinorNation.colonyOf` is the one home | minorNations.test.ts |
-| F3 store reset guard found flags by the name `is...` | every store key but `game` and the camera (kept on purpose) set to another value, then must be initial again | computerNations.test.ts |
-| F4 no contrast floor for `--color-minor` (2.7:1) | 3:1 floor on every tint and the sea; `--color-minor` #788098 -> #5e7c90 (searched with the test's formulas) | palette.test.ts |
-| R6 name tag wider than its tile, unchecked | documented in FR-153; e2e: centred, inside the tile's height, at most 2 tiles wide, on top at both ends | e2e/m5-world.spec.ts |
-| R1 the continent tilts toward nation 1 | not changed (FR-145 pins the tiles; a game-design call): the tilt is stated in FR-145 and pinned by a test (capital steps 2/3, 3/4, 2/2, 3/3; shore 35 and 34) | continentWorld.test.ts |
-| F5 plan said 2 bridges, 2 islands | REVIVAL_PLAN.md 5b "The v2 world": one bridge, three islands, Q22 option b | docs |
-| F6 FR-152 read as complete | status: helpers and the drop tested; order and phase wiring in M6 | docs |
-| F7, R7 behaviour with no row text | FR-144 names `createGameStore({ world })`; FR-148 the throw, FR-150 the throw, FR-155 the note sentence | docs |
+| B-R1 (blocker) "n" on the Subsidy select ended the turn | `useKeyboardShortcuts`: "n" ignored in an input, select, text area or editable text, and while any `role="dialog"` is in the page; FR-178 states it | diplomacyDialog.test.tsx "the End Turn key", 4 rows (Home with Diplomacy or Accept Offer open; the hook alone with each field kind) |
+| A-R1 (major), B-R2, F1 "Stop grant" took back this turn's grant | "Stop grant" disabled with "withdraw this turn's grant first" while a grant is ordered this turn (`stopGrantOf` in diplomacyView.ts); FR-178 | diplomacyDialog.test.tsx: lock + once grant: disabled, no order; withdraw, stop, give: End Turn stops the lock and pays the once grant only |
+| A-R2 (major) the page's Accept Offer untested | test renders Home with a proposal | diplomacyDialog.test.tsx "the page itself (Home)" (mutant: `<AcceptOfferModal />` removed from page.tsx, caught) |
+| F2 withdrawal fall-through queued a grant stop | `applyDiplomacyOrder`: only "grant" builds a stop; otherwise the state is returned unchanged | diplomacyOrders.test.ts "only "grant" can queue a grant stop" |
+| B-R5 war on a treaty partner said nothing of the cost | the question adds "This breaks our pact with Arvelia: relations with every other country get worse." (row field `brokenByWar`), also in the group's description | diplomacyDialog.test.tsx "war on a pact partner or an ally" |
+| B-R4 × titled "Decide later" | title "Close: an offer not answered by End Turn is refused"; FR-175 | diplomacyDialog.test.tsx closing row |
+| B-R3 a grant's money goes to nobody | kept (decision 3); FR-170 and the screen's note say so | diplomacy.test.ts "a grant buys relations only"; diplomacyDialog.test.tsx note row |
+| B-R2 (rest) once grant + lock pays both | FR-170 states it (engine decision 8) | diplomacy.test.ts "a once grant in a turn with a standing locked grant" |
+| A-R3 `proposal-received` against FR-176 | FR-176 and FR-166 name the exception (receiver in `nationId`, proposer in `fromId`) | diplomacy.test.ts: the "every event" row now has a proposal and pins its ids |
+| A-R4 minor bystander unguarded | 4 rows: either Great Power declares on the other, Arvelia at level 8 (30 to 20) or 0 (30 to 35) | diplomacy.test.ts (mutant: Great Powers only, caught) |
+| A-R5 failure paths untested | rows: policy fails whole at war; subsidy without consulate at resolution; accept an alliance in the war's turn; 5 news lines (pact, war, peace, trade policy x2); FR-171 states "fails whole" | diplomacy.test.ts, gameText.test.ts (mutants caught) |
+| A-R6 mutual proposals had no FR | kept and specified in FR-166 and FR-169 | diplomacy.test.ts: both propose peace (turn 2, Valdoria's first), both propose alliance at level 4 (mutants caught) |
+| A-R7 three behaviours with no FR row | FR-162 (already-in-place for embassy, pact, alliance, peace), FR-177 (capital button), FR-178 (Stop grant) | docs |
+| A-R8 FR-167 status | M7 (no trade at war, FR-185) and M9 (attacks, `warActive`) named as not built | docs |
+| A-R9 unused helpers | `isAtWar`, `holdsConsulate`, `holdsEmbassy` deleted (and their `@/engine` exports) | tsc, the gate |
+| A-R10 strength on the old Army shape | `regimentsOf` is the one read of the army shape; `militaryStrength` sums over it; FR-174 status says the (b) tests are provisional until FR-204 | scriptedDiplomacy.test.ts unchanged and green |
+| A-R11 journal errors | FR-174 sentence corrected; the two scratch mutation rows marked not reproducible | docs |
+| F3 frozen input missed paths | 3 frozen scenarios: answer accepted + new proposal + grant stop + unpaid lock; peace by answer + attacks dropped + unanswered refused; accept in the war's turn | diplomacy.test.ts (mutants: push into the input's proposals, delete from the input's grants, caught) |
+| F4 pair key rebuilt by hand | `acceptsPeace` uses `pairKey` | scriptedDiplomacy.test.ts unchanged and green |
 
 Decisions (defaults taken, nobody to ask):
-1. E1: minor capitals keep the Capital terrain (FR-145 pins it, the map icon and tile name use it). Only the rules
-   that mean "this nation's own capital" changed. Objection: `isRailNode`, `hasRailStartingPoint` and `fortLevelOf`
-   still read the terrain, so a taken minor capital is a rail start and has a fort for its new owner; FR-222/FR-224
-   decide that in M9 (carried).
-2. F4: a darker slate over an exemption, so a later colour edit cannot pass below 3:1. Objection: the margins are
-   thin (3.06:1, ΔE 31.3, 20.5 under colour blindness); every colour with more margin is near black or a loud blue.
-   `docs/journal/m5-world.png` still shows the old slate; the app check retakes it.
-3. R1: the tiles stay; the tilt goes to card Q22 for Nathan (the card is not in `docs/report/roadmap.json` yet; add it
-   at the checkpoint): accept it, or make Lorran 3 tiles (`11-1` to `13-1`, capital `12-1`) under a new FR id.
+1. A-R1: "Stop grant" waits (disabled, with the reason) rather than a new order kind for the stop. Objection: stopping a lock
+   and giving a once grant in one turn takes three clicks (withdraw, stop, give); a `stopGrant` order would take one but
+   changes FR-161's five order kinds.
+2. B-R1: "n" is off while any dialog is open, not only on the Diplomacy screen (capital, market, warehouse, transport, About,
+   game over). Objection: a player who ended turns with "n" while the capital dialog was open must close it first.
+3. B-R3: a grant buys relations and no country receives the money (option 2: no baseline can move; the scripted player gives
+   no grants, FR-181). Objection: rules 07 says only "raises relations" for Imp1; if Imp1 pays a Great Power recipient,
+   option 1 (credit it) is a small change in `resolveGrants`. A decision card for the orchestrator to add at the checkpoint.
+4. A-R6: the mutual agreement stays (removing it would make two nations that both offer peace refuse each other).
+5. A-R9: deleted rather than tested without a caller; M7 adds a consulate read with its first caller (FR-185).
+6. The mutation probe found that the select check was not pinned on its own (the Diplomacy dialog already blocks "n"), so the
+   hook row covers a select with no dialog open.
 
-Carried: the rest of E1 (decision 1, FR-222/FR-224 in M9) and the R1 card (decision 3).
-
-Found: with both nations played by the frozen M4 player, seeds 1 to 4 give the same per-turn values on both worlds,
-so nation 1's land next to Arvelia (9-4 no longer a port site) changes nothing an M4 player does.
+Carried: B-R4's better fix (list a dismissed offer with Accept and Reject in the proposer's card, or reopen it from the HUD);
+dormant until a proposal can reach the human (M8, M9). Found, not changed: holding "n" down ends one turn per key repeat (v1).
 
 | Claim | Command | Result (quoted) |
 |---|---|---|
-| Red, behaviour fixes E1, R5, E2 | the 6 source files at HEAD, `npx vitest run tests/engine/provinces.test.ts tests/engine/minorNations.test.ts` | `Tests 3 failed \| 26 passed (29)` (the 3 new rows) |
-| Red, F4 | `npx vitest run tests/ui/palette.test.ts` with #788098 | `Tests 1 failed \| 17 passed (18)`: 7 backgrounds below 3:1, mountains 2.73 |
-| F1 guard bites | `newGame` patched to ignore `world`, `npx vitest run tests/engine/continentScore.test.ts` | `Tests 3 failed \| 16 passed (19)` (the M5 file before the fix passed on such a mutant) |
-| F3 guard bites | `startNewGame` without `hoveredTileId: undefined`, new and old store files | `Tests 1 failed \| 23 passed (24)`: the new guard fails, the old file's 12 pass |
-| R2, E4, R4 guards bite | the old regexes on the new samples (node) | rng: 2 of 9 reads seen; owner: 3 of 6 writes seen |
-| R6 guard bites | `.minorName { z-index: -1 }`, `PORT=3160 npx playwright test e2e/m5-world.spec.ts` | `1 failed` at `onTop` |
-| Fixed | `npx vitest run tests/engine/continentScore.test.ts` | `Tests 19 passed (19)`; `FR-157 nation 2 score at turn 40: [[1,1493],[2,1496],[3,1490],[4,1476]]` |
-| FR-159 v1 baselines | `git diff --stat c378816 -- <the eight v1 files> tests/engine/m4ScriptedPlayer.ts`; `npm test` console | no output; `FR-125 seed 1: t15 616/390 (1.58) ... t40 1493/650 (2.30)` as before |
-| Unit tests | `npm test` | `Test Files 68 passed (68)`, `Tests 971 passed (971)` (+15 on 956); 0 "not wrapped in act" |
-| Lint | `npm run lint`; `npx eslint . --ignore-pattern ".gate/**"` | `✖ 4 problems (0 errors, 4 warnings)`: the 3 of main plus `.gate/dist.js` (the reviewer's untracked scratch file); without `.gate`: `✖ 3 problems (0 errors, 3 warnings)` |
+| Red, behaviour fixes | the four changed test files with the source as at 55c0aad | `Test Files 2 failed \| 2 passed (4)`, `Tests 9 failed \| 172 passed (181)`: the select presses (`expected 6 to be 1`), dialog open, Accept Offer open, the hook alone, Stop grant (`expected false to be true`), `war-cost` not found, the × title, the grant note, the F2 row |
+| Guards bite (11 mutants) | `node scripts/probes/m6/review-mutants.mjs` | exit 0, each `caught`: A-R2 page `Tests 2 failed \| 34 passed (36)`; B-R1 select `1 failed`, dialog `2 failed`; A-R4 `4 failed \| 66 passed (70)`; A-R5 subsidy at war `1 failed`, news text `2 failed \| 53 passed (55)`; A-R6 peace `1 failed`, alliance `1 failed`; F3 push `1 failed`, delete `2 failed`; B-R3 `1 failed`. First run: B-R1 select `SURVIVED` (`36 passed`), fixed by the no-dialog hook row |
+| Unit tests | `npm test` | `Test Files 74 passed (74)`, `Tests 1217 passed (1217)` (+28 on 1189); 0 "not wrapped in act" |
+| FR-181, FR-159 v1 baselines | `npm test` console | `FR-125 seed 1: t15 616/390 (1.58) ... t40 1493/650 (2.30)` and `FR-157 nation 2 score at turn 40: [[1,1493],[2,1496],[3,1490],[4,1476]]`, as before |
+| Lint | `npm run lint`; `npx eslint . --ignore-pattern ".gate/**"` | `✖ 4 problems (0 errors, 4 warnings)`; `✖ 3 problems (0 errors, 3 warnings)` (as before, none new) |
 | Types | `npx tsc --noEmit` | exit 0, no output |
-| Build | `npm run build` | `✓ Compiled successfully in 3.0s`, `✓ Generating static pages (4/4)` |
-| e2e smoke | `PORT=3160 npx playwright test --workers=1 --reporter=line` | `1 skipped`, `22 passed (1.2m)` |
+| Build | `npm run build` | `✓ Compiled successfully in 2.9s`, `✓ Generating static pages (4/4)` |
+| e2e smoke | `PORT=3160 npx playwright test --workers=1 --reporter=line` | `25 passed (1.1m)`, `1 skipped` (the old `test.fixme` in `cursor-icons.spec.ts`); the "n" key row of `market-and-game-over.spec.ts` still passes |
+| App check | a scratch Playwright spec (`.gate`, not kept, `PORT=3161`): consulate, embassy, pact + locked grant, then a once grant, "n" on Subsidy and on Give, Declare war | `1 passed (11.6s)`, turn stayed 4, no console error; `docs/journal/m6-fix-round-arvelia.png` (Stop grant greyed with its reason, the pact line) |
 
-How to see it in the app: `npm run dev`; the minors' dashed borders and name-tag frames are a slightly darker
-blue-grey slate; nothing else changes on a new game (the E1 and R5 rules only matter once land changes hands, M9).
+How to see it in the app: `npm run dev`, Diplomacy: with Arvelia's Subsidy select focused, "n" picks "none" and the turn
+stays; with the dialog open "n" does nothing, closed it ends the turn. With an embassy and a locked grant, Give a once grant:
+"Stop grant" is greyed with "withdraw this turn's grant first". With a pact, "Declare war" shows the second, red line.
 
-## 2026-11-13 M5 World and seams for v2, QA fix round (FR-235)
+## 2026-11-13 M6 Diplomacy, QA fix round (FR-236 to FR-241)
 
-Size: S (four HUD fixes from Nathan's QA screenshots). One agent (Opus 5.5, xhigh, no subagents, no advisor call).
-1. Scroll: the height chain was sound (`.hud-content`: flex child, `min-height: 0`, `overflow-y: auto`; 497 px tall, 572 px
-   of content with Arvelia selected; the wheel scrolls it 0 to 75 px). The QA shots showed no scrollbar because Playwright
-   starts Chromium with `--hide-scrollbars`; without that flag the old panel drew Chromium's default 15 px grey one. Missing
-   was a scrollbar of the panel's own that overlay-scrollbar systems (macOS, touch) also draw. Fix: `::-webkit-scrollbar`
-   8 px in tokens (Chromium, Safari), `scrollbar-width`/`-color` for Firefox only (trap: Chromium drops the WebKit rules once
-   those are set), `scrollbar-gutter: stable`. 2. A sticky `::after` fades the content into the surface over the last 24 px
-   (12 px opaque, clicks pass through); at the end it sits below the Debug box. 3. No Province line on a minor's tile.
-   4. "Map legend" in About, samples drawn with the map's `MapView.module.css` classes and tokens.
-Not verified: Firefox and WebKit (no Playwright build installed; the `@supports` block is in the built CSS); overlay
-scrollbars (Chromium's OverlayScrollbar flag changes nothing headless). Screenshot `docs/journal/m5-qa-minor-tile.png`
-retaken with scrollbars drawn (`.gate/qa-fix-shot.mjs`, not committed): no Province line, thin scrollbar, Debug box fading.
+Size: M (Nathan's five QA items). One agent (Opus 5.5, xhigh, no subagents, no advisor call), started by the M6 workflow;
+same branch and worktree, not pushed. FR-151 and FR-176 to FR-178 point to the new rows; FR-236 closes M4.3 finding 7.
+
+| Item | What changed | Test |
+|---|---|---|
+| 1 FR-236 | `components/Modal.tsx` for all nine dialogs (Construction Options too): aria-modal, named by its title, focus in and back to the opener, Tab trap, Escape, backdrop click; a stack, so only the top dialog answers; About is a modal over the page | dialogs.test.tsx (37 rows), m6-dialogs.spec.ts (3) |
+| 2 FR-237 | Diplomacy in two panes: a tab per country (chips, "1 ordered") and the selected one's panel; each refusal once under its group (`reasonLines`); a 640 px frame, only the panes scroll | diplomacyDialog.test.tsx (5 rows; helpers select a tab), m6-diplomacy.spec.ts fit test |
+| 3 FR-238, FR-239 | war question: "A war on a minor nation also lowers our relations with every other minor nation, by half a level each."; `relation-changed.wars` and "(our war on Lorran)" | diplomacyDialog.test.tsx; diplomacy.test.ts (4 rows), gameText.test.ts (4), e2e news line |
+| 4, 5 FR-240, FR-241 | `startTreaties` on a Great Power pair from newGame, removed by a war between the two; chips "Consulate since the start" + tooltip. "Declare war" at war: "we are already at war with them" | diplomacyState, diplomacy.test.ts (3), diplomacyDialog.test.tsx (3) |
+
+Decisions (defaults, nobody to ask): (1) a dialog's name is its whole title ("Diplomacy — Testland"); exact names updated in
+three unit test files, Playwright matches substrings. (2) Game over has no close; Accept Offer focuses the dialog itself
+(Enter accepts), Escape rejects, the backdrop acts as ×; Escape in the war question answers "Keep the peace" first. (3) The
+selected country outlives a close (component state; FR-160's guard unaffected). (4) "Since the start" needs history the state
+lacked (a war ends the start treaties; one reopened after peace is not from the start), hence the optional engine mark;
+Objection: one more field on FR-151's entry, read by no v1 baseline. (5) FR-241 is view wording; the engine keeps
+`already-in-place`. (6) e2e/m5-hud-scroll (1) closes About (Escape) before measuring: About is no longer HUD content.
 
 | Claim | Command | Result (quoted) |
 |---|---|---|
-| Red, items 3 and 4 | `npx vitest run tests/ui/about.test.tsx tests/ui/minorTiles.test.tsx` before the source change | `Tests 5 failed \| 7 passed (12)`: no list "Map legend"; `minorWithProvince: [ …(26) ]` |
-| Red, items 1 and 2 | `PORT=3160 PW_REUSE_SERVER=1 npx playwright test e2e/m5-hud-scroll.spec.ts` on the old globals.css | `2 failed`: `"thin": false, "thumbPainted": false, "trackPainted": false`; `"notSurface": 84` |
-| Green, items 1 to 4 | the same three files and `e2e/m5-world.spec.ts` (now no Province line on 10-3) | `Tests 30 passed (30)` (with palette.test.ts); `2 passed (8.5s)`; full e2e below |
-| Unit tests | `npm test` | `Test Files 68 passed (68)`, `Tests 976 passed (976)` (+5 on 971); 0 "not wrapped in act" |
-| Lint, types, build | `npm run lint`; `npx tsc --noEmit`; `npm run build` | `✖ 4 problems (0 errors, 4 warnings)` (the 3 of main plus `.gate/dist.js`); exit 0, no output; `✓ Compiled successfully in 3.8s`, `✓ Generating static pages (4/4)` |
-| e2e smoke | `PORT=3160 npx playwright test --workers=1 --reporter=line` | `1 skipped`, `24 passed (1.2m)` (+2: e2e/m5-hud-scroll.spec.ts) |
+| Red | the 7 new or changed unit test files, then the 3 e2e specs, on the source of 41e1e54 | `Test Files 5 failed | 2 passed (7)`, `Tests 83 failed | 170 passed (253)` (passing: the market and icons name guards); e2e `6 failed`, `1 passed`; old dialog `{"scrollHeight":1369,"clientHeight":648,"dialogScrolls":true}` |
+| Guards bite (14 mutants) | `node scripts/probes/m6/qa-mutants.mjs` | exit 0, each `caught` (e.g. no stack `1 failed`, no Tab trap `7 failed`, war keeps the mark `1 failed`) |
+| Unit tests, baselines | `npm test` | `Test Files 75 passed (75)`, `Tests 1275 passed (1275)` (+58 on 1217), 0 act warnings; FR-125 and FR-157 lines as before |
+| Lint, types, build | `npm run lint`; without `.gate`; `npx tsc --noEmit`; `npm run build` | `✖ 5 problems (0 errors, 5 warnings)` (2 in older .gate scripts); `✖ 3 problems` as before; exit 0; `✓ Compiled successfully in 3.0s` |
+| e2e smoke | `PORT=3160 npx playwright test --workers=1 --reporter=line` | `29 passed (1.3m)`, `1 skipped` (the old `test.fixme`) |
+| App check, 1280x720 | `.gate/m6-qa/shots.mjs` (dev server 3160, scrollbars on) | `{"box":[180,40,920,640],"dialogScrolls":false,"details":"524/524"}`, no console error; `m6-qa-war-question.png`, `m6-qa-diplomacy-turn4.png` |
+
+How to see it: `npm run dev`, HUD "Diplomacy": pick a country on the left; Tab stays inside, Escape or a click outside closes it.
+
+## 2026-11-13 M6 Diplomacy, fixes of the QA fix round's review (QA review F1 to F4)
+
+Size: M (4 minor findings; called "QA review F1" to F4 here, since the review fix round used F1 to F4 for its third
+review). One fix agent (Opus 5.5, xhigh, no subagents, no advisor call), started by the M6 workflow; same branch and
+worktree, not pushed. FR-236 amended in place (M6 not merged). To keep this file under 400 lines, the M6 engine half and
+UI half entries moved unchanged to `docs/journal/archive-M6.md` before the milestone ends.
+
+| Finding | What changed | Test |
+|---|---|---|
+| F1 Tab from a focused spot that is not a control: untested | no code change; FR-236 states it | diplomacyDialog.test.tsx: Tab from the war question to its "Declare war", "Keep the peace", Shift+Tab to the overture; Tab from a disabled control that keeps the focus; e2e m6-dialogs (4th test) |
+| F2 `focusKey` and the focus return of Accept Offer, Game over, Construction Options: untested | no code change; FR-236 states the next offer's focus | dialogs.test.tsx, 4 rows: after a click left the focus on Reject the next offer has the focus on the dialog and Enter accepts it; Accept Offer, Game over and Construction Options give the focus back; Construction Options' Tab cycle |
+| F3 Escape answered the war question only with the focus inside it | `useEscapeFirst` in `Modal.tsx`: a part shown in a dialog takes Escape first, wherever the focus is; the war question uses it instead of its own `onKeyDown` | diplomacyDialog.test.tsx: Escape on the Amount select, the country tab, the close button; e2e (Escape on Amount) |
+| F4 after an order disabled or removed the focused control, Tab restarted at the top | `Modal.tsx` remembers on `focusin` what last took the focus and its place among the controls; with the focus on the page, Tab and Shift+Tab go on from there (disabled: the control after or before it; removed: the one now in its place) | diplomacyDialog.test.tsx: Consulate and Withdraw, both directions; e2e in Chrome: Enter on Consulate, Tab to "Declare war"; Enter on Withdraw, Tab to "Consulate ($500)" |
+
+Decisions (defaults, nobody to ask): (1) F3: a context of the shared dialog, not a capture listener in the war question,
+so the dialog stack still decides which dialog answers. Objection: one more export of `Modal.tsx` with one user. (2) F4:
+the focus is mended when Tab is pressed, not moved right after the order, so a second Enter never acts on a control the
+player did not pick. Objection: a screen reader hears nothing between the order and the next Tab. (3) A removed control's
+place is its index when it took the focus; a list that changed before the removal could shift it by one (no screen does
+that today), so no refresh on each key. (4) The unit tests imitate Chrome's focus fix-up by moving the focus off a
+disabled button through a scratch button outside the dialog (jsdom's `blur()` ignores a disabled button).
+
+Carried: Construction Options has no mutant of its own for the new rows (they run on the shared `Modal.tsx`, whose
+focus-return and Tab-trap mutants are caught by the HUD rows).
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| Red, F3 and F4 | `npx vitest run tests/ui/dialogs.test.tsx tests/ui/diplomacyDialog.test.tsx` with the tests first | `Test Files 1 failed \| 1 passed (2)`, `Tests 2 failed \| 89 passed (91)`: F3 `Unable to find ... "Diplomacy — Testland"` (Escape on Amount closed the dialog), F4 Tab landed on `aria-label="Close diplomacy"`, not "Declare war". F1, F2 rows are guards (green at red) |
+| Guards bite (21 mutants) | `node scripts/probes/m6/qa-mutants.mjs` | each `caught`; the 7 new: F1 `3 failed \| 47 passed (50)`, F2 focusKey `1 failed \| 40 passed (41)`, F2 return (Accept Offer, Game over) `1 failed` each, F3 `2 failed`, F4 disabled `1 failed`, F4 removed `1 failed`; the no-trap mutant, re-pointed to the new `moveFocus` line, `8 failed \| 33 passed (41)` |
+| Unit tests, baselines | `npm test` | `Test Files 75 passed (75)`, `Tests 1283 passed (1283)` (+8 on 1275), 0 act warnings; `FR-125 seed 1: ... t40 1493/650 (2.30)`, `FR-157 nation 2 score at turn 40: [[1,1493],[2,1496],[3,1490],[4,1476]]` as before |
+| Lint, types, build | `npm run lint`; without `.gate`; `npx tsc --noEmit`; `npm run build` | `✖ 5 problems (0 errors, 5 warnings)`; `✖ 3 problems (0 errors, 3 warnings)` as before; exit 0, no output; `✓ Compiled successfully in 3.3s`, `✓ Generating static pages (4/4)` |
+| e2e red in Chrome | the new m6-dialogs test with `Modal.tsx` and `CountryDetails.tsx` as at 3128a62 (`-g "keyboard on the Diplomacy"`), then restored (`cmp` equal) | `1 failed`: `m6-dialogs.spec.ts:132` `expect(locator).toBeFocused() failed`, "Declare war" `Received: inactive` after Enter on Consulate and Tab |
+| e2e smoke | `PORT=3160 npx playwright test --workers=1 --reporter=line` | `30 passed (1.3m)`, `1 skipped` (the old `test.fixme`) |
+
+How to see it: `npm run dev`, HUD "Diplomacy", pick Arvelia, Tab to "Consulate ($500)", Enter, Tab: the focus is on
+"Declare war". Click "Declare war", Tab three times to "Amount", Escape: the question closes, the dialog stays.

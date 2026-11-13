@@ -1,5 +1,16 @@
 // Display text for engine data: worker jobs, refused orders and turn events (FR-024).
-import { seasonOf, type FoodForecast, type GameEvent, type Order, type OrderKind, type RejectReason, type Season } from "@/engine";
+import {
+  RELATION_SWATCHES,
+  seasonOf,
+  type FoodForecast,
+  type GameEvent,
+  type GrantStopReason,
+  type Order,
+  type OrderKind,
+  type RejectReason,
+  type Season,
+  type WithdrawableOverture,
+} from "@/engine";
 import { TerrainType, type Tile } from "@/types/Tile";
 import type { BuildingType } from "@/types/Industry";
 import { GoodsType, MaterialType, ResourceType, type WarehouseCommodities } from "@/types/Resource";
@@ -23,6 +34,11 @@ const ORDER_TEXT: Record<OrderKind, string> = {
   recruitWorkers: "Migration",
   sellCommodity: "Sale",
   buyCommodity: "Purchase",
+  proposeOverture: "Overture",
+  giveGrant: "Grant",
+  setTradePolicy: "Trade policy",
+  withdrawOverture: "Withdrawal",
+  answerProposal: "Answer",
 };
 
 export const REFUSAL_TEXT: Record<RejectReason, string> = {
@@ -41,6 +57,11 @@ export const REFUSAL_TEXT: Record<RejectReason, string> = {
   "limit-reached": "over the limit",
   "invalid-amount": "invalid amount",
   "game-over": "the game is over",
+  "needs-consulate": "we need a consulate there first",
+  "needs-embassy": "we need an embassy there first",
+  "already-in-place": "that is already in place",
+  "at-war": "we are at war with them",
+  "not-at-war": "we are not at war with them",
 };
 
 export function refusalText({ order, reason }: { order: Order; reason: RejectReason }): string {
@@ -166,8 +187,72 @@ function foodNews(sick: number, starved: number): string | null {
   return parts.length > 0 ? `${capitalize(parts.join("; "))}.` : null;
 }
 
-/** One line of news for the event, or null when it is not news (the end of the turn). */
-export function eventText(event: GameEvent): string | null {
+/** How an overture that failed is named in the news (FR-176): "Embassy in Arvelia failed: ...". */
+const FAILED_OVERTURE: Record<WithdrawableOverture, (name: string) => string> = {
+  consulate: (name) => `Consulate in ${name}`,
+  embassy: (name) => `Embassy in ${name}`,
+  pact: (name) => `Pact with ${name}`,
+  alliance: (name) => `Alliance with ${name}`,
+  war: (name) => `War on ${name}`,
+  peace: (name) => `Peace with ${name}`,
+  grant: (name) => `Grant to ${name}`,
+  "trade-policy": (name) => `Trade policy for ${name}`,
+};
+
+const GRANT_STOP_TEXT: Record<GrantStopReason, string> = {
+  "insufficient-funds": "not enough money",
+  withdrawn: "we withdrew it",
+  war: "we are at war with them",
+};
+
+/** A diplomacy event's line (FR-176); `name` names a country by id. */
+function diplomacyText(event: GameEvent, name: (countryId: string) => string): string | null {
+  switch (event.type) {
+    case "overture-done":
+      switch (event.overture) {
+        case "consulate":
+          return `Consulate opened in ${name(event.targetId)}.`;
+        case "embassy":
+          return `Embassy opened in ${name(event.targetId)}.`;
+        case "pact":
+          return `Pact signed with ${name(event.targetId)}.`;
+        case "alliance":
+          return `Alliance signed with ${name(event.targetId)}.`;
+        case "peace":
+          return `Peace made with ${name(event.targetId)}.`;
+      }
+      return null;
+    case "overture-refused":
+      return `${name(event.targetId)} refused our ${event.overture === "alliance" ? "alliance" : "peace offer"}.`;
+    case "overture-failed":
+      return `${FAILED_OVERTURE[event.overture](name(event.targetId))} failed: ${REFUSAL_TEXT[event.reason]}.`;
+    case "war-declared":
+      return `War declared on ${name(event.targetId)}! The war starts next turn.`;
+    case "attacks-cancelled":
+      return `Attacks on ${name(event.targetId)} called off: peace was made.`;
+    case "relation-changed": {
+      const change = `Relations with ${name(event.otherId)}: ${RELATION_SWATCHES[event.from]} to ${RELATION_SWATCHES[event.to]}`;
+      // FR-239: the wars that moved it, seen from this nation ("our war on Lorran", "Valdoria's war on us")
+      const war = ({ aggressorId, targetId }: { aggressorId: string; targetId: string }) =>
+        `${aggressorId === event.nationId ? "our" : `${name(aggressorId)}'s`} war on ${targetId === event.nationId ? "us" : name(targetId)}`;
+      return event.wars && event.wars.length > 0 ? `${change} (${event.wars.map(war).join(" and ")}).` : `${change}.`;
+    }
+    case "grant-paid":
+      return `Grant of ${money(event.amount)} paid to ${name(event.targetId)}.`;
+    case "grant-stopped":
+      return `Grant to ${name(event.targetId)} stopped: ${GRANT_STOP_TEXT[event.reason]}.`;
+    case "proposal-received":
+      return event.kind === "alliance" ? `${name(event.fromId)} offers us an alliance.` : `${name(event.fromId)} asks for an end to our war.`;
+    default:
+      return null;
+  }
+}
+
+/**
+ * One line of news for the event, or null when it is not news (the end of the turn). `nameOf` names the
+ * countries a diplomacy line mentions (FR-176); without it their ids stand in.
+ */
+export function eventText(event: GameEvent, nameOf: (countryId: string) => string = (id) => id): string | null {
   switch (event.type) {
     case "order-rejected":
       return refusalText(event);
@@ -197,6 +282,16 @@ export function eventText(event: GameEvent): string | null {
       return null;
     case "game-over":
       return `Game over at the end of ${dateText(event.turn, event.year)}.`;
+    case "overture-done":
+    case "overture-refused":
+    case "overture-failed":
+    case "war-declared":
+    case "attacks-cancelled":
+    case "relation-changed":
+    case "grant-paid":
+    case "grant-stopped":
+    case "proposal-received":
+      return diplomacyText(event, nameOf);
   }
 }
 
@@ -204,13 +299,14 @@ export function eventText(event: GameEvent): string | null {
  * The news of a turn as the player reads it (FR-107): the player's own lines first, as `eventText`
  * words them; then every other nation's lines, each starting with the nation's name ("Valdoria: Rail
  * finished at 15-8."); then the lines of no nation (game over). Each group keeps the event order.
+ * `nameOf` also names the countries a diplomacy line mentions, minor nations included (FR-176).
  */
-export function newsLines(events: readonly GameEvent[], playerId: string, nameOf: (nationId: string) => string): string[] {
+export function newsLines(events: readonly GameEvent[], playerId: string, nameOf: (countryId: string) => string): string[] {
   const own: string[] = [];
   const others: string[] = [];
   const general: string[] = [];
   for (const event of events) {
-    const line = eventText(event);
+    const line = eventText(event, nameOf);
     if (line === null) continue;
     const nationId = "nationId" in event ? event.nationId : undefined;
     if (nationId === undefined) general.push(line);

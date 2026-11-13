@@ -37,8 +37,14 @@ src/app/
                            for the per-system streams (FR-150)
     diplomacy/relations.ts the diplomacy state (FR-151): pairKey, startDiplomacy, relationOf,
                            relationLevel, RELATION_SWATCHES
+    diplomacy/queries.ts   M6 reads: warBetween, warActive (for the M9 attack rule),
+                           diplomacyIntentsOf (this turn's, with cost), proposalsOf,
+                           pendingProposalsFor, proposalAnswer, militaryStrength (FR-204, 0 before M8)
+                           over regimentsOf, the one read of the army shape (M8 rewrites it)
+    diplomacy/scriptedAnswers.ts  FR-174: acceptsAlliance, acceptsPeace, losingWar
     orders/                Order.ts (union + RejectReason), validate.ts, apply.ts,
                            industryOrders.ts (production, expansion, cars, training, migration),
+                           diplomacyOrders.ts (the five diplomacy orders: validate and apply),
                            queries.ts (read-only lookups and construction-site rules)
     industry/              labour.ts (labourOf: total, committed, free), industryState.ts
                            (createIndustry, buildingOf, migrantCap), foodForecast.ts (the meal
@@ -57,6 +63,7 @@ src/app/
     ai/economy.ts          the scripted player's economy: transport, training, cars, expansion, run, trade
     ai/railPlan.ts         read-only rail and tile planning: depot sites, rail paths, tilesByReach
     ai/players.ts          PLAYERS (controller -> Player) and computerOrders(state) (FR-099)
+    ai/diplomacy.ts        the scripted player's peace offers when losing a war (FR-174)
   store/
     rootStore.ts           createGameStore(options) and the app's useGameStore
     gameSlice.ts           game, activeNationId, lastRejection, eventLog, orderLog, submitOrder,
@@ -64,17 +71,24 @@ src/app/
     controls/              UI slices: tile selection, camera, overlays, dialogs
     selectors.ts           memoized selectors (reselect)
   components/              React components; gameText.ts (display text: orders, refusals, news,
-                           commodity names, the date, the food warning), railSegments.ts (map overlay)
+                           commodity names, the date, the food warning), railSegments.ts (map overlay),
+                           Modal.tsx (the one modal dialog every game dialog is built on, FR-236)
     capital/               the capital dialog's parts: capitalView.ts (what it shows, no React),
                            ProductionCard, LabourPanel, FreightCars, Capital.module.css
     market/                the market dialog's view (marketView.ts, no React) and the CSS module
                            shared by MarketModal and GameOverModal
+    diplomacy/             the Diplomacy screen's parts: diplomacyView.ts (rows, controls with their
+                           refusal text, the refusal lines, the Accept Offer sentence; no React),
+                           CountryList (the left pane's tabs), CountryDetails (the right pane),
+                           Diplomacy.module.css (also used by AcceptOfferModal)
   hooks/                   React hooks; tileClickOrders.ts (what a tile click asks for, no React)
   workers/                 per worker type, the action it offers on a tile (map cursor and click)
   types/                   GameState, Tile, Worker, Nation, Industry, jobs, ...
   definisions/             rule tables: prices (workPrices), durations (workerDurations, the only
                            one), recipes and worker costs (ResourceConversions), buildings
-                           (industryBuildings), terrains, resources
+                           (industryBuildings), terrains, resources, diplomacy numbers
+                           (diplomacyRules: overture costs, grant sizes and points, war effects,
+                           the scripted answer thresholds)
   testing/                 test fixtures only: worldInit (5x5 test world), mockNation (two nations)
   constants/, styles/, utils/
 tests/
@@ -121,11 +135,35 @@ only (FR-018).
   player's hubs and reach); a depot site is blocked only by its own country's capital, depot or port.
 - **Diplomacy** (FR-151): `state.diplomacy[pairKey(a, b)]`, one entry per pair with at least one
   Great Power: points 0 to 89 (level floor(points / 10) on nine swatches), consulates, embassies,
-  pact, alliance, war, boycotts, subsidies, locked grants. M6 adds the overtures that change it.
+  pact, alliance, war (`{ aggressors, since, captures?, lastPeaceOffer? }`), boycotts, subsidies,
+  locked grants, and `startTreaties` on a Great Power pair while its consulates and embassies are
+  the ones of the start (a war between the two removes it; FR-240).
 - **Intents** (FR-152): an order that involves a second country (M6 to M9) stores an intent with
   `addIntent`; a phase resolves the turn's intents nation by nation in `intentOrder(state, turn)`
   (founding order rotated by the turn); `resolveTurn` drops the resolved turn's intents after the
-  phases.
+  phases. `Intent` is the stored shape (`kind` a string); each milestone narrows its own kinds
+  (M6: `DiplomacyIntent` in `types/Intent.ts`).
+
+### Diplomacy (M6)
+
+- **Orders** (FR-161, FR-162): `proposeOverture` (consulate, embassy, pact, alliance, war, peace),
+  `giveGrant`, `setTradePolicy`, `withdrawOverture`, `answerProposal` (`orders/diplomacyOrders.ts`).
+  Each stores an intent and changes nothing of the target; a consulate ($500), an embassy ($5,000)
+  and a grant are paid when ordered and refunded in full on a withdrawal.
+- **The phase** (`systems/diplomacySystem.ts`, FR-163 to FR-173): the turn's diplomacy intents by kind
+  (peace, war, consulate, embassy, pact, alliance, grants then the locked repeats, trade policies),
+  each kind in `intentOrder`; every intent is checked again and fails with its cost refunded
+  (`overture-failed`). It runs before the trade phase, so a consulate or policy counts in that turn's
+  trades. It works on its own copies and draws no random number.
+- **Proposals** (FR-166): an alliance or a peace to a human Great Power becomes `state.proposals`
+  (`{ id, fromId, toId, kind, turn }`, optional on a hand-built state, read through `proposalsOf`),
+  answered with `answerProposal` on the next turn; one still open at that End Turn is refused and
+  removed. A scripted Great Power answers by `scriptedAnswers.ts` (FR-174) in the same End Turn; a
+  minor always accepts peace.
+- **Relations** (FR-168, FR-172): grants, a pact and wars move the points (trade deals come in M7);
+  a war's effects are summed per pair and clamped once, so the declarations' order changes nothing;
+  `relation-changed` is emitted once per Great Power of a pair whose level moved in the phase, with
+  `wars` (`{ aggressorId, targetId }`) when declarations of that phase moved the pair (FR-239).
 
 The store (`store/rootStore.ts`) holds that state under `game`, and UI state beside it:
 
@@ -346,10 +384,34 @@ The warehouse dialog lists every commodity by display name in three groups (`COM
 The market dialog (`MarketModal.tsx`, opened from the HUD or the capital's Trade button) renders
 `market/marketView.ts`: per tradeable commodity its price, stock, offer and bid with "− n +"
 buttons that send `sellCommodity` / `buyCommodity` with this turn's new total, plus cash, cargo
-holds and buy bids; refusals show as in the capital. The game-over screen (`GameOverModal.tsx`)
+holds and buy bids; refusals show as in the capital. The Diplomacy screen (`DiplomacyModal.tsx`,
+M6, store flag `isDiplomacyOpen`, opened from the HUD or the capital) renders
+`diplomacy/diplomacyView.ts` in two panes (FR-237): on the left a vertical tab list, one tab per other
+country (the other Great Power first, then the minors in id order) with the relation as a swatch in
+`--color-relation-<level>` and in words, the treaty chips and an "n ordered" marker; on the right the
+selected country's tab panel with this turn's diplomacy intents with Withdraw and the overture, grant
+and trade policy controls. The selection is the dialog's own state, so it outlives a close. Each
+control holds its order and, when `validateOrder` would refuse it, the refusal text: the button is
+disabled, and `reasonLines` gives each refusal once in a line under its group that is the button's
+description ("Stop grant" also carries a screen-only refusal while this turn's grant would be what
+its order takes back; "Declare war" at war says "we are already at war with them", FR-241). Accept Offer (`AcceptOfferModal.tsx`)
+opens for each `pendingProposalsFor` the player at the start of a turn; Accept/Reject (Enter/Escape)
+send `answerProposal`, and closing it adds the id to `dismissedProposalIds` (reset by New game). Every dialog renders its content in `Modal.tsx` (FR-236): `role="dialog"`, `aria-modal`, named by
+its title (`aria-labelledby`); the focus moves to its first control on open (Accept Offer: the dialog
+itself, again for each next offer through `focusKey`) and back to the opener on close; Tab and
+Shift+Tab are trapped, and the dialog remembers (on `focusin`) the element that last took the focus
+and its place among the controls, so after an order disables or removes the focused control and
+Chrome drops the focus to the page, Tab goes on from there; Escape (`onEscape`, else `onClose`) and a
+click that starts and ends on the backdrop call `onClose`. A module-level stack lets only the newest
+open dialog answer the keys (Diplomacy over Capital, the transport plan inside Capital); a part
+shown inside a dialog can take Escape first with `useEscapeFirst` (a context of the dialog: the war
+question keeps the peace wherever the focus is). About
+renders into `document.body` (`portal`), since the HUD clips it. The game-over screen (`GameOverModal.tsx`)
 shows `state.gameOver.scores` whenever the game is over, unless the player closed it
 (`isGameOverHidden`, reopened by the HUD's "Final scores"). After game over the HUD's Advance
-Turn is disabled and the store's `advanceTurn` returns at once, so no empty turn is logged. A tile is `components/Tile.tsx` plus
+Turn is disabled and the store's `advanceTurn` returns at once, so no empty turn is logged. The End Turn key "n"
+(`hooks/useKeyboardShortcuts.ts`, mounted by `page.tsx`) is ignored in a form field and while any `role="dialog"` is
+in the page (FR-178). A tile is `components/Tile.tsx` plus
 sub-components in `components/Tile/` and three hooks: `useTileActions` (which action the
 selected worker offers, from `workers/*`), `useTileVisuals` (terrain tint, grid line and the
 cursor) and `useTileClickHandler` (the click, as orders). The selection ring is an element of
@@ -405,9 +467,10 @@ never imports `src/app/testing` (ESLint rule, FR-043, now FR-080).
 
 ## Not on the engine yet
 
-- Diplomacy, combat and interceptions are stub systems (M5 adds their state: diplomacy, intents and
-  the random streams, but no order or phase uses them yet). Trade is a world market on both worlds,
-  with no bid/offer matching between nations and no Shipyard (holds do not grow).
+- Combat and interceptions are stub systems (diplomacy is built in M6). Trade is a world market on
+  both worlds, with no bid/offer matching between nations and no Shipyard (holds do not grow), so a
+  boycott, a subsidy and a war do not change any trade yet (M7), and no army or province capture
+  exists (M8, M9): `militaryStrength` is 0 and the FR-174 peace conditions (a) and (b) never fire.
 - The maps are fixed templates, `engine/world/twoIslands.ts` (FR-080) and the continent's minor land in
   `engine/world/continent.ts` (FR-145): the same for every seed, so
   e2e specs and M4 can name tiles. Island 2 is island 1 shifted 12 columns (a shift along a row

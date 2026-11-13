@@ -157,6 +157,41 @@ describe('applyOrder immediate effects', () => {
   });
 });
 
+describe('FR-161 applyOrder diplomacy orders: an intent, the cost paid now, nothing of the target changed', () => {
+  const withProposal = (s: GameState): GameState => ({ ...s, turn: 2, proposals: [{ id: 'proposal-1-1', fromId: N2, toId: N1, kind: 'peace', turn: 1 }] });
+
+  it.each<[string, (s: GameState) => GameState, Order, string, number]>([
+    ['proposeOverture (alliance)', s => s, { kind: 'proposeOverture', nationId: N1, overture: 'alliance', targetId: N2 }, 'alliance', START],
+    ['giveGrant ($3,000, once)', s => s, { kind: 'giveGrant', nationId: N1, targetId: N2, amount: 3000, locked: false }, 'grant', START - 3000],
+    ['setTradePolicy (boycott)', s => s, { kind: 'setTradePolicy', nationId: N1, targetId: N2, subsidyPercent: 0, boycott: true }, 'trade-policy', START],
+    ['answerProposal', withProposal, { kind: 'answerProposal', nationId: N1, proposalId: 'proposal-1-1', accept: true }, 'answer', START],
+  ])('FR-161 %s stores one intent and pays its cost', (_name, setup, order, kind, money) => {
+    const before = setup(game());
+
+    const s = run(before, order);
+
+    expect(s.intents.map(i => i.kind)).toEqual([kind]);
+    expect(treasury(s, N1)).toBe(money);
+    expect(s.diplomacy).toEqual(before.diplomacy);
+    expect(s.nations.find(n => n.id === N2)).toEqual(before.nations.find(n => n.id === N2));
+  });
+
+  it('FR-161 withdrawOverture takes this turn\'s grant back with its cost', () => {
+    const granted = applyOrder(game(), { kind: 'giveGrant', nationId: N1, targetId: N2, amount: 5000, locked: true });
+
+    const s = run(granted, { kind: 'withdrawOverture', nationId: N1, overture: 'grant', targetId: N2 });
+
+    expect(s.intents).toEqual([]);
+    expect(treasury(s, N1)).toBe(START);
+  });
+
+  it('FR-161 FR-162 a refused diplomacy order returns the very same state object', () => {
+    const state = deepFreeze(setTreasury(game(), N1, 999));
+
+    expect(applyOrder(state, { kind: 'giveGrant', nationId: N1, targetId: N2, amount: 1000, locked: false })).toBe(state);
+  });
+});
+
 describe('applyOrder refusals', () => {
   it.each<[string, (s: GameState) => GameState, Order]>([
     ['an unaffordable move-and-start', s => setTreasury(s, N1, 0), { kind: 'moveAndStartProspecting', nationId: N1, workerId: W.prospector, toTileId: T.mountains1 }],

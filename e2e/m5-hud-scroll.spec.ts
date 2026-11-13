@@ -85,12 +85,16 @@ const near = (a: number[], b: number[], tolerance = 3) => a.every((v, i) => Math
 test('FR-235 (1) the HUD content area shows a thin scrollbar in the palette, scrolls to the end, and the action buttons stay pinned', async ({ page }) => {
   test.setTimeout(90000);
   await open(page);
-  // The QA turn-4 state in short: a turn of news, Arvelia's capital selected, and the About panel open on top
+  // The QA turn-4 state in short: a turn of news and Arvelia's capital selected. The About panel was open on top in
+  // that state; since the M6 QA fix round (FR-236) it is a modal dialog over the page, not part of the HUD's content,
+  // so it is opened and closed again here and the HUD is measured without it.
   await page.getByRole('button', { name: /Advance Turn/ }).click();
   await expect(page.getByTestId('turn-indicator')).toContainText('Turn: 2 of 40');
   await selectArvelia(page);
   await page.getByRole('button', { name: /About/ }).click();
   await expect(page.getByRole('dialog', { name: 'About' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: 'About' })).toHaveCount(0);
 
   const start = await area(page);
   expect(start.maxScroll, 'the content is taller than its area').toBeGreaterThan(0);

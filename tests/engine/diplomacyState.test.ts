@@ -8,7 +8,8 @@ import { N1, N2 } from './fixtures';
 
 const continent = (): GameState => newGame({ seed: 1, world: 'continent' });
 const MINORS = ['minor-1', 'minor-2', 'minor-3', 'minor-4'];
-const GREAT_POWER_PAIR = { points: 40, consulates: [N1, N2], embassies: [N1, N2], pact: false, alliance: false, boycotts: [], subsidies: {}, lockedGrants: {} };
+// FR-240 (M6 QA fix round): the Great Power pair's consulates and embassies are marked as the start ones
+const GREAT_POWER_PAIR = { points: 40, consulates: [N1, N2], embassies: [N1, N2], pact: false, alliance: false, boycotts: [], subsidies: {}, lockedGrants: {}, startTreaties: true };
 const MINOR_PAIR = { points: 30, consulates: [], embassies: [], pact: false, alliance: false, boycotts: [], subsidies: {}, lockedGrants: {} };
 const withPoints = (s: GameState, a: string, b: string, points: number): GameState => ({
   ...s,

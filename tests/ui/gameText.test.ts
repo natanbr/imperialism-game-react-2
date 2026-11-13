@@ -1,10 +1,10 @@
 // FR-024: display text for the HUD's news and refusals, derived from engine data.
 import { describe, it, expect } from 'vitest';
 import {
-  COMMODITY_GROUPS, COMMODITY_TEXT, commodityName, completedTileIds, dateText, eventText, foodWarningText, refusalText, REFUSAL_TEXT,
+  COMMODITY_GROUPS, COMMODITY_TEXT, commodityName, completedTileIds, dateText, eventText, foodWarningText, newsLines, refusalText, REFUSAL_TEXT,
   workerJobLabel,
 } from '@/components/gameText';
-import { resolveTurn, tryApplyOrder, type Order, type RejectReason } from '@/engine';
+import { resolveTurn, tryApplyOrder, type GameEvent, type Order, type RejectReason } from '@/engine';
 import { GameState } from '@/types/GameState';
 import { GoodsType, MaterialType, ResourceType } from '@/types/Resource';
 import { WorkerType } from '@/types/Workers';
@@ -196,6 +196,97 @@ describe('FR-024 worker job label', () => {
     const s = order(game(), { kind: 'moveAndStartDevelopment', nationId: N1, workerId: W.farmer, toTileId: T.farm1 });
     expect(locate(s, W.farmer)!.worker).not.toHaveProperty('jobDescription');
     expect(locate(resolveTurn(s, {}, 1).state, W.farmer)!.worker).not.toHaveProperty('jobDescription');
+  });
+});
+
+describe('FR-161 FR-162 diplomacy orders and refusals in plain words', () => {
+  const consulate: Order = { kind: 'proposeOverture', nationId: N1, overture: 'consulate', targetId: 'minor-1' };
+
+  it('FR-162 the five new refusal reasons read as the requirement words them', () => {
+    expect([REFUSAL_TEXT['needs-consulate'], REFUSAL_TEXT['needs-embassy'], REFUSAL_TEXT['already-in-place'], REFUSAL_TEXT['at-war'], REFUSAL_TEXT['not-at-war']]).toEqual([
+      'we need a consulate there first',
+      'we need an embassy there first',
+      'that is already in place',
+      'we are at war with them',
+      'we are not at war with them',
+    ]);
+  });
+
+  it('FR-161 each diplomacy order has a name in a refusal', () => {
+    const orders: Order[] = [
+      consulate,
+      { kind: 'giveGrant', nationId: N1, targetId: 'minor-1', amount: 1000, locked: false },
+      { kind: 'setTradePolicy', nationId: N1, targetId: 'minor-1', subsidyPercent: 5, boycott: false },
+      { kind: 'withdrawOverture', nationId: N1, overture: 'grant', targetId: 'minor-1' },
+      { kind: 'answerProposal', nationId: N1, proposalId: 'p', accept: true },
+    ];
+    expect(orders.map(order => refusalText({ order, reason: 'invalid-target' }))).toEqual([
+      'Overture refused: not possible on that tile.',
+      'Grant refused: not possible on that tile.',
+      'Trade policy refused: not possible on that tile.',
+      'Withdrawal refused: not possible on that tile.',
+      'Answer refused: not possible on that tile.',
+    ]);
+    expect(refusalText({ order: consulate, reason: 'needs-consulate' })).toBe('Overture refused: we need a consulate there first.');
+  });
+});
+
+describe('FR-176 diplomacy news', () => {
+  const NAMES: Record<string, string> = { 'nation-1': 'Testland', 'nation-2': 'Valdoria', 'minor-1': 'Arvelia', 'minor-3': 'Lorran' };
+  const nameOf = (id: string) => NAMES[id] ?? id;
+  const N = 'nation-1';
+  const A = 'minor-1';
+  const V = 'nation-2';
+
+  it.each<[GameEvent, string]>([
+    [{ type: 'overture-done', nationId: N, overture: 'consulate', targetId: A }, 'Consulate opened in Arvelia.'],
+    [{ type: 'overture-done', nationId: N, overture: 'embassy', targetId: A }, 'Embassy opened in Arvelia.'],
+    [{ type: 'overture-done', nationId: N, overture: 'pact', targetId: A }, 'Pact signed with Arvelia.'],
+    [{ type: 'overture-done', nationId: N, overture: 'alliance', targetId: V }, 'Alliance signed with Valdoria.'],
+    [{ type: 'overture-done', nationId: N, overture: 'peace', targetId: A }, 'Peace made with Arvelia.'],
+    [{ type: 'overture-refused', nationId: N, overture: 'alliance', targetId: V }, 'Valdoria refused our alliance.'],
+    [{ type: 'overture-refused', nationId: N, overture: 'peace', targetId: V }, 'Valdoria refused our peace offer.'],
+    [{ type: 'overture-failed', nationId: N, overture: 'embassy', targetId: A, reason: 'needs-consulate', refund: 5000 }, 'Embassy in Arvelia failed: we need a consulate there first.'],
+    [{ type: 'overture-failed', nationId: N, overture: 'consulate', targetId: A, reason: 'at-war', refund: 500 }, 'Consulate in Arvelia failed: we are at war with them.'],
+    [{ type: 'overture-failed', nationId: N, overture: 'alliance', targetId: V, reason: 'at-war', refund: 0 }, 'Alliance with Valdoria failed: we are at war with them.'],
+    [{ type: 'overture-failed', nationId: N, overture: 'grant', targetId: A, reason: 'at-war', refund: 1000 }, 'Grant to Arvelia failed: we are at war with them.'],
+    [{ type: 'overture-failed', nationId: N, overture: 'pact', targetId: A, reason: 'needs-embassy', refund: 0 }, 'Pact with Arvelia failed: we need an embassy there first.'],
+    [{ type: 'overture-failed', nationId: N, overture: 'war', targetId: V, reason: 'already-in-place', refund: 0 }, 'War on Valdoria failed: that is already in place.'],
+    [{ type: 'overture-failed', nationId: N, overture: 'peace', targetId: V, reason: 'not-at-war', refund: 0 }, 'Peace with Valdoria failed: we are not at war with them.'],
+    [{ type: 'overture-failed', nationId: N, overture: 'trade-policy', targetId: A, reason: 'at-war', refund: 0 }, 'Trade policy for Arvelia failed: we are at war with them.'],
+    [{ type: 'overture-failed', nationId: N, overture: 'trade-policy', targetId: A, reason: 'needs-consulate', refund: 0 }, 'Trade policy for Arvelia failed: we need a consulate there first.'],
+    [{ type: 'war-declared', nationId: N, targetId: A, startsTurn: 2 }, 'War declared on Arvelia! The war starts next turn.'],
+    [{ type: 'attacks-cancelled', nationId: N, targetId: A, count: 2 }, 'Attacks on Arvelia called off: peace was made.'],
+    [{ type: 'relation-changed', nationId: N, otherId: A, from: 3, to: 4 }, 'Relations with Arvelia: yellow to beige.'],
+    [{ type: 'relation-changed', nationId: N, otherId: V, from: 4, to: 0 }, 'Relations with Valdoria: beige to dark brown.'],
+    // FR-239 (M6 QA fix round): a change a war caused names that war, seen from the event's nation
+    [{ type: 'relation-changed', nationId: N, otherId: A, from: 3, to: 2, wars: [{ aggressorId: N, targetId: 'minor-3' }] }, 'Relations with Arvelia: yellow to orange (our war on Lorran).'],
+    [{ type: 'relation-changed', nationId: N, otherId: V, from: 4, to: 0, wars: [{ aggressorId: V, targetId: N }] }, "Relations with Valdoria: beige to dark brown (Valdoria's war on us)."],
+    [{ type: 'relation-changed', nationId: N, otherId: V, from: 4, to: 3, wars: [{ aggressorId: V, targetId: A }] }, "Relations with Valdoria: beige to yellow (Valdoria's war on Arvelia)."],
+    [
+      { type: 'relation-changed', nationId: N, otherId: V, from: 4, to: 0, wars: [{ aggressorId: N, targetId: V }, { aggressorId: V, targetId: N }] },
+      "Relations with Valdoria: beige to dark brown (our war on Valdoria and Valdoria's war on us).",
+    ],
+    [{ type: 'grant-paid', nationId: N, targetId: A, amount: 1000 }, 'Grant of $1,000 paid to Arvelia.'],
+    [{ type: 'grant-stopped', nationId: N, targetId: A, amount: 1000, reason: 'insufficient-funds' }, 'Grant to Arvelia stopped: not enough money.'],
+    [{ type: 'grant-stopped', nationId: N, targetId: A, amount: 1000, reason: 'withdrawn' }, 'Grant to Arvelia stopped: we withdrew it.'],
+    [{ type: 'grant-stopped', nationId: N, targetId: A, amount: 1000, reason: 'war' }, 'Grant to Arvelia stopped: we are at war with them.'],
+    [{ type: 'proposal-received', nationId: N, fromId: V, proposalId: 'proposal-1-1', kind: 'alliance' }, 'Valdoria offers us an alliance.'],
+    [{ type: 'proposal-received', nationId: N, fromId: V, proposalId: 'proposal-1-1', kind: 'peace' }, 'Valdoria asks for an end to our war.'],
+  ])('FR-176 %j has its sentence', (event, text) => {
+    expect(eventText(event, nameOf)).toBe(text);
+  });
+
+  it('FR-176 FR-107 another nation\'s diplomacy line starts with its name; the countries are named, not their ids', () => {
+    const events: GameEvent[] = [
+      { type: 'war-declared', nationId: V, targetId: N, startsTurn: 5 },
+      { type: 'overture-done', nationId: N, overture: 'consulate', targetId: A },
+    ];
+    expect(newsLines(events, N, nameOf)).toEqual(['Consulate opened in Arvelia.', 'Valdoria: War declared on Testland! The war starts next turn.']);
+  });
+
+  it('FR-176 without a name lookup the ids stand in (the old one-argument call still works)', () => {
+    expect(eventText({ type: 'grant-paid', nationId: N, targetId: A, amount: 3000 })).toBe('Grant of $3,000 paid to minor-1.');
   });
 });
 

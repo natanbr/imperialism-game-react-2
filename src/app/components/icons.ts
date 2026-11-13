@@ -45,6 +45,7 @@ import {
   GiRiver,
   GiRolledCloth,
   GiScales,
+  GiScrollUnfurled,
   GiSheep,
   GiShinyApple,
   GiShirt,
@@ -109,6 +110,7 @@ export const GI = {
   GiRiver,
   GiRolledCloth,
   GiScales,
+  GiScrollUnfurled,
   GiSheep,
   GiShinyApple,
   GiShirt,
@@ -213,6 +215,8 @@ export const UI_ICONS = {
   newGame: "GiAnticlockwiseRotation",
   /** Several civilians on one tile: the stack button (FR-110) */
   civilians: "GiMeepleGroup",
+  /** The Diplomacy screen (FR-177): the Imp1 overtures scroll */
+  diplomacy: "GiScrollUnfurled",
 } as const satisfies Record<string, IconName>;
 
 /**

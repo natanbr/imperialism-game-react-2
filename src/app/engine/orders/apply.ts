@@ -14,6 +14,7 @@ import {
   applyTrainWorkers,
 } from "./industryOrders";
 import { applyBuyCommodity, applySellCommodity } from "./tradeOrders";
+import { applyDiplomacyOrder } from "./diplomacyOrders";
 import {
   findWorker,
   holdsJob,
@@ -92,6 +93,12 @@ function applyValidOrder(state: GameState, order: Order): GameState {
       return applySellCommodity(state, order);
     case "buyCommodity":
       return applyBuyCommodity(state, order);
+    case "proposeOverture":
+    case "giveGrant":
+    case "setTradePolicy":
+    case "withdrawOverture":
+    case "answerProposal":
+      return applyDiplomacyOrder(state, order);
   }
 }
 

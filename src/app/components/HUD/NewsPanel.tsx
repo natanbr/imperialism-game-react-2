@@ -11,8 +11,10 @@ export const NewsPanel: React.FC = () => {
   const lastReport = useGameStore((s) => s.eventLog[s.eventLog.length - 1]);
   const activeNationId = useGameStore((s) => s.activeNationId);
   const nations = useGameStore((s) => s.game.nations);
+  const minorNations = useGameStore((s) => s.game.minorNations);
 
-  const nameOf = (id: string) => nations.find((n) => n.id === id)?.name ?? id;
+  // Great Powers and minor nations: diplomacy lines name both (FR-176).
+  const nameOf = (id: string) => nations.find((n) => n.id === id)?.name ?? minorNations.find((m) => m.id === id)?.name ?? id;
   const news = lastReport ? newsLines(lastReport.events, activeNationId, nameOf) : [];
 
   return (

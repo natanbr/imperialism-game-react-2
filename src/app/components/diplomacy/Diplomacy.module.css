@@ -1,0 +1,438 @@
+/* The Diplomacy screen and the Accept Offer dialog (tokens in styles/tokens.css). The frame follows the market
+   dialog; the Diplomacy screen lies over the capital dialog it can be opened from, Accept Offer over everything. */
+
+.overlay,
+.offerOverlay {
+  position: absolute;
+  inset: 0;
+  background: var(--color-bg-backdrop);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 76;
+}
+
+.offerOverlay {
+  z-index: 85;
+}
+
+.dialog,
+.offer {
+  max-width: calc(100vw - 32px);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-dialog);
+  padding: var(--spacing-lg);
+}
+
+.dialog:focus,
+.offer:focus {
+  outline: none;
+}
+
+/* Two panes in a fixed frame (FR-237): the dialog never scrolls, the list and the details scroll on their own */
+.dialog {
+  width: 920px;
+  height: min(640px, calc(100vh - 32px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.offer {
+  width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: var(--spacing-sm);
+}
+
+.header h2 {
+  margin: 0;
+  margin-right: auto;
+  font-size: 18px;
+}
+
+.cash {
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.cash strong {
+  color: var(--color-text-primary);
+}
+
+.closeButton,
+.button,
+.primaryButton,
+.select {
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-button);
+  font: inherit;
+}
+
+.closeButton,
+.button,
+.primaryButton {
+  cursor: pointer;
+}
+
+.closeButton {
+  border: none;
+  padding: 6px 10px;
+}
+
+.button {
+  padding: 5px 10px;
+  font-size: 13px;
+  text-align: center;
+}
+
+.closeButton:hover,
+.button:hover:not(:disabled) {
+  background: var(--color-bg-button-hover);
+}
+
+.button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* Declare war and its confirmation: the red of "bad" as a border and text, not a fill */
+.warButton {
+  border-color: var(--color-bad);
+  color: var(--color-text-danger);
+}
+
+.warButton:hover:not(:disabled) {
+  background: var(--color-bg-danger);
+}
+
+.primaryButton {
+  padding: 8px 18px;
+  color: var(--color-on-accent);
+  background: var(--color-bg-accent);
+  border-color: var(--color-bg-accent);
+}
+
+.primaryButton:hover {
+  background: var(--color-bg-accent-hover);
+}
+
+.select {
+  padding: 4px 6px;
+  font-size: 13px;
+}
+
+.refusal {
+  flex: none;
+  padding: 6px 12px;
+  margin-bottom: var(--spacing-md);
+  background: var(--color-bg-danger);
+  color: var(--color-text-danger);
+  border: 1px solid var(--color-bad);
+  border-radius: var(--radius-sm);
+}
+
+.note {
+  flex: none;
+  margin: 0 0 var(--spacing-md);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  line-height: 1.4;
+}
+
+.panes {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 12px;
+}
+
+/* The countries: a vertical tab list (FR-237) */
+
+.countryList {
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 2px;
+}
+
+.tab {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 8px 10px;
+  text-align: left;
+  font: inherit;
+  color: var(--color-text-primary);
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.tab:hover {
+  background: var(--color-bg-button-hover);
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.tabSelected,
+.tabSelected:hover {
+  background: var(--color-bg-you);
+  border-color: var(--color-accent);
+}
+
+.tabTop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.tabName {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+}
+
+.orderedMark {
+  flex: none;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.tabInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tabLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 10px;
+}
+
+.kind {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.relation {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-sm);
+}
+
+/* The swatch is decorative (the text names the level); its border keeps the light swatches visible */
+.swatch {
+  display: inline-block;
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  border: 1px solid var(--color-border-strong);
+}
+
+.treaties {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.treaty {
+  font-size: var(--font-size-sm);
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--color-bg-panel);
+}
+
+/* "since the start" (FR-240): part of the chip, quieter than the treaty's name */
+.treatyNote {
+  color: var(--color-text-muted);
+}
+
+.treatyWar {
+  color: var(--color-text-danger);
+  background: var(--color-bg-danger);
+}
+
+.treatyNone {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+/* The selected country's details */
+
+.details {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 14px 12px;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.detailsHeader {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.detailsName {
+  margin: 0;
+  font-size: var(--font-size-lg);
+}
+
+/* Blocks: the title above its controls, the refusal lines under them */
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.blockTitle {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.ordered {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.orderedItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 4px 3px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-you);
+  font-size: 13px;
+}
+
+.cost {
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.overtures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* A refusal once per group (FR-237): "Embassy: we need a consulate there first" */
+.reasons {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1px;
+  font-size: var(--font-size-sm);
+  line-height: 1.35;
+  color: var(--color-text-muted);
+}
+
+.reasonNames {
+  color: var(--color-text-primary);
+}
+
+.confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-bad);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-danger);
+}
+
+.confirm:focus {
+  outline: 2px solid var(--color-bad);
+  outline-offset: 1px;
+}
+
+.confirm p {
+  margin: 0;
+  color: var(--color-text-danger);
+  font-weight: 600;
+}
+
+/* The war's costs (a broken treaty, the other minors): each its own line under the question, the buttons below */
+.confirm .warCost {
+  flex-basis: 100%;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+
+.fieldLabel {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+}
+
+/* Accept Offer */
+
+.offerText {
+  margin: var(--spacing-md) 0 var(--spacing-lg);
+  font-size: var(--font-size-lg);
+  line-height: 1.45;
+}
+
+.offerFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.offerHint {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}

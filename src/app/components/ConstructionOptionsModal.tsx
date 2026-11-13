@@ -1,10 +1,11 @@
 "use client";
-import React, { useMemo } from "react";
+import React, { useId, useMemo } from "react";
 import { useGameStore } from "../store/rootStore";
 import { isPortSite } from "@/engine/orders/queries";
 import { parseTileIdToArray } from "@/utils/tileIdUtils";
 import { UI_ICONS } from "./icons";
 import { GameIcon } from "./GameIcon";
+import { Modal } from "./Modal";
 
 export const ConstructionOptionsModal: React.FC = () => {
   const isOpen = useGameStore((s) => s.isConstructionModalOpen);
@@ -14,6 +15,7 @@ export const ConstructionOptionsModal: React.FC = () => {
   const game = useGameStore((s) => s.game);
   const activeNationId = useGameStore((s) => s.activeNationId);
   const submitOrder = useGameStore((s) => s.submitOrder);
+  const titleId = useId();
 
   const tile = useMemo(() => {
     if (!tileId) return null;
@@ -37,45 +39,24 @@ export const ConstructionOptionsModal: React.FC = () => {
   if (!isOpen || !tile) return null;
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "var(--color-bg-backdrop)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 100,
-      }}
-    >
-      <div
-        style={{
-          background: "var(--color-bg-secondary)",
-          color: "var(--color-text-primary)",
-          borderRadius: 8,
-          padding: 20,
-          boxShadow: "var(--shadow-dialog)",
-          width: 300,
-        }}
-      >
-        <h2 style={{ marginTop: 0, marginBottom: 20, textAlign: "center", fontSize: 18, fontWeight: 700 }}>
-          <GameIcon name={UI_ICONS.construction} /> Construction Options
-        </h2>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <button className="btn btn-primary" onClick={() => handleConstruct('depot')}>
-            Build Depot
-          </button>
-          {canBuildPort && (
-            <button className="btn btn-primary" onClick={() => handleConstruct('port')}>
-              Build Port
-            </button>
-          )}
-        </div>
-        <button onClick={close} className="btn btn-plain" style={{ marginTop: 20, textAlign: "center" }}>
-          Cancel
+    <Modal titleId={titleId} onClose={close} overlayClassName="construction-overlay" className="construction-dialog">
+      <h2 id={titleId} className="construction-title">
+        <GameIcon name={UI_ICONS.construction} /> Construction Options
+      </h2>
+      <div className="construction-options">
+        <button className="btn btn-primary" onClick={() => handleConstruct('depot')}>
+          Build Depot
         </button>
+        {canBuildPort && (
+          <button className="btn btn-primary" onClick={() => handleConstruct('port')}>
+            Build Port
+          </button>
+        )}
       </div>
-    </div>
+      <button onClick={close} className="btn btn-plain construction-cancel">
+        Cancel
+      </button>
+    </Modal>
   );
 };
 

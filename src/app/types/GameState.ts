@@ -7,7 +7,7 @@ import { TradeRoute } from "./TradeRoute";
 import { TransportNetwork } from "./Transport";
 import { GameMap } from "./Map";
 import { TechnologyState } from "./Technology";
-import type { DiplomacyState } from "./Diplomacy";
+import type { DiplomacyState, Proposal } from "./Diplomacy";
 import type { Intent } from "./Intent";
 import type { MinorNation } from "./MinorNation";
 import type { Province } from "./Province";
@@ -37,6 +37,11 @@ export interface GameState {
   diplomacy: DiplomacyState;
   /** What this turn's orders that involve a second country left to resolve (FR-152). */
   intents: Intent[];
+  /**
+   * Alliance and peace overtures to a human Great Power, answered on the next turn (FR-166); empty on a
+   * new game, absent on a hand-built test state (read through `proposalsOf`).
+   */
+  proposals?: Proposal[];
 
   cities: City[];
   armies: Army[];

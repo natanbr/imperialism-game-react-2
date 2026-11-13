@@ -1,10 +1,11 @@
 "use client";
-import React from "react";
+import React, { useId } from "react";
 import { useTransportAllocations } from "../hooks/useTransportAllocations";
 import { COMMODITY_ICONS, UI_ICONS } from "./icons";
 import { GameIcon } from "./GameIcon";
 import { transportKinds } from "./commodityKinds";
 import { commodityName } from "./gameText";
+import { Modal } from "./Modal";
 
 interface TransportAllocationModalProps {
   capacity: number;
@@ -18,13 +19,13 @@ interface TransportAllocationModalProps {
  */
 const TransportAllocationModal: React.FC<TransportAllocationModalProps> = ({ capacity, onClose }) => {
   const { allocations, handleAllocChange, totalAllocated, remaining, sliderMax } = useTransportAllocations(capacity);
+  const titleId = useId();
   const kinds = transportKinds((key) => sliderMax(key) > 0 || (allocations[key] ?? 0) > 0);
 
   return (
-    <div className="modal-overlay">
-      <div className="modal-content" role="dialog" aria-label="Transportation of Commodities">
+    <Modal titleId={titleId} onClose={onClose} overlayClassName="modal-overlay" className="modal-content">
         <div className="modal-header">
-          <h3 className="modal-title">
+          <h3 id={titleId} className="modal-title">
             <GameIcon name={UI_ICONS.transport} /> Transportation of Commodities
           </h3>
           <button onClick={onClose} className="modal-close-btn" aria-label="Close transport">
@@ -72,8 +73,7 @@ const TransportAllocationModal: React.FC<TransportAllocationModalProps> = ({ cap
             </section>
           ))}
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 };
 

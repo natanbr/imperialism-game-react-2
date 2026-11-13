@@ -48,15 +48,15 @@ const pair = (points: number, holders: string[] = []): PairDiplomacy => ({
 
 /**
  * The diplomacy of a new game (FR-151): each pair of Great Powers at 40 points with consulates and
- * embassies both ways, each Great Power and minor pair at 30 points with nothing else. Two minors
- * have no entry.
+ * embassies both ways, marked as the start ones (FR-240), each Great Power and minor pair at 30 points
+ * with nothing else. Two minors have no entry.
  */
 export function startDiplomacy(nations: readonly Pick<Nation, "id">[], minorNations: readonly Pick<MinorNation, "id">[]): DiplomacyState {
   const diplomacy: DiplomacyState = {};
   nations.forEach((a, i) => {
     for (const b of nations.slice(i + 1)) {
       const holders = [a.id, b.id].sort();
-      diplomacy[pairKey(a.id, b.id)] = pair(GREAT_POWER_START_POINTS, holders);
+      diplomacy[pairKey(a.id, b.id)] = { ...pair(GREAT_POWER_START_POINTS, holders), startTreaties: true };
     }
   });
   for (const nation of nations) {

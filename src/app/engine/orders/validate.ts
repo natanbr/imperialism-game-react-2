@@ -12,6 +12,7 @@ import {
   validateTrainWorkers,
 } from "./industryOrders";
 import { validateTradeOrder } from "./tradeOrders";
+import { validateDiplomacyOrder } from "./diplomacyOrders";
 import { isGameOver } from "../turn/gameOver";
 import { areTilesAdjacent } from "../map/mapHelpers";
 import type {
@@ -92,6 +93,12 @@ export function validateOrder(state: GameState, order: Order): ValidationResult 
     case "sellCommodity":
     case "buyCommodity":
       return validateTradeOrder(state, nation, order);
+    case "proposeOverture":
+    case "giveGrant":
+    case "setTradePolicy":
+    case "withdrawOverture":
+    case "answerProposal":
+      return validateDiplomacyOrder(state, nation, order);
     default: {
       const unknown: never = order;
       void unknown;

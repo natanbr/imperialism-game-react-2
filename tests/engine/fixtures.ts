@@ -1,5 +1,7 @@
 // Shared helpers for the engine tests. Not a test file (vitest only runs *.test.ts).
 import { createTwoNationGame } from '@/testing/mockNation';
+import { pairKey } from '@/engine/diplomacy/relations';
+import type { PairDiplomacy } from '@/types/Diplomacy';
 import { GameState } from '@/types/GameState';
 import { BuildingType, IndustryBuilding, IndustryState } from '@/types/Industry';
 import { Nation } from '@/types/Nation';
@@ -54,6 +56,12 @@ export function setTile(state: GameState, tileId: string, patch: Partial<Tile>):
       tiles: state.map.tiles.map((row, ry) => row.map((t, rx) => (rx === x && ry === y ? { ...t, ...patch } : t))),
     },
   };
+}
+
+/** Test setup: replaces fields of the diplomacy entry of the pair (a, b) (FR-151). */
+export function setPair(state: GameState, a: string, b: string, patch: Partial<PairDiplomacy>): GameState {
+  const key = pairKey(a, b);
+  return { ...state, diplomacy: { ...state.diplomacy, [key]: { ...state.diplomacy[key], ...patch } } };
 }
 
 export function setTreasury(state: GameState, nationId: string, amount: number): GameState {
