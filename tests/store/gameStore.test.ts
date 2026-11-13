@@ -131,8 +131,9 @@ describe('FR-020 submitOrder validates, then applies', () => {
 });
 
 describe('FR-021 advanceTurn resolves the turn with the engine and keeps the events', () => {
-  it('stores resolveTurn(game, {}, seed) and logs its events under the resolved turn', () => {
+  it('FR-256 stores resolveTurn(game, {}, seed) and logs its events under the resolved turn, with each treasury at the turn\'s start and end', () => {
     const store = createGameStore({ game: game(7) });
+    const initial = store.getState().game;
     store.getState().submitOrder(prospect);
     const before = store.getState().game;
     const expected = resolveTurn(before, {}, before.seed);
@@ -140,7 +141,12 @@ describe('FR-021 advanceTurn resolves the turn with the engine and keeps the eve
     store.getState().advanceTurn();
 
     expect(store.getState().game).toEqual(expected.state);
-    expect(store.getState().eventLog).toEqual([{ turn: before.turn, year: before.year, events: expected.events }]);
+    // The prospecting was paid when ordered, so the human's start is the treasury before that order (FR-256)
+    const treasuries = Object.fromEntries(
+      initial.nations.map((n, i) => [n.id, { start: n.treasury, end: expected.state.nations[i].treasury }])
+    );
+    expect(treasuries[initial.nations[0].id].start - before.nations[0].treasury).toBe(100);
+    expect(store.getState().eventLog).toEqual([{ turn: before.turn, year: before.year, events: expected.events, treasuries }]);
     expect(expected.events.map(e => e.type)).toContain('resource-discovered');
   });
 

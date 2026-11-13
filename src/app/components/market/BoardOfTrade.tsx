@@ -12,7 +12,7 @@ import { COMMODITY_ICONS, UI_ICONS } from "../icons";
 import { GameIcon } from "../GameIcon";
 import { Modal } from "../Modal";
 
-/** "Sellers: Arvelia 4, favours Testland (no consulate) …": the minors on one row, the barrier marked in words. */
+/** "Sellers: Arvelia: 4 units (no consulate) …": the minors on one row, the barrier marked in words. */
 const PartnerList: React.FC<{ label: "Sellers" | "Buyers"; partners: PartnerView[]; testId: string }> = ({ label, partners, testId }) => (
   <div className={styles.partners} data-testid={testId}>
     {/* The list carries the name for assistive technology; the visible label is not read twice */}
@@ -38,11 +38,12 @@ const PartnerList: React.FC<{ label: "Sellers" | "Buyers"; partners: PartnerView
 );
 
 /**
- * The Board of Trade (FR-194, FR-248; Imp1 Board of Trade and Trade Book, rules 11 sections 1 and 1.2): in "partners"
- * each commodity in the Board order with its board price, the stock Available and today's bid or offer (a row with a
- * bid has no offer control, and the other way round; a "+" the engine would refuse is disabled and says why), and the
- * minors that sell or buy it with their favourite and, when we cannot trade with them, why. A fixed frame: at 1280x720
- * the dialog fits the window and only the board scrolls.
+ * The Board of Trade (FR-194, FR-248, FR-251 to FR-254, FR-257; Imp1 Board of Trade and Trade Book, rules 11 sections 1
+ * and 1.2): in "partners" each commodity in the Board order with its board price, our own stock In warehouse and
+ * today's bid or offer (a row with a bid has no offer control, and the other way round; a "+" the engine would refuse
+ * is disabled and the reason stands beside it), and the minors that sell or buy it with their units and, when we cannot
+ * trade with them, why; the note names each minor's favourite. A fixed frame: at 1280x720 the dialog fits the window
+ * and only the board scrolls.
  */
 export const BoardOfTrade: React.FC = () => {
   const close = useGameStore((s) => s.closeMarket);
@@ -86,8 +87,16 @@ export const BoardOfTrade: React.FC = () => {
       </header>
 
       <p id={noteId} className={styles.boardNote}>
-        Deals settle at End Turn at the board price. A minor trades only where we hold a consulate (one ordered this turn
-        counts) and serves the Great Power it favours first. Bought goods arrive next turn.
+        Deals settle at End Turn at the board price; bought goods arrive next turn. Minor nations sell what their land
+        yields and buy only clothing, furniture and hardware. A minor trades only where we hold a consulate (one ordered
+        this turn counts) and serves the Great Power it favours first
+        {view?.favouritesText ? (
+          <>
+            : <span data-testid="board-favourites">{view.favouritesText}</span>
+          </>
+        ) : (
+          "."
+        )}
       </p>
 
       {lastRejection && (
@@ -103,7 +112,7 @@ export const BoardOfTrade: React.FC = () => {
               <tr>
                 <th>Commodity</th>
                 <th className={styles.number}>Price</th>
-                <th className={styles.number}>Available</th>
+                <th className={styles.number}>In warehouse</th>
                 <th>Bid</th>
                 <th>Offer</th>
                 <th>Minor nations</th>
@@ -121,19 +130,42 @@ export const BoardOfTrade: React.FC = () => {
                   <td className={`${styles.number} ${styles.fixed}`} data-testid="available">
                     {row.available}
                   </td>
-                  <td className={styles.fixed}>
+                  <td className={styles.stepCell}>
                     {row.offer === 0 && (
-                      <Stepper label="Bid" name={row.name} value={row.bid} testId="bid" moreRefusal={row.bidMoreRefusal} onChange={send("buyCommodity", row.commodity)} />
+                      <Stepper
+                        label="Bid"
+                        name={row.name}
+                        value={row.bid}
+                        testId="bid"
+                        moreRefusal={row.bidMoreRefusal}
+                        note={row.bidNote}
+                        hideLessAtZero
+                        onChange={send("buyCommodity", row.commodity)}
+                      />
                     )}
                   </td>
-                  <td className={styles.fixed}>
+                  <td className={styles.stepCell}>
                     {row.bid === 0 && (
-                      <Stepper label="Offer" name={row.name} value={row.offer} testId="offer" moreRefusal={row.offerMoreRefusal} onChange={send("sellCommodity", row.commodity)} />
+                      <Stepper
+                        label="Offer"
+                        name={row.name}
+                        value={row.offer}
+                        testId="offer"
+                        moreRefusal={row.offerMoreRefusal}
+                        note={row.offerNote}
+                        hideLessAtZero
+                        onChange={send("sellCommodity", row.commodity)}
+                      />
                     )}
                   </td>
                   <td className={styles.partnersCell}>
                     {row.sellers.length > 0 && <PartnerList label="Sellers" partners={row.sellers} testId="sellers" />}
                     {row.buyers.length > 0 && <PartnerList label="Buyers" partners={row.buyers} testId="buyers" />}
+                    {row.noMinorText && (
+                      <span className={styles.noMinor} data-testid="no-minor">
+                        {row.noMinorText}
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))}

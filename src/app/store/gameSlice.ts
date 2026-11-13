@@ -19,13 +19,20 @@ import type { GameStore } from "./rootStore";
 /** How many resolved turns the event log keeps. */
 export const EVENT_LOG_TURNS = 20;
 
-/** What one resolved turn produced, for the HUD's news. */
+/** What one resolved turn produced, for the HUD's news and the Deal Book. */
 export interface TurnReport {
   /** The turn that was resolved (the game is now on the next one). */
   turn: number;
   year: number;
   events: GameEvent[];
+  /**
+   * Each nation's treasury when the turn began (before the human's first order of it) and after it resolved (FR-256:
+   * the Deal Book's treasury change). Absent in reports made by hand.
+   */
+  treasuries?: Record<NationId, { start: number; end: number }>;
 }
+
+const treasuriesOf = (state: GameState): Record<NationId, number> => Object.fromEntries(state.nations.map((n) => [n.id, n.treasury ?? 0]));
 
 export interface OrderRejection {
   order: Order;
@@ -56,6 +63,8 @@ export interface GameSlice {
   orderLog: OrderLogEntry[];
   /** The active nation's orders applied this turn, in order; logged at End Turn (FR-100). */
   ordersThisTurn: Order[];
+  /** The treasuries just before the first of `ordersThisTurn` was applied; null while there is none (FR-256). */
+  turnStartTreasuries: Record<NationId, number> | null;
 
   /** Validates the order against `game` and, if valid, applies it now (FR-020). */
   submitOrder: (order: Order) => ValidationResult;
@@ -100,14 +109,21 @@ export const createGameSlice =
       eventLog: [],
       orderLog: [],
       ordersThisTurn: [],
+      turnStartTreasuries: null,
 
       submitOrder: (order) => {
-        const { game: current, activeNationId, ordersThisTurn } = get();
+        const { game: current, activeNationId, ordersThisTurn, turnStartTreasuries } = get();
         const { state, result } =
           order.nationId === activeNationId
             ? tryApplyOrder(current, order)
             : { state: current, result: { ok: false, reason: "not-owner" } as const };
-        if (result.ok) set({ game: state, lastRejection: null, ordersThisTurn: [...ordersThisTurn, order] });
+        if (result.ok)
+          set({
+            game: state,
+            lastRejection: null,
+            ordersThisTurn: [...ordersThisTurn, order],
+            turnStartTreasuries: ordersThisTurn.length === 0 ? treasuriesOf(current) : turnStartTreasuries,
+          });
         else set({ lastRejection: { order, reason: result.reason } });
         return result;
       },
@@ -115,12 +131,16 @@ export const createGameSlice =
       // The human's orders were applied when submitted; the computer nations plan on that state and
       // their orders resolve with the turn (FR-099, ARCHITECTURE.md turn flow).
       advanceTurn: () => {
-        const { game: current, eventLog, orderLog, ordersThisTurn, activeNationId } = get();
+        const { game: current, eventLog, orderLog, ordersThisTurn, activeNationId, turnStartTreasuries } = get();
         // After the end resolveTurn is a no-op that would still log an empty turn (FR-077).
         if (isGameOver(current)) return;
         const computer = computerOrders(current);
         const { state, events } = resolveTurn(current, computer, current.seed);
-        const report: TurnReport = { turn: current.turn, year: current.year, events };
+        // The computer nations' orders apply inside resolveTurn, so `current` is their turn start (FR-256)
+        const start = { ...treasuriesOf(current), ...(ordersThisTurn.length > 0 ? turnStartTreasuries : {}) };
+        const end = treasuriesOf(state);
+        const treasuries = Object.fromEntries(Object.keys(end).map((id) => [id, { start: start[id] ?? end[id], end: end[id] }]));
+        const report: TurnReport = { turn: current.turn, year: current.year, events, treasuries };
         // In state order, the order resolveTurn applies them in, so the log replays the game (FR-100).
         const logged = current.nations.map((n): OrderLogEntry => ({
           turn: current.turn,
@@ -132,6 +152,7 @@ export const createGameSlice =
           eventLog: [...eventLog, report].slice(-EVENT_LOG_TURNS),
           orderLog: [...orderLog, ...logged],
           ordersThisTurn: [],
+          turnStartTreasuries: null,
           lastRejection: null,
         });
       },
@@ -146,6 +167,7 @@ export const createGameSlice =
           eventLog: [],
           orderLog: [],
           ordersThisTurn: [],
+          turnStartTreasuries: null,
           isGameOverHidden: false,
           selectedTileId: undefined,
           hoveredTileId: undefined,

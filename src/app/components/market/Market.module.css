@@ -230,6 +230,7 @@
   top: 0;
   z-index: 1;
   background: var(--color-bg-secondary);
+  white-space: nowrap;
 }
 
 /* Compact rows: at 1280x720 all 17 rows of a new game fit without scrolling the board (e2e/m7-trade.spec.ts) */
@@ -247,6 +248,43 @@
 .fixed {
   white-space: nowrap;
   width: 1%;
+}
+
+/* A Bid or Offer stepper with its line beside it (FR-257): the line wraps in two short lines so the row stays one
+   stepper high */
+.stepCell {
+  width: 1%;
+  white-space: nowrap;
+}
+
+/* A block, not a line box: the row stays as high as the stepper */
+.stepCell .amount {
+  display: flex;
+}
+
+/* Where "−" stands when there is nothing to take back (FR-257) */
+.stepPlace {
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+}
+
+.stepNote {
+  width: 104px;
+  white-space: normal;
+  text-wrap: balance;
+  font-size: var(--font-size-xs);
+  line-height: 11px;
+  color: var(--color-text-primary);
+}
+
+/* Beside a disabled "+": calm, as the many market reasons of a new game would shout in red */
+.stepRefusal {
+  color: var(--color-text-muted);
+}
+
+.noMinor {
+  color: var(--color-text-muted);
 }
 
 .partnersCell {
@@ -279,7 +317,7 @@
 
 .partner {
   padding: 0 6px;
-  line-height: 16px;
+  line-height: 14px;
   border: 1px solid transparent;
   border-radius: 999px;
   background: var(--color-bg-panel);
@@ -366,10 +404,24 @@
   color: var(--color-text-muted);
 }
 
-.bottomLine {
+/* The Not traded page spans both columns (FR-255) */
+.wide {
+  grid-column: 1 / -1;
+}
+
+/* The bottom line and the treasury side by side (FR-256) */
+.totals {
   margin-top: var(--spacing-lg);
-  margin-left: auto;
-  width: 280px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--spacing-lg);
+  align-items: start;
+}
+
+.moneyCaption {
+  margin: 4px 6px 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
 }
 
 .bottomLine .pageTitle {

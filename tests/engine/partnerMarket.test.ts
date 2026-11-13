@@ -9,6 +9,7 @@ import { describe, it, expect } from 'vitest';
 import * as engine from '@/engine';
 import { newGame } from '@/engine/newGame';
 import { tryApplyOrder } from '@/engine/orders/apply';
+import { applyBuyCommodity, applySellCommodity } from '@/engine/orders/tradeOrders';
 import { validateOrder } from '@/engine/orders/validate';
 import type { Order } from '@/engine/orders/Order';
 import { resolveTurn } from '@/engine/turn/resolveTurn';
@@ -48,6 +49,16 @@ const ordered = (state: GameState, ...orders: Order[]): GameState =>
     expect({ order, result }).toEqual({ order, result: { ok: true } });
     return next;
   }, state);
+
+/**
+ * Places bids and offers with their order-time effects (the reserve paid, the units out of the warehouse) but without the
+ * order-time check, which since the QA fix round refuses a bid or an offer nobody the nation may trade with could take
+ * (FR-252, FR-253). The trade phase must still settle such orders: a bid stands when its consulate is withdrawn or a war
+ * is declared after it, and FR-186's step 3 settles any offer against any bid between Great Powers (the steel examples,
+ * which no minor sells, so no player can order them now).
+ */
+const placed = (state: GameState, ...orders: Order[]): GameState =>
+  orders.reduce((s, o) => (o.kind === 'sellCommodity' ? applySellCommodity(s, o) : o.kind === 'buyCommodity' ? applyBuyCommodity(s, o) : s), state);
 
 /** Test setup: the nation holds a consulate in each minor given (FR-163). */
 const consulates = (state: GameState, nationId: string, ...minors: string[]): GameState =>
@@ -92,19 +103,19 @@ describe('FR-242 the market mode (replaces FR-182)', () => {
   });
 
   it('FR-242 in "partners" nothing is sold to the world: an offer nobody wants comes back, unsold, and pays nothing', () => {
-    const s = ordered(continent(), sell(N1, MaterialType.Lumber, 2));
+    const s = placed(continent(), sell(N1, MaterialType.Lumber, 2));
     expect(stockOf(s, N1, MaterialType.Lumber)).toBe(8);
 
     const { state, events } = trade(s);
 
     expect(deals(events)).toEqual([]);
-    expect(ofType(events, 'offer-unsold')).toEqual([{ type: 'offer-unsold', nationId: N1, commodity: MaterialType.Lumber, amount: 2 }]);
+    expect(ofType(events, 'offer-unsold')).toEqual([{ type: 'offer-unsold', nationId: N1, commodity: MaterialType.Lumber, amount: 2, cause: { kind: 'nobody' } }]);
     expect(stockOf(state, N1, MaterialType.Lumber)).toBe(10);
     expect(treasury(state, N1)).toBe(10000);
   });
 
   it('FR-242 in "partners" nothing is bought from the world: a bid nobody fills is refunded and nothing arrives', () => {
-    const s = ordered(continent(), buy(N1, MaterialType.Steel, 2));
+    const s = placed(continent(), buy(N1, MaterialType.Steel, 2));
     expect(treasury(s, N1)).toBe(9400);
 
     const { state, events } = trade(s);
@@ -124,7 +135,7 @@ describe('FR-242 the market mode (replaces FR-182)', () => {
   });
 
   it('FR-242 the trade phase keeps the mode and clears the orders', () => {
-    const { state } = trade(ordered(continent(), sell(N1, MaterialType.Lumber, 1)));
+    const { state } = trade(placed(continent(), sell(N1, MaterialType.Lumber, 1)));
     expect(marketOf(state).mode).toBe('partners');
     expect(marketOf(state).orders).toEqual({});
   });
@@ -171,10 +182,12 @@ describe('FR-184 what minors buy', () => {
     expect(minorDemand(colony(continent()), SUNDMARK)).toEqual({ clothing: 2, furniture: 2, hardware: 2 });
 
     let s = setWarehouse(consulates(colony(continent()), N1, ARVELIA), N1, { clothing: 2 });
-    s = ordered(s, sell(N1, GoodsType.Clothing, 2));
+    s = placed(s, sell(N1, GoodsType.Clothing, 2));
     const { events } = trade(s);
     expect(deals(events)).toEqual([]);
-    expect(ofType(events, 'offer-unsold')).toEqual([{ type: 'offer-unsold', nationId: N1, commodity: GoodsType.Clothing, amount: 2 }]);
+    // FR-255: the minors that still buy clothing are those Testland has no consulate with
+    const barred = [SUNDMARK, LORRAN, PELLIS].map(countryId => ({ countryId, barrier: 'no-consulate' }));
+    expect(ofType(events, 'offer-unsold')).toEqual([{ type: 'offer-unsold', nationId: N1, commodity: GoodsType.Clothing, amount: 2, cause: { kind: 'barred', barred } }]);
   });
 
   it('FR-184 a minor always pays: a nation with $0 sells it 2 furniture for $1,800', () => {
@@ -190,7 +203,7 @@ describe('FR-184 what minors buy', () => {
 
 describe('FR-185 who may trade', () => {
   it('FR-185 a Great Power and a minor need a consulate: without one no deal, the bid refunded', () => {
-    const s = ordered(continent(), buy(N1, ResourceType.Coal, 2));
+    const s = placed(continent(), buy(N1, ResourceType.Coal, 2));
     const { state, events } = trade(s);
     expect(deals(events)).toEqual([]);
     expect(treasury(state, N1)).toBe(10000);
@@ -209,7 +222,7 @@ describe('FR-185 who may trade', () => {
   it('FR-185 FR-167 at war: no deal even with a consulate; a war declared this turn already stops this turn\'s trade', () => {
     const atWar = setPair(consulates(continent(), N1, ARVELIA), N1, ARVELIA, { war: { aggressors: [N1], since: 1 } });
     expect(tradeBarrier(atWar, N1, ARVELIA)).toBe('at-war');
-    expect(deals(trade(ordered(atWar, buy(N1, ResourceType.Coal, 2))).events)).toEqual([]);
+    expect(deals(trade(placed(atWar, buy(N1, ResourceType.Coal, 2))).events)).toEqual([]);
 
     const declared = ordered(consulates(continent(), N1, ARVELIA), buy(N1, ResourceType.Coal, 2), { kind: 'proposeOverture', nationId: N1, overture: 'war', targetId: ARVELIA });
     expect(deals(resolveTurn(declared, {}, declared.seed).events)).toEqual([]);
@@ -219,14 +232,14 @@ describe('FR-185 who may trade', () => {
     for (const boycotter of [N1, ARVELIA]) {
       const s = setPair(consulates(continent(), N1, ARVELIA), N1, ARVELIA, { boycotts: [boycotter] });
       expect(tradeBarrier(s, N1, ARVELIA)).toBe('boycott');
-      expect(deals(trade(ordered(s, buy(N1, ResourceType.Coal, 2))).events)).toEqual([]);
+      expect(deals(trade(placed(s, buy(N1, ResourceType.Coal, 2))).events)).toEqual([]);
     }
   });
 
   it('FR-185 two Great Powers trade without a consulate, but not at war or under a boycott', () => {
     const open = setPair(continent(), N1, N2, { consulates: [], embassies: [] });
     expect(tradeBarrier(open, N1, N2)).toBeUndefined();
-    const steel = (s: GameState) => ordered(s, sell(N2, MaterialType.Steel, 1), buy(N1, MaterialType.Steel, 1));
+    const steel = (s: GameState) => placed(s, sell(N2, MaterialType.Steel, 1), buy(N1, MaterialType.Steel, 1));
     expect(deals(trade(steel(open)).events)).toEqual([['sold', N2, N1, MaterialType.Steel, 1, 300], ['bought', N1, N2, MaterialType.Steel, 1, 300]]);
 
     for (const patch of [{ war: { aggressors: [N2], since: 1 } }, { boycotts: [N2] }]) {
@@ -306,14 +319,14 @@ describe('FR-186 matching in the Board of Trade order', () => {
 
   it('FR-186 FR-188 example: Valdoria offers 2 steel, Testland bids 3 and no minor sells steel: Testland buys the 2 with its own holds', () => {
     // The seller's holds are not used: Valdoria has none left at settlement
-    let s = setHolds(ordered(continent(), sell(N2, MaterialType.Steel, 2), buy(N1, MaterialType.Steel, 3)), N2, 0);
+    let s = setHolds(placed(continent(), sell(N2, MaterialType.Steel, 2), buy(N1, MaterialType.Steel, 3)), N2, 0);
     let { state, events } = trade(s);
     expect(deals(events)).toEqual([['sold', N2, N1, MaterialType.Steel, 2, 300], ['bought', N1, N2, MaterialType.Steel, 2, 300]]);
     expect([treasury(state, N1), treasury(state, N2)]).toEqual([9400, 10600]);
     expect(stockOf(state, N2, MaterialType.Steel)).toBe(8);
 
     // The buyer's holds are: with 1 hold left Testland takes 1 and the other reached it and passed on
-    s = setHolds(ordered(continent(), sell(N2, MaterialType.Steel, 2), buy(N1, MaterialType.Steel, 3)), N1, 1);
+    s = setHolds(placed(continent(), sell(N2, MaterialType.Steel, 2), buy(N1, MaterialType.Steel, 3)), N1, 1);
     ({ state, events } = trade(s));
     expect(deals(events)).toEqual([['sold', N2, N1, MaterialType.Steel, 1, 300], ['bought', N1, N2, MaterialType.Steel, 1, 300]]);
     expect(ofType(events, 'offer-missed')).toEqual([
@@ -345,13 +358,14 @@ describe('FR-186 matching in the Board of Trade order', () => {
       ['sold', N2, N1, ResourceType.Coal, 1, 100],
       ['bought', N1, N2, ResourceType.Coal, 1, 100],
     ]);
-    expect(ofType(events, 'offer-unsold')).toEqual([{ type: 'offer-unsold', nationId: N2, commodity: ResourceType.Coal, amount: 1 }]);
+    // FR-255: Testland, the one buyer, wanted no more
+    expect(ofType(events, 'offer-unsold')).toEqual([{ type: 'offer-unsold', nationId: N2, commodity: ResourceType.Coal, amount: 1, cause: { kind: 'used-up' } }]);
     expect(stockOf(state, N2, ResourceType.Coal)).toBe(9);
   });
 
   it('FR-186 step 2 before step 3: Arvelia\'s demand takes Testland\'s 2 clothing before Valdoria\'s bid', () => {
     let s = setWarehouse(consulates(continent(), N1, ARVELIA), N1, { clothing: 2 });
-    s = ordered(s, sell(N1, GoodsType.Clothing, 2), buy(N2, GoodsType.Clothing, 2));
+    s = placed(ordered(s, sell(N1, GoodsType.Clothing, 2)), buy(N2, GoodsType.Clothing, 2));
 
     const { state, events } = trade(s);
 
@@ -375,7 +389,8 @@ describe('FR-186 matching in the Board of Trade order', () => {
     const { state, events } = trade(s);
 
     expect(deals(events)).toEqual([['sold', N1, ARVELIA, GoodsType.Clothing, 1, 900]]);
-    expect(ofType(events, 'offer-unsold')).toEqual([{ type: 'offer-unsold', nationId: N1, commodity: GoodsType.Clothing, amount: 1 }]);
+    // FR-255: Arvelia still wanted one, but Testland had no hold left
+    expect(ofType(events, 'offer-unsold')).toEqual([{ type: 'offer-unsold', nationId: N1, commodity: GoodsType.Clothing, amount: 1, cause: { kind: 'no-hold' } }]);
     expect(stockOf(state, N1, GoodsType.Clothing)).toBe(1);
   });
 
@@ -441,7 +456,7 @@ describe('FR-187 the favourite partner', () => {
 
 describe('FR-188 holds', () => {
   it('FR-188 FR-063 the order-time check stays: offers and bids together at most 4 holds', () => {
-    const s = ordered(consulates(continent(), N1, ARVELIA), buy(N1, ResourceType.Coal, 3), sell(N1, MaterialType.Lumber, 1));
+    const s = placed(ordered(consulates(continent(), N1, ARVELIA), buy(N1, ResourceType.Coal, 3)), sell(N1, MaterialType.Lumber, 1));
     expect(validateOrder(s, buy(N1, ResourceType.Timber, 1))).toEqual({ ok: false, reason: 'limit-reached' });
   });
 
@@ -503,7 +518,7 @@ describe('FR-189 prices and cash', () => {
 
   it('FR-189 between Great Powers the buyer pays P less the seller\'s subsidy toward it; the unused reserve comes back', () => {
     let s = setPair(continent(), N1, N2, { subsidies: { [N2]: 10 } });
-    s = ordered(s, sell(N2, MaterialType.Steel, 2), buy(N1, MaterialType.Steel, 3));
+    s = placed(s, sell(N2, MaterialType.Steel, 2), buy(N1, MaterialType.Steel, 3));
 
     const { state, events } = trade(s);
 
@@ -513,7 +528,7 @@ describe('FR-189 prices and cash', () => {
 
   it('FR-189 the buyer\'s own subsidy toward the seller changes nothing between Great Powers', () => {
     let s = setPair(continent(), N1, N2, { subsidies: { [N1]: 25 } });
-    s = ordered(s, sell(N2, MaterialType.Steel, 1), buy(N1, MaterialType.Steel, 1));
+    s = placed(s, sell(N2, MaterialType.Steel, 1), buy(N1, MaterialType.Steel, 1));
     expect(deals(trade(s).events)).toEqual([['sold', N2, N1, MaterialType.Steel, 1, 300], ['bought', N1, N2, MaterialType.Steel, 1, 300]]);
   });
 
@@ -593,7 +608,7 @@ describe('FR-243 prices follow the Great Powers\' deals (replaces FR-190)', () =
   });
 
   it('FR-243 a deal between two Great Powers nets out: Valdoria sells Testland 2 steel, the steel price moves by its drift only', () => {
-    const s = ordered(continent(), sell(N2, MaterialType.Steel, 2), buy(N1, MaterialType.Steel, 2));
+    const s = placed(continent(), sell(N2, MaterialType.Steel, 2), buy(N1, MaterialType.Steel, 2));
     const { state, events } = trade(s);
     expect(deals(events)).toEqual([['sold', N2, N1, MaterialType.Steel, 2, 300], ['bought', N1, N2, MaterialType.Steel, 2, 300]]);
     expect(marketOf(state).prices.steel).toBe(Math.round(300 * (1 + driftOf(s, MaterialType.Steel))));
@@ -628,7 +643,7 @@ describe('FR-191 FR-172 trade raises relations', () => {
   });
 
   it('FR-191 a Great Power pair gains while it holds an embassy; at 49 one trade makes level 5 for both', () => {
-    const steel = (s: GameState) => ordered(s, sell(N2, MaterialType.Steel, 1), buy(N1, MaterialType.Steel, 1));
+    const steel = (s: GameState) => placed(s, sell(N2, MaterialType.Steel, 1), buy(N1, MaterialType.Steel, 1));
     expect(points(trade(steel(continent())).state, N1, N2)).toBe(41);
     expect(points(trade(steel(setPair(continent(), N1, N2, { consulates: [], embassies: [] }))).state, N1, N2)).toBe(40);
 
@@ -640,7 +655,7 @@ describe('FR-191 FR-172 trade raises relations', () => {
   });
 
   it('FR-191 FR-172 no deal, no change; the points stay at most 89', () => {
-    expect(points(trade(ordered(continent(), buy(N1, ResourceType.Coal, 2))).state, N1, ARVELIA)).toBe(30);
+    expect(points(trade(placed(continent(), buy(N1, ResourceType.Coal, 2))).state, N1, ARVELIA)).toBe(30);
     const top = ordered(setPair(consulates(continent(), N1, ARVELIA), N1, ARVELIA, { points: 89 }), buy(N1, ResourceType.Coal, 1));
     expect(points(trade(top).state, N1, ARVELIA)).toBe(89);
   });
@@ -670,48 +685,54 @@ describe('FR-244 deal events and the Deal Book data (replaces FR-192)', () => {
     ]);
   });
 
-  it('FR-244 dealBook returns data: the sales, the purchases and the missed offers, and the bottom line', () => {
+  it('FR-244 FR-255 dealBook returns data: the sales, the purchases, the missed offer under Not traded, and the bottom line', () => {
     const { events } = ledgerTurn();
 
     expect(dealBook(events, N1)).toEqual({
       sold: [{ kind: 'sold', commodity: GoodsType.Clothing, amount: 1, price: 810, total: 810, counterpartyId: ARVELIA }],
-      bought: [
-        { kind: 'bought', commodity: ResourceType.Coal, amount: 2, price: 110, total: 220, counterpartyId: ARVELIA },
-        { kind: 'missed', commodity: ResourceType.IronOre, amount: 1, counterpartyId: ARVELIA, reason: 'no-hold' },
-      ],
+      bought: [{ kind: 'bought', commodity: ResourceType.Coal, amount: 2, price: 110, total: 220, counterpartyId: ARVELIA }],
+      notTraded: [{ kind: 'missed', commodity: ResourceType.IronOre, amount: 1, counterpartyId: ARVELIA, reason: 'no-hold' }],
       bottomLine: { sold: 810, bought: 220, militaryUpkeep: 0, net: 590 },
+      diplomacy: [],
     });
-    expect(dealBook(events, N2)).toEqual({ sold: [], bought: [], bottomLine: { sold: 0, bought: 0, militaryUpkeep: 0, net: 0 } });
+    expect(dealBook(events, N2)).toEqual({ sold: [], bought: [], notTraded: [], bottomLine: { sold: 0, bought: 0, militaryUpkeep: 0, net: 0 }, diplomacy: [] });
   });
 
-  it('FR-244 dealBook lists the units not sold under Sold, and reads a "world" turn too', () => {
-    const { events } = trade(ordered(continent(), sell(N1, MaterialType.Lumber, 2)));
-    expect(dealBook(events, N1).sold).toEqual([{ kind: 'unsold', commodity: MaterialType.Lumber, amount: 2 }]);
+  it('FR-255 dealBook lists the units not sold under Not traded, not under Sold, and reads a "world" turn too', () => {
+    const { events } = trade(placed(continent(), sell(N1, MaterialType.Lumber, 2)));
+    expect(dealBook(events, N1).sold).toEqual([]);
+    expect(dealBook(events, N1).notTraded).toEqual([{ kind: 'unsold', commodity: MaterialType.Lumber, amount: 2, cause: { kind: 'nobody' } }]);
 
     const world = trade(ordered(newGame({ seed: 1, world: 'two-islands' }), sell(N1, MaterialType.Lumber, 1), buy(N1, ResourceType.Coal, 2)));
     expect(dealBook(world.events, N1)).toEqual({
       sold: [{ kind: 'sold', commodity: MaterialType.Lumber, amount: 1, price: 300, total: 300 }],
       bought: [{ kind: 'bought', commodity: ResourceType.Coal, amount: 2, price: 100, total: 200 }],
+      notTraded: [],
       bottomLine: { sold: 300, bought: 200, militaryUpkeep: 0, net: 100 },
+      diplomacy: [],
     });
   });
 
-  it('FR-244 a bid nobody fills says so: bid-unfilled with the units (no consulate here), listed under Bought, the reserve back', () => {
-    const { state, events } = trade(ordered(continent(), buy(N1, ResourceType.Coal, 2)));
+  it('FR-244 FR-255 a bid nobody fills says so: bid-unfilled with the units and the cause (no consulate with any seller), under Not traded, the reserve back', () => {
+    const { state, events } = trade(placed(continent(), buy(N1, ResourceType.Coal, 2)));
 
-    expect(ofType(events, 'bid-unfilled')).toEqual([{ type: 'bid-unfilled', nationId: N1, commodity: ResourceType.Coal, amount: 2 }]);
-    expect(dealBook(events, N1).bought).toEqual([{ kind: 'unfilled', commodity: ResourceType.Coal, amount: 2 }]);
+    const cause = { kind: 'barred', barred: [ARVELIA, SUNDMARK, PELLIS].map(countryId => ({ countryId, barrier: 'no-consulate' })) };
+    expect(ofType(events, 'bid-unfilled')).toEqual([{ type: 'bid-unfilled', nationId: N1, commodity: ResourceType.Coal, amount: 2, cause }]);
+    expect(dealBook(events, N1).bought).toEqual([]);
+    expect(dealBook(events, N1).notTraded).toEqual([{ kind: 'unfilled', commodity: ResourceType.Coal, amount: 2, cause }]);
     expect(treasury(state, N1)).toBe(10000);
   });
 
-  it('FR-244 units the favourite took first are bid-unfilled for the other: Valdoria (favoured) takes Arvelia\'s 3 coal, Testland\'s 2 find none', () => {
+  it('FR-244 FR-255 units the favourite took first are bid-unfilled for the other: Valdoria (favoured) takes Arvelia\'s 3 coal, Testland\'s 2 find none', () => {
     let s = setPair(consulates(consulates(continent(), N1, ARVELIA), N2, ARVELIA), N2, ARVELIA, { points: 33 });
     s = ordered(s, buy(N1, ResourceType.Coal, 2), buy(N2, ResourceType.Coal, 3));
 
     const { events } = trade(s);
 
     expect(deals(events)).toEqual([['bought', N2, ARVELIA, ResourceType.Coal, 3, 100]]);
-    expect(ofType(events, 'bid-unfilled')).toEqual([{ type: 'bid-unfilled', nationId: N1, commodity: ResourceType.Coal, amount: 2 }]);
+    expect(ofType(events, 'bid-unfilled')).toEqual([
+      { type: 'bid-unfilled', nationId: N1, commodity: ResourceType.Coal, amount: 2, cause: { kind: 'served-first', rivalIds: [N2] } },
+    ]);
   });
 
   it('FR-244 units that reached the nation and passed on are offer-missed, not also bid-unfilled; a part filled bid names only the rest', () => {
@@ -723,7 +744,8 @@ describe('FR-244 deal events and the Deal Book data (replaces FR-192)', () => {
     // 4 coal from Arvelia's 3: 3 bought, 1 bid-unfilled
     const part = trade(ordered(consulates(continent(), N1, ARVELIA), buy(N1, ResourceType.Coal, 4))).events;
     expect(deals(part)).toEqual([['bought', N1, ARVELIA, ResourceType.Coal, 3, 100]]);
-    expect(ofType(part, 'bid-unfilled')).toEqual([{ type: 'bid-unfilled', nationId: N1, commodity: ResourceType.Coal, amount: 1 }]);
+    // FR-255: Arvelia, the one seller open to Testland, had no more
+    expect(ofType(part, 'bid-unfilled')).toEqual([{ type: 'bid-unfilled', nationId: N1, commodity: ResourceType.Coal, amount: 1, cause: { kind: 'used-up' } }]);
   });
 
   it('FR-244 in "world" every bid is filled: no bid-unfilled', () => {

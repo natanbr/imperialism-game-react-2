@@ -36,7 +36,7 @@ test('FR-078 open the market, offer one furniture for sale, end the turn, see th
   test.setTimeout(90000);
   const errors = collectErrors(page);
   await start(page);
-  await expect(cash(page)).toContainText('Cash: 10000');
+  await expect(cash(page)).toContainText('Cash: $10,000');
   await expect(page.getByTestId('hud-score')).toContainText(/Score: \d+/);
 
   // Turn 1: a consulate with Pellis, and 1 furniture from 2 lumber in the capital
@@ -52,14 +52,16 @@ test('FR-078 open the market, offer one furniture for sale, end the turn, see th
   await page.getByRole('button', { name: 'Close capital' }).click();
   await advance(page).click();
   await expect(page.getByTestId('turn-indicator')).toContainText('Turn: 2 of 40');
-  await expect(cash(page)).toContainText('Cash: 9500');
+  await expect(cash(page)).toContainText('Cash: $9,500');
 
   // Turn 2: offer it on the Board of Trade; Pellis buys furniture and we hold a consulate there
   await page.getByRole('button', { name: /Open Market/ }).click();
   const market = page.getByRole('dialog', { name: 'Board of Trade' });
   const furniture = market.getByTestId('trade-row-furniture');
   await expect(furniture.getByTestId('available')).toHaveText('1');
-  await expect(furniture.getByRole('list', { name: 'Buyers' }).getByRole('listitem').last()).toHaveText(/^Pellis 2, favours \w+$/);
+  await expect(furniture.getByRole('list', { name: 'Buyers' }).getByRole('listitem').last()).toHaveText('Pellis: 2 units');
+  // FR-251: the favourites are named once, in the note under the title
+  await expect(market.getByTestId('board-favourites')).toHaveText(/\bPellis\b.* favours? (Testland|Valdoria)/);
   await expect(market.getByTestId('market-holds')).toHaveText('Holds: 4 of 4 free');
 
   await furniture.getByRole('button', { name: 'Offer one more Furniture' }).click();

@@ -7,6 +7,7 @@ import type { BuildingType, ProductionOutput } from "@/types/Industry";
 import type { TradeCommodity } from "@/types/Market";
 import type { Score } from "@/types/Score";
 import type { Order, RejectReason } from "../orders/Order";
+import type { TradeBarrier } from "../market/partners";
 import { createStreamRng, createTurnRng, RNG_STREAMS, type Rng, type RngStream } from "../rng";
 
 /** What happened during a turn, for news, UI feedback and AI players. */
@@ -30,13 +31,13 @@ export type GameEvent =
    * (no free hold, or not enough money); they passed on to the next in order.
    */
   | { type: "offer-missed"; nationId: NationId; counterpartyId: CountryId; commodity: TradeCommodity; amount: number; reason: OfferMissedReason }
-  /** FR-244: units of the nation's offer nobody bought; they are back in its warehouse. */
-  | { type: "offer-unsold"; nationId: NationId; commodity: TradeCommodity; amount: number }
+  /** FR-244: units of the nation's offer nobody bought; they are back in its warehouse. `cause`: why (FR-255). */
+  | { type: "offer-unsold"; nationId: NationId; commodity: TradeCommodity; amount: number; cause?: TradeMissCause }
   /**
    * FR-244, "partners" only: units of the nation's bid that no seller let it have (none it may trade with offered
-   * them, or they went to others first) and that are not in an `offer-missed`; their reserve is back.
+   * them, or they went to others first) and that are not in an `offer-missed`; their reserve is back. `cause`: why (FR-255).
    */
-  | { type: "bid-unfilled"; nationId: NationId; commodity: TradeCommodity; amount: number }
+  | { type: "bid-unfilled"; nationId: NationId; commodity: TradeCommodity; amount: number; cause?: TradeMissCause }
   | { type: "turn-ended"; turn: number; year: number }
   /** The last turn has resolved (FR-068): the last turn played, its year and the final scores. */
   | { type: "game-over"; turn: number; year: number; scores: Score[] }
@@ -68,6 +69,20 @@ export interface WarCause {
 
 /** Why units offered to a nation for its bid passed on (FR-244). */
 export type OfferMissedReason = "no-hold" | "no-cash";
+
+/**
+ * Why units of a bid (`bid-unfilled`) or an offer (`offer-unsold`) found no counterparty in the trade phase (FR-255):
+ * "nobody": no country offered (for a bid) or wanted (for an offer) the commodity this turn; "barred": every one that
+ * did was barred to the nation (FR-185), each with its barrier; "served-first": those it may trade with dealt in it
+ * with these other Great Powers first (a minor serves its favourite first, FR-187); "used-up": they had no more to
+ * sell, or wanted no more; "no-hold" (an offer only): a buyer still wanted it, but the nation had no free hold left.
+ */
+export type TradeMissCause =
+  | { kind: "nobody" }
+  | { kind: "barred"; barred: { countryId: CountryId; barrier: TradeBarrier }[] }
+  | { kind: "served-first"; rivalIds: NationId[] }
+  | { kind: "used-up" }
+  | { kind: "no-hold" };
 
 /** Why a locked grant ended (FR-170). */
 export type GrantStopReason = "insufficient-funds" | "withdrawn" | "war";

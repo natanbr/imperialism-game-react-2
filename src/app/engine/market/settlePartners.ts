@@ -11,7 +11,7 @@ import type { TradeAmounts, TradeCommodity } from "@/types/Market";
 import type { Nation } from "@/types/Nation";
 import { BOARD_ORDER, TRADE_RELATION_POINTS } from "@/definisions/partnersMarket";
 import { levelOfPoints, MAX_RELATION_POINTS, pairKey, relationOf } from "../diplomacy/relations";
-import type { GameEvent, OfferMissedReason } from "../turn/context";
+import type { GameEvent, OfferMissedReason, TradeMissCause } from "../turn/context";
 import { intentOrder } from "../turn/intents";
 import { isGreatPower } from "../world/countries";
 import { marketOf, priceOf, tradeOrdersOf } from "./market";
@@ -135,6 +135,7 @@ export function settlePartnerTrade(state: GameState, turn: number, emit: (event:
     }
 
     // (2) The minors' demand, filled from the Great Powers in the minor's order; each unit a hold of the seller.
+    const demandLeft = new Map<MinorNationId, number>();
     for (const minorId of minors) {
       let left = demandOf.get(minorId)![commodity] ?? 0;
       for (const nationId of ranking.get(minorId)!) {
@@ -150,6 +151,7 @@ export function settlePartnerTrade(state: GameState, turn: number, emit: (event:
         left -= units;
         deal("goods-sold", nationId, minorId, unitPrice, units);
       }
+      demandLeft.set(minorId, left);
     }
 
     // (3) Great Power to Great Power: the buyer pays P less the seller's subsidy toward it, with its own holds.
@@ -169,6 +171,30 @@ export function settlePartnerTrade(state: GameState, turn: number, emit: (event:
       }
     }
 
+    /**
+     * FR-255: why the nation's units found no counterparty, from the countries on the other side this turn (for a
+     * bid the minors that offered the commodity and the Great Powers that offered it; for an offer the minors that
+     * wanted it and the Great Powers that bid for it), the barriers, and who else dealt with the open ones. Unknown
+     * (undefined) when an open Great Power still bids for the units: it could not take them (its own `offer-missed`).
+     */
+    const causeOf = (nationId: NationId, side: "bid" | "offer"): TradeMissCause | undefined => {
+      const others = order.filter((id) => id !== nationId);
+      const counterparties: CountryId[] =
+        side === "bid"
+          ? [...minors.filter((m) => (offersOf.get(m)![commodity] ?? 0) > 0), ...others.filter((id) => (tradeOrdersOf(state, id).sell[commodity] ?? 0) > 0)]
+          : [...minors.filter((m) => (demandOf.get(m)![commodity] ?? 0) > 0), ...others.filter((id) => (tradeOrdersOf(state, id).buy[commodity] ?? 0) > 0)];
+      if (counterparties.length === 0) return { kind: "nobody" };
+      const open = counterparties.filter((id) => !blocked(nationId, id));
+      if (open.length === 0) return { kind: "barred", barred: counterparties.map((countryId) => ({ countryId, barrier: settledTradeBarrier(state, nationId, countryId)! })) };
+      if (side === "offer" && open.some((id) => (accounts.get(id)?.bid[commodity] ?? 0) > 0)) return undefined;
+      if (side === "offer" && accounts.get(nationId)!.holds <= 0 && open.some((id) => (demandLeft.get(id) ?? 0) > 0)) return { kind: "no-hold" };
+      // A rival dealt with an open counterparty on the same side as the nation: it was served first
+      const type = side === "bid" ? "goods-bought" : "goods-sold";
+      const rivalIds = others.filter((id) => [...deals.values()].some((d) => d.type === type && d.nationId === id && open.includes(d.counterpartyId!)));
+      return rivalIds.length > 0 ? { kind: "served-first", rivalIds } : { kind: "used-up" };
+    };
+    const withCause = (cause: TradeMissCause | undefined) => (cause ? { cause } : {});
+
     // What is left: unfilled bids (their reserve refunded) and unsold offers (back in the warehouse).
     const leftEvents: GameEvent[] = [];
     for (const nationId of order) {
@@ -177,13 +203,13 @@ export function settlePartnerTrade(state: GameState, turn: number, emit: (event:
       // FR-244: the bid units no seller let the nation have; those that reached it and passed on are offer-missed
       const passed = [...missed.values()].filter((m) => m.nationId === nationId).reduce((sum, m) => sum + m.amount, 0);
       const unfilled = (account.bid[commodity] ?? 0) - passed;
-      if (unfilled > 0) leftEvents.push({ type: "bid-unfilled", nationId, commodity, amount: unfilled });
+      if (unfilled > 0) leftEvents.push({ type: "bid-unfilled", nationId, commodity, amount: unfilled, ...withCause(causeOf(nationId, "bid")) });
       const back = account.offer[commodity] ?? 0;
       if (back <= 0) continue;
       const home = returned.get(nationId) ?? {};
       add(home, commodity, back);
       returned.set(nationId, home);
-      leftEvents.push({ type: "offer-unsold", nationId, commodity, amount: back });
+      leftEvents.push({ type: "offer-unsold", nationId, commodity, amount: back, ...withCause(causeOf(nationId, "offer")) });
     }
     for (const event of [...deals.values(), ...missed.values(), ...leftEvents]) emit(event);
   }

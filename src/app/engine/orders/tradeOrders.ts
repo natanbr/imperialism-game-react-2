@@ -1,4 +1,4 @@
-// World-market orders (FR-061 to FR-063). Validation reads the state; apply returns a new one.
+// Market orders (FR-061 to FR-063; in "partners" also FR-252, FR-253). Validation reads the state; apply returns a new one.
 // An order sets this turn's amount for one commodity: goods offered leave the warehouse and bids
 // are paid at once, and a lower amount gives the difference back, as for every other order.
 import type { GameState } from "@/types/GameState";
@@ -6,6 +6,7 @@ import type { Nation } from "@/types/Nation";
 import type { TradeCommodity, TradeOrders } from "@/types/Market";
 import { MAX_BUY_BIDS } from "@/definisions/marketPrices";
 import { isTradeCommodity, marketOf, priceOf, tradeCapacityOf, tradeOrdersOf } from "../market/market";
+import { partnerRefusal } from "../market/partners";
 import type { BuyCommodityOrder, RejectReason, SellCommodityOrder, ValidationResult } from "./Order";
 
 const OK: ValidationResult = { ok: true };
@@ -32,6 +33,10 @@ export function validateTradeOrder(state: GameState, nation: Nation, order: Trad
   // Rules 06 section 2: no offer and bid on the same commodity, at most 4 bids a turn.
   const otherSide = side === "sell" ? orders.buy : orders.sell;
   if ((otherSide[commodity] ?? 0) > 0) return reject("invalid-target");
+  // FR-252, FR-253: in "partners" a bid or offer nobody this nation may trade with could take is refused before
+  // the nation's own limits, so the Board of Trade names the market's reason first.
+  const nobody = partnerRefusal(state, nation.id, side, commodity);
+  if (nobody) return reject(nobody);
   if (side === "buy" && current === 0 && bidCount(orders) >= MAX_BUY_BIDS) return reject("limit-reached");
 
   const added = amount - current;

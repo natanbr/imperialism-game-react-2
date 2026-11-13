@@ -5,6 +5,9 @@
 // Bought), the turn it shows (FR-248) and the
 // bottom line (Sold, Bought, Military upkeep, Net); with no deal it says "No deals last turn.". FR-197 in the store: a
 // consulate with Arvelia and a bid of 2 coal on turn 1 end the turn as "Bought 2 Coal from Arvelia @ $100".
+// QA fix round: what was not traded is a third list, "Not traded", each line with its cause (FR-255); the bottom line
+// ends in the Trade net and the Treasury table beside it adds the diplomacy costs and the rest up to the treasury's
+// change over the turn, from the store's turn report (FR-256).
 import { describe, it, expect } from 'vitest';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { DealBookModal } from '@/components/DealBookModal';
@@ -42,10 +45,12 @@ function openDealBook(eventLog: TurnReport[], state: GameState = start()) {
 }
 
 const dialog = () => screen.getByRole('dialog', { name: DEAL_BOOK });
-const lines = (name: 'Sold' | 'Bought') =>
+const lines = (name: 'Sold' | 'Bought' | 'Not traded') =>
   within(within(dialog()).getByRole('list', { name })).getAllByRole('listitem').map((li) => text(li));
 const bottomLine = () =>
   within(within(dialog()).getByRole('table', { name: 'Bottom line' })).getAllByRole('row').map((r) => text(r));
+const treasuryLines = () =>
+  within(within(dialog()).getByRole('table', { name: 'Treasury' })).getAllByRole('row').map((r) => text(r));
 
 describe('FR-195 the Deal Book', () => {
   it('FR-195 is closed until opened; the HUD button "Deal Book" opens it', () => {
@@ -58,11 +63,14 @@ describe('FR-195 the Deal Book', () => {
     expect(text(within(dialog()).getByRole('heading', { level: 2 }))).toBe(DEAL_BOOK);
   });
 
-  it('FR-195 FR-244 FR-248 the last turn\'s deals in two lists, Sold and Bought (the missed offer under Bought), the turn and the bottom line', () => {
+  it('FR-195 FR-244 FR-248 FR-255 the last turn\'s deals: Sold and Bought, then Not traded (the unsold unit, the missed offer), the turn and the bottom line', () => {
     openDealBook([{ turn: 1, year: 1815, events: EVENTS }]);
-    expect(lines('Sold')).toEqual(['Sold 1 Clothing to Arvelia @ $810', '1 Furniture not sold, back in the warehouse']);
-    expect(lines('Bought')).toEqual(['Bought 2 Coal from Arvelia @ $110', 'Arvelia offered to sell us 1 Iron Ore (no free hold)']);
-    expect(bottomLine()).toEqual(['Sold $810', 'Bought $220', 'Military upkeep $0', 'Net $590']);
+    expect(lines('Sold')).toEqual(['Sold 1 Clothing to Arvelia @ $810']);
+    expect(lines('Bought')).toEqual(['Bought 2 Coal from Arvelia @ $110']);
+    expect(lines('Not traded')).toEqual(['1 Furniture not sold, back in the warehouse', 'Arvelia offered to sell us 1 Iron Ore (no free hold)']);
+    expect(bottomLine()).toEqual(['Sold $810', 'Bought $220', 'Military upkeep $0', 'Trade net $590']);
+    // A report made by hand has no treasuries: no Treasury table
+    expect(within(dialog()).queryByRole('table', { name: 'Treasury' })).toBeNull();
     expect(text(within(dialog()).getByTestId('deal-book-turn'))).toBe('Turn 1, Spring 1815');
     expect(within(dialog()).queryByText('No deals last turn.')).toBeNull();
     // Each line shows its commodity's icon, decorative (FR-121)
@@ -81,15 +89,19 @@ describe('FR-195 the Deal Book', () => {
     // Nothing sold: the Sold page says so instead of an empty list
     expect(within(dialog()).queryByRole('list', { name: 'Sold' })).toBeNull();
     expect(text(within(dialog()).getByTestId('sold-none'))).toBe('Nothing sold.');
-    expect(bottomLine()).toEqual(['Sold $0', 'Bought $1,369', 'Military upkeep $0', 'Net -$1,369']);
+    expect(bottomLine()).toEqual(['Sold $0', 'Bought $1,369', 'Military upkeep $0', 'Trade net -$1,369']);
+    // Everything traded: no Not traded list
+    expect(within(dialog()).queryByRole('list', { name: 'Not traded' })).toBeNull();
     expect(text(within(dialog()).getByTestId('deal-book-turn'))).toBe('Turn 2, Summer 1815');
   });
 
-  it('FR-244 FR-195 a turn whose only trade is a bid nobody filled says so under Bought, not "No deals last turn."', () => {
-    openDealBook([{ turn: 1, year: 1815, events: [{ type: 'bid-unfilled', nationId: N1, commodity: ResourceType.Coal, amount: 2 }, EVENTS[5]] }]);
-    expect(lines('Bought')).toEqual(['Nobody sold us 2 Coal (bid money back)']);
+  it('FR-244 FR-195 FR-255 a turn whose only trade is a bid nobody filled says so under Not traded, with its cause, not "No deals last turn."', () => {
+    const cause = { kind: 'barred', barred: [{ countryId: 'minor-3', barrier: 'no-consulate' }] } as const;
+    openDealBook([{ turn: 1, year: 1815, events: [{ type: 'bid-unfilled', nationId: N1, commodity: ResourceType.Coal, amount: 2, cause: { ...cause, barred: [...cause.barred] } }, EVENTS[5]] }]);
+    expect(lines('Not traded')).toEqual(['Nobody sold us 2 Coal (no consulate with Lorran; bid money back)']);
+    expect(text(within(dialog()).getByTestId('bought-none'))).toBe('Nothing bought.');
     expect(within(dialog()).queryByTestId('deal-book-empty')).toBeNull();
-    expect(bottomLine()).toEqual(['Sold $0', 'Bought $0', 'Military upkeep $0', 'Net $0']);
+    expect(bottomLine()).toEqual(['Sold $0', 'Bought $0', 'Military upkeep $0', 'Trade net $0']);
   });
 
   it('FR-195 a turn without a deal, and a game before its first End Turn, say "No deals last turn."', () => {
@@ -136,7 +148,40 @@ describe('FR-197 FR-195 in the store: a consulate and a bid on turn 1, then End 
 
     render(<DealBookModal />);
     expect(lines('Bought')).toEqual(['Bought 2 Coal from Arvelia @ $100']);
-    expect(bottomLine()).toEqual(['Sold $0', 'Bought $200', 'Military upkeep $0', 'Net -$200']);
+    expect(bottomLine()).toEqual(['Sold $0', 'Bought $200', 'Military upkeep $0', 'Trade net -$200']);
     expect(text(within(dialog()).getByTestId('deal-book-turn'))).toBe('Turn 1, Spring 1815');
+    // FR-256: the consulate's $500 and the trade net explain the whole change of the treasury, $10,000 to $9,300
+    expect(treasuryLines()).toEqual(['Trade net -$200', 'Consulate in Arvelia -$500', 'Treasury change -$700']);
+    expect(text(within(dialog()).getByTestId('treasury'))).toMatch(/From \$10,000 to \$9,300$/);
+    expect(useGameStore.getState().game.nations[0].treasury).toBe(9300);
+  });
+
+  it('FR-256 the store\'s turn report holds each nation\'s treasury at the turn\'s start (before the first order) and after it', () => {
+    useGameStore.setState({ ...useGameStore.getInitialState(), game: start(), activeNationId: N1 });
+    expect(useGameStore.getState().submitOrder({ kind: 'proposeOverture', nationId: N1, overture: 'consulate', targetId: ARVELIA })).toEqual({ ok: true });
+    // A refused order changes nothing
+    expect(useGameStore.getState().submitOrder({ kind: 'buyCommodity', nationId: N1, commodity: ResourceType.Wool, amount: 1 }).ok).toBe(false);
+    const before = useGameStore.getState().game;
+    useGameStore.getState().advanceTurn();
+    const report = useGameStore.getState().eventLog.at(-1)!;
+    const end = (id: string) => useGameStore.getState().game.nations.find((n) => n.id === id)!.treasury;
+    // Valdoria's orders apply inside End Turn: its start is its treasury when the turn was ended
+    expect(report.treasuries).toEqual({
+      [N1]: { start: 10000, end: end(N1) },
+      [N2]: { start: before.nations[1].treasury, end: end(N2) },
+    });
+    expect(report.treasuries![N1].end).toBe(9500);
+
+    // A turn without an order of ours starts where the last one ended
+    useGameStore.getState().advanceTurn();
+    expect(useGameStore.getState().eventLog.at(-1)!.treasuries![N1].start).toBe(9500);
+  });
+
+  it('FR-256 a turn with only a consulate: "No deals last turn." and the Treasury table, which explains the $500', () => {
+    const events: GameEvent[] = [{ type: 'overture-done', nationId: N1, overture: 'consulate', targetId: ARVELIA }, EVENTS[5]];
+    openDealBook([{ turn: 1, year: 1815, events, treasuries: { [N1]: { start: 10000, end: 9500 } } }]);
+    expect(text(within(dialog()).getByTestId('deal-book-empty'))).toBe('No deals last turn.');
+    expect(within(dialog()).queryByRole('table', { name: 'Bottom line' })).toBeNull();
+    expect(treasuryLines()).toEqual(['Trade net $0', 'Consulate in Arvelia -$500', 'Treasury change -$500']);
   });
 });

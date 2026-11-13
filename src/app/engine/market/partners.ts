@@ -106,6 +106,46 @@ export function diplomacyAfterThisTurn(state: GameState): GameState {
 export const tradeBarrier = (state: GameState, nationId: NationId, countryId: CountryId): TradeBarrier | undefined =>
   settledTradeBarrier(diplomacyAfterThisTurn(state), nationId, countryId);
 
+const sortedMinorIds = (state: GameState): MinorNationId[] => state.minorNations.map((m) => m.id).sort();
+
+/** The minors that offer the commodity this turn (FR-183), in id order. */
+export const sellersOf = (state: GameState, commodity: TradeCommodity): MinorNationId[] =>
+  sortedMinorIds(state).filter((m) => (minorOffers(state, m)[commodity] ?? 0) > 0);
+
+/**
+ * Who could buy one more unit of the nation's offer this turn (FR-253), in id order: the minors that want the
+ * commodity (FR-184), then the other Great Powers that may bid for it, that is, those that already bid for it or
+ * that a minor offering it may trade with (FR-252 is their bid's test). The nation's own barriers are not applied.
+ */
+export function buyersOf(state: GameState, nationId: NationId, commodity: TradeCommodity): CountryId[] {
+  const minors = sortedMinorIds(state).filter((m) => (minorDemand(state, m)[commodity] ?? 0) > 0);
+  const sellers = sellersOf(state, commodity);
+  const powers = state.nations
+    .map((n) => n.id)
+    .filter((id) => id !== nationId)
+    .filter((id) => (tradeOrdersOf(state, id).buy[commodity] ?? 0) > 0 || sellers.some((m) => tradeBarrier(state, id, m) === undefined))
+    .sort();
+  return [...minors, ...powers];
+}
+
+/** Why the nation can find nobody to trade one more unit with on that side this turn (FR-252, FR-253). */
+export type PartnerRefusal = "no-seller" | "sellers-barred" | "no-buyer" | "buyers-barred";
+
+/**
+ * FR-252, FR-253: in "partners", why one more unit of the nation's bid ("buy") or offer ("sell") of the commodity
+ * would find no counterparty this turn, or undefined when one may trade it. A bid needs a minor that offers the
+ * commodity and that the nation may trade with (FR-246's `tradeBarrier`); another Great Power's offer is not counted.
+ * An offer needs a buyer of `buyersOf` that the nation may trade with. A counterparty that favours another Great Power
+ * still counts: the rival may be served first, but the order stands. Always undefined in "world".
+ */
+export function partnerRefusal(state: GameState, nationId: NationId, side: "buy" | "sell", commodity: TradeCommodity): PartnerRefusal | undefined {
+  if (marketModeOf(state) !== "partners") return undefined;
+  const counterparties = side === "buy" ? sellersOf(state, commodity) : buyersOf(state, nationId, commodity);
+  if (counterparties.length === 0) return side === "buy" ? "no-seller" : "no-buyer";
+  if (counterparties.some((id) => tradeBarrier(state, nationId, id) === undefined)) return undefined;
+  return side === "buy" ? "sellers-barred" : "buyers-barred";
+}
+
 export interface BoardSeller {
   minorId: MinorNationId;
   units: number;

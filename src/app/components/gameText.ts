@@ -63,6 +63,10 @@ export const REFUSAL_TEXT: Record<RejectReason, string> = {
   "already-in-place": "that is already in place",
   "at-war": "we are at war with them",
   "not-at-war": "we are not at war with them",
+  "no-seller": "no minor nation sells this",
+  "sellers-barred": "we may not trade with any seller",
+  "no-buyer": "no one buys this",
+  "buyers-barred": "we may not trade with any buyer",
 };
 
 /** Why an offer passed the nation by, in the news and the Deal Book (FR-244). */
@@ -76,8 +80,11 @@ export function refusalText({ order, reason }: { order: Order; reason: RejectRea
 }
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-/** Dollars with thousands separators: "$1,800". */
-export const money = (n: number) => `$${n.toLocaleString("en-US")}`;
+/**
+ * Dollars with thousands separators and a loss's minus sign in front: "$1,800", "-$1,369". The one money format of the
+ * HUD, the market dialogs, the Deal Book, Diplomacy and the capital (FR-258).
+ */
+export const money = (n: number) => (n < 0 ? `-$${(-n).toLocaleString("en-US")}` : `$${n.toLocaleString("en-US")}`);
 
 export const BUILDING_TEXT: Record<BuildingType, string> = {
   textileMill: "Textile mill",
