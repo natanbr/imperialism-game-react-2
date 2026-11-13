@@ -10,7 +10,7 @@ import { eventText, money } from '@/components/gameText';
 import { GoodsType, MaterialType, ResourceType } from '@/types/Resource';
 
 const N1 = 'nation-1';
-const NAMES: Record<string, string> = { 'nation-1': 'Testland', 'nation-2': 'Valdoria', 'minor-1': 'Arvelia', 'minor-3': 'Lorran', 'minor-4': 'Pellis' };
+const NAMES: Record<string, string> = { 'nation-1': 'Testland', 'nation-2': 'Valdoria', 'minor-1': 'Arvelia', 'minor-2': 'Sundmark', 'minor-3': 'Lorran', 'minor-4': 'Pellis' };
 const nameOf = (id: string) => NAMES[id] ?? id;
 
 /** A turn of Testland's: 1 clothing sold to Arvelia at $810, 2 coal bought at $110, no hold for its iron ore, 1 furniture unsold. */
@@ -87,6 +87,18 @@ describe('FR-255 the cause of what was not traded', () => {
     expect(causeText({ kind: 'used-up' }, 'offer', nameOf)).toBe('the buyers wanted no more');
     expect(causeText({ kind: 'no-hold' }, 'offer', nameOf)).toBe('no free hold');
     expect([namesText(['A']), namesText(['A', 'B']), namesText(['A', 'B', 'C'])]).toEqual(['A', 'A and B', 'A, B and C']);
+  });
+
+  it('FR-259 the barred counterparties that still had units come first, then what the open ones did: "the other sellers had no more"', () => {
+    const barred = [{ countryId: 'minor-2', barrier: 'no-consulate' as const }, { countryId: 'minor-4', barrier: 'no-consulate' as const }];
+    expect(causeText({ kind: 'used-up', barred }, 'bid', nameOf)).toBe('no consulate with Sundmark and Pellis; the other sellers had no more');
+    expect(causeText({ kind: 'used-up', barred: [{ countryId: 'minor-3', barrier: 'no-consulate' }, { countryId: 'nation-2', barrier: 'at-war' }] }, 'offer', nameOf)).toBe(
+      'no consulate with Lorran; at war with Valdoria; the other buyers wanted no more'
+    );
+    expect(causeText({ kind: 'served-first', rivalIds: ['nation-2'], barred }, 'bid', nameOf)).toBe('no consulate with Sundmark and Pellis; Valdoria was served first');
+    // The review's case (Deal Book after a consulate with Arvelia and a bid of 4 coal)
+    const events: GameEvent[] = [{ type: 'bid-unfilled', nationId: N1, commodity: ResourceType.Coal, amount: 1, cause: { kind: 'used-up', barred } }];
+    expect(dealBookView(dealBook(events, N1), nameOf).notTraded).toEqual(['Nobody sold us 1 Coal (no consulate with Sundmark and Pellis; the other sellers had no more; bid money back)']);
   });
 
   it('FR-255 the lines of the QA example: an unsold offer "(no buyer)" and an unfilled bid "(no consulate with Lorran; bid money back)"', () => {

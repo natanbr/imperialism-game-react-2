@@ -70,18 +70,26 @@ export interface WarCause {
 /** Why units offered to a nation for its bid passed on (FR-244). */
 export type OfferMissedReason = "no-hold" | "no-cash";
 
+/** A counterparty the nation may not trade with this turn, and why (FR-185). */
+export interface BarredCounterparty {
+  countryId: CountryId;
+  barrier: TradeBarrier;
+}
+
 /**
  * Why units of a bid (`bid-unfilled`) or an offer (`offer-unsold`) found no counterparty in the trade phase (FR-255):
  * "nobody": no country offered (for a bid) or wanted (for an offer) the commodity this turn; "barred": every one that
  * did was barred to the nation (FR-185), each with its barrier; "served-first": those it may trade with dealt in it
  * with these other Great Powers first (a minor serves its favourite first, FR-187); "used-up": they had no more to
  * sell, or wanted no more; "no-hold" (an offer only): a buyer still wanted it, but the nation had no free hold left.
+ * On "served-first" and "used-up", `barred` (FR-259) names the barred ones that still had units nobody took, those
+ * a consulate, a peace or a lifted boycott would have opened; absent when there are none.
  */
 export type TradeMissCause =
   | { kind: "nobody" }
-  | { kind: "barred"; barred: { countryId: CountryId; barrier: TradeBarrier }[] }
-  | { kind: "served-first"; rivalIds: NationId[] }
-  | { kind: "used-up" }
+  | { kind: "barred"; barred: BarredCounterparty[] }
+  | { kind: "served-first"; rivalIds: NationId[]; barred?: BarredCounterparty[] }
+  | { kind: "used-up"; barred?: BarredCounterparty[] }
   | { kind: "no-hold" };
 
 /** Why a locked grant ended (FR-170). */

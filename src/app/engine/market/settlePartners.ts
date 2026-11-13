@@ -121,6 +121,7 @@ export function settlePartnerTrade(state: GameState, turn: number, emit: (event:
     };
 
     // (1) The minors' offers, minors in id order, each unit to the Great Powers in the minor's order.
+    const offerLeft = new Map<MinorNationId, number>();
     for (const minorId of minors) {
       let left = offersOf.get(minorId)![commodity] ?? 0;
       for (const nationId of ranking.get(minorId)!) {
@@ -132,6 +133,7 @@ export function settlePartnerTrade(state: GameState, turn: number, emit: (event:
         if (units > 0) deal("goods-bought", nationId, minorId, unitPrice, units);
         left -= units;
       }
+      offerLeft.set(minorId, left);
     }
 
     // (2) The minors' demand, filled from the Great Powers in the minor's order; each unit a hold of the seller.
@@ -171,11 +173,18 @@ export function settlePartnerTrade(state: GameState, turn: number, emit: (event:
       }
     }
 
+    /** What a counterparty still had after the deals: a minor's offer or demand left, a Great Power's offer or bid. */
+    const unitsLeft = (countryId: CountryId, side: "bid" | "offer"): number =>
+      side === "bid"
+        ? (offerLeft.get(countryId) ?? accounts.get(countryId)?.offer[commodity] ?? 0)
+        : (demandLeft.get(countryId) ?? accounts.get(countryId)?.bid[commodity] ?? 0);
+
     /**
      * FR-255: why the nation's units found no counterparty, from the countries on the other side this turn (for a
      * bid the minors that offered the commodity and the Great Powers that offered it; for an offer the minors that
      * wanted it and the Great Powers that bid for it), the barriers, and who else dealt with the open ones. Unknown
      * (undefined) when an open Great Power still bids for the units: it could not take them (its own `offer-missed`).
+     * FR-259: beside "served-first" and "used-up", the barred ones that still had units nobody took.
      */
     const causeOf = (nationId: NationId, side: "bid" | "offer"): TradeMissCause | undefined => {
       const others = order.filter((id) => id !== nationId);
@@ -184,14 +193,17 @@ export function settlePartnerTrade(state: GameState, turn: number, emit: (event:
           ? [...minors.filter((m) => (offersOf.get(m)![commodity] ?? 0) > 0), ...others.filter((id) => (tradeOrdersOf(state, id).sell[commodity] ?? 0) > 0)]
           : [...minors.filter((m) => (demandOf.get(m)![commodity] ?? 0) > 0), ...others.filter((id) => (tradeOrdersOf(state, id).buy[commodity] ?? 0) > 0)];
       if (counterparties.length === 0) return { kind: "nobody" };
+      const withBarrier = (countryId: CountryId) => ({ countryId, barrier: settledTradeBarrier(state, nationId, countryId)! });
       const open = counterparties.filter((id) => !blocked(nationId, id));
-      if (open.length === 0) return { kind: "barred", barred: counterparties.map((countryId) => ({ countryId, barrier: settledTradeBarrier(state, nationId, countryId)! })) };
+      if (open.length === 0) return { kind: "barred", barred: counterparties.map(withBarrier) };
       if (side === "offer" && open.some((id) => (accounts.get(id)?.bid[commodity] ?? 0) > 0)) return undefined;
       if (side === "offer" && accounts.get(nationId)!.holds <= 0 && open.some((id) => (demandLeft.get(id) ?? 0) > 0)) return { kind: "no-hold" };
+      const barred = counterparties.filter((id) => blocked(nationId, id) && unitsLeft(id, side) > 0).map(withBarrier);
+      const alsoBarred = barred.length > 0 ? { barred } : {};
       // A rival dealt with an open counterparty on the same side as the nation: it was served first
       const type = side === "bid" ? "goods-bought" : "goods-sold";
       const rivalIds = others.filter((id) => [...deals.values()].some((d) => d.type === type && d.nationId === id && open.includes(d.counterpartyId!)));
-      return rivalIds.length > 0 ? { kind: "served-first", rivalIds } : { kind: "used-up" };
+      return rivalIds.length > 0 ? { kind: "served-first", rivalIds, ...alsoBarred } : { kind: "used-up", ...alsoBarred };
     };
     const withCause = (cause: TradeMissCause | undefined) => (cause ? { cause } : {});
 

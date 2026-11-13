@@ -165,18 +165,47 @@ describe('FR-255 the cause of units not traded', () => {
     ]);
   });
 
-  it('FR-255 an offer the favourite rival served first: "served-first" with Valdoria', () => {
+  it('FR-255 FR-259 an offer the favourite rival served first: "served-first" with Valdoria, and the barred minors that still wanted clothing', () => {
     let s = setPair(consulates(consulates(continent(), N1, ARVELIA), N2, ARVELIA), N2, ARVELIA, { points: 40 });
     s = ordered(setWarehouse(setWarehouse(s, N1, { clothing: 2 }), N2, { clothing: 2 }), sell(N1, GoodsType.Clothing, 2), sell(N2, GoodsType.Clothing, 2));
     const events = trade(s);
+    const barred = [SUNDMARK, LORRAN, PELLIS].map(countryId => ({ countryId, barrier: 'no-consulate' }));
     expect(ofType(events, 'offer-unsold')).toEqual([
-      { type: 'offer-unsold', nationId: N1, commodity: GoodsType.Clothing, amount: 2, cause: { kind: 'served-first', rivalIds: [N2] } },
+      { type: 'offer-unsold', nationId: N1, commodity: GoodsType.Clothing, amount: 2, cause: { kind: 'served-first', rivalIds: [N2], barred } },
     ]);
   });
 
-  it('FR-255 an offer above the open buyers\' demand: "used-up" (Arvelia wanted 2 of 3)', () => {
+  it('FR-255 FR-259 an offer above the open buyers\' demand: "used-up" (Arvelia wanted 2 of 3), and the barred minors that still wanted furniture', () => {
     const s = ordered(setWarehouse(consulates(continent(), N1, ARVELIA), N1, { furniture: 3 }), sell(N1, GoodsType.Furniture, 3));
-    expect(ofType(trade(s), 'offer-unsold')).toEqual([{ type: 'offer-unsold', nationId: N1, commodity: GoodsType.Furniture, amount: 1, cause: { kind: 'used-up' } }]);
+    const barred = [SUNDMARK, LORRAN, PELLIS].map(countryId => ({ countryId, barrier: 'no-consulate' }));
+    expect(ofType(trade(s), 'offer-unsold')).toEqual([{ type: 'offer-unsold', nationId: N1, commodity: GoodsType.Furniture, amount: 1, cause: { kind: 'used-up', barred } }]);
+  });
+
+  it('FR-259 a barred minor whose units all went to a rival is not named: a consulate there would not have served Testland', () => {
+    // Iron ore: Arvelia 2, Sundmark 1, Lorran 1. Testland has a consulate in Arvelia only; Valdoria in all three and is Arvelia's favourite
+    let s = setPair(consulates(consulates(continent(), N1, ARVELIA), N2, ARVELIA, SUNDMARK, LORRAN), N2, ARVELIA, { points: 40 });
+    // Valdoria bids for all 4: Sundmark's and Lorran's units went to it, so only Valdoria explains Testland's 2
+    const all = trade(ordered(s, buy(N1, ResourceType.IronOre, 2), buy(N2, ResourceType.IronOre, 4)));
+    expect(ofType(all, 'bid-unfilled')).toEqual([
+      { type: 'bid-unfilled', nationId: N1, commodity: ResourceType.IronOre, amount: 2, cause: { kind: 'served-first', rivalIds: [N2] } },
+    ]);
+    // Valdoria bids for Arvelia's 2 only: Sundmark's and Lorran's units went to nobody, so they are named
+    s = ordered(s, buy(N1, ResourceType.IronOre, 2), buy(N2, ResourceType.IronOre, 2));
+    const barred = [SUNDMARK, LORRAN].map(countryId => ({ countryId, barrier: 'no-consulate' }));
+    expect(ofType(trade(s), 'bid-unfilled')).toEqual([
+      { type: 'bid-unfilled', nationId: N1, commodity: ResourceType.IronOre, amount: 2, cause: { kind: 'served-first', rivalIds: [N2], barred } },
+    ]);
+  });
+
+  it('FR-259 a barred Great Power that still bids is named too, after the minors: Testland at war with Valdoria, which bids for clothing', () => {
+    let s = setWarehouse(consulates(continent(), N1, ARVELIA), N1, { clothing: 3 });
+    s = placed(ordered(s, sell(N1, GoodsType.Clothing, 3)), buy(N2, GoodsType.Clothing, 2));
+    s = setPair(s, N1, N2, { war: { aggressors: [N2], since: 1 } });
+    // Arvelia takes 2 of the 3; the other minors (no consulate) and Valdoria (at war) still wanted clothing
+    const barred = [...[SUNDMARK, LORRAN, PELLIS].map(countryId => ({ countryId, barrier: 'no-consulate' })), { countryId: N2, barrier: 'at-war' }];
+    expect(ofType(trade(s), 'offer-unsold')).toEqual([
+      { type: 'offer-unsold', nationId: N1, commodity: GoodsType.Clothing, amount: 1, cause: { kind: 'used-up', barred } },
+    ]);
   });
 
   it('FR-255 unknown when an open Great Power still bids: it could not take the units (its own offer-missed says why)', () => {

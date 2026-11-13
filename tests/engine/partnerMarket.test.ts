@@ -730,8 +730,10 @@ describe('FR-244 deal events and the Deal Book data (replaces FR-192)', () => {
     const { events } = trade(s);
 
     expect(deals(events)).toEqual([['bought', N2, ARVELIA, ResourceType.Coal, 3, 100]]);
+    // FR-259: Sundmark's and Pellis's coal, barred to Testland, went to nobody: they are named with their barrier
+    const barred = [SUNDMARK, PELLIS].map(countryId => ({ countryId, barrier: 'no-consulate' }));
     expect(ofType(events, 'bid-unfilled')).toEqual([
-      { type: 'bid-unfilled', nationId: N1, commodity: ResourceType.Coal, amount: 2, cause: { kind: 'served-first', rivalIds: [N2] } },
+      { type: 'bid-unfilled', nationId: N1, commodity: ResourceType.Coal, amount: 2, cause: { kind: 'served-first', rivalIds: [N2], barred } },
     ]);
   });
 
@@ -744,8 +746,9 @@ describe('FR-244 deal events and the Deal Book data (replaces FR-192)', () => {
     // 4 coal from Arvelia's 3: 3 bought, 1 bid-unfilled
     const part = trade(ordered(consulates(continent(), N1, ARVELIA), buy(N1, ResourceType.Coal, 4))).events;
     expect(deals(part)).toEqual([['bought', N1, ARVELIA, ResourceType.Coal, 3, 100]]);
-    // FR-255: Arvelia, the one seller open to Testland, had no more
-    expect(ofType(part, 'bid-unfilled')).toEqual([{ type: 'bid-unfilled', nationId: N1, commodity: ResourceType.Coal, amount: 1, cause: { kind: 'used-up' } }]);
+    // FR-255: Arvelia, the one seller open to Testland, had no more; FR-259: Sundmark and Pellis, barred, still had 1 each
+    const barred = [SUNDMARK, PELLIS].map(countryId => ({ countryId, barrier: 'no-consulate' }));
+    expect(ofType(part, 'bid-unfilled')).toEqual([{ type: 'bid-unfilled', nationId: N1, commodity: ResourceType.Coal, amount: 1, cause: { kind: 'used-up', barred } }]);
   });
 
   it('FR-244 in "world" every bid is filled: no bid-unfilled', () => {

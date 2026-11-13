@@ -1,6 +1,6 @@
 // What the Deal Book screen shows (FR-244, FR-195, FR-255, FR-256): the engine's `dealBook` data as Imp1 ledger lines
 // ("Sold 1 Clothing to Arvelia @ $810"; rules 06 section 7.5) and the money of the turn. No React, no store.
-import type { DealBook, DealEntry, DiplomacyCost, TradeBarrier, TradeMissCause } from "@/engine";
+import type { BarredCounterparty, DealBook, DealEntry, DiplomacyCost, TradeBarrier, TradeMissCause } from "@/engine";
 import { commodityName, MISSED_TEXT, money } from "../gameText";
 
 export interface MoneyLine {
@@ -41,20 +41,31 @@ const BARRED_TEXT: Record<TradeBarrier, string> = {
   "not-a-partner": "no trade with",
 };
 
-/** Why units of a bid or an offer found no counterparty (FR-255): "no buyer", "no consulate with Lorran", "Valdoria was served first". */
+/** "at war with Arvelia; no consulate with Lorran and Pellis": the countries grouped by barrier, in their order. */
+function barredText(barred: readonly BarredCounterparty[], nameOf: (countryId: string) => string): string {
+  const groups = new Map<TradeBarrier, string[]>();
+  for (const { countryId, barrier } of barred) groups.set(barrier, [...(groups.get(barrier) ?? []), nameOf(countryId)]);
+  return [...groups].map(([barrier, names]) => `${BARRED_TEXT[barrier]} ${namesText(names)}`).join("; ");
+}
+
+/**
+ * Why units of a bid or an offer found no counterparty (FR-255): "no buyer", "no consulate with Lorran", "Valdoria was
+ * served first". FR-259: the barred ones that still had units come first, "no consulate with Sundmark and Pellis; the
+ * other sellers had no more".
+ */
 export function causeText(cause: TradeMissCause, side: "bid" | "offer", nameOf: (countryId: string) => string): string {
+  const afterBarred = (barred: readonly BarredCounterparty[] | undefined, text: string) => (barred?.length ? `${barredText(barred, nameOf)}; ${text}` : text);
   switch (cause.kind) {
     case "nobody":
       return side === "bid" ? "no seller" : "no buyer";
-    case "barred": {
-      const groups = new Map<TradeBarrier, string[]>();
-      for (const { countryId, barrier } of cause.barred) groups.set(barrier, [...(groups.get(barrier) ?? []), nameOf(countryId)]);
-      return [...groups].map(([barrier, names]) => `${BARRED_TEXT[barrier]} ${namesText(names)}`).join("; ");
-    }
+    case "barred":
+      return barredText(cause.barred, nameOf);
     case "served-first":
-      return `${namesText(cause.rivalIds.map(nameOf))} ${cause.rivalIds.length > 1 ? "were" : "was"} served first`;
-    case "used-up":
-      return side === "bid" ? "the sellers had no more" : "the buyers wanted no more";
+      return afterBarred(cause.barred, `${namesText(cause.rivalIds.map(nameOf))} ${cause.rivalIds.length > 1 ? "were" : "was"} served first`);
+    case "used-up": {
+      const other = cause.barred?.length ? "other " : "";
+      return afterBarred(cause.barred, side === "bid" ? `the ${other}sellers had no more` : `the ${other}buyers wanted no more`);
+    }
     case "no-hold":
       return "no free hold";
   }

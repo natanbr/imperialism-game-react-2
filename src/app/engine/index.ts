@@ -93,5 +93,5 @@ export {
   type TreasuryChange,
 } from "./market/dealBook";
 export { BOARD_ORDER, MINOR_DEMAND, MINOR_OFFER_CAP, TRADE_RELATION_POINTS } from "@/definisions/partnersMarket";
-export type { OfferMissedReason, TradeMissCause } from "./turn/context";
+export type { BarredCounterparty, OfferMissedReason, TradeMissCause } from "./turn/context";
 export type { MarketMode, TradeAmounts } from "@/types/Market";

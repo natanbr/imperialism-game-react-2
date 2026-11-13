@@ -14,6 +14,7 @@ import type { GameState } from '@/types/GameState';
 import { setTreasury } from '../engine/fixtures';
 import { failOnActWarnings } from './actWarnings';
 import { text } from './domText';
+import { dollarFormatting } from './dollarScan';
 
 failOnActWarnings();
 
@@ -47,7 +48,34 @@ describe('FR-258 one money format', () => {
 
   it('FR-258 money is the one formatter: no other source file formats dollars', () => {
     const files = sources(join(ROOT, 'src', 'app'));
-    const formatting = files.filter((f) => /toLocaleString\(|`\$\$\{/.test(readFileSync(f, 'utf8'))).map((f) => f.slice(ROOT.length + 1).replace(/\\/g, '/'));
+    const formatting = files.filter((f) => dollarFormatting(readFileSync(f, 'utf8'), f).length > 0).map((f) => f.slice(ROOT.length + 1).replace(/\\/g, '/'));
     expect(formatting).toEqual(['src/app/components/gameText.ts']);
+  });
+
+  it('FR-258 the guard finds every hand-made dollar amount: the three of TileInfoPanel before the fix, "$" joined with +, JSX "$" before {…}, NumberFormat, toLocaleString', () => {
+    const caught = [
+      // TileInfoPanel.tsx before 4d62a0b (lines 81, 101, 105): no thousands separator, missed by the first guard
+      'const title = `Cost: $${PROSPECT_COST}`;',
+      'let titleMessage = `${jobLabel} ($${DEVELOPMENT_COST[nextLevel]})`;',
+      'titleMessage = `Not enough funds (need $${DEVELOPMENT_COST[nextLevel]})`;',
+      'const a = "$" + cost;',
+      "const b = 'Cost: $' + cost;",
+      'const c = `Cost: $` + cost;',
+      'const d = <span>Cost: ${cost}</span>;',
+      'const e = <b>$ {cost}</b>;',
+      'const f = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(cost);',
+      'const g = cost.toLocaleString("en-US");',
+    ];
+    for (const line of caught) expect({ line, found: dollarFormatting(line).length > 0 }).toEqual({ line, found: true });
+
+    const clean = [
+      'const h = `${a} and ${b}`;',
+      'const i = `Cost: ${money(cost)}`;',
+      'const j = <span>Cost: {money(cost)}</span>;',
+      'const k = <th>Price ($)</th>;',
+      "const l = '$' === sign;",
+      'const m = /^\\$/.test(s);',
+    ];
+    for (const line of clean) expect({ line, found: dollarFormatting(line) }).toEqual({ line, found: [] });
   });
 });
