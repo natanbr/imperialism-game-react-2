@@ -16,7 +16,7 @@
   after it. The progress page files now live on these branches too (copied from the docs branch).
 - 2026-11-13 M5 on `claude/m5-world`: engine half (FR-144 to FR-152, FR-156 engine, FR-157 to FR-159) and UI half
   (FR-153 to FR-156, FR-160) tested; the app plays the continent. Milestone review done; its fix round (19 findings)
-  is committed. Next: the re-review of the fix delta, then card Q22 (the continent's tilt toward nation 1).
+  and a QA fix round (FR-235) are committed. Next: the re-review of the fix delta, then card Q22 (the continent's tilt).
 
 Carried forward:
 - Deferred: river ports and the depot-on-port rule (rules 04); University fees; the power plant.
@@ -372,3 +372,27 @@ so nation 1's land next to Arvelia (9-4 no longer a port site) changes nothing a
 
 How to see it in the app: `npm run dev`; the minors' dashed borders and name-tag frames are a slightly darker
 blue-grey slate; nothing else changes on a new game (the E1 and R5 rules only matter once land changes hands, M9).
+
+## 2026-11-13 M5 World and seams for v2, QA fix round (FR-235)
+
+Size: S (four HUD fixes from Nathan's QA screenshots). One agent (Opus 5.5, xhigh, no subagents, no advisor call).
+1. Scroll: the height chain was sound (`.hud-content`: flex child, `min-height: 0`, `overflow-y: auto`; 497 px tall, 572 px
+   of content with Arvelia selected; the wheel scrolls it 0 to 75 px). The QA shots showed no scrollbar because Playwright
+   starts Chromium with `--hide-scrollbars`; without that flag the old panel drew Chromium's default 15 px grey one. Missing
+   was a scrollbar of the panel's own that overlay-scrollbar systems (macOS, touch) also draw. Fix: `::-webkit-scrollbar`
+   8 px in tokens (Chromium, Safari), `scrollbar-width`/`-color` for Firefox only (trap: Chromium drops the WebKit rules once
+   those are set), `scrollbar-gutter: stable`. 2. A sticky `::after` fades the content into the surface over the last 24 px
+   (12 px opaque, clicks pass through); at the end it sits below the Debug box. 3. No Province line on a minor's tile.
+   4. "Map legend" in About, samples drawn with the map's `MapView.module.css` classes and tokens.
+Not verified: Firefox and WebKit (no Playwright build installed; the `@supports` block is in the built CSS); overlay
+scrollbars (Chromium's OverlayScrollbar flag changes nothing headless). Screenshot `docs/journal/m5-qa-minor-tile.png`
+retaken with scrollbars drawn (`.gate/qa-fix-shot.mjs`, not committed): no Province line, thin scrollbar, Debug box fading.
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| Red, items 3 and 4 | `npx vitest run tests/ui/about.test.tsx tests/ui/minorTiles.test.tsx` before the source change | `Tests 5 failed \| 7 passed (12)`: no list "Map legend"; `minorWithProvince: [ …(26) ]` |
+| Red, items 1 and 2 | `PORT=3160 PW_REUSE_SERVER=1 npx playwright test e2e/m5-hud-scroll.spec.ts` on the old globals.css | `2 failed`: `"thin": false, "thumbPainted": false, "trackPainted": false`; `"notSurface": 84` |
+| Green, items 1 to 4 | the same three files and `e2e/m5-world.spec.ts` (now no Province line on 10-3) | `Tests 30 passed (30)` (with palette.test.ts); `2 passed (8.5s)`; full e2e below |
+| Unit tests | `npm test` | `Test Files 68 passed (68)`, `Tests 976 passed (976)` (+5 on 971); 0 "not wrapped in act" |
+| Lint, types, build | `npm run lint`; `npx tsc --noEmit`; `npm run build` | `✖ 4 problems (0 errors, 4 warnings)` (the 3 of main plus `.gate/dist.js`); exit 0, no output; `✓ Compiled successfully in 3.8s`, `✓ Generating static pages (4/4)` |
+| e2e smoke | `PORT=3160 npx playwright test --workers=1 --reporter=line` | `1 skipped`, `24 passed (1.2m)` (+2: e2e/m5-hud-scroll.spec.ts) |
