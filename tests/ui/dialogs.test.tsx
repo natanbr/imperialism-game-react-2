@@ -13,6 +13,7 @@ import { HUD } from '@/components/HUD';
 import { WarehouseModal } from '@/components/WarehouseModal';
 import { CapitalModal } from '@/components/CapitalModal';
 import { MarketModal } from '@/components/MarketModal';
+import { DealBookModal } from '@/components/DealBookModal';
 import { DiplomacyModal } from '@/components/DiplomacyModal';
 import { AcceptOfferModal } from '@/components/AcceptOfferModal';
 import { GameOverModal } from '@/components/GameOverModal';
@@ -54,6 +55,7 @@ const Dialogs: React.FC = () => {
       <WarehouseModal />
       <CapitalModal />
       <MarketModal />
+      <DealBookModal />
       <DiplomacyModal />
       <ConstructionOptionsModal />
       <GameOverModal />
@@ -98,7 +100,10 @@ const HUD_DIALOGS: { name: string; opener: RegExp; close: string }[] = [
   { name: 'Diplomacy — Testland', opener: /^Diplomacy$/, close: 'Close diplomacy' },
   { name: 'Warehouse — Testland', opener: /Open Warehouse/, close: 'Close warehouse' },
   { name: 'Capital — Testland', opener: /Open Capital/, close: 'Close capital' },
-  { name: 'World market — Testland', opener: /Open Market/, close: 'Close market' },
+  // FR-194: the continent's market is "partners", so its market dialog is the Board of Trade (two-islands keeps the
+  // World market: tests/ui/boardOfTrade.test.tsx); FR-195 adds the Deal Book
+  { name: 'Board of Trade — Testland', opener: /Open Market/, close: 'Close Board of Trade' },
+  { name: 'Deal Book — Testland', opener: /^Deal Book$/, close: 'Close Deal Book' },
   { name: 'Transportation of Commodities', opener: /Transportation of Commodities/, close: 'Close transport' },
   { name: 'About', opener: /^About$/, close: 'Close about' },
 ];
@@ -395,6 +400,8 @@ describe('FR-236 one shared component, not per-dialog copies', () => {
       'WarehouseModal.tsx',
       'CapitalModal.tsx',
       'MarketModal.tsx',
+      join('market', 'BoardOfTrade.tsx'),
+      'DealBookModal.tsx',
       'TransportAllocationModal.tsx',
       'ConstructionOptionsModal.tsx',
       'GameOverModal.tsx',

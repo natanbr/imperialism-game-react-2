@@ -44,8 +44,8 @@ describe('FR-084 icon set: Game Icons through react-icons/gi', () => {
   });
 
   it('FR-084 the capital, infrastructure, job markers and actions have Game Icons', () => {
-    // FR-109 New game and FR-110 the civilians' stack are HUD and map actions too; FR-177 the Diplomacy screen
-    const wanted = ['capital', 'town', 'depot', 'port', 'prospecting', 'development', 'construction', 'warehouse', 'market', 'transport', 'center', 'advanceTurn', 'finalScores', 'about', 'newGame', 'civilians', 'diplomacy'];
+    // FR-109 New game and FR-110 the civilians' stack are HUD and map actions too; FR-177 the Diplomacy screen; FR-195 the Deal Book
+    const wanted = ['capital', 'town', 'depot', 'port', 'prospecting', 'development', 'construction', 'warehouse', 'market', 'transport', 'center', 'advanceTurn', 'finalScores', 'about', 'newGame', 'civilians', 'diplomacy', 'dealBook'];
     expect(Object.keys(UI_ICONS).sort()).toEqual(wanted.sort());
     for (const name of Object.values(UI_ICONS)) expect(isGameIcon(name), name).toBe(true);
   });

@@ -9,6 +9,7 @@ export const ActionButtons: React.FC = () => {
   const openWarehouse = useGameStore((s) => s.openWarehouse);
   const openCapital = useGameStore((s) => s.openCapital);
   const openMarket = useGameStore((s) => s.openMarket);
+  const openDealBook = useGameStore((s) => s.openDealBook);
   const openDiplomacy = useGameStore((s) => s.openDiplomacy);
   const openTransportAllocation = useGameStore((s) => s.openTransportAllocation);
   const showGameOver = useGameStore((s) => s.showGameOver);
@@ -30,6 +31,9 @@ export const ActionButtons: React.FC = () => {
       </button>
       <button onClick={openMarket} className="btn btn-plain">
         <GameIcon name={UI_ICONS.market} /> Open Market
+      </button>
+      <button onClick={openDealBook} className="btn btn-plain">
+        <GameIcon name={UI_ICONS.dealBook} /> Deal Book
       </button>
       <button onClick={openDiplomacy} className="btn btn-plain">
         <GameIcon name={UI_ICONS.diplomacy} /> Diplomacy

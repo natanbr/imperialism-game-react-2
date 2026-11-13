@@ -28,7 +28,9 @@ const focusInside = (page: Page, name: string) =>
 const DIALOGS: { opener: RegExp; name: string }[] = [
   { opener: /Open Warehouse/, name: 'Warehouse' },
   { opener: /Open Capital/, name: 'Capital' },
-  { opener: /Open Market/, name: 'World market' },
+  // FR-194: the continent's market is "partners", so the market dialog is the Board of Trade; FR-195 the Deal Book
+  { opener: /Open Market/, name: 'Board of Trade' },
+  { opener: /^Deal Book$/, name: 'Deal Book' },
   { opener: /^Diplomacy$/, name: 'Diplomacy' },
   { opener: /Transportation of Commodities/, name: 'Transportation of Commodities' },
   { opener: /^About$/, name: 'About' },

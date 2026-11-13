@@ -167,3 +167,240 @@
   margin: 0 0 var(--spacing-md);
   color: var(--color-text-muted);
 }
+
+/* The Board of Trade (FR-194): a fixed frame like the Diplomacy screen (FR-237). The dialog never grows past the
+   window; the board scrolls on its own under a header that stays. */
+
+.board {
+  width: min(1180px, calc(100vw - 32px));
+  max-height: calc(100vh - 16px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-dialog);
+  padding: 12px var(--spacing-lg);
+}
+
+.board:focus,
+.dealBook:focus {
+  outline: none;
+}
+
+.board .header {
+  flex: none;
+  margin-bottom: var(--spacing-sm);
+}
+
+.boardSummary {
+  margin-left: auto;
+  display: flex;
+  gap: 4px 18px;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.boardSummary strong {
+  color: var(--color-text-primary);
+}
+
+.boardNote {
+  flex: none;
+  margin: 0 0 var(--spacing-md);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  line-height: 1.4;
+}
+
+.board .refusal {
+  flex: none;
+  padding: 4px 12px;
+}
+
+.boardPane {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.boardTable th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--color-bg-secondary);
+}
+
+/* Compact rows: at 1280x720 all 17 rows of a new game fit without scrolling the board (e2e/m7-trade.spec.ts) */
+.boardTable td {
+  padding: 2px 6px;
+  line-height: 20px;
+}
+
+.boardTable .stepButton {
+  width: 22px;
+  height: 22px;
+  font-size: 14px;
+}
+
+.fixed {
+  white-space: nowrap;
+  width: 1%;
+}
+
+.partnersCell {
+  font-size: var(--font-size-sm);
+}
+
+.partners {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.partners + .partners {
+  margin-top: 2px;
+}
+
+.partnersLabel {
+  flex: none;
+  color: var(--color-text-muted);
+}
+
+.partnerList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 4px;
+}
+
+.partner {
+  padding: 0 6px;
+  line-height: 16px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--color-bg-panel);
+  white-space: nowrap;
+}
+
+/* A minor we cannot trade with this turn: an outline, not a fill, and the reason in words (FR-194) */
+.partnerBlocked {
+  background: transparent;
+  border: 1px dashed var(--color-border-strong);
+  color: var(--color-text-muted);
+}
+
+.barrier {
+  color: var(--color-text-danger);
+}
+
+/* The Deal Book (FR-195): Sold and Bought side by side, as the Imp1 ledger's two pages, the bottom line under them */
+
+.dealBook {
+  width: 760px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-dialog);
+  padding: var(--spacing-lg);
+}
+
+.dealTurn {
+  margin: 0 0 var(--spacing-md);
+  color: var(--color-text-muted);
+}
+
+.pages {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--spacing-lg);
+}
+
+.page {
+  padding: 10px 14px;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.pageTitle {
+  margin: 0 0 6px;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.ledger {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.ledgerLine {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.ledgerLine svg {
+  flex: none;
+  align-self: center;
+}
+
+/* A missed offer and units left unsold: no money changed hands */
+.ledgerAside {
+  color: var(--color-text-muted);
+}
+
+.nothing {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.bottomLine {
+  margin-top: var(--spacing-lg);
+  margin-left: auto;
+  width: 280px;
+}
+
+.bottomLine .pageTitle {
+  margin-bottom: 2px;
+}
+
+.bottomLine table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.bottomLine th,
+.bottomLine td {
+  padding: 3px 6px;
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+  font-weight: 400;
+}
+
+.bottomLine td {
+  text-align: right;
+}
+
+.bottomLine tr:last-child th,
+.bottomLine tr:last-child td {
+  font-weight: 700;
+  border-bottom: none;
+  border-top: 1px solid var(--color-border-strong);
+}
+
+.negative {
+  color: var(--color-text-danger);
+}

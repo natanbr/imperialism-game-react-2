@@ -2,44 +2,22 @@
 import React, { useId, useMemo } from "react";
 import { useGameStore } from "../store/rootStore";
 import { selectActiveNation } from "../store/selectors";
-import type { Order } from "@/engine";
+import { marketModeOf, type Order } from "@/engine";
 import type { TradeCommodity } from "@/types/Market";
 import { money, refusalText } from "./gameText";
 import { marketView, type MarketRowView } from "./market/marketView";
+import { BoardOfTrade } from "./market/BoardOfTrade";
+import { Stepper } from "./market/Stepper";
 import styles from "./market/Market.module.css";
 import { COMMODITY_ICONS, UI_ICONS } from "./icons";
 import { GameIcon } from "./GameIcon";
 import { Modal } from "./Modal";
 
-interface StepperProps {
-  label: string;
-  name: string;
-  value: number;
-  testId: string;
-  onChange: (amount: number) => void;
-}
-
-/** "− n +": each press sends this turn's total one lower or higher; the engine judges it (FR-074). */
-const Stepper: React.FC<StepperProps> = ({ label, name, value, testId, onChange }) => (
-  <span className={styles.amount}>
-    <button className={styles.stepButton} aria-label={`${label} one less ${name}`} disabled={value <= 0} onClick={() => onChange(value - 1)}>
-      −
-    </button>
-    <span className={`${styles.amountValue} ${value > 0 ? styles.active : ""}`} data-testid={testId}>
-      {value}
-    </span>
-    <button className={styles.stepButton} aria-label={`${label} one more ${name}`} onClick={() => onChange(value + 1)}>
-      +
-    </button>
-  </span>
-);
-
 /**
  * The world market (FR-073, FR-074): per tradeable commodity its price, stock, offer and bid, plus
  * the cargo holds and buy bids. Every button sends one order through submitOrder.
  */
-export const MarketModal: React.FC = () => {
-  const isOpen = useGameStore((s) => s.isMarketOpen);
+const WorldMarket: React.FC = () => {
   const close = useGameStore((s) => s.closeMarket);
   const submitOrder = useGameStore((s) => s.submitOrder);
   const lastRejection = useGameStore((s) => s.lastRejection);
@@ -47,9 +25,7 @@ export const MarketModal: React.FC = () => {
   const nation = useGameStore(selectActiveNation);
   const titleId = useId();
 
-  const view = useMemo(() => (isOpen && nation ? marketView(game, nation) : null), [isOpen, game, nation]);
-
-  if (!isOpen) return null;
+  const view = useMemo(() => (nation ? marketView(game, nation) : null), [game, nation]);
 
   const send = (kind: "sellCommodity" | "buyCommodity", commodity: TradeCommodity) => (amount: number) => {
     if (!nation) return;
@@ -128,6 +104,17 @@ export const MarketModal: React.FC = () => {
         )}
     </Modal>
   );
+};
+
+/**
+ * The market dialog (FR-073): the v1 World market in mode "world", the Board of Trade in "partners" (FR-194). Both send
+ * their orders through submitOrder; the HUD's Open Market and the capital's Trade open it.
+ */
+export const MarketModal: React.FC = () => {
+  const isOpen = useGameStore((s) => s.isMarketOpen);
+  const mode = useGameStore((s) => marketModeOf(s.game));
+  if (!isOpen) return null;
+  return mode === "partners" ? <BoardOfTrade /> : <WorldMarket />;
 };
 
 export default MarketModal;

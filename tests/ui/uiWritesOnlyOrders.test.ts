@@ -50,6 +50,15 @@ describe('FR-022 the UI changes the game only through submitOrder', () => {
     expect(silent).toEqual([]);
   });
 
+  it('FR-194 FR-195 the Board of Trade and the Deal Book are scanned; the board sends its bids and offers through submitOrder', () => {
+    const screens = ['src/app/components/MarketModal.tsx', 'src/app/components/market/BoardOfTrade.tsx', 'src/app/components/DealBookModal.tsx'];
+    const scanned = files.map((f) => relative(ROOT, f).replace(/\\/g, '/'));
+    expect(screens.filter((f) => !scanned.includes(f))).toEqual([]);
+    expect(/\bsubmitOrder\(/.test(readFileSync(join(ROOT, 'src/app/components/market/BoardOfTrade.tsx'), 'utf8'))).toBe(true);
+    // The Deal Book only reads the last turn's events: it builds no order at all
+    expect(/\bsubmitOrder\b/.test(readFileSync(join(ROOT, 'src/app/components/DealBookModal.tsx'), 'utf8'))).toBe(false);
+  });
+
   it('the UI uses no pre-M1 worker action of the store', () => {
     const old = /\b(moveSelectedWorkerToTile|moveAndStartProspecting|moveAndStartDevelopment|moveAndStartConstruction|purchaseTransportCapacityIncrease|setTransportAllocations|cancelAction)\s*\(/;
     const offenders = files.filter((f) => old.test(readFileSync(f, 'utf8')));

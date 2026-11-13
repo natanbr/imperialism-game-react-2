@@ -152,6 +152,7 @@ export const createGameSlice =
           selectedWorkerId: undefined,
           isCapitalOpen: false,
           isMarketOpen: false,
+          isDealBookOpen: false,
           isDiplomacyOpen: false,
           dismissedProposalIds: [],
           isWarehouseOpen: false,
