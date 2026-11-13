@@ -249,7 +249,7 @@ describe('FR-256 the diplomacy costs and the treasury change in the Deal Book da
     const end = state.nations.find(n => n.id === N1)!.treasury;
     const book = dealBook(events, N1, { start: 10000, end });
     expect(book.diplomacy).toEqual([{ kind: 'consulate', targetId: ARVELIA, amount: 500 }]);
-    expect(book.bottomLine.net).toBe(-200);
-    expect(book.treasury).toEqual({ start: 10000, end: 9300, change: -700, other: 0 });
+    expect(book.bottomLine).toMatchObject({ bought: 200, militaryUpkeep: 100, net: -300 }); // FR-202: the start army's upkeep
+    expect(book.treasury).toEqual({ start: 10000, end: 9200, change: -800, other: 0 });
   });
 });

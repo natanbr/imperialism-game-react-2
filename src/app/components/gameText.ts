@@ -13,6 +13,7 @@ import {
   type WithdrawableOverture,
 } from "@/engine";
 import { TerrainType, type Tile } from "@/types/Tile";
+import { REGIMENTS } from "@/definisions/regiments";
 import type { BuildingType } from "@/types/Industry";
 import { GoodsType, MaterialType, ResourceType, type WarehouseCommodities } from "@/types/Resource";
 import { WorkerStatus, WorkerType, type Worker } from "@/types/Workers";
@@ -40,6 +41,10 @@ const ORDER_TEXT: Record<OrderKind, string> = {
   setTradePolicy: "Trade policy",
   withdrawOverture: "Withdrawal",
   answerProposal: "Answer",
+  setRecruitment: "Recruiting",
+  moveArmy: "March",
+  cancelArmyMove: "Cancel march",
+  disbandRegiments: "Disband",
 };
 
 export const REFUSAL_TEXT: Record<RejectReason, string> = {
@@ -67,6 +72,7 @@ export const REFUSAL_TEXT: Record<RejectReason, string> = {
   "sellers-barred": "we may not trade with any seller",
   "no-buyer": "no one buys this",
   "buyers-barred": "we may not trade with any buyer",
+  "not-adjacent": "that province does not border the army's province",
 };
 
 /** Why an offer passed the nation by, in the news and the Deal Book (FR-244). */
@@ -264,7 +270,8 @@ function diplomacyText(event: GameEvent, name: (countryId: string) => string): s
 
 /**
  * One line of news for the event, or null when it is not news (the end of the turn). `nameOf` names the
- * countries a diplomacy line mentions (FR-176); without it their ids stand in.
+ * countries a diplomacy line mentions (FR-176) and the provinces of a march (FR-209); without it their ids
+ * stand in.
  */
 export function eventText(event: GameEvent, nameOf: (countryId: string) => string = (id) => id): string | null {
   switch (event.type) {
@@ -313,8 +320,19 @@ export function eventText(event: GameEvent, nameOf: (countryId: string) => strin
     case "grant-stopped":
     case "proposal-received":
       return diplomacyText(event, nameOf);
+    // FR-209: `nameOf` names the provinces of a march as well
+    case "regiments-recruited":
+      return `${event.count} ${REGIMENTS[event.regiment].name} recruited.`;
+    case "army-upkeep":
+      return `Army upkeep: ${money(event.amount)}.`;
+    case "army-moved":
+      return `${regiments(event.count)} marched from ${nameOf(event.fromProvinceId)} to ${nameOf(event.toProvinceId)}.`;
+    case "regiments-disbanded":
+      return event.reason === "no-pay" ? `${regiments(event.count)} disbanded: no money for their upkeep.` : `${regiments(event.count)} disbanded.`;
   }
 }
+
+const regiments = (n: number) => `${n} regiment${n === 1 ? "" : "s"}`;
 
 /**
  * The news of a turn as the player reads it (FR-107): the player's own lines first, as `eventText`

@@ -12,9 +12,11 @@ export const NewsPanel: React.FC = () => {
   const activeNationId = useGameStore((s) => s.activeNationId);
   const nations = useGameStore((s) => s.game.nations);
   const minorNations = useGameStore((s) => s.game.minorNations);
+  const provinces = useGameStore((s) => s.game.provinces);
 
-  // Great Powers and minor nations: diplomacy lines name both (FR-176).
-  const nameOf = (id: string) => nations.find((n) => n.id === id)?.name ?? minorNations.find((m) => m.id === id)?.name ?? id;
+  // Great Powers and minor nations: diplomacy lines name both (FR-176); a march names its provinces (FR-209).
+  const nameOf = (id: string) =>
+    nations.find((n) => n.id === id)?.name ?? minorNations.find((m) => m.id === id)?.name ?? provinces.find((p) => p.id === id)?.name ?? id;
   const news = lastReport ? newsLines(lastReport.events, activeNationId, nameOf) : [];
 
   return (

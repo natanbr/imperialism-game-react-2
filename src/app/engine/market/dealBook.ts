@@ -20,7 +20,7 @@ export interface DiplomacyCost {
   amount: number;
 }
 
-/** The Imp1 bottom line, in dollars; `militaryUpkeep` is 0 until armies cost upkeep (FR-202, M8). */
+/** The Imp1 bottom line, in dollars; `militaryUpkeep` is the turn's `army-upkeep` (FR-202). */
 export interface DealBottomLine {
   sold: number;
   bought: number;
@@ -57,6 +57,7 @@ export interface DealBook {
 /**
  * The nation's Deal Book from one turn's events (FR-244, FR-255, FR-256): `goods-sold` under Sold, `goods-bought` under
  * Bought, `offer-unsold`, `offer-missed` and `bid-unfilled` under Not traded, each kind in event order; the bottom line;
+ * the army upkeep (`army-upkeep`, FR-202) in the bottom line;
  * the consulates and embassies opened (`overture-done`, at their FR-161 cost) and the grants paid (`grant-paid`); and,
  * when `treasury` gives the nation's treasury at the start and the end of the turn, the change it explains. Reads a
  * "world" turn too: its deals have no counterparty.
@@ -68,7 +69,8 @@ export function dealBook(events: readonly GameEvent[], nationId: NationId, treas
   const missed: DealEntry[] = [];
   const unfilled: DealEntry[] = [];
   const diplomacy: DiplomacyCost[] = [];
-  const counterparty = (id: CountryId | undefined) => (id === undefined ? {} : { counterpartyId: id });
+  let militaryUpkeep = 0;
+  const counterparty =(id: CountryId | undefined) => (id === undefined ? {} : { counterpartyId: id });
   const cause = (c: TradeMissCause | undefined) => (c === undefined ? {} : { cause: c });
   for (const e of events) {
     if (!("nationId" in e) || e.nationId !== nationId) continue;
@@ -96,12 +98,14 @@ export function dealBook(events: readonly GameEvent[], nationId: NationId, treas
       case "grant-paid":
         diplomacy.push({ kind: "grant", targetId: e.targetId, amount: e.amount });
         break;
+      case "army-upkeep":
+        militaryUpkeep += e.amount;
+        break;
     }
   }
   const total = (entries: DealEntry[]) => entries.reduce((sum, d) => sum + ("total" in d ? d.total : 0), 0);
   const sold = total(sales);
   const bought = total(purchases);
-  const militaryUpkeep = 0;
   const net = sold - bought - militaryUpkeep;
   const paid = diplomacy.reduce((sum, d) => sum + d.amount, 0);
   const change = treasury ? treasury.end - treasury.start : 0;

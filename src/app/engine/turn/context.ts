@@ -1,5 +1,6 @@
 import type { GameState } from "@/types/GameState";
-import type { CountryId, NationId, TileId } from "@/types/Common";
+import type { CountryId, NationId, ProvinceId, TileId } from "@/types/Common";
+import type { RegimentType } from "@/types/Unit";
 import type { GrantAmount, Overture, ProposalKind, WithdrawableOverture } from "@/types/Diplomacy";
 import type { ResourceType } from "@/types/Resource";
 import type { ConstructionKind } from "@/types/jobs/ConstructionJob";
@@ -59,7 +60,19 @@ export type GameEvent =
   | { type: "grant-paid"; nationId: NationId; targetId: CountryId; amount: GrantAmount }
   | { type: "grant-stopped"; nationId: NationId; targetId: CountryId; amount: GrantAmount; reason: GrantStopReason }
   /** A proposal to `nationId`, a human Great Power, to answer next turn (FR-166, FR-175). */
-  | { type: "proposal-received"; nationId: NationId; fromId: NationId; proposalId: string; kind: ProposalKind };
+  | { type: "proposal-received"; nationId: NationId; fromId: NationId; proposalId: string; kind: ProposalKind }
+  // Armies (FR-209). `nationId` is the Great Power.
+  /** This turn's recruits of one type joined the army in the capital province (FR-201). */
+  | { type: "regiments-recruited"; nationId: NationId; regiment: RegimentType; count: number }
+  /** The upkeep paid this turn (FR-202); none when it is 0. */
+  | { type: "army-upkeep"; nationId: NationId; amount: number }
+  /** Regiments of the nation marched along one route this turn (FR-206). */
+  | { type: "army-moved"; nationId: NationId; fromProvinceId: ProvinceId; toProvinceId: ProvinceId; count: number }
+  /** Regiments left the army: by order (FR-207) or for want of upkeep money (FR-202). */
+  | { type: "regiments-disbanded"; nationId: NationId; reason: DisbandReason; count: number };
+
+/** Why regiments were disbanded (FR-202, FR-207). */
+export type DisbandReason = "order" | "no-pay";
 
 /** A declaration of war named as the reason for a relation change (FR-239). */
 export interface WarCause {

@@ -266,7 +266,7 @@ describe('FR-246 tradeBarrier sees this turn\'s diplomacy as the diplomacy phase
 
     const { state, events } = resolveTurn(s, {}, s.seed);
     expect(deals(events)).toEqual([]);
-    expect(treasury(state, N1)).toBe(10000);
+    expect(treasury(state, N1)).toBe(10000 - 100); // FR-202: the start army's upkeep, no deal
   });
 
   it('FR-246 a boycott lifted this turn: no barrier before End Turn, and the deal goes ahead', () => {
