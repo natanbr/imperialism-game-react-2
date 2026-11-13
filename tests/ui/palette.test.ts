@@ -4,7 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'fs';
 import { join, relative } from 'path';
-import { HUD_PX, NATION_COLORS, TERRAIN_TINT, THEME, TILE_PX, themeVariables } from '@/styles/theme';
+import { HUD_PX, NATION_COLORS, RELATION_COLORS, TERRAIN_TINT, THEME, TILE_PX, relationColor, themeVariables } from '@/styles/theme';
 import { mapAreaOf, mapSizePx } from '@/components/camera';
 import { TerrainType } from '@/types/Tile';
 
@@ -364,6 +364,53 @@ describe('FR-154 the minor nation and province border colours', () => {
       .map((bg) => ({ bg, ratio: Math.round(contrast(token('--color-province-border'), valueOf(bg)) * 100) / 100 }))
       .filter(({ ratio }) => ratio < 3);
     expect(low).toEqual([]);
+  });
+});
+
+describe('FR-179 the nine relation colours', () => {
+  const token = (name: string) => valueOf(`var(${name})`);
+  const names = Array.from({ length: 9 }, (_, level) => `--color-relation-${level}`);
+
+  it('FR-179 tokens.css defines --color-relation-0 to --color-relation-8, and theme.ts names them in level order', () => {
+    expect(names.filter((name) => !defined.has(name))).toEqual([]);
+    expect(RELATION_COLORS).toEqual(names.map((name) => `var(${name})`));
+    expect(relationColor(0)).toBe('var(--color-relation-0)');
+    expect(relationColor(8)).toBe('var(--color-relation-8)');
+    expect(themeVariables()).toEqual(expect.arrayContaining(names));
+  });
+
+  it('FR-179 neighbouring levels differ by a ΔE76 of 10 or more', () => {
+    const close = names
+      .slice(1)
+      .map((name, i) => ({ pair: `${names[i]} vs ${name}`, dE: Math.round(deltaE(lab(token(names[i])), lab(token(name))) * 10) / 10 }))
+      .filter(({ dE }) => dE < 10);
+    expect(close).toEqual([]);
+  });
+
+  it('FR-179 the FR-151 order: dark brown, red, orange, yellow, beige, brown, grey, light green, dark green', () => {
+    const [darkBrown, red, orange, yellow, beige, brown, grey, lightGreen, darkGreen] = names.map((name) => hsl(token(name)));
+    const warm = (c: { h: number }, from: number, to: number) => c.h >= from && c.h <= to;
+    expect({
+      darkBrown: warm(darkBrown, 15, 45) && darkBrown.l < 0.35,
+      red: (red.h < 15 || red.h > 345) && red.c > 0.4,
+      orange: warm(orange, 15, 40) && orange.c > 0.4,
+      yellow: warm(yellow, 40, 62) && yellow.c > 0.4,
+      beige: warm(beige, 30, 60) && beige.l > 0.75 && beige.c < 0.3,
+      brown: warm(brown, 15, 45) && brown.l > darkBrown.l && brown.l < 0.55,
+      grey: grey.c < 0.08,
+      lightGreen: warm(lightGreen, 80, 160) && lightGreen.l > 0.55,
+      darkGreen: warm(darkGreen, 80, 160) && darkGreen.l < 0.4,
+    }).toEqual({
+      darkBrown: true,
+      red: true,
+      orange: true,
+      yellow: true,
+      beige: true,
+      brown: true,
+      grey: true,
+      lightGreen: true,
+      darkGreen: true,
+    });
   });
 });
 

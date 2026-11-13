@@ -41,6 +41,12 @@ export const nationColor = (slot: number | undefined): string => {
   return NATION_COLORS[index % NATION_COLORS.length];
 };
 
+/** The nine relation swatches, level 0 (dark brown) to 8 (dark green): --color-relation-<level> (FR-179). */
+export const RELATION_COLORS: readonly string[] = Array.from({ length: 9 }, (_, level) => v(`color-relation-${level}`));
+
+/** The swatch of a relation level, clamped to 0..8. */
+export const relationColor = (level: number): string => RELATION_COLORS[Math.min(8, Math.max(0, Math.floor(level)))];
+
 /** A faint background per terrain: --terrain-<type> in tokens.css. */
 export const TERRAIN_TINT: Record<TerrainType, string> = Object.fromEntries(
   Object.values(TerrainType).map((t) => [t, v(`terrain-${t}`)])
@@ -48,6 +54,6 @@ export const TERRAIN_TINT: Record<TerrainType, string> = Object.fromEntries(
 
 /** Every CSS variable this module names, without `var()`. */
 export function themeVariables(): string[] {
-  const all = [...Object.values(THEME), ...NATION_COLORS, ...Object.values(TERRAIN_TINT)];
+  const all = [...Object.values(THEME), ...NATION_COLORS, ...RELATION_COLORS, ...Object.values(TERRAIN_TINT)];
   return all.map((value) => /^var\((--[\w-]+)\)$/.exec(value)![1]);
 }

@@ -39,6 +39,18 @@
      Great Power: a warm grey, dotted, at 3:1 on every land tint (WCAG 1.4.11; FR-154). */
   --color-minor: #5e7c90;
   --color-province-border: #7a6e5e;
+  /* The nine Imp1 relation swatches, level 0 to 8 (FR-151, FR-179): dark brown, red, orange, yellow, beige,
+     brown, grey, light green, dark green. Neighbours are at least 10 apart (ΔE76; tests/ui/palette.test.ts),
+     and the Diplomacy screen always names the level in words as well. */
+  --color-relation-0: #5b3a1e;
+  --color-relation-1: #c0392b;
+  --color-relation-2: #e07b2a;
+  --color-relation-3: #e8c547;
+  --color-relation-4: #e6d5ac;
+  --color-relation-5: #9c6b3c;
+  --color-relation-6: #8f8f8a;
+  --color-relation-7: #8fc27a;
+  --color-relation-8: #2f6b2f;
 
   /* Terrain tints: faint, light and low in colour, so the icons carry the meaning (NR-008) */
   --terrain-farm: #efe5c2;

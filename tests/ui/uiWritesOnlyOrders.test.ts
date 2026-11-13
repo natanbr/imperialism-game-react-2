@@ -33,6 +33,17 @@ describe('FR-022 the UI changes the game only through submitOrder', () => {
     expect(offenders.map((f) => relative(ROOT, f))).toEqual([]);
   });
 
+  it('FR-178 FR-175 the diplomacy screens are scanned and send every order they build through submitOrder', () => {
+    const screens = ['src/app/components/DiplomacyModal.tsx', 'src/app/components/diplomacy/CountryCard.tsx', 'src/app/components/AcceptOfferModal.tsx'];
+    const scanned = files.map((f) => relative(ROOT, f).replace(/\\/g, '/'));
+    expect(screens.filter((f) => !scanned.includes(f))).toEqual([]);
+    // The two that send orders (the dialog hands submitOrder to its cards) call submitOrder; none reaches the game
+    // another way (the checks above cover setState and the engine's apply and resolve functions)
+    const senders = ['src/app/components/diplomacy/CountryCard.tsx', 'src/app/components/AcceptOfferModal.tsx'];
+    const silent = senders.filter((f) => !/\bsubmitOrder\(/.test(readFileSync(join(ROOT, f), 'utf8')));
+    expect(silent).toEqual([]);
+  });
+
   it('the UI uses no pre-M1 worker action of the store', () => {
     const old = /\b(moveSelectedWorkerToTile|moveAndStartProspecting|moveAndStartDevelopment|moveAndStartConstruction|purchaseTransportCapacityIncrease|setTransportAllocations|cancelAction)\s*\(/;
     const offenders = files.filter((f) => old.test(readFileSync(f, 'utf8')));

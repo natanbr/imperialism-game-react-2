@@ -17,6 +17,16 @@ export interface OverlaySlice {
   openMarket: () => void;
   closeMarket: () => void;
 
+  // Diplomacy dialog controls (FR-177)
+  isDiplomacyOpen: boolean;
+  openDiplomacy: () => void;
+  closeDiplomacy: () => void;
+
+  // Accept Offer (FR-175): the proposals the player closed without an answer; they stay open in the game and
+  // End Turn refuses them, but their dialog does not come back
+  dismissedProposalIds: string[];
+  dismissProposal: (proposalId: string) => void;
+
   // The game-over screen shows whenever the game is over, unless the player closed it (FR-076)
   isGameOverHidden: boolean;
   hideGameOver: () => void;
@@ -44,6 +54,15 @@ export const createOverlaySlice: StateCreator<GameStore, [], [], OverlaySlice> =
   isMarketOpen: false,
   openMarket: () => set({ isMarketOpen: true, lastRejection: null }),
   closeMarket: () => set({ isMarketOpen: false }),
+
+  // Diplomacy dialog: same stale-refusal rule as the capital (FR-178, FR-055)
+  isDiplomacyOpen: false,
+  openDiplomacy: () => set({ isDiplomacyOpen: true, lastRejection: null }),
+  closeDiplomacy: () => set({ isDiplomacyOpen: false }),
+
+  dismissedProposalIds: [],
+  dismissProposal: (proposalId) =>
+    set((s) => (s.dismissedProposalIds.includes(proposalId) ? {} : { dismissedProposalIds: [...s.dismissedProposalIds, proposalId] })),
 
   isGameOverHidden: false,
   hideGameOver: () => set({ isGameOverHidden: true }),

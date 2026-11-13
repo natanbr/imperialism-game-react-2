@@ -195,6 +195,8 @@ describe('FR-160 startNewGame resets every overlay flag, also the ones a later m
       'activeNationId', 'lastRejection', 'eventLog', 'orderLog', 'ordersThisTurn', 'isWarehouseOpen', 'isCapitalOpen',
       'isMarketOpen', 'isGameOverHidden', 'isTransportAllocationOpen', 'selectedTileId', 'hoveredTileId', 'selectedWorkerId',
       'isConstructionModalOpen', 'constructionModalTileId', 'constructionModalWorkerId',
+      // M6: the Diplomacy screen (FR-177) and the offers the player closed unanswered this game (FR-175)
+      'isDiplomacyOpen', 'dismissedProposalIds',
     ]));
 
     store.setState(Object.fromEntries(session.map((key) => [key, changed(initial[key])])));

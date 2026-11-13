@@ -21,6 +21,7 @@ export const CapitalModal: React.FC = () => {
   const close = useGameStore((s) => s.closeCapital);
   const openWarehouse = useGameStore((s) => s.openWarehouse);
   const openMarket = useGameStore((s) => s.openMarket);
+  const openDiplomacy = useGameStore((s) => s.openDiplomacy);
   const submitOrder = useGameStore((s) => s.submitOrder);
   const lastRejection = useGameStore((s) => s.lastRejection);
   const game = useGameStore((s) => s.game);
@@ -46,8 +47,8 @@ export const CapitalModal: React.FC = () => {
             <button className={styles.secondaryButton} onClick={openMarket}>
               <GameIcon name={UI_ICONS.market} /> Trade
             </button>
-            <button className={styles.secondaryButton} disabled title="Coming in a later milestone">
-              Diplomacy
+            <button className={styles.secondaryButton} onClick={openDiplomacy}>
+              <GameIcon name={UI_ICONS.diplomacy} /> Diplomacy
             </button>
             <button className={styles.secondaryButton} disabled title="Coming in a later milestone">
               Technology
