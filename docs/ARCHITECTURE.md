@@ -359,8 +359,13 @@ in `components/icons.ts` (per terrain, resource and worker type; `tileIconOf` pi
 shows) and drawn by `GameIcon.tsx` with `data-icon`. Colours are CSS variables defined only in
 `styles/tokens.css`; `styles/theme.ts` names them for TypeScript and holds `TILE_PX` (42) and
 `HUD_PX` (a test checks both files agree, and that no colour literal sits in components, hooks or
-`globals.css`). MapView's SVG overlay draws each nation's territory border
-(`components/territoryBorders.ts`) and the rail, above the tile tints and below the tile icons.
+`globals.css`). MapView's SVG overlay draws, in this order, the dotted lines between two provinces of
+one owner (`--color-province-border`), each nation's territory border, each minor nation's dashed border
+(`--color-minor`, on top where it meets a Great Power's) and the rail, above the tile tints and below the
+tile icons (`components/territoryBorders.ts`, FR-153). A minor's capital tile carries the minor's name
+(`Tile/TileName.tsx`). A tile belongs to a country by `countryOfTile` (the owner of its province, else
+`ownerNationId`): the tile's name, the click (another country's tile, a minor's included, is only
+viewed) and the tile panel (owner, "(minor nation)", the province) all ask it (FR-155).
 Cursors are still emoji SVG data URIs (`useTileVisuals`). The HUD shows "Turn: N of 40" and the date ("Spring 1815"), cash, the score, every
 nation ranked by score with its colour swatch and name (`HUD/ScoreTable.tsx`, `NationSwatch.tsx`), the
 food warning, the selected tile, the news of the last turn and the last refused order (`components/HUD/NewsPanel.tsx`;
