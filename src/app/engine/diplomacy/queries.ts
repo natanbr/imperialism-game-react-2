@@ -4,7 +4,7 @@ import type { CountryId, NationId } from "@/types/Common";
 import type { Overture, Proposal, War } from "@/types/Diplomacy";
 import type { GameState } from "@/types/GameState";
 import type { AnswerIntent, DiplomacyIntent, Intent } from "@/types/Intent";
-import { RegimentCategory } from "@/types/Unit";
+import { regimentsOf, strength } from "../army/armies";
 import { relationOf } from "./relations";
 
 /** The overtures of `proposeOverture`, in the Imp1 panel's order (FR-161). */
@@ -64,27 +64,9 @@ export const proposalAnswer = (state: GameState, proposalId: string): boolean | 
 export const pendingProposalsFor = (state: GameState, nationId: NationId): Proposal[] =>
   proposalsOf(state).filter((p) => isAnswerable(state, p, nationId) && proposalAnswer(state, p.id) === undefined);
 
-/** What the strength sum reads of one regiment. */
-export interface RegimentStrength {
-  fpNormal: number;
-  health: number;
-  militia: boolean;
-}
-
 /**
- * The country's regiments as the strength sum reads them. The one read of the army shape in M6: the M8 task
- * (FR-204: `{ ownerId, provinceId, regiments }`) rewrites this function and the `army()` / `regiment()` builders
- * of tests/engine/scriptedDiplomacy.test.ts, and nothing else.
+ * A country's military strength (FR-174, FR-204): `strength` of all its regiments, every province counted, the sum
+ * over those that are not militia of FPN x health / 100. A new continent game gives each Great Power the start army's
+ * 36 and each minor 0 (militia only, FR-203); two-islands 0.
  */
-export function regimentsOf(state: GameState, countryId: CountryId): RegimentStrength[] {
-  return (state.armies ?? [])
-    .filter((army) => army.ownerNationId === countryId)
-    .flatMap((army) => army.units.map((unit) => ({ fpNormal: unit.stats.fpNormal, health: unit.health, militia: unit.category === RegimentCategory.Militia })));
-}
-
-/**
- * A country's military strength (FR-174, FR-204): the sum over its regiments that are not militia of
- * firepower (FPN) x health / 100. Armies come in M8, so on every M6 game it is 0 for every country.
- */
-export const militaryStrength = (state: GameState, countryId: CountryId): number =>
-  regimentsOf(state, countryId).reduce((sum, r) => (r.militia ? sum : sum + (r.fpNormal * r.health) / 100), 0);
+export const militaryStrength = (state: GameState, countryId: CountryId): number => strength(regimentsOf(state, countryId));

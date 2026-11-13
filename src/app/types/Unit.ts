@@ -1,4 +1,4 @@
-// types/Unit.ts
+// types/Unit.ts: the regiment categories and stats of the rules' unit table (rules 08 section 1, Imp1 manual p91).
 
 export enum RegimentCategory {
   Militia = "militia",             // immobile local defenders
@@ -12,25 +12,27 @@ export enum RegimentCategory {
   CombatEngineers = "combatEngineers",
 }
 
-export interface UnitStats {
-  fpNormal: number;     // firepower normal
-  fpMelee: number;      // melee firepower
-  range: number;        // max range (defensive range may be +1 in tactical)
-  defense: number;      // base defense
-  defenseEntrenched: number; // entrenched
-  move: number;         // tactical move
-  armamentsCost: number;// ARMS (also rails cost = 5 per ARMS to transport)
-}
+/** The era-1 regiment types (FR-199), keys of `REGIMENTS` (definisions/regiments.ts). */
+export type RegimentType =
+  | "minutemen"
+  | "skirmishers"
+  | "regulars"
+  | "grenadiers"
+  | "hussars"
+  | "cuirassiers"
+  | "lightArtillery"
+  | "artillery"
+  | "sappers";
 
-export interface Unit {
-  id: string;
-  name?: string;
-  category: RegimentCategory;
-  era: 1 | 2 | 3;       // 1: ~1815-45, 2: ~1845-80, 3: ~1880+
-  health: number;       // 0..100
-  experience: number;   // 0..4 medals
-  horsesRequired?: number; // cavalry/artillery
-  fuelRequired?: number;   // late units
-  stats: UnitStats;
-  entrenched?: boolean;
+export interface UnitStats {
+  fpNormal: number;     // firepower normal (FPN)
+  fpMelee: number;      // melee firepower (FPM)
+  range: number;        // range (RNG)
+  /** The range in brackets in the Imp1 table (artillery), if any. */
+  rangeEntrenched?: number;
+  defense: number;      // base defense (DEF)
+  /** The entrenched DEF in brackets in the Imp1 table, if any; cavalry has none (FR-199). */
+  defenseEntrenched?: number;
+  move: number;         // tactical move (MVR)
+  armamentsCost: number;// ARMS: armaments to raise it, its force size and upkeep (FR-202); 0 for militia
 }

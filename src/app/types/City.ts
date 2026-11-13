@@ -8,7 +8,6 @@ export interface City {
   name: string;
   population: number;
   ownerNationId: string;
-  garrison: string[]; // unitIds
   productionQueue: ProductionItem[];
   isCapital?: boolean;
   port?: boolean;

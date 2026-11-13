@@ -8,6 +8,8 @@ export type MinorNationId = string;
 /** A Great Power id or a minor nation id (FR-146). */
 export type CountryId = NationId | MinorNationId;
 export type ArmyId = string;
+/** "regiment-<n>" (FR-204). */
+export type RegimentId = string;
 export type FleetId = string;
 export type TradeRouteId = string;
 export type ProvinceId = string;
