@@ -37,9 +37,10 @@ src/app/
                            for the per-system streams (FR-150)
     diplomacy/relations.ts the diplomacy state (FR-151): pairKey, startDiplomacy, relationOf,
                            relationLevel, RELATION_SWATCHES
-    diplomacy/queries.ts   M6 reads: isAtWar, warBetween, warActive, holdsConsulate/Embassy,
+    diplomacy/queries.ts   M6 reads: warBetween, warActive (for the M9 attack rule),
                            diplomacyIntentsOf (this turn's, with cost), proposalsOf,
                            pendingProposalsFor, proposalAnswer, militaryStrength (FR-204, 0 before M8)
+                           over regimentsOf, the one read of the army shape (M8 rewrites it)
     diplomacy/scriptedAnswers.ts  FR-174: acceptsAlliance, acceptsPeace, losingWar
     orders/                Order.ts (union + RejectReason), validate.ts, apply.ts,
                            industryOrders.ts (production, expansion, cars, training, migration),
@@ -385,12 +386,15 @@ M6, store flag `isDiplomacyOpen`, opened from the HUD or the capital) renders
 minors in id order) with the relation as a swatch in `--color-relation-<level>` and in words, the
 treaties, this turn's diplomacy intents with Withdraw, and the overture, grant and trade policy
 controls; each control holds its order and, when `validateOrder` would refuse it, the refusal text
-(the button is disabled and names it as its description). Accept Offer (`AcceptOfferModal.tsx`)
+(the button is disabled and names it as its description; "Stop grant" also carries a screen-only
+refusal while this turn's grant would be what its order takes back). Accept Offer (`AcceptOfferModal.tsx`)
 opens for each `pendingProposalsFor` the player at the start of a turn; Accept/Reject (Enter/Escape)
 send `answerProposal`, and closing it adds the id to `dismissedProposalIds` (reset by New game). The game-over screen (`GameOverModal.tsx`)
 shows `state.gameOver.scores` whenever the game is over, unless the player closed it
 (`isGameOverHidden`, reopened by the HUD's "Final scores"). After game over the HUD's Advance
-Turn is disabled and the store's `advanceTurn` returns at once, so no empty turn is logged. A tile is `components/Tile.tsx` plus
+Turn is disabled and the store's `advanceTurn` returns at once, so no empty turn is logged. The End Turn key "n"
+(`hooks/useKeyboardShortcuts.ts`, mounted by `page.tsx`) is ignored in a form field and while any `role="dialog"` is
+in the page (FR-178). A tile is `components/Tile.tsx` plus
 sub-components in `components/Tile/` and three hooks: `useTileActions` (which action the
 selected worker offers, from `workers/*`), `useTileVisuals` (terrain tint, grid line and the
 cursor) and `useTileClickHandler` (the click, as orders). The selection ring is an element of
