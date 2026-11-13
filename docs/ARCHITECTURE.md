@@ -227,7 +227,9 @@ only (FR-018).
   ask `validateOrder` first: a control it would refuse is disabled, its reason beside it and as its description.
   This turn's own orders show on the map before End Turn (FR-263): `selectMarchArrows` (`marchArrows`) gives
   MapView one dashed arrow per pair of provinces, drawn in its own SVG overlay at z-index 4 (above the tile
-  icons and civilians, below the markers), and a marker with regiments to disband carries "−1".
+  icons and civilians, below the markers), and a marker with regiments to disband carries "−1". Marches both ways
+  between two provinces each keep 10 px to their own right (FR-270). The marker's centre is copied from
+  Tile.module.css into `armyView.ts`; e2e/m8-armies.spec.ts measures the arrow ends against the drawn markers (FR-271).
 
 The store (`store/rootStore.ts`) holds that state under `game`, and UI state beside it:
 
