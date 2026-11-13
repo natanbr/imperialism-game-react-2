@@ -1,15 +1,16 @@
 // @vitest-environment jsdom
 // FR-155 (M5): a click on a minor nation's tile or capital selects it for viewing only; the tile panel
-// names the minor ("Arvelia (minor nation)"), its province, the terrain and the resource with its level,
-// and offers no control that builds an order. On a world with provinces every tile's panel shows its
-// province ("Province: Testland South-West"). FR-149: a click on minor land with a civilian selected
-// builds no order, so no refusal reaches the news.
+// names the minor ("Arvelia (minor nation)"), the terrain and the resource with its level, and offers no
+// control that builds an order. On a world with provinces a Great Power tile's panel shows its province
+// ("Province: Testland South-West"); FR-235 (QA fix round): a minor's tile has no Province line, since a
+// minor is one province named after it ("Province: Arvelia" repeated the owner line). FR-149: a click on
+// minor land with a civilian selected builds no order, so no refusal reaches the news.
 import { describe, it, expect } from 'vitest';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import Home from '@/page';
 import { HUD } from '@/components/HUD';
 import { useGameStore } from '@/store/rootStore';
-import { newGame, type Order, type ValidationResult } from '@/engine';
+import { newGame, transferProvince, type Order, type ValidationResult } from '@/engine';
 import type { GameState } from '@/types/GameState';
 import { WorkerType } from '@/types/Workers';
 import { failOnActWarnings } from './actWarnings';
@@ -25,14 +26,15 @@ const tileEl = (container: HTMLElement, id: string) => container.querySelector(`
 const panel = () => screen.getByTestId('tile-info');
 
 describe('FR-155 a minor nation\'s tile in the tile panel', () => {
-  it('FR-155 a click on Arvelia\'s forest selects it read-only: the minor, its province, terrain, resource and level, no button', () => {
+  it('FR-155 FR-235 a click on Arvelia\'s forest selects it read-only: the minor, terrain, resource and level, no province line, no button', () => {
     show(continent());
     const { container } = render(<Home />);
     fireEvent.click(tileEl(container, '10-3'));
     expect(useGameStore.getState().selectedTileId).toBe('10-3');
 
     expect(text(within(panel()).getByTestId('tile-owner'))).toBe('Owner: Arvelia (minor nation)');
-    expect(text(within(panel()).getByTestId('tile-province'))).toBe('Province: Arvelia');
+    expect(within(panel()).queryByTestId('tile-province')).toBeNull();
+    expect(text(panel())).not.toContain('Province');
     expect(text(panel())).toContain('Terrain: Hardwood forest');
     expect(text(panel())).toContain('Resource: Timber (L1)');
     expect(text(panel())).toContain('Arvelia is a minor nation: you can watch its land, not give orders here.');
@@ -40,13 +42,13 @@ describe('FR-155 a minor nation\'s tile in the tile panel', () => {
     expect(within(panel()).queryAllByRole('button')).toEqual([]);
   });
 
-  it('FR-155 a click on a minor capital (Sundmark, 12-9) shows the capital read-only', () => {
+  it('FR-155 FR-235 a click on a minor capital (Sundmark, 12-9) shows the capital read-only, with no province line', () => {
     show(continent());
     const { container } = render(<Home />);
     fireEvent.click(tileEl(container, '12-9'));
     expect(useGameStore.getState().selectedTileId).toBe('12-9');
     expect(text(within(panel()).getByTestId('tile-owner'))).toBe('Owner: Sundmark (minor nation)');
-    expect(text(within(panel()).getByTestId('tile-province'))).toBe('Province: Sundmark');
+    expect(within(panel()).queryByTestId('tile-province')).toBeNull();
     expect(text(panel())).toContain('Terrain: Capital');
     expect(text(panel())).toContain('Resource: None');
     expect(within(panel()).queryAllByRole('button')).toEqual([]);
@@ -102,6 +104,31 @@ describe('FR-155 the province of every tile on a world with provinces', () => {
     rerender(<HUD />);
     expect(within(panel()).queryByTestId('tile-province')).toBeNull();
     expect(text(within(panel()).getByTestId('tile-owner'))).toBe('Owner: Unclaimed');
+  });
+
+  it('FR-235 no tile of any of the 4 minors shows a province line; every Great Power land tile does', () => {
+    const game = continent();
+    const land = game.map.tiles.flat().filter((t) => t.provinceId !== undefined);
+    const minorTiles = land.filter((t) => t.provinceId!.startsWith('province-minor-'));
+    expect(minorTiles).toHaveLength(26);
+    show(game);
+    const { rerender } = render(<HUD />);
+    const seen = { minorWithProvince: [] as string[], greatPowerWithout: [] as string[] };
+    for (const tile of land) {
+      act(() => useGameStore.setState({ selectedTileId: tile.id }));
+      rerender(<HUD />);
+      const line = within(panel()).queryByTestId('tile-province');
+      if (minorTiles.includes(tile) && line) seen.minorWithProvince.push(tile.id);
+      if (!minorTiles.includes(tile) && !line) seen.greatPowerWithout.push(tile.id);
+    }
+    expect(seen).toEqual({ minorWithProvince: [], greatPowerWithout: [] });
+  });
+
+  it('FR-235 a minor\'s province taken by a Great Power names its province again: "Owner: Testland (you)", "Province: Arvelia"', () => {
+    show(transferProvince(continent(), 'province-minor-1', N1), { selectedTileId: '11-4' });
+    render(<HUD />);
+    expect(text(within(panel()).getByTestId('tile-owner'))).toBe('Owner: Testland (you)');
+    expect(text(within(panel()).getByTestId('tile-province'))).toBe('Province: Arvelia');
   });
 
   it('FR-155 FR-159 two-islands has no provinces, so the panel shows no province line', () => {

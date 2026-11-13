@@ -31,7 +31,7 @@ const WorkerStatusIndicator: React.FC<{ status: WorkerStatus }> = ({ status }) =
 /**
  * The selected tile in the HUD. On the player's land it offers the selected civilian's jobs; another
  * country's tile, a Great Power's or a minor nation's, is shown read-only, with no control that builds
- * an order (FR-108, FR-155). On a world with provinces it names the tile's province (FR-155).
+ * an order (FR-108, FR-155). On a world with provinces it names a Great Power tile's province (FR-155, FR-235).
  */
 export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) => {
   const selectedWorkerId = useGameStore((s) => s.selectedWorkerId);
@@ -144,7 +144,8 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
       <p data-testid="tile-owner">
         <strong>Owner:</strong> {ownerText}
       </p>
-      {province && (
+      {/* A minor is one province named after it, so its tile skips the line (FR-235) */}
+      {province && !minor && (
         <p data-testid="tile-province">
           <strong>Province:</strong> {province.name}
         </p>

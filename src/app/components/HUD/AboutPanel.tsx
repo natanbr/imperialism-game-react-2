@@ -1,25 +1,57 @@
 import React from "react";
+import { useGameStore } from "@/store/rootStore";
+import { selectActiveNation } from "@/store/selectors";
+import { nationColor, THEME } from "@/styles/theme";
+import mapStyles from "../MapView.module.css";
 
-/** Credits, with the CC BY 3.0 attribution the Game Icons licence asks for (FR-089). */
-export const AboutPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => (
-  <div className="about-panel" role="dialog" aria-label="About">
-    <div className="about-header">
-      <strong>About</strong>
-      <button className="icon-button" onClick={onClose} aria-label="Close about">
-        <span aria-hidden="true">×</span>
-      </button>
-    </div>
-    <p>A web remake of Imperialism (1997).</p>
-    <p>
-      Icons by{" "}
-      <a href="https://game-icons.net" target="_blank" rel="noopener noreferrer">
-        game-icons.net
-      </a>{" "}
-      contributors,{" "}
-      <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener noreferrer">
-        CC BY 3.0
-      </a>
-      .
-    </p>
-  </div>
+/** A short sample of a map border line, drawn with the map's own class (line style) and colour token. */
+const LineSample: React.FC<{ stroke: string; className: string }> = ({ stroke, className }) => (
+  <svg width="28" height="8" viewBox="0 0 28 8" aria-hidden="true" focusable="false">
+    <line x1="2" y1="4" x2="26" y2="4" stroke={stroke} className={className} />
+  </svg>
 );
+
+/**
+ * Credits, with the CC BY 3.0 attribution the Game Icons licence asks for (FR-089), and the map legend
+ * of the three border lines (FR-235). The Great Power sample is in the viewed nation's colour.
+ */
+export const AboutPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  const nation = useGameStore(selectActiveNation);
+  return (
+    <div className="about-panel" role="dialog" aria-label="About">
+      <div className="about-header">
+        <strong>About</strong>
+        <button className="icon-button" onClick={onClose} aria-label="Close about">
+          <span aria-hidden="true">×</span>
+        </button>
+      </div>
+      <p>A web remake of Imperialism (1997).</p>
+      <p>
+        Icons by{" "}
+        <a href="https://game-icons.net" target="_blank" rel="noopener noreferrer">
+          game-icons.net
+        </a>{" "}
+        contributors,{" "}
+        <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener noreferrer">
+          CC BY 3.0
+        </a>
+        .
+      </p>
+      <strong id="map-legend-title">Map legend</strong>
+      <ul className="map-legend" aria-labelledby="map-legend-title">
+        <li>
+          <LineSample stroke={nationColor(nation?.colorSlot)} className={mapStyles.territoryBorder} />
+          <span>Solid line: Great Power border</span>
+        </li>
+        <li>
+          <LineSample stroke={THEME.minor} className={mapStyles.minorBorder} />
+          <span>Dashed slate line: minor nation border</span>
+        </li>
+        <li>
+          <LineSample stroke={THEME.provinceBorder} className={mapStyles.provinceBorder} />
+          <span>Dotted line: province border</span>
+        </li>
+      </ul>
+    </div>
+  );
+};

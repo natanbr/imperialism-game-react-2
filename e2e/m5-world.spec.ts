@@ -94,7 +94,8 @@ test('FR-160 FR-153 FR-155 FR-156 a new game shows the 4 minor nations, the prov
   await tile(page, '10-3').click({ position: { x: 6, y: 6 } });
   await expect(tile(page, '10-3')).toHaveAttribute('data-selected', 'true');
   await expect(info.getByTestId('tile-owner')).toHaveText('Owner: Arvelia (minor nation)');
-  await expect(info.getByTestId('tile-province')).toHaveText('Province: Arvelia');
+  // FR-235: a minor is one province named after it, so its tile has no Province line
+  await expect(info.getByTestId('tile-province')).toHaveCount(0);
   await expect(info).toContainText('Terrain: Hardwood forest');
   await expect(info).toContainText('Resource: Timber (L1)');
   await expect(info.getByRole('button')).toHaveCount(0);
