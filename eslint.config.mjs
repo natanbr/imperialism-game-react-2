@@ -22,6 +22,9 @@ const eslintConfig = [
       "build/**",
       "next-env.d.ts",
       ".gate/**",
+      // Nathan's art pack and its maintenance script, kept byte-for-byte as supplied (NR-031).
+      "public/assets/ink-and-wash/**",
+      "scripts/sync-ink-assets.cjs",
     ],
   },
   {
