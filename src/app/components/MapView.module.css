@@ -82,12 +82,23 @@
   opacity: 0.85;
 }
 
+/* FR-273: GREEN means movement (the art pack's committed movement arrow, NR-031): a solid green line on its dark ink
+   outline, under a pale halo for any terrain tint */
+.marchOutline {
+  stroke-width: 4.5;
+  stroke-linecap: butt;
+}
+
 .marchLine {
   stroke-width: 2.5;
   stroke-linecap: butt;
 }
 
-.marchHead,
+.marchHead {
+  stroke-width: 1;
+  stroke-linejoin: round;
+}
+
 .marchCountBack {
   stroke: var(--color-surface);
   stroke-width: 1.5;

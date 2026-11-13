@@ -1,7 +1,10 @@
 // Display text for engine data: worker jobs, refused orders and turn events (FR-024).
 import {
+  battleOutcome,
   RELATION_SWATCHES,
   seasonOf,
+  type BattleOutcome,
+  type BattleResolvedEvent,
   type FoodForecast,
   type GameEvent,
   type GrantStopReason,
@@ -350,8 +353,11 @@ export function eventText(event: GameEvent, nameOf: (countryId: string) => strin
     // FR-232 (M9): the war news; `nationId` is the attacking or conquering Great Power
     case "battle-resolved":
       return `Battle at ${nameOf(event.provinceId)}: ${event.provinceTaken ? "Province Taken!" : "Attack Failed!"}`;
-    case "province-taken":
-      return `${nameOf(event.provinceId)} taken from ${nameOf(event.fromId)}.`;
+    case "province-taken": {
+      // A minor's one province bears its name: "Arvelia taken.", not "Arvelia taken from Arvelia."
+      const [province, from] = [nameOf(event.provinceId), nameOf(event.fromId)];
+      return province === from ? `${province} taken.` : `${province} taken from ${from}.`;
+    }
     case "nation-fallen":
       return `${nameOf(event.fallenId)} has fallen.`;
     case "minor-colonised":
@@ -361,26 +367,52 @@ export function eventText(event: GameEvent, nameOf: (countryId: string) => strin
 
 const regiments = (n: number) => `${n} regiment${n === 1 ? "" : "s"}`;
 
+/** The Imp1 result lines of a battle (rules 11 section 7), as one side sees it (FR-231, FR-232). */
+export const BATTLE_RESULT_TEXT: Record<BattleOutcome, string> = {
+  "province-taken": "Province Taken!",
+  "attack-failed": "Attack Failed!",
+  "province-lost": "Province Lost!",
+  "enemy-beaten-back": "Enemy Beaten Back!",
+};
+
+/** One line of the news; a battle's line carries its report, so the line opens its Battle screen (FR-232). */
+export interface NewsItem {
+  text: string;
+  battle?: BattleResolvedEvent;
+}
+
 /**
  * The news of a turn as the player reads it (FR-107): the player's own lines first, as `eventText`
  * words them; then every other nation's lines, each starting with the nation's name ("Valdoria: Rail
  * finished at 15-8."); then the lines of no nation (game over). Each group keeps the event order.
  * `nameOf` also names the countries a diplomacy line mentions, minor nations included (FR-176).
+ * A battle the player fought, attacking or defending, is its own line, from its side ("Battle at Testland North-East:
+ * Province Lost!", FR-232); another nation's battle reads from its attacker's side.
  */
-export function newsLines(events: readonly GameEvent[], playerId: string, nameOf: (countryId: string) => string): string[] {
-  const own: string[] = [];
-  const others: string[] = [];
-  const general: string[] = [];
+export function newsItems(events: readonly GameEvent[], playerId: string, nameOf: (countryId: string) => string): NewsItem[] {
+  const own: NewsItem[] = [];
+  const others: NewsItem[] = [];
+  const general: NewsItem[] = [];
   for (const event of events) {
+    const battle = event.type === "battle-resolved" ? { battle: event } : {};
+    const ours = event.type === "battle-resolved" ? battleOutcome(event, playerId) : undefined;
+    if (event.type === "battle-resolved" && ours) {
+      own.push({ text: `Battle at ${nameOf(event.provinceId)}: ${BATTLE_RESULT_TEXT[ours]}`, ...battle });
+      continue;
+    }
     const line = eventText(event, nameOf);
     if (line === null) continue;
     const nationId = "nationId" in event ? event.nationId : undefined;
-    if (nationId === undefined) general.push(line);
-    else if (nationId === playerId) own.push(line);
-    else others.push(`${nameOf(nationId)}: ${line}`);
+    if (nationId === undefined) general.push({ text: line, ...battle });
+    else if (nationId === playerId) own.push({ text: line, ...battle });
+    else others.push({ text: `${nameOf(nationId)}: ${line}`, ...battle });
   }
   return [...own, ...others, ...general];
 }
+
+/** The text of the news lines (`newsItems`). */
+export const newsLines = (events: readonly GameEvent[], playerId: string, nameOf: (countryId: string) => string): string[] =>
+  newsItems(events, playerId, nameOf).map((item) => item.text);
 
 /** Tiles whose development or construction finished in these events (the map's "done" mark). */
 export function completedTileIds(events: readonly GameEvent[]): ReadonlySet<string> {

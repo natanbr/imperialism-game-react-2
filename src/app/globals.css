@@ -502,6 +502,31 @@ svg[data-icon] {
   outline-offset: 1px;
 }
 
+/* FR-232: a battle's line opens its Battle screen. A button that reads as a link and keeps the line's 20 px height, so
+   the list still holds whole lines (FR-268) */
+.news-battle {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  line-height: inherit;
+  text-align: left;
+  color: var(--color-accent-strong);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.news-battle:hover {
+  color: var(--color-accent);
+}
+
+.news-battle:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
 /* The same thin scrollbar in the palette as the HUD's (FR-235) */
 .news-list::-webkit-scrollbar {
   width: 8px;

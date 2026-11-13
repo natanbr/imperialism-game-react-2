@@ -23,8 +23,9 @@
 - 2026-11-13 M8 Armies (FR-199 to FR-215, FR-260 to FR-271) merged (PR 26, main c91f2fd; entries archived in
   `docs/journal/archive-M8.md`). Nathan's art pack (NR-031) committed on top (4bd00eb).
 - 2026-11-13 M9 War and the attack screen in progress on `claude/m9-war` (worktree `imperialism-game-revival-fee36d`):
-  the engine half (FR-216 to FR-229, FR-234) is committed (FR-229 tuned: decision card 1 of its entry); next the UI half
-  (FR-230 to FR-233, the art), then the review. Not pushed.
+  the engine half (FR-216 to FR-229, FR-234; FR-229 tuned: decision card 1 of its entry) and the UI half (FR-230 to
+  FR-233, the art pack in the war screens FR-272, the map's red and green arrows FR-273) are committed; next the review.
+  Not pushed.
 
 Carried forward:
 - Deferred: river ports and the depot-on-port rule (rules 04); University fees; the power plant.
@@ -262,3 +263,72 @@ last with the fates), `battleOutcome(report, countryId)` "province-taken" / "att
 
 Carried: decision 1's card; FR-213's Regulars never raisable (objection of decision 1); idle campaign regiments keep costing upkeep.
 Not run: Playwright (no screen changed beyond the game-over line; the UI half adds e2e/m9-war.spec.ts).
+
+## 2026-11-13 M9 War and the attack screen, UI half (FR-230 to FR-233, FR-272, FR-273)
+
+Size: L (the UI half of the milestone: two new dialogs, the Army screen, the map, the news, the store, the art pack). One UI
+agent (Opus 5.5, xhigh, no subagents, no advisor call), started by the M9 workflow, on the engine half's API. Branch
+`claude/m9-war` (worktree `imperialism-game-revival-fee36d`), not pushed.
+
+Plan-lite:
+- Change: the Attack screen (`AttackModal.tsx`, `army/attackView.ts`) from the Army screen's "Attack Arvelia" and from a map
+  click with regiments selected; the Battle screen (`BattleModal.tsx`, `army/battleView.ts`) replaying a report, opened by
+  itself after End Turn and from the news (`newsItems`); "Colony" in Diplomacy; the art pack (one table `art/inkArt.ts`)
+  in the Army screen, the Armoury, both new screens; the map's red attack arrow and green marches.
+- Consumers: the player; the store keeps `armySelection`, `attackPlan`, `battleQueue` (UI state only).
+- Tests: FR-230 `ui/attackDialog.test.tsx` (+ `ui/armyDialog.test.tsx`); FR-231 `ui/battleReplay.test.tsx`; FR-232
+  `ui/battleReplay.test.tsx`, `ui/gameText.test.ts`; FR-233 `e2e/m9-war.spec.ts` (+ `ui/diplomacyDialog.test.tsx` for the
+  chip); FR-272 `ui/inkArt.test.ts` and the picture rows of the Army, Armoury, Attack and Battle tests; FR-273
+  `ui/armyMarkers.test.tsx`, `ui/inkArt.test.ts`; FR-022 `ui/uiWritesOnlyOrders.test.ts` scans both new dialogs.
+- Verify: `npm test`, `npm run lint`, `npx tsc --noEmit`, `npm run build`, `PORT=3160 npx playwright test --workers=1`.
+- Objection: the selection kept on the map is a little hidden (tick in the Army screen, close it, click the enemy land);
+  the marker's ring and ", 3 selected" are its only signs. The Army screen's "Attack…" is the main way.
+
+Red (tests first, before any UI change; `.gate/m9ui/red.txt`): `Test Files 9 failed (9)`, `Tests 10 failed | 185 passed
+(195)`; four suites fail to load (`Cannot find module '@/components/art/inkArt'`, `AttackModal`, `BattleModal`, `attackArrows`),
+`expected [ 'Consulate' ] to deeply equal [ 'Colony', 'Consulate' ]`, `expected 'Arvelia taken from Arvelia.' to be 'Arvelia
+taken.'`, the Army and Armoury picture rows `expected [] to deeply equal [ [ …(2) ], …]`.
+
+Decisions (defaults, nobody to ask; cards for the progress page):
+1. FR-230's "picks Attack Arvelia" opens the dialog through the button beside the select: picking "Attack Arvelia" turns
+   "March" into "Attack…", and that opens the Attack screen. A select that opens a dialog on change opens it on every
+   arrow key (WCAG 3.2.2 On Input). Card: "Open the Attack screen on the pick itself?" Suggestion: keep the button.
+2. "Our chosen regiments" are the ticked ones. The ticks live in the store as the army selection: kept when the Army
+   screen closes, so a click on a bordering enemy province opens the Attack screen with them (FR-230's map path); the
+   marker wears the accent ring and its name ends ", 3 selected"; End Turn and a click on any other tile drop it.
+3. NR-031's arrows (new FR-273, replacing FR-263's nation colour and dashes): an attack is the pack's own red arrow,
+   scaled and turned as one onto the two markers; a march keeps its straight measured line and head (FR-270's arrows both
+   ways side by side, FR-271's browser measure unchanged) in the pack's movement green with its ink outline. The FR-263
+   test's colour lines now assert FR-273's green (a changed requirement, not a looser test). The colours are 4 new tokens,
+   checked against the SVG files.
+4. FR-211's row "no bordering province of ours: the select is empty" no longer holds on the continent's South-West alone
+   (FR-230 lists the attacks there); it is rewritten to the attack entries, and the empty select is tested on an island
+   province (Sundmark given to Testland).
+5. The era-1 art: the pack draws three eras per Imp1 line, so Light Artillery is `horse-artillery.png` and Artillery
+   `heavy-artillery.png` (heavy line: heavy, siege, railroad gun); Minutemen are `militia.png`, Skirmishers
+   `light-infantry.png`. Pictures are plain `<img>` (one `eslint-disable` in `art/ArtPicture.tsx`): Next's optimiser would
+   re-encode files NR-031 keeps as supplied. Fort pictures show on the Attack screen and as the Battle screen's wall; the
+   map draws no fort yet, so none there.
+6. A minor's one province bears its name: "Arvelia taken." instead of "Arvelia taken from Arvelia."; a battle the player
+   fought is its own news line from its side (the engine left "Province Lost!" to do).
+7. The Battle screen lies above every dialog, the game-over screen included, so a conquest's last battle is seen first.
+8. FR-233 names `e2e/m9-war.spec.ts` (the brief said `e2e/m9.spec.ts`); the FR's name is kept, as the engine half's notes did.
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| Red before the UI change | `npx vitest run` on the 9 new and changed UI files (`.gate/m9ui/red.txt`) | `Test Files 9 failed (9)`, `Tests 10 failed \| 185 passed (195)` |
+| FR-230 to FR-232, FR-272, FR-273, the colony chip | the same 9 files after (`.gate/m9ui/run2.txt`) | `Test Files 9 passed (9)`, `Tests 265 passed (265)` |
+| Unit tests | `npm test` (`.gate/m9ui/gate-test.txt`) | `Test Files 98 passed (98)`, `Tests 1848 passed (1848)` (+70 on 1778) |
+| v1 and v2 baselines unchanged (FR-234) | `npm test` console | `FR-125 seed 1: t15 616/390 (1.58) ... t40 1493/650 (2.30)`; `FR-260 nation 2 score at turn 40: [[1,1419],[2,1451],[3,1441],[4,1469]]` |
+| Lint | `npm run lint` (`.gate/m9ui/gate-lint.txt`) | `✖ 3 problems (0 errors, 3 warnings)` (the three of M6) |
+| Types | `npx tsc --noEmit` | exit 0, no output |
+| Build | `npm run build` (`.gate/m9ui/gate-build.txt`) | `✓ Compiled successfully in 7.4s`, `✓ Generating static pages (4/4)` |
+| FR-233 and the screens in the app | `PORT=3160 npx playwright test --workers=1 --reporter=line` (`.gate/m9ui/pw-final.txt`) | `36 passed (5.8m)`, `1 skipped` (37 tests; m9-war.spec.ts new, m8-armies.spec.ts unchanged and green with the pictures) |
+
+Seen in the app (screenshots under `.gate/m9ui/shots/`, git-ignored; `m9-battle.png` is attached to the spec's report): the Attack
+screen over the Army screen at 1280x720, the red arrow from Testland North-East into Arvelia, the Battle screen's result with
+"Province Taken!", Arvelia inside Testland's border after the conquest, the Armoury cards and Army rows with their pictures.
+
+Carried: decision 1's card (the button, not the pick); the Imp1 defender prompt and the red crossed-swords cursor over enemy
+land are not built; the map draws no fort; the rest of the art pack (terrain, goods, workers, buildings) waits for NR-031's
+separate decision.

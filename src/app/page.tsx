@@ -10,6 +10,8 @@ import { DiplomacyModal } from './components/DiplomacyModal';
 import { AcceptOfferModal } from './components/AcceptOfferModal';
 import { ArmyModal } from './components/ArmyModal';
 import { ArmouryModal } from './components/ArmouryModal';
+import { AttackModal } from './components/AttackModal';
+import { BattleModal } from './components/BattleModal';
 import { GameOverModal } from './components/GameOverModal';
 import TransportAllocationModal from './components/TransportAllocationModal';
 import { ConstructionOptionsModal } from './components/ConstructionOptionsModal';
@@ -39,8 +41,11 @@ export default function Home() {
       <DiplomacyModal />
       <ArmouryModal />
       <ArmyModal />
+      <AttackModal />
       <ConstructionOptionsModal />
       <GameOverModal />
+      {/* After the game-over screen: a conquest's last battle is seen first (FR-232) */}
+      <BattleModal />
       <AcceptOfferModal />
       {isTransportAllocationOpen && (
         <TransportAllocationModal

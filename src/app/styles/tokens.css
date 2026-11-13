@@ -39,6 +39,13 @@
      Great Power: a warm grey, dotted, at 3:1 on every land tint (WCAG 1.4.11; FR-154). */
   --color-minor: #5e7c90;
   --color-province-border: #7a6e5e;
+  /* Army orders on the map (FR-273, NR-031): the art pack's own colours, RED for an attack and GREEN for a march.
+     Copied from the pack's map-ui/army-attack.svg and army-movement-committed.svg (fill, then stroke);
+     tests/ui/inkArt.test.ts checks they still match the files. */
+  --color-army-attack: #ab4335;
+  --color-army-attack-ink: #553a30;
+  --color-army-move: #527e45;
+  --color-army-move-ink: #423e2c;
   /* The nine Imp1 relation swatches, level 0 to 8 (FR-151, FR-179): dark brown, red, orange, yellow, beige,
      brown, grey, light green, dark green. Neighbours are at least 10 apart (ΔE76; tests/ui/palette.test.ts),
      and the Diplomacy screen always names the level in words as well. */

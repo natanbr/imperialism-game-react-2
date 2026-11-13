@@ -12,7 +12,7 @@ import { ArmyModal } from '@/components/ArmyModal';
 import { useGameStore } from '@/store/rootStore';
 import { transferProvince, type Order } from '@/engine';
 import type { GameState } from '@/types/GameState';
-import { continent, idOf, NE1, NW1, patchRegiment, SE1, SW1 } from '../engine/armyFixtures';
+import { continent, idOf, NE1, NW1, patchRegiment, relocate, SE1, SW1 } from '../engine/armyFixtures';
 import { failOnActWarnings } from './actWarnings';
 import { text } from './domText';
 
@@ -77,6 +77,19 @@ describe('FR-211 the Army screen: what it shows', () => {
     expect([cellOf('9th Minutemen', 'category'), cellOf('9th Minutemen', 'arms'), statusOf('9th Minutemen')]).toEqual(['Militia', '0', 'Defending']);
     // The column heads name what the cells hold
     expect(within(dialog()).getAllByRole('columnheader').map((th) => text(th))).toEqual(['Regiment', 'Category', 'Arms', 'Health', 'Status']);
+  });
+
+  it("FR-272 each row shows the regiment's picture from the art pack beside its name, decorative (alt \"\")", () => {
+    openArmy(continent());
+    const picture = (name: string) => {
+      const img = rowOf(name).querySelector('img')!;
+      return [img.getAttribute('src'), img.getAttribute('alt')];
+    };
+    expect(picture('1st Regulars')).toEqual(['/assets/ink-and-wash/army/regulars.png', '']);
+    expect(picture('1st Artillery')).toEqual(['/assets/ink-and-wash/army/heavy-artillery.png', '']);
+    expect(picture('9th Minutemen')).toEqual(['/assets/ink-and-wash/army/militia.png', '']);
+    // The checkbox keeps the regiment's name as its own
+    expect(within(rowOf('1st Regulars')).getByRole('checkbox', { name: '1st Regulars' })).toBeTruthy();
   });
 
   it('FR-211 the health bar: as wide as the health, with its number ("80%")', () => {
@@ -225,17 +238,34 @@ describe('FR-211 the Army screen: March and Cancel march', () => {
     expect(within(rowOf('1st Regulars')).getByRole('checkbox')).toBeTruthy();
   });
 
-  it('FR-211 a province with no bordering province of ours: the select is empty and March says why', () => {
-    // Testland keeps only its South-West province (hand-built: the other three given to Valdoria)
+  it('FR-211 FR-230 a province with no bordering province of ours: "March to" offers only the attacks on the bordering foreign ones', () => {
+    // Testland keeps only its South-West province (hand-built: the other three given to Valdoria). Since M9 the bordering
+    // provinces of other countries are "Attack ..." entries (FR-230), so the select is no longer empty here.
     let s = continent();
     for (const p of [NW1, NE1, SE1]) s = transferProvince(s, p, 'nation-2');
     openArmy(s);
     fireEvent.click(within(dialog()).getByRole('checkbox', { name: '1st Regulars' }));
     const select = within(dialog()).getByRole('combobox', { name: 'March to' }) as HTMLSelectElement;
+    expect([...select.options].map((o) => [o.text, o.value])).toEqual([
+      ['Attack Testland North-West', NW1],
+      ['Attack Testland North-East', NE1],
+      ['Attack Testland South-East', SE1],
+    ]);
+    expect(within(dialog()).queryByRole('button', { name: 'March' })).toBeNull();
+    expect(button('Attack…').disabled).toBe(false);
+  });
+
+  it('FR-211 a province with no bordering province at all (an island): the select is empty and March says why', () => {
+    // Hand-built: Sundmark's island province given to Testland, with 1st Regulars in it
+    const s = relocate(transferProvince(continent(), 'province-minor-2', N1), ['regiment-1'], 'province-minor-2');
+    openArmy(s, 'province-minor-2');
+    const island = screen.getByRole('dialog', { name: 'Army in Sundmark' });
+    fireEvent.click(within(island).getByRole('checkbox', { name: '1st Regulars' }));
+    const select = within(island).getByRole('combobox', { name: 'March to' }) as HTMLSelectElement;
     expect(select.options).toHaveLength(0);
     expect(select.disabled).toBe(true);
-    expect(button('March').disabled).toBe(true);
-    expect(text(within(dialog()).getByTestId('march-reason'))).toBe('No province of ours borders this one.');
+    expect((within(island).getByRole('button', { name: 'March' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(text(within(island).getByTestId('march-reason'))).toBe('No province of ours borders this one.');
   });
 });
 

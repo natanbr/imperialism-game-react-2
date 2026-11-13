@@ -42,19 +42,20 @@ const DisbandMark: React.FC<{ count: number }> = ({ count }) =>
 /**
  * The army markers on a province's seat tile (FR-210; Imp1 encampment tents): one chip per country with regiments
  * there, in its colour, with its force size and its militia count. The player's own is a button that opens the Army
- * screen, marked "−1" while regiments there are to be disbanded (FR-263); another country's is an image, and a click on
- * it is a click on the tile.
+ * screen, marked "−1" while regiments there are to be disbanded (FR-263) and ringed while regiments there are selected
+ * (FR-230); another country's is an image, and a click on it is a click on the tile.
  */
 const TileArmyInner: React.FC<TileArmyProps> = ({ markers, onOpen, high = false }) => (
   <div className={`${styles.armies} ${high ? styles.armiesHigh : ''}`}>
     {markers.map((marker) => {
-      const className = `${styles.armyMarker} ${marker.regiments > 0 && marker.militia > 0 ? '' : styles.armyMarkerSingle}`;
+      const className = `${styles.armyMarker} ${marker.regiments > 0 && marker.militia > 0 ? '' : styles.armyMarkerSingle} ${marker.selected > 0 ? styles.armyMarkerSelected : ''}`;
       return marker.own ? (
         <span key={marker.ownerId} className={styles.armySlot}>
           <button
             type="button"
             data-testid="army-marker"
             data-owner-id={marker.ownerId}
+            data-selected={marker.selected > 0 ? 'true' : undefined}
             className={className}
             style={{ borderColor: marker.color }}
             aria-label={marker.label}

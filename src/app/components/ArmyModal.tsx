@@ -2,7 +2,17 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useGameStore } from "../store/rootStore";
 import { refusalText } from "./gameText";
-import { ARMY_REASON, armyView, disbandControl, disbandQuestion, marchControl, type ArmyControl, type RegimentRowView } from "./army/armyView";
+import {
+  ARMY_REASON,
+  armyView,
+  attackScreenControl,
+  disbandControl,
+  disbandQuestion,
+  marchControl,
+  type ArmyControl,
+  type RegimentRowView,
+} from "./army/armyView";
+import { RegimentPicture } from "./art/ArtPicture";
 import styles from "./army/Army.module.css";
 import { UI_ICONS } from "./icons";
 import { GameIcon } from "./GameIcon";
@@ -54,17 +64,22 @@ interface RowProps {
 
 const RegimentRow: React.FC<RowProps> = ({ row, ticked, onTick, onSubmit }) => {
   const reasonId = useId();
-  const statusClass = row.status === "Disband ordered" ? styles.disbanding : row.cancel ? styles.marching : row.selectable ? "" : styles.militia;
+  const statusClass =
+    row.status === "Disband ordered" ? styles.disbanding : row.cancel?.label === "Cancel attack" ? styles.attacking : row.cancel ? styles.marching : row.selectable ? "" : styles.militia;
   return (
     <tr data-testid={`regiment-${row.name}`}>
       <td>
         {row.selectable ? (
           <label className={styles.pick}>
             <input type="checkbox" checked={ticked} onChange={(e) => onTick(row.id, e.target.checked)} />
+            <RegimentPicture type={row.type} size={28} className={styles.rowPicture} />
             {row.name}
           </label>
         ) : (
-          <span className={styles.unpicked}>{row.name}</span>
+          <span className={styles.unpicked}>
+            <RegimentPicture type={row.type} size={28} className={styles.rowPicture} />
+            {row.name}
+          </span>
         )}
       </td>
       <td data-testid="category">{row.category}</td>
@@ -107,6 +122,9 @@ const RegimentRow: React.FC<RowProps> = ({ row, ticked, onTick, onSubmit }) => {
 /** The Army screen of one province (FR-211); keyed by the province, so the ticks start empty for each. */
 const ArmyScreen: React.FC<{ provinceId: string }> = ({ provinceId }) => {
   const close = useGameStore((s) => s.closeArmy);
+  const selection = useGameStore((s) => s.armySelection);
+  const selectRegiments = useGameStore((s) => s.selectRegiments);
+  const openAttack = useGameStore((s) => s.openAttack);
   const submitOrder = useGameStore((s) => s.submitOrder);
   const lastRejection = useGameStore((s) => s.lastRejection);
   const game = useGameStore((s) => s.game);
@@ -117,7 +135,10 @@ const ArmyScreen: React.FC<{ provinceId: string }> = ({ provinceId }) => {
   const disbandReasonId = useId();
   const legendId = useId();
   const disbandButton = useRef<HTMLButtonElement>(null);
-  const [ticked, setTicked] = useState<string[]>([]);
+  // The ticks are the army selection (FR-230): they stay when the screen closes, so a click on a bordering enemy
+  // province attacks with them; another province's screen starts with none ticked
+  const ticked = useMemo(() => (selection?.provinceId === provinceId ? selection.regimentIds : []), [selection, provinceId]);
+  const setTicked = (update: (list: string[]) => string[]) => selectRegiments(provinceId, update(ticked));
   const [chosen, setChosen] = useState<string | undefined>(undefined);
   const [asking, setAsking] = useState(false);
 
@@ -125,11 +146,14 @@ const ArmyScreen: React.FC<{ provinceId: string }> = ({ provinceId }) => {
   // Only regiments that are still Available count as ticked, in the list's order
   const selected = view.rows.filter((r) => r.selectable && ticked.includes(r.id));
   const selectedIds = selected.map((r) => r.id);
-  const target = view.targets.some((t) => t.id === chosen) ? chosen : view.targets[0]?.id;
-  const march = marchControl(game, nationId, provinceId, selectedIds, target);
+  const target = view.targets.find((t) => t.id === chosen) ?? view.targets[0];
+  // FR-230: an "Attack Arvelia" entry turns March into "Attack…", which opens the Attack screen with the ticked regiments
+  const attacking = target?.kind === "attack";
+  const march = attacking ? attackScreenControl(game, nationId, provinceId, selectedIds, target.id) : marchControl(game, nationId, provinceId, selectedIds, target?.id);
   const disband = disbandControl(game, nationId, provinceId, selectedIds);
 
   const tick = (id: string, on: boolean) => setTicked((list) => (on ? [...list, id] : list.filter((x) => x !== id)));
+  const clearTicks = () => setTicked(() => []);
   const send = (control: ArmyControl) => {
     submitOrder(control.order);
   };
@@ -217,24 +241,35 @@ const ArmyScreen: React.FC<{ provinceId: string }> = ({ provinceId }) => {
             <label htmlFor={selectId} className={styles.label}>
               March to
             </label>
-            <select id={selectId} className={styles.select} value={target ?? ""} disabled={view.targets.length === 0} onChange={(e) => setChosen(e.target.value)}>
+            <select id={selectId} className={styles.select} value={target?.id ?? ""} disabled={view.targets.length === 0} onChange={(e) => setChosen(e.target.value)}>
               {view.targets.map((t) => (
                 <option key={t.id} value={t.id}>
-                  {t.name}
+                  {t.text}
                 </option>
               ))}
             </select>
-            <button
-              className={styles.button}
-              disabled={march.refusal !== undefined}
-              aria-describedby={march.refusal ? marchReasonId : undefined}
-              onClick={() => {
-                send(march);
-                setTicked([]);
-              }}
-            >
-              March
-            </button>
+            {attacking ? (
+              <button
+                className={`${styles.button} ${styles.attackButton}`}
+                disabled={march.refusal !== undefined}
+                aria-describedby={march.refusal ? marchReasonId : undefined}
+                onClick={() => openAttack({ fromProvinceId: provinceId, toProvinceId: target.id, regimentIds: selectedIds })}
+              >
+                Attack…
+              </button>
+            ) : (
+              <button
+                className={styles.button}
+                disabled={march.refusal !== undefined}
+                aria-describedby={march.refusal ? marchReasonId : undefined}
+                onClick={() => {
+                  send(march);
+                  clearTicks();
+                }}
+              >
+                March
+              </button>
+            )}
             <Reason id={marchReasonId} control={march} testId="march-reason" />
           </div>
           <div className={styles.controlGroup}>
@@ -258,7 +293,7 @@ const ArmyScreen: React.FC<{ provinceId: string }> = ({ provinceId }) => {
           question={disbandQuestion(selected.map((r) => r.name))}
           onDisband={() => {
             if (disband.refusal === undefined) send(disband);
-            setTicked([]);
+            clearTicks();
             setAsking(false);
           }}
           onKeep={keep}
@@ -269,9 +304,10 @@ const ArmyScreen: React.FC<{ provinceId: string }> = ({ provinceId }) => {
 };
 
 /**
- * The Army screen (FR-211; Imp1 Garrison Book, rules 11 section 5.2): our regiments in one province with their category,
- * ARMS, health and status; tick the Available ones to march them to a bordering province of ours or to disband them
- * (asked in place first); cancel a march. Opened from our marker on the map (FR-210, store flag `armyProvinceId`). Every
+ * The Army screen (FR-211; Imp1 Garrison Book, rules 11 section 5.2): our regiments in one province with their picture
+ * (FR-272), category, ARMS, health and status; tick the Available ones to march them to a bordering province of ours, to
+ * attack a bordering province of another country ("Attack Arvelia", then "Attack…" opens the Attack screen, FR-230) or
+ * to disband them (asked in place first); cancel a march or an attack. Opened from our marker on the map (FR-210, store flag `armyProvinceId`). Every
  * control sends one order through submitOrder; a control the engine would refuse is disabled and says why.
  */
 export const ArmyModal: React.FC = () => {

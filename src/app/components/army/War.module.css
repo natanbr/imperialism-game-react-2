@@ -1,0 +1,483 @@
+/* The Attack screen (FR-230) and the Battle screen (FR-231), tokens in styles/tokens.css. The frame follows the market
+   and Army dialogs. The Attack screen lies over the Army screen (76) it opens from; the Battle screen over every other
+   dialog, the game-over screen (75) included, so a conquest's last battle is seen first. At 1280x720 neither the page
+   nor the dialog scrolls: only the lists scroll inside their panes. */
+
+.overlay,
+.battleOverlay {
+  position: absolute;
+  inset: 0;
+  background: var(--color-bg-backdrop);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.overlay {
+  z-index: 78;
+}
+
+.battleOverlay {
+  z-index: 79;
+}
+
+.attack,
+.battle {
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 32px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-dialog);
+  padding: 12px var(--spacing-lg);
+}
+
+.attack {
+  width: 760px;
+}
+
+.battle {
+  width: 1000px;
+}
+
+.attack:focus,
+.battle:focus {
+  outline: none;
+}
+
+.header {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: var(--spacing-md);
+}
+
+.header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.summary {
+  margin-left: auto;
+  color: var(--color-text-muted);
+}
+
+.button {
+  padding: 5px 12px;
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-button);
+  font: inherit;
+  cursor: pointer;
+}
+
+.button:hover:not(:disabled) {
+  background: var(--color-bg-button-hover);
+}
+
+.button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* RED means attack (NR-031) */
+.attackButton {
+  color: var(--color-on-accent);
+  background: var(--color-bad);
+  border-color: var(--color-bad);
+  font-weight: 700;
+}
+
+.attackButton:hover:not(:disabled) {
+  background: var(--color-bad);
+  filter: brightness(0.9);
+}
+
+.reason {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+/* --- the Attack screen (FR-230; Imp1 Scouting Report) ------------------------------------------------------------ */
+
+/* No war yet: why there is no Attack button */
+.warNote {
+  flex: none;
+  margin: 0 0 var(--spacing-md);
+  padding: 4px 12px;
+  background: var(--color-bg-warn);
+  color: var(--color-ink);
+  border: 1px solid var(--color-warn);
+  border-radius: var(--radius-sm);
+}
+
+/* Our regiments on the left, the defenders on the right */
+.sides {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--spacing-lg);
+}
+
+.side {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.side h3 {
+  flex: none;
+  margin: 0 0 var(--spacing-sm);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.fort {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin: 0 0 var(--spacing-sm);
+  font-size: var(--font-size-sm);
+}
+
+.fortPicture {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+
+.list {
+  flex: 1;
+  min-height: 0;
+  max-height: 340px;
+  overflow-y: auto;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 2px 8px;
+  padding: 2px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.rowPicture {
+  grid-row: span 2;
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  object-position: center bottom;
+}
+
+.rowName {
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rowMeta {
+  grid-column: 2 / 4;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 10px;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.protection {
+  font-style: italic;
+}
+
+.health {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.healthTrack {
+  width: 56px;
+  height: 7px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 2px;
+  background: var(--color-surface-sunken);
+  overflow: hidden;
+}
+
+.healthFill {
+  display: block;
+  height: 100%;
+  background: var(--color-good);
+}
+
+.empty {
+  margin: var(--spacing-sm) 0;
+  color: var(--color-text-muted);
+}
+
+/* "Our strength 36, theirs 18.8: Likely victory": the verdict's colour as well as its words */
+.estimate {
+  flex: none;
+  margin: var(--spacing-md) 0 0;
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--color-border-strong);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.likelyVictory {
+  color: var(--color-text-good);
+}
+
+.uncertain {
+  color: var(--color-warn);
+}
+
+.likelyDefeat {
+  color: var(--color-text-danger);
+}
+
+.footer {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-md);
+}
+
+.footerEnd {
+  margin-left: auto;
+}
+
+/* --- the Battle screen (FR-231; Imp1 battlefield and casualty book) ---------------------------------------------- */
+
+.battleBody {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: var(--spacing-lg);
+}
+
+/* The small grid: the attackers' two columns, the wall when there is a fort, the defenders' two columns */
+.field {
+  min-height: 0;
+  max-height: 460px;
+  overflow-y: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: var(--color-land);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.fieldSide {
+  flex: 1;
+  min-width: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: min-content;
+  gap: 6px;
+}
+
+.wall {
+  flex: none;
+  align-self: stretch;
+  width: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-left: 3px double var(--color-border-strong);
+  border-right: 3px double var(--color-border-strong);
+}
+
+.wallPicture {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+}
+
+.token {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 3px 4px;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+}
+
+/* Out of the fight: faded, its status in words */
+.tokenOut {
+  opacity: 0.55;
+}
+
+.tokenPicture {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  object-position: center bottom;
+}
+
+.tokenBody {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tokenName {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 700;
+  line-height: 14px;
+}
+
+.swatch {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  border: 1px solid var(--color-border-strong);
+}
+
+.tokenHealth {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+}
+
+.tokenTrack {
+  flex: none;
+  width: 44px;
+  height: 6px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 2px;
+  background: var(--color-surface-sunken);
+  overflow: hidden;
+}
+
+/* Imp1: green fit, yellow hurt, red near broken; the width moves with each round */
+.tokenBar {
+  display: block;
+  height: 100%;
+  background: var(--color-good);
+  transition: width var(--transition-normal);
+}
+
+.tokenBar.hurt {
+  background: var(--color-warn);
+}
+
+.tokenBar.broken {
+  background: var(--color-bad);
+}
+
+.tokenStatus {
+  font-weight: 700;
+  color: var(--color-text-danger);
+}
+
+/* The round's shots, or the result and the casualties */
+.log {
+  min-height: 0;
+  max-height: 460px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.step {
+  flex: none;
+  margin: 0;
+  font-weight: 700;
+}
+
+.shots,
+.casualties {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0 0 0 18px;
+  font-size: var(--font-size-sm);
+  line-height: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.casualties {
+  list-style: none;
+  padding-left: 0;
+}
+
+.casualty {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.casualtyText {
+  margin-left: auto;
+  font-weight: 700;
+}
+
+.hint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.result {
+  flex: none;
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+}
+
+.won {
+  color: var(--color-text-good);
+}
+
+.lost {
+  color: var(--color-text-danger);
+}
+
+.more {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+/* FR-231: with reduced motion the replay steps without animation */
+@media (prefers-reduced-motion: reduce) {
+  .tokenBar {
+    transition: none;
+  }
+}

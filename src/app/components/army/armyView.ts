@@ -3,8 +3,10 @@
 import {
   armyAt,
   armyMarkers,
+  attackTargets,
   countryName,
   forceSize,
+  isGameOver,
   isMilitia,
   marchTargets,
   pendingArmyOrders,
@@ -18,12 +20,14 @@ import {
   validateOrder,
   type ArmyMarker,
   type Order,
+  type RegimentType,
   type RejectReason,
 } from "@/engine";
 import type { GameState } from "@/types/GameState";
 import { nationColor, THEME, TILE_PX } from "@/styles/theme";
 import { money, REFUSAL_TEXT, upkeepDueText, upkeepWarningText } from "../gameText";
 import { namesText } from "../market/dealBookView";
+import { ATTACK_ARROW_ART } from "../art/inkArt";
 
 // --- the map markers (FR-210) ------------------------------------------------------------------
 
@@ -42,27 +46,36 @@ export interface MarkerView {
   own: boolean;
   /** FR-263, the player's own orders this turn: regiments ordered to disband here, shown as "−1" on the marker. */
   disbanding: number;
+  /** FR-230: how many of its regiments the player has selected (ticked in the Army screen); 0 for none. */
+  selected: number;
 }
 
 /** FR-263: what the player ordered this turn for the regiments of a marker's province. */
 export interface MarkerOrders {
   marchingOut: number;
   marchingIn: number;
+  /** FR-273: regiments ordered to attack out of the province. */
+  attacking?: number;
   disbanding: number;
+  /** FR-230: regiments of it the player has selected. */
+  selected?: number;
 }
 
 const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 /**
  * "Testland army: force size 4, 3 regiments, 4 militia"; "Arvelia militia: 3" when it has militia only (FR-210); with
- * this turn's orders of the player "..., 1 marching out, 1 marching in, 1 to disband" (FR-263).
+ * this turn's orders of the player "..., 1 marching out, 1 marching in, 1 attacking, 1 to disband" (FR-263, FR-273) and
+ * its selection ", 3 selected" (FR-230).
  */
 export function markerLabel(marker: Pick<ArmyMarker, "forceSize" | "regiments" | "militia">, ownerName: string, orders?: MarkerOrders): string {
   const pending = orders
     ? [
         ...(orders.marchingOut > 0 ? [`${orders.marchingOut} marching out`] : []),
         ...(orders.marchingIn > 0 ? [`${orders.marchingIn} marching in`] : []),
+        ...((orders.attacking ?? 0) > 0 ? [`${orders.attacking} attacking`] : []),
         ...(orders.disbanding > 0 ? [`${orders.disbanding} to disband`] : []),
+        ...((orders.selected ?? 0) > 0 ? [`${orders.selected} selected`] : []),
       ]
     : [];
   if (marker.regiments === 0) return [`${ownerName} militia: ${marker.militia}`, ...pending].join(", ");
@@ -77,16 +90,36 @@ export const ownerColor = (state: GameState, ownerId: string): string => {
   return nation ? nationColor(nation.colorSlot) : THEME.minor;
 };
 
+/** The regiments of the selection still Available in its province, in the army's order (FR-230). */
+export function selectedRegimentIds(
+  state: GameState,
+  nationId: string,
+  selection: { provinceId: string; regimentIds: readonly string[] } | null | undefined
+): string[] {
+  if (!selection) return [];
+  const regiments = armyAt(state, nationId, selection.provinceId)?.regiments ?? [];
+  return regiments.filter((r) => selection.regimentIds.includes(r.id) && regimentStatus(state, r.id)?.kind === "available").map((r) => r.id);
+}
+
 /**
  * The markers of each seat tile, the province's owner first (the engine's `armyMarkers` order). The player's own carry
- * this turn's march and disband orders (FR-263); another country's orders are not known before End Turn.
+ * this turn's march, attack and disband orders (FR-263, FR-273) and the player's selection (FR-230); another country's
+ * orders are not known before End Turn.
  */
-export function markersBySeat(state: GameState, playerId: string): ReadonlyMap<string, MarkerView[]> {
+export function markersBySeat(
+  state: GameState,
+  playerId: string,
+  selection?: { provinceId: string; regimentIds: readonly string[] } | null
+): ReadonlyMap<string, MarkerView[]> {
   const pending = pendingArmyOrders(state, playerId);
+  const selected = selectedRegimentIds(state, playerId, selection);
+  const sum = (list: readonly { count: number }[]) => list.reduce((total, m) => total + m.count, 0);
   const ordersIn = (provinceId: string): MarkerOrders => ({
-    marchingOut: pending.marches.filter((m) => m.fromProvinceId === provinceId).reduce((sum, m) => sum + m.count, 0),
-    marchingIn: pending.marches.filter((m) => m.toProvinceId === provinceId).reduce((sum, m) => sum + m.count, 0),
+    marchingOut: sum(pending.marches.filter((m) => m.fromProvinceId === provinceId)),
+    marchingIn: sum(pending.marches.filter((m) => m.toProvinceId === provinceId)),
+    attacking: sum(pending.attacks.filter((m) => m.fromProvinceId === provinceId)),
     disbanding: pending.disbands[provinceId] ?? 0,
+    selected: selection?.provinceId === provinceId ? selected.length : 0,
   });
   const bySeat = new Map<string, MarkerView[]>();
   for (const m of armyMarkers(state)) {
@@ -102,6 +135,7 @@ export function markersBySeat(state: GameState, playerId: string): ReadonlyMap<s
       militia: m.militia,
       own,
       disbanding: orders?.disbanding ?? 0,
+      selected: orders?.selected ?? 0,
     };
     bySeat.set(m.seatTileId, [...(bySeat.get(m.seatTileId) ?? []), view]);
   }
@@ -132,8 +166,9 @@ export interface MarchArrowView {
   count: number;
   /** "Testland North-West: 1 regiment marching in from Testland South-West": its accessible name. */
   label: string;
-  /** The nation's slot colour. */
+  /** FR-273 (replaces FR-263's nation colour): the art pack's movement green, and its dark ink for the outline. */
   color: string;
+  ink: string;
   /** In map pixels: the dashed line, from the source marker to the arrow head's base. */
   line: { x1: number; y1: number; x2: number; y2: number };
   /** The arrow head, "x,y x,y x,y", its tip at the destination marker. */
@@ -175,7 +210,6 @@ const round1 = (n: number) => Math.round(n * 10) / 10;
  * between two provinces each keep to their own right (FR-270).
  */
 export function marchArrows(state: GameState, playerId: string): MarchArrowView[] {
-  const color = ownerColor(state, playerId);
   const { marches } = pendingArmyOrders(state, playerId);
   return marches.flatMap((m): MarchArrowView[] => {
     const from = provinceById(state, m.fromProvinceId);
@@ -194,10 +228,72 @@ export function marchArrows(state: GameState, playerId: string): MarchArrowView[
         toProvinceId: m.toProvinceId,
         count: m.count,
         label: `${to.name}: ${count(m.count, "regiment")} marching in from ${from.name}`,
-        color,
+        color: THEME.armyMove,
+        ink: THEME.armyMoveInk,
         line: { x1: round1(start.x), y1: round1(start.y), x2: round1(base.x), y2: round1(base.y) },
         head: [tip, { x: base.x + side.x, y: base.y + side.y }, { x: base.x - side.x, y: base.y - side.y }].map(point).join(" "),
         countAt: { x: round1((start.x + tip.x) / 2), y: round1((start.y + tip.y) / 2) },
+      },
+    ];
+  });
+}
+
+// --- the attack arrows (FR-273) -----------------------------------------------------------------
+
+export interface AttackArrowView {
+  fromProvinceId: string;
+  toProvinceId: string;
+  count: number;
+  /** "Arvelia: 3 regiments attacking from Testland North-East": its accessible name. */
+  label: string;
+  /** The art pack's red arrow (map-ui/army-attack.svg), drawn in its own 120 x 56 units. */
+  href: string;
+  width: number;
+  height: number;
+  /**
+   * The SVG matrix (a b c d e f) from the arrow file's units to map pixels: one scale and one turn, so the arrow keeps
+   * the pack's proportions, with its tail's middle 15 px on from the source marker's centre and its tip 15 px short of
+   * the target's (as a march arrow's ends, FR-271).
+   */
+  matrix: [number, number, number, number, number, number];
+  /** Where the count sits: the middle of the arrow's body. */
+  countAt: { x: number; y: number };
+}
+
+/** The middle of the attack arrow's body, in the file's units (between its two curved edges, halfway along). */
+const ATTACK_ARROW_MIDDLE = { x: 58, y: 38 };
+
+/** One red arrow per pair of provinces the player ordered an attack between this turn (FR-273). */
+export function attackArrows(state: GameState, playerId: string): AttackArrowView[] {
+  const { attacks } = pendingArmyOrders(state, playerId);
+  const { tail, tip, url, width, height } = ATTACK_ARROW_ART;
+  const artAngle = Math.atan2(tip.y - tail.y, tip.x - tail.x);
+  const artLength = Math.hypot(tip.x - tail.x, tip.y - tail.y);
+  return attacks.flatMap((m): AttackArrowView[] => {
+    const from = provinceById(state, m.fromProvinceId);
+    const to = provinceById(state, m.toProvinceId);
+    const a = from && markerCentre(state, from.seatTileId);
+    const b = to && markerCentre(state, to.seatTileId);
+    const points = a && b ? arrowPoints(a, b, 0) : undefined;
+    if (!from || !to || !points) return [];
+    const { start, tip: end } = points;
+    const scale = Math.hypot(end.x - start.x, end.y - start.y) / artLength;
+    const turn = Math.atan2(end.y - start.y, end.x - start.x) - artAngle;
+    const [ma, mb] = [scale * Math.cos(turn), scale * Math.sin(turn)];
+    const [mc, md] = [-mb, ma];
+    const matrix: AttackArrowView["matrix"] = [ma, mb, mc, md, start.x - (ma * tail.x + mc * tail.y), start.y - (mb * tail.x + md * tail.y)];
+    const at = (p: { x: number; y: number }) => ({ x: round1(ma * p.x + mc * p.y + matrix[4]), y: round1(mb * p.x + md * p.y + matrix[5]) });
+    return [
+      {
+        fromProvinceId: m.fromProvinceId,
+        toProvinceId: m.toProvinceId,
+        count: m.count,
+        label: `${to.name}: ${count(m.count, "regiment")} attacking from ${from.name}`,
+        href: url,
+        width,
+        height,
+        matrix,
+        countAt: at(ATTACK_ARROW_MIDDLE),
       },
     ];
   });
@@ -228,6 +324,7 @@ export const ARMY_REASON = {
   tickToMarch: "Tick the regiments to march first.",
   tickToDisband: "Tick the regiments to disband first.",
   noTarget: "No province of ours borders this one.",
+  tickToAttack: "Tick the regiments to attack with first.",
 } as const;
 
 /** Why no regiment of the nation's army in the province can be ticked, or undefined when one can (FR-211, review F1). */
@@ -257,17 +354,22 @@ const control = (state: GameState, order: Order): ArmyControl => {
 export interface RegimentRowView {
   id: string;
   name: string;
+  /** Its type: the picture beside its name (FR-272). */
+  type: RegimentType;
   /** "Regular Infantry", "Militia" */
   category: string;
   /** ARMS: its armaments cost, its force size and upkeep (FR-202, FR-204); 0 for militia. */
   arms: number;
   health: number;
-  /** "Defending", "Available", "Marching to Testland North-East", "Disband ordered" */
+  /** "Defending", "Available", "Marching to Testland North-East", "Attacking Arvelia" (FR-230), "Disband ordered" */
   status: string;
   /** Available: it may be ticked to march or to disband. */
   selectable: boolean;
-  /** Marching: its "Cancel march" (`cancelArmyMove`); disband ordered: its "Cancel disband" (`cancelDisband`, review F4). */
-  cancel?: ArmyControl & { label: "Cancel march" | "Cancel disband" };
+  /**
+   * Marching: its "Cancel march"; attacking: its "Cancel attack" (both `cancelArmyMove`, FR-230); disband ordered: its
+   * "Cancel disband" (`cancelDisband`, review F4).
+   */
+  cancel?: ArmyControl & { label: "Cancel march" | "Cancel attack" | "Cancel disband" };
 }
 
 export interface ArmyView {
@@ -287,8 +389,20 @@ export interface ArmyView {
   upkeepWarning?: string;
   /** The regiments that may march first, then the militia, each group by id (the army's order). */
   rows: RegimentRowView[];
-  /** "March to": the bordering provinces of ours, in state order (M8; attacks come with M9). */
-  targets: { id: string; name: string }[];
+  /**
+   * "March to": the bordering provinces of ours, in state order, then the bordering provinces of other countries as
+   * "Attack Arvelia" (FR-230), at war or not: the Attack screen says when no attack can be ordered yet.
+   */
+  targets: ArmyTarget[];
+}
+
+/** One entry of "March to": a march into a province of ours, or an attack on another country's (FR-230). */
+export interface ArmyTarget {
+  id: string;
+  name: string;
+  kind: "march" | "attack";
+  /** The option's text: "Testland North-East", "Attack Arvelia". */
+  text: string;
 }
 
 const provinceName = (state: GameState, provinceId: string) => provinceById(state, provinceId)?.name ?? provinceId;
@@ -302,7 +416,7 @@ export function armyView(state: GameState, nationId: string, provinceId: string)
   const rows = regiments.map((r): RegimentRowView => {
     const def = REGIMENTS[r.type];
     const status = regimentStatus(state, r.id);
-    const base = { id: r.id, name: r.name, category: CATEGORY_TEXT[def.category], arms: def.stats.armamentsCost, health: r.health };
+    const base = { id: r.id, name: r.name, type: r.type, category: CATEGORY_TEXT[def.category], arms: def.stats.armamentsCost, health: r.health };
     switch (status?.kind) {
       case "available":
         return { ...base, status: "Available", selectable: true };
@@ -312,6 +426,13 @@ export function armyView(state: GameState, nationId: string, provinceId: string)
           status: `Marching to ${provinceName(state, status.toProvinceId)}`,
           selectable: false,
           cancel: { ...control(state, { kind: "cancelArmyMove", nationId, regimentIds: [r.id] }), label: "Cancel march" },
+        };
+      case "attacking":
+        return {
+          ...base,
+          status: `Attacking ${provinceName(state, status.toProvinceId)}`,
+          selectable: false,
+          cancel: { ...control(state, { kind: "cancelArmyMove", nationId, regimentIds: [r.id] }), label: "Cancel attack" },
         };
       case "disband-ordered":
         return {
@@ -337,7 +458,10 @@ export function armyView(state: GameState, nationId: string, provinceId: string)
     militiaOnly: regiments.length > 0 && regiments.every((r) => isMilitia(r.type)),
     ...(warning ? { upkeepWarning: warning } : {}),
     rows,
-    targets: marchTargets(state, nationId, provinceId).map((p) => ({ id: p.id, name: p.name })),
+    targets: [
+      ...marchTargets(state, nationId, provinceId).map((p): ArmyTarget => ({ id: p.id, name: p.name, kind: "march", text: p.name })),
+      ...attackTargets(state, nationId, provinceId).map((p): ArmyTarget => ({ id: p.id, name: p.name, kind: "attack", text: `Attack ${p.name}` })),
+    ],
   };
 }
 
@@ -356,6 +480,19 @@ export function marchControl(state: GameState, nationId: string, fromProvinceId:
     if (regimentIds.length === 0) return { order, refusal: ARMY_REASON.tickToMarch };
   }
   return { order, refusal: refusalSentence(result.reason) };
+}
+
+/**
+ * "Attack…" beside "March to" (FR-230): opens the Attack screen for the ticked regiments. Not refused for want of a war:
+ * the Attack screen says so and offers no Attack. Game over first, then no regiment that can be ticked, then nothing ticked.
+ */
+export function attackScreenControl(state: GameState, nationId: string, fromProvinceId: string, regimentIds: readonly string[], toProvinceId: string): ArmyControl {
+  const order: Order = { kind: "moveArmy", nationId, fromProvinceId, regimentIds: [...regimentIds], toProvinceId };
+  if (isGameOver(state)) return { order, refusal: refusalSentence("game-over") };
+  const none = noneToTick(state, nationId, fromProvinceId);
+  if (none) return { order, refusal: none };
+  if (regimentIds.length === 0) return { order, refusal: ARMY_REASON.tickToAttack };
+  return { order };
 }
 
 /** "Disband": the ticked regiments (`disbandRegiments`). Game over first, then no regiment that can be ticked, then nothing ticked. */

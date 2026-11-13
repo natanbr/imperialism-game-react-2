@@ -10,6 +10,7 @@ import styles from "./army/Army.module.css";
 import { COMMODITY_ICONS, UI_ICONS, type IconName } from "./icons";
 import { GameIcon } from "./GameIcon";
 import { Modal } from "./Modal";
+import { RegimentPicture } from "./art/ArtPicture";
 
 const ITEM_ICONS: Record<ArmouryItemKey, IconName | null> = {
   worker: UI_ICONS.civilians,
@@ -82,6 +83,8 @@ const AtHandList: React.FC<{ items: readonly AtHandItem[] }> = ({ items }) => (
 const RegimentCard: React.FC<{ card: ArmouryCardView; onChange: (count: number) => void }> = ({ card, onChange }) => (
   <article className={styles.card} aria-label={card.name}>
     <div className={styles.cardHead}>
+      {/* FR-272: the regiment's picture from the art pack, decorative: the title names it */}
+      <RegimentPicture type={card.type} size={30} className={styles.cardPicture} />
       <h3>{card.name}</h3>
       <span className={styles.category}>{card.category}</span>
     </div>

@@ -604,6 +604,21 @@ describe('FR-238 FR-240 FR-241 the war question, the start treaties and the word
     expect(within(tab('Arvelia')).getByTestId('treaty').getAttribute('title')).toBeNull();
   });
 
+  it('FR-233 FR-224 a minor that became a colony reads "Colony" (ours) or "Colony of Valdoria" first among its chips', () => {
+    const colonies = (s: GameState, owner: string) => ({
+      ...s,
+      minorNations: s.minorNations.map((m) => (m.id === ARVELIA ? { ...m, colonyOf: owner } : m)),
+    });
+    openDiplomacy(setPair(colonies(start(), N1), N1, ARVELIA, { consulates: [N1] }));
+    expect(treaties('Arvelia')).toEqual(['Colony', 'Consulate']);
+    expect(treaties('Sundmark')).toEqual(['No treaties']);
+  });
+
+  it("FR-233 another Great Power's colony names its owner", () => {
+    openDiplomacy({ ...start(), minorNations: start().minorNations.map((m) => (m.id === ARVELIA ? { ...m, colonyOf: N2 } : m)) });
+    expect(treaties('Arvelia')).toEqual(['Colony of Valdoria']);
+  });
+
   it('FR-240 without the start mark (a war ended the start treaties) a consulate opened again is plain "Consulate"', () => {
     openDiplomacy(setPair(start(), N1, N2, { consulates: [N1], embassies: [], startTreaties: undefined }));
     expect(treaties('Valdoria')).toEqual(['Consulate']);
