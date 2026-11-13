@@ -233,6 +233,53 @@ describe('FR-263 pending army orders on the map', () => {
     expect(markersIn(container, '4-4').map((m) => m.getAttribute('aria-label'))).toEqual(['Testland army: force size 1, 1 regiment, 4 militia']);
   });
 
+  // Review of the QA fix round, F1. FR-270: marches both ways between two provinces are two arrows side by side, each on
+  // its own right of the line between the two markers (as traffic keeps right), so neither line nor count covers the
+  // other; a march with no opposite one keeps to that line.
+  it('FR-270 marches both ways between South-West and North-West: two arrows side by side, both counts readable', () => {
+    const { container, send, id } = mapWithOrders();
+    send({ kind: 'moveArmy', nationId: N1, fromProvinceId: SW1, regimentIds: [id('1st Regulars')], toProvinceId: NW1 });
+    act(() => useGameStore.getState().advanceTurn());
+    send({ kind: 'moveArmy', nationId: N1, fromProvinceId: SW1, regimentIds: [id('2nd Regulars'), id('1st Artillery')], toProvinceId: NW1 });
+    send({ kind: 'moveArmy', nationId: N1, fromProvinceId: NW1, regimentIds: [id('1st Regulars')], toProvinceId: SW1 });
+
+    const byLabel = (label: string) => arrows(container).find((a) => a.getAttribute('aria-label') === label)!;
+    expect(arrows(container)).toHaveLength(2);
+    const north = byLabel('Testland North-West: 2 regiments marching in from Testland South-West');
+    const south = byLabel('Testland South-West: 1 regiment marching in from Testland North-West');
+    expect(text(within(north).getByTestId('march-count'))).toBe('2');
+    expect(text(within(south).getByTestId('march-count'))).toBe('1');
+
+    // The line between the two markers' centres (South-West 106, 399; North-West 169, 189, as in the first FR-263 test):
+    // the signed distance of a point from it, positive on the right of the way north
+    const [ax, ay, bx, by] = [106, 399, 169, 189];
+    const length = Math.hypot(bx - ax, by - ay);
+    const side = (x: number, y: number) => ((x - ax) * (by - ay) - (y - ay) * (bx - ax)) / -length;
+    const ends = (arrow: HTMLElement) => {
+      const line = within(arrow).getByTestId('march-line');
+      return ['x1', 'y1', 'x2', 'y2'].map((a) => Number(line.getAttribute(a)));
+    };
+    const badge = (arrow: HTMLElement) => {
+      const circle = arrow.querySelector('circle')!;
+      return { x: Number(circle.getAttribute('cx')), y: Number(circle.getAttribute('cy')), r: Number(circle.getAttribute('r')) };
+    };
+    // Each arrow keeps to its own right, at both ends: the northbound one east of the line, the southbound one west
+    const [n1x, n1y, n2x, n2y] = ends(north);
+    const [s1x, s1y, s2x, s2y] = ends(south);
+    for (const d of [side(n1x, n1y), side(n2x, n2y)]) expect(d).toBeGreaterThanOrEqual(8);
+    for (const d of [side(s1x, s1y), side(s2x, s2y)]) expect(d).toBeLessThanOrEqual(-8);
+    // The two count badges do not touch (their 1.5 px outlines included), so "2" and "1" are both on the map
+    const [bn, bs] = [badge(north), badge(south)];
+    expect(Math.hypot(bn.x - bs.x, bn.y - bs.y)).toBeGreaterThan(bn.r + bs.r + 1.5);
+
+    // With the southbound march cancelled, the northbound arrow is alone and back on the line between the markers
+    send({ kind: 'cancelArmyMove', nationId: N1, regimentIds: [id('1st Regulars')] });
+    expect(arrows(container)).toHaveLength(1);
+    const [l1x, l1y, l2x, l2y] = ends(arrows(container)[0]);
+    expect(Math.abs(side(l1x, l1y))).toBeLessThanOrEqual(0.5);
+    expect(Math.abs(side(l2x, l2y))).toBeLessThanOrEqual(0.5);
+  });
+
   it("FR-263 another nation's orders are not shown (they are not known before End Turn)", () => {
     let s = continent();
     const valdoria = s.armies.find((a) => a.ownerId === N2 && a.regiments.length === 7)!;

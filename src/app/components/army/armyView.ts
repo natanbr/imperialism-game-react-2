@@ -112,13 +112,19 @@ export function markersBySeat(state: GameState, playerId: string): ReadonlyMap<s
 
 /**
  * Where the province owner's marker centre lies from its seat tile's top left corner (Tile.module.css `.armies`: the
- * chip ends 13 px into the tile, 24 px wide, 9 px down; 1 px down on a minor's capital, above its name tag).
+ * chip ends 13 px into the tile, 24 px wide, 9 px down; 1 px down on a minor's capital, above its name tag). A copy of
+ * the CSS: e2e/m8-armies.spec.ts measures the arrow ends against the markers as drawn (FR-271), so keep them together.
  */
 const MARKER_CENTRE = { dx: 1, dy: 21, dyHigh: 13 };
 /** The line stays this far from each marker's centre (a chip's half width and a little). */
 const MARKER_CLEARANCE = 15;
 const HEAD_LENGTH = 8;
 const HEAD_HALF_WIDTH = 5;
+/**
+ * FR-270: marches both ways between two provinces would share one line and one count spot, so each keeps this far to
+ * its own right: the two count badges (r 8, a 1.5 px outline) and arrow heads then lie side by side, apart.
+ */
+const OPPOSED_OFFSET = 10;
 
 export interface MarchArrowView {
   fromProvinceId: string;
@@ -136,6 +142,21 @@ export interface MarchArrowView {
   countAt: { x: number; y: number };
 }
 
+/** FR-263, FR-270: the line between the two marker centres, cut short at each marker, moved `offset` px to its right. */
+function arrowPoints(a: { x: number; y: number }, b: { x: number; y: number }, offset: number) {
+  const length = Math.hypot(b.x - a.x, b.y - a.y);
+  if (length <= 2 * MARKER_CLEARANCE + HEAD_LENGTH) return undefined;
+  const ux = (b.x - a.x) / length;
+  const uy = (b.y - a.y) / length;
+  // On screen (y down) the right of the way (ux, uy) is (-uy, ux)
+  const right = { x: -uy * offset, y: ux * offset };
+  const start = { x: a.x + ux * MARKER_CLEARANCE + right.x, y: a.y + uy * MARKER_CLEARANCE + right.y };
+  const tip = { x: b.x - ux * MARKER_CLEARANCE + right.x, y: b.y - uy * MARKER_CLEARANCE + right.y };
+  const base = { x: tip.x - ux * HEAD_LENGTH, y: tip.y - uy * HEAD_LENGTH };
+  const side = { x: -uy * HEAD_HALF_WIDTH, y: ux * HEAD_HALF_WIDTH };
+  return { start, tip, base, side };
+}
+
 /** The marker centre of a seat tile in map pixels (odd rows shifted half a tile, as MapView draws them). */
 function markerCentre(state: GameState, seatTileId: string): { x: number; y: number } | undefined {
   const tile = state.map.tiles.flat().find((t) => t.id === seatTileId);
@@ -149,23 +170,23 @@ function markerCentre(state: GameState, seatTileId: string): { x: number; y: num
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
-/** One arrow per pair of provinces the player ordered regiments to march between this turn (FR-263). */
+/**
+ * One arrow per pair of provinces the player ordered regiments to march between this turn (FR-263); marches both ways
+ * between two provinces each keep to their own right (FR-270).
+ */
 export function marchArrows(state: GameState, playerId: string): MarchArrowView[] {
   const color = ownerColor(state, playerId);
-  return pendingArmyOrders(state, playerId).marches.flatMap((m): MarchArrowView[] => {
+  const { marches } = pendingArmyOrders(state, playerId);
+  return marches.flatMap((m): MarchArrowView[] => {
     const from = provinceById(state, m.fromProvinceId);
     const to = provinceById(state, m.toProvinceId);
     const a = from && markerCentre(state, from.seatTileId);
     const b = to && markerCentre(state, to.seatTileId);
     if (!from || !to || !a || !b) return [];
-    const length = Math.hypot(b.x - a.x, b.y - a.y);
-    if (length <= 2 * MARKER_CLEARANCE + HEAD_LENGTH) return [];
-    const ux = (b.x - a.x) / length;
-    const uy = (b.y - a.y) / length;
-    const start = { x: a.x + ux * MARKER_CLEARANCE, y: a.y + uy * MARKER_CLEARANCE };
-    const tip = { x: b.x - ux * MARKER_CLEARANCE, y: b.y - uy * MARKER_CLEARANCE };
-    const base = { x: tip.x - ux * HEAD_LENGTH, y: tip.y - uy * HEAD_LENGTH };
-    const side = { x: -uy * HEAD_HALF_WIDTH, y: ux * HEAD_HALF_WIDTH };
+    const opposed = marches.some((o) => o.fromProvinceId === m.toProvinceId && o.toProvinceId === m.fromProvinceId);
+    const points = arrowPoints(a, b, opposed ? OPPOSED_OFFSET : 0);
+    if (!points) return [];
+    const { start, tip, base, side } = points;
     const point = (p: { x: number; y: number }) => `${round1(p.x)},${round1(p.y)}`;
     return [
       {

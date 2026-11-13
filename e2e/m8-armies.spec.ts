@@ -8,7 +8,10 @@ import { test, expect, Page, Locator } from '@playwright/test';
 // At 1280x720 the Armoury and the Army screen fit the window: neither the page nor the dialog scrolls.
 // M8 QA fix round: each card's cost on one line (FR-264), "At hand" before this turn's recruits and what they reserve
 // (FR-264), the Arms legend (FR-265), the province's and the nation's upkeep (FR-266), the march arrow (FR-263).
-// Set SCREENSHOT_DIR to also save m8-armoury.png, m8-army.png and m8-map.png there.
+// Review of the QA fix round: each arrow's ends measured against the markers as drawn (FR-271); on turn 4 marches both ways
+// between South-West and North-West and a disband: two arrows side by side, both counts and "−1" on screen (FR-270).
+// Set SCREENSHOT_DIR to also save m8-armoury.png, m8-army.png, m8-map.png and m8-qa-map.png there; m8-qa-map.png is
+// always attached to the test's report.
 
 test.use({ viewport: { width: 1280, height: 720 } });
 
@@ -73,7 +76,53 @@ async function fitsTheWindow(page: Page, dialog: Locator) {
   expect(page_.width).toBeLessThanOrEqual(page_.innerWidth);
 }
 
-test('FR-214 FR-210 FR-211 FR-212 armaments, the Armoury, the Army screen and a march to Testland North-West', async ({ page }) => {
+/** The owner's army marker on a seat tile (the province's owner comes first). */
+const markerOn = (page: Page, tileId: string) => page.locator(`[data-tile-id="${tileId}"]`).getByTestId('army-marker').first();
+
+/**
+ * FR-271: a march arrow's ends lie on the markers as the browser draws them (armyView.ts copies the marker's place from
+ * Tile.module.css, so a change to one alone moves the arrows off the markers). In map pixels, from each marker's box
+ * centre: the line starts 15 px on towards the destination and the head's tip stops 15 px short of the destination's
+ * centre, both `right` px to the right of the arrow's way (0 for a lone arrow, 10 for marches both ways, FR-270).
+ */
+async function expectArrowOnMarkers(arrow: Locator, from: Locator, to: Locator, right: number) {
+  const centre = async (marker: Locator) => {
+    const box = (await marker.boundingBox())!;
+    return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  };
+  const centres = { from: await centre(from), to: await centre(to) };
+  const at = await arrow.evaluate((g, c) => {
+    const svg = (g as SVGGElement).ownerSVGElement!;
+    const toMap = svg.getScreenCTM()!.inverse();
+    const map = (p: { x: number; y: number }) => {
+      const q = new DOMPoint(p.x, p.y).matrixTransform(toMap);
+      return { x: q.x, y: q.y };
+    };
+    const line = g.querySelector('[data-testid="march-line"]') as SVGLineElement;
+    const tip = (g.querySelector('[data-testid="march-head"]') as SVGPolygonElement).points.getItem(0);
+    return { start: { x: line.x1.baseVal.value, y: line.y1.baseVal.value }, tip: { x: tip.x, y: tip.y }, from: map(c.from), to: map(c.to) };
+  }, centres);
+  const length = Math.hypot(at.tip.x - at.start.x, at.tip.y - at.start.y);
+  const [ux, uy] = [(at.tip.x - at.start.x) / length, (at.tip.y - at.start.y) / length];
+  // A point seen from a marker's centre: how far along the arrow's way, and how far to its right (screen y points down)
+  const seen = (p: { x: number; y: number }, c: { x: number; y: number }) => ({
+    along: (p.x - c.x) * ux + (p.y - c.y) * uy,
+    right: (p.x - c.x) * -uy + (p.y - c.y) * ux,
+  });
+  const start = seen(at.start, at.from);
+  const tip = seen(at.tip, at.to);
+  const near = (value: number, expected: number) => Math.abs(value - expected) <= 1.5;
+  expect(near(start.along, 15), `the line starts ${start.along.toFixed(1)} px on from the source marker's centre`).toBe(true);
+  expect(near(start.right, right), `the line starts ${start.right.toFixed(1)} px right of the source marker's centre`).toBe(true);
+  expect(near(tip.along, -15), `the tip stops ${(-tip.along).toFixed(1)} px short of the destination marker's centre`).toBe(true);
+  expect(near(tip.right, right), `the tip lies ${tip.right.toFixed(1)} px right of the destination marker's centre`).toBe(true);
+}
+
+/** Two boxes share no pixel. */
+const apart = (a: { x: number; y: number; width: number; height: number }, b: typeof a) =>
+  a.x + a.width <= b.x || b.x + b.width <= a.x || a.y + a.height <= b.y || b.y + b.height <= a.y;
+
+test('FR-214 FR-210 FR-211 FR-212 FR-270 FR-271 armaments, the Armoury, the Army screen and a march to Testland North-West', async ({ page }, testInfo) => {
   test.setTimeout(120000);
   const errors = collectErrors(page);
   await open(page);
@@ -170,6 +219,9 @@ test('FR-214 FR-210 FR-211 FR-212 armaments, the Armoury, the Army screen and a 
   await expect(arrow).toBeVisible();
   await expect(arrow.getByTestId('march-count')).toHaveText('1');
   await expect(page.getByRole('button', { name: 'Testland army: force size 5, 4 regiments, 4 militia, 1 marching out', exact: true })).toBeVisible();
+  // FR-271: from the South-West marker (seat 2-9) to the North-West one (seat 4-4), on the line between them
+  await expect(markerOn(page, '4-4')).toHaveAccessibleName('Testland militia: 4, 1 marching in');
+  await expectArrowOnMarkers(arrow, markerOn(page, '2-9'), markerOn(page, '4-4'), 0);
 
   await endTurn(page, 4);
   await expect(page.getByTestId('news-panel')).toContainText('1 regiment marched from Testland South-West to Testland North-West.');
@@ -178,5 +230,47 @@ test('FR-214 FR-210 FR-211 FR-212 armaments, the Armoury, the Army screen and a 
   await expect(page.getByRole('button', { name: 'Testland army: force size 1, 1 regiment, 4 militia' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Testland army: force size 4, 3 regiments, 4 militia' })).toBeVisible();
   if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/m8-map.png` });
+
+  // Turn 4, FR-270: 3rd Regulars marches back to South-West while 1st and 2nd Regulars march to North-West, and
+  // 1st Artillery is to be disbanded
+  await page.getByRole('button', { name: 'Testland army: force size 1, 1 regiment, 4 militia' }).click();
+  const northWest = page.getByRole('dialog', { name: 'Army in Testland North-West' });
+  await expect(northWest).toBeVisible();
+  await northWest.getByRole('checkbox', { name: '3rd Regulars' }).check();
+  await northWest.getByRole('combobox', { name: 'March to' }).selectOption({ label: 'Testland South-West' });
+  await northWest.getByRole('button', { name: 'March', exact: true }).click();
+  await expect(northWest.getByTestId('regiment-3rd Regulars').getByTestId('status')).toHaveText('Marching to Testland South-West');
+  await page.keyboard.press('Escape');
+  await expect(northWest).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Testland army: force size 4, 3 regiments, 4 militia, 1 marching in', exact: true }).click();
+  await expect(army).toBeVisible();
+  await army.getByRole('checkbox', { name: '1st Regulars' }).check();
+  await army.getByRole('checkbox', { name: '2nd Regulars' }).check();
+  await army.getByRole('combobox', { name: 'March to' }).selectOption({ label: 'Testland North-West' });
+  await army.getByRole('button', { name: 'March', exact: true }).click();
+  await army.getByRole('checkbox', { name: '1st Artillery' }).check();
+  await army.getByRole('button', { name: 'Disband', exact: true }).click();
+  await army.getByRole('button', { name: 'Yes, disband' }).click();
+  await expect(army.getByTestId('regiment-1st Artillery').getByTestId('status')).toHaveText('Disband ordered');
+  await page.keyboard.press('Escape');
+  await expect(army).toHaveCount(0);
+
+  // Two arrows side by side, each with its count on screen; each still starts and ends at its markers, to its right
+  await expect(markerOn(page, '2-9')).toHaveAccessibleName('Testland army: force size 4, 3 regiments, 4 militia, 2 marching out, 1 marching in, 1 to disband');
+  await expect(markerOn(page, '4-4')).toHaveAccessibleName('Testland army: force size 1, 1 regiment, 4 militia, 1 marching out, 2 marching in');
+  await expect(page.locator('[data-tile-id="2-9"]').getByTestId('army-disband')).toHaveText('−1');
+  const north = page.getByRole('img', { name: 'Testland North-West: 2 regiments marching in from Testland South-West' });
+  const south = page.getByRole('img', { name: 'Testland South-West: 1 regiment marching in from Testland North-West' });
+  await expect(north.getByTestId('march-count')).toHaveText('2');
+  await expect(south.getByTestId('march-count')).toHaveText('1');
+  const badges = [(await north.locator('circle').boundingBox())!, (await south.locator('circle').boundingBox())!];
+  expect(apart(badges[0], badges[1]), `count badges ${JSON.stringify(badges)} share no pixel`).toBe(true);
+  await expectArrowOnMarkers(north, markerOn(page, '2-9'), markerOn(page, '4-4'), 10);
+  await expectArrowOnMarkers(south, markerOn(page, '4-4'), markerOn(page, '2-9'), 10);
+
+  const shot = await page.screenshot();
+  await testInfo.attach('m8-qa-map.png', { body: shot, contentType: 'image/png' });
+  if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/m8-qa-map.png` });
   expect(errors).toEqual([]);
 });
