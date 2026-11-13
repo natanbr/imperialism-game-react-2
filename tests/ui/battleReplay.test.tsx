@@ -19,8 +19,10 @@ import { battleView, shotText } from '@/components/army/battleView';
 import { useGameStore, type TurnReport } from '@/store/rootStore';
 import type { BattleReport, GameEvent, Order } from '@/engine';
 import type { GameState } from '@/types/GameState';
+import { tryApplyOrder } from '@/engine/orders/apply';
+import { transferProvince } from '@/engine/world/provinces';
 import { setPair } from '../engine/fixtures';
-import { ARVELIA, ARVELIA_P, continent, NE1, relocate, SE1 } from '../engine/armyFixtures';
+import { ARVELIA, ARVELIA_P, clearArmy, continent, NE1, NE2, relocate, SE1, SE2, SUNDMARK } from '../engine/armyFixtures';
 import { failOnActWarnings } from './actWarnings';
 import { text } from './domText';
 
@@ -400,11 +402,56 @@ describe('FR-232 battles in the news and at the start of the next turn', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('FR-232 End Turn queues only the battles the player fought', () => {
-    // A turn where only Valdoria fights: nothing opens (the store reads the turn's events with battlesFoughtBy)
-    show(continent());
+  /**
+   * Valdoria at war with Sundmark, which holds Valdoria North-East (hand-built, emptied); Valdoria's 1st Regulars attacks
+   * it from Valdoria South-East (its order in the state before End Turn). With `testlandToo`, Testland also attacks Arvelia
+   * with its field army from Testland North-East. Two separate battles, so the queue shows whose battles it keeps.
+   */
+  function valdoriaFights(testlandToo: boolean): GameState {
+    let s = clearArmy(transferProvince(continent('world'), NE2, SUNDMARK), N2, NE2);
+    s = setPair(relocate(s, ['regiment-20'], SE2), N2, SUNDMARK, { war: { aggressors: [N2], since: 1 }, consulates: [], embassies: [], pact: false, alliance: false });
+    s = tryApplyOrder(s, { kind: 'moveArmy', nationId: N2, fromProvinceId: SE2, regimentIds: ['regiment-20'], toProvinceId: NE2 }).state;
+    if (!testlandToo) return s;
+    s = setPair(relocate(s, FIELD, NE1), N1, ARVELIA, { war: { aggressors: [N1], since: 1 }, consulates: [], embassies: [], pact: false, alliance: false });
+    return tryApplyOrder(s, { kind: 'moveArmy', nationId: N1, fromProvinceId: NE1, regimentIds: FIELD, toProvinceId: ARVELIA_P }).state;
+  }
+  const foughtThisTurn = () =>
+    useGameStore
+      .getState()
+      .eventLog.at(-1)!
+      .events.filter((e): e is Extract<GameEvent, { type: 'battle-resolved' }> => e.type === 'battle-resolved')
+      .map((b) => [b.nationId, b.provinceId]);
+
+  it('FR-232 End Turn queues only the battles the player fought: a turn where only Valdoria fights opens nothing (review R2)', () => {
+    show(valdoriaFights(false));
     act(() => useGameStore.getState().advanceTurn());
+    expect(foughtThisTurn()).toEqual([[N2, NE2]]);
     expect(useGameStore.getState().battleQueue).toEqual([]);
+  });
+
+  it('FR-232 with Testland and Valdoria each fighting its own battle, End Turn queues Testland\'s only (review R2)', () => {
+    show(valdoriaFights(true));
+    act(() => useGameStore.getState().advanceTurn());
+    expect(foughtThisTurn()).toEqual([[N1, ARVELIA_P], [N2, NE2]]);
+    expect(useGameStore.getState().battleQueue.map((b) => [b.nationId, b.provinceId])).toEqual([[N1, ARVELIA_P]]);
+  });
+
+  it('FR-232 the Battle screen lies above the game-over screen: a higher z-index on its overlay, and rendered after it (review R10)', () => {
+    // jsdom computes no stacking, so the test reads the two overlays' CSS rules and the page's render order
+    const zIndexOf = (cssFile: string, selector: string): number => {
+      const css = readFileSync(join(ROOT, cssFile), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+      const values = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)]
+        .filter(([, selectors, body]) => selectors.split(',').some((s) => s.trim() === selector) && /z-index/.test(body))
+        .map(([, , body]) => Number(/z-index:\s*(\d+)/.exec(body)![1]));
+      return values.at(-1)!;
+    };
+    expect(readFileSync(join(ROOT, 'src/app/components/BattleModal.tsx'), 'utf8')).toContain('overlayClassName={styles.battleOverlay}');
+    expect(readFileSync(join(ROOT, 'src/app/components/GameOverModal.tsx'), 'utf8')).toMatch(/import styles from "\.\/market\/Market\.module\.css"[\s\S]*overlayClassName={styles\.overlay}/);
+    const battle = zIndexOf('src/app/components/army/War.module.css', '.battleOverlay');
+    const gameOver = zIndexOf('src/app/components/market/Market.module.css', '.overlay');
+    expect({ battle, gameOver, above: battle > gameOver }).toEqual({ battle: 79, gameOver: 75, above: true });
+    const page = readFileSync(join(ROOT, 'src/app/page.tsx'), 'utf8');
+    expect(page.indexOf('<BattleModal />')).toBeGreaterThan(page.indexOf('<GameOverModal />'));
   });
 
   it('FR-232 a new game drops the battles still to see', () => {

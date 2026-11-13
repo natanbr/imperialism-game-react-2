@@ -619,6 +619,17 @@ describe('FR-238 FR-240 FR-241 the war question, the start treaties and the word
     expect(treaties('Arvelia')).toEqual(['Colony of Valdoria']);
   });
 
+  it('FR-224 toward a colony, ours or another\'s, every overture, Give and Set policy is disabled with the reason (M9 review F2)', () => {
+    for (const owner of [N1, N2]) {
+      const view = openDiplomacy({ ...start(), minorNations: start().minorNations.map((m) => (m.id === ARVELIA ? { ...m, colonyOf: owner } : m)) });
+      for (const name of ['Consulate ($500)', 'Embassy ($5,000)', 'Pact', 'Declare war', 'Propose peace', 'Give', 'Set policy']) {
+        const b = button('Arvelia', name) as HTMLButtonElement;
+        expect({ owner, name, disabled: b.disabled, description: description(b) }).toEqual({ owner, name, disabled: true, description: 'it is a colony, ruled by its owner' });
+      }
+      view.unmount();
+    }
+  });
+
   it('FR-240 without the start mark (a war ended the start treaties) a consulate opened again is plain "Consulate"', () => {
     openDiplomacy(setPair(start(), N1, N2, { consulates: [N1], embassies: [], startTreaties: undefined }));
     expect(treaties('Valdoria')).toEqual(['Consulate']);

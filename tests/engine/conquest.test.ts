@@ -5,6 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import { newGame } from '@/engine/newGame';
 import { tryApplyOrder } from '@/engine/orders/apply';
+import { validateOrder } from '@/engine/orders/validate';
 import type { Order } from '@/engine/orders/Order';
 import { resolveTurn } from '@/engine/turn/resolveTurn';
 import { createTurnContext, type GameEvent } from '@/engine/turn/context';
@@ -17,9 +18,10 @@ import { transferProvince } from '@/engine/world/provinces';
 import { pairKey } from '@/engine/diplomacy/relations';
 import { MAX_RELATION_POINTS } from '@/engine/diplomacy/relations';
 import { conquestWinner, isFallen } from '@/engine/army/conquest';
+import { settledTradeBarrier } from '@/engine/market/partners';
 import type { GameState } from '@/types/GameState';
 import { WorkerStatus, WorkerType } from '@/types/Workers';
-import { locate, N1, N2, put, setPair, setTile, tileAt } from './fixtures';
+import { locate, N1, N2, put, setPair, setTile, tileAt, worldViolations } from './fixtures';
 import { ARVELIA, ARVELIA_P, clearArmy, continent, NE1, NE2, NW2, relocate, SE2, SUNDMARK, SW2 } from './armyFixtures';
 
 const R1 = 'regiment-1';
@@ -116,13 +118,19 @@ describe('FR-222 a taken province', () => {
   it('FR-222 the jobs under way there end and the old owner\'s civilians on its tiles go to the old owner\'s capital tile', () => {
     let s = northWestUndefended();
     const [nw] = borderTiles(s, NW2, SW2);
+    const [other, third] = tilesOf(s, NW2).filter(id => id !== nw);
     const farmer = 'worker-nation-2-2';
     s = put(s, farmer, nw, { status: WorkerStatus.Working });
     s = setTile(s, nw, { developmentJob: { workerId: farmer, workerType: WorkerType.Farmer, targetLevel: 1, startedOnTurn: 1, durationTurns: 3 } });
+    // review R9: every kind of job under way ends, a prospecting and a construction job included
+    s = setTile(s, other, { prospecting: { workerId: 'worker-nation-2-9', startedOnTurn: 1 } });
+    s = setTile(s, third, { constructionJob: { kind: 'depot', workerId: 'worker-nation-2-9', startedOnTurn: 1, durationTurns: 3 } });
 
     const { state } = combat(ordered(s, attack(N1, [R1], ARVELIA_P, NW2)));
 
-    expect(tileAt(state, nw).developmentJob).toBeUndefined();
+    expect(tilesOf(state, NW2).map(id => [tileAt(state, id).developmentJob, tileAt(state, id).prospecting, tileAt(state, id).constructionJob])).toEqual(
+      tilesOf(state, NW2).map(() => [undefined, undefined, undefined])
+    );
     expect(tileAt(state, nw).workers).toEqual([]);
     const home = locate(state, farmer)!;
     expect(home.tile.id).toBe('14-9');
@@ -131,6 +139,19 @@ describe('FR-222 a taken province', () => {
       justMoved: false,
       assignedTileId: '14-9',
     });
+  });
+
+  it('FR-222 the old owner\'s civilians are removed when it holds no capital tile (review R9)', () => {
+    // Valdoria's capital province is Testland's (hand-built), so its civilians in North-West have nowhere to go
+    let s = transferProvince(northWestUndefended(), SW2, N1);
+    const [nw] = borderTiles(s, NW2, SW2);
+    const farmer = 'worker-nation-2-2';
+    s = put(s, farmer, nw, { status: WorkerStatus.Available });
+
+    const { state } = combat(ordered(s, attack(N1, [R1], ARVELIA_P, NW2)));
+
+    expect(ownerOf(state, NW2)).toBe(N1);
+    expect(locate(state, farmer)).toBeUndefined();
   });
 
   it('FR-222 the winner gets no militia there: only the regiments that took it', () => {
@@ -219,5 +240,68 @@ describe('FR-224 a minor\'s capital falls', () => {
 
     const both = ordered(atWar(setPair(colonyAttack(), N2, ARVELIA, { consulates: [], embassies: [], pact: false, subsidies: {}, lockedGrants: {} }), N2, ARVELIA));
     expect(combat(both).state.diplomacy[pairKey(N2, ARVELIA)].war).toBeUndefined();
+  });
+
+  it('FR-224 no overture, grant or trade policy reaches a colony, from its owner or another Great Power: "colony" (review F2)', () => {
+    const { state } = combat(colonyAttack());
+    const refusals = [N1, N2].flatMap(nationId =>
+      [
+        ...(['consulate', 'embassy', 'pact', 'war', 'peace'] as const).map((overture): Order => ({ kind: 'proposeOverture', nationId, overture, targetId: ARVELIA })),
+        { kind: 'giveGrant', nationId, targetId: ARVELIA, amount: 1000, locked: false } as Order,
+        { kind: 'setTradePolicy', nationId, targetId: ARVELIA, subsidyPercent: 0, boycott: true } as Order,
+      ].map(order => validateOrder(state, order))
+    );
+    expect(refusals).toEqual(refusals.map(() => ({ ok: false, reason: 'colony' })));
+    // Sundmark, not a colony, still takes a consulate
+    expect(validateOrder(state, { kind: 'proposeOverture', nationId: N2, overture: 'consulate', targetId: SUNDMARK })).toEqual({ ok: true });
+  });
+});
+
+describe('FR-224 a colony changes hands with its capital province (review E1)', () => {
+  /**
+   * Arvelia is Valdoria's colony (hand-built from a new game: its province Valdoria's, its militia gone, `colonyOf`
+   * nation-2, points 89, Valdoria's consulate and a locked grant there); Testland is at war with Valdoria, holds a
+   * consulate with Arvelia, and its 1st Regulars in Testland North-East.
+   */
+  function valdoriaColony(): GameState {
+    let s = clearArmy(transferProvince(continent('partners'), ARVELIA_P, N2), ARVELIA, ARVELIA_P);
+    s = { ...s, minorNations: s.minorNations.map(m => (m.id === ARVELIA ? { ...m, colonyOf: N2 } : m)) };
+    s = setPair(s, N2, ARVELIA, { points: MAX_RELATION_POINTS, consulates: [N2], embassies: [N2], lockedGrants: { [N2]: 1000 } });
+    s = setPair(s, N1, ARVELIA, { consulates: [N1] });
+    return atWar(relocate(s, [R1], NE1), N1, N2);
+  }
+
+  it('FR-224 another Great Power takes the colony\'s capital province: the colony is its own, trade and the treaties follow', () => {
+    const start = valdoriaColony();
+    const { state, events } = resolveTurn(ordered(start, attack(N1, [R1], NE1, ARVELIA_P)), {}, start.seed);
+
+    expect(ownerOf(state, ARVELIA_P)).toBe(N1);
+    expect(state.minorNations.find(m => m.id === ARVELIA)!.colonyOf).toBe(N1);
+    expect(events.filter(e => ['province-taken', 'minor-colonised', 'grant-stopped'].includes(e.type))).toEqual([
+      { type: 'province-taken', nationId: N1, provinceId: ARVELIA_P, fromId: N2 },
+      { type: 'minor-colonised', nationId: N1, minorId: ARVELIA },
+      { type: 'grant-stopped', nationId: N2, targetId: ARVELIA, amount: 1000, reason: 'colony' },
+    ]);
+    expect([settledTradeBarrier(state, N1, ARVELIA), settledTradeBarrier(state, N2, ARVELIA)]).toEqual([undefined, 'not-a-partner']);
+    expect(state.diplomacy[pairKey(N1, ARVELIA)].points).toBe(MAX_RELATION_POINTS);
+    expect(state.diplomacy[pairKey(N2, ARVELIA)]).toMatchObject({ consulates: [], embassies: [], lockedGrants: {} });
+    expect(worldViolations(state, start).filter(v => v.includes('colony'))).toEqual([]);
+  });
+
+  it('FR-223 FR-224 a fallen Great Power\'s colonies pass to its conqueror', () => {
+    // Testland takes Valdoria's emptied capital province from Valdoria North-West (hand-built Testland's)
+    let start = transferProvince(valdoriaColony(), NW2, N1);
+    start = relocate(clearArmy(clearArmy(start, N2, NW2), N2, SW2), [R1], NW2);
+    const { state, events } = resolveTurn(ordered(start, attack(N1, [R1], NW2, SW2)), {}, start.seed);
+
+    expect(state.gameOver).toMatchObject({ reason: 'conquest', winnerId: N1 });
+    expect(ownerOf(state, ARVELIA_P)).toBe(N1);
+    expect(state.minorNations.find(m => m.id === ARVELIA)!.colonyOf).toBe(N1);
+    const after = events.slice(events.findIndex(e => e.type === 'nation-fallen'));
+    expect(after.filter(e => e.type === 'nation-fallen' || e.type === 'minor-colonised')).toEqual([
+      { type: 'nation-fallen', nationId: N1, fallenId: N2 },
+      { type: 'minor-colonised', nationId: N1, minorId: ARVELIA },
+    ]);
+    expect(worldViolations(state, start).filter(v => v.includes('colony'))).toEqual([]);
   });
 });

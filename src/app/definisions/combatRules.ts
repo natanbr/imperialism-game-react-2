@@ -1,5 +1,5 @@
 // The M9 combat numbers (FR-218 to FR-220, FR-226; Imp1 hides its hit chance, damage per shot and morale, gaps D3, so
-// these are remake rules a test can check, decision card Q32) and the scripted war rule (FR-228, FR-229; Q35).
+// these are remake rules a test can check, decision card Q32) and the scripted war rule (FR-228, FR-274 which replaces FR-229; Q35).
 import type { RegimentType } from "../types/Unit";
 import type { RegimentArm } from "./regiments";
 
@@ -33,7 +33,7 @@ export const ESTIMATE = {
 } as const;
 
 /**
- * The scripted war (FR-228, FR-229; Imp1: the AI picks off minor nations, thresholds unknown, gaps E2). From `fromTurn`,
+ * The scripted war (FR-228, FR-274 replacing FR-229; Imp1: the AI picks off minor nations, thresholds unknown, gaps E2). From `fromTurn`,
  * at war with no one, it recruits one `regiment` a turn (FR-213's limits) until its field army is `strengthFactor` times
  * the weakest bordering minor's defence, then declares war; at war it attacks when the estimate is `attackRatio` or more.
  * `regiment` is Cuirassiers, not FR-229's Regulars (M9 decision card, measured in the journal): the economy trains every

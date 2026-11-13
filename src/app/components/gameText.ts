@@ -73,6 +73,7 @@ export const REFUSAL_TEXT: Record<RejectReason, string> = {
   "already-in-place": "that is already in place",
   "at-war": "we are at war with them",
   "not-at-war": "we are not at war with them",
+  colony: "it is a colony, ruled by its owner",
   "no-seller": "no minor nation sells this",
   "sellers-barred": "we may not trade with any seller",
   "no-buyer": "no one buys this",

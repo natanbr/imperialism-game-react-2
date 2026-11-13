@@ -116,7 +116,7 @@ export const MapView: React.FC = () => {
               <path key={b.ownerId} d={b.d} stroke={THEME.provinceBorder} className={styles.provinceBorder} data-testid="province-border" data-owner-id={b.ownerId} />
             ))}
             {borders.map((b) => (
-              <path key={b.nationId} d={b.d} stroke={b.color} className={styles.territoryBorder} data-testid="territory-border" />
+              <path key={b.nationId} d={b.d} stroke={b.color} className={styles.territoryBorder} data-testid="territory-border" data-nation-id={b.nationId} />
             ))}
             {minorBorders.map((b) => (
               <path key={b.minorId} d={b.d} stroke={THEME.minor} className={styles.minorBorder} data-testid="minor-border" data-minor-id={b.minorId} />

@@ -1,7 +1,7 @@
 /* The Attack screen (FR-230) and the Battle screen (FR-231), tokens in styles/tokens.css. The frame follows the market
-   and Army dialogs. The Attack screen lies over the Army screen (76) it opens from; the Battle screen over every other
-   dialog, the game-over screen (75) included, so a conquest's last battle is seen first. At 1280x720 neither the page
-   nor the dialog scrolls: only the lists scroll inside their panes. */
+   and Army dialogs. The Attack screen lies over the Army screen (76) it opens from; the Battle screen over the Army,
+   market and game-over screens (75), so a conquest's last battle is seen first (asserted in tests/ui/battleReplay.test.tsx).
+   At 1280x720 neither the page nor the dialog scrolls: only the lists scroll inside their panes. */
 
 .overlay,
 .battleOverlay {

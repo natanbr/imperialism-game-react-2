@@ -169,7 +169,7 @@ function planTraining(view: () => GameState, nationId: string, propose: Propose)
   }
 }
 
-/** The armaments the run makes first while arms are wanted (FR-213, FR-229): up to 2 in stock, within the metal works. */
+/** The armaments the run makes first while arms are wanted (FR-213, FR-274): up to 2 in stock, within the metal works. */
 const garrisonArmaments = (state: GameState, nationId: string): number => {
   if (!armsWanted(state, nationId)) return 0;
   const nation = nationOf(state, nationId);

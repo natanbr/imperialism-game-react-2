@@ -31,20 +31,21 @@ export function armyThreat(state: GameState, nationId: NationId): boolean {
 
 /**
  * The nation wants a regiment this turn: under a threat (FR-213), or while its campaign on a minor needs a larger field
- * army (FR-229). Then it recruits 1 Regulars and its run makes and keeps the armaments for it (economy.ts).
+ * army (FR-274). Then it recruits 1 regiment (Regulars under a threat, else the campaign's Cuirassiers) and its run makes
+ * and keeps the armaments for it (economy.ts).
  */
 export const armsWanted = (state: GameState, nationId: NationId): boolean => armyThreat(state, nationId) || campaignRecruit(state, nationId);
 
 /**
- * FR-213, FR-229: while arms are wanted, 1 Regulars this turn while the treasury after the order stays at $2,500 or
- * more; `propose` keeps it only when it validates, so without an armament or a free untrained worker nothing is
- * ordered. Planned after the standing orders are cleared and before anything else takes labour or cash.
+ * FR-213, FR-274: while arms are wanted, 1 regiment this turn while the treasury after the order stays at $2,500 or
+ * more; `propose` keeps it only when it validates, so without an armament or the worker it takes nothing is ordered.
+ * Planned after the standing orders are cleared and before anything else takes labour or cash.
  */
 export function planGarrison(view: () => GameState, nationId: NationId, propose: (order: Order) => boolean): void {
   const state = view();
   const nation = nationById(state, nationId);
   if (!nation || !armsWanted(state, nationId)) return;
-  // the threat's Regulars (FR-213); else the campaign's regiment (FR-229, SCRIPTED_WAR.regiment)
+  // the threat's Regulars (FR-213); else the campaign's regiment (FR-274, SCRIPTED_WAR.regiment)
   const regiment = armyThreat(state, nationId) ? SCRIPTED_GARRISON.regiment : SCRIPTED_WAR.regiment;
   const { treasuryFloor } = SCRIPTED_GARRISON;
   if (nation.treasury - REGIMENTS[regiment].cash < treasuryFloor) return;

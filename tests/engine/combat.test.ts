@@ -10,7 +10,7 @@ import { applyOrder, tryApplyOrder } from '@/engine/orders/apply';
 import { validateOrder } from '@/engine/orders/validate';
 import type { Order } from '@/engine/orders/Order';
 import { resolveTurn } from '@/engine/turn/resolveTurn';
-import type { GameEvent, TurnContext } from '@/engine/turn/context';
+import { createTurnContext, type GameEvent, type TurnContext } from '@/engine/turn/context';
 import type { Rng } from '@/engine/rng';
 import { combatSystem } from '@/engine/systems/combatSystem';
 import { pendingArmyOrders, regimentStatus } from '@/engine/army/armies';
@@ -48,6 +48,7 @@ import {
   relocate,
   SE1,
   SW1,
+  SW2,
 } from './armyFixtures';
 
 // The start forces' ids (FR-203): Testland's field army, Valdoria's, Arvelia's three Minutemen.
@@ -210,13 +211,23 @@ describe('FR-216 attacks: a move into a province of a country at war is an attac
     expect(report.regiments.filter(r => r.side === 'attacker').map(r => [r.id, r.ownerId])).toEqual([[R1, N1], [V_R1, N2]]);
   });
 
-  it('FR-216 a regiment that is no longer where it was ordered from, or whose war ended, does not attack', () => {
+  it('FR-216 an attack whose war ended before the combat phase does not happen', () => {
     // Peace in this turn's diplomacy phase drops the attack intents (FR-169); here the war is gone when combat runs.
     const s = setPair(startArmyAttack(), N1, ARVELIA, { war: undefined });
     const { ctx, events } = stubContext(1, 0);
     const after = combatSystem(s, ctx);
     expect(reportsIn(events)).toEqual([]);
     expect(armyIn(after, N1, NE1)!.regiments.map(r => r.id)).toEqual(expect.arrayContaining([R1, R2, A1]));
+  });
+
+  it('FR-216 a regiment no longer where it was ordered from does not attack; the others ordered with it do (review R3)', () => {
+    // The 1st Regulars is moved to Testland South-East (hand-built) after the attack was ordered from North-East.
+    const s = relocate(startArmyAttack(), [R1], SE1);
+    const { ctx, events } = stubContext(1, 0.99);
+    const after = combatSystem(s, ctx);
+    const [report] = reportsIn(events);
+    expect(report.regiments.filter(r => r.side === 'attacker').map(r => r.id)).toEqual([R2, A1]);
+    expect(armyIn(after, N1, SE1)!.regiments.some(r => r.id === R1 && r.foughtOnTurn === undefined)).toBe(true);
   });
 });
 
@@ -279,6 +290,12 @@ describe('FR-218 rounds: defenders first; cavalry, infantry, artillery; the weak
     expect(COMBAT.maxRounds).toBe(8);
     expect(fight.rounds.every(r => r.shots.every(s => !s.hit && s.damage === 0))).toBe(true);
     expect(fight.result).toBe('defender-held');
+  });
+
+  it('FR-218 Sappers (engineers, hand-built: not recruitable, Q31) fire after the artillery, whatever their id (review R8)', () => {
+    const units = [unit('regiment-1', 'sappers', 'attacker'), unit('regiment-2', 'artillery', 'attacker'), unit('regiment-10', 'minutemen', 'defender')];
+    const fight = fightBattle({ units, fortLevel: 0 }, always(0));
+    expect(fight.rounds[0].shots.map(s => s.shooterId)).toEqual(['regiment-10', 'regiment-2', 'regiment-1']);
   });
 
   it('FR-218 within a group regiments fire in id order and ties on health go to the lowest id (ids compared by number, not text)', () => {
@@ -432,6 +449,103 @@ describe('FR-221 after the battle', () => {
   });
 });
 
+describe('FR-221 FR-223 the same phase: home lost, crossing strikes, a fallen nation\'s regiments (review F1, R3, F3)', () => {
+  /**
+   * Valdoria holds Testland North-West (hand-built) with its 1st Regulars and a Test Regulars that stays; Testland's 1st
+   * Regulars in Testland North-East (its militia gone) attacks North-West while Valdoria's 1st Regulars attacks the
+   * emptied North-East. North-East's battle comes first (ids), and is taken without rounds; North-West holds (every shot
+   * misses).
+   */
+  function homeLost(): GameState {
+    let s = atWar(clearArmy(clearArmy(transferProvince(continent('world'), NW1, N2), N1, NW1), N1, NE1), N1, N2);
+    s = relocate(relocate(s, [R1], NE1), [V_R1], NW1);
+    s = addRegiments(s, N2, NW1, ['regulars']);
+    return ordered(s, attackOrder(N1, [R1], NE1, NW1), attackOrder(N2, [V_R1], NW1, NE1));
+  }
+
+  it('FR-221 an attacker whose home province was taken in the same phase retreats to the lowest-id bordering province of its owner', () => {
+    const { ctx, events } = stubContext(1, 0.99);
+    const after = combatSystem(homeLost(), ctx);
+
+    expect(reportsIn(events).map(r => [r.provinceId, r.result])).toEqual([[NE1, 'attacker-won'], [NW1, 'defender-held']]);
+    expect(after.provinces.find(p => p.id === NE1)!.ownerId).toBe(N2);
+    // North-West borders North-East (now Valdoria's) and South-West: the 1st Regulars goes to South-West
+    expect(armyIn(after, N1, SW1)!.regiments.find(r => r.id === R1)).toMatchObject({ foughtOnTurn: 1 });
+    expect(reportsIn(events)[1].regiments.find(r => r.id === R1)!.fate).toBe('standing');
+  });
+
+  it('FR-221 an attacker whose home was taken and with no bordering province of its owner surrenders', () => {
+    // Testland's 1st Regulars attacks Arvelia from North-East and fails; Valdoria takes the emptied North-East meanwhile.
+    // Arvelia borders only North-East (now Valdoria's) and Valdoria North-West: nowhere to go.
+    let s = atWar(atWar(clearArmy(clearArmy(transferProvince(continent('world'), NW1, N2), N1, NW1), N1, NE1), N1, N2), N1, ARVELIA);
+    s = relocate(relocate(s, [R1], NE1), [V_R1], NW1);
+    s = ordered(s, attackOrder(N1, [R1], NE1, ARVELIA_P), attackOrder(N2, [V_R1], NW1, NE1));
+    const { ctx, events } = stubContext(1, 0.99);
+    const after = combatSystem(s, ctx);
+
+    expect(reportsIn(events).map(r => [r.provinceId, r.result])).toEqual([[ARVELIA_P, 'defender-held'], [NE1, 'attacker-won']]);
+    expect(reportsIn(events)[0].regiments.find(r => r.id === R1)!.fate).toBe('surrendered');
+    expect(after.armies.flatMap(a => a.regiments).some(r => r.id === R1)).toBe(false);
+  });
+
+  /**
+   * Crossing strikes: Testland holds Valdoria North-West and Valdoria holds Testland North-West (hand-built); both capital
+   * provinces are emptied; Testland's 1st Regulars strikes Valdoria's capital province from Valdoria North-West and
+   * Valdoria's 1st Regulars strikes Testland's from Testland North-West, in the same turn.
+   */
+  function crossing(turn: number): GameState {
+    let s = { ...continent('world'), turn };
+    s = transferProvince(transferProvince(s, NW1, N2), NW2, N1);
+    s = relocate(relocate(s, [R1], NW2), [V_R1], NW1);
+    s = clearArmy(clearArmy(clearArmy(clearArmy(s, N1, SW1), N2, SW2), N1, NW1), N2, NW2);
+    s = atWar(s, N1, N2);
+    return ordered(s, attackOrder(N1, [R1], NW2, SW2), attackOrder(N2, [V_R1], NW1, SW1));
+  }
+
+  it('FR-216 FR-223 crossing strikes on both capitals: both battles are fought and the first in intentOrder wins (turn 1 Testland, turn 2 Valdoria)', () => {
+    const outcome = (turn: number) => {
+      const { ctx, events } = stubContext(turn, 0);
+      const after = combatSystem(crossing(turn), ctx);
+      return {
+        battles: reportsIn(events).map(r => [r.provinceId, r.nationId, r.provinceTaken]),
+        fallen: events.filter(e => e.type === 'nation-fallen'),
+        owners: [...new Set(after.provinces.filter(p => p.id.startsWith('province-nation')).map(p => p.ownerId))],
+        armies: [...new Set(after.armies.filter(a => a.ownerId === N1 || a.ownerId === N2).map(a => a.ownerId))],
+      };
+    };
+    const battles = [
+      [SW1, N2, true],
+      [SW2, N1, true],
+    ];
+    expect(outcome(1)).toEqual({ battles, fallen: [{ type: 'nation-fallen', nationId: N1, fallenId: N2 }], owners: [N1], armies: [N1] });
+    expect(outcome(2)).toEqual({ battles, fallen: [{ type: 'nation-fallen', nationId: N2, fallenId: N1 }], owners: [N2], armies: [N2] });
+  });
+
+  it('FR-223 the crossing strike ends the game on that turn with the winner of intentOrder', () => {
+    const s = crossing(1);
+    const { state } = resolveTurn(s, {}, s.seed);
+    expect(state.gameOver).toMatchObject({ reason: 'conquest', winnerId: N1 });
+  });
+
+  it('FR-221 FR-223 a regiment leaving a battlefield whose Great Power fell in the same phase surrenders', () => {
+    // Valdoria holds Testland North-East (hand-built) and attacks Arvelia from it and fails; Testland takes Valdoria's
+    // emptied capital province from Valdoria North-West (hand-built Testland's). Valdoria falls: North-East is Testland's.
+    let s = transferProvince(transferProvince(continent('world'), NE1, N2), NW2, N1);
+    s = relocate(relocate(clearArmy(clearArmy(s, N1, NE1), N2, NW2), [V_R1], NE1), [R1], NW2);
+    s = clearArmy(s, N2, SW2);
+    s = atWar(atWar(s, N1, N2), N2, ARVELIA);
+    s = ordered(s, attackOrder(N2, [V_R1], NE1, ARVELIA_P), attackOrder(N1, [R1], NW2, SW2));
+    const { ctx, events } = stubContext(1, 0.99);
+    const after = combatSystem(s, ctx);
+
+    expect(reportsIn(events).map(r => [r.provinceId, r.result])).toEqual([[ARVELIA_P, 'defender-held'], [SW2, 'attacker-won']]);
+    expect(events.filter(e => e.type === 'nation-fallen')).toEqual([{ type: 'nation-fallen', nationId: N1, fallenId: N2 }]);
+    expect(reportsIn(events)[0].regiments.find(r => r.id === V_R1)!.fate).toBe('surrendered');
+    expect(after.armies.filter(a => a.ownerId === N2)).toEqual([]);
+    expect(after.provinces.find(p => p.id === NE1)!.ownerId).toBe(N1);
+  });
+});
+
 describe('FR-225 the battle report', () => {
   it('FR-225 battle-resolved carries the whole battle; replaying the shots on the start healths gives the end healths', () => {
     const s = startArmyAttack();
@@ -553,12 +667,19 @@ describe('FR-227 combat is pure and fair', () => {
     expect(s).toEqual(snapshot);
   });
 
-  it('FR-227 a turn with a battle gives the same prices and development results as the same turn without it', () => {
-    const withBattle = resolveTurn(startArmyAttack(), {}, 1).state;
-    const without = resolveTurn(borderWar(), {}, 1).state;
-    expect(withBattle.market!.prices).toEqual(without.market!.prices);
-    const resources = (s: GameState) => s.map.tiles.flat().map(t => t.resource);
-    expect(resources(withBattle)).toEqual(resources(without));
+  it('FR-227 after a battle the shared stream and the diplomacy stream give the same next draws as after no battle (review E3)', () => {
+    // A phase that reads the shared or the diplomacy stream after combat sees the same numbers with or without a battle,
+    // so a battle cannot change prices or development results, whatever the phase order.
+    const nextDraws = (s: GameState) => {
+      const ctx = createTurnContext({ turn: s.turn, seed: s.seed });
+      combatSystem(s, ctx);
+      const diplomacy = ctx.rngFor('diplomacy');
+      return { shared: [1, 2, 3, 4, 5].map(() => ctx.rng.next()), diplomacy: [1, 2, 3].map(() => diplomacy.next()) };
+    };
+    const withBattle = startArmyAttack();
+    const { events } = resolveTurn(withBattle, {}, withBattle.seed);
+    expect(reportsIn(events)[0].rounds.length).toBeGreaterThan(0);
+    expect(nextDraws(withBattle)).toEqual(nextDraws(borderWar()));
   });
 
   it('FR-227 the same seed gives the same report; swapping the order of state.nations gives the same battles', () => {

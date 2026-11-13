@@ -4,8 +4,10 @@ import { test, expect, Page, Locator } from '@playwright/test';
 // Testland South-West to Testland North-East (which borders Arvelia); on turn 2 open the Attack screen for Arvelia ("Attack
 // Arvelia" in the Army screen's "March to", then "Attack…"), see the estimate and attack; on turn 3 see the Battle screen
 // open by itself and, after "Skip to result", "Province Taken!" (the spec attacks again on the next turns, at most 3
-// times, until it does); then see Arvelia's land as Testland's and "Colony" for Arvelia in Diplomacy.
-// On the way: the red attack arrow on the map (FR-273), the Attack screen and the Battle screen fit 1280x720 without
+// times, until it does); then see Arvelia's land as Testland's, inside Testland's outline in Testland's colour, and
+// "Colony" for Arvelia in Diplomacy.
+// On the way: the red attack arrow on the map, its file served and its ends measured on the two markers as drawn
+// (FR-273, review R6), the Attack screen and the Battle screen fit 1280x720 without
 // scrolling (FR-230, FR-231), the art pack's pictures load (FR-272), the battle's news line opens its Battle screen again
 // (FR-232). Set SCREENSHOT_DIR to also save m9-attack.png, m9-arrow.png, m9-battle.png and m9-colony.png there; the
 // Battle screen's shot is always attached to the test's report.
@@ -57,6 +59,63 @@ const shot = async (page: Page, name: string) => {
   if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/${name}` });
 };
 
+const markerOn = (page: Page, tileId: string) => page.locator(`[data-tile-id="${tileId}"]`).getByTestId('army-marker').first();
+
+/** The pack's red arrow file (map-ui/army-attack.svg, 120x56): its tail's middle and its tip, in the file's units (inkArt.ts). */
+const ATTACK_ART = { tail: { x: 8, y: 44 }, tip: { x: 112, y: 9 } };
+
+/**
+ * FR-273 (review R6): the red arrow as the browser draws it. The file's tail and tip, taken through the <image>'s own
+ * transform, lie in map pixels 15 px on from the source marker's box centre and 15 px short of the target's, on the line
+ * between the two (as FR-271 measures a march arrow).
+ */
+async function expectAttackArrowOnMarkers(arrow: Locator, from: Locator, to: Locator) {
+  const centre = async (marker: Locator) => {
+    const box = (await marker.boundingBox())!;
+    return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  };
+  const at = await arrow.evaluate(
+    (g, c) => {
+      const image = g.querySelector('[data-testid="attack-art"]') as SVGImageElement;
+      const toMap = image.ownerSVGElement!.getScreenCTM()!.inverse();
+      const map = (p: { x: number; y: number }) => {
+        const q = new DOMPoint(p.x, p.y).matrixTransform(toMap);
+        return { x: q.x, y: q.y };
+      };
+      const m = image.transform.baseVal.consolidate()!.matrix;
+      const drawn = (p: { x: number; y: number }) => ({ x: m.a * p.x + m.c * p.y + m.e, y: m.b * p.x + m.d * p.y + m.f });
+      return { tail: drawn(c.art.tail), tip: drawn(c.art.tip), from: map(c.from), to: map(c.to) };
+    },
+    { from: await centre(from), to: await centre(to), art: ATTACK_ART }
+  );
+  const length = Math.hypot(at.to.x - at.from.x, at.to.y - at.from.y);
+  const [ux, uy] = [(at.to.x - at.from.x) / length, (at.to.y - at.from.y) / length];
+  const near = (p: { x: number; y: number }, q: { x: number; y: number }) => Math.hypot(p.x - q.x, p.y - q.y) <= 1.5;
+  const want = { tail: { x: at.from.x + 15 * ux, y: at.from.y + 15 * uy }, tip: { x: at.to.x - 15 * ux, y: at.to.y - 15 * uy } };
+  expect(near(at.tail, want.tail), `the tail lies at ${JSON.stringify(at.tail)}, 15 px on from the source marker is ${JSON.stringify(want.tail)}`).toBe(true);
+  expect(near(at.tip, want.tip), `the tip lies at ${JSON.stringify(at.tip)}, 15 px short of the target marker is ${JSON.stringify(want.tip)}`).toBe(true);
+}
+
+/**
+ * FR-233 (review R7): the nation's territory outline as drawn (its stroke, and how far east it runs in the rows of a
+ * tile), and that tile's centre, in map pixels. The outline is one path of "M x1 y1 L x2 y2" sides (territoryBorders.ts).
+ */
+async function outlineAround(page: Page, nationId: string, tileId: string) {
+  const tile = (await page.locator(`[data-tile-id="${tileId}"]`).boundingBox())!;
+  return page.locator(`[data-testid="territory-border"][data-nation-id="${nationId}"]`).evaluate((path, box) => {
+    const toMap = (path as SVGPathElement).ownerSVGElement!.getScreenCTM()!.inverse();
+    const map = (x: number, y: number) => new DOMPoint(x, y).matrixTransform(toMap);
+    const [top, bottom] = [map(box.x, box.y).y, map(box.x, box.y + box.height).y];
+    const sides = (path.getAttribute('d') ?? '').match(/M[^M]+/g)!.map((side) => side.match(/-?[\d.]+/g)!.map(Number));
+    const inRows = sides.filter(([, y1, , y2]) => Math.min(y1, y2) >= top - 0.5 && Math.max(y1, y2) <= bottom + 0.5);
+    return {
+      stroke: path.getAttribute('stroke'),
+      east: Math.max(...inRows.flatMap(([x1, , x2]) => [x1, x2])),
+      centre: map(box.x + box.width / 2, box.y + box.height / 2).x,
+    };
+  }, tile);
+}
+
 /** The Army screen of Testland North-East: our marker on its seat (7-3), the province's owner first. */
 async function openNorthEast(page: Page) {
   await page.locator('[data-tile-id="7-3"]').getByTestId('army-marker').first().click();
@@ -88,6 +147,8 @@ async function attackArvelia(page: Page, attempt: number) {
     await fitsTheWindow(page, attack);
     await shot(page, 'm9-attack.png');
   }
+  // FR-273 (review R6): the red arrow's file is fetched and served when the first attack draws it
+  const arrowArt = attempt === 1 ? page.waitForResponse((r) => r.url().endsWith('/assets/ink-and-wash/map-ui/army-attack.svg')) : undefined;
   await attack.getByRole('button', { name: 'Attack', exact: true }).click();
   await expect(attack).toHaveCount(0);
   await expect(army.getByTestId('status').first()).toHaveText('Attacking Arvelia');
@@ -98,7 +159,12 @@ async function attackArvelia(page: Page, attempt: number) {
   const arrow = page.getByRole('img', { name: `Arvelia: ${count} regiment${count === 1 ? '' : 's'} attacking from Testland North-East` });
   await expect(arrow).toBeVisible();
   await expect(arrow.getByTestId('attack-count')).toHaveText(String(count));
-  if (attempt === 1) await shot(page, 'm9-arrow.png');
+  if (attempt === 1) {
+    const served = (await arrowArt)!;
+    expect({ ok: served.ok(), type: served.headers()['content-type'] }).toEqual({ ok: true, type: expect.stringContaining('image/svg+xml') });
+    await expectAttackArrowOnMarkers(arrow, markerOn(page, '7-3'), markerOn(page, '11-4'));
+    await shot(page, 'm9-arrow.png');
+  }
 }
 
 test('FR-233 FR-230 FR-231 FR-232 FR-273 declare war on Arvelia, attack it, see the battle and take it as a colony', async ({ page }, testInfo) => {
@@ -107,6 +173,13 @@ test('FR-233 FR-230 FR-231 FR-232 FR-273 declare war on Arvelia, attack it, see 
   await page.goto('/');
   await expect(page.getByTestId('map-scroll')).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
   await expect(page.getByTestId('turn-indicator')).toContainText('Turn: 1 of 40');
+  // Before the war Testland's outline, in its colour, stops west of Arvelia's capital tile (review R7)
+  const before = await outlineAround(page, 'nation-1', '11-4');
+  expect({ stroke: before.stroke, drawnThere: Number.isFinite(before.east), westOfIt: before.east < before.centre }).toEqual({
+    stroke: 'var(--color-nation-1)',
+    drawnThere: true,
+    westOfIt: true,
+  });
 
   // Turn 1: declare war on Arvelia in Diplomacy (asked in place first)
   await page.getByRole('button', { name: 'Diplomacy', exact: true }).click();
@@ -181,9 +254,12 @@ test('FR-233 FR-230 FR-231 FR-232 FR-273 declare war on Arvelia, attack it, see 
   await expect(news).toContainText('Arvelia taken.');
   await expect(news).toContainText('Arvelia is now our colony.');
 
-  // Arvelia's land is Testland's now: its capital tile names its owner, and its dashed minor border is gone
+  // Arvelia's land is Testland's now: its capital tile names its owner, its dashed minor border is gone, and Testland's
+  // outline in Testland's colour runs round it, east of its capital tile (review R7)
   await expect(page.locator('[data-tile-id="11-4"]')).toHaveAttribute('aria-label', /owned by Testland$/);
   await expect(page.locator('[data-testid="minor-border"][data-minor-id="minor-1"]')).toHaveCount(0);
+  const after = await outlineAround(page, 'nation-1', '11-4');
+  expect({ stroke: after.stroke, eastOfIt: after.east > after.centre }).toEqual({ stroke: 'var(--color-nation-1)', eastOfIt: true });
   await shot(page, 'm9-colony.png');
 
   // "Colony" for Arvelia in Diplomacy

@@ -23,9 +23,8 @@
 - 2026-11-13 M8 Armies (FR-199 to FR-215, FR-260 to FR-271) merged (PR 26, main c91f2fd; entries archived in
   `docs/journal/archive-M8.md`). Nathan's art pack (NR-031) committed on top (4bd00eb).
 - 2026-11-13 M9 War and the attack screen in progress on `claude/m9-war` (worktree `imperialism-game-revival-fee36d`):
-  the engine half (FR-216 to FR-229, FR-234; FR-229 tuned: decision card 1 of its entry) and the UI half (FR-230 to
-  FR-233, the art pack in the war screens FR-272, the map's red and green arrows FR-273) are committed; next the review.
-  Not pushed.
+  the engine half (FR-216 to FR-228, FR-234; FR-229 replaced by FR-274), the UI half (FR-230 to FR-233, FR-272, FR-273)
+  and the review fix round (all 17 findings; new FR-275) are committed; next the re-review of the fix delta. Not pushed.
 
 Carried forward:
 - Deferred: river ports and the depot-on-port rule (rules 04); University fees; the power plant.
@@ -332,3 +331,60 @@ screen over the Army screen at 1280x720, the red arrow from Testland North-East 
 Carried: decision 1's card (the button, not the pick); the Imp1 defender prompt and the red crossed-swords cursor over enemy
 land are not built; the map draws no fort; the rest of the art pack (terrain, goods, workers, buildings) waits for NR-031's
 separate decision.
+
+### Review fix round (2026-11-13)
+
+Size: M (one fix round over both halves: 5 major and 12 minor findings of the two M9 review passes, all fixed). One agent
+(Opus 5.5, xhigh, no subagents, no advisor call), started by the M9 workflow. Branch `claude/m9-war`, not pushed.
+
+Red (each behaviour fix's new rows run on the code before it, the fixed files put back from HEAD for the run): F1, E2, E1
+`Tests 4 failed | 55 passed (59)` (`expected 'nation-2' to be 'nation-1'`, the crossing outcome, the conquest game over;
+`.gate/m9fix/red-engine.txt`); R1 `Tests 3 failed | 40 passed (43)` (`expected [ [ 1, 4 ], [ 2, +0 ], [ 3, 6 ], …(1) ] to
+deeply equal [ [ 1, +0 ], …`; `red-r1.txt`); F2 `Tests 2 failed | 64 passed (66)` (`red-f2.txt`). The test-only rows were
+checked against a mutation instead, each failing its new row: R8 engineers first in `FIRING_ORDER`, E3 combat reading
+`ctx.rng`, R2 the queue filled with every battle.
+
+| Finding | What changed | Test |
+|---|---|---|
+| F1, E2 (major) | `combatSystem`: every battle is fought before any capital falls; the falls apply after the last battle in the winners' `intentOrder` (`fallCapital`), void when the capital is back with its owner; the paths that could no longer run (`entering`, a war ended mid-phase, `gone`) removed | engine/combat.test.ts: crossing strikes, turn 1 Testland wins, turn 2 Valdoria; the game ends on that turn |
+| E1 (major) | `takeProvince`: a colony passes with its capital province (`makeColony`: treaties of the others end, points 89, `minor-colonised`); `fallNation` gives the fallen's colonies to the winner | engine/conquest.test.ts: 2 rows with `settledTradeBarrier` and `worldViolations` |
+| R1 (major) | new FR-275: with a field army the upkeep reserve is max(2, 16 - turns left) turns before the last 8, so it no longer steps from 2 to 8 at turn 33 | engine/scriptedArmy.test.ts (turns kept); FR-274's acceptance counts no-pay disbands: [4, 0, 6, 0] before, [0, 0, 0, 0] now; FR-247 re-pinned |
+| R2 (major) | none in code | ui/battleReplay.test.tsx: only Valdoria fights, nothing queued; each fights its own battle, Testland's alone queued |
+| R3 (major), F3 | FR-221 status; the overclaiming title split | engine/combat.test.ts: home lost, retreat to South-West; home lost and nowhere to go, surrender; moved after ordering, no attack; a fallen nation's regiment leaving a battle surrenders |
+| R4, F4 | FR-229 replaced by FR-274 (Cuirassiers, the horse and trained-worker gate, no-pay in the acceptance); FR-213's status gives the 5/6 capital arms | scriptedWar.test.ts titles cite FR-274 |
+| R5 | FR-167 and FR-174 statuses | none (docs) |
+| R6 | e2e takes the red arrow file's tail and tip through the image's transform onto the markers (1.5 px) and checks the SVG is served | e2e/m9-war.spec.ts |
+| R7 | `data-nation-id` on the territory outline; e2e: Testland's outline (`var(--color-nation-1)`) stops west of Arvelia's capital tile on turn 1 and runs east of it after the conquest | e2e/m9-war.spec.ts |
+| R8, R9 | none in code | combat.test.ts: Sappers fire after the artillery; conquest.test.ts: prospecting and construction jobs end, civilians removed with no capital tile |
+| R10 | the claim narrowed to what holds: above the game-over screen (79 over 75), not above Accept Offer (85); the CSS comment fixed | ui/battleReplay.test.tsx reads both overlay rules and the page's render order |
+| F2 | new refusal "colony": no overture, grant or trade policy toward a colony; the Diplomacy screen disables them with "it is a colony, ruled by its owner" | conquest.test.ts, ui/diplomacyDialog.test.tsx |
+| E3 | the FR-227 test replaced: after a battle the shared and the diplomacy streams give the same next draws as after none | combat.test.ts |
+
+Decisions (defaults, nobody to ask; cards for the progress page):
+1. R1: the ramp only for a nation with a field army (regiments beyond its capital keep). Measured with a temporary hook (not
+   committed; `.gate/m9fix/ramp-shapes.txt`), FR-274 no-pay per seed / FR-260 scores: no ramp [4,0,6,0] / 1419, 1451, 1441,
+   1469; every nation 3 turns at turn 31 and 4 at turn 32 [0,0,0,0] / 1417, 1439, 1437, 1469; every nation 3 to 7 from turn
+   28 [0,0,0,0] / 1417, 1444, 1420, 1466; field army only, 3 to 7 from turn 28 (taken) [0,0,0,0] / 1419, 1451, 1441, 1469.
+   FR-234 protects FR-260, so no every-nation ramp. Card: "A nation with a field army keeps more cash from turn 28 so it
+   pays its army to the end. Keep, or ramp every nation (FR-260 moves by up to 21 points)?" Suggestion: keep. Objection: a
+   nation with its garrison only keeps M8's step (M8 decision 1, still open), and "a field army" stands in for "upkeep above
+   the income".
+2. F1: crossing strikes on both capitals go to the first in `intentOrder` (the review's suggestion; the same fairness as
+   FR-222's several attackers). Card: "Both capitals taken in one turn: the first in turn order wins. Keep?" Suggestion: keep.
+3. R4: FR-229 gets a new id (FR-274) by FLOW's rule although M9 is not merged; FR-275 extends FR-213 (a) rather than replace it.
+4. F2: refused, not hidden: the Diplomacy screen keeps the buttons, disabled with the reason, as for every refusal (FR-237).
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| Red before the fixes | the new rows on the code before each fix (`.gate/m9fix/red-*.txt`) | `Tests 4 failed \| 55 passed (59)`, `Tests 3 failed \| 40 passed (43)`, `Tests 2 failed \| 64 passed (66)` |
+| FR-274, FR-275 | `npm test` console (`.gate/m9fix/gate-test.txt`) | `FR-274 per seed (declared, colonised, lowest treasury, no-pay disbands): [[1,21,22,305,0],[2,21,22,340,0],[3,21,22,276,0],[4,null,null,965,0]]` |
+| Unit tests | `npm test` (`.gate/m9fix/gate-test.txt`) | `Test Files 98 passed (98)`, `Tests 1864 passed (1864)` (+16 on 1848) |
+| v1 and v2 baselines (FR-234) | `npm test` console | `FR-125 seed 1: ... t40 1493/650 (2.30)` as before; `FR-260 nation 2 score at turn 40: [[1,1419],[2,1451],[3,1441],[4,1469]]` |
+| Lint | `npm run lint` (`.gate/m9fix/gate-lint.txt`) | `✖ 3 problems (0 errors, 3 warnings)` (the three of M6) |
+| Types | `npx tsc --noEmit` | exit 0, no output |
+| Build | `npm run build` (`.gate/m9fix/gate-build.txt`) | `✓ Compiled successfully in 8.8s`, `✓ Generating static pages (4/4)` |
+| e2e | `PORT=3160 npx playwright test --workers=1 --reporter=line` (`.gate/m9fix/pw-final.txt`) | `36 passed (6.1m)`, `1 skipped` (37 tests; m9-war.spec.ts with the arrow measure and the outline check) |
+
+Carried: M8 decision 1 (the reserve step for a nation without a field army) and decision 1 above; the Armoury's pictures are
+still not checked as loaded in the browser (e2e/m8-armies.spec.ts; FR-272's status says so); the Battle screen lies under
+Accept Offer when both open at a turn's start.

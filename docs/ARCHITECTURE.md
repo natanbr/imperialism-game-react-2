@@ -240,19 +240,24 @@ only (FR-018).
   order, then healing (not for a regiment that moved or fought, `foughtOnTurn`). The round model is
   `army/combat.ts` `fightBattle` (pure, fed `ctx.rngFor("combat")` only; numbers in `definisions/combatRules.ts`);
   regiments leaving a battlefield (attackers home, routed defenders) are placed after the last battle, so none
-  fights twice a turn. Each battle emits `battle-resolved` with the whole report (`types/Battle.ts`), then the
-  events of what it took.
+  fights twice a turn. Every battle is fought before any capital falls: the falls of the capitals taken in the
+  phase apply after the last battle, in the winners' `intentOrder` (`fallCapital`), so crossing strikes on both
+  capitals go to the first in `intentOrder`. Each battle emits `battle-resolved` with the whole report
+  (`types/Battle.ts`) and the province it took, then the falls' events.
 - **Conquest** (`army/conquest.ts`, FR-222 to FR-224): `takeProvince` moves the land (`transferProvince`), clears
   rail, depots, ports and jobs, sends the old owner's civilians home and records the capture in the war; a fallen
   Great Power's capital takes all its land and regiments and ends its wars (`nation-fallen`); a minor's makes it
-  a colony (`colonyOf`, `minor-colonised`), which trades with its owner alone at max(start price, P).
+  a colony (`colonyOf`, `minor-colonised`), which trades with its owner alone at max(start price, P), and to
+  which no overture, grant or policy is valid (reason "colony"); a colony passes with its capital province, and a
+  fallen Great Power's colonies pass to its conqueror.
   `resolveTurn` ends the game when one Great Power is left (`gameOver.reason` "conquest", `conquestWinner`).
 - **Screens' reads**: `battleEstimate`, `defendersOf`, `attackTargets`, `attackStatus` (`army/combat.ts`);
   `battleFrames`, `battleOutcome`, `battlesFoughtBy` (`army/battleReport.ts`).
-- **Scripted war** (`ai/scriptedWar.ts`, FR-228, FR-229): the capital keeps its oldest 4 arms; at war the field
+- **Scripted war** (`ai/scriptedWar.ts`, FR-228, FR-274 which replaces FR-229): the capital keeps its oldest 4 arms; at war the field
   attacks at an estimate of 1.5 or more and otherwise marches toward the province facing the strongest enemy;
   at peace from turn 10 a campaign on the weakest bordering minor raises Cuirassiers (tuned, journal M9) through
   the garrison's recruit (`armsWanted` in `ai/scriptedArmy.ts`), declares war at twice its defence and attacks.
+  With such a field army the upkeep reserve (`upkeepReserve`, FR-275) rises one turn of upkeep a turn from turn 28.
 - **War screens** (UI, FR-230 to FR-233): React-free views in `components/army/` (`attackView.ts`, `battleView.ts`,
   `armyView.ts`'s `attackArrows` and `attackScreenControl`) read the engine and word it; `AttackModal.tsx` sends the
   attack as one `moveArmy`, `BattleModal.tsx` replays a report from the report alone and builds no order. The Army

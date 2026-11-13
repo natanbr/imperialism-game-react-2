@@ -1,7 +1,7 @@
 // The scripted war (M9; rules remake, decision card Q35). FR-228, at war: (a) the capital province keeps its 4 arms
 // (FR-213), (b) the other regiments march one province a turn toward the nation's province that borders the strongest
 // enemy force, (c) they attack a bordering enemy province when the estimate (FR-226) is 1.5 or more, a province lost in
-// this war first, then the lowest id; (d) peace is FR-174's (diplomacy.ts). FR-229, at peace: from turn 10 it picks the
+// this war first, then the lowest id; (d) peace is FR-174's (diplomacy.ts). FR-274, at peace: from turn 10 it picks the
 // bordering minor with the lowest defence, recruits until its field army is twice that defence, declares war (one war
 // at a time, never on a Great Power) and marches. On a world without provinces it orders nothing.
 import type { CountryId, MinorNationId, NationId, ProvinceId, RegimentId } from "@/types/Common";
@@ -54,8 +54,11 @@ function fieldRegiments(state: GameState, nationId: NationId): FieldRegiment[] {
     .flatMap((a) => a.regiments.filter((r) => !isMilitia(r.type) && !keep.has(r.id)).map((regiment) => ({ regiment, provinceId: a.provinceId })));
 }
 
-/** FR-229: the strength (FR-204) of the regiments beyond the capital keep. */
+/** FR-274: the strength (FR-204) of the regiments beyond the capital keep. */
 export const fieldStrength = (state: GameState, nationId: NationId): number => strength(fieldRegiments(state, nationId).map((f) => f.regiment));
+
+/** FR-275: the nation has regiments beyond its capital keep in its own provinces (a field army). */
+export const hasFieldArmy = (state: GameState, nationId: NationId): boolean => fieldRegiments(state, nationId).length > 0;
 
 const countriesOf = (state: GameState): CountryId[] => [...state.nations.map((n) => n.id), ...state.minorNations.map((m) => m.id)];
 
@@ -78,7 +81,7 @@ const targetDefence = (state: GameState, nationId: NationId, minorId: MinorNatio
   Math.min(...borderProvinces(state, nationId, minorId).map((p) => defenceOf(state, p.id)));
 
 /**
- * FR-229: the minor the nation's campaign is against: the minor (not a colony) it is at war with, while it is at war
+ * FR-274: the minor the nation's campaign is against: the minor (not a colony) it is at war with, while it is at war
  * with minors only; else, from turn 10 and at war with no one, the minor with a province bordering one of its own and
  * the lowest defence (FR-226; ties: lowest id). Undefined on a world without provinces, before turn 10 at peace, at war
  * with a Great Power, or with no such minor.
@@ -98,11 +101,11 @@ export function campaignTarget(state: GameState, nationId: NationId): MinorNatio
   return candidates[0]?.id;
 }
 
-/** FR-229: the field army twice the target's defence. */
+/** FR-274: the field army twice the target's defence. */
 const campaignNeed = (state: GameState, nationId: NationId, minorId: MinorNationId): number => SCRIPTED_WAR.strengthFactor * targetDefence(state, nationId, minorId);
 
 /**
- * FR-229: the campaign wants one more regiment (SCRIPTED_WAR.regiment) this turn: its field strength is below twice the
+ * FR-274: the campaign wants one more regiment (SCRIPTED_WAR.regiment) this turn: its field strength is below twice the
  * target's defence, and the nation has what the regiment takes besides cash and armaments (a horse, a healthy worker of
  * its grade), so its run never makes armaments for a recruit it cannot raise. The recruit itself, its limits (FR-213)
  * and its armaments are the garrison's (scriptedArmy.ts, economy.ts).
@@ -117,7 +120,7 @@ export function campaignRecruit(state: GameState, nationId: NationId): boolean {
 }
 
 /**
- * FR-229: at war with no one, the declaration of war on the campaign's target once at least one regiment beyond the
+ * FR-274: at war with no one, the declaration of war on the campaign's target once at least one regiment beyond the
  * keep makes a field strength of twice its defence. Planned first, so the economy and the trade of this turn see it.
  */
 export function planWarDeclaration(view: () => GameState, nationId: NationId, propose: Propose): void {
@@ -166,7 +169,7 @@ function stagingProvince(state: GameState, nationId: NationId, enemies: readonly
 }
 
 /**
- * FR-228 (c) and (b), and FR-229's march: at war, or declaring war this turn, the attacks the estimate allows, then the
+ * FR-228 (c) and (b), and FR-274's march: at war, or declaring war this turn, the attacks the estimate allows, then the
  * marches of the regiments left toward the staging province. Planned after the economy and the civilians.
  */
 export function planWarMoves(view: () => GameState, nationId: NationId, propose: Propose): void {

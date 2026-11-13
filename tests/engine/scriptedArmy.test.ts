@@ -7,7 +7,7 @@ import { computerOrders } from '@/engine/ai/players';
 import { upkeepReserve } from '@/engine/ai/scriptedPlayer';
 import { SCRIPTED_GARRISON } from '@/definisions/regiments';
 import { armyThreat } from '@/engine/ai/scriptedArmy';
-import { forceSize } from '@/engine/army/armies';
+import { forceSize, upkeepOf } from '@/engine/army/armies';
 import { resolveTurn } from '@/engine/turn/resolveTurn';
 import type { Order } from '@/engine/orders/Order';
 import type { GameState } from '@/types/GameState';
@@ -118,6 +118,18 @@ describe('FR-213 (a) FR-202 it keeps the cash of its garrison\'s upkeep', () => 
   });
 });
 
+describe('FR-275 with a field army the reserve rises one turn of upkeep a turn into the last 8 turns (M9 review R1)', () => {
+  const onTurn = (s: GameState, turn: number): GameState => ({ ...s, turn });
+  // One Cuirassiers beyond the capital keep (the start army's 4 arms): a field army, as after the FR-274 campaign
+  const field = addRegiments(continent('world'), N2, SW2, ['cuirassiers']);
+
+  it('FR-275 turns of upkeep kept: 2 up to turn 27, then 3, 4 ... 7 on turns 28 to 32, 8 on turn 33, 1 on turn 40; without a field army the FR-213 (a) step', () => {
+    const turnsKept = (s: GameState, turn: number) => upkeepReserve(onTurn(s, turn), N2) / upkeepOf(s, N2);
+    expect([1, 27, 28, 30, 32, 33, 40].map(t => turnsKept(field, t))).toEqual([2, 2, 3, 5, 7, 8, 1]);
+    expect([1, 27, 28, 30, 32, 33, 40].map(t => turnsKept(continent('world'), t))).toEqual([2, 2, 2, 2, 2, 8, 1]);
+  });
+});
+
 describe('FR-213 (b) the steel of the garrison\'s armaments', () => {
   it('FR-213 (b) under a threat the steel of the 2 armaments the run makes first (4 steel) stays out of expansion; without a threat it does not', () => {
     // a metal works of 3 so the run makes 2 armaments; $2,000 so no recruit is ordered; 5 lumber + 5 steel in stock
@@ -156,7 +168,7 @@ describe('FR-213 the garrison over ten turns at war', () => {
     expect(refused).toBe(0);
   });
 
-  // M9: from turn 10 (SCRIPTED_WAR.fromTurn) FR-229's campaign on a minor makes armaments and recruits on the continent
+  // M9: from turn 10 (SCRIPTED_WAR.fromTurn) FR-274's campaign on a minor makes armaments and recruits on the continent
   // (tests/engine/scriptedWar.test.ts), so there the window of peace without army orders ends at turn 9
   it.each([['two-islands', 10], ['continent', SCRIPTED_WAR.fromTurn - 1]] as const)('FR-213 on %s at peace (world market), %i turns of nation 2: no army order and no armaments made', (world, turns) => {
     let s = newGame({ seed: 1, world, market: 'world' });

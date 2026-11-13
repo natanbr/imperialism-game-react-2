@@ -335,6 +335,8 @@ export type RejectReason =
   | "at-war"
   /** Diplomacy (FR-162): peace while not at war. */
   | "not-at-war"
+  /** Diplomacy (FR-224, M9 review F2): an overture, grant or trade policy toward a colony, which its owner rules. */
+  | "colony"
   /** "Partners" market (FR-252): no minor nation offers the commodity this turn. */
   | "no-seller"
   /** "Partners" market (FR-252): every minor that offers it is barred to the nation (no consulate, war, boycott). */

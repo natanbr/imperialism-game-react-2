@@ -17,10 +17,9 @@ import {
   removeRegiments,
 } from "../army/armies";
 import { byRegimentId, fightBattle, fortLevelOf, type BattleUnit } from "../army/combat";
-import { isFallen, takeProvince } from "../army/conquest";
+import { capitalOwnerOf, fallCapital, takeProvince } from "../army/conquest";
 import { warActive } from "../diplomacy/queries";
 import { adjacentProvinces, provinceById } from "../world/provinces";
-import { isGreatPower } from "../world/countries";
 import { byIntentOrder, intentOrder } from "../turn/intents";
 import type { GameEvent, TurnContext, TurnSystem } from "../turn/context";
 
@@ -90,15 +89,29 @@ interface Leaving {
 
 const compareIds = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
+/** A capital province taken in this phase: its fall (FR-223, FR-224) waits until every battle of the phase is fought. */
+interface Fall {
+  fallenId: CountryId;
+  provinceId: ProvinceId;
+  /** The winner's place in `intentOrder`: the falls apply in that order (review F1). */
+  rank: number;
+}
+
 /**
  * FR-216 to FR-224: the turn's attacks, checked again (the regiment still in the nation's army in the province it left
  * from, not militia; a war still active with the province's owner), leave their armies at once; then each attacked
  * province gets one battle, provinces in id order: the attackers are every regiment ordered into it by countries at war
  * with its owner, as one side; the defenders its owner's regiments there (militia included). The province of a won
- * battle goes to the first attacker in `intentOrder` with a standing regiment, whose survivors stay there; everyone else
- * who leaves a battlefield is placed after the last battle, so a regiment fights at most once a turn: attackers go back
- * where they came from, routed defenders to the lowest-id bordering province of their owner, and one with nowhere to go
- * surrenders. One `battle-resolved` per battle, followed by the events of what it took.
+ * battle goes to the first attacker in `intentOrder` with a standing regiment, whose survivors stay there.
+ * Every battle is decided before any capital falls (review F1): a province changes hands at its battle, but the fall of
+ * a capital taken in the phase (FR-223, FR-224) applies after the last battle, in the winners' `intentOrder`, to the
+ * country holding that capital then; a fall whose capital is back with its owner (its conqueror fell first) is void. So
+ * when both Great Powers take each other's capital in one phase, the first in `intentOrder` wins. Until then no war ends
+ * and no land but the battlefields changes hands, so the sorties checked at the start are the attackers.
+ * Everyone else who leaves a battlefield is placed after the falls, so a regiment fights at most once a turn: attackers go
+ * back where they came from when their owner still holds it, else, like routed defenders, to the lowest-id province of
+ * their owner bordering the battle; one with nowhere to go (a fallen Great Power's included) surrenders. One
+ * `battle-resolved` per battle followed by the province it took, then the events of the falls.
  */
 function battles(state: GameState, ctx: TurnContext): GameState {
   const attacks = byIntentOrder(state, ctx.turn, state.intents.filter(isAttackIntent));
@@ -126,21 +139,11 @@ function battles(state: GameState, ctx: TurnContext): GameState {
   let s = removeRegiments(state, taken);
   const leaving: Leaving[] = [];
   const told: { report: BattleReport; events: GameEvent[] }[] = [];
+  const falls: Fall[] = [];
 
   for (const provinceId of [...sorties.keys()].sort(compareIds)) {
     const ownerId = provinceById(s, provinceId)!.ownerId;
-    // A nation that fell earlier in this phase lost its regiments (FR-223); land that fell to the attacker is entered
-    const live = sorties.get(provinceId)!.filter((x) => !isFallen(s, x.nationId));
-    const entering = live.filter((x) => x.nationId === ownerId);
-    for (const x of entering) s = placeRegiments(s, x.nationId, provinceId, [{ ...x.regiment, movedOnTurn: turn }]);
-    const others = live.filter((x) => x.nationId !== ownerId);
-    const attackers = others.filter((x) => warActive(s, x.nationId, ownerId)).sort((a, b) => byRegimentId(a.regiment, b.regiment));
-    for (const x of others.filter((o) => !attackers.includes(o))) {
-      const line = reportLine(x.regiment, x.nationId, "attacker", x.regiment.health, "standing");
-      leaving.push({ ownerId: x.nationId, regiment: x.regiment, home: x.fromProvinceId, battleProvinceId: provinceId, line });
-    }
-    if (attackers.length === 0) continue;
-
+    const attackers = [...sorties.get(provinceId)!].sort((a, b) => byRegimentId(a.regiment, b.regiment));
     const defenders = [...(armyAt(s, ownerId, provinceId)?.regiments ?? [])].sort(byRegimentId);
     const fortLevel = fortLevelOf(s, provinceId);
     const unit = (r: Regiment, owner: CountryId, side: "attacker" | "defender"): BattleUnit => ({ id: r.id, ownerId: owner, type: r.type, name: r.name, health: r.health, side });
@@ -179,9 +182,10 @@ function battles(state: GameState, ctx: TurnContext): GameState {
       for (const r of defenders.filter((d) => fate(d.id) === "routed")) {
         leaving.push({ ownerId, regiment: fought(r, fight.health[r.id]), battleProvinceId: provinceId, line: lineOf(r.id) });
       }
+      if (capitalOwnerOf(s, provinceId) === ownerId) falls.push({ fallenId: ownerId, provinceId, rank: rank.indexOf(winner) });
       s = takeProvince(s, provinceId, winner, turn, (e) => events.push(e));
       const survivors = attackers.filter((x) => x.nationId === winner && fight.health[x.regiment.id] > 0);
-      if (!isFallen(s, winner)) s = placeRegiments(s, winner, provinceId, survivors.map((x) => ({ ...fought(x.regiment, fight.health[x.regiment.id]), movedOnTurn: turn })));
+      s = placeRegiments(s, winner, provinceId, survivors.map((x) => ({ ...fought(x.regiment, fight.health[x.regiment.id]), movedOnTurn: turn })));
     } else {
       const destroyed = new Set(defenders.filter((r) => fight.health[r.id] === 0).map((r) => r.id));
       s = removeRegiments(s, destroyed);
@@ -190,13 +194,18 @@ function battles(state: GameState, ctx: TurnContext): GameState {
     }
   }
 
+  // The falls, in the winners' intentOrder (a stable sort keeps the battle order between one winner's falls)
+  const fallEvents: GameEvent[] = [];
+  for (const fall of [...falls].sort((a, b) => a.rank - b.rank)) {
+    const holderId = provinceById(s, fall.provinceId)!.ownerId;
+    if (holderId !== fall.fallenId) s = fallCapital(s, fall.fallenId, holderId, turn, (e) => fallEvents.push(e));
+  }
+
   // Everyone who left a battlefield, in battle order: home if its owner still holds it, else the lowest-id province of
-  // its owner bordering the battle, else it surrenders; a fallen nation's regiments are gone (FR-223)
+  // its owner bordering the battle, else it surrenders (a fallen Great Power holds no province, FR-223)
   for (const x of leaving) {
-    const gone = isGreatPower(s, x.ownerId) && isFallen(s, x.ownerId);
-    const to = gone
-      ? undefined
-      : x.home && holds(s, x.ownerId, x.home)
+    const to =
+      x.home && holds(s, x.ownerId, x.home)
         ? x.home
         : adjacentProvinces(s, x.battleProvinceId)
             .filter((p) => p.ownerId === x.ownerId)
@@ -209,6 +218,7 @@ function battles(state: GameState, ctx: TurnContext): GameState {
     ctx.emit({ type: "battle-resolved", ...report });
     for (const e of events) ctx.emit(e);
   }
+  for (const e of fallEvents) ctx.emit(e);
   return s;
 }
 

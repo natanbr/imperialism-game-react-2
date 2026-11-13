@@ -1,5 +1,6 @@
-// Conquest (M9, FR-222 to FR-224): what passes with a province taken in battle, a Great Power's fallen capital and a
-// minor's fallen capital. Pure edits of the state; the events go through `emit`, in the order the news reads them.
+// Conquest (M9, FR-222 to FR-224): what passes with a province taken in battle, a Great Power's fallen capital, a
+// minor's fallen capital and a colony that changes hands. Pure edits of the state; the events go through `emit`, in the
+// order the news reads them.
 import type { CountryId, MinorNationId, NationId, ProvinceId } from "@/types/Common";
 import type { DiplomacyState, PairDiplomacy } from "@/types/Diplomacy";
 import type { GameState } from "@/types/GameState";
@@ -129,33 +130,19 @@ function endWarsOf(diplomacy: DiplomacyState, countryId: CountryId): DiplomacySt
 }
 
 /**
- * FR-223 (Q34; Imp1 differs: the rest of the nation falls into anarchy, gaps F4): the fallen Great Power's other
- * provinces pass to the winner (each as FR-222), its regiments are removed and its wars end; `nation-fallen`.
+ * FR-224: the minor becomes (or stays) a colony of `ownerId`: `colonyOf` set, the other Great Powers' consulates,
+ * embassies, pacts, subsidies and locked grants with it end (each grant with `grant-stopped`, reason "colony"), its
+ * points with the owner become 89; `minor-colonised`. Also when a colony changes hands (review E1): the old owner is
+ * then one of the other Great Powers.
  */
-function fallNation(state: GameState, fallenId: NationId, winnerId: NationId, turn: number, emit: Emit): GameState {
-  let s = state;
-  for (const province of provincesOf(state, fallenId)) s = passProvince(s, province.id, winnerId, turn, emit);
-  s = { ...s, armies: s.armies.filter((a) => a.ownerId !== fallenId), diplomacy: endWarsOf(s.diplomacy, fallenId) };
-  emit({ type: "nation-fallen", nationId: winnerId, fallenId });
-  return s;
-}
-
-/**
- * FR-224 (Q34; Imp1: a conquered minor's capital keeps buying, only from its conqueror [07:W3]): the minor's other
- * provinces pass to the winner, it becomes the winner's colony (`colonyOf`), every war with it ends, the other Great
- * Powers' consulates, embassies, pacts, subsidies and locked grants with it end (each grant with `grant-stopped`, reason
- * "colony"), and its points with the winner become 89; `minor-colonised`.
- */
-function colonise(state: GameState, minorId: MinorNationId, winnerId: NationId, turn: number, emit: Emit): GameState {
-  let s = state;
-  for (const province of provincesOf(state, minorId)) s = passProvince(s, province.id, winnerId, turn, emit);
-  const diplomacy = endWarsOf(s.diplomacy, minorId);
+function makeColony(state: GameState, minorId: MinorNationId, ownerId: NationId, emit: Emit): GameState {
+  const diplomacy: DiplomacyState = { ...state.diplomacy };
   const stopped: GameEvent[] = [];
-  for (const nation of s.nations) {
+  for (const nation of state.nations) {
     const key = pairKey(nation.id, minorId);
     const entry = diplomacy[key];
     if (!entry) continue;
-    if (nation.id === winnerId) {
+    if (nation.id === ownerId) {
       diplomacy[key] = { ...entry, points: MAX_RELATION_POINTS };
       continue;
     }
@@ -164,22 +151,61 @@ function colonise(state: GameState, minorId: MinorNationId, winnerId: NationId, 
     }
     diplomacy[key] = { ...entry, consulates: [], embassies: [], pact: false, subsidies: {}, lockedGrants: {} };
   }
-  s = { ...s, diplomacy, minorNations: s.minorNations.map((m) => (m.id === minorId ? { ...m, colonyOf: winnerId } : m)) };
-  emit({ type: "minor-colonised", nationId: winnerId, minorId });
+  const s = { ...state, diplomacy, minorNations: state.minorNations.map((m) => (m.id === minorId ? { ...m, colonyOf: ownerId } : m)) };
+  emit({ type: "minor-colonised", nationId: ownerId, minorId });
   for (const event of stopped) emit(event);
   return s;
 }
 
 /**
- * A province taken in battle by `winnerId` (FR-222); when it is its old owner's capital province, the Great Power falls
- * (FR-223) or the minor becomes a colony (FR-224).
+ * FR-223 (Q34; Imp1 differs: the rest of the nation falls into anarchy, gaps F4): the fallen Great Power's other
+ * provinces pass to the winner (each as FR-222), its colonies with them (review E1), its regiments are removed and its
+ * wars end; `nation-fallen`, then a `minor-colonised` for each colony the winner gains.
+ */
+function fallNation(state: GameState, fallenId: NationId, winnerId: NationId, turn: number, emit: Emit): GameState {
+  let s = state;
+  for (const province of provincesOf(state, fallenId)) s = passProvince(s, province.id, winnerId, turn, emit);
+  s = { ...s, armies: s.armies.filter((a) => a.ownerId !== fallenId), diplomacy: endWarsOf(s.diplomacy, fallenId) };
+  emit({ type: "nation-fallen", nationId: winnerId, fallenId });
+  for (const colony of s.minorNations.filter((m) => m.colonyOf === fallenId)) s = makeColony(s, colony.id, winnerId, emit);
+  return s;
+}
+
+/**
+ * FR-224 (Q34; Imp1: a conquered minor's capital keeps buying, only from its conqueror [07:W3]): the minor's other
+ * provinces pass to the winner, every war with it ends and it becomes the winner's colony (`makeColony`).
+ */
+function colonise(state: GameState, minorId: MinorNationId, winnerId: NationId, turn: number, emit: Emit): GameState {
+  let s = state;
+  for (const province of provincesOf(state, minorId)) s = passProvince(s, province.id, winnerId, turn, emit);
+  s = { ...s, diplomacy: endWarsOf(s.diplomacy, minorId) };
+  return makeColony(s, minorId, winnerId, emit);
+}
+
+/**
+ * A province taken in battle by `winnerId` (FR-222). When it is the capital province of a colony of the old owner,
+ * the colony passes to the winner with it (review E1). The fall of a capital is not applied here: the combat phase
+ * applies it after its last battle (`fallCapital`), so every battle of the phase is decided first (review F1).
  */
 export function takeProvince(state: GameState, provinceId: ProvinceId, winnerId: NationId, turn: number, emit: Emit): GameState {
   const fromId = provinceById(state, provinceId)!.ownerId;
-  const capital = capitalProvinceOf(state, fromId)?.id === provinceId;
   const s = passProvince(state, provinceId, winnerId, turn, emit);
-  if (!capital) return s;
-  if (isGreatPower(s, fromId)) return fallNation(s, fromId, winnerId, turn, emit);
-  if (isMinorNation(s, fromId)) return colonise(s, fromId, winnerId, turn, emit);
-  return s;
+  const colony = s.minorNations.find((m) => m.colonyOf === fromId && capitalProvinceOf(s, m.id)?.id === provinceId);
+  return colony ? makeColony(s, colony.id, winnerId, emit) : s;
+}
+
+/** The country whose own capital province this is (a Great Power or a minor), else undefined. */
+export function capitalOwnerOf(state: GameState, provinceId: ProvinceId): CountryId | undefined {
+  const ownerId = provinceById(state, provinceId)?.ownerId;
+  return ownerId !== undefined && capitalProvinceOf(state, ownerId)?.id === provinceId ? ownerId : undefined;
+}
+
+/**
+ * A capital province taken this phase from `fallenId` now held by `holderId`: the Great Power falls to it (FR-223) or the
+ * minor becomes its colony (FR-224).
+ */
+export function fallCapital(state: GameState, fallenId: CountryId, holderId: NationId, turn: number, emit: Emit): GameState {
+  if (isGreatPower(state, fallenId)) return fallNation(state, fallenId, holderId, turn, emit);
+  if (isMinorNation(state, fallenId)) return colonise(state, fallenId, holderId, turn, emit);
+  return state;
 }
