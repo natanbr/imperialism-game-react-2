@@ -236,21 +236,88 @@ svg[data-icon] {
   background: var(--color-bg-button-hover);
 }
 
+/* A dialog box takes the focus only when it has no control to give it (FR-236): no ring around the whole box */
+[role="dialog"]:focus {
+  outline: none;
+}
+
+/* About: a modal dialog over the whole page (FR-236), rendered into the body */
+.about-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--color-bg-backdrop);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 90;
+}
+
 .about-panel {
-  margin-bottom: 8px;
-  padding: 8px;
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface-raised);
-  font-size: 12px;
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  padding: 12px 16px 16px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  box-shadow: var(--shadow-dialog);
+  font-size: 13px;
   display: grid;
-  gap: 4px;
+  gap: 6px;
+}
+
+.about-panel p {
+  margin: 0;
 }
 
 .about-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.about-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+/* Construction Options (FR-236: the shared dialog; the look of the inline styles it had before) */
+.construction-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--color-bg-backdrop);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.construction-dialog {
+  width: 300px;
+  max-width: calc(100vw - 32px);
+  padding: 20px;
+  border-radius: 8px;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-dialog);
+}
+
+.construction-title {
+  margin: 0 0 20px;
+  text-align: center;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.construction-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.construction-cancel {
+  margin-top: 20px;
+  text-align: center;
 }
 
 /* One row per border line: the sample, then its meaning (FR-235) */

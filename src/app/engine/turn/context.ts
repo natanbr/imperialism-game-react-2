@@ -36,12 +36,21 @@ export type GameEvent =
   | { type: "war-declared"; nationId: NationId; targetId: CountryId; startsTurn: number }
   /** Peace dropped `count` attacks of `nationId` on `targetId` ordered this turn (FR-169). */
   | { type: "attacks-cancelled"; nationId: NationId; targetId: CountryId; count: number }
-  /** The pair's level moved in this phase (FR-172); one event for each Great Power of the pair. */
-  | { type: "relation-changed"; nationId: NationId; otherId: CountryId; from: number; to: number }
+  /**
+   * The pair's level moved in this phase (FR-172); one event for each Great Power of the pair. `wars`: the declarations
+   * of this phase that moved the pair's points, in the order resolved (FR-239); absent when no war did.
+   */
+  | { type: "relation-changed"; nationId: NationId; otherId: CountryId; from: number; to: number; wars?: WarCause[] }
   | { type: "grant-paid"; nationId: NationId; targetId: CountryId; amount: GrantAmount }
   | { type: "grant-stopped"; nationId: NationId; targetId: CountryId; amount: GrantAmount; reason: GrantStopReason }
   /** A proposal to `nationId`, a human Great Power, to answer next turn (FR-166, FR-175). */
   | { type: "proposal-received"; nationId: NationId; fromId: NationId; proposalId: string; kind: ProposalKind };
+
+/** A declaration of war named as the reason for a relation change (FR-239). */
+export interface WarCause {
+  aggressorId: NationId;
+  targetId: CountryId;
+}
 
 /** Why a locked grant ended (FR-170). */
 export type GrantStopReason = "insufficient-funds" | "withdrawn" | "war";

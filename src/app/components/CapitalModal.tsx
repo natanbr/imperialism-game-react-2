@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo, useState } from "react";
+import React, { useId, useMemo, useState } from "react";
 import { useGameStore } from "../store/rootStore";
 import { selectActiveNation } from "../store/selectors";
 import TransportAllocationModal from "./TransportAllocationModal";
@@ -11,6 +11,7 @@ import { FreightCars } from "./capital/FreightCars";
 import styles from "./capital/Capital.module.css";
 import { UI_ICONS } from "./icons";
 import { GameIcon } from "./GameIcon";
+import { Modal } from "./Modal";
 
 /**
  * The capital: production cards, labour, training, migration and freight cars (FR-046, FR-047).
@@ -27,6 +28,7 @@ export const CapitalModal: React.FC = () => {
   const game = useGameStore((s) => s.game);
   const nation = useGameStore(selectActiveNation);
   const [isAllocOpen, setAllocOpen] = useState(false);
+  const titleId = useId();
 
   const cards = useMemo(() => (isOpen && nation ? productionCards(game, nation) : []), [isOpen, game, nation]);
   const labour = useMemo(() => (nation ? labourView(game, nation) : null), [game, nation]);
@@ -34,10 +36,9 @@ export const CapitalModal: React.FC = () => {
   if (!isOpen) return null;
 
   return (
-    <div className={styles.overlay}>
-      <div className={styles.dialog} role="dialog" aria-label="Capital">
+    <Modal titleId={titleId} onClose={close} overlayClassName={styles.overlay} className={styles.dialog}>
         <header className={styles.header}>
-          <h2 className={styles.title}>
+          <h2 id={titleId} className={styles.title}>
             <GameIcon name={UI_ICONS.capital} /> Capital — {nation?.name ?? "Unknown"}
           </h2>
           <nav className={styles.headerButtons}>
@@ -89,8 +90,7 @@ export const CapitalModal: React.FC = () => {
         )}
 
         {isAllocOpen && <TransportAllocationModal capacity={nation?.transportCapacity ?? 0} onClose={() => setAllocOpen(false)} />}
-      </div>
-    </div>
+    </Modal>
   );
 };
 

@@ -71,6 +71,11 @@ export interface PairDiplomacy {
   subsidies: Partial<Record<NationId, SubsidyPercent>>;
   /** Per Great Power of the pair: the grant it pays the other country each turn. */
   lockedGrants: Partial<Record<NationId, GrantAmount>>;
+  /**
+   * Two Great Powers: the consulates and embassies are still the ones of the start (FR-151, FR-240). A war between the
+   * two ends them and this mark (FR-167), so a consulate or embassy opened later is never taken for a start one.
+   */
+  startTreaties?: boolean;
 }
 
 /** By `pairKey(a, b)`: the two country ids in string order joined by a bar ("minor-1|nation-1"). */

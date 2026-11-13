@@ -1,8 +1,9 @@
-import React from "react";
+import React, { useId } from "react";
 import { useGameStore } from "@/store/rootStore";
 import { selectActiveNation } from "@/store/selectors";
 import { nationColor, THEME } from "@/styles/theme";
 import mapStyles from "../MapView.module.css";
+import { Modal } from "../Modal";
 
 /** A short sample of a map border line, drawn with the map's own class (line style) and colour token. */
 const LineSample: React.FC<{ stroke: string; className: string }> = ({ stroke, className }) => (
@@ -13,14 +14,19 @@ const LineSample: React.FC<{ stroke: string; className: string }> = ({ stroke, c
 
 /**
  * Credits, with the CC BY 3.0 attribution the Game Icons licence asks for (FR-089), and the map legend
- * of the three border lines (FR-235). The Great Power sample is in the viewed nation's colour.
+ * of the three border lines (FR-235). The Great Power sample is in the viewed nation's colour. A modal
+ * dialog over the whole page (FR-236), rendered into the body so the HUD's clipped panel does not hold it.
  */
 export const AboutPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const nation = useGameStore(selectActiveNation);
+  const titleId = useId();
+  const legendId = useId();
   return (
-    <div className="about-panel" role="dialog" aria-label="About">
+    <Modal titleId={titleId} onClose={onClose} overlayClassName="about-overlay" className="about-panel" portal>
       <div className="about-header">
-        <strong>About</strong>
+        <h2 id={titleId} className="about-title">
+          About
+        </h2>
         <button className="icon-button" onClick={onClose} aria-label="Close about">
           <span aria-hidden="true">×</span>
         </button>
@@ -37,8 +43,8 @@ export const AboutPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         </a>
         .
       </p>
-      <strong id="map-legend-title">Map legend</strong>
-      <ul className="map-legend" aria-labelledby="map-legend-title">
+      <strong id={legendId}>Map legend</strong>
+      <ul className="map-legend" aria-labelledby={legendId}>
         <li>
           <LineSample stroke={nationColor(nation?.colorSlot)} className={mapStyles.territoryBorder} />
           <span>Solid line: Great Power border</span>
@@ -52,6 +58,6 @@ export const AboutPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           <span>Dotted line: province border</span>
         </li>
       </ul>
-    </div>
+    </Modal>
   );
 };

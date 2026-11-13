@@ -259,11 +259,13 @@ describe('FR-168 war and broken treaties move relations', () => {
     expect([ARVELIA, SUNDMARK, LORRAN, PELLIS].map(m => points(state, N2, m))).toEqual([30, 30, 30, 30]);
     const changes = ofType(events, 'relation-changed');
     expect(changes).toHaveLength(4);
+    // FR-239 (QA fix round): each change the war caused names it
+    const byWar = [{ aggressorId: N1, targetId: ARVELIA }];
     expect(changes).toEqual(expect.arrayContaining([
-      { type: 'relation-changed', nationId: N1, otherId: ARVELIA, from: 3, to: 0 },
-      { type: 'relation-changed', nationId: N1, otherId: SUNDMARK, from: 3, to: 2 },
-      { type: 'relation-changed', nationId: N1, otherId: LORRAN, from: 3, to: 2 },
-      { type: 'relation-changed', nationId: N1, otherId: PELLIS, from: 3, to: 2 },
+      { type: 'relation-changed', nationId: N1, otherId: ARVELIA, from: 3, to: 0, wars: byWar },
+      { type: 'relation-changed', nationId: N1, otherId: SUNDMARK, from: 3, to: 2, wars: byWar },
+      { type: 'relation-changed', nationId: N1, otherId: LORRAN, from: 3, to: 2, wars: byWar },
+      { type: 'relation-changed', nationId: N1, otherId: PELLIS, from: 3, to: 2, wars: byWar },
     ]));
   });
 
@@ -736,5 +738,81 @@ describe('FR-173 simultaneous and fair', () => {
 
       expect(pure(s)).toContainEqual({ type: 'overture-failed', nationId: N2, overture: 'alliance', targetId: N1, reason: 'at-war', refund: 0 });
     });
+  });
+});
+
+describe('FR-239 the news names a war as the reason for a relation change (M6 QA fix round)', () => {
+  it('FR-239 Testland declares war on Lorran: every change it caused carries the war, the pair itself included', () => {
+    const { events } = endTurn(order(continent(), propose(N1, 'war', LORRAN)));
+
+    const byWar = [{ aggressorId: N1, targetId: LORRAN }];
+    expect(ofType(events, 'relation-changed')).toEqual(expect.arrayContaining([
+      { type: 'relation-changed', nationId: N1, otherId: LORRAN, from: 3, to: 0, wars: byWar },
+      { type: 'relation-changed', nationId: N1, otherId: ARVELIA, from: 3, to: 2, wars: byWar },
+    ]));
+  });
+
+  it('FR-239 a bystander Great Power: both Great Powers of the pair hear of the war that moved it', () => {
+    // Valdoria at level 8 with Arvelia, a friend of the victim: Testland and Valdoria 40 -> 30
+    const s = setPair(continent(), N2, ARVELIA, { points: 85 });
+
+    const { events } = endTurn(order(s, propose(N1, 'war', ARVELIA)));
+
+    const byWar = [{ aggressorId: N1, targetId: ARVELIA }];
+    expect(ofType(events, 'relation-changed').filter(e => e.otherId === N1 || e.otherId === N2)).toEqual([
+      { type: 'relation-changed', nationId: N1, otherId: N2, from: 4, to: 3, wars: byWar },
+      { type: 'relation-changed', nationId: N2, otherId: N1, from: 4, to: 3, wars: byWar },
+    ]);
+  });
+
+  it('FR-239 two wars that both move a pair are both named, in the order resolved; a grant alone names none', () => {
+    // Turn 1: Testland goes first (FR-152). Both declare on a minor; Sundmark loses 5 with each aggressor (FR-168).
+    const s = setPair(embassy(continent(), N1, PELLIS), N1, PELLIS, { points: 38 });
+    const { events } = endTurn(order(order(s, propose(N1, 'war', LORRAN)), grant(1000, false, PELLIS)), {
+      [N2]: [propose(N2, 'war', ARVELIA)],
+    });
+
+    const changes = ofType(events, 'relation-changed');
+    // Testland's own war moved Testland and Sundmark (30 -> 25); Valdoria's war on Arvelia did not touch that pair
+    expect(changes).toContainEqual({ type: 'relation-changed', nationId: N1, otherId: SUNDMARK, from: 3, to: 2, wars: [{ aggressorId: N1, targetId: LORRAN }] });
+    expect(changes).toContainEqual({ type: 'relation-changed', nationId: N2, otherId: SUNDMARK, from: 3, to: 2, wars: [{ aggressorId: N2, targetId: ARVELIA }] });
+    // Pellis: 38 - 5 (the war on Lorran) + 2 (the grant) = 35, level 3: no change, no event
+    expect(changes.filter(e => e.otherId === PELLIS && e.nationId === N1)).toEqual([]);
+  });
+
+  it('FR-239 a war pair moved by two declarations at once names both', () => {
+    const { events } = endTurn(order(continent(), propose(N1, 'war', N2)), { [N2]: [propose(N2, 'war', N1)] });
+
+    expect(ofType(events, 'relation-changed').filter(e => e.otherId === N1 || e.otherId === N2)).toEqual([
+      { type: 'relation-changed', nationId: N1, otherId: N2, from: 4, to: 0, wars: [{ aggressorId: N1, targetId: N2 }, { aggressorId: N2, targetId: N1 }] },
+      { type: 'relation-changed', nationId: N2, otherId: N1, from: 4, to: 0, wars: [{ aggressorId: N1, targetId: N2 }, { aggressorId: N2, targetId: N1 }] },
+    ]);
+  });
+});
+
+describe('FR-240 the treaties of the start (M6 QA fix round)', () => {
+  it('FR-240 a new game marks the Great Power pair\'s consulates and embassies as the start ones, on both worlds; no minor pair', () => {
+    const s = continent();
+    expect(pair(s, N1, N2).startTreaties).toBe(true);
+    expect([ARVELIA, SUNDMARK, LORRAN, PELLIS].map(m => pair(s, N1, m).startTreaties)).toEqual([undefined, undefined, undefined, undefined]);
+    expect(newGame({ seed: 1, world: 'two-islands' }).diplomacy[pairKey(N1, N2)].startTreaties).toBe(true);
+  });
+
+  it('FR-240 FR-167 a war between the two ends the start treaties and the mark; a consulate opened after the peace is not from the start', () => {
+    let s = endTurn(order(continent(), propose(N1, 'war', N2))).state;
+    expect(pair(s, N1, N2)).toMatchObject({ consulates: [], embassies: [] });
+    expect(pair(s, N1, N2).startTreaties).toBeUndefined();
+
+    // Peace (both propose it), then a new consulate
+    s = endTurn(order(s, propose(N1, 'peace', N2)), { [N2]: [propose(N2, 'peace', N1)] }).state;
+    expect(pair(s, N1, N2).war).toBeUndefined();
+    s = endTurn(order(s, propose(N1, 'consulate', N2))).state;
+    expect(pair(s, N1, N2).consulates).toEqual([N1]);
+    expect(pair(s, N1, N2).startTreaties).toBeUndefined();
+  });
+
+  it('FR-240 a war on a minor leaves the Great Power pair\'s mark alone', () => {
+    const { state } = endTurn(order(continent(), propose(N1, 'war', ARVELIA)));
+    expect(pair(state, N1, N2).startTreaties).toBe(true);
   });
 });

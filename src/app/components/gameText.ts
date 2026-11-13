@@ -230,8 +230,13 @@ function diplomacyText(event: GameEvent, name: (countryId: string) => string): s
       return `War declared on ${name(event.targetId)}! The war starts next turn.`;
     case "attacks-cancelled":
       return `Attacks on ${name(event.targetId)} called off: peace was made.`;
-    case "relation-changed":
-      return `Relations with ${name(event.otherId)}: ${RELATION_SWATCHES[event.from]} to ${RELATION_SWATCHES[event.to]}.`;
+    case "relation-changed": {
+      const change = `Relations with ${name(event.otherId)}: ${RELATION_SWATCHES[event.from]} to ${RELATION_SWATCHES[event.to]}`;
+      // FR-239: the wars that moved it, seen from this nation ("our war on Lorran", "Valdoria's war on us")
+      const war = ({ aggressorId, targetId }: { aggressorId: string; targetId: string }) =>
+        `${aggressorId === event.nationId ? "our" : `${name(aggressorId)}'s`} war on ${targetId === event.nationId ? "us" : name(targetId)}`;
+      return event.wars && event.wars.length > 0 ? `${change} (${event.wars.map(war).join(" and ")}).` : `${change}.`;
+    }
     case "grant-paid":
       return `Grant of ${money(event.amount)} paid to ${name(event.targetId)}.`;
     case "grant-stopped":

@@ -29,8 +29,24 @@ export type CountryKind = "Great Power" | "Minor nation";
 /** A button and the order it sends; `refusal` is the FR-162 text when validateOrder would refuse the order. */
 export interface ControlView {
   label: string;
+  /** The control's short name, without its cost, for the line that gives its refusal ("Embassy"; FR-237). */
+  name: string;
   order: Order;
   refusal?: string;
+}
+
+/** A treaty chip (FR-177): its words, and for a treaty of the start "since the start" with why (FR-240). */
+export interface TreatyView {
+  text: string;
+  note?: string;
+  title?: string;
+  war?: boolean;
+}
+
+/** One line under a control group: the controls that share a refusal, and the refusal (FR-237). */
+export interface ReasonLine {
+  names: string[];
+  reason: string;
 }
 
 /** One of this turn's diplomacy orders toward the country, with its cost and the order that takes it back. */
@@ -56,7 +72,7 @@ export interface CountryRowView {
   /** "Yellow, level 4 of 9" (FR-177: never by colour alone). */
   relationText: string;
   /** "Consulate", "At war since turn 5", ...; empty when there is none. */
-  treaties: string[];
+  treaties: TreatyView[];
   ordered: OrderedView[];
   /** The overtures that exist for this kind of country, in the Imp1 panel's order (FR-178). */
   overtures: ControlView[];
@@ -67,6 +83,8 @@ export interface CountryRowView {
   stopGrant?: ControlView;
   /** The treaty a declaration of war would break, which costs relations with every other country (FR-168). */
   brokenByWar?: "pact" | "alliance";
+  /** A minor nation: a war on it lowers relations with every other minor nation (FR-168, FR-238). */
+  warOnMinor: boolean;
   /** The trade policy now: this turn's order if there is one, else the standing policy (the form's start values). */
   policy: PolicyView;
 }
@@ -100,10 +118,28 @@ const ORDERED_TEXT: Record<Overture, string> = {
 export const overtureLabel = (overture: Overture): string =>
   OVERTURE_COST[overture] > 0 ? `${OVERTURE_LABEL[overture]} (${money(OVERTURE_COST[overture])})` : OVERTURE_LABEL[overture];
 
-const control = (state: GameState, label: string, order: Order): ControlView => {
+const control = (state: GameState, label: string, order: Order, name = label): ControlView => {
   const result = validateOrder(state, order);
-  return result.ok ? { label, order } : { label, order, refusal: REFUSAL_TEXT[result.reason] };
+  return result.ok ? { label, name, order } : { label, name, order, refusal: REFUSAL_TEXT[result.reason] };
 };
+
+/** "Declare war" at war (FR-241): FR-162's `already-in-place` says it plainly there. */
+const ALREADY_AT_WAR = "we are already at war with them";
+
+/**
+ * The refusals of a control group, each once (FR-237): the controls with the same refusal share a line, in the order
+ * of their first control. Controls without a refusal (or absent) are left out.
+ */
+export function reasonLines(controls: readonly (ControlView | undefined)[]): ReasonLine[] {
+  const lines: ReasonLine[] = [];
+  for (const c of controls) {
+    if (!c?.refusal) continue;
+    const line = lines.find((l) => l.reason === c.refusal);
+    if (line) line.names.push(c.name);
+    else lines.push({ names: [c.name], reason: c.refusal });
+  }
+  return lines;
+}
 
 /** "Give": a grant of that amount, once or each turn (FR-170, FR-178). */
 export const grantControl = (state: GameState, nationId: NationId, targetId: CountryId, amount: GrantAmount, locked: boolean): ControlView =>
@@ -143,23 +179,27 @@ function orderedView(state: GameState, nationId: NationId, targetId: CountryId, 
   return { ...view, withdraw: control(state, `Withdraw ${lowerFirst(text)}`, { kind: "withdrawOverture", nationId, overture, targetId }) };
 }
 
-/** The pair's standing treaties in words, in the FR-177 order. */
-function treatiesOf(state: GameState, nationId: NationId, otherId: CountryId): string[] {
+/** Why two Great Powers hold a consulate and an embassy on turn 1 (FR-151, FR-240). */
+const SINCE_THE_START = { note: "since the start", title: "Great Powers begin the game with a consulate and an embassy in each other." };
+
+/** The pair's standing treaties as chips, in the FR-177 order. */
+function treatiesOf(state: GameState, nationId: NationId, otherId: CountryId): TreatyView[] {
   const pair = relationOf(state, nationId, otherId);
   if (!pair) return [];
-  const words: string[] = [];
-  if (pair.consulates.includes(nationId)) words.push("Consulate");
-  if (pair.embassies.includes(nationId)) words.push("Embassy");
-  if (pair.pact) words.push("Pact");
-  if (pair.alliance) words.push("Alliance");
-  if (pair.war) words.push(`At war since turn ${pair.war.since}`);
-  if (pair.boycotts.includes(nationId)) words.push("We boycott them");
-  if (pair.boycotts.includes(otherId)) words.push("They boycott us");
+  const chips: TreatyView[] = [];
+  const fromStart = pair.startTreaties === true ? SINCE_THE_START : {};
+  if (pair.consulates.includes(nationId)) chips.push({ text: "Consulate", ...fromStart });
+  if (pair.embassies.includes(nationId)) chips.push({ text: "Embassy", ...fromStart });
+  if (pair.pact) chips.push({ text: "Pact" });
+  if (pair.alliance) chips.push({ text: "Alliance" });
+  if (pair.war) chips.push({ text: `At war since turn ${pair.war.since}`, war: true });
+  if (pair.boycotts.includes(nationId)) chips.push({ text: "We boycott them" });
+  if (pair.boycotts.includes(otherId)) chips.push({ text: "They boycott us" });
   const subsidy = pair.subsidies[nationId];
-  if (subsidy) words.push(`Subsidy ${subsidy}%`);
+  if (subsidy) chips.push({ text: `Subsidy ${subsidy}%` });
   const grant = pair.lockedGrants[nationId];
-  if (grant) words.push(`Grant ${money(grant)} each turn`);
-  return words;
+  if (grant) chips.push({ text: `Grant ${money(grant)} each turn` });
+  return chips;
 }
 
 function policyOf(state: GameState, nationId: NationId, otherId: CountryId, intents: readonly DiplomacyIntent[]): PolicyView {
@@ -177,7 +217,7 @@ function stopGrantOf(state: GameState, nationId: NationId, id: CountryId, intent
   if (relationOf(state, nationId, id)?.lockedGrants[nationId] === undefined) return undefined;
   if (intents.some((i) => i.kind === "grant-stop")) return undefined;
   const order: Order = { kind: "withdrawOverture", nationId, overture: "grant", targetId: id };
-  if (intents.some((i) => i.kind === "grant")) return { label: "Stop grant", order, refusal: STOP_GRANT_WAITS };
+  if (intents.some((i) => i.kind === "grant")) return { label: "Stop grant", name: "Stop grant", order, refusal: STOP_GRANT_WAITS };
   const stop = control(state, "Stop grant", order);
   return stop.refusal ? undefined : stop;
 }
@@ -196,9 +236,13 @@ function rowOf(state: GameState, nationId: NationId, id: CountryId, kind: Countr
     relationText: level === undefined ? "No relations" : relationText(level),
     treaties: treatiesOf(state, nationId, id),
     ordered: intents.map((i) => orderedView(state, nationId, id, i)),
-    overtures: offered.map((o) => control(state, overtureLabel(o), { kind: "proposeOverture", nationId, overture: o, targetId: id })),
+    overtures: offered.map((o) => {
+      const c = control(state, overtureLabel(o), { kind: "proposeOverture", nationId, overture: o, targetId: id }, OVERTURE_LABEL[o]);
+      return o === "war" && pair?.war && c.refusal === REFUSAL_TEXT["already-in-place"] ? { ...c, refusal: ALREADY_AT_WAR } : c;
+    }),
     stopGrant: stopGrantOf(state, nationId, id, intents),
     brokenByWar: pair?.alliance ? "alliance" : pair?.pact ? "pact" : undefined,
+    warOnMinor: kind === "Minor nation",
     policy: policyOf(state, nationId, id, intents),
   };
 }

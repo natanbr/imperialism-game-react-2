@@ -16,7 +16,7 @@ import {
   WAR_RELATION,
 } from "@/definisions/diplomacyRules";
 import type { RejectReason } from "../orders/Order";
-import type { GameEvent, TurnContext, TurnSystem } from "../turn/context";
+import type { GameEvent, TurnContext, TurnSystem, WarCause } from "../turn/context";
 import { byIntentOrder } from "../turn/intents";
 import { MAX_RELATION_POINTS, pairKey, POINTS_PER_LEVEL } from "../diplomacy/relations";
 import { intentCost, isDiplomacyIntent, proposalsOf } from "../diplomacy/queries";
@@ -38,6 +38,8 @@ interface Work {
   proposals: Proposal[];
   intents: Intent[];
   treasury: Map<NationId, number>;
+  /** By pair key: the declarations of this phase that moved the pair's points (FR-239). */
+  warCauses: Map<string, WarCause[]>;
 }
 
 const entry = (w: Work, a: CountryId, b: CountryId): PairDiplomacy => w.diplomacy[pairKey(a, b)];
@@ -181,24 +183,29 @@ function resolveWars(w: Work, list: readonly OvertureIntent[]): void {
     return e ? levelOf(e.points) : undefined;
   };
   const deltas = new Map<string, number>();
-  const add = (a: CountryId, b: CountryId, delta: number) => {
+  const add = (a: CountryId, b: CountryId, delta: number, cause: WarCause) => {
     const key = pairKey(a, b);
-    if (a !== b && start[key]) deltas.set(key, (deltas.get(key) ?? 0) + delta);
+    if (a === b || !start[key]) return;
+    if (delta !== 0) deltas.set(key, (deltas.get(key) ?? 0) + delta);
+    const causes = w.warCauses.get(key) ?? [];
+    if (!causes.some((c) => c.aggressorId === cause.aggressorId && c.targetId === cause.targetId)) w.warCauses.set(key, [...causes, cause]);
   };
 
   for (const [key, { a, b, declarers }] of groups) {
     const before = start[key];
-    add(a, b, WAR_RELATION.pair);
+    // The pair's own loss is counted once per war; each declaration of it is named (FR-239)
+    declarers.forEach((aggressor, i) => add(a, b, i === 0 ? WAR_RELATION.pair : 0, { aggressorId: aggressor, targetId: aggressor === a ? b : a }));
     for (const aggressor of declarers) {
       const target = aggressor === a ? b : a;
+      const cause: WarCause = { aggressorId: aggressor, targetId: target };
       const others = countries.filter((x) => x !== aggressor && x !== target);
-      if (before.pact || before.alliance) for (const x of others) add(aggressor, x, WAR_RELATION.brokenTreaty);
-      if (isMinor(w, target)) for (const x of others.filter((id) => isMinor(w, id))) add(aggressor, x, WAR_RELATION.minorSolidarity);
+      if (before.pact || before.alliance) for (const x of others) add(aggressor, x, WAR_RELATION.brokenTreaty, cause);
+      if (isMinor(w, target)) for (const x of others.filter((id) => isMinor(w, id))) add(aggressor, x, WAR_RELATION.minorSolidarity, cause);
       for (const x of others) {
         const level = levelAtStart(x, target);
         if (level === undefined) continue;
-        if (VICTIM_FRIEND_LEVELS.includes(level)) add(x, aggressor, WAR_RELATION.victimFriend);
-        else if (VICTIM_ENEMY_LEVELS.includes(level)) add(x, aggressor, WAR_RELATION.victimEnemy);
+        if (VICTIM_FRIEND_LEVELS.includes(level)) add(x, aggressor, WAR_RELATION.victimFriend, cause);
+        else if (VICTIM_ENEMY_LEVELS.includes(level)) add(x, aggressor, WAR_RELATION.victimEnemy, cause);
       }
     }
     // The war ends the pair's treaties, subsidies and locked grants (Imp1 manual p80).
@@ -206,8 +213,11 @@ function resolveWars(w: Work, list: readonly OvertureIntent[]): void {
       const amount = before.lockedGrants[granter]!;
       emit(w, { type: "grant-stopped", nationId: granter, targetId: granter === a ? b : a, amount, reason: "war" });
     }
+    // ... and with them the mark of the start treaties (FR-240)
+    const rest = { ...entry(w, a, b) };
+    delete rest.startTreaties;
     setEntry(w, a, b, {
-      ...entry(w, a, b),
+      ...rest,
       consulates: [],
       embassies: [],
       pact: false,
@@ -377,8 +387,9 @@ function emitRelationChanges(w: Work, before: DiplomacyState): void {
     const to = levelOf(w.diplomacy[key].points);
     if (from === to) continue;
     const [a, b] = key.split("|");
+    const wars = w.warCauses.get(key);
     for (const nationId of [a, b].filter((id) => isGreatPower(w, id))) {
-      emit(w, { type: "relation-changed", nationId, otherId: nationId === a ? b : a, from, to });
+      emit(w, { type: "relation-changed", nationId, otherId: nationId === a ? b : a, from, to, ...(wars ? { wars: [...wars] } : {}) });
     }
   }
 }
@@ -420,6 +431,7 @@ export const diplomacySystem: TurnSystem = (state: GameState, ctx: TurnContext):
     proposals,
     intents: state.intents,
     treasury: new Map(state.nations.map((n) => [n.id, n.treasury ?? 0])),
+    warCauses: new Map(),
   };
   const before = state.diplomacy;
   const proposalKind = (i: AnswerIntent) => expiring.find((p) => p.id === i.proposalId)?.kind;

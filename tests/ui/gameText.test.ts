@@ -232,7 +232,7 @@ describe('FR-161 FR-162 diplomacy orders and refusals in plain words', () => {
 });
 
 describe('FR-176 diplomacy news', () => {
-  const NAMES: Record<string, string> = { 'nation-1': 'Testland', 'nation-2': 'Valdoria', 'minor-1': 'Arvelia' };
+  const NAMES: Record<string, string> = { 'nation-1': 'Testland', 'nation-2': 'Valdoria', 'minor-1': 'Arvelia', 'minor-3': 'Lorran' };
   const nameOf = (id: string) => NAMES[id] ?? id;
   const N = 'nation-1';
   const A = 'minor-1';
@@ -259,6 +259,14 @@ describe('FR-176 diplomacy news', () => {
     [{ type: 'attacks-cancelled', nationId: N, targetId: A, count: 2 }, 'Attacks on Arvelia called off: peace was made.'],
     [{ type: 'relation-changed', nationId: N, otherId: A, from: 3, to: 4 }, 'Relations with Arvelia: yellow to beige.'],
     [{ type: 'relation-changed', nationId: N, otherId: V, from: 4, to: 0 }, 'Relations with Valdoria: beige to dark brown.'],
+    // FR-239 (M6 QA fix round): a change a war caused names that war, seen from the event's nation
+    [{ type: 'relation-changed', nationId: N, otherId: A, from: 3, to: 2, wars: [{ aggressorId: N, targetId: 'minor-3' }] }, 'Relations with Arvelia: yellow to orange (our war on Lorran).'],
+    [{ type: 'relation-changed', nationId: N, otherId: V, from: 4, to: 0, wars: [{ aggressorId: V, targetId: N }] }, "Relations with Valdoria: beige to dark brown (Valdoria's war on us)."],
+    [{ type: 'relation-changed', nationId: N, otherId: V, from: 4, to: 3, wars: [{ aggressorId: V, targetId: A }] }, "Relations with Valdoria: beige to yellow (Valdoria's war on Arvelia)."],
+    [
+      { type: 'relation-changed', nationId: N, otherId: V, from: 4, to: 0, wars: [{ aggressorId: N, targetId: V }, { aggressorId: V, targetId: N }] },
+      "Relations with Valdoria: beige to dark brown (our war on Valdoria and Valdoria's war on us).",
+    ],
     [{ type: 'grant-paid', nationId: N, targetId: A, amount: 1000 }, 'Grant of $1,000 paid to Arvelia.'],
     [{ type: 'grant-stopped', nationId: N, targetId: A, amount: 1000, reason: 'insufficient-funds' }, 'Grant to Arvelia stopped: not enough money.'],
     [{ type: 'grant-stopped', nationId: N, targetId: A, amount: 1000, reason: 'withdrawn' }, 'Grant to Arvelia stopped: we withdrew it.'],

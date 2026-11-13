@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo } from "react";
+import React, { useId, useMemo } from "react";
 import { useGameStore } from "../store/rootStore";
 import { selectActiveNation } from "../store/selectors";
 import type { Order } from "@/engine";
@@ -9,6 +9,7 @@ import { marketView, type MarketRowView } from "./market/marketView";
 import styles from "./market/Market.module.css";
 import { COMMODITY_ICONS, UI_ICONS } from "./icons";
 import { GameIcon } from "./GameIcon";
+import { Modal } from "./Modal";
 
 interface StepperProps {
   label: string;
@@ -44,6 +45,7 @@ export const MarketModal: React.FC = () => {
   const lastRejection = useGameStore((s) => s.lastRejection);
   const game = useGameStore((s) => s.game);
   const nation = useGameStore(selectActiveNation);
+  const titleId = useId();
 
   const view = useMemo(() => (isOpen && nation ? marketView(game, nation) : null), [isOpen, game, nation]);
 
@@ -56,10 +58,9 @@ export const MarketModal: React.FC = () => {
   };
 
   return (
-    <div className={styles.overlay}>
-      <div className={styles.dialog} role="dialog" aria-label="Market">
+    <Modal titleId={titleId} onClose={close} overlayClassName={styles.overlay} className={styles.dialog}>
         <header className={styles.header}>
-          <h2>
+          <h2 id={titleId}>
             <GameIcon name={UI_ICONS.market} /> World market — {nation?.name ?? "Unknown"}
           </h2>
           <button onClick={close} className={styles.closeButton} aria-label="Close market">
@@ -125,8 +126,7 @@ export const MarketModal: React.FC = () => {
             </tbody>
           </table>
         )}
-      </div>
-    </div>
+    </Modal>
   );
 };
 

@@ -1,11 +1,12 @@
 "use client";
-import React from "react";
+import React, { useId } from "react";
 import { useGameStore } from "../store/rootStore";
 import { dateText } from "./gameText";
 import styles from "./market/Market.module.css";
 import { UI_ICONS } from "./icons";
 import { GameIcon } from "./GameIcon";
 import { NationSwatch } from "./NationSwatch";
+import { Modal } from "./Modal";
 import { startNewGameOnCapital } from "@/hooks/mapActions";
 
 /**
@@ -19,16 +20,17 @@ export const GameOverModal: React.FC = () => {
   const activeNationId = useGameStore((s) => s.activeNationId);
   const hidden = useGameStore((s) => s.isGameOverHidden);
   const hide = useGameStore((s) => s.hideGameOver);
+  const titleId = useId();
 
   if (!gameOver || hidden) return null;
 
   const nationOf = (id: string) => nations.find((n) => n.id === id);
 
   return (
-    <div className={styles.overlay}>
-      <div className={styles.dialog} role="dialog" aria-label="Game over">
+    // No onClose: neither Escape nor the backdrop ends the game-over screen (FR-236); "Back to the map" does
+    <Modal titleId={titleId} overlayClassName={styles.overlay} className={styles.dialog}>
         <header className={styles.header}>
-          <h2>
+          <h2 id={titleId}>
             <GameIcon name={UI_ICONS.finalScores} /> Game over
           </h2>
         </header>
@@ -78,8 +80,7 @@ export const GameOverModal: React.FC = () => {
             <GameIcon name={UI_ICONS.newGame} /> New game
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 };
 

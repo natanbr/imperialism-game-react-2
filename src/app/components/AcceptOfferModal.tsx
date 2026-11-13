@@ -1,11 +1,12 @@
 "use client";
-import React, { useCallback, useEffect, useId, useMemo, useRef } from "react";
+import React, { useCallback, useEffect, useId, useMemo } from "react";
 import { pendingProposalsFor } from "@/engine";
 import { useGameStore } from "../store/rootStore";
 import { proposalText } from "./diplomacy/diplomacyView";
 import styles from "./diplomacy/Diplomacy.module.css";
 import { UI_ICONS } from "./icons";
 import { GameIcon } from "./GameIcon";
+import { Modal } from "./Modal";
 
 /** Enter on these keeps its own meaning (a button's click, a field's input), so it does not accept the offer. */
 const ownsEnter = (target: EventTarget | null): boolean =>
@@ -17,7 +18,8 @@ const ownsEnter = (target: EventTarget | null): boolean =>
 /**
  * Accept Offer (FR-175, the Imp1 screen): at the start of the player's turn each proposal made to them opens here,
  * oldest first. Accept and Reject build `answerProposal`; Escape rejects and Enter accepts (Imp1: Esc and Return).
- * Closing it leaves the proposal unanswered, so End Turn refuses it; its dialog does not come back.
+ * Closing it (×, or a click on the backdrop, FR-236) leaves the proposal unanswered, so End Turn refuses it; its
+ * dialog does not come back.
  */
 export const AcceptOfferModal: React.FC = () => {
   const game = useGameStore((s) => s.game);
@@ -25,7 +27,7 @@ export const AcceptOfferModal: React.FC = () => {
   const dismissed = useGameStore((s) => s.dismissedProposalIds);
   const dismiss = useGameStore((s) => s.dismissProposal);
   const submitOrder = useGameStore((s) => s.submitOrder);
-  const dialog = useRef<HTMLDivElement>(null);
+  const titleId = useId();
   const textId = useId();
 
   const proposal = useMemo(
@@ -41,18 +43,10 @@ export const AcceptOfferModal: React.FC = () => {
     [proposalId, activeNationId, submitOrder]
   );
 
-  // Each offer takes the focus, so the keys answer it and a screen reader reads it
-  useEffect(() => {
-    if (proposalId) dialog.current?.focus();
-  }, [proposalId]);
-
   useEffect(() => {
     if (!proposalId) return;
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        answer(false);
-      } else if (e.key === "Enter" && !ownsEnter(e.target)) {
+      if (e.key === "Enter" && !ownsEnter(e.target)) {
         e.preventDefault();
         answer(true);
       }
@@ -64,10 +58,18 @@ export const AcceptOfferModal: React.FC = () => {
   if (!proposal) return null;
 
   return (
-    <div className={styles.offerOverlay}>
-      <div ref={dialog} tabIndex={-1} className={styles.offer} role="dialog" aria-label="Accept Offer" aria-describedby={textId}>
+    <Modal
+      titleId={titleId}
+      describedBy={textId}
+      initialFocus="dialog"
+      focusKey={proposal.id}
+      onClose={() => dismiss(proposal.id)}
+      onEscape={() => answer(false)}
+      overlayClassName={styles.offerOverlay}
+      className={styles.offer}
+    >
         <header className={styles.header}>
-          <h2>
+          <h2 id={titleId}>
             <GameIcon name={UI_ICONS.diplomacy} /> Accept Offer
           </h2>
           <button onClick={() => dismiss(proposal.id)} className={styles.closeButton} aria-label="Close offer" title="Close: an offer not answered by End Turn is refused">
@@ -86,8 +88,7 @@ export const AcceptOfferModal: React.FC = () => {
             Accept
           </button>
         </footer>
-      </div>
-    </div>
+    </Modal>
   );
 };
 

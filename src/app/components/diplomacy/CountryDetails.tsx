@@ -2,66 +2,81 @@
 import React, { useEffect, useId, useRef, useState } from "react";
 import type { GrantAmount, Order, SubsidyPercent, ValidationResult } from "@/engine";
 import type { GameState } from "@/types/GameState";
-import { relationColor } from "@/styles/theme";
-import { GRANT_OPTIONS, grantControl, policyControl, SUBSIDY_OPTIONS, type ControlView, type CountryRowView } from "./diplomacyView";
+import { GRANT_OPTIONS, grantControl, policyControl, reasonLines, SUBSIDY_OPTIONS, type ControlView, type CountryRowView } from "./diplomacyView";
 import styles from "./Diplomacy.module.css";
 
 type Submit = (order: Order) => ValidationResult;
 
+/**
+ * The refusals of one control group, each once, under the group (FR-237): "Embassy: we need a consulate there first".
+ * Returns the lines and, per refusal text, the id of its line: the disabled controls' description.
+ */
+function useReasons(controls: readonly (ControlView | undefined)[]) {
+  const base = useId();
+  const lines = reasonLines(controls);
+  const idOf = (control: ControlView | undefined): string | undefined => {
+    const i = control?.refusal === undefined ? -1 : lines.findIndex((l) => l.reason === control.refusal);
+    return i === -1 ? undefined : `${base}-reason-${i}`;
+  };
+  const list =
+    lines.length === 0 ? null : (
+      <ul className={styles.reasons}>
+        {lines.map((line, i) => (
+          <li key={line.reason} data-testid="reason">
+            <span className={styles.reasonNames}>{`${line.names.join(", ")}:`}</span> <span id={`${base}-reason-${i}`}>{line.reason}</span>
+          </li>
+        ))}
+      </ul>
+    );
+  return { idOf, list };
+}
+
 interface ControlButtonProps {
   control: ControlView;
   submitOrder: Submit;
+  /** The id of the line that gives its refusal (its description while it is disabled). */
+  reasonId?: string;
   className?: string;
   /** Overrides the click (Declare war asks first). */
   onClick?: () => void;
-  ariaLabel?: string;
-  children?: React.ReactNode;
   expanded?: boolean;
+  buttonRef?: React.Ref<HTMLButtonElement>;
 }
 
-/**
- * A button for one order (FR-178): disabled when validateOrder would refuse it, with the refusal text shown under it
- * and named as its description.
- */
-const ControlButton: React.FC<ControlButtonProps> = ({ control, submitOrder, className, onClick, ariaLabel, children, expanded }) => {
-  const reasonId = useId();
-  return (
-    <span className={styles.cell}>
-      <button
-        className={`${styles.button} ${className ?? ""}`}
-        disabled={control.refusal !== undefined}
-        aria-describedby={control.refusal ? reasonId : undefined}
-        aria-label={ariaLabel}
-        aria-expanded={expanded}
-        onClick={onClick ?? (() => submitOrder(control.order))}
-      >
-        {children ?? control.label}
-      </button>
-      {control.refusal && (
-        <span id={reasonId} className={styles.reason}>
-          {control.refusal}
-        </span>
-      )}
-    </span>
-  );
-};
+/** A button for one order (FR-178): disabled when validateOrder would refuse it, its refusal as its description. */
+const ControlButton: React.FC<ControlButtonProps> = ({ control, submitOrder, reasonId, className, onClick, expanded, buttonRef }) => (
+  <button
+    ref={buttonRef}
+    className={`${styles.button} ${className ?? ""}`}
+    disabled={control.refusal !== undefined}
+    aria-describedby={control.refusal ? reasonId : undefined}
+    aria-expanded={expanded}
+    onClick={onClick ?? (() => submitOrder(control.order))}
+  >
+    {control.label}
+  </button>
+);
 
 interface ConfirmWarProps {
   name: string;
   /** The treaty the war breaks; the question then says that relations with every other country get worse (FR-168). */
   breaks?: "pact" | "alliance";
+  /** A minor nation: the question says that relations with every other minor nation get worse (FR-168, FR-238). */
+  onMinor: boolean;
   onDeclare: () => void;
   onKeepPeace: () => void;
 }
 
 /** "Declare war on Arvelia? The war starts next turn." asked in place, like New game (FR-178, FR-109). */
-const ConfirmWar: React.FC<ConfirmWarProps> = ({ name, breaks, onDeclare, onKeepPeace }) => {
+const ConfirmWar: React.FC<ConfirmWarProps> = ({ name, breaks, onMinor, onDeclare, onKeepPeace }) => {
   const panel = useRef<HTMLDivElement>(null);
   const questionId = useId();
   const costId = useId();
+  const minorsId = useId();
   useEffect(() => {
     panel.current?.focus();
   }, []);
+  const describedBy = [questionId, breaks && costId, onMinor && minorsId].filter(Boolean).join(" ");
   return (
     <div
       ref={panel}
@@ -69,12 +84,24 @@ const ConfirmWar: React.FC<ConfirmWarProps> = ({ name, breaks, onDeclare, onKeep
       className={styles.confirm}
       role="group"
       aria-label={`Confirm war on ${name}`}
-      aria-describedby={breaks ? `${questionId} ${costId}` : questionId}
+      aria-describedby={describedBy}
+      onKeyDown={(e) => {
+        // Escape answers the question (keep the peace), not the whole dialog
+        if (e.key === "Escape") {
+          e.preventDefault();
+          onKeepPeace();
+        }
+      }}
     >
       <p id={questionId} data-testid="war-question">{`Declare war on ${name}? The war starts next turn.`}</p>
       {breaks && (
         <p id={costId} className={styles.warCost} data-testid="war-cost">
           {`This breaks our ${breaks} with ${name}: relations with every other country get worse.`}
+        </p>
+      )}
+      {onMinor && (
+        <p id={minorsId} className={styles.warCost} data-testid="war-minors">
+          A war on a minor nation also lowers our relations with every other minor nation, by half a level each.
         </p>
       )}
       <button className={`${styles.button} ${styles.warButton}`} onClick={onDeclare}>
@@ -102,6 +129,7 @@ const GrantForm: React.FC<FormProps> = ({ row, state, nationId, submitOrder }) =
   const amountId = useId();
   const oftenId = useId();
   const give = grantControl(state, nationId, row.id, amount, locked);
+  const reasons = useReasons([give, row.stopGrant]);
   return (
     <div className={styles.block} role="group" aria-labelledby={titleId}>
       <span id={titleId} className={styles.blockTitle}>
@@ -125,9 +153,10 @@ const GrantForm: React.FC<FormProps> = ({ row, state, nationId, submitOrder }) =
           <option value="once">once</option>
           <option value="each-turn">each turn</option>
         </select>
-        <ControlButton control={give} submitOrder={submitOrder} />
-        {row.stopGrant && <ControlButton control={row.stopGrant} submitOrder={submitOrder} />}
+        <ControlButton control={give} submitOrder={submitOrder} reasonId={reasons.idOf(give)} />
+        {row.stopGrant && <ControlButton control={row.stopGrant} submitOrder={submitOrder} reasonId={reasons.idOf(row.stopGrant)} />}
       </div>
+      {reasons.list}
     </div>
   );
 };
@@ -140,6 +169,7 @@ const PolicyForm: React.FC<FormProps> = ({ row, state, nationId, submitOrder }) 
   const subsidyId = useId();
   const boycottId = useId();
   const set = policyControl(state, nationId, row.id, subsidy, boycott);
+  const reasons = useReasons([set]);
   return (
     <div className={styles.block} role="group" aria-labelledby={titleId}>
       <span id={titleId} className={styles.blockTitle}>
@@ -160,59 +190,43 @@ const PolicyForm: React.FC<FormProps> = ({ row, state, nationId, submitOrder }) 
           <input id={boycottId} type="checkbox" checked={boycott} onChange={(e) => setBoycott(e.target.checked)} />
           <label htmlFor={boycottId}>Boycott</label>
         </span>
-        <ControlButton control={set} submitOrder={submitOrder} />
+        <ControlButton control={set} submitOrder={submitOrder} reasonId={reasons.idOf(set)} />
       </div>
+      {reasons.list}
     </div>
   );
 };
 
-interface CountryCardProps {
+interface CountryDetailsProps {
   row: CountryRowView;
   state: GameState;
   nationId: string;
   submitOrder: Submit;
+  /** The id its tab in the countries list points to (aria-controls, FR-237). */
+  panelId: string;
 }
 
 /**
- * One country of the Diplomacy screen (FR-177, FR-178): its name and kind, the relation as a swatch and in words, the
- * treaties, this turn's ordered overtures with Withdraw, and the overture, grant and trade policy controls. Every
- * control sends one order through submitOrder.
+ * The selected country's details, the right pane of the Diplomacy screen (FR-237): this turn's ordered overtures with
+ * Withdraw, then the overture, grant and trade policy controls (FR-177, FR-178). Every control sends one order
+ * through submitOrder; a refused one is disabled and its refusal shows once, under its group.
  */
-export const CountryCard: React.FC<CountryCardProps> = ({ row, state, nationId, submitOrder }) => {
+export const CountryDetails: React.FC<CountryDetailsProps> = ({ row, state, nationId, submitOrder, panelId }) => {
   const nameId = useId();
   const overturesId = useId();
   const [askingWar, setAskingWar] = useState(false);
+  const warButton = useRef<HTMLButtonElement>(null);
+  const overtures = useReasons(row.overtures);
+  const isWar = (control: ControlView) => control.order.kind === "proposeOverture" && control.order.overture === "war";
 
   return (
-    <section className={styles.card} aria-labelledby={nameId} data-testid={`country-${row.id}`}>
-      <header className={styles.cardHeader}>
-        <h3 id={nameId} className={styles.name}>
+    <section id={panelId} role="tabpanel" aria-labelledby={nameId} className={styles.details} data-testid={`country-${row.id}`}>
+      <header className={styles.detailsHeader}>
+        <h3 id={nameId} className={styles.detailsName}>
           {row.name}
         </h3>
-        <span className={styles.kind} data-testid="country-kind">
-          {row.kind}
-        </span>
-        <span className={styles.relation} data-testid="relation">
-          {row.level !== undefined && (
-            <span className={styles.swatch} aria-hidden="true" data-testid="relation-swatch" style={{ background: relationColor(row.level) }} />
-          )}
-          {row.relationText}
-        </span>
+        <span className={styles.kind}>{row.kind}</span>
       </header>
-
-      <ul className={styles.treaties} aria-label="Treaties">
-        {row.treaties.length === 0 ? (
-          <li className={styles.treatyNone} data-testid="treaty">
-            No treaties
-          </li>
-        ) : (
-          row.treaties.map((t) => (
-            <li key={t} className={`${styles.treaty} ${t.startsWith("At war") ? styles.treatyWar : ""}`} data-testid="treaty">
-              {t}
-            </li>
-          ))
-        )}
-      </ul>
 
       {row.ordered.length > 0 && (
         <div className={styles.block}>
@@ -243,32 +257,36 @@ export const CountryCard: React.FC<CountryCardProps> = ({ row, state, nationId, 
           Overtures
         </span>
         <div className={styles.overtures}>
-          {row.overtures.map((control) => {
-            const isWar = control.order.kind === "proposeOverture" && control.order.overture === "war";
-            return (
-              <ControlButton
-                key={control.label}
-                control={control}
-                submitOrder={submitOrder}
-                className={isWar ? styles.warButton : undefined}
-                onClick={isWar ? () => setAskingWar((open) => !open) : undefined}
-                expanded={isWar ? askingWar : undefined}
-              />
-            );
-          })}
-          {askingWar && (
-            <ConfirmWar
-              name={row.name}
-              breaks={row.brokenByWar}
-              onDeclare={() => {
-                const war = row.overtures.find((c) => c.order.kind === "proposeOverture" && c.order.overture === "war");
-                if (war) submitOrder(war.order);
-                setAskingWar(false);
-              }}
-              onKeepPeace={() => setAskingWar(false)}
+          {row.overtures.map((control) => (
+            <ControlButton
+              key={control.label}
+              control={control}
+              submitOrder={submitOrder}
+              reasonId={overtures.idOf(control)}
+              className={isWar(control) ? styles.warButton : undefined}
+              onClick={isWar(control) ? () => setAskingWar((open) => !open) : undefined}
+              expanded={isWar(control) ? askingWar : undefined}
+              buttonRef={isWar(control) ? warButton : undefined}
             />
-          )}
+          ))}
         </div>
+        {overtures.list}
+        {askingWar && (
+          <ConfirmWar
+            name={row.name}
+            breaks={row.brokenByWar}
+            onMinor={row.warOnMinor}
+            onDeclare={() => {
+              const war = row.overtures.find(isWar);
+              if (war) submitOrder(war.order);
+              setAskingWar(false);
+            }}
+            onKeepPeace={() => {
+              setAskingWar(false);
+              warButton.current?.focus();
+            }}
+          />
+        )}
       </div>
 
       <GrantForm row={row} state={state} nationId={nationId} submitOrder={submitOrder} />

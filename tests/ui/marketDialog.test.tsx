@@ -42,7 +42,8 @@ describe('FR-073 market dialog: what it shows', () => {
   it('is closed until opened', () => {
     useGameStore.setState({ ...useGameStore.getInitialState(), game: game(), activeNationId: N1 });
     render(<MarketModal />);
-    expect(screen.queryByRole('dialog', { name: 'Market' })).toBeNull();
+    // FR-236: the dialog is named by its title, 'World market — Testland'; closed, there is no dialog at all
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('FR-073 one row per tradeable commodity in TRADE_COMMODITIES order, by display name', () => {

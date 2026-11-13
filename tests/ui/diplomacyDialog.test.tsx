@@ -7,7 +7,9 @@
 // FR-175: a proposal to the player opens "Accept Offer"; Accept and Reject (Enter and Escape) build answerProposal;
 // closing it leaves the proposal, which End Turn refuses. Review fix round: the End Turn key "n" does nothing in a form
 // field or while a dialog is open; "Stop grant" never takes back this turn's grant; the war question names a broken
-// treaty; the page shows Accept Offer.
+// treaty; the page shows Accept Offer. QA fix round: two panes, the countries as tabs and the selected one's details
+// (FR-237), a refusal shown once per control group (FR-237), the war question names the other minors (FR-238), the start
+// treaties say "since the start" (FR-240), "we are already at war with them" (FR-241).
 import { describe, it, expect, beforeEach } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -57,11 +59,26 @@ function openDiplomacy(state: GameState) {
   return render(<DiplomacyModal />);
 }
 
-const dialog = () => screen.getByRole('dialog', { name: 'Diplomacy' });
-const country = (name: string) => within(dialog()).getByRole('region', { name });
+// FR-236: the dialog is named by its title (was aria-label "Diplomacy")
+const DIPLOMACY = 'Diplomacy — Testland';
+const dialog = () => screen.getByRole('dialog', { name: DIPLOMACY });
+// FR-237: the countries are tabs of a list; the selected one's details are its tab panel (were one region per country)
+const countries = () => within(dialog()).getByRole('tablist', { name: 'Countries' });
+const tab = (name: string) => within(countries()).getByRole('tab', { name });
+/** Selects the country in the list (as a click does) and returns its details pane. */
+const country = (name: string) => {
+  const t = tab(name);
+  if (t.getAttribute('aria-selected') !== 'true') fireEvent.click(t);
+  return within(dialog()).getByRole('tabpanel', { name });
+};
 const button = (countryName: string, name: string | RegExp) => within(country(countryName)).getByRole('button', { name });
-const treaties = (countryName: string) => within(country(countryName)).getAllByTestId('treaty').map(text);
+const treaties = (countryName: string) => within(tab(countryName)).getAllByTestId('treaty').map(text);
 const ordered = (countryName: string) => within(country(countryName)).queryAllByTestId('ordered').map(text);
+/** The name of each tab, in the list's order. */
+const tabNames = () =>
+  within(countries())
+    .getAllByRole('tab')
+    .map((t) => document.getElementById(t.getAttribute('aria-labelledby') ?? '')?.textContent);
 /** The text of the elements an element's aria-describedby names: its accessible description. */
 const description = (el: HTMLElement): string =>
   (el.getAttribute('aria-describedby') ?? '')
@@ -84,7 +101,7 @@ describe('FR-177 the Diplomacy screen: the countries', () => {
         <DiplomacyModal />
       </>
     );
-    expect(screen.queryByRole('dialog', { name: 'Diplomacy' })).toBeNull();
+    expect(screen.queryByRole('dialog', { name: DIPLOMACY })).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Diplomacy' }));
     expect(useGameStore.getState().isDiplomacyOpen).toBe(true);
@@ -92,7 +109,7 @@ describe('FR-177 the Diplomacy screen: the countries', () => {
 
     fireEvent.click(within(dialog()).getByRole('button', { name: 'Close diplomacy' }));
     expect(useGameStore.getState().isDiplomacyOpen).toBe(false);
-    expect(screen.queryByRole('dialog', { name: 'Diplomacy' })).toBeNull();
+    expect(screen.queryByRole('dialog', { name: DIPLOMACY })).toBeNull();
   });
 
   it('FR-177 the capital dialog\'s Diplomacy button opens it too (Imp1: the capital leads to every screen)', () => {
@@ -103,27 +120,20 @@ describe('FR-177 the Diplomacy screen: the countries', () => {
         <DiplomacyModal />
       </>
     );
-    const capital = screen.getByRole('dialog', { name: 'Capital' });
+    const capital = screen.getByRole('dialog', { name: 'Capital — Testland' });
     fireEvent.click(within(capital).getByRole('button', { name: 'Diplomacy' }));
     expect(useGameStore.getState().isDiplomacyOpen).toBe(true);
     expect(dialog()).toBeTruthy();
   });
 
-  it('FR-177 one row per other country: the other Great Power first, then the minors in id order, each named by kind', () => {
+  it('FR-177 FR-237 one tab per other country: the other Great Power first, then the minors in id order, each named by kind', () => {
     openDiplomacy(start());
 
-    const rows = within(dialog()).getAllByRole('region');
-    expect(rows.map((r) => r.getAttribute('aria-labelledby') && document.getElementById(r.getAttribute('aria-labelledby')!)?.textContent)).toEqual([
-      'Valdoria',
-      'Arvelia',
-      'Sundmark',
-      'Lorran',
-      'Pellis',
-    ]);
-    expect(within(dialog()).queryByRole('region', { name: 'Testland' })).toBeNull();
-    expect(text(within(country('Valdoria')).getByTestId('country-kind'))).toBe('Great Power');
+    expect(tabNames()).toEqual(['Valdoria', 'Arvelia', 'Sundmark', 'Lorran', 'Pellis']);
+    expect(within(countries()).queryByRole('tab', { name: 'Testland' })).toBeNull();
+    expect(text(within(tab('Valdoria')).getByTestId('country-kind'))).toBe('Great Power');
     for (const name of ['Arvelia', 'Sundmark', 'Lorran', 'Pellis']) {
-      expect(text(within(country(name)).getByTestId('country-kind'))).toBe('Minor nation');
+      expect(text(within(tab(name)).getByTestId('country-kind'))).toBe('Minor nation');
     }
   });
 
@@ -133,15 +143,15 @@ describe('FR-177 the Diplomacy screen: the countries', () => {
     s = setPair(s, N1, LORRAN, { points: 0 });
     openDiplomacy(s);
 
-    expect(text(within(country('Arvelia')).getByTestId('relation'))).toBe('Yellow, level 4 of 9');
-    expect(text(within(country('Valdoria')).getByTestId('relation'))).toBe('Beige, level 5 of 9');
-    expect(text(within(country('Sundmark')).getByTestId('relation'))).toBe('Dark green, level 9 of 9');
-    expect(text(within(country('Lorran')).getByTestId('relation'))).toBe('Dark brown, level 1 of 9');
+    expect(text(within(tab('Arvelia')).getByTestId('relation'))).toBe('Yellow, level 4 of 9');
+    expect(text(within(tab('Valdoria')).getByTestId('relation'))).toBe('Beige, level 5 of 9');
+    expect(text(within(tab('Sundmark')).getByTestId('relation'))).toBe('Dark green, level 9 of 9');
+    expect(text(within(tab('Lorran')).getByTestId('relation'))).toBe('Dark brown, level 1 of 9');
 
-    const swatch = within(country('Arvelia')).getByTestId('relation-swatch');
+    const swatch = within(tab('Arvelia')).getByTestId('relation-swatch');
     expect(swatch.getAttribute('aria-hidden')).toBe('true');
     expect(swatch.getAttribute('style')).toContain('var(--color-relation-3)');
-    expect(within(country('Sundmark')).getByTestId('relation-swatch').getAttribute('style')).toContain('var(--color-relation-8)');
+    expect(within(tab('Sundmark')).getByTestId('relation-swatch').getAttribute('style')).toContain('var(--color-relation-8)');
   });
 
   it('FR-177 the treaties in words; a country with none reads "No treaties"', () => {
@@ -153,8 +163,8 @@ describe('FR-177 the Diplomacy screen: the countries', () => {
 
     expect(treaties('Arvelia')).toEqual(['Consulate', 'Embassy', 'Pact', 'We boycott them', 'Subsidy 10%', 'Grant $1,000 each turn']);
     expect(treaties('Lorran')).toEqual(['At war since turn 5']);
-    // Two Great Powers start with consulates and embassies both ways (FR-151)
-    expect(treaties('Valdoria')).toEqual(['Consulate', 'Embassy', 'Alliance', 'They boycott us']);
+    // Two Great Powers start with consulates and embassies both ways (FR-151), said on the chip (FR-240)
+    expect(treaties('Valdoria')).toEqual(['Consulate since the start', 'Embassy since the start', 'Alliance', 'They boycott us']);
     expect(treaties('Sundmark')).toEqual(['No treaties']);
   });
 
@@ -265,7 +275,8 @@ describe('FR-178 the Diplomacy screen: the overtures', () => {
     expect(refused('Valdoria', 'Consulate ($500)')).toEqual({ disabled: true, description: 'that is already in place' });
     expect(refused('Valdoria', 'Embassy ($5,000)')).toEqual({ disabled: true, description: 'that is already in place' });
     expect(refused('Lorran', 'Consulate ($500)')).toEqual({ disabled: true, description: 'we are at war with them' });
-    expect(refused('Lorran', 'Declare war')).toEqual({ disabled: true, description: 'that is already in place' });
+    // FR-241 (QA fix round): at war, "Declare war" says so (was "that is already in place")
+    expect(refused('Lorran', 'Declare war')).toEqual({ disabled: true, description: 'we are already at war with them' });
     expect(refused('Lorran', 'Propose peace')).toEqual({ disabled: false, description: '' });
     // The refusal is shown on the screen too, not only to a screen reader
     expect(text(country('Arvelia'))).toContain('we need a consulate there first');
@@ -423,8 +434,9 @@ describe('FR-178 the Diplomacy screen: the overtures', () => {
     const pact = ask('Arvelia');
     expect(text(within(pact).getByTestId('war-question'))).toBe('Declare war on Arvelia? The war starts next turn.');
     expect(text(within(pact).getByTestId('war-cost'))).toBe('This breaks our pact with Arvelia: relations with every other country get worse.');
+    // Arvelia is a minor nation, so the FR-238 line (QA fix round) follows the broken treaty's
     expect(description(pact)).toBe(
-      'Declare war on Arvelia? The war starts next turn. This breaks our pact with Arvelia: relations with every other country get worse.'
+      'Declare war on Arvelia? The war starts next turn. This breaks our pact with Arvelia: relations with every other country get worse. A war on a minor nation also lowers our relations with every other minor nation, by half a level each.'
     );
     const alliance = ask('Valdoria');
     expect(text(within(alliance).getByTestId('war-cost'))).toBe('This breaks our alliance with Valdoria: relations with every other country get worse.');
@@ -451,6 +463,156 @@ describe('FR-178 the Diplomacy screen: the overtures', () => {
       useGameStore.getState().submitOrder({ kind: 'proposeOverture', nationId: N1, overture: 'embassy', targetId: ARVELIA });
     });
     expect(text(within(dialog()).getByRole('alert'))).toBe('Overture refused: we need a consulate there first.');
+  });
+});
+
+describe("FR-237 two panes: the countries and the selected country's details (QA fix round)", () => {
+  const selected = () => within(countries()).getAllByRole('tab').filter((t) => t.getAttribute('aria-selected') === 'true');
+  const panels = () => within(dialog()).getAllByRole('tabpanel');
+
+  it('FR-237 the first country is selected when the screen opens; a click selects another; only its details are shown', () => {
+    openDiplomacy(start());
+    expect(countries().getAttribute('aria-orientation')).toBe('vertical');
+    expect(selected()).toEqual([tab('Valdoria')]);
+    expect(panels()).toEqual([within(dialog()).getByRole('tabpanel', { name: 'Valdoria' })]);
+    // One set of controls, not one per country (the QA screenshot had five)
+    expect(within(dialog()).getAllByRole('button', { name: 'Consulate ($500)' })).toHaveLength(1);
+    expect(within(dialog()).getAllByRole('button', { name: 'Give' })).toHaveLength(1);
+
+    fireEvent.click(tab('Lorran'));
+    expect(selected()).toEqual([tab('Lorran')]);
+    expect(panels()).toEqual([within(dialog()).getByRole('tabpanel', { name: 'Lorran' })]);
+    // Only the selected tab is in the Tab order (the arrow keys move inside the list)
+    expect(within(countries()).getAllByRole('tab').map((t) => t.tabIndex)).toEqual([-1, -1, -1, 0, -1]);
+  });
+
+  it('FR-237 Arrow Down and Up, Home and End in the list move the focus and the selection', () => {
+    openDiplomacy(start());
+    act(() => tab('Valdoria').focus());
+    const key = (k: string) => fireEvent.keyDown(document.activeElement!, { key: k });
+
+    key('ArrowDown');
+    expect([document.activeElement, ...selected()]).toEqual([tab('Arvelia'), tab('Arvelia')]);
+    key('End');
+    expect([document.activeElement, ...selected()]).toEqual([tab('Pellis'), tab('Pellis')]);
+    key('ArrowDown');
+    expect([document.activeElement, ...selected()]).toEqual([tab('Valdoria'), tab('Valdoria')]);
+    key('ArrowUp');
+    expect([document.activeElement, ...selected()]).toEqual([tab('Pellis'), tab('Pellis')]);
+    key('Home');
+    expect([document.activeElement, ...selected()]).toEqual([tab('Valdoria'), tab('Valdoria')]);
+  });
+
+  it('FR-237 the country last selected stays selected when the screen is closed and opened again', () => {
+    show(start());
+    render(
+      <>
+        <ActionButtons />
+        <DiplomacyModal />
+      </>
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Diplomacy' }));
+    fireEvent.click(tab('Lorran'));
+    fireEvent.click(within(dialog()).getByRole('button', { name: 'Close diplomacy' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Diplomacy' }));
+    expect(selected()).toEqual([tab('Lorran')]);
+  });
+
+  it('FR-237 a tab says "1 ordered" ("2 ordered") while orders toward the country stand this turn', () => {
+    openDiplomacy(setPair(start(), N1, ARVELIA, { consulates: [N1], embassies: [N1] }));
+    const mark = (name: string) => within(tab(name)).queryByTestId('ordered-mark');
+    expect(mark('Arvelia')).toBeNull();
+
+    fireEvent.click(button('Arvelia', 'Pact'));
+    expect(text(mark('Arvelia')!)).toBe('1 ordered');
+    fireEvent.click(within(country('Arvelia')).getByRole('button', { name: 'Give' }));
+    expect(text(mark('Arvelia')!)).toBe('2 ordered');
+    expect(description(tab('Arvelia'))).toContain('2 ordered');
+    expect(mark('Valdoria')).toBeNull();
+
+    fireEvent.click(button('Arvelia', 'Withdraw pact'));
+    fireEvent.click(button('Arvelia', 'Withdraw grant $1,000, once'));
+    expect(mark('Arvelia')).toBeNull();
+  });
+
+  it("FR-237 a refusal shows once, in a line under its control group that names the controls, and is each disabled control's description", () => {
+    openDiplomacy(setPair(start(), N1, LORRAN, { war: { aggressors: [N1], since: 1 }, points: 0 }));
+    const reasons = (countryName: string, group: string) =>
+      within(within(country(countryName)).getByRole('group', { name: group }))
+        .queryAllByTestId('reason')
+        .map(text);
+
+    expect(reasons('Arvelia', 'Overtures')).toEqual([
+      'Embassy: we need a consulate there first',
+      'Pact: we need an embassy there first',
+      'Propose peace: we are not at war with them',
+    ]);
+    expect(reasons('Arvelia', 'Grant')).toEqual(['Give: we need an embassy there first']);
+    expect(reasons('Arvelia', 'Trade policy')).toEqual([]);
+
+    // At war: three controls with the same reason share one line
+    expect(reasons('Lorran', 'Overtures')).toEqual(['Consulate, Embassy, Pact: we are at war with them', 'Declare war: we are already at war with them']);
+    for (const name of ['Consulate ($500)', 'Embassy ($5,000)', 'Pact']) expect(description(button('Lorran', name))).toBe('we are at war with them');
+    // Once per group (the overtures and the grant), not once per button
+    expect(text(country('Lorran')).split('we are at war with them').length - 1).toBe(2);
+  });
+});
+
+describe('FR-238 FR-240 FR-241 the war question, the start treaties and the wording (QA fix round)', () => {
+  const MINORS_LINE = 'A war on a minor nation also lowers our relations with every other minor nation, by half a level each.';
+
+  it('FR-238 war on a minor nation: the question adds that relations with every other minor nation get worse; not on a Great Power', () => {
+    openDiplomacy(start());
+    fireEvent.click(button('Arvelia', 'Declare war'));
+    const ask = within(country('Arvelia')).getByRole('group', { name: 'Confirm war on Arvelia' });
+    expect(text(within(ask).getByTestId('war-minors'))).toBe(MINORS_LINE);
+    expect(description(ask)).toBe(`Declare war on Arvelia? The war starts next turn. ${MINORS_LINE}`);
+    fireEvent.click(within(ask).getByRole('button', { name: 'Keep the peace' }));
+
+    fireEvent.click(button('Valdoria', 'Declare war'));
+    const onGreatPower = within(country('Valdoria')).getByRole('group', { name: 'Confirm war on Valdoria' });
+    expect(within(onGreatPower).queryByTestId('war-minors')).toBeNull();
+    expect(description(onGreatPower)).toBe('Declare war on Valdoria? The war starts next turn.');
+  });
+
+  it('FR-236 FR-178 Escape in the war question keeps the peace: the question closes, the dialog stays, the focus is back on Declare war', () => {
+    openDiplomacy(start());
+    fireEvent.click(button('Arvelia', 'Declare war'));
+    const ask = within(country('Arvelia')).getByRole('group', { name: 'Confirm war on Arvelia' });
+    expect(document.activeElement).toBe(ask);
+
+    fireEvent.keyDown(ask, { key: 'Escape' });
+    expect(within(country('Arvelia')).queryByRole('group', { name: 'Confirm war on Arvelia' })).toBeNull();
+    expect(useGameStore.getState().isDiplomacyOpen).toBe(true);
+    expect(document.activeElement).toBe(button('Arvelia', 'Declare war'));
+    expect(submitted).toEqual([]);
+
+    // With no question open, Escape closes the dialog (FR-236)
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+    expect(useGameStore.getState().isDiplomacyOpen).toBe(false);
+  });
+
+  it('FR-240 the Great Powers\' start consulate and embassy read "since the start", with a tooltip; a minor\'s consulate does not', () => {
+    openDiplomacy(setPair(start(), N1, ARVELIA, { consulates: [N1] }));
+    expect(treaties('Valdoria')).toEqual(['Consulate since the start', 'Embassy since the start']);
+    for (const chip of within(tab('Valdoria')).getAllByTestId('treaty')) {
+      expect(chip.getAttribute('title')).toBe('Great Powers begin the game with a consulate and an embassy in each other.');
+    }
+    expect(treaties('Arvelia')).toEqual(['Consulate']);
+    expect(within(tab('Arvelia')).getByTestId('treaty').getAttribute('title')).toBeNull();
+  });
+
+  it('FR-240 without the start mark (a war ended the start treaties) a consulate opened again is plain "Consulate"', () => {
+    openDiplomacy(setPair(start(), N1, N2, { consulates: [N1], embassies: [], startTreaties: undefined }));
+    expect(treaties('Valdoria')).toEqual(['Consulate']);
+  });
+
+  it('FR-241 at war "Declare war" gives "we are already at war with them"; a declaration ordered this turn keeps "that is already in place"', () => {
+    let s = setPair(start(), N1, LORRAN, { war: { aggressors: [N1], since: 1 } });
+    s = tryApplyOrder(s, { kind: 'proposeOverture', nationId: N1, overture: 'war', targetId: ARVELIA }).state;
+    openDiplomacy(s);
+    expect(description(button('Lorran', 'Declare war'))).toBe('we are already at war with them');
+    expect(description(button('Arvelia', 'Declare war'))).toBe('that is already in place');
   });
 });
 
