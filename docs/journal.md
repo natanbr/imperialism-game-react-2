@@ -19,7 +19,8 @@
 - 2026-11-13 M6 Diplomacy (FR-161 to FR-181, FR-236 to FR-241) merged (PR 24, main 2a60a3b; entries archived in
   `docs/journal/archive-M6.md`). Decision card "who receives a grant" (M6 fix round decision 3) still to add.
 - 2026-11-13 M7 Nation-to-nation trade in progress on `claude/m7-trade` (worktree `imperialism-game-revival-fee36d`):
-  engine half first (FR-182 to FR-193, FR-196, FR-198), then the UI half (FR-194, FR-195, FR-197).
+  engine half done (FR-182 to FR-193, FR-196, FR-198 tested; its API is in the M7 entry); next the UI half (FR-194,
+  FR-195, FR-197) and the e2e specs that sell on the continent. Card to add: FR-193 (b) bids nothing in "partners".
 
 Carried forward:
 - Deferred: river ports and the depot-on-port rule (rules 04); University fees; the power plant.
@@ -163,3 +164,64 @@ and the fixes of its review. Five diplomacy order kinds stored as intents, the d
 trade policies, the scripted answers and peace offers; the Diplomacy screen in two panes, Accept Offer and one shared Modal.
 FR-161 to FR-181 and FR-236 to FR-241 tested; 1283 unit tests, Playwright 30 passed, 1 skipped; every v1 baseline unchanged.
 Merged as PR 24 (main 2a60a3b). Open: the decision card "who receives a grant" (review fix round decision 3).
+
+## 2026-11-13 M7 Nation-to-nation trade, engine half (FR-182 to FR-193, FR-196, FR-198)
+
+Size: L (engine-wide: the trade phase, the market state, the scripted player). One engine agent (Opus 5.5, xhigh, no
+subagents, no advisor call), started by the M7 workflow. Branch `claude/m7-trade` from main 2a60a3b (worktree
+`imperialism-game-revival-fee36d`), not pushed. The UI agent builds FR-194, FR-195 and FR-197 next, on the API below.
+
+Plan-lite:
+- Change: `market.mode` "partners" on the continent (`newGame({ market })` overrides); `tradeSystem` dispatches to
+  `market/partnerTrade.ts` (offers, demand, ranking, barriers, holds, reserve-first payment, relation points, deal events);
+  the scripted player orders consulates and caps its trade by its partner minors (`ai/partnerTrade.ts`).
+- Consumers: the Board of Trade and Deal Book screens (FR-194, FR-195), the store (`startNewGame({ market })`), M8 (upkeep
+  in the bottom line), M9 (war stops trade already).
+- Tests: FR-182 to FR-192 `engine/partnerMarket.test.ts` (55 rows, every FR example as a row); FR-192 lines
+  `ui/dealBookView.test.ts`; FR-193 `engine/scriptedTrade.test.ts`; FR-196 `engine/v2Trade40.test.ts`; FR-198 the
+  FR-157/FR-158 games in `engine/continentScore.test.ts` name `market: "world"`, assertions unchanged.
+- Verify: `npm test`, `npm run lint`, `npx tsc --noEmit`, `npm run build`.
+- Objection: decision 4 below: with FR-193 as written the computer never buys from a minor, so all deals are its goods
+  sales and the minors' raw offers only push raw prices down.
+
+API for the UI half (`@/engine` unless named): `marketModeOf(state)`; `boardOfTrade(state, nationId)` = rows in
+`BOARD_ORDER` `{ commodity, price, available, bid, offer, sellers: [{ minorId, units, favouriteId?, barrier? }], buyers }`;
+`tradeBarrier(state, nationId, countryId)` = "no-consulate" | "at-war" | "boycott" | "not-a-partner" | undefined (a
+consulate ordered this turn counts); `favouritePartner`, `partnerRanking`, `minorOffers`, `minorDemand`; `tradeCapacityOf`
+for "Holds: 3 of 4 free"; `dealBook(events, nationId)` = `{ sold, bought, bottomLine }` from the store's
+`eventLog.at(-1).events`; `dealBookView(book, nameOf)` in `components/market/dealBookView.ts` = the ledger lines and
+`empty`; `eventText` reads `offer-missed`, `offer-unsold` and a deal's counterparty.
+
+Decisions (defaults, nobody to ask):
+1. A "world" market has no `mode` key (`marketModeOf` reads it as "world"), so the v1 market object and FR-060's
+   assertion stay as they are. Objection: FR-182's wording says `state.market.mode` is "world".
+2. FR-157, FR-174 and FR-181 continent tests name `market: "world"` (setup lines only): their subject is the M5 seams or
+   peace, and in "partners" the scripted player also orders consulates. Objection: FR-157 no longer runs the partners
+   continent with nation 1 idle; FR-196 runs it with both nations scripted.
+3. FR-192: the engine's `dealBook` returns data; the words ("Sold 1 Clothing to Arvelia @ $810") come from
+   `dealBookView`, beside `commodityName`. Objection: FR-192 names `dealBook` as returning the lines.
+4. FR-193 (b) kept as written: FR-128 bids lumber and steel, no minor offers either, so the computer never bids in
+   "partners". Measured effect: goods prices climb about 3% a turn (24 units of minor demand unfilled each turn, clothing
+   952 on turn 3 to 1,902 on turn 29) toward the 250% ceiling, raw prices fall toward the 50% floor. Card for the
+   orchestrator: let the computer bid for the raw coal, iron ore and timber its mills use, or damp FR-190.
+5. FR-186: an offer reaches each Great Power as one sheet (Imp1's offer sheet): it takes what its bid, holds and money
+   allow, the rest passes on, and `offer-missed` counts min(units left, its bid) minus what it took.
+6. FR-189: a bid's unused reserve is refunded right after its commodity settles; sales earlier in the phase pay later
+   purchases. FR-191: a Great Power pair gains while either holds an embassy with the other.
+7. FR-193 (c): "what those minors still demand" is their whole demand this turn (the rival's offers are not read).
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| Red (API stubs, tests first) | `npx vitest run tests/engine/partnerMarket.test.ts tests/engine/scriptedTrade.test.ts tests/engine/v2Trade40.test.ts tests/ui/dealBookView.test.ts` | `Test Files 4 failed (4)`, `Tests 61 failed \| 15 passed (76)` (e.g. `expected undefined to be 'partners'`, `expected [ {}, {}, {}, {} ] to deeply equal ...`; the 15 are guards: v1 world trade, order-time check, frozen input, determinism) |
+| FR-182 to FR-193, FR-196 green | same command | `Test Files 4 passed (4)`, `Tests 76 passed (76)` |
+| First commit (0a1c613) alone | `npm test`, `npx tsc --noEmit` with the FR-193 files set aside | `Test Files 77 passed (77)`, `Tests 1342 passed (1342)`; exit 0 |
+| Unit tests | `npm test` | `Test Files 79 passed (79)`, `Tests 1359 passed (1359)` (+76 on 1283), 0 act warnings |
+| FR-198, FR-159 v1 baselines | `npm test` console | `FR-125 seed 1: t15 616/390 (1.58) ... t40 1493/650 (2.30)`, `FR-157 nation 2 score at turn 40: [[1,1493],[2,1496],[3,1490],[4,1476]]`, as in M6 |
+| FR-196 v2 trade baseline | `npm test` console | `"consulateBy":{"nation-1":1,"nation-2":1},"minorDeals":{"nation-1":21,"nation-2":21}` on every seed; treasuries `17674`, `17021`, `16607`, `19737` (both nations) |
+| Lint | `npm run lint` | `✖ 3 problems (0 errors, 3 warnings)` (the three of M6) |
+| Types | `npx tsc --noEmit` | exit 0, no output |
+| Build | `npm run build` | `✓ Compiled successfully in 3.5s`, `✓ Generating static pages (4/4)` |
+
+Not run here: Playwright. For the UI half: `e2e/market-and-game-over.spec.ts` (FR-078) sells 1 lumber on the default
+(continent) game and expects "Sold 1 Lumber for $300."; in "partners" nobody buys lumber, so that spec, and the market
+dialog names in `e2e/m4-1.spec.ts`, `e2e/look.spec.ts` and `e2e/m6-dialogs.spec.ts`, change with FR-194.
