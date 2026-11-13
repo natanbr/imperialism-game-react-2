@@ -14,6 +14,7 @@ import { validateOrder } from "../orders/validate";
 import { bestDepotSite, nextRailSections, tilesByReach, type DepotSite } from "./railPlan";
 import { planEconomy, turnsAfter } from "./economy";
 import { scriptedDiplomacyOrders } from "./diplomacy";
+import { planWarDeclaration, planWarMoves } from "./scriptedWar";
 
 /**
  * A player is any function from the game state to its orders for this turn. Scripted and,
@@ -44,6 +45,8 @@ export const scriptedPlayer: Player = (state, nationId) => {
 
   if (!nationById(state, nationId)) return orders;
 
+  // FR-229: a declaration of war first, so this turn's economy and trade see the war
+  planWarDeclaration(() => view, nationId, propose);
   planEconomy(() => view, nationId, propose);
 
   // The engineer plans first, so the depot he starts is paid for and its tiles count as gathered
@@ -58,6 +61,9 @@ export const scriptedPlayer: Player = (state, nationId) => {
       if (propose(order)) break;
     }
   }
+
+  // At war (or declaring war this turn): the attacks and marches (FR-228, FR-229)
+  planWarMoves(() => view, nationId, propose);
 
   // Last, and only at war: a peace offer when losing (FR-174). At peace nothing is added (FR-181).
   for (const order of scriptedDiplomacyOrders(view, nationId)) propose(order);

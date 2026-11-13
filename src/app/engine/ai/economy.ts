@@ -32,7 +32,7 @@ import { transportConnectivitySystem } from "../systems/transportConnectivitySys
 import { createTurnContext } from "../turn/context";
 import { turnLimitOf } from "../turn/gameOver";
 import { SCRIPTED_GARRISON } from "@/definisions/regiments";
-import { armyThreat, planGarrison } from "./scriptedArmy";
+import { armsWanted, planGarrison } from "./scriptedArmy";
 
 export type Propose = (order: Order) => boolean;
 type Stock = Record<string, number>;
@@ -169,9 +169,9 @@ function planTraining(view: () => GameState, nationId: string, propose: Propose)
   }
 }
 
-/** The armaments the run makes first under an army threat (FR-213): up to 2 in stock, within the metal works. */
+/** The armaments the run makes first while arms are wanted (FR-213, FR-229): up to 2 in stock, within the metal works. */
 const garrisonArmaments = (state: GameState, nationId: string): number => {
-  if (!armyThreat(state, nationId)) return 0;
+  if (!armsWanted(state, nationId)) return 0;
   const nation = nationOf(state, nationId);
   const short = SCRIPTED_GARRISON.armaments - ((nation.warehouse as Stock)[GoodsType.Armaments] ?? 0);
   return Math.max(0, Math.min(short, buildingOf(nation, "metalWorks").capacity));
@@ -365,7 +365,7 @@ function nextUseOf(state: GameState, nationId: string, next: Stock): Stock {
   const fibreUse = 2 * capacityOf(nation, "textileMill");
   const ore = (other: ResourceType) => Math.min(steelCap, next[other] ?? 0);
   return {
-    ...(armyThreat(state, nationId) ? { [GoodsType.Armaments]: SCRIPTED_GARRISON.armaments } : {}),
+    ...(armsWanted(state, nationId) ? { [GoodsType.Armaments]: SCRIPTED_GARRISON.armaments } : {}),
     [MaterialType.Lumber]: Infinity,
     [MaterialType.Steel]: Infinity,
     [MaterialType.Paper]: Infinity,

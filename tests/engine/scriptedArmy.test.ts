@@ -15,6 +15,7 @@ import type { RegimentType } from '@/types/Unit';
 import { GoodsType } from '@/types/Resource';
 import { applyOrder } from '@/engine/orders/apply';
 import { N1, N2, setBuilding, setIndustry, setPair, setTreasury, setWarehouse, stockOf, treasury } from './fixtures';
+import { SCRIPTED_WAR } from '@/definisions/combatRules';
 import { addRegiments, ARVELIA, ARVELIA_P, armyIn, continent, NW2, SW2 } from './armyFixtures';
 
 const ARMY_KINDS = ['setRecruitment', 'moveArmy', 'cancelArmyMove', 'disbandRegiments'];
@@ -155,10 +156,12 @@ describe('FR-213 the garrison over ten turns at war', () => {
     expect(refused).toBe(0);
   });
 
-  it.each(['two-islands', 'continent'] as const)('FR-213 on %s at peace (world market), ten turns of nation 2: no army order and no armaments made', world => {
+  // M9: from turn 10 (SCRIPTED_WAR.fromTurn) FR-229's campaign on a minor makes armaments and recruits on the continent
+  // (tests/engine/scriptedWar.test.ts), so there the window of peace without army orders ends at turn 9
+  it.each([['two-islands', 10], ['continent', SCRIPTED_WAR.fromTurn - 1]] as const)('FR-213 on %s at peace (world market), %i turns of nation 2: no army order and no armaments made', (world, turns) => {
     let s = newGame({ seed: 1, world, market: 'world' });
     const orders: Order[] = [];
-    for (let turn = 1; turn <= 10; turn++) {
+    for (let turn = 1; turn <= turns; turn++) {
       const mine = scriptedPlayer(s, N2);
       orders.push(...mine);
       s = resolveTurn(s, { [N2]: mine }, s.seed).state;

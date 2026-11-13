@@ -11,6 +11,8 @@ import { warBetween } from "../diplomacy/queries";
 import { nationById } from "../orders/queries";
 import { adjacentProvinces, provincesOf } from "../world/provinces";
 import type { Order } from "../orders/Order";
+import { SCRIPTED_WAR } from "@/definisions/combatRules";
+import { campaignRecruit } from "./scriptedWar";
 
 /**
  * A country at war with the nation has a strength (FR-204) in a province bordering one of the nation's provinces above
@@ -28,15 +30,23 @@ export function armyThreat(state: GameState, nationId: NationId): boolean {
 }
 
 /**
- * FR-213: under a threat, 1 Regulars this turn while the treasury after the order stays at $2,500 or more; `propose`
- * keeps it only when it validates, so without an armament or a free untrained worker nothing is ordered. Planned after
- * the standing orders are cleared and before anything else takes labour or cash.
+ * The nation wants a regiment this turn: under a threat (FR-213), or while its campaign on a minor needs a larger field
+ * army (FR-229). Then it recruits 1 Regulars and its run makes and keeps the armaments for it (economy.ts).
+ */
+export const armsWanted = (state: GameState, nationId: NationId): boolean => armyThreat(state, nationId) || campaignRecruit(state, nationId);
+
+/**
+ * FR-213, FR-229: while arms are wanted, 1 Regulars this turn while the treasury after the order stays at $2,500 or
+ * more; `propose` keeps it only when it validates, so without an armament or a free untrained worker nothing is
+ * ordered. Planned after the standing orders are cleared and before anything else takes labour or cash.
  */
 export function planGarrison(view: () => GameState, nationId: NationId, propose: (order: Order) => boolean): void {
   const state = view();
   const nation = nationById(state, nationId);
-  if (!nation || !armyThreat(state, nationId)) return;
-  const { regiment, treasuryFloor } = SCRIPTED_GARRISON;
+  if (!nation || !armsWanted(state, nationId)) return;
+  // the threat's Regulars (FR-213); else the campaign's regiment (FR-229, SCRIPTED_WAR.regiment)
+  const regiment = armyThreat(state, nationId) ? SCRIPTED_GARRISON.regiment : SCRIPTED_WAR.regiment;
+  const { treasuryFloor } = SCRIPTED_GARRISON;
   if (nation.treasury - REGIMENTS[regiment].cash < treasuryFloor) return;
   propose({ kind: "setRecruitment", nationId, regiment, count: recruitingOf(nation, regiment) + 1 });
 }
