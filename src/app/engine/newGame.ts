@@ -42,6 +42,7 @@ export function newGame(options: number | NewGameOptions): GameState {
     provinces,
     diplomacy: startDiplomacy(nations, minorNations),
     intents: [],
+    proposals: [],
     cities: [],
     armies: [],
     fleets: [],

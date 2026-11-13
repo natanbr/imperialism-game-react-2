@@ -8,7 +8,8 @@ import { CONSTRUCTION_COST, DEVELOPMENT_COST, PROSPECT_COST } from '@/definision
 import type { ConstructionKind } from '@/types/jobs/ConstructionJob';
 import { createTileId } from '@/utils/tileIdUtils';
 import { newGame } from '@/engine/newGame';
-import { deepFreeze, game, N1, N2, put, setTile, setTreasury, setWarehouse, T, workerId } from './fixtures';
+import { applyOrder } from '@/engine/orders/apply';
+import { deepFreeze, game, N1, N2, put, setPair, setTile, setTreasury, setWarehouse, T, workerId } from './fixtures';
 
 const W = {
   prospector: workerId(N1, WorkerType.Prospector),
@@ -156,6 +157,13 @@ const cases: Case[] = [
   // trade orders (more rows in market.test.ts)
   { name: 'FR-061 offering timber on the world market is ok', order: { kind: 'sellCommodity', nationId: N1, commodity: ResourceType.Timber, amount: 2 }, expected: 'ok' },
   { name: 'FR-062 bidding for coal on the world market is ok', order: { kind: 'buyCommodity', nationId: N1, commodity: ResourceType.Coal, amount: 1 }, expected: 'ok' },
+
+  // diplomacy orders (FR-161; the refusals of FR-162 are in the describe block below, on the continent)
+  { name: 'FR-161 an alliance with the other Great Power is ok', order: { kind: 'proposeOverture', nationId: N1, overture: 'alliance', targetId: N2 }, expected: 'ok' },
+  { name: 'FR-161 a grant to the other Great Power (embassies both ways at the start) is ok', order: { kind: 'giveGrant', nationId: N1, targetId: N2, amount: 1000, locked: false }, expected: 'ok' },
+  { name: 'FR-161 a 10% subsidy toward the other Great Power (consulates both ways) is ok', order: { kind: 'setTradePolicy', nationId: N1, targetId: N2, subsidyPercent: 10, boycott: false }, expected: 'ok' },
+  { name: 'FR-161 withdrawing this turn\'s alliance proposal is ok', setup: s => ({ ...s, intents: [{ id: 'intent-1-1', kind: 'alliance', nationId: N1, turn: 1, targetId: N2, cost: 0 } as GameState['intents'][number]] }), order: { kind: 'withdrawOverture', nationId: N1, overture: 'alliance', targetId: N2 }, expected: 'ok' },
+  { name: 'FR-161 answering a proposal made to the nation last turn is ok', setup: s => ({ ...s, turn: 2, proposals: [{ id: 'proposal-1-1', fromId: N2, toId: N1, kind: 'alliance', turn: 1 }] }), order: { kind: 'answerProposal', nationId: N1, proposalId: 'proposal-1-1', accept: true }, expected: 'ok' },
 ];
 
 describe('validateOrder', () => {
@@ -212,5 +220,79 @@ describe('FR-149 minor land is closed: orders onto a minor tile are refused as o
 
     expect(minor).toEqual({ ok: false, reason: 'not-owner' });
     expect(minor).toEqual(greatPower);
+  });
+});
+
+describe('FR-162 overture refusals, on the continent (one row per refusal)', () => {
+  const ARVELIA = 'minor-1';
+  const continent = () => newGame({ seed: 1, world: 'continent' });
+  const consulate = (s: GameState, other = ARVELIA) => setPair(s, N1, other, { consulates: [N1] });
+  const embassy = (s: GameState, other = ARVELIA) => setPair(s, N1, other, { consulates: [N1], embassies: [N1] });
+  const war = (s: GameState, other: string) => setPair(s, N1, other, { war: { aggressors: [N1], since: 1 }, consulates: [], embassies: [] });
+  const ordered = (order: Order): Setup => s => applyOrder(s, order);
+  const propose = (overture: 'consulate' | 'embassy' | 'pact' | 'alliance' | 'war' | 'peace', targetId = ARVELIA): Order => ({ kind: 'proposeOverture', nationId: N1, overture, targetId });
+  const grant = (amount: number, targetId = ARVELIA): Order => ({ kind: 'giveGrant', nationId: N1, targetId, amount: amount as 1000, locked: false });
+  const policy = (subsidyPercent: number, boycott = false, targetId = ARVELIA): Order => ({ kind: 'setTradePolicy', nationId: N1, targetId, subsidyPercent: subsidyPercent as 10, boycott });
+  const proposal = (patch: Partial<{ toId: string; turn: number }>): Setup => s => ({ ...s, turn: 3, proposals: [{ id: 'proposal-2-1', fromId: N2, toId: N1, kind: 'peace', turn: 2, ...patch }] });
+  const answer = (proposalId: string, accept = true): Order => ({ kind: 'answerProposal', nationId: N1, proposalId, accept });
+
+  const rows: Case[] = [
+    { name: 'an unknown target', order: propose('consulate', 'minor-9'), expected: 'invalid-target' },
+    { name: 'the nation itself', order: propose('alliance', N1), expected: 'invalid-target' },
+    { name: 'a grant to an unknown target', setup: embassy, order: grant(1000, 'minor-9'), expected: 'invalid-target' },
+    { name: 'a trade policy toward the nation itself', order: policy(0, true, N1), expected: 'invalid-target' },
+    { name: 'a consulate already held', setup: consulate, order: propose('consulate'), expected: 'already-in-place' },
+    { name: 'a consulate already ordered this turn', setup: ordered(propose('consulate')), order: propose('consulate'), expected: 'already-in-place' },
+    { name: 'a consulate with a Great Power that holds one (the start)', order: propose('consulate', N2), expected: 'already-in-place' },
+    { name: 'an embassy without a consulate', order: propose('embassy'), expected: 'needs-consulate' },
+    { name: 'an embassy with a consulate ordered only this turn', setup: ordered(propose('consulate')), order: propose('embassy'), expected: 'needs-consulate' },
+    { name: 'an embassy already held', setup: embassy, order: propose('embassy'), expected: 'already-in-place' },
+    { name: 'a pact without an embassy', setup: consulate, order: propose('pact'), expected: 'needs-embassy' },
+    { name: 'a grant without an embassy', setup: consulate, order: grant(1000), expected: 'needs-embassy' },
+    { name: 'a pact already signed', setup: s => setPair(embassy(s), N1, ARVELIA, { pact: true }), order: propose('pact'), expected: 'already-in-place' },
+    { name: 'a pact with a Great Power', order: propose('pact', N2), expected: 'invalid-target' },
+    { name: 'an alliance with a minor', setup: embassy, order: propose('alliance'), expected: 'invalid-target' },
+    { name: 'an alliance already signed', setup: s => setPair(s, N1, N2, { alliance: true }), order: propose('alliance', N2), expected: 'already-in-place' },
+    { name: 'a consulate while at war', setup: s => war(s, ARVELIA), order: propose('consulate'), expected: 'at-war' },
+    { name: 'an embassy while at war', setup: s => war(s, ARVELIA), order: propose('embassy'), expected: 'at-war' },
+    { name: 'a pact while at war', setup: s => war(s, ARVELIA), order: propose('pact'), expected: 'at-war' },
+    { name: 'an alliance while at war', setup: s => war(s, N2), order: propose('alliance', N2), expected: 'at-war' },
+    { name: 'a grant while at war', setup: s => war(s, N2), order: grant(1000, N2), expected: 'at-war' },
+    { name: 'a subsidy while at war', setup: s => war(s, N2), order: policy(10, false, N2), expected: 'at-war' },
+    { name: 'war while at war', setup: s => war(s, ARVELIA), order: propose('war'), expected: 'already-in-place' },
+    { name: 'war already declared this turn', setup: ordered(propose('war')), order: propose('war'), expected: 'already-in-place' },
+    { name: 'peace while not at war', order: propose('peace'), expected: 'not-at-war' },
+    { name: 'peace already proposed this turn', setup: s => applyOrder(war(s, ARVELIA), propose('peace')), order: propose('peace'), expected: 'already-in-place' },
+    { name: 'a grant of $2,000', setup: embassy, order: grant(2000), expected: 'invalid-amount' },
+    { name: 'a subsidy of 15%', setup: consulate, order: policy(15), expected: 'invalid-amount' },
+    { name: 'a subsidy without a consulate', order: policy(10), expected: 'needs-consulate' },
+    { name: 'a subsidy with a consulate ordered only this turn', setup: ordered(propose('consulate')), order: policy(10), expected: 'needs-consulate' },
+    { name: 'a consulate costing more than the treasury', setup: s => setTreasury(s, N1, 499), order: propose('consulate'), expected: 'insufficient-funds' },
+    { name: 'an embassy costing more than the treasury', setup: s => setTreasury(consulate(s), N1, 4999), order: propose('embassy'), expected: 'insufficient-funds' },
+    { name: 'a grant costing more than the treasury', setup: s => setTreasury(embassy(s), N1, 9999), order: grant(10000), expected: 'insufficient-funds' },
+    { name: 'an answer to a proposal made to another nation', setup: proposal({ toId: N2 }), order: answer('proposal-2-1'), expected: 'invalid-target' },
+    { name: 'an answer to an expired proposal', setup: proposal({ turn: 1 }), order: answer('proposal-2-1'), expected: 'invalid-target' },
+    { name: 'an answer to an unknown proposal', setup: proposal({}), order: answer('proposal-9-9'), expected: 'invalid-target' },
+    { name: 'a withdrawal with nothing to withdraw', order: { kind: 'withdrawOverture', nationId: N1, overture: 'consulate', targetId: ARVELIA }, expected: 'invalid-target' },
+    { name: 'a "grant" withdrawal with no grant this turn and no locked grant', setup: embassy, order: { kind: 'withdrawOverture', nationId: N1, overture: 'grant', targetId: ARVELIA }, expected: 'invalid-target' },
+    // Allowed (FR-171, FR-162): a boycott needs no consulate; a subsidy step with a consulate; 0 removes.
+    { name: 'a boycott without a consulate is ok', order: policy(0, true), expected: 'ok' },
+    { name: 'a 75% subsidy with a consulate is ok', setup: consulate, order: policy(75), expected: 'ok' },
+    { name: 'removing a subsidy (0) while at war is ok', setup: s => war(s, N2), order: policy(0, false, N2), expected: 'ok' },
+    { name: 'answering a proposal made last turn is ok', setup: proposal({}), order: answer('proposal-2-1', false), expected: 'ok' },
+    { name: 'war on a pact partner is ok (it breaks the pact, FR-168)', setup: s => setPair(embassy(s), N1, ARVELIA, { pact: true }), order: propose('war'), expected: 'ok' },
+  ];
+
+  it.each(rows.map(r => [r.name, r] as const))('FR-162 %s', (_name, r) => {
+    const state = deepFreeze(r.setup ? r.setup(continent()) : continent());
+    const snapshot = structuredClone(state);
+
+    expect(validateOrder(state, r.order)).toEqual(r.expected === 'ok' ? { ok: true } : { ok: false, reason: r.expected });
+    expect(state).toEqual(snapshot);
+  });
+
+  it('FR-162 the five new reasons each have a row', () => {
+    const reasons = new Set(rows.map(r => r.expected));
+    for (const reason of ['needs-consulate', 'needs-embassy', 'already-in-place', 'at-war', 'not-at-war'] as const) expect(reasons.has(reason)).toBe(true);
   });
 });

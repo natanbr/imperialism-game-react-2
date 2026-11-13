@@ -33,13 +33,20 @@ export function byIntentOrder<T extends Pick<Intent, "nationId">>(state: GameSta
 
 /**
  * Stores an intent for this turn with the next free id "intent-<turn>-<n>" and returns a new state; the
- * input and every other part of the state are unchanged. The order's validation runs before this.
+ * input and every other part of the state are unchanged. The order's validation runs before this. A
+ * narrower intent type (`GrantIntent`, ...) keeps its own fields.
  */
-export function addIntent(state: GameState, intent: Omit<Intent, "id" | "turn">): GameState {
+export function addIntent<T extends Omit<Intent, "id" | "turn">>(state: GameState, intent: T): GameState {
   const prefix = `intent-${state.turn}-`;
   const used = state.intents.filter((i) => i.id.startsWith(prefix)).map((i) => Number(i.id.slice(prefix.length)) || 0);
   const id = `${prefix}${Math.max(0, ...used) + 1}`;
   return { ...state, intents: [...state.intents, { ...intent, id, turn: state.turn }] };
+}
+
+/** A new state without the intent of that id; the same state when there is none. */
+export function removeIntent(state: GameState, intentId: string): GameState {
+  if (!state.intents.some((i) => i.id === intentId)) return state;
+  return { ...state, intents: state.intents.filter((i) => i.id !== intentId) };
 }
 
 /** Drops the intents of the resolved turn and before (FR-152); the same state when there is none. */

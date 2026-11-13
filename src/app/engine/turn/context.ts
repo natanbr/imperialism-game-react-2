@@ -1,5 +1,6 @@
 import type { GameState } from "@/types/GameState";
-import type { NationId, TileId } from "@/types/Common";
+import type { CountryId, NationId, TileId } from "@/types/Common";
+import type { GrantAmount, Overture, ProposalKind, WithdrawableOverture } from "@/types/Diplomacy";
 import type { ResourceType } from "@/types/Resource";
 import type { ConstructionKind } from "@/types/jobs/ConstructionJob";
 import type { BuildingType, ProductionOutput } from "@/types/Industry";
@@ -24,7 +25,26 @@ export type GameEvent =
   | { type: "goods-bought"; nationId: NationId; commodity: TradeCommodity; amount: number; price: number; cost: number }
   | { type: "turn-ended"; turn: number; year: number }
   /** The last turn has resolved (FR-068): the last turn played, its year and the final scores. */
-  | { type: "game-over"; turn: number; year: number; scores: Score[] };
+  | { type: "game-over"; turn: number; year: number; scores: Score[] }
+  // Diplomacy (FR-176). `nationId` is the acting Great Power, so another nation's lines get its name (FR-107).
+  /** An overture took effect; for an alliance or a peace between two Great Powers each of them gets one. */
+  | { type: "overture-done"; nationId: NationId; overture: Exclude<Overture, "war">; targetId: CountryId }
+  /** The target Great Power said no (or did not answer in time) to `nationId`'s alliance or peace. */
+  | { type: "overture-refused"; nationId: NationId; overture: ProposalKind; targetId: CountryId }
+  /** Checked again when resolved, the intent was no longer valid (FR-173); its cost came back. */
+  | { type: "overture-failed"; nationId: NationId; overture: WithdrawableOverture; targetId: CountryId; reason: RejectReason; refund: number }
+  | { type: "war-declared"; nationId: NationId; targetId: CountryId; startsTurn: number }
+  /** Peace dropped `count` attacks of `nationId` on `targetId` ordered this turn (FR-169). */
+  | { type: "attacks-cancelled"; nationId: NationId; targetId: CountryId; count: number }
+  /** The pair's level moved in this phase (FR-172); one event for each Great Power of the pair. */
+  | { type: "relation-changed"; nationId: NationId; otherId: CountryId; from: number; to: number }
+  | { type: "grant-paid"; nationId: NationId; targetId: CountryId; amount: GrantAmount }
+  | { type: "grant-stopped"; nationId: NationId; targetId: CountryId; amount: GrantAmount; reason: GrantStopReason }
+  /** A proposal to `nationId`, a human Great Power, to answer next turn (FR-166, FR-175). */
+  | { type: "proposal-received"; nationId: NationId; fromId: NationId; proposalId: string; kind: ProposalKind };
+
+/** Why a locked grant ended (FR-170). */
+export type GrantStopReason = "insufficient-funds" | "withdrawn" | "war";
 
 /** Everything a system may use besides the state itself (FR-012). */
 export interface TurnContext {

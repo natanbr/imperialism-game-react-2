@@ -1,4 +1,5 @@
-import type { NationId, TileId } from "@/types/Common";
+import type { CountryId, NationId, TileId } from "@/types/Common";
+import type { GrantAmount, Overture, SubsidyPercent, WithdrawableOverture } from "@/types/Diplomacy";
 import type { ConstructionKind } from "@/types/jobs/ConstructionJob";
 import type { BuildingType, ProductionOutput, WorkerGrade } from "@/types/Industry";
 import type { TradeCommodity } from "@/types/Market";
@@ -155,6 +156,47 @@ export interface BuyCommodityOrder extends OrderBase {
   amount: number;
 }
 
+/**
+ * Diplomacy (FR-161, decision 5): each of these stores an intent that the diplomacy phase resolves at End
+ * Turn; nothing of the target changes when it is applied. A consulate ($500), an embassy ($5,000) and a
+ * grant are paid when ordered; every one can be taken back until End Turn (`withdrawOverture`).
+ */
+export interface ProposeOvertureOrder extends OrderBase {
+  kind: "proposeOverture";
+  overture: Overture;
+  targetId: CountryId;
+}
+
+/** A grant of one of the four Imp1 sizes, once or locked (repeated each turn, FR-170). A second one this turn for the target replaces it. */
+export interface GiveGrantOrder extends OrderBase {
+  kind: "giveGrant";
+  targetId: CountryId;
+  amount: GrantAmount;
+  locked: boolean;
+}
+
+/** The nation's subsidy toward the target (0 removes it) and whether it boycotts it (FR-171). A second one this turn replaces it. */
+export interface SetTradePolicyOrder extends OrderBase {
+  kind: "setTradePolicy";
+  targetId: CountryId;
+  subsidyPercent: 0 | SubsidyPercent;
+  boycott: boolean;
+}
+
+/** Takes back this turn's overture, grant or trade policy with its cost; "grant" with none this turn ends a standing locked grant. */
+export interface WithdrawOvertureOrder extends OrderBase {
+  kind: "withdrawOverture";
+  overture: WithdrawableOverture;
+  targetId: CountryId;
+}
+
+/** Answers a proposal made to the nation last turn (FR-166, FR-175); a second answer this turn replaces the first. */
+export interface AnswerProposalOrder extends OrderBase {
+  kind: "answerProposal";
+  proposalId: string;
+  accept: boolean;
+}
+
 export type Order =
   | MoveWorkerOrder
   | MoveAndBuildRailOrder
@@ -172,9 +214,17 @@ export type Order =
   | TrainWorkersOrder
   | RecruitWorkersOrder
   | SellCommodityOrder
-  | BuyCommodityOrder;
+  | BuyCommodityOrder
+  | ProposeOvertureOrder
+  | GiveGrantOrder
+  | SetTradePolicyOrder
+  | WithdrawOvertureOrder
+  | AnswerProposalOrder;
 
 export type OrderKind = Order["kind"];
+
+/** The diplomacy orders (FR-161). */
+export type DiplomacyOrder = ProposeOvertureOrder | GiveGrantOrder | SetTradePolicyOrder | WithdrawOvertureOrder | AnswerProposalOrder;
 
 export const ORDER_KINDS = [
   "moveWorker",
@@ -194,6 +244,11 @@ export const ORDER_KINDS = [
   "recruitWorkers",
   "sellCommodity",
   "buyCommodity",
+  "proposeOverture",
+  "giveGrant",
+  "setTradePolicy",
+  "withdrawOverture",
+  "answerProposal",
 ] as const satisfies readonly OrderKind[];
 
 /** Why an order was refused. A fixed list so UIs and AI players can switch on it (FR-004). */
@@ -214,6 +269,16 @@ export type RejectReason =
   | "limit-reached"
   | "invalid-amount"
   /** The last turn has resolved; nothing more can be ordered (FR-069). */
-  | "game-over";
+  | "game-over"
+  /** Diplomacy (FR-162): an embassy or a subsidy needs a consulate established before this turn. */
+  | "needs-consulate"
+  /** Diplomacy (FR-162): a pact or a grant needs an embassy. */
+  | "needs-embassy"
+  /** Diplomacy (FR-162): held already, or already ordered this turn. */
+  | "already-in-place"
+  /** Diplomacy (FR-162): not while at war with the target. */
+  | "at-war"
+  /** Diplomacy (FR-162): peace while not at war. */
+  | "not-at-war";
 
 export type ValidationResult = { ok: true } | { ok: false; reason: RejectReason };

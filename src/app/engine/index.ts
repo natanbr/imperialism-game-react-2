@@ -1,10 +1,10 @@
 // Public API of the headless game core. The store, the UI and AI players import from here.
-export type { Order, OrderKind, RejectReason, ValidationResult } from "./orders/Order";
+export type { DiplomacyOrder, Order, OrderKind, RejectReason, ValidationResult } from "./orders/Order";
 export { ORDER_KINDS } from "./orders/Order";
 export { validateOrder } from "./orders/validate";
 export { applyOrder, tryApplyOrder } from "./orders/apply";
 export { resolveTurn, type OrdersByNation, type TurnResult } from "./turn/resolveTurn";
-export type { GameEvent, TurnContext, TurnSystem } from "./turn/context";
+export type { GameEvent, GrantStopReason, TurnContext, TurnSystem } from "./turn/context";
 export { createTurnRng, type Rng } from "./rng";
 export { scriptedPlayer, type Player } from "./ai/scriptedPlayer";
 export { computerOrders, PLAYERS } from "./ai/players";
@@ -36,6 +36,35 @@ export type { GameOver, Score } from "@/types/Score";
 export type { CountryId, MinorNationId } from "@/types/Common";
 export type { DiplomacyState, PairDiplomacy } from "@/types/Diplomacy";
 export type { Intent } from "@/types/Intent";
+// M6 (FR-161 to FR-176): diplomacy orders, the phase's view helpers, the scripted answers, the rule numbers.
+export {
+  diplomacyIntentsOf,
+  holdsConsulate,
+  holdsEmbassy,
+  intentCost,
+  isAtWar,
+  isOverture,
+  militaryStrength,
+  OVERTURES,
+  pendingProposalsFor,
+  proposalAnswer,
+  proposalsOf,
+  warActive,
+  warBetween,
+} from "./diplomacy/queries";
+export { acceptsAlliance, acceptsPeace, losingWar } from "./diplomacy/scriptedAnswers";
+export { GRANT_AMOUNTS, GRANT_POINTS, OVERTURE_COST, SUBSIDY_PERCENTS } from "@/definisions/diplomacyRules";
+export type {
+  GrantAmount,
+  Overture,
+  Proposal,
+  ProposalKind,
+  ProvinceCapture,
+  SubsidyPercent,
+  War,
+  WithdrawableOverture,
+} from "@/types/Diplomacy";
+export type { DiplomacyIntent } from "@/types/Intent";
 export type { MinorNation } from "@/types/MinorNation";
 export type { Province } from "@/types/Province";
 export type { WorldId } from "@/types/World";
