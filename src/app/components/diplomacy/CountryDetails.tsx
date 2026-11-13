@@ -3,6 +3,7 @@ import React, { useEffect, useId, useRef, useState } from "react";
 import type { GrantAmount, Order, SubsidyPercent, ValidationResult } from "@/engine";
 import type { GameState } from "@/types/GameState";
 import { GRANT_OPTIONS, grantControl, policyControl, reasonLines, SUBSIDY_OPTIONS, type ControlView, type CountryRowView } from "./diplomacyView";
+import { useEscapeFirst } from "../Modal";
 import styles from "./Diplomacy.module.css";
 
 type Submit = (order: Order) => ValidationResult;
@@ -76,23 +77,11 @@ const ConfirmWar: React.FC<ConfirmWarProps> = ({ name, breaks, onMinor, onDeclar
   useEffect(() => {
     panel.current?.focus();
   }, []);
+  // While the question is shown, Escape anywhere in the dialog keeps the peace instead of closing the dialog (FR-236)
+  useEscapeFirst(onKeepPeace);
   const describedBy = [questionId, breaks && costId, onMinor && minorsId].filter(Boolean).join(" ");
   return (
-    <div
-      ref={panel}
-      tabIndex={-1}
-      className={styles.confirm}
-      role="group"
-      aria-label={`Confirm war on ${name}`}
-      aria-describedby={describedBy}
-      onKeyDown={(e) => {
-        // Escape answers the question (keep the peace), not the whole dialog
-        if (e.key === "Escape") {
-          e.preventDefault();
-          onKeepPeace();
-        }
-      }}
-    >
+    <div ref={panel} tabIndex={-1} className={styles.confirm} role="group" aria-label={`Confirm war on ${name}`} aria-describedby={describedBy}>
       <p id={questionId} data-testid="war-question">{`Declare war on ${name}? The war starts next turn.`}</p>
       {breaks && (
         <p id={costId} className={styles.warCost} data-testid="war-cost">

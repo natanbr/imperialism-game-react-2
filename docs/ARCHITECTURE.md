@@ -398,10 +398,14 @@ its order takes back; "Declare war" at war says "we are already at war with them
 opens for each `pendingProposalsFor` the player at the start of a turn; Accept/Reject (Enter/Escape)
 send `answerProposal`, and closing it adds the id to `dismissedProposalIds` (reset by New game). Every dialog renders its content in `Modal.tsx` (FR-236): `role="dialog"`, `aria-modal`, named by
 its title (`aria-labelledby`); the focus moves to its first control on open (Accept Offer: the dialog
-itself) and back to the opener on close; Tab and Shift+Tab are trapped; Escape (`onEscape`, else
-`onClose`) and a click that starts and ends on the backdrop call `onClose`. A module-level stack
-lets only the newest open dialog answer the keys (Diplomacy over Capital, the transport plan inside
-Capital); a part that handles Escape itself (the war question) calls `preventDefault` first. About
+itself, again for each next offer through `focusKey`) and back to the opener on close; Tab and
+Shift+Tab are trapped, and the dialog remembers (on `focusin`) the element that last took the focus
+and its place among the controls, so after an order disables or removes the focused control and
+Chrome drops the focus to the page, Tab goes on from there; Escape (`onEscape`, else `onClose`) and a
+click that starts and ends on the backdrop call `onClose`. A module-level stack lets only the newest
+open dialog answer the keys (Diplomacy over Capital, the transport plan inside Capital); a part
+shown inside a dialog can take Escape first with `useEscapeFirst` (a context of the dialog: the war
+question keeps the peace wherever the focus is). About
 renders into `document.body` (`portal`), since the HUD clips it. The game-over screen (`GameOverModal.tsx`)
 shows `state.gameOver.scores` whenever the game is over, unless the player closed it
 (`isGameOverHidden`, reopened by the HUD's "Final scores"). After game over the HUD's Advance

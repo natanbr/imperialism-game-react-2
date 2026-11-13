@@ -110,3 +110,48 @@ test('FR-236 Diplomacy over Capital: Escape closes Diplomacy only and the focus 
   await expect(capital).toHaveCount(0);
   expect(errors).toEqual([]);
 });
+
+test('FR-236 the keyboard on the Diplomacy screen: Tab goes on after an order, Tab from the war question, Escape answers the question from anywhere (QA review F4, F1, F3)', async ({ page }) => {
+  const errors = collectErrors(page);
+  await open(page);
+  await page.getByRole('button', { name: /^Diplomacy$/ }).click();
+  const dialog = page.getByRole('dialog', { name: 'Diplomacy' });
+  await dialog.getByRole('tab', { name: 'Arvelia' }).click();
+  const pane = dialog.getByRole('tabpanel', { name: 'Arvelia' });
+  const consulate = pane.getByRole('button', { name: 'Consulate ($500)' });
+  const withdraw = pane.getByRole('button', { name: 'Withdraw consulate' });
+  // The overtures' own "Declare war" opens the question, so it is the one with aria-expanded
+  const warOverture = pane.locator('button[aria-expanded]', { hasText: 'Declare war' });
+
+  // F4: Enter on Consulate disables it and Chrome drops the focus to the page; Tab goes on to the next enabled control
+  await page.keyboard.press('Tab');
+  await expect(consulate).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(consulate).toBeDisabled();
+  await page.keyboard.press('Tab');
+  await expect(warOverture).toBeFocused();
+  // Shift+Tab reaches Withdraw consulate above; Enter removes it; Tab goes on to Consulate, enabled again
+  await page.keyboard.press('Shift+Tab');
+  await expect(withdraw).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(withdraw).toHaveCount(0);
+  await page.keyboard.press('Tab');
+  await expect(consulate).toBeFocused();
+
+  // F1: from the war question (a focused group), Tab goes to its "Declare war", then "Keep the peace"
+  await warOverture.click();
+  const ask = pane.getByRole('group', { name: 'Confirm war on Arvelia' });
+  await expect(ask).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(ask.getByRole('button', { name: 'Declare war' })).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(ask.getByRole('button', { name: 'Keep the peace' })).toBeFocused();
+  // F3: on the Grant's Amount, outside the question, Escape keeps the peace and the dialog stays
+  await page.keyboard.press('Tab');
+  await expect(pane.getByRole('combobox', { name: 'Amount' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(ask).toHaveCount(0);
+  await expect(dialog).toBeVisible();
+  await expect(warOverture).toBeFocused();
+  expect(errors).toEqual([]);
+});

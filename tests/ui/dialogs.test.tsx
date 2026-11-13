@@ -4,6 +4,7 @@
 // into it on open and back to the button that opened it on close; Tab and Shift+Tab stay inside; Escape closes it;
 // a click on the backdrop outside it closes it. Only the top dialog of a stack answers. Accept Offer: the dialog
 // itself takes the focus and Escape rejects (FR-175). Game over has no close: Escape and the backdrop do nothing.
+// QA review F2: the next offer takes the focus again; Accept Offer, Game over and Construction Options give it back.
 import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
@@ -202,6 +203,32 @@ describe('FR-236 every dialog is a modal dialog', () => {
     expect(useGameStore.getState().isConstructionModalOpen).toBe(false);
     expect(submitted).toEqual([]);
   });
+
+  it('FR-236 Construction Options: the focus on its first control, Tab and Shift+Tab stay inside, Escape gives the focus back to the element that opened it (QA review F2)', () => {
+    show(start());
+    render(
+      <>
+        <button>Engineer</button>
+        <ConstructionOptionsModal />
+      </>
+    );
+    const opener = screen.getByRole('button', { name: 'Engineer' });
+    act(() => opener.focus());
+    act(() => useGameStore.setState({ isConstructionModalOpen: true, constructionModalTileId: '2-9', constructionModalWorkerId: 'worker-nation-1-7' }));
+    const dialog = screen.getByRole('dialog', { name: 'Construction Options' });
+    expect(focused()).toBe(within(dialog).getByRole('button', { name: 'Build Depot' }));
+
+    const controls = tabCycle(dialog);
+    expect(controls.map(text)).toEqual(['Build Depot', 'Cancel']);
+    press('Tab', true);
+    expect(focused()).toBe(controls[controls.length - 1]);
+    press('Tab');
+    expect(focused()).toBe(controls[0]);
+
+    press('Escape');
+    expect(screen.queryByRole('dialog', { name: 'Construction Options' })).toBeNull();
+    expect(focused()).toBe(opener);
+  });
 });
 
 describe('FR-236 a stack of dialogs: only the top one answers', () => {
@@ -268,6 +295,47 @@ describe('FR-236 FR-175 Accept Offer', () => {
     expect(proposalAnswer(useGameStore.getState().game, 'proposal-1-1')).toBeUndefined();
     expect(useGameStore.getState().dismissedProposalIds).toEqual(['proposal-1-1']);
   });
+
+  it('FR-236 FR-175 the next offer takes the focus again (focusKey): after a click left the focus on Reject, Enter accepts the next offer (QA review F2)', () => {
+    const second = { id: 'proposal-1-2', fromId: N2, toId: N1, kind: 'alliance' as const, turn: 1 };
+    show({ ...withOffer(), proposals: [...withOffer().proposals!, second] });
+    render(<AcceptOfferModal />);
+    const dialog = screen.getByRole('dialog', { name: 'Accept Offer' });
+    const reject = within(dialog).getByRole('button', { name: 'Reject' });
+    // A mouse click focuses the button in Chrome; jsdom moves no focus on a click, so the test focuses it first
+    act(() => reject.focus());
+    fireEvent.click(reject);
+
+    // The same dialog shows the next offer, and the focus is on the dialog again, not on the button clicked
+    expect(screen.getByRole('dialog', { name: 'Accept Offer' })).toBe(dialog);
+    expect(focused()).toBe(dialog);
+    press('Enter');
+    expect(submitted).toEqual([
+      { kind: 'answerProposal', nationId: N1, proposalId: 'proposal-1-1', accept: false },
+      { kind: 'answerProposal', nationId: N1, proposalId: 'proposal-1-2', accept: true },
+    ]);
+    expect(screen.queryByRole('dialog', { name: 'Accept Offer' })).toBeNull();
+  });
+
+  it('FR-236 FR-175 once answered, Accept Offer gives the focus back to the element that had it when the offer opened (QA review F2)', () => {
+    show(start());
+    render(
+      <>
+        <button>End turn</button>
+        <AcceptOfferModal />
+      </>
+    );
+    const before = screen.getByRole('button', { name: 'End turn' });
+    act(() => before.focus());
+    act(() => useGameStore.setState({ game: withOffer() }));
+    const dialog = screen.getByRole('dialog', { name: 'Accept Offer' });
+    expect(focused()).toBe(dialog);
+
+    press('Escape');
+    expect(submitted).toEqual([{ kind: 'answerProposal', nationId: N1, proposalId: 'proposal-1-1', accept: false }]);
+    expect(screen.queryByRole('dialog', { name: 'Accept Offer' })).toBeNull();
+    expect(focused()).toBe(before);
+  });
 });
 
 describe('FR-236 Game over has no close', () => {
@@ -287,6 +355,25 @@ describe('FR-236 Game over has no close', () => {
 
     const controls = tabCycle(dialog);
     expect(controls.map(text)).toEqual(['Back to the map', 'New game']);
+  });
+
+  it('FR-236 "Back to the map" closes it and the focus goes back to the element that had it when the game ended (QA review F2)', () => {
+    show(start());
+    render(
+      <>
+        <button>Advance turn</button>
+        <GameOverModal />
+      </>
+    );
+    const before = screen.getByRole('button', { name: 'Advance turn' });
+    act(() => before.focus());
+    act(() => useGameStore.setState({ game: finished() }));
+    const dialog = screen.getByRole('dialog', { name: 'Game over' });
+    expect(focused()).toBe(within(dialog).getByRole('button', { name: 'Back to the map' }));
+
+    fireEvent.click(focused());
+    expect(screen.queryByRole('dialog', { name: 'Game over' })).toBeNull();
+    expect(focused()).toBe(before);
   });
 });
 

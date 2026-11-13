@@ -9,7 +9,9 @@
 // field or while a dialog is open; "Stop grant" never takes back this turn's grant; the war question names a broken
 // treaty; the page shows Accept Offer. QA fix round: two panes, the countries as tabs and the selected one's details
 // (FR-237), a refusal shown once per control group (FR-237), the war question names the other minors (FR-238), the start
-// treaties say "since the start" (FR-240), "we are already at war with them" (FR-241).
+// treaties say "since the start" (FR-240), "we are already at war with them" (FR-241). QA review (FR-236): Tab from the
+// war question or a disabled control goes on from it; Escape answers the war question wherever the focus is; after an
+// order disables or removes the focused control, Tab goes on from its place.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -613,6 +615,117 @@ describe('FR-238 FR-240 FR-241 the war question, the start treaties and the word
     openDiplomacy(s);
     expect(description(button('Lorran', 'Declare war'))).toBe('we are already at war with them');
     expect(description(button('Arvelia', 'Declare war'))).toBe('that is already in place');
+  });
+});
+
+describe('FR-236 the keyboard on the Diplomacy screen (QA review F1, F3, F4)', () => {
+  const key = (k: string, shiftKey = false) => fireEvent.keyDown(document.activeElement!, { key: k, shiftKey });
+  const pane = () => within(country('Arvelia'));
+  /** The overtures' own "Declare war" (it opens the question, so it carries aria-expanded; the question's does not). */
+  const warOverture = () => pane().getAllByRole('button', { name: 'Declare war' }).find((b) => b.hasAttribute('aria-expanded'))!;
+  const question = () => pane().queryByRole('group', { name: 'Confirm war on Arvelia' });
+  /** What Chrome does when an order disables or removes the focused control: the focus falls to the page. */
+  const dropFocus = () => {
+    if (document.activeElement !== document.body) {
+      // jsdom's blur() ignores a disabled button: pass the focus to a scratch button outside the dialog and remove it
+      act(() => {
+        const scratch = document.createElement('button');
+        document.body.appendChild(scratch);
+        scratch.focus();
+        scratch.remove();
+      });
+    }
+    expect(document.activeElement).toBe(document.body);
+  };
+  /** Focuses an element found first: a lookup inside act would select the country tab without rendering its pane yet. */
+  const focusOn = (el: HTMLElement) => act(() => el.focus());
+
+  it('FR-236 Tab from the war question (a focused group, not a control) goes on to its "Declare war", then "Keep the peace"; Shift+Tab to the control before it (F1)', () => {
+    openDiplomacy(start());
+    fireEvent.click(warOverture());
+    const ask = question()!;
+    expect(document.activeElement).toBe(ask);
+
+    key('Tab');
+    expect(document.activeElement).toBe(within(ask).getByRole('button', { name: 'Declare war' }));
+    key('Tab');
+    expect(document.activeElement).toBe(within(ask).getByRole('button', { name: 'Keep the peace' }));
+
+    act(() => ask.focus());
+    key('Tab', true);
+    // Propose peace, after it in the overtures, is disabled (not at war), so the overture "Declare war" comes before the question
+    expect(document.activeElement).toBe(warOverture());
+  });
+
+  it('FR-236 FR-178 while the war question is open, Escape answers it ("Keep the peace") wherever the focus is in the dialog; the dialog stays (F3)', () => {
+    openDiplomacy(start());
+    const spots: [string, () => HTMLElement][] = [
+      ['the Grant amount', () => pane().getByRole('combobox', { name: 'Amount' })],
+      ['the country tab', () => tab('Arvelia')],
+      ['the close button', () => within(dialog()).getByRole('button', { name: 'Close diplomacy' })],
+    ];
+    for (const [where, spot] of spots) {
+      fireEvent.click(warOverture());
+      expect(question(), where).not.toBeNull();
+      const el = spot();
+      focusOn(el);
+      fireEvent.keyDown(el, { key: 'Escape' });
+      expect(question(), where).toBeNull();
+      expect(useGameStore.getState().isDiplomacyOpen, where).toBe(true);
+      expect(document.activeElement, where).toBe(warOverture());
+    }
+    expect(submitted).toEqual([]);
+    // With the question closed, Escape closes the dialog again
+    key('Escape');
+    expect(useGameStore.getState().isDiplomacyOpen).toBe(false);
+  });
+
+  it('FR-236 an order that disables or removes the focused control: Tab and Shift+Tab go on from its place, not from the top of the dialog (F4)', () => {
+    openDiplomacy(start());
+    const consulate = () => pane().getByRole('button', { name: 'Consulate ($500)' }) as HTMLButtonElement;
+    const withdraw = () => pane().getByRole('button', { name: 'Withdraw consulate' });
+
+    // Consulate ordered: the button is disabled ("that is already in place"); Embassy and Pact are disabled, so Tab reaches Declare war
+    focusOn(consulate());
+    fireEvent.click(consulate());
+    expect(consulate().disabled).toBe(true);
+    dropFocus();
+    key('Tab');
+    expect(document.activeElement).toBe(warOverture());
+
+    // Withdraw consulate: the button is removed with its line; Shift+Tab reaches the control before it, the country's tab
+    const removed = withdraw();
+    focusOn(removed);
+    fireEvent.click(removed);
+    expect(removed.isConnected).toBe(false);
+    dropFocus();
+    key('Tab', true);
+    expect(document.activeElement).toBe(tab('Arvelia'));
+
+    // Ordered again: Shift+Tab from the disabled Consulate reaches Withdraw consulate, above it
+    focusOn(consulate());
+    fireEvent.click(consulate());
+    dropFocus();
+    key('Tab', true);
+    expect(document.activeElement).toBe(withdraw());
+
+    // Withdrawn again from the keyboard's place: Tab reaches the control now in its place, Consulate, enabled again
+    fireEvent.click(withdraw());
+    dropFocus();
+    key('Tab');
+    expect(document.activeElement).toBe(consulate());
+    expect(submitted.map((o) => o.kind)).toEqual(['proposeOverture', 'withdrawOverture', 'proposeOverture', 'withdrawOverture']);
+  });
+
+  it('FR-236 a control still holding the focus while disabled (as jsdom and other browsers keep it): Tab goes on to the next control after it (F1)', () => {
+    openDiplomacy(start());
+    const consulate = pane().getByRole('button', { name: 'Consulate ($500)' }) as HTMLButtonElement;
+    focusOn(consulate);
+    fireEvent.click(consulate);
+    expect(consulate.disabled).toBe(true);
+    expect(document.activeElement).toBe(consulate);
+    key('Tab');
+    expect(document.activeElement).toBe(warOverture());
   });
 });
 

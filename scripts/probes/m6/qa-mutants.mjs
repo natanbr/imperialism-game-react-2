@@ -1,6 +1,6 @@
 // M6 QA fix round: do the new tests bite? Each mutant takes back, in one source line, one behaviour of FR-236 to
 // FR-241, runs the test file that guards it, and restores the file. Every mutant must make at least one test fail.
-// Run from the repo root: node scripts/probes/m6/qa-mutants.mjs [mutant name]. Exit code 1 when a mutant survives
+// Run from the repo root: node scripts/probes/m6/qa-mutants.mjs [part of a mutant name]. Exit code 1 when a mutant survives
 // or its line is not found exactly once. The source may have CRLF line ends (Windows checkout): lines match as LF.
 import { readFileSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
@@ -37,7 +37,7 @@ const MUTANTS = [
   {
     name: "FR-236 Tab is left to the browser (no focus trap)",
     file: MODAL,
-    find: "        moveFocus(el, !e.shiftKey);",
+    find: "        moveFocus(el, !e.shiftKey, last);",
     replace: "",
     tests: DIALOG_TESTS,
   },
@@ -51,8 +51,8 @@ const MUTANTS = [
   {
     name: "FR-236 Escape in the war question closes the whole dialog",
     file: "src/app/components/diplomacy/CountryDetails.tsx",
-    find: '        if (e.key === "Escape") {',
-    replace: '        if (e.key === "Escape" && false) {',
+    find: "  useEscapeFirst(onKeepPeace);",
+    replace: "",
     tests: UI_TESTS,
   },
   {
@@ -111,11 +111,62 @@ const MUTANTS = [
     replace: "      return c;",
     tests: UI_TESTS,
   },
+  // The review of the QA fix round (QA review F1 to F4): the rows added for it bite too
+  {
+    name: "QA review F1 Tab from the war question or a disabled control starts at the top",
+    file: MODAL,
+    find: "  if (index === -1 && active && active !== dialog && dialog.contains(active)) {",
+    replace: "  if (false) {",
+    tests: UI_TESTS,
+  },
+  {
+    name: "QA review F2 the next offer leaves the focus where the click left it (no focusKey)",
+    file: "src/app/components/AcceptOfferModal.tsx",
+    find: "      focusKey={proposal.id}",
+    replace: "",
+    tests: DIALOG_TESTS,
+  },
+  {
+    name: "QA review F2 a dialog that focuses itself (Accept Offer) does not give the focus back",
+    file: MODAL,
+    find: "if (opener?.isConnected) opener.focus();",
+    replace: 'if (opener?.isConnected && initialFocus !== "dialog") opener.focus();',
+    tests: DIALOG_TESTS,
+  },
+  {
+    name: "QA review F2 a dialog without a close (Game over) does not give the focus back",
+    file: MODAL,
+    find: "if (opener?.isConnected) opener.focus();",
+    replace: "if (opener?.isConnected && handlers.current.onClose) opener.focus();",
+    tests: DIALOG_TESTS,
+  },
+  {
+    name: "QA review F3 Escape closes the dialog while the war question is open",
+    file: MODAL,
+    find: "const act = escapeFirst.current[escapeFirst.current.length - 1] ?? handlers.current.onEscape ?? handlers.current.onClose;",
+    replace: "const act = handlers.current.onEscape ?? handlers.current.onClose;",
+    tests: UI_TESTS,
+  },
+  {
+    name: "QA review F4 after an order took the focus away, Tab starts at the top",
+    file: MODAL,
+    find: "  if (!(active && dialog.contains(active)) && last) {",
+    replace: "  if (false) {",
+    tests: UI_TESTS,
+  },
+  {
+    name: "QA review F4 after an order removed the focused control, Tab starts at the top",
+    file: MODAL,
+    find: "    } else if (last.index >= 0) {",
+    replace: "    } else if (false) {",
+    tests: UI_TESTS,
+  },
 ];
 
+// The argument picks the mutants whose name contains it ("QA review" runs the review round's)
 const only = process.argv[2];
 let bad = 0;
-for (const m of MUTANTS.filter((x) => !only || x.name === only)) {
+for (const m of MUTANTS.filter((x) => !only || x.name.includes(only))) {
   const raw = readFileSync(m.file, "utf8");
   const source = raw.replace(/\r\n/g, "\n");
   const at = source.indexOf(m.find);
