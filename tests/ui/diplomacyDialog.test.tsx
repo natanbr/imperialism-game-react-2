@@ -5,11 +5,15 @@
 // of country, a grant control and a trade policy control; each builds its order with submitOrder only, and a control
 // validateOrder would refuse is disabled with the refusal text as its description; Declare war asks in place first.
 // FR-175: a proposal to the player opens "Accept Offer"; Accept and Reject (Enter and Escape) build answerProposal;
-// closing it leaves the proposal, which End Turn refuses.
+// closing it leaves the proposal, which End Turn refuses. Review fix round: the End Turn key "n" does nothing in a form
+// field or while a dialog is open; "Stop grant" never takes back this turn's grant; the war question names a broken
+// treaty; the page shows Accept Offer.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, renderHook, screen, within } from '@testing-library/react';
+import Home from '@/page';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { DiplomacyModal } from '@/components/DiplomacyModal';
 import { AcceptOfferModal } from '@/components/AcceptOfferModal';
 import { CapitalModal } from '@/components/CapitalModal';
@@ -187,6 +191,11 @@ describe('FR-177 the Diplomacy screen: the countries', () => {
     expect(button('Lorran', 'Withdraw declaration of war')).toBeTruthy();
   });
 
+  it('FR-177 FR-170 the screen says that a grant\'s money goes to no country (review B-R3: a grant buys relations only)', () => {
+    openDiplomacy(start());
+    expect(text(dialog())).toContain('A grant improves relations; the money leaves our treasury and no country receives it.');
+  });
+
   it('FR-177 the rows come from components/diplomacy/diplomacyView.ts, which imports no React, store or DOM', () => {
     const rows = diplomacyRows(start(), N1);
     expect(rows.map((r) => [r.name, r.kind, r.relationText])).toEqual([
@@ -312,6 +321,39 @@ describe('FR-178 the Diplomacy screen: the overtures', () => {
     expect(within(country('Arvelia')).queryByRole('button', { name: 'Stop grant' })).toBeNull();
   });
 
+  it('FR-178 FR-161 a standing locked grant and a grant ordered this turn: "Stop grant" is disabled until that grant is withdrawn, so it never takes it back (review A-R1, B-R2, F1)', () => {
+    const locked = setPair(start(), N1, ARVELIA, { consulates: [N1], embassies: [N1], lockedGrants: { [N1]: 3000 } });
+    const s = tryApplyOrder(locked, { kind: 'giveGrant', nationId: N1, targetId: ARVELIA, amount: 1000, locked: false }).state;
+    openDiplomacy(s);
+
+    const stop = button('Arvelia', 'Stop grant') as HTMLButtonElement;
+    expect(stop.disabled).toBe(true);
+    expect(description(stop)).toBe("withdraw this turn's grant first");
+    fireEvent.click(stop);
+    expect(submitted).toEqual([]);
+    expect(ordered('Arvelia')).toEqual(['Grant $1,000, once $1,000 Withdraw']);
+
+    // Withdraw the grant, stop the lock, give the once grant again: the lock ends and only the once grant is paid
+    fireEvent.click(button('Arvelia', 'Withdraw grant $1,000, once'));
+    fireEvent.click(button('Arvelia', 'Stop grant'));
+    fireEvent.click(within(country('Arvelia')).getByRole('button', { name: 'Give' }));
+    const withdrawGrant = { kind: 'withdrawOverture', nationId: N1, overture: 'grant', targetId: ARVELIA };
+    expect(submitted).toEqual([withdrawGrant, withdrawGrant, { kind: 'giveGrant', nationId: N1, targetId: ARVELIA, amount: 1000, locked: false }]);
+    expect(ordered('Arvelia')).toEqual(['Grant stops at End Turn free', 'Grant $1,000, once $1,000 Withdraw']);
+    expect(now().intents.map((i) => i.kind)).toEqual(['grant-stop', 'grant']);
+
+    act(() => useGameStore.getState().advanceTurn());
+    expect(now().diplomacy[pairKey(N1, ARVELIA)].lockedGrants).toEqual({});
+    const grantEvents = useGameStore
+      .getState()
+      .eventLog.at(-1)!
+      .events.filter((e) => (e.type === 'grant-paid' || e.type === 'grant-stopped') && e.nationId === N1);
+    expect(grantEvents).toEqual([
+      { type: 'grant-stopped', nationId: N1, targetId: ARVELIA, amount: 3000, reason: 'withdrawn' },
+      { type: 'grant-paid', nationId: N1, targetId: ARVELIA, amount: 1000 },
+    ]);
+  });
+
   it('FR-178 FR-171 the trade policy: subsidy none to 100%, Boycott, Set policy builds setTradePolicy', () => {
     openDiplomacy(setPair(start(), N1, ARVELIA, { consulates: [N1] }));
     const row = within(country('Arvelia'));
@@ -366,6 +408,27 @@ describe('FR-178 the Diplomacy screen: the overtures', () => {
     expect(submitted).toEqual([{ kind: 'proposeOverture', nationId: N1, overture: 'war', targetId: ARVELIA }]);
     expect(within(country('Arvelia')).queryByRole('group', { name: 'Confirm war on Arvelia' })).toBeNull();
     expect(ordered('Arvelia')).toEqual(['Declaration of war free Withdraw']);
+    expect(within(country('Arvelia')).queryByTestId('war-cost')).toBeNull();
+  });
+
+  it('FR-178 FR-168 war on a pact partner or an ally: the question adds that the treaty breaks and relations with every other country get worse (review B-R5)', () => {
+    let s = setPair(start(), N1, ARVELIA, { consulates: [N1], embassies: [N1], pact: true });
+    s = setPair(s, N1, N2, { alliance: true });
+    openDiplomacy(s);
+
+    const ask = (name: string) => {
+      fireEvent.click(button(name, 'Declare war'));
+      return within(country(name)).getByRole('group', { name: `Confirm war on ${name}` });
+    };
+    const pact = ask('Arvelia');
+    expect(text(within(pact).getByTestId('war-question'))).toBe('Declare war on Arvelia? The war starts next turn.');
+    expect(text(within(pact).getByTestId('war-cost'))).toBe('This breaks our pact with Arvelia: relations with every other country get worse.');
+    expect(description(pact)).toBe(
+      'Declare war on Arvelia? The war starts next turn. This breaks our pact with Arvelia: relations with every other country get worse.'
+    );
+    const alliance = ask('Valdoria');
+    expect(text(within(alliance).getByTestId('war-cost'))).toBe('This breaks our alliance with Valdoria: relations with every other country get worse.');
+    expect(within(ask('Sundmark')).queryByTestId('war-cost')).toBeNull();
   });
 
   it('FR-178 FR-022 the screen changes the game only through submitOrder: replaying the submitted orders gives the same game', () => {
@@ -463,7 +526,10 @@ describe('FR-175 Accept Offer', () => {
     show(withOffers(offer('proposal-1-1', 'alliance')));
     render(<AcceptOfferModal />);
 
-    fireEvent.click(within(offerDialog()).getByRole('button', { name: 'Close offer' }));
+    // The close button promises no later answer: a closed offer does not come back (review B-R4)
+    const close = within(offerDialog()).getByRole('button', { name: 'Close offer' });
+    expect(close.getAttribute('title')).toBe('Close: an offer not answered by End Turn is refused');
+    fireEvent.click(close);
     expect(screen.queryByRole('dialog', { name: 'Accept Offer' })).toBeNull();
     expect(submitted).toEqual([]);
     expect(proposalAnswer(now(), 'proposal-1-1')).toBeUndefined();
@@ -490,5 +556,73 @@ describe('FR-175 Accept Offer', () => {
     show(answered);
     render(<AcceptOfferModal />);
     expect(screen.queryByRole('dialog', { name: 'Accept Offer' })).toBeNull();
+  });
+
+  it('FR-175 the page itself (Home) opens "Accept Offer" for a proposal to the player (review A-R2: the page wiring)', () => {
+    show(withOffers(offer('proposal-1-1', 'alliance')));
+    render(<Home />);
+    expect(text(within(offerDialog()).getByTestId('offer-text'))).toBe(
+      'Valdoria seeks to enter into an alliance with our great Empire. Do you accept their offer?'
+    );
+    fireEvent.click(within(offerDialog()).getByRole('button', { name: 'Accept' }));
+    expect(submitted).toEqual([{ kind: 'answerProposal', nationId: N1, proposalId: 'proposal-1-1', accept: true }]);
+    expect(screen.queryByRole('dialog', { name: 'Accept Offer' })).toBeNull();
+  });
+});
+
+describe('FR-178 the End Turn key "n" on the page (review blocker B-R1)', () => {
+  const turn = () => now().turn;
+  const press = (target: Element, key = 'n') => fireEvent.keyDown(target, { key });
+
+  it('FR-178 "n" or "N" typed on the Subsidy, Amount or How often select does not end the turn', () => {
+    show(start(), { isDiplomacyOpen: true });
+    render(<Home />);
+    const row = within(country('Arvelia'));
+    for (const name of ['Subsidy', 'Amount', 'How often']) {
+      const select = row.getByRole('combobox', { name });
+      select.focus();
+      press(select);
+      press(select, 'N');
+    }
+    expect(turn()).toBe(1);
+    expect(useGameStore.getState().eventLog).toEqual([]);
+  });
+
+  it('FR-178 "n" does nothing while a dialog is open, wherever the focus is; once it is closed "n" ends the turn again', () => {
+    show(start(), { isDiplomacyOpen: true });
+    render(<Home />);
+    press(document.body);
+    press(dialog());
+    expect(turn()).toBe(1);
+
+    fireEvent.click(within(dialog()).getByRole('button', { name: 'Close diplomacy' }));
+    press(document.body);
+    expect(turn()).toBe(2);
+  });
+
+  it('FR-175 FR-178 "n" does nothing while Accept Offer is open', () => {
+    show({ ...start(), turn: 2, proposals: [{ id: 'proposal-1-1', fromId: N2, toId: N1, kind: 'alliance', turn: 1 }] });
+    render(<Home />);
+    expect(screen.getByRole('dialog', { name: 'Accept Offer' })).toBeTruthy();
+    press(document.activeElement!);
+    press(document.body);
+    expect(turn()).toBe(2);
+  });
+
+  it('FR-178 with no dialog open the key is ignored in a select, a text field, a text area and editable text, and works anywhere else', () => {
+    let ended = 0;
+    renderHook(() => useKeyboardShortcuts({ onAdvanceTurn: () => (ended += 1) }));
+    const field = document.createElement('div');
+    field.innerHTML =
+      '<select id="f-select"><option>none</option></select><input id="f-input"><textarea id="f-area"></textarea><div contenteditable="true"><span id="f-edit">x</span></div>';
+    document.body.appendChild(field);
+    try {
+      for (const id of ['f-select', 'f-input', 'f-area', 'f-edit']) press(document.getElementById(id)!);
+      expect(ended).toBe(0);
+      press(document.body);
+      expect(ended).toBe(1);
+    } finally {
+      field.remove();
+    }
   });
 });

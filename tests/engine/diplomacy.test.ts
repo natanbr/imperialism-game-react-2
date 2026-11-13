@@ -171,6 +171,32 @@ describe('FR-166 alliance', () => {
     expect(state.proposals).toEqual([]);
     expect(events).toEqual([{ type: 'overture-refused', nationId: N2, overture: 'alliance', targetId: N1 }]);
   });
+
+  it('FR-166 FR-173 accepted in the turn a war between the two is declared: the alliance fails (at-war) for the proposer, nothing is refused', () => {
+    const first = endTurn(continent(), { [N2]: [propose(N2, 'alliance', N1)] });
+    const s = order(order(first.state, answer('proposal-1-1', true)), propose(N1, 'war', N2));
+
+    const { state, events } = endTurn(s);
+
+    expect(pair(state, N1, N2)).toMatchObject({ alliance: false, war: { aggressors: [N1], since: 3 } });
+    expect(events).toContainEqual({ type: 'overture-failed', nationId: N2, overture: 'alliance', targetId: N1, reason: 'at-war', refund: 0 });
+    expect(ofType(events, 'overture-refused')).toEqual([]);
+    expect(state.proposals).toEqual([]);
+  });
+
+  it('FR-166 both Great Powers propose an alliance to each other in the same turn: agreed at once, even below level 6, and no proposal is made', () => {
+    const s = order(continent(), propose(N1, 'alliance', N2));
+    expect(points(s, N1, N2)).toBe(40);
+
+    const { state, events } = endTurn(s, { [N2]: [propose(N2, 'alliance', N1)] });
+
+    expect(pair(state, N1, N2).alliance).toBe(true);
+    expect(state.proposals).toEqual([]);
+    expect(events).toEqual([
+      { type: 'overture-done', nationId: N1, overture: 'alliance', targetId: N2 },
+      { type: 'overture-done', nationId: N2, overture: 'alliance', targetId: N1 },
+    ]);
+  });
 });
 
 describe('FR-167 declaration of war', () => {
@@ -276,6 +302,22 @@ describe('FR-168 war and broken treaties move relations', () => {
     expect(points(state, N1, N2)).toBe(expected);
   });
 
+  it.each([
+    [N1, N2, 85, 20, 'Testland declares on Valdoria; Arvelia at level 8 with Valdoria, a friend of the victim: -10'],
+    [N1, N2, 5, 35, 'Testland declares on Valdoria; Arvelia at level 0 with Valdoria, an enemy of the victim: +5'],
+    [N2, N1, 85, 20, 'Valdoria (scripted) declares on Testland; Arvelia at level 8 with Testland: -10'],
+    [N2, N1, 5, 35, 'Valdoria (scripted) declares on Testland; Arvelia at level 0 with Testland: +5'],
+  ])('FR-168 a minor bystander of a war between Great Powers: %s on %s, Arvelia at %i with the victim -> Arvelia and the aggressor end at %i (%s)', (aggressor, victim, arveliaVictim, expected) => {
+    const s = setPair(continent(), ARVELIA, victim, { points: arveliaVictim });
+
+    const { state } = endTurn(s, { [aggressor]: [propose(aggressor, 'war', victim)] });
+
+    expect(points(state, aggressor, ARVELIA)).toBe(expected);
+    // The other minors are at level 3 with the victim, and the victim is no minor: no change
+    expect([SUNDMARK, LORRAN, PELLIS].map(m => points(state, aggressor, m))).toEqual([30, 30, 30]);
+    expect(points(state, victim, ARVELIA)).toBe(arveliaVictim);
+  });
+
   it('FR-168 FR-172 the points stay within 0 to 89: 87 + 5 -> 89', () => {
     const s = setPair(setPair(continent(), N2, ARVELIA, { points: 5 }), N1, N2, { points: 87 });
 
@@ -338,6 +380,21 @@ describe('FR-169 peace', () => {
     expect(pair(state, N1, N2).war).toBeUndefined();
     expect(state.proposals).toEqual([]);
   });
+
+  it('FR-169 both sides propose peace to each other in the same turn: the war ends at once, whatever FR-174 says, and no proposal is made', () => {
+    // War since turn 1, turn 2: Valdoria's rule alone would refuse (FR-174 (c) needs 6 turns), and Testland is human
+    const s = order(warWith({ ...continent(), turn: 2 }, N2), propose(N1, 'peace', N2));
+
+    const { state, events } = endTurn(s, { [N2]: [propose(N2, 'peace', N1)] });
+
+    expect(pair(state, N1, N2).war).toBeUndefined();
+    expect(state.proposals).toEqual([]);
+    // Turn 2: Valdoria's intents go first (FR-152), so its offer is the one agreed
+    expect(events).toEqual([
+      { type: 'overture-done', nationId: N2, overture: 'peace', targetId: N1 },
+      { type: 'overture-done', nationId: N1, overture: 'peace', targetId: N2 },
+    ]);
+  });
 });
 
 describe('FR-170 grants', () => {
@@ -399,6 +456,26 @@ describe('FR-170 grants', () => {
     expect(treasury(state, N1)).toBe(6000);
     expect(ofType(events, 'grant-paid')).toEqual([{ type: 'grant-paid', nationId: N1, targetId: ARVELIA, amount: 1000 }]);
   });
+
+  it('FR-170 a once grant in a turn with a standing locked grant to the same country: both are paid and the lock stays', () => {
+    const { state, events } = endTurn(order(lockedAfterOneTurn().state, grant(1000)));
+
+    expect(treasury(state, N1)).toBe(7000 - 1000 - 3000);
+    expect(points(state, N1, ARVELIA)).toBe(34 + 2 + 4);
+    expect(pair(state, N1, ARVELIA).lockedGrants).toEqual({ [N1]: 3000 });
+    expect(ofType(events, 'grant-paid').map(e => e.amount)).toEqual([1000, 3000]);
+  });
+
+  it('FR-170 a grant buys relations only: the money leaves the granter and no country receives it, not even a Great Power', () => {
+    const s = order(continent(), grant(10000, false, N2));
+    const before = treasury(s, N2);
+
+    const next = diplomacySystem(s, createTurnContext({ turn: s.turn, seed: s.seed }));
+
+    expect(treasury(next, N1)).toBe(0);
+    expect(treasury(next, N2)).toBe(before);
+    expect(points(next, N1, N2)).toBe(48);
+  });
 });
 
 describe('FR-171 trade policy', () => {
@@ -426,6 +503,27 @@ describe('FR-171 trade policy', () => {
     const next = diplomacySystem(s, createTurnContext({ turn: s.turn, seed: s.seed }));
 
     expect(pair(next, N1, ARVELIA)).toMatchObject({ subsidies: { [N1]: 25 }, boycotts: [N1] });
+  });
+
+  it('FR-171 FR-173 a policy that no longer holds when resolved fails whole: subsidy 10% and boycott, then war on the same minor: neither is set', () => {
+    const s = order(order(setPair(continent(), N1, ARVELIA, { consulates: [N1] }), policy(10, true)), propose(N1, 'war', ARVELIA));
+
+    const { state, events } = endTurn(s);
+
+    expect(pair(state, N1, ARVELIA)).toMatchObject({ subsidies: {}, boycotts: [] });
+    expect(events).toContainEqual({ type: 'overture-failed', nationId: N1, overture: 'trade-policy', targetId: ARVELIA, reason: 'at-war', refund: 0 });
+  });
+
+  it('FR-171 FR-173 a subsidy whose consulate is not there when resolved fails (needs-consulate); a boycott alone needs none', () => {
+    let s = addIntent(continent(), { kind: 'trade-policy', nationId: N1, targetId: ARVELIA, subsidyPercent: 10, boycott: true });
+    s = addIntent(s, { kind: 'trade-policy', nationId: N1, targetId: SUNDMARK, subsidyPercent: 0, boycott: true });
+    const events: GameEvent[] = [];
+
+    const next = diplomacySystem(deepFreeze(s), createTurnContext({ turn: s.turn, seed: s.seed, emit: e => events.push(e) }));
+
+    expect(pair(next, N1, ARVELIA)).toMatchObject({ subsidies: {}, boycotts: [] });
+    expect(pair(next, N1, SUNDMARK).boycotts).toEqual([N1]);
+    expect(events).toEqual([{ type: 'overture-failed', nationId: N1, overture: 'trade-policy', targetId: ARVELIA, reason: 'needs-consulate', refund: 0 }]);
   });
 
   it('FR-161 FR-180 a withdrawn trade policy changes nothing at End Turn', () => {
@@ -558,12 +656,20 @@ describe('FR-173 simultaneous and fair', () => {
     expect(normal.events.filter(e => e.type === 'order-rejected' || e.type === 'overture-failed')).toEqual([]);
   });
 
-  it('FR-173 FR-176 every diplomacy event names the acting Great Power as nationId', () => {
+  it('FR-173 FR-176 every diplomacy event names the acting Great Power as nationId; proposal-received names the receiving human and the proposer as fromId', () => {
     const start = embassy(continent());
-    const { events } = endTurn(order(order(start, grant(1000, true)), propose(N1, 'war', N2)), { [N2]: [propose(N2, 'consulate', ARVELIA)] });
+    const { events } = endTurn(order(order(start, grant(1000, true)), propose(N1, 'war', LORRAN)), {
+      [N2]: [propose(N2, 'consulate', ARVELIA), propose(N2, 'alliance', N1)],
+    });
 
     expect(events.length).toBeGreaterThan(3);
     for (const e of events) expect([N1, N2]).toContain((e as { nationId?: string }).nationId);
+    expect(ofType(events, 'proposal-received')).toEqual([{ type: 'proposal-received', nationId: N1, fromId: N2, proposalId: 'proposal-1-1', kind: 'alliance' }]);
+    expect(events.filter(e => e.type !== 'proposal-received' && e.type !== 'relation-changed').map(e => [e.type, (e as { nationId: string }).nationId])).toEqual([
+      ['war-declared', N1],
+      ['overture-done', N2],
+      ['grant-paid', N1],
+    ]);
   });
 
   it('FR-013 FR-173 the diplomacy phase leaves a deep-frozen input unchanged', () => {
@@ -576,5 +682,59 @@ describe('FR-173 simultaneous and fair', () => {
 
     expect(frozen).toEqual(snapshot);
     expect(next).not.toBe(frozen);
+  });
+
+  describe('FR-013 FR-173 the proposal, answer, grant-stop and unpaid-grant paths leave a deep-frozen input unchanged (review F3)', () => {
+    /** Turn 2 of a game where Valdoria made these proposals to Testland on turn 1. */
+    const turn2 = (s: GameState, ...kinds: ('alliance' | 'peace')[]): GameState => ({
+      ...s,
+      turn: 2,
+      proposals: kinds.map((kind, n) => ({ id: `proposal-1-${n + 1}`, fromId: N2, toId: N1, kind, turn: 1 })),
+    });
+    /** Runs the phase on the frozen state, checks it is unchanged, and returns the events. */
+    function pure(s: GameState): GameEvent[] {
+      const frozen = deepFreeze(s);
+      const snapshot = structuredClone(frozen);
+      const events: GameEvent[] = [];
+      const next = diplomacySystem(frozen, createTurnContext({ turn: frozen.turn, seed: frozen.seed, emit: e => events.push(e) }));
+      expect(frozen).toEqual(snapshot);
+      expect(next).not.toBe(frozen);
+      return events;
+    }
+
+    it('FR-013 an answer accepted, a new proposal to the human, a grant stopped and a locked grant the treasury cannot pay', () => {
+      let s = turn2(embassy(embassy(continent()), N1, SUNDMARK), 'alliance');
+      s = setPair(setPair(s, N1, ARVELIA, { lockedGrants: { [N1]: 3000 } }), N1, SUNDMARK, { lockedGrants: { [N1]: 1000 } });
+      s = setTreasury(s, N1, 500);
+      s = order(order(order(s, answer('proposal-1-1', true)), withdraw('grant')), propose(N2, 'alliance', N1));
+
+      const events = pure(s);
+
+      expect(events).toEqual(expect.arrayContaining([
+        { type: 'proposal-received', nationId: N1, fromId: N2, proposalId: 'proposal-2-1', kind: 'alliance' },
+        { type: 'overture-done', nationId: N2, overture: 'alliance', targetId: N1 },
+        { type: 'grant-stopped', nationId: N1, targetId: ARVELIA, amount: 3000, reason: 'withdrawn' },
+        { type: 'grant-stopped', nationId: N1, targetId: SUNDMARK, amount: 1000, reason: 'insufficient-funds' },
+      ]));
+    });
+
+    it('FR-013 peace accepted by answer with attacks dropped, and an unanswered proposal refused', () => {
+      let s = turn2(warWith(continent(), N2), 'peace', 'alliance');
+      s = addIntent(order(s, answer('proposal-1-1', true)), { kind: 'attack', nationId: N2, targetId: N1 });
+
+      const events = pure(s);
+
+      expect(events).toEqual(expect.arrayContaining([
+        { type: 'overture-done', nationId: N2, overture: 'peace', targetId: N1 },
+        { type: 'attacks-cancelled', nationId: N2, targetId: N1, count: 1 },
+        { type: 'overture-refused', nationId: N2, overture: 'alliance', targetId: N1 },
+      ]));
+    });
+
+    it('FR-013 an alliance accepted by answer in the turn of a war between the two fails', () => {
+      const s = order(order(turn2(continent(), 'alliance'), answer('proposal-1-1', true)), propose(N1, 'war', N2));
+
+      expect(pure(s)).toContainEqual({ type: 'overture-failed', nationId: N2, overture: 'alliance', targetId: N1, reason: 'at-war', refund: 0 });
+    });
   });
 });

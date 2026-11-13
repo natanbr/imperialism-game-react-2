@@ -189,7 +189,9 @@ export function applyDiplomacyOrder(state: GameState, order: DiplomacyOrder): Ga
       const kind = order.overture;
       const thisTurn = kind === "grant" || kind === "trade-policy" || isOverture(kind) ? intentOf(state, nationId, kind, order.targetId) : undefined;
       if (thisTurn) return takeBack(state, thisTurn);
-      // "grant" with no grant this turn: the standing locked grant ends at End Turn, no refund (FR-161).
+      // Only "grant" means more than "take back": with no grant this turn, the standing locked grant ends at End
+      // Turn, no refund (FR-161). Any other withdrawal with nothing to take back changes nothing (validate refuses it).
+      if (kind !== "grant") return state;
       const stop: Omit<GrantStopIntent, "id" | "turn"> = { kind: "grant-stop", nationId, targetId: order.targetId };
       return addIntent(state, stop);
     }

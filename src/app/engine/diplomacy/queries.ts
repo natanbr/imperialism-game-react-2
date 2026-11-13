@@ -20,8 +20,6 @@ export const isDiplomacyIntent = (intent: Intent): intent is DiplomacyIntent => 
 /** The war between the two, if they are at war. */
 export const warBetween = (state: GameState, a: CountryId, b: CountryId): War | undefined => relationOf(state, a, b)?.war;
 
-export const isAtWar = (state: GameState, a: CountryId, b: CountryId): boolean => warBetween(state, a, b) !== undefined;
-
 /**
  * The war has begun (FR-167): a declaration ordered on turn T is recorded at its End Turn with `since`
  * T + 1, and a hostile act (an M9 attack) is valid only in orders of turn `since` or later.
@@ -30,14 +28,6 @@ export function warActive(state: GameState, a: CountryId, b: CountryId): boolean
   const war = warBetween(state, a, b);
   return war !== undefined && state.turn >= war.since;
 }
-
-/** The nation holds a consulate with the other country (established on an earlier turn). */
-export const holdsConsulate = (state: GameState, nationId: NationId, otherId: CountryId): boolean =>
-  relationOf(state, nationId, otherId)?.consulates.includes(nationId) ?? false;
-
-/** The nation holds an embassy with the other country (established on an earlier turn). */
-export const holdsEmbassy = (state: GameState, nationId: NationId, otherId: CountryId): boolean =>
-  relationOf(state, nationId, otherId)?.embassies.includes(nationId) ?? false;
 
 /** What an intent took from the treasury when it was ordered and gives back if withdrawn or failed; 0 when free. */
 export const intentCost = (intent: DiplomacyIntent): number => ("cost" in intent ? intent.cost : 0);
@@ -74,17 +64,27 @@ export const proposalAnswer = (state: GameState, proposalId: string): boolean | 
 export const pendingProposalsFor = (state: GameState, nationId: NationId): Proposal[] =>
   proposalsOf(state).filter((p) => isAnswerable(state, p, nationId) && proposalAnswer(state, p.id) === undefined);
 
+/** What the strength sum reads of one regiment. */
+export interface RegimentStrength {
+  fpNormal: number;
+  health: number;
+  militia: boolean;
+}
+
+/**
+ * The country's regiments as the strength sum reads them. The one read of the army shape in M6: the M8 task
+ * (FR-204: `{ ownerId, provinceId, regiments }`) rewrites this function and the `army()` / `regiment()` builders
+ * of tests/engine/scriptedDiplomacy.test.ts, and nothing else.
+ */
+export function regimentsOf(state: GameState, countryId: CountryId): RegimentStrength[] {
+  return (state.armies ?? [])
+    .filter((army) => army.ownerNationId === countryId)
+    .flatMap((army) => army.units.map((unit) => ({ fpNormal: unit.stats.fpNormal, health: unit.health, militia: unit.category === RegimentCategory.Militia })));
+}
+
 /**
  * A country's military strength (FR-174, FR-204): the sum over its regiments that are not militia of
  * firepower (FPN) x health / 100. Armies come in M8, so on every M6 game it is 0 for every country.
  */
-export function militaryStrength(state: GameState, countryId: CountryId): number {
-  let strength = 0;
-  for (const army of state.armies ?? []) {
-    if (army.ownerNationId !== countryId) continue;
-    for (const unit of army.units) {
-      if (unit.category !== RegimentCategory.Militia) strength += (unit.stats.fpNormal * unit.health) / 100;
-    }
-  }
-  return strength;
-}
+export const militaryStrength = (state: GameState, countryId: CountryId): number =>
+  regimentsOf(state, countryId).reduce((sum, r) => (r.militia ? sum : sum + (r.fpNormal * r.health) / 100), 0);

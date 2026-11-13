@@ -300,6 +300,12 @@
   font-weight: 600;
 }
 
+/* The broken treaty's cost: its own line under the question, the buttons below it */
+.confirm .warCost {
+  flex-basis: 100%;
+  font-weight: 400;
+}
+
 .fields {
   display: flex;
   flex-wrap: wrap;

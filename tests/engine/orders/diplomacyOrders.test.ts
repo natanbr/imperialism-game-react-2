@@ -5,6 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import { tryApplyOrder } from '@/engine/orders/apply';
 import { ORDER_KINDS, type Order } from '@/engine/orders/Order';
+import { applyDiplomacyOrder } from '@/engine/orders/diplomacyOrders';
 import { newGame } from '@/engine/newGame';
 import { pairKey } from '@/engine/diplomacy/relations';
 import { diplomacyIntentsOf, pendingProposalsFor, proposalAnswer, proposalsOf } from '@/engine/diplomacy/queries';
@@ -145,6 +146,14 @@ describe('FR-161 the diplomacy orders', () => {
     expect(s.intents).toEqual([{ id: 'intent-1-1', kind: 'grant-stop', nationId: N1, turn: 1, targetId: ARVELIA }]);
     expect(treasury(s, N1)).toBe(10000);
     expect(s.diplomacy[pairKey(N1, ARVELIA)].lockedGrants).toEqual({ [N1]: 1000 });
+  });
+
+  it('FR-161 only "grant" can queue a grant stop: applied directly, any other withdrawal with nothing to take back changes nothing (review F2)', () => {
+    const before = deepFreeze(setPair(withEmbassy(continent()), N1, ARVELIA, { lockedGrants: { [N1]: 1000 } }));
+
+    for (const overture of ['consulate', 'embassy', 'pact', 'alliance', 'war', 'peace', 'trade-policy'] as const) {
+      expect(applyDiplomacyOrder(before, { kind: 'withdrawOverture', nationId: N1, overture, targetId: ARVELIA })).toBe(before);
+    }
   });
 
   it('FR-161 an answer stores an intent; a second answer to the same proposal replaces the first', () => {

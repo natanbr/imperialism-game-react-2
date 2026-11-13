@@ -53,7 +53,8 @@ export const DiplomacyModal: React.FC = () => {
         )}
 
         <p className={styles.note}>
-          Overtures take effect at End Turn. Until then each one can be withdrawn and its cost comes back.
+          Overtures take effect at End Turn. Until then each one can be withdrawn and its cost comes back. A grant improves
+          relations; the money leaves our treasury and no country receives it.
         </p>
 
         {nation && (

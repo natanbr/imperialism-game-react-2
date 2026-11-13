@@ -46,15 +46,37 @@ const ControlButton: React.FC<ControlButtonProps> = ({ control, submitOrder, cla
   );
 };
 
+interface ConfirmWarProps {
+  name: string;
+  /** The treaty the war breaks; the question then says that relations with every other country get worse (FR-168). */
+  breaks?: "pact" | "alliance";
+  onDeclare: () => void;
+  onKeepPeace: () => void;
+}
+
 /** "Declare war on Arvelia? The war starts next turn." asked in place, like New game (FR-178, FR-109). */
-const ConfirmWar: React.FC<{ name: string; onDeclare: () => void; onKeepPeace: () => void }> = ({ name, onDeclare, onKeepPeace }) => {
+const ConfirmWar: React.FC<ConfirmWarProps> = ({ name, breaks, onDeclare, onKeepPeace }) => {
   const panel = useRef<HTMLDivElement>(null);
+  const questionId = useId();
+  const costId = useId();
   useEffect(() => {
     panel.current?.focus();
   }, []);
   return (
-    <div ref={panel} tabIndex={-1} className={styles.confirm} role="group" aria-label={`Confirm war on ${name}`}>
-      <p data-testid="war-question">{`Declare war on ${name}? The war starts next turn.`}</p>
+    <div
+      ref={panel}
+      tabIndex={-1}
+      className={styles.confirm}
+      role="group"
+      aria-label={`Confirm war on ${name}`}
+      aria-describedby={breaks ? `${questionId} ${costId}` : questionId}
+    >
+      <p id={questionId} data-testid="war-question">{`Declare war on ${name}? The war starts next turn.`}</p>
+      {breaks && (
+        <p id={costId} className={styles.warCost} data-testid="war-cost">
+          {`This breaks our ${breaks} with ${name}: relations with every other country get worse.`}
+        </p>
+      )}
       <button className={`${styles.button} ${styles.warButton}`} onClick={onDeclare}>
         Declare war
       </button>
@@ -237,6 +259,7 @@ export const CountryCard: React.FC<CountryCardProps> = ({ row, state, nationId, 
           {askingWar && (
             <ConfirmWar
               name={row.name}
+              breaks={row.brokenByWar}
               onDeclare={() => {
                 const war = row.overtures.find((c) => c.order.kind === "proposeOverture" && c.order.overture === "war");
                 if (war) submitOrder(war.order);

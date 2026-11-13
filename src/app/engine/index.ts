@@ -39,10 +39,7 @@ export type { Intent } from "@/types/Intent";
 // M6 (FR-161 to FR-176): diplomacy orders, the phase's view helpers, the scripted answers, the rule numbers.
 export {
   diplomacyIntentsOf,
-  holdsConsulate,
-  holdsEmbassy,
   intentCost,
-  isAtWar,
   isOverture,
   militaryStrength,
   OVERTURES,

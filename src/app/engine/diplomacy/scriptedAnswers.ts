@@ -4,7 +4,7 @@ import type { CountryId, NationId } from "@/types/Common";
 import type { War } from "@/types/Diplomacy";
 import type { GameState } from "@/types/GameState";
 import { SCRIPTED_DIPLOMACY } from "@/definisions/diplomacyRules";
-import { relationLevel } from "./relations";
+import { pairKey, relationLevel } from "./relations";
 import { militaryStrength, warBetween } from "./queries";
 
 /** `byId` took at least one of `ofId`'s provinces in this war. */
@@ -38,7 +38,7 @@ export function acceptsPeace(state: GameState, answererId: NationId, proposerId:
   const war = warBetween(state, answererId, proposerId);
   if (!war) return false;
   if (losingWar(state, answererId, proposerId)) return true;
-  const between = (war.captures ?? []).filter((c) => [c.fromId, c.toId].sort().join("|") === [answererId, proposerId].sort().join("|"));
+  const between = (war.captures ?? []).filter((c) => pairKey(c.fromId, c.toId) === pairKey(answererId, proposerId));
   const recent = between.some((c) => c.turn >= turn - SCRIPTED_DIPLOMACY.quietTurns);
   return turn - war.since >= SCRIPTED_DIPLOMACY.peaceAfterTurns && !recent;
 }

@@ -70,7 +70,7 @@ export const AcceptOfferModal: React.FC = () => {
           <h2>
             <GameIcon name={UI_ICONS.diplomacy} /> Accept Offer
           </h2>
-          <button onClick={() => dismiss(proposal.id)} className={styles.closeButton} aria-label="Close offer" title="Decide later: an offer not answered by End Turn is refused">
+          <button onClick={() => dismiss(proposal.id)} className={styles.closeButton} aria-label="Close offer" title="Close: an offer not answered by End Turn is refused">
             <span aria-hidden="true">×</span>
           </button>
         </header>

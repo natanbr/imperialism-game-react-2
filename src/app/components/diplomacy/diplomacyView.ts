@@ -60,8 +60,13 @@ export interface CountryRowView {
   ordered: OrderedView[];
   /** The overtures that exist for this kind of country, in the Imp1 panel's order (FR-178). */
   overtures: ControlView[];
-  /** "Stop grant" for a standing locked grant that may be stopped now; undefined otherwise. */
+  /**
+   * "Stop grant" while a locked grant stands and no stop is queued; undefined otherwise. Disabled while a grant is
+   * ordered this turn: its order would take that grant back instead (FR-161), so the player withdraws it first.
+   */
   stopGrant?: ControlView;
+  /** The treaty a declaration of war would break, which costs relations with every other country (FR-168). */
+  brokenByWar?: "pact" | "alliance";
   /** The trade policy now: this turn's order if there is one, else the standing policy (the form's start values). */
   policy: PolicyView;
 }
@@ -164,13 +169,25 @@ function policyOf(state: GameState, nationId: NationId, otherId: CountryId, inte
   return { subsidyPercent: pair?.subsidies[nationId] ?? 0, boycott: pair?.boycotts.includes(nationId) ?? false };
 }
 
+/** The text of a "Stop grant" that waits for this turn's grant to be withdrawn. */
+const STOP_GRANT_WAITS = "withdraw this turn's grant first";
+
+/** "Stop grant" for a standing locked grant with no stop queued (FR-161, FR-178); undefined when there is nothing to stop. */
+function stopGrantOf(state: GameState, nationId: NationId, id: CountryId, intents: readonly DiplomacyIntent[]): ControlView | undefined {
+  if (relationOf(state, nationId, id)?.lockedGrants[nationId] === undefined) return undefined;
+  if (intents.some((i) => i.kind === "grant-stop")) return undefined;
+  const order: Order = { kind: "withdrawOverture", nationId, overture: "grant", targetId: id };
+  if (intents.some((i) => i.kind === "grant")) return { label: "Stop grant", order, refusal: STOP_GRANT_WAITS };
+  const stop = control(state, "Stop grant", order);
+  return stop.refusal ? undefined : stop;
+}
+
 function rowOf(state: GameState, nationId: NationId, id: CountryId, kind: CountryKind): CountryRowView {
   const level = relationLevel(state, nationId, id);
   const intents = diplomacyIntentsOf(state, nationId, id);
   // A pact is between a Great Power and a minor, an alliance between Great Powers (FR-162)
   const offered = OVERTURES.filter((o) => (kind === "Great Power" ? o !== "pact" : o !== "alliance"));
-  const stop = control(state, "Stop grant", { kind: "withdrawOverture", nationId, overture: "grant", targetId: id });
-  const standingGrant = relationOf(state, nationId, id)?.lockedGrants[nationId] !== undefined;
+  const pair = relationOf(state, nationId, id);
   return {
     id,
     name: countryName(state, id) ?? id,
@@ -180,7 +197,8 @@ function rowOf(state: GameState, nationId: NationId, id: CountryId, kind: Countr
     treaties: treatiesOf(state, nationId, id),
     ordered: intents.map((i) => orderedView(state, nationId, id, i)),
     overtures: offered.map((o) => control(state, overtureLabel(o), { kind: "proposeOverture", nationId, overture: o, targetId: id })),
-    stopGrant: standingGrant && !stop.refusal ? stop : undefined,
+    stopGrant: stopGrantOf(state, nationId, id, intents),
+    brokenByWar: pair?.alliance ? "alliance" : pair?.pact ? "pact" : undefined,
     policy: policyOf(state, nationId, id, intents),
   };
 }
