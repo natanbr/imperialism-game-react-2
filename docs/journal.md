@@ -19,8 +19,8 @@
 - 2026-11-13 M6 Diplomacy (FR-161 to FR-181, FR-236 to FR-241) merged (PR 24, main 2a60a3b; entries archived in
   `docs/journal/archive-M6.md`). Decision card "who receives a grant" (M6 fix round decision 3) still to add.
 - 2026-11-13 M7 Nation-to-nation trade in progress on `claude/m7-trade` (worktree `imperialism-game-revival-fee36d`):
-  engine half and UI half done (FR-182 to FR-198 tested: the Board of Trade, the Deal Book, e2e/m7-trade.spec.ts);
-  not pushed. Next: the milestone review, then the PR. Card to add: FR-193 (b) bids nothing in "partners".
+  engine half, UI half and review fix round done (FR-183 to FR-198 and FR-242 to FR-250 tested; FR-182, 190, 192, 193,
+  196 replaced); not pushed. Next: the re-review of the fix round's delta, then the PR. Cards Q39 to Q46 on the page.
 
 Carried forward:
 - Deferred: river ports and the depot-on-port rule (rules 04); University fees; the power plant.
@@ -276,3 +276,75 @@ Decisions (defaults, nobody to ask):
 
 In the app: New game, Open Market (the Board of Trade), Diplomacy → Arvelia → Consulate, the coal row's "Arvelia 3, favours
 Testland" loses "(no consulate)"; bid 2 coal, Advance Turn, then the HUD's Deal Book: "Bought 2 Coal from Arvelia @ $100".
+
+## 2026-11-13 M7 Nation-to-nation trade, review fix round (FR-242 to FR-250)
+
+Size: L (the partners price rule and the scripted player are engine-wide; screens). One fix agent (Opus 5.5, xhigh, no
+subagents, no advisor call), started by the M7 workflow. Branch `claude/m7-trade` (worktree `imperialism-game-revival-fee36d`),
+not pushed. The review (one reviewer) gave 20 findings in two lists; the second list's F1 to F6 are written F1' to F6' here.
+
+Plan-lite:
+- Change: the partners price step counts only the Great Powers' deals; the scripted player buys raw and opens a consulate
+  only where it will trade; `tradeBarrier` forecasts this turn's diplomacy phase; `bid-unfilled`; "+" disabled with its
+  reason; a colony bids for nothing; rows replaced with new ids (FR-182, 190, 192, 193, 196 → FR-242 to FR-245, FR-247).
+- Consumers: the Board of Trade, the Deal Book, the news, the scripted player, M9 (colonies), the v2 baseline.
+- Tests: FR-242 to FR-246, FR-249 `engine/partnerMarket.test.ts` (+14 rows); FR-245 `engine/scriptedTrade.test.ts` (rewritten);
+  FR-247 `engine/v2Trade40.test.ts` (baseline pinned, price bound); FR-244, FR-248 `ui/dealBookView.test.ts`,
+  `ui/dealBook.test.tsx`, `ui/boardOfTrade.test.tsx`; FR-250 `ui/dialogs.test.tsx`; FR-242 `store/gameStore.test.ts`.
+- Verify: `npm test`, `npm run lint`, `npx tsc --noEmit`, `npm run build`, `PORT=3160 npx playwright test --workers=1`.
+- Objection: decision 1: with no pull back toward the start price, a nation that keeps buying one commodity still moves it
+  to its bound in time (timber reaches $180 by turn 40 on seed 2); the card Q39 offers the pull.
+
+| Finding | What changed | Test |
+|---|---|---|
+| C1, F1 (major): the minors' fixed volume drove prices to the bounds | FR-243 replaces FR-190: units = Great Power units bought − sold (as in "world"); `settlePartnerTrade` returns `sold` and `bought` | partnerMarket "FR-243" (5 rows, one a 4-unit trade against none); v2Trade40 "no price runs to its bound" |
+| C2 (major): the computer never bid and paid for unused consulates | FR-245 replaces FR-193: `rawWants` bids for timber, coal, iron ore, cotton; `planConsulate` only when the minors that favour it do not cover its holds | scriptedTrade (a) 7 rows, (b) 4 rows; v2Trade40 "… and buys from one" |
+| F2 (major), C5, F3': FR-196's "2 minors" read as a union | FR-247 replaces FR-196: each nation at least 1 minor and 1 purchase, both together at least 2 minors (card Q40) | v2Trade40 "each nation deals with a minor and buys from one …" |
+| F3: the v2 baseline only logged | deals, purchases and minors per nation and final treasuries of seeds 1 to 4 pinned | v2Trade40 "the measured baseline" |
+| C3: Board and trade phase disagree on wars and boycotts | FR-246: `tradeBarrier` runs `diplomacySystem` on the state (cached per state) and reads `settledTradeBarrier`; the trade phase reads the record only; the Board's favourites the same way | partnerMarket "FR-246" (5 rows); boardOfTrade "FR-246 a war declared this turn …" |
+| C4: a bid nobody filled said nothing | `bid-unfilled` (units not in an `offer-missed`); Deal Book "Nobody sold us 2 Coal (bid money back)"; news "Nobody sold us 2 Coal; the bid money is back." | partnerMarket "FR-244 a bid nobody fills …" (4 rows); dealBookView; dealBook "only trade is a bid nobody filled" |
+| C6, F4: FR-192 said `dealBook` returns lines | FR-244 replaces FR-192: the engine returns data, `dealBookView` writes the lines; the news wording in the row | dealBookView (retagged); partnerMarket "FR-244 dealBook returns data" |
+| F4, F2': FR-182's wording and Tests line | FR-242 replaces FR-182 ("partners" or absent, read through `marketModeOf`); worlds.test.ts dropped | partnerMarket "FR-242" (retagged) |
+| F4: FR-236's list | FR-250: the Board of Trade and the Deal Book under FR-236 | dialogs.test.tsx rows tagged FR-250; e2e/m6-dialogs.spec.ts |
+| F5: store option, news lines, Deal Book turn line, Board note without FR | a store test for `market`; the news wording in FR-244; FR-248 names the turn line and the note | gameStore "FR-242 the store passes the market mode on"; boardOfTrade "FR-248 the note …" |
+| F6, F4': weaker assertions | FR-183 offers compared exactly; the 4-holds test renamed and a 3-holds row added; the $3,000 case | partnerMarket FR-183, FR-188; scriptedTrade "ordered at $3,000, none at $2,999" |
+| F7: the decisions not on the page | roadmap.json: cards Q39 to Q46 (engine decisions 1, 3, 4, 7; UI decisions 3, 4; the price rule; the FR-247 reading), M7 at 90%, the "now" line | none (data) |
+| C7, F6': unreachable `no-hold`, copies, three partnerTrade.ts | `no-hold` kept for M8 (said on `take`); `MISSED_TEXT` moved to gameText (news and Deal Book share it); one `levelOfPoints` in relations.ts for both phases; files renamed `definisions/partnersMarket.ts`, `engine/market/settlePartners.ts`, `engine/ai/scriptedPartners.ts` | dealBookView "a missed offer for want of money reads as in the Deal Book" |
+| C8: "+" never disabled | FR-248: `boardView` asks `validateOrder` for one more unit; a refused "+" is disabled with the title "No free hold this turn", "Already 4 bids this turn, the most", "None left in the warehouse" or "Not enough money"; the v1 World market unchanged | boardOfTrade 3 rows; e2e/m7-trade.spec.ts (the fit test checks the disabled "+") |
+| F5': a colony still bought goods | FR-249: `minorDemand` is empty for a colony | partnerMarket "FR-249" |
+
+Decisions (defaults, nobody to ask):
+1. FR-243: the Great Powers' deals only, no pull back toward the start price (F1 option 1; card Q39 offers a 10% pull). Deals,
+   not orders: a bid nobody fills moves nothing, so a refunded bid cannot push a price for free. Objection: above.
+2. FR-247: both nations together deal with at least 2 minors (card Q40). Objection: FR-196's grammar reads per nation; per
+   nation the computer would pay $500 for a consulate it does not use (nation 2 is Arvelia's favourite and fills its holds there).
+3. FR-245 (a) counts only the minors that favour it as covering its wants (a minor serves its favourite first); (b) raw bids are
+   gated by value (a raw pair under $1,000, 4 cotton under a clothing), none in the last 2 turns. Against the same player
+   without raw bids (both nations summed, turn 40): +82, +94, +25, -20 points on seeds 1 to 4. Objection: the gates are
+   heuristics, and seed 4 loses 20 points.
+4. FR-246 runs the diplomacy phase itself instead of reading only war and trade-policy intents (the finding's fix): exact for
+   failures, peace and favourites. Objection: a query runs a turn system (cached per state object; no import cycle today).
+5. The event is `bid-unfilled` (the finding said `offer-unfilled`): "offer" means a sale in this code.
+6. FR-248 pre-validates every "+", not only the bid limit and the holds: the M6 pattern (FR-178) across the board.
+
+Carried:
+- F6': the relation-changed emitter is not shared between `diplomacySystem` and `settlePartners` (the diplomacy one adds war causes).
+- FR-246: a peace or an alliance a human Great Power still has to answer is not forecast.
+- e2e: the fit at 1280x720 with a refusal line over the board cannot be reached from the board any more; checked with every hold taken.
+- FR-247: nation 2 ends with $38 on seeds 3 and 4 ("above 0" holds narrowly); it spends its cash on development, as in v1.
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| Red: the new tests on the commit before the fix (f4d6d62) | the 7 changed test files copied into `git archive f4d6d62` (one import path shimmed), `npx vitest run …` | `Test Files 6 failed \| 1 passed (7)`, `Tests 28 failed \| 125 passed (153)` (e.g. `expected { seed: 1, atBound: [ …(7) ] } to deeply equal { seed: 1, atBound: [] }`, `expected 928 to be 892`, `expected [] to deeply equal [ { type: 'bid-unfilled', …(3) } ]`, `expected undefined to be 'at-war'`, `expected '' to be 'Already 4 bids this turn, the most'`, `expected { clothing: 2, furniture: 2, …(1) } to deeply equal {}`) |
+| Price path before and after (seed 1, both scripted) | `npx vitest run --config scripts/probes/m7/vitest.config.ts` | before: clothing 928 (t1), 1,493 (t20), 2,250 (t40); timber 97, 57, 50. After: clothing 901, 729, 648; timber 102, 153, 144 (v1 world on two-islands: clothing 642 at t40) |
+| Unit tests | `npm test` | `Test Files 81 passed (81)`, `Tests 1419 passed (1419)` (+30 on 1389) |
+| v1 baselines unchanged | `npm test` console | `FR-125 seed 1: t15 616/390 (1.58) ... t40 1493/650 (2.30)`, `FR-157 nation 2 score at turn 40: [[1,1493],[2,1496],[3,1490],[4,1476]]` |
+| FR-247 v2 baseline | `npm test` console | seed 1 `"minorDeals":[59,53],"minorPurchases":[31,23],"minorsDealt":[4,1],"treasury":[924,88]`; the four seeds as in FR-247's status |
+| Lint | `npm run lint` | `✖ 3 problems (0 errors, 3 warnings)` (the three of M6) |
+| Types | `npx tsc --noEmit` | exit 0, no output |
+| Build | `npm run build` | `✓ Compiled successfully in 3.4s`, `✓ Generating static pages (4/4)` |
+| All e2e | `PORT=3160 npx playwright test --workers=1 --reporter=line` | `32 passed (1.4m)`, `1 skipped` (the old skip) |
+
+In the app: New game, Open Market: after 4 bids every "+" is greyed and its tooltip says "No free hold this turn". Diplomacy →
+declare war on Arvelia: the Board marks Arvelia "(at war)" at once. Bid 2 coal without a consulate and End Turn: the Deal Book
+reads "Nobody sold us 2 Coal (bid money back)".

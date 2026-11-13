@@ -2,7 +2,7 @@
   "project": "Imperialism Revival",
   "updated": "2026-11-13",
   "target": "v2: diplomacy, nation-to-nation trade, armies and war (M5 to M9)",
-  "now": "M6 merged (PR 24): Diplomacy screen, overtures and relations; all dialogs share one accessible modal. M7 (trade between nations) is being built. Defaults Q22 to Q38 in force.",
+  "now": "M6 merged (PR 24): Diplomacy screen, overtures and relations; all dialogs share one accessible modal. M7 (trade between nations) is built and reviewed on branch claude/m7-trade (engine, Board of Trade, Deal Book, review fix round), not merged yet. Defaults Q22 to Q46 in force.",
   "source": "docs/REVIVAL_PLAN.md and docs/report/roadmap.json in the imperialism-game-react-2 repo",
   "overview": {
     "headline": "v1 (M0 to M4.4) is merged. v2 night shift (NR-030): plan, rules research from 1997 screenshots and requirements merged (PR 22); milestones M5 to M9 run one after another.",
@@ -80,9 +80,9 @@
       {
         "title": "M7 Nation-to-nation trade: Bids and Offers, favourite partner, Deal Book",
         "status": "in progress",
-        "progress": 10,
+        "progress": 90,
         "date": "v2",
-        "note": "Branch claude/m7-trade: minor offers and demand, favourite partner, Board of Trade, Deal Book."
+        "note": "Branch claude/m7-trade: minor offers and demand, favourite partner, Board of Trade, Deal Book; review fix round: prices move only with the Great Powers' deals (no run-away), the computer buys raw from minors. Not merged."
       },
       {
         "title": "M8 Armies: Armoury, regiments, upkeep, moves, Army screen",
@@ -416,8 +416,25 @@
             "id": "M7",
             "title": "M7 Nation-to-nation trade: Bids and Offers, favourite partner, Deal Book",
             "status": "in progress",
-            "doneWhen": "A 40-turn v2 game shows both nations trading with minor nations; the computer ends with a positive treasury (FR-182 to FR-198)",
-            "tasks": []
+            "doneWhen": "A 40-turn v2 game shows both nations trading with minor nations; the computer ends with a positive treasury (FR-182 to FR-198; review fix round FR-242 to FR-250)",
+            "tasks": [
+              {
+                "title": "Engine: partners market, matching, holds, prices, relations, deal events, scripted trade",
+                "done": true
+              },
+              {
+                "title": "Board of Trade and Deal Book screens, M7 e2e",
+                "done": true
+              },
+              {
+                "title": "Review (one reviewer, 20 findings) and fix round (FR-242 to FR-250)",
+                "done": true
+              },
+              {
+                "title": "PR and merge",
+                "done": false
+              }
+            ]
           },
           {
             "id": "M8",
@@ -843,6 +860,86 @@
         "suggestion": "Taken (later milestone). Default in force; reversible.",
         "items": [
           "M6"
+        ]
+      },
+      {
+        "id": "Q39",
+        "title": "Should prices on the partners market move only with the Great Powers' own deals, with no pull back toward the start price?",
+        "status": "open",
+        "context": "Before the review fix round the minors' fixed demand (24 goods a turn) and offers counted as excess demand, so goods ran to the 250% ceiling (clothing $2,250 by turn 35) and raw to the 50% floor by turn 30 whatever the players did. Now (FR-243) a price moves with the units the Great Powers bought minus the units they sold, as on the v1 world market. Measured at turn 40, seeds 1 to 4: clothing $648 to $710 (v1 world: $642), timber $144 to $180 (both computers buy it), no price at a bound. A nation that keeps buying or selling one commodity can still push it to a bound in time.",
+        "suggestion": "Taken: Great Powers' deals only (FR-243). Alternative: a pull of about 10% a turn back toward the start price, so a constant push settles near 1.4 times the start; say if you want it.",
+        "items": [
+          "M7"
+        ]
+      },
+      {
+        "id": "Q40",
+        "title": "Should the v2 trade baseline count the minors per nation or for both nations together?",
+        "status": "open",
+        "context": "FR-196 said \"deals with at least 2 minors\" without saying whose. Since the review fix round the computer opens a consulate only with a minor it will use (FR-245): nation 1 deals with all 4 minors, nation 2 only with Arvelia (Arvelia favours it and covers its 4 holds). A per-nation minimum would make the computer pay $500 for consulates it does not use.",
+        "suggestion": "Taken: both nations together, at least 2 minors; each nation at least 1 minor and at least 1 purchase (FR-247).",
+        "items": [
+          "M7"
+        ]
+      },
+      {
+        "id": "Q41",
+        "title": "Should the computer buy raw materials from minors, and open a consulate only where it will trade?",
+        "status": "open",
+        "context": "FR-193 had the computer bid only for lumber and steel, which no minor sells, so it never bought in \"partners\" and paid $2,000 for four consulates it used once. FR-245: it bids for the timber, coal, iron ore and cotton its mills lack (capped at what its partner minors offer), and orders a consulate only when the minors that favour it do not cover its holds. Score at turn 40 against the same player without raw bids, both nations summed: +82, +94, +25 and -20 (seeds 1 to 4).",
+        "suggestion": "Taken (FR-245). Reversible; FR-247 pins its numbers.",
+        "items": [
+          "M7"
+        ]
+      },
+      {
+        "id": "Q42",
+        "title": "Should a \"world\" market keep the v1 shape, with no mode key?",
+        "status": "open",
+        "context": "M7 engine decision 1: two-islands keeps its v1 market object (FR-060's assertion unchanged); a market without a mode is read as \"world\" through marketModeOf (FR-242).",
+        "suggestion": "Taken. Default in force.",
+        "items": [
+          "M7"
+        ]
+      },
+      {
+        "id": "Q43",
+        "title": "Should the engine give the Deal Book as data and the screen write the words?",
+        "status": "open",
+        "context": "M7 engine decision 3: dealBook returns entries; the ledger lines (\"Sold 1 Clothing to Arvelia @ $810\") come from the screen's dealBookView, beside the other display names (FR-244). A v3 player that reads text would want the words from the engine.",
+        "suggestion": "Taken: data in the engine, words in the screen. Revisit for v3.",
+        "items": [
+          "M7"
+        ]
+      },
+      {
+        "id": "Q44",
+        "title": "When the computer offers goods, should it count each minor's whole demand, not what the rival may sell there first?",
+        "status": "open",
+        "context": "M7 engine decision 7: its offers are capped at its partner minors' whole demand this turn; it cannot see the rival's offers (FR-245 (c)). An unsold unit comes back to the warehouse at no cost.",
+        "suggestion": "Taken. Default in force.",
+        "items": [
+          "M7"
+        ]
+      },
+      {
+        "id": "Q45",
+        "title": "Should the market e2e test sell a furniture to a minor, now that nobody buys lumber?",
+        "status": "open",
+        "context": "M7 UI decision 3: in \"partners\" nobody buys lumber, so the FR-078 e2e orders a consulate with Pellis and sells 1 furniture on turn 2, reading the income from the news instead of a fixed $300.",
+        "suggestion": "Taken. Default in force.",
+        "items": [
+          "M7"
+        ]
+      },
+      {
+        "id": "Q46",
+        "title": "Should a Board of Trade button the engine would refuse be disabled with its reason?",
+        "status": "done",
+        "context": "M7 UI decision 4 kept the v1 way (press, then read \"Purchase refused: over the limit.\"). The review asked for the M6 way: the \"+\" is disabled and its title says why: \"No free hold this turn\", \"Already 4 bids this turn, the most\", \"None left in the warehouse\", \"Not enough money\" (FR-248).",
+        "suggestion": "Done in the review fix round (FR-248).",
+        "items": [
+          "M7"
         ]
       }
     ]

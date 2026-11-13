@@ -64,10 +64,11 @@ src/app/
     ai/railPlan.ts         read-only rail and tile planning: depot sites, rail paths, tilesByReach
     ai/players.ts          PLAYERS (controller -> Player) and computerOrders(state) (FR-099)
     ai/diplomacy.ts        the scripted player's peace offers when losing a war (FR-174)
-    ai/partnerTrade.ts     M7 (FR-193): planConsulate, partnerSupply, partnerDemand (its bid and offer caps)
+    ai/scriptedPartners.ts M7 (FR-245): planConsulate, partnerSupply, partnerDemand (its bid and offer caps)
     market/                market.ts (the world market, nextPrices), partners.ts (M7 reads: marketModeOf,
                            minorOffers, minorDemand, partnerRanking, favouritePartner, tradeBarrier,
-                           boardOfTrade), partnerTrade.ts (the "partners" deals), dealBook.ts (FR-192 data)
+                           settledTradeBarrier, diplomacyAfterThisTurn, boardOfTrade), settlePartners.ts
+                           (the "partners" deals), dealBook.ts (FR-244 data)
   store/
     rootStore.ts           createGameStore(options) and the app's useGameStore
     gameSlice.ts           game, activeNationId, lastRejection, eventLog, orderLog, submitOrder,
@@ -373,23 +374,30 @@ training) and what the standing orders and this turn's cars commit.
   net unit, at most 3%, within 50% to 250% of the start price). `tradeDeliverySystem` (after
   logistics) puts the deliveries in the warehouse, so bought units are usable next turn but feed
   this turn's meal.
-- **Market mode** (M7, FR-182): `market.mode` is "partners" on the continent (`WORLD_MARKET` in
+- **Market mode** (M7, FR-242): `market.mode` is "partners" on the continent (`WORLD_MARKET` in
   `engine/world/worlds.ts`; `newGame({ market })` overrides it); a market without the key is "world",
   the v1 shape above, kept so every v1 assertion holds (`marketModeOf`). The orders are the same in
-  both modes; `tradeSystem` dispatches. "partners" (`engine/market/partnerTrade.ts`, pure, no random
-  draw): per commodity in `BOARD_ORDER` (`definisions/partnerTrade.ts`), (1) each minor's offer
+  both modes; `tradeSystem` dispatches. "partners" (`engine/market/settlePartners.ts`, pure, no random
+  draw): per commodity in `BOARD_ORDER` (`definisions/partnersMarket.ts`), (1) each minor's offer
   (`minorOffers`: a unit per tile, at most 6) to the Great Powers that bid, in the minor's
   `partnerRanking` (points + subsidy / 2, ties in `intentOrder`), (2) each minor's demand
   (`minorDemand`: 2 of each good) from the Great Powers that offer, (3) Great Power to Great Power,
-  in `intentOrder`; only where `tradeBarrier` (war, boycott, no consulate with a minor) allows. Deal
-  price floor(P x (1 ± s)); a bid's reserve pays first, the treasury the rest; a unit nobody can take
-  passes on (`offer-missed`), unsold offers come home (`offer-unsold`). Each pair gains a relation point
-  per commodity type dealt. Then `tradeSystem` moves the prices by FR-065 on unfilled minus unsold
-  units, the same draws as "world". `boardOfTrade` and `dealBook` (`engine/market/dealBook.ts`) are
-  the screens' data; `components/market/dealBookView.ts` writes the ledger lines.
-- The scripted player in "partners" (`engine/ai/partnerTrade.ts`, FR-193): a consulate a turn while
-  $2,500 stays, its FR-128 bids capped at what its partner minors offer (resources only, so no lumber
-  or steel bid finds a seller) and its offers at what they want (clothing, furniture, hardware).
+  in `intentOrder`; only where `settledTradeBarrier` (war, boycott, no consulate with a minor) allows:
+  the diplomacy phase ran first, so the record is this turn's. Deal price floor(P x (1 ± s)); a bid's
+  reserve pays first, the treasury the rest; a unit nobody can take passes on (`offer-missed`), bid units
+  no seller let it have are `bid-unfilled`, unsold offers come home (`offer-unsold`). Each pair gains a
+  relation point per commodity type dealt. Then `tradeSystem` moves the prices by FR-065 on the units
+  the Great Powers bought minus those they sold (FR-243), the same draws as "world": the minors' fixed
+  offers and demand alone move nothing. `boardOfTrade` and `dealBook` (`engine/market/dealBook.ts`)
+  are the screens' data; `components/market/dealBookView.ts` writes the ledger lines.
+- Before End Turn, the Board of Trade and the scripted player ask `tradeBarrier`, which runs
+  `diplomacySystem` on the state (events dropped, cached per state object in a WeakMap) and reads the
+  result: what the trade phase will find after this turn's diplomacy phase (FR-246).
+- The scripted player in "partners" (`engine/ai/scriptedPartners.ts` and `planTrade` in
+  `ai/economy.ts`, FR-245): a consulate only when the minors that favour it do not cover its holds,
+  with the first minor that offers or wants what it lacks, while $2,500 stays; bids for the raw its
+  mills lack (timber, coal, iron ore, cotton) capped at what its partner minors offer; offers of
+  clothing, furniture and hardware capped at what they want.
 - Score (`engine/score/score.ts`): `scoreOf(state, nationId)` = floor(treasury / 100) + 10 per
   capacity point of the capped buildings + 10 per resource level on own tiles, with the parts;
   `scoreTable(state)` ranks all nations. Weights: `definisions/scoreWeights.ts`.
