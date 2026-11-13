@@ -2,9 +2,10 @@
  * Tile styles (42 px tiles, FR-088). Layout inside a tile:
  *   top left: level badge, job markers below it   top right: depot / port with status dot
  *   middle: the icon for what the tile holds       bottom right: the civilians, one 24 px button
+ *   on a province's seat: the army markers, half over the tile's left edge (FR-210)
  * Stacking above MapView's rail and border overlay (z-index 1): the selection ring and the icons
- * and badges (2), the civilians (3), a minor's name tag (4), the civilians' tray (6). The HUD (10)
- * stays on top.
+ * and badges (2), the civilians (3), a minor's name tag (4), the army markers (5), the civilians'
+ * tray (6). The HUD (10) stays on top.
  */
 
 .tile {
@@ -265,4 +266,85 @@
 .trayAbove {
   top: auto;
   bottom: calc(100% + 2px);
+}
+
+/* Army markers on a province's seat (FR-210; Imp1 encampment tents): one 24 x 24 chip per country, the province's
+   owner nearest the tile and any other to its left. They end 13 px into the tile, so they clear the civilians' 24 px
+   button in the bottom right corner and the tile's icon in the middle or the top centre; the rest lies over the
+   neighbour's right edge. Above the civilians and a minor's name tag (5), below the civilians' tray (6). */
+.armies {
+  position: absolute;
+  right: calc(100% - 13px);
+  top: 9px;
+  display: flex;
+  flex-direction: row-reverse;
+  gap: 1px;
+  z-index: 5;
+}
+
+/* On a minor's capital: above its name tag at the bottom (FR-153 d) */
+.armiesHigh {
+  top: 1px;
+}
+
+/* The owner's colour is its border (inline); the force size sits on that colour, the militia below it on the surface */
+.armyMarker {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  border: 2px solid var(--color-border-strong);
+  border-radius: 4px;
+  background: var(--color-surface-raised);
+  color: var(--color-ink);
+  font: inherit;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  overflow: hidden;
+  box-shadow: var(--shadow-panel);
+}
+
+button.armyMarker {
+  cursor: pointer;
+}
+
+button.armyMarker:hover,
+button.armyMarker:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.armyForce,
+.armyMilitia {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The background is the owner's colour (inline) */
+.armyForce {
+  color: var(--color-on-accent);
+}
+
+.armyForce svg[data-icon],
+.armyMilitia svg[data-icon] {
+  width: 8px;
+  height: 8px;
+  flex: none;
+}
+
+/* One line only (militia alone, or regiments without militia): larger */
+.armyMarkerSingle {
+  font-size: 11px;
+}
+
+.armyMarkerSingle svg[data-icon] {
+  width: 10px;
+  height: 10px;
 }

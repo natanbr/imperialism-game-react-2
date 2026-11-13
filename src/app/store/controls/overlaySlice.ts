@@ -32,6 +32,16 @@ export interface OverlaySlice {
   dismissedProposalIds: string[];
   dismissProposal: (proposalId: string) => void;
 
+  // The Army screen (FR-211): the province whose army it shows, opened from our marker on the map (FR-210)
+  armyProvinceId: string | null;
+  openArmy: (provinceId: string) => void;
+  closeArmy: () => void;
+
+  // The Armoury (FR-212), opened from the capital dialog
+  isArmouryOpen: boolean;
+  openArmoury: () => void;
+  closeArmoury: () => void;
+
   // The game-over screen shows whenever the game is over, unless the player closed it (FR-076)
   isGameOverHidden: boolean;
   hideGameOver: () => void;
@@ -72,6 +82,15 @@ export const createOverlaySlice: StateCreator<GameStore, [], [], OverlaySlice> =
   dismissedProposalIds: [],
   dismissProposal: (proposalId) =>
     set((s) => (s.dismissedProposalIds.includes(proposalId) ? {} : { dismissedProposalIds: [...s.dismissedProposalIds, proposalId] })),
+
+  // Army screen and Armoury: same stale-refusal rule as the capital (FR-055)
+  armyProvinceId: null,
+  openArmy: (provinceId) => set({ armyProvinceId: provinceId, lastRejection: null }),
+  closeArmy: () => set({ armyProvinceId: null }),
+
+  isArmouryOpen: false,
+  openArmoury: () => set({ isArmouryOpen: true, lastRejection: null }),
+  closeArmoury: () => set({ isArmouryOpen: false }),
 
   isGameOverHidden: false,
   hideGameOver: () => set({ isGameOverHidden: true }),

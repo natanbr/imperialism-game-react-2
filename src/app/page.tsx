@@ -8,6 +8,8 @@ import { MarketModal } from './components/MarketModal';
 import { DealBookModal } from './components/DealBookModal';
 import { DiplomacyModal } from './components/DiplomacyModal';
 import { AcceptOfferModal } from './components/AcceptOfferModal';
+import { ArmyModal } from './components/ArmyModal';
+import { ArmouryModal } from './components/ArmouryModal';
 import { GameOverModal } from './components/GameOverModal';
 import TransportAllocationModal from './components/TransportAllocationModal';
 import { ConstructionOptionsModal } from './components/ConstructionOptionsModal';
@@ -35,6 +37,8 @@ export default function Home() {
       <MarketModal />
       <DealBookModal />
       <DiplomacyModal />
+      <ArmouryModal />
+      <ArmyModal />
       <ConstructionOptionsModal />
       <GameOverModal />
       <AcceptOfferModal />

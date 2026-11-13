@@ -3,6 +3,7 @@ import { Tile } from '@/types/Tile';
 import { Worker } from '@/types/Workers';
 import { createSelector } from 'reselect';
 import { completedTileIds } from '@/components/gameText';
+import { markersBySeat } from '@/components/army/armyView';
 import { foodForecast, scoreOf, scoreTable } from '@/engine';
 import { GameStore } from './rootStore';
 
@@ -30,6 +31,11 @@ export const selectFoodForecast = createSelector(
 export const selectActiveScore = createSelector(
   [(state: GameStore) => state.game, selectActiveNationId],
   (game, activeNationId) => scoreOf(game, activeNationId)
+);
+
+/** The army markers of each seat tile, the province's owner first, ours as buttons (FR-210). */
+export const selectArmyMarkersBySeat = createSelector([(state: GameStore) => state.game, selectActiveNationId], (game, activeNationId) =>
+  markersBySeat(game, activeNationId)
 );
 
 /** Every nation's score now, highest first, ties in founding order (FR-106). */

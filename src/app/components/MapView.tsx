@@ -1,6 +1,7 @@
 import { railLinksOf } from "@/engine";
 import { useEdgeScroll } from "@/hooks/useEdgeScroll";
 import { useGameStore } from "@/store/rootStore";
+import { selectArmyMarkersBySeat } from "@/store/selectors";
 import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { TileComponent } from "./Tile";
 import { cameraOnCapital } from "./camera";
@@ -30,6 +31,8 @@ export const MapView: React.FC = () => {
   const provinces = useGameStore((s) => s.game.provinces);
   const minorNations = useGameStore((s) => s.game.minorNations);
   const transportNetwork = useGameStore((s) => s.game.transportNetwork);
+  // Each seat tile's army markers (FR-210); every other tile gets none, so its props stay the same
+  const armyMarkers = useGameStore(selectArmyMarkersBySeat);
 
   // The camera is the container's scroll position (FR-083): the browser keeps it inside the map,
   // and the store mirrors it so the Center button and the first view can set it.
@@ -94,6 +97,7 @@ export const MapView: React.FC = () => {
                   selectedTileId={selectedTileId}
                   selectedWorkerId={selectedWorkerId}
                   transportNetwork={transportNetwork}
+                  armyMarkers={armyMarkers.get(tile.id)}
                 />
               ))}
             </div>

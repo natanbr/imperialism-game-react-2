@@ -200,6 +200,8 @@ describe('FR-160 startNewGame resets every overlay flag, also the ones a later m
       'isConstructionModalOpen', 'constructionModalTileId', 'constructionModalWorkerId',
       // M6: the Diplomacy screen (FR-177) and the offers the player closed unanswered this game (FR-175)
       'isDiplomacyOpen', 'dismissedProposalIds',
+      // M8: the Army screen's province (FR-211) and the Armoury (FR-212)
+      'armyProvinceId', 'isArmouryOpen',
     ]));
 
     store.setState(Object.fromEntries(session.map((key) => [key, changed(initial[key])])));

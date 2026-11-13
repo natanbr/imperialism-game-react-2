@@ -6,6 +6,7 @@ import {
   GiAnchor,
   GiAnticlockwiseRotation,
   GiBigWave,
+  GiCampingTent,
   GiCannedFish,
   GiCapitol,
   GiCheckeredFlag,
@@ -13,6 +14,7 @@ import {
   GiCottonFlower,
   GiCow,
   GiCowboyBoot,
+  GiCrossedSabres,
   GiCrosshair,
   GiCutDiamond,
   GiDesert,
@@ -41,6 +43,7 @@ import {
   GiOre,
   GiPaper,
   GiPineTree,
+  GiPitchfork,
   GiPlayButton,
   GiRailRoad,
   GiRiver,
@@ -72,6 +75,7 @@ export const GI = {
   GiAnchor,
   GiAnticlockwiseRotation,
   GiBigWave,
+  GiCampingTent,
   GiCannedFish,
   GiCapitol,
   GiCheckeredFlag,
@@ -79,6 +83,7 @@ export const GI = {
   GiCottonFlower,
   GiCow,
   GiCowboyBoot,
+  GiCrossedSabres,
   GiCrosshair,
   GiCutDiamond,
   GiDesert,
@@ -107,6 +112,7 @@ export const GI = {
   GiOre,
   GiPaper,
   GiPineTree,
+  GiPitchfork,
   GiPlayButton,
   GiRailRoad,
   GiRiver,
@@ -221,6 +227,12 @@ export const UI_ICONS = {
   diplomacy: "GiScrollUnfurled",
   /** The Deal Book (FR-195): the Imp1 ledger is an open book */
   dealBook: "GiOpenBook",
+  /** An army on the map and the Army screen (FR-210, FR-211): the Imp1 encampment tents */
+  army: "GiCampingTent",
+  /** Militia in an army marker (FR-210): the Minutemen's local levy */
+  militia: "GiPitchfork",
+  /** The Armoury (FR-212) */
+  armoury: "GiCrossedSabres",
 } as const satisfies Record<string, IconName>;
 
 /**
