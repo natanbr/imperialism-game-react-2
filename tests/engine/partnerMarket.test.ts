@@ -694,8 +694,9 @@ describe('FR-244 deal events and the Deal Book data (replaces FR-192)', () => {
       notTraded: [{ kind: 'missed', commodity: ResourceType.IronOre, amount: 1, counterpartyId: ARVELIA, reason: 'no-hold' }],
       bottomLine: { sold: 810, bought: 220, militaryUpkeep: 0, net: 590 },
       diplomacy: [],
+      recruits: [],
     });
-    expect(dealBook(events, N2)).toEqual({ sold: [], bought: [], notTraded: [], bottomLine: { sold: 0, bought: 0, militaryUpkeep: 0, net: 0 }, diplomacy: [] });
+    expect(dealBook(events, N2)).toEqual({ sold: [], bought: [], notTraded: [], bottomLine: { sold: 0, bought: 0, militaryUpkeep: 0, net: 0 }, diplomacy: [], recruits: [] });
   });
 
   it('FR-255 dealBook lists the units not sold under Not traded, not under Sold, and reads a "world" turn too', () => {
@@ -710,6 +711,7 @@ describe('FR-244 deal events and the Deal Book data (replaces FR-192)', () => {
       notTraded: [],
       bottomLine: { sold: 300, bought: 200, militaryUpkeep: 0, net: 100 },
       diplomacy: [],
+      recruits: [],
     });
   });
 

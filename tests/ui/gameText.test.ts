@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   COMMODITY_GROUPS, COMMODITY_TEXT, commodityName, completedTileIds, dateText, eventText, foodWarningText, newsLines, refusalText, REFUSAL_TEXT,
-  workerJobLabel,
+  upkeepDueText, upkeepWarningText, workerJobLabel,
 } from '@/components/gameText';
 import { newGame, resolveTurn, tryApplyOrder, type GameEvent, type Order, type RejectReason } from '@/engine';
 import { GameState } from '@/types/GameState';
@@ -319,20 +319,37 @@ describe('FR-205 FR-209 army orders, refusals and news in plain words', () => {
     expect(REFUSAL_TEXT['not-adjacent']).toBe("that province does not border the army's province");
   });
 
-  it('FR-205 each army order has a name in a refusal', () => {
+  it('FR-205 review R7, F5: a march into a country at war reads that attacks are not possible yet, not "that is not yours"', () => {
+    const march: Order = { kind: 'moveArmy', nationId: N, fromProvinceId: SW, regimentIds: ['regiment-1'], toProvinceId: NE };
+
+    expect(refusalText({ order: march, reason: 'attack-not-available' })).toBe('March refused: attacks are not possible yet.');
+    expect(REFUSAL_TEXT['attack-not-available']).not.toBe(REFUSAL_TEXT['not-owner']);
+  });
+
+  it('FR-205 FR-207 each army order has a name in a refusal', () => {
     const orders: Order[] = [
       { kind: 'setRecruitment', nationId: N, regiment: 'regulars', count: 1 },
       { kind: 'moveArmy', nationId: N, fromProvinceId: SW, regimentIds: ['regiment-1'], toProvinceId: NE },
       { kind: 'cancelArmyMove', nationId: N, regimentIds: ['regiment-1'] },
       { kind: 'disbandRegiments', nationId: N, provinceId: SW, regimentIds: ['regiment-1'] },
+      { kind: 'cancelDisband', nationId: N, regimentIds: ['regiment-1'] },
     ];
     expect(orders.map(order => refusalText({ order, reason: 'invalid-target' }))).toEqual([
       'Recruiting refused: not possible on that tile.',
       'March refused: not possible on that tile.',
       'Cancel march refused: not possible on that tile.',
       'Disband refused: not possible on that tile.',
+      'Cancel disband refused: not possible on that tile.',
     ]);
     expect(refusalText({ order: orders[1], reason: 'not-adjacent' })).toBe("March refused: that province does not border the army's province.");
+  });
+
+  it('FR-261 the upkeep line and the warning: none while the cash covers the upkeep', () => {
+    expect(upkeepDueText({ due: 125 })).toBe('Army upkeep at End Turn: $125');
+    expect(upkeepWarningText({ due: 100, cash: 100, short: false })).toBeNull();
+    expect(upkeepWarningText({ due: 100, cash: 40, short: true })).toBe(
+      'Cash is short of the army upkeep: $100 is due at End Turn and $40 will be left. Unless this turn\'s sales cover the rest, the newest regiments are disbanded.'
+    );
   });
 
   it.each<[GameEvent, string]>([
@@ -345,6 +362,7 @@ describe('FR-205 FR-209 army orders, refusals and news in plain words', () => {
     [{ type: 'regiments-disbanded', nationId: N, reason: 'order', count: 2 }, '2 regiments disbanded.'],
     [{ type: 'regiments-disbanded', nationId: N, reason: 'order', count: 1 }, '1 regiment disbanded.'],
     [{ type: 'regiments-disbanded', nationId: N, reason: 'no-pay', count: 2 }, '2 regiments disbanded: no money for their upkeep.'],
+    [{ type: 'recruits-refunded', nationId: N, regiment: 'regulars', count: 2 }, '2 Regulars not raised: our capital province is lost. Their cost is refunded.'],
   ])('FR-209 %j has its sentence', (event, text) => {
     expect(eventText(event, nameOf)).toBe(text);
   });

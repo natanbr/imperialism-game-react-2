@@ -62,6 +62,22 @@
   color: var(--color-text-primary);
 }
 
+/* A second summary (the upkeep, FR-261) sits right after the first */
+.summary + .summary {
+  margin-left: 0;
+}
+
+/* FR-261: the cash End Turn will find is below the army upkeep */
+.warning {
+  flex: none;
+  padding: 4px 12px;
+  margin-bottom: var(--spacing-md);
+  background: var(--color-bg-warn);
+  color: var(--color-ink);
+  border: 1px solid var(--color-warn);
+  border-radius: var(--radius-sm);
+}
+
 .closeButton,
 .button,
 .select {

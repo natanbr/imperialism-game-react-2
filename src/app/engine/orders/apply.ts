@@ -104,6 +104,7 @@ function applyValidOrder(state: GameState, order: Order): GameState {
     case "moveArmy":
     case "cancelArmyMove":
     case "disbandRegiments":
+    case "cancelDisband":
       return applyArmyOrder(state, order);
   }
 }

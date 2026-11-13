@@ -1,6 +1,6 @@
 // What the Deal Book screen shows (FR-244, FR-195, FR-255, FR-256): the engine's `dealBook` data as Imp1 ledger lines
 // ("Sold 1 Clothing to Arvelia @ $810"; rules 06 section 7.5) and the money of the turn. No React, no store.
-import type { BarredCounterparty, DealBook, DealEntry, DiplomacyCost, TradeBarrier, TradeMissCause } from "@/engine";
+import { REGIMENTS, type BarredCounterparty, type DealBook, type DealEntry, type DiplomacyCost, type TradeBarrier, type TradeMissCause } from "@/engine";
 import { commodityName, MISSED_TEXT, money } from "../gameText";
 
 export interface MoneyLine {
@@ -21,7 +21,7 @@ export interface DealBookView {
   notTraded: string[];
   /** Sold, Bought, Military upkeep, Trade net, in the Imp1 order. */
   bottomLine: MoneyLine[];
-  /** With the turn's treasuries known (FR-256): Trade net, each diplomacy cost, Other when not 0, Treasury change. */
+  /** With the turn's treasuries known (FR-256): Trade net, each diplomacy cost, each type recruited (FR-262), Other when not 0, Treasury change. */
   treasury?: MoneyLine[];
   /** "From $10,000 to $9,200": the treasury before and after the turn (FR-256). */
   cash?: string;
@@ -112,6 +112,7 @@ export function dealBookView(book: DealBook, nameOf: (countryId: string) => stri
           treasury: [
             tradeNet,
             ...book.diplomacy.map((d) => line(`${DIPLOMACY_TEXT[d.kind]} ${nameOf(d.targetId)}`, -d.amount)),
+            ...book.recruits.map((r) => line(`${r.count} ${REGIMENTS[r.regiment].name} recruited`, -r.amount)),
             ...(treasury.other !== 0 ? [line(OTHER_MONEY_LABEL, treasury.other)] : []),
             line("Treasury change", treasury.change),
           ],

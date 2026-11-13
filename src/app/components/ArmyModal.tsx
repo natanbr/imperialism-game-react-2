@@ -54,7 +54,7 @@ interface RowProps {
 
 const RegimentRow: React.FC<RowProps> = ({ row, ticked, onTick, onSubmit }) => {
   const reasonId = useId();
-  const statusClass = row.cancel ? styles.marching : row.status === "Disband ordered" ? styles.disbanding : row.selectable ? "" : styles.militia;
+  const statusClass = row.status === "Disband ordered" ? styles.disbanding : row.cancel ? styles.marching : row.selectable ? "" : styles.militia;
   return (
     <tr data-testid={`regiment-${row.name}`}>
       <td>
@@ -88,12 +88,12 @@ const RegimentRow: React.FC<RowProps> = ({ row, ticked, onTick, onSubmit }) => {
             <>
               <button
                 className={`${styles.button} ${styles.small}`}
-                aria-label={`Cancel march of ${row.name}`}
+                aria-label={`${row.cancel.label} of ${row.name}`}
                 disabled={row.cancel.refusal !== undefined}
                 aria-describedby={row.cancel.refusal ? reasonId : undefined}
                 onClick={() => onSubmit(row.cancel!)}
               >
-                Cancel march
+                {row.cancel.label}
               </button>
               <Reason id={reasonId} control={row.cancel} />
             </>
@@ -146,10 +146,19 @@ const ArmyScreen: React.FC<{ provinceId: string }> = ({ provinceId }) => {
         <span className={styles.summary} data-testid="force-size">
           Force Size: <strong>{view.forceSize}</strong>
         </span>
+        <span className={styles.summary} data-testid="army-upkeep">
+          {view.upkeep}
+        </span>
         <button className={styles.closeButton} onClick={close} aria-label="Close army">
           <span aria-hidden="true">×</span>
         </button>
       </header>
+
+      {view.upkeepWarning && (
+        <div className={styles.warning} role="status" data-testid="army-upkeep-warning">
+          {view.upkeepWarning}
+        </div>
+      )}
 
       {lastRejection && (
         <div className={styles.refusal} role="alert" data-testid="army-refusal">

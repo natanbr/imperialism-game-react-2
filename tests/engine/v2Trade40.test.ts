@@ -10,6 +10,8 @@ import { resolveTurn } from '@/engine/turn/resolveTurn';
 import { pairKey } from '@/engine/diplomacy/relations';
 import { PRICE_CEILING, PRICE_FLOOR, START_PRICES, TRADE_COMMODITIES } from '@/definisions/marketPrices';
 import type { GameState } from '@/types/GameState';
+import { forceSize } from '@/engine/army/armies';
+import { SCRIPTED_GARRISON } from '@/definisions/regiments';
 import { invariantViolations, N1, N2, nationOf, worldViolations } from './fixtures';
 
 const SEEDS = [1, 2, 3, 4];
@@ -28,6 +30,8 @@ interface Game {
   refused: number;
   /** Nation 2's treasury after every turn. */
   n2Treasury: number[];
+  /** FR-202, FR-213: the regiments each nation lost to the no-pay step (`regiments-disbanded`, reason "no-pay"; review E1, R2). */
+  noPay: Record<string, number>;
   violations: string[];
   final: GameState;
 }
@@ -42,6 +46,7 @@ function play(seed: number): Game {
     minorsDealt: { [N1]: [], [N2]: [] },
     refused: 0,
     n2Treasury: [],
+    noPay: { [N1]: 0, [N2]: 0 },
     violations: [],
     final: start,
   };
@@ -50,6 +55,7 @@ function play(seed: number): Game {
     const orders = Object.fromEntries(NATIONS.map(id => [id, scriptedPlayer(s, id)]));
     const result = resolveTurn(s, orders, s.seed);
     game.refused += result.events.filter(e => e.type === 'order-rejected').length;
+    for (const e of result.events) if (e.type === 'regiments-disbanded' && e.reason === 'no-pay') game.noPay[e.nationId] += e.count;
     for (const e of result.events) {
       if ((e.type !== 'goods-sold' && e.type !== 'goods-bought') || !e.counterpartyId || !minors.has(e.counterpartyId)) continue;
       game.minorDeals[e.nationId]++;
@@ -70,16 +76,26 @@ function play(seed: number): Game {
 
 /**
  * The measured v2 baseline (FR-247's status), seeds 1 to 4. Measured again in M8 (FR-215): each nation pays the start
- * army's $100 upkeep a turn (FR-202) and keeps two turns of it out of its spending (FR-213), so it bids less. Before
- * M8: deals [59, 53], [59, 56], [61, 53], [76, 51]; purchases [31, 23], [30, 25], [34, 23], [45, 22]; minors [4, 1] on
- * every seed; treasuries [924, 88], [561, 492], [38, 38], [1532, 38].
+ * army's $100 upkeep a turn (FR-202) and keeps a reserve of it out of its spending (FR-213 (a)), so it bids less; and
+ * again in the M8 review fix round (E1, R2): the reserve covers every turn left in the last 8 turns, so no regiment is
+ * lost for want of money and each capital province keeps its 4 arms (before it, seed 2 nation 1 and seed 4 nation 2
+ * lost their field army on turns 39 and 40: no-pay [3, 0] and [0, 3], capital arms [0, 4] and [4, 0]; seed 2's
+ * treasuries were [0, 2176]). Before M8: deals
+ * [59, 53], [59, 56], [61, 53], [76, 51]; purchases [31, 23], [30, 25], [34, 23], [45, 22]; minors [4, 1] on every seed;
+ * treasuries [924, 88], [561, 492], [38, 38], [1532, 38].
  */
 const BASELINE = [
-  { seed: 1, minorDeals: [54, 50], minorPurchases: [24, 17], minorsDealt: [4, 1], treasury: [805, 3177] },
-  { seed: 2, minorDeals: [47, 49], minorPurchases: [19, 18], minorsDealt: [4, 1], treasury: [0, 2176] },
-  { seed: 3, minorDeals: [50, 47], minorPurchases: [20, 18], minorsDealt: [4, 1], treasury: [182, 119] },
-  { seed: 4, minorDeals: [54, 50], minorPurchases: [25, 21], minorsDealt: [4, 1], treasury: [870, 5] },
+  { seed: 1, minorDeals: [54, 50], minorPurchases: [24, 17], minorsDealt: [4, 1], treasury: [805, 3177], noPay: [0, 0], capitalArms: [4, 4] },
+  { seed: 2, minorDeals: [47, 49], minorPurchases: [19, 18], minorsDealt: [4, 1], treasury: [150, 2376], noPay: [0, 0], capitalArms: [4, 4] },
+  { seed: 3, minorDeals: [50, 47], minorPurchases: [20, 18], minorsDealt: [4, 1], treasury: [182, 119], noPay: [0, 0], capitalArms: [4, 4] },
+  { seed: 4, minorDeals: [54, 50], minorPurchases: [25, 21], minorsDealt: [4, 1], treasury: [870, 5], noPay: [0, 0], capitalArms: [4, 4] },
 ];
+
+/** The force size (FR-204) of the nation's army in its capital province at turn 40. */
+const capitalArms = (s: GameState, nationId: string) => {
+  const army = s.armies.find(a => a.ownerId === nationId && a.provinceId === `province-${nationId}-sw`);
+  return army ? forceSize(army) : 0;
+};
 
 const measured = (seed: number, g: Game) => ({
   seed,
@@ -87,6 +103,8 @@ const measured = (seed: number, g: Game) => ({
   minorPurchases: NATIONS.map(id => g.minorPurchases[id]),
   minorsDealt: NATIONS.map(id => g.minorsDealt[id].length),
   treasury: NATIONS.map(id => nationOf(g.final, id).treasury),
+  noPay: NATIONS.map(id => g.noPay[id]),
+  capitalArms: NATIONS.map(id => capitalArms(g.final, id)),
 });
 
 describe('FR-247 the v2 trade baseline: 40 turns, both nations scripted, seeds 1 to 4', () => {
@@ -134,6 +152,16 @@ describe('FR-247 the v2 trade baseline: 40 turns, both nations scripted, seeds 1
       const prices = games.get(seed)!.first.final.market!.prices;
       const atBound = TRADE_COMMODITIES.filter(c => prices[c] <= Math.ceil(START_PRICES[c] * PRICE_FLOOR) || prices[c] >= Math.floor(START_PRICES[c] * PRICE_CEILING));
       expect({ seed, atBound }).toEqual({ seed, atBound: [] });
+    }
+  });
+
+  it('FR-247 FR-213 FR-202 the scripted garrison is kept to the end: no regiment lost for want of money, and each capital province still holds 4 arms at turn 40', () => {
+    // Review E1, R2: with a reserve of two turns' upkeep, 2 of these 8 nation-games lost their field army on turns 39 and 40
+    expect(SEEDS.map(seed => ({ seed, noPay: NATIONS.map(id => games.get(seed)!.first.noPay[id]) }))).toEqual(SEEDS.map(seed => ({ seed, noPay: [0, 0] })));
+    for (const seed of SEEDS) {
+      for (const id of NATIONS) {
+        expect({ seed, id, arms: capitalArms(games.get(seed)!.first.final, id) >= SCRIPTED_GARRISON.capitalArms }).toEqual({ seed, id, arms: true });
+      }
     }
   });
 

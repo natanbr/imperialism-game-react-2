@@ -10,6 +10,7 @@ import {
   type OrderKind,
   type RejectReason,
   type Season,
+  type UpkeepForecast,
   type WithdrawableOverture,
 } from "@/engine";
 import { TerrainType, type Tile } from "@/types/Tile";
@@ -45,6 +46,7 @@ const ORDER_TEXT: Record<OrderKind, string> = {
   moveArmy: "March",
   cancelArmyMove: "Cancel march",
   disbandRegiments: "Disband",
+  cancelDisband: "Cancel disband",
 };
 
 export const REFUSAL_TEXT: Record<RejectReason, string> = {
@@ -73,6 +75,7 @@ export const REFUSAL_TEXT: Record<RejectReason, string> = {
   "no-buyer": "no one buys this",
   "buyers-barred": "we may not trade with any buyer",
   "not-adjacent": "that province does not border the army's province",
+  "attack-not-available": "attacks are not possible yet",
 };
 
 /** Why an offer passed the nation by, in the news and the Deal Book (FR-244). */
@@ -199,6 +202,19 @@ export function foodWarningText(forecast: FoodForecast): string | null {
   return `Food is short: at the end of this turn ${parts.join("; ")}.`;
 }
 
+/** "Army upkeep at End Turn: $100" (FR-261): what the upkeep step will charge (FR-202). */
+export const upkeepDueText = (forecast: Pick<UpkeepForecast, "due">): string => `Army upkeep at End Turn: ${money(forecast.due)}`;
+
+/**
+ * FR-261: shown while the cash End Turn's upkeep step will find is below the upkeep (M8 review F2): "Cash is short of
+ * the army upkeep: $100 is due at End Turn and $40 will be left. Unless this turn's sales cover the rest, the newest
+ * regiments are disbanded."
+ */
+export function upkeepWarningText(forecast: UpkeepForecast): string | null {
+  if (!forecast.short) return null;
+  return `Cash is short of the army upkeep: ${money(forecast.due)} is due at End Turn and ${money(Math.max(0, forecast.cash))} will be left. Unless this turn's sales cover the rest, the newest regiments are disbanded.`;
+}
+
 /** News of a meal: only bad news is news. */
 function foodNews(sick: number, starved: number): string | null {
   const parts: string[] = [];
@@ -323,6 +339,8 @@ export function eventText(event: GameEvent, nameOf: (countryId: string) => strin
     // FR-209: `nameOf` names the provinces of a march as well
     case "regiments-recruited":
       return `${event.count} ${REGIMENTS[event.regiment].name} recruited.`;
+    case "recruits-refunded":
+      return `${event.count} ${REGIMENTS[event.regiment].name} not raised: our capital province is lost. Their cost is refunded.`;
     case "army-upkeep":
       return `Army upkeep: ${money(event.amount)}.`;
     case "army-moved":

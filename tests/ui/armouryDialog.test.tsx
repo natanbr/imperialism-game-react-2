@@ -162,6 +162,20 @@ describe('FR-212 the Armoury: one card per recruitable regiment', () => {
     openArmoury(continent());
     expect(text(within(armoury()).getByTestId('armoury-note'))).toBe('New regiments join the army in the capital next turn.');
   });
+
+  it('FR-261 review F2: the header shows the army upkeep at End Turn beside the cash; no warning while the cash covers it', () => {
+    openArmoury(continent());
+    expect(text(within(armoury()).getByTestId('armoury-cash'))).toBe('Cash: $10,000');
+    expect(text(within(armoury()).getByTestId('army-upkeep'))).toBe('Army upkeep at End Turn: $100');
+    expect(within(armoury()).queryByTestId('army-upkeep-warning')).toBeNull();
+  });
+
+  it('FR-261 review F2: with less cash than the upkeep the Armoury warns that the newest regiments would be disbanded', () => {
+    openArmoury(setTreasury(continent(), N1, 80));
+    expect(text(within(armoury()).getByTestId('army-upkeep-warning'))).toBe(
+      "Cash is short of the army upkeep: $100 is due at End Turn and $80 will be left. Unless this turn's sales cover the rest, the newest regiments are disbanded."
+    );
+  });
 });
 
 describe('FR-212 FR-200 ordering regiments', () => {

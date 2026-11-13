@@ -9,6 +9,7 @@ import { SCORE_WEIGHTS } from "@/definisions/scoreWeights";
 import { EngineerBuildDurationsTurns, WorkerLevelDurationsTurns } from "@/definisions/workerDurations";
 import { findWorker, nationById, nextResourceLevel, treasuryOf, workersOf, type WorkerLocation } from "../orders/queries";
 import { upkeepOf } from "../army/armies";
+import { SCRIPTED_GARRISON } from "@/definisions/regiments";
 import { validateOrder } from "../orders/validate";
 import { bestDepotSite, nextRailSections, tilesByReach, type DepotSite } from "./railPlan";
 import { planEconomy, turnsAfter } from "./economy";
@@ -64,16 +65,25 @@ export const scriptedPlayer: Player = (state, nationId) => {
 };
 
 /**
- * FR-213: it keeps its garrison, so no order of its own spends the cash of the army upkeep (FR-202) of this turn and
- * the next (this turn's only, on the last turn): an order that takes the treasury below it is dropped. Two turns, so
- * a turn that ends with less than an upkeep left still leaves the next one paid. A world without armies has no
- * upkeep, so there nothing is dropped and its orders are as before M8.
+ * FR-213 (a): it keeps its garrison, so no order of its own takes the treasury below `upkeepReserve` (an order that
+ * would is dropped). A world without armies has no upkeep, so there nothing is dropped and its orders are as before M8.
  */
 function spendsTheUpkeep(before: GameState, after: GameState, nationId: string): boolean {
   const left = treasuryOf(after, nationId);
-  const kept = upkeepOf(after, nationId) * (turnsAfter(after) > 0 ? 2 : 1);
-  return left < treasuryOf(before, nationId) && left < kept;
+  return left < treasuryOf(before, nationId) && left < upkeepReserve(after, nationId);
 }
+
+/**
+ * FR-213 (a): the cash the scripted player keeps for its army upkeep (FR-202): two turns of it, and in the last 8 turns
+ * the upkeep of every turn left (this one included), so the field army is paid to the end even when the sales stop.
+ * Review E1: with two turns only, 6 of the 20 partners-market nation-games of seeds 1 to 10 lost their field army in
+ * the last turns; with this rule none did, while a flat reserve of 6 or more turns cost about 100 points at turn 40.
+ */
+export const upkeepReserve = (state: GameState, nationId: string): number => {
+  const left = turnsAfter(state) + 1;
+  const { upkeepTurns, endgameTurns } = SCRIPTED_GARRISON;
+  return upkeepOf(state, nationId) * (left <= endgameTurns ? left : upkeepTurns);
+};
 
 /**
  * A depot pays back (FR-132) when what it newly gathers, over the turns it delivers, is worth its

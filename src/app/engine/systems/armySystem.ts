@@ -14,6 +14,7 @@ import {
   removeRegiments,
   serialOf,
   upkeepOf,
+  withRecruiting,
 } from "../army/armies";
 import { byIntentOrder, intentOrder } from "../turn/intents";
 import type { TurnContext, TurnSystem } from "../turn/context";
@@ -79,19 +80,25 @@ export const upkeepSystem: TurnSystem = (state: GameState, ctx: TurnContext): Ga
  * FR-201: after the combat phase each nation's recruits of this turn join its army in its capital province at health 100,
  * one `regiments-recruited` per type (types in the Imp1 table's order, nations in founding order, so the new ids do not
  * depend on the order of `state.nations`); the order is then cleared. The workers left the workforce when ordered and
- * never come back. A nation that no longer holds its capital province (M9) raises none.
+ * never come back. A nation that no longer holds its capital province (M9: taken in this turn's combat) raises none: its
+ * cash, armaments, horses and workers come back, with one `recruits-refunded` per type (review R4, E4).
  */
 export const recruitSystem: TurnSystem = (state: GameState, ctx: TurnContext): GameState => {
   if (!state.nations.some((n) => n.recruiting !== undefined)) return state;
   let s = state;
   for (const nation of [...state.nations].sort((a, b) => a.colorSlot - b.colorSlot)) {
     const capital = capitalProvinceOf(s, nation.id);
-    if (!capital || capital.ownerId !== nation.id) continue;
+    const home = capital?.ownerId === nation.id ? capital : undefined;
     for (const type of REGIMENT_TYPES) {
       const count = recruitingOf(nation, type);
       if (count <= 0) continue;
-      s = raiseRegiments(s, nation.id, capital.id, type, count);
-      ctx.emit({ type: "regiments-recruited", nationId: nation.id, regiment: type, count });
+      if (home) {
+        s = raiseRegiments(s, nation.id, home.id, type, count);
+        ctx.emit({ type: "regiments-recruited", nationId: nation.id, regiment: type, count });
+      } else {
+        s = { ...s, nations: s.nations.map((n) => (n.id === nation.id ? withRecruiting(n, type, 0) : n)) };
+        ctx.emit({ type: "recruits-refunded", nationId: nation.id, regiment: type, count });
+      }
     }
   }
   return {

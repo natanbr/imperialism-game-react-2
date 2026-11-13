@@ -4,6 +4,8 @@ import { describe, it, expect } from 'vitest';
 import { newGame } from '@/engine/newGame';
 import { scriptedPlayer } from '@/engine/ai/scriptedPlayer';
 import { computerOrders } from '@/engine/ai/players';
+import { upkeepReserve } from '@/engine/ai/scriptedPlayer';
+import { SCRIPTED_GARRISON } from '@/definisions/regiments';
 import { armyThreat } from '@/engine/ai/scriptedArmy';
 import { forceSize } from '@/engine/army/armies';
 import { resolveTurn } from '@/engine/turn/resolveTurn';
@@ -12,7 +14,7 @@ import type { GameState } from '@/types/GameState';
 import type { RegimentType } from '@/types/Unit';
 import { GoodsType } from '@/types/Resource';
 import { applyOrder } from '@/engine/orders/apply';
-import { N1, N2, setBuilding, setIndustry, setPair, setTreasury, setWarehouse, treasury } from './fixtures';
+import { N1, N2, setBuilding, setIndustry, setPair, setTreasury, setWarehouse, stockOf, treasury } from './fixtures';
 import { addRegiments, ARVELIA, ARVELIA_P, armyIn, continent, NW2, SW2 } from './armyFixtures';
 
 const ARMY_KINDS = ['setRecruitment', 'moveArmy', 'cancelArmyMove', 'disbandRegiments'];
@@ -80,7 +82,7 @@ describe('FR-213 recruiting under a threat', () => {
     expect(armamentOrders(scriptedPlayer(setBuilding(war(continent()), N2, 'metalWorks', { capacity: 3 }), N2))).toEqual([]);
   });
 
-  it('FR-213 under a threat it keeps its 2 armaments: none offered on the world market', () => {
+  it('FR-213 (c) under a threat it keeps its 2 armaments: none offered on the world market', () => {
     const s = setWarehouse(setTreasury(threatened(continent('world')), N2, 2000), N2, { armaments: 2 });
     const offered = (orders: Order[]) => orders.filter(o => o.kind === 'sellCommodity' && o.commodity === GoodsType.Armaments);
 
@@ -88,15 +90,43 @@ describe('FR-213 recruiting under a threat', () => {
   });
 });
 
-describe('FR-213 FR-202 it keeps the cash of its garrison\'s upkeep', () => {
+describe('FR-213 (a) FR-202 it keeps the cash of its garrison\'s upkeep', () => {
   const after = (s: GameState) => scriptedPlayer(s, N2).reduce(applyOrder, s);
+  const onTurn = (s: GameState, turn: number): GameState => ({ ...s, turn });
 
-  it('FR-213 with $250 and the start army\'s $100 upkeep its orders leave two turns of it ($200); with no army (two-islands) the same $250 is spent below that', () => {
+  it('FR-213 (a) with $250 and the start army\'s $100 upkeep its orders leave two turns of it ($200); with no army (two-islands) the same $250 is spent below that', () => {
     const continentAt250 = setTreasury(continent('world'), N2, 250);
     const twoIslandsAt250 = setTreasury(newGame({ seed: 1, world: 'two-islands' }), N2, 250);
 
     expect(treasury(after(continentAt250), N2)).toBeGreaterThanOrEqual(200);
     expect(treasury(after(twoIslandsAt250), N2)).toBeLessThan(200);
+  });
+
+  it('FR-213 (a) the reserve: two turns of upkeep up to turn 32, then the upkeep of every turn left (turn 33: 8 turns, $800; turn 40: $100); $0 without an army', () => {
+    const s = continent('world');
+    const reserve = (turn: number) => upkeepReserve(onTurn(s, turn), N2);
+
+    expect([1, 32, 33, 36, 39, 40].map(reserve)).toEqual([200, 200, 800, 500, 200, 100]);
+    expect(upkeepReserve(newGame({ seed: 1, world: 'two-islands' }), N2)).toBe(0);
+  });
+
+  it('FR-213 (a) review E1: on turn 33 with $1,000 its orders leave the $800 that pays the upkeep to turn 40, where two turns would let it spend down to $200', () => {
+    const at33 = setTreasury(onTurn(continent('world'), 33), N2, 1000);
+
+    expect(treasury(after(at33), N2)).toBeGreaterThanOrEqual(800);
+  });
+});
+
+describe('FR-213 (b) the steel of the garrison\'s armaments', () => {
+  it('FR-213 (b) under a threat the steel of the 2 armaments the run makes first (4 steel) stays out of expansion; without a threat it does not', () => {
+    // a metal works of 3 so the run makes 2 armaments; $2,000 so no recruit is ordered; 5 lumber + 5 steel in stock
+    const stocked = (s: GameState) =>
+      setWarehouse(setTreasury(setBuilding(s, N2, 'metalWorks', { capacity: 3 }), N2, 2000), N2, { lumber: 5, steel: 5, armaments: 0 });
+    const steelAfterExpansion = (s: GameState) =>
+      stockOf(scriptedPlayer(s, N2).filter(o => o.kind === 'expandBuilding').reduce(applyOrder, s), N2, 'steel');
+
+    expect(steelAfterExpansion(stocked(threatened()))).toBeGreaterThanOrEqual(4);
+    expect(steelAfterExpansion(stocked(war(continent())))).toBeLessThan(4);
   });
 });
 
@@ -121,7 +151,7 @@ describe('FR-213 the garrison over ten turns at war', () => {
     expect(other).toEqual([]);
     expect(Math.max(...recruits)).toBe(1);
     expect(recruits.reduce((a, b) => a + b, 0)).toBeGreaterThan(0);
-    expect(Math.min(...capital)).toBeGreaterThanOrEqual(4);
+    expect(Math.min(...capital)).toBeGreaterThanOrEqual(SCRIPTED_GARRISON.capitalArms);
     expect(refused).toBe(0);
   });
 

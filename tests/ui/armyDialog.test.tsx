@@ -105,6 +105,26 @@ describe('FR-211 the Army screen: what it shows', () => {
     expect([...select.options].map((o) => o.value)).toEqual([NW1, NE1, SE1]);
   });
 
+  it('FR-261 the header shows the army upkeep at End Turn; a disband ordered takes its regiments out of it', () => {
+    openArmy(continent());
+    expect(text(within(dialog()).getByTestId('army-upkeep'))).toBe('Army upkeep at End Turn: $100');
+    expect(within(dialog()).queryByTestId('army-upkeep-warning')).toBeNull();
+
+    fireEvent.click(within(dialog()).getByRole('checkbox', { name: '1st Artillery' }));
+    fireEvent.click(button('Disband'));
+    fireEvent.click(button('Yes, disband'));
+    expect(text(within(dialog()).getByTestId('army-upkeep'))).toBe('Army upkeep at End Turn: $50');
+  });
+
+  it('FR-261 review F2: with less cash than the upkeep the screen warns that the newest regiments would be disbanded', () => {
+    openArmy({ ...continent(), nations: continent().nations.map((n) => (n.id === N1 ? { ...n, treasury: 60 } : n)) });
+    const warning = within(dialog()).getByTestId('army-upkeep-warning');
+    expect(warning.getAttribute('role')).toBe('status');
+    expect(text(warning)).toBe(
+      "Cash is short of the army upkeep: $100 is due at End Turn and $60 will be left. Unless this turn's sales cover the rest, the newest regiments are disbanded."
+    );
+  });
+
   it("FR-211 the store flag armyProvinceId opens it; the close button and Escape clear it", () => {
     const first = openArmy(continent());
     fireEvent.click(button('Close army'));
@@ -230,6 +250,21 @@ describe('FR-211 the Army screen: Disband, asked in place', () => {
     expect(within(dialog()).queryByRole('group', { name: 'Confirm disband' })).toBeNull();
   });
 
+  it('FR-211 review F4: "Cancel disband" on a disband-ordered row sends cancelDisband for it; it is Available again', () => {
+    openArmy(continent());
+    fireEvent.click(within(dialog()).getByRole('checkbox', { name: '1st Artillery' }));
+    fireEvent.click(button('Disband'));
+    fireEvent.click(button('Yes, disband'));
+    const cancel = within(rowOf('1st Artillery')).getByRole('button', { name: 'Cancel disband of 1st Artillery' });
+    expect(text(cancel)).toBe('Cancel disband');
+
+    fireEvent.click(cancel);
+
+    expect(submitted.at(-1)).toEqual({ kind: 'cancelDisband', nationId: N1, regimentIds: [idOf(now(), N1, '1st Artillery')] });
+    expect(statusOf('1st Artillery')).toBe('Available');
+    expect(within(rowOf('1st Artillery')).getByRole('checkbox')).toBeTruthy();
+  });
+
   it('FR-211 Escape while the question is shown keeps the regiments and leaves the dialog open', () => {
     openArmy(continent());
     fireEvent.click(within(dialog()).getByRole('checkbox', { name: '2nd Regulars' }));
@@ -259,6 +294,33 @@ describe('FR-211 a refused order: the control is disabled with the refusal text'
     const cancel = within(rowOf('1st Regulars')).getByRole('button', { name: 'Cancel march of 1st Regulars' }) as HTMLButtonElement;
     expect(cancel.disabled).toBe(true);
     expect(description(cancel)).toBe('The game is over.');
+  });
+
+  it('FR-211 review F1: a militia-only province (3 of our 4 on a new game): March and Disband say militia cannot march or be disbanded, not "tick"', () => {
+    openArmy(continent(), NW1);
+    const nw = screen.getByRole('dialog', { name: 'Army in Testland North-West' });
+    expect(within(nw).queryAllByRole('checkbox')).toEqual([]);
+    const militia = 'Militia defend their province: they cannot march or be disbanded.';
+    for (const [name, reasonId] of [['March', 'march-reason'], ['Disband', 'disband-reason']] as const) {
+      const control = within(nw).getByRole('button', { name }) as HTMLButtonElement;
+      expect(control.disabled).toBe(true);
+      expect(text(within(nw).getByTestId(reasonId))).toBe(militia);
+      expect(description(control)).toBe(militia);
+    }
+  });
+
+  it('FR-211 review F1: once every regiment here is marching or to be disbanded, March and Disband say so, not "tick"', () => {
+    openArmy(continent());
+    for (const name of ['1st Regulars', '2nd Regulars']) fireEvent.click(within(dialog()).getByRole('checkbox', { name }));
+    fireEvent.click(button('March'));
+    fireEvent.click(within(dialog()).getByRole('checkbox', { name: '1st Artillery' }));
+    fireEvent.click(button('Disband'));
+    fireEvent.click(button('Yes, disband'));
+
+    expect(within(dialog()).queryAllByRole('checkbox')).toEqual([]);
+    for (const reasonId of ['march-reason', 'disband-reason']) {
+      expect(text(within(dialog()).getByTestId(reasonId))).toBe('Every regiment here already has an order this turn.');
+    }
   });
 
   it('FR-211 no army of ours in the province (all disbanded or marched away): the dialog says so', () => {

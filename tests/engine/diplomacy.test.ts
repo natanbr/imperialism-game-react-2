@@ -15,6 +15,7 @@ import { diplomacySystem } from '@/engine/systems/diplomacySystem';
 import { tradeSystem } from '@/engine/systems/tradeSystem';
 import { pairKey } from '@/engine/diplomacy/relations';
 import { warActive } from '@/engine/diplomacy/queries';
+import { upkeepForecast } from '@/engine/army/upkeepForecast';
 import type { PairDiplomacy } from '@/types/Diplomacy';
 import type { GameState } from '@/types/GameState';
 import { deepFreeze, N1, N2, setPair, setTreasury, treasury } from './fixtures';
@@ -416,7 +417,29 @@ describe('FR-170 grants', () => {
     expect(points(state, N1, ARVELIA)).toBe(30 + gain);
     expect(pair(state, N1, ARVELIA).lockedGrants).toEqual({});
     expect(ofType(events, 'grant-paid')).toEqual([{ type: 'grant-paid', nationId: N1, targetId: ARVELIA, amount }]);
-    expect(treasury(state, N1)).toBe(Math.max(0, 10000 - amount - UPKEEP)); // FR-202: at $0 the start army goes instead (no-pay)
+  });
+
+  /** End Turn with every event kept (the army ones too). */
+  const endTurnAll = (s: GameState) => resolveTurn(s, {}, s.seed);
+
+  it.each([1000, 3000, 5000] as const)('FR-170 FR-202 after a $%i grant the start army\'s $100 upkeep is paid as well, nothing disbanded', amount => {
+    const { state, events } = endTurnAll(order(embassy(continent()), grant(amount)));
+
+    expect(treasury(state, N1)).toBe(10000 - amount - UPKEEP);
+    expect(ofType(events, 'army-upkeep').filter(e => e.nationId === N1)).toEqual([{ type: 'army-upkeep', nationId: N1, amount: UPKEEP }]);
+    expect(ofType(events, 'regiments-disbanded')).toEqual([]);
+  });
+
+  it('FR-170 FR-202 FR-261 review R6: a $10,000 grant from $10,000 leaves nothing for the upkeep: the forecast warns, and End Turn disbands the 3 field regiments (no-pay) with no upkeep paid', () => {
+    const s = order(embassy(continent()), grant(10000));
+    expect(upkeepForecast(s, N1)).toEqual({ due: UPKEEP, cash: 0, short: true });
+
+    const { state, events } = endTurnAll(s);
+
+    expect(treasury(state, N1)).toBe(0);
+    expect(ofType(events, 'regiments-disbanded')).toEqual([{ type: 'regiments-disbanded', nationId: N1, reason: 'no-pay', count: 3 }]);
+    expect(ofType(events, 'army-upkeep').filter(e => e.nationId === N1)).toEqual([]);
+    expect(state.armies.filter(a => a.ownerId === N1).flatMap(a => a.regiments).every(r => r.type === 'minutemen')).toBe(true);
   });
 
   const lockedAfterOneTurn = () => endTurn(order(embassy(continent()), grant(3000, true)));

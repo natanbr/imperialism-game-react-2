@@ -64,6 +64,8 @@ export type GameEvent =
   // Armies (FR-209). `nationId` is the Great Power.
   /** This turn's recruits of one type joined the army in the capital province (FR-201). */
   | { type: "regiments-recruited"; nationId: NationId; regiment: RegimentType; count: number }
+  /** This turn's recruits of one type were not raised, the nation no longer holding its capital province; their cost came back (FR-201). */
+  | { type: "recruits-refunded"; nationId: NationId; regiment: RegimentType; count: number }
   /** The upkeep paid this turn (FR-202); none when it is 0. */
   | { type: "army-upkeep"; nationId: NationId; amount: number }
   /** Regiments of the nation marched along one route this turn (FR-206). */

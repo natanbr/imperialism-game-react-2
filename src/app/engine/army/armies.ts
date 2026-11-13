@@ -10,6 +10,7 @@ import type { ArmyIntent, ArmyMoveIntent, Intent } from "@/types/Intent";
 import type { Nation } from "@/types/Nation";
 import type { Province } from "@/types/Province";
 import type { RegimentType } from "@/types/Unit";
+import { GoodsType, ResourceType } from "@/types/Resource";
 import { FULL_HEALTH, isMilitia, REGIMENTS, UPKEEP_PER_ARMS } from "@/definisions/regiments";
 import { LABOUR_PER_WORKER } from "@/definisions/ResourceConversions";
 import { healthyWorkers } from "../industry/labour";
@@ -49,9 +50,12 @@ export function findRegiment(state: GameState, regimentId: RegimentId): Regiment
 export const forceSize = (army: Pick<Army, "regiments">): number =>
   army.regiments.reduce((sum, r) => (isMilitia(r.type) ? sum : sum + REGIMENTS[r.type].stats.armamentsCost), 0);
 
-/** FR-204: the sum of FPN x health / 100 over the non-militia regiments; the start army 36. */
+/**
+ * FR-204: the sum of FPN x health / 100 over the non-militia regiments; the start army 36. The whole numbers FPN x health
+ * are summed first and divided once, so two equal strengths compare equal (review E2: 1.2 + 2.4 is not 3.6 in floats).
+ */
 export const strength = (regiments: readonly Regiment[]): number =>
-  regiments.reduce((sum, r) => (isMilitia(r.type) ? sum : sum + (REGIMENTS[r.type].stats.fpNormal * r.health) / 100), 0);
+  regiments.reduce((sum, r) => (isMilitia(r.type) ? sum : sum + REGIMENTS[r.type].stats.fpNormal * r.health), 0) / 100;
 
 /** The strength of the country's regiments in the province (FR-213); 0 without an army there. */
 export const strengthIn = (state: GameState, countryId: CountryId, provinceId: ProvinceId): number =>
@@ -133,6 +137,27 @@ export const marchTargets = (state: GameState, nationId: NationId, provinceId: P
 
 /** The count of the type the nation ordered this turn. */
 export const recruitingOf = (nation: Nation, type: RegimentType): number => nation.recruiting?.[type] ?? 0;
+
+/**
+ * The nation with this turn's count of the type set to `count` (FR-200): a higher count takes the difference's cash,
+ * armaments, horses and workers (one of the regiment's grade each), a lower one gives them back. Shared by
+ * `setRecruitment` and the refund at End Turn when the capital province is lost (FR-201). Validation is the caller's.
+ */
+export function withRecruiting(nation: Nation, type: RegimentType, count: number): Nation {
+  const def = REGIMENTS[type];
+  const more = count - recruitingOf(nation, type);
+  const stock = nation.warehouse as Record<string, number>;
+  const warehouse = {
+    ...stock,
+    [GoodsType.Armaments]: (stock[GoodsType.Armaments] ?? 0) - more * def.stats.armamentsCost,
+    [ResourceType.Horses]: (stock[ResourceType.Horses] ?? 0) - more * def.horses,
+  } as Nation["warehouse"];
+  const grade = def.worker!;
+  const workers = { ...nation.industry.workers, [grade]: nation.industry.workers[grade] - more };
+  const recruiting = { ...(nation.recruiting ?? {}), [type]: count };
+  if (count === 0) delete recruiting[type];
+  return { ...nation, treasury: nation.treasury - more * def.cash, warehouse, industry: { ...nation.industry, workers }, recruiting };
+}
 
 /**
  * Workers of the grade a recruit may take (FR-200): the healthy ones (not sick, not training) whose labour the

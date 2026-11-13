@@ -12,9 +12,10 @@ import { tradeSystem } from '@/engine/systems/tradeSystem';
 import { productionSystem } from '@/engine/systems/productionSystem';
 import { disbandSystem, upkeepSystem } from '@/engine/systems/armySystem';
 import { upkeepOf } from '@/engine/army/armies';
+import { upkeepForecast } from '@/engine/army/upkeepForecast';
 import type { GameState } from '@/types/GameState';
 import { ResourceType } from '@/types/Resource';
-import { N1, N2, nationOf, setTreasury, setWarehouse } from './fixtures';
+import { N1, N2, nationOf, setPair, setTreasury, setWarehouse } from './fixtures';
 import { ARVELIA, continent, idOf, namesIn, SW1 } from './armyFixtures';
 
 const endTurn = (s: GameState, orders: Record<string, Order[]> = {}) => resolveTurn(s, orders, s.seed);
@@ -122,5 +123,49 @@ describe('FR-202 army upkeep', () => {
 
     expect(book.bottomLine).toEqual({ sold: 0, bought: 0, militaryUpkeep: 100, net: -100 });
     expect(book.treasury).toEqual({ start: 10000, end: 9900, change: -100, other: 0 });
+  });
+});
+
+describe('FR-261 the upkeep forecast (M8 review F2): what End Turn\'s upkeep step will charge and the cash it will find', () => {
+  /** Testland pays a standing locked grant of `amount` to Arvelia (an embassy there), from an earlier turn. */
+  const lockedGrant = (s: GameState, amount: 1000 | 3000) => setPair(s, N1, ARVELIA, { consulates: [N1], embassies: [N1], lockedGrants: { [N1]: amount } });
+  const disbandArtillery = (s: GameState): Order => ({ kind: 'disbandRegiments', nationId: N1, provinceId: SW1, regimentIds: [idOf(s, N1, '1st Artillery')] });
+
+  it('FR-261 a new game: $100 due, the whole treasury to pay it; two-islands: nothing due', () => {
+    expect(upkeepForecast(continent(), N1)).toEqual({ due: 100, cash: 10000, short: false });
+    expect(upkeepForecast(newGame({ seed: 1, world: 'two-islands' }), N1)).toEqual({ due: 0, cash: 10000, short: false });
+  });
+
+  it('FR-261 FR-207 a disband ordered this turn takes its regiments out of what is due', () => {
+    const s = continent();
+
+    expect(upkeepForecast(ordered(s, disbandArtillery(s)), N1).due).toBe(50);
+  });
+
+  it('FR-261 short when the treasury is below what is due, and End Turn then disbands as forecast', () => {
+    const s = setTreasury(continent(), N1, 60);
+
+    expect(upkeepForecast(s, N1)).toEqual({ due: 100, cash: 60, short: true });
+    expect(ofType(endTurn(s).events, 'regiments-disbanded').filter(e => e.nationId === N1)).toEqual([{ type: 'regiments-disbanded', nationId: N1, reason: 'no-pay', count: 1 }]);
+  });
+
+  it('FR-261 FR-170 a standing locked grant is paid in the diplomacy phase before the upkeep: $3,050 with a $3,000 grant leaves $50, short, and End Turn disbands', () => {
+    const s = setTreasury(lockedGrant(continent(), 3000), N1, 3050);
+
+    expect(upkeepForecast(s, N1)).toEqual({ due: 100, cash: 50, short: true });
+    const { events } = endTurn(s);
+    expect(ofType(events, 'grant-paid').filter(e => e.nationId === N1).map(e => e.amount)).toEqual([3000]);
+    expect(ofType(events, 'regiments-disbanded').filter(e => e.nationId === N1).map(e => e.reason)).toEqual(['no-pay']);
+  });
+
+  it('FR-261 FR-170 a grant the treasury cannot hold is not paid (it stops), and one replaced or stopped this turn is not counted again', () => {
+    // $2,000 cannot hold the $3,000 grant: it stops, the treasury pays the upkeep
+    expect(upkeepForecast(setTreasury(lockedGrant(continent(), 3000), N1, 2000), N1)).toEqual({ due: 100, cash: 2000, short: false });
+    // a new locked grant ordered this turn is paid when ordered and replaces the standing one
+    const replaced = ordered(setTreasury(lockedGrant(continent(), 3000), N1, 4000), { kind: 'giveGrant', nationId: N1, targetId: ARVELIA, amount: 1000, locked: true });
+    expect(upkeepForecast(replaced, N1)).toEqual({ due: 100, cash: 3000, short: false });
+    // withdrawn this turn
+    const stopped = ordered(setTreasury(lockedGrant(continent(), 3000), N1, 3050), { kind: 'withdrawOverture', nationId: N1, overture: 'grant', targetId: ARVELIA });
+    expect(upkeepForecast(stopped, N1)).toEqual({ due: 100, cash: 3050, short: false });
   });
 });

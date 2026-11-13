@@ -16,12 +16,14 @@ import {
   recruitingOf,
   regimentStatus,
   strength,
+  upkeepOf,
 } from '@/engine/army/armies';
+import { militaryStrength } from '@/engine/diplomacy/queries';
 import { transferProvince } from '@/engine/world/provinces';
 import type { RegimentType } from '@/types/Unit';
 import { MaterialType } from '@/types/Resource';
 import type { GameState } from '@/types/GameState';
-import type { ArmyMoveIntent } from '@/types/Intent';
+import type { ArmyMoveIntent, DisbandIntent } from '@/types/Intent';
 import { deepFreeze, industryOf, N1, N2, nationOf, setIndustry, setTreasury, setWarehouse, stockOf, tileAt } from './fixtures';
 import {
   addRegiments,
@@ -145,6 +147,18 @@ describe('FR-204 armies', () => {
     expect(new Set(s.armies.map(a => a.id)).size).toBe(s.armies.length);
   });
 
+  it('FR-204 FR-206 review R8: a regiment that marched also carries movedOnTurn, the turn it moved; the army keeps its four keys', () => {
+    const s = continent();
+    const { state } = endTurn(ordered(s, march(s, ['1st Regulars'], SW1, NW1)));
+
+    for (const army of state.armies) expect(Object.keys(army).sort()).toEqual(['id', 'ownerId', 'provinceId', 'regiments']);
+    const moved = armyIn(state, N1, NW1)!.regiments.find(r => r.name === '1st Regulars')!;
+    expect(Object.keys(moved).sort()).toEqual(['health', 'id', 'movedOnTurn', 'name', 'type']);
+    expect(moved.movedOnTurn).toBe(1);
+    const stayed = armyIn(state, N1, SW1)!.regiments.find(r => r.name === '2nd Regulars')!;
+    expect(Object.keys(stayed).sort()).toEqual(['health', 'id', 'name', 'type']);
+  });
+
   it.each([
     [1, '1st'], [2, '2nd'], [3, '3rd'], [4, '4th'], [11, '11th'], [12, '12th'], [13, '13th'],
     [21, '21st'], [22, '22nd'], [23, '23rd'], [101, '101st'], [111, '111th'], [112, '112th'],
@@ -174,6 +188,13 @@ describe('FR-204 armies', () => {
     const hurt = patchRegiment(s, idOf(s, N1, '1st Artillery'), { health: 50 });
     expect(strength(armyIn(hurt, N1, SW1)!.regiments)).toBe(28);
     expect([forceSize(armyIn(s, N1, NW1)!), strength(armyIn(s, N1, NW1)!.regiments)]).toEqual([0, 0]);
+  });
+
+  it('FR-204 review E2: equal strengths compare equal: Grenadiers at 10 and 20 health (1.2 + 2.4) against one at 30 (3.6)', () => {
+    const grenadiers = (...healths: number[]) => healths.map((health, i) => ({ id: `regiment-${900 + i}`, type: 'grenadiers' as const, name: `g${i}`, health }));
+
+    expect(strength(grenadiers(10, 20))).toBe(strength(grenadiers(30)));
+    expect(strength(grenadiers(10, 20))).toBe(3.6);
   });
 
   it('FR-204 the nations carry no army list (Nation.armies is removed)', () => {
@@ -298,6 +319,28 @@ describe('FR-201 new regiments', () => {
     const ids = state.armies.flatMap(a => a.regiments).map(r => serial(r.id));
     const recruits = ['3rd Regulars', '4th Regulars'].map(n => serial(idOf(state, N1, n)));
     expect(Math.min(...recruits)).toBeGreaterThan(Math.max(...ids.filter(id => !recruits.includes(id))));
+  });
+
+  it('FR-201 review R4, E4: a nation that no longer holds its capital province at End Turn raises none; the cash, armaments and workers come back, with recruits-refunded', () => {
+    const s = setWarehouse(continent(), N1, { armaments: 2 });
+    const before = { treasury: nationOf(s, N1).treasury, armaments: stockOf(s, N1, 'armaments'), workers: { ...industryOf(s, N1).workers } };
+    const recruiting = ordered(s, recruit('regulars', 1), recruit('skirmishers', 1));
+
+    // M9's combat phase may take the capital province in the same End Turn; here it changes hands before End Turn
+    const { state, events } = endTurn(transferProvince(recruiting, SW1, N2));
+
+    expect(ofType(events, 'regiments-recruited')).toEqual([]);
+    expect(ofType(events, 'recruits-refunded')).toEqual([
+      { type: 'recruits-refunded', nationId: N1, regiment: 'skirmishers', count: 1 },
+      { type: 'recruits-refunded', nationId: N1, regiment: 'regulars', count: 1 },
+    ]);
+    expect(namesIn(state, N1, SW1)).toEqual(['1st Regulars', '2nd Regulars', '1st Artillery', ...minutemen(9, 12)]);
+    // everything back; the start army's upkeep ($100) is still paid
+    expect({ treasury: nationOf(state, N1).treasury, armaments: stockOf(state, N1, 'armaments'), workers: industryOf(state, N1).workers }).toEqual({
+      ...before,
+      treasury: before.treasury - 100,
+    });
+    expect(nationOf(state, N1).recruiting).toBeUndefined();
   });
 
   it('FR-201 they join after the combat phase: a march ordered the same turn is reported first', () => {
@@ -442,6 +485,21 @@ describe('FR-207 disband', () => {
     });
   });
 
+  it('FR-207 review F4: cancelDisband takes the regiments out of their disband intents; they stay at End Turn and the upkeep counts them', () => {
+    const s = continent();
+    const disbanding = ordered(s, disband(s, ['2nd Regulars', '1st Artillery'], SW1));
+
+    const one = ordered(disbanding, { kind: 'cancelDisband', nationId: N1, regimentIds: [idOf(s, N1, '1st Artillery')] });
+    expect(one.intents.map(i => [i.kind, (i as DisbandIntent).regimentIds])).toEqual([['disband', [idOf(s, N1, '2nd Regulars')]]]);
+    expect(regimentStatus(one, idOf(s, N1, '1st Artillery'))).toEqual({ kind: 'available' });
+
+    const { state, events } = endTurn(one);
+    expect(namesIn(state, N1, SW1)).toEqual(['1st Regulars', '1st Artillery', ...minutemen(9, 12)]);
+    expect(ofType(events, 'army-upkeep').filter(e => e.nationId === N1)).toEqual([{ type: 'army-upkeep', nationId: N1, amount: 75 }]);
+    // cancelling the last one leaves no intent
+    expect(ordered(one, { kind: 'cancelDisband', nationId: N1, regimentIds: [idOf(s, N1, '2nd Regulars')] }).intents).toEqual([]);
+  });
+
   it('FR-205 FR-207 one pending order per regiment: a disband replaces its march, a march replaces its disband', () => {
     const s = continent();
     const r1 = idOf(s, N1, '1st Regulars');
@@ -492,10 +550,18 @@ describe('FR-200 to FR-208 the army orders and phases are pure', () => {
     expect(endTurn(ordered(s, ...orders)).state.armies).toEqual(endTurn(ordered(s, ...orders)).state.armies);
   });
 
-  it('FR-204 a hand-built army outside the nation\'s land still counts for the nation (used by the FR-213 tests)', () => {
-    const s = addRegiments(continent(), N1, ARVELIA_P, ['regulars', 'regulars']);
+  it('FR-202 FR-204 FR-206 review R9: an army in another country\'s province (M9\'s case) is its owner\'s: counted in its strength and upkeep, kept apart from the owner\'s army there, and healed', () => {
+    // two Testland Regulars in Arvelia, one hurt; Arvelia's 3 Minutemen stay its own army
+    let s = addRegiments(continent(), N1, ARVELIA_P, ['regulars', 'regulars']);
+    s = patchRegiment(s, 'regiment-902', { health: 50 });
 
-    expect(strength(armyIn(s, N1, ARVELIA_P)!.regiments)).toBe(20);
-    expect(armyIn(s, N2, SE2)?.regiments.length).toBe(4);
+    expect(militaryStrength(s, N1)).toBe(36 + 15);
+    expect(upkeepOf(s, N1)).toBe(100 + 50);
+    expect(s.armies.filter(a => a.provinceId === ARVELIA_P).map(a => `${a.ownerId} ${a.regiments.length}`).sort()).toEqual([`${ARVELIA} 3`, `${N1} 2`]);
+    // the turn heals it and charges its upkeep; it does not join or move the minor's army
+    const { state, events } = endTurn(s);
+    expect(armyIn(state, N1, ARVELIA_P)!.regiments.map(r => r.health)).toEqual([100, 60]);
+    expect(namesIn(state, ARVELIA, ARVELIA_P)).toEqual(['1st Minutemen', '2nd Minutemen', '3rd Minutemen']);
+    expect(ofType(events, 'army-upkeep').filter(e => e.nationId === N1)).toEqual([{ type: 'army-upkeep', nationId: N1, amount: 150 }]);
   });
 });

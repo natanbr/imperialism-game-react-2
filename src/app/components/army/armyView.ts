@@ -11,6 +11,7 @@ import {
   RegimentCategory,
   REGIMENTS,
   regimentStatus,
+  upkeepForecast,
   validateOrder,
   type ArmyMarker,
   type Order,
@@ -18,7 +19,7 @@ import {
 } from "@/engine";
 import type { GameState } from "@/types/GameState";
 import { nationColor, THEME } from "@/styles/theme";
-import { REFUSAL_TEXT } from "../gameText";
+import { REFUSAL_TEXT, upkeepDueText, upkeepWarningText } from "../gameText";
 import { namesText } from "../market/dealBookView";
 
 // --- the map markers (FR-210) ------------------------------------------------------------------
@@ -88,12 +89,24 @@ export const CATEGORY_TEXT: Record<RegimentCategory, string> = {
   [RegimentCategory.CombatEngineers]: "Combat Engineers",
 };
 
-/** Why a control is disabled before the engine is asked: nothing ticked, nowhere to go. */
+/**
+ * Why a control is disabled before the engine is asked: no regiment here can be ticked (militia only, or every regiment
+ * already marching or to be disbanded; review F1), nowhere to go, nothing ticked.
+ */
 export const ARMY_REASON = {
+  militiaStay: "Militia defend their province: they cannot march or be disbanded.",
+  allOrdered: "Every regiment here already has an order this turn.",
   tickToMarch: "Tick the regiments to march first.",
   tickToDisband: "Tick the regiments to disband first.",
   noTarget: "No province of ours borders this one.",
 } as const;
+
+/** Why no regiment of the nation's army in the province can be ticked, or undefined when one can (FR-211, review F1). */
+function noneToTick(state: GameState, nationId: string, provinceId: string): string | undefined {
+  const regiments = armyAt(state, nationId, provinceId)?.regiments ?? [];
+  if (regiments.some((r) => regimentStatus(state, r.id)?.kind === "available")) return undefined;
+  return regiments.some((r) => !isMilitia(r.type)) ? ARMY_REASON.allOrdered : ARMY_REASON.militiaStay;
+}
 
 /** An engine refusal as a sentence: "The game is over." */
 export const refusalSentence = (reason: RejectReason): string => {
@@ -124,8 +137,8 @@ export interface RegimentRowView {
   status: string;
   /** Available: it may be ticked to march or to disband. */
   selectable: boolean;
-  /** Marching: its "Cancel march" (`cancelArmyMove`). */
-  cancel?: ArmyControl;
+  /** Marching: its "Cancel march" (`cancelArmyMove`); disband ordered: its "Cancel disband" (`cancelDisband`, review F4). */
+  cancel?: ArmyControl & { label: "Cancel march" | "Cancel disband" };
 }
 
 export interface ArmyView {
@@ -133,6 +146,10 @@ export interface ArmyView {
   /** "Army in Testland South-West": the dialog's name. */
   title: string;
   forceSize: number;
+  /** "Army upkeep at End Turn: $100" (FR-261): the whole army's, not only this province's. */
+  upkeep: string;
+  /** FR-261: the cash End Turn will find is below the upkeep (`upkeepWarningText`); absent otherwise. */
+  upkeepWarning?: string;
   /** The regiments that may march first, then the militia, each group by id (the army's order). */
   rows: RegimentRowView[];
   /** "March to": the bordering provinces of ours, in state order (M8; attacks come with M9). */
@@ -156,42 +173,60 @@ export function armyView(state: GameState, nationId: string, provinceId: string)
           ...base,
           status: `Marching to ${provinceName(state, status.toProvinceId)}`,
           selectable: false,
-          cancel: control(state, { kind: "cancelArmyMove", nationId, regimentIds: [r.id] }),
+          cancel: { ...control(state, { kind: "cancelArmyMove", nationId, regimentIds: [r.id] }), label: "Cancel march" },
         };
       case "disband-ordered":
-        return { ...base, status: "Disband ordered", selectable: false };
+        return {
+          ...base,
+          status: "Disband ordered",
+          selectable: false,
+          cancel: { ...control(state, { kind: "cancelDisband", nationId, regimentIds: [r.id] }), label: "Cancel disband" },
+        };
       default:
         return { ...base, status: "Defending", selectable: false };
     }
   });
   const name = provinceName(state, provinceId);
+  const forecast = upkeepForecast(state, nationId);
+  const warning = upkeepWarningText(forecast);
   return {
     provinceName: name,
     title: `Army in ${name}`,
     forceSize: army ? forceSize(army) : 0,
+    upkeep: upkeepDueText(forecast),
+    ...(warning ? { upkeepWarning: warning } : {}),
     rows,
     targets: marchTargets(state, nationId, provinceId).map((p) => ({ id: p.id, name: p.name })),
   };
 }
 
-/** "March": the ticked regiments to the chosen province (`moveArmy`). Game over first, then nowhere to go, then nothing ticked. */
+/**
+ * "March": the ticked regiments to the chosen province (`moveArmy`). Game over first, then no regiment that can be
+ * ticked, then nowhere to go, then nothing ticked.
+ */
 export function marchControl(state: GameState, nationId: string, fromProvinceId: string, regimentIds: readonly string[], toProvinceId: string | undefined): ArmyControl {
   const order: Order = { kind: "moveArmy", nationId, fromProvinceId, regimentIds: [...regimentIds], toProvinceId: toProvinceId ?? "" };
   const result = validateOrder(state, order);
   if (result.ok) return { order };
   if (result.reason !== "game-over") {
+    const none = noneToTick(state, nationId, fromProvinceId);
+    if (none) return { order, refusal: none };
     if (!toProvinceId) return { order, refusal: ARMY_REASON.noTarget };
     if (regimentIds.length === 0) return { order, refusal: ARMY_REASON.tickToMarch };
   }
   return { order, refusal: refusalSentence(result.reason) };
 }
 
-/** "Disband": the ticked regiments (`disbandRegiments`). */
+/** "Disband": the ticked regiments (`disbandRegiments`). Game over first, then no regiment that can be ticked, then nothing ticked. */
 export function disbandControl(state: GameState, nationId: string, provinceId: string, regimentIds: readonly string[]): ArmyControl {
   const order: Order = { kind: "disbandRegiments", nationId, provinceId, regimentIds: [...regimentIds] };
   const result = validateOrder(state, order);
   if (result.ok) return { order };
-  if (result.reason !== "game-over" && regimentIds.length === 0) return { order, refusal: ARMY_REASON.tickToDisband };
+  if (result.reason !== "game-over") {
+    const none = noneToTick(state, nationId, provinceId);
+    if (none) return { order, refusal: none };
+    if (regimentIds.length === 0) return { order, refusal: ARMY_REASON.tickToDisband };
+  }
   return { order, refusal: refusalSentence(result.reason) };
 }
 

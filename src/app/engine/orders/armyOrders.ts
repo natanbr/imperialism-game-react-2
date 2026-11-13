@@ -7,13 +7,14 @@ import type { NationId, ProvinceId, RegimentId } from "@/types/Common";
 import type { ArmyIntent } from "@/types/Intent";
 import { GoodsType, ResourceType } from "@/types/Resource";
 import { isMilitia, isRegimentType, RECRUITABLE_REGIMENTS, REGIMENTS } from "@/definisions/regiments";
-import { capitalProvinceOf, findRegiment, freeWorkersOf, isArmyIntent, recruitingOf } from "../army/armies";
+import { capitalProvinceOf, findRegiment, freeWorkersOf, isArmyIntent, recruitingOf, withRecruiting } from "../army/armies";
 import { warActive } from "../diplomacy/queries";
 import { adjacentProvinces, provinceById } from "../world/provinces";
 import { addIntent } from "../turn/intents";
 import type {
   ArmyOrder,
   CancelArmyMoveOrder,
+  CancelDisbandOrder,
   DisbandRegimentsOrder,
   MoveArmyOrder,
   RejectReason,
@@ -33,9 +34,11 @@ export function validateArmyOrder(state: GameState, nation: Nation, order: ArmyO
     case "moveArmy":
       return validateMove(state, order);
     case "cancelArmyMove":
-      return validateCancel(state, order);
+      return validateCancel(state, order, "army-move");
     case "disbandRegiments":
       return validateDisband(state, order);
+    case "cancelDisband":
+      return validateCancel(state, order, "disband");
   }
 }
 
@@ -44,6 +47,7 @@ export function validateArmyOrder(state: GameState, nation: Nation, order: ArmyO
 function validateRecruitment(state: GameState, nation: Nation, order: SetRecruitmentOrder): ValidationResult {
   if (state.provinces.length === 0) return reject("invalid-target");
   if (!isRegimentType(order.regiment) || !RECRUITABLE_REGIMENTS.includes(order.regiment)) return reject("invalid-target");
+  // FR-200: recruits join in the capital province (FR-201), so none is ordered while another country holds it
   if (capitalProvinceOf(state, nation.id)?.ownerId !== nation.id) return reject("invalid-target");
   const { count } = order;
   if (!isWholeNumber(count) || count < 0) return reject("invalid-amount");
@@ -60,25 +64,7 @@ function validateRecruitment(state: GameState, nation: Nation, order: SetRecruit
 
 /** Pays the difference to this turn's count now, or gives it back (FR-200). */
 function applyRecruitment(state: GameState, order: SetRecruitmentOrder): GameState {
-  return {
-    ...state,
-    nations: state.nations.map((nation) => {
-      if (nation.id !== order.nationId) return nation;
-      const def = REGIMENTS[order.regiment];
-      const more = order.count - recruitingOf(nation, order.regiment);
-      const stock = nation.warehouse as Stock;
-      const warehouse = {
-        ...stock,
-        [GoodsType.Armaments]: (stock[GoodsType.Armaments] ?? 0) - more * def.stats.armamentsCost,
-        [ResourceType.Horses]: (stock[ResourceType.Horses] ?? 0) - more * def.horses,
-      } as Nation["warehouse"];
-      const grade = def.worker!;
-      const workers = { ...nation.industry.workers, [grade]: nation.industry.workers[grade] - more };
-      const recruiting = { ...(nation.recruiting ?? {}), [order.regiment]: order.count };
-      if (order.count === 0) delete recruiting[order.regiment];
-      return { ...nation, treasury: nation.treasury - more * def.cash, warehouse, industry: { ...nation.industry, workers }, recruiting };
-    }),
-  };
+  return { ...state, nations: state.nations.map((nation) => (nation.id === order.nationId ? withRecruiting(nation, order.regiment, order.count) : nation)) };
 }
 
 // --- marches and disbands (FR-205, FR-207) ------------------------------------------------------
@@ -111,18 +97,19 @@ function validateMove(state: GameState, order: MoveArmyOrder): ValidationResult 
   if (!adjacentProvinces(state, order.fromProvinceId).some((p) => p.id === to.id)) return reject("not-adjacent");
   if (to.ownerId === order.nationId) return OK;
   // FR-205: into another country's province only with a war active this turn (FR-167); that move is an attack, which
-  // M9 builds (FR-216). Until then it is refused as land that is not ours.
-  return reject(warActive(state, order.nationId, to.ownerId) ? "not-owner" : "not-at-war");
+  // M9 builds (FR-216). Until then it is refused with its own reason (review R7, F5).
+  return reject(warActive(state, order.nationId, to.ownerId) ? "attack-not-available" : "not-at-war");
 }
 
-function validateCancel(state: GameState, order: CancelArmyMoveOrder): ValidationResult {
+/** `cancelArmyMove` (FR-205) and `cancelDisband` (FR-207): each regiment is the nation's and has an intent of that kind this turn. */
+function validateCancel(state: GameState, order: CancelArmyMoveOrder | CancelDisbandOrder, kind: ArmyIntent["kind"]): ValidationResult {
   const list = checkList(order.regimentIds);
   if (!list.ok) return list;
   for (const id of order.regimentIds) {
     const found = findRegiment(state, id);
     if (!found) return reject("invalid-target");
     if (found.army.ownerId !== order.nationId) return reject("not-owner");
-    if (!state.intents.some((i) => i.kind === "army-move" && i.nationId === order.nationId && (i as ArmyIntent).regimentIds.includes(id))) {
+    if (!state.intents.some((i) => isArmyIntent(i) && i.kind === kind && i.nationId === order.nationId && i.regimentIds.includes(id))) {
       return reject("invalid-target");
     }
   }
@@ -166,5 +153,7 @@ export function applyArmyOrder(state: GameState, order: ArmyOrder): GameState {
       const { nationId, provinceId, regimentIds } = order;
       return addIntent(withoutRegiments(state, nationId, regimentIds), { kind: "disband", nationId, provinceId, regimentIds: [...regimentIds] });
     }
+    case "cancelDisband":
+      return withoutRegiments(state, order.nationId, order.regimentIds, "disband");
   }
 }

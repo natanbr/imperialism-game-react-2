@@ -90,13 +90,15 @@ export {
   type DealBottomLine,
   type DealEntry,
   type DiplomacyCost,
+  type RecruitCost,
   type TreasuryChange,
 } from "./market/dealBook";
 export { BOARD_ORDER, MINOR_DEMAND, MINOR_OFFER_CAP, TRADE_RELATION_POINTS } from "@/definisions/partnersMarket";
 export type { BarredCounterparty, OfferMissedReason, TradeMissCause } from "./turn/context";
 export type { MarketMode, TradeAmounts } from "@/types/Market";
 // M8 (FR-199 to FR-213): the regiment table, armies and their view helpers for the map markers, the Army screen and
-// the Armoury (FR-210 to FR-212), upkeep. The orders are `setRecruitment`, `moveArmy`, `cancelArmyMove`, `disbandRegiments`.
+// the Armoury (FR-210 to FR-212), upkeep and its forecast (FR-261). The orders are `setRecruitment`, `moveArmy`,
+// `cancelArmyMove`, `disbandRegiments`, `cancelDisband`.
 export {
   armiesIn,
   armiesOf,
@@ -121,6 +123,7 @@ export {
   type RegimentLocation,
   type RegimentStatus,
 } from "./army/armies";
+export { upkeepForecast, type UpkeepForecast } from "./army/upkeepForecast";
 export {
   entrenches,
   isMilitia,

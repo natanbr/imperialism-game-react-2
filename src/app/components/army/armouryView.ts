@@ -6,6 +6,7 @@ import {
   RECRUITABLE_REGIMENTS,
   recruitingOf,
   REGIMENTS,
+  upkeepForecast,
   validateOrder,
   type RegimentType,
   type RejectReason,
@@ -14,7 +15,7 @@ import type { GameState } from "@/types/GameState";
 import type { WorkerGrade } from "@/types/Industry";
 import type { Nation } from "@/types/Nation";
 import { GoodsType, ResourceType } from "@/types/Resource";
-import { money, REFUSAL_TEXT } from "../gameText";
+import { money, REFUSAL_TEXT, upkeepDueText, upkeepWarningText } from "../gameText";
 import { CATEGORY_TEXT } from "./armyView";
 
 /** One thing a regiment costs, or the nation has at hand: a worker of its grade, armaments, horses, cash. */
@@ -51,6 +52,10 @@ export interface ArmouryCardView {
 
 export interface ArmouryView {
   treasury: number;
+  /** "Army upkeep at End Turn: $100" (FR-261); this turn's recruits pay from next turn. */
+  upkeep: string;
+  /** FR-261: the cash End Turn will find is below the upkeep; absent otherwise. */
+  upkeepWarning?: string;
   cards: ArmouryCardView[];
 }
 
@@ -110,5 +115,7 @@ export function armouryView(state: GameState, nation: Nation): ArmouryView {
       ...(result.ok ? {} : { moreRefusal: moreRefusalText(result.reason, nation, type) }),
     };
   });
-  return { treasury: nation.treasury, cards };
+  const forecast = upkeepForecast(state, nation.id);
+  const warning = upkeepWarningText(forecast);
+  return { treasury: nation.treasury, upkeep: upkeepDueText(forecast), ...(warning ? { upkeepWarning: warning } : {}), cards };
 }

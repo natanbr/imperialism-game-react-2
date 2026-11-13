@@ -104,6 +104,7 @@ export function validateOrder(state: GameState, order: Order): ValidationResult 
     case "moveArmy":
     case "cancelArmyMove":
     case "disbandRegiments":
+    case "cancelDisband":
       return validateArmyOrder(state, nation, order);
     default: {
       const unknown: never = order;

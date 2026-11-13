@@ -110,6 +110,11 @@ const Armoury: React.FC = () => {
             Cash: <strong>{money(view.treasury)}</strong>
           </span>
         )}
+        {view && (
+          <span className={styles.summary} data-testid="army-upkeep">
+            {view.upkeep}
+          </span>
+        )}
         <button className={styles.closeButton} onClick={close} aria-label="Close Armoury">
           <span aria-hidden="true">×</span>
         </button>
@@ -118,6 +123,12 @@ const Armoury: React.FC = () => {
       <p id={noteId} className={styles.note} data-testid="armoury-note">
         New regiments join the army in the capital next turn.
       </p>
+
+      {view?.upkeepWarning && (
+        <div className={styles.warning} role="status" data-testid="army-upkeep-warning">
+          {view.upkeepWarning}
+        </div>
+      )}
 
       {lastRejection && (
         <div className={styles.refusal} role="alert" data-testid="armoury-refusal">

@@ -233,6 +233,12 @@ export interface DisbandRegimentsOrder extends OrderBase {
   regimentIds: RegimentId[];
 }
 
+/** Takes the regiments out of this turn's disband intents, so they stay (FR-207; M8 review F4). */
+export interface CancelDisbandOrder extends OrderBase {
+  kind: "cancelDisband";
+  regimentIds: RegimentId[];
+}
+
 export type Order =
   | MoveWorkerOrder
   | MoveAndBuildRailOrder
@@ -259,7 +265,8 @@ export type Order =
   | SetRecruitmentOrder
   | MoveArmyOrder
   | CancelArmyMoveOrder
-  | DisbandRegimentsOrder;
+  | DisbandRegimentsOrder
+  | CancelDisbandOrder;
 
 export type OrderKind = Order["kind"];
 
@@ -267,7 +274,7 @@ export type OrderKind = Order["kind"];
 export type DiplomacyOrder = ProposeOvertureOrder | GiveGrantOrder | SetTradePolicyOrder | WithdrawOvertureOrder | AnswerProposalOrder;
 
 /** The army orders (FR-200, FR-205, FR-207). */
-export type ArmyOrder = SetRecruitmentOrder | MoveArmyOrder | CancelArmyMoveOrder | DisbandRegimentsOrder;
+export type ArmyOrder = SetRecruitmentOrder | MoveArmyOrder | CancelArmyMoveOrder | DisbandRegimentsOrder | CancelDisbandOrder;
 
 export const ORDER_KINDS = [
   "moveWorker",
@@ -296,6 +303,7 @@ export const ORDER_KINDS = [
   "moveArmy",
   "cancelArmyMove",
   "disbandRegiments",
+  "cancelDisband",
 ] as const satisfies readonly OrderKind[];
 
 /** Why an order was refused. A fixed list so UIs and AI players can switch on it (FR-004). */
@@ -336,6 +344,8 @@ export type RejectReason =
   /** "Partners" market (FR-253): every country that could buy it is barred to the nation. */
   | "buyers-barred"
   /** Armies (FR-205): the province does not border the army's province. */
-  | "not-adjacent";
+  | "not-adjacent"
+  /** Armies (FR-205, M8): a march into a country at war with the nation is an attack, which M9 builds (FR-216). */
+  | "attack-not-available";
 
 export type ValidationResult = { ok: true } | { ok: false; reason: RejectReason };
