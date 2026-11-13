@@ -14,6 +14,8 @@
 - 2026-11-12 night shift (NR-030): v2 planning and implementation. Plan on branch `claude/v2-plan`
   (this worktree, the old docs worktree `imperialism-game-revival-fee36d`); one branch per milestone
   after it. The progress page files now live on these branches too (copied from the docs branch).
+- 2026-11-13 M5 engine half on `claude/m5-world`: FR-144 to FR-152, FR-156 (engine) and FR-157 to FR-159 tested;
+  the store starts the continent. Next: the UI half (FR-153 to FR-156 UI, FR-160), then the milestone review.
 
 Carried forward:
 - Deferred: river ports and the depot-on-port rule (rules 04); University fees; the power plant.
@@ -297,3 +299,93 @@ was re-run with web pages only), rules writer (Sonnet 5.5 xhigh), spot-check (So
   Q37 Join the Empire, rail and sea moves, generals and medals stay out of v2.
 - Objection: one province per minor and one army per province make war short (one battle takes a minor);
   acceptable for a first playable war, revisit after Nathan plays.
+
+## 2026-11-13 M5 World and seams for v2, engine half (FR-144 to FR-152, FR-156 engine, FR-157 to FR-159)
+
+Size: L (engine-wide: state shape, new world, turn context). One engine agent (Opus 5.5, xhigh, no subagents,
+no advisor call), started by the M5 workflow; ultracode is the workflow's own setting. Branch `claude/m5-world`
+(worktree `imperialism-game-revival-fee36d`) from main c378816. The UI agent builds FR-153 to FR-156 (UI) and
+FR-160 next, against the API below.
+
+Plan-lite:
+- Change: `newGame` gets a `world` (registry `WORLDS`: "two-islands" stays the engine default, "continent" the
+  store's); the continent's minor nations, provinces, diplomacy state and intents enter `GameState`; the old
+  relation, treaty, policy, grant and `Nation.provinces` fields go; `ctx.rngFor(name)` for new systems.
+- Consumers: the store (`startNewGame({ world })`), the UI agent (map borders, minor tiles, tile panel), M6 to
+  M9 (diplomacy, trade, armies, war write into `diplomacy`, `intents`, `provinces` and draw from `rngFor`).
+- Tests: FR-144 `engine/worlds.test.ts`, `store/gameStore.test.ts`; FR-145 `engine/continentWorld.test.ts`;
+  FR-146, FR-149, FR-156 `engine/minorNations.test.ts`; FR-147, FR-148 `engine/provinces.test.ts` (+ the
+  FR-042 rows of `engine/industry.test.ts`); FR-149 `engine/validate.test.ts`; FR-150 `engine/rngStreams.test.ts`
+  and the scan in `engine/purity.test.ts`; FR-151 `engine/diplomacyState.test.ts`; FR-152
+  `engine/intents.test.ts`; FR-157, FR-158 `engine/continentScore.test.ts`; FR-159 the eight v1 files, unchanged.
+- Verify: the gate (`npm test`, `npm run lint`, `npx tsc --noEmit`, `npm run build`).
+- Objection: the store now starts the continent while the screens still name a minor's tile "Unclaimed" and
+  draw no province or minor border; until the UI half lands, the app shows the new land without its names
+  (checked: the page renders on a continent game, 3 turns end, no error).
+
+Red before green (all new tests written first, then run against main's code):
+`npx vitest run` of the 12 M5 files gave `Test Files 10 failed | 2 passed (12)`, `Tests 18 failed | 200 passed
+(218)`. Five files failed to load for the missing modules (`Cannot find module '@/engine/world/worlds'`,
+`world/countries`, `world/provinces`, `diplomacy/relations`, `turn/intents`); rngStreams 7 of 8 failed
+(`rngFor` and `fnv1a32` missing); continentWorld 2 failed (the minor land was sea); validate 6 FR-149 rows
+failed (the targets were sea, so `invalid-target`, not `not-owner`); industry 1 (the 8-province row); the store
+2 (the store built two-islands). The two passing files: the FR-150 scan in purity.test.ts (a guard: main
+already read `ctx.rng` in the two systems only) and continentScore.test.ts (the world option was ignored, so
+both "worlds" were two-islands; it compares only after the continent exists).
+
+Decisions (defaults taken, nobody to ask):
+1. The continent founds the Great Powers on the two-island map, then adds the minor land: `settleIsland`
+   claims an island by flooding over land, and Arvelia would hand both islands and itself to nation 1.
+   Objection: the continent's start depends on the two-island builder; a change there changes both worlds
+   (intended: FR-145 asks the islands to be identical).
+2. `GameState.worldId` is optional (absent on a hand-built test state); `minorNations`, `provinces`,
+   `diplomacy` and `intents` are required, so the 21 hand-built test states (fixtures and system tests) got setup lines (empty lists, and
+   `startDiplomacy` in the two-nation fixture); no assertion changed. Objection: none.
+3. `ctx.rngFor(name)` seeds with the turn being resolved (`ctx.turn`), as FR-150 says; `ctx.rng` keeps its
+   `turn + 1` from before M1. One stream per name and context, so a second call goes on. Objection: two
+   conventions side by side; changing `ctx.rng` would move every v1 baseline.
+4. `Intent.kind` is a string until M6 narrows it to its union; `addIntent` gives ids "intent-<turn>-<n>".
+5. `transferProvince` moves ownership only (the province's `ownerId`, the tiles' `ownerNationId`); rail,
+   civilians and jobs on the land are M9's. It throws on an unknown province or country.
+6. `countryOfTile` answers the province owner first, then `ownerNationId` (two-islands has no provinces).
+   `relationLevel` is undefined for two minors (no entry).
+7. The FR-105 store test now calls `startNewGame({ seed: 12, world: "two-islands" })` (the FR-160 rule for a
+   store test that pins the engine default), so its assertion is unchanged.
+8. `migrantCap(state, nationId)` replaced `migrantCap(nation)`; the capital dialog's `labourView(state, nation)`
+   and `CapitalModal` changed one line each to pass the state (UI files touched only for this signature).
+
+Notes for the UI agent and M6 to M9 (seams found, nothing changed for them):
+- On the continent 9-4, 14-4 and 14-5 are no longer next to the sea, so they stop being port sites (Arvelia's
+  land is there). No player builds ports, and FR-158 shows nation 2 unchanged.
+- `isDepotSite` treats any Capital tile as a gathering tile, a minor's capital included; in M5 no Great Power
+  tile is next to a minor capital, so it does not matter until land changes hands (M9).
+- The tile panel shows a minor tile as "Owner: Unclaimed" until FR-155.
+
+Engine API for the UI half (all from `@/engine`): `WORLDS`, `DEFAULT_WORLD`, type `WorldId`; `countryName(state,
+id)`, `isGreatPower`, `isMinorNation`, `minorNationById`, `countryOfTile(state, tile)`, `minorNationAt(state,
+tile)`; `provinceOf(state, tileId)`, `provinceById`, `provincesOf(state, countryId)`, `adjacentProvinces`,
+`transferProvince`; `pairKey`, `relationOf`, `relationLevel`, `RELATION_SWATCHES`; `intentOrder`,
+`byIntentOrder`, `addIntent`; `RNG_STREAMS`; types `CountryId`, `MinorNation`, `Province`, `PairDiplomacy`,
+`DiplomacyState`, `Intent`. Tiles carry `provinceId`; a minor's tiles have no `ownerNationId`; minor capitals
+are Capital tiles with no `cityId`. Store: `startNewGame({ seed, turnLimit, world })`, `createGameStore({ world })`,
+`APP_WORLD` = "continent".
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| Red run, 12 M5 files | `npx vitest run tests/engine/worlds.test.ts ... tests/store/gameStore.test.ts` (12 files) | `Test Files 10 failed \| 2 passed (12)`, `Tests 18 failed \| 200 passed (218)` |
+| FR-144 to FR-152, FR-156 engine, FR-157, FR-158 | `npx vitest run` of the 12 files + `tests/store/computerNations.test.ts` | `Test Files 13 passed (13)`, `Tests 278 passed (278)` |
+| FR-157 | same run, console | `FR-157 nation 2 score at turn 40: [[1,1493],[2,1496],[3,1490],[4,1476]]` (the two-islands FR-125 numbers) |
+| FR-159 v1 baselines | `npx vitest run tests/engine/scriptedScore.test.ts tests/engine/twoNations.test.ts tests/engine/startWorld.test.ts tests/engine/newGame.test.ts tests/engine/secondNation.test.ts tests/engine/determinism.test.ts tests/engine/railSections.test.ts tests/engine/scriptedRail.test.ts` | `Test Files 8 passed (8)`, `Tests 125 passed (125)`; `FR-125 seed 1: t15 616/390 (1.58) ... t40 1493/650 (2.30)` as in M4.4 |
+| FR-159 files unchanged | `git diff --stat c378816 HEAD -- <the eight files> tests/engine/m4ScriptedPlayer.ts` | no output |
+| Unit tests | `npm test` | `Test Files 66 passed (66)`, `Tests 932 passed (932)` (+87 on 845) |
+| Lint | `npm run lint` | `✖ 3 problems (0 errors, 3 warnings)` (the same 3 as on main) |
+| Types | `npx tsc --noEmit` | exit 0, no output |
+| Build | `npm run build` | `✓ Compiled successfully in 9.1s`, `✓ Generating static pages (4/4)` |
+| Engine commit alone | store files at main, then `npx tsc --noEmit` and `npm test` | exit 0; `Test Files 66 passed (66)`, `Tests 929 passed (929)` |
+
+Not run here: the Playwright smoke suite (not in this agent's gate). e2e specs that pin two-island facts of the
+app's default game (for example `e2e/islands.spec.ts`) are FR-160's, with the UI half.
+
+How to see it in the app: `npm run dev`; a new game is the continent: land in the channel between the islands
+(Arvelia in the north joins them, three small islands elsewhere). The minors' names, province borders and the
+tile panel text come with the UI half.

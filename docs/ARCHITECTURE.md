@@ -28,11 +28,15 @@ src/app/
   engine/                  the headless core (no UI imports)
     index.ts               public API: Order types, validateOrder, applyOrder, tryApplyOrder,
                            resolveTurn, newGame, scriptedPlayer, GameEvent, seasonOf, labourOf,
-                           migrantCap, foodForecast, railLinksOf
-    newGame.ts             the start state: Spring 1815, startWorld(), START_TECHNOLOGIES, rail
-                           networks built
+                           migrantCap, foodForecast, railLinksOf; since M5 WORLDS, the country and
+                           province queries, transferProvince, pairKey, relationLevel, intentOrder
+    newGame.ts             the start state: Spring 1815 on a world of WORLDS (default "two-islands"),
+                           START_TECHNOLOGIES, rail networks built, start diplomacy, no intents
     calendar.ts            seasons; the year advances after winter
-    rng.ts                 seeded RNG: createTurnRng(seed, turn)
+    rng.ts                 seeded RNG: createTurnRng(seed, turn); RNG_STREAMS and createStreamRng
+                           for the per-system streams (FR-150)
+    diplomacy/relations.ts the diplomacy state (FR-151): pairKey, startDiplomacy, relationOf,
+                           relationLevel, RELATION_SWATCHES
     orders/                Order.ts (union + RejectReason), validate.ts, apply.ts,
                            industryOrders.ts (production, expansion, cars, training, migration),
                            queries.ts (read-only lookups and construction-site rules)
@@ -41,8 +45,12 @@ src/app/
                            this turn would serve)
     world/                 twoIslands.ts (the 24x16 two-island map as a text template,
                            CAPITAL_SITES), startWorld.ts (START_FOUNDINGS, foundNation, settleIsland, civilians,
-                           START_TECHNOLOGIES)
-    turn/                  resolveTurn.ts, phases.ts (TURN_PHASES), context.ts (TurnContext, GameEvent)
+                           START_TECHNOLOGIES), worlds.ts (WORLDS: "two-islands", "continent"),
+                           continent.ts (the minor land, MINOR_FOUNDINGS, the province split),
+                           countries.ts (countryName, isGreatPower, countryOfTile, minorNationAt),
+                           provinces.ts (provinceOf, provincesOf, adjacentProvinces, transferProvince)
+    turn/                  resolveTurn.ts, phases.ts (TURN_PHASES), context.ts (TurnContext, GameEvent),
+                           intents.ts (intentOrder, byIntentOrder, addIntent, dropResolvedIntents)
     systems/               one file per turn system, each (state, ctx) => state
     map/mapHelpers.ts      neighbours, adjacency, rail sites
     ai/scriptedPlayer.ts   a Player is (state, nationId) => Order[]
@@ -85,8 +93,35 @@ e2e/                       Playwright smoke suite (cursor icons, three turns pla
 ## Game state and UI state
 
 `GameState` (`types/GameState.ts`) is the whole game as the engine sees it: turn, year, `seed`,
-nations, map, transport network and allocations, technology, difficulty. It holds game data
+`worldId`, the Great Powers (`nations`), the minor nations, provinces, diplomacy and intents (M5,
+below), map, transport network and allocations, technology, difficulty. It holds game data
 only (FR-018).
+
+### Worlds, countries and the v2 seams (M5)
+
+- **Worlds** (FR-144): `newGame({ seed, turnLimit, world })` builds a key of `WORLDS`
+  (`engine/world/worlds.ts`); `newGame(seed)` is `newGame({ seed })`. The engine's default is
+  `"two-islands"`, the v1 start, so every v1 call, fixture and baseline is unchanged; the store
+  (`APP_WORLD` in `store/gameSlice.ts`) starts `"continent"`, and `startNewGame({ world })` picks one.
+- **The continent** (FR-145): the two-island start (Great Powers founded on the two-island map first,
+  because settling floods an island over land) plus the channel land of four minor nations: Arvelia,
+  the one land bridge, and the islands Sundmark, Lorran and Pellis.
+- **Countries** (FR-146): a country id (`CountryId`) is a Great Power (`state.nations`) or a minor
+  (`state.minorNations`: id, name, capital tile, `colonyOf?`). A minor has no treasury, warehouse,
+  industry, civilians or controller and gives no orders, so every system and view that iterates
+  `state.nations` sees the Great Powers only. `countryName`, `isGreatPower`, `countryOfTile`.
+- **Provinces** (FR-147, FR-148): each land tile of a world with provinces has `provinceId`;
+  `state.provinces` holds id, name, owner (a country id), seat tile and tile ids. Land changes hands
+  only through `transferProvince`, the one writer of `ownerNationId` after `newGame`, so its read
+  sites keep meaning "owned by this Great Power"; a minor's tiles have none (so they are closed to
+  Great Power civilians, FR-149). The migrant cap counts `provincesOf(state, nationId)`.
+- **Diplomacy** (FR-151): `state.diplomacy[pairKey(a, b)]`, one entry per pair with at least one
+  Great Power: points 0 to 89 (level floor(points / 10) on nine swatches), consulates, embassies,
+  pact, alliance, war, boycotts, subsidies, locked grants. M6 adds the overtures that change it.
+- **Intents** (FR-152): an order that involves a second country (M6 to M9) stores an intent with
+  `addIntent`; a phase resolves the turn's intents nation by nation in `intentOrder(state, turn)`
+  (founding order rotated by the turn); `resolveTurn` drops the resolved turn's intents after the
+  phases.
 
 The store (`store/rootStore.ts`) holds that state under `game`, and UI state beside it:
 
@@ -180,7 +215,11 @@ gives the same game (`tests/store/computerNations.test.ts`).
 `GameState.seed` is the only random state. A new game draws a seed (`randomSeed()` in the
 store; tests pass 1). Each turn's RNG is `createTurnRng(seed, turn)`, handed to systems in the
 turn context. The trade phase draws one number per tradeable commodity every turn (after the
-development system's draws), so prices depend only on the seed, the turn and the orders. The same initial state and orders always give the same result
+development system's draws), so prices depend only on the seed, the turn and the orders. Only those
+two systems read `ctx.rng` (FR-150, a scan in `tests/engine/purity.test.ts`); a new system draws from
+its own stream, `ctx.rngFor(name)` for a name of `RNG_STREAMS` ("diplomacy", "combat"):
+`createTurnRng((seed ^ fnv1a32(name)) >>> 0, turn)`, one stream per name and turn, so its draws never
+shift the price or development draws. The same initial state and orders always give the same result
 (`tests/engine/determinism.test.ts`); two scripted nations play 20 turns headlessly in
 `tests/engine/twoNations.test.ts`. The seed shows in the HUD's debug box when a tile is selected.
 
@@ -198,7 +237,9 @@ development system's draws), so prices depend only on the seed, the turn and the
 ## How to add a turn system
 
 1. `engine/systems/<name>.ts`: `export const <name>: TurnSystem = (state, ctx) => state`. Never
-   mutate the input; randomness only from `ctx.rng`; report what happened with `ctx.emit(...)`.
+   mutate the input; randomness only from its own stream `ctx.rngFor(name)` (add the name to
+   `RNG_STREAMS` in `engine/rng.ts`; `ctx.rng` is the development and price draws only, FR-150);
+   report what happened with `ctx.emit(...)`.
 2. A new event type goes into `GameEvent` (`engine/turn/context.ts`) and gets a line in
    `eventText` (`components/gameText.ts`) so the HUD shows it.
 3. Add the system to `TURN_PHASES` in `engine/turn/phases.ts`, in the manual's phase order.
@@ -355,9 +396,11 @@ never imports `src/app/testing` (ESLint rule, FR-043, now FR-080).
 
 ## Not on the engine yet
 
-- Diplomacy, combat and interceptions are stub systems. Trade is a world market with no Minor
-  Nations, no bid/offer matching between nations and no Shipyard (holds do not grow).
-- The map is a fixed template, `engine/world/twoIslands.ts` (FR-080): the same for every seed, so
+- Diplomacy, combat and interceptions are stub systems (M5 adds their state: diplomacy, intents and
+  the random streams, but no order or phase uses them yet). Trade is a world market on both worlds,
+  with no bid/offer matching between nations and no Shipyard (holds do not grow).
+- The maps are fixed templates, `engine/world/twoIslands.ts` (FR-080) and the continent's minor land in
+  `engine/world/continent.ts` (FR-145): the same for every seed, so
   e2e specs and M4 can name tiles. Island 2 is island 1 shifted 12 columns (a shift along a row
   keeps the hex neighbours); `settleIsland(map, nationId, cityId, CAPITAL_SITES[i])` puts a capital
   on island i, raises its farm, orchard and plantation neighbours to level 1 and gives the nation
