@@ -10,6 +10,7 @@ import type { GameState } from "@/types/GameState";
 import type { TradeAmounts, TradeCommodity } from "@/types/Market";
 import type { Nation } from "@/types/Nation";
 import { BOARD_ORDER, TRADE_RELATION_POINTS } from "@/definisions/partnersMarket";
+import { START_PRICES } from "@/definisions/marketPrices";
 import { levelOfPoints, MAX_RELATION_POINTS, pairKey, relationOf } from "../diplomacy/relations";
 import type { GameEvent, OfferMissedReason, TradeMissCause } from "../turn/context";
 import { intentOrder } from "../turn/intents";
@@ -49,6 +50,7 @@ export function settlePartnerTrade(state: GameState, turn: number, emit: (event:
   const ranking = new Map(minors.map((m) => [m, partnerRanking(state, m, turn)]));
   const offersOf = new Map(minors.map((m) => [m, minorOffers(state, m)]));
   const demandOf = new Map(minors.map((m) => [m, minorDemand(state, m)]));
+  const colonies = new Set(state.minorNations.filter((m) => m.colonyOf !== undefined).map((m) => m.id));
   const barriers = new Map<string, boolean>();
   const blocked = (nationId: NationId, otherId: CountryId): boolean => {
     const key = `${nationId}>${otherId}`;
@@ -146,7 +148,10 @@ export function settlePartnerTrade(state: GameState, turn: number, emit: (event:
         if ((seller.offer[commodity] ?? 0) <= 0 || blocked(nationId, minorId)) continue;
         const units = Math.min(left, seller.offer[commodity]!, seller.holds);
         if (units <= 0) continue;
-        const unitPrice = dealPrice(price, -subsidyOf(state, nationId, minorId));
+        // FR-224: a colony pays its owner max(start price, P) a unit (Imp1 ledger reading [06:W37] [?], gaps H2)
+        const unitPrice = colonies.has(minorId)
+          ? Math.max(START_PRICES[commodity], price)
+          : dealPrice(price, -subsidyOf(state, nationId, minorId));
         seller.offer[commodity] = seller.offer[commodity]! - units;
         seller.holds -= units;
         seller.treasury += units * unitPrice;

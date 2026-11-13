@@ -358,8 +358,8 @@ describe('FR-200 FR-205 FR-207 army order refusals, on the continent (one row pe
     { name: 'a march across the sea', order: marchOrder([ARMY.regulars1], SW1, SW2), expected: 'not-adjacent' },
     { name: "a march into another country's province without a war", setup: atBorder, order: marchOrder([ARMY.regulars1], NE1, ARVELIA_P), expected: 'not-at-war' },
     { name: 'a march into a country whose war starts next turn (FR-167)', setup: warWithArvelia(2), order: marchOrder([ARMY.regulars1], NE1, ARVELIA_P), expected: 'not-at-war' },
-    // review R7, F5: its own reason, not the not-owner of another country's regiment
-    { name: "a march into a country at war (M8: attacks are M9's, FR-216)", setup: warWithArvelia(1), order: marchOrder([ARMY.regulars1], NE1, ARVELIA_P), expected: 'attack-not-available' },
+    // FR-216 (M9): a march into a country at war is an attack; M8 refused it with attack-not-available (review R7, F5)
+    { name: 'FR-216 a march into a country at war (war active) is an attack and is ok', setup: warWithArvelia(1), order: marchOrder([ARMY.regulars1], NE1, ARVELIA_P), expected: 'ok' },
     // cancelArmyMove (FR-205)
     { name: 'a cancel with no regiment', order: cancel([]), expected: 'invalid-amount' },
     { name: 'a cancel of a regiment with no march ordered', order: cancel([ARMY.regulars1]), expected: 'invalid-target' },
@@ -390,8 +390,8 @@ describe('FR-200 FR-205 FR-207 army order refusals, on the continent (one row pe
     expect(state).toEqual(snapshot);
   });
 
-  it('FR-205 the new reasons not-adjacent and attack-not-available have a row', () => {
+  it('FR-205 the new reason not-adjacent has a row; FR-216 an attack into a country at war has an accepted row', () => {
     expect(rows.some(r => r.expected === 'not-adjacent')).toBe(true);
-    expect(rows.some(r => r.expected === 'attack-not-available')).toBe(true);
+    expect(rows.some(r => r.name.startsWith('FR-216') && r.expected === 'ok')).toBe(true);
   });
 });

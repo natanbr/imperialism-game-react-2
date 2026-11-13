@@ -6,7 +6,7 @@ import type { Army, Regiment } from "@/types/Army";
 import type { CountryId, NationId, ProvinceId, RegimentId } from "@/types/Common";
 import type { GameState } from "@/types/GameState";
 import type { WorkerGrade } from "@/types/Industry";
-import type { ArmyIntent, ArmyMoveIntent, Intent } from "@/types/Intent";
+import type { ArmyIntent, ArmyMoveIntent, AttackIntent, Intent } from "@/types/Intent";
 import type { Nation } from "@/types/Nation";
 import type { Province } from "@/types/Province";
 import type { RegimentType } from "@/types/Unit";
@@ -103,28 +103,38 @@ export function capitalProvinceOf(state: GameState, countryId: CountryId): Provi
 
 // --- the turn's army intents (FR-205, FR-207) ----------------------------------------------
 
-export const isArmyIntent = (intent: Intent): intent is ArmyIntent => intent.kind === "army-move" || intent.kind === "disband";
+export const isArmyIntent = (intent: Intent): intent is ArmyIntent =>
+  intent.kind === "army-move" || intent.kind === "attack" || intent.kind === "disband";
 
+/** A march into one of the nation's own provinces (FR-206). */
 export const isArmyMoveIntent = (intent: Intent): intent is ArmyMoveIntent => intent.kind === "army-move";
+
+/** A move into a province of a country at war with the nation (FR-216). */
+export const isAttackIntent = (intent: Intent): intent is AttackIntent => intent.kind === "attack";
 
 /** This turn's move or disband intent that names the regiment, if any (a regiment has at most one). */
 export const pendingArmyIntent = (state: GameState, regimentId: RegimentId): ArmyIntent | undefined =>
   state.intents.find((i): i is ArmyIntent => isArmyIntent(i) && i.regimentIds.includes(regimentId));
 
-/** What a regiment does this turn, for the Army screen (FR-211). */
+/** What a regiment does this turn, for the Army screen (FR-211; M9: "attacking", FR-216). */
 export type RegimentStatus =
   | { kind: "defending" }
   | { kind: "available" }
   | { kind: "marching"; toProvinceId: ProvinceId }
+  | { kind: "attacking"; toProvinceId: ProvinceId; targetId: CountryId }
   | { kind: "disband-ordered" };
 
-/** The regiment's status: "defending" (militia), "available", "marching" (with where to) or "disband-ordered"; undefined for an unknown id. */
+/**
+ * The regiment's status: "defending" (militia), "available", "marching" (with where to), "attacking" (where and whom)
+ * or "disband-ordered"; undefined for an unknown id.
+ */
 export function regimentStatus(state: GameState, regimentId: RegimentId): RegimentStatus | undefined {
   const found = findRegiment(state, regimentId);
   if (!found) return undefined;
   if (isMilitia(found.regiment.type)) return { kind: "defending" };
   const intent = pendingArmyIntent(state, regimentId);
   if (intent?.kind === "army-move") return { kind: "marching", toProvinceId: intent.toProvinceId };
+  if (intent?.kind === "attack") return { kind: "attacking", toProvinceId: intent.toProvinceId, targetId: intent.targetId };
   if (intent?.kind === "disband") return { kind: "disband-ordered" };
   return { kind: "available" };
 }
@@ -141,30 +151,33 @@ export interface PendingMarch {
 }
 
 export interface PendingArmyOrders {
-  /** One entry per pair of provinces, in the order of the nation's armies and their regiments. */
+  /** Marches into own provinces: one entry per pair of provinces, in the order of the nation's armies and their regiments. */
   marches: PendingMarch[];
+  /** Attacks (FR-216; the map's red arrows, NR-031): one entry per pair of provinces, in the same order. */
+  attacks: PendingMarch[];
   /** Regiments ordered to disband this turn, by province. */
   disbands: Record<ProvinceId, number>;
 }
 
 /**
- * The nation's march and disband orders of this turn, as the map shows them before End Turn (FR-263): each regiment
- * counted once, by the order that holds it now (`pendingArmyIntent`, as the Army screen's status reads it).
+ * The nation's march, attack and disband orders of this turn, as the map shows them before End Turn (FR-263): each
+ * regiment counted once, by the order that holds it now (`pendingArmyIntent`, as the Army screen's status reads it).
  */
 export function pendingArmyOrders(state: GameState, nationId: NationId): PendingArmyOrders {
-  const marches = new Map<string, PendingMarch>();
+  const routes = { "army-move": new Map<string, PendingMarch>(), attack: new Map<string, PendingMarch>() };
   const disbands: Record<ProvinceId, number> = {};
   for (const army of armiesOf(state, nationId)) {
     for (const regiment of army.regiments) {
       const intent = pendingArmyIntent(state, regiment.id);
       if (intent?.kind === "disband") disbands[army.provinceId] = (disbands[army.provinceId] ?? 0) + 1;
-      if (intent?.kind !== "army-move") continue;
+      if (intent?.kind !== "army-move" && intent?.kind !== "attack") continue;
+      const into = routes[intent.kind];
       const key = `${army.provinceId}>${intent.toProvinceId}`;
-      const march = marches.get(key) ?? { fromProvinceId: army.provinceId, toProvinceId: intent.toProvinceId, count: 0 };
-      marches.set(key, { ...march, count: march.count + 1 });
+      const march = into.get(key) ?? { fromProvinceId: army.provinceId, toProvinceId: intent.toProvinceId, count: 0 };
+      into.set(key, { ...march, count: march.count + 1 });
     }
   }
-  return { marches: [...marches.values()], disbands };
+  return { marches: [...routes["army-move"].values()], attacks: [...routes.attack.values()], disbands };
 }
 
 // --- the Armoury (FR-200, FR-212) -----------------------------------------------------------

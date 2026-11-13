@@ -67,6 +67,18 @@ export interface ArmyMoveIntent extends Intent {
   regimentIds: RegimentId[];
 }
 
+/**
+ * `moveArmy` into a province of a country at war with the nation (FR-216): an attack, fought in the combat phase after
+ * the marches. `targetId` is the province's owner when ordered; peace with it drops the intent (FR-169).
+ */
+export interface AttackIntent extends Intent {
+  kind: "attack";
+  targetId: CountryId;
+  fromProvinceId: ProvinceId;
+  toProvinceId: ProvinceId;
+  regimentIds: RegimentId[];
+}
+
 /** `disbandRegiments` (FR-207): the regiments leave at End Turn, before the upkeep step. */
 export interface DisbandIntent extends Intent {
   kind: "disband";
@@ -74,4 +86,4 @@ export interface DisbandIntent extends Intent {
   regimentIds: RegimentId[];
 }
 
-export type ArmyIntent = ArmyMoveIntent | DisbandIntent;
+export type ArmyIntent = ArmyMoveIntent | AttackIntent | DisbandIntent;

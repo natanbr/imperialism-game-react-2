@@ -1,6 +1,7 @@
-// Army orders (FR-200, FR-205, FR-207): recruiting is paid when ordered (like `setProduction`); a march or a disband
-// stores an army intent (FR-152) that the turn resolves (FR-206, FR-207). A regiment has at most one army intent: a later
-// march or disband for it replaces the earlier one. Validation reads the state; apply returns a new one.
+// Army orders (FR-200, FR-205, FR-207, FR-216): recruiting is paid when ordered (like `setProduction`); a march, an
+// attack or a disband stores an army intent (FR-152) that the turn resolves (FR-206, FR-216, FR-207). A regiment has at
+// most one army intent: a later march, attack or disband for it replaces the earlier one. Validation reads the state;
+// apply returns a new one.
 import type { GameState } from "@/types/GameState";
 import type { Nation } from "@/types/Nation";
 import type { NationId, ProvinceId, RegimentId } from "@/types/Common";
@@ -34,11 +35,11 @@ export function validateArmyOrder(state: GameState, nation: Nation, order: ArmyO
     case "moveArmy":
       return validateMove(state, order);
     case "cancelArmyMove":
-      return validateCancel(state, order, "army-move");
+      return validateCancel(state, order);
     case "disbandRegiments":
       return validateDisband(state, order);
     case "cancelDisband":
-      return validateCancel(state, order, "disband");
+      return validateCancel(state, order);
   }
 }
 
@@ -96,20 +97,26 @@ function validateMove(state: GameState, order: MoveArmyOrder): ValidationResult 
   if (!to) return reject("invalid-target");
   if (!adjacentProvinces(state, order.fromProvinceId).some((p) => p.id === to.id)) return reject("not-adjacent");
   if (to.ownerId === order.nationId) return OK;
-  // FR-205: into another country's province only with a war active this turn (FR-167); that move is an attack, which
-  // M9 builds (FR-216). Until then it is refused with its own reason (review R7, F5).
-  return reject(warActive(state, order.nationId, to.ownerId) ? "attack-not-available" : "not-at-war");
+  // FR-205, FR-216: into another country's province only with a war active this turn (FR-167); that move is an attack
+  return warActive(state, order.nationId, to.ownerId) ? OK : reject("not-at-war");
 }
 
+/** The intent kinds each cancel order takes back: a march or an attack (FR-205, FR-216), a disband (FR-207). */
+const CANCELS: Record<"cancelArmyMove" | "cancelDisband", readonly ArmyIntent["kind"][]> = {
+  cancelArmyMove: ["army-move", "attack"],
+  cancelDisband: ["disband"],
+};
+
 /** `cancelArmyMove` (FR-205) and `cancelDisband` (FR-207): each regiment is the nation's and has an intent of that kind this turn. */
-function validateCancel(state: GameState, order: CancelArmyMoveOrder | CancelDisbandOrder, kind: ArmyIntent["kind"]): ValidationResult {
+function validateCancel(state: GameState, order: CancelArmyMoveOrder | CancelDisbandOrder): ValidationResult {
   const list = checkList(order.regimentIds);
   if (!list.ok) return list;
+  const kinds = CANCELS[order.kind];
   for (const id of order.regimentIds) {
     const found = findRegiment(state, id);
     if (!found) return reject("invalid-target");
     if (found.army.ownerId !== order.nationId) return reject("not-owner");
-    if (!state.intents.some((i) => isArmyIntent(i) && i.kind === kind && i.nationId === order.nationId && i.regimentIds.includes(id))) {
+    if (!state.intents.some((i) => isArmyIntent(i) && kinds.includes(i.kind) && i.nationId === order.nationId && i.regimentIds.includes(id))) {
       return reject("invalid-target");
     }
   }
@@ -123,13 +130,13 @@ function validateDisband(state: GameState, order: DisbandRegimentsOrder): Valida
 }
 
 /**
- * This turn's army intents of the nation without these regiments (only the intents of `kind` when given); an intent
+ * This turn's army intents of the nation without these regiments (only the intents of `kinds` when given); an intent
  * left without regiments is dropped. The same state when none names them.
  */
-function withoutRegiments(state: GameState, nationId: NationId, ids: readonly RegimentId[], kind?: ArmyIntent["kind"]): GameState {
+function withoutRegiments(state: GameState, nationId: NationId, ids: readonly RegimentId[], kinds?: readonly ArmyIntent["kind"][]): GameState {
   const drop = new Set(ids);
   const touches = (i: GameState["intents"][number]): i is ArmyIntent =>
-    isArmyIntent(i) && i.nationId === nationId && (kind === undefined || i.kind === kind) && i.regimentIds.some((id) => drop.has(id));
+    isArmyIntent(i) && i.nationId === nationId && (kinds === undefined || kinds.includes(i.kind)) && i.regimentIds.some((id) => drop.has(id));
   if (!state.intents.some(touches)) return state;
   const intents = state.intents.flatMap((i) => {
     if (!touches(i)) return [i];
@@ -145,15 +152,20 @@ export function applyArmyOrder(state: GameState, order: ArmyOrder): GameState {
       return applyRecruitment(state, order);
     case "moveArmy": {
       const { nationId, fromProvinceId, toProvinceId, regimentIds } = order;
-      return addIntent(withoutRegiments(state, nationId, regimentIds), { kind: "army-move", nationId, fromProvinceId, toProvinceId, regimentIds: [...regimentIds] });
+      const cleared = withoutRegiments(state, nationId, regimentIds);
+      // FR-216: into another country's province (validated: at war with it) the move is an attack on its owner
+      const owner = provinceById(state, toProvinceId)!.ownerId;
+      return owner === nationId
+        ? addIntent(cleared, { kind: "army-move", nationId, fromProvinceId, toProvinceId, regimentIds: [...regimentIds] })
+        : addIntent(cleared, { kind: "attack", nationId, targetId: owner, fromProvinceId, toProvinceId, regimentIds: [...regimentIds] });
     }
     case "cancelArmyMove":
-      return withoutRegiments(state, order.nationId, order.regimentIds, "army-move");
+      return withoutRegiments(state, order.nationId, order.regimentIds, CANCELS.cancelArmyMove);
     case "disbandRegiments": {
       const { nationId, provinceId, regimentIds } = order;
       return addIntent(withoutRegiments(state, nationId, regimentIds), { kind: "disband", nationId, provinceId, regimentIds: [...regimentIds] });
     }
     case "cancelDisband":
-      return withoutRegiments(state, order.nationId, order.regimentIds, "disband");
+      return withoutRegiments(state, order.nationId, order.regimentIds, CANCELS.cancelDisband);
   }
 }

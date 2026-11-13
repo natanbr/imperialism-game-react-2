@@ -14,6 +14,8 @@ export interface Regiment {
   health: number;
   /** The turn it last marched (FR-206); it does not heal on that turn (FR-208). Absent until it first moves. */
   movedOnTurn?: number;
+  /** The turn it last fought a battle (FR-221); it does not heal on that turn (FR-208). Absent until it first fights. */
+  foughtOnTurn?: number;
 }
 
 export interface Army {

@@ -19,7 +19,7 @@ import { tradeSystem } from '@/engine/systems/tradeSystem';
 import { tradeDeliverySystem } from '@/engine/systems/tradeDeliverySystem';
 import { marketOf, nextPrices } from '@/engine/market/market';
 import {
-  boardOfTrade, favouritePartner, marketModeOf, minorDemand, minorOffers, partnerRanking, tradeBarrier,
+  boardOfTrade, favouritePartner, marketModeOf, minorDemand, minorOffers, partnerRanking, settledTradeBarrier, tradeBarrier,
 } from '@/engine/market/partners';
 import { dealBook } from '@/engine/market/dealBook';
 import { pairKey } from '@/engine/diplomacy/relations';
@@ -176,18 +176,37 @@ describe('FR-184 what minors buy', () => {
     expect(minorDemand(continent(), 'minor-9')).toEqual({});
   });
 
-  it('FR-249 a colony bids for nothing, as it offers nothing: Testland\'s clothing for colonised Arvelia comes back unsold', () => {
-    const colony = (s: GameState): GameState => ({ ...s, minorNations: s.minorNations.map(m => (m.id === ARVELIA ? { ...m, colonyOf: N2 } : m)) });
-    expect(minorDemand(colony(continent()), ARVELIA)).toEqual({});
-    expect(minorDemand(colony(continent()), SUNDMARK)).toEqual({ clothing: 2, furniture: 2, hardware: 2 });
+  // FR-224 (M9) replaces FR-249's colony demand: a colony keeps its demand, which only its owner may fill.
+  const colonyOfValdoria = (s: GameState): GameState => ({ ...s, minorNations: s.minorNations.map(m => (m.id === ARVELIA ? { ...m, colonyOf: N2 } : m)) });
 
-    let s = setWarehouse(consulates(colony(continent()), N1, ARVELIA), N1, { clothing: 2 });
+  it('FR-224 (replaces FR-249) a colony keeps its demand, which only its owner may fill: Testland\'s clothing for Valdoria\'s colony comes back unsold', () => {
+    expect(minorDemand(colonyOfValdoria(continent()), ARVELIA)).toEqual({ clothing: 2, furniture: 2, hardware: 2 });
+    expect(minorOffers(colonyOfValdoria(continent()), ARVELIA)).toEqual({});
+    expect(settledTradeBarrier(colonyOfValdoria(continent()), N1, ARVELIA)).toBe('not-a-partner');
+    expect(settledTradeBarrier(colonyOfValdoria(continent()), N2, ARVELIA)).toBeUndefined();
+
+    let s = setWarehouse(consulates(colonyOfValdoria(continent()), N1, ARVELIA), N1, { clothing: 2 });
     s = placed(s, sell(N1, GoodsType.Clothing, 2));
     const { events } = trade(s);
     expect(deals(events)).toEqual([]);
-    // FR-255: the minors that still buy clothing are those Testland has no consulate with
-    const barred = [SUNDMARK, LORRAN, PELLIS].map(countryId => ({ countryId, barrier: 'no-consulate' }));
+    // FR-255: the colony bars Testland ("not-a-partner"); the other minors that buy clothing are those it has no consulate with
+    const barred = [
+      { countryId: ARVELIA, barrier: 'not-a-partner' },
+      ...[SUNDMARK, LORRAN, PELLIS].map(countryId => ({ countryId, barrier: 'no-consulate' })),
+    ];
     expect(ofType(events, 'offer-unsold')).toEqual([{ type: 'offer-unsold', nationId: N1, commodity: GoodsType.Clothing, amount: 2, cause: { kind: 'barred', barred } }]);
+  });
+
+  it('FR-224 the owner sells to its colony without a consulate, at max(start price, board price) a unit', () => {
+    const start = START_PRICES[GoodsType.Clothing];
+    const withPrice = (price: number): GameState => {
+      const s = colonyOfValdoria(continent());
+      return { ...s, market: { ...s.market!, prices: { ...s.market!.prices, [GoodsType.Clothing]: price } } };
+    };
+    for (const [price, paid] of [[start - 40, start], [start + 40, start + 40]]) {
+      const s = placed(setWarehouse(withPrice(price), N2, { clothing: 2 }), sell(N2, GoodsType.Clothing, 2));
+      expect(deals(trade(s).events)).toEqual([['sold', N2, ARVELIA, GoodsType.Clothing, 2, paid]]);
+    }
   });
 
   it('FR-184 a minor always pays: a nation with $0 sells it 2 furniture for $1,800', () => {

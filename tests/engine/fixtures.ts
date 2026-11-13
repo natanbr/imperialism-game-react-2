@@ -185,8 +185,11 @@ const canonical = (value: unknown): string =>
  * FR-157 (M5 review E3): the M5 world stays consistent while a game runs. Every land tile's
  * `provinceId` names a province that lists it and every listed tile names its province back; a tile's
  * `ownerNationId` is its province's owner when that is a Great Power and absent when it is a minor;
- * no land changes hands, so the minor nations, the provinces and the minor tiles are as at `start`;
- * the diplomacy entries are the same pairs; and no intent is left after a resolved turn (FR-152).
+ * land changes hands only by conquest (M9, FR-222 to FR-224): the minor nations are as at `start` but for
+ * `colonyOf`, which names a Great Power holding the minor's capital province; the provinces are as at `start`
+ * but for `ownerId`, and a province whose owner changed is a Great Power's; every tile of a province its start
+ * minor still holds is as at `start`; the diplomacy entries are the same pairs; and no intent is left after a
+ * resolved turn (FR-152).
  */
 export function worldViolations(state: GameState, start: GameState): string[] {
   const problems: string[] = [];
@@ -209,10 +212,22 @@ export function worldViolations(state: GameState, start: GameState): string[] {
       if (byId.get(id)?.provinceId !== p.id) problems.push(`province ${p.id} lists ${id}, which names ${byId.get(id)?.provinceId}`);
     }
   }
-  if (canonical(state.minorNations) !== canonical(start.minorNations)) problems.push('minorNations changed');
-  if (canonical(state.provinces) !== canonical(start.provinces)) problems.push('provinces changed');
-  const minorProvinces = new Set(start.provinces.filter(p => !greatPowers.has(p.ownerId)).map(p => p.id));
-  for (const before of start.map.tiles.flat().filter(t => t.provinceId && minorProvinces.has(t.provinceId))) {
+  // M9 conquest: colonyOf and the province owners may change, nothing else of them
+  const withoutColony = (s: GameState) => s.minorNations.map(m => ({ ...m, colonyOf: undefined }));
+  if (canonical(withoutColony(state)) !== canonical(withoutColony(start))) problems.push('minorNations changed');
+  for (const m of state.minorNations) {
+    if (m.colonyOf === undefined) continue;
+    const capital = state.provinces.find(p => p.tileIds.includes(m.capitalTileId));
+    if (!greatPowers.has(m.colonyOf) || capital?.ownerId !== m.colonyOf) problems.push(`minor ${m.id} colony of ${m.colonyOf}, its capital province held by ${capital?.ownerId}`);
+  }
+  const withoutOwner = (s: GameState) => s.provinces.map(p => ({ ...p, ownerId: undefined }));
+  if (canonical(withoutOwner(state)) !== canonical(withoutOwner(start))) problems.push('provinces changed');
+  for (const p of state.provinces) {
+    const before = start.provinces.find(q => q.id === p.id);
+    if (before && before.ownerId !== p.ownerId && !greatPowers.has(p.ownerId)) problems.push(`province ${p.id} passed to ${p.ownerId}, not a Great Power`);
+  }
+  const stillMinor = new Set(start.provinces.filter(p => !greatPowers.has(p.ownerId) && provinces.get(p.id)?.ownerId === p.ownerId).map(p => p.id));
+  for (const before of start.map.tiles.flat().filter(t => t.provinceId && stillMinor.has(t.provinceId))) {
     if (canonical(byId.get(before.id)) !== canonical(before)) problems.push(`minor tile ${before.id} changed`);
   }
   const pairs = (s: GameState) => Object.keys(s.diplomacy).sort().join(',');

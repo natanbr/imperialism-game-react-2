@@ -34,12 +34,12 @@ export function minorOffers(state: GameState, minorId: MinorNationId): TradeAmou
 }
 
 /**
- * What the minor bids for this turn (FR-184, Q27): 2 clothing, 2 furniture, 2 hardware; nothing for a colony
- * (FR-249: its trade is its owner's, as for its offers) or an unknown id.
+ * What the minor bids for this turn (FR-184, Q27): 2 clothing, 2 furniture, 2 hardware; a colony too (FR-224, which
+ * replaces FR-249's empty colony demand), and only its owner may fill it (`settledTradeBarrier`); nothing for an
+ * unknown id.
  */
 export function minorDemand(state: GameState, minorId: MinorNationId): TradeAmounts {
-  const minor = minorNationById(state, minorId);
-  return minor && minor.colonyOf === undefined ? { ...MINOR_DEMAND } : {};
+  return minorNationById(state, minorId) ? { ...MINOR_DEMAND } : {};
 }
 
 /**
@@ -67,11 +67,14 @@ export type TradeBarrier = "not-a-partner" | "at-war" | "boycott" | "no-consulat
 /**
  * Why `nationId` (a Great Power) may not trade with `countryId` on the diplomacy record as it stands, or
  * undefined when it may (FR-185): at war, a boycott by either side, or, with a minor, no consulate. Minors never
- * trade with each other, nor anyone with itself or an unknown country. The trade phase reads this: the diplomacy
- * phase before it has already settled this turn's intents.
+ * trade with each other, nor anyone with itself or an unknown country. A colony trades with its owner alone
+ * (FR-224). The trade phase reads this: the diplomacy phase before it has already settled this turn's intents.
  */
 export function settledTradeBarrier(state: GameState, nationId: NationId, countryId: CountryId): TradeBarrier | undefined {
   if (!isGreatPower(state, nationId) || nationId === countryId) return "not-a-partner";
+  // FR-224: a colony trades with its owner only, with no consulate needed (Imp1: it buys only from its conqueror)
+  const colonyOf = minorNationById(state, countryId)?.colonyOf;
+  if (colonyOf !== undefined) return colonyOf === nationId ? undefined : "not-a-partner";
   const entry = relationOf(state, nationId, countryId);
   if (!entry) return "not-a-partner";
   if (entry.war) return "at-war";

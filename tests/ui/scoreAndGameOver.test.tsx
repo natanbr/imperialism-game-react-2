@@ -8,7 +8,10 @@ import { GameOverModal } from '@/components/GameOverModal';
 import { useGameStore } from '@/store/rootStore';
 import { resolveTurn, scoreOf } from '@/engine';
 import type { GameState } from '@/types/GameState';
-import { emptyWarehouse, game, N1, N2, setIndustry, setTile, setTreasury, T } from '../engine/fixtures';
+import { emptyWarehouse, game, N1, N2, setIndustry, setPair, setTile, setTreasury, T } from '../engine/fixtures';
+import { clearArmy, continent, NW2, relocate, SW2 } from '../engine/armyFixtures';
+import { applyOrder } from '@/engine/orders/apply';
+import { transferProvince } from '@/engine/world/provinces';
 import { text } from './domText';
 import { actWarnings, failOnActWarnings } from './actWarnings';
 
@@ -106,6 +109,25 @@ describe('FR-076 game-over screen', () => {
     });
     expect(text(within(rows[1]).getByTestId('nation'))).toBe(`${name(N1)} (you)`);
     expect(text(within(rows[0]).getByTestId('nation'))).toBe(name(N2));
+  });
+
+  it('FR-223 a game won by conquest says so: "Testland has conquered Valdoria."; a game ended by the turn limit does not', () => {
+    // Testland holds Valdoria North-West (hand-built) and takes Valdoria's undefended capital province (FR-217, FR-223)
+    let s = transferProvince(continent('world'), NW2, N1);
+    s = relocate(clearArmy(clearArmy(s, N2, NW2), N2, SW2), ['regiment-1'], NW2);
+    s = setPair(s, N1, N2, { war: { aggressors: [N1], since: 1 }, consulates: [], embassies: [] });
+    s = applyOrder(s, { kind: 'moveArmy', nationId: N1, fromProvinceId: NW2, regimentIds: ['regiment-1'], toProvinceId: SW2 });
+    const over = resolveTurn(s, {}, s.seed).state;
+    expect(over.gameOver).toMatchObject({ reason: 'conquest', winnerId: N1 });
+    show(over);
+    render(<GameOverModal />);
+    expect(text(screen.getByTestId('game-over-conquest'))).toBe('Testland has conquered Valdoria.');
+  });
+
+  it('FR-223 FR-076 the turn limit\'s game-over screen has no conquest line', () => {
+    show(finished());
+    render(<GameOverModal />);
+    expect(screen.queryByTestId('game-over-conquest')).toBeNull();
   });
 
   it('FR-076 shows the recorded final scores, not a fresh score of the state', () => {

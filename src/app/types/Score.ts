@@ -20,4 +20,8 @@ export interface GameOver {
   year: number;
   /** Every nation's final score, highest first (`scoreTable`). */
   scores: Score[];
+  /** FR-223: "conquest" when one Great Power was left standing; absent when the turn limit ended the game (FR-068). */
+  reason?: "conquest";
+  /** FR-223: the Great Power left standing, with `reason` "conquest". */
+  winnerId?: NationId;
 }

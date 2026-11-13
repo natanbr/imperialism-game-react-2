@@ -319,11 +319,12 @@ describe('FR-205 FR-209 army orders, refusals and news in plain words', () => {
     expect(REFUSAL_TEXT['not-adjacent']).toBe("that province does not border the army's province");
   });
 
-  it('FR-205 review R7, F5: a march into a country at war reads that attacks are not possible yet, not "that is not yours"', () => {
+  it('FR-216 (M9) replaces the M8 refusal of review R7, F5: a march into a country at war is an attack, so "attacks are not possible yet" is gone', () => {
     const march: Order = { kind: 'moveArmy', nationId: N, fromProvinceId: SW, regimentIds: ['regiment-1'], toProvinceId: NE };
 
-    expect(refusalText({ order: march, reason: 'attack-not-available' })).toBe('March refused: attacks are not possible yet.');
-    expect(REFUSAL_TEXT['attack-not-available']).not.toBe(REFUSAL_TEXT['not-owner']);
+    expect(Object.keys(REFUSAL_TEXT)).not.toContain('attack-not-available');
+    expect(Object.values(REFUSAL_TEXT)).not.toContain('attacks are not possible yet');
+    expect(refusalText({ order: march, reason: 'not-at-war' })).toBe('March refused: we are not at war with them.');
   });
 
   it('FR-205 FR-207 each army order has a name in a refusal', () => {

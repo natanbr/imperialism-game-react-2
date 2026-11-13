@@ -7,6 +7,8 @@ import { runTurnPhases } from "./phases";
 import { isGameOver, turnLimitOf } from "./gameOver";
 import { scoreTable } from "../score/score";
 import { dropResolvedIntents } from "./intents";
+import { conquestWinner } from "../army/conquest";
+import type { GameOver } from "@/types/Score";
 
 export type OrdersByNation = Readonly<Record<string, readonly Order[]>>;
 
@@ -63,8 +65,9 @@ export function applyTurnOrders(
  * Giving the orders here is equivalent to applying them with applyOrder first and passing none.
  *
  * Resolving the turn numbered `turnLimitOf(state)` ends the game (FR-068): `gameOver` records the
- * final scores, after the clock. Once the game is over this is a no-op (FR-069): the same state
- * object comes back and every given order is reported as refused with `game-over`.
+ * final scores, after the clock; so does a turn after which one Great Power is left standing, with
+ * `reason` "conquest" and `winnerId` (FR-223). Once the game is over this is a no-op (FR-069): the
+ * same state object comes back and every given order is reported as refused with `game-over`.
  */
 export function resolveTurn(state: GameState, ordersByNation: OrdersByNation, seed: number = state.seed): TurnResult {
   const events: GameEvent[] = [];
@@ -91,8 +94,15 @@ export function resolveTurn(state: GameState, ordersByNation: OrdersByNation, se
 
   emit({ type: "turn-ended", turn: s.turn, year: s.year });
 
-  if (ordered.turn >= turnLimitOf(ordered)) {
-    const gameOver = { turn: ordered.turn, year: ordered.year, scores: scoreTable(s) };
+  // FR-223: one Great Power left standing ends the game at once; else the turn limit does (FR-068)
+  const winnerId = conquestWinner(s);
+  if (winnerId !== undefined || ordered.turn >= turnLimitOf(ordered)) {
+    const gameOver: GameOver = {
+      turn: ordered.turn,
+      year: ordered.year,
+      scores: scoreTable(s),
+      ...(winnerId !== undefined ? { reason: "conquest" as const, winnerId } : {}),
+    };
     s = { ...s, gameOver };
     emit({ type: "game-over", ...gameOver });
   }

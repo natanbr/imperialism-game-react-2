@@ -75,7 +75,6 @@ export const REFUSAL_TEXT: Record<RejectReason, string> = {
   "no-buyer": "no one buys this",
   "buyers-barred": "we may not trade with any buyer",
   "not-adjacent": "that province does not border the army's province",
-  "attack-not-available": "attacks are not possible yet",
 };
 
 /** Why an offer passed the nation by, in the news and the Deal Book (FR-244). */
@@ -239,6 +238,7 @@ const GRANT_STOP_TEXT: Record<GrantStopReason, string> = {
   "insufficient-funds": "not enough money",
   withdrawn: "we withdrew it",
   war: "we are at war with them",
+  colony: "it is now another power's colony",
 };
 
 /** A diplomacy event's line (FR-176); `name` names a country by id. */
@@ -347,6 +347,15 @@ export function eventText(event: GameEvent, nameOf: (countryId: string) => strin
       return `${regiments(event.count)} marched from ${nameOf(event.fromProvinceId)} to ${nameOf(event.toProvinceId)}.`;
     case "regiments-disbanded":
       return event.reason === "no-pay" ? `${regiments(event.count)} disbanded: no money for their upkeep.` : `${regiments(event.count)} disbanded.`;
+    // FR-232 (M9): the war news; `nationId` is the attacking or conquering Great Power
+    case "battle-resolved":
+      return `Battle at ${nameOf(event.provinceId)}: ${event.provinceTaken ? "Province Taken!" : "Attack Failed!"}`;
+    case "province-taken":
+      return `${nameOf(event.provinceId)} taken from ${nameOf(event.fromId)}.`;
+    case "nation-fallen":
+      return `${nameOf(event.fallenId)} has fallen.`;
+    case "minor-colonised":
+      return `${nameOf(event.minorId)} is now our colony.`;
   }
 }
 

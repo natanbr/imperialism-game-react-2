@@ -344,8 +344,6 @@ export type RejectReason =
   /** "Partners" market (FR-253): every country that could buy it is barred to the nation. */
   | "buyers-barred"
   /** Armies (FR-205): the province does not border the army's province. */
-  | "not-adjacent"
-  /** Armies (FR-205, M8): a march into a country at war with the nation is an attack, which M9 builds (FR-216). */
-  | "attack-not-available";
+  | "not-adjacent";
 
 export type ValidationResult = { ok: true } | { ok: false; reason: RejectReason };

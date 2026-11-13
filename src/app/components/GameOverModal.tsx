@@ -37,6 +37,13 @@ export const GameOverModal: React.FC = () => {
         <p className={styles.note} data-testid="game-over-date">
           The game ended after {dateText(gameOver.turn, gameOver.year)} (turn {gameOver.turn}).
         </p>
+        {gameOver.reason === "conquest" && gameOver.winnerId !== undefined && (
+          // FR-223: one Great Power is left standing; every other one has fallen
+          <p className={styles.note} data-testid="game-over-conquest">
+            {nationOf(gameOver.winnerId)?.name ?? gameOver.winnerId} has conquered{" "}
+            {nations.filter((n) => n.id !== gameOver.winnerId).map((n) => n.name).join(" and ")}.
+          </p>
+        )}
 
         <table className={styles.table} aria-label="Final scores">
           <thead>
