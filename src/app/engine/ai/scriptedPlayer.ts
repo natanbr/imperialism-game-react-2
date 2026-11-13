@@ -11,6 +11,7 @@ import { findWorker, nationById, nextResourceLevel, workersOf, type WorkerLocati
 import { validateOrder } from "../orders/validate";
 import { bestDepotSite, nextRailSections, tilesByReach, type DepotSite } from "./railPlan";
 import { planEconomy, turnsAfter } from "./economy";
+import { scriptedDiplomacyOrders } from "./diplomacy";
 
 /**
  * A player is any function from the game state to its orders for this turn. Scripted and,
@@ -53,6 +54,9 @@ export const scriptedPlayer: Player = (state, nationId) => {
       if (propose(order)) break;
     }
   }
+
+  // Last, and only at war: a peace offer when losing (FR-174). At peace nothing is added (FR-181).
+  for (const order of scriptedDiplomacyOrders(view, nationId)) propose(order);
   return orders;
 };
 
