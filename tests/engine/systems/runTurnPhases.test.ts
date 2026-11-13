@@ -17,7 +17,7 @@ function createState(): GameState {
     seed: 0,
     nations: nationsWithIndustry,
     cities: [], armies: [], fleets: [],
-    relations: [], treaties: [], tradePolicies: [], grants: [],
+    minorNations: [], provinces: [], diplomacy: {}, intents: [],
     map,
     transportNetwork: { shippingLanes: [], capacity: 0 },
     tradeRoutes: [],

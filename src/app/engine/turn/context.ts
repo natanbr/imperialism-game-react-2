@@ -6,7 +6,7 @@ import type { BuildingType, ProductionOutput } from "@/types/Industry";
 import type { TradeCommodity } from "@/types/Market";
 import type { Score } from "@/types/Score";
 import type { Order, RejectReason } from "../orders/Order";
-import { createTurnRng, type Rng } from "../rng";
+import { createStreamRng, createTurnRng, RNG_STREAMS, type Rng, type RngStream } from "../rng";
 
 /** What happened during a turn, for news, UI feedback and AI players. */
 export type GameEvent =
@@ -32,7 +32,16 @@ export interface TurnContext {
   readonly turn: number;
   /** The turn number after resolution; jobs count elapsed turns against it. */
   readonly nextTurn: number;
+  /**
+   * The shared turn stream: only the development draws (prospecting) and the price draws read it,
+   * in that order, as before M5 (FR-150; a scan in tests/engine/purity.test.ts enforces it).
+   */
   readonly rng: Rng;
+  /**
+   * A system's own stream for this turn (FR-150): createTurnRng((seed ^ fnv1a32(name)) >>> 0, turn).
+   * Each name is one stream per context, so a second call goes on where the first stopped.
+   */
+  readonly rngFor: (name: RngStream) => Rng;
   /** The orders accepted this turn, in the order they were applied. */
   readonly orders: readonly Order[];
   readonly emit: (event: GameEvent) => void;
@@ -51,10 +60,22 @@ export interface TurnContextOptions {
 
 export function createTurnContext(opts: TurnContextOptions): TurnContext {
   const nextTurn = opts.turn + 1;
+  const seed = opts.seed ?? 0;
+  const streams = new Map<RngStream, Rng>();
+  const rngFor = (name: RngStream): Rng => {
+    if (!RNG_STREAMS.includes(name)) throw new Error(`Unknown random stream "${name}"; the streams are: ${RNG_STREAMS.join(", ")}`);
+    let stream = streams.get(name);
+    if (!stream) {
+      stream = createStreamRng(seed, opts.turn, name);
+      streams.set(name, stream);
+    }
+    return stream;
+  };
   return {
     turn: opts.turn,
     nextTurn,
-    rng: opts.rng ?? createTurnRng(opts.seed ?? 0, nextTurn),
+    rng: opts.rng ?? createTurnRng(seed, nextTurn),
+    rngFor,
     orders: opts.orders ?? [],
     emit: opts.emit ?? (() => {}),
   };

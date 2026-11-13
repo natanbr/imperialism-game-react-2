@@ -26,6 +26,10 @@ export const THEME = {
   warn: v("color-warn"),
   highlight: v("color-highlight"),
   rail: v("color-rail"),
+  /** Minor nations' borders and name tags (FR-153, FR-154). */
+  minor: v("color-minor"),
+  /** The dotted line between two provinces of one owner (FR-153, FR-154). */
+  provinceBorder: v("color-province-border"),
 } as const;
 
 /** One strong colour per palette slot (`Nation.colorSlot`, 1 first); used only for territory borders (FR-097). */

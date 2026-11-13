@@ -151,11 +151,56 @@ svg[data-icon] {
   font-size: 14px;
 }
 
-/* The HUD's information scrolls on its own; the action buttons below it never scroll away */
+/* The HUD's information scrolls on its own; the action buttons below it never scroll away.
+   Its scrollbar is the panel's own, thin and in the palette (FR-235): the platform's default one is hidden
+   until used on overlay-scrollbar systems (macOS, touch), so the cut-off content gave no cue. Playwright's
+   Chromium hides every scrollbar, this one too (--hide-scrollbars; e2e/m5-hud-scroll.spec.ts turns it off).
+   The gutter is kept, so the text does not shift when a selection makes the content overflow. */
 .hud-content {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.hud-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.hud-content::-webkit-scrollbar-track {
+  background: var(--color-surface-sunken);
+  border-radius: var(--radius-sm);
+}
+
+.hud-content::-webkit-scrollbar-thumb {
+  background: var(--color-ink-muted);
+  border-radius: var(--radius-sm);
+}
+
+.hud-content::-webkit-scrollbar-thumb:hover {
+  background: var(--color-ink);
+}
+
+/* Trap: Chromium ignores the ::-webkit-scrollbar rules above once scrollbar-width or scrollbar-color is set,
+   so the standard properties are for browsers without them (Firefox) only. */
+@supports not selector(::-webkit-scrollbar) {
+  .hud-content {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-ink-muted) var(--color-surface-sunken);
+  }
+}
+
+/* While more lies below, the content fades into the panel at the bottom edge, so no cut box edge is drawn
+   right above the action buttons (FR-235). Sticky at the scroll area's bottom; at the end of the content it
+   sits below the last section instead, so the last section is whole. */
+.hud-content::after {
+  content: "";
+  display: block;
+  position: sticky;
+  bottom: 0;
+  height: 24px;
+  background: linear-gradient(to bottom, transparent, var(--color-surface) 50%);
+  pointer-events: none;
 }
 
 .hud-header {
@@ -205,6 +250,22 @@ svg[data-icon] {
 .about-header {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+}
+
+/* One row per border line: the sample, then its meaning (FR-235) */
+.map-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.map-legend li {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  column-gap: 6px;
   align-items: center;
 }
 

@@ -43,6 +43,22 @@
   stroke-linecap: round;
 }
 
+/* Between two provinces of one owner: round dots, 2 px across and 4 px apart (FR-153 b) */
+.provinceBorder {
+  fill: none;
+  stroke-width: 2;
+  stroke-dasharray: 0 4;
+  stroke-linecap: round;
+}
+
+/* A minor nation's land: dashes, so it differs from a Great Power by shape as well as colour (FR-153 c) */
+.minorBorder {
+  fill: none;
+  stroke-width: 2;
+  stroke-dasharray: 5 3;
+  stroke-linecap: butt;
+}
+
 .railSegment {
   stroke: var(--color-rail);
   stroke-width: 3;

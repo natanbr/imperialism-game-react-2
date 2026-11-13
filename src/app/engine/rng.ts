@@ -25,3 +25,26 @@ export function createMulberry32(seed: number): Rng {
 export function createTurnRng(seed: number, turn: number): Rng {
   return createMulberry32(((seed ?? 0) ^ (turn * 2654435761)) >>> 0);
 }
+
+/**
+ * The systems that draw from a random stream of their own (FR-150): a draw in one of them never
+ * shifts another's, nor the development and price draws of the shared turn stream (`ctx.rng`).
+ * A later requirement adds a name when its system needs one.
+ */
+export const RNG_STREAMS = ["diplomacy", "combat"] as const;
+export type RngStream = (typeof RNG_STREAMS)[number];
+
+/** The 32-bit FNV-1a hash of the string's UTF-16 code units. */
+export function fnv1a32(text: string): number {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return hash >>> 0;
+}
+
+/** The named stream of one turn: createTurnRng((seed ^ fnv1a32(name)) >>> 0, turn) (FR-150). */
+export function createStreamRng(seed: number, turn: number, name: RngStream): Rng {
+  return createTurnRng(((seed ?? 0) ^ fnv1a32(name)) >>> 0, turn);
+}

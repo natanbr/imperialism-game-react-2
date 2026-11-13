@@ -115,13 +115,16 @@ export const TERRAIN_TEXT: Record<TerrainType, string> = {
 /**
  * A tile's accessible name (FR-095): terrain, then the resource and its level when known, then the
  * owner. "Farm, grain, level 1, owned by Testland"; a hidden resource is left out; the sea is "Sea".
+ * The owner is the country the tile belongs to, a Great Power or a minor nation ("owned by Arvelia",
+ * FR-155), named by the caller; a tile of nobody is "not owned".
  */
 export function tileLabel(tile: Pick<Tile, "terrain" | "resource" | "ownerNationId">, ownerName: string | undefined): string {
   if (tile.terrain === TerrainType.Water) return TERRAIN_TEXT[TerrainType.Water];
   const parts = [TERRAIN_TEXT[tile.terrain]];
   const { resource } = tile;
   if (resource && resource.discovered !== false) parts.push(commodityName(resource.type).toLowerCase(), `level ${resource.level}`);
-  parts.push(tile.ownerNationId ? `owned by ${ownerName ?? tile.ownerNationId}` : "not owned");
+  const owner = ownerName ?? tile.ownerNationId;
+  parts.push(owner ? `owned by ${owner}` : "not owned");
   return parts.join(", ");
 }
 

@@ -1,6 +1,5 @@
 // types/Nation.ts
-import { Relation, TradePolicy, Grant } from "./Diplomacy";
-import { CityId, NationId, ProvinceId, FleetId, ArmyId } from "./Common";
+import { CityId, NationId, FleetId, ArmyId } from "./Common";
 import { IndustryState } from './Industry';
 import { WarehouseCommodities } from './Resource';
 
@@ -18,15 +17,13 @@ export interface Nation {
   debt?: number;
   creditLimit?: number;
 
-  relations: Relation[];
-  tradePolicies: TradePolicy[];
-  grants: Grant[];
+  // Relations, treaties, trade policies and grants live in state.diplomacy (FR-151); the provinces
+  // a nation holds are the state.provinces it owns (FR-148, provincesOf); its colonies are the minor
+  // nations whose `colonyOf` names it (FR-146).
 
   cities: CityId[];
-  provinces: ProvinceId[];
   armies: ArmyId[];
   fleets: FleetId[];
-  colonies: NationId[]; // Minor Nations controlled as colonies
 
   merchantMarine: {
     holds: number;       // total cargo holds

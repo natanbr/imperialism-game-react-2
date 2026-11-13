@@ -12,6 +12,7 @@ import {
 } from "@/engine";
 import type { NationId } from "@/types/Common";
 import type { GameState } from "@/types/GameState";
+import type { WorldId } from "@/types/World";
 import type { GameStore } from "./rootStore";
 
 /** How many resolved turns the event log keeps. */
@@ -62,8 +63,11 @@ export interface GameSlice {
    * every nation's orders (FR-100); nothing after game over (FR-077).
    */
   advanceTurn: () => void;
-  /** Replaces the game with a new one and clears what belonged to the old one (FR-105, FR-109). */
-  startNewGame: (options?: { seed?: number; turnLimit?: number }) => void;
+  /**
+   * Replaces the game with a new one and clears what belonged to the old one (FR-105, FR-109); on the
+   * continent unless `world` names another (FR-144).
+   */
+  startNewGame: (options?: { seed?: number; turnLimit?: number; world?: WorldId }) => void;
 }
 
 export interface GameSliceOptions {
@@ -71,8 +75,13 @@ export interface GameSliceOptions {
   game?: GameState;
   /** Seed for a new game; drawn at random when missing (FR-019). */
   seed?: number;
+  /** The world of a new game; the continent when missing (FR-144). */
+  world?: WorldId;
   activeNationId?: NationId;
 }
+
+/** The app plays the v2 world (FR-144); the engine's own default stays "two-islands". */
+export const APP_WORLD: WorldId = "continent";
 
 /** A positive 31-bit integer from a [0, 1) random source. */
 export const randomSeed = (random: () => number = Math.random): number => 1 + Math.floor(random() * 0x7ffffffe);
@@ -80,7 +89,7 @@ export const randomSeed = (random: () => number = Math.random): number => 1 + Ma
 export const createGameSlice =
   (options: GameSliceOptions = {}): StateCreator<GameStore, [], [], GameSlice> =>
   (set, get) => {
-    const game = options.game ?? newGame({ seed: options.seed ?? randomSeed() });
+    const game = options.game ?? newGame({ seed: options.seed ?? randomSeed(), world: options.world ?? APP_WORLD });
     return {
       game,
       activeNationId: options.activeNationId ?? game.nations[0]?.id ?? "nation-1",
@@ -125,8 +134,8 @@ export const createGameSlice =
       },
 
       // Nothing of the old game's session survives: selection, dialogs, news, logs (FR-105, FR-109).
-      startNewGame: ({ seed, turnLimit } = {}) => {
-        const next = newGame({ seed: seed ?? randomSeed(), turnLimit });
+      startNewGame: ({ seed, turnLimit, world } = {}) => {
+        const next = newGame({ seed: seed ?? randomSeed(), turnLimit, world: world ?? APP_WORLD });
         set({
           game: next,
           activeNationId: next.nations[0]?.id ?? "nation-1",

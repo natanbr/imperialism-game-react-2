@@ -5,6 +5,7 @@ import { Worker, WorkerStatus, WorkerType } from "@/types/Workers";
 import { PROSPECTABLE_TERRAIN_TYPES } from "../definisions/terrainDefinitions";
 import { DEVELOPMENT_WORKER_TYPES } from "../definisions/workerDefinitions";
 import { canBuildRailAt } from "@/engine/map/mapHelpers";
+import { countryName, countryOfTile, isMinorNation, provinceOf } from "@/engine";
 import { PROSPECT_COST, DEVELOPMENT_COST, CONSTRUCTION_COST } from "@/definisions/workPrices";
 import { parseTileIdToArray } from "@/utils/tileIdUtils";
 import { ConstructionKind } from "@/types/jobs/ConstructionJob";
@@ -29,7 +30,8 @@ const WorkerStatusIndicator: React.FC<{ status: WorkerStatus }> = ({ status }) =
 
 /**
  * The selected tile in the HUD. On the player's land it offers the selected civilian's jobs; another
- * nation's tile is shown read-only, with no control that builds an order (FR-108).
+ * country's tile, a Great Power's or a minor nation's, is shown read-only, with no control that builds
+ * an order (FR-108, FR-155). On a world with provinces it names a Great Power tile's province (FR-155, FR-235).
  */
 export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) => {
   const selectedWorkerId = useGameStore((s) => s.selectedWorkerId);
@@ -38,15 +40,19 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
   const map = useGameStore((s) => s.game.map);
   const activeNationId = useGameStore((s) => s.activeNationId);
   const activeNation = useGameStore((s) => s.game.nations.find(n => n.id === s.activeNationId));
-  const nations = useGameStore((s) => s.game.nations);
+  const game = useGameStore((s) => s.game);
 
   if (!selectedTile) {
     return <div style={{ padding: "10px" }}>No tile selected</div>;
   }
 
-  const owner = selectedTile.ownerNationId ? nations.find((n) => n.id === selectedTile.ownerNationId) : undefined;
-  const ownerName = owner?.name ?? selectedTile.ownerNationId;
-  const isTheirs = selectedTile.ownerNationId !== undefined && selectedTile.ownerNationId !== activeNationId;
+  // The country the tile belongs to, a Great Power or a minor nation, and its province (FR-155)
+  const countryId = countryOfTile(game, selectedTile);
+  const ownerName = countryId ? (countryName(game, countryId) ?? countryId) : undefined;
+  const minor = countryId !== undefined && isMinorNation(game, countryId);
+  const province = provinceOf(game, selectedTile.id);
+  const isTheirs = countryId !== undefined && countryId !== activeNationId;
+  const ownerText = !ownerName ? "Unclaimed" : minor ? `${ownerName} (minor nation)` : `${ownerName}${countryId === activeNationId ? " (you)" : ""}`;
   const resource = selectedTile.resource;
   const resourceText = !resource
     ? "None"
@@ -136,9 +142,21 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
       <p><strong>River:</strong> {selectedTile.hasRiver ? "Yes" : "No"}</p>
       <p><strong>Resource:</strong> {resourceText}</p>
       <p data-testid="tile-owner">
-        <strong>Owner:</strong> {ownerName ? `${ownerName}${selectedTile.ownerNationId === activeNationId ? " (you)" : ""}` : "Unclaimed"}
+        <strong>Owner:</strong> {ownerText}
       </p>
-      {isTheirs && <p className="tile-note">{ownerName}&apos;s land: you can watch it, not give orders here.</p>}
+      {/* A minor is one province named after it, so its tile skips the line (FR-235) */}
+      {province && !minor && (
+        <p data-testid="tile-province">
+          <strong>Province:</strong> {province.name}
+        </p>
+      )}
+      {isTheirs && (
+        <p className="tile-note">
+          {minor
+            ? `${ownerName} is a minor nation: you can watch its land, not give orders here.`
+            : `${ownerName}'s land: you can watch it, not give orders here.`}
+        </p>
+      )}
 
       <div style={{ marginTop: 12 }}>
         <strong>Workers on Tile:</strong>

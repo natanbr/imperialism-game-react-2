@@ -88,7 +88,7 @@ export function validateOrder(state: GameState, order: Order): ValidationResult 
     case "trainWorkers":
       return validateTrainWorkers(nation, order);
     case "recruitWorkers":
-      return validateRecruitWorkers(nation, order);
+      return validateRecruitWorkers(state, nation, order);
     case "sellCommodity":
     case "buyCommodity":
       return validateTradeOrder(state, nation, order);

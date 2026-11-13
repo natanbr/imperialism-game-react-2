@@ -91,6 +91,31 @@ describe('FR-095 every tile has an accessible name', () => {
   });
 });
 
+describe('FR-155 a minor nation\'s tile is named with the minor as its owner', () => {
+  beforeEach(() => {
+    useGameStore.setState({ ...useGameStore.getInitialState(), game: newGame({ seed: 1, world: 'continent' }), activeNationId: 'nation-1' });
+  });
+
+  it('FR-155 Arvelia\'s forest, hills and capital, Sundmark\'s capital; the Great Power names of FR-095 are unchanged', () => {
+    const { container } = render(<MapView />);
+    const label = (id: string) => container.querySelector(`[data-tile-id="${id}"]`)!.getAttribute('aria-label');
+    expect(label('10-3')).toBe('Hardwood forest, timber, level 1, owned by Arvelia');
+    expect(label('12-4')).toBe('Barren hills, iron ore, level 1, owned by Arvelia');
+    expect(label('11-4')).toBe('Capital, owned by Arvelia');
+    expect(label('12-9')).toBe('Capital, owned by Sundmark');
+    expect(label('13-13')).toBe('Plantation, cotton, level 1, owned by Pellis');
+    // FR-095 on the continent: the Great Power tiles keep their names
+    expect(label('3-9')).toBe('Farm, grain, level 1, owned by Testland');
+    expect(label('2-9')).toBe('Capital, owned by Testland');
+    expect(label('14-9')).toBe('Capital, owned by Valdoria');
+    expect(label('11-7')).toBe('Sea');
+    // No minor tile is "not owned"
+    const minorTiles = [...container.querySelectorAll('[data-testid="tile"]')].filter((t) => /owned by (Arvelia|Sundmark|Lorran|Pellis)$/.test(t.getAttribute('aria-label')!));
+    expect(minorTiles).toHaveLength(12 + 5 + 4 + 5);
+    expect([...container.querySelectorAll('[data-testid="tile"]')].filter((t) => /not owned$/.test(t.getAttribute('aria-label')!))).toEqual([]);
+  });
+});
+
 describe('FR-096 the browser tab title', () => {
   it('FR-096 layout.tsx titles the page "Imperialism"', () => {
     const layout = readFileSync(join(ROOT, 'src/app/layout.tsx'), 'utf8');

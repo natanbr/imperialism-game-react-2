@@ -55,8 +55,10 @@ test('FR-090 the whole map fits 1280x720 next to the HUD, with an icon on every 
   // The odd rows stay shifted half a tile
   expect((await tile(page, '0-1').boundingBox())!.x - (await tile(page, '0-0').boundingBox())!.x).toBe(21);
 
-  await expect(page.locator('[data-testid="tile"]:not([data-terrain="water"])')).toHaveCount(200);
-  await expect(page.locator('[data-testid="tile"]:not([data-terrain="water"]) [data-testid="tile-icon"]')).toHaveCount(200);
+  // The app plays the continent (FR-144, FR-160): the two islands' 200 land tiles plus the minor nations'
+  // 26 (Arvelia 12, Sundmark 5, Lorran 4, Pellis 5; FR-145)
+  await expect(page.locator('[data-testid="tile"]:not([data-terrain="water"])')).toHaveCount(226);
+  await expect(page.locator('[data-testid="tile"]:not([data-terrain="water"]) [data-testid="tile-icon"]')).toHaveCount(226);
   await expect(page.locator('[data-testid="tile"][data-terrain="water"] [data-testid="tile-icon"]')).toHaveCount(0);
   await expect(tile(page, '2-9').getByTestId('tile-icon')).toHaveAttribute('data-icon', 'GiCapitol');
   await expect(tile(page, '3-9').getByTestId('level-badge')).toHaveText('L1');

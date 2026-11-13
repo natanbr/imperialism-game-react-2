@@ -5,8 +5,15 @@ import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from "
 import { TileComponent } from "./Tile";
 import { cameraOnCapital } from "./camera";
 import { computeRailSegmentsPixels } from "./railSegments";
-import { borderPaths, territoryBorderSegments } from "./territoryBorders";
-import { TILE_PX } from "@/styles/theme";
+import {
+  borderPaths,
+  minorBorderPaths,
+  minorBorderSegments,
+  provinceBorderPaths,
+  provinceBorderSegments,
+  territoryBorderSegments,
+} from "./territoryBorders";
+import { THEME, TILE_PX } from "@/styles/theme";
 import styles from "./MapView.module.css";
 
 export const MapView: React.FC = () => {
@@ -20,6 +27,8 @@ export const MapView: React.FC = () => {
   const selectedTileId = useGameStore((s) => s.selectedTileId);
   const selectedWorkerId = useGameStore((s) => s.selectedWorkerId);
   const nations = useGameStore((s) => s.game.nations);
+  const provinces = useGameStore((s) => s.game.provinces);
+  const minorNations = useGameStore((s) => s.game.minorNations);
   const transportNetwork = useGameStore((s) => s.game.transportNetwork);
 
   // The camera is the container's scroll position (FR-083): the browser keeps it inside the map,
@@ -61,8 +70,14 @@ export const MapView: React.FC = () => {
 
   // The rail graph the depot lights use, drawn as it is (FR-079)
   const railSegments = useMemo(() => computeRailSegmentsPixels(railLinksOf({ transportNetwork }), TILE_PX, TILE_PX / 2), [transportNetwork]);
-  // Each nation's territory as one outline in its colour (FR-087)
+  // Each nation's territory as one outline in its colour (FR-087); inside it the provinces, dotted, and
+  // each minor nation's land, dashed (FR-153)
   const borders = useMemo(() => borderPaths(territoryBorderSegments(map, nations)), [map, nations]);
+  const provinceBorders = useMemo(() => provinceBorderPaths(provinceBorderSegments(map, provinces)), [map, provinces]);
+  const minorBorders = useMemo(
+    () => minorBorderPaths(minorBorderSegments(map, provinces, minorNations), minorNations),
+    [map, provinces, minorNations]
+  );
   const overlayWidth = map.config.cols * TILE_PX + TILE_PX / 2; // extra for odd-row shift
   const overlayHeight = map.config.rows * TILE_PX;
 
@@ -84,14 +99,20 @@ export const MapView: React.FC = () => {
             </div>
           ))}
 
-          {/* Territory borders, then the railroad (FR-079) */}
+          {/* Province lines, territory borders, minor borders on top where they meet one, then the railroad (FR-079, FR-153) */}
           <svg
             width={overlayWidth}
             height={overlayHeight}
             className={styles.railOverlay}
           >
+            {provinceBorders.map((b) => (
+              <path key={b.ownerId} d={b.d} stroke={THEME.provinceBorder} className={styles.provinceBorder} data-testid="province-border" data-owner-id={b.ownerId} />
+            ))}
             {borders.map((b) => (
               <path key={b.nationId} d={b.d} stroke={b.color} className={styles.territoryBorder} data-testid="territory-border" />
+            ))}
+            {minorBorders.map((b) => (
+              <path key={b.minorId} d={b.d} stroke={THEME.minor} className={styles.minorBorder} data-testid="minor-border" data-minor-id={b.minorId} />
             ))}
             {railSegments.map((s, i) => (
               <line

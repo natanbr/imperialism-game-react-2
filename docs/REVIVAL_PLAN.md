@@ -181,10 +181,11 @@ get a designed default recorded as a decision card.
    screen builds an order; the battle screen replays the report. No tactical control in v2.
 
 **The v2 world (default "continent").** Same 24x16 map, so the "whole map fits 1280x720" pins
-hold. The two Great Power islands each split into 4 provinces. Two minor nations fill the north
-and south channels as land bridges between the islands (land war is possible from the start);
-two more minor nations sit on small islands (trade only until ships exist). Minor nations get the
-remake's own names and one neutral colour token. Decision card with this default.
+hold. The two Great Power islands each split into 4 provinces. One minor nation, Arvelia, fills
+the north channel as the land bridge between the islands (land war is possible from the start);
+three more minor nations, Sundmark, Lorran and Pellis, sit on small islands (trade only until ships
+exist). Decision card Q22, option b, taken 2026-11-13 (FR-145); the first draft had two land
+bridges and two islands. Minor nations get the remake's own names and one neutral colour token.
 
 **M5, World and seams for v2 (L).** Decisions 1 to 6 above; the v2 world as the app default;
 province borders and minor nations drawn on the map; a minor nation's tile shows its name and

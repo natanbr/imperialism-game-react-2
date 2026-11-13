@@ -7,6 +7,7 @@ import { WorkerStatus, WorkerType } from '@/types/Workers';
 import { CONSTRUCTION_COST, DEVELOPMENT_COST, PROSPECT_COST } from '@/definisions/workPrices';
 import type { ConstructionKind } from '@/types/jobs/ConstructionJob';
 import { createTileId } from '@/utils/tileIdUtils';
+import { newGame } from '@/engine/newGame';
 import { deepFreeze, game, N1, N2, put, setTile, setTreasury, setWarehouse, T, workerId } from './fixtures';
 
 const W = {
@@ -181,5 +182,35 @@ describe('validateOrder', () => {
         expect('tileId' in order || 'toTileId' in order).toBe(true);
       }
     }
+  });
+});
+
+describe('FR-149 minor land is closed: orders onto a minor tile are refused as onto another Great Power\'s tile', () => {
+  // The continent: Arvelia's 10-4 (coal hills) and 10-3 (forest) touch Testland's 9-4 and 9-3.
+  const C = {
+    prospector: 'worker-nation-1-1',
+    forester: 'worker-nation-1-4',
+    engineer: 'worker-nation-1-7',
+  };
+  const continent = () => put(put(newGame({ seed: 1, world: 'continent' }), C.engineer, '9-4'), C.forester, '9-3');
+  /** The same state with the minor tile handed to Valdoria, as a Great Power tile next to Testland would be. */
+  const asGreatPowerTile = (s: GameState, tileId: string) => setTile(s, tileId, { ownerNationId: N2 });
+  const orders: { name: string; tileId: string; order: Order; setup?: Setup }[] = [
+    { name: 'a civilian move', tileId: '10-4', order: { kind: 'moveWorker', nationId: N1, workerId: C.forester, toTileId: '10-4' } },
+    { name: 'a rail-on-move', tileId: '10-4', order: { kind: 'moveAndBuildRail', nationId: N1, workerId: C.engineer, toTileId: '10-4' } },
+    { name: 'a move to prospect', tileId: '10-4', order: { kind: 'moveAndStartProspecting', nationId: N1, workerId: C.prospector, toTileId: '10-4' } },
+    { name: 'a move to develop', tileId: '10-3', order: { kind: 'moveAndStartDevelopment', nationId: N1, workerId: C.forester, toTileId: '10-3' } },
+    { name: 'a move to build a depot', tileId: '10-4', order: { kind: 'moveAndStartConstruction', nationId: N1, workerId: C.engineer, toTileId: '10-4', structure: 'depot' } },
+    { name: 'a rail section from 9-4', tileId: '10-4', order: { kind: 'moveAndStartConstruction', nationId: N1, workerId: C.engineer, toTileId: '10-4', structure: 'rail', fromTileId: '9-4' } },
+    { name: 'a job on the minor tile the forester stands on', tileId: '10-3', order: { kind: 'startDevelopment', nationId: N1, workerId: C.forester, tileId: '10-3' }, setup: s => put(s, C.forester, '10-3') },
+  ];
+
+  it.each(orders.map(o => [o.name, o] as const))('FR-149 %s', (_name, { tileId, order, setup }) => {
+    const s = deepFreeze((setup ?? (x => x))(continent()));
+    const minor = validateOrder(s, order);
+    const greatPower = validateOrder(asGreatPowerTile(s, tileId), order);
+
+    expect(minor).toEqual({ ok: false, reason: 'not-owner' });
+    expect(minor).toEqual(greatPower);
   });
 });

@@ -33,6 +33,12 @@
   --color-warn: #9a6412;
   --color-highlight: #e3b341;
   --color-rail: #4a4a4a;
+  /* Minor nations' dashed borders and name tags: one slate for every minor, apart from both nation
+     colours and from "bad", also for colour-blind eyes, and at 3:1 on every tint and the sea (FR-154;
+     the margins are thin: re-run tests/ui/palette.test.ts after any change). Province lines inside a
+     Great Power: a warm grey, dotted, at 3:1 on every land tint (WCAG 1.4.11; FR-154). */
+  --color-minor: #5e7c90;
+  --color-province-border: #7a6e5e;
 
   /* Terrain tints: faint, light and low in colour, so the icons carry the meaning (NR-008) */
   --terrain-farm: #efe5c2;

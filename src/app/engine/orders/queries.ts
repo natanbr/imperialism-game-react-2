@@ -91,6 +91,14 @@ const HILLS: readonly TerrainType[] = [TerrainType.BarrenHills, TerrainType.Fert
 const isHills = (tile: Tile): boolean => HILLS.includes(tile.terrain);
 const isCapital = (tile: Tile): boolean => tile.terrain === TerrainType.Capital;
 
+/**
+ * A Great Power's own capital: a Capital tile that is not a minor nation's capital (FR-146). A minor's
+ * capital keeps the Capital terrain when `transferProvince` gives it to a Great Power (FR-148), but it
+ * gathers nothing for it: the Great Power's rail network and logistics know only its own capital.
+ */
+export const isGreatPowerCapital = (state: GameState, tile: Tile): boolean =>
+  isCapital(tile) && !state.minorNations.some((m) => m.capitalTileId === tile.id);
+
 /** Hills need Compound Steam Engine, swamp Iron Railroad Bridge, mountains Dynamite. */
 export function railTerrainAllowed(state: GameState, tile: Tile): boolean {
   if (isHills(tile)) return hasTechnology(state, TECH.compoundSteamEngine);
@@ -142,23 +150,24 @@ export function railOnMoveStart(state: GameState, nationId: string, from: Tile, 
   return railSectionStart(state, nationId, to, isRailNode(from, nationId) ? from : undefined);
 }
 
-/** The capital, a depot or a port, built or under construction. */
-const gathers = (tile: Tile): boolean =>
-  isCapital(tile) ||
+/** A Great Power's capital, a depot or a port, built or under construction. */
+const gathers = (state: GameState, tile: Tile): boolean =>
+  isGreatPowerCapital(state, tile) ||
   !!tile.depot ||
   !!tile.port ||
   tile.constructionJob?.kind === "depot" ||
   tile.constructionJob?.kind === "port";
 
 /**
- * A depot needs a tile without one, not next to the capital, a depot or a port (gaps.md F6: "not
- * adjacent"; the capital already is a depot), and not on hills before Compound Steam Engine. A
- * port on the same tile is allowed: the manual tells you to put the depot on a distant port.
+ * A depot needs a tile without one, not next to its own country's capital, depot or port (gaps.md F6:
+ * "not adjacent"; the capital already is a depot; a neighbour's gathers only the neighbour's land), and
+ * not on hills before Compound Steam Engine. A port on the same tile is allowed: the manual tells you to
+ * put the depot on a distant port.
  */
 export const isDepotSite = (state: GameState, tile: Tile): boolean =>
   !tile.depot &&
   !isCapital(tile) &&
-  !getAdjacentTiles(state.map, tile.x, tile.y).some(gathers) &&
+  !getAdjacentTiles(state.map, tile.x, tile.y).some((n) => n.ownerNationId === tile.ownerNationId && gathers(state, n)) &&
   (!isHills(tile) || hasTechnology(state, TECH.compoundSteamEngine));
 
 /**

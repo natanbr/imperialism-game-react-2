@@ -167,6 +167,52 @@ export function invariantViolations(state: GameState): string[] {
   return problems;
 }
 
+/** JSON with object keys sorted and undefined fields dropped, so two deep-equal values give the same text. */
+const canonical = (value: unknown): string =>
+  JSON.stringify(value, (_key, v: unknown) =>
+    v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => a.localeCompare(b))) : v
+  );
+
+/**
+ * FR-157 (M5 review E3): the M5 world stays consistent while a game runs. Every land tile's
+ * `provinceId` names a province that lists it and every listed tile names its province back; a tile's
+ * `ownerNationId` is its province's owner when that is a Great Power and absent when it is a minor;
+ * no land changes hands, so the minor nations, the provinces and the minor tiles are as at `start`;
+ * the diplomacy entries are the same pairs; and no intent is left after a resolved turn (FR-152).
+ */
+export function worldViolations(state: GameState, start: GameState): string[] {
+  const problems: string[] = [];
+  const provinces = new Map(state.provinces.map(p => [p.id, p]));
+  const greatPowers = new Set(state.nations.map(n => n.id));
+  const tiles = state.map.tiles.flat();
+  for (const tile of tiles) {
+    if (tile.provinceId === undefined) continue;
+    const province = provinces.get(tile.provinceId);
+    if (!province) problems.push(`tile ${tile.id} names unknown province ${tile.provinceId}`);
+    else if (!province.tileIds.includes(tile.id)) problems.push(`tile ${tile.id} names ${province.id}, which does not list it`);
+    else {
+      const owner = greatPowers.has(province.ownerId) ? province.ownerId : undefined;
+      if (tile.ownerNationId !== owner) problems.push(`tile ${tile.id} owner ${tile.ownerNationId}, province ${province.id} owner ${province.ownerId}`);
+    }
+  }
+  const byId = new Map(tiles.map(t => [t.id, t]));
+  for (const p of state.provinces) {
+    for (const id of p.tileIds) {
+      if (byId.get(id)?.provinceId !== p.id) problems.push(`province ${p.id} lists ${id}, which names ${byId.get(id)?.provinceId}`);
+    }
+  }
+  if (canonical(state.minorNations) !== canonical(start.minorNations)) problems.push('minorNations changed');
+  if (canonical(state.provinces) !== canonical(start.provinces)) problems.push('provinces changed');
+  const minorProvinces = new Set(start.provinces.filter(p => !greatPowers.has(p.ownerId)).map(p => p.id));
+  for (const before of start.map.tiles.flat().filter(t => t.provinceId && minorProvinces.has(t.provinceId))) {
+    if (canonical(byId.get(before.id)) !== canonical(before)) problems.push(`minor tile ${before.id} changed`);
+  }
+  const pairs = (s: GameState) => Object.keys(s.diplomacy).sort().join(',');
+  if (pairs(state) !== pairs(start)) problems.push(`diplomacy pairs ${pairs(state)}, at the start ${pairs(start)}`);
+  if (state.intents.length > 0) problems.push(`${state.intents.length} intents left after the turn`);
+  return problems;
+}
+
 /**
  * FR-045: no warehouse stock and no worker count is negative; sick workers and trainees are
  * workers that exist; capacities and standing orders are non-negative numbers.
