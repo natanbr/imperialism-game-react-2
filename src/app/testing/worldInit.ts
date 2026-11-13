@@ -94,7 +94,6 @@ export function testNation(): Nation {
     cities: [START_CAPITAL_ID],
     armies: [],
     fleets: [],
-    colonies: [],
     merchantMarine: { holds: 5, avgSpeed: 10 },
     transportCapacity: 10,
     transportCapacityPendingIncrease: 0,

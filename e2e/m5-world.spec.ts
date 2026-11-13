@@ -40,6 +40,32 @@ test('FR-160 FR-153 FR-155 FR-156 a new game shows the 4 minor nations, the prov
     await expect(tile(page, id).getByTestId('tile-icon')).toHaveAttribute('data-icon', 'GiCapitol');
     await expect(tile(page, id)).toHaveAccessibleName(`Capital, owned by ${name}`);
   }
+  // FR-153 (d), review R6: a tag may be wider than its tile (Sundmark, the longest name, is about 51 px on a 42 px tile).
+  // It is centred on its capital, inside the tile's height, at most two tiles wide, and drawn over the tiles beside
+  // it, not clipped or covered by them (hit-tested at both ends with pointer events turned on for the check).
+  for (const [id, name] of MINOR_CAPITALS) {
+    const tag = tile(page, id).getByTestId('minor-name');
+    const box = (await tag.boundingBox())!;
+    const own = (await tile(page, id).boundingBox())!;
+    const placement = {
+      name,
+      offCentre: Math.abs(box.x + box.width / 2 - (own.x + own.width / 2)) <= 1 ? 'centred' : box.x + box.width / 2 - (own.x + own.width / 2),
+      insideHeight: box.y >= own.y && box.y + box.height <= own.y + own.height,
+      atMostTwoTiles: box.width <= 2 * own.width,
+    };
+    expect(placement).toEqual({ name, offCentre: 'centred', insideHeight: true, atMostTwoTiles: true });
+    const onTop = await tag.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      (el as HTMLElement).style.pointerEvents = 'auto';
+      const hits = [r.left + 2, r.left + r.width / 2, r.right - 2].map((x) => {
+        const hit = document.elementFromPoint(x, r.top + r.height / 2);
+        return hit === el || el.contains(hit);
+      });
+      (el as HTMLElement).style.pointerEvents = '';
+      return hits;
+    });
+    expect({ name, onTop }).toEqual({ name, onTop: [true, true, true] });
+  }
   // FR-153 (a) to (c): 2 Great Power borders, a dotted province path per Great Power, a dashed border per minor
   await expect(page.getByTestId('territory-border')).toHaveCount(2);
   await expect(page.getByTestId('province-border')).toHaveCount(2);

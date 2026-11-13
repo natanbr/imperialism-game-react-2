@@ -129,7 +129,6 @@ function startNation({ id, name, capitalId, colorSlot, controller }: NationFound
     cities: [capitalId],
     armies: [],
     fleets: [],
-    colonies: [],
     merchantMarine: { holds: 4, avgSpeed: 10 },
     transportCapacity: START_FREIGHT_CARS,
     transportCapacityPendingIncrease: 0,

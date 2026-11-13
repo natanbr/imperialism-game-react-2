@@ -39,6 +39,12 @@ describe('FR-146 minor nations are not Nation entries', () => {
     expect(newGame({ seed: 1, world: 'two-islands' }).minorNations).toEqual([]);
   });
 
+  it('FR-146 Nation.colonies is gone: MinorNation.colonyOf is the one home of the colony relation (review E2)', () => {
+    for (const world of ['two-islands', 'continent'] as const) {
+      for (const nation of newGame({ seed: 1, world }).nations) expect(nation).not.toHaveProperty('colonies');
+    }
+  });
+
   it('FR-146 state.nations is still the 2 Great Powers, and so are the rail networks and the computer players', () => {
     const s = continent();
     expect(s.nations.map(n => n.id)).toEqual([N1, N2]);

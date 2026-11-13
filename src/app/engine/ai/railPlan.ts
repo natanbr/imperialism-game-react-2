@@ -5,7 +5,7 @@ import { ResourceDevelopmentTable } from "@/definisions/ResourceDevelopment";
 import type { GameState } from "@/types/GameState";
 import { TerrainType, type Tile } from "@/types/Tile";
 import { getNeighborCoords } from "../map/mapHelpers";
-import { hasJob, isDepotSite, isLand, railTerrainAllowed } from "../orders/queries";
+import { hasJob, isDepotSite, isGreatPowerCapital, isLand, railTerrainAllowed } from "../orders/queries";
 import { isRailLinked } from "../systems/railroadSystem";
 import { constructionCost } from "@/definisions/workPrices";
 
@@ -20,11 +20,11 @@ const neighbourKeys = (state: GameState, k: string): string[] => {
   return getNeighborCoords(state.map, x, y).map(([nx, ny]) => key(nx, ny));
 };
 
-/** A tile the nation gathers from: its capital, a depot (built or being built) or a port. */
-function isHub(tile: Tile, nationId: string): boolean {
+/** A tile the nation gathers from: its capital (not a minor's it was given), a depot (built or being built) or a port. */
+function isHub(state: GameState, tile: Tile, nationId: string): boolean {
   if (tile.ownerNationId !== nationId) return false;
   return (
-    tile.terrain === TerrainType.Capital ||
+    isGreatPowerCapital(state, tile) ||
     !!tile.depot ||
     !!tile.port ||
     tile.constructionJob?.kind === "depot" ||
@@ -36,7 +36,7 @@ function isHub(tile: Tile, nationId: string): boolean {
 export function coveredTiles(state: GameState, nationId: string): Set<string> {
   const covered = new Set<string>();
   for (const tile of state.map.tiles.flat()) {
-    if (!isHub(tile, nationId)) continue;
+    if (!isHub(state, tile, nationId)) continue;
     covered.add(keyOf(tile));
     for (const n of neighbourKeys(state, keyOf(tile))) covered.add(n);
   }
@@ -195,7 +195,7 @@ export function bestDepotSite(state: GameState, nationId: string): DepotSite | u
 export function tilesByReach(state: GameState, nationId: string): Tile[] {
   const own = state.map.tiles.flat().filter((t) => t.ownerNationId === nationId && isLand(t));
   const covered = coveredTiles(state, nationId);
-  const capital = own.find((t) => t.terrain === TerrainType.Capital);
+  const capital = own.find((t) => isGreatPowerCapital(state, t));
   const distance = new Map<string, number>();
   if (capital) {
     distance.set(keyOf(capital), 0);

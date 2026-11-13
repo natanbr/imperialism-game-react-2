@@ -134,6 +134,44 @@ describe('FR-145 the continent map', () => {
     expect(withoutBridge).toEqual(expected);
   });
 
+  it('FR-145 the known tilt toward nation 1 (review R1, card Q22): Arvelia\'s and Lorran\'s capitals are one step nearer island 1, and island 2 loses one more shore tile', () => {
+    /** Hex steps over any tile (land or sea) from the nearest land tile of the nation to each tile. */
+    const stepsFrom = (nationId: string): Map<string, number> => {
+      const steps = new Map(tiles(continent.map).filter(t => t.ownerNationId === nationId).map(t => [t.id, 0]));
+      const queue = [...steps.keys()].map(id => at(continent.map, id));
+      while (queue.length) {
+        const t = queue.shift()!;
+        for (const n of neighbours(continent.map, t)) {
+          if (steps.has(n.id)) continue;
+          steps.set(n.id, steps.get(t.id)! + 1);
+          queue.push(n);
+        }
+      }
+      return steps;
+    };
+    const [one, two] = [stepsFrom('nation-1'), stepsFrom('nation-2')];
+    const rows = Object.entries(MINOR_LAND).map(([name, land]) => {
+      const capital = Object.keys(land).find(id => land[id] === 'cap')!;
+      const nearest = (steps: Map<string, number>) => Math.min(...Object.keys(land).map(id => steps.get(id)!));
+      return { name, capital: [one.get(capital), two.get(capital)], nearestTile: [nearest(one), nearest(two)] };
+    });
+    expect(rows).toEqual([
+      { name: 'Arvelia', capital: [2, 3], nearestTile: [1, 1] },
+      { name: 'Sundmark', capital: [2, 2], nearestTile: [2, 2] },
+      { name: 'Lorran', capital: [3, 4], nearestTile: [2, 2] },
+      { name: 'Pellis', capital: [3, 3], nearestTile: [2, 2] },
+    ]);
+
+    // Shore tiles (land next to the sea): island 1 loses 9-4 to Arvelia, island 2 loses 14-4 and 14-5
+    const shore = (map: GameMap, nationId: string) =>
+      tiles(map).filter(t => t.ownerNationId === nationId && neighbours(map, t).some(n => n.terrain === TerrainType.Water)).map(t => t.id);
+    const lost = (nationId: string) => shore(twoIslands.map, nationId).filter(id => !shore(continent.map, nationId).includes(id));
+    expect(['nation-1', 'nation-2'].map(id => [shore(twoIslands.map, id).length, shore(continent.map, id).length, lost(id)])).toEqual([
+      [36, 35, ['9-4']],
+      [36, 34, ['14-4', '14-5']],
+    ]);
+  });
+
   it('FR-145 no Sundmark, Lorran or Pellis tile is a hex neighbour of another country\'s land (reachable only by sea)', () => {
     const contacts = ['Sundmark', 'Lorran', 'Pellis'].flatMap(name =>
       Object.keys(MINOR_LAND[name]).flatMap(id =>

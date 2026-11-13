@@ -6,11 +6,15 @@ import { join, relative } from 'node:path';
 import { describe, it, expect } from 'vitest';
 import { newGame } from '@/engine/newGame';
 import { validateOrder } from '@/engine/orders/validate';
+import { isDepotSite } from '@/engine/orders/queries';
+import { coveredTiles, tilesByReach } from '@/engine/ai/railPlan';
+import { computerOrders } from '@/engine/ai/players';
+import { resolveTurn } from '@/engine/turn/resolveTurn';
 import { migrantCap } from '@/engine/industry/industryState';
 import { adjacentProvinces, provinceOf, provincesOf, transferProvince } from '@/engine/world/provinces';
 import type { GameState } from '@/types/GameState';
 import { TerrainType, type Tile } from '@/types/Tile';
-import { deepFreeze, N1, N2, setWarehouse } from './fixtures';
+import { deepFreeze, N1, N2, setTile, setWarehouse, tileAt } from './fixtures';
 
 const continent = (): GameState => newGame({ seed: 1, world: 'continent' });
 const tiles = (s: GameState): Tile[] => s.map.tiles.flat();
@@ -130,6 +134,42 @@ describe('FR-148 ownership moves by province', () => {
     expect(provincesOf(fromMinor, 'minor-1')).toHaveLength(0);
   });
 
+  it('FR-148 a minor capital given to a Great Power is not its capital: the scripted player still ranks its land from its own capital (review E1)', () => {
+    const before = continent();
+    const taken = transferProvince(before, 'province-minor-1', N2);
+    const ids = (tiles: Tile[]) => tiles.map(t => t.id);
+    const arvelia = new Set(taken.provinces.find(p => p.id === 'province-minor-1')!.tileIds);
+
+    // Arvelia's capital 11-4 gathers nothing for nation 2 (its rail network has no node there), so it covers no tile
+    expect([...coveredTiles(taken, N2)].sort()).toEqual([...coveredTiles(before, N2)].sort());
+    // Valdoria's own tiles keep their order, starting at its capital 14-9; Arvelia's are ranked by their distance
+    // from 14-9, after every covered tile
+    const reach = ids(tilesByReach(taken, N2));
+    expect(reach.slice(0, 3)).toEqual(['14-8', '15-8', '14-9']);
+    expect(reach.filter(id => !arvelia.has(id))).toEqual(ids(tilesByReach(before, N2)));
+    expect(reach.findIndex(id => arvelia.has(id))).toBeGreaterThanOrEqual(coveredTiles(before, N2).size);
+
+    // A turn on the transferred state: the scripted player plans on it with no refusal (it puts a depot on Arvelia's
+    // 13-4), and 11-4 and the tiles only it touches are still not covered
+    const { state, events } = resolveTurn(taken, computerOrders(taken), taken.seed);
+    expect(events.filter(e => e.type === 'order-rejected')).toEqual([]);
+    const covered = coveredTiles(state, N2);
+    expect(['11,4', '10,3', '11,3', '10,4', '10,5', '11,5'].filter(k => covered.has(k))).toEqual([]);
+  });
+
+  it('FR-148 a depot site is blocked only by its own country\'s capital, depot or port, not by a neighbour\'s (review R5)', () => {
+    // Arvelia given to Testland; Valdoria holds a depot on 14-4, next to Arvelia's 13-4 (hardwood forest)
+    const s = setTile(transferProvince(continent(), 'province-minor-1', N1), '14-4', { depot: true });
+    expect(isDepotSite(s, tileAt(s, '13-4'))).toBe(true);
+    // Its own depot next door still blocks it, as before
+    const own = setTile(s, '13-3', { depot: true });
+    expect(isDepotSite(own, tileAt(own, '13-4'))).toBe(false);
+    // A minor capital given to a Great Power blocks no depot next to it (review E1): 11-4 gathers nothing for nation 2,
+    // so its neighbours that are not hills (10-3, 11-3, 10-5) are depot sites
+    const taken = transferProvince(continent(), 'province-minor-1', N2);
+    expect(['10-3', '11-3', '10-5'].map(id => isDepotSite(taken, tileAt(taken, id)))).toEqual([true, true, true]);
+  });
+
   it('FR-148 an unknown province or new owner throws', () => {
     expect(() => transferProvince(continent(), 'province-x', N1)).toThrow(/province-x/);
     expect(() => transferProvince(continent(), 'province-minor-1', 'nation-9')).toThrow(/nation-9/);
@@ -163,12 +203,46 @@ describe('FR-148 ownership moves by province', () => {
         const path = join(dir, name);
         return statSync(path).isDirectory() ? files(path) : path.endsWith('.ts') ? [path] : [];
       });
-    const code = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
-    const WRITES_OWNER = /ownerNationId\s*:(?!\s*(string|NationId))|ownerNationId\s*=[^=]|delete\s+\w+\.ownerNationId/;
     const writers = files(root)
-      .filter(path => WRITES_OWNER.test(code(readFileSync(path, 'utf8'))))
+      .filter(path => writesOwner(code(readFileSync(path, 'utf8'))))
       .map(path => relative(root, path).replaceAll('\\', '/'))
       .sort();
     expect(writers).toEqual(['world/provinces.ts', 'world/startWorld.ts']);
   });
+
+  it('FR-148 the scan sees every form of a write (also the shorthand { ...tile, ownerNationId }), and not a read', () => {
+    const writes = [
+      'return { ...tile, ownerNationId: nationId };',
+      'tile.ownerNationId = id;',
+      'delete copy.ownerNationId;',
+      'return { ...tile, ownerNationId };',
+      'const t = { ownerNationId, x: 1 };',
+      'update({ ...t, ownerNationId })',
+    ];
+    const reads = [
+      'if (t.ownerNationId === nationId) n++;',
+      'ownerNationId?: NationId;',
+      'const { ownerNationId } = tile;',
+      'const owner = ({ ownerNationId }: Tile) => ownerNationId;',
+      'tiles.filter(({ ownerNationId }) => ownerNationId === id)',
+      '// sets ownerNationId = x in a comment',
+    ];
+    expect(writes.map(src => writesOwner(code(src)))).toEqual(writes.map(() => true));
+    expect(reads.map(src => writesOwner(code(src)))).toEqual(reads.map(() => false));
+  });
 });
+
+/** The source without its comments, so a comment that names ownerNationId is not a write. */
+const code = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+/**
+ * `ownerNationId: x` (not a type), `ownerNationId = x`, `delete t.ownerNationId`. A renaming or defaulting
+ * destructure (`{ ownerNationId: owner } = t`) also matches: a false alarm, never a missed write.
+ */
+const WRITES_OWNER = /ownerNationId\s*:(?!\s*(string|NationId))|ownerNationId\s*=[^=]|delete\s+[\w.]+\.ownerNationId/;
+/** A brace group and what follows it: `= x` (not `==` or `=>`), `: Type` or `) =>` mark a destructuring pattern. */
+const BRACES = /\{([^{}]*)\}(\s*(?:=(?![=>])|:|\)\s*=>))?/g;
+/** The shorthand `ownerNationId` as one entry of a brace group: `{ ...tile, ownerNationId }`. */
+const SHORTHAND = /(^|,)\s*ownerNationId\s*(,|$)/;
+/** A write of a tile's owner: a property write, a delete, or the shorthand in an object literal (review R4). */
+const writesOwner = (src: string): boolean =>
+  WRITES_OWNER.test(src) || [...src.matchAll(BRACES)].some(([, inside, destructuring]) => !destructuring && SHORTHAND.test(inside));

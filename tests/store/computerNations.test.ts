@@ -170,19 +170,40 @@ describe('FR-109 startNewGame clears the session', () => {
 });
 
 describe('FR-160 startNewGame resets every overlay flag, also the ones a later milestone adds', () => {
-  it('FR-160 each boolean "is..." flag of the store, false at the start, is false again after startNewGame', () => {
+  /**
+   * What startNewGame does not reset: `game`, which it replaces, and the camera, which keeps where the
+   * player scrolled. Every other key of the store, whatever its name or type (a flag, a selected id, a
+   * log), is part of the old game's session (review F3: a guard by name missed `constructionModalTileId`).
+   */
+  const KEPT = ['game', 'cameraX', 'cameraY', 'cameraMoves'];
+  /** A value unlike `value` of the same kind: a flag flipped, a number moved, an id or a list filled. */
+  const changed = (value: unknown): unknown => {
+    if (typeof value === 'boolean') return !value;
+    if (typeof value === 'number') return value + 1;
+    if (typeof value === 'string') return `${value}-changed`;
+    if (Array.isArray(value)) return [...value, { changed: true }];
+    if (value && typeof value === 'object') return { ...value, changed: true };
+    return 'changed';
+  };
+
+  it('FR-160 every store key but the game and the camera is back at its initial value after startNewGame', () => {
     const store = createGameStore({ game: newGame({ seed: 1 }) });
     const initial = store.getInitialState() as unknown as Record<string, unknown>;
-    const flags = Object.keys(initial).filter((key) => /^is[A-Z]/.test(key) && typeof initial[key] === 'boolean');
-    // The flags of M1 to M4; a flag M6 to M9 add (for example isDiplomacyOpen) is picked up here too
-    expect(flags).toEqual(expect.arrayContaining(['isWarehouseOpen', 'isCapitalOpen', 'isMarketOpen', 'isGameOverHidden', 'isTransportAllocationOpen', 'isConstructionModalOpen']));
-    expect(flags.filter((key) => initial[key] !== false)).toEqual([]);
+    const session = Object.keys(initial).filter((key) => typeof initial[key] !== 'function' && !KEPT.includes(key));
+    // The keys of M1 to M5; a key M6 to M9 add (for example isDiplomacyOpen or a selected country) is picked up here too
+    expect(session).toEqual(expect.arrayContaining([
+      'activeNationId', 'lastRejection', 'eventLog', 'orderLog', 'ordersThisTurn', 'isWarehouseOpen', 'isCapitalOpen',
+      'isMarketOpen', 'isGameOverHidden', 'isTransportAllocationOpen', 'selectedTileId', 'hoveredTileId', 'selectedWorkerId',
+      'isConstructionModalOpen', 'constructionModalTileId', 'constructionModalWorkerId',
+    ]));
 
-    store.setState(Object.fromEntries(flags.map((key) => [key, true])));
+    store.setState(Object.fromEntries(session.map((key) => [key, changed(initial[key])])));
+    const before = store.getState() as unknown as Record<string, unknown>;
+    expect(session.filter((key) => JSON.stringify(before[key]) === JSON.stringify(initial[key]))).toEqual([]);
     store.getState().startNewGame({ seed: 2 });
 
     const after = store.getState() as unknown as Record<string, unknown>;
-    expect(flags.filter((key) => after[key] !== false)).toEqual([]);
+    expect(session.filter((key) => JSON.stringify(after[key]) !== JSON.stringify(initial[key]))).toEqual([]);
     // The app's default world (FR-144)
     expect(store.getState().game.worldId).toBe('continent');
   });

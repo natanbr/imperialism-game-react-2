@@ -348,6 +348,15 @@ describe('FR-154 the minor nation and province border colours', () => {
     expect(close).toEqual([]);
   });
 
+  it('FR-154 --color-minor reaches 3:1 against every land tile background and the sea, which its dashed border runs between (WCAG 2.2, 1.4.11)', () => {
+    const backgrounds = [THEME.land, ...Object.values(TERRAIN_TINT)];
+    expect(backgrounds).toHaveLength(Object.values(TerrainType).length + 1);
+    const low = backgrounds
+      .map((bg) => ({ bg, ratio: Math.round(contrast(token('--color-minor'), valueOf(bg)) * 100) / 100 }))
+      .filter(({ ratio }) => ratio < 3);
+    expect(low).toEqual([]);
+  });
+
   it('FR-154 --color-province-border reaches 3:1 against every land tile background (WCAG 2.2, 1.4.11)', () => {
     const land = [THEME.land, ...Object.entries(TERRAIN_TINT).filter(([t]) => t !== TerrainType.Water).map(([, v]) => v)];
     expect(land).toHaveLength(Object.values(TerrainType).length);

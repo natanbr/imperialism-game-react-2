@@ -77,21 +77,47 @@ describe('FR-150 only the development and price draws read ctx.rng', () => {
       const path = join(dir, name);
       return statSync(path).isDirectory() ? files(path) : path.endsWith('.ts') ? [path] : [];
     });
-  /** `ctx.rng` (not `ctx.rngFor`), or `rng` destructured from `ctx`. */
-  const READS_SHARED_RNG = /\bctx\.rng\b|\{[^}]*\brng\b[^}]*\}\s*=\s*ctx\b/;
+  /**
+   * A read of the shared stream whatever the context is called (review R2, E4): the property on any
+   * receiver (`ctx.rng`, `context.rng`, `c?.rng`; not `rngFor`), the bracket form (`ctx['rng']`), or `rng`
+   * in a destructuring pattern (`{ rng } = ctx`, `({ rng }: TurnContext)`, `(s, { rng }) =>`).
+   */
+  const READS_SHARED_RNG = [/\.\s*rng\b/, /\[\s*(['"`])rng\1\s*\]/, /\{[^{}]*\brng\b[^{}]*\}\s*(?:=(?![=>])|:|\)\s*=>)/];
+  const readsSharedRng = (src: string) => READS_SHARED_RNG.some(re => re.test(src));
   /** The source without its comments, so a doc comment that names ctx.rng is not a read. */
   const code = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  /** The two readers, and the context that builds the stream (`opts.rng`, the pre-M1 override). */
+  const ALLOWED = ['systems/developmentSystem.ts', 'systems/tradeSystem.ts', 'turn/context.ts'];
 
-  it('FR-150 a scan of src/app/engine finds ctx.rng read in developmentSystem.ts and tradeSystem.ts only', () => {
+  it('FR-150 a scan of src/app/engine finds the shared stream read in developmentSystem.ts and tradeSystem.ts only (and built in turn/context.ts)', () => {
     const readers = files(root)
-      .filter(path => READS_SHARED_RNG.test(code(readFileSync(path, 'utf8'))))
+      .filter(path => readsSharedRng(code(readFileSync(path, 'utf8'))))
       .map(path => relative(root, path).split(sep).join('/'))
       .sort();
-    expect(readers).toEqual(['systems/developmentSystem.ts', 'systems/tradeSystem.ts']);
+    expect(readers).toEqual(ALLOWED);
   });
 
-  it('FR-150 the scan sees both forms of a read, and not rngFor or a comment', () => {
-    const samples = ['const x = ctx.rng.next();', 'const { nextTurn, rng } = ctx;', 'ctx.rngFor("combat").next()', '// reads ctx.rng', '/** the `ctx.rng` stream */'];
-    expect(samples.map(src => READS_SHARED_RNG.test(code(src)))).toEqual([true, true, false, false, false]);
+  it('FR-150 the scan sees every form of a read, whatever the context is called, and not rngFor, a passed stream or a comment', () => {
+    const reads = [
+      'const x = ctx.rng.next();',
+      'const { nextTurn, rng } = ctx;',
+      'const v = context.rng.next();',
+      'function run(s: GameState, c: TurnContext) { return c.rng.next(); }',
+      'const r = ctx?.rng;',
+      "const r = ctx['rng'];",
+      'const { rng: shared } = context;',
+      'export const sys = (state: GameState, { rng }: TurnContext) => state;',
+      'export const sys: TurnSystem = (state, { rng }) => state;',
+    ];
+    const notReads = [
+      'ctx.rngFor("combat").next()',
+      'const { rngFor } = ctx;',
+      'nextPrices(prices, sold, bought, rng)',
+      'function drift(prices: Prices, rng: Rng) { return rng.next(); }',
+      '// reads ctx.rng',
+      '/** the `ctx.rng` stream */',
+    ];
+    expect(reads.map(src => readsSharedRng(code(src)))).toEqual(reads.map(() => true));
+    expect(notReads.map(src => readsSharedRng(code(src)))).toEqual(notReads.map(() => false));
   });
 });

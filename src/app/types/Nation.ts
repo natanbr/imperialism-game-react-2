@@ -18,12 +18,12 @@ export interface Nation {
   creditLimit?: number;
 
   // Relations, treaties, trade policies and grants live in state.diplomacy (FR-151); the provinces
-  // a nation holds are the state.provinces it owns (FR-148, provincesOf).
+  // a nation holds are the state.provinces it owns (FR-148, provincesOf); its colonies are the minor
+  // nations whose `colonyOf` names it (FR-146).
 
   cities: CityId[];
   armies: ArmyId[];
   fleets: FleetId[];
-  colonies: NationId[]; // Minor Nations controlled as colonies
 
   merchantMarine: {
     holds: number;       // total cargo holds

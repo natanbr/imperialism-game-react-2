@@ -27,7 +27,6 @@ export const mockNations: Nation[] = [
     cities: ["capital-1"],
     armies: [],
     fleets: [],
-    colonies: [],
     merchantMarine: {
       holds: 5,
       avgSpeed: 10
@@ -50,7 +49,6 @@ export const mockNations: Nation[] = [
     cities: [],
     armies: [],
     fleets: [],
-    colonies: [],
     merchantMarine: {
       holds: 3,
       avgSpeed: 8
@@ -73,7 +71,6 @@ export const mockNations: Nation[] = [
     cities: [],
     armies: [],
     fleets: [],
-    colonies: [],
     merchantMarine: {
       holds: 4,
       avgSpeed: 9
