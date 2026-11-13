@@ -18,7 +18,8 @@ import { N1, N2, setPair } from './fixtures';
 
 const ARVELIA = 'minor-1';
 const DIPLOMACY_KINDS = ['proposeOverture', 'giveGrant', 'setTradePolicy', 'withdrawOverture', 'answerProposal'];
-const continent = (turn = 1): GameState => ({ ...newGame({ seed: 1, world: 'continent' }), turn });
+/** The continent with the world market: in "partners" the scripted player also orders consulates (FR-245, scriptedTrade.test.ts). */
+const continent = (turn = 1): GameState => ({ ...newGame({ seed: 1, world: 'continent', market: 'world' }), turn });
 
 const regiment = (category: RegimentCategory, fpNormal: number, health: number): Unit => ({
   id: `${category}-${fpNormal}-${health}`,
@@ -168,8 +169,10 @@ describe('FR-174 a scripted Great Power proposes peace itself', () => {
 });
 
 describe('FR-174 FR-181 at peace the scripted player orders exactly what it did before M6', () => {
-  it.each(['two-islands', 'continent'] as const)('FR-181 on %s, ten turns of nation 2: no diplomacy order', world => {
-    let s = newGame({ seed: 1, world });
+  // FR-245: on the continent with its partners market the scripted player orders consulates (tests/engine/scriptedTrade.test.ts);
+  // with the world market it orders exactly as before M6.
+  it.each(['two-islands', 'continent'] as const)('FR-181 on %s (world market), ten turns of nation 2: no diplomacy order', world => {
+    let s = newGame({ seed: 1, world, market: 'world' });
     const ordered: Order[] = [];
     for (let i = 0; i < 10; i++) {
       const orders = scriptedPlayer(s, N2);

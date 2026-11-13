@@ -5,6 +5,7 @@ import { MapView } from './components/MapView';
 import { WarehouseModal } from './components/WarehouseModal';
 import { CapitalModal } from './components/CapitalModal';
 import { MarketModal } from './components/MarketModal';
+import { DealBookModal } from './components/DealBookModal';
 import { DiplomacyModal } from './components/DiplomacyModal';
 import { AcceptOfferModal } from './components/AcceptOfferModal';
 import { GameOverModal } from './components/GameOverModal';
@@ -32,6 +33,7 @@ export default function Home() {
       <WarehouseModal />
       <CapitalModal />
       <MarketModal />
+      <DealBookModal />
       <DiplomacyModal />
       <ConstructionOptionsModal />
       <GameOverModal />

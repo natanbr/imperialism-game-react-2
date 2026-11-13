@@ -37,6 +37,7 @@ import {
   GiOak,
   GiOilDrum,
   GiOilPump,
+  GiOpenBook,
   GiOre,
   GiPaper,
   GiPineTree,
@@ -102,6 +103,7 @@ export const GI = {
   GiOak,
   GiOilDrum,
   GiOilPump,
+  GiOpenBook,
   GiOre,
   GiPaper,
   GiPineTree,
@@ -217,6 +219,8 @@ export const UI_ICONS = {
   civilians: "GiMeepleGroup",
   /** The Diplomacy screen (FR-177): the Imp1 overtures scroll */
   diplomacy: "GiScrollUnfurled",
+  /** The Deal Book (FR-195): the Imp1 ledger is an open book */
+  dealBook: "GiOpenBook",
 } as const satisfies Record<string, IconName>;
 
 /**

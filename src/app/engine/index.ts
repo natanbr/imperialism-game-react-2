@@ -66,3 +66,32 @@ export type { MinorNation } from "@/types/MinorNation";
 export type { Province } from "@/types/Province";
 export type { WorldId } from "@/types/World";
 export type { TradeCommodity, TradeOrders, WorldMarket } from "@/types/Market";
+// M7 (FR-183 to FR-191, FR-242 to FR-256): nation-to-nation trade, the Board of Trade rows and the Deal Book data.
+export {
+  boardOfTrade,
+  buyersOf,
+  favouritePartner,
+  marketModeOf,
+  minorDemand,
+  minorOffers,
+  partnerRanking,
+  partnerRefusal,
+  sellersOf,
+  tradeBarrier,
+  type BoardBuyer,
+  type BoardRow,
+  type BoardSeller,
+  type PartnerRefusal,
+  type TradeBarrier,
+} from "./market/partners";
+export {
+  dealBook,
+  type DealBook,
+  type DealBottomLine,
+  type DealEntry,
+  type DiplomacyCost,
+  type TreasuryChange,
+} from "./market/dealBook";
+export { BOARD_ORDER, MINOR_DEMAND, MINOR_OFFER_CAP, TRADE_RELATION_POINTS } from "@/definisions/partnersMarket";
+export type { BarredCounterparty, OfferMissedReason, TradeMissCause } from "./turn/context";
+export type { MarketMode, TradeAmounts } from "@/types/Market";

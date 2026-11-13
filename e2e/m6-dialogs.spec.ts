@@ -28,13 +28,15 @@ const focusInside = (page: Page, name: string) =>
 const DIALOGS: { opener: RegExp; name: string }[] = [
   { opener: /Open Warehouse/, name: 'Warehouse' },
   { opener: /Open Capital/, name: 'Capital' },
-  { opener: /Open Market/, name: 'World market' },
+  // FR-250: the continent's market is "partners", so the market dialog is the Board of Trade (FR-194); the Deal Book (FR-195)
+  { opener: /Open Market/, name: 'Board of Trade' },
+  { opener: /^Deal Book$/, name: 'Deal Book' },
   { opener: /^Diplomacy$/, name: 'Diplomacy' },
   { opener: /Transportation of Commodities/, name: 'Transportation of Commodities' },
   { opener: /^About$/, name: 'About' },
 ];
 
-test('FR-236 each HUD dialog: aria-modal, the focus inside on open, Tab and Shift+Tab stay inside, Escape closes it and the focus goes back', async ({ page }) => {
+test('FR-236 FR-250 each HUD dialog: aria-modal, the focus inside on open, Tab and Shift+Tab stay inside, Escape closes it and the focus goes back', async ({ page }) => {
   test.setTimeout(90000);
   const errors = collectErrors(page);
   await open(page);
@@ -61,7 +63,7 @@ test('FR-236 each HUD dialog: aria-modal, the focus inside on open, Tab and Shif
   expect(errors).toEqual([]);
 });
 
-test('FR-236 a click on the backdrop outside the dialog closes it; a click inside does not', async ({ page }) => {
+test('FR-236 FR-250 a click on the backdrop outside the dialog closes it; a click inside does not', async ({ page }) => {
   test.setTimeout(90000);
   const errors = collectErrors(page);
   await open(page);

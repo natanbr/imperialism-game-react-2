@@ -52,12 +52,13 @@ test('FR-121 FR-119 the market and the capital show commodity icons; a card show
   const errors = collectErrors(page);
   await start(page);
 
+  // FR-194: the continent's market is "partners", so the market dialog is the Board of Trade
   await page.getByRole('button', { name: /Open Market/ }).click();
-  const market = page.getByRole('dialog', { name: 'Market' });
+  const market = page.getByRole('dialog', { name: 'Board of Trade' });
   await expect(market.getByTestId('trade-row-steel').getByTestId('name').locator('svg')).toHaveAttribute('data-icon', 'GiMetalBar');
   await expect(market.getByTestId('trade-row-lumber').getByTestId('name')).toHaveText(/Lumber/);
   const marketShot = process.env.SCREENSHOT_DIR ? await market.screenshot() : undefined;
-  await page.getByRole('button', { name: 'Close market' }).click();
+  await page.getByRole('button', { name: 'Close Board of Trade' }).click();
 
   await page.getByRole('button', { name: /Open Capital/ }).click();
   const capital = page.getByRole('dialog', { name: 'Capital' });

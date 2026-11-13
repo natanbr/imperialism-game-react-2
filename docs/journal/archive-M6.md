@@ -1,4 +1,4 @@
-# Journal archive: M6 Diplomacy (part 1)
+# Journal archive: M6 Diplomacy
 
 Moved from `docs/journal.md` on 2026-11-13 during M6 (FLOW: the journal stays under 400 lines; the review of the QA
 fix round needed room before the milestone ends). The two finished entries, the engine half and the UI half, are
@@ -151,3 +151,139 @@ corrected by review A-R11), so it is tested with Testing Library only.
 How to see it in the app: `npm run dev`, then the HUD's "Diplomacy" (or Capital, then Diplomacy). Order "Consulate ($500)"
 for Arvelia, close, Advance Turn: Arvelia shows "Consulate" and the cash is $500 lower; next turn "Embassy ($5,000)"; then
 "Declare war" on Lorran, confirm, Advance Turn: "At war since turn 4", dark brown, and the news line.
+
+---
+
+Part 2: moved from `docs/journal.md` on 2026-11-13 at the start of M7 (M6 merged as PR 24, main 2a60a3b). The
+review fix round, the QA fix round and the fixes of its review follow, unchanged.
+
+## 2026-11-13 M6 Diplomacy, review fix round
+
+Size: M (one fix round on three milestone reviews: 1 blocker, 2 major, 17 minor; three overlap). One fix agent (Opus 5.5,
+xhigh, no subagents, no advisor call), started by the M6 workflow; same branch and worktree, not pushed. Review ids: A =
+the first review (R1 to R11), B = the second (R1 to R5), F = the third (F1 to F4). The M6 rows were amended in place (not
+merged yet, so no new ids; the M5 precedent). A behaviour fix has a test that failed on the code before it; a guard test
+shows its check failing on a mutant (`scripts/probes/m6/review-mutants.mjs`, committed so the result can be re-run).
+
+| Finding | What changed | Test |
+|---|---|---|
+| B-R1 (blocker) "n" on the Subsidy select ended the turn | `useKeyboardShortcuts`: "n" ignored in an input, select, text area or editable text, and while any `role="dialog"` is in the page; FR-178 states it | diplomacyDialog.test.tsx "the End Turn key", 4 rows (Home with Diplomacy or Accept Offer open; the hook alone with each field kind) |
+| A-R1 (major), B-R2, F1 "Stop grant" took back this turn's grant | "Stop grant" disabled with "withdraw this turn's grant first" while a grant is ordered this turn (`stopGrantOf` in diplomacyView.ts); FR-178 | diplomacyDialog.test.tsx: lock + once grant: disabled, no order; withdraw, stop, give: End Turn stops the lock and pays the once grant only |
+| A-R2 (major) the page's Accept Offer untested | test renders Home with a proposal | diplomacyDialog.test.tsx "the page itself (Home)" (mutant: `<AcceptOfferModal />` removed from page.tsx, caught) |
+| F2 withdrawal fall-through queued a grant stop | `applyDiplomacyOrder`: only "grant" builds a stop; otherwise the state is returned unchanged | diplomacyOrders.test.ts "only "grant" can queue a grant stop" |
+| B-R5 war on a treaty partner said nothing of the cost | the question adds "This breaks our pact with Arvelia: relations with every other country get worse." (row field `brokenByWar`), also in the group's description | diplomacyDialog.test.tsx "war on a pact partner or an ally" |
+| B-R4 × titled "Decide later" | title "Close: an offer not answered by End Turn is refused"; FR-175 | diplomacyDialog.test.tsx closing row |
+| B-R3 a grant's money goes to nobody | kept (decision 3); FR-170 and the screen's note say so | diplomacy.test.ts "a grant buys relations only"; diplomacyDialog.test.tsx note row |
+| B-R2 (rest) once grant + lock pays both | FR-170 states it (engine decision 8) | diplomacy.test.ts "a once grant in a turn with a standing locked grant" |
+| A-R3 `proposal-received` against FR-176 | FR-176 and FR-166 name the exception (receiver in `nationId`, proposer in `fromId`) | diplomacy.test.ts: the "every event" row now has a proposal and pins its ids |
+| A-R4 minor bystander unguarded | 4 rows: either Great Power declares on the other, Arvelia at level 8 (30 to 20) or 0 (30 to 35) | diplomacy.test.ts (mutant: Great Powers only, caught) |
+| A-R5 failure paths untested | rows: policy fails whole at war; subsidy without consulate at resolution; accept an alliance in the war's turn; 5 news lines (pact, war, peace, trade policy x2); FR-171 states "fails whole" | diplomacy.test.ts, gameText.test.ts (mutants caught) |
+| A-R6 mutual proposals had no FR | kept and specified in FR-166 and FR-169 | diplomacy.test.ts: both propose peace (turn 2, Valdoria's first), both propose alliance at level 4 (mutants caught) |
+| A-R7 three behaviours with no FR row | FR-162 (already-in-place for embassy, pact, alliance, peace), FR-177 (capital button), FR-178 (Stop grant) | docs |
+| A-R8 FR-167 status | M7 (no trade at war, FR-185) and M9 (attacks, `warActive`) named as not built | docs |
+| A-R9 unused helpers | `isAtWar`, `holdsConsulate`, `holdsEmbassy` deleted (and their `@/engine` exports) | tsc, the gate |
+| A-R10 strength on the old Army shape | `regimentsOf` is the one read of the army shape; `militaryStrength` sums over it; FR-174 status says the (b) tests are provisional until FR-204 | scriptedDiplomacy.test.ts unchanged and green |
+| A-R11 journal errors | FR-174 sentence corrected; the two scratch mutation rows marked not reproducible | docs |
+| F3 frozen input missed paths | 3 frozen scenarios: answer accepted + new proposal + grant stop + unpaid lock; peace by answer + attacks dropped + unanswered refused; accept in the war's turn | diplomacy.test.ts (mutants: push into the input's proposals, delete from the input's grants, caught) |
+| F4 pair key rebuilt by hand | `acceptsPeace` uses `pairKey` | scriptedDiplomacy.test.ts unchanged and green |
+
+Decisions (defaults taken, nobody to ask):
+1. A-R1: "Stop grant" waits (disabled, with the reason) rather than a new order kind for the stop. Objection: stopping a lock
+   and giving a once grant in one turn takes three clicks (withdraw, stop, give); a `stopGrant` order would take one but
+   changes FR-161's five order kinds.
+2. B-R1: "n" is off while any dialog is open, not only on the Diplomacy screen (capital, market, warehouse, transport, About,
+   game over). Objection: a player who ended turns with "n" while the capital dialog was open must close it first.
+3. B-R3: a grant buys relations and no country receives the money (option 2: no baseline can move; the scripted player gives
+   no grants, FR-181). Objection: rules 07 says only "raises relations" for Imp1; if Imp1 pays a Great Power recipient,
+   option 1 (credit it) is a small change in `resolveGrants`. A decision card for the orchestrator to add at the checkpoint.
+4. A-R6: the mutual agreement stays (removing it would make two nations that both offer peace refuse each other).
+5. A-R9: deleted rather than tested without a caller; M7 adds a consulate read with its first caller (FR-185).
+6. The mutation probe found that the select check was not pinned on its own (the Diplomacy dialog already blocks "n"), so the
+   hook row covers a select with no dialog open.
+
+Carried: B-R4's better fix (list a dismissed offer with Accept and Reject in the proposer's card, or reopen it from the HUD);
+dormant until a proposal can reach the human (M8, M9). Found, not changed: holding "n" down ends one turn per key repeat (v1).
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| Red, behaviour fixes | the four changed test files with the source as at 55c0aad | `Test Files 2 failed \| 2 passed (4)`, `Tests 9 failed \| 172 passed (181)`: the select presses (`expected 6 to be 1`), dialog open, Accept Offer open, the hook alone, Stop grant (`expected false to be true`), `war-cost` not found, the × title, the grant note, the F2 row |
+| Guards bite (11 mutants) | `node scripts/probes/m6/review-mutants.mjs` | exit 0, each `caught`: A-R2 page `Tests 2 failed \| 34 passed (36)`; B-R1 select `1 failed`, dialog `2 failed`; A-R4 `4 failed \| 66 passed (70)`; A-R5 subsidy at war `1 failed`, news text `2 failed \| 53 passed (55)`; A-R6 peace `1 failed`, alliance `1 failed`; F3 push `1 failed`, delete `2 failed`; B-R3 `1 failed`. First run: B-R1 select `SURVIVED` (`36 passed`), fixed by the no-dialog hook row |
+| Unit tests | `npm test` | `Test Files 74 passed (74)`, `Tests 1217 passed (1217)` (+28 on 1189); 0 "not wrapped in act" |
+| FR-181, FR-159 v1 baselines | `npm test` console | `FR-125 seed 1: t15 616/390 (1.58) ... t40 1493/650 (2.30)` and `FR-157 nation 2 score at turn 40: [[1,1493],[2,1496],[3,1490],[4,1476]]`, as before |
+| Lint | `npm run lint`; `npx eslint . --ignore-pattern ".gate/**"` | `✖ 4 problems (0 errors, 4 warnings)`; `✖ 3 problems (0 errors, 3 warnings)` (as before, none new) |
+| Types | `npx tsc --noEmit` | exit 0, no output |
+| Build | `npm run build` | `✓ Compiled successfully in 2.9s`, `✓ Generating static pages (4/4)` |
+| e2e smoke | `PORT=3160 npx playwright test --workers=1 --reporter=line` | `25 passed (1.1m)`, `1 skipped` (the old `test.fixme` in `cursor-icons.spec.ts`); the "n" key row of `market-and-game-over.spec.ts` still passes |
+| App check | a scratch Playwright spec (`.gate`, not kept, `PORT=3161`): consulate, embassy, pact + locked grant, then a once grant, "n" on Subsidy and on Give, Declare war | `1 passed (11.6s)`, turn stayed 4, no console error; `docs/journal/m6-fix-round-arvelia.png` (Stop grant greyed with its reason, the pact line) |
+
+How to see it in the app: `npm run dev`, Diplomacy: with Arvelia's Subsidy select focused, "n" picks "none" and the turn
+stays; with the dialog open "n" does nothing, closed it ends the turn. With an embassy and a locked grant, Give a once grant:
+"Stop grant" is greyed with "withdraw this turn's grant first". With a pact, "Declare war" shows the second, red line.
+
+## 2026-11-13 M6 Diplomacy, QA fix round (FR-236 to FR-241)
+
+Size: M (Nathan's five QA items). One agent (Opus 5.5, xhigh, no subagents, no advisor call), started by the M6 workflow;
+same branch and worktree, not pushed. FR-151 and FR-176 to FR-178 point to the new rows; FR-236 closes M4.3 finding 7.
+
+| Item | What changed | Test |
+|---|---|---|
+| 1 FR-236 | `components/Modal.tsx` for all nine dialogs (Construction Options too): aria-modal, named by its title, focus in and back to the opener, Tab trap, Escape, backdrop click; a stack, so only the top dialog answers; About is a modal over the page | dialogs.test.tsx (37 rows), m6-dialogs.spec.ts (3) |
+| 2 FR-237 | Diplomacy in two panes: a tab per country (chips, "1 ordered") and the selected one's panel; each refusal once under its group (`reasonLines`); a 640 px frame, only the panes scroll | diplomacyDialog.test.tsx (5 rows; helpers select a tab), m6-diplomacy.spec.ts fit test |
+| 3 FR-238, FR-239 | war question: "A war on a minor nation also lowers our relations with every other minor nation, by half a level each."; `relation-changed.wars` and "(our war on Lorran)" | diplomacyDialog.test.tsx; diplomacy.test.ts (4 rows), gameText.test.ts (4), e2e news line |
+| 4, 5 FR-240, FR-241 | `startTreaties` on a Great Power pair from newGame, removed by a war between the two; chips "Consulate since the start" + tooltip. "Declare war" at war: "we are already at war with them" | diplomacyState, diplomacy.test.ts (3), diplomacyDialog.test.tsx (3) |
+
+Decisions (defaults, nobody to ask): (1) a dialog's name is its whole title ("Diplomacy — Testland"); exact names updated in
+three unit test files, Playwright matches substrings. (2) Game over has no close; Accept Offer focuses the dialog itself
+(Enter accepts), Escape rejects, the backdrop acts as ×; Escape in the war question answers "Keep the peace" first. (3) The
+selected country outlives a close (component state; FR-160's guard unaffected). (4) "Since the start" needs history the state
+lacked (a war ends the start treaties; one reopened after peace is not from the start), hence the optional engine mark;
+Objection: one more field on FR-151's entry, read by no v1 baseline. (5) FR-241 is view wording; the engine keeps
+`already-in-place`. (6) e2e/m5-hud-scroll (1) closes About (Escape) before measuring: About is no longer HUD content.
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| Red | the 7 new or changed unit test files, then the 3 e2e specs, on the source of 41e1e54 | `Test Files 5 failed | 2 passed (7)`, `Tests 83 failed | 170 passed (253)` (passing: the market and icons name guards); e2e `6 failed`, `1 passed`; old dialog `{"scrollHeight":1369,"clientHeight":648,"dialogScrolls":true}` |
+| Guards bite (14 mutants) | `node scripts/probes/m6/qa-mutants.mjs` | exit 0, each `caught` (e.g. no stack `1 failed`, no Tab trap `7 failed`, war keeps the mark `1 failed`) |
+| Unit tests, baselines | `npm test` | `Test Files 75 passed (75)`, `Tests 1275 passed (1275)` (+58 on 1217), 0 act warnings; FR-125 and FR-157 lines as before |
+| Lint, types, build | `npm run lint`; without `.gate`; `npx tsc --noEmit`; `npm run build` | `✖ 5 problems (0 errors, 5 warnings)` (2 in older .gate scripts); `✖ 3 problems` as before; exit 0; `✓ Compiled successfully in 3.0s` |
+| e2e smoke | `PORT=3160 npx playwright test --workers=1 --reporter=line` | `29 passed (1.3m)`, `1 skipped` (the old `test.fixme`) |
+| App check, 1280x720 | `.gate/m6-qa/shots.mjs` (dev server 3160, scrollbars on) | `{"box":[180,40,920,640],"dialogScrolls":false,"details":"524/524"}`, no console error; `m6-qa-war-question.png`, `m6-qa-diplomacy-turn4.png` |
+
+How to see it: `npm run dev`, HUD "Diplomacy": pick a country on the left; Tab stays inside, Escape or a click outside closes it.
+
+## 2026-11-13 M6 Diplomacy, fixes of the QA fix round's review (QA review F1 to F4)
+
+Size: M (4 minor findings; called "QA review F1" to F4 here, since the review fix round used F1 to F4 for its third
+review). One fix agent (Opus 5.5, xhigh, no subagents, no advisor call), started by the M6 workflow; same branch and
+worktree, not pushed. FR-236 amended in place (M6 not merged). To keep this file under 400 lines, the M6 engine half and
+UI half entries moved unchanged to `docs/journal/archive-M6.md` before the milestone ends.
+
+| Finding | What changed | Test |
+|---|---|---|
+| F1 Tab from a focused spot that is not a control: untested | no code change; FR-236 states it | diplomacyDialog.test.tsx: Tab from the war question to its "Declare war", "Keep the peace", Shift+Tab to the overture; Tab from a disabled control that keeps the focus; e2e m6-dialogs (4th test) |
+| F2 `focusKey` and the focus return of Accept Offer, Game over, Construction Options: untested | no code change; FR-236 states the next offer's focus | dialogs.test.tsx, 4 rows: after a click left the focus on Reject the next offer has the focus on the dialog and Enter accepts it; Accept Offer, Game over and Construction Options give the focus back; Construction Options' Tab cycle |
+| F3 Escape answered the war question only with the focus inside it | `useEscapeFirst` in `Modal.tsx`: a part shown in a dialog takes Escape first, wherever the focus is; the war question uses it instead of its own `onKeyDown` | diplomacyDialog.test.tsx: Escape on the Amount select, the country tab, the close button; e2e (Escape on Amount) |
+| F4 after an order disabled or removed the focused control, Tab restarted at the top | `Modal.tsx` remembers on `focusin` what last took the focus and its place among the controls; with the focus on the page, Tab and Shift+Tab go on from there (disabled: the control after or before it; removed: the one now in its place) | diplomacyDialog.test.tsx: Consulate and Withdraw, both directions; e2e in Chrome: Enter on Consulate, Tab to "Declare war"; Enter on Withdraw, Tab to "Consulate ($500)" |
+
+Decisions (defaults, nobody to ask): (1) F3: a context of the shared dialog, not a capture listener in the war question,
+so the dialog stack still decides which dialog answers. Objection: one more export of `Modal.tsx` with one user. (2) F4:
+the focus is mended when Tab is pressed, not moved right after the order, so a second Enter never acts on a control the
+player did not pick. Objection: a screen reader hears nothing between the order and the next Tab. (3) A removed control's
+place is its index when it took the focus; a list that changed before the removal could shift it by one (no screen does
+that today), so no refresh on each key. (4) The unit tests imitate Chrome's focus fix-up by moving the focus off a
+disabled button through a scratch button outside the dialog (jsdom's `blur()` ignores a disabled button).
+
+Carried: Construction Options has no mutant of its own for the new rows (they run on the shared `Modal.tsx`, whose
+focus-return and Tab-trap mutants are caught by the HUD rows).
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| Red, F3 and F4 | `npx vitest run tests/ui/dialogs.test.tsx tests/ui/diplomacyDialog.test.tsx` with the tests first | `Test Files 1 failed \| 1 passed (2)`, `Tests 2 failed \| 89 passed (91)`: F3 `Unable to find ... "Diplomacy — Testland"` (Escape on Amount closed the dialog), F4 Tab landed on `aria-label="Close diplomacy"`, not "Declare war". F1, F2 rows are guards (green at red) |
+| Guards bite (21 mutants) | `node scripts/probes/m6/qa-mutants.mjs` | each `caught`; the 7 new: F1 `3 failed \| 47 passed (50)`, F2 focusKey `1 failed \| 40 passed (41)`, F2 return (Accept Offer, Game over) `1 failed` each, F3 `2 failed`, F4 disabled `1 failed`, F4 removed `1 failed`; the no-trap mutant, re-pointed to the new `moveFocus` line, `8 failed \| 33 passed (41)` |
+| Unit tests, baselines | `npm test` | `Test Files 75 passed (75)`, `Tests 1283 passed (1283)` (+8 on 1275), 0 act warnings; `FR-125 seed 1: ... t40 1493/650 (2.30)`, `FR-157 nation 2 score at turn 40: [[1,1493],[2,1496],[3,1490],[4,1476]]` as before |
+| Lint, types, build | `npm run lint`; without `.gate`; `npx tsc --noEmit`; `npm run build` | `✖ 5 problems (0 errors, 5 warnings)`; `✖ 3 problems (0 errors, 3 warnings)` as before; exit 0, no output; `✓ Compiled successfully in 3.3s`, `✓ Generating static pages (4/4)` |
+| e2e red in Chrome | the new m6-dialogs test with `Modal.tsx` and `CountryDetails.tsx` as at 3128a62 (`-g "keyboard on the Diplomacy"`), then restored (`cmp` equal) | `1 failed`: `m6-dialogs.spec.ts:132` `expect(locator).toBeFocused() failed`, "Declare war" `Received: inactive` after Enter on Consulate and Tab |
+| e2e smoke | `PORT=3160 npx playwright test --workers=1 --reporter=line` | `30 passed (1.3m)`, `1 skipped` (the old `test.fixme`) |
+
+How to see it: `npm run dev`, HUD "Diplomacy", pick Arvelia, Tab to "Consulate ($500)", Enter, Tab: the focus is on
+"Declare war". Click "Declare war", Tab three times to "Amount", Escape: the question closes, the dialog stays.

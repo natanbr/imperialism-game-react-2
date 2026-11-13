@@ -18,12 +18,11 @@ import {
 import type { RejectReason } from "../orders/Order";
 import type { GameEvent, TurnContext, TurnSystem, WarCause } from "../turn/context";
 import { byIntentOrder } from "../turn/intents";
-import { MAX_RELATION_POINTS, pairKey, POINTS_PER_LEVEL } from "../diplomacy/relations";
+import { levelOfPoints as levelOf, MAX_RELATION_POINTS, pairKey } from "../diplomacy/relations";
 import { intentCost, isDiplomacyIntent, proposalsOf } from "../diplomacy/queries";
 import { acceptsAlliance, acceptsPeace } from "../diplomacy/scriptedAnswers";
 
 const clampPoints = (points: number): number => Math.min(MAX_RELATION_POINTS, Math.max(0, points));
-const levelOf = (points: number): number => Math.floor(clampPoints(points) / POINTS_PER_LEVEL);
 /** The list with the id added once, in id order (consulates, embassies, boycotts). */
 const withId = (ids: readonly string[], id: string): string[] => (ids.includes(id) ? [...ids] : [...ids, id].sort());
 

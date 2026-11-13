@@ -9,7 +9,7 @@ import { countryName, countryOfTile, isMinorNation, provinceOf } from "@/engine"
 import { PROSPECT_COST, DEVELOPMENT_COST, CONSTRUCTION_COST } from "@/definisions/workPrices";
 import { parseTileIdToArray } from "@/utils/tileIdUtils";
 import { ConstructionKind } from "@/types/jobs/ConstructionJob";
-import { commodityName, TERRAIN_TEXT, workerJobLabel } from "./gameText";
+import { commodityName, money, TERRAIN_TEXT, workerJobLabel } from "./gameText";
 import { UI_ICONS, WORKER_ICONS } from "./icons";
 import { GameIcon } from "./GameIcon";
 import { THEME } from "@/styles/theme";
@@ -78,7 +78,7 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
     if (worker.type === WorkerType.Prospector) {
       const canProspect = !selectedTile.prospecting && (activeNation?.treasury ?? 0) >= PROSPECT_COST && PROSPECTABLE_TERRAIN_TYPES.includes(selectedTile.terrain);
       if (canProspect) {
-        return <button onClick={() => startProspecting(worker.id)} title={`Cost: $${PROSPECT_COST}`} className="btn btn-action"><GameIcon name={UI_ICONS.prospecting} /> Prospect</button>;
+        return <button onClick={() => startProspecting(worker.id)} title={`Cost: ${money(PROSPECT_COST)}`} className="btn btn-action"><GameIcon name={UI_ICONS.prospecting} /> Prospect</button>;
       }
     }
 
@@ -98,11 +98,11 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
       const jobLabel = `Develop ${worker.type} L${nextLevel}`;
 
       // Determine the title message
-      let titleMessage = `${jobLabel} ($${DEVELOPMENT_COST[nextLevel]})`;
+      let titleMessage = `${jobLabel} (${money(DEVELOPMENT_COST[nextLevel])})`;
       if (!hasDiscoveredResource) {
         titleMessage = "Resource not discovered - use Prospector first";
       } else if (!canAfford) {
-        titleMessage = `Not enough funds (need $${DEVELOPMENT_COST[nextLevel]})`;
+        titleMessage = `Not enough funds (need ${money(DEVELOPMENT_COST[nextLevel])})`;
       }
 
       return (

@@ -91,10 +91,11 @@ test('FR-090 the whole map fits 1280x720 next to the HUD, with an icon on every 
   await shot(page, 'capital');
   await page.getByRole('button', { name: 'Close capital' }).click();
 
+  // FR-194: the continent's market is "partners", so the market dialog is the Board of Trade
   await page.getByRole('button', { name: /Open Market/ }).click();
-  await expect(page.getByRole('dialog', { name: 'Market' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Board of Trade' })).toBeVisible();
   await shot(page, 'market');
-  await page.getByRole('button', { name: 'Close market' }).click();
+  await page.getByRole('button', { name: 'Close Board of Trade' }).click();
 
   expect(errors).toEqual([]);
 });

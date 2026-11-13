@@ -17,6 +17,11 @@ export interface OverlaySlice {
   openMarket: () => void;
   closeMarket: () => void;
 
+  // Deal Book dialog controls (FR-195): it only reads the last turn's events, so no refusal to clear
+  isDealBookOpen: boolean;
+  openDealBook: () => void;
+  closeDealBook: () => void;
+
   // Diplomacy dialog controls (FR-177)
   isDiplomacyOpen: boolean;
   openDiplomacy: () => void;
@@ -54,6 +59,10 @@ export const createOverlaySlice: StateCreator<GameStore, [], [], OverlaySlice> =
   isMarketOpen: false,
   openMarket: () => set({ isMarketOpen: true, lastRejection: null }),
   closeMarket: () => set({ isMarketOpen: false }),
+
+  isDealBookOpen: false,
+  openDealBook: () => set({ isDealBookOpen: true }),
+  closeDealBook: () => set({ isDealBookOpen: false }),
 
   // Diplomacy dialog: same stale-refusal rule as the capital (FR-178, FR-055)
   isDiplomacyOpen: false,

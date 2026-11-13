@@ -279,6 +279,14 @@ export type RejectReason =
   /** Diplomacy (FR-162): not while at war with the target. */
   | "at-war"
   /** Diplomacy (FR-162): peace while not at war. */
-  | "not-at-war";
+  | "not-at-war"
+  /** "Partners" market (FR-252): no minor nation offers the commodity this turn. */
+  | "no-seller"
+  /** "Partners" market (FR-252): every minor that offers it is barred to the nation (no consulate, war, boycott). */
+  | "sellers-barred"
+  /** "Partners" market (FR-253): no minor nation wants it and no other Great Power can bid for it this turn. */
+  | "no-buyer"
+  /** "Partners" market (FR-253): every country that could buy it is barred to the nation. */
+  | "buyers-barred";
 
 export type ValidationResult = { ok: true } | { ok: false; reason: RejectReason };

@@ -33,14 +33,14 @@ test('FR-025 move a worker, start a job and end the turn, three times', async ({
   // In view once the page is live and the first view has scrolled to the capital (FR-083)
   await expect(page.getByTestId('map-scroll')).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
   await expect(tile(page, '2-9')).toBeInViewport({ timeout: 15000 });
-  await expect(cash(page)).toContainText('Cash: 10000');
+  await expect(cash(page)).toContainText('Cash: $10,000');
 
   // Turn 1: the farmer moves to the farm east of the capital and starts farming (level 2, $1,000).
   await pickWorker(page, 'farmer');
   await tile(page, '3-9').click();
   await expect(tile(page, '3-9').locator('[data-worker-type="farmer"]')).toBeVisible();
   await expect(tile(page, '3-9').getByTitle('Development in progress')).toBeVisible();
-  await expect(cash(page)).toContainText('Cash: 9000');
+  await expect(cash(page)).toContainText('Cash: $9,000');
   await endTurn(page, 2);
   await expect(page.getByTestId('news-panel')).toContainText('News, turn 1');
 
@@ -49,7 +49,7 @@ test('FR-025 move a worker, start a job and end the turn, three times', async ({
   await tile(page, '2-8').click();
   await expect(tile(page, '2-8').locator('[data-worker-type="engineer"]')).toBeVisible();
   await expect(tile(page, '2-8').getByTitle('Construction in progress')).toBeVisible();
-  await expect(cash(page)).toContainText('Cash: 8900');
+  await expect(cash(page)).toContainText('Cash: $8,900');
   await endTurn(page, 3);
   await expect(page.getByTestId('news-panel')).toContainText('Rail finished at 2-8.');
 
@@ -59,7 +59,7 @@ test('FR-025 move a worker, start a job and end the turn, three times', async ({
   await tile(page, '5-2').click();
   await expect(tile(page, '5-2').locator('[data-worker-type="prospector"]')).toBeVisible();
   await expect(tile(page, '5-2').getByTitle('Prospecting in progress')).toBeVisible();
-  await expect(cash(page)).toContainText('Cash: 8800');
+  await expect(cash(page)).toContainText('Cash: $8,800');
   await endTurn(page, 4);
   await expect(page.getByTestId('news-panel')).toContainText('Prospectors found coal at 5-2.');
 

@@ -2,7 +2,7 @@
 // submitOrder and advanceTurn (FR-018 to FR-022). Replaces the pre-M1 turnSlice test.
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createGameStore, randomSeed, EVENT_LOG_TURNS } from '@/store/rootStore';
-import { applyOrder, newGame, resolveTurn, type Order } from '@/engine';
+import { applyOrder, marketModeOf, newGame, resolveTurn, type Order } from '@/engine';
 import { WorkerType } from '@/types/Workers';
 import { PROSPECT_COST } from '@/definisions/workPrices';
 import { game, locate, N1, N2, setTreasury, setWarehouse, T, treasury, workerId } from '../engine/fixtures';
@@ -131,8 +131,9 @@ describe('FR-020 submitOrder validates, then applies', () => {
 });
 
 describe('FR-021 advanceTurn resolves the turn with the engine and keeps the events', () => {
-  it('stores resolveTurn(game, {}, seed) and logs its events under the resolved turn', () => {
+  it('FR-256 stores resolveTurn(game, {}, seed) and logs its events under the resolved turn, with each treasury at the turn\'s start and end', () => {
     const store = createGameStore({ game: game(7) });
+    const initial = store.getState().game;
     store.getState().submitOrder(prospect);
     const before = store.getState().game;
     const expected = resolveTurn(before, {}, before.seed);
@@ -140,7 +141,12 @@ describe('FR-021 advanceTurn resolves the turn with the engine and keeps the eve
     store.getState().advanceTurn();
 
     expect(store.getState().game).toEqual(expected.state);
-    expect(store.getState().eventLog).toEqual([{ turn: before.turn, year: before.year, events: expected.events }]);
+    // The prospecting was paid when ordered, so the human's start is the treasury before that order (FR-256)
+    const treasuries = Object.fromEntries(
+      initial.nations.map((n, i) => [n.id, { start: n.treasury, end: expected.state.nations[i].treasury }])
+    );
+    expect(treasuries[initial.nations[0].id].start - before.nations[0].treasury).toBe(100);
+    expect(store.getState().eventLog).toEqual([{ turn: before.turn, year: before.year, events: expected.events, treasuries }]);
     expect(expected.events.map(e => e.type)).toContain('resource-discovered');
   });
 
@@ -283,5 +289,16 @@ describe('FR-144 the store plays the continent by default', () => {
 
   it('FR-144 a store can start on the v1 world', () => {
     expect(createGameStore({ seed: 3, world: 'two-islands' }).getState().game).toEqual(newGame({ seed: 3 }));
+  });
+
+  it('FR-242 the store passes the market mode on: the continent with "world", as newGame({ market }) builds it', () => {
+    const store = createGameStore({ seed: 3, market: 'world' });
+    expect(store.getState().game).toEqual(newGame({ seed: 3, world: 'continent', market: 'world' }));
+    expect(marketModeOf(store.getState().game)).toBe('world');
+
+    store.getState().startNewGame({ seed: 5, market: 'world' });
+    expect(store.getState().game).toEqual(newGame({ seed: 5, world: 'continent', market: 'world' }));
+    store.getState().startNewGame({ seed: 5 });
+    expect(marketModeOf(store.getState().game)).toBe('partners');
   });
 });

@@ -3,7 +3,7 @@ import React from "react";
 import type { Order, ValidationResult } from "@/engine";
 import { MIGRANT_COST, TRAINING_COST } from "@/definisions/ResourceConversions";
 import type { WorkerGrade } from "@/types/Industry";
-import { commodityName } from "../gameText";
+import { commodityName, money } from "../gameText";
 import type { LabourView } from "./capitalView";
 import styles from "./Capital.module.css";
 
@@ -19,8 +19,6 @@ const TRAINING: readonly { from: "untrained" | "trained"; article: string; to: s
   { from: "untrained", article: "an untrained", to: "Trained" },
   { from: "trained", article: "a trained", to: "Expert" },
 ];
-
-const money = (n: number) => `$${n.toLocaleString("en-US")}`;
 
 const MIGRANT_TEXT = Object.entries(MIGRANT_COST)
   .map(([key, amount]) => `${amount} ${commodityName(key)}`)

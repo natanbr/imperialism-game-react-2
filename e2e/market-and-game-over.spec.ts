@@ -1,7 +1,11 @@
 import { test, expect, Page } from '@playwright/test';
 
-// FR-078: the market and the end of the game in the running app. A new game starts with $10,000,
-// 10 lumber at the start price of $300 and 4 cargo holds, and lasts 40 turns (FR-068).
+// FR-078: the market and the end of the game in the running app. A new game starts with $10,000 and 4 holds, and lasts
+// 40 turns (FR-068). Since M7 the app's continent trades with partners (FR-242): nobody buys lumber any more and a minor
+// buys only clothing, furniture and hardware, and only from a Great Power holding a consulate there (FR-184, FR-185), so
+// the sale takes two turns: a consulate with Pellis and 1 furniture made on turn 1, the furniture offered on the Board of
+// Trade (FR-194) on turn 2. Pellis because the scripted Valdoria opens a consulate only with a minor whose offer or demand
+// it will use, the first such in id order (FR-245): Arvelia on turn 1 and not Pellis by turn 2, so Pellis buys our furniture.
 // FR-106, FR-109: the game-over screen names both nations beside their colours and starts a new game.
 // Set SCREENSHOT_DIR to also save m3-market.png and m4-game-over.png there.
 
@@ -25,31 +29,57 @@ async function start(page: Page) {
   await expect(page.getByTestId('turn-indicator')).toContainText('Turn: 1 of 40');
 }
 
-test('FR-078 open the market, sell one lumber, end the turn, see the sale and the cash', async ({ page }) => {
+/** The HUD's cash as a number. */
+const cashOf = async (page: Page) => Number((await cash(page).innerText()).replace(/[^\d-]/g, ''));
+
+test('FR-078 open the market, offer one furniture for sale, end the turn, see the sale and the cash', async ({ page }) => {
+  test.setTimeout(90000);
   const errors = collectErrors(page);
   await start(page);
-  await expect(cash(page)).toContainText('Cash: 10000');
+  await expect(cash(page)).toContainText('Cash: $10,000');
   await expect(page.getByTestId('hud-score')).toContainText(/Score: \d+/);
 
-  await page.getByRole('button', { name: /Open Market/ }).click();
-  const market = page.getByRole('dialog', { name: 'Market' });
-  const lumber = market.getByTestId('trade-row-lumber');
-  await expect(lumber.getByTestId('price')).toHaveText('$300');
-  await expect(lumber.getByTestId('stock')).toHaveText('10');
-  await expect(market.getByTestId('market-holds')).toHaveText(/Cargo holds:\s*0\s*used,\s*4\s*free of 4/);
-
-  await lumber.getByRole('button', { name: 'Sell one more Lumber' }).click();
-  await expect(lumber.getByTestId('sell')).toHaveText('1');
-  await expect(lumber.getByTestId('stock')).toHaveText('9');
-  await expect(market.getByTestId('market-holds')).toHaveText(/Cargo holds:\s*1\s*used,\s*3\s*free of 4/);
-  await expect(market.getByTestId('market-refusal')).toHaveCount(0);
-  if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/m3-market.png` });
-  await page.getByRole('button', { name: 'Close market' }).click();
-
+  // Turn 1: a consulate with Pellis, and 1 furniture from 2 lumber in the capital
+  await page.getByRole('button', { name: 'Diplomacy', exact: true }).click();
+  const diplomacy = page.getByRole('dialog', { name: 'Diplomacy' });
+  await diplomacy.getByRole('tablist', { name: 'Countries' }).getByRole('tab', { name: 'Pellis', exact: true }).click();
+  await diplomacy.getByRole('tabpanel', { name: 'Pellis', exact: true }).getByRole('button', { name: 'Consulate ($500)' }).click();
+  await diplomacy.getByRole('button', { name: 'Close diplomacy' }).click();
+  await page.getByRole('button', { name: /Open Capital/ }).click();
+  const capital = page.getByRole('dialog', { name: 'Capital' });
+  await capital.getByTestId('output-furniture').getByRole('button', { name: 'More Furniture' }).click();
+  await expect(capital.getByTestId('order-furniture')).toHaveText(/^1 of/);
+  await page.getByRole('button', { name: 'Close capital' }).click();
   await advance(page).click();
   await expect(page.getByTestId('turn-indicator')).toContainText('Turn: 2 of 40');
-  await expect(page.getByTestId('news-panel')).toContainText('Sold 1 Lumber for $300.');
-  await expect(cash(page)).toContainText('Cash: 10300');
+  await expect(cash(page)).toContainText('Cash: $9,500');
+
+  // Turn 2: offer it on the Board of Trade; Pellis buys furniture and we hold a consulate there
+  await page.getByRole('button', { name: /Open Market/ }).click();
+  const market = page.getByRole('dialog', { name: 'Board of Trade' });
+  const furniture = market.getByTestId('trade-row-furniture');
+  await expect(furniture.getByTestId('available')).toHaveText('1');
+  await expect(furniture.getByRole('list', { name: 'Buyers' }).getByRole('listitem').last()).toHaveText('Pellis: 2 units');
+  // FR-251: the favourites are named once, in the note under the title
+  await expect(market.getByTestId('board-favourites')).toHaveText(/\bPellis\b.* favours? (Testland|Valdoria)/);
+  await expect(market.getByTestId('market-holds')).toHaveText('Holds: 4 of 4 free');
+
+  await furniture.getByRole('button', { name: 'Offer one more Furniture' }).click();
+  await expect(furniture.getByTestId('offer')).toHaveText('1');
+  await expect(furniture.getByTestId('available')).toHaveText('0');
+  await expect(market.getByTestId('market-holds')).toHaveText('Holds: 3 of 4 free');
+  await expect(market.getByTestId('market-refusal')).toHaveCount(0);
+  if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/m3-market.png` });
+  await page.getByRole('button', { name: 'Close Board of Trade' }).click();
+
+  const before = await cashOf(page);
+  await advance(page).click();
+  await expect(page.getByTestId('turn-indicator')).toContainText('Turn: 3 of 40');
+  const news = page.getByTestId('news-panel');
+  await expect(news).toContainText(/Sold 1 Furniture to Pellis for \$[\d,]+\./);
+  const income = Number(/Sold 1 Furniture to Pellis for \$([\d,]+)\./.exec(await news.innerText())![1].replace(/,/g, ''));
+  expect(income).toBeGreaterThan(0);
+  expect(await cashOf(page)).toBe(before + income);
 
   expect(errors).toEqual([]);
 });

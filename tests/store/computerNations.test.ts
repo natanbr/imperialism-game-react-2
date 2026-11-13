@@ -53,9 +53,12 @@ describe('FR-099 End Turn asks the scripted player for nation 2\'s orders', () =
 });
 
 describe('FR-100 the order log', () => {
-  /** Three turns through the store: the human orders on turns 1 and 3, nation 2 plays every turn. */
+  /**
+   * Three turns through the store: the human orders on turns 1 and 3, nation 2 plays every turn. The market is the v1
+   * world: in "partners" nobody may buy Testland's timber on turn 1 (FR-253), and the log's subject is the orders.
+   */
   function played() {
-    const store = createGameStore({ seed: 9 });
+    const store = createGameStore({ seed: 9, market: 'world' });
     const initial = store.getState().game;
     expect(store.getState().submitOrder(farmerToFarm).ok).toBe(true);
     expect(store.getState().submitOrder(sell(1)).ok).toBe(true);

@@ -20,7 +20,7 @@ function collectErrors(page: Page): string[] {
   return errors;
 }
 
-/** The HUD's "Cash: 10000" as a number. */
+/** The HUD's "Cash: $10,000" as a number. */
 const cash = async (page: Page) => Number((await page.locator('.nation-stats').innerText()).replace(/[^\d-]/g, ''));
 const dialog = (page: Page) => page.getByRole('dialog', { name: 'Diplomacy' });
 const tab = (page: Page, name: string) => dialog(page).getByRole('tablist', { name: 'Countries' }).getByRole('tab', { name, exact: true });

@@ -13,6 +13,7 @@ import { HUD } from '@/components/HUD';
 import { WarehouseModal } from '@/components/WarehouseModal';
 import { CapitalModal } from '@/components/CapitalModal';
 import { MarketModal } from '@/components/MarketModal';
+import { DealBookModal } from '@/components/DealBookModal';
 import { DiplomacyModal } from '@/components/DiplomacyModal';
 import { AcceptOfferModal } from '@/components/AcceptOfferModal';
 import { GameOverModal } from '@/components/GameOverModal';
@@ -54,6 +55,7 @@ const Dialogs: React.FC = () => {
       <WarehouseModal />
       <CapitalModal />
       <MarketModal />
+      <DealBookModal />
       <DiplomacyModal />
       <ConstructionOptionsModal />
       <GameOverModal />
@@ -94,17 +96,21 @@ function tabCycle(dialog: HTMLElement): HTMLElement[] {
   throw new Error('Tab never came back to the first control');
 }
 
-const HUD_DIALOGS: { name: string; opener: RegExp; close: string }[] = [
-  { name: 'Diplomacy — Testland', opener: /^Diplomacy$/, close: 'Close diplomacy' },
-  { name: 'Warehouse — Testland', opener: /Open Warehouse/, close: 'Close warehouse' },
-  { name: 'Capital — Testland', opener: /Open Capital/, close: 'Close capital' },
-  { name: 'World market — Testland', opener: /Open Market/, close: 'Close market' },
-  { name: 'Transportation of Commodities', opener: /Transportation of Commodities/, close: 'Close transport' },
-  { name: 'About', opener: /^About$/, close: 'Close about' },
+/** `fr`: the requirements the row's tests cover, named in their titles. */
+const HUD_DIALOGS: { name: string; opener: RegExp; close: string; fr: string }[] = [
+  { name: 'Diplomacy — Testland', opener: /^Diplomacy$/, close: 'Close diplomacy', fr: 'FR-236' },
+  { name: 'Warehouse — Testland', opener: /Open Warehouse/, close: 'Close warehouse', fr: 'FR-236' },
+  { name: 'Capital — Testland', opener: /Open Capital/, close: 'Close capital', fr: 'FR-236' },
+  // FR-250 (FR-236's list with the M7 dialogs): the continent's market is "partners", so its market dialog is the Board of
+  // Trade (two-islands keeps the World market: tests/ui/boardOfTrade.test.tsx); FR-195 adds the Deal Book
+  { name: 'Board of Trade — Testland', opener: /Open Market/, close: 'Close Board of Trade', fr: 'FR-236 FR-250' },
+  { name: 'Deal Book — Testland', opener: /^Deal Book$/, close: 'Close Deal Book', fr: 'FR-236 FR-250' },
+  { name: 'Transportation of Commodities', opener: /Transportation of Commodities/, close: 'Close transport', fr: 'FR-236' },
+  { name: 'About', opener: /^About$/, close: 'Close about', fr: 'FR-236' },
 ];
 
 describe('FR-236 every dialog is a modal dialog', () => {
-  it.each(HUD_DIALOGS)('FR-236 $name: role dialog, aria-modal, named by its visible title', ({ name, opener }) => {
+  it.each(HUD_DIALOGS)('$fr $name: role dialog, aria-modal, named by its visible title', ({ name, opener }) => {
     show(start());
     render(<Dialogs />);
     openWith(screen.getByRole('button', { name: opener }));
@@ -117,7 +123,7 @@ describe('FR-236 every dialog is a modal dialog', () => {
     expect(text(title!)).toBe(name);
   });
 
-  it.each(HUD_DIALOGS)('FR-236 $name: the focus moves to its first control on open and back to the opener on close', ({ name, opener, close }) => {
+  it.each(HUD_DIALOGS)('$fr $name: the focus moves to its first control on open and back to the opener on close', ({ name, opener, close }) => {
     show(start());
     render(<Dialogs />);
     const button = screen.getByRole('button', { name: opener });
@@ -135,7 +141,7 @@ describe('FR-236 every dialog is a modal dialog', () => {
     expect(focused()).toBe(button);
   });
 
-  it.each(HUD_DIALOGS)('FR-236 $name: Tab and Shift+Tab stay inside, from the last control to the first and back', ({ name, opener }) => {
+  it.each(HUD_DIALOGS)('$fr $name: Tab and Shift+Tab stay inside, from the last control to the first and back', ({ name, opener }) => {
     show(start());
     render(<Dialogs />);
     openWith(screen.getByRole('button', { name: opener }));
@@ -155,7 +161,7 @@ describe('FR-236 every dialog is a modal dialog', () => {
     expect(focused()).toBe(controls[0]);
   });
 
-  it.each(HUD_DIALOGS)('FR-236 $name: Escape closes it and the focus goes back to the opener', ({ name, opener }) => {
+  it.each(HUD_DIALOGS)('$fr $name: Escape closes it and the focus goes back to the opener', ({ name, opener }) => {
     show(start());
     render(<Dialogs />);
     const button = screen.getByRole('button', { name: opener });
@@ -167,7 +173,7 @@ describe('FR-236 every dialog is a modal dialog', () => {
     expect(focused()).toBe(button);
   });
 
-  it.each(HUD_DIALOGS)('FR-236 $name: a click on the backdrop closes it; a click inside, or a drag that ends outside, does not', ({ name, opener }) => {
+  it.each(HUD_DIALOGS)('$fr $name: a click on the backdrop closes it; a click inside, or a drag that ends outside, does not', ({ name, opener }) => {
     show(start());
     render(<Dialogs />);
     const button = screen.getByRole('button', { name: opener });
@@ -395,6 +401,8 @@ describe('FR-236 one shared component, not per-dialog copies', () => {
       'WarehouseModal.tsx',
       'CapitalModal.tsx',
       'MarketModal.tsx',
+      join('market', 'BoardOfTrade.tsx'),
+      'DealBookModal.tsx',
       'TransportAllocationModal.tsx',
       'ConstructionOptionsModal.tsx',
       'GameOverModal.tsx',
