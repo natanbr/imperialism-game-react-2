@@ -2,9 +2,9 @@ import { test, expect, Page } from '@playwright/test';
 
 // FR-197 (M7 done) in the running app, on a new game: order a consulate with Arvelia in Diplomacy, bid 2 coal on the
 // Board of Trade, end the turn and see "Bought 2 Coal from Arvelia" in the Deal Book. On turn 1 both Great Powers have
-// 30 points with Arvelia and intentOrder puts Testland first, and the scripted Valdoria bids nothing in "partners"
-// (FR-193), so both units are ours at the board price, $100, whatever the seed. On the way (FR-194): the coal's sellers
-// with their favourite, the "no consulate" mark that the consulate ordered this turn lifts (FR-185), "Holds: 2 of 4 free"
+// 30 points with Arvelia and intentOrder puts Testland first, so Arvelia serves Testland's bid before any bid of the
+// scripted Valdoria (which bids for raw too, FR-245): both units are ours at the board price, $100, whatever the seed.
+// On the way (FR-194): the coal's sellers with their favourite, the "no consulate" mark that the consulate ordered this turn lifts (FR-185), "Holds: 2 of 4 free"
 // after the bid and no offer control on a row with a bid; the HUD's Deal Book button (FR-195).
 // FR-194 at 1280x720 (the M6 QA lesson, FR-237): the Board of Trade fits the window; neither the page nor the dialog
 // scrolls, only the board under its header.
@@ -130,12 +130,15 @@ test('FR-194 at 1280x720 the Board of Trade fits the window: neither the page no
   await expect(row(page, 'oil')).toBeInViewport({ ratio: 1 });
   if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/m7-board-new-game.png` });
 
-  // Fuller: a refusal line over the board (a fifth bid), and the last row reachable by scrolling the board alone
+  // Four bids take every hold: each "+" is disabled and says why (FR-248), and the frame still fits; the last row is
+  // reachable by scrolling the board alone
   for (const c of ['Coal', 'Timber', 'Iron Ore', 'Cotton']) {
     await board(page).getByRole('button', { name: `Bid one more ${c}` }).click();
   }
-  await board(page).getByRole('button', { name: 'Bid one more Wool' }).click();
-  await expect(board(page).getByTestId('market-refusal')).toHaveText('Purchase refused: over the limit.');
+  const wool = board(page).getByRole('button', { name: 'Bid one more Wool' });
+  await expect(wool).toBeDisabled();
+  await expect(wool).toHaveAttribute('title', 'No free hold this turn');
+  await expect(board(page).getByTestId('market-holds')).toHaveText('Holds: 0 of 4 free');
   expect(await fit(page)).toEqual(fits);
   const oil = row(page, 'oil');
   await oil.scrollIntoViewIfNeeded();

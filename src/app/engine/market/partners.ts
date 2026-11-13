@@ -3,15 +3,16 @@
 import type { CountryId, MinorNationId, NationId } from "@/types/Common";
 import type { GameState } from "@/types/GameState";
 import type { MarketMode, TradeAmounts, TradeCommodity } from "@/types/Market";
-import { BOARD_ORDER, MINOR_DEMAND, MINOR_OFFER_CAP } from "@/definisions/partnerTrade";
+import { BOARD_ORDER, MINOR_DEMAND, MINOR_OFFER_CAP } from "@/definisions/partnersMarket";
 import { relationOf } from "../diplomacy/relations";
-import { diplomacyIntentsOf } from "../diplomacy/queries";
+import { diplomacySystem } from "../systems/diplomacySystem";
+import { createTurnContext } from "../turn/context";
 import { intentOrder } from "../turn/intents";
 import { isGreatPower, minorNationById } from "../world/countries";
 import { isTradeCommodity, marketOf, priceOf, tradeOrdersOf } from "./market";
 import { nationById } from "../orders/queries";
 
-/** The market's mode (FR-182); a market without one, and a state without a market, is "world". */
+/** The market's mode (FR-242; read as "world" when the market has no mode, or there is no market). */
 export const marketModeOf = (state: GameState): MarketMode => state.market?.mode ?? "world";
 
 /**
@@ -32,9 +33,14 @@ export function minorOffers(state: GameState, minorId: MinorNationId): TradeAmou
   return offers;
 }
 
-/** What the minor bids for this turn (FR-184, Q27): 2 clothing, 2 furniture, 2 hardware; nothing for an unknown id. */
-export const minorDemand = (state: GameState, minorId: MinorNationId): TradeAmounts =>
-  minorNationById(state, minorId) ? { ...MINOR_DEMAND } : {};
+/**
+ * What the minor bids for this turn (FR-184, Q27): 2 clothing, 2 furniture, 2 hardware; nothing for a colony
+ * (FR-249: its trade is its owner's, as for its offers) or an unknown id.
+ */
+export function minorDemand(state: GameState, minorId: MinorNationId): TradeAmounts {
+  const minor = minorNationById(state, minorId);
+  return minor && minor.colonyOf === undefined ? { ...MINOR_DEMAND } : {};
+}
 
 /**
  * The Great Powers in the order the minor deals with them (FR-187, Q28): highest relation points plus half
@@ -59,21 +65,46 @@ export const favouritePartner = (state: GameState, minorId: MinorNationId): Nati
 export type TradeBarrier = "not-a-partner" | "at-war" | "boycott" | "no-consulate";
 
 /**
- * Why `nationId` (a Great Power) may not trade with `countryId` this turn, or undefined when it may (FR-185):
- * at war, a boycott by either side, or, with a minor, no consulate. A consulate ordered this turn counts: the
- * diplomacy phase establishes it before the trade phase (FR-163), and one it fails ends at war, which is
- * checked first. Minors never trade with each other, nor anyone with itself or an unknown country.
+ * Why `nationId` (a Great Power) may not trade with `countryId` on the diplomacy record as it stands, or
+ * undefined when it may (FR-185): at war, a boycott by either side, or, with a minor, no consulate. Minors never
+ * trade with each other, nor anyone with itself or an unknown country. The trade phase reads this: the diplomacy
+ * phase before it has already settled this turn's intents.
  */
-export function tradeBarrier(state: GameState, nationId: NationId, countryId: CountryId): TradeBarrier | undefined {
+export function settledTradeBarrier(state: GameState, nationId: NationId, countryId: CountryId): TradeBarrier | undefined {
   if (!isGreatPower(state, nationId) || nationId === countryId) return "not-a-partner";
   const entry = relationOf(state, nationId, countryId);
   if (!entry) return "not-a-partner";
   if (entry.war) return "at-war";
   if (entry.boycotts.length > 0) return "boycott";
   if (isGreatPower(state, countryId)) return undefined;
-  const ordered = diplomacyIntentsOf(state, nationId, countryId).some((i) => i.kind === "consulate");
-  return entry.consulates.includes(nationId) || ordered ? undefined : "no-consulate";
+  return entry.consulates.includes(nationId) ? undefined : "no-consulate";
 }
+
+/** By state (states are never changed): the state after this turn's diplomacy phase, events dropped. */
+const afterDiplomacy = new WeakMap<GameState, GameState>();
+
+/**
+ * The state as the trade phase of this End Turn will find it (FR-246): this turn's diplomacy intents resolved
+ * by the diplomacy phase itself (a consulate, a war, a peace, a boycott set or lifted, and any of them failing),
+ * events dropped. A peace or an alliance a human Great Power still has to answer is not made until it answers.
+ */
+export function diplomacyAfterThisTurn(state: GameState): GameState {
+  let next = afterDiplomacy.get(state);
+  if (!next) {
+    next = diplomacySystem(state, createTurnContext({ turn: state.turn, seed: state.seed }));
+    afterDiplomacy.set(state, next);
+  }
+  return next;
+}
+
+/**
+ * Why `nationId` may not trade with `countryId` in this End Turn's trade phase, or undefined when it may
+ * (FR-185, FR-246): `settledTradeBarrier` on the record after this turn's diplomacy phase, so the Board of Trade
+ * and the scripted player see what the trade phase will (a consulate ordered this turn counts; a war declared
+ * this turn already stops trade; a boycott set or lifted this turn already counts).
+ */
+export const tradeBarrier = (state: GameState, nationId: NationId, countryId: CountryId): TradeBarrier | undefined =>
+  settledTradeBarrier(diplomacyAfterThisTurn(state), nationId, countryId);
 
 export interface BoardSeller {
   minorId: MinorNationId;
@@ -109,20 +140,22 @@ export interface BoardRow {
 /**
  * The Board of Trade for one Great Power (FR-194): a row per tradeable commodity in BOARD_ORDER with the
  * board price, its stock, its bid and offer, and the minors that offer or want the commodity, each with
- * its favourite and, when the nation may not trade with it, why. Works in either mode; the screen shows
- * the minors' columns in "partners" only.
+ * its favourite and, when the nation may not trade with it, why; the barriers and favourites as the trade
+ * phase of this End Turn will find them (FR-246). Works in either mode; the screen shows the minors' columns
+ * in "partners" only.
  */
 export function boardOfTrade(state: GameState, nationId: NationId): BoardRow[] {
   const market = marketOf(state);
   const { sell, buy } = tradeOrdersOf(state, nationId);
   const stock = (nationById(state, nationId)?.warehouse ?? {}) as Record<string, number>;
+  const after = diplomacyAfterThisTurn(state);
   const minors = [...state.minorNations].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)).map((minor) => {
-    const barrier = tradeBarrier(state, nationId, minor.id);
+    const barrier = settledTradeBarrier(after, nationId, minor.id);
     return {
       minorId: minor.id,
       offers: minorOffers(state, minor.id),
       demand: minorDemand(state, minor.id),
-      favouriteId: favouritePartner(state, minor.id),
+      favouriteId: favouritePartner(after, minor.id),
       ...(barrier ? { barrier } : {}),
     };
   });

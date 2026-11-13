@@ -14,7 +14,7 @@ export interface NewGameOptions {
   turnLimit?: number;
   /** A key of `WORLDS` (FR-144); "two-islands" when omitted, so every v1 call is unchanged. */
   world?: WorldId;
-  /** The market mode (FR-182); the world's own (`WORLD_MARKET`) when omitted. */
+  /** The market mode (FR-242); the world's own (`WORLD_MARKET`) when omitted. */
   market?: MarketMode;
 }
 

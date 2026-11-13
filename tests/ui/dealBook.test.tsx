@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 // M7 UI half. FR-195 (Imp1 Deal Book, rules 11 section 2): the HUD's "Deal Book" button opens a dialog named "Deal Book"
 // with the last resolved turn's deals for the player (the engine's `dealBook`, in the words of
-// components/market/dealBookView.ts, FR-192) in two lists, "Sold" and "Bought" (missed offers under Bought), and the
+// components/market/dealBookView.ts, FR-244) in two lists, "Sold" and "Bought" (missed offers and bids nobody filled under
+// Bought), the turn it shows (FR-248) and the
 // bottom line (Sold, Bought, Military upkeep, Net); with no deal it says "No deals last turn.". FR-197 in the store: a
 // consulate with Arvelia and a bid of 2 coal on turn 1 end the turn as "Bought 2 Coal from Arvelia @ $100".
 import { describe, it, expect } from 'vitest';
@@ -57,7 +58,7 @@ describe('FR-195 the Deal Book', () => {
     expect(text(within(dialog()).getByRole('heading', { level: 2 }))).toBe(DEAL_BOOK);
   });
 
-  it('FR-195 FR-192 the last turn\'s deals in two lists, Sold and Bought (the missed offer under Bought), and the bottom line', () => {
+  it('FR-195 FR-244 FR-248 the last turn\'s deals in two lists, Sold and Bought (the missed offer under Bought), the turn and the bottom line', () => {
     openDealBook([{ turn: 1, year: 1815, events: EVENTS }]);
     expect(lines('Sold')).toEqual(['Sold 1 Clothing to Arvelia @ $810', '1 Furniture not sold, back in the warehouse']);
     expect(lines('Bought')).toEqual(['Bought 2 Coal from Arvelia @ $110', 'Arvelia offered to sell us 1 Iron Ore (no free hold)']);
@@ -82,6 +83,13 @@ describe('FR-195 the Deal Book', () => {
     expect(text(within(dialog()).getByTestId('sold-none'))).toBe('Nothing sold.');
     expect(bottomLine()).toEqual(['Sold $0', 'Bought $1,369', 'Military upkeep $0', 'Net -$1,369']);
     expect(text(within(dialog()).getByTestId('deal-book-turn'))).toBe('Turn 2, Summer 1815');
+  });
+
+  it('FR-244 FR-195 a turn whose only trade is a bid nobody filled says so under Bought, not "No deals last turn."', () => {
+    openDealBook([{ turn: 1, year: 1815, events: [{ type: 'bid-unfilled', nationId: N1, commodity: ResourceType.Coal, amount: 2 }, EVENTS[5]] }]);
+    expect(lines('Bought')).toEqual(['Nobody sold us 2 Coal (bid money back)']);
+    expect(within(dialog()).queryByTestId('deal-book-empty')).toBeNull();
+    expect(bottomLine()).toEqual(['Sold $0', 'Bought $0', 'Military upkeep $0', 'Net $0']);
   });
 
   it('FR-195 a turn without a deal, and a game before its first End Turn, say "No deals last turn."', () => {

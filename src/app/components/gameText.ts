@@ -6,6 +6,7 @@ import {
   type GameEvent,
   type GrantStopReason,
   type Order,
+  type OfferMissedReason,
   type OrderKind,
   type RejectReason,
   type Season,
@@ -62,6 +63,12 @@ export const REFUSAL_TEXT: Record<RejectReason, string> = {
   "already-in-place": "that is already in place",
   "at-war": "we are at war with them",
   "not-at-war": "we are not at war with them",
+};
+
+/** Why an offer passed the nation by, in the news and the Deal Book (FR-244). */
+export const MISSED_TEXT: Record<OfferMissedReason, string> = {
+  "no-hold": "no free hold",
+  "no-cash": "not enough money",
 };
 
 export function refusalText({ order, reason }: { order: Order; reason: RejectReason }): string {
@@ -274,15 +281,17 @@ export function eventText(event: GameEvent, nameOf: (countryId: string) => strin
       return foodNews(event.sick, event.starved);
     case "workers-recruited":
       return `${event.count} migrant${event.count === 1 ? "" : "s"} joined the workforce.`;
-    // FR-192: in "partners" a deal names its counterparty
+    // FR-244: in "partners" a deal names its counterparty; a bid nobody filled and an offer nobody bought say so
     case "goods-sold":
       return `Sold ${event.amount} ${commodityName(event.commodity)}${event.counterpartyId ? ` to ${nameOf(event.counterpartyId)}` : ""} for ${money(event.income)}.`;
     case "goods-bought":
       return `Bought ${event.amount} ${commodityName(event.commodity)}${event.counterpartyId ? ` from ${nameOf(event.counterpartyId)}` : ""} for ${money(event.cost)}.`;
     case "offer-missed":
-      return `${nameOf(event.counterpartyId)} offered to sell us ${event.amount} ${commodityName(event.commodity)}: ${event.reason === "no-hold" ? "no free hold" : "not enough money"}.`;
+      return `${nameOf(event.counterpartyId)} offered to sell us ${event.amount} ${commodityName(event.commodity)}: ${MISSED_TEXT[event.reason]}.`;
     case "offer-unsold":
       return `${event.amount} ${commodityName(event.commodity)} not sold; back in the warehouse.`;
+    case "bid-unfilled":
+      return `Nobody sold us ${event.amount} ${commodityName(event.commodity)}; the bid money is back.`;
     case "turn-ended":
       return null;
     case "game-over":

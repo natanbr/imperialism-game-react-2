@@ -31,7 +31,7 @@ const Page: React.FC<PageProps> = ({ title, entries, lines, none, testId }) => {
         <ul className={styles.ledger} aria-labelledby={titleId}>
           {lines.map((line, i) => {
             const entry = entries[i];
-            const aside = entry.kind === "missed" || entry.kind === "unsold";
+            const aside = entry.kind === "missed" || entry.kind === "unsold" || entry.kind === "unfilled";
             return (
               <li key={i} className={`${styles.ledgerLine} ${aside ? styles.ledgerAside : ""}`}>
                 <GameIcon name={COMMODITY_ICONS[entry.commodity]} /> {line}
@@ -49,8 +49,9 @@ const Page: React.FC<PageProps> = ({ title, entries, lines, none, testId }) => {
 };
 
 /**
- * The Deal Book (FR-195; Imp1 Deal Book, rules 11 section 2): the player's deals of the last resolved turn, Sold and
- * Bought side by side (the missed offers under Bought, the units left unsold under Sold), and the bottom line. It only
+ * The Deal Book (FR-195, FR-248; Imp1 Deal Book, rules 11 section 2): the player's deals of the last resolved turn, Sold and
+ * Bought side by side (the missed offers and the bids nobody filled under Bought, the units left unsold under Sold), the
+ * turn it shows ("Turn 1, Spring 1815") and the bottom line. It only
  * reads the turn's events; it builds no order.
  */
 export const DealBookModal: React.FC = () => {

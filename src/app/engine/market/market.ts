@@ -20,7 +20,7 @@ export const isTradeCommodity = (key: unknown): key is TradeCommodity =>
 
 /**
  * The market of a new game: start prices, no orders, nothing on its way. A new object each call. A "world"
- * market has no `mode` key, the v1 shape (FR-182).
+ * market has no `mode` key, the v1 shape (FR-242).
  */
 export const startMarket = (mode: MarketMode = "world"): WorldMarket => ({
   ...(mode === "partners" ? { mode } : {}),

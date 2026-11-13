@@ -1,11 +1,11 @@
 import { test, expect, Page } from '@playwright/test';
 
 // FR-078: the market and the end of the game in the running app. A new game starts with $10,000 and 4 holds, and lasts
-// 40 turns (FR-068). Since M7 the app's continent trades with partners (FR-182): nobody buys lumber any more and a minor
+// 40 turns (FR-068). Since M7 the app's continent trades with partners (FR-242): nobody buys lumber any more and a minor
 // buys only clothing, furniture and hardware, and only from a Great Power holding a consulate there (FR-184, FR-185), so
 // the sale takes two turns: a consulate with Pellis and 1 furniture made on turn 1, the furniture offered on the Board of
-// Trade (FR-194) on turn 2. Pellis because the scripted Valdoria opens its consulates in minor id order, one a turn from
-// turn 1 (FR-193), so it reaches Pellis only on turn 4: on turn 2 the furniture can only be ours to sell.
+// Trade (FR-194) on turn 2. Pellis because the scripted Valdoria opens a consulate only with a minor whose offer or demand
+// it will use, the first such in id order (FR-245): Arvelia on turn 1 and not Pellis by turn 2, so Pellis buys our furniture.
 // FR-106, FR-109: the game-over screen names both nations beside their colours and starts a new game.
 // Set SCREENSHOT_DIR to also save m3-market.png and m4-game-over.png there.
 

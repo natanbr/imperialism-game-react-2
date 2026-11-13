@@ -2,7 +2,7 @@
 // submitOrder and advanceTurn (FR-018 to FR-022). Replaces the pre-M1 turnSlice test.
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createGameStore, randomSeed, EVENT_LOG_TURNS } from '@/store/rootStore';
-import { applyOrder, newGame, resolveTurn, type Order } from '@/engine';
+import { applyOrder, marketModeOf, newGame, resolveTurn, type Order } from '@/engine';
 import { WorkerType } from '@/types/Workers';
 import { PROSPECT_COST } from '@/definisions/workPrices';
 import { game, locate, N1, N2, setTreasury, setWarehouse, T, treasury, workerId } from '../engine/fixtures';
@@ -283,5 +283,16 @@ describe('FR-144 the store plays the continent by default', () => {
 
   it('FR-144 a store can start on the v1 world', () => {
     expect(createGameStore({ seed: 3, world: 'two-islands' }).getState().game).toEqual(newGame({ seed: 3 }));
+  });
+
+  it('FR-242 the store passes the market mode on: the continent with "world", as newGame({ market }) builds it', () => {
+    const store = createGameStore({ seed: 3, market: 'world' });
+    expect(store.getState().game).toEqual(newGame({ seed: 3, world: 'continent', market: 'world' }));
+    expect(marketModeOf(store.getState().game)).toBe('world');
+
+    store.getState().startNewGame({ seed: 5, market: 'world' });
+    expect(store.getState().game).toEqual(newGame({ seed: 5, world: 'continent', market: 'world' }));
+    store.getState().startNewGame({ seed: 5 });
+    expect(marketModeOf(store.getState().game)).toBe('partners');
   });
 });

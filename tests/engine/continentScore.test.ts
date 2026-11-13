@@ -57,7 +57,7 @@ function nationTurn(state: GameState, nationId: NationId, turn: number): NationT
 /**
  * 40 turns from the real new game on `world`; the orders of the scripted nations from `orders`, none for an idle one.
  * FR-198: the continent games of FR-157 and FR-158 name the world market (`market: 'world'`), since M7 gives the
- * continent the partners market (FR-182); the partners continent is FR-196's.
+ * continent the partners market (FR-242); the partners continent is FR-247's.
  */
 function play(world: WorldId, orders: (s: GameState) => Record<string, Order[]>, seed: number, market?: MarketMode): Game {
   const start = newGame({ seed, world, ...(market ? { market } : {}) });

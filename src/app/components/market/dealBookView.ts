@@ -1,24 +1,18 @@
-// What the Deal Book screen shows (FR-192, FR-195): the engine's `dealBook` data as Imp1 ledger lines
+// What the Deal Book screen shows (FR-244, FR-195): the engine's `dealBook` data as Imp1 ledger lines
 // ("Sold 1 Clothing to Arvelia @ $810"; rules 06 section 7.5). No React, no store.
-import type { DealBook, DealEntry, OfferMissedReason } from "@/engine";
-import { commodityName, money } from "../gameText";
+import type { DealBook, DealEntry } from "@/engine";
+import { commodityName, MISSED_TEXT, money } from "../gameText";
 
 export interface DealBookView {
   /** "Sold 1 Clothing to Arvelia @ $810", then the units not sold. */
   sold: string[];
-  /** "Bought 2 Coal from Arvelia @ $110", then "Arvelia offered to sell us 1 Coal (no free hold)". */
+  /** "Bought 2 Coal from Arvelia @ $110", then "Arvelia offered to sell us 1 Coal (no free hold)", then "Nobody sold us 2 Coal (bid money back)". */
   bought: string[];
   /** Sold, Bought, Military upkeep, Net, in the Imp1 order. */
   bottomLine: { label: string; amount: number; text: string }[];
   /** No deal, no missed offer and no unsold unit: the screen says "No deals last turn." */
   empty: boolean;
 }
-
-/** Why an offer passed the nation by, as the Deal Book says it. */
-export const MISSED_TEXT: Record<OfferMissedReason, string> = {
-  "no-hold": "no free hold",
-  "no-cash": "not enough money",
-};
 
 /** Dollars with a minus sign in front for a loss: "-$1,369". */
 const signedMoney = (n: number): string => (n < 0 ? `-${money(-n)}` : money(n));
@@ -35,6 +29,8 @@ export function dealLineText(entry: DealEntry, nameOf: (countryId: string) => st
       return `${nameOf(entry.counterpartyId)} offered to sell us ${goods} (${MISSED_TEXT[entry.reason]})`;
     case "unsold":
       return `${goods} not sold, back in the warehouse`;
+    case "unfilled":
+      return `Nobody sold us ${goods} (bid money back)`;
   }
 }
 

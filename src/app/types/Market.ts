@@ -24,15 +24,15 @@ export interface TradeOrders {
 }
 
 /**
- * How the trade phase settles (FR-182): "world" is the v1 world market, an unlimited buyer and seller at
+ * How the trade phase settles (FR-242): "world" is the v1 world market, an unlimited buyer and seller at
  * the world price (FR-060 to FR-065); "partners" settles every deal with a counterparty, a minor nation or
- * another Great Power (FR-183 to FR-192).
+ * another Great Power (FR-183 to FR-191, FR-244).
  */
 export type MarketMode = "world" | "partners";
 
 export interface WorldMarket {
   /**
-   * FR-182: "partners" on the continent. Absent means "world": the world market keeps the v1 shape
+   * FR-242: "partners" on the continent. Absent means "world": the world market keeps the v1 shape
    * exactly, so every v1 assertion on it holds. Read it through `marketModeOf`.
    */
   mode?: MarketMode;

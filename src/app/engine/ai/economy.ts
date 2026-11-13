@@ -11,7 +11,7 @@
 import type { GameState } from "@/types/GameState";
 import type { Nation } from "@/types/Nation";
 import type { BuildingType, ProductionOutput } from "@/types/Industry";
-import type { TradeCommodity } from "@/types/Market";
+import type { TradeAmounts, TradeCommodity } from "@/types/Market";
 import { GoodsType, MaterialType, ResourceType } from "@/types/Resource";
 import type { Order } from "../orders/Order";
 import { nationById } from "../orders/queries";
@@ -24,7 +24,7 @@ import { buildingOf } from "../industry/industryState";
 import { healthyWorkers, labourTotal } from "../industry/labour";
 import { marketOf, priceOf, tradeCapacityOf, tradeOrdersOf } from "../market/market";
 import { marketModeOf } from "../market/partners";
-import { partnerDemand, partnerSupply, planConsulate } from "./partnerTrade";
+import { partnerDemand, partnerSupply, planConsulate } from "./scriptedPartners";
 import { mealNeeds } from "../systems/foodSystem";
 import { productionSystem } from "../systems/productionSystem";
 import { computeLogisticsTransport, logisticsSystem } from "../systems/logisticsSystem";
@@ -354,6 +354,36 @@ function nextUseOf(state: GameState, nationId: string, next: Stock): Stock {
   };
 }
 
+/** The goods the minors buy (FR-184); in "partners" the scripted player offers only these (FR-245 (c)). */
+const MINOR_GOODS: readonly TradeCommodity[] = [GoodsType.Clothing, GoodsType.Furniture, GoodsType.Hardware];
+
+/**
+ * FR-245 (b): the raw inputs next turn's run lacks, each up to one turn of its mill at capacity: timber for the
+ * lumber mill, coal and iron ore for the steel mill (the inputs of a lumber + steel pair, worth buying while
+ * 2 timber + 1 coal + 1 iron ore cost less than PAIR_VALUE), and cotton for the textile mill (wool counts as
+ * cotton; while the 4 units of a clothing cost less than a clothing). Not in the last 2 turns: what arrives
+ * next turn is made into steel and lumber the turn after.
+ */
+function rawWants(state: GameState, nationId: string, next: Stock): TradeAmounts {
+  if (turnsAfter(state) < 2) return {};
+  const nation = nationOf(state, nationId);
+  const market = marketOf(state);
+  const price = (c: TradeCommodity) => priceOf(market, c);
+  const short = (need: number, have: number) => Math.max(0, need - have);
+  const wants: TradeAmounts = {};
+  if (2 * price(ResourceType.Timber) + price(ResourceType.Coal) + price(ResourceType.IronOre) < PAIR_VALUE) {
+    const steelCap = capacityOf(nation, "steelMill");
+    wants[ResourceType.Timber] = short(2 * capacityOf(nation, "lumberMill"), next[ResourceType.Timber] ?? 0);
+    wants[ResourceType.Coal] = short(steelCap, next[ResourceType.Coal] ?? 0);
+    wants[ResourceType.IronOre] = short(steelCap, next[ResourceType.IronOre] ?? 0);
+  }
+  const fabric = RECIPES[MaterialType.Fabric].inputs[0].amount * RECIPES[GoodsType.Clothing].inputs[0].amount;
+  if (fabric * price(ResourceType.Cotton) < price(GoodsType.Clothing)) {
+    wants[ResourceType.Cotton] = short(2 * capacityOf(nation, "textileMill"), (next[ResourceType.Cotton] ?? 0) + (next[ResourceType.Wool] ?? 0));
+  }
+  return Object.fromEntries(Object.entries(wants).filter(([, n]) => (n ?? 0) > 0));
+}
+
 /**
  * The 4 cargo holds (FR-063, FR-128) each turn: (1) offer the units that pay more a hold than half
  * a bought pair gains, best world price first (ties in market order); (2) bid for the lumber or
@@ -361,17 +391,25 @@ function nextUseOf(state: GameState, nationId: string, next: Stock): Stock {
  * and the bids leave CASH_RESERVE (not on the last turn); (3) offer the rest, best price first.
  * Offers stop at what this turn's run leaves and next turn's run keeps.
  *
- * In a "partners" market (FR-193) a consulate comes first (partnerTrade.ts), each bid stops at what the
- * minors it may trade with offer, and each offer at what they want (goods only). In "world" nothing changes.
+ * In a "partners" market (FR-245; scriptedPartners.ts) nobody sells lumber or steel: a consulate first, only
+ * with a minor whose offer or demand it will use; step (2) bids for the raw inputs of its mills instead
+ * (`rawWants`), each bid capped at what the minors it may trade with offer; offers are goods only, each capped
+ * at what those minors want. In "world" nothing changes.
  */
 function planTrade(view: () => GameState, nationId: string, propose: Propose): void {
   const partners = marketModeOf(view()) === "partners";
-  if (partners) planConsulate(view, nationId, CASH_RESERVE, propose);
-  const supply = partners ? partnerSupply(view(), nationId) : undefined;
-  const demand = partners ? partnerDemand(view(), nationId) : undefined;
   const start = view();
   const { leftNow, next } = projectTurn(start, nationId);
   const keep = nextUseOf(start, nationId, next);
+  const sellable = (commodity: TradeCommodity) =>
+    Math.floor(Math.min(leftNow[commodity] ?? 0, (next[commodity] ?? 0) - (keep[commodity] ?? 0)));
+  const raw = partners ? rawWants(start, nationId, next) : {};
+  if (partners) {
+    const sell = Object.fromEntries(MINOR_GOODS.map((c) => [c, Math.max(0, sellable(c))]).filter(([, n]) => (n as number) > 0));
+    planConsulate(view, nationId, CASH_RESERVE, { buy: raw, sell }, propose);
+  }
+  const supply = partners ? partnerSupply(view(), nationId) : undefined;
+  const demand = partners ? partnerDemand(view(), nationId) : undefined;
   const market = marketOf(start);
   const ranked = [...TRADE_COMMODITIES].sort((a, b) => priceOf(market, b) - priceOf(market, a));
   const pairPrice = priceOf(market, MaterialType.Lumber) + priceOf(market, MaterialType.Steel);
@@ -385,8 +423,7 @@ function planTrade(view: () => GameState, nationId: string, propose: Propose): v
       if (free <= 0) return;
       const offered = tradeOrdersOf(view(), nationId).sell[commodity] ?? 0;
       const wanted = demand ? (demand[commodity] ?? 0) : Infinity;
-      const sellable = Math.floor(Math.min(leftNow[commodity] ?? 0, (next[commodity] ?? 0) - (keep[commodity] ?? 0), wanted));
-      const more = Math.min(free, sellable - offered);
+      const more = Math.min(free, Math.min(sellable(commodity), wanted) - offered);
       for (let n = more; n > 0; n--) if (propose({ kind: "sellCommodity", nationId, commodity, amount: offered + n })) break;
     }
   };
@@ -400,7 +437,9 @@ function planTrade(view: () => GameState, nationId: string, propose: Propose): v
   };
 
   offer(buyGainPerHold);
-  if (buying) {
+  if (partners) {
+    for (const [commodity, units] of Object.entries(raw) as [TradeCommodity, number][]) bid(commodity, units);
+  } else if (buying) {
     const lumber = next[MaterialType.Lumber] ?? 0;
     const steel = next[MaterialType.Steel] ?? 0;
     if (lumber > steel) bid(MaterialType.Steel, lumber - steel);

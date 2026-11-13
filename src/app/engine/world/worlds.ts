@@ -27,7 +27,7 @@ export const WORLDS: Readonly<Record<WorldId, () => World>> = {
   continent: continentWorld,
 };
 
-/** The market mode of a new game on each world (FR-182): the v1 world market on two-islands, partners on the continent. */
+/** The market mode of a new game on each world (FR-242): the v1 world market on two-islands, partners on the continent. */
 export const WORLD_MARKET: Readonly<Record<WorldId, MarketMode>> = { "two-islands": "world", continent: "partners" };
 
 /** The world of that key; an unknown key throws an error naming the known keys (FR-144). */

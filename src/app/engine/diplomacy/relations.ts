@@ -69,10 +69,15 @@ export function startDiplomacy(nations: readonly Pick<Nation, "id">[], minorNati
 export const relationOf = (state: GameState, a: CountryId, b: CountryId): PairDiplomacy | undefined =>
   a === b ? undefined : state.diplomacy[pairKey(a, b)];
 
-/** floor(points / 10), 0 to 8, on RELATION_SWATCHES; undefined where the pair has no entry. */
+/**
+ * The level of a points value: floor(points / 10) of the points kept within 0 to 89, so 0 to 8 on
+ * RELATION_SWATCHES. The one level rule: the diplomacy phase, the trade phase and the screens all read it here.
+ */
+export const levelOfPoints = (points: number): number =>
+  Math.floor(Math.min(MAX_RELATION_POINTS, Math.max(0, points)) / POINTS_PER_LEVEL);
+
+/** The pair's level (`levelOfPoints`); undefined where the pair has no entry. */
 export function relationLevel(state: GameState, a: CountryId, b: CountryId): number | undefined {
   const entry = relationOf(state, a, b);
-  if (!entry) return undefined;
-  const points = Math.min(MAX_RELATION_POINTS, Math.max(0, entry.points));
-  return Math.floor(points / POINTS_PER_LEVEL);
+  return entry ? levelOfPoints(entry.points) : undefined;
 }

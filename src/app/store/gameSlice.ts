@@ -78,7 +78,7 @@ export interface GameSliceOptions {
   seed?: number;
   /** The world of a new game; the continent when missing (FR-144). */
   world?: WorldId;
-  /** The market mode of a new game; the world's own when missing (FR-182: the continent's is "partners"). */
+  /** The market mode of a new game; the world's own when missing (FR-242: the continent's is "partners"). */
   market?: MarketMode;
   activeNationId?: NationId;
 }

@@ -1,29 +1,29 @@
-// The deals of the "partners" trade phase (FR-185 to FR-192): every unit has a counterparty, a minor nation or
-// another Great Power. Commodities settle in BOARD_ORDER, each in three steps: (1) each minor's offer goes to
-// the Great Powers that bid for it, in the minor's order (FR-187); (2) each minor's demand is filled from the
-// Great Powers that offer it, in the same order; (3) what is left of one Great Power's offer goes to what is
-// left of another's bid, sellers and buyers in `intentOrder`. A unit a country cannot take passes on. Pure: no
+// The deals of the "partners" trade phase (FR-185 to FR-189, FR-191, FR-244): every unit has a counterparty, a
+// minor nation or another Great Power. Commodities settle in BOARD_ORDER, each in three steps: (1) each minor's
+// offer goes to the Great Powers that bid for it, in the minor's order (FR-187); (2) each minor's demand is filled
+// from the Great Powers that offer it, in the same order; (3) what is left of one Great Power's offer goes to what
+// is left of another's bid, sellers and buyers in `intentOrder`. A unit a country cannot take passes on. Pure: no
 // random draw (the price step is tradeSystem's) and the input is never changed.
 import type { CountryId, MinorNationId, NationId } from "@/types/Common";
 import type { DiplomacyState } from "@/types/Diplomacy";
 import type { GameState } from "@/types/GameState";
 import type { TradeAmounts, TradeCommodity } from "@/types/Market";
 import type { Nation } from "@/types/Nation";
-import { BOARD_ORDER, TRADE_RELATION_POINTS } from "@/definisions/partnerTrade";
-import { MAX_RELATION_POINTS, pairKey, POINTS_PER_LEVEL, relationOf } from "../diplomacy/relations";
+import { BOARD_ORDER, TRADE_RELATION_POINTS } from "@/definisions/partnersMarket";
+import { levelOfPoints, MAX_RELATION_POINTS, pairKey, relationOf } from "../diplomacy/relations";
 import type { GameEvent, OfferMissedReason } from "../turn/context";
 import { intentOrder } from "../turn/intents";
 import { isGreatPower } from "../world/countries";
 import { marketOf, priceOf, tradeOrdersOf } from "./market";
-import { minorDemand, minorOffers, partnerRanking, tradeBarrier } from "./partners";
+import { minorDemand, minorOffers, partnerRanking, settledTradeBarrier } from "./partners";
 
 export interface PartnerSettlement {
   /** The state after the deals: treasuries, warehouses (unsold offers back), relations, deliveries; orders cleared. */
   state: GameState;
-  /** Per commodity: the units of Great Power bids and minor demand nobody filled (FR-190). */
-  unfilled: TradeAmounts;
-  /** Per commodity: the units of Great Power and minor offers nobody bought (FR-190). */
-  unsold: TradeAmounts;
+  /** Per commodity: the units the Great Powers sold, to anyone (FR-243: the price step's supply). */
+  sold: TradeAmounts;
+  /** Per commodity: the units the Great Powers bought, from anyone (FR-243: the price step's demand). */
+  bought: TradeAmounts;
 }
 
 /** One Great Power during the phase: what it still has to spend, carry, buy and sell. */
@@ -41,7 +41,6 @@ const add = (amounts: TradeAmounts, commodity: TradeCommodity, n: number): void 
 /** The deal price from the board price P and a subsidy percent, rounded down (FR-189; Imp1 ledgers [06:W35]). */
 const dealPrice = (price: number, percent: number): number => Math.max(0, Math.floor((price * (100 + percent)) / 100));
 const subsidyOf = (state: GameState, nationId: NationId, otherId: CountryId): number => relationOf(state, nationId, otherId)?.subsidies[nationId] ?? 0;
-const levelOf = (points: number): number => Math.floor(Math.min(MAX_RELATION_POINTS, Math.max(0, points)) / POINTS_PER_LEVEL);
 
 export function settlePartnerTrade(state: GameState, turn: number, emit: (event: GameEvent) => void): PartnerSettlement {
   const market = marketOf(state);
@@ -53,7 +52,8 @@ export function settlePartnerTrade(state: GameState, turn: number, emit: (event:
   const barriers = new Map<string, boolean>();
   const blocked = (nationId: NationId, otherId: CountryId): boolean => {
     const key = `${nationId}>${otherId}`;
-    if (!barriers.has(key)) barriers.set(key, tradeBarrier(state, nationId, otherId) !== undefined);
+    // The diplomacy phase ran before this one: the record is this turn's, its intents already settled (FR-163)
+    if (!barriers.has(key)) barriers.set(key, settledTradeBarrier(state, nationId, otherId) !== undefined);
     return barriers.get(key)!;
   };
 
@@ -68,8 +68,8 @@ export function settlePartnerTrade(state: GameState, turn: number, emit: (event:
   const returned = new Map<NationId, TradeAmounts>();
   /** By pair key: the commodity types the pair dealt in (FR-191). */
   const dealt = new Map<string, Set<TradeCommodity>>();
-  const unfilled: TradeAmounts = {};
-  const unsold: TradeAmounts = {};
+  const sold: TradeAmounts = {};
+  const bought: TradeAmounts = {};
 
   for (const commodity of BOARD_ORDER) {
     const price = priceOf(market, commodity);
@@ -88,6 +88,7 @@ export function settlePartnerTrade(state: GameState, turn: number, emit: (event:
           ? { type, nationId, commodity, amount: total, price: unitPrice, income: money, counterpartyId }
           : { type, nationId, commodity, amount: total, price: unitPrice, cost: money, counterpartyId }
       );
+      add(type === "goods-sold" ? sold : bought, commodity, amount);
       const pair = pairKey(nationId, counterpartyId);
       dealt.set(pair, (dealt.get(pair) ?? new Set()).add(commodity));
     };
@@ -97,7 +98,9 @@ export function settlePartnerTrade(state: GameState, turn: number, emit: (event:
     };
     /**
      * `reach` units at `unitPrice` reach the buyer for its bid: it takes those its holds and money allow (the
-     * reserve first, then the treasury) and the rest pass on (`offer-missed`). Returns the units it took.
+     * reserve first, then the treasury) and the rest pass on (`offer-missed`). Returns the units it took. With
+     * the order-time hold check (FR-188) and holds that never change in v2, "no-hold" needs holds lowered after
+     * ordering (the tests do it; M8's ships may); the branch stays for that.
      */
     const take = (buyerId: NationId, sellerId: CountryId, unitPrice: number, reach: number): number => {
       const buyer = accounts.get(buyerId)!;
@@ -129,7 +132,6 @@ export function settlePartnerTrade(state: GameState, turn: number, emit: (event:
         if (units > 0) deal("goods-bought", nationId, minorId, unitPrice, units);
         left -= units;
       }
-      add(unsold, commodity, left);
     }
 
     // (2) The minors' demand, filled from the Great Powers in the minor's order; each unit a hold of the seller.
@@ -148,7 +150,6 @@ export function settlePartnerTrade(state: GameState, turn: number, emit: (event:
         left -= units;
         deal("goods-sold", nationId, minorId, unitPrice, units);
       }
-      add(unfilled, commodity, left);
     }
 
     // (3) Great Power to Great Power: the buyer pays P less the seller's subsidy toward it, with its own holds.
@@ -169,20 +170,22 @@ export function settlePartnerTrade(state: GameState, turn: number, emit: (event:
     }
 
     // What is left: unfilled bids (their reserve refunded) and unsold offers (back in the warehouse).
-    const unsoldEvents: GameEvent[] = [];
+    const leftEvents: GameEvent[] = [];
     for (const nationId of order) {
       const account = accounts.get(nationId)!;
       account.treasury += reserve.get(nationId)!;
-      add(unfilled, commodity, account.bid[commodity] ?? 0);
+      // FR-244: the bid units no seller let the nation have; those that reached it and passed on are offer-missed
+      const passed = [...missed.values()].filter((m) => m.nationId === nationId).reduce((sum, m) => sum + m.amount, 0);
+      const unfilled = (account.bid[commodity] ?? 0) - passed;
+      if (unfilled > 0) leftEvents.push({ type: "bid-unfilled", nationId, commodity, amount: unfilled });
       const back = account.offer[commodity] ?? 0;
       if (back <= 0) continue;
-      add(unsold, commodity, back);
       const home = returned.get(nationId) ?? {};
       add(home, commodity, back);
       returned.set(nationId, home);
-      unsoldEvents.push({ type: "offer-unsold", nationId, commodity, amount: back });
+      leftEvents.push({ type: "offer-unsold", nationId, commodity, amount: back });
     }
-    for (const event of [...deals.values(), ...missed.values(), ...unsoldEvents]) emit(event);
+    for (const event of [...deals.values(), ...missed.values(), ...leftEvents]) emit(event);
   }
 
   const diplomacy = raiseRelations(state, dealt, emit);
@@ -197,8 +200,8 @@ export function settlePartnerTrade(state: GameState, turn: number, emit: (event:
 
   return {
     state: { ...state, nations, diplomacy, market: { ...market, orders: {}, deliveries } },
-    unfilled,
-    unsold,
+    sold,
+    bought,
   };
 }
 
@@ -218,8 +221,8 @@ function raiseRelations(state: GameState, dealt: ReadonlyMap<string, ReadonlySet
     const points = Math.min(MAX_RELATION_POINTS, Math.max(0, entry.points + dealt.get(key)!.size * TRADE_RELATION_POINTS));
     if (points === entry.points) continue;
     diplomacy[key] = { ...entry, points };
-    const from = levelOf(entry.points);
-    const to = levelOf(points);
+    const from = levelOfPoints(entry.points);
+    const to = levelOfPoints(points);
     if (from === to) continue;
     for (const nationId of [a, b].filter((id) => isGreatPower(state, id))) {
       emit({ type: "relation-changed", nationId, otherId: nationId === a ? b : a, from, to });

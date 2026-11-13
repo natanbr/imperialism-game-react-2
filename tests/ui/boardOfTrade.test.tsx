@@ -5,6 +5,8 @@
 // Valdoria"), for goods "Buyers:" the minors' demand, a minor the player cannot trade with marked "no consulate", "at war"
 // or "boycott", and the free holds as "Holds: 3 of 4 free". In "world" the v1 dialog is unchanged (tests/ui/marketDialog).
 // The rows come from the React-free helper components/market/boardView.ts; every control sends one order (FR-022).
+// Review fix round: a "+" the engine would refuse is disabled with its reason, and the note (FR-248); the marks and
+// favourites as this turn's diplomacy phase will leave them (FR-246).
 import { describe, it, expect } from 'vitest';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { MarketModal } from '@/components/MarketModal';
@@ -31,7 +33,7 @@ const PELLIS = 'minor-4';
 const BOARD = 'Board of Trade — Testland';
 let submitted: Order[] = [];
 
-/** A new continent game: "partners" (FR-182). Testland is nation-1; on turn 1 every minor favours it (FR-187, FR-197). */
+/** A new continent game: "partners" (FR-242). Testland is nation-1; on turn 1 every minor favours it (FR-187, FR-197). */
 const start = (): GameState => newGame({ seed: 1, world: 'continent' });
 
 /** Opens the market dialog on `state` for the player and records every order it submits. */
@@ -61,6 +63,15 @@ const now = () => useGameStore.getState().game;
 /** Test setup: the nation holds a consulate in the minor (FR-163). */
 const withConsulate = (s: GameState, nationId: string, minorId: string): GameState =>
   setPair(s, nationId, minorId, { consulates: [...s.diplomacy[pairKey(nationId, minorId)].consulates, nationId].sort() });
+const setTreasuryOf = (s: GameState, treasury: number): GameState => ({ ...s, nations: s.nations.map((n) => (n.id === N1 ? { ...n, treasury } : n)) });
+/** Sends an order through the store, as a dialog would, and expects it accepted. */
+const order = (o: Order) => {
+  let result: unknown;
+  act(() => {
+    result = useGameStore.getState().submitOrder(o);
+  });
+  expect(result).toEqual({ ok: true });
+};
 
 describe('FR-194 the Board of Trade: what it shows', () => {
   it('FR-194 in "partners" the market dialog is named "Board of Trade", not "World market"', () => {
@@ -172,6 +183,27 @@ describe('FR-194 the Board of Trade: what it shows', () => {
     expect(partners('timber', 'sellers')[3]).toBe('Pellis 1, favours Testland');
   });
 
+  it('FR-246 a war declared this turn marks the minor "at war" at once; a boycott lifted this turn lifts the mark', () => {
+    let s = withConsulate(withConsulate(start(), N1, ARVELIA), N1, SUNDMARK);
+    s = setPair(s, N1, SUNDMARK, { boycotts: [N1] });
+    openBoard(s);
+    expect(partners('coal', 'sellers').slice(0, 2)).toEqual(['Arvelia 3, favours Testland', 'Sundmark 1, favours Testland (boycott)']);
+
+    order({ kind: 'proposeOverture', nationId: N1, overture: 'war', targetId: ARVELIA });
+    order({ kind: 'setTradePolicy', nationId: N1, targetId: SUNDMARK, subsidyPercent: 0, boycott: false });
+
+    // The war also costs Testland points with every minor (FR-168), so this turn's trade phase serves Valdoria first
+    expect(partners('coal', 'sellers').slice(0, 2)).toEqual(['Arvelia 3, favours Valdoria (at war)', 'Sundmark 1, favours Valdoria']);
+  });
+
+  it('FR-248 the note under the title says when deals settle and who trades; it is the dialog\'s description', () => {
+    openBoard(start());
+    const note = document.getElementById(dialog().getAttribute('aria-describedby')!)!;
+    expect(text(note)).toBe(
+      'Deals settle at End Turn at the board price. A minor trades only where we hold a consulate (one ordered this turn counts) and serves the Great Power it favours first. Bought goods arrive next turn.'
+    );
+  });
+
   it('FR-194 the cash, "Holds: 4 of 4 free" and the bids used of 4', () => {
     openBoard(start());
     expect(text(within(dialog()).getByTestId('market-cash'))).toBe('Cash: $10,000');
@@ -236,17 +268,43 @@ describe('FR-194 the Board of Trade: orders', () => {
     expect(button('coal', 'Offer one more Coal')).toBeTruthy();
   });
 
-  it('FR-194 FR-062 at most 4 bids: "Bids: 4 of 4", and a fifth is refused in plain words, changing nothing', () => {
+  it('FR-194 FR-248 every hold taken: "Holds: 0 of 4 free", each "+" disabled saying so, and a press sends nothing', () => {
     openBoard(start());
     for (const c of ['coal', 'timber', 'ironOre', 'cotton']) fireEvent.click(button(c, `Bid one more ${cell(c, 'name')}`));
     expect(text(within(dialog()).getByTestId('market-bids'))).toBe('Bids: 4 of 4');
     expect(text(within(dialog()).getByTestId('market-holds'))).toBe('Holds: 0 of 4 free');
-    const before = now();
+    const sent = submitted.length;
 
+    for (const plus of [button('wool', 'Bid one more Wool'), button('coal', 'Bid one more Coal'), button('lumber', 'Offer one more Lumber')]) {
+      expect({ disabled: (plus as HTMLButtonElement).disabled, title: plus.title }).toEqual({ disabled: true, title: 'No free hold this turn' });
+    }
     fireEvent.click(button('wool', 'Bid one more Wool'));
-    expect(submitted.at(-1)).toEqual({ kind: 'buyCommodity', nationId: N1, commodity: 'wool', amount: 1 });
-    expect(now()).toBe(before);
-    expect(text(within(dialog()).getByRole('alert'))).toBe('Purchase refused: over the limit.');
+    expect(submitted).toHaveLength(sent);
+    expect(within(dialog()).queryByRole('alert')).toBeNull();
+    // "−" stays: lowering is always allowed
+    expect((button('coal', 'Bid one less Coal') as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('FR-248 at most 4 bids: with holds to spare a fifth commodity\'s Bid "+" is disabled with "Already 4 bids this turn, the most"; a row already bid on is not', () => {
+    const s = start();
+    openBoard({ ...s, nations: s.nations.map((n) => (n.id === N1 ? { ...n, merchantMarine: { ...n.merchantMarine, holds: 6 } } : n)) });
+    for (const c of ['coal', 'timber', 'ironOre', 'cotton']) fireEvent.click(button(c, `Bid one more ${cell(c, 'name')}`));
+    expect(text(within(dialog()).getByTestId('market-holds'))).toBe('Holds: 2 of 6 free');
+
+    expect(button('wool', 'Bid one more Wool').title).toBe('Already 4 bids this turn, the most');
+    expect((button('wool', 'Bid one more Wool') as HTMLButtonElement).disabled).toBe(true);
+    expect((button('coal', 'Bid one more Coal') as HTMLButtonElement).disabled).toBe(false);
+    expect(button('coal', 'Bid one more Coal').title).toBe('');
+  });
+
+  it('FR-248 Offer "+" with nothing in the warehouse says "None left in the warehouse"; Bid "+" without the money "Not enough money"', () => {
+    openBoard(setTreasuryOf(start(), 50));
+    expect(button('clothing', 'Offer one more Clothing').title).toBe('None left in the warehouse');
+    expect((button('clothing', 'Offer one more Clothing') as HTMLButtonElement).disabled).toBe(true);
+    expect(button('coal', 'Bid one more Coal').title).toBe('Not enough money');
+    expect((button('coal', 'Bid one more Coal') as HTMLButtonElement).disabled).toBe(true);
+    // A row the player can trade has an enabled "+" with no title
+    expect((button('lumber', 'Offer one more Lumber') as HTMLButtonElement).disabled).toBe(false);
   });
 
   it('FR-194 Close closes the Board of Trade', () => {
