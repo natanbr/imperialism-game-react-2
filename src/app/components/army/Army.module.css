@@ -30,8 +30,9 @@
   width: 860px;
 }
 
+/* At 1280x720 the widest the window allows (16 px each side), so three cards a row hold each cost on one line (FR-264) */
 .armoury {
-  width: 1180px;
+  width: 1248px;
 }
 
 .dialog:focus,
@@ -65,6 +66,33 @@
 /* A second summary (the upkeep, FR-261) sits right after the first */
 .summary + .summary {
   margin-left: 0;
+}
+
+/* FR-266: the whole army's upkeep, under the header's "Upkeep here", right-aligned with it */
+.subSummary {
+  flex: none;
+  margin: calc(-1 * var(--spacing-sm)) 0 var(--spacing-md);
+  text-align: right;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+/* FR-265: what the Arms column holds, under the table */
+.legend {
+  flex: none;
+  margin: var(--spacing-sm) 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+/* FR-267: a militia-only province: why there are no controls, in their place */
+.noOrders {
+  flex: none;
+  margin: var(--spacing-md) 0 0;
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--color-border-strong);
+  color: var(--color-text-muted);
 }
 
 /* FR-261: the cash End Turn will find is below the army upkeep */
@@ -140,9 +168,9 @@
   border-radius: var(--radius-sm);
 }
 
-.note {
-  flex: none;
-  margin: 0 0 var(--spacing-md);
+/* The Armoury's note beside its title (FR-212, FR-264) */
+.headerNote {
+  margin: 0;
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
 }
@@ -311,23 +339,24 @@
   color: var(--color-text-muted);
 }
 
-/* --- the Armoury (FR-212): the Imp1 grid of 8 unit slots, here one card per recruitable regiment -------------------- */
+/* --- the Armoury (FR-212): the Imp1 grid of unit slots, here one card per recruitable regiment ---------------------- */
 
+/* Three a row (FR-264): a card is wide enough for its cost on one line and most "At hand" lines whole */
 .cards {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px 10px;
   align-content: start;
 }
 
 .card {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 8px 10px;
+  gap: 3px;
+  padding: 6px 10px;
   background: var(--color-bg-card);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -369,11 +398,12 @@
   align-items: baseline;
   gap: 6px;
   font-size: var(--font-size-sm);
+  line-height: 16px;
 }
 
 .itemsLabel {
   flex: none;
-  width: 52px;
+  width: 48px;
   color: var(--color-text-muted);
 }
 
@@ -391,19 +421,39 @@
   white-space: nowrap;
 }
 
-/* Less at hand than one more costs: the word "short" and the danger colour (FR-212) */
+/* "At hand": one line per item, which wraps only between its parts, so an amount is never cut (FR-264) */
+.atHandList {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 1px;
+}
+
+.part {
+  white-space: nowrap;
+}
+
+/* None of the type ordered and too little left for one: the danger colour, and the word "short" in bold (FR-212, FR-264) */
 .short {
   color: var(--color-text-danger);
+}
+
+.shortMark {
   font-weight: 700;
+}
+
+.orderLabel {
+  flex: none;
+  color: var(--color-text-muted);
+  white-space: nowrap;
 }
 
 .order {
   margin-top: auto;
-  padding-top: 4px;
+  padding-top: 3px;
   border-top: 1px solid var(--color-border);
   display: flex;
   align-items: center;
   gap: 6px;
-  min-height: 30px;
+  min-height: 27px;
   font-size: var(--font-size-sm);
 }

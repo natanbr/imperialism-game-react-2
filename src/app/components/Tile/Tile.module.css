@@ -348,3 +348,28 @@ button.armyMarker:focus-visible {
   width: 10px;
   height: 10px;
 }
+
+/* Our marker and its disband mark (FR-263) */
+.armySlot {
+  position: relative;
+  display: block;
+}
+
+/* "−1": regiments here have a disband order this turn; on the marker's top left corner, in the danger colour */
+.armyDisband {
+  position: absolute;
+  top: -6px;
+  left: -7px;
+  min-width: 14px;
+  padding: 0 2px;
+  border: 1px solid var(--color-surface);
+  border-radius: 7px;
+  background: var(--color-bad);
+  color: var(--color-on-accent);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 12px;
+  text-align: center;
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}

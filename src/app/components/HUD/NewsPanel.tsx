@@ -1,10 +1,11 @@
-import React from "react";
+import React, { useId } from "react";
 import { useGameStore } from "@/store/rootStore";
 import { newsLines, refusalText } from "../gameText";
 
 /**
  * The last refused order and the news of the last resolved turn (FR-024): the player's lines first,
- * then each other nation's lines under its name (FR-107).
+ * then each other nation's lines under its name (FR-107). The lines are their own scroll region (FR-268): it fills the
+ * HUD's space left above the fade (FR-235) in whole lines, so no line is cut behind the fade, and Tab reaches it.
  */
 export const NewsPanel: React.FC = () => {
   const lastRejection = useGameStore((s) => s.lastRejection);
@@ -13,6 +14,7 @@ export const NewsPanel: React.FC = () => {
   const nations = useGameStore((s) => s.game.nations);
   const minorNations = useGameStore((s) => s.game.minorNations);
   const provinces = useGameStore((s) => s.game.provinces);
+  const headingId = useId();
 
   // Great Powers and minor nations: diplomacy lines name both (FR-176); a march names its provinces (FR-209).
   const nameOf = (id: string) =>
@@ -27,20 +29,23 @@ export const NewsPanel: React.FC = () => {
         </div>
       )}
       {lastReport && (
-        <div>
-          <strong>
+        <>
+          <h3 id={headingId} className="news-heading">
             News, turn {lastReport.turn} ({lastReport.year})
-          </strong>
+          </h3>
           {news.length > 0 ? (
-            <ul style={{ margin: "4px 0 0", paddingLeft: 16 }}>
-              {news.map((line, i) => (
-                <li key={i}>{line}</li>
-              ))}
-            </ul>
+            <div className="news-scroll">
+              {/* A scroll region the keyboard can reach (Tab, then the arrow keys, Page Down, End) */}
+              <ul className="news-list" tabIndex={0} aria-labelledby={headingId} data-testid="news-list">
+                {news.map((line, i) => (
+                  <li key={i}>{line}</li>
+                ))}
+              </ul>
+            </div>
           ) : (
             <div>Nothing to report.</div>
           )}
-        </div>
+        </>
       )}
     </div>
   );

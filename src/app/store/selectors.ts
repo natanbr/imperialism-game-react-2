@@ -3,7 +3,7 @@ import { Tile } from '@/types/Tile';
 import { Worker } from '@/types/Workers';
 import { createSelector } from 'reselect';
 import { completedTileIds } from '@/components/gameText';
-import { markersBySeat } from '@/components/army/armyView';
+import { marchArrows, markersBySeat } from '@/components/army/armyView';
 import { foodForecast, scoreOf, scoreTable, upkeepForecast } from '@/engine';
 import { GameStore } from './rootStore';
 
@@ -42,6 +42,11 @@ export const selectUpkeepForecast = createSelector(
 /** The army markers of each seat tile, the province's owner first, ours as buttons (FR-210). */
 export const selectArmyMarkersBySeat = createSelector([(state: GameStore) => state.game, selectActiveNationId], (game, activeNationId) =>
   markersBySeat(game, activeNationId)
+);
+
+/** The player's march orders of this turn as arrows on the map (FR-263). */
+export const selectMarchArrows = createSelector([(state: GameStore) => state.game, selectActiveNationId], (game, activeNationId) =>
+  marchArrows(game, activeNationId)
 );
 
 /** Every nation's score now, highest first, ties in founding order (FR-106). */

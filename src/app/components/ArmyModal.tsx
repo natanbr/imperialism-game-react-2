@@ -2,7 +2,7 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useGameStore } from "../store/rootStore";
 import { refusalText } from "./gameText";
-import { armyView, disbandControl, disbandQuestion, marchControl, type ArmyControl, type RegimentRowView } from "./army/armyView";
+import { ARMY_REASON, armyView, disbandControl, disbandQuestion, marchControl, type ArmyControl, type RegimentRowView } from "./army/armyView";
 import styles from "./army/Army.module.css";
 import { UI_ICONS } from "./icons";
 import { GameIcon } from "./GameIcon";
@@ -115,6 +115,7 @@ const ArmyScreen: React.FC<{ provinceId: string }> = ({ provinceId }) => {
   const selectId = useId();
   const marchReasonId = useId();
   const disbandReasonId = useId();
+  const legendId = useId();
   const disbandButton = useRef<HTMLButtonElement>(null);
   const [ticked, setTicked] = useState<string[]>([]);
   const [chosen, setChosen] = useState<string | undefined>(undefined);
@@ -146,13 +147,17 @@ const ArmyScreen: React.FC<{ provinceId: string }> = ({ provinceId }) => {
         <span className={styles.summary} data-testid="force-size">
           Force Size: <strong>{view.forceSize}</strong>
         </span>
-        <span className={styles.summary} data-testid="army-upkeep">
-          {view.upkeep}
+        <span className={styles.summary} data-testid="army-upkeep-here">
+          {view.upkeepHere}
         </span>
         <button className={styles.closeButton} onClick={close} aria-label="Close army">
           <span aria-hidden="true">×</span>
         </button>
       </header>
+      {/* FR-266: the whole army's upkeep apart from this province's, so a militia-only province reads $0 above */}
+      <p className={styles.subSummary} data-testid="army-upkeep">
+        {view.upkeep}
+      </p>
 
       {view.upkeepWarning && (
         <div className={styles.warning} role="status" data-testid="army-upkeep-warning">
@@ -175,11 +180,13 @@ const ArmyScreen: React.FC<{ provinceId: string }> = ({ provinceId }) => {
           <table className={styles.table}>
             <thead>
               <tr>
-                <th>Regiment</th>
-                <th>Category</th>
-                <th className={styles.number}>Arms</th>
-                <th>Health</th>
-                <th>Status</th>
+                <th scope="col">Regiment</th>
+                <th scope="col">Category</th>
+                <th scope="col" className={styles.number} aria-describedby={legendId} title={view.armsLegend}>
+                  Arms
+                </th>
+                <th scope="col">Health</th>
+                <th scope="col">Status</th>
               </tr>
             </thead>
             <tbody>
@@ -192,6 +199,19 @@ const ArmyScreen: React.FC<{ provinceId: string }> = ({ provinceId }) => {
       )}
 
       {view.rows.length > 0 && (
+        <p id={legendId} className={styles.legend} data-testid="arms-legend">
+          {view.armsLegend}
+        </p>
+      )}
+
+      {/* FR-267: militia never march or disband, so a militia-only province has no controls, only the reason, once */}
+      {view.militiaOnly && (
+        <p className={styles.noOrders} data-testid="army-no-orders">
+          {ARMY_REASON.militiaStay}
+        </p>
+      )}
+
+      {view.rows.length > 0 && !view.militiaOnly && (
         <div className={styles.controls}>
           <div className={styles.controlGroup}>
             <label htmlFor={selectId} className={styles.label}>
@@ -233,7 +253,7 @@ const ArmyScreen: React.FC<{ provinceId: string }> = ({ provinceId }) => {
         </div>
       )}
 
-      {asking && selected.length > 0 && (
+      {asking && selected.length > 0 && !view.militiaOnly && (
         <ConfirmDisband
           question={disbandQuestion(selected.map((r) => r.name))}
           onDisband={() => {

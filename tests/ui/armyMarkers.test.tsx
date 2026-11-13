@@ -11,6 +11,7 @@ import { ArmyModal } from '@/components/ArmyModal';
 import { markerLabel } from '@/components/army/armyView';
 import { useGameStore } from '@/store/rootStore';
 import { newGame, type Order } from '@/engine';
+import { tryApplyOrder } from '@/engine/orders/apply';
 import { NATION_COLORS, THEME } from '@/styles/theme';
 import type { GameState } from '@/types/GameState';
 import { addRegiments, continent, idOf, NE1, NW1, SW1 } from '../engine/armyFixtures';
@@ -147,5 +148,101 @@ describe('FR-210 army markers on the seat tiles', () => {
     expect(markerLabel({ forceSize: 4, regiments: 3, militia: 4 }, 'Testland')).toBe('Testland army: force size 4, 3 regiments, 4 militia');
     expect(markerLabel({ forceSize: 2, regiments: 1, militia: 0 }, 'Testland')).toBe('Testland army: force size 2, 1 regiment');
     expect(markerLabel({ forceSize: 1, regiments: 1, militia: 1 }, 'Valdoria')).toBe('Valdoria army: force size 1, 1 regiment, 1 militia');
+  });
+});
+
+// M8 QA fix round, item 1. FR-263: before End Turn the map shows the player's own army orders: a dashed arrow in the
+// nation's colour from the source province's marker to the destination's seat, with the count of regiments marching,
+// named "Testland North-West: 1 regiment marching in from Testland South-West"; a disband ordered shows "−1" on the
+// source marker. The markers' names say it too.
+describe('FR-263 pending army orders on the map', () => {
+  const N2 = 'nation-2';
+  /** Renders the map on a new continent game and returns it with a way to send orders through the store. */
+  function mapWithOrders() {
+    show(continent());
+    const view = render(<MapView />);
+    const send = (order: Order) =>
+      act(() => {
+        expect(useGameStore.getState().submitOrder(order)).toEqual({ ok: true });
+      });
+    const id = (name: string) => idOf(useGameStore.getState().game, N1, name);
+    return { ...view, send, id };
+  }
+  const arrows = (container: HTMLElement) => within(container).queryAllByTestId('march-arrow');
+
+  it('FR-263 a march ordered: one arrow from the source marker to the destination seat, in the nation\'s colour, dashed, with its count and its name', () => {
+    const { container, send, id } = mapWithOrders();
+    expect(arrows(container)).toEqual([]);
+    send({ kind: 'moveArmy', nationId: N1, fromProvinceId: SW1, regimentIds: [id('1st Regulars')], toProvinceId: NW1 });
+
+    const [arrow] = arrows(container);
+    expect(arrows(container)).toHaveLength(1);
+    expect(arrow.getAttribute('role')).toBe('img');
+    expect(arrow.getAttribute('aria-label')).toBe('Testland North-West: 1 regiment marching in from Testland South-West');
+    expect(screen.getByRole('img', { name: 'Testland North-West: 1 regiment marching in from Testland South-West' })).toBe(arrow);
+    expect(text(within(arrow).getByTestId('march-count'))).toBe('1');
+    const line = within(arrow).getByTestId('march-line');
+    expect(line.getAttribute('stroke')).toBe(NATION_COLORS[0]);
+    expect(line.getAttribute('stroke-dasharray')).toBeTruthy();
+    expect(within(arrow).getByTestId('march-head').getAttribute('fill')).toBe(NATION_COLORS[0]);
+
+    // From the South-West marker (seat 2-9, odd row: 105, 378; the marker's centre 1 px right of the tile's left edge,
+    // 21 px down) towards the North-West seat's marker (4-4: 168, 168), leaving the two markers clear
+    const [x1, y1, x2, y2] = ['x1', 'y1', 'x2', 'y2'].map((a) => Number(line.getAttribute(a)));
+    const near = (x: number, y: number, cx: number, cy: number) => Math.hypot(x - cx, y - cy);
+    expect(near(x1, y1, 106, 399)).toBeGreaterThanOrEqual(12);
+    expect(near(x1, y1, 106, 399)).toBeLessThanOrEqual(18);
+    expect(near(x2, y2, 169, 189)).toBeGreaterThanOrEqual(12);
+    expect(near(x2, y2, 169, 189)).toBeLessThanOrEqual(26);
+    expect(y2).toBeLessThan(y1);
+  });
+
+  it('FR-263 two regiments to one province make one arrow with "2"; the markers name the regiments marching out and in', () => {
+    const { container, send, id } = mapWithOrders();
+    send({ kind: 'moveArmy', nationId: N1, fromProvinceId: SW1, regimentIds: [id('1st Regulars'), id('2nd Regulars')], toProvinceId: NW1 });
+
+    expect(arrows(container).map((a) => a.getAttribute('aria-label'))).toEqual(['Testland North-West: 2 regiments marching in from Testland South-West']);
+    expect(text(within(arrows(container)[0]).getByTestId('march-count'))).toBe('2');
+    expect(markersIn(container, '2-9').map((m) => m.getAttribute('aria-label'))).toEqual(['Testland army: force size 4, 3 regiments, 4 militia, 2 marching out']);
+    expect(markersIn(container, '4-4').map((m) => m.getAttribute('aria-label'))).toEqual(['Testland militia: 4, 2 marching in']);
+  });
+
+  it('FR-263 a disband ordered shows "−1" on the source marker and in its name; Cancel takes the arrow and the mark away', () => {
+    const { container, send, id } = mapWithOrders();
+    send({ kind: 'disbandRegiments', nationId: N1, provinceId: SW1, regimentIds: [id('1st Artillery')] });
+    send({ kind: 'moveArmy', nationId: N1, fromProvinceId: SW1, regimentIds: [id('1st Regulars')], toProvinceId: NE1 });
+
+    const [capital] = markersIn(container, '2-9');
+    expect(capital.getAttribute('aria-label')).toBe('Testland army: force size 4, 3 regiments, 4 militia, 1 marching out, 1 to disband');
+    expect(text(within(tileEl(container, '2-9')).getByTestId('army-disband'))).toBe('−1');
+    expect(within(tileEl(container, '2-9')).getByTestId('army-disband').getAttribute('aria-hidden')).toBe('true');
+    expect(arrows(container).map((a) => a.getAttribute('aria-label'))).toEqual(['Testland North-East: 1 regiment marching in from Testland South-West']);
+
+    send({ kind: 'cancelDisband', nationId: N1, regimentIds: [id('1st Artillery')] });
+    send({ kind: 'cancelArmyMove', nationId: N1, regimentIds: [id('1st Regulars')] });
+    expect(within(tileEl(container, '2-9')).queryByTestId('army-disband')).toBeNull();
+    expect(arrows(container)).toEqual([]);
+    expect(markersIn(container, '2-9')[0].getAttribute('aria-label')).toBe('Testland army: force size 4, 3 regiments, 4 militia');
+  });
+
+  it('FR-263 after End Turn the orders are done: no arrow, the regiment is in the marker of its new province', () => {
+    const { container, send, id } = mapWithOrders();
+    send({ kind: 'moveArmy', nationId: N1, fromProvinceId: SW1, regimentIds: [id('1st Regulars')], toProvinceId: NW1 });
+    act(() => useGameStore.getState().advanceTurn());
+    expect(arrows(container)).toEqual([]);
+    expect(markersIn(container, '4-4').map((m) => m.getAttribute('aria-label'))).toEqual(['Testland army: force size 1, 1 regiment, 4 militia']);
+  });
+
+  it("FR-263 another nation's orders are not shown (they are not known before End Turn)", () => {
+    let s = continent();
+    const valdoria = s.armies.find((a) => a.ownerId === N2 && a.regiments.length === 7)!;
+    const order: Order = { kind: 'moveArmy', nationId: N2, fromProvinceId: valdoria.provinceId, regimentIds: [valdoria.regiments[0].id], toProvinceId: 'province-nation-2-nw' };
+    const applied = tryApplyOrder(s, order);
+    expect(applied.result).toEqual({ ok: true });
+    s = applied.state;
+    show(s);
+    const { container } = render(<MapView />);
+    expect(arrows(container)).toEqual([]);
+    expect(markersIn(container, '14-9')[0].getAttribute('aria-label')).toBe('Valdoria army: force size 4, 3 regiments, 4 militia');
   });
 });

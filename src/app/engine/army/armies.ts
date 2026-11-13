@@ -133,6 +133,40 @@ export function regimentStatus(state: GameState, regimentId: RegimentId): Regime
 export const marchTargets = (state: GameState, nationId: NationId, provinceId: ProvinceId): Province[] =>
   adjacentProvinces(state, provinceId).filter((p) => p.ownerId === nationId);
 
+export interface PendingMarch {
+  fromProvinceId: ProvinceId;
+  toProvinceId: ProvinceId;
+  /** Regiments ordered to march from the one to the other this turn. */
+  count: number;
+}
+
+export interface PendingArmyOrders {
+  /** One entry per pair of provinces, in the order of the nation's armies and their regiments. */
+  marches: PendingMarch[];
+  /** Regiments ordered to disband this turn, by province. */
+  disbands: Record<ProvinceId, number>;
+}
+
+/**
+ * The nation's march and disband orders of this turn, as the map shows them before End Turn (FR-263): each regiment
+ * counted once, by the order that holds it now (`pendingArmyIntent`, as the Army screen's status reads it).
+ */
+export function pendingArmyOrders(state: GameState, nationId: NationId): PendingArmyOrders {
+  const marches = new Map<string, PendingMarch>();
+  const disbands: Record<ProvinceId, number> = {};
+  for (const army of armiesOf(state, nationId)) {
+    for (const regiment of army.regiments) {
+      const intent = pendingArmyIntent(state, regiment.id);
+      if (intent?.kind === "disband") disbands[army.provinceId] = (disbands[army.provinceId] ?? 0) + 1;
+      if (intent?.kind !== "army-move") continue;
+      const key = `${army.provinceId}>${intent.toProvinceId}`;
+      const march = marches.get(key) ?? { fromProvinceId: army.provinceId, toProvinceId: intent.toProvinceId, count: 0 };
+      marches.set(key, { ...march, count: march.count + 1 });
+    }
+  }
+  return { marches: [...marches.values()], disbands };
+}
+
 // --- the Armoury (FR-200, FR-212) -----------------------------------------------------------
 
 /** The count of the type the nation ordered this turn. */
@@ -157,6 +191,15 @@ export function withRecruiting(nation: Nation, type: RegimentType, count: number
   const recruiting = { ...(nation.recruiting ?? {}), [type]: count };
   if (count === 0) delete recruiting[type];
   return { ...nation, treasury: nation.treasury - more * def.cash, warehouse, industry: { ...nation.industry, workers }, recruiting };
+}
+
+/**
+ * The nation as it was before this turn's recruit orders (FR-264): every count set back to 0, so the cash, armaments,
+ * horses and workers they took are back. The same nation when it recruits nothing this turn. A read: nothing is ordered.
+ */
+export function beforeRecruiting(nation: Nation): Nation {
+  const types = Object.keys(nation.recruiting ?? {}) as RegimentType[];
+  return types.reduce((n, type) => withRecruiting(n, type, 0), nation);
 }
 
 /**

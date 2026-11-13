@@ -6,6 +6,8 @@ import { test, expect, Page, Locator } from '@playwright/test';
 // On the way: the Armoury's cards and the reason beside a disabled "+" (FR-212), the markers as buttons named by their
 // force size and militia (FR-210), the Army screen's rows, March and its status (FR-211), the news (FR-209).
 // At 1280x720 the Armoury and the Army screen fit the window: neither the page nor the dialog scrolls.
+// M8 QA fix round: each card's cost on one line (FR-264), "At hand" before this turn's recruits and what they reserve
+// (FR-264), the Arms legend (FR-265), the province's and the nation's upkeep (FR-266), the march arrow (FR-263).
 // Set SCREENSHOT_DIR to also save m8-armoury.png, m8-army.png and m8-map.png there.
 
 test.use({ viewport: { width: 1280, height: 720 } });
@@ -35,6 +37,22 @@ const capital = (page: Page) => page.getByRole('dialog', { name: /Capital/ });
 async function openCapital(page: Page) {
   await page.getByRole('button', { name: /Open Capital/ }).click();
   await expect(capital(page)).toBeVisible();
+}
+
+/** FR-264: every card's cost list lies on one line: its items share one top and none wraps inside. */
+async function costsOnOneLine(armoury: Locator) {
+  const lists = await armoury.getByRole('list', { name: 'Cost' }).evaluateAll((els) =>
+    els.map((el) => {
+      const boxes = [...el.querySelectorAll('li')].map((li) => li.getBoundingClientRect());
+      const tops = boxes.map((b) => b.top);
+      return { spread: Math.max(...tops) - Math.min(...tops), tallest: Math.max(...boxes.map((b) => b.height)) };
+    })
+  );
+  expect(lists).toHaveLength(7);
+  for (const list of lists) {
+    expect(list.spread).toBeLessThanOrEqual(1);
+    expect(list.tallest).toBeLessThanOrEqual(20);
+  }
 }
 
 /** The dialog lies inside the 1280x720 window, does not scroll itself, and the page does not scroll either. */
@@ -77,7 +95,9 @@ test('FR-214 FR-210 FR-211 FR-212 armaments, the Armoury, the Army screen and a 
   const recruitRegulars = regulars.getByRole('button', { name: 'Recruit one more Regulars' });
   await expect(recruitRegulars).toBeDisabled();
   await expect(recruitRegulars).toHaveAccessibleDescription('Not enough armaments');
-  await expect(regulars.getByRole('list', { name: 'At hand' }).getByRole('listitem')).toHaveText(['4 untrained workers', /0 armaments\s*\(short\)/, '$10,000']);
+  await expect(regulars.getByRole('list', { name: 'At hand' }).getByRole('listitem')).toHaveText(['Untrained workers: 4 free', /^\s*Armaments: 0 in warehouse\s*\(short\)$/, 'Cash: $10,000']);
+  await expect(regulars.getByRole('list', { name: 'Cost' }).getByRole('listitem')).toHaveText(['1 untrained worker', '1 armament', '$500']);
+  await costsOnOneLine(armoury);
   await fitsTheWindow(page, armoury);
   await page.keyboard.press('Escape');
   await expect(armoury).toHaveCount(0);
@@ -100,6 +120,14 @@ test('FR-214 FR-210 FR-211 FR-212 armaments, the Armoury, the Army screen and a 
   // The last armament went to the Regulars: every "+" says why now
   await expect(recruitRegulars).toBeDisabled();
   await expect(regulars.getByTestId('count-note')).toHaveText('Not enough armaments');
+  // FR-264: the recruit that worked reads what it reserved, not "short"
+  await expect(regulars.getByRole('list', { name: 'At hand' }).getByRole('listitem')).toHaveText([
+    /^\s*Untrained workers: \d+ free, 1 reserved by this order$/,
+    'Armaments: 1 in warehouse, 1 reserved by this order',
+    /^\s*Cash: \$[\d,]+, \$500 reserved by this order$/,
+  ]);
+  await expect(regulars.getByRole('list', { name: 'At hand' })).not.toContainText('short');
+  await costsOnOneLine(armoury);
   await fitsTheWindow(page, armoury);
   if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/m8-armoury.png` });
   await armoury.getByRole('button', { name: 'Close Armoury' }).click();
@@ -120,6 +148,11 @@ test('FR-214 FR-210 FR-211 FR-212 armaments, the Armoury, the Army screen and a 
   await expect(third.getByTestId('health')).toHaveText('100%');
   await expect(third.getByTestId('status')).toHaveText('Available');
   await expect(army.getByTestId('march-reason')).toHaveText('Tick the regiments to march first.');
+  // FR-265, FR-266: the Arms legend under the table; this province's upkeep apart from the whole army's
+  await expect(army.getByTestId('arms-legend')).toHaveText('Arms: armaments per regiment; each costs $25 a turn and counts toward force size');
+  await expect(army.getByRole('columnheader', { name: 'Arms' })).toHaveAccessibleDescription('Arms: armaments per regiment; each costs $25 a turn and counts toward force size');
+  await expect(army.getByTestId('army-upkeep-here')).toHaveText('Upkeep here: $125 a turn');
+  await expect(army.getByTestId('army-upkeep')).toHaveText('Army upkeep at End Turn: $125 for all provinces');
   await fitsTheWindow(page, army);
 
   // March it to Testland North-West
@@ -132,9 +165,15 @@ test('FR-214 FR-210 FR-211 FR-212 armaments, the Armoury, the Army screen and a 
   await page.keyboard.press('Escape');
   await expect(army).toHaveCount(0);
   await expect(bigger).toBeFocused();
+  // FR-263: before End Turn the march shows on the map as an arrow with its count; the marker names it
+  const arrow = page.getByRole('img', { name: 'Testland North-West: 1 regiment marching in from Testland South-West' });
+  await expect(arrow).toBeVisible();
+  await expect(arrow.getByTestId('march-count')).toHaveText('1');
+  await expect(page.getByRole('button', { name: 'Testland army: force size 5, 4 regiments, 4 militia, 1 marching out', exact: true })).toBeVisible();
 
   await endTurn(page, 4);
   await expect(page.getByTestId('news-panel')).toContainText('1 regiment marched from Testland South-West to Testland North-West.');
+  await expect(page.getByTestId('march-arrow')).toHaveCount(0);
   // The North-West marker at force size 1, the capital's back at 4
   await expect(page.getByRole('button', { name: 'Testland army: force size 1, 1 regiment, 4 militia' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Testland army: force size 4, 3 regiments, 4 militia' })).toBeVisible();

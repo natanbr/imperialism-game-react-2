@@ -104,6 +104,7 @@ export {
   armiesOf,
   armyAt,
   armyMarkers,
+  beforeRecruiting,
   capitalProvinceOf,
   findRegiment,
   forceSize,
@@ -113,6 +114,7 @@ export {
   militiaCount,
   ordinal,
   pendingArmyIntent,
+  pendingArmyOrders,
   recruitingOf,
   regimentStatus,
   regimentsOf,
@@ -120,10 +122,12 @@ export {
   strengthIn,
   upkeepOf,
   type ArmyMarker,
+  type PendingArmyOrders,
+  type PendingMarch,
   type RegimentLocation,
   type RegimentStatus,
 } from "./army/armies";
-export { upkeepForecast, type UpkeepForecast } from "./army/upkeepForecast";
+export { upkeepForecast, upkeepIn, type UpkeepForecast } from "./army/upkeepForecast";
 export {
   entrenches,
   isMilitia,

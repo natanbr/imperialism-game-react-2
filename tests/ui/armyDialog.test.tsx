@@ -105,15 +105,43 @@ describe('FR-211 the Army screen: what it shows', () => {
     expect([...select.options].map((o) => o.value)).toEqual([NW1, NE1, SE1]);
   });
 
-  it('FR-261 the header shows the army upkeep at End Turn; a disband ordered takes its regiments out of it', () => {
+  it('FR-261 FR-266 the header shows the army upkeep at End Turn for all provinces; a disband ordered takes its regiments out of it', () => {
     openArmy(continent());
-    expect(text(within(dialog()).getByTestId('army-upkeep'))).toBe('Army upkeep at End Turn: $100');
+    expect(text(within(dialog()).getByTestId('army-upkeep'))).toBe('Army upkeep at End Turn: $100 for all provinces');
     expect(within(dialog()).queryByTestId('army-upkeep-warning')).toBeNull();
 
     fireEvent.click(within(dialog()).getByRole('checkbox', { name: '1st Artillery' }));
     fireEvent.click(button('Disband'));
     fireEvent.click(button('Yes, disband'));
-    expect(text(within(dialog()).getByTestId('army-upkeep'))).toBe('Army upkeep at End Turn: $50');
+    expect(text(within(dialog()).getByTestId('army-upkeep'))).toBe('Army upkeep at End Turn: $50 for all provinces');
+  });
+
+  it("FR-266 this province's upkeep apart from the nation's: $100 here in the capital province, $50 after a disband", () => {
+    openArmy(continent());
+    expect(text(within(dialog()).getByTestId('army-upkeep-here'))).toBe('Upkeep here: $100 a turn');
+
+    fireEvent.click(within(dialog()).getByRole('checkbox', { name: '1st Artillery' }));
+    fireEvent.click(button('Disband'));
+    fireEvent.click(button('Yes, disband'));
+    expect(text(within(dialog()).getByTestId('army-upkeep-here'))).toBe('Upkeep here: $50 a turn');
+  });
+
+  it('FR-266 a militia-only province reads $0 here and the whole army\'s $100 at End Turn', () => {
+    openArmy(continent(), NW1);
+    const nw = screen.getByRole('dialog', { name: 'Army in Testland North-West' });
+    expect(text(within(nw).getByTestId('army-upkeep-here'))).toBe('Upkeep here: $0 a turn');
+    expect(text(within(nw).getByTestId('army-upkeep'))).toBe('Army upkeep at End Turn: $100 for all provinces');
+  });
+
+  it('FR-265 a legend under the table says what Arms is, and the Arms column head carries it as its description', () => {
+    openArmy(continent());
+    const legend = within(dialog()).getByTestId('arms-legend');
+    expect(text(legend)).toBe('Arms: armaments per regiment; each costs $25 a turn and counts toward force size');
+    const arms = within(dialog()).getByRole('columnheader', { name: 'Arms' });
+    expect(description(arms)).toBe('Arms: armaments per regiment; each costs $25 a turn and counts toward force size');
+    // Under the table, not inside it
+    expect(within(dialog()).getByRole('table').contains(legend)).toBe(false);
+    expect(legend.compareDocumentPosition(within(dialog()).getByRole('table')) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
   });
 
   it('FR-261 review F2: with less cash than the upkeep the screen warns that the newest regiments would be disbanded', () => {
@@ -296,17 +324,28 @@ describe('FR-211 a refused order: the control is disabled with the refusal text'
     expect(description(cancel)).toBe('The game is over.');
   });
 
-  it('FR-211 review F1: a militia-only province (3 of our 4 on a new game): March and Disband say militia cannot march or be disbanded, not "tick"', () => {
+  it('FR-267 (replaces the militia-only text of FR-211, review F1): a militia-only province (3 of our 4 on a new game) has no "March to", March or Disband, and says why once', () => {
     openArmy(continent(), NW1);
     const nw = screen.getByRole('dialog', { name: 'Army in Testland North-West' });
     expect(within(nw).queryAllByRole('checkbox')).toEqual([]);
+    expect(within(nw).queryByRole('combobox', { name: 'March to' })).toBeNull();
+    expect(within(nw).queryByRole('button', { name: 'March' })).toBeNull();
+    expect(within(nw).queryByRole('button', { name: 'Disband' })).toBeNull();
+    expect(within(nw).queryByTestId('march-reason')).toBeNull();
+    expect(within(nw).queryByTestId('disband-reason')).toBeNull();
     const militia = 'Militia defend their province: they cannot march or be disbanded.';
-    for (const [name, reasonId] of [['March', 'march-reason'], ['Disband', 'disband-reason']] as const) {
-      const control = within(nw).getByRole('button', { name }) as HTMLButtonElement;
-      expect(control.disabled).toBe(true);
-      expect(text(within(nw).getByTestId(reasonId))).toBe(militia);
-      expect(description(control)).toBe(militia);
-    }
+    expect(within(nw).getAllByText(militia)).toHaveLength(1);
+    expect(text(within(nw).getByTestId('army-no-orders'))).toBe(militia);
+    // The rows are still listed, each "Defending"
+    expect(within(nw).getAllByTestId('status').map((s) => text(s))).toEqual(['Defending', 'Defending', 'Defending', 'Defending']);
+  });
+
+  it('FR-267 a province with a regiment that may march keeps its controls, and the militia-only line is not shown', () => {
+    openArmy(continent());
+    expect(within(dialog()).queryByTestId('army-no-orders')).toBeNull();
+    expect(within(dialog()).getByRole('combobox', { name: 'March to' })).toBeTruthy();
+    expect(button('March')).toBeTruthy();
+    expect(button('Disband')).toBeTruthy();
   });
 
   it('FR-211 review F1: once every regiment here is marching or to be disbanded, March and Disband say so, not "tick"', () => {

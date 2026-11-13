@@ -1,7 +1,7 @@
 import { railLinksOf } from "@/engine";
 import { useEdgeScroll } from "@/hooks/useEdgeScroll";
 import { useGameStore } from "@/store/rootStore";
-import { selectArmyMarkersBySeat } from "@/store/selectors";
+import { selectArmyMarkersBySeat, selectMarchArrows } from "@/store/selectors";
 import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { TileComponent } from "./Tile";
 import { cameraOnCapital } from "./camera";
@@ -33,6 +33,8 @@ export const MapView: React.FC = () => {
   const transportNetwork = useGameStore((s) => s.game.transportNetwork);
   // Each seat tile's army markers (FR-210); every other tile gets none, so its props stay the same
   const armyMarkers = useGameStore(selectArmyMarkersBySeat);
+  // The player's march orders of this turn, drawn as arrows until End Turn (FR-263)
+  const marchArrows = useGameStore(selectMarchArrows);
 
   // The camera is the container's scroll position (FR-083): the browser keeps it inside the map,
   // and the store mirrors it so the Center button and the first view can set it.
@@ -131,6 +133,32 @@ export const MapView: React.FC = () => {
               />
             ))}
           </svg>
+
+          {/* This turn's marches (FR-263): above the tile icons and the civilians, below the army markers (Tile.module.css) */}
+          {marchArrows.length > 0 && (
+            <svg width={overlayWidth} height={overlayHeight} className={styles.marchOverlay}>
+              {marchArrows.map((a) => (
+                <g key={`${a.fromProvinceId}>${a.toProvinceId}`} role="img" aria-label={a.label} data-testid="march-arrow">
+                  <line x1={a.line.x1} y1={a.line.y1} x2={a.line.x2} y2={a.line.y2} className={styles.marchHalo} />
+                  <line
+                    x1={a.line.x1}
+                    y1={a.line.y1}
+                    x2={a.line.x2}
+                    y2={a.line.y2}
+                    stroke={a.color}
+                    strokeDasharray="6 4"
+                    className={styles.marchLine}
+                    data-testid="march-line"
+                  />
+                  <polygon points={a.head} fill={a.color} className={styles.marchHead} data-testid="march-head" />
+                  <circle cx={a.countAt.x} cy={a.countAt.y} r={8} fill={a.color} className={styles.marchCountBack} />
+                  <text x={a.countAt.x} y={a.countAt.y} className={styles.marchCount} data-testid="march-count">
+                    {a.count}
+                  </text>
+                </g>
+              ))}
+            </svg>
+          )}
         </div>
       </div>
     </div>

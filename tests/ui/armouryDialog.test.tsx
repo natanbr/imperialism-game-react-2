@@ -131,31 +131,31 @@ describe('FR-212 the Armoury: one card per recruitable regiment', () => {
     expect(part('Light Artillery', 'stats')).toBe('Firepower 10 Move 5 Range 9 Entrench: no');
   });
 
-  it('FR-212 FR-199 the cost: the worker of its grade, the armaments, the horses when it needs any, the cash', () => {
+  it('FR-212 FR-264 the cost: the worker of its grade, the armaments, the horses when it needs any, the cash; "1 armament", "2 armaments"', () => {
     openArmoury(continent());
-    expect(items('Regulars', 'Cost')).toEqual(['1 untrained worker', '1 armaments', '$500']);
-    expect(items('Hussars', 'Cost')).toEqual(['1 untrained worker', '1 armaments', '1 horse', '$100']);
+    expect(items('Regulars', 'Cost')).toEqual(['1 untrained worker', '1 armament', '$500']);
+    expect(items('Hussars', 'Cost')).toEqual(['1 untrained worker', '1 armament', '1 horse', '$100']);
     expect(items('Artillery', 'Cost')).toEqual(['1 trained worker', '2 armaments', '$1,000']);
     expect(items('Light Artillery', 'Cost')).toEqual(['1 trained worker', '2 armaments', '1 horse', '$1,000']);
   });
 
-  it('FR-212 at hand: the free workers of its grade, the armaments, the horses, the cash; a short item says "short"', () => {
+  it('FR-212 FR-264 at hand: the free workers of its grade, the armaments, the horses, the cash, each named; a short item says "short"', () => {
     openArmoury(continent());
     // A new game: 4 untrained and 2 trained workers free, no armaments, 4 horses (FR-203), $10,000
-    expect(items('Regulars', 'At hand')).toEqual(['4 untrained workers', '0 armaments (short)', '$10,000']);
-    expect(items('Hussars', 'At hand')).toEqual(['4 untrained workers', '0 armaments (short)', '4 horses', '$10,000']);
-    expect(items('Artillery', 'At hand')).toEqual(['2 trained workers', '0 armaments (short)', '$10,000']);
+    expect(items('Regulars', 'At hand')).toEqual(['Untrained workers: 4 free', 'Armaments: 0 in warehouse (short)', 'Cash: $10,000']);
+    expect(items('Hussars', 'At hand')).toEqual(['Untrained workers: 4 free', 'Armaments: 0 in warehouse (short)', 'Horses: 4 in warehouse', 'Cash: $10,000']);
+    expect(items('Artillery', 'At hand')).toEqual(['Trained workers: 2 free', 'Armaments: 0 in warehouse (short)', 'Cash: $10,000']);
     // In colour as well: the short item carries its mark
     const short = within(within(card('Regulars')).getByRole('list', { name: 'At hand' })).getAllByRole('listitem');
     expect(short.map((li) => li.dataset.short)).toEqual([undefined, 'true', undefined]);
   });
 
-  it('FR-212 a short worker, horse or cash is marked too', () => {
+  it('FR-212 FR-264 a short worker, horse or cash is marked too', () => {
     let s = setWarehouse(continent(), N1, { armaments: 5, horses: 0 });
     s = setIndustry(setTreasury(s, N1, 300), N1, { workers: { ...industryOf(s, N1).workers, trained: 0 } });
     openArmoury(s);
-    expect(items('Cuirassiers', 'At hand')).toEqual(['0 trained workers (short)', '5 armaments', '0 horses (short)', '$300 (short)']);
-    expect(items('Hussars', 'At hand')).toEqual(['4 untrained workers', '5 armaments', '0 horses (short)', '$300']);
+    expect(items('Cuirassiers', 'At hand')).toEqual(['Trained workers: 0 free (short)', 'Armaments: 5 in warehouse', 'Horses: 0 in warehouse (short)', 'Cash: $300 (short)']);
+    expect(items('Hussars', 'At hand')).toEqual(['Untrained workers: 4 free', 'Armaments: 5 in warehouse', 'Horses: 0 in warehouse (short)', 'Cash: $300']);
   });
 
   it('FR-212 the note: "New regiments join the army in the capital next turn."', () => {
@@ -189,7 +189,11 @@ describe('FR-212 FR-200 ordering regiments', () => {
     expect(part('Regulars', 'count')).toBe('1');
     expect(treasury(now(), N1)).toBe(9500);
     expect(stockOf(now(), N1, 'armaments')).toBe(1);
-    expect(items('Regulars', 'At hand')).toEqual(['3 untrained workers', '1 armaments', '$9,500']);
+    expect(items('Regulars', 'At hand')).toEqual([
+      'Untrained workers: 4 free, 1 reserved by this order',
+      'Armaments: 2 in warehouse, 1 reserved by this order',
+      'Cash: $10,000, $500 reserved by this order',
+    ]);
     expect(text(within(armoury()).getByTestId('armoury-cash'))).toBe('Cash: $9,500');
 
     fireEvent.click(within(card('Regulars')).getByRole('button', { name: 'Recruit one less Regulars' }));
@@ -236,5 +240,63 @@ describe('FR-212 FR-200 ordering regiments', () => {
     expect(part('Regulars', 'count')).toBe('2');
     expect(plus('Regulars').disabled).toBe(true);
     expect(part('Regulars', 'count-note')).toBe('Not enough armaments');
+  });
+});
+
+// M8 QA fix round, item 2. FR-264: "At hand" shows each item before this turn's recruit orders and what those orders
+// reserve, so a recruit that worked never reads "short"; "short" marks only what stops a type with none ordered.
+describe('FR-264 the Armoury: what this turn\'s recruits reserve', () => {
+  const atHandShort = (name: string) =>
+    within(within(card(name)).getByRole('list', { name: 'At hand' }))
+      .getAllByRole('listitem')
+      .map((li) => li.dataset.short ?? null);
+
+  it('FR-264 the QA case: 1 armament, 1 Regulars ordered: "Armaments: 1 in warehouse, 1 reserved by this order", nothing short on its card', () => {
+    openArmoury(armed(1));
+    fireEvent.click(plus('Regulars'));
+    expect(part('Regulars', 'count')).toBe('1');
+    expect(items('Regulars', 'At hand')).toEqual([
+      'Untrained workers: 4 free, 1 reserved by this order',
+      'Armaments: 1 in warehouse, 1 reserved by this order',
+      'Cash: $10,000, $500 reserved by this order',
+    ]);
+    expect(atHandShort('Regulars')).toEqual([null, null, null]);
+    expect(within(card('Regulars')).queryByText('(short)')).toBeNull();
+    // The "+" still says what stops the next one
+    expect(plus('Regulars').disabled).toBe(true);
+    expect(part('Regulars', 'count-note')).toBe('Not enough armaments');
+  });
+
+  it('FR-264 another card names what the other recruits reserve, and is short where they leave too little for one', () => {
+    openArmoury(armed(1));
+    fireEvent.click(plus('Regulars'));
+    expect(items('Skirmishers', 'At hand')).toEqual([
+      'Untrained workers: 4 free, 1 reserved by other recruits',
+      'Armaments: 1 in warehouse, 1 reserved by other recruits (short)',
+      'Cash: $10,000, $500 reserved by other recruits',
+    ]);
+    expect(atHandShort('Skirmishers')).toEqual([null, 'true', null]);
+    // Grenadiers take a trained worker: the Regulars' untrained one is not theirs
+    expect(items('Grenadiers', 'At hand')[0]).toBe('Trained workers: 2 free');
+  });
+
+  it('FR-264 orders on two cards: each names its own reservation and the other\'s', () => {
+    openArmoury(armed(3));
+    fireEvent.click(plus('Regulars'));
+    fireEvent.click(plus('Skirmishers'));
+    fireEvent.click(plus('Skirmishers'));
+    expect(items('Skirmishers', 'At hand')).toEqual([
+      'Untrained workers: 4 free, 2 reserved by this order, 1 reserved by other recruits',
+      'Armaments: 3 in warehouse, 2 reserved by this order, 1 reserved by other recruits',
+      'Cash: $10,000, $400 reserved by this order, $500 reserved by other recruits',
+    ]);
+    expect(atHandShort('Skirmishers')).toEqual([null, null, null]);
+    // Hussars, none ordered: no armament left (short); one untrained worker still free (not short)
+    expect(items('Hussars', 'At hand')).toEqual([
+      'Untrained workers: 4 free, 3 reserved by other recruits',
+      'Armaments: 3 in warehouse, 3 reserved by other recruits (short)',
+      'Horses: 4 in warehouse',
+      'Cash: $10,000, $900 reserved by other recruits',
+    ]);
   });
 });

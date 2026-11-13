@@ -18,24 +18,58 @@ const ITEM_ICONS: Record<ArmouryItemKey, IconName | null> = {
   cash: null,
 };
 
-/** "Cost: 1 untrained worker, 1 armaments, $500" or "At hand: ... 0 armaments (short) ..." as a named list. */
-const ItemList: React.FC<{ label: "Cost" | "At hand"; items: readonly (ArmouryItem | AtHandItem)[] }> = ({ label, items }) => (
+/** "Cost: 1 untrained worker, 1 armament, $500" as a named list on one line (FR-264). */
+const CostList: React.FC<{ items: readonly ArmouryItem[] }> = ({ items }) => (
   <div className={styles.items}>
     {/* The list carries the name for assistive technology; the visible label is not read twice */}
     <span className={styles.itemsLabel} aria-hidden="true">
-      {label}:
+      Cost:
     </span>
-    <ul className={styles.itemList} aria-label={label}>
+    <ul className={styles.itemList} aria-label="Cost">
       {items.map((item) => {
-        const short = "short" in item && item.short;
         const icon = ITEM_ICONS[item.key];
         return (
-          <li key={item.key} className={`${styles.item} ${short ? styles.short : ""}`} data-short={short ? "true" : undefined}>
+          <li key={item.key} className={styles.item}>
             {icon && <GameIcon name={icon} />} {item.text}
-            {short && (
+          </li>
+        );
+      })}
+    </ul>
+  </div>
+);
+
+/**
+ * "At hand", one line per item (FR-264): "Armaments: 1 in warehouse, 1 reserved by this order", a short item marked
+ * "(short)" in text as well as colour. The line wraps only between its parts, so an amount is never cut.
+ */
+const AtHandList: React.FC<{ items: readonly AtHandItem[] }> = ({ items }) => (
+  <div className={styles.items}>
+    <span className={styles.itemsLabel} aria-hidden="true">
+      At hand:
+    </span>
+    <ul className={`${styles.itemList} ${styles.atHandList}`} aria-label="At hand">
+      {items.map((item) => {
+        const icon = ITEM_ICONS[item.key];
+        const [first, ...rest] = item.parts;
+        return (
+          <li key={item.key} className={`${styles.atHandItem} ${item.short ? styles.short : ""}`} data-short={item.short ? "true" : undefined}>
+            <span className={styles.part}>
+              {icon && <GameIcon name={icon} />} {item.label}: {first}
+              {rest.length > 0 ? "," : ""}
+            </span>
+            {rest.map((part, i) => (
+              <React.Fragment key={part}>
+                {" "}
+                <span className={styles.part}>
+                  {part}
+                  {i < rest.length - 1 ? "," : ""}
+                </span>
+              </React.Fragment>
+            ))}
+            {item.short && (
               <>
                 {" "}
-                <span>(short)</span>
+                <span className={`${styles.part} ${styles.shortMark}`}>(short)</span>
               </>
             )}
           </li>
@@ -63,10 +97,10 @@ const RegimentCard: React.FC<{ card: ArmouryCardView; onChange: (count: number) 
       </span>
       <span>Entrench: {card.entrench ? "yes" : "no"}</span>
     </p>
-    <ItemList label="Cost" items={card.cost} />
-    <ItemList label="At hand" items={card.atHand} />
+    <CostList items={card.cost} />
+    <AtHandList items={card.atHand} />
     <div className={styles.order}>
-      <span className={styles.itemsLabel}>This turn:</span>
+      <span className={styles.orderLabel}>This turn:</span>
       <Stepper
         label="Recruit"
         name={card.name}
@@ -105,6 +139,10 @@ const Armoury: React.FC = () => {
         <h2 id={titleId}>
           <GameIcon name={UI_ICONS.armoury} /> Armoury
         </h2>
+        {/* In the header, so the three rows of cards keep the height (FR-264) */}
+        <p id={noteId} className={styles.headerNote} data-testid="armoury-note">
+          New regiments join the army in the capital next turn.
+        </p>
         {view && (
           <span className={styles.summary} data-testid="armoury-cash">
             Cash: <strong>{money(view.treasury)}</strong>
@@ -120,10 +158,6 @@ const Armoury: React.FC = () => {
         </button>
       </header>
 
-      <p id={noteId} className={styles.note} data-testid="armoury-note">
-        New regiments join the army in the capital next turn.
-      </p>
-
       {view?.upkeepWarning && (
         <div className={styles.warning} role="status" data-testid="army-upkeep-warning">
           {view.upkeepWarning}
@@ -137,7 +171,7 @@ const Armoury: React.FC = () => {
       )}
 
       {view && (
-        <div className={styles.cards}>
+        <div className={styles.cards} data-testid="armoury-cards">
           {view.cards.map((card) => (
             <RegimentCard key={card.type} card={card} onChange={recruit(card)} />
           ))}

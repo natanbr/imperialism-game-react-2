@@ -31,32 +31,43 @@ const MarkerBody: React.FC<{ marker: MarkerView }> = ({ marker }) => (
   </>
 );
 
+/** FR-263: "−1" on the corner of our marker while regiments there have a disband order; the marker's name says it. */
+const DisbandMark: React.FC<{ count: number }> = ({ count }) =>
+  count > 0 ? (
+    <span className={styles.armyDisband} data-testid="army-disband" aria-hidden="true">
+      −{count}
+    </span>
+  ) : null;
+
 /**
  * The army markers on a province's seat tile (FR-210; Imp1 encampment tents): one chip per country with regiments
  * there, in its colour, with its force size and its militia count. The player's own is a button that opens the Army
- * screen; another country's is an image, and a click on it is a click on the tile.
+ * screen, marked "−1" while regiments there are to be disbanded (FR-263); another country's is an image, and a click on
+ * it is a click on the tile.
  */
 const TileArmyInner: React.FC<TileArmyProps> = ({ markers, onOpen, high = false }) => (
   <div className={`${styles.armies} ${high ? styles.armiesHigh : ''}`}>
     {markers.map((marker) => {
       const className = `${styles.armyMarker} ${marker.regiments > 0 && marker.militia > 0 ? '' : styles.armyMarkerSingle}`;
       return marker.own ? (
-        <button
-          key={marker.ownerId}
-          type="button"
-          data-testid="army-marker"
-          data-owner-id={marker.ownerId}
-          className={className}
-          style={{ borderColor: marker.color }}
-          aria-label={marker.label}
-          title={marker.label}
-          onClick={(e) => {
-            e.stopPropagation();
-            onOpen(marker.provinceId);
-          }}
-        >
-          <MarkerBody marker={marker} />
-        </button>
+        <span key={marker.ownerId} className={styles.armySlot}>
+          <button
+            type="button"
+            data-testid="army-marker"
+            data-owner-id={marker.ownerId}
+            className={className}
+            style={{ borderColor: marker.color }}
+            aria-label={marker.label}
+            title={marker.label}
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpen(marker.provinceId);
+            }}
+          >
+            <MarkerBody marker={marker} />
+          </button>
+          <DisbandMark count={marker.disbanding} />
+        </span>
       ) : (
         <span
           key={marker.ownerId}
