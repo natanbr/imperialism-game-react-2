@@ -16,9 +16,9 @@
   after it. The progress page files now live on these branches too (copied from the docs branch).
 - 2026-11-13 M5 (FR-144 to FR-160, FR-235) merged (PR 23, main 0bfd870; entries archived in
   `docs/journal/archive-M5.md`). The app plays the continent. Card Q22 (the continent's tilt) still open.
-- 2026-11-13 M6 Diplomacy on `claude/m6-diplomacy` (worktree `imperialism-game-revival-fee36d`): engine, UI and review fix
-  round done, FR-161 to FR-181 tested; not pushed. Next: re-review of the fix delta, then the PR; add the decision card
-  "who receives a grant" (fix round decision 3) at the checkpoint.
+- 2026-11-13 M6 Diplomacy on `claude/m6-diplomacy` (worktree `imperialism-game-revival-fee36d`): engine, UI, review fix
+  round and QA fix round done, FR-161 to FR-181 and FR-236 to FR-241 tested; not pushed. Next: re-review of the fix and
+  QA deltas, then the PR; add the decision card "who receives a grant" (fix round decision 3) at the checkpoint.
 
 Carried forward:
 - Deferred: river ports and the depot-on-port rule (rules 04); University fees; the power plant.
@@ -41,9 +41,6 @@ Carried forward:
 - M4.3 review finding 6 (hypothesis, not run): the score drop since M4.3 may come partly from
   `bestDepotSite`'s gain counting every gathered unit equally; weighing each unit by what the economy
   actually uses (food eaten, inputs of running buildings, what sells) may pick better sites.
-- M4.3 review finding 7: the transport popup's dialog uses `aria-label` where `aria-labelledby` (its
-  visible title) fits; no `aria-modal`, no focus moved into it on open or back on close, and Escape
-  does not close it. Accessibility pass in M5.
 - M4.4 review note 7: a stale store entry (an allocation in `transportAllocationsByNation` for a commodity
   that now has nothing to ship) flashes its group once per open, until the next slider move writes the
   clamped allocations back. The popup's local state clamps it right after the first render; the store keeps it.
@@ -368,3 +365,34 @@ dormant until a proposal can reach the human (M8, M9). Found, not changed: holdi
 How to see it in the app: `npm run dev`, Diplomacy: with Arvelia's Subsidy select focused, "n" picks "none" and the turn
 stays; with the dialog open "n" does nothing, closed it ends the turn. With an embassy and a locked grant, Give a once grant:
 "Stop grant" is greyed with "withdraw this turn's grant first". With a pact, "Declare war" shows the second, red line.
+
+## 2026-11-13 M6 Diplomacy, QA fix round (FR-236 to FR-241)
+
+Size: M (Nathan's five QA items). One agent (Opus 5.5, xhigh, no subagents, no advisor call), started by the M6 workflow;
+same branch and worktree, not pushed. FR-151 and FR-176 to FR-178 point to the new rows; FR-236 closes M4.3 finding 7.
+
+| Item | What changed | Test |
+|---|---|---|
+| 1 FR-236 | `components/Modal.tsx` for all nine dialogs (Construction Options too): aria-modal, named by its title, focus in and back to the opener, Tab trap, Escape, backdrop click; a stack, so only the top dialog answers; About is a modal over the page | dialogs.test.tsx (37 rows), m6-dialogs.spec.ts (3) |
+| 2 FR-237 | Diplomacy in two panes: a tab per country (chips, "1 ordered") and the selected one's panel; each refusal once under its group (`reasonLines`); a 640 px frame, only the panes scroll | diplomacyDialog.test.tsx (5 rows; helpers select a tab), m6-diplomacy.spec.ts fit test |
+| 3 FR-238, FR-239 | war question: "A war on a minor nation also lowers our relations with every other minor nation, by half a level each."; `relation-changed.wars` and "(our war on Lorran)" | diplomacyDialog.test.tsx; diplomacy.test.ts (4 rows), gameText.test.ts (4), e2e news line |
+| 4, 5 FR-240, FR-241 | `startTreaties` on a Great Power pair from newGame, removed by a war between the two; chips "Consulate since the start" + tooltip. "Declare war" at war: "we are already at war with them" | diplomacyState, diplomacy.test.ts (3), diplomacyDialog.test.tsx (3) |
+
+Decisions (defaults, nobody to ask): (1) a dialog's name is its whole title ("Diplomacy — Testland"); exact names updated in
+three unit test files, Playwright matches substrings. (2) Game over has no close; Accept Offer focuses the dialog itself
+(Enter accepts), Escape rejects, the backdrop acts as ×; Escape in the war question answers "Keep the peace" first. (3) The
+selected country outlives a close (component state; FR-160's guard unaffected). (4) "Since the start" needs history the state
+lacked (a war ends the start treaties; one reopened after peace is not from the start), hence the optional engine mark;
+Objection: one more field on FR-151's entry, read by no v1 baseline. (5) FR-241 is view wording; the engine keeps
+`already-in-place`. (6) e2e/m5-hud-scroll (1) closes About (Escape) before measuring: About is no longer HUD content.
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| Red | the 7 new or changed unit test files, then the 3 e2e specs, on the source of 41e1e54 | `Test Files 5 failed | 2 passed (7)`, `Tests 83 failed | 170 passed (253)` (passing: the market and icons name guards); e2e `6 failed`, `1 passed`; old dialog `{"scrollHeight":1369,"clientHeight":648,"dialogScrolls":true}` |
+| Guards bite (14 mutants) | `node scripts/probes/m6/qa-mutants.mjs` | exit 0, each `caught` (e.g. no stack `1 failed`, no Tab trap `7 failed`, war keeps the mark `1 failed`) |
+| Unit tests, baselines | `npm test` | `Test Files 75 passed (75)`, `Tests 1275 passed (1275)` (+58 on 1217), 0 act warnings; FR-125 and FR-157 lines as before |
+| Lint, types, build | `npm run lint`; without `.gate`; `npx tsc --noEmit`; `npm run build` | `✖ 5 problems (0 errors, 5 warnings)` (2 in older .gate scripts); `✖ 3 problems` as before; exit 0; `✓ Compiled successfully in 3.0s` |
+| e2e smoke | `PORT=3160 npx playwright test --workers=1 --reporter=line` | `29 passed (1.3m)`, `1 skipped` (the old `test.fixme`) |
+| App check, 1280x720 | `.gate/m6-qa/shots.mjs` (dev server 3160, scrollbars on) | `{"box":[180,40,920,640],"dialogScrolls":false,"details":"524/524"}`, no console error; `m6-qa-war-question.png`, `m6-qa-diplomacy-turn4.png` |
+
+How to see it: `npm run dev`, HUD "Diplomacy": pick a country on the left; Tab stays inside, Escape or a click outside closes it.

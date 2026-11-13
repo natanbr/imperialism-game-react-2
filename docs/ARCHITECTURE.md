@@ -71,13 +71,15 @@ src/app/
     controls/              UI slices: tile selection, camera, overlays, dialogs
     selectors.ts           memoized selectors (reselect)
   components/              React components; gameText.ts (display text: orders, refusals, news,
-                           commodity names, the date, the food warning), railSegments.ts (map overlay)
+                           commodity names, the date, the food warning), railSegments.ts (map overlay),
+                           Modal.tsx (the one modal dialog every game dialog is built on, FR-236)
     capital/               the capital dialog's parts: capitalView.ts (what it shows, no React),
                            ProductionCard, LabourPanel, FreightCars, Capital.module.css
     market/                the market dialog's view (marketView.ts, no React) and the CSS module
                            shared by MarketModal and GameOverModal
     diplomacy/             the Diplomacy screen's parts: diplomacyView.ts (rows, controls with their
-                           refusal text, the Accept Offer sentence; no React), CountryCard,
+                           refusal text, the refusal lines, the Accept Offer sentence; no React),
+                           CountryList (the left pane's tabs), CountryDetails (the right pane),
                            Diplomacy.module.css (also used by AcceptOfferModal)
   hooks/                   React hooks; tileClickOrders.ts (what a tile click asks for, no React)
   workers/                 per worker type, the action it offers on a tile (map cursor and click)
@@ -134,7 +136,8 @@ only (FR-018).
 - **Diplomacy** (FR-151): `state.diplomacy[pairKey(a, b)]`, one entry per pair with at least one
   Great Power: points 0 to 89 (level floor(points / 10) on nine swatches), consulates, embassies,
   pact, alliance, war (`{ aggressors, since, captures?, lastPeaceOffer? }`), boycotts, subsidies,
-  locked grants.
+  locked grants, and `startTreaties` on a Great Power pair while its consulates and embassies are
+  the ones of the start (a war between the two removes it; FR-240).
 - **Intents** (FR-152): an order that involves a second country (M6 to M9) stores an intent with
   `addIntent`; a phase resolves the turn's intents nation by nation in `intentOrder(state, turn)`
   (founding order rotated by the turn); `resolveTurn` drops the resolved turn's intents after the
@@ -159,7 +162,8 @@ only (FR-018).
   minor always accepts peace.
 - **Relations** (FR-168, FR-172): grants, a pact and wars move the points (trade deals come in M7);
   a war's effects are summed per pair and clamped once, so the declarations' order changes nothing;
-  `relation-changed` is emitted once per Great Power of a pair whose level moved in the phase.
+  `relation-changed` is emitted once per Great Power of a pair whose level moved in the phase, with
+  `wars` (`{ aggressorId, targetId }`) when declarations of that phase moved the pair (FR-239).
 
 The store (`store/rootStore.ts`) holds that state under `game`, and UI state beside it:
 
@@ -382,14 +386,23 @@ The market dialog (`MarketModal.tsx`, opened from the HUD or the capital's Trade
 buttons that send `sellCommodity` / `buyCommodity` with this turn's new total, plus cash, cargo
 holds and buy bids; refusals show as in the capital. The Diplomacy screen (`DiplomacyModal.tsx`,
 M6, store flag `isDiplomacyOpen`, opened from the HUD or the capital) renders
-`diplomacy/diplomacyView.ts`: one card per other country (the other Great Power first, then the
-minors in id order) with the relation as a swatch in `--color-relation-<level>` and in words, the
-treaties, this turn's diplomacy intents with Withdraw, and the overture, grant and trade policy
-controls; each control holds its order and, when `validateOrder` would refuse it, the refusal text
-(the button is disabled and names it as its description; "Stop grant" also carries a screen-only
-refusal while this turn's grant would be what its order takes back). Accept Offer (`AcceptOfferModal.tsx`)
+`diplomacy/diplomacyView.ts` in two panes (FR-237): on the left a vertical tab list, one tab per other
+country (the other Great Power first, then the minors in id order) with the relation as a swatch in
+`--color-relation-<level>` and in words, the treaty chips and an "n ordered" marker; on the right the
+selected country's tab panel with this turn's diplomacy intents with Withdraw and the overture, grant
+and trade policy controls. The selection is the dialog's own state, so it outlives a close. Each
+control holds its order and, when `validateOrder` would refuse it, the refusal text: the button is
+disabled, and `reasonLines` gives each refusal once in a line under its group that is the button's
+description ("Stop grant" also carries a screen-only refusal while this turn's grant would be what
+its order takes back; "Declare war" at war says "we are already at war with them", FR-241). Accept Offer (`AcceptOfferModal.tsx`)
 opens for each `pendingProposalsFor` the player at the start of a turn; Accept/Reject (Enter/Escape)
-send `answerProposal`, and closing it adds the id to `dismissedProposalIds` (reset by New game). The game-over screen (`GameOverModal.tsx`)
+send `answerProposal`, and closing it adds the id to `dismissedProposalIds` (reset by New game). Every dialog renders its content in `Modal.tsx` (FR-236): `role="dialog"`, `aria-modal`, named by
+its title (`aria-labelledby`); the focus moves to its first control on open (Accept Offer: the dialog
+itself) and back to the opener on close; Tab and Shift+Tab are trapped; Escape (`onEscape`, else
+`onClose`) and a click that starts and ends on the backdrop call `onClose`. A module-level stack
+lets only the newest open dialog answer the keys (Diplomacy over Capital, the transport plan inside
+Capital); a part that handles Escape itself (the war question) calls `preventDefault` first. About
+renders into `document.body` (`portal`), since the HUD clips it. The game-over screen (`GameOverModal.tsx`)
 shows `state.gameOver.scores` whenever the game is over, unless the player closed it
 (`isGameOverHidden`, reopened by the HUD's "Final scores"). After game over the HUD's Advance
 Turn is disabled and the store's `advanceTurn` returns at once, so no empty turn is logged. The End Turn key "n"
