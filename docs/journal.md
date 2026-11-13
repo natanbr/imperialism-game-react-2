@@ -15,7 +15,8 @@
   (this worktree, the old docs worktree `imperialism-game-revival-fee36d`); one branch per milestone
   after it. The progress page files now live on these branches too (copied from the docs branch).
 - 2026-11-13 M5 on `claude/m5-world`: engine half (FR-144 to FR-152, FR-156 engine, FR-157 to FR-159) and UI half
-  (FR-153 to FR-156, FR-160) tested; the app plays the continent. Next: the milestone review.
+  (FR-153 to FR-156, FR-160) tested; the app plays the continent. Milestone review done; its fix round (19 findings)
+  is committed. Next: the re-review of the fix delta, then card Q22 (the continent's tilt toward nation 1).
 
 Carried forward:
 - Deferred: river ports and the depot-on-port rule (rules 04); University fees; the power plant.
@@ -310,3 +311,64 @@ How to see it in the app: `npm run dev`; a new game shows Lorran, Arvelia, Sundm
 each outlined in slate dashes, and dotted lines splitting each island into four provinces. Click the farm next to
 the capital: "Province: Testland South-West". Pick the engineer and click Arvelia's land: the tile is only viewed
 ("Owner: Arvelia (minor nation)", no button, no refusal in the news).
+
+## 2026-11-13 M5 World and seams for v2, review fix round
+
+Size: M (one fix round on the milestone review: 1 major, 18 minor findings). One fix agent (Opus 5.5, xhigh, no
+subagents, no advisor call), started by the M5 workflow; same branch and worktree. The M5 rows were amended in place
+(not merged yet, so no new ids). A behaviour fix has a test that failed on the code before it; a test-strength fix
+shows its new check failing on a mutant the old check let through.
+
+| Finding | What changed | Test |
+|---|---|---|
+| F1 (major) FR-157/158 never checked the world played | each game's final state must be on the world it names (worldId, 4 minors, 12 provinces; two-islands 0, 0) | continentScore.test.ts, rows "played on the continent", "each pair compares" |
+| F2 turn-40 scores "as on two-islands" not asserted | FR-157 also plays the current player on two-islands and asserts the same turn-40 score per seed | continentScore.test.ts |
+| R3 FR-158 compared nation 2 only | both nations every turn, and a second run with both nations played by the frozen M4 player | continentScore.test.ts, 4 new seed rows |
+| E3 no world invariant over 40 turns | `worldViolations(state, start)` in fixtures.ts (tile and province name each other, owner = province's Great Power or none, minors, provinces and minor tiles as at the start, same diplomacy pairs, no intent left), after every turn of every FR-157/158 game; a self-check row sees 4 kinds of breakage | continentScore.test.ts |
+| R2, E4 FR-150 scan only knew `ctx.rng` | any receiver (`.rng`), `['rng']`, `rng` in any destructuring incl. parameters; `turn/context.ts` allowed (it builds the stream); 9 read and 6 non-read samples | purity.test.ts |
+| R4 owner-write scan missed `{ ...tile, ownerNationId }` | shorthand in an object literal counts as a write, a destructuring pattern does not; 6 write and 6 read samples | provinces.test.ts |
+| E1 a taken minor capital became the new owner's "capital" | `isGreatPowerCapital(state, tile)` (queries.ts): Capital terrain that is not a minor's capital; used by the depot rule and the scripted player's hubs and reach (railPlan.ts) | provinces.test.ts "not its capital" |
+| R5 a neighbour's capital, depot or port blocked a depot | `isDepotSite` counts a neighbour only when it has the tile's owner | provinces.test.ts "blocked only by its own country's" |
+| E2 colony relation had two homes | `Nation.colonies` removed (read nowhere); `MinorNation.colonyOf` is the one home | minorNations.test.ts |
+| F3 store reset guard found flags by the name `is...` | every store key but `game` and the camera (kept on purpose) set to another value, then must be initial again | computerNations.test.ts |
+| F4 no contrast floor for `--color-minor` (2.7:1) | 3:1 floor on every tint and the sea; `--color-minor` #788098 -> #5e7c90 (searched with the test's formulas) | palette.test.ts |
+| R6 name tag wider than its tile, unchecked | documented in FR-153; e2e: centred, inside the tile's height, at most 2 tiles wide, on top at both ends | e2e/m5-world.spec.ts |
+| R1 the continent tilts toward nation 1 | not changed (FR-145 pins the tiles; a game-design call): the tilt is stated in FR-145 and pinned by a test (capital steps 2/3, 3/4, 2/2, 3/3; shore 35 and 34) | continentWorld.test.ts |
+| F5 plan said 2 bridges, 2 islands | REVIVAL_PLAN.md 5b "The v2 world": one bridge, three islands, Q22 option b | docs |
+| F6 FR-152 read as complete | status: helpers and the drop tested; order and phase wiring in M6 | docs |
+| F7, R7 behaviour with no row text | FR-144 names `createGameStore({ world })`; FR-148 the throw, FR-150 the throw, FR-155 the note sentence | docs |
+
+Decisions (defaults taken, nobody to ask):
+1. E1: minor capitals keep the Capital terrain (FR-145 pins it, the map icon and tile name use it). Only the rules
+   that mean "this nation's own capital" changed. Objection: `isRailNode`, `hasRailStartingPoint` and `fortLevelOf`
+   still read the terrain, so a taken minor capital is a rail start and has a fort for its new owner; FR-222/FR-224
+   decide that in M9 (carried).
+2. F4: a darker slate over an exemption, so a later colour edit cannot pass below 3:1. Objection: the margins are
+   thin (3.06:1, ΔE 31.3, 20.5 under colour blindness); every colour with more margin is near black or a loud blue.
+   `docs/journal/m5-world.png` still shows the old slate; the app check retakes it.
+3. R1: the tiles stay; the tilt goes to card Q22 for Nathan (the card is not in `docs/report/roadmap.json` yet; add it
+   at the checkpoint): accept it, or make Lorran 3 tiles (`11-1` to `13-1`, capital `12-1`) under a new FR id.
+
+Carried: the rest of E1 (decision 1, FR-222/FR-224 in M9) and the R1 card (decision 3).
+
+Found: with both nations played by the frozen M4 player, seeds 1 to 4 give the same per-turn values on both worlds,
+so nation 1's land next to Arvelia (9-4 no longer a port site) changes nothing an M4 player does.
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| Red, behaviour fixes E1, R5, E2 | the 6 source files at HEAD, `npx vitest run tests/engine/provinces.test.ts tests/engine/minorNations.test.ts` | `Tests 3 failed \| 26 passed (29)` (the 3 new rows) |
+| Red, F4 | `npx vitest run tests/ui/palette.test.ts` with #788098 | `Tests 1 failed \| 17 passed (18)`: 7 backgrounds below 3:1, mountains 2.73 |
+| F1 guard bites | `newGame` patched to ignore `world`, `npx vitest run tests/engine/continentScore.test.ts` | `Tests 3 failed \| 16 passed (19)` (the M5 file before the fix passed on such a mutant) |
+| F3 guard bites | `startNewGame` without `hoveredTileId: undefined`, new and old store files | `Tests 1 failed \| 23 passed (24)`: the new guard fails, the old file's 12 pass |
+| R2, E4, R4 guards bite | the old regexes on the new samples (node) | rng: 2 of 9 reads seen; owner: 3 of 6 writes seen |
+| R6 guard bites | `.minorName { z-index: -1 }`, `PORT=3160 npx playwright test e2e/m5-world.spec.ts` | `1 failed` at `onTop` |
+| Fixed | `npx vitest run tests/engine/continentScore.test.ts` | `Tests 19 passed (19)`; `FR-157 nation 2 score at turn 40: [[1,1493],[2,1496],[3,1490],[4,1476]]` |
+| FR-159 v1 baselines | `git diff --stat c378816 -- <the eight v1 files> tests/engine/m4ScriptedPlayer.ts`; `npm test` console | no output; `FR-125 seed 1: t15 616/390 (1.58) ... t40 1493/650 (2.30)` as before |
+| Unit tests | `npm test` | `Test Files 68 passed (68)`, `Tests 971 passed (971)` (+15 on 956); 0 "not wrapped in act" |
+| Lint | `npm run lint`; `npx eslint . --ignore-pattern ".gate/**"` | `✖ 4 problems (0 errors, 4 warnings)`: the 3 of main plus `.gate/dist.js` (the reviewer's untracked scratch file); without `.gate`: `✖ 3 problems (0 errors, 3 warnings)` |
+| Types | `npx tsc --noEmit` | exit 0, no output |
+| Build | `npm run build` | `✓ Compiled successfully in 3.0s`, `✓ Generating static pages (4/4)` |
+| e2e smoke | `PORT=3160 npx playwright test --workers=1 --reporter=line` | `1 skipped`, `22 passed (1.2m)` |
+
+How to see it in the app: `npm run dev`; the minors' dashed borders and name-tag frames are a slightly darker
+blue-grey slate; nothing else changes on a new game (the E1 and R5 rules only matter once land changes hands, M9).

@@ -107,14 +107,18 @@ only (FR-018).
   because settling floods an island over land) plus the channel land of four minor nations: Arvelia,
   the one land bridge, and the islands Sundmark, Lorran and Pellis.
 - **Countries** (FR-146): a country id (`CountryId`) is a Great Power (`state.nations`) or a minor
-  (`state.minorNations`: id, name, capital tile, `colonyOf?`). A minor has no treasury, warehouse,
-  industry, civilians or controller and gives no orders, so every system and view that iterates
-  `state.nations` sees the Great Powers only. `countryName`, `isGreatPower`, `countryOfTile`.
+  (`state.minorNations`: id, name, capital tile, `colonyOf?`, the one home of the colony relation;
+  `Nation` has no colony list). A minor has no treasury, warehouse, industry, civilians or controller
+  and gives no orders, so every system and view that iterates `state.nations` sees the Great Powers
+  only. `countryName`, `isGreatPower`, `countryOfTile`.
 - **Provinces** (FR-147, FR-148): each land tile of a world with provinces has `provinceId`;
   `state.provinces` holds id, name, owner (a country id), seat tile and tile ids. Land changes hands
   only through `transferProvince`, the one writer of `ownerNationId` after `newGame`, so its read
   sites keep meaning "owned by this Great Power"; a minor's tiles have none (so they are closed to
-  Great Power civilians, FR-149). The migrant cap counts `provincesOf(state, nationId)`.
+  Great Power civilians, FR-149). The migrant cap counts `provincesOf(state, nationId)`. A minor's
+  capital keeps the Capital terrain when it changes hands, so the rules that mean "this nation's own
+  capital" ask `isGreatPowerCapital(state, tile)` (`orders/queries.ts`: the depot rule, the scripted
+  player's hubs and reach); a depot site is blocked only by its own country's capital, depot or port.
 - **Diplomacy** (FR-151): `state.diplomacy[pairKey(a, b)]`, one entry per pair with at least one
   Great Power: points 0 to 89 (level floor(points / 10) on nine swatches), consulates, embassies,
   pact, alliance, war, boycotts, subsidies, locked grants. M6 adds the overtures that change it.
