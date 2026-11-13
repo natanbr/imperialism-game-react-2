@@ -3,7 +3,8 @@
  *   top left: level badge, job markers below it   top right: depot / port with status dot
  *   middle: the icon for what the tile holds       bottom right: the civilians, one 24 px button
  * Stacking above MapView's rail and border overlay (z-index 1): the selection ring and the icons
- * and badges (2), the civilians (3), the civilians' tray (6). The HUD (10) stays on top.
+ * and badges (2), the civilians (3), a minor's name tag (4), the civilians' tray (6). The HUD (10)
+ * stays on top.
  */
 
 .tile {
@@ -57,6 +58,26 @@
   top: 1px;
   transform: translateX(-50%);
   font-size: 15px;
+}
+
+/* A minor nation's name on its capital (FR-153 d): a small tag below the icon. It may be wider than the
+   tile, so it sits above the neighbouring tiles' icons and civilians, below the civilians' tray. */
+.minorName {
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  transform: translateX(-50%);
+  padding: 0 3px;
+  border: 1px solid var(--color-minor);
+  border-radius: 3px;
+  background: var(--color-surface-raised);
+  color: var(--color-ink);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 11px;
+  white-space: nowrap;
+  z-index: 4;
+  pointer-events: none;
 }
 
 .river {

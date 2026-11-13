@@ -169,6 +169,25 @@ describe('FR-109 startNewGame clears the session', () => {
   });
 });
 
+describe('FR-160 startNewGame resets every overlay flag, also the ones a later milestone adds', () => {
+  it('FR-160 each boolean "is..." flag of the store, false at the start, is false again after startNewGame', () => {
+    const store = createGameStore({ game: newGame({ seed: 1 }) });
+    const initial = store.getInitialState() as unknown as Record<string, unknown>;
+    const flags = Object.keys(initial).filter((key) => /^is[A-Z]/.test(key) && typeof initial[key] === 'boolean');
+    // The flags of M1 to M4; a flag M6 to M9 add (for example isDiplomacyOpen) is picked up here too
+    expect(flags).toEqual(expect.arrayContaining(['isWarehouseOpen', 'isCapitalOpen', 'isMarketOpen', 'isGameOverHidden', 'isTransportAllocationOpen', 'isConstructionModalOpen']));
+    expect(flags.filter((key) => initial[key] !== false)).toEqual([]);
+
+    store.setState(Object.fromEntries(flags.map((key) => [key, true])));
+    store.getState().startNewGame({ seed: 2 });
+
+    const after = store.getState() as unknown as Record<string, unknown>;
+    expect(flags.filter((key) => after[key] !== false)).toEqual([]);
+    // The app's default world (FR-144)
+    expect(store.getState().game.worldId).toBe('continent');
+  });
+});
+
 describe('FR-108 the store selects only the player\'s workers', () => {
   it('FR-108 selectWorker and setSelectedWorkerId ignore another nation\'s worker and an unknown id', () => {
     const store = createGameStore({ game: newGame({ seed: 1 }) });

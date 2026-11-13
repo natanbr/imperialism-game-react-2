@@ -97,6 +97,28 @@ describe('FR-106 score table', () => {
   });
 });
 
+describe('FR-156 Great Powers only in the score table and the game-over screen', () => {
+  const continent = () => newGame({ seed: 1, world: 'continent' });
+
+  it('FR-156 on a new continent game the HUD score table lists exactly the 2 Great Powers, no minor nation', () => {
+    show(continent());
+    render(<ScoreTable />);
+    const rows = within(screen.getByRole('table', { name: 'Scores' })).getAllByTestId(/^score-row-/);
+    expect(rows.map((r) => r.dataset.testid)).toEqual([`score-row-${N1}`, `score-row-${N2}`]);
+    expect(rows.map((r) => text(within(r).getByTestId('nation')))).toEqual(['Testland (you)', 'Valdoria']);
+    expect(text(screen.getByRole('table', { name: 'Scores' }))).not.toMatch(/Arvelia|Sundmark|Lorran|Pellis/);
+  });
+
+  it('FR-156 the game-over screen of a continent game lists exactly the 2 Great Powers', () => {
+    show(resolveTurn({ ...continent(), turnLimit: 1 }, {}, 1).state);
+    render(<GameOverModal />);
+    const dialog = screen.getByRole('dialog', { name: 'Game over' });
+    const rows = within(dialog).getAllByTestId(/^final-score-/);
+    expect(rows.map((r) => r.dataset.testid).sort()).toEqual([`final-score-${N1}`, `final-score-${N2}`]);
+    expect(text(dialog)).not.toMatch(/Arvelia|Sundmark|Lorran|Pellis/);
+  });
+});
+
 describe('FR-107 news per nation', () => {
   it("FR-107 the player's lines come first without a prefix, then other nations' lines named, then lines without a nation", () => {
     const events: GameEvent[] = [

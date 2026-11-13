@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo } from 'react';
+import { countryName, countryOfTile } from '@/engine';
 import { useGameStore } from '@/store/rootStore';
 import { selectSelectedWorkerAndTile, selectTilesCompletedLastTurn } from '@/store/selectors';
 import { Tile } from '@/types/Tile';
@@ -15,6 +16,7 @@ import {
   TileInfrastructure,
   TileWorkers,
   TileJobs,
+  TileName,
 } from './Tile/index';
 import type { TrayPlacement } from './Tile/TileWorkers';
 
@@ -48,7 +50,13 @@ const TileComponentInner: React.FC<TileProps> = ({
   // Get selected worker
   const { worker: selectedWorker } = useGameStore(selectSelectedWorkerAndTile);
   const jobJustCompleted = useGameStore((s) => selectTilesCompletedLastTurn(s).has(tile.id));
-  const ownerName = useGameStore((s) => (tile.ownerNationId ? s.game.nations.find((n) => n.id === tile.ownerNationId)?.name : undefined));
+  // The country the tile belongs to, a Great Power or a minor nation (FR-155)
+  const ownerName = useGameStore((s) => {
+    const country = countryOfTile(s.game, tile);
+    return country ? countryName(s.game, country) : undefined;
+  });
+  // A minor nation's capital carries its name (FR-153 d)
+  const minorCapitalName = useGameStore((s) => s.game.minorNations.find((m) => m.capitalTileId === tile.id)?.name);
   // The other nation whose civilians stand here (FR-108); strings, so the subscription stays cheap
   const otherNationName = useGameStore((s) => {
     const id = tile.workers.find((w) => w.nationId !== s.activeNationId)?.nationId;
@@ -107,7 +115,8 @@ const TileComponentInner: React.FC<TileProps> = ({
       hasJobCompleted={jobJustCompleted}
       onClick={handleTileClick}
     >
-      <TileIcon name={tileIconOf(tile)} crowded={tile.workers.length > 0} />
+      <TileIcon name={tileIconOf(tile)} crowded={tile.workers.length > 0 || minorCapitalName !== undefined} />
+      {minorCapitalName !== undefined && <TileName name={minorCapitalName} />}
 
       {tile.resource && <TileResource resource={tile.resource} />}
 

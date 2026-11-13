@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { countryOfTile } from '@/engine';
 import { Tile } from '@/types/Tile';
 import { Worker } from '@/types/Workers';
 import { PossibleAction } from '@/types/actions';
@@ -6,7 +7,7 @@ import { useGameStore } from '@/store/rootStore';
 import { moveOrders, submitFirstAccepted, tileClickOrders } from './tileClickOrders';
 
 /**
- * Click handler for a tile. A tile of another nation is only selected for viewing (FR-108). With a
+ * Click handler for a tile. A tile of another country is only selected for viewing (FR-108, FR-155). With a
  * worker selected, the click becomes orders (see tileClickOrders) sent through the store's
  * submitOrder; otherwise it selects the tile.
  *
@@ -30,8 +31,10 @@ export function useTileClickHandler(
       selectTile,
     } = useGameStore.getState();
 
-    // Another nation's tile is only viewed (FR-108): no order, so no refusal in the news
-    if (tile.ownerNationId && tile.ownerNationId !== activeNationId) {
+    // Another country's tile, a Great Power's or a minor nation's, is only viewed (FR-108, FR-155):
+    // no order, so no refusal in the news
+    const country = countryOfTile(game, tile);
+    if (country && country !== activeNationId) {
       selectTile(tile.id);
       return;
     }

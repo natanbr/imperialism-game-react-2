@@ -321,6 +321,43 @@ describe('FR-110 (c) the nation colours are told apart', () => {
   });
 });
 
+describe('FR-154 the minor nation and province border colours', () => {
+  const token = (name: string) => valueOf(`var(${name})`);
+  const others = ['--color-nation-1', '--color-nation-2', '--color-bad'];
+
+  it('FR-154 tokens.css defines --color-minor and --color-province-border, and theme.ts names both', () => {
+    expect(defined.has('--color-minor')).toBe(true);
+    expect(defined.has('--color-province-border')).toBe(true);
+    expect(THEME.minor).toBe('var(--color-minor)');
+    expect(THEME.provinceBorder).toBe('var(--color-province-border)');
+  });
+
+  it('FR-154 --color-minor is at least 25 from each nation colour and from the red of "bad"', () => {
+    const close = others
+      .map((o) => ({ pair: `--color-minor vs ${o}`, dE: Math.round(deltaE(lab(token('--color-minor')), lab(token(o))) * 10) / 10 }))
+      .filter(({ dE }) => dE < 25);
+    expect(close).toEqual([]);
+  });
+
+  it('FR-154 --color-minor stays at least 20 from each of them under simulated deuteranopia and protanopia', () => {
+    const close = Object.entries(CVD)
+      .flatMap(([kind, m]) =>
+        others.map((o) => ({ pair: `${kind}: --color-minor vs ${o}`, dE: Math.round(deltaE(simulate(token('--color-minor'), m), simulate(token(o), m)) * 10) / 10 }))
+      )
+      .filter(({ dE }) => dE < 20);
+    expect(close).toEqual([]);
+  });
+
+  it('FR-154 --color-province-border reaches 3:1 against every land tile background (WCAG 2.2, 1.4.11)', () => {
+    const land = [THEME.land, ...Object.entries(TERRAIN_TINT).filter(([t]) => t !== TerrainType.Water).map(([, v]) => v)];
+    expect(land).toHaveLength(Object.values(TerrainType).length);
+    const low = land
+      .map((bg) => ({ bg, ratio: Math.round(contrast(token('--color-province-border'), valueOf(bg)) * 100) / 100 }))
+      .filter(({ ratio }) => ratio < 3);
+    expect(low).toEqual([]);
+  });
+});
+
 /** WCAG 2.2 contrast ratio of two #rrggbb colours: (L1 + 0.05) / (L2 + 0.05), L the relative luminance. */
 function contrast(a: string, b: string): number {
   const luminance = (hex: string) => {

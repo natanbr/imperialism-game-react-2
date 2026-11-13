@@ -5,7 +5,7 @@ import styles from './Tile.module.css';
 
 export interface TileIconProps {
   name: IconName | null;
-  /** Workers stand on the tile: the icon moves up and shrinks to leave them the bottom half. */
+  /** Workers or a minor's name tag take the bottom half: the icon moves up and shrinks. */
   crowded: boolean;
 }
 
