@@ -8,15 +8,12 @@
   `docs/journal/archive-M1.md` to `-M4.md`. Decisions Q5 to Q16 settled (NR-012 to NR-018).
 - M4.1 (PR 18), M4.2 (PR 19) and M4.3 (PR 20, main 274ef62) are merged; entries archived in
   `docs/journal/archive-M4.1.md` to `-M4.3.md`. Q17, Q19 and Q20 answered as NR-029, NR-028, NR-027.
-- 2026-11-12 M4.4 (NR-027, NR-028; FR-140 to FR-142) on branch `claude/m4-4-recruiting-ai`, pushed, no
-  PR: the transport popup lists only what can be shipped and hides groups that are all 0 / 0; the
-  furniture bound counts 2 lumber a furniture. Recruiting NOT built: the probe shows that inputs bind
-  before labour and that recruiting lowers the score, even with free migrants (the brief: stop and
-  report). Entry below; review fix round done (tests, docs, the probe kept in `scripts/probes/m4-4/`).
-  Next: Nathan's decision M4.4-1, then a PR.
-- OPEN for Nathan (M4.4 decision 1, in the entry): no recruiting AI in v1 (suggested), or recruit anyway
-  at about -6% at turn 40, or first an AI task on transport so labour becomes the limit. The orchestrator
-  took option (a) meanwhile (nothing in the game changes).
+- 2026-11-12 M4.4 (NR-027, NR-028; FR-140 to FR-142) merged (PR 21, main e018d85). Recruiting not
+  built (probe in `scripts/probes/m4-4/`); decision card Q21 open, option (a) "no recruiting" taken
+  meanwhile. v1 (M0 to M4.4) is complete.
+- 2026-11-12 night shift (NR-030): v2 planning and implementation. Plan on branch `claude/v2-plan`
+  (this worktree, the old docs worktree `imperialism-game-revival-fee36d`); one branch per milestone
+  after it. The progress page files now live on these branches too (copied from the docs branch).
 
 Carried forward:
 - Deferred: river ports and the depot-on-port rule (rules 04); University fees; the power plant.
@@ -273,3 +270,30 @@ Playwright suite was not re-run; the smoke row above is the M4.4 run):
 | Lint | `npm run lint` | `✖ 3 problems (0 errors, 3 warnings)` (the same 3; `scripts/probes/m4-4` adds none) |
 | Types | `npx tsc --noEmit` | exit 0, no output |
 | Build | `npm run build` | `✓ Compiled successfully in 6.7s`, `✓ Generating static pages (4/4)` |
+
+## 2026-11-13 v2 plan (night shift, NR-030)
+
+Size: L (plan). Branch `claude/v2-plan`. Ultracode workflow 1 (8 agents): code map (Sonnet 5.5 xhigh), four web
+research lanes (Sonnet 5.5 xhigh: trade, diplomacy, army, combat; the combat lane stalled on a browser call and
+was re-run with web pages only), rules writer (Sonnet 5.5 xhigh), spot-check (Sonnet 5.5 high), spec writer
+(Opus 5.5 high: a spec others execute).
+
+- Plan: `docs/REVIVAL_PLAN.md` section 5b (M5 to M10, seven architecture decisions).
+- Rules: `docs/rules/01`, `06`, `07`, `08` extended, new `11-screens.md`; gaps updated (F12 to F19, H1 to H18).
+  Main source: a Let's Play of Imperialism (1997) with screenshots (lparchive.org); every number tagged Imp1,
+  Imp1 [?] or remake. Spot-check: 13 of 18 claims confirmed on the screenshots, 5 tagged [?]; the orchestrator
+  opened Update 07 itself (text confirms the worker grades; costs are only on the screenshots).
+- Requirements: FR-144 to FR-234 (M5 FR-144 to 160, M6 161 to 181, M7 182 to 198, M8 199 to 215, M9 216 to 234).
+- Decision cards (defaults taken, nobody to ask; on the progress page): Q22 one land-bridge minor (Arvelia)
+  and three island minors (option b, the spec writer's suggestion: neither capital province borders a minor);
+  Q23 one province per minor; Q24 ten relation points a level, +1 a trade, +10 a pact, -40 a war; Q25 equal
+  start relations; Q26 a consulate is needed to trade with a minor (plan rule; Imp1 needs none); Q27 a minor
+  offers 1 unit per resource tile (at most 6) and buys 2 of each good; Q28 favourite partner = points +
+  subsidy / 2, deals at the board price; Q29 the computer accepts alliance at level 7 and peace when losing;
+  Q30 start army 2 Regulars, 1 Artillery, militia, fort on the capital; Q31 derived regiment costs, no
+  Sappers; Q32 simple combat numbers (8 rounds, 70% hit); Q33 one army per country per province; Q34 a taken
+  Great Power capital ends that nation, a taken minor capital makes a colony; Q35 the computer may attack the
+  weakest minor from turn 10, never a Great Power; Q36 upkeep it cannot pay disbands the newest regiments;
+  Q37 Join the Empire, rail and sea moves, generals and medals stay out of v2.
+- Objection: one province per minor and one army per province make war short (one battle takes a minor);
+  acceptable for a first playable war, revisit after Nathan plays.

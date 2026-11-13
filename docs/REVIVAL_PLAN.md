@@ -149,6 +149,94 @@ Deferred past v1: nation-to-nation trade with bids and offers, diplomacy and tre
 minor nations and colonies, military units and combat, technology tree, the Council of Governors vote that ends the game (NR-011, decision Q12), Council of
 Governors. These are v1.5 or v2, chosen once v1 is fun.
 
+v1 (M0 to M4.4) was complete on 2026-11-12 (main e018d85).
+
+## 5b. v2 milestones (planned 2026-11-12, NR-030)
+
+Scope named by Nathan: nation-to-nation trade and diplomacy, wars, hidden-rule research with web
+screenshots, army screens and attack screens. Rules: `docs/rules/06`, `07`, `08`, `11-screens.md`.
+Follow Imperialism (1997); a number from Imperialism II is a hint only (gaps F11). Hidden formulas
+get a designed default recorded as a decision card.
+
+**Architecture decisions for v2** (from the code map of 2026-11-12, recorded in the journal):
+1. **Old world kept as a fixture.** `newGame` gets a `world` option. `"two-islands"` is the v1 world
+   with its v1 world market, so every v1 baseline (scriptedScore margin, start-world and e2e tests)
+   stays as it is and is never loosened. The app's default becomes the v2 world. A v2 baseline is
+   added by its own requirement with a recorded reason.
+2. **One random stream per system** (`ctx.rngFor(name)`), so a new draw in diplomacy or combat
+   never shifts the price or development draws.
+3. **Minor nations are not `Nation` entries.** A separate `state.minorNations` list, so score,
+   production, food, logistics and the HUD keep iterating Great Powers only.
+4. **One home for diplomacy state**: `state.diplomacy` keyed by country pair (relation level
+   0..8 on the rules' nine-colour scale, consulate, embassy, pact, alliance, war). The duplicate
+   fields on `Nation` are removed in the same task.
+5. **Simultaneous orders through intents.** An order that involves a second country (an overture,
+   a bid, an army move, an attack) stores an intent in state when applied; a turn phase resolves
+   all intents together, in a fixed order that does not favour nation 1. Same pattern as the v1
+   `market.orders`.
+6. **Provinces.** `Tile.provinceId` plus `state.provinces`; ownership moves by province through
+   one helper, so the about 41 `ownerNationId` read sites stay unchanged.
+7. **Combat is headless.** `combatSystem` resolves a battle with the combat stream and emits a
+   `battle-resolved` event holding the full report (rounds, units, losses, result). The attack
+   screen builds an order; the battle screen replays the report. No tactical control in v2.
+
+**The v2 world (default "continent").** Same 24x16 map, so the "whole map fits 1280x720" pins
+hold. The two Great Power islands each split into 4 provinces. Two minor nations fill the north
+and south channels as land bridges between the islands (land war is possible from the start);
+two more minor nations sit on small islands (trade only until ships exist). Minor nations get the
+remake's own names and one neutral colour token. Decision card with this default.
+
+**M5, World and seams for v2 (L).** Decisions 1 to 6 above; the v2 world as the app default;
+province borders and minor nations drawn on the map; a minor nation's tile shows its name and
+capital. Done when: a new game shows 2 Great Powers and 4 minor nations with provinces, and every
+v1 baseline is unchanged on `"two-islands"`.
+
+**M6, Diplomacy (L).** Overtures as orders: consulate, embassy, non-aggression pact, alliance,
+grant, subsidy, boycott, declaration of war, peace. `diplomacySystem` resolves them at End Turn;
+relations move on the nine levels (trade, grants and pacts raise them; war lowers them, also for
+the victim's friends). The Diplomacy screen: every country with its relation colour, treaties and
+the overtures you may order with their cost. The scripted Great Power answers proposals (peace,
+alliance) with a simple documented rule. Done when: a consulate, an embassy and a war declared in
+the app show up the next turn, and a headless test covers every overture.
+
+**M7, Nation-to-nation trade (L).** In the v2 world the infinite world market is replaced: minor
+nations offer what their tiles produce and buy goods, a set quantity per turn; Great Powers bid
+and offer; the Board of Trade gives each offer to the favourite partner (relations plus subsidy).
+Trade needs at least a consulate with a minor nation, war and boycott stop it, each deal raises
+relations. Trade between the two Great Powers. The Trade screen (Bids and Offers) and the Deal
+Book. The scripted player bids and sells through it. Done when: a 40-turn headless v2 game shows
+both nations trading with minor nations and the computer still ends with a positive treasury.
+
+**M8, Armies (L).** The era-1 regiment table (rules 08), the Armoury in the capital and a recruit
+order (cash, armaments, horses, one worker), upkeep each turn, armies stationed in provinces,
+militia garrisons in minor nations, a move order to an adjacent province (one province a turn).
+The map shows an army marker with its size; the Army screen lists the armies in a province with
+their regiments and lets the player move, merge or disband. The scripted player keeps a garrison.
+Done when: a regiment recruited in the app appears next turn in the capital province and can be
+moved.
+
+**M9, War and the attack screen (L).** Moving an army into a province of a country you are at war
+with is an attack. The attack screen shows both sides and a strength estimate and builds the
+order; `combatSystem` resolves the battle at End Turn; the battle screen replays the report on a
+small grid (deployment, rounds, losses, who holds the field). A won battle takes the province; a
+taken capital ends that nation (its provinces go to the winner); a minor nation's lost capital
+makes it a colony. The scripted Great Power defends, counter-attacks, accepts peace when losing,
+and may declare war on a minor nation when much stronger. Done when: in the app the human
+declares war on a minor nation, attacks, sees the battle, and takes the province.
+
+**M10, Council of Governors (M, NR-011).** Only if M5 to M9 are merged. The vote that ends the
+game once one nation is strong enough; the 40-turn end stays as the fallback.
+
+**How a milestone runs in v2 (NR-030).** One ultracode workflow per milestone: requirements rows
+(spec), tests red, implementation in one worktree (Opus 5.5 xhigh), the gate, a review by three
+lenses (requirements coverage, correctness, engine rules: purity, determinism, headless) on
+Sonnet 5.5 xhigh with each finding verified, one fix round, a delta re-review, a browser QA pass
+with one screenshot. The orchestrator then runs the full gate including Playwright on the exact
+merge commit and merges (NR-012). Milestones run one after another, because each one changes the
+shared files (orders, state, turn loop); inside a milestone engine and UI run in parallel once the
+engine types are committed. A milestone that fails its fix round or its gate stays open and
+unmerged, and the night stops there.
+
 ## 6. Working rules for this project (replaces the old refactoring phases)
 
 - **Done means tested.** A roadmap box is ticked only when a test exists for it. Status in

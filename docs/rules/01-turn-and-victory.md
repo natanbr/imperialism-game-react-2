@@ -5,6 +5,7 @@
 > - The game is won by a Council of Governors vote: 1 vote per province, >2/3 of all votes. First meeting 1825, then every 10 years; the tenth (1915) forces every governor to choose. Only the two top powers are nominated, from three strengths (interior, diplomatic, military).
 > - A score exists but its formula is unknown. v1 must define its own (see section 5); the project plan proposes treasury + industrial capacity + developed tiles.
 > - CODE MISMATCH: phase list and difficulty (list at the bottom). Start year RESOLVED in M2 (FR-027).
+> - UPDATE 2026-11-12: section 4a adds five observed Council votes with the four-source breakdown (Controlled, Colonies, Other Great Powers, Other Minor Nations) and the score screen layout with one worked total. The first meeting drew 62 votes in the Let's Play against 20-23 in the wiki reports above (conflict F18).
 
 Source tags: `[M pN]` manual PDF page marker; `[W#]` web source (see Sources); `[?]` unverified or inferred.
 
@@ -24,6 +25,7 @@ Orders are entered by all rulers during the turn and can be cancelled until End 
 - Worker jobs (prospect, develop, construct) are also advanced when the turn ends; the manual treats them as map orders, not a numbered phase. [M p25] [?]
 - Technology purchases become final at End Turn and work next turn. [M p94]
 - Between turns the player sees, in order: diplomatic offers, trade offers (accept/reject), battle reports, Deal Book (balance sheet incl. overseas profits and upkeep), newspaper, then the new turn. [M p84] [M p73] [W1]
+- LP screens seen at turn end (Imp1): "Accept Offer" for AI alliance and peace offers (red REJECT, blue ACCEPT), "Enemy Merchants Intercepted!" with the blockade and the victim's deal, battle book, Deal Book, Imperial Times front page (treaties, "Mone Declares War!"). Screens: `11-screens.md`. [W19]
 
 ## 2. Calendar
 
@@ -52,6 +54,7 @@ Orders are entered by all rulers during the turn and can be cancelled until End 
 | Techs | High Pressure Steam Engine, Seed Drill | [M p93] |
 | Embassies | with every other Great Power; no Minor Nation consulates (a few at Introductory) | [M p80] [W8] |
 | Capital site | auto-chosen on Introductory and Easy; player-chosen otherwise | [M p9] [M p22] |
+| LP start board (Imp1, difficulty not stated [?]) | cash $9,900 on the Board of Trade (not $10,000, conflict F12) and $8,900 on the first offer sheet after two $500 consulates; 4 holds; warehouse clothing 5, furniture 5, canned food 20, fabric 7, lumber 8, paper 8, steel 10, all else 0; credit limit $200; military upkeep $100 = 4 arms points x $25 | [W24] |
 
 Difficulty (five levels): the level changes only starting advantages, not AI cleverness. [M p9] [W9]
 
@@ -88,11 +91,36 @@ The Status screen has Council Projection charts for merchant marine, world expor
 
 Weights of the three strengths, the exact governor decision rule and the nominee noise are **not documented** (gaps.md).
 
+### 4a. The vote screen and observed votes (Let's Play, 2026-11-12)
+
+Version: **Imp1**. The Let's Play (LP, Kangra, nation Visisik) is the 1997 game: Spring 1815 start, 7 Great Powers, 120 provinces [W19]. One game only; the numbers are samples, not rules. Screen layout: see `11-screens.md`.
+
+| Meeting | Nominee 1: total = Controlled + Colonies + Other Great Powers + Other Minor Nations | Nominee 2 | Votes cast | Source |
+|---|---|---|---|---|
+| 1825 | Mone 51 = 8 + 0 + 40 + 3 | Visisik 11 = 8 + 0 + 0 + 3 | 62 of 120 | [W20] |
+| 1835 | Mone 58 = 10 + 8 + 39 + 1 | Visisik 21 = 8 + 3 + 0 + 10 | 79 | [W20] |
+| 1845 | Yakakkie 35 = 11 + 12 + 1 + 11 | Mone 31 = 13 + 12 + 3 + 3 | 66 | [W20] |
+| 1855 | Visisik 36 = 18 + 10 + 0 + 8 | Yakakkie 27 = 11 + 16 + 0 + 0 | 63 | [W20] |
+| Winning meeting | Visisik 95 = 23 + 10 + 37 + 25 | other 25 = 13 + 12 + 0 + 0 | 120 | [W20] |
+
+| Rule | Value | Source |
+|---|---|---|
+| What the screen shows | title "Council of Governors" (win screen "<Nation> Wins!"), the world map with a ballot icon on every province that has voted, and only the **two** nominees, each with crest, big total and four rows: Controlled, Colonies, Other Great Powers, Other Minor Nations | [W20] |
+| Win | 95 of 120 (79%); at the winning meeting every province votes (95 + 25); the LP author says every country except Wan and Unaraco declared the player supreme; a score screen follows | [W20] [W21] |
+| Controlled, Colonies | Controlled = the nominee's own provinces, conquered included (18 on the diplomacy info page in Fall 1854 and 18 Controlled in Spring 1855; both nominees show 8 in 1825, so a Great Power starts with about 8 provinces [?]). Colonies = provinces of its colonised Minor Nations; wiki: up to 4 votes per colony when the owner is one of the top two [?] (the wiki page mixes in Imp2 numbers, and the screens do not show it: Colonies 3 in 1835 and 10 at the winning meeting, where every province voted, are not multiples of 4). One province = one vote. | [W20] [W23] |
+| Other Great Powers swing early | their provinces went to the militarily strongest nominee (40 in 1825, 39 in 1835) and dropped to 0-3 later; Other Minor Nations 1-11 | [W20] |
+| Votes needed (F9 supported) | manual >2/3 = 81+ of 120; a 95-vote win is shown. A wiki author believed 90 were needed ("How do we proceed to get 90 votes?" at 67 = 56%, 1845) and later wrote "it was only 84 votes. I thought it had to be 90": 90 is that author's guess, no screen states a threshold, and it is not stated that the 84-vote meeting ended the game (v1.1 lets a solo player refuse). | [W23] [W16] |
+| Projection is not the vote | only two powers are nominated; the Council Projection bars are "an estimate of who is likely to be nominated". The LP player was nominated while two others had longer bars; in another game the projection leader got 11 votes against 12 for the runner-up at the first meeting. Nomination "does take into account the nation's size". | [W22] [W23] |
+| The three strengths, in the game's words | Interior = industrial development and infrastructure (industry, labour, transport charts). Diplomatic = mostly relations with other countries including Minor Nations; changes little except through alliances, war and big shifts. Military = men under arms plus naval power; governors do not care about quality or success, mostly size. Early on military dominates (one power led the projection with 4-5 army units). Weights unknown (E1). | [W22] |
+| Minor Nation votes | follow the diplomatic edge: a wiki game report says the 1855 meeting went 63-27 with fewer Minor Nation votes for the player because a rival had the edge (the LP 1855 shows 36 + 27 = 63 cast, conflict F18); Recovery of France: 1835 "nearly every province" voted for the nominee, 1845 each nominee got only its own | [W23] [W15] [?] |
+| Projection charts | seven bars (crest, name) sorted longest first, no numbers: Council Projection, Interior, Diplomatic, Military Strength, Merchant Marine, World Exports, Industry, Labor, Transport | [W22] |
+
 ## 5. Score
 
 - The final score reflects what the player built: military size, labour force, transport network, merchant marine, diplomatic standing, number of provinces. Weights and scale are not documented. [W11] [W18]
 - The high-score cabinet shows small integers (Bismarck 10, Metternich 9, Morgan 8), so the scale may be 1-10 [?]. [W11]
 - Project decision (not original): v1 score = treasury + industrial capacity + developed tiles, shown in the HUD with a "game over after N turns" screen. See `docs/REVIVAL_PLAN.md` milestone M3.
+- Score screen (A7 partly, Imp1 LP): "Victory for <Nation>!", "Points for:" Labor, Transport, Industry, Provinces Controlled or Colonized, Year (left column) and Military, Navy, Diplomatic Relations, Merchant Marine (right column), then Subtotal, Difficulty (a multiplier) and Total. Example: 300 + 474 + 236 + 330 + 200 and 807 + 498 + 216 + 430 = 3,491, difficulty x2, total 6,982. Weights unknown. The total is far above the 1-10 cabinet scale above (conflict F19). [W21]
 
 ## CODE MISMATCH
 
@@ -122,3 +150,9 @@ Weights of the three strengths, the exact governor decision rule and the nominee
 - [W16] v1.1 readme https://imperialism.fandom.com/wiki/README11.TXT and v1.0 readme (section III)
 - [W17] https://imperialism.fandom.com/wiki/Scenario_(Imp1)
 - [W18] https://imperialism.fandom.com/wiki/Imperialism_(video_game) page text mirrored in https://imperialism.fandom.com/wiki/Imperialism
+- [W19] Let's Play "Imperialism" by Kangra, https://lparchive.org/Imperialism (nation Visisik, random world, Spring 1815). Imp1: retail 1997 UI, 7 Great Powers, 16 Minor Nations, nine-swatch relation bar.
+- [W20] Council vote screens: https://lparchive.org/Imperialism/Update%2004/16-Per0z4i.png (map before the numbers), https://lparchive.org/Imperialism/Update%2004/17-bC41Cof.png (1825), https://lparchive.org/Imperialism/Update%2007/16-IW5ETBl.png (1835), https://lparchive.org/Imperialism/Update%2009/26-y4Yd5zj.png (1845), https://lparchive.org/Imperialism/Update%2012/29-ybYr3Cw.png (1855), https://lparchive.org/Imperialism/Update%2021/22-ej4UicT.png (win); provinces count https://lparchive.org/Imperialism/Update%2012/27-1biATBM.png
+- [W21] Score screen: https://lparchive.org/Imperialism/Update%2021/23-qKDxqel.png
+- [W22] Council Projection and strength charts: https://lparchive.org/Imperialism/Update%2004/18-vhJTsb3.png, https://lparchive.org/Imperialism/Update%2004/20-MItvZt7.png; LP text https://lparchive.org/Imperialism/Update%2004/
+- [W23] Wiki game reports (Imp1; read through search excerpts, medium): https://imperialism.fandom.com/wiki/Key_Scotland_(Imp1)/Purple, https://imperialism.fandom.com/wiki/Nepal_(Imp1)/Purple; colony votes from https://imperialism.fandom.com/wiki/Trade_(Imp1) (page mixes in Imp2 numbers)
+- [W24] First Board of Trade, Spring 1815 (cash, holds, warehouse): https://lparchive.org/Imperialism/Update%2001/8-TE5s18z.png; first offer sheet https://lparchive.org/Imperialism/Update%2002/2-clspY6F.png; ledger with upkeep and credit limit https://lparchive.org/Imperialism/Update%2003/15-ZlRQkoR.png

@@ -5,6 +5,7 @@
 > - Orders are simultaneous and resolved first in the turn; all diplomatic orders can be taken back until End Turn. Minor Nations never attack, never refuse a consulate, embassy, pact or peace, and always accept a declaration of war without recourse (war cannot be refused).
 > - The relationship scale has **9 colour levels**; the real step sizes are not documented (gaps.md).
 > - CODE MISMATCH: `types/Diplomacy.ts` uses `attitude -100..+100` and a free-form `Treaty` list (list at the bottom).
+> - UPDATE 2026-11-12: section 7 adds the nine colours in order, the consulate-timing evidence (F3 closed), exact grant sizes, overture and map-mode screens, AI war and alliance observations. The Council vote screen is in 01 section 4a.
 
 Source tags: `[M pN]` manual PDF page marker; `[W#]` web source (see Sources); `[?]` unverified or inferred.
 
@@ -96,10 +97,48 @@ Source tags: `[M pN]` manual PDF page marker; `[W#]` web source (see Sources); `
 | Human at Normal | no consulates in Minor Nations; start by buying consulates in 2-3 nations with the exports you need | [W17] [M p112] |
 | Tutorial advice | do not court nations you plan to conquer; court those not friendly with your future victims and not bordering other powers | [M p112] |
 
+## 7. Screen-verified and research additions (2026-11-12)
+
+Version: rows tagged [W18]-[W22] come from the Let's Play screenshots (Imp1: Spring 1815 start, 7 Great Powers, 16 Minor Nations, nine-swatch bar). Rows from the wiki pages `Trade_(Imp1)`, `Diplomacy_(Imp1)` and the 1998 guide are Imp1 pages that may carry Imp2 numbers; those carry `[?]` (F11). Screens: see `11-screens.md`.
+
+### 7.1 Relationship scale and what moves it
+
+| Rule | Value | Source |
+|---|---|---|
+| Nine swatches, Bad to Good (C1 partly) | dark brown, red, orange, yellow, beige (khaki), brown (tan), grey (light grey), light green, dark green = levels 1-9. The human starts every Minor Nation at yellow = level 4 ("slightly worse than neutral"). Names of the lowest three swatches and khaki = beige, tan = brown are inferred. | [W19] [?] |
+| Ladder fits the scale | cumulative trades 0 yellow, 11 beige, 31 brown, 67 grey, 103 light green, 139 dark green, 153 may join (the 11/20/36/36/36/14 steps of section 2). LP: 12 turns of consulates, 10% subsidies and about 1 trade a turn gave only beige (Niridna, Qak, Spring 1818); a wiki game report at 2.7 trades a turn reached level 7 after about 26 turns (67) and level 8 after about 38 (103). Colours are Imp1; the numbers stay `[?]` (F11). | [W19] [W4] [W5] [?] |
+| Buying more units | does not raise relations faster (players trade in ones); Developer gold and gem purchases are not trades | [W24] |
+| War | victim turns red or dark brown (1837 Kova dark brown, Niatat orange; 1854 Mone, Porgindris, Napallaanga, Nojiikuq red). Wiki: about -40 trades sliding, at most -10 without a consulate (Imp2 mix, low). Forum: declaring war early cost "two reputation levels" back within a few turns and the victim's neighbour fell to orange (low). | [W19] [W4] [W24] [?] |
+| Grants | exactly four sizes ($1,000, $3,000, $5,000, $10,000), each as a one-time paper or a padlock repeated every turn; effect about 1:2:3:4 (guide, Imp1); under a year of shipping about $200 of food maxed one relationship (food sales are trades); a report got a Minor Nation to join after 3 seasons of grants. Best value: small locked grants plus a 5-10% subsidy. | [W21] [W23] [W24] |
+| "Too deeply under the influence" | exact Foreign Minister text: "that Minor Nation is too deeply under the influence of another Great Power for our grants to be effective" (Fall 1845). The same refusal came on a join request at maximum relations (one poster). Trigger unknown (C2). | [W21] [W24] |
+| Join the Empire | dark green (level 9) + embassy + request; some posters add: be its favoured partner. Forum: "once relations are in the dark green, offer a 10K grant and annex". After dark green the wiki ladder wants about 14 more trades [?]. Acceptance can still fail when another power holds the nation. Attacked nations may ask for protection earlier. | [W24] [W4] [?] |
+| Join outcomes | requests succeeded after several seasons of grants (Spring 1837) and a join in Fall 1847; AI powers colonise Minor Nations ("X submits to Y") from about 1830; the empire offer text promises "protection and development"; the guide says a colony is irreversible. | [W6] [W27] [W23] |
+| Developer unlock (C3 partly) | about level 7 (grey) per the 1998 guide; reports: Summer 1821, Summer 1824 and 1827, in one report the season before the first level-7 reading; needs an embassy to buy land; land = 20 x last market price (coal $120 = $2,400); income one turn later (4 turns with a Miner), break-even about 20 turns | [W23] [W25] [?] |
+| Overseas share (C3, conflict F15) | wool tile sold at $126 paid $95 (75%) after a pact; ledger sums give about 75% (partner) and 100% (colony, Qak); the 1998 guide gives royalty 30% in a partner and 12% in a colony; manual says colonies pay 100% (section 4) | [W25] [W23] [?] |
+| Hidden status | a wiki editor says no list of credits or debits per action exists and the colours "may or may not reflect actual diplomatic status"; a forum poster: "a ridiculous amount of hidden information". The remake must choose its own points (C1, E1); tune from the 153-trade ladder. | [W25] [?] |
+
+### 7.2 Overtures, timing, maps
+
+| Rule | Value | Source |
+|---|---|---|
+| Consulate timing (closes F3) | first turn: board cash $9,900, first offer sheet $8,900 (two consulates at $500 paid before the offers) and the Niridna sheet already says "We have a Consulate with Niridna, thus each trade improves our relationship": a consulate ordered this turn counts in this turn's trades. Grants, subsidies and an embassy there still wait until next turn (wiki). The wiki wins over the manual's "next turn" for trades. | [W20] |
+| Overture panel | "Diplomatic Overtures": seven scrolls in two rows (Peace, Trade Consulate, Embassy / War, Pact, Alliance, Empire); pick a scroll, then a nation; embassy needs $5,000 in cash, not credit (Foreign Minister: "we do not have the $5000 required") | [W21] |
+| Info page | "Information: X" shows Provinces (a number), Military and Industry as words (Poor, Fair, Good, Excellent, Awesome); relative to other Great Powers since v1.1, so they can disagree with the charts | [W22] [W3] |
+| Trade Policies page | selecting a Minor Nation shows "Most Favored Trading Nation: X" and up to 3 Major Exports icons (Ash Mukkun 1815: favourite Wan, cotton, coal, iron; Spring 1818 favourite Mone, so it changes in play); a Great Power shows its Major Exports. Blue round number badges (about 102, 92) beside consulate nations are not explained (gap H5). | [W19] |
+| Political map colours | Peace white, War dark grey, Pact light teal, Alliance blue-purple, Empire light purple; green $ = Trade Consulate and black top hat = Embassy on this map (on the Trade Policies map a green $ marks a subsidy, conflict F16) | [W22] |
+| Alliances (F5 closed) | v1.0 readme: allies of two Great Powers at war must join the war or the alliance ends; a separate peace by an ally also ends it; Great Powers cannot be asked to join the empire (against manual p78); the Empire button is meant for Minor Nations. AI offers come on an "Accept Offer" screen ("Wan seeks to enter into an alliance with our great Empire. Do you accept their offer?"; Esc rejects, Return accepts). | [W3] [W22] |
+| AI refuses human alliances | no visible rule (Ordune refused while the player was military #3; Zimm declined twice). Anecdotes: an accepted alliance offer can reactivate a war at a smaller reputation cost than declaring one; an ally dropped the alliance after the player refused a third party's peace. | [W24] [?] |
+| AI war declarations | Imperial Times "Mone Declares War!" plus Foreign Minister "Prepare for Battle ... Diplomacy has failed". The declaration shows on the scroll tab one turn before the attack. A 1998 guide: the AI picks a random trade market and declares war on whoever controls it; posters: Great Powers start picking off Minor Nations at some point, join wars late once the victim is worn down. No thresholds (E2). | [W22] [W26] [W24] |
+| AI peace | a Great Power's hatred "never stops" and its offers serve temporary advantage or new allies (guide); LP: a beaten Mone asked for peace and got it, Kova's attempt was refused; the screen warns "Accepting will break our alliances with their enemies". How an AI answers a human peace offer is unknown. | [W22] [W26] |
+| Pact and intervention | the LP text says the nation "automatically becomes our colony" after the intervention; three allies defended and colonised one victim in a game. One forum player says pacts do not raise relations by themselves (conflict F17: manual says "significantly"). | [W27] [W24] |
+| Capital capture | see 08 section 7: the fallen power is at war with all Great Powers, keeps its army, its colonies are released | [W27] |
+| Not usable | `imperialism-remake-definition.readthedocs.io` diplomacy page is a fan remake (trade mission $300, embassy $1,000, "DR" thresholds); it matches no Imp1 screen | [?] |
+
 ## CODE MISMATCH
 
 - CODE MISMATCH: `types/Diplomacy.ts` `Relation.attitude` is -100..+100 with booleans (`atWar`, `allied`, `tradePartner`) and `Treaty.duration`. The rules use a 9-step ordinal scale per pair, no treaty duration, and these exact treaty kinds: consulate, embassy, non-aggression pact, alliance, war/peace state, colony ownership. `TreatyType` includes `"trade"` and `"peace"` and `"colony"`; consulates/embassies and boycotts are missing.
 - `TradePolicy.subsidyPercent` should be one of 5, 10, 25, 50, 100; `Grant.locked` matches locked grants.
+- CODE MISMATCH (2026-11-12): the screen shows six subsidy steps including 75% (06 section 7.3, F14); grants are four fixed sizes (1,000 / 3,000 / 5,000 / 10,000), not a free range. Nine swatches = levels 1-9, human start = level 4.
 - `Nation.colonies` matches; the colony effects (100% profit, council votes, boycott list) are not modelled. Everything in this file is unimplemented stub (`diplomacySystem`, `diplomacySlice`).
 
 ## Sources
@@ -122,3 +161,13 @@ Source tags: `[M pN]` manual PDF page marker; `[W#]` web source (see Sources); `
 - [W15] https://imperialism.fandom.com/wiki/Nepal_(Imp1)_Purple, https://lparchive.org/Imperialism/Update%2004/
 - [W16] https://imperialism.fandom.com/wiki/Difficulty_(Imp1)
 - [W17] https://imperialism.fandom.com/wiki/Starting_a_game_of_Imperialism
+- [W18] Let's Play "Imperialism" by Kangra, https://lparchive.org/Imperialism (nation Visisik, Spring 1815 start). Imp1: retail 1997 UI, 7 Great Powers, 16 Minor Nations, nine-swatch relation bar. Screenshot sources [W19]-[W22] below.
+- [W19] Relationship screens and trade policy page: https://lparchive.org/Imperialism/Update%2001/10-XljsTul.png, https://lparchive.org/Imperialism/Update%2012/27-1biATBM.png, https://lparchive.org/Imperialism/Update%2001/11-B66iBPN.png
+- [W20] First offer sheets (consulate timing): https://lparchive.org/Imperialism/Update%2002/2-clspY6F.png, https://lparchive.org/Imperialism/Update%2002/3-CvEDztG.png
+- [W21] Overtures, embassy refusal, grants, sway message: https://lparchive.org/Imperialism/Update%2008/7-yFe7l9K.png, https://lparchive.org/Imperialism/Update%2005/14-O8Qo6FE.png, https://lparchive.org/Imperialism/Update%2009/2-GI9NqXZ.png, https://lparchive.org/Imperialism/Update%2009/30-ooI2C92.png
+- [W22] Political map, Accept Offer, Imperial Times: https://lparchive.org/Imperialism/Update%2006/6-spJog7e.png, https://lparchive.org/Imperialism/Update%2007/31-H9C6hVl.png, https://lparchive.org/Imperialism/Update%2007/34-qJ3qI0c.png, https://lparchive.org/Imperialism/Update%2010/8-QVUB12w.png
+- [W23] Economics guide v1.02, Sept 1998 (Imp1; author's own calculations): https://www.grognard.com/info/imp_econ.txt
+- [W24] GOG forum threads (Imp1 sections, anecdotes): https://www.gog.com/forum/imperialism_series/imperialism_1_strategy_normal, https://www.gog.com/forum/imperialism_series/imp1_late_game_economics, https://gog.com/forum/imperialism_series/imp_1economic_and_diplomacy
+- [W25] https://imperialism.fandom.com/wiki/Developer, https://imperialism.fandom.com/wiki/Brete_(Imp1), https://imperialism.fandom.com/wiki/Imp3_wish_list (the wiki returned HTTP 402 to fetches; statements were read from search excerpts, so medium or low)
+- [W26] AI guide for Imp1: https://archive.kontek.net/dailyimperialist.strategyplanet.gamespy.com/imp1/randtke.htm
+- [W27] LP text pages: https://lparchive.org/Imperialism/Update%2007/ (pact intervention), https://lparchive.org/Imperialism/Update%2009/, https://lparchive.org/Imperialism/Update%2016/ (capital capture)

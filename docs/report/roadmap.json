@@ -1,50 +1,57 @@
 {
   "project": "Imperialism Revival",
-  "updated": "2026-11-02",
+  "updated": "2026-11-09",
   "target": "v1 playable (M3)",
-  "now": "M0 cleanup + setup",
+  "now": "M4.4 merged (PR 21): empty groups hidden, furniture bug fixed, recruiting measured and not built. Open: Q21 and your next play-test",
   "source": "docs/REVIVAL_PLAN.md and docs/report/roadmap.json in the imperialism-game-react-2 repo",
   "overview": {
-    "headline": "Plan approved on 2026-11-02. M0 cleanup runs in its own session; this session sets up the rules knowledge base, a light spec-driven flow and this page. No game feature has been built yet.",
+    "headline": "main has v1 playable plus the small two-island map and clean look (M0 to M3.5 merged, PR 15 last). Next: M4, a second nation on island 2 driven by a scripted player.",
     "milestones": [
       {
         "title": "Setup: rules knowledge, light spec flow, progress page",
-        "status": "in-progress",
-        "progress": 70,
+        "status": "done",
+        "progress": 100,
         "date": "Nov 2026",
-        "note": "Flow, commands, CLAUDE.md, plan and this page done. Rules knowledge base still being written."
+        "note": "Rules knowledge base (12 files, source-tagged), light spec flow, /milestone and /fix commands, this page. PRs 10 and 11 merged."
       },
       {
         "title": "M0 Cleanup: dead code, old tool configs, 3 red tests",
-        "status": "in-progress",
-        "progress": 10,
+        "status": "done",
+        "progress": 100,
         "date": "Nov 2026",
-        "note": "Runs in session m0-cleanup. Ends as a PR against main."
+        "note": "PR 9 merged after one review and one fix round: 91 tests green, tsc clean, build ok, e2e 6 pass + 1 fixme."
       },
       {
         "title": "M1 Headless core: orders, resolveTurn, seed, two-nation test",
-        "status": "not-started",
-        "progress": 0,
-        "date": "after M0",
-        "note": "The seam AI nations will plug into. Features frozen until it is green."
+        "status": "done",
+        "progress": 100,
+        "date": "Nov 2026",
+        "note": "PR 12: 280 tests green (91 before), two-nation 20-turn and replay tests, Playwright 7 passed incl. a 3-turn play test. Opus review: merge after one fix (done). Merged 2026-11-03."
       },
       {
         "title": "M2 Economic loop: production, buildings, food, real durations",
-        "status": "not-started",
-        "progress": 0,
-        "date": "after M1",
-        "note": "Grain on a farm ends as canned food in the warehouse."
+        "status": "done",
+        "progress": 100,
+        "date": "Nov 2026",
+        "note": "PR 13 (stacked on PR 12): 472 tests green, Playwright 8 passed incl. ordering canned food and seeing it in the warehouse. Opus review: no engine bug; 7 small fixes done. Merged 2026-11-03."
       },
       {
         "title": "M3 Money and score: world market, costs, score, game over (v1)",
-        "status": "not-started",
-        "progress": 0,
-        "date": "after M2",
-        "note": "First version that is a game you can finish."
+        "status": "done",
+        "progress": 100,
+        "date": "Nov 2026",
+        "note": "PR 14: 588 tests green, 40-turn two-nation game ends with scores and replays identically, market dialog, HUD score, game-over screen. Opus review: merge, nothing must-fix. Merged 2026-11-03."
+      },
+      {
+        "title": "M3.5 Small map and clean look: two islands, faint tiles, icons, rail line fix",
+        "status": "done",
+        "progress": 100,
+        "date": "Nov 2026",
+        "note": "PR 15: rail line fix, 24x16 two-island map, Game Icons, parchment palette, 42 px tiles. 654 tests, Playwright 15 passed. Opus review: merge; 6 small fixes done. Merged 2026-11-04."
       },
       {
         "title": "M4 Second nation driven by a scripted player",
-        "status": "not-started",
+        "status": "done",
         "progress": 0,
         "date": "after M3",
         "note": "Proves the (view) => Order[] interface for v3 AI."
@@ -52,18 +59,27 @@
     ],
     "risks": [
       {
-        "title": "Rules gaps",
-        "text": "The manual omits many numbers (recipes, yields, durations). The knowledge base marks each unknown; gaps.md says which ones need gameplay videos."
+        "title": "Two big unreviewed PRs",
+        "text": "M1 and M2 change about 190 files together. Review M1 first; any change there must be rebased into M2."
       },
       {
-        "title": "Done by appearance",
-        "text": "The old run ticked boxes when the screen looked right. Every item here needs a test as evidence before it can show Done."
+        "title": "Rules gaps",
+        "text": "Price curve, minor-nation demand, several job durations and the score formula are not in the manual. M2/M3 use documented defaults until closed."
+      },
+      {
+        "title": "Code disagrees with the rules",
+        "text": "Recipes, prices, costs, durations and the 1900 start year differ from the original game. Listed as CODE MISMATCH lines in docs/rules; M2 fixes them."
+      },
+      {
+        "title": "M1 is the riskiest change",
+        "text": "It touches the store and every action. Gate: two-nation 20-turn test, replay test, e2e smoke, one Opus review."
       }
     ],
     "next": [
-      "Answer Q5 and Q6",
-      "Review and merge the M0 PR after its review",
-      "Start M1 with /milestone M1"
+      "Review PR 12 in the running app, merge",
+      "Review PR 13, merge",
+      "Answer Q5 to Q9",
+      "Then /milestone M3 (world market and score)"
     ]
   },
   "detail": {
@@ -75,7 +91,7 @@
           {
             "id": "S1",
             "title": "Rules knowledge base from manual + web",
-            "status": "in-progress",
+            "status": "done",
             "session": "revival",
             "tasks": [
               {
@@ -84,15 +100,15 @@
               },
               {
                 "title": "Topic files with page citations",
-                "done": false
+                "done": true
               },
               {
                 "title": "gaps.md ranked for v1",
-                "done": false
+                "done": true
               }
             ],
             "doneWhen": "docs/rules has an index, topic files and a gaps list",
-            "evidence": "",
+            "evidence": "12 files, 1,526 lines; v1 topics 55-95% complete per topic (gaps.md)",
             "hot": "docs/rules/"
           },
           {
@@ -150,40 +166,44 @@
           {
             "id": "M0",
             "title": "Delete dead code and old configs, fix red tests, gold/gems values, branches",
-            "status": "in-progress",
+            "status": "done",
             "session": "m0-cleanup",
             "tasks": [
               {
                 "title": "Push local main",
-                "done": false
+                "done": true
               },
               {
                 "title": "Delete dead files and tool configs",
-                "done": false
+                "done": true
               },
               {
                 "title": "Restore treasury debit (3 red tests)",
-                "done": false
+                "done": true
               },
               {
                 "title": "Fix e2e selectors",
-                "done": false
+                "done": true
               },
               {
                 "title": "Gold $200 / gems $500",
-                "done": false
+                "done": true
               },
               {
                 "title": "Delete superseded branches",
-                "done": false
+                "done": true
               },
               {
                 "title": "One Sonnet 5.5 xhigh review of the diff before merge",
+                "done": true
+              },
+              {
+                "title": "Six old branches with unique commits kept (not proven superseded)",
                 "done": false
               }
             ],
             "doneWhen": "npm test, lint and tsc green; PR open",
-            "evidence": "",
+            "evidence": "PR 9 merged bbc40f0; gate re-run by coordinator: 91/91 tests, tsc ok, lint 0 errors, build ok",
             "hot": "src/app/store/helpers/workerHelpers.ts, tests/, e2e/"
           }
         ]
@@ -195,93 +215,98 @@
           {
             "id": "M1",
             "title": "Headless core",
-            "status": "not-started",
-            "blockedBy": [
-              "M0",
-              "S2"
-            ],
+            "status": "done",
+            "blockedBy": [],
             "tasks": [
               {
                 "title": "Order union + validate + apply",
-                "done": false
+                "done": true
               },
               {
                 "title": "resolveTurn(state, orders, seed)",
-                "done": false
+                "done": true
               },
               {
                 "title": "Split UI state from game state",
-                "done": false
+                "done": true
               },
               {
                 "title": "Two-nation 20-turn headless test",
-                "done": false
+                "done": true
               },
               {
                 "title": "Replay determinism test",
+                "done": true
+              },
+              {
+                "title": "Carried to M4: order log + queued UI orders so human and AI orders resolve together",
                 "done": false
               }
             ],
             "doneWhen": "Both tests green and the app plays as before through orders",
-            "hot": "src/app/engine/, src/app/store/"
+            "hot": "src/app/engine/, src/app/store/, src/app/hooks/, eslint.config.mjs",
+            "session": "night shift",
+            "evidence": "Coordinator verified: 280/280 tests, lint 0 errors, tsc ok, build ok (agent); Opus 5.5 high review found 1 medium bug (forged order name made treasury NaN), fixed with tests"
           },
           {
             "id": "M2",
             "title": "Economic loop",
-            "status": "not-started",
+            "status": "done",
             "blockedBy": [
-              "M1",
-              "S1"
+              "M1"
             ],
             "tasks": [
               {
                 "title": "Recipe engine inside productionSystem",
-                "done": false
+                "done": true
               },
               {
                 "title": "Mills and factories with capacity and labour",
-                "done": false
+                "done": true
               },
               {
                 "title": "Food consumption",
-                "done": false
+                "done": true
               },
               {
                 "title": "Real job durations",
-                "done": false
+                "done": true
               }
             ],
             "doneWhen": "Headless test: grain to canned food in the warehouse",
-            "hot": "src/app/engine/systems/"
+            "hot": "src/app/engine/systems/, src/app/engine/industry/, src/app/components/capital/",
+            "session": "night shift",
+            "evidence": "Agents: 472/472 tests, lint 0 errors, tsc ok, build ok, Playwright 8 passed. Coordinator checked the fix-round engine diff."
           },
           {
             "id": "M3",
             "title": "Money and score (v1 playable)",
-            "status": "not-started",
+            "status": "done",
             "blockedBy": [
               "M2"
             ],
             "tasks": [
               {
                 "title": "World market buy/sell",
-                "done": false
+                "done": true
               },
               {
                 "title": "Recruitment and training cost",
-                "done": false
+                "done": true
               },
               {
                 "title": "Score + game over screen",
-                "done": false
+                "done": true
               }
             ],
             "doneWhen": "40-turn headless game ends with a score; app shows it",
-            "hot": "src/app/engine/, src/app/components/"
+            "hot": "src/app/engine/, src/app/components/",
+            "evidence": "Coordinator gate on 4e723a6: 588/588 tests, tsc ok, lint 0 errors, build ok."
           },
           {
             "id": "M4",
             "title": "Second nation, scripted player",
-            "status": "not-started",
+            "status": "done",
             "blockedBy": [
               "M3"
             ],
@@ -321,15 +346,21 @@
     ],
     "needs": [
       {
-        "when": "Now",
-        "what": "Answer Q5 and Q6 (cards below)",
-        "why": "They decide how much you are involved in each milestone",
+        "when": "Morning",
+        "what": "Review PR 12 (M1), then PR 13 (M2), in the running app; merge",
+        "why": "Agent does not merge them (Q5 open); M2 is stacked on M1",
+        "item": "M1"
+      },
+      {
+        "when": "Morning",
+        "what": "Answer Q5, Q6, Q7",
+        "why": "They set your involvement and the research path",
         "item": "M1"
       },
       {
         "when": "Optional",
-        "what": "NotebookLM research over gameplay videos for the gaps in docs/rules/gaps.md",
-        "why": "Some numbers are not in the manual or online text",
+        "what": "NotebookLM over gameplay videos (see Q7)",
+        "why": "On-screen values the manual omits",
         "item": "S1"
       }
     ],
@@ -374,9 +405,9 @@
       {
         "id": "Q5",
         "title": "Who merges a milestone PR?",
-        "status": "open",
+        "status": "settled",
         "context": "Low involvement versus your usual PR review. With agent merge you watch this page and can revert; with your merge each milestone waits for you.",
-        "suggestion": "Agent merges after the gate and the milestone review are green; you review on this page and in the running app.",
+        "suggestion": "Settled 2026-11-09 (NR-012): the agent merges once the gate and the milestone review are green.",
         "items": [
           "M0",
           "M1"
@@ -385,11 +416,152 @@
       {
         "id": "Q6",
         "title": "Run milestones without ultracode workflows?",
-        "status": "open",
+        "status": "settled",
         "context": "Your profile says coding runs as ultracode (build, review, verify per task). In the work repo, review and verify agents were 32% of spend and follow-up rounds 10%.",
-        "suggestion": "Yes for this project: one review per milestone instead of per task, postponed to the milestone end but never skipped.",
+        "suggestion": "Settled 2026-11-09 (NR-013): no ultracode workflows unless one is expected to improve the result by far.",
         "items": [
           "M1"
+        ]
+      },
+      {
+        "id": "Q7",
+        "title": "Use NotebookLM over gameplay videos to close rules gaps?",
+        "status": "settled",
+        "context": "Videos can show on-screen values: university, armoury and shipyard costs, starting state, power plant, score screen, relationship levels; partly price series and job durations. They cannot show hidden formulas (trade-partner weighting, credit, combat, council, AI).",
+        "suggestion": "Settled 2026-11-09 (NR-014): no NotebookLM; agents search the web for screenshots themselves and follow Imperialism (1997).",
+        "items": [
+          "S1",
+          "M3"
+        ]
+      },
+      {
+        "id": "Q8",
+        "title": "Rail on hills, swamp and mountains before a technology shop exists?",
+        "status": "settled",
+        "context": "The rules sell these three technologies; v1 cannot buy technology, so rail stopped at the first hill.",
+        "suggestion": "Settled 2026-11-09 (NR-015): every nation starts with the three rail technologies until technology can be bought.",
+        "items": [
+          "M2"
+        ]
+      },
+      {
+        "id": "Q9",
+        "title": "Freight cars: usable this turn or next turn?",
+        "status": "settled",
+        "context": "The rules say a freight car bought now carries goods next turn. The code lets it carry this turn (FR-039), which feels more responsive but differs from the original.",
+        "suggestion": "Settled 2026-11-09 (NR-016): as the original. Orders are chosen and changeable during the turn and apply at End Turn; a freight car carries goods from the next turn. Changed in M4.",
+        "items": [
+          "M2"
+        ]
+      },
+      {
+        "id": "Q10",
+        "title": "Should a new migrant also cost cash?",
+        "status": "settled",
+        "context": "The rules charge canned food, clothing and furniture for a migrant, no cash. M3 follows that.",
+        "suggestion": "Settled 2026-11-09 (NR-017): as the original. Migrant = canned food + clothing + furniture, no cash; training 00 + 1 paper, then ,000 + 2 paper.",
+        "items": [
+          "M3"
+        ]
+      },
+      {
+        "id": "Q11",
+        "title": "Score weights?",
+        "status": "settled",
+        "context": "Score = 1 point per $100 + 10 per building capacity point + 10 per resource level on own tiles. An idle game scores 250, all from the starting assets.",
+        "suggestion": "Settled 2026-11-09 (NR-018): keep the weights for v1.",
+        "items": [
+          "M3"
+        ]
+      },
+      {
+        "id": "Q12",
+        "title": "Game length?",
+        "status": "settled",
+        "context": "The game ends after 40 turns (Winter 1824). The original ends on a vote of the Council of Governors, which v1 does not have.",
+        "suggestion": "Settled 2026-11-03: 40 turns in v1; the Council of Governors vote is recorded as NR-011 for v2.",
+        "items": [
+          "M3"
+        ]
+      },
+      {
+        "id": "Q13",
+        "title": "Price model?",
+        "status": "settled",
+        "context": "Prices move each turn by a seeded random step up to 3% plus 0.5% per net unit traded (cap 3%), bounded 50% to 250% of start. The review found a small built-in profit: buy, let your own buying push the price up, sell next turn (about $72 per two turns on $900 goods).",
+        "suggestion": "Settled 2026-11-09 (NR-018): keep for v1, fix the self-push in v2.",
+        "items": [
+          "M3"
+        ]
+      },
+      {
+        "id": "Q14",
+        "title": "Should cargo holds limit trade?",
+        "status": "settled",
+        "context": "Each unit traded uses one hold; a nation has 4 holds and cannot add more in v1 (no shipyard yet).",
+        "suggestion": "Settled 2026-11-09 (NR-018): keep the 4-hold limit.",
+        "items": [
+          "M3"
+        ]
+      },
+      {
+        "id": "Q15",
+        "title": "Should trade orders repeat every turn?",
+        "status": "settled",
+        "context": "Today trade orders last one turn, so the player re-enters them each turn. A repeat button was skipped as not trivial.",
+        "suggestion": "Settled 2026-11-09 (NR-018): one-turn orders; repeat button only if play feels tedious.",
+        "items": [
+          "M3"
+        ]
+      },
+      {
+        "id": "Q18",
+        "title": "How should the computer nation score better?",
+        "status": "settled",
+        "context": "The new scripted player lays a few rail lines and builds depots as asked (NR-022). It ships far more (268 vs 181 units at turn 15) but scores slightly lower (382 vs 390), because extra goods sit unsold: 4 cargo holds cap sales at 32 units and stock is not scored.",
+        "suggestion": "Settled 2026-11-10: improve the score now. Done in M4.2 (NR-023): the computer scores 1.6 to 2.5 times the M4 player.",
+        "items": [
+          "M4.1"
+        ]
+      },
+      {
+        "id": "Q17",
+        "title": "Where should recruited and trained workers appear?",
+        "status": "settled",
+        "context": "v1 creates no civilians after the start; recruits and trained workers join the industry workforce, and there is no University. The start civilians stay on the capital tile (rules 03).",
+        "suggestion": "Settled 2026-11-12 (NR-029): leave it until a University or another civilian-producing rule exists.",
+        "items": [
+          "M4.1"
+        ]
+      },
+      {
+        "id": "Q19",
+        "title": "How should the score treat idle building capacity?",
+        "status": "settled",
+        "context": "After M4.2 the computer nation scores about 1,650 at turn 40 (idle human: 240). 1,080 of those points are building capacity; about 87% of it cannot run, because 7 workers give 28 labour (at most 14 units a turn) against 108 capacity points. The computer never recruits workers.",
+        "suggestion": "Answered 2026-11-12: let the computer recruit. Measured in M4.4: even free workers lower its score (labour is not the limit; inputs and freight cars are). See card Q21.",
+        "items": [
+          "M4.2"
+        ]
+      },
+      {
+        "id": "Q20",
+        "title": "Hide the Materials and Goods groups in the transport popup until something produces them?",
+        "status": "settled",
+        "context": "In v1 all materials and goods show 0 / 0 in the transport popup, and the rules say some (paper, canned food, armaments) can never be shipped.",
+        "suggestion": "Settled 2026-11-12 (NR-027): done in M4.4; empty groups are hidden.",
+        "items": [
+          "M4.3"
+        ]
+      },
+      {
+        "id": "Q21",
+        "title": "Should the computer recruit workers at all?",
+        "status": "open",
+        "context": "Measured in M4.4: with free workers (upper bound) the computer scores 2972 to 5513 against 5925 without, summed over four seeds at turn 40. The best real policy (R2) grows the workforce 7 to 9 and costs about 350 points (6%), margin still 1.57. About 28% of labour is idle; from turn 20 freight cars limit shipping. More cars alone gave +86 (1.4%).",
+        "suggestion": "(a) No recruiting in v1 (taken meanwhile); revisit with (c) transport and inputs first when we plan v2 AI work.",
+        "items": [
+          "M4.4"
         ]
       }
     ]

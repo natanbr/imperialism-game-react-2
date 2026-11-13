@@ -45,3 +45,6 @@ next-env.d.ts
 # IDE / local Claude settings
 .idea/
 .claude/settings.local.json
+
+# gate output and one-off QA scripts of the v2 milestone workflows
+/.gate/
