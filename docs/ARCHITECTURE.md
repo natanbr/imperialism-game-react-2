@@ -31,7 +31,14 @@ src/app/
                            migrantCap, foodForecast, railLinksOf; since M5 WORLDS, the country and
                            province queries, transferProvince, pairKey, relationLevel, intentOrder
     newGame.ts             the start state: Spring 1815 on a world of WORLDS (default "two-islands"),
-                           START_TECHNOLOGIES, rail networks built, start diplomacy, no intents
+                           START_TECHNOLOGIES, rail networks built, start diplomacy, no intents; on a
+                           world with provinces the FR-203 start forces (army/startForces.ts)
+    army/armies.ts         M8 (FR-204): reads of state.armies (armiesOf, armyAt, findRegiment, forceSize,
+                           strength, strengthIn, upkeepOf, capitalProvinceOf), the screens' helpers
+                           (armyMarkers, regimentStatus, marchTargets, recruitingOf, freeWorkersOf), and
+                           the edits orders and phases share (raiseRegiments, placeRegiments,
+                           removeRegiments, mapRegiments), which keep one army per country per province
+    army/startForces.ts    FR-203: field army, militia, capital forts, extra horses
     calendar.ts            seasons; the year advances after winter
     rng.ts                 seeded RNG: createTurnRng(seed, turn); RNG_STREAMS and createStreamRng
                            for the per-system streams (FR-150)
@@ -39,12 +46,13 @@ src/app/
                            relationLevel, RELATION_SWATCHES
     diplomacy/queries.ts   M6 reads: warBetween, warActive (for the M9 attack rule),
                            diplomacyIntentsOf (this turn's, with cost), proposalsOf,
-                           pendingProposalsFor, proposalAnswer, militaryStrength (FR-204, 0 before M8)
-                           over regimentsOf, the one read of the army shape (M8 rewrites it)
+                           pendingProposalsFor, proposalAnswer, militaryStrength (FR-174, FR-204:
+                           `strength` of all the country's regiments)
     diplomacy/scriptedAnswers.ts  FR-174: acceptsAlliance, acceptsPeace, losingWar
     orders/                Order.ts (union + RejectReason), validate.ts, apply.ts,
                            industryOrders.ts (production, expansion, cars, training, migration),
                            diplomacyOrders.ts (the five diplomacy orders: validate and apply),
+                           armyOrders.ts (setRecruitment, moveArmy, cancelArmyMove, disbandRegiments),
                            queries.ts (read-only lookups and construction-site rules)
     industry/              labour.ts (labourOf: total, committed, free), industryState.ts
                            (createIndustry, buildingOf, migrantCap), foodForecast.ts (the meal
@@ -64,6 +72,7 @@ src/app/
     ai/railPlan.ts         read-only rail and tile planning: depot sites, rail paths, tilesByReach
     ai/players.ts          PLAYERS (controller -> Player) and computerOrders(state) (FR-099)
     ai/diplomacy.ts        the scripted player's peace offers when losing a war (FR-174)
+    ai/scriptedArmy.ts     M8 (FR-213): armyThreat, planGarrison (1 Regulars a turn under a threat)
     ai/scriptedPartners.ts M7 (FR-245): planConsulate, partnerSupply, partnerDemand (its bid and offer caps)
     market/                market.ts (the world market, nextPrices), partners.ts (M7 reads: marketModeOf,
                            minorOffers, minorDemand, partnerRanking, favouritePartner, tradeBarrier,
@@ -174,6 +183,26 @@ only (FR-018).
   `relation-changed` is emitted once per Great Power of a pair whose level moved in the phase, with
   `wars` (`{ aggressorId, targetId }`) when declarations of that phase moved the pair (FR-239).
 
+### Armies (M8)
+
+- **State** (FR-204): `state.armies`, at most one army per country per province
+  (`{ id: "army-<owner>-<province>", ownerId, provinceId, regiments }`), a regiment
+  `{ id: "regiment-<n>", type, name, health, movedOnTurn? }`. A higher id is a newer regiment; names are
+  ordinals per owner and type (`state.regimentsRaised` counts them). `Nation.recruiting` holds this turn's
+  recruits. The regiment table and the M8 rule numbers are `definisions/regiments.ts` (FR-199).
+- **Orders** (`orders/armyOrders.ts`): `setRecruitment` pays at once and gives back on lowering, like
+  `setProduction`; `moveArmy` and `disbandRegiments` store an intent (`army-move`, `disband`), one per
+  regiment (a later order replaces the earlier); `cancelArmyMove` takes regiments out of the moves. In M8
+  a march into another country's province is refused (`not-at-war`, or `not-owner` while at war: attacks
+  are M9's).
+- **Phases** (`systems/armySystem.ts`, `systems/combatSystem.ts`): after trade the disbands (FR-207), then
+  the upkeep, $25 per arms point, disbanding the newest regiments when the treasury cannot pay (FR-202);
+  in the combat phase the marches resolve together and the regiments that did not move heal 10 (FR-206,
+  FR-208); after it the recruits join in the capital province (FR-201). None draws a random number; a
+  world without armies (two-islands) passes every one unchanged.
+- **Scripted player** (FR-213): it never moves or disbands; under a threat (`armyThreat`) it recruits 1
+  Regulars a turn and its run makes the armaments first; it never spends the cash of two turns' upkeep.
+
 The store (`store/rootStore.ts`) holds that state under `game`, and UI state beside it:
 
 | Store key | What | Kind |
@@ -241,9 +270,10 @@ store.advanceTurn()
   -> resolveTurn(game, computerOrders, game.seed)        engine/turn/resolveTurn.ts
        game over already?  return the same state; each given order -> order-rejected game-over
        applyTurnOrders     orders given here, nations in state order (the computer nations')
-       TURN_PHASES         development, diplomacy, trade (deals, then prices), production
-                           (freight cars first), combat, interceptions, transportConnectivity,
-                           logistics, tradeDelivery (units bought), food
+       TURN_PHASES         development, diplomacy, trade (deals, then prices), disband and upkeep
+                           (M8), production (freight cars first), combat (M8: marches, healing),
+                           recruits (M8), interceptions, transportConnectivity, logistics,
+                           tradeDelivery (units bought), food
        promoteFreightCars  the cars built this turn go into service (FR-101, NR-016)
        resetWorkers        everyone may move again; working only while the job is unfinished
        advanceClock        turn + 1, year + 1 after winter (turn 1 = Spring 1815)
@@ -514,10 +544,11 @@ never imports `src/app/testing` (ESLint rule, FR-043, now FR-080).
 
 ## Not on the engine yet
 
-- Combat and interceptions are stub systems (diplomacy is built in M6). Trade between countries is
-  built in M7 on the continent; there is no Shipyard (holds do not grow, so a hold is never short at
-  settlement unless the holds drop after ordering), no interception, and no army or province capture
-  (M8, M9): `militaryStrength` is 0 and the FR-174 peace conditions (a) and (b) never fire.
+- Battles and interceptions are not built (diplomacy is built in M6, armies and marches in M8). Trade
+  between countries is built in M7 on the continent; there is no Shipyard (holds do not grow, so a hold
+  is never short at settlement unless the holds drop after ordering), no interception, and no attack or
+  province capture (M9): FR-174's peace condition (a) never fires, and (b) only once one side has
+  recruited more than the equal start armies.
 - The maps are fixed templates, `engine/world/twoIslands.ts` (FR-080) and the continent's minor land in
   `engine/world/continent.ts` (FR-145): the same for every seed, so
   e2e specs and M4 can name tiles. Island 2 is island 1 shifted 12 columns (a shift along a row

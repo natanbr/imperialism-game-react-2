@@ -173,3 +173,74 @@ the review of the QA fix round (FR-259). The partners market on the continent (m
 the Board of Trade and the Deal Book, the scripted player trading through it, one money formatter. FR-183 to FR-198 and FR-242 to
 FR-259 tested; 1458 unit tests, Playwright 32 passed, 1 skipped; every v1 baseline unchanged. Merged as PR 25 (main d16afa7).
 Open: card Q47 (the World market's greyed "−").
+
+## 2026-11-13 M8 Armies, engine half (FR-199 to FR-209, FR-213, FR-215)
+
+Size: L (engine-wide: new state, four order kinds, three turn steps, the scripted player). One engine agent (Opus 5.5, xhigh, no
+subagents, no advisor call), started by the M8 workflow. Branch `claude/m8-armies` from main d16afa7 (worktree
+`imperialism-game-revival-fee36d`), not pushed. The UI agent builds FR-210 to FR-212 and FR-214 next, on the API below.
+
+Plan-lite:
+- Change: `state.armies` in the FR-204 shape (one army per country per province) with `state.regimentsRaised`; the regiment table
+  `definisions/regiments.ts`; `engine/army/` (reads, edits, start forces); `orders/armyOrders.ts` (`setRecruitment`, `moveArmy`,
+  `cancelArmyMove`, `disbandRegiments`, reason `not-adjacent`); `systems/armySystem.ts` (disbands and upkeep after trade, recruits
+  after combat) and the combat phase (marches, healing); `ai/scriptedArmy.ts`; `militaryStrength` on the new armies.
+- Consumers: the map markers, the Army screen and the Armoury (UI half), the news, the Deal Book's bottom line, the scripted player, M9.
+- Tests: FR-199 `engine/regiments.test.ts` (13); FR-200, 201, 203 to 208 `engine/armies.test.ts` (51) and `engine/validate.test.ts` (4
+  accepted, 35 refusal rows); FR-202 `engine/upkeep.test.ts` (9); FR-205 text and FR-209 `ui/gameText.test.ts` (14); FR-213
+  `engine/scriptedArmy.test.ts` (13); FR-174 `engine/scriptedDiplomacy.test.ts` (builders rewritten); FR-215 `engine/continentScore.test.ts`,
+  `engine/v2Trade40.test.ts`.
+- Verify: `npm test`, `npm run lint`, `npx tsc --noEmit`, `npm run build`, `PORT=3168 npx playwright test --workers=1`.
+- Objection: decision 2 adds a scripted-player rule no FR states (keep two turns of upkeep); without it nation 2 lost 2 of its 3 field
+  regiments for want of money on seed 2 (continent, world market).
+
+Decisions (defaults, nobody to ask):
+1. A march into another country's province is refused in M8: `not-at-war` without an active war (FR-205), `not-owner` with one, until M9
+   builds the attack (FR-216). The "March to" choices (`marchTargets`) are the nation's own bordering provinces only.
+2. FR-213 "keeps a garrison": the scripted player drops any order that would take its treasury below two turns of upkeep (one on the last
+   turn). FR-157's games then pay $100 every turn with nothing disbanded. Objection: in the partners games a nation whose income stops
+   in the last turns still loses its field army (seed 2 nation 1 on turn 39, seed 4 nation 2 on turn 40); a full reserve would cost
+   development. Suggested card for the page: keep it, revisit with M9's war AI.
+3. One pending order per regiment: a march replaces its disband and a disband its march; `cancelArmyMove` cancels marches only, so a
+   disband is undone only by ordering a march (the Army screen shows no control for it, FR-211).
+4. Ids `regiment-<n>`, n counting every regiment ever raised (higher = newer, FR-202); names from a per-owner, per-type counter, so the
+   recruit after a disbanded "3rd Regulars" is "4th Regulars". Armies are kept sorted by province then owner, regiments by id.
+5. FR-203 numbering: the field army first (ids 1 to 3 for Testland), then the Minutemen province by province in state order (NW 1st to
+   4th, NE 5th to 8th, SW 9th to 12th, SE 13th to 16th); each minor 1st to 3rd.
+6. Recruiting is `Nation.recruiting` (it involves no second country, so no intent); the workers leave `industry.workers` when ordered
+   and neither work nor eat that turn. A nation that no longer holds its capital province raises no recruit (M9 edge).
+7. FR-213 under a threat: the run's armaments come first, their steel is kept from expansion, and the 2 armaments are kept from the
+   world market. Healing (FR-208) applies to minors' militia too.
+8. Baselines: the FR-157 conditions run on the real continent (with the upkeep); every turn-by-turn equality with two-islands (FR-157's
+   score, FR-215's 40-turn M4 comparison, FR-245's "world" test) runs on the continent without the start forces (`withoutStartForces`,
+   tests/engine/armyFixtures.ts). In "world" the current scripted player sells the 4 start horses on turn 1 (partners: goods only).
+9. The M6 and M7 tests that read a continent treasury after End Turn count the $100 upkeep (`UPKEEP` in diplomacy.test.ts), and four e2e
+   specs too (play-turns, market-and-game-over, m6-diplomacy, m7-trade). The Deal Book's `militaryUpkeep` reads `army-upkeep`.
+
+API for the UI half (all from `@/engine`):
+- Data: `REGIMENTS[type]` (`name`, `category`, `arm`, `stats` with FPN, move, range, `armamentsCost`; `worker`, `horses`, `cash`),
+  `RECRUITABLE_REGIMENTS` (the 7 Armoury types), `entrenches(type)`, `isMilitia(type)`, `UPKEEP_PER_ARMS`.
+- Map markers (FR-210): `armyMarkers(state)` gives `{ provinceId, seatTileId, ownerId, forceSize, regiments, militia }`, the province's
+  owner first. Army screen (FR-211): `armyAt(state, ownerId, provinceId)`, `forceSize(army)`, `regimentStatus(state, id)` (`defending`,
+  `available`, `marching` with `toProvinceId`, `disband-ordered`), `marchTargets(state, nationId, provinceId)`. Armoury (FR-212):
+  `recruitingOf(nation, type)`, `freeWorkersOf(nation, grade)`, `capitalProvinceOf(state, id)`.
+- Orders: `setRecruitment { regiment, count }`, `moveArmy { fromProvinceId, regimentIds, toProvinceId }`, `cancelArmyMove { regimentIds }`,
+  `disbandRegiments { provinceId, regimentIds }`; `validateOrder` gives each refusal, `REFUSAL_TEXT["not-adjacent"]` its words.
+- The news panel already names provinces in "3 regiments marched from ... to ...".
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| Red: the new and changed tests before the implementation | `npx vitest run` on the 7 files (`.gate/m8/red.txt`) | `Test Files 7 failed (7)`, `Tests 17 failed \| 77 passed (94)`; 5 files fail to load (`Cannot find module '@/engine/army/armies'`, `'@/definisions/regiments'`, `'@/engine/ai/scriptedArmy'`, `'@/engine/systems/armySystem'`); e.g. `expected [ +0, +0 ] to deeply equal [ 36, 36 ]`, `expected undefined to be '2 Regulars recruited.'` |
+| Red: decision 2 (the guard switched off) | `npx vitest run tests/engine/scriptedArmy.test.ts tests/engine/continentScore.test.ts` | `Test Files 2 failed (2)`: `expected 50 to be greater than or equal to 100`; FR-157 seed 2 `"noPay": 2` |
+| Unit tests | `npm test` | `Test Files 87 passed (87)`, `Tests 1603 passed (1603)` (+145 on 1458) |
+| v1 baselines unchanged (FR-159) | `npm test` console; `git diff --stat d16afa7 --` the eight FR-159 files | `FR-125 seed 1: t15 616/390 (1.58) ... t40 1493/650 (2.30)` as on main; the diff is empty |
+| FR-157, FR-215 | `npm test` console | `continent with the start army / without / two-islands: [[1,1419,1493,1493],[2,1451,1496,1496],[3,1441,1490,1490],[4,1469,1476,1476]]` |
+| FR-247 measured again | `npm test` console | seed 1 `"minorDeals":[54,50],"minorPurchases":[24,17],"minorsDealt":[4,1],"treasury":[805,3177]`; all four in FR-247's status |
+| Lint | `npm run lint` | `✖ 3 problems (0 errors, 3 warnings)` (the three of M6) |
+| Types | `npx tsc --noEmit` | exit 0, no output |
+| Build | `npm run build` | `✓ Compiled successfully in 5.9s`, `✓ Generating static pages (4/4)` |
+| e2e, before the four specs counted the upkeep | `PORT=3168 npx playwright test --workers=1 --reporter=line` | `30 passed (2.8m)`, `2 failed` (`Expected: 9500 Received: 9400`, `Expected: 10297 Received: 10197`), `1 skipped` |
+| e2e, after | same | `32 passed (3.0m)`, `1 skipped` (the old skip) |
+
+In the app (once the UI half is in): New game; End Turn: the news reads "Army upkeep: $100." and the Deal Book's bottom line
+"Military upkeep $100".
