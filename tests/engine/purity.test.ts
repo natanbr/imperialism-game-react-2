@@ -1,3 +1,5 @@
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { join, relative, sep } from 'node:path';
 import { describe, it, expect } from 'vitest';
 import { addDepot, addPort, addRailroad } from '@/engine/systems/railroadSystem';
 import { createTurnContext } from '@/engine/turn/context';
@@ -65,5 +67,31 @@ describe('turn systems do not mutate their input', () => {
 
     expect(frozen).toEqual(snapshot);
     expect(s.transportNetwork.railroadNetworks!['nation-1'].depots).toContainEqual(expect.objectContaining({ x: 2, y: 2 }));
+  });
+});
+
+describe('FR-150 only the development and price draws read ctx.rng', () => {
+  const root = join(process.cwd(), 'src/app/engine');
+  const files = (dir: string): string[] =>
+    readdirSync(dir).flatMap(name => {
+      const path = join(dir, name);
+      return statSync(path).isDirectory() ? files(path) : path.endsWith('.ts') ? [path] : [];
+    });
+  /** `ctx.rng` (not `ctx.rngFor`), or `rng` destructured from `ctx`. */
+  const READS_SHARED_RNG = /\bctx\.rng\b|\{[^}]*\brng\b[^}]*\}\s*=\s*ctx\b/;
+  /** The source without its comments, so a doc comment that names ctx.rng is not a read. */
+  const code = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+
+  it('FR-150 a scan of src/app/engine finds ctx.rng read in developmentSystem.ts and tradeSystem.ts only', () => {
+    const readers = files(root)
+      .filter(path => READS_SHARED_RNG.test(code(readFileSync(path, 'utf8'))))
+      .map(path => relative(root, path).split(sep).join('/'))
+      .sort();
+    expect(readers).toEqual(['systems/developmentSystem.ts', 'systems/tradeSystem.ts']);
+  });
+
+  it('FR-150 the scan sees both forms of a read, and not rngFor or a comment', () => {
+    const samples = ['const x = ctx.rng.next();', 'const { nextTurn, rng } = ctx;', 'ctx.rngFor("combat").next()', '// reads ctx.rng', '/** the `ctx.rng` stream */'];
+    expect(samples.map(src => READS_SHARED_RNG.test(code(src)))).toEqual([true, true, false, false, false]);
   });
 });
