@@ -2,7 +2,7 @@
   "project": "Imperialism Revival",
   "updated": "2026-11-13",
   "target": "v2: diplomacy, nation-to-nation trade, armies and war (M5 to M9)",
-  "now": "M6 merged (PR 24): Diplomacy screen, overtures and relations; all dialogs share one accessible modal. M7 (trade between nations) is built and reviewed on branch claude/m7-trade (engine, Board of Trade, Deal Book, review fix round), not merged yet. Defaults Q22 to Q46 in force.",
+  "now": "M6 merged (PR 24): Diplomacy screen, overtures and relations; all dialogs share one accessible modal. M7 (trade between nations) is built and reviewed on branch claude/m7-trade (engine, Board of Trade, Deal Book, review fix round, QA fix round and its review), not merged yet. Defaults Q22 to Q47 in force.",
   "source": "docs/REVIVAL_PLAN.md and docs/report/roadmap.json in the imperialism-game-react-2 repo",
   "overview": {
     "headline": "v1 (M0 to M4.4) is merged. v2 night shift (NR-030): plan, rules research from 1997 screenshots and requirements merged (PR 22); milestones M5 to M9 run one after another.",
@@ -938,6 +938,16 @@
         "status": "done",
         "context": "M7 UI decision 4 kept the v1 way (press, then read \"Purchase refused: over the limit.\"). The review asked for the M6 way: the \"+\" is disabled and its title says why: \"No free hold this turn\", \"Already 4 bids this turn, the most\", \"None left in the warehouse\", \"Not enough money\" (FR-248).",
         "suggestion": "Done in the review fix round (FR-248).",
+        "items": [
+          "M7"
+        ]
+      },
+      {
+        "id": "Q47",
+        "title": "Should the World market also drop its greyed \"−\" at 0, as the Board of Trade does?",
+        "status": "open",
+        "context": "QA item 7 (every disabled control says why) was applied to the Board of Trade only (FR-257: at 0 there is no \"−\", only its place). The World market, shown in a \"world\" game such as two-islands, keeps the v1 stepper: a greyed \"−\" at 0 with no reason (FR-074, pinned by tests/ui/marketDialog.test.tsx and tests/ui/boardOfTrade.test.tsx). Changing it is one line in MarketModal.tsx (hideLessAtZero) plus FR-074, FR-257 and those two tests.",
+        "suggestion": "Yes, one stepper for both market dialogs. Until answered the v1 stepper stays (FR-257 as written).",
         "items": [
           "M7"
         ]
