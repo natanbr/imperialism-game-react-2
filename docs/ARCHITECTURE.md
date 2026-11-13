@@ -181,7 +181,7 @@ The store (`store/rootStore.ts`) holds that state under `game`, and UI state bes
 | `game` | the `GameState` | game |
 | `activeNationId` | the nation this client plays | session |
 | `lastRejection` | `{ order, reason }` of the last refused order | UI |
-| `eventLog` | `{ turn, year, events }` per resolved turn, last 20 | UI |
+| `eventLog` | `{ turn, year, events, treasuries }` per resolved turn, last 20 (`treasuries`: each nation's at the turn's start and end, FR-256) | UI |
 | `orderLog` | `{ turn, nationId, orders }` per nation per resolved turn, all turns (FR-100) | session |
 | `ordersThisTurn` | the active nation's orders applied this turn, logged at End Turn | session |
 | `selectedTileId`, `selectedWorkerId`, `hoveredTileId` | selection | UI |
@@ -419,14 +419,19 @@ The market dialog (`MarketModal.tsx`, opened from the HUD or the capital's Trade
 buttons that send `sellCommodity` / `buyCommodity` with this turn's new total, plus cash, cargo
 holds and buy bids; refusals show as in the capital. That is the "world" mode; in "partners" (M7,
 FR-194) `MarketModal` renders `market/BoardOfTrade.tsx` instead, on `market/boardView.ts` (the
-engine's `boardOfTrade` with names and words): the rows in `BOARD_ORDER` with Price, Available and
-a Bid or an Offer stepper (a row with one has no control for the other), the minors that sell or buy
-each commodity as chips ("Arvelia 3, favours Valdoria", a `tradeBarrier` in words: "(no consulate)"),
-"Holds: 3 of 4 free" and the bids used. A fixed frame (at most the window's height less 16 px): the
-board scrolls under a sticky head, and on a new game all 17 rows fit at 1280x720. The Deal Book
-(`DealBookModal.tsx`, FR-195, store flag `isDealBookOpen`, HUD button) reads only the last
-`eventLog` report: `dealBook` + `dealBookView`, Sold and Bought side by side and the bottom line;
-it builds no order. The Diplomacy screen (`DiplomacyModal.tsx`,
+engine's `boardOfTrade` with names and words): the rows in `BOARD_ORDER` with Price, In warehouse and
+a Bid or an Offer stepper (a row with one has no control for the other; no "−" at 0), the reason a
+"+" is disabled or who may be served first beside each stepper (FR-257), the minors that sell or buy
+each commodity as chips ("Arvelia: 3 units", a `tradeBarrier` in words: "(no consulate)"), the
+favourites once in the note, "Holds: 3 of 4 free" and the bids used. In "partners" `validateTradeOrder`
+asks `partnerRefusal` (`engine/market/partners.ts`, FR-252, FR-253) before the limits: a bid needs a
+minor that sells the commodity and is open to the nation, an offer a buyer open to it. A fixed frame
+(at most the window's height less 16 px): the board scrolls under a sticky head, and on a new game all
+17 rows fit at 1280x720. The Deal Book (`DealBookModal.tsx`, FR-195, store flag `isDealBookOpen`, HUD
+button) reads only the last `eventLog` report: `dealBook` + `dealBookView`, Sold and Bought side by
+side, Not traded under them (each line with its `cause`, FR-255), the bottom line ending in the Trade
+net and the Treasury table from the report's `treasuries` (FR-256); it builds no order. Every dollar
+amount goes through `money` in `components/gameText.ts` (FR-258). The Diplomacy screen (`DiplomacyModal.tsx`,
 M6, store flag `isDiplomacyOpen`, opened from the HUD or the capital) renders
 `diplomacy/diplomacyView.ts` in two panes (FR-237): on the left a vertical tab list, one tab per other
 country (the other Great Power first, then the minors in id order) with the relation as a swatch in

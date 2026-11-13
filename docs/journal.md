@@ -19,8 +19,8 @@
 - 2026-11-13 M6 Diplomacy (FR-161 to FR-181, FR-236 to FR-241) merged (PR 24, main 2a60a3b; entries archived in
   `docs/journal/archive-M6.md`). Decision card "who receives a grant" (M6 fix round decision 3) still to add.
 - 2026-11-13 M7 Nation-to-nation trade in progress on `claude/m7-trade` (worktree `imperialism-game-revival-fee36d`):
-  engine half, UI half and review fix round done (FR-183 to FR-198 and FR-242 to FR-250 tested; FR-182, 190, 192, 193,
-  196 replaced); not pushed. Next: the re-review of the fix round's delta, then the PR. Cards Q39 to Q46 on the page.
+  engine half, UI half, review fix round and QA fix round done (FR-183 to FR-198 and FR-242 to FR-258 tested; FR-182, 190,
+  192, 193, 196 replaced); not pushed. Next: the re-review of the fix rounds' delta, then the PR. Cards Q39 to Q46 on the page.
 
 Carried forward:
 - Deferred: river ports and the depot-on-port rule (rules 04); University fees; the power plant.
@@ -348,3 +348,49 @@ Carried:
 In the app: New game, Open Market: after 4 bids every "+" is greyed and its tooltip says "No free hold this turn". Diplomacy →
 declare war on Arvelia: the Board marks Arvelia "(at war)" at once. Bid 2 coal without a consulate and End Turn: the Deal Book
 reads "Nobody sold us 2 Coal (bid money back)".
+
+### QA fix round (FR-251 to FR-258)
+
+Size: M. One fix agent (Opus 5.5, xhigh, no subagents, no advisor call), M7 workflow; not pushed. QA shots `docs/journal/m7-qa-board.png`,
+`m7-qa-deal-book.png`, `m7-qa-deal-book-unfilled.png`; after the fix `m7-qa-fix-board.png`, `m7-qa-fix-deal-book.png` (`.gate/qa-shots.mjs`).
+Plan-lite: `partnerRefusal` (`engine/market/partners.ts`) in `validateTradeOrder` before the limits; `cause` on `offer-unsold` and
+`bid-unfilled`; `dealBook` gives `notTraded`, `diplomacy` and the change from `TurnReport.treasuries`; one `money`. Objection: decision 1.
+
+| QA item | What changed | Test |
+|---|---|---|
+| 1 "Available", counts | FR-251: "In warehouse"; "Arvelia: 2 units"; the favourites once, in the note | boardOfTrade (7 rows), e2e m7-trade |
+| 2 bids nobody may fill | FR-252: `no-seller`, `sellers-barred` when ordered; "+" disabled with the reason beside it; "Arvelia favours Valdoria" | partnerOrders (7), boardOfTrade (3), e2e |
+| 3 offers nobody buys | FR-253: `no-buyer`, `buyers-barred`; "Only Valdoria may buy this"; the note says what minors buy | partnerOrders (6), boardOfTrade (4) |
+| 4 empty cell | FR-254: "No minor trades this" | boardOfTrade (1), e2e |
+| 5 Not traded | FR-255: a third list with each cause ("no buyer", "no consulate with Lorran", "Valdoria was served first") | partnerOrders (5), partnerMarket (4, and 8 rows check a cause), dealBookView (4), dealBook (2) |
+| 6 Net vs treasury | FR-256: "Trade net"; a Treasury table: diplomacy costs, Other, "Treasury change", "From $10,000 to $9,300" | partnerOrders (3), dealBookView (2), dealBook (2 and the FR-197 row), gameStore (1), e2e |
+| 7 visible reasons | FR-257: every disabled "+" has its reason beside it as its description; no "−" at 0 | boardOfTrade (5; one checks all 34 of a new game), e2e |
+| 8 money | FR-258: HUD "Cash: $10,000"; `money` the one formatter (also the capital and the tile panel), "-$1,369" | money (3), dealBookView (1), e2e play-turns, market-and-game-over, m7-trade |
+
+Decisions (defaults, nobody to ask):
+1. FR-252 counts only minors as sellers, as the item says: a bid for what only the rival offers (FR-186's steel example) can no
+   longer be ordered; step 3 still settles what a minor sells. Objection: in a hotseat game the rival's offer would be lost.
+2. FR-253 "a Great Power buys": one that bids already or may bid (FR-252 for it); the scripted rival orders at End Turn.
+3. The market's reason comes before the nation's limits: with every hold taken, wool still says "No minor nation sells this".
+4. Item 6, option 2: development, building, training and gold move the treasury too, so "Net" cannot equal its change.
+5. Item 5: the missed offers also move to Not traded (no unit changed hands), with their cause; the news lines are unchanged.
+6. Item 7: at 0 there is no "−" (its place stays), instead of 34 more lines "nothing to take back".
+7. To keep the 17 rows of a new game at 1280x720 (FR-194): the reasons in 10 px, two lines at most, muted grey (34 red lines
+   would shout); the favourites moved from every chip to the note. Objection: 10 px is small.
+8. 18 settlement tests in partnerMarket.test.ts place orders past the check (`placed`, as after a withdrawn consulate), the
+   assertions kept and 8 now also check the cause; the FR-100 log test runs on market "world"; e2e orders the consulate first.
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| Red: the 8 new or changed test files on fede4d5 | `git archive HEAD` + the files, `npx vitest run …` (`.gate/qa-red.txt`) | `Test Files 7 failed \| 1 passed (8)`, `Tests 62 failed \| 114 passed (176)` (e.g. `expected { ok: true } to deeply equal { ok: false, reason: 'no-seller' }`, `expected [ { type: 'bid-unfilled', …(3) } ] to deeply equal [ { type: 'bid-unfilled', …(4) } ]`, `expected { label: 'Net', … } to deeply equal { label: 'Trade net', … }`); the 1 passing file is the FR-100 setup change |
+| Unit tests | `npm test` | `Test Files 83 passed (83)`, `Tests 1454 passed (1454)` (+35 on 1419) |
+| Baselines unchanged | `npm test` console | `FR-125 seed 1: t15 616/390 (1.58) ... t40 1493/650 (2.30)`, `FR-157 ... [[1,1493],[2,1496],[3,1490],[4,1476]]`, FR-247 seed 1 `"minorDeals":[59,53],"minorPurchases":[31,23]` as pinned |
+| Lint | `npm run lint` | `✖ 3 problems (0 errors, 3 warnings)` (the three of M6) |
+| Types | `npx tsc --noEmit` | exit 0, no output |
+| Build | `npm run build` | `✓ Compiled successfully in 3.2s`, `✓ Generating static pages (4/4)` |
+| All e2e | `PORT=3160 npx playwright test --workers=1 --reporter=line` | `32 passed (1.5m)`, `1 skipped` (the old skip) |
+| Screenshots | `node .gate/qa-shots.mjs` (dev server on 3160) | `board {"dialog":[15,705],"paneOverflow":0}` (all 17 rows, holds full); Deal Book `Nobody sold us 1 Coal (the sellers had no more; bid money back)`, `Treasury change -$800`, `From $10,000 to $9,200`; `HUD Cash: $9,200`; `errors []` |
+
+Carried: the news lines carry no cause; "Other" lumps building, prospecting, development, training and gold; FR-246's carry
+holds for FR-252. In the app: New game, Open Market: each grey "+" says why; consulate with Arvelia, bid 4 coal, End Turn: the
+Deal Book's Not traded "Nobody sold us 1 Coal (the sellers had no more; bid money back)", Treasury "Consulate in Arvelia -$500".
