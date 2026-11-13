@@ -6,6 +6,7 @@ import { createTurnContext, type GameEvent } from "./context";
 import { runTurnPhases } from "./phases";
 import { isGameOver, turnLimitOf } from "./gameOver";
 import { scoreTable } from "../score/score";
+import { dropResolvedIntents } from "./intents";
 
 export type OrdersByNation = Readonly<Record<string, readonly Order[]>>;
 
@@ -82,6 +83,8 @@ export function resolveTurn(state: GameState, ordersByNation: OrdersByNation, se
   const ctx = createTurnContext({ turn: ordered.turn, seed, orders: accepted, emit });
 
   let s = runTurnPhases(ordered, ctx);
+  // Every phase that resolves intents has run: none of this turn is left (FR-152).
+  s = dropResolvedIntents(s, ordered.turn);
   s = promoteFreightCars(s, ctx);
   s = resetWorkers(s, ctx);
   s = advanceClock(s, ctx);

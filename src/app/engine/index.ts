@@ -25,5 +25,18 @@ export {
 export { scoreOf, scoreTable } from "./score/score";
 export { isGameOver, turnLimitOf } from "./turn/gameOver";
 export { railLinksOf, type RailLink } from "./systems/railroadSystem";
+// M5 (FR-144 to FR-152): worlds, minor nations, provinces, diplomacy state, intents, random streams.
+export { WORLDS, DEFAULT_WORLD, type World } from "./world/worlds";
+export { countryName, countryOfTile, isGreatPower, isMinorNation, minorNationAt, minorNationById } from "./world/countries";
+export { adjacentProvinces, provinceById, provinceOf, provincesOf, transferProvince } from "./world/provinces";
+export { pairKey, RELATION_SWATCHES, relationLevel, relationOf, type RelationSwatch } from "./diplomacy/relations";
+export { addIntent, byIntentOrder, intentOrder } from "./turn/intents";
+export { RNG_STREAMS, type RngStream } from "./rng";
 export type { GameOver, Score } from "@/types/Score";
+export type { CountryId, MinorNationId } from "@/types/Common";
+export type { DiplomacyState, PairDiplomacy } from "@/types/Diplomacy";
+export type { Intent } from "@/types/Intent";
+export type { MinorNation } from "@/types/MinorNation";
+export type { Province } from "@/types/Province";
+export type { WorldId } from "@/types/World";
 export type { TradeCommodity, TradeOrders, WorldMarket } from "@/types/Market";

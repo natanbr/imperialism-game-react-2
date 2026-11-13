@@ -142,14 +142,14 @@ export interface LabourView {
 
 const GRADES: readonly WorkerGrade[] = ["untrained", "trained", "expert"];
 
-export function labourView(nation: Nation): LabourView {
+export function labourView(state: GameState, nation: Nation): LabourView {
   const { workers, sick, training, recruits } = nation.industry;
   const of = (w: Workers, grade: WorkerGrade) => w[grade] ?? 0;
   return {
     labour: labourOf(nation),
     grades: GRADES.map((grade) => ({ grade, count: of(workers, grade), sick: of(sick, grade), training: of(training, grade) })),
     recruits,
-    recruitCap: migrantCap(nation),
+    recruitCap: migrantCap(state, nation.id),
     carsOrdered: Math.max(0, nation.transportCapacityPendingIncrease ?? 0),
   };
 }

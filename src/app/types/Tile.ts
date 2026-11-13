@@ -48,7 +48,13 @@ export interface Tile {
   // Active construction job (Engineer)
   constructionJob?: ConstructionJob;
 
+  /**
+   * The Great Power that owns the tile; none on a minor nation's land (FR-149). Only the world
+   * builders and transferProvince write it (FR-148).
+   */
   ownerNationId?: string;
+  /** On a world with provinces, the province of every land tile (FR-147). */
+  provinceId?: string;
   cityId?: string;              // capital or town id
   workers: Worker[];
   explored: boolean;

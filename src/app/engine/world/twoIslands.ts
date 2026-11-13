@@ -32,7 +32,8 @@ const HALF: readonly string[] = [
   "~~~~~~~~~~~~",
 ];
 
-const HALF_WIDTH = HALF[0].length;
+/** Columns of one island's half; island 2 starts at this column (the continent's provinces use it, FR-147). */
+export const HALF_WIDTH = HALF[0].length;
 const COLS = 2 * HALF_WIDTH;
 const ROWS = HALF.length;
 

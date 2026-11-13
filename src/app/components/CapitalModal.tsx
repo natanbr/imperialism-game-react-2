@@ -28,7 +28,7 @@ export const CapitalModal: React.FC = () => {
   const [isAllocOpen, setAllocOpen] = useState(false);
 
   const cards = useMemo(() => (isOpen && nation ? productionCards(game, nation) : []), [isOpen, game, nation]);
-  const labour = useMemo(() => (nation ? labourView(nation) : null), [nation]);
+  const labour = useMemo(() => (nation ? labourView(game, nation) : null), [game, nation]);
 
   if (!isOpen) return null;
 

@@ -25,6 +25,12 @@ const produce = (building: BuildingType, amount: number, output?: ProductionOutp
 const allLabourCommitted = (s: GameState) =>
   setBuilding(setBuilding(setBuilding(setWarehouse(s, N1, { timber: 4, coal: 2, ironOre: 2, cotton: 4 }), N1, 'lumberMill', { orders: { lumber: 2 } }), N1, 'steelMill', { orders: { steel: 2 } }), N1, 'textileMill', { orders: { fabric: 2 } });
 
+/** The state with `count` provinces held by nation-1 (FR-148: the migrant cap counts `state.provinces`). */
+const withProvinces = (s: GameState, count: number): GameState => ({
+  ...s,
+  provinces: Array.from({ length: count }, (_, i) => ({ id: `province-${i + 1}`, name: `Province ${i + 1}`, ownerId: N1, seatTileId: '1-1', tileIds: [] })),
+});
+
 /** 11 labour (one untrained worker sick), 10 committed (lumber 2, steel 2, fabric 1): 1 free. */
 const oneLabourFree = (s: GameState) =>
   setIndustry(setBuilding(allLabourCommitted(s), N1, 'textileMill', { orders: { fabric: 1 } }), N1, { sick: { untrained: 1, trained: 0, expert: 0 } });
@@ -100,8 +106,8 @@ const cases: Case[] = [
   // FR-042 recruitWorkers
   { name: 'FR-042 a migrant for canned food, clothing and furniture is ok', setup: () => base({ cannedFood: 1, clothing: 1, furniture: 1 }), order: { kind: 'recruitWorkers', nationId: N1, delta: 1 }, expected: 'ok' },
   { name: 'FR-042 a migrant without furniture', setup: () => base({ cannedFood: 1, clothing: 1 }), order: { kind: 'recruitWorkers', nationId: N1, delta: 1 }, expected: 'insufficient-resources' },
-  { name: 'FR-042 more migrants than the cap (2 provinces: 1 a turn)', setup: () => base({ cannedFood: 2, clothing: 2, furniture: 2 }), order: { kind: 'recruitWorkers', nationId: N1, delta: 2 }, expected: 'limit-reached' },
-  { name: 'FR-042 8 provinces allow 2 migrants a turn', setup: () => ({ ...base({ cannedFood: 2, clothing: 2, furniture: 2 }), nations: base({ cannedFood: 2, clothing: 2, furniture: 2 }).nations.map(n => (n.id === N1 ? { ...n, provinces: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'] } : n)) }), order: { kind: 'recruitWorkers', nationId: N1, delta: 2 }, expected: 'ok' },
+  { name: 'FR-042 FR-148 more migrants than the cap (2 provinces: 1 a turn)', setup: () => withProvinces(base({ cannedFood: 2, clothing: 2, furniture: 2 }), 2), order: { kind: 'recruitWorkers', nationId: N1, delta: 2 }, expected: 'limit-reached' },
+  { name: 'FR-042 FR-148 8 provinces allow 2 migrants a turn', setup: () => withProvinces(base({ cannedFood: 2, clothing: 2, furniture: 2 }), 8), order: { kind: 'recruitWorkers', nationId: N1, delta: 2 }, expected: 'ok' },
   { name: 'FR-042 a fractional number of migrants', setup: () => base({ cannedFood: 2, clothing: 2, furniture: 2 }), order: { kind: 'recruitWorkers', nationId: N1, delta: 0.5 }, expected: 'invalid-amount' },
 ];
 

@@ -174,12 +174,12 @@ export function validateTrainWorkers(nation: Nation, order: TrainWorkersOrder): 
   return labourOf(nation).free >= 1 ? OK : reject("insufficient-labour");
 }
 
-export function validateRecruitWorkers(nation: Nation, order: RecruitWorkersOrder): ValidationResult {
+export function validateRecruitWorkers(state: GameState, nation: Nation, order: RecruitWorkersOrder): ValidationResult {
   const { delta } = order;
   if (!isWholeNumber(delta) || delta === 0) return reject("invalid-amount");
   const recruits = nation.industry.recruits;
   if (delta < 0) return recruits >= -delta ? OK : reject("invalid-amount");
-  if (recruits + delta > migrantCap(nation)) return reject("limit-reached");
+  if (recruits + delta > migrantCap(state, nation.id)) return reject("limit-reached");
   const stock = stockOf(nation);
   const enough = Object.entries(MIGRANT_COST).every(([key, each]) => has(stock, key, delta * (each ?? 0)));
   return enough ? OK : reject("insufficient-resources");

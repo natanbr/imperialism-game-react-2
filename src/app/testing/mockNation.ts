@@ -8,6 +8,7 @@ import { createTileId } from "@/utils/tileIdUtils";
 import { initializeRailroadNetworks } from "@/engine/systems/railroadSystem";
 import { createIndustry } from "@/engine/industry/industryState";
 import { startMarket } from "@/engine/market/market";
+import { startDiplomacy } from "@/engine/diplomacy/relations";
 import { TIME_CONFIG } from "@/constants/gameConstants";
 
 const cols = 5;
@@ -23,11 +24,7 @@ export const mockNations: Nation[] = [
     treasury: 10000,
     debt: 0,
     creditLimit: 5000,
-    relations: [],
-    tradePolicies: [],
-    grants: [],
     cities: ["capital-1"],
-    provinces: ["province-1", "province-2"],
     armies: [],
     fleets: [],
     colonies: [],
@@ -50,11 +47,7 @@ export const mockNations: Nation[] = [
     treasury: 8000,
     debt: 0,
     creditLimit: 4000,
-    relations: [],
-    tradePolicies: [],
-    grants: [],
     cities: [],
-    provinces: ["province-3"],
     armies: [],
     fleets: [],
     colonies: [],
@@ -77,11 +70,7 @@ export const mockNations: Nation[] = [
     treasury: 900,
     debt: 0,
     creditLimit: 4500,
-    relations: [],
-    tradePolicies: [],
-    grants: [],
     cities: [],
-    provinces: ["province-4"],
     armies: [],
     fleets: [],
     colonies: [],
@@ -280,10 +269,10 @@ export function createTwoNationGame(seed = 1): GameState {
     cities: [],
     armies: [],
     fleets: [],
-    relations: [],
-    treaties: [],
-    tradePolicies: [],
-    grants: [],
+    minorNations: [],
+    provinces: [],
+    diplomacy: startDiplomacy(nations, []),
+    intents: [],
     map,
     transportNetwork: { shippingLanes: [], capacity: 0, railroadNetworks: initializeRailroadNetworks(map, nations) },
     tradeRoutes: [],
