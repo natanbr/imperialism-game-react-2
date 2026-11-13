@@ -75,6 +75,9 @@ src/app/
                            ProductionCard, LabourPanel, FreightCars, Capital.module.css
     market/                the market dialog's view (marketView.ts, no React) and the CSS module
                            shared by MarketModal and GameOverModal
+    diplomacy/             the Diplomacy screen's parts: diplomacyView.ts (rows, controls with their
+                           refusal text, the Accept Offer sentence; no React), CountryCard,
+                           Diplomacy.module.css (also used by AcceptOfferModal)
   hooks/                   React hooks; tileClickOrders.ts (what a tile click asks for, no React)
   workers/                 per worker type, the action it offers on a tile (map cursor and click)
   types/                   GameState, Tile, Worker, Nation, Industry, jobs, ...
@@ -376,7 +379,15 @@ The warehouse dialog lists every commodity by display name in three groups (`COM
 The market dialog (`MarketModal.tsx`, opened from the HUD or the capital's Trade button) renders
 `market/marketView.ts`: per tradeable commodity its price, stock, offer and bid with "− n +"
 buttons that send `sellCommodity` / `buyCommodity` with this turn's new total, plus cash, cargo
-holds and buy bids; refusals show as in the capital. The game-over screen (`GameOverModal.tsx`)
+holds and buy bids; refusals show as in the capital. The Diplomacy screen (`DiplomacyModal.tsx`,
+M6, store flag `isDiplomacyOpen`, opened from the HUD or the capital) renders
+`diplomacy/diplomacyView.ts`: one card per other country (the other Great Power first, then the
+minors in id order) with the relation as a swatch in `--color-relation-<level>` and in words, the
+treaties, this turn's diplomacy intents with Withdraw, and the overture, grant and trade policy
+controls; each control holds its order and, when `validateOrder` would refuse it, the refusal text
+(the button is disabled and names it as its description). Accept Offer (`AcceptOfferModal.tsx`)
+opens for each `pendingProposalsFor` the player at the start of a turn; Accept/Reject (Enter/Escape)
+send `answerProposal`, and closing it adds the id to `dismissedProposalIds` (reset by New game). The game-over screen (`GameOverModal.tsx`)
 shows `state.gameOver.scores` whenever the game is over, unless the player closed it
 (`isGameOverHidden`, reopened by the HUD's "Final scores"). After game over the HUD's Advance
 Turn is disabled and the store's `advanceTurn` returns at once, so no empty turn is logged. A tile is `components/Tile.tsx` plus
