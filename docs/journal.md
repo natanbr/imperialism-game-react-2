@@ -21,7 +21,8 @@
 - 2026-11-13 M7 Nation-to-nation trade (FR-183 to FR-198, FR-242 to FR-259) merged (PR 25, main d16afa7; entries archived in
   `docs/journal/archive-M7.md`). Card Q47 (the World market's greyed "−") still open.
 - 2026-11-13 M8 Armies in progress on `claude/m8-armies` (worktree `imperialism-game-revival-fee36d`): the engine half
-  (FR-199 to FR-209, FR-213, FR-215) first, then the UI half (FR-210 to FR-212, FR-214) on its API; not pushed.
+  (FR-199 to FR-209, FR-213, FR-215) and the UI half (FR-210 to FR-212, FR-214) are committed; not pushed. Next: the
+  milestone review, the app check, the PR.
 
 Carried forward:
 - Deferred: river ports and the depot-on-port rule (rules 04); University fees; the power plant.
@@ -244,3 +245,55 @@ API for the UI half (all from `@/engine`):
 
 In the app (once the UI half is in): New game; End Turn: the news reads "Army upkeep: $100." and the Deal Book's bottom line
 "Military upkeep $100".
+
+## 2026-11-13 M8 Armies, UI half (FR-210 to FR-212, FR-214)
+
+Size: L (milestone UI half: map markers, two new dialogs, one e2e spec). One UI agent (Opus 5.5, xhigh, no subagents, no
+advisor call), started by the M8 workflow on the engine half's API. Branch `claude/m8-armies`, not pushed.
+
+Plan-lite:
+- Change: `components/army/armyView.ts` (markers by seat tile, the Army screen's rows and controls) and `armouryView.ts` (the
+  cards), no React; `Tile/TileArmy.tsx` (the markers), `ArmyModal.tsx`, `ArmouryModal.tsx`, `army/Army.module.css`; store flags
+  `armyProvinceId` (`openArmy`, `closeArmy`) and `isArmouryOpen` (`openArmoury`, `closeArmoury`), both reset by New game;
+  `selectArmyMarkersBySeat`; the capital's "Armoury" button on a world with provinces; three Game Icons (tent, pitchfork, sabres).
+- Consumers: the player; M9 adds "Attack Arvelia" to "March to" and the Attack screen (FR-230) on the same view module.
+- Tests: FR-210 `ui/armyMarkers.test.tsx` (9); FR-211 `ui/armyDialog.test.tsx` (19); FR-212 `ui/armouryDialog.test.tsx` (15);
+  FR-022 `ui/uiWritesOnlyOrders.test.ts` (+1: the new screens are scanned and send through submitOrder); FR-084 `ui/icons.test.tsx`
+  and FR-160 `store/computerNations.test.ts` (the new icon names and store keys added to their lists); FR-214 `e2e/m8-armies.spec.ts`.
+- Verify: `npm test`, `npm run lint`, `npx tsc --noEmit`, `npm run build`, `PORT=3160 npx playwright test --workers=1 --reporter=line`.
+- Objection: a 24 px marker cannot share a 42 px seat tile with the civilians' 24 px button without overlapping something; the
+  markers lie half over the seat's left edge and cover the right edge of the tile to the left (decision 2).
+
+Decisions (defaults, nobody to ask):
+1. The spec file is `e2e/m8-armies.spec.ts`, as FR-214 names it (the task brief said `e2e/m8.spec.ts`; the requirement row wins).
+2. Marker place: from 11 px left of the seat tile to 13 px inside it, 9 px from its top, so it clears the civilians' button in the
+   bottom right, the tile's icon and the level badge's text; on a minor's capital 1 px from the top, clear of its name tag. One
+   24 x 24 chip per country, the owner's colour as its border; the force size (tent) on that colour above, the militia
+   (pitchfork) below; a chip with one line shows it larger. Objection: on a developed Great Power seat the job markers under the
+   level badge are hidden behind the chip while a job runs (the tile panel still lists them).
+3. A marker without militia reads "Testland army: force size 2, 1 regiment" (no "0 militia"); "1 regiment" in the singular.
+4. The Army screen lists the regiments that may march first, then the militia; "Cancel march" is a button on each marching row;
+   nothing ticked reads "Tick the regiments to march first." (or "to disband"), no bordering province of ours "No province of ours
+   borders this one."; other refusals are the engine's words as a sentence ("The game is over."). The disband question's buttons
+   are "Yes, disband" and "Keep them"; Escape keeps them. A disband ordered has no control (engine decision 3, card kept).
+5. The Armoury shows horses in the cost and at hand only for the types that need them; "+" reasons: "Not enough money",
+   "Not enough armaments", "Not enough horses", "No free trained worker". A "This turn:" label stands before the count.
+6. Both dialogs lie at z-index 76 (as Diplomacy), over the capital; the Army screen is 860 px wide, the Armoury 1180 px with 4 cards
+   a row; at 1280x720 neither the page nor the dialog scrolls (checked in the e2e spec).
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| Red: the new and changed UI tests before the implementation | `npx vitest run` on the 6 files (`.gate/m8ui/red.txt`) | `Test Files 6 failed (6)`, `Tests 3 failed \| 26 passed (29)`; 3 files fail to load (`Failed to resolve import "@/components/ArmyModal"`, `"@/components/ArmouryModal"`); `expected [ 'about', 'advanceTurn', …(16) ] to deeply equal [ …(19) ]` |
+| FR-210 to FR-212 covered | `npx vitest run` on the 6 files (`.gate/m8ui/green2.txt` and the full run) | `Tests 34 passed (34)` for the two dialog files; armyMarkers `9 tests` passed |
+| Unit tests | `npm test` (`.gate/m8ui/gate-test.txt`) | `Test Files 90 passed (90)`, `Tests 1647 passed (1647)` (+44 on 1603) |
+| v1 baselines and FR-215 unchanged | `npm test` console | `FR-125 seed 1: t15 616/390 (1.58) ... t40 1493/650 (2.30)` as on main; `[[1,1419,1493,1493],[2,1451,1496,1496],[3,1441,1490,1490],[4,1469,1476,1476]]` as in the engine half |
+| Lint | `npm run lint` | `✖ 3 problems (0 errors, 3 warnings)` (the three of M6) |
+| Types | `npx tsc --noEmit` | exit 0, no output |
+| Build | `npm run build` | `✓ Compiled successfully in 7.1s`, `✓ Generating static pages (4/4)` |
+| FR-214 | `PORT=3160 npx playwright test e2e/m8-armies.spec.ts --workers=1 --reporter=line` | `1 passed (13.7s)` |
+| e2e suite | `PORT=3160 npx playwright test --workers=1 --reporter=line` (`.gate/m8ui/e2e-final.txt`) | `33 passed (2.0m)`, `1 skipped` (the old skip) |
+
+In the app: New game; every province's seat shows its army marker (Testland's capital: a crimson chip "4" over "4", named
+"Testland army: force size 4, 3 regiments, 4 militia"). Click it: the Army screen; tick a regiment, "March to", March. Open Capital,
+Armoury: 7 cards, "+" disabled with "Not enough armaments" until the metal works make one. Screenshots: `.gate/m8ui/shots/`
+(m8-armoury.png, m8-army.png, m8-map.png).

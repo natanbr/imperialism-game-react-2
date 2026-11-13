@@ -98,6 +98,10 @@ src/app/
                            refusal text, the refusal lines, the Accept Offer sentence; no React),
                            CountryList (the left pane's tabs), CountryDetails (the right pane),
                            Diplomacy.module.css (also used by AcceptOfferModal)
+    army/                  M8: armyView.ts (the map markers by seat tile, the Army screen's rows and its
+                           March / Disband controls with their refusal text; no React), armouryView.ts
+                           (the Armoury's cards, no React), Army.module.css (ArmyModal, ArmouryModal);
+                           the markers themselves are Tile/TileArmy.tsx
   hooks/                   React hooks; tileClickOrders.ts (what a tile click asks for, no React)
   workers/                 per worker type, the action it offers on a tile (map cursor and click)
   types/                   GameState, Tile, Worker, Nation, Industry, jobs, ...
@@ -202,6 +206,12 @@ only (FR-018).
   world without armies (two-islands) passes every one unchanged.
 - **Scripted player** (FR-213): it never moves or disbands; under a threat (`armyThreat`) it recruits 1
   Regulars a turn and its run makes the armaments first; it never spends the cash of two turns' upkeep.
+- **Screens** (FR-210 to FR-212): `selectArmyMarkersBySeat` (`store/selectors.ts`, on `components/army/armyView.ts`)
+  gives MapView each seat tile's markers; `Tile/TileArmy.tsx` draws them half over the seat's left edge (ours
+  are buttons that call `openArmy(provinceId)`, store flag `armyProvinceId`). `ArmyModal.tsx` (the Army screen)
+  and `ArmouryModal.tsx` (store flag `isArmouryOpen`, opened from the capital dialog on a world with
+  provinces) build `moveArmy`, `cancelArmyMove`, `disbandRegiments` and `setRecruitment` and ask
+  `validateOrder` first: a control it would refuse is disabled, its reason beside it and as its description.
 
 The store (`store/rootStore.ts`) holds that state under `game`, and UI state beside it:
 
@@ -216,6 +226,7 @@ The store (`store/rootStore.ts`) holds that state under `game`, and UI state bes
 | `selectedTileId`, `selectedWorkerId`, `hoveredTileId` | selection | UI |
 | `cameraX`, `cameraY` | map scroll | UI |
 | `isWarehouseOpen`, `isCapitalOpen`, ... | overlays and dialogs | UI |
+| `armyProvinceId`, `isArmouryOpen` | the Army screen's province (null: closed) and the Armoury (FR-211, FR-212) | UI |
 
 Only `game` is ever passed to the engine (tested with spies in
 `tests/store/engineBoundary.test.ts`). Display text is derived, not stored: a worker's job text
