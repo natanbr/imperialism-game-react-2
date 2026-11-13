@@ -68,12 +68,17 @@ function play(seed: number): Game {
   return game;
 }
 
-/** The measured v2 baseline (FR-247's status), seeds 1 to 4. */
+/**
+ * The measured v2 baseline (FR-247's status), seeds 1 to 4. Measured again in M8 (FR-215): each nation pays the start
+ * army's $100 upkeep a turn (FR-202) and keeps two turns of it out of its spending (FR-213), so it bids less. Before
+ * M8: deals [59, 53], [59, 56], [61, 53], [76, 51]; purchases [31, 23], [30, 25], [34, 23], [45, 22]; minors [4, 1] on
+ * every seed; treasuries [924, 88], [561, 492], [38, 38], [1532, 38].
+ */
 const BASELINE = [
-  { seed: 1, minorDeals: [59, 53], minorPurchases: [31, 23], minorsDealt: [4, 1], treasury: [924, 88] },
-  { seed: 2, minorDeals: [59, 56], minorPurchases: [30, 25], minorsDealt: [4, 1], treasury: [561, 492] },
-  { seed: 3, minorDeals: [61, 53], minorPurchases: [34, 23], minorsDealt: [4, 1], treasury: [38, 38] },
-  { seed: 4, minorDeals: [76, 51], minorPurchases: [45, 22], minorsDealt: [4, 1], treasury: [1532, 38] },
+  { seed: 1, minorDeals: [54, 50], minorPurchases: [24, 17], minorsDealt: [4, 1], treasury: [805, 3177] },
+  { seed: 2, minorDeals: [47, 49], minorPurchases: [19, 18], minorsDealt: [4, 1], treasury: [0, 2176] },
+  { seed: 3, minorDeals: [50, 47], minorPurchases: [20, 18], minorsDealt: [4, 1], treasury: [182, 119] },
+  { seed: 4, minorDeals: [54, 50], minorPurchases: [25, 21], minorsDealt: [4, 1], treasury: [870, 5] },
 ];
 
 const measured = (seed: number, g: Game) => ({

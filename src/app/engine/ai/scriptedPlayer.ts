@@ -7,7 +7,8 @@ import type { Worker } from "@/types/Workers";
 import { CONSTRUCTION_COST, DEVELOPMENT_COST } from "@/definisions/workPrices";
 import { SCORE_WEIGHTS } from "@/definisions/scoreWeights";
 import { EngineerBuildDurationsTurns, WorkerLevelDurationsTurns } from "@/definisions/workerDurations";
-import { findWorker, nationById, nextResourceLevel, workersOf, type WorkerLocation } from "../orders/queries";
+import { findWorker, nationById, nextResourceLevel, treasuryOf, workersOf, type WorkerLocation } from "../orders/queries";
+import { upkeepOf } from "../army/armies";
 import { validateOrder } from "../orders/validate";
 import { bestDepotSite, nextRailSections, tilesByReach, type DepotSite } from "./railPlan";
 import { planEconomy, turnsAfter } from "./economy";
@@ -33,7 +34,9 @@ export const scriptedPlayer: Player = (state, nationId) => {
   let view = state;
   const propose = (order: Order): boolean => {
     if (!validateOrder(view, order).ok) return false;
-    view = applyOrder(view, order);
+    const next = applyOrder(view, order);
+    if (spendsTheUpkeep(view, next, nationId)) return false;
+    view = next;
     orders.push(order);
     return true;
   };
@@ -59,6 +62,18 @@ export const scriptedPlayer: Player = (state, nationId) => {
   for (const order of scriptedDiplomacyOrders(view, nationId)) propose(order);
   return orders;
 };
+
+/**
+ * FR-213: it keeps its garrison, so no order of its own spends the cash of the army upkeep (FR-202) of this turn and
+ * the next (this turn's only, on the last turn): an order that takes the treasury below it is dropped. Two turns, so
+ * a turn that ends with less than an upkeep left still leaves the next one paid. A world without armies has no
+ * upkeep, so there nothing is dropped and its orders are as before M8.
+ */
+function spendsTheUpkeep(before: GameState, after: GameState, nationId: string): boolean {
+  const left = treasuryOf(after, nationId);
+  const kept = upkeepOf(after, nationId) * (turnsAfter(after) > 0 ? 2 : 1);
+  return left < treasuryOf(before, nationId) && left < kept;
+}
 
 /**
  * A depot pays back (FR-132) when what it newly gathers, over the turns it delivers, is worth its

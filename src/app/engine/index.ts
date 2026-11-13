@@ -95,3 +95,45 @@ export {
 export { BOARD_ORDER, MINOR_DEMAND, MINOR_OFFER_CAP, TRADE_RELATION_POINTS } from "@/definisions/partnersMarket";
 export type { BarredCounterparty, OfferMissedReason, TradeMissCause } from "./turn/context";
 export type { MarketMode, TradeAmounts } from "@/types/Market";
+// M8 (FR-199 to FR-213): the regiment table, armies and their view helpers for the map markers, the Army screen and
+// the Armoury (FR-210 to FR-212), upkeep. The orders are `setRecruitment`, `moveArmy`, `cancelArmyMove`, `disbandRegiments`.
+export {
+  armiesIn,
+  armiesOf,
+  armyAt,
+  armyMarkers,
+  capitalProvinceOf,
+  findRegiment,
+  forceSize,
+  freeWorkersOf,
+  isArmyIntent,
+  marchTargets,
+  militiaCount,
+  ordinal,
+  pendingArmyIntent,
+  recruitingOf,
+  regimentStatus,
+  regimentsOf,
+  strength,
+  strengthIn,
+  upkeepOf,
+  type ArmyMarker,
+  type RegimentLocation,
+  type RegimentStatus,
+} from "./army/armies";
+export {
+  entrenches,
+  isMilitia,
+  RECRUITABLE_REGIMENTS,
+  REGIMENT_TYPES,
+  REGIMENTS,
+  UPKEEP_PER_ARMS,
+  type RegimentArm,
+  type RegimentDefinition,
+} from "@/definisions/regiments";
+export { armyThreat } from "./ai/scriptedArmy";
+export type { ArmyOrder } from "./orders/Order";
+export type { DisbandReason } from "./turn/context";
+export type { Army, Regiment } from "@/types/Army";
+export { RegimentCategory, type RegimentType, type UnitStats } from "@/types/Unit";
+export type { ArmyIntent, ArmyMoveIntent, DisbandIntent } from "@/types/Intent";
