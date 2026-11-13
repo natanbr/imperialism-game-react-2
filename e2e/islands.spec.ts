@@ -1,6 +1,7 @@
 import { test, expect, Page } from '@playwright/test';
 
-// FR-080 and FR-083: a new game opens on the 24x16 two-island map with the camera on the capital 2-9
+// FR-080 and FR-083: a new game opens on the 24x16 map (since M5 the continent: the two islands and the
+// minor nations' land between them, FR-144, FR-145) with the camera on the capital 2-9
 // and never beyond the map's edges. At 42 px tiles (FR-088) the map is 1,029 x 672 px and fits the
 // default 1280x720 screen (e2e/look.spec.ts), so the camera rules are checked on an 800x450 screen:
 // the map area left of the 250 px HUD is 550x450.
@@ -70,16 +71,17 @@ test.describe('on a screen too small for the whole map', () => {
   });
 });
 
-test('FR-080 FR-098 the whole map shows two islands, a capital on each, no coast tile', async ({ page }) => {
+test('FR-080 FR-098 FR-145 the whole map shows the two islands, a capital on each, the four minor capitals between them, no coast tile', async ({ page }) => {
   const errors = collectErrors(page);
   await page.goto('/');
   await expect(page.getByTestId('map-scroll')).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
   await expect(tile(page, '2-9')).toBeInViewport({ timeout: 15000 });
 
   await expect(page.locator('[data-testid="tile"]')).toHaveCount(24 * 16);
-  // FR-098: nation 2's capital on island 2, at the same place as the player's on island 1
-  await expect(page.locator('[data-terrain="capital"]')).toHaveCount(2);
-  await expect(tile(page, '14-9')).toHaveAttribute('data-terrain', 'capital');
+  // FR-098: nation 2's capital on island 2, at the same place as the player's on island 1. Since M5 the app
+  // plays the continent (FR-144, FR-160): the four minor nations' capitals are the other four (FR-145).
+  await expect(page.locator('[data-terrain="capital"]')).toHaveCount(2 + 4);
+  for (const id of ['2-9', '14-9', '11-4', '12-9', '11-1', '12-13']) await expect(tile(page, id)).toHaveAttribute('data-terrain', 'capital');
   await expect(page.locator('[data-terrain="coast"]')).toHaveCount(0);
   await expect(page.locator('[data-terrain="river"]')).toHaveCount(0);
   for (const id of ['0-0', '23-0', '0-15', '23-15', '14-9']) await expect(tile(page, id)).toBeInViewport();

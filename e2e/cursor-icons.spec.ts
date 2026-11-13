@@ -47,9 +47,11 @@ test.describe('Cursor Icon Functionality', () => {
 
     await prospectorWorker.click();
 
-    // A tile that can be prospected: barren hills hide coal or iron ore (the two-island map, FR-080,
-    // has no mountains or swamp)
-    const validTile = page.locator('[data-testid="tile"][data-terrain="barrenHills"]').first();
+    // A tile that can be prospected: the player's barren hills 5-2 hide coal (FR-080: the islands have no
+    // mountains or swamp). By id since M5 (FR-160): on the continent the first barren hills in page order
+    // is Lorran's 13-1, minor land with its iron already found, where no civilian works (FR-149).
+    const validTile = page.locator('[data-testid="tile"][data-tile-id="5-2"]');
+    await expect(validTile).toHaveAttribute('data-terrain', 'barrenHills');
 
     await validTile.hover();
 
