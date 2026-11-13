@@ -95,8 +95,9 @@ test('FR-197 FR-194 FR-195 a consulate with Arvelia and 2 coal bid on the Board 
   await page.getByRole('button', { name: /Advance Turn/ }).click();
   await expect(page.getByTestId('turn-indicator')).toContainText('Turn: 2 of 40');
   await expect(page.getByTestId('news-panel')).toContainText('Bought 2 Coal from Arvelia for $200.');
-  expect(await cash(page)).toBe(start - 500 - 200);
-  await expect(page.locator('.nation-stats')).toHaveText('Cash: $9,300');
+  // and the start army's $100 upkeep (FR-202)
+  expect(await cash(page)).toBe(start - 500 - 200 - 100);
+  await expect(page.locator('.nation-stats')).toHaveText('Cash: $9,200');
 
   const dealBookButton = page.getByRole('button', { name: 'Deal Book', exact: true });
   await dealBookButton.click();
@@ -105,14 +106,14 @@ test('FR-197 FR-194 FR-195 a consulate with Arvelia and 2 coal bid on the Board 
   await expect(dealBook.getByTestId('deal-book-turn')).toHaveText('Turn 1, Spring 1815');
   await expect(dealBook.getByRole('list', { name: 'Bought' }).getByRole('listitem')).toHaveText(['Bought 2 Coal from Arvelia @ $100']);
   await expect(dealBook.getByTestId('sold-none')).toHaveText('Nothing sold.');
-  await expect(dealBook.getByRole('table', { name: 'Bottom line' }).getByRole('row')).toHaveText([/Sold\s*\$0/, /Bought\s*\$200/, /Military upkeep\s*\$0/, /Trade net\s*-\$200/]);
+  await expect(dealBook.getByRole('table', { name: 'Bottom line' }).getByRole('row')).toHaveText([/Sold\s*\$0/, /Bought\s*\$200/, /Military upkeep\s*\$100/, /Trade net\s*-\$300/]);
   // FR-256: the trade net and the consulate make the whole change of the treasury
   await expect(dealBook.getByRole('table', { name: 'Treasury' }).getByRole('row')).toHaveText([
-    /Trade net\s*-\$200/,
+    /Trade net\s*-\$300/,
     /Consulate in Arvelia\s*-\$500/,
-    /Treasury change\s*-\$700/,
+    /Treasury change\s*-\$800/,
   ]);
-  await expect(dealBook.getByTestId('treasury')).toContainText('From $10,000 to $9,300');
+  await expect(dealBook.getByTestId('treasury')).toContainText('From $10,000 to $9,200');
   if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/m7-deal-book.png` });
   await page.keyboard.press('Escape');
   await expect(dealBook).toHaveCount(0);

@@ -148,12 +148,13 @@ describe('FR-197 FR-195 in the store: a consulate and a bid on turn 1, then End 
 
     render(<DealBookModal />);
     expect(lines('Bought')).toEqual(['Bought 2 Coal from Arvelia @ $100']);
-    expect(bottomLine()).toEqual(['Sold $0', 'Bought $200', 'Military upkeep $0', 'Trade net -$200']);
+    // FR-202: the start army's $100 upkeep is in the bottom line
+    expect(bottomLine()).toEqual(['Sold $0', 'Bought $200', 'Military upkeep $100', 'Trade net -$300']);
     expect(text(within(dialog()).getByTestId('deal-book-turn'))).toBe('Turn 1, Spring 1815');
-    // FR-256: the consulate's $500 and the trade net explain the whole change of the treasury, $10,000 to $9,300
-    expect(treasuryLines()).toEqual(['Trade net -$200', 'Consulate in Arvelia -$500', 'Treasury change -$700']);
-    expect(text(within(dialog()).getByTestId('treasury'))).toMatch(/From \$10,000 to \$9,300$/);
-    expect(useGameStore.getState().game.nations[0].treasury).toBe(9300);
+    // FR-256: the consulate's $500 and the trade net explain the whole change of the treasury, $10,000 to $9,200
+    expect(treasuryLines()).toEqual(['Trade net -$300', 'Consulate in Arvelia -$500', 'Treasury change -$800']);
+    expect(text(within(dialog()).getByTestId('treasury'))).toMatch(/From \$10,000 to \$9,200$/);
+    expect(useGameStore.getState().game.nations[0].treasury).toBe(9200);
   });
 
   it('FR-256 the store\'s turn report holds each nation\'s treasury at the turn\'s start (before the first order) and after it', () => {
@@ -170,11 +171,26 @@ describe('FR-197 FR-195 in the store: a consulate and a bid on turn 1, then End 
       [N1]: { start: 10000, end: end(N1) },
       [N2]: { start: before.nations[1].treasury, end: end(N2) },
     });
-    expect(report.treasuries![N1].end).toBe(9500);
+    // the consulate's $500 and the start army's $100 upkeep (FR-202)
+    expect(report.treasuries![N1].end).toBe(9400);
 
     // A turn without an order of ours starts where the last one ended
     useGameStore.getState().advanceTurn();
-    expect(useGameStore.getState().eventLog.at(-1)!.treasuries![N1].start).toBe(9500);
+    expect(useGameStore.getState().eventLog.at(-1)!.treasuries![N1].start).toBe(9400);
+  });
+
+  it('FR-262 review R5: 1 Regulars ordered in the Armoury on turn 1, then End Turn: the Treasury table names it, "1 Regulars recruited -$500", not "Other"', () => {
+    const armed = start();
+    const withArmaments: GameState = { ...armed, nations: armed.nations.map((n) => (n.id === N1 ? { ...n, warehouse: { ...n.warehouse, armaments: 1 } } : n)) };
+    useGameStore.setState({ ...useGameStore.getInitialState(), game: withArmaments, activeNationId: N1 });
+    expect(useGameStore.getState().submitOrder({ kind: 'setRecruitment', nationId: N1, regiment: 'regulars', count: 1 })).toEqual({ ok: true });
+    useGameStore.getState().advanceTurn();
+    useGameStore.getState().openDealBook();
+
+    render(<DealBookModal />);
+    // $10,000 - $500 (the recruit, paid when ordered) - $100 (the start army's upkeep)
+    expect(treasuryLines()).toEqual(['Trade net -$100', '1 Regulars recruited -$500', 'Treasury change -$600']);
+    expect(text(within(dialog()).getByTestId('treasury'))).toMatch(/From \$10,000 to \$9,400$/);
   });
 
   it('FR-256 a turn with only a consulate: "No deals last turn." and the Treasury table, which explains the $500', () => {

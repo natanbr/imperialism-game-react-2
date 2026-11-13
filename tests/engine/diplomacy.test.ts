@@ -15,6 +15,7 @@ import { diplomacySystem } from '@/engine/systems/diplomacySystem';
 import { tradeSystem } from '@/engine/systems/tradeSystem';
 import { pairKey } from '@/engine/diplomacy/relations';
 import { warActive } from '@/engine/diplomacy/queries';
+import { upkeepForecast } from '@/engine/army/upkeepForecast';
 import type { PairDiplomacy } from '@/types/Diplomacy';
 import type { GameState } from '@/types/GameState';
 import { deepFreeze, N1, N2, setPair, setTreasury, treasury } from './fixtures';
@@ -23,6 +24,8 @@ const ARVELIA = 'minor-1';
 const SUNDMARK = 'minor-2';
 const LORRAN = 'minor-3';
 const PELLIS = 'minor-4';
+/** FR-202: the start army (FR-203) costs each Great Power $100 at every End Turn on the continent. */
+const UPKEEP = 100;
 const DIPLOMACY_EVENTS = [
   'overture-done', 'overture-refused', 'overture-failed', 'war-declared', 'attacks-cancelled', 'relation-changed', 'grant-paid',
   'grant-stopped', 'proposal-received',
@@ -66,7 +69,7 @@ describe('FR-163 consulate', () => {
 
     expect(pair(state, N1, ARVELIA).consulates).toEqual([N1]);
     expect(events).toContainEqual({ type: 'overture-done', nationId: N1, overture: 'consulate', targetId: ARVELIA });
-    expect(treasury(state, N1)).toBe(9500);
+    expect(treasury(state, N1)).toBe(9500 - UPKEEP);
     expect(state.intents).toEqual([]);
   });
 
@@ -218,7 +221,7 @@ describe('FR-167 declaration of war', () => {
       { type: 'grant-stopped', nationId: N2, targetId: N1, amount: 3000, reason: 'war' },
     ]);
     expect(ofType(events, 'grant-paid')).toEqual([]);
-    expect(treasury(state, N1)).toBe(10000);
+    expect(treasury(state, N1)).toBe(10000 - UPKEEP);
   });
 
   it('FR-167 the war ends a pact and the embassy with a minor', () => {
@@ -414,7 +417,29 @@ describe('FR-170 grants', () => {
     expect(points(state, N1, ARVELIA)).toBe(30 + gain);
     expect(pair(state, N1, ARVELIA).lockedGrants).toEqual({});
     expect(ofType(events, 'grant-paid')).toEqual([{ type: 'grant-paid', nationId: N1, targetId: ARVELIA, amount }]);
-    expect(treasury(state, N1)).toBe(10000 - amount);
+  });
+
+  /** End Turn with every event kept (the army ones too). */
+  const endTurnAll = (s: GameState) => resolveTurn(s, {}, s.seed);
+
+  it.each([1000, 3000, 5000] as const)('FR-170 FR-202 after a $%i grant the start army\'s $100 upkeep is paid as well, nothing disbanded', amount => {
+    const { state, events } = endTurnAll(order(embassy(continent()), grant(amount)));
+
+    expect(treasury(state, N1)).toBe(10000 - amount - UPKEEP);
+    expect(ofType(events, 'army-upkeep').filter(e => e.nationId === N1)).toEqual([{ type: 'army-upkeep', nationId: N1, amount: UPKEEP }]);
+    expect(ofType(events, 'regiments-disbanded')).toEqual([]);
+  });
+
+  it('FR-170 FR-202 FR-261 review R6: a $10,000 grant from $10,000 leaves nothing for the upkeep: the forecast warns, and End Turn disbands the 3 field regiments (no-pay) with no upkeep paid', () => {
+    const s = order(embassy(continent()), grant(10000));
+    expect(upkeepForecast(s, N1)).toEqual({ due: UPKEEP, cash: 0, short: true });
+
+    const { state, events } = endTurnAll(s);
+
+    expect(treasury(state, N1)).toBe(0);
+    expect(ofType(events, 'regiments-disbanded')).toEqual([{ type: 'regiments-disbanded', nationId: N1, reason: 'no-pay', count: 3 }]);
+    expect(ofType(events, 'army-upkeep').filter(e => e.nationId === N1)).toEqual([]);
+    expect(state.armies.filter(a => a.ownerId === N1).flatMap(a => a.regiments).every(r => r.type === 'minutemen')).toBe(true);
   });
 
   const lockedAfterOneTurn = () => endTurn(order(embassy(continent()), grant(3000, true)));
@@ -423,12 +448,12 @@ describe('FR-170 grants', () => {
     const first = lockedAfterOneTurn();
     expect(points(first.state, N1, ARVELIA)).toBe(34);
     expect(pair(first.state, N1, ARVELIA).lockedGrants).toEqual({ [N1]: 3000 });
-    expect(treasury(first.state, N1)).toBe(7000);
+    expect(treasury(first.state, N1)).toBe(7000 - UPKEEP);
 
     const { state, events } = endTurn(first.state);
 
     expect(points(state, N1, ARVELIA)).toBe(38);
-    expect(treasury(state, N1)).toBe(4000);
+    expect(treasury(state, N1)).toBe(4000 - 2 * UPKEEP);
     expect(ofType(events, 'grant-paid')).toEqual([{ type: 'grant-paid', nationId: N1, targetId: ARVELIA, amount: 3000 }]);
     expect(pair(state, N1, ARVELIA).lockedGrants).toEqual({ [N1]: 3000 });
   });
@@ -437,7 +462,7 @@ describe('FR-170 grants', () => {
     const { state, events } = endTurn(setTreasury(lockedAfterOneTurn().state, N1, 2999));
 
     expect(pair(state, N1, ARVELIA).lockedGrants).toEqual({});
-    expect(treasury(state, N1)).toBe(2999);
+    expect(treasury(state, N1)).toBe(2999 - UPKEEP);
     expect(points(state, N1, ARVELIA)).toBe(34);
     expect(events).toEqual([{ type: 'grant-stopped', nationId: N1, targetId: ARVELIA, amount: 3000, reason: 'insufficient-funds' }]);
   });
@@ -446,7 +471,7 @@ describe('FR-170 grants', () => {
     const { state, events } = endTurn(order(lockedAfterOneTurn().state, withdraw('grant')));
 
     expect(pair(state, N1, ARVELIA).lockedGrants).toEqual({});
-    expect(treasury(state, N1)).toBe(7000);
+    expect(treasury(state, N1)).toBe(7000 - 2 * UPKEEP);
     expect(points(state, N1, ARVELIA)).toBe(34);
     expect(events).toEqual([{ type: 'grant-stopped', nationId: N1, targetId: ARVELIA, amount: 3000, reason: 'withdrawn' }]);
   });
@@ -455,14 +480,14 @@ describe('FR-170 grants', () => {
     const { state, events } = endTurn(order(lockedAfterOneTurn().state, grant(1000, true)));
 
     expect(pair(state, N1, ARVELIA).lockedGrants).toEqual({ [N1]: 1000 });
-    expect(treasury(state, N1)).toBe(6000);
+    expect(treasury(state, N1)).toBe(6000 - 2 * UPKEEP);
     expect(ofType(events, 'grant-paid')).toEqual([{ type: 'grant-paid', nationId: N1, targetId: ARVELIA, amount: 1000 }]);
   });
 
   it('FR-170 a once grant in a turn with a standing locked grant to the same country: both are paid and the lock stays', () => {
     const { state, events } = endTurn(order(lockedAfterOneTurn().state, grant(1000)));
 
-    expect(treasury(state, N1)).toBe(7000 - 1000 - 3000);
+    expect(treasury(state, N1)).toBe(7000 - 1000 - 3000 - 2 * UPKEEP);
     expect(points(state, N1, ARVELIA)).toBe(34 + 2 + 4);
     expect(pair(state, N1, ARVELIA).lockedGrants).toEqual({ [N1]: 3000 });
     expect(ofType(events, 'grant-paid').map(e => e.amount)).toEqual([1000, 3000]);
@@ -597,7 +622,7 @@ describe('FR-173 simultaneous and fair', () => {
     const { state, events } = endTurn(s);
 
     expect(pair(state, N1, ARVELIA).consulates).toEqual([]);
-    expect(treasury(state, N1)).toBe(10000);
+    expect(treasury(state, N1)).toBe(10000 - UPKEEP);
     expect(events).toContainEqual({ type: 'overture-failed', nationId: N1, overture: 'consulate', targetId: ARVELIA, reason: 'at-war', refund: 500 });
   });
 
@@ -616,7 +641,7 @@ describe('FR-173 simultaneous and fair', () => {
 
     const { state, events } = endTurn(s);
 
-    expect(treasury(state, N1)).toBe(10000);
+    expect(treasury(state, N1)).toBe(10000 - UPKEEP);
     expect(points(state, N1, ARVELIA)).toBe(0);
     expect(events).toContainEqual({ type: 'overture-failed', nationId: N1, overture: 'grant', targetId: ARVELIA, reason: 'at-war', refund: 5000 });
   });

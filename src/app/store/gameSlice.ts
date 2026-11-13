@@ -177,6 +177,8 @@ export const createGameSlice =
           isDealBookOpen: false,
           isDiplomacyOpen: false,
           dismissedProposalIds: [],
+          armyProvinceId: null,
+          isArmouryOpen: false,
           isWarehouseOpen: false,
           isTransportAllocationOpen: false,
           isConstructionModalOpen: false,

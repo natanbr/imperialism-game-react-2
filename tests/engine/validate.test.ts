@@ -9,7 +9,9 @@ import type { ConstructionKind } from '@/types/jobs/ConstructionJob';
 import { createTileId } from '@/utils/tileIdUtils';
 import { newGame } from '@/engine/newGame';
 import { applyOrder } from '@/engine/orders/apply';
-import { deepFreeze, game, N1, N2, put, setPair, setTile, setTreasury, setWarehouse, T, workerId } from './fixtures';
+import { transferProvince } from '@/engine/world/provinces';
+import { deepFreeze, game, N1, N2, put, setIndustry, setPair, setTile, setTreasury, setWarehouse, T, workerId } from './fixtures';
+import { ARVELIA_P, continent as armyContinent, idOf, NE1, NW1, relocate, SW1, SW2 } from './armyFixtures';
 
 const W = {
   prospector: workerId(N1, WorkerType.Prospector),
@@ -42,6 +44,19 @@ const engineerBuildingAtCapital = (s: GameState) =>
   });
 const prospecting = (s: GameState) =>
   setTile(put(s, W.prospector, T.mountains1, working), T.mountains1, { prospecting: { startedOnTurn: 1, workerId: W.prospector } });
+
+/** The continent's start regiments (FR-203), named for the army order rows. */
+const ARMY = (() => {
+  const s = armyContinent();
+  return {
+    regulars1: idOf(s, N1, '1st Regulars'),
+    regulars2: idOf(s, N1, '2nd Regulars'),
+    artillery1: idOf(s, N1, '1st Artillery'),
+    minutemen9: idOf(s, N1, '9th Minutemen'),
+    valdoria1: idOf(s, N2, '1st Regulars'),
+  };
+})();
+const marchOrder = (regimentIds: string[], fromProvinceId = SW1, toProvinceId = NW1): Order => ({ kind: 'moveArmy', nationId: N1, fromProvinceId, regimentIds, toProvinceId });
 
 const cases: Case[] = [
   // moveWorker
@@ -163,6 +178,12 @@ const cases: Case[] = [
   { name: 'FR-161 a grant to the other Great Power (embassies both ways at the start) is ok', order: { kind: 'giveGrant', nationId: N1, targetId: N2, amount: 1000, locked: false }, expected: 'ok' },
   { name: 'FR-161 a 10% subsidy toward the other Great Power (consulates both ways) is ok', order: { kind: 'setTradePolicy', nationId: N1, targetId: N2, subsidyPercent: 10, boycott: false }, expected: 'ok' },
   { name: 'FR-161 withdrawing this turn\'s alliance proposal is ok', setup: s => ({ ...s, intents: [{ id: 'intent-1-1', kind: 'alliance', nationId: N1, turn: 1, targetId: N2, cost: 0 } as GameState['intents'][number]] }), order: { kind: 'withdrawOverture', nationId: N1, overture: 'alliance', targetId: N2 }, expected: 'ok' },
+  // army orders (FR-200, FR-205, FR-207; their refusals are in the describe block below, on the continent)
+  { name: 'FR-200 setRecruitment of 1 Regulars with an armament on the continent is ok', setup: () => setWarehouse(armyContinent(), N1, { armaments: 1 }), order: { kind: 'setRecruitment', nationId: N1, regiment: 'regulars', count: 1 }, expected: 'ok' },
+  { name: 'FR-205 moveArmy of the 1st Regulars to a bordering own province is ok', setup: () => armyContinent(), order: marchOrder([ARMY.regulars1]), expected: 'ok' },
+  { name: 'FR-205 cancelArmyMove of a regiment ordered to march is ok', setup: () => applyOrder(armyContinent(), marchOrder([ARMY.regulars1])), order: { kind: 'cancelArmyMove', nationId: N1, regimentIds: [ARMY.regulars1] }, expected: 'ok' },
+  { name: 'FR-207 disbandRegiments of the 1st Artillery is ok', setup: () => armyContinent(), order: { kind: 'disbandRegiments', nationId: N1, provinceId: SW1, regimentIds: [ARMY.artillery1] }, expected: 'ok' },
+  { name: 'FR-207 cancelDisband of a regiment ordered to disband is ok (review F4)', setup: () => applyOrder(armyContinent(), { kind: 'disbandRegiments', nationId: N1, provinceId: SW1, regimentIds: [ARMY.artillery1] }), order: { kind: 'cancelDisband', nationId: N1, regimentIds: [ARMY.artillery1] }, expected: 'ok' },
   { name: 'FR-161 answering a proposal made to the nation last turn is ok', setup: s => ({ ...s, turn: 2, proposals: [{ id: 'proposal-1-1', fromId: N2, toId: N1, kind: 'alliance', turn: 1 }] }), order: { kind: 'answerProposal', nationId: N1, proposalId: 'proposal-1-1', accept: true }, expected: 'ok' },
 ];
 
@@ -294,5 +315,83 @@ describe('FR-162 overture refusals, on the continent (one row per refusal)', () 
   it('FR-162 the five new reasons each have a row', () => {
     const reasons = new Set(rows.map(r => r.expected));
     for (const reason of ['needs-consulate', 'needs-embassy', 'already-in-place', 'at-war', 'not-at-war'] as const) expect(reasons.has(reason)).toBe(true);
+  });
+});
+
+describe('FR-200 FR-205 FR-207 army order refusals, on the continent (one row per refusal)', () => {
+  const recruit = (regiment: string, count: number): Order => ({ kind: 'setRecruitment', nationId: N1, regiment: regiment as 'regulars', count });
+  const armed = (s: GameState) => setWarehouse(s, N1, { armaments: 2 });
+  const cancel = (regimentIds: string[]): Order => ({ kind: 'cancelArmyMove', nationId: N1, regimentIds });
+  const cancelDisband = (regimentIds: string[]): Order => ({ kind: 'cancelDisband', nationId: N1, regimentIds });
+  const disband = (regimentIds: string[], provinceId = SW1): Order => ({ kind: 'disbandRegiments', nationId: N1, provinceId, regimentIds });
+  /** The 1st Regulars stand in Testland North-East, which borders Arvelia. */
+  const atBorder = (s: GameState) => relocate(s, [ARMY.regulars1], NE1);
+  const warWithArvelia = (since: number) => (s: GameState) =>
+    setPair(atBorder(s), N1, 'minor-1', { war: { aggressors: [N1], since }, consulates: [], embassies: [] });
+
+  const rows: Case[] = [
+    // setRecruitment (FR-200)
+    { name: 'a recruit on a world without provinces (two-islands)', setup: () => armed(newGame({ seed: 1, world: 'two-islands' })), order: recruit('regulars', 1), expected: 'invalid-target' },
+    { name: 'a recruit of militia (Minutemen)', setup: armed, order: recruit('minutemen', 1), expected: 'invalid-target' },
+    { name: 'a recruit of Sappers (Q31)', setup: armed, order: recruit('sappers', 1), expected: 'invalid-target' },
+    { name: 'a recruit of an unknown type', setup: armed, order: recruit('dragoons', 1), expected: 'invalid-target' },
+    { name: 'a recruit count below 0', setup: armed, order: recruit('regulars', -1), expected: 'invalid-amount' },
+    { name: 'a recruit count that is not whole', setup: armed, order: recruit('regulars', 1.5), expected: 'invalid-amount' },
+    { name: 'a recruit count that is not a number', setup: armed, order: recruit('regulars', Number.NaN), expected: 'invalid-amount' },
+    { name: 'a recruit costing more than the treasury', setup: s => setTreasury(armed(s), N1, 499), order: recruit('regulars', 1), expected: 'insufficient-funds' },
+    { name: 'a recruit without an armament', order: recruit('regulars', 1), expected: 'insufficient-resources' },
+    { name: 'a recruit of Hussars without a horse', setup: s => setWarehouse(armed(s), N1, { horses: 0 }), order: recruit('hussars', 1), expected: 'insufficient-resources' },
+    { name: 'a recruit of Grenadiers with every trained worker sick', setup: s => setIndustry(armed(s), N1, { sick: { untrained: 0, trained: 2, expert: 0 } }), order: recruit('grenadiers', 1), expected: 'insufficient-labour' },
+    // review R4, E4: recruits join in the capital province (FR-201)
+    { name: 'a recruit while another country holds the capital province', setup: s => transferProvince(armed(s), SW1, N2), order: recruit('regulars', 1), expected: 'invalid-target' },
+    // moveArmy (FR-205)
+    { name: "a march of another country's regiment", order: { kind: 'moveArmy', nationId: N1, fromProvinceId: SW2, regimentIds: [ARMY.valdoria1], toProvinceId: 'province-nation-2-nw' }, expected: 'not-owner' },
+    { name: 'a march of a regiment that is not in the army of the province named', order: marchOrder([ARMY.regulars1], NW1, SW1), expected: 'invalid-target' },
+    { name: 'a march of an unknown regiment', order: marchOrder(['regiment-999']), expected: 'invalid-target' },
+    { name: 'a march of a militia regiment', order: marchOrder([ARMY.minutemen9]), expected: 'invalid-target' },
+    { name: 'a march with no regiment', order: marchOrder([]), expected: 'invalid-amount' },
+    { name: 'a march naming a regiment twice', order: marchOrder([ARMY.regulars1, ARMY.regulars1]), expected: 'invalid-amount' },
+    { name: 'a march from an unknown province', order: marchOrder([ARMY.regulars1], 'province-nowhere'), expected: 'invalid-target' },
+    { name: 'a march to an unknown province', order: marchOrder([ARMY.regulars1], SW1, 'province-nowhere'), expected: 'invalid-target' },
+    { name: "a march to a province that does not border the army's", order: marchOrder([ARMY.regulars1], SW1, ARVELIA_P), expected: 'not-adjacent' },
+    { name: 'a march to the province it is in', order: marchOrder([ARMY.regulars1], SW1, SW1), expected: 'not-adjacent' },
+    { name: 'a march across the sea', order: marchOrder([ARMY.regulars1], SW1, SW2), expected: 'not-adjacent' },
+    { name: "a march into another country's province without a war", setup: atBorder, order: marchOrder([ARMY.regulars1], NE1, ARVELIA_P), expected: 'not-at-war' },
+    { name: 'a march into a country whose war starts next turn (FR-167)', setup: warWithArvelia(2), order: marchOrder([ARMY.regulars1], NE1, ARVELIA_P), expected: 'not-at-war' },
+    // review R7, F5: its own reason, not the not-owner of another country's regiment
+    { name: "a march into a country at war (M8: attacks are M9's, FR-216)", setup: warWithArvelia(1), order: marchOrder([ARMY.regulars1], NE1, ARVELIA_P), expected: 'attack-not-available' },
+    // cancelArmyMove (FR-205)
+    { name: 'a cancel with no regiment', order: cancel([]), expected: 'invalid-amount' },
+    { name: 'a cancel of a regiment with no march ordered', order: cancel([ARMY.regulars1]), expected: 'invalid-target' },
+    { name: 'a cancel of a march for a regiment whose disband is ordered', setup: s => applyOrder(s, disband([ARMY.regulars1])), order: cancel([ARMY.regulars1]), expected: 'invalid-target' },
+    { name: 'a cancel of an unknown regiment', order: cancel(['regiment-999']), expected: 'invalid-target' },
+    { name: "a cancel of another country's regiment", order: cancel([ARMY.valdoria1]), expected: 'not-owner' },
+    // cancelDisband (FR-207, review F4)
+    { name: 'a cancelDisband with no regiment', order: cancelDisband([]), expected: 'invalid-amount' },
+    { name: 'a cancelDisband of a regiment with no disband ordered', order: cancelDisband([ARMY.regulars1]), expected: 'invalid-target' },
+    { name: 'a cancelDisband of a regiment ordered to march', setup: s => applyOrder(s, marchOrder([ARMY.regulars1])), order: cancelDisband([ARMY.regulars1]), expected: 'invalid-target' },
+    { name: 'a cancelDisband of an unknown regiment', order: cancelDisband(['regiment-999']), expected: 'invalid-target' },
+    { name: "a cancelDisband of another country's regiment", order: cancelDisband([ARMY.valdoria1]), expected: 'not-owner' },
+    { name: 'a cancelDisband naming a regiment twice', setup: s => applyOrder(s, disband([ARMY.regulars1])), order: cancelDisband([ARMY.regulars1, ARMY.regulars1]), expected: 'invalid-amount' },
+    // disbandRegiments (FR-207)
+    { name: 'a disband of a militia regiment', order: disband([ARMY.minutemen9]), expected: 'invalid-target' },
+    { name: 'a disband of a regiment that is not in the province named', order: disband([ARMY.regulars1], NW1), expected: 'invalid-target' },
+    { name: 'a disband of an unknown regiment', order: disband(['regiment-999']), expected: 'invalid-target' },
+    { name: "a disband of another country's regiment", order: disband([ARMY.valdoria1], SW2), expected: 'not-owner' },
+    { name: 'a disband with no regiment', order: disband([]), expected: 'invalid-amount' },
+    { name: 'a disband naming a regiment twice', order: disband([ARMY.regulars2, ARMY.regulars2]), expected: 'invalid-amount' },
+  ];
+
+  it.each(rows.map(r => [r.name, r] as const))('FR-200 FR-205 FR-207 %s', (_name, r) => {
+    const state = deepFreeze(r.setup ? r.setup(armyContinent()) : armyContinent());
+    const snapshot = structuredClone(state);
+
+    expect(validateOrder(state, r.order)).toEqual(r.expected === 'ok' ? { ok: true } : { ok: false, reason: r.expected });
+    expect(state).toEqual(snapshot);
+  });
+
+  it('FR-205 the new reasons not-adjacent and attack-not-available have a row', () => {
+    expect(rows.some(r => r.expected === 'not-adjacent')).toBe(true);
+    expect(rows.some(r => r.expected === 'attack-not-available')).toBe(true);
   });
 });

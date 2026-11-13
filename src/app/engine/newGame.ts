@@ -7,6 +7,7 @@ import { startMarket } from "./market/market";
 import { startDiplomacy } from "./diplomacy/relations";
 import { START_TECHNOLOGIES } from "./world/startWorld";
 import { buildWorld, DEFAULT_WORLD, WORLD_MARKET } from "./world/worlds";
+import { withStartForces } from "./army/startForces";
 
 export interface NewGameOptions {
   seed: number;
@@ -28,13 +29,14 @@ export function clampTurnLimit(turnLimit: number | undefined): number {
  * The start of a game (FR-027, FR-080, FR-098, FR-144): Spring 1815 on the chosen world, one Great
  * Power on each island (the human's on island 1, a scripted one on island 2), each with its workforce,
  * buildings and warehouse, its civilians on the capital and its rail network built; on the continent
- * also the minor nations and the provinces (FR-145 to FR-147). The caller chooses the seed (the store
+ * also the minor nations, the provinces (FR-145 to FR-147) and the start forces (FR-203: armies, capital
+ * forts, 4 more horses each; none on two-islands). The caller chooses the seed (the store
  * draws one, tests pass 1); the map is the same for every seed. `newGame(seed)` is `newGame({ seed })`.
  */
 export function newGame(options: number | NewGameOptions): GameState {
   const { seed, turnLimit, world = DEFAULT_WORLD, market }: NewGameOptions = typeof options === "number" ? { seed: options } : options;
   const { map, nations, minorNations, provinces } = buildWorld(world);
-  return {
+  return withStartForces({
     turn: TIME_CONFIG.STARTING_TURN,
     year: TIME_CONFIG.STARTING_YEAR,
     seed,
@@ -57,5 +59,5 @@ export function newGame(options: number | NewGameOptions): GameState {
     // The technology state is shared by all nations in v1, so the start list covers every nation.
     technologyState: { oilDrillingTechUnlocked: false, technologies: START_TECHNOLOGIES.map((t) => ({ ...t })) },
     difficulty: "normal",
-  };
+  });
 }

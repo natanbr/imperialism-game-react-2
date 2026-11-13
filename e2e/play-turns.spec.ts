@@ -49,7 +49,8 @@ test('FR-025 move a worker, start a job and end the turn, three times', async ({
   await tile(page, '2-8').click();
   await expect(tile(page, '2-8').locator('[data-worker-type="engineer"]')).toBeVisible();
   await expect(tile(page, '2-8').getByTitle('Construction in progress')).toBeVisible();
-  await expect(cash(page)).toContainText('Cash: $8,900');
+  // $9,000 less the start army's $100 upkeep at End Turn (FR-202), less the rail's $100
+  await expect(cash(page)).toContainText('Cash: $8,800');
   await endTurn(page, 3);
   await expect(page.getByTestId('news-panel')).toContainText('Rail finished at 2-8.');
 
@@ -59,7 +60,7 @@ test('FR-025 move a worker, start a job and end the turn, three times', async ({
   await tile(page, '5-2').click();
   await expect(tile(page, '5-2').locator('[data-worker-type="prospector"]')).toBeVisible();
   await expect(tile(page, '5-2').getByTitle('Prospecting in progress')).toBeVisible();
-  await expect(cash(page)).toContainText('Cash: $8,800');
+  await expect(cash(page)).toContainText('Cash: $8,600');
   await endTurn(page, 4);
   await expect(page.getByTestId('news-panel')).toContainText('Prospectors found coal at 5-2.');
 

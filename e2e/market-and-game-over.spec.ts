@@ -52,7 +52,8 @@ test('FR-078 open the market, offer one furniture for sale, end the turn, see th
   await page.getByRole('button', { name: 'Close capital' }).click();
   await advance(page).click();
   await expect(page.getByTestId('turn-indicator')).toContainText('Turn: 2 of 40');
-  await expect(cash(page)).toContainText('Cash: $9,500');
+  // the consulate's $500 and the start army's $100 upkeep (FR-202)
+  await expect(cash(page)).toContainText('Cash: $9,400');
 
   // Turn 2: offer it on the Board of Trade; Pellis buys furniture and we hold a consulate there
   await page.getByRole('button', { name: /Open Market/ }).click();
@@ -79,7 +80,8 @@ test('FR-078 open the market, offer one furniture for sale, end the turn, see th
   await expect(news).toContainText(/Sold 1 Furniture to Pellis for \$[\d,]+\./);
   const income = Number(/Sold 1 Furniture to Pellis for \$([\d,]+)\./.exec(await news.innerText())![1].replace(/,/g, ''));
   expect(income).toBeGreaterThan(0);
-  expect(await cashOf(page)).toBe(before + income);
+  // less the start army's $100 upkeep at End Turn (FR-202)
+  expect(await cashOf(page)).toBe(before + income - 100);
 
   expect(errors).toEqual([]);
 });

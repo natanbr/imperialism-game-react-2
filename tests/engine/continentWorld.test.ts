@@ -35,10 +35,14 @@ const tiles = (map: GameMap) => map.tiles.flat();
 const at = (map: GameMap, id: string): Tile => tiles(map).find(t => t.id === id)!;
 const isLand = (t: Tile) => t.terrain !== TerrainType.Water;
 const neighbours = (map: GameMap, t: Tile): Tile[] => getNeighborCoords(map, t.x, t.y).map(([x, y]) => map.tiles[y][x]);
-/** The tile as the map draws it, without the province it belongs to (two-islands has none). */
+/**
+ * The tile as the map draws it, without the province it belongs to (two-islands has none) and without the M8 fort,
+ * which FR-203 puts on each Great Power capital tile of the continent only (checked below, FR-145 forts row).
+ */
 const withoutProvince = (t: Tile): Tile => {
   const copy = { ...t };
   delete copy.provinceId;
+  delete copy.fortLevel;
   return copy;
 };
 
@@ -89,6 +93,14 @@ describe('FR-145 the continent map', () => {
     const outside = tiles(continent.map).filter(t => !minorOf.has(t.id));
     expect(outside).toHaveLength(24 * 16 - minorOf.size);
     expect(outside.map(withoutProvince)).toEqual(outside.map(t => at(twoIslands.map, t.id)));
+  });
+
+  it('FR-145 FR-203 the forts: two-islands has none; the continent only the level-1 fort on each Great Power capital tile', () => {
+    expect(tiles(twoIslands.map).filter(t => t.fortLevel !== undefined)).toEqual([]);
+    expect(tiles(continent.map).filter(t => t.fortLevel !== undefined).map(t => [t.id, t.cityId, t.fortLevel])).toEqual([
+      ['2-9', 'capital-1', 1],
+      ['14-9', 'capital-2', 1],
+    ]);
   });
 
   it('FR-145 the minor land is sea on two-islands and the FR-145 terrain on the continent, each resource discovered at level 1, no owner, nobody on it', () => {

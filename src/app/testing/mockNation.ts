@@ -25,7 +25,6 @@ export const mockNations: Nation[] = [
     debt: 0,
     creditLimit: 5000,
     cities: ["capital-1"],
-    armies: [],
     fleets: [],
     merchantMarine: {
       holds: 5,
@@ -47,7 +46,6 @@ export const mockNations: Nation[] = [
     debt: 0,
     creditLimit: 4000,
     cities: [],
-    armies: [],
     fleets: [],
     merchantMarine: {
       holds: 3,
@@ -69,7 +67,6 @@ export const mockNations: Nation[] = [
     debt: 0,
     creditLimit: 4500,
     cities: [],
-    armies: [],
     fleets: [],
     merchantMarine: {
       holds: 4,

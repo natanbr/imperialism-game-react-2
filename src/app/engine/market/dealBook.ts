@@ -3,7 +3,9 @@
 // (components/market/dealBookView.ts), beside the other display names.
 import type { CountryId, NationId } from "@/types/Common";
 import type { TradeCommodity } from "@/types/Market";
+import type { RegimentType } from "@/types/Unit";
 import { OVERTURE_COST } from "@/definisions/diplomacyRules";
+import { REGIMENTS } from "@/definisions/regiments";
 import type { GameEvent, OfferMissedReason, TradeMissCause } from "../turn/context";
 
 export type DealEntry =
@@ -20,7 +22,14 @@ export interface DiplomacyCost {
   amount: number;
 }
 
-/** The Imp1 bottom line, in dollars; `militaryUpkeep` is 0 until armies cost upkeep (FR-202, M8). */
+/** The cash of the regiments of one type raised that turn (FR-262): paid when ordered (FR-200), named when they join (FR-201). */
+export interface RecruitCost {
+  regiment: RegimentType;
+  count: number;
+  amount: number;
+}
+
+/** The Imp1 bottom line, in dollars; `militaryUpkeep` is the turn's `army-upkeep` (FR-202). */
 export interface DealBottomLine {
   sold: number;
   bought: number;
@@ -30,8 +39,8 @@ export interface DealBottomLine {
 }
 
 /**
- * How the treasury moved over the turn (FR-256): `change` = `end` - `start` = the trade net - the diplomacy costs +
- * `other` (what neither explains: building, prospecting, development, training, gold and gems).
+ * How the treasury moved over the turn (FR-256, FR-262): `change` = `end` - `start` = the trade net - the diplomacy
+ * costs - the recruits' cash + `other` (what none explains: building, prospecting, development, training, gold and gems).
  */
 export interface TreasuryChange {
   start: number;
@@ -50,6 +59,8 @@ export interface DealBook {
   bottomLine: DealBottomLine;
   /** The diplomacy costs of the turn, in event order (FR-256). */
   diplomacy: DiplomacyCost[];
+  /** The regiments raised that turn, one entry per type in event order, with their cash (FR-262). */
+  recruits: RecruitCost[];
   /** With the treasury at the turn's start and end given: the change and what explains it (FR-256). */
   treasury?: TreasuryChange;
 }
@@ -57,9 +68,11 @@ export interface DealBook {
 /**
  * The nation's Deal Book from one turn's events (FR-244, FR-255, FR-256): `goods-sold` under Sold, `goods-bought` under
  * Bought, `offer-unsold`, `offer-missed` and `bid-unfilled` under Not traded, each kind in event order; the bottom line;
- * the consulates and embassies opened (`overture-done`, at their FR-161 cost) and the grants paid (`grant-paid`); and,
- * when `treasury` gives the nation's treasury at the start and the end of the turn, the change it explains. Reads a
- * "world" turn too: its deals have no counterparty.
+ * the army upkeep (`army-upkeep`, FR-202) in the bottom line;
+ * the consulates and embassies opened (`overture-done`, at their FR-161 cost) and the grants paid (`grant-paid`); the
+ * regiments raised (`regiments-recruited`, at their FR-199 cash; FR-262); and, when `treasury` gives the nation's
+ * treasury at the start and the end of the turn, the change it explains. Reads a "world" turn too: its deals have no
+ * counterparty.
  */
 export function dealBook(events: readonly GameEvent[], nationId: NationId, treasury?: { start: number; end: number }): DealBook {
   const sales: DealEntry[] = [];
@@ -68,6 +81,8 @@ export function dealBook(events: readonly GameEvent[], nationId: NationId, treas
   const missed: DealEntry[] = [];
   const unfilled: DealEntry[] = [];
   const diplomacy: DiplomacyCost[] = [];
+  let militaryUpkeep = 0;
+  const recruits: RecruitCost[] = [];
   const counterparty = (id: CountryId | undefined) => (id === undefined ? {} : { counterpartyId: id });
   const cause = (c: TradeMissCause | undefined) => (c === undefined ? {} : { cause: c });
   for (const e of events) {
@@ -96,14 +111,19 @@ export function dealBook(events: readonly GameEvent[], nationId: NationId, treas
       case "grant-paid":
         diplomacy.push({ kind: "grant", targetId: e.targetId, amount: e.amount });
         break;
+      case "army-upkeep":
+        militaryUpkeep += e.amount;
+        break;
+      case "regiments-recruited":
+        recruits.push({ regiment: e.regiment, count: e.count, amount: e.count * REGIMENTS[e.regiment].cash });
+        break;
     }
   }
   const total = (entries: DealEntry[]) => entries.reduce((sum, d) => sum + ("total" in d ? d.total : 0), 0);
   const sold = total(sales);
   const bought = total(purchases);
-  const militaryUpkeep = 0;
   const net = sold - bought - militaryUpkeep;
-  const paid = diplomacy.reduce((sum, d) => sum + d.amount, 0);
+  const paid = diplomacy.reduce((sum, d) => sum + d.amount, 0) + recruits.reduce((sum, r) => sum + r.amount, 0);
   const change = treasury ? treasury.end - treasury.start : 0;
   return {
     sold: sales,
@@ -111,6 +131,7 @@ export function dealBook(events: readonly GameEvent[], nationId: NationId, treas
     notTraded: [...unsold, ...missed, ...unfilled],
     bottomLine: { sold, bought, militaryUpkeep, net },
     diplomacy,
+    recruits,
     ...(treasury ? { treasury: { start: treasury.start, end: treasury.end, change, other: change - net + paid } } : {}),
   };
 }

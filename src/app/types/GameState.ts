@@ -14,6 +14,8 @@ import type { Province } from "./Province";
 import type { WorldId } from "./World";
 import type { WorldMarket } from "./Market";
 import type { GameOver } from "./Score";
+import type { CountryId } from "./Common";
+import type { RegimentType } from "./Unit";
 
 /**
  * The whole game as the engine sees it. Only game data lives here: which nation the human plays,
@@ -44,7 +46,13 @@ export interface GameState {
   proposals?: Proposal[];
 
   cities: City[];
+  /** The land forces (FR-204): at most one army per country per province; none on two-islands. */
   armies: Army[];
+  /**
+   * How many regiments of each type each country has raised so far (FR-204): the next one's ordinal name, and their
+   * sum the next regiment's id number. Set by a new game with provinces; absent on two-islands and hand-built states.
+   */
+  regimentsRaised?: Record<CountryId, Partial<Record<RegimentType, number>>>;
   fleets: Fleet[];
 
   map: GameMap;

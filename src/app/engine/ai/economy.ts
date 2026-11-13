@@ -31,6 +31,8 @@ import { computeLogisticsTransport, logisticsSystem } from "../systems/logistics
 import { transportConnectivitySystem } from "../systems/transportConnectivitySystem";
 import { createTurnContext } from "../turn/context";
 import { turnLimitOf } from "../turn/gameOver";
+import { SCRIPTED_GARRISON } from "@/definisions/regiments";
+import { armyThreat, planGarrison } from "./scriptedArmy";
 
 export type Propose = (order: Order) => boolean;
 type Stock = Record<string, number>;
@@ -65,10 +67,14 @@ const capacityOf = (nation: Nation, building: BuildingType): number => {
   return capacity + pendingCapacity;
 };
 
-/** The whole economy of one turn, in the order the orders must be given. */
+/**
+ * The whole economy of one turn, in the order the orders must be given. The garrison's recruit (FR-213) comes right
+ * after the standing orders are cleared, so its worker is free before training and the run take the labour.
+ */
 export function planEconomy(view: () => GameState, nationId: string, propose: Propose): void {
   planTransport(view(), nationId, propose);
   clearStandingOrders(view(), nationId, propose);
+  planGarrison(view, nationId, propose);
   planTraining(view, nationId, propose);
   planFreightCars(view, nationId, propose);
   planExpansion(view, nationId, propose);
@@ -163,6 +169,18 @@ function planTraining(view: () => GameState, nationId: string, propose: Propose)
   }
 }
 
+/** The armaments the run makes first under an army threat (FR-213): up to 2 in stock, within the metal works. */
+const garrisonArmaments = (state: GameState, nationId: string): number => {
+  if (!armyThreat(state, nationId)) return 0;
+  const nation = nationOf(state, nationId);
+  const short = SCRIPTED_GARRISON.armaments - ((nation.warehouse as Stock)[GoodsType.Armaments] ?? 0);
+  return Math.max(0, Math.min(short, buildingOf(nation, "metalWorks").capacity));
+};
+
+/** The steel those armaments take (2 each). */
+const garrisonSteel = (state: GameState, nationId: string): number =>
+  garrisonArmaments(state, nationId) * RECIPES[GoodsType.Armaments].inputs[0].amount;
+
 /** The lumber + steel pairs the labour can make a turn (4 labour a pair). */
 const pairsLabourAllows = (nation: Nation): number =>
   Math.floor(labourTotal(nation.industry) / (RECIPES[MaterialType.Lumber].labour + RECIPES[MaterialType.Steel].labour));
@@ -171,14 +189,16 @@ const pairsLabourAllows = (nation: Nation): number =>
  * Every lumber + steel pair in stock becomes capacity (FR-126): first the steel and lumber mills,
  * while they are smaller than the pairs the labour can make, then the building whose next step is
  * cheapest (ties to the smaller building, then production order: a point scores the same anywhere,
- * so the factories grow evenly). The refinery needs Oil Drilling and is skipped.
+ * so the factories grow evenly). The refinery needs Oil Drilling and is skipped. Under an army threat
+ * the steel of the garrison's armaments stays out (FR-213: the run makes them first).
  */
 function planExpansion(view: () => GameState, nationId: string, propose: Propose): void {
   const capped = BUILDING_ORDER.filter((b) => !BUILDINGS[b].unlimited && !BUILDINGS[b].needsOilDrilling);
+  const reserved = garrisonSteel(view(), nationId);
   for (let guard = 0; guard < 64; guard++) {
     const nation = nationOf(view(), nationId);
     const stock = nation.warehouse as Stock;
-    const pairs = Math.min(stock[MaterialType.Lumber] ?? 0, stock[MaterialType.Steel] ?? 0);
+    const pairs = Math.min(stock[MaterialType.Lumber] ?? 0, (stock[MaterialType.Steel] ?? 0) - reserved);
     const target = pairsLabourAllows(nation);
     const steps = capped
       .map((building) => {
@@ -238,7 +258,8 @@ function paperWanted(state: GameState, nation: Nation): number {
 }
 
 /**
- * This turn's run on the current plan (FR-129; nothing is ordered), by priority: canned food while
+ * This turn's run on the current plan (FR-129; nothing is ordered), by priority: under an army threat
+ * the armaments the garrison recruits with, up to 2 in stock (FR-213); canned food while
  * the cans are fewer than the workers; paper for next turn's training; then the pairs and the goods,
  * the goods first while the treasury is below CASH_RESERVE; last, canned food from raw food above a
  * meal. Pairs: lumber + steel, the scarcer one first, so the pairs stay even. Goods for the holds
@@ -264,6 +285,8 @@ export function planRun(state: GameState, nationId: string): Run {
   const start = { ...stock };
   const have = (type: string) => (stock[type] ?? 0) + (run.made[type as ProductionOutput] ?? 0);
 
+  // FR-213: under a threat the run first makes the garrison's armaments, up to 2 in stock
+  make(run, GoodsType.Armaments, garrisonArmaments(state, nationId));
   while (have(MaterialType.CannedFood) < mouths && aboveMeal() && make(run, MaterialType.CannedFood, 2) > 0);
   make(run, MaterialType.Paper, paperWanted(state, nation));
 
@@ -332,7 +355,8 @@ function projectTurn(state: GameState, nationId: string): { leftNow: Stock; next
 /**
  * What next turn's run may use, kept from the holds: all lumber and steel (pairs) and paper
  * (training), a meal of canned food, and one full run of the mills (coal and iron only as far as
- * they pair with each other). Goods are all sold. On the last turn nothing is kept: stock is not scored.
+ * they pair with each other). Goods are all sold, except under an army threat the garrison's 2
+ * armaments (FR-213). On the last turn nothing is kept: stock is not scored.
  */
 function nextUseOf(state: GameState, nationId: string, next: Stock): Stock {
   if (turnsAfter(state) === 0) return {};
@@ -341,6 +365,7 @@ function nextUseOf(state: GameState, nationId: string, next: Stock): Stock {
   const fibreUse = 2 * capacityOf(nation, "textileMill");
   const ore = (other: ResourceType) => Math.min(steelCap, next[other] ?? 0);
   return {
+    ...(armyThreat(state, nationId) ? { [GoodsType.Armaments]: SCRIPTED_GARRISON.armaments } : {}),
     [MaterialType.Lumber]: Infinity,
     [MaterialType.Steel]: Infinity,
     [MaterialType.Paper]: Infinity,

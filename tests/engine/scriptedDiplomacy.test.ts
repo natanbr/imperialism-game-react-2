@@ -1,6 +1,7 @@
 // FR-174: how a scripted Great Power answers alliance and peace, and when it proposes peace itself; FR-181:
-// at peace it orders nothing new, so the v1 and M5 baselines hold. The strength test (FR-204) sums regiments;
-// armies come in M8, so on every M6 game both strengths are 0 and condition (b) never fires.
+// at peace it orders nothing new, so the v1 and M5 baselines hold. The strength test (FR-204) sums the regiments of
+// the M8 armies: on a new continent game both Great Powers have the start army's 36 (FR-203), so (b) fires only when
+// one of them has more.
 import { describe, it, expect } from 'vitest';
 import { newGame } from '@/engine/newGame';
 import { scriptedPlayer } from '@/engine/ai/scriptedPlayer';
@@ -10,10 +11,10 @@ import { resolveTurn } from '@/engine/turn/resolveTurn';
 import { pairKey } from '@/engine/diplomacy/relations';
 import { militaryStrength } from '@/engine/diplomacy/queries';
 import { acceptsAlliance, acceptsPeace, losingWar } from '@/engine/diplomacy/scriptedAnswers';
-import type { Army } from '@/types/Army';
+import type { Army, Regiment } from '@/types/Army';
 import type { ProvinceCapture, War } from '@/types/Diplomacy';
 import type { GameState } from '@/types/GameState';
-import { RegimentCategory, type Unit } from '@/types/Unit';
+import type { RegimentType } from '@/types/Unit';
 import { N1, N2, setPair } from './fixtures';
 
 const ARVELIA = 'minor-1';
@@ -21,24 +22,14 @@ const DIPLOMACY_KINDS = ['proposeOverture', 'giveGrant', 'setTradePolicy', 'with
 /** The continent with the world market: in "partners" the scripted player also orders consulates (FR-245, scriptedTrade.test.ts). */
 const continent = (turn = 1): GameState => ({ ...newGame({ seed: 1, world: 'continent', market: 'world' }), turn });
 
-const regiment = (category: RegimentCategory, fpNormal: number, health: number): Unit => ({
-  id: `${category}-${fpNormal}-${health}`,
-  category,
-  era: 1,
-  health,
-  experience: 0,
-  stats: { fpNormal, fpMelee: 1, range: 1, defense: 1, defenseEntrenched: 1, move: 1, armamentsCost: 1 },
-});
-const army = (ownerNationId: string, units: Unit[]): Army => ({
-  id: `army-${ownerNationId}-${units.length}`,
-  name: 'Army',
-  ownerNationId,
-  locationProvinceId: 'province-nation-1-sw',
-  units,
-  morale: 100,
-  supply: 100,
-});
+let serial = 900;
+/** A regiment of the FR-204 shape; its FPN is the FR-199 table's (Regulars 10, Light Artillery 10, Minutemen 5). */
+const regiment = (type: RegimentType, health: number): Regiment => ({ id: `regiment-${++serial}`, type, name: `Test ${type} ${serial}`, health });
+/** An army of the FR-204 shape; in Arvelia, where no Great Power has one, so it adds to the start armies. */
+const army = (ownerId: string, regiments: Regiment[], provinceId = 'province-minor-1'): Army => ({ id: `army-${ownerId}-${provinceId}`, ownerId, provinceId, regiments });
 const withArmies = (s: GameState, ...armies: Army[]): GameState => ({ ...s, armies: [...s.armies, ...armies] });
+/** Only the given armies: the start armies taken away. */
+const onlyArmies = (s: GameState, ...armies: Army[]): GameState => ({ ...s, armies });
 /** Valdoria and Testland at war since `since` (Testland the aggressor), with the captures given. */
 const war = (s: GameState, since: number, captures: ProvinceCapture[] = [], extra: Partial<War> = {}): GameState =>
   setPair(s, N1, N2, { war: { aggressors: [N1], since, captures, ...extra }, consulates: [], embassies: [], points: 0 });
@@ -47,21 +38,25 @@ const capture = (fromId: string, toId: string, turn: number): ProvinceCapture =>
 const diplomacyOrders = (orders: Order[]) => orders.filter(o => DIPLOMACY_KINDS.includes(o.kind));
 
 describe('FR-174 FR-204 militaryStrength', () => {
-  it('FR-174 is 0 for every country on a new game of either world (no armies before M8)', () => {
-    for (const s of [continent(), newGame({ seed: 1, world: 'two-islands' })]) {
-      for (const id of [...s.nations.map(n => n.id), ...s.minorNations.map(m => m.id)]) expect(militaryStrength(s, id)).toBe(0);
-    }
+  it('FR-174 FR-203 on a new continent game each Great Power has the start army\'s 36 and each minor 0 (militia only); on two-islands every country 0', () => {
+    const c = continent();
+    expect(c.nations.map(n => militaryStrength(c, n.id))).toEqual([36, 36]);
+    expect(c.minorNations.map(m => militaryStrength(c, m.id))).toEqual([0, 0, 0, 0]);
+    const v1 = newGame({ seed: 1, world: 'two-islands' });
+    expect(v1.nations.map(n => militaryStrength(v1, n.id))).toEqual([0, 0]);
   });
 
-  it('FR-174 sums FPN x health / 100 over the country\'s regiments, militia left out', () => {
-    const s = withArmies(
+  it('FR-174 sums FPN x health / 100 over the country\'s regiments in every province, militia left out', () => {
+    const s = onlyArmies(
       continent(),
-      army(N1, [regiment(RegimentCategory.RegularInfantry, 4, 100), regiment(RegimentCategory.LightArtillery, 6, 50), regiment(RegimentCategory.Militia, 2, 100)]),
-      army(N2, [regiment(RegimentCategory.RegularInfantry, 4, 100)])
+      army(N1, [regiment('regulars', 100), regiment('lightArtillery', 50), regiment('minutemen', 100)], 'province-nation-1-sw'),
+      army(N1, [regiment('regulars', 30)], 'province-nation-1-nw'),
+      army(N2, [regiment('regulars', 100)], 'province-nation-2-sw')
     );
 
-    expect(militaryStrength(s, N1)).toBe(7);
-    expect(militaryStrength(s, N2)).toBe(4);
+    expect(militaryStrength(s, N1)).toBe(10 + 5 + 3);
+    expect(militaryStrength(s, N2)).toBe(10);
+    expect(militaryStrength(s, ARVELIA)).toBe(0);
   });
 });
 
@@ -97,14 +92,14 @@ describe('FR-174 a scripted Great Power answers peace', () => {
   });
 
   it('FR-174 (b) its strength is below the proposer\'s: accepted; above: refused', () => {
-    const weaker = withArmies(war(continent(2), 1), army(N1, [regiment(RegimentCategory.RegularInfantry, 4, 100)]));
-    const stronger = withArmies(war(continent(2), 1), army(N2, [regiment(RegimentCategory.RegularInfantry, 4, 100)]));
+    const weaker = withArmies(war(continent(2), 1), army(N1, [regiment('regulars', 100)]));
+    const stronger = withArmies(war(continent(2), 1), army(N2, [regiment('regulars', 100)]));
 
     expect(acceptsPeace(weaker, N2, N1, 2)).toBe(true);
     expect(acceptsPeace(stronger, N2, N1, 2)).toBe(false);
   });
 
-  it('FR-174 in M6 (no armies, no conquest) only (c) can fire: equal strengths of 0 are not "below"', () => {
+  it('FR-174 with the equal start armies (36 each) and no conquest only (c) can fire: equal strengths are not "below"', () => {
     expect(acceptsPeace(war(continent(2), 1), N2, N1, 2)).toBe(false);
     expect(acceptsPeace(war(continent(6), 1), N2, N1, 6)).toBe(false);
     expect(acceptsPeace(war(continent(7), 1), N2, N1, 7)).toBe(true);
@@ -132,12 +127,12 @@ describe('FR-174 a scripted Great Power proposes peace itself', () => {
   });
 
   it('FR-174 when (b) it is the weaker', () => {
-    const s = withArmies(war(continent(5), 2), army(N1, [regiment(RegimentCategory.RegularInfantry, 4, 100)]));
+    const s = withArmies(war(continent(5), 2), army(N1, [regiment('regulars', 100)]));
 
     expect(diplomacyOrders(scriptedPlayer(s, N2))).toEqual([peace]);
   });
 
-  it('FR-174 not in a war it is not losing (M6: strengths 0, no conquest), however long it lasts', () => {
+  it('FR-174 not in a war it is not losing (equal start armies, no conquest), however long it lasts', () => {
     expect(losingWar(war(continent(30), 2), N2, N1)).toBe(false);
     expect(diplomacyOrders(scriptedPlayer(war(continent(30), 2), N2))).toEqual([]);
   });

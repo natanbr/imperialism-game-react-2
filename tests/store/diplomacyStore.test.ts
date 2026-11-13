@@ -24,7 +24,7 @@ describe('FR-180 diplomacy through the store (the engine half of the M6 e2e)', (
 
     const { game, eventLog } = store.getState();
     expect(game.diplomacy[pairKey(N1, ARVELIA)].consulates).toEqual([N1]);
-    expect(treasury(game)).toBe(before - 500);
+    expect(treasury(game)).toBe(before - 500 - 100); // FR-202: the start army's upkeep
     const nameOf = (id: string) => countryName(game, id) ?? id;
     expect(newsLines(eventLog.at(-1)!.events, N1, nameOf)).toContain('Consulate opened in Arvelia.');
   });

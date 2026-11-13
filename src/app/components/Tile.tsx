@@ -17,14 +17,18 @@ import {
   TileWorkers,
   TileJobs,
   TileName,
+  TileArmy,
 } from './Tile/index';
 import type { TrayPlacement } from './Tile/TileWorkers';
+import type { MarkerView } from './army/armyView';
 
 interface TileProps {
   tile: Tile;
   selectedTileId: string | undefined;
   selectedWorkerId: string | undefined;
   transportNetwork: TransportNetwork;
+  /** On a province's seat: its army markers (FR-210); absent elsewhere. */
+  armyMarkers?: readonly MarkerView[];
 }
 
 /**
@@ -39,11 +43,13 @@ const TileComponentInner: React.FC<TileProps> = ({
   tile,
   selectedTileId,
   selectedWorkerId,
-  transportNetwork
+  transportNetwork,
+  armyMarkers
 }) => {
   // Store selectors (only for actions and map reference)
   const selectWorker = useGameStore((s) => s.selectWorker);
   const selectTile = useGameStore((s) => s.selectTile);
+  const openArmy = useGameStore((s) => s.openArmy);
   const map = useGameStore((s) => s.game.map);
   const playerId = useGameStore((s) => s.activeNationId);
 
@@ -144,6 +150,8 @@ const TileComponentInner: React.FC<TileProps> = ({
         developmentJob={tile.developmentJob}
         constructionJob={tile.constructionJob}
       />
+
+      {armyMarkers && armyMarkers.length > 0 && <TileArmy markers={armyMarkers} onOpen={openArmy} high={minorCapitalName !== undefined} />}
     </TileBase>
   );
 };

@@ -1,0 +1,459 @@
+/* The Army screen (FR-211) and the Armoury (FR-212), tokens in styles/tokens.css. The frame follows the market dialog;
+   both lie over the capital dialog (the Armoury opens from it) and over the map. Fixed frames: at 1280x720 neither the
+   page nor the dialog scrolls; only a long regiment list scrolls under its header. */
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--color-bg-backdrop);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 76;
+}
+
+.dialog,
+.armoury {
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 32px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-dialog);
+  padding: 12px var(--spacing-lg);
+}
+
+.dialog {
+  width: 860px;
+}
+
+/* At 1280x720 the widest the window allows (16 px each side), so three cards a row hold each cost on one line (FR-264) */
+.armoury {
+  width: 1248px;
+}
+
+.dialog:focus,
+.armoury:focus {
+  outline: none;
+}
+
+.header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: var(--spacing-md);
+}
+
+.header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.summary {
+  margin-left: auto;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.summary strong {
+  color: var(--color-text-primary);
+}
+
+/* A second summary (the upkeep, FR-261) sits right after the first */
+.summary + .summary {
+  margin-left: 0;
+}
+
+/* FR-266: the whole army's upkeep, under the header's "Upkeep here", right-aligned with it */
+.subSummary {
+  flex: none;
+  margin: calc(-1 * var(--spacing-sm)) 0 var(--spacing-md);
+  text-align: right;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+/* FR-265: what the Arms column holds, under the table */
+.legend {
+  flex: none;
+  margin: var(--spacing-sm) 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+/* FR-267: a militia-only province: why there are no controls, in their place */
+.noOrders {
+  flex: none;
+  margin: var(--spacing-md) 0 0;
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--color-border-strong);
+  color: var(--color-text-muted);
+}
+
+/* FR-261: the cash End Turn will find is below the army upkeep */
+.warning {
+  flex: none;
+  padding: 4px 12px;
+  margin-bottom: var(--spacing-md);
+  background: var(--color-bg-warn);
+  color: var(--color-ink);
+  border: 1px solid var(--color-warn);
+  border-radius: var(--radius-sm);
+}
+
+.closeButton,
+.button,
+.select {
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-button);
+  font: inherit;
+}
+
+.closeButton {
+  border: none;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.button {
+  padding: 5px 12px;
+  cursor: pointer;
+}
+
+.button.small {
+  padding: 1px 8px;
+  font-size: var(--font-size-sm);
+}
+
+.closeButton:hover,
+.button:hover:not(:disabled) {
+  background: var(--color-bg-button-hover);
+}
+
+.button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.select {
+  padding: 4px 6px;
+  min-width: 190px;
+}
+
+.dangerButton {
+  color: var(--color-on-accent);
+  background: var(--color-bad);
+  border-color: var(--color-bad);
+}
+
+.dangerButton:hover:not(:disabled) {
+  background: var(--color-bad);
+  filter: brightness(0.9);
+}
+
+.refusal {
+  flex: none;
+  padding: 4px 12px;
+  margin-bottom: var(--spacing-md);
+  background: var(--color-bg-danger);
+  color: var(--color-text-danger);
+  border: 1px solid var(--color-bad);
+  border-radius: var(--radius-sm);
+}
+
+/* The Armoury's note beside its title (FR-212, FR-264) */
+.headerNote {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+/* --- the Army screen (FR-211) ---------------------------------------------------------------- */
+
+.listPane {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--color-bg-secondary);
+  text-align: left;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--color-border-strong);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 3px 6px;
+  line-height: 22px;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.number,
+.table th.number {
+  text-align: right;
+}
+
+/* The name, with its checkbox when it may march: the whole label is the target */
+.pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.pick input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--color-accent);
+}
+
+/* A regiment that cannot be ticked keeps its name in line with the ticked ones */
+.unpicked {
+  padding-left: 22px;
+}
+
+.militia {
+  color: var(--color-text-muted);
+}
+
+/* The health bar (Imp1 Garrison Book: a green bar) and its number */
+.health {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.healthTrack {
+  width: 64px;
+  height: 8px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 2px;
+  background: var(--color-surface-sunken);
+  overflow: hidden;
+}
+
+.healthFill {
+  display: block;
+  height: 100%;
+  background: var(--color-good);
+}
+
+.healthNumber {
+  min-width: 34px;
+  text-align: right;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+
+.marching {
+  color: var(--color-accent-strong);
+  font-weight: 700;
+}
+
+.disbanding {
+  color: var(--color-text-danger);
+}
+
+/* March and Disband under the list, each with its reason beside it while it is disabled */
+.controls {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-md) 24px;
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--color-border-strong);
+}
+
+.controlGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.label {
+  font-weight: 700;
+}
+
+.reason {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+/* "Disband 2nd Regulars? ..." asked in place, like the war question (FR-178) */
+.confirm {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-md);
+  padding: 8px 12px;
+  border: 1px solid var(--color-bad);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-danger);
+}
+
+.confirm:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.confirm p {
+  margin: 0;
+  flex: 1 1 100%;
+}
+
+.empty {
+  margin: var(--spacing-md) 0;
+  color: var(--color-text-muted);
+}
+
+/* --- the Armoury (FR-212): the Imp1 grid of unit slots, here one card per recruitable regiment ---------------------- */
+
+/* Three a row (FR-264): a card is wide enough for its cost on one line and most "At hand" lines whole */
+.cards {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px 10px;
+  align-content: start;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px 10px;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.cardHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.card h3 {
+  margin: 0;
+  font-size: var(--font-size-lg);
+}
+
+.category {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+}
+
+.stats {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.stats strong {
+  font-weight: 700;
+}
+
+.items {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: var(--font-size-sm);
+  line-height: 16px;
+}
+
+.itemsLabel {
+  flex: none;
+  width: 48px;
+  color: var(--color-text-muted);
+}
+
+.itemList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.item {
+  white-space: nowrap;
+}
+
+/* "At hand": one line per item, which wraps only between its parts, so an amount is never cut (FR-264) */
+.atHandList {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  gap: 1px;
+}
+
+.part {
+  white-space: nowrap;
+}
+
+/* None of the type ordered and too little left for one: the danger colour, and the word "short" in bold (FR-212, FR-264) */
+.short {
+  color: var(--color-text-danger);
+}
+
+.shortMark {
+  font-weight: 700;
+}
+
+.orderLabel {
+  flex: none;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.order {
+  margin-top: auto;
+  padding-top: 3px;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 27px;
+  font-size: var(--font-size-sm);
+}

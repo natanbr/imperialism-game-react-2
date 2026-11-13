@@ -3,12 +3,13 @@
 import { describe, it, expect } from 'vitest';
 import { act, render, screen, within } from '@testing-library/react';
 import { WarehouseModal } from '@/components/WarehouseModal';
-import { FoodWarning, NewsPanel, TurnIndicator } from '@/components/HUD/index';
+import { FoodWarning, NewsPanel, TurnIndicator, UpkeepWarning } from '@/components/HUD/index';
 import { useGameStore } from '@/store/rootStore';
 import { resolveTurn } from '@/engine';
 import type { GameState } from '@/types/GameState';
 import { GoodsType, MaterialType, ResourceType } from '@/types/Resource';
-import { emptyWarehouse, game, N1, setIndustry, setTile, T } from '../engine/fixtures';
+import { emptyWarehouse, game, N1, setIndustry, setTile, setTreasury, T } from '../engine/fixtures';
+import { continent } from '../engine/armyFixtures';
 import { text } from './domText';
 import { failOnActWarnings } from './actWarnings';
 
@@ -39,6 +40,34 @@ describe('FR-050 warehouse dialog', () => {
     expect(screen.queryByTestId('stock-gold')).toBeNull();
     expect(screen.queryByTestId('stock-gems')).toBeNull();
     for (const row of rows) expect(text(row)).not.toMatch(/[a-z][A-Z]/); // no camelCase key on screen
+  });
+});
+
+describe('FR-261 the HUD upkeep warning (M8 review F2)', () => {
+  it('FR-261 none while the cash covers the army upkeep, and none on two-islands (no army)', () => {
+    show(continent());
+    const { unmount } = render(<UpkeepWarning />);
+    expect(screen.queryByTestId('upkeep-warning')).toBeNull();
+    unmount();
+
+    show(game());
+    render(<UpkeepWarning />);
+    expect(screen.queryByTestId('upkeep-warning')).toBeNull();
+  });
+
+  it('FR-261 shown while the cash End Turn will find is below the upkeep; none after game over', () => {
+    const short = setTreasury(continent(), N1, 60);
+    show(short);
+    const { unmount } = render(<UpkeepWarning />);
+    expect(screen.getByTestId('upkeep-warning').getAttribute('role')).toBe('status');
+    expect(text(screen.getByTestId('upkeep-warning'))).toBe(
+      "Cash is short of the army upkeep: $100 is due at End Turn and $60 will be left. Unless this turn's sales cover the rest, the newest regiments are disbanded."
+    );
+    unmount();
+
+    show({ ...short, gameOver: { turn: 40, year: 1824, scores: [] } as unknown as GameState['gameOver'] });
+    render(<UpkeepWarning />);
+    expect(screen.queryByTestId('upkeep-warning')).toBeNull();
   });
 });
 

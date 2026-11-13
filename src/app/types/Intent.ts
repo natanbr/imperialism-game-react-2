@@ -2,7 +2,7 @@
 // applied. A turn phase resolves the turn's intents together, in `intentOrder` (engine/turn/intents.ts),
 // and resolveTurn leaves none of the resolved turn. `Intent` is the stored shape every phase can read;
 // each milestone adds its own kinds as narrower types (M6: the diplomacy intents below).
-import type { CountryId, NationId } from "./Common";
+import type { CountryId, NationId, ProvinceId, RegimentId } from "./Common";
 import type { GrantAmount, Overture, SubsidyPercent } from "./Diplomacy";
 
 export interface Intent {
@@ -55,3 +55,23 @@ export interface AnswerIntent extends Intent {
 }
 
 export type DiplomacyIntent = OvertureIntent | GrantIntent | GrantStopIntent | TradePolicyIntent | AnswerIntent;
+
+/**
+ * `moveArmy` (FR-205): the nation's regiments in `fromProvinceId` ordered into the bordering `toProvinceId`; the combat
+ * phase marches them (FR-206). A regiment has at most one army intent: a later order for it replaces the earlier one.
+ */
+export interface ArmyMoveIntent extends Intent {
+  kind: "army-move";
+  fromProvinceId: ProvinceId;
+  toProvinceId: ProvinceId;
+  regimentIds: RegimentId[];
+}
+
+/** `disbandRegiments` (FR-207): the regiments leave at End Turn, before the upkeep step. */
+export interface DisbandIntent extends Intent {
+  kind: "disband";
+  provinceId: ProvinceId;
+  regimentIds: RegimentId[];
+}
+
+export type ArmyIntent = ArmyMoveIntent | DisbandIntent;

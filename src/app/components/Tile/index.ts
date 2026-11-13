@@ -5,3 +5,4 @@ export { TileInfrastructure } from './TileInfrastructure';
 export { TileWorkers } from './TileWorkers';
 export { TileJobs } from './TileJobs';
 export { TileName } from './TileName';
+export { TileArmy } from './TileArmy';

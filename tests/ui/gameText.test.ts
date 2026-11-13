@@ -2,9 +2,9 @@
 import { describe, it, expect } from 'vitest';
 import {
   COMMODITY_GROUPS, COMMODITY_TEXT, commodityName, completedTileIds, dateText, eventText, foodWarningText, newsLines, refusalText, REFUSAL_TEXT,
-  workerJobLabel,
+  upkeepDueText, upkeepWarningText, workerJobLabel,
 } from '@/components/gameText';
-import { resolveTurn, tryApplyOrder, type GameEvent, type Order, type RejectReason } from '@/engine';
+import { newGame, resolveTurn, tryApplyOrder, type GameEvent, type Order, type RejectReason } from '@/engine';
 import { GameState } from '@/types/GameState';
 import { GoodsType, MaterialType, ResourceType } from '@/types/Resource';
 import { WorkerType } from '@/types/Workers';
@@ -299,5 +299,94 @@ describe('FR-032 the map marks the tiles whose job finished last turn', () => {
       { type: 'turn-ended', turn: 2, year: 1815 },
     ]);
     expect([...ids].sort()).toEqual(['2-1', '3-1']);
+  });
+});
+
+describe('FR-205 FR-209 army orders, refusals and news in plain words', () => {
+  const NAMES: Record<string, string> = {
+    'nation-1': 'Testland',
+    'nation-2': 'Valdoria',
+    'province-nation-1-sw': 'Testland South-West',
+    'province-nation-1-ne': 'Testland North-East',
+  };
+  const nameOf = (id: string) => NAMES[id] ?? id;
+  const N = 'nation-1';
+  const V = 'nation-2';
+  const SW = 'province-nation-1-sw';
+  const NE = 'province-nation-1-ne';
+
+  it('FR-205 the new reason not-adjacent reads as the requirement words it', () => {
+    expect(REFUSAL_TEXT['not-adjacent']).toBe("that province does not border the army's province");
+  });
+
+  it('FR-205 review R7, F5: a march into a country at war reads that attacks are not possible yet, not "that is not yours"', () => {
+    const march: Order = { kind: 'moveArmy', nationId: N, fromProvinceId: SW, regimentIds: ['regiment-1'], toProvinceId: NE };
+
+    expect(refusalText({ order: march, reason: 'attack-not-available' })).toBe('March refused: attacks are not possible yet.');
+    expect(REFUSAL_TEXT['attack-not-available']).not.toBe(REFUSAL_TEXT['not-owner']);
+  });
+
+  it('FR-205 FR-207 each army order has a name in a refusal', () => {
+    const orders: Order[] = [
+      { kind: 'setRecruitment', nationId: N, regiment: 'regulars', count: 1 },
+      { kind: 'moveArmy', nationId: N, fromProvinceId: SW, regimentIds: ['regiment-1'], toProvinceId: NE },
+      { kind: 'cancelArmyMove', nationId: N, regimentIds: ['regiment-1'] },
+      { kind: 'disbandRegiments', nationId: N, provinceId: SW, regimentIds: ['regiment-1'] },
+      { kind: 'cancelDisband', nationId: N, regimentIds: ['regiment-1'] },
+    ];
+    expect(orders.map(order => refusalText({ order, reason: 'invalid-target' }))).toEqual([
+      'Recruiting refused: not possible on that tile.',
+      'March refused: not possible on that tile.',
+      'Cancel march refused: not possible on that tile.',
+      'Disband refused: not possible on that tile.',
+      'Cancel disband refused: not possible on that tile.',
+    ]);
+    expect(refusalText({ order: orders[1], reason: 'not-adjacent' })).toBe("March refused: that province does not border the army's province.");
+  });
+
+  it('FR-261 the upkeep line and the warning: none while the cash covers the upkeep', () => {
+    expect(upkeepDueText({ due: 125 })).toBe('Army upkeep at End Turn: $125');
+    expect(upkeepWarningText({ due: 100, cash: 100, short: false })).toBeNull();
+    expect(upkeepWarningText({ due: 100, cash: 40, short: true })).toBe(
+      'Cash is short of the army upkeep: $100 is due at End Turn and $40 will be left. Unless this turn\'s sales cover the rest, the newest regiments are disbanded.'
+    );
+  });
+
+  it.each<[GameEvent, string]>([
+    [{ type: 'regiments-recruited', nationId: N, regiment: 'regulars', count: 2 }, '2 Regulars recruited.'],
+    [{ type: 'regiments-recruited', nationId: N, regiment: 'lightArtillery', count: 1 }, '1 Light Artillery recruited.'],
+    [{ type: 'army-upkeep', nationId: N, amount: 100 }, 'Army upkeep: $100.'],
+    [{ type: 'army-upkeep', nationId: N, amount: 1725 }, 'Army upkeep: $1,725.'],
+    [{ type: 'army-moved', nationId: N, fromProvinceId: SW, toProvinceId: NE, count: 3 }, '3 regiments marched from Testland South-West to Testland North-East.'],
+    [{ type: 'army-moved', nationId: N, fromProvinceId: SW, toProvinceId: NE, count: 1 }, '1 regiment marched from Testland South-West to Testland North-East.'],
+    [{ type: 'regiments-disbanded', nationId: N, reason: 'order', count: 2 }, '2 regiments disbanded.'],
+    [{ type: 'regiments-disbanded', nationId: N, reason: 'order', count: 1 }, '1 regiment disbanded.'],
+    [{ type: 'regiments-disbanded', nationId: N, reason: 'no-pay', count: 2 }, '2 regiments disbanded: no money for their upkeep.'],
+    [{ type: 'recruits-refunded', nationId: N, regiment: 'regulars', count: 2 }, '2 Regulars not raised: our capital province is lost. Their cost is refunded.'],
+  ])('FR-209 %j has its sentence', (event, text) => {
+    expect(eventText(event, nameOf)).toBe(text);
+  });
+
+  it("FR-209 FR-107 another nation's army line starts with its name", () => {
+    expect(newsLines([{ type: 'army-upkeep', nationId: V, amount: 100 }], N, nameOf)).toEqual(['Valdoria: Army upkeep: $100.']);
+  });
+
+  it('FR-209 each army event of a resolved turn carries a Great Power as nationId', () => {
+    let s = newGame({ seed: 1, world: 'continent' });
+    s = { ...s, nations: s.nations.map(n => ({ ...n, warehouse: { ...n.warehouse, armaments: 1 } })) };
+    const capital = s.armies.find(a => a.ownerId === N && a.provinceId === SW)!;
+    const [regulars1, regulars2] = capital.regiments.filter(r => r.type === 'regulars').map(r => r.id);
+    const orders: Order[] = [
+      { kind: 'setRecruitment', nationId: N, regiment: 'regulars', count: 1 },
+      { kind: 'moveArmy', nationId: N, fromProvinceId: SW, regimentIds: [regulars1], toProvinceId: NE },
+      { kind: 'disbandRegiments', nationId: N, provinceId: SW, regimentIds: [regulars2] },
+    ];
+    for (const order of orders) s = tryApplyOrder(s, order).state;
+
+    const { events } = resolveTurn(s, {}, s.seed);
+
+    const army = events.filter(e => ['regiments-recruited', 'army-upkeep', 'army-moved', 'regiments-disbanded'].includes(e.type));
+    expect([...new Set(army.map(e => e.type))].sort()).toEqual(['army-moved', 'army-upkeep', 'regiments-disbanded', 'regiments-recruited']);
+    for (const e of army) expect(['nation-1', 'nation-2']).toContain((e as { nationId: string }).nationId);
   });
 });

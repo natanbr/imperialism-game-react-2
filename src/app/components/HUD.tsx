@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { TileInfoPanel } from "./TileInfoPanel";
 import { useGameStore } from '../store/rootStore';
 import { selectActiveNation } from "../store/selectors";
-import { TurnIndicator, NationStats, ActionButtons, NewsPanel, FoodWarning, ScoreIndicator, ScoreTable } from "./HUD/index";
+import { TurnIndicator, NationStats, ActionButtons, NewsPanel, FoodWarning, UpkeepWarning, ScoreIndicator, ScoreTable } from "./HUD/index";
 import { AboutPanel } from "./HUD/AboutPanel";
 import { UI_ICONS } from "./icons";
 import { GameIcon } from "./GameIcon";
@@ -76,6 +76,7 @@ export const HUD: React.FC = () => {
                 <ScoreIndicator />
                 <ScoreTable />
                 <FoodWarning />
+                <UpkeepWarning />
 
                 <TileInfoPanel selectedTile={selectedTile} />
                 <NewsPanel />

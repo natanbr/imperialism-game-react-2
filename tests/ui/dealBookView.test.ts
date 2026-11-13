@@ -144,6 +144,34 @@ describe('FR-256 the Treasury lines: the trade net, the diplomacy costs and the 
     expect(dealBookView(dealBook(TURN, N1), nameOf).treasury).toBeUndefined();
     expect(dealBookView(dealBook(TURN, N1), nameOf).cash).toBeUndefined();
   });
+
+  it('FR-262 review R5: the regiments raised that turn have their own Treasury line ("1 Regulars recruited -$500"), not "Other", and the lines still add up', () => {
+    // Recruited this turn: 1 Regulars ($500) and 2 Skirmishers ($400); the start army's $100 upkeep
+    const events: GameEvent[] = [
+      ...TURN,
+      { type: 'army-upkeep', nationId: N1, amount: 100 },
+      { type: 'regiments-recruited', nationId: N1, regiment: 'skirmishers', count: 2 },
+      { type: 'regiments-recruited', nationId: N1, regiment: 'regulars', count: 1 },
+      { type: 'regiments-recruited', nationId: 'nation-2', regiment: 'regulars', count: 1 },
+    ];
+    const book = dealBook(events, N1, { start: 10000, end: 7300 });
+    expect(book.recruits).toEqual([
+      { regiment: 'skirmishers', count: 2, amount: 400 },
+      { regiment: 'regulars', count: 1, amount: 500 },
+    ]);
+
+    const lines = dealBookView(book, nameOf).treasury!;
+    expect(lines).toEqual([
+      { label: 'Trade net', amount: -300, text: '-$300' },
+      { label: 'Consulate in Arvelia', amount: -500, text: '-$500' },
+      { label: 'Grant to Pellis', amount: -1000, text: '-$1,000' },
+      { label: '2 Skirmishers recruited', amount: -400, text: '-$400' },
+      { label: '1 Regulars recruited', amount: -500, text: '-$500' },
+      { label: 'Treasury change', amount: -2700, text: '-$2,700' },
+    ]);
+    expect(lines.some(l => l.label.startsWith('Other'))).toBe(false);
+    expect(lines.slice(0, -1).reduce((sum, l) => sum + l.amount, 0)).toBe(lines.at(-1)!.amount);
+  });
 });
 
 describe('FR-244 the news lines of the trade events', () => {

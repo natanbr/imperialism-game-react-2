@@ -1,8 +1,9 @@
-import type { CountryId, NationId, TileId } from "@/types/Common";
+import type { CountryId, NationId, ProvinceId, RegimentId, TileId } from "@/types/Common";
 import type { GrantAmount, Overture, SubsidyPercent, WithdrawableOverture } from "@/types/Diplomacy";
 import type { ConstructionKind } from "@/types/jobs/ConstructionJob";
 import type { BuildingType, ProductionOutput, WorkerGrade } from "@/types/Industry";
 import type { TradeCommodity } from "@/types/Market";
+import type { RegimentType } from "@/types/Unit";
 
 /**
  * Everything a player (human UI or AI) can do is an Order. Each order names its nation and the
@@ -197,6 +198,47 @@ export interface AnswerProposalOrder extends OrderBase {
   accept: boolean;
 }
 
+/**
+ * How many regiments of the type the nation recruits this turn (FR-200), like `setProduction`: raising it takes the
+ * difference's cash, armaments, horses and workers (one of the regiment's grade each) at once, lowering it gives them
+ * back. The regiments join the army in the capital province at End Turn (FR-201).
+ */
+export interface SetRecruitmentOrder extends OrderBase {
+  kind: "setRecruitment";
+  regiment: RegimentType;
+  count: number;
+}
+
+/**
+ * Marches regiments of the nation's army in `fromProvinceId` into a bordering province (FR-205): stores a move intent
+ * that the combat phase resolves (FR-206). A later order for a regiment replaces its earlier one.
+ */
+export interface MoveArmyOrder extends OrderBase {
+  kind: "moveArmy";
+  fromProvinceId: ProvinceId;
+  regimentIds: RegimentId[];
+  toProvinceId: ProvinceId;
+}
+
+/** Takes the regiments out of this turn's move intents (FR-205). */
+export interface CancelArmyMoveOrder extends OrderBase {
+  kind: "cancelArmyMove";
+  regimentIds: RegimentId[];
+}
+
+/** Disbands regiments of the nation's army in the province at End Turn, before the upkeep step; nothing comes back (FR-207). */
+export interface DisbandRegimentsOrder extends OrderBase {
+  kind: "disbandRegiments";
+  provinceId: ProvinceId;
+  regimentIds: RegimentId[];
+}
+
+/** Takes the regiments out of this turn's disband intents, so they stay (FR-207; M8 review F4). */
+export interface CancelDisbandOrder extends OrderBase {
+  kind: "cancelDisband";
+  regimentIds: RegimentId[];
+}
+
 export type Order =
   | MoveWorkerOrder
   | MoveAndBuildRailOrder
@@ -219,12 +261,20 @@ export type Order =
   | GiveGrantOrder
   | SetTradePolicyOrder
   | WithdrawOvertureOrder
-  | AnswerProposalOrder;
+  | AnswerProposalOrder
+  | SetRecruitmentOrder
+  | MoveArmyOrder
+  | CancelArmyMoveOrder
+  | DisbandRegimentsOrder
+  | CancelDisbandOrder;
 
 export type OrderKind = Order["kind"];
 
 /** The diplomacy orders (FR-161). */
 export type DiplomacyOrder = ProposeOvertureOrder | GiveGrantOrder | SetTradePolicyOrder | WithdrawOvertureOrder | AnswerProposalOrder;
+
+/** The army orders (FR-200, FR-205, FR-207). */
+export type ArmyOrder = SetRecruitmentOrder | MoveArmyOrder | CancelArmyMoveOrder | DisbandRegimentsOrder | CancelDisbandOrder;
 
 export const ORDER_KINDS = [
   "moveWorker",
@@ -249,6 +299,11 @@ export const ORDER_KINDS = [
   "setTradePolicy",
   "withdrawOverture",
   "answerProposal",
+  "setRecruitment",
+  "moveArmy",
+  "cancelArmyMove",
+  "disbandRegiments",
+  "cancelDisband",
 ] as const satisfies readonly OrderKind[];
 
 /** Why an order was refused. A fixed list so UIs and AI players can switch on it (FR-004). */
@@ -287,6 +342,10 @@ export type RejectReason =
   /** "Partners" market (FR-253): no minor nation wants it and no other Great Power can bid for it this turn. */
   | "no-buyer"
   /** "Partners" market (FR-253): every country that could buy it is barred to the nation. */
-  | "buyers-barred";
+  | "buyers-barred"
+  /** Armies (FR-205): the province does not border the army's province. */
+  | "not-adjacent"
+  /** Armies (FR-205, M8): a march into a country at war with the nation is an attack, which M9 builds (FR-216). */
+  | "attack-not-available";
 
 export type ValidationResult = { ok: true } | { ok: false; reason: RejectReason };

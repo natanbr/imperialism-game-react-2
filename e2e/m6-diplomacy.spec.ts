@@ -71,7 +71,8 @@ test('FR-180 FR-177 FR-178 a consulate, an embassy and a war ordered in Diplomac
   await expect(dialog(page).getByTestId('diplomacy-cash')).toHaveText(`Cash: $${(start - 500).toLocaleString('en-US')}`);
 
   await endTurn(page, 2);
-  expect(await cash(page)).toBe(start - 500);
+  // and the start army's $100 upkeep at End Turn (FR-202)
+  expect(await cash(page)).toBe(start - 500 - 100);
   await expect(page.getByTestId('news-panel')).toContainText('Consulate opened in Arvelia.');
   await openDiplomacy(page);
   await expect(treaties(page, 'Arvelia')).toHaveText(['Consulate']);

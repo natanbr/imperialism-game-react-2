@@ -15,6 +15,7 @@ import { turnLimitOf } from '@/engine/turn/gameOver';
 import type { GameState } from '@/types/GameState';
 import { GoodsType } from '@/types/Resource';
 import { emptyWarehouse, N1, N2, setPair, setTreasury, setWarehouse } from './fixtures';
+import { withoutStartForces } from './armyFixtures';
 
 const MINORS = ['minor-1', 'minor-2', 'minor-3', 'minor-4'];
 const GOODS: string[] = [GoodsType.Clothing, GoodsType.Furniture, GoodsType.Hardware];
@@ -177,7 +178,8 @@ describe('FR-245 valid, deterministic, and unchanged in "world"', () => {
   });
 
   it('FR-245 in "world" its orders are unchanged: the continent with the world market plays as two-islands, turn by turn', () => {
-    const world = play(newGame({ seed: 1, world: 'continent', market: 'world' }), 6);
+    // FR-215: without the FR-203 start forces, whose 4 horses it sells and whose upkeep it pays (tests/engine/continentScore.test.ts)
+    const world = play(withoutStartForces(newGame({ seed: 1, world: 'continent', market: 'world' })), 6);
     const v1 = play(newGame({ seed: 1, world: 'two-islands' }), 6);
     expect(world.map(t => t.orders)).toEqual(v1.map(t => t.orders));
   });

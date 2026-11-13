@@ -31,7 +31,18 @@ src/app/
                            migrantCap, foodForecast, railLinksOf; since M5 WORLDS, the country and
                            province queries, transferProvince, pairKey, relationLevel, intentOrder
     newGame.ts             the start state: Spring 1815 on a world of WORLDS (default "two-islands"),
-                           START_TECHNOLOGIES, rail networks built, start diplomacy, no intents
+                           START_TECHNOLOGIES, rail networks built, start diplomacy, no intents; on a
+                           world with provinces the FR-203 start forces (army/startForces.ts)
+    army/armies.ts         M8 (FR-204): reads of state.armies (armiesOf, armyAt, findRegiment, forceSize,
+                           strength, strengthIn, upkeepOf, capitalProvinceOf), the screens' helpers
+                           (armyMarkers, regimentStatus, marchTargets, recruitingOf, freeWorkersOf;
+                           pendingArmyOrders and beforeRecruiting, FR-263, FR-264), and
+                           the edits orders and phases share (raiseRegiments, placeRegiments,
+                           removeRegiments, mapRegiments, withRecruiting), which keep one army per country
+                           per province
+    army/upkeepForecast.ts FR-261: the upkeep End Turn will charge and the cash it will find; upkeepIn, one
+                           province's share (FR-266)
+    army/startForces.ts    FR-203: field army, militia, capital forts, extra horses
     calendar.ts            seasons; the year advances after winter
     rng.ts                 seeded RNG: createTurnRng(seed, turn); RNG_STREAMS and createStreamRng
                            for the per-system streams (FR-150)
@@ -39,12 +50,14 @@ src/app/
                            relationLevel, RELATION_SWATCHES
     diplomacy/queries.ts   M6 reads: warBetween, warActive (for the M9 attack rule),
                            diplomacyIntentsOf (this turn's, with cost), proposalsOf,
-                           pendingProposalsFor, proposalAnswer, militaryStrength (FR-204, 0 before M8)
-                           over regimentsOf, the one read of the army shape (M8 rewrites it)
+                           pendingProposalsFor, proposalAnswer, militaryStrength (FR-174, FR-204:
+                           `strength` of all the country's regiments)
     diplomacy/scriptedAnswers.ts  FR-174: acceptsAlliance, acceptsPeace, losingWar
     orders/                Order.ts (union + RejectReason), validate.ts, apply.ts,
                            industryOrders.ts (production, expansion, cars, training, migration),
                            diplomacyOrders.ts (the five diplomacy orders: validate and apply),
+                           armyOrders.ts (setRecruitment, moveArmy, cancelArmyMove, disbandRegiments,
+                           cancelDisband),
                            queries.ts (read-only lookups and construction-site rules)
     industry/              labour.ts (labourOf: total, committed, free), industryState.ts
                            (createIndustry, buildingOf, migrantCap), foodForecast.ts (the meal
@@ -64,6 +77,7 @@ src/app/
     ai/railPlan.ts         read-only rail and tile planning: depot sites, rail paths, tilesByReach
     ai/players.ts          PLAYERS (controller -> Player) and computerOrders(state) (FR-099)
     ai/diplomacy.ts        the scripted player's peace offers when losing a war (FR-174)
+    ai/scriptedArmy.ts     M8 (FR-213): armyThreat, planGarrison (1 Regulars a turn under a threat)
     ai/scriptedPartners.ts M7 (FR-245): planConsulate, partnerSupply, partnerDemand (its bid and offer caps)
     market/                market.ts (the world market, nextPrices), partners.ts (M7 reads: marketModeOf,
                            minorOffers, minorDemand, partnerRanking, favouritePartner, tradeBarrier,
@@ -89,6 +103,11 @@ src/app/
                            refusal text, the refusal lines, the Accept Offer sentence; no React),
                            CountryList (the left pane's tabs), CountryDetails (the right pane),
                            Diplomacy.module.css (also used by AcceptOfferModal)
+    army/                  M8: armyView.ts (the map markers by seat tile, the march arrows in map pixels,
+                           the Army screen's rows and its
+                           March / Disband controls with their refusal text; no React), armouryView.ts
+                           (the Armoury's cards, no React), Army.module.css (ArmyModal, ArmouryModal);
+                           the markers themselves are Tile/TileArmy.tsx
   hooks/                   React hooks; tileClickOrders.ts (what a tile click asks for, no React)
   workers/                 per worker type, the action it offers on a tile (map cursor and click)
   types/                   GameState, Tile, Worker, Nation, Industry, jobs, ...
@@ -174,6 +193,44 @@ only (FR-018).
   `relation-changed` is emitted once per Great Power of a pair whose level moved in the phase, with
   `wars` (`{ aggressorId, targetId }`) when declarations of that phase moved the pair (FR-239).
 
+### Armies (M8)
+
+- **State** (FR-204): `state.armies`, at most one army per country per province
+  (`{ id: "army-<owner>-<province>", ownerId, provinceId, regiments }`), a regiment
+  `{ id: "regiment-<n>", type, name, health, movedOnTurn? }`. A higher id is a newer regiment; names are
+  ordinals per owner and type (`state.regimentsRaised` counts them). `Nation.recruiting` holds this turn's
+  recruits. The regiment table and the M8 rule numbers are `definisions/regiments.ts` (FR-199).
+- **Orders** (`orders/armyOrders.ts`): `setRecruitment` pays at once and gives back on lowering, like
+  `setProduction`; `moveArmy` and `disbandRegiments` store an intent (`army-move`, `disband`), one per
+  regiment (a later order replaces the earlier); `cancelArmyMove` takes regiments out of the moves and
+  `cancelDisband` out of the disbands. `setRecruitment` and the End Turn refund share `withRecruiting`
+  (`army/armies.ts`). In M8 a march into another country's province is refused (`not-at-war`, or
+  `attack-not-available` while at war: attacks are M9's).
+- **Phases** (`systems/armySystem.ts`, `systems/combatSystem.ts`): after trade the disbands (FR-207), then
+  the upkeep, $25 per arms point, disbanding the newest regiments when the treasury cannot pay (FR-202);
+  in the combat phase the marches resolve together and the regiments that did not move heal 10 (FR-206,
+  FR-208); after it the recruits join in the capital province, or are refunded (`recruits-refunded`) when
+  the nation no longer holds it (FR-201). None draws a random number; a world without armies (two-islands)
+  passes every one unchanged.
+- **Upkeep forecast** (FR-261, `army/upkeepForecast.ts`): what the upkeep step will charge after this turn's
+  disbands and the cash it will find after the standing locked grants; the Army screen, the Armoury and the
+  HUD (`HUD/UpkeepWarning.tsx`, `selectUpkeepForecast`) show it and warn while it is short.
+- **Scripted player** (FR-213): it never moves or disbands; under a threat (`armyThreat`) it recruits 1
+  Regulars a turn, its run makes the armaments first, expansion leaves their steel and the world market
+  gets none of its 2; it never spends below `upkeepReserve` (`ai/scriptedPlayer.ts`: two turns of upkeep,
+  in the last 8 turns every turn's left).
+- **Screens** (FR-210 to FR-212): `selectArmyMarkersBySeat` (`store/selectors.ts`, on `components/army/armyView.ts`)
+  gives MapView each seat tile's markers; `Tile/TileArmy.tsx` draws them half over the seat's left edge (ours
+  are buttons that call `openArmy(provinceId)`, store flag `armyProvinceId`). `ArmyModal.tsx` (the Army screen)
+  and `ArmouryModal.tsx` (store flag `isArmouryOpen`, opened from the capital dialog on a world with
+  provinces) build `moveArmy`, `cancelArmyMove`, `disbandRegiments`, `cancelDisband` and `setRecruitment` and
+  ask `validateOrder` first: a control it would refuse is disabled, its reason beside it and as its description.
+  This turn's own orders show on the map before End Turn (FR-263): `selectMarchArrows` (`marchArrows`) gives
+  MapView one dashed arrow per pair of provinces, drawn in its own SVG overlay at z-index 4 (above the tile
+  icons and civilians, below the markers), and a marker with regiments to disband carries "−1". Marches both ways
+  between two provinces each keep 10 px to their own right (FR-270). The marker's centre is copied from
+  Tile.module.css into `armyView.ts`; e2e/m8-armies.spec.ts measures the arrow ends against the drawn markers (FR-271).
+
 The store (`store/rootStore.ts`) holds that state under `game`, and UI state beside it:
 
 | Store key | What | Kind |
@@ -187,6 +244,7 @@ The store (`store/rootStore.ts`) holds that state under `game`, and UI state bes
 | `selectedTileId`, `selectedWorkerId`, `hoveredTileId` | selection | UI |
 | `cameraX`, `cameraY` | map scroll | UI |
 | `isWarehouseOpen`, `isCapitalOpen`, ... | overlays and dialogs | UI |
+| `armyProvinceId`, `isArmouryOpen` | the Army screen's province (null: closed) and the Armoury (FR-211, FR-212) | UI |
 
 Only `game` is ever passed to the engine (tested with spies in
 `tests/store/engineBoundary.test.ts`). Display text is derived, not stored: a worker's job text
@@ -241,9 +299,10 @@ store.advanceTurn()
   -> resolveTurn(game, computerOrders, game.seed)        engine/turn/resolveTurn.ts
        game over already?  return the same state; each given order -> order-rejected game-over
        applyTurnOrders     orders given here, nations in state order (the computer nations')
-       TURN_PHASES         development, diplomacy, trade (deals, then prices), production
-                           (freight cars first), combat, interceptions, transportConnectivity,
-                           logistics, tradeDelivery (units bought), food
+       TURN_PHASES         development, diplomacy, trade (deals, then prices), disband and upkeep
+                           (M8), production (freight cars first), combat (M8: marches, healing),
+                           recruits (M8), interceptions, transportConnectivity, logistics,
+                           tradeDelivery (units bought), food
        promoteFreightCars  the cars built this turn go into service (FR-101, NR-016)
        resetWorkers        everyone may move again; working only while the job is unfinished
        advanceClock        turn + 1, year + 1 after winter (turn 1 = Spring 1815)
@@ -430,7 +489,7 @@ minor that sells the commodity and is open to the nation, an offer a buyer open 
 17 rows fit at 1280x720. The Deal Book (`DealBookModal.tsx`, FR-195, store flag `isDealBookOpen`, HUD
 button) reads only the last `eventLog` report: `dealBook` + `dealBookView`, Sold and Bought side by
 side, Not traded under them (each line with its `cause`, FR-255), the bottom line ending in the Trade
-net and the Treasury table from the report's `treasuries` (FR-256); it builds no order. Every dollar
+net and the Treasury table from the report's `treasuries` (FR-256, with a line per type recruited, FR-262); it builds no order. Every dollar
 amount goes through `money` in `components/gameText.ts` (FR-258). The Diplomacy screen (`DiplomacyModal.tsx`,
 M6, store flag `isDiplomacyOpen`, opened from the HUD or the capital) renders
 `diplomacy/diplomacyView.ts` in two panes (FR-237): on the left a vertical tab list, one tab per other
@@ -483,7 +542,9 @@ Cursors are still emoji SVG data URIs (`useTileVisuals`). The HUD shows "Turn: N
 nation ranked by score with its colour swatch and name (`HUD/ScoreTable.tsx`, `NationSwatch.tsx`), the
 food warning, the selected tile, the news of the last turn and the last refused order (`components/HUD/NewsPanel.tsx`;
 `newsLines` puts the player's lines first and names the other nations on theirs). Its information
-scrolls on its own (`.hud-content`); the action buttons stay below it. New game (HUD, asked in place, and
+scrolls on its own (`.hud-content`); the action buttons stay below it. `.hud-content` is a flex column: the
+news panel takes the height left, and its list scrolls on its own in whole lines (a size container and
+`round()` in globals.css, FR-268), so the fade at the bottom never covers a line of news. New game (HUD, asked in place, and
 the game-over screen) calls `hooks/mapActions.ts` `startNewGameOnCapital`: the store's `startNewGame`
 clears the session (selection, dialogs, logs) and the camera goes back to the capital. The
 camera is the scroll position of MapView's container (FR-083), so the browser keeps it inside the
@@ -514,10 +575,11 @@ never imports `src/app/testing` (ESLint rule, FR-043, now FR-080).
 
 ## Not on the engine yet
 
-- Combat and interceptions are stub systems (diplomacy is built in M6). Trade between countries is
-  built in M7 on the continent; there is no Shipyard (holds do not grow, so a hold is never short at
-  settlement unless the holds drop after ordering), no interception, and no army or province capture
-  (M8, M9): `militaryStrength` is 0 and the FR-174 peace conditions (a) and (b) never fire.
+- Battles and interceptions are not built (diplomacy is built in M6, armies and marches in M8). Trade
+  between countries is built in M7 on the continent; there is no Shipyard (holds do not grow, so a hold
+  is never short at settlement unless the holds drop after ordering), no interception, and no attack or
+  province capture (M9): FR-174's peace condition (a) never fires, and (b) only once one side has
+  recruited more than the equal start armies.
 - The maps are fixed templates, `engine/world/twoIslands.ts` (FR-080) and the continent's minor land in
   `engine/world/continent.ts` (FR-145): the same for every seed, so
   e2e specs and M4 can name tiles. Island 2 is island 1 shifted 12 columns (a shift along a row

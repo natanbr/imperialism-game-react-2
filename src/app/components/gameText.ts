@@ -10,9 +10,11 @@ import {
   type OrderKind,
   type RejectReason,
   type Season,
+  type UpkeepForecast,
   type WithdrawableOverture,
 } from "@/engine";
 import { TerrainType, type Tile } from "@/types/Tile";
+import { REGIMENTS } from "@/definisions/regiments";
 import type { BuildingType } from "@/types/Industry";
 import { GoodsType, MaterialType, ResourceType, type WarehouseCommodities } from "@/types/Resource";
 import { WorkerStatus, WorkerType, type Worker } from "@/types/Workers";
@@ -40,6 +42,11 @@ const ORDER_TEXT: Record<OrderKind, string> = {
   setTradePolicy: "Trade policy",
   withdrawOverture: "Withdrawal",
   answerProposal: "Answer",
+  setRecruitment: "Recruiting",
+  moveArmy: "March",
+  cancelArmyMove: "Cancel march",
+  disbandRegiments: "Disband",
+  cancelDisband: "Cancel disband",
 };
 
 export const REFUSAL_TEXT: Record<RejectReason, string> = {
@@ -67,6 +74,8 @@ export const REFUSAL_TEXT: Record<RejectReason, string> = {
   "sellers-barred": "we may not trade with any seller",
   "no-buyer": "no one buys this",
   "buyers-barred": "we may not trade with any buyer",
+  "not-adjacent": "that province does not border the army's province",
+  "attack-not-available": "attacks are not possible yet",
 };
 
 /** Why an offer passed the nation by, in the news and the Deal Book (FR-244). */
@@ -193,6 +202,19 @@ export function foodWarningText(forecast: FoodForecast): string | null {
   return `Food is short: at the end of this turn ${parts.join("; ")}.`;
 }
 
+/** "Army upkeep at End Turn: $100" (FR-261): what the upkeep step will charge (FR-202). */
+export const upkeepDueText = (forecast: Pick<UpkeepForecast, "due">): string => `Army upkeep at End Turn: ${money(forecast.due)}`;
+
+/**
+ * FR-261: shown while the cash End Turn's upkeep step will find is below the upkeep (M8 review F2): "Cash is short of
+ * the army upkeep: $100 is due at End Turn and $40 will be left. Unless this turn's sales cover the rest, the newest
+ * regiments are disbanded."
+ */
+export function upkeepWarningText(forecast: UpkeepForecast): string | null {
+  if (!forecast.short) return null;
+  return `Cash is short of the army upkeep: ${money(forecast.due)} is due at End Turn and ${money(Math.max(0, forecast.cash))} will be left. Unless this turn's sales cover the rest, the newest regiments are disbanded.`;
+}
+
 /** News of a meal: only bad news is news. */
 function foodNews(sick: number, starved: number): string | null {
   const parts: string[] = [];
@@ -264,7 +286,8 @@ function diplomacyText(event: GameEvent, name: (countryId: string) => string): s
 
 /**
  * One line of news for the event, or null when it is not news (the end of the turn). `nameOf` names the
- * countries a diplomacy line mentions (FR-176); without it their ids stand in.
+ * countries a diplomacy line mentions (FR-176) and the provinces of a march (FR-209); without it their ids
+ * stand in.
  */
 export function eventText(event: GameEvent, nameOf: (countryId: string) => string = (id) => id): string | null {
   switch (event.type) {
@@ -313,8 +336,21 @@ export function eventText(event: GameEvent, nameOf: (countryId: string) => strin
     case "grant-stopped":
     case "proposal-received":
       return diplomacyText(event, nameOf);
+    // FR-209: `nameOf` names the provinces of a march as well
+    case "regiments-recruited":
+      return `${event.count} ${REGIMENTS[event.regiment].name} recruited.`;
+    case "recruits-refunded":
+      return `${event.count} ${REGIMENTS[event.regiment].name} not raised: our capital province is lost. Their cost is refunded.`;
+    case "army-upkeep":
+      return `Army upkeep: ${money(event.amount)}.`;
+    case "army-moved":
+      return `${regiments(event.count)} marched from ${nameOf(event.fromProvinceId)} to ${nameOf(event.toProvinceId)}.`;
+    case "regiments-disbanded":
+      return event.reason === "no-pay" ? `${regiments(event.count)} disbanded: no money for their upkeep.` : `${regiments(event.count)} disbanded.`;
   }
 }
+
+const regiments = (n: number) => `${n} regiment${n === 1 ? "" : "s"}`;
 
 /**
  * The news of a turn as the player reads it (FR-107): the player's own lines first, as `eventText`

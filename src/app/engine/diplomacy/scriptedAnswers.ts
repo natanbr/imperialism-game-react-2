@@ -13,8 +13,8 @@ const tookProvince = (war: War, byId: CountryId, ofId: CountryId): boolean =>
 
 /**
  * The nation is losing its war with the enemy (FR-174 (a) or (b)): the enemy took at least one of its
- * provinces in this war, or its strength is below the enemy's. False at peace. In M6 there are no armies
- * and no conquest, so it is always false.
+ * provinces in this war, or its strength (`militaryStrength`, FR-204) is below the enemy's. False at peace. With the
+ * equal start armies (FR-203) and no conquest (M9) it holds only once one side has recruited more.
  */
 export function losingWar(state: GameState, nationId: CountryId, enemyId: CountryId): boolean {
   const war = warBetween(state, nationId, enemyId);

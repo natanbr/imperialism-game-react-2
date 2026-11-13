@@ -1,7 +1,8 @@
 // types/Nation.ts
-import { CityId, NationId, FleetId, ArmyId } from "./Common";
+import { CityId, NationId, FleetId } from "./Common";
 import { IndustryState } from './Industry';
 import { WarehouseCommodities } from './Resource';
+import type { RegimentType } from "./Unit";
 
 /** Who gives a nation its orders (FR-099): the person at this client, or a scripted player. */
 export type NationController = "human" | "scripted";
@@ -22,7 +23,7 @@ export interface Nation {
   // nations whose `colonyOf` names it (FR-146).
 
   cities: CityId[];
-  armies: ArmyId[];
+  // Its regiments are the state.armies it owns (FR-204, armiesOf).
   fleets: FleetId[];
 
   merchantMarine: {
@@ -41,4 +42,9 @@ export interface Nation {
 
   warehouse: Record<WarehouseCommodities, number>;
   industry: IndustryState;
+  /**
+   * The regiments ordered this turn by type (FR-200, `setRecruitment`), paid when ordered; they join the army in the
+   * capital province at End Turn (FR-201). Absent or empty when none.
+   */
+  recruiting?: Partial<Record<RegimentType, number>>;
 }

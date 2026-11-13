@@ -59,6 +59,16 @@ describe('FR-022 the UI changes the game only through submitOrder', () => {
     expect(/\bsubmitOrder\b/.test(readFileSync(join(ROOT, 'src/app/components/DealBookModal.tsx'), 'utf8'))).toBe(false);
   });
 
+  it('FR-210 FR-211 FR-212 the army markers, the Army screen and the Armoury are scanned; the two screens send their orders through submitOrder', () => {
+    const screens = ['src/app/components/Tile/TileArmy.tsx', 'src/app/components/ArmyModal.tsx', 'src/app/components/ArmouryModal.tsx'];
+    const scanned = files.map((f) => relative(ROOT, f).replace(/\\/g, '/'));
+    expect(screens.filter((f) => !scanned.includes(f))).toEqual([]);
+    const senders = ['src/app/components/ArmyModal.tsx', 'src/app/components/ArmouryModal.tsx'];
+    expect(senders.filter((f) => !/\bsubmitOrder\(/.test(readFileSync(join(ROOT, f), 'utf8')))).toEqual([]);
+    // A marker only opens the Army screen: it builds no order
+    expect(/\bsubmitOrder\b/.test(readFileSync(join(ROOT, 'src/app/components/Tile/TileArmy.tsx'), 'utf8'))).toBe(false);
+  });
+
   it('the UI uses no pre-M1 worker action of the store', () => {
     const old = /\b(moveSelectedWorkerToTile|moveAndStartProspecting|moveAndStartDevelopment|moveAndStartConstruction|purchaseTransportCapacityIncrease|setTransportAllocations|cancelAction)\s*\(/;
     const offenders = files.filter((f) => old.test(readFileSync(f, 'utf8')));

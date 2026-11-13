@@ -18,10 +18,12 @@
   `docs/journal/archive-M5.md`). The app plays the continent. Card Q22 (the continent's tilt) still open.
 - 2026-11-13 M6 Diplomacy (FR-161 to FR-181, FR-236 to FR-241) merged (PR 24, main 2a60a3b; entries archived in
   `docs/journal/archive-M6.md`). Decision card "who receives a grant" (M6 fix round decision 3) still to add.
-- 2026-11-13 M7 Nation-to-nation trade in progress on `claude/m7-trade` (worktree `imperialism-game-revival-fee36d`):
-  engine half, UI half, review fix round, QA fix round and its review's fixes done (FR-183 to FR-198 and FR-242 to FR-259
-  tested; FR-182, 190, 192, 193, 196 replaced); not pushed. Next: the PR. Cards Q39 to Q47 on the page (Q47 open: the World
-  market's greyed "−").
+- 2026-11-13 M7 Nation-to-nation trade (FR-183 to FR-198, FR-242 to FR-259) merged (PR 25, main d16afa7; entries archived in
+  `docs/journal/archive-M7.md`). Card Q47 (the World market's greyed "−") still open.
+- 2026-11-13 M8 Armies in progress on `claude/m8-armies` (worktree `imperialism-game-revival-fee36d`): the engine half
+  (FR-199 to FR-209, FR-213, FR-215), the UI half (FR-210 to FR-212, FR-214), the review fix round (20 findings,
+  FR-260 to FR-262), the QA fix round (7 items, FR-263 to FR-269) and its review's fixes (3 findings, FR-270, FR-271) are
+  committed; not pushed. The engine and UI halves' entries are in `docs/journal/archive-M8.md`. Next: the re-review, the PR.
 
 Carried forward:
 - Deferred: river ports and the depot-on-port rule (rules 04); University fees; the power plant.
@@ -166,165 +168,146 @@ trade policies, the scripted answers and peace offers; the Diplomacy screen in t
 FR-161 to FR-181 and FR-236 to FR-241 tested; 1283 unit tests, Playwright 30 passed, 1 skipped; every v1 baseline unchanged.
 Merged as PR 24 (main 2a60a3b). Open: the decision card "who receives a grant" (review fix round decision 3).
 
-## 2026-11-13 M7 Nation-to-nation trade, engine half and UI half (archived)
+## 2026-11-13 M7 Nation-to-nation trade (archived)
 
-Entries in `docs/journal/archive-M7.md`: the engine half (FR-182 to FR-193, FR-196, FR-198: the partners trade phase, the
-scripted player, the API for the screens, 7 decisions) and the UI half (FR-194, FR-195, FR-197: the Board of Trade, the Deal
-Book, 7 decisions); 1389 unit tests, Playwright 32 passed, 1 skipped. The fix rounds below stay here until M7 is merged.
+Entries in `docs/journal/archive-M7.md`: engine half, UI half, review fix round (20 findings), QA fix round (FR-251 to FR-258) and
+the review of the QA fix round (FR-259). The partners market on the continent (minors offer and buy, favourite partners, barriers),
+the Board of Trade and the Deal Book, the scripted player trading through it, one money formatter. FR-183 to FR-198 and FR-242 to
+FR-259 tested; 1458 unit tests, Playwright 32 passed, 1 skipped; every v1 baseline unchanged. Merged as PR 25 (main d16afa7).
+Open: card Q47 (the World market's greyed "−").
 
-## 2026-11-13 M7 Nation-to-nation trade, review fix round (FR-242 to FR-250)
+## 2026-11-13 M8 Armies, engine half and UI half (archived)
 
-Size: L (the partners price rule and the scripted player are engine-wide; screens). One fix agent (Opus 5.5, xhigh, no
-subagents, no advisor call), started by the M7 workflow. Branch `claude/m7-trade` (worktree `imperialism-game-revival-fee36d`),
-not pushed. The review (one reviewer) gave 20 findings in two lists; the second list's F1 to F6 are written F1' to F6' here.
+Entries in `docs/journal/archive-M8.md`. Engine half (FR-199 to FR-209, FR-213, FR-215): `state.armies`, the regiment table, four
+army orders, the upkeep, recruit and march steps of the turn, the scripted army and the start forces; nine decisions and the API for
+the UI half; 1603 unit tests. UI half (FR-210 to FR-212, FR-214): the map markers, the Army screen, the Armoury and
+e2e/m8-armies.spec.ts; six decisions; 1647 unit tests, Playwright 33 passed, 1 skipped.
 
-Plan-lite:
-- Change: the partners price step counts only the Great Powers' deals; the scripted player buys raw and opens a consulate
-  only where it will trade; `tradeBarrier` forecasts this turn's diplomacy phase; `bid-unfilled`; "+" disabled with its
-  reason; a colony bids for nothing; rows replaced with new ids (FR-182, 190, 192, 193, 196 → FR-242 to FR-245, FR-247).
-- Consumers: the Board of Trade, the Deal Book, the news, the scripted player, M9 (colonies), the v2 baseline.
-- Tests: FR-242 to FR-246, FR-249 `engine/partnerMarket.test.ts` (+14 rows); FR-245 `engine/scriptedTrade.test.ts` (rewritten);
-  FR-247 `engine/v2Trade40.test.ts` (baseline pinned, price bound); FR-244, FR-248 `ui/dealBookView.test.ts`,
-  `ui/dealBook.test.tsx`, `ui/boardOfTrade.test.tsx`; FR-250 `ui/dialogs.test.tsx`; FR-242 `store/gameStore.test.ts`.
-- Verify: `npm test`, `npm run lint`, `npx tsc --noEmit`, `npm run build`, `PORT=3160 npx playwright test --workers=1`.
-- Objection: decision 1: with no pull back toward the start price, a nation that keeps buying one commodity still moves it
-  to its bound in time (timber reaches $180 by turn 40 on seed 2); the card Q39 offers the pull.
+## 2026-11-13 M8 Armies, review fix round (20 findings; FR-260 to FR-262)
+
+Size: L (fix round over the engine and the screens). One fix agent (Opus 5.5, xhigh, no subagents, no advisor call), started by
+the M8 workflow. Branch `claude/m8-armies`, not pushed. Every finding fixed; none carried. FR ids: the merged FR-157 is replaced
+by FR-260 and FR-256 is extended by FR-262 (new ids, FLOW); M8's own rows are amended in place with a status note, as the M4.3
+fix round did for FR-023 and FR-137; FR-261 is the new upkeep forecast.
 
 | Finding | What changed | Test |
 |---|---|---|
-| C1, F1 (major): the minors' fixed volume drove prices to the bounds | FR-243 replaces FR-190: units = Great Power units bought − sold (as in "world"); `settlePartnerTrade` returns `sold` and `bought` | partnerMarket "FR-243" (5 rows, one a 4-unit trade against none); v2Trade40 "no price runs to its bound" |
-| C2 (major): the computer never bid and paid for unused consulates | FR-245 replaces FR-193: `rawWants` bids for timber, coal, iron ore, cotton; `planConsulate` only when the minors that favour it do not cover its holds | scriptedTrade (a) 7 rows, (b) 4 rows; v2Trade40 "… and buys from one" |
-| F2 (major), C5, F3': FR-196's "2 minors" read as a union | FR-247 replaces FR-196: each nation at least 1 minor and 1 purchase, both together at least 2 minors (card Q40) | v2Trade40 "each nation deals with a minor and buys from one …" |
-| F3: the v2 baseline only logged | deals, purchases and minors per nation and final treasuries of seeds 1 to 4 pinned | v2Trade40 "the measured baseline" |
-| C3: Board and trade phase disagree on wars and boycotts | FR-246: `tradeBarrier` runs `diplomacySystem` on the state (cached per state) and reads `settledTradeBarrier`; the trade phase reads the record only; the Board's favourites the same way | partnerMarket "FR-246" (5 rows); boardOfTrade "FR-246 a war declared this turn …" |
-| C4: a bid nobody filled said nothing | `bid-unfilled` (units not in an `offer-missed`); Deal Book "Nobody sold us 2 Coal (bid money back)"; news "Nobody sold us 2 Coal; the bid money is back." | partnerMarket "FR-244 a bid nobody fills …" (4 rows); dealBookView; dealBook "only trade is a bid nobody filled" |
-| C6, F4: FR-192 said `dealBook` returns lines | FR-244 replaces FR-192: the engine returns data, `dealBookView` writes the lines; the news wording in the row | dealBookView (retagged); partnerMarket "FR-244 dealBook returns data" |
-| F4, F2': FR-182's wording and Tests line | FR-242 replaces FR-182 ("partners" or absent, read through `marketModeOf`); worlds.test.ts dropped | partnerMarket "FR-242" (retagged) |
-| F4: FR-236's list | FR-250: the Board of Trade and the Deal Book under FR-236 | dialogs.test.tsx rows tagged FR-250; e2e/m6-dialogs.spec.ts |
-| F5: store option, news lines, Deal Book turn line, Board note without FR | a store test for `market`; the news wording in FR-244; FR-248 names the turn line and the note | gameStore "FR-242 the store passes the market mode on"; boardOfTrade "FR-248 the note …" |
-| F6, F4': weaker assertions | FR-183 offers compared exactly; the 4-holds test renamed and a 3-holds row added; the $3,000 case | partnerMarket FR-183, FR-188; scriptedTrade "ordered at $3,000, none at $2,999" |
-| F7: the decisions not on the page | roadmap.json: cards Q39 to Q46 (engine decisions 1, 3, 4, 7; UI decisions 3, 4; the price rule; the FR-247 reading), M7 at 90%, the "now" line | none (data) |
-| C7, F6': unreachable `no-hold`, copies, three partnerTrade.ts | `no-hold` kept for M8 (said on `take`); `MISSED_TEXT` moved to gameText (news and Deal Book share it); one `levelOfPoints` in relations.ts for both phases; files renamed `definisions/partnersMarket.ts`, `engine/market/settlePartners.ts`, `engine/ai/scriptedPartners.ts` | dealBookView "a missed offer for want of money reads as in the Deal Book" |
-| C8: "+" never disabled | FR-248: `boardView` asks `validateOrder` for one more unit; a refused "+" is disabled with the title "No free hold this turn", "Already 4 bids this turn, the most", "None left in the warehouse" or "Not enough money"; the v1 World market unchanged | boardOfTrade 3 rows; e2e/m7-trade.spec.ts (the fit test checks the disabled "+") |
-| F5': a colony still bought goods | FR-249: `minorDemand` is empty for a colony | partnerMarket "FR-249" |
+| R1 (FR-157) | FR-260 replaces FR-157: the start army's turn-40 scores 1419, 1451, 1441, 1469 and the bare-continent equality (1493, 1496, 1490, 1476) are asserted, not logged | `engine/continentScore.test.ts` FR-260 rows |
+| R2, F3, E1 (FR-213, FR-247) | `upkeepReserve` (`ai/scriptedPlayer.ts`): two turns of upkeep, and in the last 8 turns the upkeep of every turn left (`SCRIPTED_GARRISON.endgameTurns`); v2Trade40 counts no-pay disbands and the capital's arms, pinned 0 and 4; seed 2's treasuries 0/2,176 become 150/2,376 | `engine/v2Trade40.test.ts` (baseline + garrison row), `engine/scriptedArmy.test.ts` FR-213 (a) rows |
+| R3 (FR-213) | (a), (b), (c) written into FR-213's SHALL text; one test row each | (b): new steel row; (c): the world-market row renamed; each seen red with its rule off |
+| R4, E4 (FR-200, FR-201) | the capital rule in FR-200; at End Turn a nation without its capital province gets its recruits' cost back (`withRecruiting`, shared with `setRecruitment`) and `recruits-refunded` | `engine/armies.test.ts`, `engine/validate.test.ts`, `ui/gameText.test.ts` |
+| R5 (FR-256) | FR-262: `dealBook().recruits`; the Treasury table shows "1 Regulars recruited -$500", not "Other" | `ui/dealBookView.test.ts`, `ui/dealBook.test.tsx` |
+| R6 (FR-170) | the grant row split: $1,000 to $5,000 exact with the upkeep; $10,000 asserts the forecast, the no-pay event (3) and no upkeep event | `engine/diplomacy.test.ts` |
+| R7, F5 (FR-205) | new reason `attack-not-available` ("attacks are not possible yet") for a march into a country at war | `engine/validate.test.ts`, `ui/gameText.test.ts` |
+| R8 (FR-204) | `movedOnTurn` in FR-204's shape; the shape test runs after a march too | `engine/armies.test.ts` |
+| R9 (FR-204) | the helper test became an engine test of an army in another country's province: strength, upkeep, its own army, healing | `engine/armies.test.ts` |
+| R10 | "(14)" corrected to "(13)" in the engine half's plan-lite | none (text) |
+| F1 (FR-211) | no row to tick: "Militia defend their province: they cannot march or be disbanded." or "Every regiment here already has an order this turn." | `ui/armyDialog.test.tsx` (2 rows) |
+| F2 (FR-202) | FR-261: `upkeepForecast` (disbands ordered, standing locked grants); "Army upkeep at End Turn: $100" in the Army screen and the Armoury; the short warning there and in the HUD | `engine/upkeep.test.ts` (5), `ui/armyDialog.test.tsx`, `ui/armouryDialog.test.tsx`, `ui/warehouseAndHud.test.tsx` |
+| F4 (FR-207, FR-211) | new order `cancelDisband`; "Cancel disband" on a disband-ordered row | `engine/armies.test.ts`, `engine/validate.test.ts` (7 rows), `ui/armyDialog.test.tsx` |
+| F6 | `counterparty = (id` spacing restored in `market/dealBook.ts` | none (format) |
+| E2 (FR-204) | `strength` sums FPN x health and divides by 100 once | `engine/armies.test.ts` (12 at 10 + 12 at 20 = 12 at 30 = 3.6) |
+| E3 (FR-213) | `SCRIPTED_GARRISON.capitalArms` asserted by the FR-213 ten-turn war, FR-247 and FR-260 tests | as named |
 
 Decisions (defaults, nobody to ask):
-1. FR-243: the Great Powers' deals only, no pull back toward the start price (F1 option 1; card Q39 offers a 10% pull). Deals,
-   not orders: a bid nobody fills moves nothing, so a refunded bid cannot push a price for free. Objection: above.
-2. FR-247: both nations together deal with at least 2 minors (card Q40). Objection: FR-196's grammar reads per nation; per
-   nation the computer would pay $500 for a consulate it does not use (nation 2 is Arvelia's favourite and fills its holds there).
-3. FR-245 (a) counts only the minors that favour it as covering its wants (a minor serves its favourite first); (b) raw bids are
-   gated by value (a raw pair under $1,000, 4 cotton under a clothing), none in the last 2 turns. Against the same player
-   without raw bids (both nations summed, turn 40): +82, +94, +25, -20 points on seeds 1 to 4. Objection: the gates are
-   heuristics, and seed 4 loses 20 points.
-4. FR-246 runs the diplomacy phase itself instead of reading only war and trade-policy intents (the finding's fix): exact for
-   failures, peace and favourites. Objection: a query runs a turn system (cached per state object; no import cycle today).
-5. The event is `bid-unfilled` (the finding said `offer-unfilled`): "offer" means a sale in this code.
-6. FR-248 pre-validates every "+", not only the bid limit and the holds: the M6 pattern (FR-178) across the board.
+1. E1, the reserve rule, by measurement (`scripts/probes/m8/`, rules "upkeepTurns:endgameTurns"; seeds 1 to 10, partners =
+   FR-247's game, 20 nation-games): 2:1 (before) lost the field army in 6 of 20; a flat 4 turns in 1 of 8 (seeds 1 to 4); a flat 5
+   in 1 of 20; 6 and 8 in none but about 100 points lower at turn 40 (1221 to 1359 against 1311 to 1391); 4:10 in none but moves
+   FR-260's world games; 2:8 in none and leaves FR-260's world games as they were (1419, 1451, 1441, 1469). Taken: 2:8.
+   Objection: the reserve steps from $200 to $800 at turn 33, so a nation that spends down on turn 32 and then sells nothing for 8
+   turns still loses regiments; not seen on seeds 1 to 10.
+2. F2: warn, do not refuse. No order is refused for leaving less than the upkeep (it would refuse grants, bids and development by
+   an army rule; Imp1 goes into debt instead, Q36). Card for the page: "Refuse orders that leave less than the army upkeep?",
+   suggestion: no, keep the warning. The forecast ignores this turn's sales (they only add) and a war declared this turn that
+   ends a grant (it warns a little early, never late).
+3. R4: refund rather than lose the recruits. M9 ends a nation whose capital is taken (Q34), so the refund matters only for the
+   step between; it keeps "nothing vanishes without a news line".
+4. F4: a new order `cancelDisband`, not a wider `cancelArmyMove`: the order names say what they cancel.
+5. FR-261's header line is the whole army's upkeep, not the province's, so it reads the same in every province.
 
-Carried:
-- F6': the relation-changed emitter is not shared between `diplomacySystem` and `settlePartners` (the diplomacy one adds war causes).
-- FR-246: a peace or an alliance a human Great Power still has to answer is not forecast.
-- e2e: the fit at 1280x720 with a refusal line over the board cannot be reached from the board any more; checked with every hold taken.
-- FR-247: nation 2 ends with $38 on seeds 3 and 4 ("above 0" holds narrowly); it spends its cash on development, as in v1.
+Plan-lite: change as in the table; consumers the scripted player, the Army screen, the Armoury, the HUD, the Deal Book, M9 (the
+attack replaces `attack-not-available`); verify the gate and the e2e suite; Objection: decision 1's step.
 
 | Claim | Command | Result (quoted) |
 |---|---|---|
-| Red: the new tests on the commit before the fix (f4d6d62) | the 7 changed test files copied into `git archive f4d6d62` (one import path shimmed), `npx vitest run …` | `Test Files 6 failed \| 1 passed (7)`, `Tests 28 failed \| 125 passed (153)` (e.g. `expected { seed: 1, atBound: [ …(7) ] } to deeply equal { seed: 1, atBound: [] }`, `expected 928 to be 892`, `expected [] to deeply equal [ { type: 'bid-unfilled', …(3) } ]`, `expected undefined to be 'at-war'`, `expected '' to be 'Already 4 bids this turn, the most'`, `expected { clothing: 2, furniture: 2, …(1) } to deeply equal {}`) |
-| Price path before and after (seed 1, both scripted) | `npx vitest run --config scripts/probes/m7/vitest.config.ts` | before: clothing 928 (t1), 1,493 (t20), 2,250 (t40); timber 97, 57, 50. After: clothing 901, 729, 648; timber 102, 153, 144 (v1 world on two-islands: clothing 642 at t40) |
-| Unit tests | `npm test` | `Test Files 81 passed (81)`, `Tests 1419 passed (1419)` (+30 on 1389) |
-| v1 baselines unchanged | `npm test` console | `FR-125 seed 1: t15 616/390 (1.58) ... t40 1493/650 (2.30)`, `FR-157 nation 2 score at turn 40: [[1,1493],[2,1496],[3,1490],[4,1476]]` |
-| FR-247 v2 baseline | `npm test` console | seed 1 `"minorDeals":[59,53],"minorPurchases":[31,23],"minorsDealt":[4,1],"treasury":[924,88]`; the four seeds as in FR-247's status |
+| Red: E1 (the old rule, `endgameTurns: 1`) | `npx vitest run tests/engine/v2Trade40.test.ts` (`.gate/m8fix/red-e1.txt`) | `Tests 2 failed \| 7 passed (9)`; `"noPay":[3,0],"capitalArms":[0,4]` (seed 2), `"noPay":[0,3]` (seed 4) |
+| Red: FR-213 (a), (b), (c), each rule off | `npx vitest run tests/engine/scriptedArmy.test.ts` (`red-213a/b/c.txt`) | (a) `expected 600 to be greater than or equal to 800`; (b) `expected 0 to be greater than or equal to 4`; (c) `expected [ { kind: 'sellCommodity', …(3) } ] to deeply equal []` |
+| Red: E2 (the float sum) | `npx vitest run tests/engine/armies.test.ts -t E2` | `expected 3.5999999999999996 to be 3.6` |
+| Red: the 14 changed test files on the source of 9ee1e44 | `npx vitest run` on them (`.gate/m8fix/red-all.txt`) | `Test Files 13 failed \| 1 passed (14)`, `Tests 30 failed \| 482 passed (512)` (the one file passing is continentScore: R1 pins numbers that did not move) |
+| Unit tests | `npm test` (`.gate/m8fix/gate-test.txt`) | `Test Files 90 passed (90)`, `Tests 1688 passed (1688)` (+41 on 1647) |
+| v1 baselines unchanged (FR-159) | `npm test` console; `git diff --stat d16afa7 --` the FR-159 files | `FR-125 seed 1: t15 616/390 (1.58) ... t40 1493/650 (2.30)` as on main; the diff is empty |
+| FR-260, FR-247 | `npm test` console | `[[1,1419,1493,1493],[2,1451,1496,1496],[3,1441,1490,1490],[4,1469,1476,1476]]`; seed 2 `"treasury":[150,2376],"noPay":[0,0],"capitalArms":[4,4]` |
 | Lint | `npm run lint` | `✖ 3 problems (0 errors, 3 warnings)` (the three of M6) |
 | Types | `npx tsc --noEmit` | exit 0, no output |
-| Build | `npm run build` | `✓ Compiled successfully in 3.4s`, `✓ Generating static pages (4/4)` |
-| All e2e | `PORT=3160 npx playwright test --workers=1 --reporter=line` | `32 passed (1.4m)`, `1 skipped` (the old skip) |
+| Build | `npm run build` | `✓ Compiled successfully in 6.0s`, `✓ Generating static pages (4/4)` |
+| e2e suite | `PORT=3160 npx playwright test --workers=1 --reporter=line` (`.gate/m8fix/e2e.txt`) | `33 passed (4.2m)`, `1 skipped` (the old skip) |
 
-In the app: New game, Open Market: after 4 bids every "+" is greyed and its tooltip says "No free hold this turn". Diplomacy →
-declare war on Arvelia: the Board marks Arvelia "(at war)" at once. Bid 2 coal without a consulate and End Turn: the Deal Book
-reads "Nobody sold us 2 Coal (bid money back)".
+Carried: none of the findings. Decision 1's step and decision 2's card wait for Nathan.
 
-### QA fix round (FR-251 to FR-258)
+In the app: New game; Open the Army screen from the capital marker: "Army upkeep at End Turn: $100" beside "Force Size: 4"; the
+North-West marker's screen says "Militia defend their province: they cannot march or be disbanded."; disband a regiment and
+"Cancel disband" brings it back. Spend the treasury below $100 (bids, grants): the HUD, the Army screen and the Armoury show
+"Cash is short of the army upkeep: ...".
 
-Size: M. One fix agent (Opus 5.5, xhigh, no subagents, no advisor call), M7 workflow; not pushed. QA shots `docs/journal/m7-qa-board.png`,
-`m7-qa-deal-book.png`, `m7-qa-deal-book-unfilled.png`; after the fix `m7-qa-fix-board.png`, `m7-qa-fix-deal-book.png` (`.gate/qa-shots.mjs`).
-Plan-lite: `partnerRefusal` (`engine/market/partners.ts`) in `validateTradeOrder` before the limits; `cause` on `offer-unsold` and
-`bid-unfilled`; `dealBook` gives `notTraded`, `diplomacy` and the change from `TurnReport.treasuries`; one `money`. Objection: decision 1.
+## 2026-11-13 M8 Armies, QA fix round (7 items; FR-263 to FR-269)
 
-| QA item | What changed | Test |
+Size: M (map, two dialogs, HUD). One fix agent (Opus 5.5, xhigh, no subagents, no advisor call), started by the M8 workflow, on Nathan's QA
+of `m8-armoury.png`, `m8-army.png`, `m8-map.png` (as of 744d755; re-taken in the next entry); not pushed. Plan-lite: as in the table; consumers the player and M9 (`marchArrows`);
+verify the gate. Objection: three Armoury cards a row, so below 1280x720 its card area scrolls sooner (at 1280x720 it fits, checked).
+
+| Item | What changed | Test |
 |---|---|---|
-| 1 "Available", counts | FR-251: "In warehouse"; "Arvelia: 2 units"; the favourites once, in the note | boardOfTrade (7 rows), e2e m7-trade |
-| 2 bids nobody may fill | FR-252: `no-seller`, `sellers-barred` when ordered; "+" disabled with the reason beside it; "Arvelia favours Valdoria" | partnerOrders (7), boardOfTrade (3), e2e |
-| 3 offers nobody buys | FR-253: `no-buyer`, `buyers-barred`; "Only Valdoria may buy this"; the note says what minors buy | partnerOrders (6), boardOfTrade (4) |
-| 4 empty cell | FR-254: "No minor trades this" | boardOfTrade (1), e2e |
-| 5 Not traded | FR-255: a third list with each cause ("no buyer", "no consulate with Lorran", "Valdoria was served first") | partnerOrders (5), partnerMarket (4, and 8 rows check a cause), dealBookView (4), dealBook (2) |
-| 6 Net vs treasury | FR-256: "Trade net"; a Treasury table: diplomacy costs, Other, "Treasury change", "From $10,000 to $9,300" | partnerOrders (3), dealBookView (2), dealBook (2 and the FR-197 row), gameStore (1), e2e |
-| 7 visible reasons | FR-257: every disabled "+" has its reason beside it as its description; no "−" at 0 | boardOfTrade (5; one checks all 34 of a new game), e2e |
-| 8 money | FR-258: HUD "Cash: $10,000"; `money` the one formatter (also the capital and the tile panel), "-$1,369" | money (3), dealBookView (1), e2e play-turns, market-and-game-over, m7-trade |
+| 1 FR-263 | `pendingArmyOrders`; a dashed arrow per pair of provinces with its count (`marchArrows`, own SVG overlay at z-index 4), named "Testland North-West: 1 regiment marching in from Testland South-West"; "−1" on a marker with a disband; ", 1 marching out / in, 1 to disband" in our markers' names | engine/armyReads, ui/armyMarkers (+5), e2e m8-armies |
+| 2 FR-264 | `beforeRecruiting`; "Armaments: 1 in warehouse, 1 reserved by this order" (", 1 reserved by other recruits" on the other cards); short only with none of the type ordered; "1 armament"; three cards a row in 1248 px, each cost on one line | engine/armyReads, ui/armouryDialog (+3, 4 rows changed), e2e m8-armies |
+| 3 FR-265 | the Arms legend under the table, the head's description and title; `scope="col"` on the heads | ui/armyDialog, e2e m8-armies |
+| 4 FR-266 | `upkeepIn`; "Upkeep here: $50 a turn" beside Force Size, "Army upkeep at End Turn: $100 for all provinces" under it | engine/armyReads, ui/armyDialog (+2, 1 changed), e2e |
+| 5 FR-267 | militia only: no "March to", March or Disband; the reason once | ui/armyDialog (F1 row replaced, +1) |
+| 6 FR-268 | `.hud-content` a flex column; the news list its own scroll region of whole 20 px lines in the height left above the fade, named by its heading, Tab | ui/newsPanel (2), e2e m8-qa |
+| 7 FR-269 | a $10,000 grant on turn 1, the HUD warning on screen, `docs/journal/m8-qa-upkeep-warning.png` | e2e m8-qa |
 
-Decisions (defaults, nobody to ask):
-1. FR-252 counts only minors as sellers, as the item says: a bid for what only the rival offers (FR-186's steel example) can no
-   longer be ordered; step 3 still settles what a minor sells. Objection: in a hotseat game the rival's offer would be lost.
-2. FR-253 "a Great Power buys": one that bids already or may bid (FR-252 for it); the scripted rival orders at End Turn.
-3. The market's reason comes before the nation's limits: with every hold taken, wool still says "No minor nation sells this".
-4. Item 6, option 2: development, building, training and gold move the treasury too, so "Net" cannot equal its change.
-5. Item 5: the missed offers also move to Not traded (no unit changed hands), with their cause; the news lines are unchanged.
-6. Item 7: at 0 there is no "−" (its place stays), instead of 34 more lines "nothing to take back".
-7. To keep the 17 rows of a new game at 1280x720 (FR-194): the reasons in 10 px, two lines at most, muted grey (34 red lines
-   would shout); the favourites moved from every chip to the note. Objection: 10 px is small.
-8. 18 settlement tests in partnerMarket.test.ts place orders past the check (`placed`, as after a withdrawn consulate), the
-   assertions kept and 8 now also check the cause; the FR-100 log test runs on market "world"; e2e orders the consulate first.
+Decisions (defaults, nobody to ask): (1) item 2's two sentences clash on the QA case (the recruit worked, the next cannot be paid): "short"
+only while none of the type is ordered; the "+" note says what stops the next (Objection: with one ordered, only the note shows it). (2) No
+amount was ever cut (`nowrap`); "$1,000 on one line" read as each cost on one line, which needs three cards a row (Light Artillery about 280
+px); the note moved beside the title so 3 rows fit 720 px. (3) "Arms" kept with the legend; other nations' intents never drawn; news: the
+scroll option in whole lines (`round(down, 100cqh, 20px)`); the fade kept `flex: none` (it collapsed to 0 px). (4) Changed tests assert the replacing rows.
 
 | Claim | Command | Result (quoted) |
 |---|---|---|
-| Red: the 8 new or changed test files on fede4d5 | `git archive HEAD` + the files, `npx vitest run …` (`.gate/qa-red.txt`) | `Test Files 7 failed \| 1 passed (8)`, `Tests 62 failed \| 114 passed (176)` (e.g. `expected { ok: true } to deeply equal { ok: false, reason: 'no-seller' }`, `expected [ { type: 'bid-unfilled', …(3) } ] to deeply equal [ { type: 'bid-unfilled', …(4) } ]`, `expected { label: 'Net', … } to deeply equal { label: 'Trade net', … }`); the 1 passing file is the FR-100 setup change |
-| Unit tests | `npm test` | `Test Files 83 passed (83)`, `Tests 1454 passed (1454)` (+35 on 1419) |
-| Baselines unchanged | `npm test` console | `FR-125 seed 1: t15 616/390 (1.58) ... t40 1493/650 (2.30)`, `FR-157 ... [[1,1493],[2,1496],[3,1490],[4,1476]]`, FR-247 seed 1 `"minorDeals":[59,53],"minorPurchases":[31,23]` as pinned |
-| Lint | `npm run lint` | `✖ 3 problems (0 errors, 3 warnings)` (the three of M6) |
-| Types | `npx tsc --noEmit` | exit 0, no output |
-| Build | `npm run build` | `✓ Compiled successfully in 3.2s`, `✓ Generating static pages (4/4)` |
-| All e2e | `PORT=3160 npx playwright test --workers=1 --reporter=line` | `32 passed (1.5m)`, `1 skipped` (the old skip) |
-| Screenshots | `node .gate/qa-shots.mjs` (dev server on 3160) | `board {"dialog":[15,705],"paneOverflow":0}` (all 17 rows, holds full); Deal Book `Nobody sold us 1 Coal (the sellers had no more; bid money back)`, `Treasury change -$800`, `From $10,000 to $9,200`; `HUD Cash: $9,200`; `errors []` |
+| Red: unit, before the change | `npx vitest run` on the 5 files (`.gate/m8qa/red.txt`) | `Test Files 5 failed (5)`, `Tests 22 failed \| 48 passed (70)`; `(0 , pendingArmyOrders) is not a function`, `Unable to find an element by: [data-testid="army-upkeep-here"]`, `expected [ '4 untrained workers', …(2) ] to deeply equal [ 'Untrained workers: 4 free', …(2) ]`; FR-268's own-lines-first row passed (FR-107 held) |
+| Red: e2e on the source of 744d755 | `PORT=3160 npx playwright test e2e/m8-armies.spec.ts e2e/m8-qa.spec.ts` (`.gate/m8qa/e2e-red.txt`) | `2 failed`, `1 passed` (FR-214's at hand; FR-268 finds no news list; FR-269's warning held before) |
+| Unit tests | `npm test` (`.gate/m8qa/gate-test.txt`) | `Test Files 92 passed (92)`, `Tests 1708 passed (1708)` (+20 on 1688) |
+| Baselines unchanged | `npm test` console | `FR-125 seed 1: t15 616/390 (1.58) ... t40 1493/650 (2.30)`; FR-260 `[[1,1419],[2,1451],[3,1441],[4,1469]]`; FR-247 seed 2 `"treasury":[150,2376],"noPay":[0,0],"capitalArms":[4,4]` |
+| Lint, types | `npm run lint`; `npx tsc --noEmit` | `✖ 3 problems (0 errors, 3 warnings)` (the three of M6); tsc exit 0, no output |
+| Build | `npm run build` (`.gate/m8qa/gate-build.txt`) | `✓ Compiled successfully in 8.5s`, `✓ Generating static pages (4/4)` |
+| e2e suite | `PORT=3160 npx playwright test --workers=1 --reporter=line` (`.gate/m8qa/gate-e2e.txt`) | `35 passed (5.1m)`, `1 skipped` (the old skip; +2 on 33, e2e/m8-qa.spec.ts) |
 
-Carried: the news lines carry no cause; "Other" lumps building, prospecting, development, training and gold; FR-246's carry
-holds for FR-252. In the app: New game, Open Market: each grey "+" says why; consulate with Arvelia, bid 4 coal, End Turn: the
-Deal Book's Not traded "Nobody sold us 1 Coal (the sellers had no more; bid money back)", Treasury "Consulate in Arvelia -$500".
+In the app: Armoury "1 reserved by this order"; March draws a dashed arrow with "1"; Disband "−1". Shots: `docs/journal/m8-qa-armoury.png`, `m8-qa-army.png`, `m8-qa-upkeep-warning.png`.
 
-### Review of the QA fix round (FR-259)
+## 2026-11-13 M8 Armies, review of the QA fix round (3 findings; FR-270, FR-271)
 
-Size: S. One fix agent (Opus 5.5, xhigh, no subagents, no advisor call), M7 workflow; not pushed. The review (one reviewer) confirmed
-items 1 to 8 and gave 3 minor findings.
+Size: S (one view function, one e2e spec, the shots). One fix agent (Opus 5.5, xhigh, no subagents, no advisor call), started by the M8
+workflow; not pushed. All three findings (minor) fixed; none carried. Plan-lite: `marchArrows` keeps an arrow with an opposite one 10 px
+to its own right (`OPPOSED_OFFSET`); e2e/m8-armies.spec.ts measures the arrows against the drawn markers (`expectArrowOnMarkers`) and
+orders marches both ways and a disband on turn 4; consumers the player and M9's attack arrows; verify the gate. Objection: the spec copies
+15 px and 10 px from armyView.ts, so a deliberate change of either changes the spec too. The engine and UI halves moved to archive-M8.md.
 
 | Finding | What changed | Test |
 |---|---|---|
-| F1 "the sellers had no more" while Sundmark and Pellis (no consulate) still had 1 coal each | FR-259: on "served-first" and "used-up" the cause also carries `barred`, the barred counterparties that still had units nobody took; the Deal Book names them first | partnerMarket (2 rows now check `barred`), partnerOrders (2 changed, 2 new), dealBookView (1) |
-| F2 the FR-258 guard missed TileInfoPanel's three hand-made "$" before 4d62a0b | the guard reads each file's syntax tree (`tests/ui/dollarScan.ts`, the `typescript` package): "$" before a template's or JSX's interpolation, "$" + …, toLocaleString, NumberFormat | money (1 new: 10 lines it must find, the 3 TileInfoPanel lines verbatim; 6 it must not) |
-| F3 the World market keeps a greyed "−" at 0 with no reason | none: FR-257 scopes QA item 7 to the Board and FR-074 (with its test) pins the v1 stepper; card Q47 asks | none |
-
-Decisions (defaults, nobody to ask):
-1. F1: a barred counterparty is named only while it still had units nobody took; one whose units all went to a rival is not (a
-   consulate there would not have served us).
-2. F1: the barred part first, then "the other sellers had no more", instead of the review's "Arvelia had no more; no consulate with
-   …": the cause needs no list of the open sellers, and with nothing barred the line stays "the sellers had no more".
-3. F2: a syntax-tree scan, not a longer regex: a regex cannot tell JSX's "Cost: ${cost}" from a template's "${…}".
-4. F3: not changed here: it changes a v1 requirement (FR-074) and its test, so Q47 asks first (one line in MarketModal.tsx).
-
-Carried: the Board lets a bid exceed the units open to the nation (FR-252 passes while one seller is open: 4 coal with only
-Arvelia's 3); the reason shows only in the Deal Book after End Turn. A line "3 units open to us" would take row height that the
-FR-194 fit at 1280x720 does not have. F3: card Q47.
+| F1 FR-270 | marches both ways between two provinces: each arrow 10 px to its own right, so the count badges (r 8) lie 20 px apart; a lone arrow stays on the line between the markers | ui/armyMarkers (+1), e2e m8-armies (turn 4) |
+| F2 FR-271 | the e2e reads each marker's box in the browser and the arrow's line and tip in map pixels (`getScreenCTM`): 15 px along, 0 or 10 px to the right, within 1.5 px, for 3 arrows; the `MARKER_CENTRE` comment names the check | e2e m8-armies |
+| F3 FR-271 | the spec saves and attaches m8-qa-map.png on turn 4: arrows "2" and "1" side by side, "−1", turn 3's news in whole lines; m8-armoury.png, m8-army.png, m8-map.png re-taken from this code (Nathan's QA input stays at 744d755) | e2e m8-armies |
 
 | Claim | Command | Result (quoted) |
 |---|---|---|
-| Red F1 | `npx vitest run tests/engine/partnerMarket.test.ts tests/engine/partnerOrders.test.ts tests/ui/dealBookView.test.ts` | `Test Files 3 failed (3)`, `Tests 7 failed \| 94 passed (101)` (e.g. `expected 'the sellers had no more' to be 'no consulate with Sundmark and Pellis…'`) |
-| Red F2 | `npx vitest run tests/ui/money.test.tsx`, the scan stubbed with the old regex | `Tests 1 failed \| 3 passed (4)`: the line ``const title = `Cost: $${PROSPECT_COST}`;`` gave `found: false` |
-| F2 on the source before 4d62a0b | `.gate/f2-probe` on `git show 4d62a0b~1:src/app/components/TileInfoPanel.tsx` | `old regex: false AST scan: ["81: template \"$${…}\"","101: …","105: …"]` |
-| Unit tests | `npm test` | `Test Files 83 passed (83)`, `Tests 1458 passed (1458)` (+4 on 1454) |
-| Baselines unchanged | `npm test` console | `FR-125 seed 1: … t40 1493/650 (2.30)`, `FR-157 … [[1,1493],[2,1496],[3,1490],[4,1476]]`, FR-247 seed 1 `"minorDeals":[59,53]` |
-| Lint | `npm run lint` | `✖ 3 problems (0 errors, 3 warnings)` (the three of M6) |
-| Types | `npx tsc --noEmit` | exit 0, no output |
-| Build | `npm run build` | `✓ Compiled successfully in 5.2s`, `✓ Generating static pages (4/4)` |
-| All e2e | `PORT=3160 npx playwright test --workers=1 --reporter=line` | `32 passed (1.8m)`, `1 skipped` (the old skip) |
-| Screenshot retaken | `node .gate/qa-shots-f1.mjs` (the QA round's script; the board shot kept) | `m7-qa-fix-deal-book.png`: `Nobody sold us 1 Coal (no consulate with Sundmark and Pellis; the other sellers had no more; bid money back)`, `errors []` |
+| Red: F1, unit | `npx vitest run tests/ui/armyMarkers.test.tsx` (`.gate/m8qa2/red-unit.txt`) | `Tests 1 failed \| 14 passed (15)`; `expected -0.019156525704419086 to be greater than or equal to 8` |
+| Red: F1, e2e on the old armyView.ts | `PORT=3160 npx playwright test e2e/m8-armies.spec.ts --workers=1` (`e2e-red-f1.txt`) | `1 failed`; `count badges [{"x":128.75,"y":285.25,"width":17.5,"height":17.5},{"x":128.75,"y":285.25,...}] share no pixel` |
+| F2 catches drift: `.armies` top 9 to 14 px | same (`e2e-red-css.txt`), the CSS restored after | `1 failed`; `the line starts 20.5 px on from the source marker's centre` |
+| FR-270, FR-271 | same, with SCREENSHOT_DIR (`e2e-target.txt`) | `1 passed (43.6s)` |
+| Unit tests | `npm test` (`.gate/m8qa2/gate-test.txt`) | `Test Files 92 passed (92)`, `Tests 1709 passed (1709)` (+1 on 1708) |
+| Baselines unchanged | `npm test` console | `FR-125 seed 1: t15 616/390 (1.58)`; FR-260 `[[1,1419],[2,1451],[3,1441],[4,1469]]`; FR-247 seed 2 `"treasury":[150,2376],"noPay":[0,0],"capitalArms":[4,4]` |
+| Lint, types | `npm run lint`; `npx tsc --noEmit` | `✖ 3 problems (0 errors, 3 warnings)` (the three of M6); tsc exit 0, no output |
+| Build | `npm run build` (`gate-build.txt`) | `✓ Compiled successfully in 15.4s`, `✓ Generating static pages (4/4)` |
+| e2e suite | `PORT=3160 npx playwright test --workers=1 --reporter=line` (`gate-e2e.txt`) | `35 passed (7.1m)`, `1 skipped` (the old skip; the same 36 tests as the QA fix round) |
 
-In the app: New game, Diplomacy → Arvelia → Consulate, Open Market, bid 4 coal, End Turn, Deal Book: Not traded reads "Nobody sold
-us 1 Coal (no consulate with Sundmark and Pellis; the other sellers had no more; bid money back)".
+In the app: on turn 4 march 3rd Regulars from North-West to South-West and 1st, 2nd Regulars the other way: two dashed arrows side by
+side with "1" and "2". Shot: `docs/journal/m8-qa-map.png`.

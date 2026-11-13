@@ -7,7 +7,9 @@ import type { Worker } from "@/types/Workers";
 import { CONSTRUCTION_COST, DEVELOPMENT_COST } from "@/definisions/workPrices";
 import { SCORE_WEIGHTS } from "@/definisions/scoreWeights";
 import { EngineerBuildDurationsTurns, WorkerLevelDurationsTurns } from "@/definisions/workerDurations";
-import { findWorker, nationById, nextResourceLevel, workersOf, type WorkerLocation } from "../orders/queries";
+import { findWorker, nationById, nextResourceLevel, treasuryOf, workersOf, type WorkerLocation } from "../orders/queries";
+import { upkeepOf } from "../army/armies";
+import { SCRIPTED_GARRISON } from "@/definisions/regiments";
 import { validateOrder } from "../orders/validate";
 import { bestDepotSite, nextRailSections, tilesByReach, type DepotSite } from "./railPlan";
 import { planEconomy, turnsAfter } from "./economy";
@@ -33,7 +35,9 @@ export const scriptedPlayer: Player = (state, nationId) => {
   let view = state;
   const propose = (order: Order): boolean => {
     if (!validateOrder(view, order).ok) return false;
-    view = applyOrder(view, order);
+    const next = applyOrder(view, order);
+    if (spendsTheUpkeep(view, next, nationId)) return false;
+    view = next;
     orders.push(order);
     return true;
   };
@@ -58,6 +62,27 @@ export const scriptedPlayer: Player = (state, nationId) => {
   // Last, and only at war: a peace offer when losing (FR-174). At peace nothing is added (FR-181).
   for (const order of scriptedDiplomacyOrders(view, nationId)) propose(order);
   return orders;
+};
+
+/**
+ * FR-213 (a): it keeps its garrison, so no order of its own takes the treasury below `upkeepReserve` (an order that
+ * would is dropped). A world without armies has no upkeep, so there nothing is dropped and its orders are as before M8.
+ */
+function spendsTheUpkeep(before: GameState, after: GameState, nationId: string): boolean {
+  const left = treasuryOf(after, nationId);
+  return left < treasuryOf(before, nationId) && left < upkeepReserve(after, nationId);
+}
+
+/**
+ * FR-213 (a): the cash the scripted player keeps for its army upkeep (FR-202): two turns of it, and in the last 8 turns
+ * the upkeep of every turn left (this one included), so the field army is paid to the end even when the sales stop.
+ * Review E1: with two turns only, 6 of the 20 partners-market nation-games of seeds 1 to 10 lost their field army in
+ * the last turns; with this rule none did, while a flat reserve of 6 or more turns cost about 100 points at turn 40.
+ */
+export const upkeepReserve = (state: GameState, nationId: string): number => {
+  const left = turnsAfter(state) + 1;
+  const { upkeepTurns, endgameTurns } = SCRIPTED_GARRISON;
+  return upkeepOf(state, nationId) * (left <= endgameTurns ? left : upkeepTurns);
 };
 
 /**

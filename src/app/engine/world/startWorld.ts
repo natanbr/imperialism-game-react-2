@@ -127,7 +127,6 @@ function startNation({ id, name, capitalId, colorSlot, controller }: NationFound
     debt: 0,
     creditLimit: 5000,
     cities: [capitalId],
-    armies: [],
     fleets: [],
     merchantMarine: { holds: 4, avgSpeed: 10 },
     transportCapacity: START_FREIGHT_CARS,

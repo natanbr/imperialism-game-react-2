@@ -444,6 +444,86 @@ svg[data-icon] {
   margin-bottom: 6px;
 }
 
+/* The news (FR-268). The HUD's information is a column and the news panel takes the height left in it, so the
+   fade (.hud-content::after, FR-235) lies below the news, not over a line of it. The lines scroll on their own in a
+   box of whole lines: `.news-scroll` is the space left (a size container, at least 3 lines), and the list is that
+   space rounded down to whole lines. Every other part keeps its own height. */
+.hud-content {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Trap: the fade below is a flex item too; it must not shrink, or it collapses to 0 px exactly when the content
+   overflows and the fade is needed (e2e/m5-hud-scroll.spec.ts (2)) */
+.hud-content > *,
+.hud-content::after {
+  flex: none;
+}
+
+.hud-content > .news-panel {
+  --news-line: 20px;
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.news-heading {
+  flex: none;
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.news-scroll {
+  flex: 1 1 0;
+  min-height: calc(3 * var(--news-line));
+  container-type: size;
+}
+
+.news-list {
+  margin: 0;
+  padding: 0 0 0 16px;
+  line-height: var(--news-line);
+  /* Without container queries or round(): five lines, then the box of whole lines that fits */
+  max-height: calc(5 * var(--news-line));
+  max-height: 100cqh;
+  max-height: round(down, 100cqh, var(--news-line));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.news-list li {
+  margin: 0;
+  padding: 0;
+}
+
+.news-list:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+/* The same thin scrollbar in the palette as the HUD's (FR-235) */
+.news-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.news-list::-webkit-scrollbar-track {
+  background: var(--color-surface-sunken);
+  border-radius: var(--radius-sm);
+}
+
+.news-list::-webkit-scrollbar-thumb {
+  background: var(--color-ink-muted);
+  border-radius: var(--radius-sm);
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  .news-list {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-ink-muted) var(--color-surface-sunken);
+  }
+}
+
 .action-buttons-container {
   flex: none;
   margin-top: 8px;

@@ -13,6 +13,7 @@ import {
 } from "./industryOrders";
 import { validateTradeOrder } from "./tradeOrders";
 import { validateDiplomacyOrder } from "./diplomacyOrders";
+import { validateArmyOrder } from "./armyOrders";
 import { isGameOver } from "../turn/gameOver";
 import { areTilesAdjacent } from "../map/mapHelpers";
 import type {
@@ -99,6 +100,12 @@ export function validateOrder(state: GameState, order: Order): ValidationResult 
     case "withdrawOverture":
     case "answerProposal":
       return validateDiplomacyOrder(state, nation, order);
+    case "setRecruitment":
+    case "moveArmy":
+    case "cancelArmyMove":
+    case "disbandRegiments":
+    case "cancelDisband":
+      return validateArmyOrder(state, nation, order);
     default: {
       const unknown: never = order;
       void unknown;
