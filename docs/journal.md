@@ -21,8 +21,8 @@
 - 2026-11-13 M7 Nation-to-nation trade (FR-183 to FR-198, FR-242 to FR-259) merged (PR 25, main d16afa7; entries archived in
   `docs/journal/archive-M7.md`). Card Q47 (the World market's greyed "−") still open.
 - 2026-11-13 M8 Armies in progress on `claude/m8-armies` (worktree `imperialism-game-revival-fee36d`): the engine half
-  (FR-199 to FR-209, FR-213, FR-215), the UI half (FR-210 to FR-212, FR-214) and the review fix round (20 findings,
-  FR-260 to FR-262) are committed; not pushed. Next: the re-review of the fix delta, the app check, the PR.
+  (FR-199 to FR-209, FR-213, FR-215), the UI half (FR-210 to FR-212, FR-214), the review fix round (20 findings,
+  FR-260 to FR-262) and the QA fix round (7 items, FR-263 to FR-269) are committed; not pushed. Next: the re-review, the PR.
 
 Carried forward:
 - Deferred: river ports and the depot-on-port rule (rules 04); University fees; the power plant.
@@ -363,3 +363,37 @@ In the app: New game; Open the Army screen from the capital marker: "Army upkeep
 North-West marker's screen says "Militia defend their province: they cannot march or be disbanded."; disband a regiment and
 "Cancel disband" brings it back. Spend the treasury below $100 (bids, grants): the HUD, the Army screen and the Armoury show
 "Cash is short of the army upkeep: ...".
+
+## 2026-11-13 M8 Armies, QA fix round (7 items; FR-263 to FR-269)
+
+Size: M (map, two dialogs, HUD). One fix agent (Opus 5.5, xhigh, no subagents, no advisor call), started by the M8 workflow, on Nathan's QA
+of `m8-armoury.png`, `m8-army.png`, `m8-map.png`; not pushed. Plan-lite: as in the table; consumers the player and M9 (`marchArrows`);
+verify the gate. Objection: three Armoury cards a row, so below 1280x720 its card area scrolls sooner (at 1280x720 it fits, checked).
+
+| Item | What changed | Test |
+|---|---|---|
+| 1 FR-263 | `pendingArmyOrders`; a dashed arrow per pair of provinces with its count (`marchArrows`, own SVG overlay at z-index 4), named "Testland North-West: 1 regiment marching in from Testland South-West"; "−1" on a marker with a disband; ", 1 marching out / in, 1 to disband" in our markers' names | engine/armyReads, ui/armyMarkers (+5), e2e m8-armies |
+| 2 FR-264 | `beforeRecruiting`; "Armaments: 1 in warehouse, 1 reserved by this order" (", 1 reserved by other recruits" on the other cards); short only with none of the type ordered; "1 armament"; three cards a row in 1248 px, each cost on one line | engine/armyReads, ui/armouryDialog (+3, 4 rows changed), e2e m8-armies |
+| 3 FR-265 | the Arms legend under the table, the head's description and title; `scope="col"` on the heads | ui/armyDialog, e2e m8-armies |
+| 4 FR-266 | `upkeepIn`; "Upkeep here: $50 a turn" beside Force Size, "Army upkeep at End Turn: $100 for all provinces" under it | engine/armyReads, ui/armyDialog (+2, 1 changed), e2e |
+| 5 FR-267 | militia only: no "March to", March or Disband; the reason once | ui/armyDialog (F1 row replaced, +1) |
+| 6 FR-268 | `.hud-content` a flex column; the news list its own scroll region of whole 20 px lines in the height left above the fade, named by its heading, Tab | ui/newsPanel (2), e2e m8-qa |
+| 7 FR-269 | a $10,000 grant on turn 1, the HUD warning on screen, `docs/journal/m8-qa-upkeep-warning.png` | e2e m8-qa |
+
+Decisions (defaults, nobody to ask): (1) item 2's two sentences clash on the QA case (the recruit worked, the next cannot be paid): "short"
+only while none of the type is ordered; the "+" note says what stops the next (Objection: with one ordered, only the note shows it). (2) No
+amount was ever cut (`nowrap`); "$1,000 on one line" read as each cost on one line, which needs three cards a row (Light Artillery about 280
+px); the note moved beside the title so 3 rows fit 720 px. (3) "Arms" kept with the legend; other nations' intents never drawn; news: the
+scroll option in whole lines (`round(down, 100cqh, 20px)`); the fade kept `flex: none` (it collapsed to 0 px). (4) Changed tests assert the replacing rows.
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| Red: unit, before the change | `npx vitest run` on the 5 files (`.gate/m8qa/red.txt`) | `Test Files 5 failed (5)`, `Tests 22 failed \| 48 passed (70)`; `(0 , pendingArmyOrders) is not a function`, `Unable to find an element by: [data-testid="army-upkeep-here"]`, `expected [ '4 untrained workers', …(2) ] to deeply equal [ 'Untrained workers: 4 free', …(2) ]`; FR-268's own-lines-first row passed (FR-107 held) |
+| Red: e2e on the source of 744d755 | `PORT=3160 npx playwright test e2e/m8-armies.spec.ts e2e/m8-qa.spec.ts` (`.gate/m8qa/e2e-red.txt`) | `2 failed`, `1 passed` (FR-214's at hand; FR-268 finds no news list; FR-269's warning held before) |
+| Unit tests | `npm test` (`.gate/m8qa/gate-test.txt`) | `Test Files 92 passed (92)`, `Tests 1708 passed (1708)` (+20 on 1688) |
+| Baselines unchanged | `npm test` console | `FR-125 seed 1: t15 616/390 (1.58) ... t40 1493/650 (2.30)`; FR-260 `[[1,1419],[2,1451],[3,1441],[4,1469]]`; FR-247 seed 2 `"treasury":[150,2376],"noPay":[0,0],"capitalArms":[4,4]` |
+| Lint, types | `npm run lint`; `npx tsc --noEmit` | `✖ 3 problems (0 errors, 3 warnings)` (the three of M6); tsc exit 0, no output |
+| Build | `npm run build` (`.gate/m8qa/gate-build.txt`) | `✓ Compiled successfully in 8.5s`, `✓ Generating static pages (4/4)` |
+| e2e suite | `PORT=3160 npx playwright test --workers=1 --reporter=line` (`.gate/m8qa/gate-e2e.txt`) | `35 passed (5.1m)`, `1 skipped` (the old skip; +2 on 33, e2e/m8-qa.spec.ts) |
+
+In the app: Armoury "1 reserved by this order"; March draws a dashed arrow with "1"; Disband "−1". Shots: `docs/journal/m8-qa-armoury.png`, `m8-qa-army.png`, `m8-qa-upkeep-warning.png`.

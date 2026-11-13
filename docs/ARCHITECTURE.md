@@ -35,11 +35,13 @@ src/app/
                            world with provinces the FR-203 start forces (army/startForces.ts)
     army/armies.ts         M8 (FR-204): reads of state.armies (armiesOf, armyAt, findRegiment, forceSize,
                            strength, strengthIn, upkeepOf, capitalProvinceOf), the screens' helpers
-                           (armyMarkers, regimentStatus, marchTargets, recruitingOf, freeWorkersOf), and
+                           (armyMarkers, regimentStatus, marchTargets, recruitingOf, freeWorkersOf;
+                           pendingArmyOrders and beforeRecruiting, FR-263, FR-264), and
                            the edits orders and phases share (raiseRegiments, placeRegiments,
                            removeRegiments, mapRegiments, withRecruiting), which keep one army per country
                            per province
-    army/upkeepForecast.ts FR-261: the upkeep End Turn will charge and the cash it will find
+    army/upkeepForecast.ts FR-261: the upkeep End Turn will charge and the cash it will find; upkeepIn, one
+                           province's share (FR-266)
     army/startForces.ts    FR-203: field army, militia, capital forts, extra horses
     calendar.ts            seasons; the year advances after winter
     rng.ts                 seeded RNG: createTurnRng(seed, turn); RNG_STREAMS and createStreamRng
@@ -101,7 +103,8 @@ src/app/
                            refusal text, the refusal lines, the Accept Offer sentence; no React),
                            CountryList (the left pane's tabs), CountryDetails (the right pane),
                            Diplomacy.module.css (also used by AcceptOfferModal)
-    army/                  M8: armyView.ts (the map markers by seat tile, the Army screen's rows and its
+    army/                  M8: armyView.ts (the map markers by seat tile, the march arrows in map pixels,
+                           the Army screen's rows and its
                            March / Disband controls with their refusal text; no React), armouryView.ts
                            (the Armoury's cards, no React), Army.module.css (ArmyModal, ArmouryModal);
                            the markers themselves are Tile/TileArmy.tsx
@@ -222,6 +225,9 @@ only (FR-018).
   and `ArmouryModal.tsx` (store flag `isArmouryOpen`, opened from the capital dialog on a world with
   provinces) build `moveArmy`, `cancelArmyMove`, `disbandRegiments`, `cancelDisband` and `setRecruitment` and
   ask `validateOrder` first: a control it would refuse is disabled, its reason beside it and as its description.
+  This turn's own orders show on the map before End Turn (FR-263): `selectMarchArrows` (`marchArrows`) gives
+  MapView one dashed arrow per pair of provinces, drawn in its own SVG overlay at z-index 4 (above the tile
+  icons and civilians, below the markers), and a marker with regiments to disband carries "−1".
 
 The store (`store/rootStore.ts`) holds that state under `game`, and UI state beside it:
 
@@ -534,7 +540,9 @@ Cursors are still emoji SVG data URIs (`useTileVisuals`). The HUD shows "Turn: N
 nation ranked by score with its colour swatch and name (`HUD/ScoreTable.tsx`, `NationSwatch.tsx`), the
 food warning, the selected tile, the news of the last turn and the last refused order (`components/HUD/NewsPanel.tsx`;
 `newsLines` puts the player's lines first and names the other nations on theirs). Its information
-scrolls on its own (`.hud-content`); the action buttons stay below it. New game (HUD, asked in place, and
+scrolls on its own (`.hud-content`); the action buttons stay below it. `.hud-content` is a flex column: the
+news panel takes the height left, and its list scrolls on its own in whole lines (a size container and
+`round()` in globals.css, FR-268), so the fade at the bottom never covers a line of news. New game (HUD, asked in place, and
 the game-over screen) calls `hooks/mapActions.ts` `startNewGameOnCapital`: the store's `startNewGame`
 clears the session (selection, dialogs, logs) and the camera goes back to the capital. The
 camera is the scroll position of MapView's container (FR-083), so the browser keeps it inside the
