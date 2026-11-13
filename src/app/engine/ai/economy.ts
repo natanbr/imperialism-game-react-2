@@ -23,6 +23,8 @@ import { CONSTRUCTION_COST, DEVELOPMENT_COST } from "@/definisions/workPrices";
 import { buildingOf } from "../industry/industryState";
 import { healthyWorkers, labourTotal } from "../industry/labour";
 import { marketOf, priceOf, tradeCapacityOf, tradeOrdersOf } from "../market/market";
+import { marketModeOf } from "../market/partners";
+import { partnerDemand, partnerSupply, planConsulate } from "./partnerTrade";
 import { mealNeeds } from "../systems/foodSystem";
 import { productionSystem } from "../systems/productionSystem";
 import { computeLogisticsTransport, logisticsSystem } from "../systems/logisticsSystem";
@@ -358,8 +360,15 @@ function nextUseOf(state: GameState, nationId: string, next: Stock): Stock {
  * steel that pairs with stock, then for whole pairs, while lumber + steel cost less than PAIR_VALUE
  * and the bids leave CASH_RESERVE (not on the last turn); (3) offer the rest, best price first.
  * Offers stop at what this turn's run leaves and next turn's run keeps.
+ *
+ * In a "partners" market (FR-193) a consulate comes first (partnerTrade.ts), each bid stops at what the
+ * minors it may trade with offer, and each offer at what they want (goods only). In "world" nothing changes.
  */
 function planTrade(view: () => GameState, nationId: string, propose: Propose): void {
+  const partners = marketModeOf(view()) === "partners";
+  if (partners) planConsulate(view, nationId, CASH_RESERVE, propose);
+  const supply = partners ? partnerSupply(view(), nationId) : undefined;
+  const demand = partners ? partnerDemand(view(), nationId) : undefined;
   const start = view();
   const { leftNow, next } = projectTurn(start, nationId);
   const keep = nextUseOf(start, nationId, next);
@@ -375,7 +384,8 @@ function planTrade(view: () => GameState, nationId: string, propose: Propose): v
       const free = tradeCapacityOf(view(), nationId).free;
       if (free <= 0) return;
       const offered = tradeOrdersOf(view(), nationId).sell[commodity] ?? 0;
-      const sellable = Math.floor(Math.min(leftNow[commodity] ?? 0, (next[commodity] ?? 0) - (keep[commodity] ?? 0)));
+      const wanted = demand ? (demand[commodity] ?? 0) : Infinity;
+      const sellable = Math.floor(Math.min(leftNow[commodity] ?? 0, (next[commodity] ?? 0) - (keep[commodity] ?? 0), wanted));
       const more = Math.min(free, sellable - offered);
       for (let n = more; n > 0; n--) if (propose({ kind: "sellCommodity", nationId, commodity, amount: offered + n })) break;
     }
@@ -383,7 +393,8 @@ function planTrade(view: () => GameState, nationId: string, propose: Propose): v
   const bid = (commodity: TradeCommodity, units: number): number => {
     const current = tradeOrdersOf(view(), nationId).buy[commodity] ?? 0;
     const cash = nationOf(view(), nationId).treasury - CASH_RESERVE;
-    const most = Math.min(units, tradeCapacityOf(view(), nationId).free, Math.floor(cash / priceOf(market, commodity)));
+    const offered = supply ? (supply[commodity] ?? 0) - current : Infinity;
+    const most = Math.min(units, tradeCapacityOf(view(), nationId).free, Math.floor(cash / priceOf(market, commodity)), offered);
     for (let n = most; n > 0; n--) if (propose({ kind: "buyCommodity", nationId, commodity, amount: current + n })) return n;
     return 0;
   };
