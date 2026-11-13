@@ -1,11 +1,12 @@
 import type { GameState } from "@/types/GameState";
 import type { WorldId } from "@/types/World";
+import type { MarketMode } from "@/types/Market";
 import { TIME_CONFIG } from "@/constants/gameConstants";
 import { initializeRailroadNetworks } from "./systems/railroadSystem";
 import { startMarket } from "./market/market";
 import { startDiplomacy } from "./diplomacy/relations";
 import { START_TECHNOLOGIES } from "./world/startWorld";
-import { buildWorld, DEFAULT_WORLD } from "./world/worlds";
+import { buildWorld, DEFAULT_WORLD, WORLD_MARKET } from "./world/worlds";
 
 export interface NewGameOptions {
   seed: number;
@@ -13,6 +14,8 @@ export interface NewGameOptions {
   turnLimit?: number;
   /** A key of `WORLDS` (FR-144); "two-islands" when omitted, so every v1 call is unchanged. */
   world?: WorldId;
+  /** The market mode (FR-182); the world's own (`WORLD_MARKET`) when omitted. */
+  market?: MarketMode;
 }
 
 /** A whole number of turns from 1 to MAX_TURN_LIMIT; anything that is not a finite number is the default (FR-105). */
@@ -29,7 +32,7 @@ export function clampTurnLimit(turnLimit: number | undefined): number {
  * draws one, tests pass 1); the map is the same for every seed. `newGame(seed)` is `newGame({ seed })`.
  */
 export function newGame(options: number | NewGameOptions): GameState {
-  const { seed, turnLimit, world = DEFAULT_WORLD }: NewGameOptions = typeof options === "number" ? { seed: options } : options;
+  const { seed, turnLimit, world = DEFAULT_WORLD, market }: NewGameOptions = typeof options === "number" ? { seed: options } : options;
   const { map, nations, minorNations, provinces } = buildWorld(world);
   return {
     turn: TIME_CONFIG.STARTING_TURN,
@@ -50,7 +53,7 @@ export function newGame(options: number | NewGameOptions): GameState {
     transportNetwork: { shippingLanes: [], capacity: 0, railroadNetworks: initializeRailroadNetworks(map, nations) },
     transportAllocationsByNation: {},
     tradeRoutes: [],
-    market: startMarket(),
+    market: startMarket(market ?? WORLD_MARKET[world]),
     // The technology state is shared by all nations in v1, so the start list covers every nation.
     technologyState: { oilDrillingTechUnlocked: false, technologies: START_TECHNOLOGIES.map((t) => ({ ...t })) },
     difficulty: "normal",

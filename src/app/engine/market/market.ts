@@ -1,7 +1,7 @@
 // The world market (FR-060 to FR-065): the lookups the trade orders, the trade phase and the UI
 // share, and the price step. One market per game; every nation trades on it.
 import type { GameState } from "@/types/GameState";
-import type { TradeAmounts, TradeCommodity, TradeOrders, WorldMarket } from "@/types/Market";
+import type { MarketMode, TradeAmounts, TradeCommodity, TradeOrders, WorldMarket } from "@/types/Market";
 import {
   PRICE_CEILING,
   PRICE_DRIFT,
@@ -18,8 +18,16 @@ import { nationById } from "../orders/queries";
 export const isTradeCommodity = (key: unknown): key is TradeCommodity =>
   typeof key === "string" && Object.hasOwn(START_PRICES, key);
 
-/** The market of a new game: start prices, no orders, nothing on its way. A new object each call. */
-export const startMarket = (): WorldMarket => ({ prices: { ...START_PRICES }, orders: {}, deliveries: {} });
+/**
+ * The market of a new game: start prices, no orders, nothing on its way. A new object each call. A "world"
+ * market has no `mode` key, the v1 shape (FR-182).
+ */
+export const startMarket = (mode: MarketMode = "world"): WorldMarket => ({
+  ...(mode === "partners" ? { mode } : {}),
+  prices: { ...START_PRICES },
+  orders: {},
+  deliveries: {},
+});
 
 /** The game's market; a hand-built state without one trades on the start market. */
 export const marketOf = (state: GameState): WorldMarket => state.market ?? startMarket();

@@ -21,8 +21,17 @@ export type GameEvent =
   | { type: "workers-trained"; nationId: NationId; to: "trained" | "expert"; count: number }
   | { type: "workers-fed"; nationId: NationId; fed: number; sick: number; starved: number }
   | { type: "workers-recruited"; nationId: NationId; count: number }
-  | { type: "goods-sold"; nationId: NationId; commodity: TradeCommodity; amount: number; price: number; income: number }
-  | { type: "goods-bought"; nationId: NationId; commodity: TradeCommodity; amount: number; price: number; cost: number }
+  /** `price` is the deal price of one unit. `counterpartyId`: who bought them, in "partners" only (FR-192). */
+  | { type: "goods-sold"; nationId: NationId; commodity: TradeCommodity; amount: number; price: number; income: number; counterpartyId?: CountryId }
+  /** `price` is the deal price of one unit. `counterpartyId`: who sold them, in "partners" only (FR-192). */
+  | { type: "goods-bought"; nationId: NationId; commodity: TradeCommodity; amount: number; price: number; cost: number; counterpartyId?: CountryId }
+  /**
+   * FR-192: units `counterpartyId` offered that reached `nationId` for a bid it had, and that it could not take
+   * (no free hold, or not enough money); they passed on to the next in order.
+   */
+  | { type: "offer-missed"; nationId: NationId; counterpartyId: CountryId; commodity: TradeCommodity; amount: number; reason: OfferMissedReason }
+  /** FR-192: units of the nation's offer nobody bought; they are back in its warehouse. */
+  | { type: "offer-unsold"; nationId: NationId; commodity: TradeCommodity; amount: number }
   | { type: "turn-ended"; turn: number; year: number }
   /** The last turn has resolved (FR-068): the last turn played, its year and the final scores. */
   | { type: "game-over"; turn: number; year: number; scores: Score[] }
@@ -51,6 +60,9 @@ export interface WarCause {
   aggressorId: NationId;
   targetId: CountryId;
 }
+
+/** Why units offered to a nation for its bid passed on (FR-192). */
+export type OfferMissedReason = "no-hold" | "no-cash";
 
 /** Why a locked grant ended (FR-170). */
 export type GrantStopReason = "insufficient-funds" | "withdrawn" | "war";

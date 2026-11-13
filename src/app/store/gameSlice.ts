@@ -13,6 +13,7 @@ import {
 import type { NationId } from "@/types/Common";
 import type { GameState } from "@/types/GameState";
 import type { WorldId } from "@/types/World";
+import type { MarketMode } from "@/types/Market";
 import type { GameStore } from "./rootStore";
 
 /** How many resolved turns the event log keeps. */
@@ -67,7 +68,7 @@ export interface GameSlice {
    * Replaces the game with a new one and clears what belonged to the old one (FR-105, FR-109); on the
    * continent unless `world` names another (FR-144).
    */
-  startNewGame: (options?: { seed?: number; turnLimit?: number; world?: WorldId }) => void;
+  startNewGame: (options?: { seed?: number; turnLimit?: number; world?: WorldId; market?: MarketMode }) => void;
 }
 
 export interface GameSliceOptions {
@@ -77,6 +78,8 @@ export interface GameSliceOptions {
   seed?: number;
   /** The world of a new game; the continent when missing (FR-144). */
   world?: WorldId;
+  /** The market mode of a new game; the world's own when missing (FR-182: the continent's is "partners"). */
+  market?: MarketMode;
   activeNationId?: NationId;
 }
 
@@ -89,7 +92,7 @@ export const randomSeed = (random: () => number = Math.random): number => 1 + Ma
 export const createGameSlice =
   (options: GameSliceOptions = {}): StateCreator<GameStore, [], [], GameSlice> =>
   (set, get) => {
-    const game = options.game ?? newGame({ seed: options.seed ?? randomSeed(), world: options.world ?? APP_WORLD });
+    const game = options.game ?? newGame({ seed: options.seed ?? randomSeed(), world: options.world ?? APP_WORLD, market: options.market });
     return {
       game,
       activeNationId: options.activeNationId ?? game.nations[0]?.id ?? "nation-1",
@@ -134,8 +137,8 @@ export const createGameSlice =
       },
 
       // Nothing of the old game's session survives: selection, dialogs, news, logs (FR-105, FR-109).
-      startNewGame: ({ seed, turnLimit, world } = {}) => {
-        const next = newGame({ seed: seed ?? randomSeed(), turnLimit, world: world ?? APP_WORLD });
+      startNewGame: ({ seed, turnLimit, world, market } = {}) => {
+        const next = newGame({ seed: seed ?? randomSeed(), turnLimit, world: world ?? APP_WORLD, market });
         set({
           game: next,
           activeNationId: next.nations[0]?.id ?? "nation-1",

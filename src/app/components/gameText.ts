@@ -274,10 +274,15 @@ export function eventText(event: GameEvent, nameOf: (countryId: string) => strin
       return foodNews(event.sick, event.starved);
     case "workers-recruited":
       return `${event.count} migrant${event.count === 1 ? "" : "s"} joined the workforce.`;
+    // FR-192: in "partners" a deal names its counterparty
     case "goods-sold":
-      return `Sold ${event.amount} ${commodityName(event.commodity)} for ${money(event.income)}.`;
+      return `Sold ${event.amount} ${commodityName(event.commodity)}${event.counterpartyId ? ` to ${nameOf(event.counterpartyId)}` : ""} for ${money(event.income)}.`;
     case "goods-bought":
-      return `Bought ${event.amount} ${commodityName(event.commodity)} for ${money(event.cost)}.`;
+      return `Bought ${event.amount} ${commodityName(event.commodity)}${event.counterpartyId ? ` from ${nameOf(event.counterpartyId)}` : ""} for ${money(event.cost)}.`;
+    case "offer-missed":
+      return `${nameOf(event.counterpartyId)} offered to sell us ${event.amount} ${commodityName(event.commodity)}: ${event.reason === "no-hold" ? "no free hold" : "not enough money"}.`;
+    case "offer-unsold":
+      return `${event.amount} ${commodityName(event.commodity)} not sold; back in the warehouse.`;
     case "turn-ended":
       return null;
     case "game-over":

@@ -11,6 +11,7 @@ import type { NationId } from '@/types/Common';
 import type { GameState } from '@/types/GameState';
 import type { Score } from '@/types/Score';
 import type { WorldId } from '@/types/World';
+import type { MarketMode } from '@/types/Market';
 import { m4ScriptedPlayer } from './m4ScriptedPlayer';
 import { invariantViolations, N1, N2, nationOf, worldViolations } from './fixtures';
 
@@ -53,9 +54,13 @@ function nationTurn(state: GameState, nationId: NationId, turn: number): NationT
   };
 }
 
-/** 40 turns from the real new game on `world`; the orders of the scripted nations from `orders`, none for an idle one. */
-function play(world: WorldId, orders: (s: GameState) => Record<string, Order[]>, seed: number): Game {
-  const start = newGame({ seed, world });
+/**
+ * 40 turns from the real new game on `world`; the orders of the scripted nations from `orders`, none for an idle one.
+ * FR-198: the continent games of FR-157 and FR-158 name the world market (`market: 'world'`), since M7 gives the
+ * continent the partners market (FR-182); the partners continent is FR-196's.
+ */
+function play(world: WorldId, orders: (s: GameState) => Record<string, Order[]>, seed: number, market?: MarketMode): Game {
+  const start = newGame({ seed, world, ...(market ? { market } : {}) });
   let state = start;
   let refused = 0;
   const turns: Record<NationId, NationTurn[]> = { [N1]: [], [N2]: [] };
@@ -92,8 +97,8 @@ describe('FR-157 the continent plays: 40 turns, nation 2 scripted, nation 1 idle
   beforeAll(() => {
     for (const seed of SEEDS) {
       games.set(seed, {
-        first: play('continent', current, seed),
-        again: play('continent', current, seed),
+        first: play('continent', current, seed, 'world'),
+        again: play('continent', current, seed, 'world'),
         twoIslands: play('two-islands', current, seed),
       });
     }
@@ -167,8 +172,8 @@ describe('FR-158 the seams are neutral: the frozen M4 player on both worlds, see
   beforeAll(() => {
     for (const seed of SEEDS) {
       games.set(seed, {
-        n2: { 'two-islands': play('two-islands', frozenM4, seed), continent: play('continent', frozenM4, seed) },
-        both: { 'two-islands': play('two-islands', frozenM4Both, seed), continent: play('continent', frozenM4Both, seed) },
+        n2: { 'two-islands': play('two-islands', frozenM4, seed), continent: play('continent', frozenM4, seed, 'world') },
+        both: { 'two-islands': play('two-islands', frozenM4Both, seed), continent: play('continent', frozenM4Both, seed, 'world') },
       });
     }
   }, 180_000);

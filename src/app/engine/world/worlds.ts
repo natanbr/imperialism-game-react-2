@@ -5,6 +5,7 @@ import type { MinorNation } from "@/types/MinorNation";
 import type { Nation } from "@/types/Nation";
 import type { Province } from "@/types/Province";
 import type { WorldId } from "@/types/World";
+import type { MarketMode } from "@/types/Market";
 import { continentWorld } from "./continent";
 import { startWorld } from "./startWorld";
 
@@ -25,6 +26,9 @@ export const WORLDS: Readonly<Record<WorldId, () => World>> = {
   "two-islands": () => ({ ...startWorld(), minorNations: [], provinces: [] }),
   continent: continentWorld,
 };
+
+/** The market mode of a new game on each world (FR-182): the v1 world market on two-islands, partners on the continent. */
+export const WORLD_MARKET: Readonly<Record<WorldId, MarketMode>> = { "two-islands": "world", continent: "partners" };
 
 /** The world of that key; an unknown key throws an error naming the known keys (FR-144). */
 export function buildWorld(id: WorldId): World {
