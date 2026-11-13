@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Imperialism · Ink and wash static art</title>
+  <style>
+    :root { color-scheme: light; font: 16px/1.5 system-ui, sans-serif; color: #25352d; background: #f3efe4; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    main { max-inline-size: 88rem; margin-inline: auto; padding: clamp(1rem, 4vw, 3rem); }
+    h1, h2 { font-family: Georgia, serif; font-weight: 400; line-height: 1.1; margin: 0; }
+    h1 { font-size: clamp(2rem, 5vw, 3.5rem); }
+    h2 { font-size: 1.8rem; }
+    p { margin-block: .5rem 0; }
+    a { color: #245765; text-underline-offset: .18em; }
+    :focus-visible { outline: 2px solid #245765; outline-offset: 3px; }
+    header, nav { margin-block-end: 1.5rem; }
+    nav, .review-controls { display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: baseline; }
+    nav a { padding-block: .22rem; }
+    section { margin-block-start: 1.6rem; padding-block-start: 1.1rem; border-block-start: 1px solid #d5c8af; scroll-margin-block-start: 1rem; }
+    .asset-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 8.5rem), 1fr)); gap: .75rem; inline-size: 100%; margin-block-start: .75rem; }
+    .asset { display: grid; align-content: start; min-inline-size: 0; padding: .6rem; background: #fffcf4; border: 1px solid #d5c8af; }
+    .asset img { display: block; inline-size: 100%; block-size: 100px; object-fit: contain; }
+    .asset .art { display: grid; place-items: center; block-size: 108px; background: #e9e4d5; }
+    .asset[data-family="terrain"] .art, .asset[data-family="workers"] .art, .asset[data-family="infrastructure"] .art, .asset[data-family="improvements"] .art, .asset[data-family="army"] .art, .asset[data-family="map-ui"] .art { background: #cbd1aa; }
+    .asset[data-family="navy"] .art { background: #b3c9cd; }
+    .asset-label { display: block; padding-block-start: .4rem; font-size: .88rem; overflow-wrap: anywhere; }
+    body:has(#game-scale:checked) .asset img { inline-size: 42px; block-size: 42px; }
+    body:has(#game-scale:checked) .asset[data-family="goods"] img, body:has(#game-scale:checked) .asset[data-family="worker-icons"] img { inline-size: 22px; block-size: 22px; }
+    body:has(#game-scale:checked) .asset[data-family="map-ui"] img { inline-size: 100%; max-inline-size: 100px; block-size: auto; max-block-size: 42px; }
+    .city { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(.6rem, 1.5vw, 1.3rem); inline-size: min(100%, 62rem); margin-block-start: .8rem; padding: clamp(.6rem, 1.5vw, 1.3rem); background: #ded3b7; border: 1px solid #ab9a7a; }
+    .city-plot { display: grid; grid-template-rows: 1fr auto; min-inline-size: 0; padding: .35rem; color: #29392e; text-decoration: none; background: #cbd1aa url('terrain/grass-base.png'); background-size: 256px; box-shadow: 0 0 0 1px #a0a582; }
+    .city-plot[data-building="shipyard"] { background: linear-gradient(125deg, #cbd1aa 34%, #e4d5b4 35%, transparent 38%), url('terrain/open-water.png') center / 256px; }
+    .city-plot[data-building="capitol"] { background: #dddcc0; }
+    .city-plot img { display: block; inline-size: 100%; block-size: auto; aspect-ratio: 1; object-fit: contain; }
+    .city-plot span { padding: .2rem .35rem; background: #f5efdfeb; text-align: center; font: .8rem/1.3 Georgia, serif; overflow-wrap: anywhere; }
+    .city-plot:hover span { text-decoration: underline; }
+    .city-review:has(#show-buildings:not(:checked)) .city-plot img { visibility: hidden; }
+    @media (max-width: 38rem) { .city { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    .caption { font-size: .88rem; color: #536253; }
+    .missing .art { background: #f5d8cd !important; }
+    .level-family { margin-block-start: 1.15rem; }
+    .level-family h3 { margin: 0; font-size: 1rem; font-weight: 600; }
+    .level-family .asset-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 7rem), 1fr)); max-inline-size: 38rem; }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Ink and wash · Static art</h1>
+      <p id="inventory-summary">Static game assets for review.</p>
+      <p><a href="terrain-demo.html">Open the connected terrain and movement demo</a></p>
+    </header>
+    <nav id="family-nav" aria-label="Asset families"><a href="#levels">Compare improvement levels</a><a href="#city-preview">Build your city</a></nav>
+    <section id="levels">
+      <h2>Compare improvement levels</h2>
+      <p>Count the rows, houses or dark openings to tell the levels apart.</p>
+      <div class="review-controls">
+        <label><input id="game-scale" type="checkbox"> Show map-scale sprites</label>
+        <span class="caption">42 px map sprites · 22 px goods and worker icons</span>
+      </div>
+      <div id="level-comparisons"></div>
+      <p class="caption">The game currently supports levels 0–3 for cattle on Open Range. Horses only have a base state. The fenced horse ranch is an optional art variant.</p>
+    </section>
+    <section class="city-review" id="city-preview">
+      <h2>Build your city · All 16 buildings</h2>
+      <p>The complete capital roster, arranged along streets with a waterfront shipyard. Select a building to inspect its asset.</p>
+      <p><label><input id="show-buildings" type="checkbox" checked> Show buildings on their plots</label></p>
+      <div class="city" id="capital-plots" aria-label="Capital building plots"></div>
+      <p class="caption">This layout uses the same individual building files as the gallery below. The earlier city-ground illustration remains available as a background study.</p>
+    </section>
+    <div id="families"></div>
+    <noscript><p>The asset gallery requires JavaScript. The city image and individual files can be opened directly.</p></noscript>
+  </main>
+  <script src="asset-catalog.js?v=16bb76a6b277"></script>
+  <script>
+    const familyTitles = {
+      terrain: 'Terrain and ground', infrastructure: 'Infrastructure', improvements: 'Tile improvements',
+      'map-ui': 'Map and army orders', workers: 'Map specialists · Full-body sprites', 'worker-icons': 'Worker icons · Capital and production', army: 'Army units',
+      navy: 'Naval units', goods: 'Resources and goods', buildings: 'Capital buildings', city: 'Earlier city background study'
+    };
+    const familyNav = document.querySelector('#family-nav');
+    const families = document.querySelector('#families');
+    document.querySelector('#inventory-summary').textContent = `${inkAssetCatalog.length} static files across terrain, units, goods, buildings and map overlays. Select an asset to open the original.`;
+
+    function assetUrl(item) {
+      return item.revision ? `${item.file}?v=${encodeURIComponent(item.revision)}` : item.file;
+    }
+
+    function assetCard(item, label = item.label) {
+      const link = document.createElement('a');
+      link.className = 'asset';
+      link.dataset.family = item.family;
+      link.href = assetUrl(item);
+      const frame = document.createElement('span');
+      frame.className = 'art';
+      const image = new Image();
+      image.loading = 'lazy';
+      image.alt = '';
+      image.addEventListener('error', () => link.classList.add('missing'));
+      image.src = assetUrl(item);
+      frame.append(image);
+      const name = document.createElement('span');
+      name.className = 'asset-label';
+      name.textContent = label;
+      link.append(frame, name);
+      return link;
+    }
+
+    const assetsById = new Map(inkAssetCatalog.map(asset => [asset.id, asset]));
+    const capitalPlots = document.querySelector('#capital-plots');
+    const capitalOrder = ['trade-school', 'capitol', 'university', 'armory', 'warehouse', 'railyard', 'power-plant', 'shipyard', 'food-processing', 'lumber-mill', 'textile-mill', 'steel-mill', 'furniture-factory', 'clothing-factory', 'metal-works', 'oil-refinery'];
+    for (const id of capitalOrder) {
+      const item = assetsById.get(id);
+      if (!item) continue;
+      const plot = document.createElement('a');
+      plot.className = 'city-plot';
+      plot.dataset.building = item.id;
+      plot.href = assetUrl(item);
+      const image = new Image(256, 256);
+      image.src = assetUrl(item);
+      image.alt = '';
+      const label = document.createElement('span');
+      label.textContent = item.label;
+      plot.append(image, label);
+      capitalPlots.append(plot);
+    }
+    const comparisons = [
+      ['Farm · crop rows', 'farm', 'farm-1', 'farm-2', 'farm-3'],
+      ['Orchard · houses', 'orchard', 'orchard-1', 'orchard-2', 'orchard-3'],
+      ['Cotton plantation · crop rows', 'plantation', 'plantation-1', 'plantation-2', 'plantation-3'],
+      ['Wool · shelter openings', 'wool-pasture', 'wool-1', 'wool-2', 'wool-3'],
+      ['Forestry · building openings', 'hardwood-forest', 'forestry-1', 'forestry-2', 'forestry-3'],
+      ['Cattle ranch · barn openings', 'open-range', 'ranch-1', 'ranch-2', 'ranch-3'],
+      ['Horse ranch · art variants', 'horse-ranch', 'horse-ranch-1']
+    ];
+    const levelComparisons = document.querySelector('#level-comparisons');
+    for (const [title, ...ids] of comparisons) {
+      const group = document.createElement('div');
+      group.className = 'level-family';
+      const heading = document.createElement('h3');
+      heading.textContent = title;
+      const grid = document.createElement('div');
+      grid.className = 'asset-grid';
+      ids.forEach((id, index) => {
+        const item = assetsById.get(id);
+        if (item) grid.append(assetCard(item, index === 0 ? 'Base' : ids.length === 2 ? 'Fenced variant' : `Level ${index}`));
+      });
+      group.append(heading, grid);
+      levelComparisons.append(group);
+    }
+
+    for (const [family, title] of Object.entries(familyTitles)) {
+      const items = inkAssetCatalog.filter(asset => asset.family === family);
+      if (!items.length) continue;
+      const navLink = document.createElement('a');
+      navLink.href = `#${family}`;
+      navLink.textContent = title;
+      familyNav.append(navLink);
+
+      const section = document.createElement('section');
+      section.id = family;
+      const heading = document.createElement('h2');
+      heading.textContent = title;
+      const grid = document.createElement('div');
+      grid.className = 'asset-grid';
+      for (const item of items) grid.append(assetCard(item));
+      section.append(heading, grid);
+      families.append(section);
+    }
+  </script>
+</body>
+</html>

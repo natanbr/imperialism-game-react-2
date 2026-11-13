@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="42" height="16" viewBox="0 0 42 16" role="img" aria-label="Straight railway section">
+  <path d="M0 8Q10 7.8 21 8T42 8" fill="none" stroke="#8f7b5d" stroke-width="6.4" opacity=".28"/>
+  <path d="M3 5.65L3.3 10.35M8.8 5.5L8.65 10.3M14.6 5.7L14.8 10.3M20.4 5.5L20.7 10.55M26.2 5.6V10.2M32 5.55L32.2 10.4M37.8 5.6L37.6 10.35"
+    fill="none" stroke="#725943" stroke-width="1" stroke-linecap="round" opacity=".78"/>
+  <path d="M0 6.6Q10 6.4 21 6.6T42 6.6M0 9.4Q10 9.25 21 9.4T42 9.4"
+    fill="none" stroke="#494539" stroke-width=".85" opacity=".96"/>
+</svg>

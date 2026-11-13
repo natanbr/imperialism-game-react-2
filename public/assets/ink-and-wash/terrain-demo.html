@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Imperialism · Connected terrain</title>
+  <style>
+    :root { color-scheme: light; font: 16px/1.5 system-ui, sans-serif; color: #28322a; background: #f3efe4; --target: 1.5rem; }
+    @media (pointer: coarse) { :root { --target: 3rem; } }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    main { max-inline-size: 62rem; margin-inline: auto; padding: clamp(1rem, 4vw, 3rem); }
+    h1, h2 { font: 400 1.35rem/1.12 Georgia, serif; margin: 0; }
+    h1 { font-size: clamp(2rem, 6vw, 3.4rem); text-wrap: balance; }
+    p { margin: .55rem 0 0; }
+    a { color: #245765; text-underline-offset: .2em; }
+    :focus-visible { outline: 2px solid #245765; outline-offset: 3px; }
+    .review { display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: flex-start; margin-block-start: 1.5rem; }
+    figure { margin: 0; min-inline-size: 0; inline-size: min(100%, 525px); }
+    svg { display: block; inline-size: 100%; block-size: auto; border-radius: .4rem; outline: 1px solid #5b6c60; }
+    .layers { display: flex; flex-wrap: wrap; column-gap: 1rem; row-gap: .2rem; margin-block-end: .6rem; }
+    fieldset { display: flex; flex-wrap: wrap; gap: .25rem 1rem; margin: 0 0 .55rem; padding: 0; border: 0; min-inline-size: 0; }
+    legend { padding: 0; font-size: .85rem; font-weight: 600; }
+    label { display: inline-flex; align-items: center; gap: .4rem; min-block-size: var(--target); cursor: pointer; }
+    input { inline-size: 1rem; block-size: 1rem; margin: 0; accent-color: #3d5b54; }
+    figcaption, .details { font-size: .9rem; color: #465449; }
+    figcaption { margin-block-start: .65rem; }
+    .details { flex: 1 1 15rem; min-inline-size: 0; padding: 1rem; border: 1px solid #d7cdb7; background: #fffcf4; }
+    [hidden] { display: none; }
+    figure:has(#order-attack:checked) .transport-order,
+    figure:has(#order-transport:checked) .attack-order,
+    figure:has(#order-hidden:checked) #route { display: none; }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <a href="index.html">Back to the static asset catalog</a>
+      <h1>Connected terrain</h1>
+      <p>Ink and wash on the game’s staggered 42 px grid.</p>
+    </header>
+    <div class="review">
+      <figure>
+        <div class="layers" role="group" aria-label="Map layers">
+          <label><input type="checkbox" data-layer="grid" aria-controls="grid"> Grid</label>
+          <label><input type="checkbox" data-layer="sprites" aria-controls="sprites" checked> Terrain art</label>
+          <label><input type="checkbox" data-layer="rail" aria-controls="rail" checked> Rail</label>
+        </div>
+        <fieldset>
+          <legend>Map orders</legend>
+          <label><input type="radio" name="order" value="both" aria-controls="route" checked> Both</label>
+          <label><input type="radio" id="order-attack" name="order" value="attack" aria-controls="route"> Attack</label>
+          <label><input type="radio" id="order-transport" name="order" value="transport" aria-controls="route"> Transport</label>
+          <label><input type="radio" id="order-hidden" name="order" value="hidden" aria-controls="route"> Hide</label>
+        </fieldset>
+        <svg id="terrain-map" viewBox="0 0 525 336" width="525" height="336" role="img" aria-labelledby="map-title map-description">
+          <title id="map-title">Coastal terrain assembled from separate assets</title>
+          <desc id="map-description">A peninsula and small offshore island with a continuous coastline. A rail bridge links the coastal port to an inland depot. A red curved arrow marks attack and a green curved arrow marks transport.</desc>
+        </svg>
+        <figcaption>The map is shown at actual tile size when the frame is 525 px wide.</figcaption>
+      </figure>
+      <section class="details" aria-labelledby="map-layers-heading">
+        <h2 id="map-layers-heading">What to check</h2>
+        <p>Red marks an attack order. Green marks a transport order. Use the grid to check how the straight, curved, and bridge rail pieces connect.</p>
+        <p>The lower fields show base and improved plantation, orchard and cattle tiles side by side, plus an open sheep pasture and a horse ranch.</p>
+        <p id="sprite-status" role="status">Loading terrain and infrastructure sprites…</p>
+      </section>
+    </div>
+  </main>
+  <script src="asset-catalog.js?v=16bb76a6b277"></script>
+  <script src="terrain-renderer.js"></script>
+  <script>
+    const { append, drawImage: drawRawImage, renderShoreline, drawRiver } = InkAndWashTerrain;
+    const revisions = new Map(inkAssetCatalog.map(item => [item.file, item.revision]));
+    function assetPath(file) { return revisions.has(file) ? file + '?v=' + revisions.get(file) : file; }
+    function drawImage(parent, file, attributes) { return drawRawImage(parent, assetPath(file), attributes); }
+    const map = document.querySelector('#terrain-map');
+    const tileSize = 42;
+    const rows = [
+      '~~~ggghmmggg',
+      '~~~gWghmgugg',
+      '~~ggowagtdgg',
+      '~~pgogggggDg',
+      '~g~~gsgagggg',
+      '~~~~gP2o1cgD',
+      '~~~~~gevbggD',
+      '~~~~~~ggrgR3',
+    ];
+
+    const { defs, shallowsMask, tileOrigin } = renderShoreline(map, rows, {
+      tileSize,
+      grassTexture: assetPath('terrain/grass-base.png'),
+      waterTexture: assetPath('terrain/open-water.png'),
+    });
+
+    drawRiver(map, 'M317-10C319 25 307 45 281 59S254 93 225 107 200 125 180 134 141 158 127 169 116 178 111 185', shallowsMask);
+
+    const grid = append(map, 'g', { id: 'grid', hidden: '', fill: 'none', stroke: '#293f40', 'stroke-opacity': .48 });
+    for (const [rowIndex, row] of rows.entries()) {
+      const { x, y } = tileOrigin(0, rowIndex);
+      const width = row.length * tileSize;
+      const paths = [`M${x} ${y}h${width}`];
+      for (let column = 0; column <= row.length; column += 1) {
+        paths.push(`M${x + column * tileSize} ${y}v${tileSize}`);
+      }
+      append(grid, 'path', { d: paths.join(' ') });
+    }
+
+    const art = append(map, 'g', { id: 'sprites' });
+    const fade = append(defs, 'radialGradient', { id: 'regional-edge' });
+    append(fade, 'stop', { offset: '.5', 'stop-color': 'white' });
+    append(fade, 'stop', { offset: '1', 'stop-color': 'white', 'stop-opacity': '0' });
+    const regionMask = append(defs, 'mask', { id: 'regional-mask', 'mask-type': 'alpha', maskContentUnits: 'objectBoundingBox' });
+    append(regionMask, 'rect', { width: 1, height: 1, fill: 'url(#regional-edge)' });
+
+    const assetNames = {
+      D: 'dry-plains', a: 'farm', o: 'orchard', R: 'open-range', r: 'horse-ranch', P: 'plantation',
+      w: 'hardwood-forest', W: 'scrub-forest', h: 'fertile-hills', b: 'barren-hills', m: 'mountains',
+      s: 'swamp', e: 'desert', u: 'tundra', t: 'town', c: 'capital', p: 'port', d: 'depot',
+      v: 'wool-pasture', 1: 'orchard-1', 2: 'plantation-1', 3: 'ranch-1',
+    };
+    const improvements = { 1: 'Orchard · Level 1', 2: 'Plantation · Level 1', 3: 'Cattle ranch · Level 1' };
+    const status = document.querySelector('#sprite-status');
+    let loaded = 0;
+    let pending = 0;
+    let total = 0;
+    const updateStatus = () => {
+      if (pending) return;
+      status.textContent = loaded === total
+        ? `All ${total} terrain and infrastructure placements are visible.`
+        : `${loaded} of ${total} placements loaded. Letter markers show pending artwork.`;
+    };
+
+    const features = [];
+    for (const [rowIndex, row] of rows.entries()) {
+      for (const [column, cell] of [...row].entries()) {
+        const name = assetNames[cell];
+        if (!name) continue;
+        const { x, y } = tileOrigin(column, rowIndex);
+        if (name === 'desert' || name === 'tundra') {
+          const ground = { x: x - 3, y: y - 3, width: tileSize + 6, height: tileSize + 6, mask: 'url(#regional-mask)' };
+          append(art, 'rect', { ...ground, fill: name === 'desert' ? '#dfc89a' : '#d6d9c8' });
+          drawImage(art, `terrain/${name}-base.png`, { ...ground, preserveAspectRatio: 'xMidYMid slice' });
+        }
+        features.push({ cell, name, x, y });
+      }
+    }
+
+    const rail = append(map, 'g', { id: 'rail' });
+    const straightPattern = append(defs, 'pattern', {
+      id: 'rail-straight', width: 42, height: 16, patternUnits: 'userSpaceOnUse',
+    });
+    drawImage(straightPattern, 'infrastructure/rail-straight.svg', { width: 42, height: 16 });
+    for (const [x, y, width] of [[126, 139, 11], [179, 139, 45], [308, 97, 91]]) {
+      const run = append(rail, 'g', { transform: `translate(${x} ${y})` });
+      append(run, 'rect', { width, height: 16, fill: 'url(#rail-straight)' });
+    }
+    drawImage(rail, 'infrastructure/rail-bridge.svg', { x: 137, y: 136, width: 42, height: 22 });
+    drawImage(rail, 'infrastructure/rail-curve.svg', { x: 224, y: 97, width: 84, height: 58 });
+
+    const sprites = append(map, 'g');
+    for (const { cell, name, x, y } of features) {
+      const isInfrastructure = name === 'port' || name === 'depot';
+      const family = improvements[cell] ? 'improvements' : isInfrastructure ? 'infrastructure' : 'terrain';
+      const path = `${family}/${name}.png`;
+      const label = improvements[cell] ?? name.replaceAll('-', ' ');
+      const centre = { x: x + tileSize / 2, y: y + tileSize / 2 };
+      const group = append(sprites, 'g', { 'data-feature': name });
+      append(group, 'title').textContent = label;
+      const placeholder = append(group, 'g');
+      append(placeholder, 'circle', { cx: centre.x, cy: centre.y, r: 8, fill: '#f4efdb', stroke: '#64775e', 'stroke-width': .9 });
+      append(placeholder, 'text', { ...centre, dy: '.34em', 'text-anchor': 'middle', fill: '#384d3b', 'font-size': 10 }).textContent = cell.toUpperCase();
+
+      total += 1;
+      pending += 1;
+      const image = append(group, 'image', { x: x + 1, y: y + 1, width: tileSize - 2, height: tileSize - 2 });
+      image.addEventListener('load', () => {
+        placeholder.remove();
+        loaded += 1;
+        pending -= 1;
+        updateStatus();
+      }, { once: true });
+      image.addEventListener('error', () => {
+        image.remove();
+        pending -= 1;
+        updateStatus();
+      }, { once: true });
+      image.setAttribute('href', assetPath(path));
+    }
+    const route = append(map, 'g', { id: 'route', 'pointer-events': 'none' });
+    const attack = drawImage(route, 'map-ui/army-attack.svg', {
+      class: 'attack-order', x: 155, y: 51, width: 108, height: 50.4,
+      transform: 'translate(418 0) scale(-1 1)',
+    });
+    append(attack, 'title').textContent = 'Attack';
+    const transport = drawImage(route, 'map-ui/army-transport.svg', {
+      class: 'transport-order', x: 287, y: 135, width: 108, height: 50.4,
+    });
+    append(transport, 'title').textContent = 'Transport';
+
+    for (const toggle of document.querySelectorAll('[data-layer]')) {
+      const layer = document.getElementById(toggle.dataset.layer);
+      function updateLayer() {
+        layer.toggleAttribute('hidden', !toggle.checked);
+        if (layer === art) sprites.toggleAttribute('hidden', !toggle.checked);
+      }
+      toggle.addEventListener('change', updateLayer);
+      updateLayer();
+    }
+  </script>
+</body>
+</html>

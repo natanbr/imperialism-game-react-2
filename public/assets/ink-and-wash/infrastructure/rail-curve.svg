@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="84" height="58" viewBox="0 0 84 58" role="img" aria-label="Curving railway section">
+  <defs>
+    <path id="rail-curve-center" d="M0 50H16Q28 50 35 39L43 19Q49 8 64 8H84"/>
+    <mask id="rail-curve-gauge" x="0" y="0" width="84" height="58" maskUnits="userSpaceOnUse">
+      <use href="#rail-curve-center" fill="none" stroke="#fff" stroke-width="3.65"/>
+      <use href="#rail-curve-center" fill="none" stroke="#000" stroke-width="1.95"/>
+    </mask>
+  </defs>
+  <g fill="none" stroke-linejoin="round">
+    <use href="#rail-curve-center" stroke="#8f7b5d" stroke-width="6.4" opacity=".28"/>
+    <use href="#rail-curve-center" stroke="#725943" stroke-width="4.9" stroke-dasharray="1 4.8"
+      stroke-dashoffset="3" opacity=".78"/>
+  </g>
+  <rect width="84" height="58" fill="#494539" opacity=".96" mask="url(#rail-curve-gauge)"/>
+</svg>

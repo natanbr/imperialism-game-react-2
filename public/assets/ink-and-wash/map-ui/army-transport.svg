@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="56" viewBox="0 0 120 56" role="img" aria-label="Army transport arrow">
+  <defs>
+    <path id="transport-arrow" d="M7 36.3C31 38.8 51.6 36.7 72 27.5C82.3 22.9 90 17.3 98 13.1Q97 10.9 95.8 8.7Q104 8.6 112 9Q108.2 16.6 103.8 22.4L101.5 18.2C93.7 22.2 87.2 27.8 79.4 32.7C57.4 46.6 31.3 53.2 9 51.7Z"/>
+  </defs>
+  <use href="#transport-arrow" fill="none" stroke="#cbb48b" stroke-width="2.6" stroke-linejoin="round" opacity=".64"/>
+  <use href="#transport-arrow" fill="#527e45" stroke="#423e2c" stroke-width="1.15" stroke-linejoin="round"/>
+  <path d="M9.2 37.7C35 39.8 57 36.1 75.5 27.7C85.2 23.5 93.7 17.1 99.5 14.5L98 11L108.5 10.35C98.4 16.8 88.4 24.2 76.8 30.6C55 42.2 32.5 43.6 9.9 41.2Z"
+    fill="#a9ba6d" opacity=".47"/>
+  <path d="M10 47.7C35.3 49.6 59.7 44 79.7 32.2C62.5 44.7 37.4 51.3 10.1 50.6Z"
+    fill="#34563e" opacity=".56"/>
+</svg>
