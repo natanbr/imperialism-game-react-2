@@ -8,15 +8,12 @@
   `docs/journal/archive-M1.md` to `-M4.md`. Decisions Q5 to Q16 settled (NR-012 to NR-018).
 - M4.1 (PR 18), M4.2 (PR 19) and M4.3 (PR 20, main 274ef62) are merged; entries archived in
   `docs/journal/archive-M4.1.md` to `-M4.3.md`. Q17, Q19 and Q20 answered as NR-029, NR-028, NR-027.
-- 2026-11-12 M4.4 (NR-027, NR-028; FR-140 to FR-142) on branch `claude/m4-4-recruiting-ai`, pushed, no
-  PR: the transport popup lists only what can be shipped and hides groups that are all 0 / 0; the
-  furniture bound counts 2 lumber a furniture. Recruiting NOT built: the probe shows that inputs bind
-  before labour and that recruiting lowers the score, even with free migrants (the brief: stop and
-  report). Entry below; review fix round done (tests, docs, the probe kept in `scripts/probes/m4-4/`).
-  Next: Nathan's decision M4.4-1, then a PR.
-- OPEN for Nathan (M4.4 decision 1, in the entry): no recruiting AI in v1 (suggested), or recruit anyway
-  at about -6% at turn 40, or first an AI task on transport so labour becomes the limit. The orchestrator
-  took option (a) meanwhile (nothing in the game changes).
+- 2026-11-12 M4.4 (NR-027, NR-028; FR-140 to FR-142) merged (PR 21, main e018d85). Recruiting not
+  built (probe in `scripts/probes/m4-4/`); decision card Q21 open, option (a) "no recruiting" taken
+  meanwhile. v1 (M0 to M4.4) is complete.
+- 2026-11-12 night shift (NR-030): v2 planning and implementation. Plan on branch `claude/v2-plan`
+  (this worktree, the old docs worktree `imperialism-game-revival-fee36d`); one branch per milestone
+  after it. The progress page files now live on these branches too (copied from the docs branch).
 
 Carried forward:
 - Deferred: river ports and the depot-on-port rule (rules 04); University fees; the power plant.
