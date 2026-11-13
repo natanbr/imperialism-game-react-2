@@ -80,8 +80,10 @@ src/app/
     capital/               the capital dialog's parts: capitalView.ts (what it shows, no React),
                            ProductionCard, LabourPanel, FreightCars, Capital.module.css
     market/                the market dialog's view (marketView.ts, no React) and the CSS module
-                           shared by MarketModal and GameOverModal; dealBookView.ts (the Deal Book's
-                           ledger lines from the engine's dealBook, M7)
+                           shared by MarketModal, BoardOfTrade, DealBookModal and GameOverModal;
+                           M7: BoardOfTrade.tsx and boardView.ts (the Board of Trade, no React in the
+                           view), Stepper.tsx ("− n +", both market dialogs), dealBookView.ts (the Deal
+                           Book's ledger lines from the engine's dealBook)
     diplomacy/             the Diplomacy screen's parts: diplomacyView.ts (rows, controls with their
                            refusal text, the refusal lines, the Accept Offer sentence; no React),
                            CountryList (the left pane's tabs), CountryDetails (the right pane),
@@ -407,7 +409,16 @@ The warehouse dialog lists every commodity by display name in three groups (`COM
 The market dialog (`MarketModal.tsx`, opened from the HUD or the capital's Trade button) renders
 `market/marketView.ts`: per tradeable commodity its price, stock, offer and bid with "− n +"
 buttons that send `sellCommodity` / `buyCommodity` with this turn's new total, plus cash, cargo
-holds and buy bids; refusals show as in the capital. The Diplomacy screen (`DiplomacyModal.tsx`,
+holds and buy bids; refusals show as in the capital. That is the "world" mode; in "partners" (M7,
+FR-194) `MarketModal` renders `market/BoardOfTrade.tsx` instead, on `market/boardView.ts` (the
+engine's `boardOfTrade` with names and words): the rows in `BOARD_ORDER` with Price, Available and
+a Bid or an Offer stepper (a row with one has no control for the other), the minors that sell or buy
+each commodity as chips ("Arvelia 3, favours Valdoria", a `tradeBarrier` in words: "(no consulate)"),
+"Holds: 3 of 4 free" and the bids used. A fixed frame (at most the window's height less 16 px): the
+board scrolls under a sticky head, and on a new game all 17 rows fit at 1280x720. The Deal Book
+(`DealBookModal.tsx`, FR-195, store flag `isDealBookOpen`, HUD button) reads only the last
+`eventLog` report: `dealBook` + `dealBookView`, Sold and Bought side by side and the bottom line;
+it builds no order. The Diplomacy screen (`DiplomacyModal.tsx`,
 M6, store flag `isDiplomacyOpen`, opened from the HUD or the capital) renders
 `diplomacy/diplomacyView.ts` in two panes (FR-237): on the left a vertical tab list, one tab per other
 country (the other Great Power first, then the minors in id order) with the relation as a swatch in

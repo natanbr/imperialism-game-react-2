@@ -19,8 +19,8 @@
 - 2026-11-13 M6 Diplomacy (FR-161 to FR-181, FR-236 to FR-241) merged (PR 24, main 2a60a3b; entries archived in
   `docs/journal/archive-M6.md`). Decision card "who receives a grant" (M6 fix round decision 3) still to add.
 - 2026-11-13 M7 Nation-to-nation trade in progress on `claude/m7-trade` (worktree `imperialism-game-revival-fee36d`):
-  engine half done (FR-182 to FR-193, FR-196, FR-198 tested; its API is in the M7 entry); next the UI half (FR-194,
-  FR-195, FR-197) and the e2e specs that sell on the continent. Card to add: FR-193 (b) bids nothing in "partners".
+  engine half and UI half done (FR-182 to FR-198 tested: the Board of Trade, the Deal Book, e2e/m7-trade.spec.ts);
+  not pushed. Next: the milestone review, then the PR. Card to add: FR-193 (b) bids nothing in "partners".
 
 Carried forward:
 - Deferred: river ports and the depot-on-port rule (rules 04); University fees; the power plant.
@@ -225,3 +225,54 @@ Decisions (defaults, nobody to ask):
 Not run here: Playwright. For the UI half: `e2e/market-and-game-over.spec.ts` (FR-078) sells 1 lumber on the default
 (continent) game and expects "Sold 1 Lumber for $300."; in "partners" nobody buys lumber, so that spec, and the market
 dialog names in `e2e/m4-1.spec.ts`, `e2e/look.spec.ts` and `e2e/m6-dialogs.spec.ts`, change with FR-194.
+
+## 2026-11-13 M7 Nation-to-nation trade, UI half (FR-194, FR-195, FR-197)
+
+Size: M (screens on the engine half's API). One UI agent (Opus 5.5, xhigh, no subagents, no advisor call), started by the
+M7 workflow. Branch `claude/m7-trade` (worktree `imperialism-game-revival-fee36d`), not pushed.
+
+Plan-lite:
+- Change: in "partners" `MarketModal` renders the Board of Trade (`components/market/BoardOfTrade.tsx` on `boardView.ts`);
+  a "Deal Book" HUD button opens `DealBookModal.tsx` (store flag `isDealBookOpen`, reset by New game); `Stepper.tsx` is the
+  "− n +" of both market dialogs; icon `dealBook` (GiOpenBook). The v1 World market is the same component body as before.
+- Consumers: the player; M8 fills Military upkeep in the Deal Book's bottom line (`dealBook` gives 0 now).
+- Tests: FR-194 `tests/ui/boardOfTrade.test.tsx` (17 rows: name, order, Price/Available/Bid/Offer, Sellers and Buyers with
+  favourite and marks, the FR example "Arvelia 3, favours Valdoria", a consulate ordered this turn lifts the mark, holds,
+  bids, a row with a bid has no offer control, the 4-bid refusal, "world" unchanged); FR-195 `tests/ui/dealBook.test.tsx`
+  (7 rows, one of them FR-197's flow in the store); FR-197 `e2e/m7-trade.spec.ts` (with the FR-194 fit at 1280x720);
+  FR-236 `tests/ui/dialogs.test.tsx` lists both new dialogs; FR-022 scan covers the three screens.
+- Verify: `npm test`, `npm run lint`, `npx tsc --noEmit`, `npm run build`, `PORT=3160 npx playwright test --workers=1`.
+- Objection: decision 3 (FR-078's e2e reads the sale's income from the news, no fixed price any more).
+
+Decisions (defaults, nobody to ask):
+1. Dialog names follow FR-236's title convention: "Board of Trade — Testland", "Deal Book — Testland" (Playwright matches
+   "Board of Trade" as a part of the name). Objection: FR-194/195 say "named Board of Trade"; an exact match needs the suffix.
+2. The FR-197 spec is `e2e/m7-trade.spec.ts`, the name FR-197 gives (the workflow task said `e2e/m7.spec.ts`).
+3. FR-078's e2e (`market-and-game-over.spec.ts`): in "partners" nobody buys lumber and a minor buys only goods from a Great
+   Power with a consulate there, so it now orders a consulate with Pellis and 1 furniture on turn 1 (Valdoria reaches Pellis
+   only on turn 4), offers the furniture on turn 2 and checks cash = before + the income in "Sold 1 Furniture to Pellis for
+   $…". The 40-turn game-over test is unchanged. `look`, `m4-1` and `m6-dialogs` only change the dialog name (and
+   `m6-dialogs` adds the Deal Book to its FR-236 loop).
+4. "A row with a bid has no offer": the other side's stepper is not shown (the engine refuses it anyway). The 4-bid limit and
+   other refusals show as in v1, in the dialog's alert ("Purchase refused: over the limit."). Objection: M6's pattern disables
+   a refused control with its reason; here a fifth bid can still be pressed.
+5. Layout: a fixed frame (at most the window less 16 px); on a new game all 17 rows show at 1280x720 (rows 27 px, chips on two
+   lines where 3 or 4 minors trade); when it grows (a refusal, more chips) only the board scrolls, under a sticky head. The
+   margin at 720 px is about 10 px. Barrier chips are outlined (dashed) with the reason in words in the danger colour.
+6. The Deal Book shows "No deals last turn." also before the first End Turn; it names the turn it shows ("Turn 1, Spring
+   1815"); an empty page says "Nothing sold." / "Nothing bought."; a negative Net is red and reads "-$200".
+7. The Deal Book is a full-width HUD action under Open Market; the HUD's scroll area is about 36 px shorter (FR-235 holds).
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| Red (stubs for `boardView` and `DealBookModal`) | `npx vitest run tests/ui/boardOfTrade.test.tsx tests/ui/dealBook.test.tsx tests/ui/dialogs.test.tsx tests/ui/icons.test.tsx tests/ui/uiWritesOnlyOrders.test.ts` | `Test Files 5 failed (5)`, `Tests 36 failed \| 50 passed (86)` (`Unable to find an accessible element with the role "dialog" and name "Board of Trade — Testland"` x20, `... "Deal Book — Testland"` x5, `... name /^Deal Book$/` x5) |
+| FR-194, FR-195 green | same files plus `marketDialog`, `commodityIcons` | `Test Files 7 passed (7)`, `Tests 105 passed (105)` |
+| Unit tests | `npm test` | `Test Files 81 passed (81)`, `Tests 1389 passed (1389)` (+30 on 1359), no act warning |
+| v1 and v2 baselines unchanged | `npm test` console | `FR-125 seed 1: t15 616/390 (1.58) ... t40 1493/650 (2.30)`, `FR-157 nation 2 score at turn 40: [[1,1493],[2,1496],[3,1490],[4,1476]]`, FR-196 `"minorDeals":{"nation-1":21,"nation-2":21}`, treasuries 17674, 17021, 16607, 19737 |
+| FR-197, FR-194 fit, FR-078, all e2e | `PORT=3160 npx playwright test --workers=1 --reporter=line` | `32 passed (1.5m)`, `1 skipped` (the old skip) |
+| Lint | `npm run lint` | `✖ 3 problems (0 errors, 3 warnings)` (the three of M6) |
+| Types | `npx tsc --noEmit` | exit 0, no output |
+| Build | `npm run build` | `✓ Compiled successfully in 3.3s`, `✓ Generating static pages (4/4)` |
+
+In the app: New game, Open Market (the Board of Trade), Diplomacy → Arvelia → Consulate, the coal row's "Arvelia 3, favours
+Testland" loses "(no consulate)"; bid 2 coal, Advance Turn, then the HUD's Deal Book: "Bought 2 Coal from Arvelia @ $100".
