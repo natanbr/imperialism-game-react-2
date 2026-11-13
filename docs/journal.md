@@ -21,8 +21,8 @@
 - 2026-11-13 M7 Nation-to-nation trade (FR-183 to FR-198, FR-242 to FR-259) merged (PR 25, main d16afa7; entries archived in
   `docs/journal/archive-M7.md`). Card Q47 (the World market's greyed "−") still open.
 - 2026-11-13 M8 Armies in progress on `claude/m8-armies` (worktree `imperialism-game-revival-fee36d`): the engine half
-  (FR-199 to FR-209, FR-213, FR-215) and the UI half (FR-210 to FR-212, FR-214) are committed; not pushed. Next: the
-  milestone review, the app check, the PR.
+  (FR-199 to FR-209, FR-213, FR-215), the UI half (FR-210 to FR-212, FR-214) and the review fix round (20 findings,
+  FR-260 to FR-262) are committed; not pushed. Next: the re-review of the fix delta, the app check, the PR.
 
 Carried forward:
 - Deferred: river ports and the depot-on-port rule (rules 04); University fees; the power plant.
@@ -188,7 +188,7 @@ Plan-lite:
   after combat) and the combat phase (marches, healing); `ai/scriptedArmy.ts`; `militaryStrength` on the new armies.
 - Consumers: the map markers, the Army screen and the Armoury (UI half), the news, the Deal Book's bottom line, the scripted player, M9.
 - Tests: FR-199 `engine/regiments.test.ts` (13); FR-200, 201, 203 to 208 `engine/armies.test.ts` (51) and `engine/validate.test.ts` (4
-  accepted, 35 refusal rows); FR-202 `engine/upkeep.test.ts` (9); FR-205 text and FR-209 `ui/gameText.test.ts` (14); FR-213
+  accepted, 35 refusal rows); FR-202 `engine/upkeep.test.ts` (9); FR-205 text and FR-209 `ui/gameText.test.ts` (13; "14" until the review fix round, R10); FR-213
   `engine/scriptedArmy.test.ts` (13); FR-174 `engine/scriptedDiplomacy.test.ts` (builders rewritten); FR-215 `engine/continentScore.test.ts`,
   `engine/v2Trade40.test.ts`.
 - Verify: `npm test`, `npm run lint`, `npx tsc --noEmit`, `npm run build`, `PORT=3168 npx playwright test --workers=1`.
@@ -297,3 +297,69 @@ In the app: New game; every province's seat shows its army marker (Testland's ca
 "Testland army: force size 4, 3 regiments, 4 militia"). Click it: the Army screen; tick a regiment, "March to", March. Open Capital,
 Armoury: 7 cards, "+" disabled with "Not enough armaments" until the metal works make one. Screenshots: `.gate/m8ui/shots/`
 (m8-armoury.png, m8-army.png, m8-map.png).
+
+## 2026-11-13 M8 Armies, review fix round (20 findings; FR-260 to FR-262)
+
+Size: L (fix round over the engine and the screens). One fix agent (Opus 5.5, xhigh, no subagents, no advisor call), started by
+the M8 workflow. Branch `claude/m8-armies`, not pushed. Every finding fixed; none carried. FR ids: the merged FR-157 is replaced
+by FR-260 and FR-256 is extended by FR-262 (new ids, FLOW); M8's own rows are amended in place with a status note, as the M4.3
+fix round did for FR-023 and FR-137; FR-261 is the new upkeep forecast.
+
+| Finding | What changed | Test |
+|---|---|---|
+| R1 (FR-157) | FR-260 replaces FR-157: the start army's turn-40 scores 1419, 1451, 1441, 1469 and the bare-continent equality (1493, 1496, 1490, 1476) are asserted, not logged | `engine/continentScore.test.ts` FR-260 rows |
+| R2, F3, E1 (FR-213, FR-247) | `upkeepReserve` (`ai/scriptedPlayer.ts`): two turns of upkeep, and in the last 8 turns the upkeep of every turn left (`SCRIPTED_GARRISON.endgameTurns`); v2Trade40 counts no-pay disbands and the capital's arms, pinned 0 and 4; seed 2's treasuries 0/2,176 become 150/2,376 | `engine/v2Trade40.test.ts` (baseline + garrison row), `engine/scriptedArmy.test.ts` FR-213 (a) rows |
+| R3 (FR-213) | (a), (b), (c) written into FR-213's SHALL text; one test row each | (b): new steel row; (c): the world-market row renamed; each seen red with its rule off |
+| R4, E4 (FR-200, FR-201) | the capital rule in FR-200; at End Turn a nation without its capital province gets its recruits' cost back (`withRecruiting`, shared with `setRecruitment`) and `recruits-refunded` | `engine/armies.test.ts`, `engine/validate.test.ts`, `ui/gameText.test.ts` |
+| R5 (FR-256) | FR-262: `dealBook().recruits`; the Treasury table shows "1 Regulars recruited -$500", not "Other" | `ui/dealBookView.test.ts`, `ui/dealBook.test.tsx` |
+| R6 (FR-170) | the grant row split: $1,000 to $5,000 exact with the upkeep; $10,000 asserts the forecast, the no-pay event (3) and no upkeep event | `engine/diplomacy.test.ts` |
+| R7, F5 (FR-205) | new reason `attack-not-available` ("attacks are not possible yet") for a march into a country at war | `engine/validate.test.ts`, `ui/gameText.test.ts` |
+| R8 (FR-204) | `movedOnTurn` in FR-204's shape; the shape test runs after a march too | `engine/armies.test.ts` |
+| R9 (FR-204) | the helper test became an engine test of an army in another country's province: strength, upkeep, its own army, healing | `engine/armies.test.ts` |
+| R10 | "(14)" corrected to "(13)" in the engine half's plan-lite | none (text) |
+| F1 (FR-211) | no row to tick: "Militia defend their province: they cannot march or be disbanded." or "Every regiment here already has an order this turn." | `ui/armyDialog.test.tsx` (2 rows) |
+| F2 (FR-202) | FR-261: `upkeepForecast` (disbands ordered, standing locked grants); "Army upkeep at End Turn: $100" in the Army screen and the Armoury; the short warning there and in the HUD | `engine/upkeep.test.ts` (5), `ui/armyDialog.test.tsx`, `ui/armouryDialog.test.tsx`, `ui/warehouseAndHud.test.tsx` |
+| F4 (FR-207, FR-211) | new order `cancelDisband`; "Cancel disband" on a disband-ordered row | `engine/armies.test.ts`, `engine/validate.test.ts` (7 rows), `ui/armyDialog.test.tsx` |
+| F6 | `counterparty = (id` spacing restored in `market/dealBook.ts` | none (format) |
+| E2 (FR-204) | `strength` sums FPN x health and divides by 100 once | `engine/armies.test.ts` (12 at 10 + 12 at 20 = 12 at 30 = 3.6) |
+| E3 (FR-213) | `SCRIPTED_GARRISON.capitalArms` asserted by the FR-213 ten-turn war, FR-247 and FR-260 tests | as named |
+
+Decisions (defaults, nobody to ask):
+1. E1, the reserve rule, by measurement (`scripts/probes/m8/`, rules "upkeepTurns:endgameTurns"; seeds 1 to 10, partners =
+   FR-247's game, 20 nation-games): 2:1 (before) lost the field army in 6 of 20; a flat 4 turns in 1 of 8 (seeds 1 to 4); a flat 5
+   in 1 of 20; 6 and 8 in none but about 100 points lower at turn 40 (1221 to 1359 against 1311 to 1391); 4:10 in none but moves
+   FR-260's world games; 2:8 in none and leaves FR-260's world games as they were (1419, 1451, 1441, 1469). Taken: 2:8.
+   Objection: the reserve steps from $200 to $800 at turn 33, so a nation that spends down on turn 32 and then sells nothing for 8
+   turns still loses regiments; not seen on seeds 1 to 10.
+2. F2: warn, do not refuse. No order is refused for leaving less than the upkeep (it would refuse grants, bids and development by
+   an army rule; Imp1 goes into debt instead, Q36). Card for the page: "Refuse orders that leave less than the army upkeep?",
+   suggestion: no, keep the warning. The forecast ignores this turn's sales (they only add) and a war declared this turn that
+   ends a grant (it warns a little early, never late).
+3. R4: refund rather than lose the recruits. M9 ends a nation whose capital is taken (Q34), so the refund matters only for the
+   step between; it keeps "nothing vanishes without a news line".
+4. F4: a new order `cancelDisband`, not a wider `cancelArmyMove`: the order names say what they cancel.
+5. FR-261's header line is the whole army's upkeep, not the province's, so it reads the same in every province.
+
+Plan-lite: change as in the table; consumers the scripted player, the Army screen, the Armoury, the HUD, the Deal Book, M9 (the
+attack replaces `attack-not-available`); verify the gate and the e2e suite; Objection: decision 1's step.
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| Red: E1 (the old rule, `endgameTurns: 1`) | `npx vitest run tests/engine/v2Trade40.test.ts` (`.gate/m8fix/red-e1.txt`) | `Tests 2 failed \| 7 passed (9)`; `"noPay":[3,0],"capitalArms":[0,4]` (seed 2), `"noPay":[0,3]` (seed 4) |
+| Red: FR-213 (a), (b), (c), each rule off | `npx vitest run tests/engine/scriptedArmy.test.ts` (`red-213a/b/c.txt`) | (a) `expected 600 to be greater than or equal to 800`; (b) `expected 0 to be greater than or equal to 4`; (c) `expected [ { kind: 'sellCommodity', …(3) } ] to deeply equal []` |
+| Red: E2 (the float sum) | `npx vitest run tests/engine/armies.test.ts -t E2` | `expected 3.5999999999999996 to be 3.6` |
+| Red: the 14 changed test files on the source of 9ee1e44 | `npx vitest run` on them (`.gate/m8fix/red-all.txt`) | `Test Files 13 failed \| 1 passed (14)`, `Tests 30 failed \| 482 passed (512)` (the one file passing is continentScore: R1 pins numbers that did not move) |
+| Unit tests | `npm test` (`.gate/m8fix/gate-test.txt`) | `Test Files 90 passed (90)`, `Tests 1688 passed (1688)` (+41 on 1647) |
+| v1 baselines unchanged (FR-159) | `npm test` console; `git diff --stat d16afa7 --` the FR-159 files | `FR-125 seed 1: t15 616/390 (1.58) ... t40 1493/650 (2.30)` as on main; the diff is empty |
+| FR-260, FR-247 | `npm test` console | `[[1,1419,1493,1493],[2,1451,1496,1496],[3,1441,1490,1490],[4,1469,1476,1476]]`; seed 2 `"treasury":[150,2376],"noPay":[0,0],"capitalArms":[4,4]` |
+| Lint | `npm run lint` | `✖ 3 problems (0 errors, 3 warnings)` (the three of M6) |
+| Types | `npx tsc --noEmit` | exit 0, no output |
+| Build | `npm run build` | `✓ Compiled successfully in 6.0s`, `✓ Generating static pages (4/4)` |
+| e2e suite | `PORT=3160 npx playwright test --workers=1 --reporter=line` (`.gate/m8fix/e2e.txt`) | `33 passed (4.2m)`, `1 skipped` (the old skip) |
+
+Carried: none of the findings. Decision 1's step and decision 2's card wait for Nathan.
+
+In the app: New game; Open the Army screen from the capital marker: "Army upkeep at End Turn: $100" beside "Force Size: 4"; the
+North-West marker's screen says "Militia defend their province: they cannot march or be disbanded."; disband a regiment and
+"Cancel disband" brings it back. Spend the treasury below $100 (bids, grants): the HUD, the Army screen and the Armoury show
+"Cash is short of the army upkeep: ...".

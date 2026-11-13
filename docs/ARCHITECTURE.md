@@ -37,7 +37,9 @@ src/app/
                            strength, strengthIn, upkeepOf, capitalProvinceOf), the screens' helpers
                            (armyMarkers, regimentStatus, marchTargets, recruitingOf, freeWorkersOf), and
                            the edits orders and phases share (raiseRegiments, placeRegiments,
-                           removeRegiments, mapRegiments), which keep one army per country per province
+                           removeRegiments, mapRegiments, withRecruiting), which keep one army per country
+                           per province
+    army/upkeepForecast.ts FR-261: the upkeep End Turn will charge and the cash it will find
     army/startForces.ts    FR-203: field army, militia, capital forts, extra horses
     calendar.ts            seasons; the year advances after winter
     rng.ts                 seeded RNG: createTurnRng(seed, turn); RNG_STREAMS and createStreamRng
@@ -52,7 +54,8 @@ src/app/
     orders/                Order.ts (union + RejectReason), validate.ts, apply.ts,
                            industryOrders.ts (production, expansion, cars, training, migration),
                            diplomacyOrders.ts (the five diplomacy orders: validate and apply),
-                           armyOrders.ts (setRecruitment, moveArmy, cancelArmyMove, disbandRegiments),
+                           armyOrders.ts (setRecruitment, moveArmy, cancelArmyMove, disbandRegiments,
+                           cancelDisband),
                            queries.ts (read-only lookups and construction-site rules)
     industry/              labour.ts (labourOf: total, committed, free), industryState.ts
                            (createIndustry, buildingOf, migrantCap), foodForecast.ts (the meal
@@ -196,22 +199,29 @@ only (FR-018).
   recruits. The regiment table and the M8 rule numbers are `definisions/regiments.ts` (FR-199).
 - **Orders** (`orders/armyOrders.ts`): `setRecruitment` pays at once and gives back on lowering, like
   `setProduction`; `moveArmy` and `disbandRegiments` store an intent (`army-move`, `disband`), one per
-  regiment (a later order replaces the earlier); `cancelArmyMove` takes regiments out of the moves. In M8
-  a march into another country's province is refused (`not-at-war`, or `not-owner` while at war: attacks
-  are M9's).
+  regiment (a later order replaces the earlier); `cancelArmyMove` takes regiments out of the moves and
+  `cancelDisband` out of the disbands. `setRecruitment` and the End Turn refund share `withRecruiting`
+  (`army/armies.ts`). In M8 a march into another country's province is refused (`not-at-war`, or
+  `attack-not-available` while at war: attacks are M9's).
 - **Phases** (`systems/armySystem.ts`, `systems/combatSystem.ts`): after trade the disbands (FR-207), then
   the upkeep, $25 per arms point, disbanding the newest regiments when the treasury cannot pay (FR-202);
   in the combat phase the marches resolve together and the regiments that did not move heal 10 (FR-206,
-  FR-208); after it the recruits join in the capital province (FR-201). None draws a random number; a
-  world without armies (two-islands) passes every one unchanged.
+  FR-208); after it the recruits join in the capital province, or are refunded (`recruits-refunded`) when
+  the nation no longer holds it (FR-201). None draws a random number; a world without armies (two-islands)
+  passes every one unchanged.
+- **Upkeep forecast** (FR-261, `army/upkeepForecast.ts`): what the upkeep step will charge after this turn's
+  disbands and the cash it will find after the standing locked grants; the Army screen, the Armoury and the
+  HUD (`HUD/UpkeepWarning.tsx`, `selectUpkeepForecast`) show it and warn while it is short.
 - **Scripted player** (FR-213): it never moves or disbands; under a threat (`armyThreat`) it recruits 1
-  Regulars a turn and its run makes the armaments first; it never spends the cash of two turns' upkeep.
+  Regulars a turn, its run makes the armaments first, expansion leaves their steel and the world market
+  gets none of its 2; it never spends below `upkeepReserve` (`ai/scriptedPlayer.ts`: two turns of upkeep,
+  in the last 8 turns every turn's left).
 - **Screens** (FR-210 to FR-212): `selectArmyMarkersBySeat` (`store/selectors.ts`, on `components/army/armyView.ts`)
   gives MapView each seat tile's markers; `Tile/TileArmy.tsx` draws them half over the seat's left edge (ours
   are buttons that call `openArmy(provinceId)`, store flag `armyProvinceId`). `ArmyModal.tsx` (the Army screen)
   and `ArmouryModal.tsx` (store flag `isArmouryOpen`, opened from the capital dialog on a world with
-  provinces) build `moveArmy`, `cancelArmyMove`, `disbandRegiments` and `setRecruitment` and ask
-  `validateOrder` first: a control it would refuse is disabled, its reason beside it and as its description.
+  provinces) build `moveArmy`, `cancelArmyMove`, `disbandRegiments`, `cancelDisband` and `setRecruitment` and
+  ask `validateOrder` first: a control it would refuse is disabled, its reason beside it and as its description.
 
 The store (`store/rootStore.ts`) holds that state under `game`, and UI state beside it:
 
@@ -471,7 +481,7 @@ minor that sells the commodity and is open to the nation, an offer a buyer open 
 17 rows fit at 1280x720. The Deal Book (`DealBookModal.tsx`, FR-195, store flag `isDealBookOpen`, HUD
 button) reads only the last `eventLog` report: `dealBook` + `dealBookView`, Sold and Bought side by
 side, Not traded under them (each line with its `cause`, FR-255), the bottom line ending in the Trade
-net and the Treasury table from the report's `treasuries` (FR-256); it builds no order. Every dollar
+net and the Treasury table from the report's `treasuries` (FR-256, with a line per type recruited, FR-262); it builds no order. Every dollar
 amount goes through `money` in `components/gameText.ts` (FR-258). The Diplomacy screen (`DiplomacyModal.tsx`,
 M6, store flag `isDiplomacyOpen`, opened from the HUD or the capital) renders
 `diplomacy/diplomacyView.ts` in two panes (FR-237): on the left a vertical tab list, one tab per other
