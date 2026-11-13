@@ -119,7 +119,8 @@ describe('FR-105 startNewGame', () => {
     expect(store.getState().orderLog.length).toBeGreaterThan(0);
     expect(store.getState().lastRejection).not.toBeNull();
 
-    store.getState().startNewGame({ seed: 12 });
+    // FR-160: the expectation is the engine default (two-islands), so the world is named.
+    store.getState().startNewGame({ seed: 12, world: 'two-islands' });
 
     const s = store.getState();
     expect(s.game).toEqual(newGame({ seed: 12 }));

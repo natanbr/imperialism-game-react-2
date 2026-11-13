@@ -2,7 +2,7 @@
 // submitOrder and advanceTurn (FR-018 to FR-022). Replaces the pre-M1 turnSlice test.
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createGameStore, randomSeed, EVENT_LOG_TURNS } from '@/store/rootStore';
-import { applyOrder, resolveTurn, type Order } from '@/engine';
+import { applyOrder, newGame, resolveTurn, type Order } from '@/engine';
 import { WorkerType } from '@/types/Workers';
 import { PROSPECT_COST } from '@/definisions/workPrices';
 import { game, locate, N1, N2, setTreasury, setWarehouse, T, treasury, workerId } from '../engine/fixtures';
@@ -257,5 +257,31 @@ describe('FR-077 advanceTurn does nothing after game over', () => {
 
     expect(store.getState().eventLog).toBe(log);
     expect(store.getState().lastRejection).toBe(rejection);
+  });
+});
+
+describe('FR-144 the store plays the continent by default', () => {
+  it('FR-144 the store\'s first game is the continent', () => {
+    const g = createGameStore({ seed: 3 }).getState().game;
+    expect(g).toEqual(newGame({ seed: 3, world: 'continent' }));
+    expect(g.worldId).toBe('continent');
+  });
+
+  it('FR-144 startNewGame() builds the continent; startNewGame({ world: "two-islands" }) the v1 world', () => {
+    const store = createGameStore({ seed: 3 });
+
+    store.getState().startNewGame({ seed: 5 });
+    expect(store.getState().game).toEqual(newGame({ seed: 5, world: 'continent' }));
+
+    store.getState().startNewGame({ seed: 5, world: 'two-islands' });
+    expect(store.getState().game).toEqual(newGame({ seed: 5, world: 'two-islands' }));
+    expect(store.getState().game).toEqual(newGame({ seed: 5 }));
+
+    store.getState().startNewGame();
+    expect(store.getState().game.worldId).toBe('continent');
+  });
+
+  it('FR-144 a store can start on the v1 world', () => {
+    expect(createGameStore({ seed: 3, world: 'two-islands' }).getState().game).toEqual(newGame({ seed: 3 }));
   });
 });
