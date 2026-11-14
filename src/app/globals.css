@@ -32,11 +32,14 @@ svg[data-icon] {
 }
 
 /* The art pack's pictures (components/art/ArtPicture.tsx InkPicture, FR-320). One on a text line (`inline`) is 1.25em
-   square beside its label: Tailwind's preflight makes every img display: block; height: auto. */
+   square beside its label: Tailwind's preflight makes every img display: block; height: auto. Its max-width: 100% would
+   also let a table size a column without the picture (a percentage max-width makes an img count as 0 wide there), so a
+   nowrap name ran into the next cell (the Board of Trade's "Canned Food", e2e/m11-art.spec.ts). */
 img[data-art-inline] {
   display: inline-block;
   width: 1.25em;
   height: 1.25em;
+  max-width: none;
   vertical-align: -0.25em;
   flex: none;
   object-fit: contain;

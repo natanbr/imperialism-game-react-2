@@ -66,6 +66,26 @@ async function expectLoaded(where: Locator, atLeast: number) {
     .toEqual([]);
 }
 
+/**
+ * FR-331: a picture on a text line never pushes its label out of its box: the nearest box around each inline picture
+ * (a table cell, a button, a flex line) does not overflow. The ones that do, as "file: text" (none expected). Found at
+ * integration: Tailwind's preflight `img { max-width: 100% }` let a table size the Board of Trade's name column without
+ * the picture, so "Canned Food" ran 14 px into its price.
+ */
+async function expectFit(where: Locator) {
+  const overflowing = await where.locator('img[data-art-inline]').evaluateAll((imgs) =>
+    imgs
+      .map((img) => {
+        let box = img.parentElement!;
+        while (getComputedStyle(box).display === 'inline') box = box.parentElement!;
+        return { art: img.getAttribute('data-art'), text: (box.textContent ?? '').trim(), over: box.scrollWidth - box.clientWidth };
+      })
+      .filter((b) => b.over > 0)
+      .map((b) => `${b.art}: ${b.text} (${b.over} px)`)
+  );
+  expect(overflowing).toEqual([]);
+}
+
 const shot = async (page: Page, name: string) => {
   if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/${name}` });
 };
@@ -78,6 +98,8 @@ test('FR-338 a new game: every pack picture loaded on the map, in the Capital di
   // The map on turn 1: a picture on each of the 226 land tiles (FR-322), the marks and the civilians' figures
   const map = page.getByTestId('map-scroll');
   await expectLoaded(map, 226);
+  // The HUD's buttons with a building's picture (FR-334)
+  await expectFit(page.locator('body'));
   await shot(page, 'm11-art-map.png');
 
   await page.getByRole('button', { name: /Open Capital/ }).click();
@@ -85,6 +107,7 @@ test('FR-338 a new game: every pack picture loaded on the map, in the Capital di
   await expect(capital).toBeVisible();
   // 7 card heads, the goods on the outputs and inputs, the Labour and Transport panels, the title and three buttons
   await expectLoaded(capital, 30);
+  await expectFit(capital);
   await shot(page, 'm11-art-capital.png');
   await capital.getByRole('button', { name: 'Close capital' }).click();
   await expect(capital).toHaveCount(0);
@@ -94,6 +117,7 @@ test('FR-338 a new game: every pack picture loaded on the map, in the Capital di
   const board = page.getByRole('dialog', { name: 'Board of Trade' });
   await expect(board).toBeVisible();
   await expectLoaded(board, 17);
+  await expectFit(board);
   await shot(page, 'm11-art-board.png');
   await board.getByRole('button', { name: 'Close Board of Trade' }).click();
   await expect(board).toHaveCount(0);
@@ -102,6 +126,7 @@ test('FR-338 a new game: every pack picture loaded on the map, in the Capital di
   const transport = page.getByRole('dialog', { name: 'Transportation of Commodities' });
   await expect(transport).toBeVisible();
   await expectLoaded(transport, 11);
+  await expectFit(transport);
   await shot(page, 'm11-art-transport.png');
   await transport.getByRole('button', { name: 'Close transport' }).click();
   await expect(transport).toHaveCount(0);

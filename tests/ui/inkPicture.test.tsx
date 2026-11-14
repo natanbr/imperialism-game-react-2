@@ -92,10 +92,12 @@ describe('FR-320 InkPicture: one picture component for the pack', () => {
           .map((d) => d.split(':').map((s) => s.trim()))
       );
     };
+    // max-width none (integration): with preflight's 100% a table sized a nowrap name cell without the picture
     expect(rule('img[data-art-inline]')).toEqual({
       display: 'inline-block',
       width: '1.25em',
       height: '1.25em',
+      'max-width': 'none',
       'vertical-align': '-0.25em',
       flex: 'none',
       'object-fit': 'contain',
