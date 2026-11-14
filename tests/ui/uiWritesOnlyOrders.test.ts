@@ -78,6 +78,13 @@ describe('FR-022 the UI changes the game only through submitOrder', () => {
     expect(/\bsubmitOrder\b/.test(readFileSync(join(ROOT, 'src/app/components/BattleModal.tsx'), 'utf8'))).toBe(false);
   });
 
+  it('FR-298 FR-301 the Council screen and its view are scanned and build no order: the player does not vote (Imp1: the screen is a report)', () => {
+    const screens = ['src/app/components/CouncilModal.tsx', 'src/app/components/council/councilView.ts', 'src/app/components/HUD/TurnIndicator.tsx'];
+    const scanned = files.map((f) => relative(ROOT, f).replace(/\\/g, '/'));
+    expect(screens.filter((f) => !scanned.includes(f))).toEqual([]);
+    expect(screens.filter((f) => /\bsubmitOrder\b/.test(readFileSync(join(ROOT, f), 'utf8')))).toEqual([]);
+  });
+
   it('the UI uses no pre-M1 worker action of the store', () => {
     const old = /\b(moveSelectedWorkerToTile|moveAndStartProspecting|moveAndStartDevelopment|moveAndStartConstruction|purchaseTransportCapacityIncrease|setTransportAllocations|cancelAction)\s*\(/;
     const offenders = files.filter((f) => old.test(readFileSync(f, 'utf8')));

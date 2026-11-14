@@ -429,6 +429,27 @@ svg[data-icon] {
   font-weight: 700;
 }
 
+/* FR-048: the turn and the date share one line (the game-over text wraps the date under it), so FR-301's next Council
+   takes the date's old line and the HUD is no taller: at 1280x720 it has no height to spare, and the news list must keep
+   whole lines above the fade (FR-268, e2e/m8-qa.spec.ts) */
+.turn-indicator {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  column-gap: 8px;
+}
+
+/* FR-301: the next Council meeting on the line under the turn (no gap: the turn indicator's margin moves under it); the
+   projected vote is its tooltip. 16 px, the old date line's height. */
+.next-council {
+  margin: -8px 0 8px;
+  font-size: 13px;
+  line-height: 16px;
+  color: var(--color-text-muted);
+  cursor: help;
+}
+
 .food-warning {
   margin-bottom: 8px;
   padding: 6px 8px;

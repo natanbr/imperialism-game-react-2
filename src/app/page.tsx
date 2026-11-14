@@ -12,6 +12,7 @@ import { ArmyModal } from './components/ArmyModal';
 import { ArmouryModal } from './components/ArmouryModal';
 import { AttackModal } from './components/AttackModal';
 import { BattleModal } from './components/BattleModal';
+import { CouncilModal } from './components/CouncilModal';
 import { GameOverModal } from './components/GameOverModal';
 import TransportAllocationModal from './components/TransportAllocationModal';
 import { ConstructionOptionsModal } from './components/ConstructionOptionsModal';
@@ -44,6 +45,8 @@ export default function Home() {
       <AttackModal />
       <ConstructionOptionsModal />
       <GameOverModal />
+      {/* FR-299: after the Battle screens of an End Turn, before the game-over screen (each waits for the one before) */}
+      <CouncilModal />
       {/* After the game-over screen: a conquest's last battle is seen first (FR-232) */}
       <BattleModal />
       <AcceptOfferModal />

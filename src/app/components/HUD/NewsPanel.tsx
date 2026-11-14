@@ -6,7 +6,8 @@ import { dateText, newsItems, refusalText } from "../gameText";
  * The last refused order and the news of the last resolved turn (FR-024): the player's lines first,
  * then each other nation's lines under its name (FR-107). The lines are their own scroll region (FR-268): it fills the
  * HUD's space left above the fade (FR-235) in whole lines, so no line is cut behind the fade, and Tab reaches it.
- * A battle's line is a button that opens its Battle screen (FR-232).
+ * A battle's line is a button that opens its Battle screen (FR-232), a Council meeting's line one that opens its Council
+ * screen (FR-297).
  */
 export const NewsPanel: React.FC = () => {
   const lastRejection = useGameStore((s) => s.lastRejection);
@@ -16,6 +17,7 @@ export const NewsPanel: React.FC = () => {
   const minorNations = useGameStore((s) => s.game.minorNations);
   const provinces = useGameStore((s) => s.game.provinces);
   const showBattle = useGameStore((s) => s.showBattle);
+  const showCouncil = useGameStore((s) => s.showCouncil);
   const headingId = useId();
 
   // Great Powers and minor nations: diplomacy lines name both (FR-176); a march names its provinces (FR-209).
@@ -41,11 +43,15 @@ export const NewsPanel: React.FC = () => {
               {/* A scroll region the keyboard can reach (Tab, then the arrow keys, Page Down, End) */}
               <ul className="news-list" tabIndex={0} aria-labelledby={headingId} data-testid="news-list">
                 {news.map((item, i) => {
-                  const battle = item.battle;
+                  const { battle, council } = item;
                   return (
                     <li key={i}>
                       {battle ? (
                         <button type="button" className="news-battle" onClick={() => showBattle(battle)}>
+                          {item.text}
+                        </button>
+                      ) : council ? (
+                        <button type="button" className="news-battle" onClick={() => showCouncil(council)}>
                           {item.text}
                         </button>
                       ) : (

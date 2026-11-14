@@ -61,6 +61,7 @@ import {
   GiSwordClash,
   GiToolbox,
   GiTrowel,
+  GiVote,
   GiWaves,
   GiWheat,
   GiWoodAxe,
@@ -132,6 +133,7 @@ export const GI = {
   GiSwordClash,
   GiToolbox,
   GiTrowel,
+  GiVote,
   GiWaves,
   GiWheat,
   GiWoodAxe,
@@ -241,6 +243,8 @@ export const UI_ICONS = {
   attack: "GiCrossedSwords",
   /** The Battle screen (FR-231) */
   battle: "GiSwordClash",
+  /** The Council of Governors (FR-298, FR-301): the governors' vote */
+  council: "GiVote",
 } as const satisfies Record<string, IconName>;
 
 /**
