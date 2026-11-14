@@ -92,14 +92,19 @@ const factorText = (n: number): string => String(Math.round(n * 100) / 100);
 /**
  * FR-278: what `battleEstimate` computes (FR-226), in words: each side's strength is FPN x health / 100 added up, a
  * defender's divided by the share of damage it still takes under cover (1 - R, FR-219), which is the same as counting it
- * 1 / (1 - R) times; the verdict's thresholds from ESTIMATE. The cover part names the protection the defenders here have:
- * the fort when there is one (it covers them all), else entrenchment when one of them is entrenched, else none.
+ * 1 / (1 - R) times as strong (FR-281's words); the verdict's thresholds from ESTIMATE. The cover part names the
+ * protection the defenders here have: the fort when there is one (it covers them all), else entrenchment when one of
+ * them is entrenched, else none.
  */
 export function estimateExplanation(protections: readonly Protection[]): string {
   const fort = protections.find((p) => p.kind === "fort");
   const cover = fort ?? protections.find((p) => p.kind === "entrenched");
   const factor = cover ? factorText(100 / (100 - cover.percent)) : "";
-  const coverText = fort ? `; behind the fort a defender's counts ${factor} times` : cover ? `; an entrenched defender's counts ${factor} times` : "";
+  const coverText = fort
+    ? `; behind the fort a defender counts ${factor} times as strong`
+    : cover
+      ? `; an entrenched defender counts ${factor} times as strong`
+      : "";
   return (
     `Strength: each regiment's firepower times its health, added up${coverText}. ` +
     `Likely victory at ${ESTIMATE.likelyVictory} times theirs or more, uncertain at ${ESTIMATE.uncertain} or more.`

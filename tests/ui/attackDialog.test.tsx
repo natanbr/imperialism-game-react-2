@@ -15,7 +15,7 @@ import { AttackModal } from '@/components/AttackModal';
 import { MapView } from '@/components/MapView';
 import { attackPlanAt, estimateText, strengthText } from '@/components/army/attackView';
 import { useGameStore } from '@/store/rootStore';
-import { applyOrder, REGIMENTS, type Order } from '@/engine';
+import { applyOrder, battleEstimate, defendersOf, findRegiment, REGIMENTS, type Order, type Regiment } from '@/engine';
 import type { GameState } from '@/types/GameState';
 import { setPair, setTile } from '../engine/fixtures';
 import { ARVELIA, ARVELIA_P, clearArmy, continent, idOf, NE1, NW1, patchRegiment, relocate, SE1, SW1 } from '../engine/armyFixtures';
@@ -349,22 +349,48 @@ describe('FR-278 the Attack screen explains its terms', () => {
   const explanation = () => text(within(attackDialog()).getByTestId('estimate-explanation'));
   const VERDICTS = 'Likely victory at 1.5 times theirs or more, uncertain at 0.75 or more.';
 
-  it('FR-278 right under the estimate: what strength is and what the verdict means, with the cover that applies here', () => {
+  it('FR-278 FR-281 right under the estimate: what strength is and what the verdict means, with the cover that applies here', () => {
     openAttack(onTheBorder());
     const line = within(attackDialog()).getByTestId('estimate-explanation');
     expect(within(attackDialog()).getByTestId('attack-estimate').nextElementSibling).toBe(line);
-    expect(explanation()).toBe(`Strength: each regiment's firepower times its health, added up; an entrenched defender's counts 1.25 times. ${VERDICTS}`);
+    expect(explanation()).toBe(`Strength: each regiment's firepower times its health, added up; an entrenched defender counts 1.25 times as strong. ${VERDICTS}`);
   });
 
-  it("FR-278 the explanation holds for the numbers shown: ours 36 is 2 Regulars and 1 Artillery's firepower, theirs 18.75 is 3 entrenched Minutemen x 1.25", () => {
-    const fp = (type: 'regulars' | 'artillery' | 'minutemen') => REGIMENTS[type].stats.fpNormal;
-    expect(2 * fp('regulars') + fp('artillery')).toBe(36);
-    expect(3 * fp('minutemen') * 1.25).toBe(18.75);
+  it("FR-278 the explanation fits the engine: battleEstimate's strengths are firepower x health / 100 added up, the defenders' times the factor the line names (review F3)", () => {
+    // The factor is read from the line on the screen and set against battleEstimate itself, so the two cannot drift apart
+    const added = (regiments: readonly Regiment[]) => regiments.reduce((sum, r) => sum + REGIMENTS[r.type].stats.fpNormal * r.health, 0) / 100;
+    const twoDecimals = (n: number) => Math.round(n * 100) / 100;
+    const damaged = patchRegiment(patchRegiment(onTheBorder(), 'regiment-2', { health: 80 }), idOf(onTheBorder(), ARVELIA, '2nd Minutemen'), { health: 60 });
+    const cases: [string, GameState][] = [
+      ['entrenched', onTheBorder()],
+      ['entrenched, damaged on both sides', damaged],
+      ['behind a level-1 fort', setTile(onTheBorder(), ARVELIA_SEAT, { fortLevel: 1 })],
+    ];
+    const seen = cases.map(([name, s]) => {
+      const view = openAttack(s);
+      const said = /counts ([\d.]+) times as strong/.exec(explanation());
+      view.unmount();
+      const estimate = battleEstimate(s, FIELD, ARVELIA_P);
+      return {
+        name,
+        explained: said ? Number(said[1]) : null,
+        engine: twoDecimals(estimate.defence / added(defendersOf(s, ARVELIA_P).map((d) => d.regiment))),
+        oursIsTheSum: estimate.attack === added(FIELD.map((id) => findRegiment(s, id)!.regiment)),
+      };
+    });
+    expect(seen).toEqual([
+      { name: 'entrenched', explained: 1.25, engine: 1.25, oursIsTheSum: true },
+      { name: 'entrenched, damaged on both sides', explained: 1.25, engine: 1.25, oursIsTheSum: true },
+      { name: 'behind a level-1 fort', explained: 1.43, engine: 1.43, oursIsTheSum: true },
+    ]);
+    // FR-226's example as the screen shows it: ours 36 is 2 Regulars and 1 Artillery, theirs 18.75 is 3 Minutemen x 1.25
+    const start = battleEstimate(onTheBorder(), FIELD, ARVELIA_P);
+    expect([start.attack, start.defence, 3 * REGIMENTS.minutemen.stats.fpNormal * 1.25]).toEqual([36, 18.75, 18.75]);
   });
 
-  it('FR-278 behind a fort the cover part names the fort (level 1: 1.43 times); with no defender there is no cover part', () => {
+  it('FR-278 FR-281 behind a fort the cover part names the fort (level 1: 1.43 times as strong); with no defender there is no cover part', () => {
     const first = openAttack(setTile(onTheBorder(), ARVELIA_SEAT, { fortLevel: 1 }));
-    expect(explanation()).toBe(`Strength: each regiment's firepower times its health, added up; behind the fort a defender's counts 1.43 times. ${VERDICTS}`);
+    expect(explanation()).toBe(`Strength: each regiment's firepower times its health, added up; behind the fort a defender counts 1.43 times as strong. ${VERDICTS}`);
     first.unmount();
     openAttack(clearArmy(onTheBorder(), ARVELIA, ARVELIA_P));
     expect(explanation()).toBe(`Strength: each regiment's firepower times its health, added up. ${VERDICTS}`);

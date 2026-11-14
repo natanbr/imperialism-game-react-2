@@ -24,8 +24,8 @@
   `docs/journal/archive-M8.md`). Nathan's art pack (NR-031) committed on top (4bd00eb).
 - 2026-11-13 M9 War and the attack screen in progress on `claude/m9-war` (worktree `imperialism-game-revival-fee36d`):
   the engine half (FR-216 to FR-228, FR-234; FR-229 replaced by FR-274; entry archived in `docs/journal/archive-M9.md`),
-  the UI half (FR-230 to FR-233, FR-272, FR-273), the review fix round (all 17 findings; new FR-275) and the QA fix round
-  (Nathan's 5 items; FR-276 to FR-280) are committed. Not pushed.
+  the UI half (FR-230 to FR-233, FR-272, FR-273), the review fix round (all 17 findings; new FR-275), the QA fix round
+  (Nathan's 5 items; FR-276 to FR-280) and the fixes of its review (3 minor; FR-281) are committed. Not pushed.
 
 Carried forward:
 - Deferred: river ports and the depot-on-port rule (rules 04); University fees; the power plant.
@@ -365,3 +365,29 @@ In the app: shots `docs/journal/m9-qa-fix-attack.png` (the Attack screen alone, 
 `m9-qa-fix-battle.png` (the side headings, "Round 1", "10 damage"); checked as well (`.gate/m9qa/`, git-ignored): the deployment
 ("Deployment", the two forces), the result ("Result: 7 rounds were fought", "Destroyed" inside the tokens), the Army screen after
 Cancel (three ticks, "Attack Arvelia", "Attack…"). Script `.gate/m9qa/shots.mjs`; no page errors.
+
+### Review of the QA fix round (2026-11-13)
+
+Size: S (three minor findings: a CSS comment, one line's words, one test row; all fixed, none carried). One fix agent (Opus 5.5,
+xhigh, no subagents, no advisor call), started by the M9 workflow; not pushed. Evidence in `.gate/m9qarev/`.
+
+| Finding | What changed | Test |
+|---|---|---|
+| F1 | `War.module.css` header: the Attack screen opens in place of the Army screen (FR-279), never over it; its 78 is only a guard | none (comment) |
+| F2 | new FR-281: "an entrenched defender counts 1.25 times as strong" ("behind the fort a defender counts 1.43 times as strong") | ui/attackDialog (2 rows), e2e m9-war |
+| F3 | FR-278's numbers row reads the factor from the line on the screen and sets it against `battleEstimate` (entrenched, damaged, fort) | ui/attackDialog |
+
+Decision: new words are a changed requirement, so a new id (FLOW); FR-281 replaces only FR-278's cover part, the other FR-278 rows keep it.
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| Red before the change | `npx vitest run tests/ui/attackDialog.test.tsx` (`red.txt`) | `Tests 3 failed \| 30 passed (33)`; F3's row `"explained": null` against `"engine"` 1.25, 1.25, 1.43 |
+| F3's row catches drift | the same, `-t "FR-278"`, the engine's divisor 1 / (1 - R/2) for one run, then put back (`mutation-f3.txt`) | `Tests 1 failed \| 4 passed \| 28 skipped (33)`: `"engine": 1.11` against `"explained": 1.25` |
+| Green | the attack, battle and army UI files (`green.txt`) | `Test Files 3 passed (3)`, `Tests 95 passed (95)` |
+| Unit tests, baselines | `npm test` (`gate-test.txt`) | `Test Files 98 passed (98)`, `Tests 1885 passed (1885)` (a row rewritten, none added); FR-125, FR-260, FR-274 lines as above |
+| Lint, types | `npm run lint`; `npx tsc --noEmit` | `✖ 3 problems (0 errors, 3 warnings)` (the three of M6); tsc exit 0, no output |
+| Build | `npm run build` (`gate-build.txt`) | `✓ Compiled successfully in 20.1s`, `✓ Generating static pages (4/4)` |
+| e2e suite | `PORT=3160 npx playwright test --workers=1 --reporter=line` (`gate-e2e.txt`) | `36 passed (11.9m)`, `1 skipped` (the old skip; 37 tests) |
+
+In the app: `docs/journal/m9-qa-fix-attack.png` taken again with the new words (script `.gate/m9qarev/shot-attack.mjs`): one dialog,
+the dialog 760x371 at 1280x720, the page does not scroll, no page errors.

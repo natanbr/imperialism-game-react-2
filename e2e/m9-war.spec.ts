@@ -178,9 +178,9 @@ async function attackArvelia(page: Page, attempt: number) {
     // The start army against Arvelia's three entrenched Minutemen (FR-226's example)
     await expect(attack.getByTestId('attack-estimate')).toHaveText('Our strength 36, theirs 18.8: Likely victory');
     await expect(attack.getByRole('list', { name: 'Defenders' }).getByTestId('protection')).toHaveText(['entrenched', 'entrenched', 'entrenched']);
-    // FR-278 (M9 QA item 3): the estimate and "entrenched" explained in words on the screen
+    // FR-278 (M9 QA item 3): the estimate and "entrenched" explained in words on the screen, in FR-281's words
     await expect(attack.getByTestId('estimate-explanation')).toBeVisible();
-    await expect(attack.getByTestId('estimate-explanation')).toHaveText(/^Strength: each regiment's firepower times its health, added up; an entrenched defender's counts 1\.25 times\./);
+    await expect(attack.getByTestId('estimate-explanation')).toHaveText(/^Strength: each regiment's firepower times its health, added up; an entrenched defender counts 1\.25 times as strong\./);
     await expect(attack.getByTestId('entrenched-legend')).toHaveText('Entrenched: takes 20% less damage.');
     await picturesLoaded(attack);
     await fitsTheWindow(page, attack);
