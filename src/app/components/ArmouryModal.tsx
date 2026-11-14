@@ -64,7 +64,9 @@ const AtHandList: React.FC<{ items: readonly AtHandItem[] }> = ({ items }) => (
         return (
           <li key={item.key} className={`${styles.atHandItem} ${item.short ? styles.short : ""}`} data-short={item.short ? "true" : undefined}>
             <span className={styles.part}>
-              <ItemPicture item={item} /> {item.label}: {first}
+              {/* No space after the picture: its margin is the gap (FR-354) */}
+              <ItemPicture item={item} />
+              {item.label}: {first}
               {rest.length > 0 ? "," : ""}
             </span>
             {rest.map((part, i) => (

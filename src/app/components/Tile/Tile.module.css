@@ -2,8 +2,10 @@
  * Tile styles (42 px tiles, FR-088). Layout inside a tile:
  *   the whole 40 x 40 content box: the art pack's picture of what the tile holds (FR-322; a crowded capital's or
  *   town's at 48 px, lifted, FR-346)
- *   top left: level badge, job markers below it   top right: depot, port (20 px), with their station marks
- *   bottom left: a known mineral's mark, then the river marker   bottom right: the civilians, one 24 px button
+ *   top left: level badge, job markers below it   top right: depot, port (20 x 14 px), with their station marks; a depot
+ *   and a port side by side along the top, the badge and the job markers then below them (FR-356)
+ *   bottom left: a known mineral's mark, then the river marker   bottom right: the civilians, one 24 px button (in the
+ *   corner on a tile with a depot or a port, FR-356)
  *   on a province's seat: the army markers, half over the tile's left edge (FR-210)
  * Stacking: the ground (MapGround.module.css) and the tile picture (0), MapView's border and rail overlay (1), the
  * selection mark and the marks and badges (2), the civilians (3), a minor's name tag (4), the army markers (5), the
@@ -137,15 +139,22 @@
   pointer-events: none;
 }
 
-/* Depot and port (FR-347, QA; replaces FR-324's 14 px row and FR-345): 20 px pictures in the top-right corner, 1 px in; a
-   tile with both stacks them, the depot on top (side by side, 1 + 20 + 1 + 20 px, they would pass the 40 px box). They end
-   6 px right of the level badge (x 1 to 13) and the job markers below it (x 1 to 11). */
+/* On a tile with a depot and a port (FR-356): below the two, left of the civilians in the corner (x from 16) */
+.levelBadgeLow {
+  top: 16px;
+}
+
+/* Depot and port (FR-347, QA; FR-356, review F1): pictures at the 20 px scale in the top-right corner, 1 px in, each box
+   cropped to its drawing's 14 rows (depot.png draws in rows 3.3 to 16.7 of 20, port.png 3.0 to 17.0), so they end at y 15,
+   above the civilians' button in the corner (from y 16). A tile with both shows them side by side, the depot rightmost, the
+   boxes meeting over 1 px of their transparent margins (x 0 to 39; stacked, the port lay under the button). One station
+   starts 6 px right of the level badge (x 1 to 13) and the job markers below it (x 1 to 11); two move those below them. */
 .stations {
   position: absolute;
   top: 1px;
   right: 1px;
   display: flex;
-  flex-direction: column;
+  flex-direction: row-reverse;
   z-index: 2;
 }
 
@@ -153,23 +162,30 @@
   position: relative;
   display: block;
   width: 20px;
-  height: 20px;
+  height: 14px;
 }
 
+/* Covers the 20 x 14 box: drawn 20 px wide, its transparent top and bottom 3 px cut off */
 .stationPicture {
   width: 20px;
-  height: 20px;
+  height: 14px;
+  object-fit: cover;
 }
 
 /* The pack's station mark, 11 px, on the picture's top-right corner: a filled disc when connected, a ring when not, so the
-   state shows by shape too, not only colour (FR-093). At the top, the civilians' button (from y 15) and its count (from
-   y 10) leave it clear. */
+   state shows by shape too, not only colour (FR-093). At the top, the civilians' button (from y 16) and its count (from
+   y 11) leave it clear. */
 .stationMark {
   position: absolute;
   right: -1px;
   top: -1px;
   width: 11px;
   height: 11px;
+}
+
+/* The port left of the depot (row-reverse): its mark ends 0.4 px short of the depot's drawing */
+.station + .station {
+  margin-right: -1px;
 }
 
 /* Job markers, below the level badge */
@@ -181,6 +197,11 @@
   flex-direction: column;
   gap: 1px;
   z-index: 2;
+}
+
+/* On a tile with a depot and a port (FR-356): below the level badge there (.levelBadgeLow, y 16 to 26) */
+.jobsLow {
+  top: 27px;
 }
 
 .job {
@@ -202,7 +223,8 @@
 }
 
 /* On a crowded capital or town (FR-346): in the content box's bottom-right corner, so the count on the button's top right
-   lies right of the large picture's drawing (to x 40.1), not over it */
+   lies right of the large picture's drawing (to x 40.1), not over it. On a tile with a depot or a port (FR-356): there the
+   button starts at y 16, below the stations' drawings (to y 15); a stack's count covers 9% of the rightmost one. */
 .workersCorner {
   right: 0;
   bottom: 0;

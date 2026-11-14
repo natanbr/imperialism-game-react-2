@@ -15,6 +15,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { render, screen, within } from '@testing-library/react';
+import { ArmouryModal } from '@/components/ArmouryModal';
 import { CapitalModal } from '@/components/CapitalModal';
 import { MarketModal } from '@/components/MarketModal';
 import { WarehouseModal } from '@/components/WarehouseModal';
@@ -246,6 +247,21 @@ describe('FR-352 FR-354 FR-349 the QA fix round in the lists, the capital and th
     expect(rule).toMatch(/height:\s*30px/);
     // One line: "Canned Food" with its picture wrapped to two
     expect(/\.outputName\s*\{[^}]*white-space:\s*nowrap/.test(css)).toBe(true);
+  });
+
+  // Review F3 of the QA fix round: the Armoury's "At hand" lines kept their space (6.0 to 6.7 px from picture to name, its
+  // Cost lines 3.4 px)
+  it("FR-354 no space character stands between an inline picture and its label in the Armoury's Cost and At hand lists", () => {
+    show(continent(), { isArmouryOpen: true });
+    render(<ArmouryModal />);
+    const armoury = screen.getByRole('dialog', { name: 'Armoury' });
+    const atHand = within(armoury).getAllByRole('list', { name: 'At hand' });
+    expect(atHand.length).toBeGreaterThan(0);
+    // Each card's "At hand" lines carry pictures (grades, armaments, horses)
+    expect(atHand.flatMap((list) => art(list)).length).toBeGreaterThan(0);
+    expect(spaceAfterArt(armoury)).toEqual([]);
+    // The texts read as before: "Trained workers: 0 available, ..." starts with its label
+    for (const list of atHand) for (const item of within(list).getAllByRole('listitem')) expect(text(item)).toMatch(/^[A-Z][a-z]+( [a-z]+)*: /);
   });
 
   it('FR-354 no space character stands between an inline picture and its label in the Capital dialog, the Board of Trade, the Warehouse and the Transport popup', () => {

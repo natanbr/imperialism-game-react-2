@@ -40,7 +40,10 @@ export interface TileWorkersProps {
   /** Selects a civilian; undefined deselects (a click on the selected one, FR-115). */
   onWorkerSelect: (workerId: string | undefined) => void;
   onOpenTray: () => void;
-  /** A crowded capital or town: the civilians sit in the content box's corner, off its large picture (FR-346). */
+  /**
+   * A crowded capital or town, or a tile with a depot or a port: the civilians sit in the content box's corner, off the
+   * large picture (FR-346) or below the stations' drawings (FR-356).
+   */
   corner?: boolean;
 }
 

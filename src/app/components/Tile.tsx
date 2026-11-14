@@ -99,6 +99,10 @@ const TileComponentInner: React.FC<TileProps> = ({
   // move the civilians to the corner, so it stays readable (FR-346)
   const crowded =
     (tile.terrain === TerrainType.Capital || tile.terrain === TerrainType.Town) && (tile.workers.length > 0 || minorCapitalName !== undefined);
+  // A depot or a port takes the top-right: the civilians move to the corner, below its drawing; a depot and a port stand
+  // side by side along the top, and the level badge and job markers below them (FR-356)
+  const station = !!tile.depot || !!tile.port;
+  const twoStations = !!tile.depot && !!tile.port;
 
   // Compute infrastructure status
   const nationNetwork = tile.ownerNationId
@@ -138,7 +142,7 @@ const TileComponentInner: React.FC<TileProps> = ({
       <TileIcon src={tileArt(tile)} crowded={crowded} />
       {minorCapitalName !== undefined && <TileName name={minorCapitalName} />}
 
-      {tile.resource && <TileResource resource={tile.resource} />}
+      {tile.resource && <TileResource resource={tile.resource} low={twoStations} />}
 
       <TileInfrastructure
         depot={tile.depot ?? false}
@@ -157,13 +161,14 @@ const TileComponentInner: React.FC<TileProps> = ({
         selectedElsewhere={selectedElsewhere}
         onWorkerSelect={selectWorker}
         onOpenTray={openTray}
-        corner={crowded}
+        corner={crowded || station}
       />
 
       <TileJobs
         prospecting={tile.prospecting}
         developmentJob={tile.developmentJob}
         constructionJob={tile.constructionJob}
+        low={twoStations}
       />
 
       {armyMarkers && armyMarkers.length > 0 && <TileArmy markers={armyMarkers} onOpen={openArmy} high={minorCapitalName !== undefined} low={crowded} />}

@@ -9,13 +9,15 @@ export interface TileJobsProps {
   prospecting?: { startedOnTurn: number; workerId: string };
   developmentJob?: DevelopmentJob;
   constructionJob?: ConstructionJob;
+  /** The tile holds a depot and a port, side by side along the top: the markers stand below the level badge there (FR-356). */
+  low?: boolean;
 }
 
 /** Markers for the jobs running on a tile; their titles name them (FR-085). */
-const TileJobsInner: React.FC<TileJobsProps> = ({ prospecting, developmentJob, constructionJob }) => {
+const TileJobsInner: React.FC<TileJobsProps> = ({ prospecting, developmentJob, constructionJob, low = false }) => {
   if (!prospecting && !developmentJob && !constructionJob) return null;
   return (
-    <span className={styles.jobs}>
+    <span className={low ? `${styles.jobs} ${styles.jobsLow}` : styles.jobs}>
       {prospecting && (
         <span className={styles.job} title="Prospecting in progress">
           <GameIcon name={UI_ICONS.prospecting} />
