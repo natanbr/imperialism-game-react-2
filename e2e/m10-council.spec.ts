@@ -7,7 +7,9 @@ import { test, expect, Page, Locator } from '@playwright/test';
 // sum of its four rows, "Abstained:" 12 minus both Totals, the votes needed and "No winner. The Council meets again on turn
 // 20." (FR-298); the capitol picture loaded; the dialog inside the window, neither it nor the page scrolling. Then Close
 // (the focus goes back to Advance Turn), "Next Council: turn 20 (Winter 1819)", the news line "Council of Governors: ...
-// no winner (9 needed)." reopens the screen (FR-297), and turn 11 ends to turn 12 with no Council screen.
+// no winner (9 needed)." reopens the screen (FR-297), and turn 11 ends to turn 12 with no Council screen. Review fix round:
+// that line is the news list's first line, seen without scrolling (FR-306); the turn and the date share one line with the
+// Council line under it, on turns 1 and 11 (FR-307).
 // A winning meeting is not reachable by the UI in a short spec: tests/ui/councilDialog.test.tsx and
 // tests/ui/scoreAndGameOver.test.tsx test it on a hand-built state. Set SCREENSHOT_DIR to also save m10-council.png there;
 // the Council screen's shot is always attached to the test's report.
@@ -50,6 +52,24 @@ async function fitsTheWindow(page: Page, dialog: Locator) {
 
 const ROWS = ['controlled', 'colonies', 'otherGreatPowers', 'otherMinorNations'] as const;
 
+/**
+ * FR-307: the turn ("Turn: 1 of 40") and the date share one line, the date right of the turn and right-aligned in the
+ * HUD's column; the Council line sits under that line, inside the same column.
+ */
+async function turnLineLayout(page: Page) {
+  const indicator = page.getByTestId('turn-indicator');
+  const turn = (await indicator.locator(':scope > div').first().boundingBox())!;
+  const date = (await indicator.locator('.turn-date').boundingBox())!;
+  const box = (await indicator.boundingBox())!;
+  const council = (await page.getByTestId('next-council').boundingBox())!;
+  expect(Math.abs(turn.y - date.y), 'the turn and the date on one line').toBeLessThanOrEqual(2);
+  expect(date.x).toBeGreaterThan(turn.x + turn.width);
+  expect(Math.abs(date.x + date.width - (box.x + box.width)), 'the date right-aligned').toBeLessThanOrEqual(1);
+  expect(council.y, 'the Council line under the turn line').toBeGreaterThanOrEqual(Math.max(turn.y + turn.height, date.y + date.height) - 0.5);
+  expect(council.x).toBeGreaterThanOrEqual(box.x - 0.5);
+  expect(council.x + council.width).toBeLessThanOrEqual(box.x + box.width + 0.5);
+}
+
 test('FR-303 the Council meets on turn 10: its screen opens by itself on turn 11, closes, and reopens from the news', async ({ page }, testInfo) => {
   test.setTimeout(240000);
   const errors = collectErrors(page);
@@ -61,6 +81,7 @@ test('FR-303 the Council meets on turn 10: its screen opens by itself on turn 11
   const next = page.getByTestId('next-council');
   await expect(next).toHaveText('Next Council: turn 10 (Summer 1817)');
   await expect(next).toHaveAttribute('title', /^If the Council met now: (Testland|Valdoria) \d+, (Testland|Valdoria) \d+ of 12 votes; a winner needs 9\.$/);
+  await turnLineLayout(page);
 
   const council = page.getByRole('dialog', { name: 'Council of Governors' });
   for (let turn = 1; turn <= 9; turn++) {
@@ -112,9 +133,23 @@ test('FR-303 the Council meets on turn 10: its screen opens by itself on turn 11
   await expect(advance(page)).toBeFocused();
   await expect(next).toHaveText('Next Council: turn 20 (Winter 1819)');
 
-  // FR-297: the meeting's news line opens its screen again
-  const line = page.getByTestId('news-list').getByRole('button', { name: /^Council of Governors: (Testland|Valdoria) \d+, (Testland|Valdoria) \d+ of 12 votes; no winner \(9 needed\)\.$/ });
+  await turnLineLayout(page);
+
+  // FR-297: the meeting's news line opens its screen again. FR-306 (review R1): it is the list's first line, so the player
+  // sees it without scrolling: the list and the HUD are at the top, and the line lies inside the list's visible box
+  const newsList = page.getByTestId('news-list');
+  const line = newsList.getByRole('button', { name: /^Council of Governors: (Testland|Valdoria) \d+, (Testland|Valdoria) \d+ of 12 votes; no winner \(9 needed\)\.$/ });
   await expect(line).toHaveCount(1);
+  await expect(newsList.getByRole('listitem').first()).toContainText(/^Council of Governors: /);
+  const seen = await newsList.evaluate((list: HTMLElement) => {
+    const hud = list.closest('.hud-content') as HTMLElement;
+    const box = list.getBoundingClientRect();
+    const item = list.querySelector('li')!.getBoundingClientRect();
+    const fadeTop = hud.getBoundingClientRect().top + hud.clientHeight - parseFloat(getComputedStyle(hud, '::after').height);
+    return { scrollTop: list.scrollTop, hudScrollTop: hud.scrollTop, lines: list.querySelectorAll('li').length, inside: item.top >= box.top - 0.5 && item.bottom <= box.top + list.clientHeight + 0.5 && item.bottom <= fadeTop + 0.5 };
+  });
+  expect(seen).toMatchObject({ scrollTop: 0, hudScrollTop: 0, inside: true });
+  expect(seen.lines, 'more news than the Council line').toBeGreaterThan(1);
   await line.click();
   await expect(council).toBeVisible();
   await expect(council.getByTestId('council-date')).toHaveText('Turn 10, Summer 1817');

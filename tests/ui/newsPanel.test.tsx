@@ -94,10 +94,10 @@ describe('FR-280 the news heading names the last turn', () => {
   });
 });
 
-// M10 UI half. FR-297: the Council's news line is a general line after the nations' lines; it opens the Council screen of
-// that meeting (FR-298), as a battle's line opens its Battle screen (FR-232).
+// M10 UI half. FR-297: the Council's news line opens the Council screen of that meeting (FR-298), as a battle's line opens
+// its Battle screen (FR-232). FR-306 (review R1): it is the first line of the list, so it shows without scrolling.
 describe('FR-297 the Council in the news', () => {
-  it('FR-297 the line "Council of Governors: Testland 4, Valdoria 4 of 12 votes; no winner (9 needed)." opens the Council screen of that meeting', () => {
+  it('FR-297 FR-306 the line "Council of Governors: Testland 4, Valdoria 4 of 12 votes; no winner (9 needed).", first in the list, opens the Council screen of that meeting', () => {
     const council = { type: 'council-met', turn: 10, year: 1817, ...councilVote(continent())! } as GameEvent;
     useGameStore.setState({
       ...useGameStore.getInitialState(),
@@ -113,8 +113,8 @@ describe('FR-297 the Council in the news', () => {
     );
     const list = screen.getByTestId('news-list');
     expect(within(list).getAllByRole('listitem').map(text)).toEqual([
-      'Valdoria: Army upkeep: $100.',
       'Council of Governors: Testland 4, Valdoria 4 of 12 votes; no winner (9 needed).',
+      'Valdoria: Army upkeep: $100.',
     ]);
     expect(screen.queryByRole('dialog')).toBeNull();
     fireEvent.click(within(list).getByRole('button', { name: 'Council of Governors: Testland 4, Valdoria 4 of 12 votes; no winner (9 needed).' }));

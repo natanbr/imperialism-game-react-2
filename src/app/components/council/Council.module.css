@@ -1,7 +1,8 @@
 /* The Council screen (FR-298, FR-299), tokens in styles/tokens.css. The frame follows the market and game-over dialogs.
    Its 77 lies over the market and game-over (75) and the Army and Diplomacy screens (76), under the Attack (78) and
    Battle (79) screens and Accept Offer (85). It waits while a Battle screen is to be seen and the game-over screen waits
-   for it (FR-299), so it never shows together with another screen that opens by itself.
+   for it (FR-299). Accept Offer does not wait: an offer made on a meeting turn opens over it, answers the keys first, and
+   gives the focus back to it (tests/ui/councilDialog.test.tsx, review R4).
    At 1280x720 neither the page nor the dialog scrolls (e2e/m10-council.spec.ts). */
 
 .overlay {

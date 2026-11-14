@@ -29,7 +29,7 @@ import { transferProvince } from '@/engine/world/provinces';
 import type { CouncilVote } from '@/types/Council';
 import type { GameState } from '@/types/GameState';
 import { ResourceType } from '@/types/Resource';
-import { deepFreeze, N1, N2, setPair, setTreasury } from './fixtures';
+import { deepFreeze, N1, N2, nationOf, setPair, setTreasury } from './fixtures';
 import { addRegiments, ARVELIA, ARVELIA_P, clearArmy, continent, NE2, NW2, relocate, SUNDMARK, SW1, SW2 } from './armyFixtures';
 import { withoutCouncil, type EngineWithoutCouncil } from './withoutCouncil';
 
@@ -207,12 +207,15 @@ describe('FR-291 standing and nominees', () => {
     expect(councilStanding(s, N1)).toBe(scoreOf(s, N1).total + 400 + 412);
   });
 
-  it('FR-291 a new continent game: both at 240 + 400 + 360 = 1,000; the tie goes to the first in state.nations', () => {
+  it('FR-291 FR-309 a new continent game: both at 240 + 400 + 360 = 1,000; the tie goes in intentOrder of the turn, whatever the order of state.nations', () => {
     const s = continent('world');
     expect([councilStanding(s, N1), councilStanding(s, N2)]).toEqual([1000, 1000]);
-    expect(councilNominees(s)).toEqual([N1, N2]);
-    const swapped = { ...s, nations: [...s.nations].reverse() };
-    expect(councilNominees(swapped)).toEqual([N2, N1]);
+    const reversed = (t: GameState): GameState => ({ ...t, nations: [...t.nations].reverse() });
+    // Turn 1 (and every meeting state, turn 11, 21, ...): Testland first; turn 2: Valdoria first
+    for (const [turn, expected] of [[1, [N1, N2]], [11, [N1, N2]], [2, [N2, N1]], [10, [N2, N1]]] as const) {
+      expect(councilNominees({ ...s, turn }), `turn ${turn}`).toEqual(expected);
+      expect(councilNominees(reversed({ ...s, turn })), `turn ${turn}, reversed`).toEqual(expected);
+    }
   });
 
   it('FR-291 the higher standing is the first nominee; the nominees carry their standing', () => {
@@ -232,6 +235,24 @@ describe('FR-291 standing and nominees', () => {
     expect(councilNominees(s)).toEqual([N1, N2]);
     const richCarthia = setTreasury(s, N3, 200_000);
     expect(councilNominees(richCarthia)[0]).toBe(N3);
+  });
+
+  it('FR-309 three Great Powers with a tie for the second place: the tie goes in intentOrder of the turn; reversing state.nations changes neither the nominees, nor the ballots, nor the winner (review R2)', () => {
+    // Carthia gets its own founding slot (3, after Testland 1 and Valdoria 2) and the treasury that brings its standing to
+    // Valdoria's; Testland, far richer, is the first nominee on every turn
+    let s = setTreasury({ ...threePowers(), nations: threePowers().nations.map(n => (n.id === N3 ? { ...n, colorSlot: 3 } : n)) }, N1, 100_000);
+    const behind = councilStanding(s, N2) - councilStanding(s, N3);
+    s = setTreasury(s, N3, nationOf(s, N3).treasury + behind * SCORE_WEIGHTS.dollarsPerPoint);
+    expect(councilStanding(s, N3)).toBe(councilStanding(s, N2));
+    const reversed = (t: GameState): GameState => ({ ...t, nations: [...t.nations].reverse() });
+    // intentOrder: turn 1 Testland, Valdoria, Carthia; turn 2 Valdoria, Carthia, Testland; turn 3 Carthia, Testland, Valdoria
+    for (const [turn, expected] of [[1, [N1, N2]], [2, [N1, N2]], [3, [N1, N3]]] as const) {
+      const onIt = { ...s, turn };
+      expect(councilNominees(onIt), `turn ${turn}`).toEqual(expected);
+      expect(councilNominees(reversed(onIt)), `turn ${turn}, reversed`).toEqual(expected);
+      expect(vote(reversed(onIt)).ballots).toEqual(vote(onIt).ballots);
+      expect(vote(reversed(onIt)).winnerId).toEqual(vote(onIt).winnerId);
+    }
   });
 
   it('FR-291 with fewer than two Great Powers holding a province no meeting is held', () => {
@@ -422,6 +443,17 @@ describe('FR-295 the Council ends the game', () => {
     expect(state.gameOver).toEqual({ turn: 40, year: 1824, scores: scoreTable(state) });
     expect(events.slice(-3).map(e => e.type)).toEqual(['turn-ended', 'council-met', 'game-over']);
     expect(events.at(-1)).toEqual({ type: 'game-over', turn: 40, year: 1824, scores: scoreTable(state) });
+  });
+
+  it('FR-308 (Q53) the turn-40 meeting, the last, keeps the rules: the 4 minors at their start points abstain, a minor at 49 still abstains, and no winner (review R3)', () => {
+    const [last] = councils(resolve(onTurn(40, 1824)).events);
+    expect([last.turn, isCouncilTurn(onTurn(41, 1825), 50)]).toEqual([40, false]);
+    expect(abstainedProvinces(last)).toEqual([ARVELIA_P, SUNDMARK_P, LORRAN_P, PELLIS_P]);
+    expect([last.nominees.map(n => n.total), last.winnerId]).toEqual([[4, 4], undefined]);
+    // Sundmark at 49 with Testland and 30 with Valdoria: below 50 with both, so it does not have to choose
+    const [close] = councils(resolve(onTurn(40, 1824, sundmark(continent('world'), 49, 30))).events);
+    expect(ballotOf(close, SUNDMARK_P)).toEqual({ provinceId: SUNDMARK_P });
+    expect(abstainedProvinces(close)).toHaveLength(4);
   });
 
   it('FR-295 turn 40 with a winner ends by the Council', () => {

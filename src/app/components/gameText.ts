@@ -365,7 +365,7 @@ export function eventText(event: GameEvent, nameOf: (countryId: string) => strin
       return `${nameOf(event.fallenId)} has fallen.`;
     case "minor-colonised":
       return `${nameOf(event.minorId)} is now our colony.`;
-    // FR-297 (M10): a general line, the first nominee first
+    // FR-297 (M10): a line of no nation, the first nominee first; `newsItems` puts it first (FR-306)
     case "council-met": {
       const winner = event.nominees.find((n) => n.nationId === event.winnerId);
       return winner
@@ -403,14 +403,16 @@ export interface NewsItem {
 }
 
 /**
- * The news of a turn as the player reads it (FR-107): the player's own lines first, as `eventText`
- * words them; then every other nation's lines, each starting with the nation's name ("Valdoria: Rail
- * finished at 15-8."); then the lines of no nation (game over). Each group keeps the event order.
+ * The news of a turn as the player reads it (FR-107): a Council meeting's line (FR-297) first of all (FR-306: it is
+ * the only way back to its screen, and the list shows only its first lines without scrolling); then the player's own
+ * lines, as `eventText` words them; then every other nation's lines, each starting with the nation's name ("Valdoria:
+ * Rail finished at 15-8."); then the lines of no nation (game over). Each group keeps the event order.
  * `nameOf` also names the countries a diplomacy line mentions, minor nations included (FR-176).
  * A battle the player fought, attacking or defending, is its own line, from its side ("Battle at Testland North-East:
- * Province Lost!", FR-232); another nation's battle reads from its attacker's side. A Council meeting is a general line (FR-297).
+ * Province Lost!", FR-232); another nation's battle reads from its attacker's side.
  */
 export function newsItems(events: readonly GameEvent[], playerId: string, nameOf: (countryId: string) => string): NewsItem[] {
+  const council: NewsItem[] = [];
   const own: NewsItem[] = [];
   const others: NewsItem[] = [];
   const general: NewsItem[] = [];
@@ -425,11 +427,12 @@ export function newsItems(events: readonly GameEvent[], playerId: string, nameOf
     const line = eventText(event, nameOf);
     if (line === null) continue;
     const nationId = "nationId" in event ? event.nationId : undefined;
-    if (nationId === undefined) general.push({ text: line, ...opens });
+    if (event.type === "council-met") council.push({ text: line, ...opens });
+    else if (nationId === undefined) general.push({ text: line, ...opens });
     else if (nationId === playerId) own.push({ text: line, ...opens });
     else others.push({ text: `${nameOf(nationId)}: ${line}`, ...opens });
   }
-  return [...own, ...others, ...general];
+  return [...council, ...own, ...others, ...general];
 }
 
 /** The text of the news lines (`newsItems`). */

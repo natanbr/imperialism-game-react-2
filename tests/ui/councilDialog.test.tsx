@@ -9,12 +9,15 @@
 // Battle screens; Close, Escape and the backdrop close it and the focus goes back; on a winning meeting it opens before
 // the game-over screen, with "See the final scores" in place of "Close". Store: `councilShown`, `showCouncil`, `closeCouncil`.
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { AcceptOfferModal } from '@/components/AcceptOfferModal';
 import { BattleModal } from '@/components/BattleModal';
 import { CouncilModal } from '@/components/CouncilModal';
 import { GameOverModal } from '@/components/GameOverModal';
 import { useGameStore } from '@/store/rootStore';
-import { councilVote, type CouncilMetEvent, type Order } from '@/engine';
+import { councilVote, proposalAnswer, type CouncilMetEvent, type Order } from '@/engine';
 import { transferProvince } from '@/engine/world/provinces';
 import type { GameState } from '@/types/GameState';
 import { N1, N2, setPair } from '../engine/fixtures';
@@ -24,6 +27,7 @@ import { text } from './domText';
 
 failOnActWarnings();
 
+const ROOT = join(__dirname, '..', '..');
 const LORRAN = 'minor-3';
 const PELLIS = 'minor-4';
 const FIELD = ['regiment-1', 'regiment-2', 'regiment-3'];
@@ -336,6 +340,52 @@ describe('FR-299 the Council screen: when it opens and how it closes', () => {
     expect(screen.getAllByRole('dialog')).toHaveLength(1);
     fireEvent.click(button('See the final scores'));
     expect(screen.getByRole('dialog', { name: 'Game over' })).toBeTruthy();
+  });
+
+  it('FR-299 FR-175 an offer made on the meeting turn: Accept Offer lies over the Council screen (85 over 77, rendered after it) (review R4)', () => {
+    // jsdom computes no stacking, so the test reads the two overlays' CSS rules and the page's render order
+    const zIndexOf = (cssFile: string, selector: string): number => {
+      const css = readFileSync(join(ROOT, cssFile), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+      const values = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)]
+        .filter(([, selectors, body]) => selectors.split(',').some((s) => s.trim() === selector) && /z-index/.test(body))
+        .map(([, , body]) => Number(/z-index:\s*(\d+)/.exec(body)![1]));
+      return values.at(-1)!;
+    };
+    expect(readFileSync(join(ROOT, 'src/app/components/CouncilModal.tsx'), 'utf8')).toContain('overlayClassName={styles.overlay}');
+    expect(readFileSync(join(ROOT, 'src/app/components/AcceptOfferModal.tsx'), 'utf8')).toContain('overlayClassName={styles.offerOverlay}');
+    const council = zIndexOf('src/app/components/council/Council.module.css', '.overlay');
+    const offer = zIndexOf('src/app/components/diplomacy/Diplomacy.module.css', '.offerOverlay');
+    expect({ council, offer, above: offer > council }).toEqual({ council: 77, offer: 85, above: true });
+    const page = readFileSync(join(ROOT, 'src/app/page.tsx'), 'utf8');
+    expect(page.indexOf('<AcceptOfferModal />')).toBeGreaterThan(page.indexOf('<CouncilModal />'));
+  });
+
+  it.each([
+    ['Escape', false],
+    ['Enter', true],
+  ] as const)('FR-299 FR-175 with an offer and the Council screen open together, %s answers the offer (accept: %s); the Council screen stays, takes the focus back and closes next (review R4)', (key, accept) => {
+    const offer = { id: 'proposal-10-1', fromId: N2, toId: N1, kind: 'alliance' as const, turn: 10 };
+    show({ ...onTurn(11, 1817), proposals: [offer] }, { councilShown: meeting(continent('world')) });
+    render(
+      <>
+        <CouncilModal />
+        <AcceptOfferModal />
+      </>
+    );
+    const titles = () => screen.getAllByRole('dialog').map((d) => text(within(d).getByRole('heading', { level: 2 })));
+    expect(titles()).toEqual(['Council of Governors', 'Accept Offer']);
+    const acceptOffer = screen.getByRole('dialog', { name: 'Accept Offer' });
+    expect(document.activeElement).toBe(acceptOffer);
+
+    fireEvent.keyDown(acceptOffer, { key });
+    expect(proposalAnswer(useGameStore.getState().game, offer.id)).toBe(accept);
+    expect(titles()).toEqual(['Council of Governors']);
+    expect(useGameStore.getState().councilShown).not.toBeNull();
+    expect(dialog().contains(document.activeElement)).toBe(true);
+
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(useGameStore.getState().councilShown).toBeNull();
   });
 
   it('FR-299 a new game drops the Council screen still to see', () => {

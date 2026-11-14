@@ -11,6 +11,7 @@ import { militaryStrength, warBetween } from "../diplomacy/queries";
 import { relationOf } from "../diplomacy/relations";
 import { scoreOf } from "../score/score";
 import { isGameOver, turnLimitOf } from "../turn/gameOver";
+import { intentOrder } from "../turn/intents";
 import { provinceOf, provincesOf } from "../world/provinces";
 
 /** FR-296: the event of a meeting: the vote, the meeting turn and its year. */
@@ -43,11 +44,14 @@ export function councilStanding(state: GameState, nationId: NationId): number {
   return scoreOf(state, nationId).total + COUNCIL.provinceWeight * provincesOf(state, nationId).length + military;
 }
 
-/** FR-291: the Great Powers holding a province, by standing, highest first (ties: `state.nations` order), at most two. */
+/**
+ * FR-291, FR-309: the Great Powers holding a province, by standing, highest first, at most two. Ties go in
+ * `intentOrder(state, state.turn)` (FR-152), so the nominees never depend on the order of `state.nations`.
+ */
 export function councilNominees(state: GameState): NationId[] {
-  return state.nations
-    .filter((n) => provincesOf(state, n.id).length > 0)
-    .map((n) => ({ id: n.id, standing: councilStanding(state, n.id) }))
+  return intentOrder(state, state.turn)
+    .filter((id) => provincesOf(state, id).length > 0)
+    .map((id) => ({ id, standing: councilStanding(state, id) }))
     .sort((a, b) => b.standing - a.standing)
     .slice(0, 2)
     .map((n) => n.id);

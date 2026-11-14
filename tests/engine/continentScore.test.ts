@@ -10,6 +10,7 @@ import { SCRIPTED_GARRISON } from '@/definisions/regiments';
 import { resolveTurn } from '@/engine/turn/resolveTurn';
 import type { GameEvent } from '@/engine/turn/context';
 import { computerOrders } from '@/engine/ai/players';
+import { abstainedProvinces } from '@/engine/council/council';
 import { railLinksOf } from '@/engine/systems/railroadSystem';
 import { scoreOf } from '@/engine/score/score';
 import type { Order } from '@/engine/orders/Order';
@@ -229,6 +230,25 @@ describe('FR-260 (replaces FR-157) the continent plays: 40 turns, nation 2 scrip
     expect(SEEDS.map(seed => games.get(seed)!.twoIslands.councils)).toEqual(SEEDS.map(() => []));
     const counts = SEEDS.map(seed => [seed, games.get(seed)!.first.councils.map(c => `t${c.turn} ${c.nominees.map(n => `${n.nationId}:${n.total}`).join('/')}`)]);
     console.log('FR-305 Council per seed (meeting turn, the votes of each nominee, of 12):', JSON.stringify(counts));
+  });
+
+  it('FR-305 every meeting of those games is 4 to 4: each nominee Controlled 4 and nothing else, the 4 minors abstaining (review R1)', () => {
+    // On the world market no trade moves a relation and no province changes hands, so each Great Power keeps its 4
+    const columns = (game: Game) =>
+      game.councils.map(c => ({
+        turn: c.turn,
+        nominees: [...c.nominees].map(n => [n.nationId, n.controlled, n.colonies, n.otherGreatPowers, n.otherMinorNations, n.total]).sort(),
+        abstained: abstainedProvinces(c),
+      }));
+    const fourToFour = (turn: number) => ({
+      turn,
+      nominees: [
+        [N1, 4, 0, 0, 0, 4],
+        [N2, 4, 0, 0, 0, 4],
+      ],
+      abstained: ['province-minor-1', 'province-minor-2', 'province-minor-3', 'province-minor-4'],
+    });
+    expect(SEEDS.map(seed => columns(games.get(seed)!.first))).toEqual(SEEDS.map(() => [10, 20, 30, 40].map(fourToFour)));
   });
 
   it('FR-302 the scripted player gives the same orders on every turn as in the game without the Council, and the games end the same', () => {

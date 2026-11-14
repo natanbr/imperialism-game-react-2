@@ -160,6 +160,21 @@ describe('FR-301 the next Council in the HUD', () => {
     expect(description(line)).toBe(line.getAttribute('title'));
   });
 
+  it('FR-301 when councilVote gives no vote (fewer than two Great Powers holding a province) the line shows without a tooltip or a description (review R7)', () => {
+    // Hand-built: Testland holds all of Valdoria's provinces but the turn has not resolved, so the game is not over yet
+    const alone = ['province-nation-2-nw', 'province-nation-2-ne', 'province-nation-2-sw', 'province-nation-2-se'].reduce(
+      (s, provinceId) => transferProvince(s, provinceId, N1),
+      continent()
+    );
+    show(alone);
+    const { container } = render(<TurnIndicator />);
+    const line = screen.getByTestId('next-council');
+    expect(text(line)).toBe('Next Council: turn 10 (Summer 1817)');
+    expect(line.hasAttribute('title')).toBe(false);
+    expect(line.hasAttribute('aria-describedby')).toBe(false);
+    expect(container.querySelectorAll('[hidden]')).toHaveLength(0);
+  });
+
   it('FR-301 absent on two-islands, after game over, and after the turn-40 meeting', () => {
     show(game());
     const { rerender } = render(<TurnIndicator />);

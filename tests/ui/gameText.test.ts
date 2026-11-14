@@ -457,9 +457,9 @@ describe('FR-232 the war news', () => {
 });
 
 // M10 UI half. FR-297 (Imp1 Imperial Times): a Council meeting reads "Council of Governors: Testland 5, Valdoria 4 of 12
-// votes; no winner (9 needed)." or "Council of Governors: Testland wins with 9 of 12 votes." (the first nominee first), in
-// the general group after the nations' lines (FR-107), before the game over; the line carries its event, so it opens the
-// Council screen of that meeting as a battle's line opens its Battle screen (FR-232).
+// votes; no winner (9 needed)." or "Council of Governors: Testland wins with 9 of 12 votes." (the first nominee first); the
+// line carries its event, so it opens the Council screen of that meeting as a battle's line opens its Battle screen
+// (FR-232). FR-306 (review R1, replaces FR-297's place "after the nations' lines"): it is the first line of the news.
 describe('FR-297 the Council in the news', () => {
   const names: Record<string, string> = { 'nation-1': 'Testland', 'nation-2': 'Valdoria' };
   const name = (id: string) => names[id] ?? id;
@@ -502,7 +502,7 @@ describe('FR-297 the Council in the news', () => {
     );
   });
 
-  it("FR-297 FR-107 a general line after the nations' lines, before the game over; it carries its event", () => {
+  it("FR-306 FR-297 FR-107 the first line of the news, before the player's own lines; the game over stays last; it carries its event", () => {
     const council = met(nominee('nation-1', 4), nominee('nation-2', 4));
     const over: GameEvent = { type: 'game-over', turn: 40, year: 1824, scores: [] };
     const events: GameEvent[] = [
@@ -514,12 +514,12 @@ describe('FR-297 the Council in the news', () => {
     ];
     const items = newsItems(events, 'nation-1', name);
     expect(items.map((i) => i.text)).toEqual([
+      'Council of Governors: Testland 4, Valdoria 4 of 12 votes; no winner (9 needed).',
       'Army upkeep: $125.',
       'Valdoria: Army upkeep: $100.',
-      'Council of Governors: Testland 4, Valdoria 4 of 12 votes; no winner (9 needed).',
       'Game over at the end of Winter 1824.',
     ]);
-    expect(items.map((i) => i.council)).toEqual([undefined, undefined, council, undefined]);
-    expect(items[2].battle).toBeUndefined();
+    expect(items.map((i) => i.council)).toEqual([council, undefined, undefined, undefined]);
+    expect(items[0].battle).toBeUndefined();
   });
 });
