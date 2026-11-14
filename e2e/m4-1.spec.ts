@@ -29,6 +29,12 @@ test('FR-122 after 15 End Turns Valdoria has a connected depot and a few rail li
   for (let turn = 2; turn <= 16; turn++) {
     await page.getByRole('button', { name: /Advance Turn/ }).click();
     await expect(page.getByTestId('turn-indicator')).toContainText(`Turn: ${turn} of`);
+    // FR-304 (M10): the turn-10 Council's screen opens by itself on turn 11
+    if (turn === 11) {
+      const council = page.getByRole('dialog', { name: 'Council of Governors' });
+      await council.getByRole('button', { name: 'Close' }).click();
+      await expect(council).toHaveCount(0);
+    }
   }
 
   // Show island 2: its capital and the land around it (columns 13 to 22, rows 0 to 14)

@@ -7,6 +7,8 @@ import { test, expect, Page } from '@playwright/test';
 // Trade (FR-194) on turn 2. Pellis because the scripted Valdoria opens a consulate only with a minor whose offer or demand
 // it will use, the first such in id order (FR-245): Arvelia on turn 1 and not Pellis by turn 2, so Pellis buys our furniture.
 // FR-106, FR-109: the game-over screen names both nations beside their colours and starts a new game.
+// FR-304 (M10): the Council's screen opens by itself after turns 10, 20, 30 and 40 and is closed; the turn-40 one reads
+// "No winner. This was the last Council; the game ends on points." before the game-over screen.
 // Set SCREENSHOT_DIR to also save m3-market.png and m4-game-over.png there.
 
 const cash = (page: Page) => page.locator('.nation-stats');
@@ -91,9 +93,21 @@ test('FR-078 FR-104 FR-109 end 40 turns, see the game-over screen with both nati
   const errors = collectErrors(page);
   await start(page);
 
+  const council = page.getByRole('dialog', { name: 'Council of Governors' });
   for (let turn = 1; turn <= 40; turn++) {
     await advance(page).click();
     if (turn < 40) await expect(page.getByTestId('turn-indicator')).toContainText(`Turn: ${turn + 1} of 40`);
+    // FR-304: the Council meets on turns 10, 20, 30 and 40 and its screen opens by itself; the last one comes before the
+    // game-over screen (FR-299), and an idle player cannot reach 9 votes
+    if (turn % 10 === 0) {
+      await expect(council).toBeVisible();
+      if (turn === 40) {
+        await expect(council.getByTestId('council-result')).toHaveText('No winner. This was the last Council; the game ends on points.');
+        await expect(page.getByRole('dialog', { name: 'Game over' })).toHaveCount(0);
+      }
+      await council.getByRole('button', { name: 'Close' }).click();
+      await expect(council).toHaveCount(0);
+    }
   }
 
   const over = page.getByRole('dialog', { name: 'Game over' });
