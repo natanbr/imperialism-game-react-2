@@ -49,6 +49,8 @@ const BattleReplay: React.FC<{ report: BattleReport; remaining: number }> = ({ r
   const game = useGameStore((s) => s.game);
   const playerId = useGameStore((s) => s.activeNationId);
   const titleId = useId();
+  const attackersId = useId();
+  const defendersId = useId();
   const closeButton = useRef<HTMLButtonElement>(null);
   const view = useMemo(() => battleView(report, game, playerId), [report, game, playerId]);
   const rounds = view.rounds.length;
@@ -94,21 +96,33 @@ const BattleReplay: React.FC<{ report: BattleReport; remaining: number }> = ({ r
       </header>
 
       <div className={styles.battleBody}>
+        {/* FR-276: each side under a visible heading in the Attack screen's style, so the swatches are not the only cue */}
         <div className={styles.field}>
-          <ul className={styles.fieldSide} aria-label={`Attackers: ${view.attackersName}`}>
-            {side("attacker").map((t) => token(t, 1))}
-          </ul>
+          <section className={styles.fieldGroup}>
+            <h3 id={attackersId} className={styles.sideHeading}>
+              Attackers: {view.attackersName}
+            </h3>
+            <ul className={styles.fieldSide} aria-labelledby={attackersId}>
+              {side("attacker").map((t) => token(t, 1))}
+            </ul>
+          </section>
           {wall && (
             <div className={styles.wall} data-testid="battle-wall">
               <FortPicture level={view.fortLevel} alt={`Fort level ${view.fortLevel}`} size={56} className={styles.wallPicture} />
             </div>
           )}
-          <ul className={styles.fieldSide} aria-label={`Defenders: ${view.defenderName}`}>
-            {side("defender").map((t) => token(t, wall ? 4 : 3))}
-          </ul>
+          <section className={styles.fieldGroup}>
+            <h3 id={defendersId} className={styles.sideHeading}>
+              Defenders: {view.defenderName}
+            </h3>
+            <ul className={styles.fieldSide} aria-labelledby={defendersId}>
+              {side("defender").map((t) => token(t, wall ? 4 : 3))}
+            </ul>
+          </section>
         </div>
 
         <div className={styles.log}>
+          {/* FR-277: the deployment and the rounds tell nothing of the outcome; the number of rounds waits for the result */}
           <p className={styles.step} aria-live="polite" data-testid="battle-step">
             {stepText(step, rounds)}
           </p>
@@ -127,7 +141,14 @@ const BattleReplay: React.FC<{ report: BattleReport; remaining: number }> = ({ r
               </ul>
             </>
           ) : step === 0 ? (
-            <p className={styles.hint}>Each round the defenders fire first, then the attackers: cavalry, infantry, then artillery.</p>
+            <>
+              <ul className={styles.forces} aria-label="Forces">
+                {view.forces.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+              <p className={styles.hint}>Each round the defenders fire first, then the attackers: cavalry, infantry, then artillery.</p>
+            </>
           ) : (
             <ol className={styles.shots} aria-label={`Shots of round ${step}`}>
               {view.rounds[step - 1].map((line, i) => (

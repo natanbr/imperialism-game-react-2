@@ -262,7 +262,8 @@ only (FR-018).
   `armyView.ts`'s `attackArrows` and `attackScreenControl`) read the engine and word it; `AttackModal.tsx` sends the
   attack as one `moveArmy`, `BattleModal.tsx` replays a report from the report alone and builds no order. The Army
   screen's ticks are the store's `armySelection`, kept when it closes, so a map click on a bordering enemy province
-  opens the Attack screen (`attackPlanAt`, `hooks/useTileClickHandler.ts`). End Turn queues the battles the player
+  opens the Attack screen (`attackPlanAt`, `hooks/useTileClickHandler.ts`). One dialog at a time (FR-279): the Attack
+  screen closes the Army screen, and a plan with `fromArmyScreen` reopens it on close. End Turn queues the battles the player
   fought (`battleQueue`, `battlesFoughtBy`); a battle's news line (`newsItems` in `gameText.ts`) opens its replay.
 - **Art pack** (NR-031, FR-272, FR-273): `public/assets/ink-and-wash/` as supplied; `components/art/inkArt.ts` is the
   one table from game ids to its files (regiments, forts, the red attack arrow), `art/ArtPicture.tsx` draws them. A
@@ -282,7 +283,7 @@ The store (`store/rootStore.ts`) holds that state under `game`, and UI state bes
 | `selectedTileId`, `selectedWorkerId`, `hoveredTileId` | selection | UI |
 | `cameraX`, `cameraY` | map scroll | UI |
 | `isWarehouseOpen`, `isCapitalOpen`, ... | overlays and dialogs | UI |
-| `armyProvinceId`, `isArmouryOpen` | the Army screen's province (null: closed) and the Armoury (FR-211, FR-212) | UI |
+| `armyProvinceId`, `armyTargetId`, `isArmouryOpen` | the Army screen's province (null: closed), the "March to" entry it reopens on when the Attack screen gives it back (FR-279), and the Armoury (FR-211, FR-212) | UI |
 | `armySelection`, `attackPlan`, `battleQueue` | the Army screen's ticks kept on the map, the open Attack screen, the battle reports still to replay (FR-230 to FR-232); End Turn and New game reset them | UI |
 
 Only `game` is ever passed to the engine (tested with spies in

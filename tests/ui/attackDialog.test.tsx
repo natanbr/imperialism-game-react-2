@@ -15,7 +15,7 @@ import { AttackModal } from '@/components/AttackModal';
 import { MapView } from '@/components/MapView';
 import { attackPlanAt, estimateText, strengthText } from '@/components/army/attackView';
 import { useGameStore } from '@/store/rootStore';
-import { applyOrder, type Order } from '@/engine';
+import { applyOrder, REGIMENTS, type Order } from '@/engine';
 import type { GameState } from '@/types/GameState';
 import { setPair, setTile } from '../engine/fixtures';
 import { ARVELIA, ARVELIA_P, clearArmy, continent, idOf, NE1, NW1, patchRegiment, relocate, SE1, SW1 } from '../engine/armyFixtures';
@@ -228,13 +228,14 @@ describe('FR-230 from the Army screen: "Attack Arvelia" in "March to"', () => {
     expect(text(within(armyDialog()).getByTestId('march-reason'))).toBe('Tick the regiments to attack with first.');
   });
 
-  it('FR-230 tick the regiments, pick "Attack Arvelia", "Attack…": the Attack screen opens over the Army screen with them; Attack orders it', () => {
+  it('FR-230 FR-279 tick the regiments, pick "Attack Arvelia", "Attack…": the Attack screen opens in place of the Army screen with them; Attack orders it', () => {
     openArmy(onTheBorder());
     for (const name of ['1st Regulars', '1st Artillery']) fireEvent.click(within(armyDialog()).getByRole('checkbox', { name }));
     fireEvent.change(select(), { target: { value: ARVELIA_P } });
     fireEvent.click(within(armyDialog()).getByRole('button', { name: 'Attack…' }));
 
-    expect(useGameStore.getState().attackPlan).toEqual({ fromProvinceId: NE1, toProvinceId: ARVELIA_P, regimentIds: ['regiment-1', 'regiment-3'] });
+    // FR-279 (QA item 4): the plan remembers the Army screen it replaced
+    expect(useGameStore.getState().attackPlan).toEqual({ fromProvinceId: NE1, toProvinceId: ARVELIA_P, regimentIds: ['regiment-1', 'regiment-3'], fromArmyScreen: true });
     const ours = within(attackDialog()).getByRole('list', { name: 'Our regiments' });
     expect(within(ours).getAllByTestId('name').map((n) => text(n))).toEqual(['1st Regulars', '1st Artillery']);
     // An attack without war is not refused here: the Attack screen says why it cannot be ordered yet
@@ -338,5 +339,142 @@ describe('FR-230 from the map: a click on a bordering enemy province with our re
     act(() => useGameStore.getState().advanceTurn());
     expect(useGameStore.getState().armySelection).toBeNull();
     expect(useGameStore.getState().attackPlan).toBeNull();
+  });
+});
+
+// M9 QA fix round, item 3. FR-278: the Attack screen explains its terms: a short line under the estimate says what
+// strength is (FR-226: firepower x health / 100 added up; a defender under cover divided by the share of damage it still
+// takes) and what the verdicts mean, and "entrenched" is described under the defenders.
+describe('FR-278 the Attack screen explains its terms', () => {
+  const explanation = () => text(within(attackDialog()).getByTestId('estimate-explanation'));
+  const VERDICTS = 'Likely victory at 1.5 times theirs or more, uncertain at 0.75 or more.';
+
+  it('FR-278 right under the estimate: what strength is and what the verdict means, with the cover that applies here', () => {
+    openAttack(onTheBorder());
+    const line = within(attackDialog()).getByTestId('estimate-explanation');
+    expect(within(attackDialog()).getByTestId('attack-estimate').nextElementSibling).toBe(line);
+    expect(explanation()).toBe(`Strength: each regiment's firepower times its health, added up; an entrenched defender's counts 1.25 times. ${VERDICTS}`);
+  });
+
+  it("FR-278 the explanation holds for the numbers shown: ours 36 is 2 Regulars and 1 Artillery's firepower, theirs 18.75 is 3 entrenched Minutemen x 1.25", () => {
+    const fp = (type: 'regulars' | 'artillery' | 'minutemen') => REGIMENTS[type].stats.fpNormal;
+    expect(2 * fp('regulars') + fp('artillery')).toBe(36);
+    expect(3 * fp('minutemen') * 1.25).toBe(18.75);
+  });
+
+  it('FR-278 behind a fort the cover part names the fort (level 1: 1.43 times); with no defender there is no cover part', () => {
+    const first = openAttack(setTile(onTheBorder(), ARVELIA_SEAT, { fortLevel: 1 }));
+    expect(explanation()).toBe(`Strength: each regiment's firepower times its health, added up; behind the fort a defender's counts 1.43 times. ${VERDICTS}`);
+    first.unmount();
+    openAttack(clearArmy(onTheBorder(), ARVELIA, ARVELIA_P));
+    expect(explanation()).toBe(`Strength: each regiment's firepower times its health, added up. ${VERDICTS}`);
+  });
+
+  it('FR-278 "entrenched" is described under the defenders: "Entrenched: takes 20% less damage.", and each "entrenched" points to it', () => {
+    openAttack(onTheBorder());
+    const legend = within(attackDialog()).getByTestId('entrenched-legend');
+    expect(text(legend)).toBe('Entrenched: takes 20% less damage.');
+    expect(within(attackDialog()).getByRole('list', { name: 'Defenders' }).nextElementSibling).toBe(legend);
+    expect(within(attackDialog()).getAllByTestId('protection').map((p) => p.getAttribute('aria-describedby'))).toEqual([legend.id, legend.id, legend.id]);
+  });
+
+  it('FR-278 behind a fort no defender is entrenched: no entrenched line (the fort line says what the fort does)', () => {
+    openAttack(setTile(onTheBorder(), ARVELIA_SEAT, { fortLevel: 1 }));
+    expect(within(attackDialog()).queryByTestId('entrenched-legend')).toBeNull();
+    expect(within(attackDialog()).getAllByTestId('protection').map((p) => p.getAttribute('aria-describedby'))).toEqual([null, null, null]);
+  });
+});
+
+// M9 QA fix round, item 4. FR-279: opening the Attack screen from the Army screen replaces it, so one dialog shows at a
+// time; Cancel, Escape, the backdrop and Attack bring the Army screen back with the same ticks (none after Attack: they
+// went with the order) and "Attack Arvelia" still picked, the focus on "Attack…".
+describe('FR-279 the Attack screen replaces the Army screen', () => {
+  const armySelect = () => within(armyDialog()).getByRole('combobox', { name: 'March to' }) as HTMLSelectElement;
+  const ticks = () =>
+    ['1st Regulars', '2nd Regulars', '1st Artillery'].map((name) => (within(armyDialog()).getByRole('checkbox', { name }) as HTMLInputElement).checked);
+
+  /** The Army screen of Testland North-East with 1st Regulars and 1st Artillery ticked, "Attack Arvelia", "Attack…". */
+  function attackFromArmy(state = onTheBorder()) {
+    show(state, { armyProvinceId: NE1 });
+    const view = render(
+      <>
+        <ArmyModal />
+        <AttackModal />
+      </>
+    );
+    for (const name of ['1st Regulars', '1st Artillery']) fireEvent.click(within(armyDialog()).getByRole('checkbox', { name }));
+    fireEvent.change(armySelect(), { target: { value: ARVELIA_P } });
+    fireEvent.click(within(armyDialog()).getByRole('button', { name: 'Attack…' }));
+    return view;
+  }
+
+  /** Back on the Army screen as the player left it: alone, the same ticks, "Attack Arvelia" picked, the focus on "Attack…". */
+  function backOnTheArmyScreen() {
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    expect(screen.queryByRole('dialog', { name: 'Attack Arvelia' })).toBeNull();
+    expect(ticks()).toEqual([true, false, true]);
+    expect(armySelect().value).toBe(ARVELIA_P);
+    expect(document.activeElement).toBe(within(armyDialog()).getByRole('button', { name: 'Attack…' }));
+    expect(useGameStore.getState().attackPlan).toBeNull();
+  }
+
+  it('FR-279 "Attack…" closes the Army screen: only the Attack screen shows; the ticks wait in the selection', () => {
+    attackFromArmy();
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    expect(attackDialog()).toBeTruthy();
+    expect(useGameStore.getState().armyProvinceId).toBeNull();
+    expect(useGameStore.getState().armySelection).toEqual({ provinceId: NE1, regimentIds: ['regiment-1', 'regiment-3'] });
+  });
+
+  it('FR-279 "Cancel" goes back to the Army screen with the same ticks and "Attack Arvelia" still picked; nothing is sent', () => {
+    attackFromArmy();
+    fireEvent.click(within(attackDialog()).getByRole('button', { name: 'Cancel' }));
+    backOnTheArmyScreen();
+    expect(submitted).toEqual([]);
+  });
+
+  it('FR-279 Escape and a click on the backdrop go back the same way', () => {
+    const first = attackFromArmy();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    backOnTheArmyScreen();
+    first.unmount();
+
+    attackFromArmy();
+    const backdrop = screen.getByTestId('dialog-backdrop');
+    fireEvent.mouseDown(backdrop);
+    fireEvent.click(backdrop);
+    backOnTheArmyScreen();
+    expect(submitted).toEqual([]);
+  });
+
+  it('FR-279 "Attack" goes back to the Army screen too: one dialog, the rows "Attacking Arvelia", no tick left', () => {
+    attackFromArmy();
+    fireEvent.click(within(attackDialog()).getByRole('button', { name: 'Attack' }));
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    expect(text(within(within(armyDialog()).getByTestId('regiment-1st Regulars')).getByTestId('status'))).toBe('Attacking Arvelia');
+    expect(within(armyDialog()).getAllByRole('checkbox').every((c) => !(c as HTMLInputElement).checked)).toBe(true);
+    expect(armySelect().value).toBe(ARVELIA_P);
+  });
+
+  it('FR-279 opened from the map, Cancel brings no Army screen', () => {
+    show(onTheBorder(), { attackPlan: { fromProvinceId: NE1, toProvinceId: ARVELIA_P, regimentIds: FIELD } });
+    render(
+      <>
+        <ArmyModal />
+        <AttackModal />
+      </>
+    );
+    fireEvent.click(within(attackDialog()).getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(useGameStore.getState().armyProvinceId).toBeNull();
+  });
+
+  it('FR-279 once the Army screen is closed, the next open starts at the first "March to" entry', () => {
+    attackFromArmy();
+    fireEvent.click(within(attackDialog()).getByRole('button', { name: 'Cancel' }));
+    fireEvent.click(within(armyDialog()).getByRole('button', { name: 'Close army' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    act(() => useGameStore.getState().openArmy(NE1));
+    expect(armySelect().value).toBe(NW1);
   });
 });

@@ -13,6 +13,8 @@ export interface AttackPlan {
   fromProvinceId: string;
   toProvinceId: string;
   regimentIds: string[];
+  /** Opened from the Army screen, which it replaces (FR-279): closing it brings that screen back. */
+  fromArmyScreen?: boolean;
 }
 
 export interface OverlaySlice {
@@ -46,9 +48,11 @@ export interface OverlaySlice {
   dismissedProposalIds: string[];
   dismissProposal: (proposalId: string) => void;
 
-  // The Army screen (FR-211): the province whose army it shows, opened from our marker on the map (FR-210)
+  // The Army screen (FR-211): the province whose army it shows, opened from our marker on the map (FR-210); the "March
+  // to" entry it opens on, the attacked province when the Attack screen gives it back (FR-279), else null (the first)
   armyProvinceId: string | null;
-  openArmy: (provinceId: string) => void;
+  armyTargetId: string | null;
+  openArmy: (provinceId: string, targetId?: string) => void;
   closeArmy: () => void;
 
   // The army selection (FR-230): the Army screen's ticks, kept when it closes, so a click on a bordering enemy province
@@ -57,7 +61,7 @@ export interface OverlaySlice {
   selectRegiments: (provinceId: string, regimentIds: string[]) => void;
   clearArmySelection: () => void;
 
-  // The Attack screen (FR-230), opened from the Army screen or from the map
+  // The Attack screen (FR-230), opened from the Army screen (in its place, FR-279) or from the map
   attackPlan: AttackPlan | null;
   openAttack: (plan: AttackPlan) => void;
   closeAttack: () => void;
@@ -116,18 +120,26 @@ export const createOverlaySlice: StateCreator<GameStore, [], [], OverlaySlice> =
 
   // Army screen and Armoury: same stale-refusal rule as the capital (FR-055)
   armyProvinceId: null,
-  openArmy: (provinceId) => set({ armyProvinceId: provinceId, lastRejection: null }),
-  closeArmy: () => set({ armyProvinceId: null }),
+  armyTargetId: null,
+  openArmy: (provinceId, targetId) => set({ armyProvinceId: provinceId, armyTargetId: targetId ?? null, lastRejection: null }),
+  closeArmy: () => set({ armyProvinceId: null, armyTargetId: null }),
 
   armySelection: null,
   selectRegiments: (provinceId, regimentIds) =>
     set({ armySelection: regimentIds.length > 0 ? { provinceId, regimentIds: [...regimentIds] } : null }),
   clearArmySelection: () => set({ armySelection: null }),
 
-  // Same stale-refusal rule as the capital (FR-055)
+  // Same stale-refusal rule as the capital (FR-055). One dialog at a time (FR-279): the Attack screen closes the Army
+  // screen, and one opened from it gives it back on close (Cancel, Escape, the backdrop, or after Attack) on the same
+  // "March to" entry; the ticks are the selection, which the store keeps
   attackPlan: null,
-  openAttack: (plan) => set({ attackPlan: plan, lastRejection: null }),
-  closeAttack: () => set({ attackPlan: null }),
+  openAttack: (plan) => set({ attackPlan: plan, armyProvinceId: null, armyTargetId: null, lastRejection: null }),
+  closeAttack: () =>
+    set((s) =>
+      s.attackPlan?.fromArmyScreen
+        ? { attackPlan: null, armyProvinceId: s.attackPlan.fromProvinceId, armyTargetId: s.attackPlan.toProvinceId, lastRejection: null }
+        : { attackPlan: null }
+    ),
 
   battleQueue: [],
   showBattle: (report) => set({ battleQueue: [report] }),

@@ -24,24 +24,30 @@ const Health: React.FC<{ value: number }> = ({ value }) => (
   </span>
 );
 
-/** One regiment: its picture beside its name (decorative, FR-272), then its health; a defender also its type and cover. */
-const RegimentRow: React.FC<{ regiment: AttackRegimentView | DefenderView; defender?: boolean }> = ({ regiment, defender = false }) => (
-  <li className={styles.row}>
-    <RegimentPicture type={regiment.type} size={36} className={styles.rowPicture} />
-    <span className={styles.rowName} data-testid="name">
-      {regiment.name}
-    </span>
-    <Health value={regiment.health} />
-    {defender && (
-      <span className={styles.rowMeta}>
-        <span data-testid="type">{regiment.typeName}</span>
-        <span className={styles.protection} data-testid="protection">
-          {"protection" in regiment ? regiment.protection : ""}
-        </span>
+/**
+ * One regiment: its picture beside its name (decorative, FR-272), then its health; a defender also its type and cover,
+ * "entrenched" described by the legend under the list (FR-278, `legendId`).
+ */
+const RegimentRow: React.FC<{ regiment: AttackRegimentView | DefenderView; defender?: boolean; legendId?: string }> = ({ regiment, defender = false, legendId }) => {
+  const protection = "protection" in regiment ? regiment.protection : "";
+  return (
+    <li className={styles.row}>
+      <RegimentPicture type={regiment.type} size={36} className={styles.rowPicture} />
+      <span className={styles.rowName} data-testid="name">
+        {regiment.name}
       </span>
-    )}
-  </li>
-);
+      <Health value={regiment.health} />
+      {defender && (
+        <span className={styles.rowMeta}>
+          <span data-testid="type">{regiment.typeName}</span>
+          <span className={styles.protection} data-testid="protection" aria-describedby={protection === "entrenched" ? legendId : undefined}>
+            {protection}
+          </span>
+        </span>
+      )}
+    </li>
+  );
+};
 
 /** The Attack screen's content; mounted only while a plan is open. */
 const AttackScreen: React.FC = () => {
@@ -54,6 +60,7 @@ const AttackScreen: React.FC = () => {
   const titleId = useId();
   const oursId = useId();
   const estimateId = useId();
+  const legendId = useId();
   const reasonId = useId();
 
   const view = useMemo(() => attackView(game, nationId, plan), [game, nationId, plan]);
@@ -83,7 +90,9 @@ const AttackScreen: React.FC = () => {
 
       <div className={styles.sides}>
         <section className={styles.side}>
-          <h3 id={oursId}>Our regiments</h3>
+          <h3 id={oursId} className={styles.sideHeading}>
+            Our regiments
+          </h3>
           <ul className={styles.list} aria-labelledby={oursId}>
             {view.ours.map((r) => (
               <RegimentRow key={r.id} regiment={r} />
@@ -91,7 +100,9 @@ const AttackScreen: React.FC = () => {
           </ul>
         </section>
         <section className={styles.side}>
-          <h3 data-testid="defenders-heading">Defenders: {view.ownerName}</h3>
+          <h3 className={styles.sideHeading} data-testid="defenders-heading">
+            Defenders: {view.ownerName}
+          </h3>
           {view.fortText && (
             <p className={styles.fort} data-testid="attack-fort">
               <FortPicture level={view.fortLevel} size={40} className={styles.fortPicture} />
@@ -101,7 +112,7 @@ const AttackScreen: React.FC = () => {
           {view.defenders.length > 0 ? (
             <ul className={styles.list} aria-label="Defenders">
               {view.defenders.map((d) => (
-                <RegimentRow key={d.id} regiment={d} defender />
+                <RegimentRow key={d.id} regiment={d} defender legendId={legendId} />
               ))}
             </ul>
           ) : (
@@ -109,12 +120,20 @@ const AttackScreen: React.FC = () => {
               {view.noDefenders}
             </p>
           )}
+          {view.entrenchedText && (
+            <p id={legendId} className={styles.legend} data-testid="entrenched-legend">
+              {view.entrenchedText}
+            </p>
+          )}
         </section>
       </div>
 
-      {/* FR-226: both strengths and the verdict, in words as well as its colour */}
+      {/* FR-226: both strengths and the verdict, in words as well as its colour; FR-278: what the numbers are, under it */}
       <p id={estimateId} className={`${styles.estimate} ${VERDICT_CLASS[view.estimate.verdict]}`} data-testid="attack-estimate">
         {view.estimateText}
+      </p>
+      <p className={styles.explanation} data-testid="estimate-explanation">
+        {view.estimateExplanation}
       </p>
 
       <footer className={styles.footer}>

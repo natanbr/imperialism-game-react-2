@@ -135,11 +135,14 @@ const ArmyScreen: React.FC<{ provinceId: string }> = ({ provinceId }) => {
   const disbandReasonId = useId();
   const legendId = useId();
   const disbandButton = useRef<HTMLButtonElement>(null);
+  const attackButton = useRef<HTMLButtonElement>(null);
   // The ticks are the army selection (FR-230): they stay when the screen closes, so a click on a bordering enemy
   // province attacks with them; another province's screen starts with none ticked
   const ticked = useMemo(() => (selection?.provinceId === provinceId ? selection.regimentIds : []), [selection, provinceId]);
   const setTicked = (update: (list: string[]) => string[]) => selectRegiments(provinceId, update(ticked));
-  const [chosen, setChosen] = useState<string | undefined>(undefined);
+  // FR-279: back from the Attack screen it opens on the attacked province's entry, as the player left it
+  const [returnedTo] = useState(() => useGameStore.getState().armyTargetId ?? undefined);
+  const [chosen, setChosen] = useState<string | undefined>(returnedTo);
   const [asking, setAsking] = useState(false);
 
   const view = useMemo(() => armyView(game, nationId, provinceId), [game, nationId, provinceId]);
@@ -147,7 +150,8 @@ const ArmyScreen: React.FC<{ provinceId: string }> = ({ provinceId }) => {
   const selected = view.rows.filter((r) => r.selectable && ticked.includes(r.id));
   const selectedIds = selected.map((r) => r.id);
   const target = view.targets.find((t) => t.id === chosen) ?? view.targets[0];
-  // FR-230: an "Attack Arvelia" entry turns March into "Attack…", which opens the Attack screen with the ticked regiments
+  // FR-230: an "Attack Arvelia" entry turns March into "Attack…", which opens the Attack screen with the ticked regiments,
+  // in this screen's place (FR-279)
   const attacking = target?.kind === "attack";
   const march = attacking ? attackScreenControl(game, nationId, provinceId, selectedIds, target.id) : marchControl(game, nationId, provinceId, selectedIds, target?.id);
   const disband = disbandControl(game, nationId, provinceId, selectedIds);
@@ -161,6 +165,12 @@ const ArmyScreen: React.FC<{ provinceId: string }> = ({ provinceId }) => {
     setAsking(false);
     disbandButton.current?.focus();
   };
+
+  // FR-279: the focus goes back to "Attack…", the control that opened the Attack screen (after the Modal's own first
+  // focus, which runs before this parent's effect); a disabled one (the ticks went with the order) cannot take it
+  useEffect(() => {
+    if (returnedTo) attackButton.current?.focus();
+  }, [returnedTo]);
 
   return (
     <Modal titleId={titleId} onClose={close} overlayClassName={styles.overlay} className={styles.dialog}>
@@ -250,10 +260,11 @@ const ArmyScreen: React.FC<{ provinceId: string }> = ({ provinceId }) => {
             </select>
             {attacking ? (
               <button
+                ref={attackButton}
                 className={`${styles.button} ${styles.attackButton}`}
                 disabled={march.refusal !== undefined}
                 aria-describedby={march.refusal ? marchReasonId : undefined}
-                onClick={() => openAttack({ fromProvinceId: provinceId, toProvinceId: target.id, regimentIds: selectedIds })}
+                onClick={() => openAttack({ fromProvinceId: provinceId, toProvinceId: target.id, regimentIds: selectedIds, fromArmyScreen: true })}
               >
                 Attack…
               </button>

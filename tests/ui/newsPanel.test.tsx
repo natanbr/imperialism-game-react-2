@@ -5,7 +5,7 @@
 // app: e2e/m8-qa.spec.ts.
 import { describe, it, expect } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
-import { NewsPanel } from '@/components/HUD/index';
+import { NewsPanel, TurnIndicator } from '@/components/HUD/index';
 import { useGameStore } from '@/store/rootStore';
 import type { GameEvent } from '@/engine';
 import { continent } from '../engine/armyFixtures';
@@ -51,11 +51,44 @@ describe('FR-268 the HUD news list', () => {
     ]);
   });
 
-  it('FR-268 the list is its own scroll region: named by the heading "News, turn 3 (1815)" and reachable with Tab', () => {
+  it('FR-268 FR-280 the list is its own scroll region: named by the heading "News from last turn (turn 3, Fall 1815)" and reachable with Tab', () => {
     showNews(EVENTS);
-    const list = screen.getByRole('list', { name: 'News, turn 3 (1815)' });
+    const list = screen.getByRole('list', { name: 'News from last turn (turn 3, Fall 1815)' });
     expect(list.dataset.testid).toBe('news-list');
     expect(list.tabIndex).toBe(0);
-    expect(text(screen.getByRole('heading', { name: 'News, turn 3 (1815)' }))).toBe('News, turn 3 (1815)');
+    expect(text(screen.getByRole('heading', { name: 'News from last turn (turn 3, Fall 1815)' }))).toBe('News from last turn (turn 3, Fall 1815)');
+  });
+});
+
+// M9 QA fix round, item 5. FR-280: the news are those of the turn just resolved, so their heading says so, with that
+// turn's number and date: on turn 3 of 40 (Fall 1815) it reads "News from last turn (turn 2, Summer 1815)", not "News,
+// turn 2 (1815)", which read as a mismatch with the HUD's turn.
+describe('FR-280 the news heading names the last turn', () => {
+  it('FR-280 on turn 3 the HUD reads "Turn: 3 of 40" and "Fall 1815", the news heading "News from last turn (turn 2, Summer 1815)"', () => {
+    useGameStore.setState({
+      ...useGameStore.getInitialState(),
+      game: { ...continent(), turn: 3 },
+      activeNationId: N1,
+      eventLog: [{ turn: 2, year: 1815, events: EVENTS, treasuries: {} } as never],
+    });
+    render(
+      <>
+        <TurnIndicator />
+        <NewsPanel />
+      </>
+    );
+    expect(text(screen.getByTestId('turn-indicator'))).toBe('Turn: 3 of 40 Fall 1815');
+    expect(text(screen.getByRole('heading', { level: 3 }))).toBe('News from last turn (turn 2, Summer 1815)');
+  });
+
+  it('FR-280 the last turn of a year names its own season and year: "News from last turn (turn 4, Winter 1815)"', () => {
+    useGameStore.setState({
+      ...useGameStore.getInitialState(),
+      game: { ...continent(), turn: 5, year: 1816 },
+      activeNationId: N1,
+      eventLog: [{ turn: 4, year: 1815, events: [], treasuries: {} } as never],
+    });
+    render(<NewsPanel />);
+    expect(text(screen.getByRole('heading', { level: 3 }))).toBe('News from last turn (turn 4, Winter 1815)');
   });
 });

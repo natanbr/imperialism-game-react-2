@@ -184,6 +184,7 @@ export const createGameSlice =
           isDiplomacyOpen: false,
           dismissedProposalIds: [],
           armyProvinceId: null,
+          armyTargetId: null,
           armySelection: null,
           attackPlan: null,
           battleQueue: [],

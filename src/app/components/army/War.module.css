@@ -131,7 +131,8 @@
   flex-direction: column;
 }
 
-.side h3 {
+/* "Our regiments", "Defenders: Arvelia"; the Battle screen's "Attackers: Testland" over its grid in the same style (FR-276) */
+.sideHeading {
   flex: none;
   margin: 0 0 var(--spacing-sm);
   font-size: var(--font-size-sm);
@@ -231,6 +232,23 @@
   color: var(--color-text-muted);
 }
 
+/* FR-278: "Entrenched: takes 20% less damage." under the defenders; what the estimate's numbers are, under it */
+.legend,
+.explanation {
+  flex: none;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.legend {
+  margin: var(--spacing-sm) 0 0;
+}
+
+.explanation {
+  margin: var(--spacing-sm) 0 0;
+  line-height: 16px;
+}
+
 /* "Our strength 36, theirs 18.8: Likely victory": the verdict's colour as well as its words */
 .estimate {
   flex: none;
@@ -290,9 +308,15 @@
   border-radius: var(--radius-sm);
 }
 
-.fieldSide {
+/* One side: its heading (FR-276), then its two columns of tokens */
+.fieldGroup {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.fieldSide {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -367,10 +391,12 @@
   border: 1px solid var(--color-border-strong);
 }
 
+/* The status word ("Destroyed", "Routed") wraps under the bar when the token is too narrow, never past its edge */
 .tokenHealth {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
+  gap: 0 4px;
   font-variant-numeric: tabular-nums;
   color: var(--color-text-muted);
 }
@@ -453,6 +479,16 @@
   margin: 0;
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
+}
+
+/* FR-277: the deployment's two forces, one line a side */
+.forces {
+  flex: none;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--font-size-sm);
+  line-height: 18px;
 }
 
 .result {

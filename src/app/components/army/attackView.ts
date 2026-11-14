@@ -8,6 +8,7 @@ import {
   COMBAT,
   countryName,
   defendersOf,
+  ESTIMATE,
   findRegiment,
   fortLevelOf,
   provinceById,
@@ -61,6 +62,10 @@ export interface AttackView {
   estimate: BattleEstimate;
   /** "Our strength 36, theirs 18.8: Likely victory" (FR-226). */
   estimateText: string;
+  /** What the estimate's numbers are, with the cover that applies here (FR-278; `estimateExplanation`). */
+  estimateExplanation: string;
+  /** "Entrenched: takes 20% less damage." while a defender is entrenched (FR-278); absent otherwise. */
+  entrenchedText?: string;
   status: AttackStatus;
   /** Why no attack can be ordered yet (no war, or one that starts next turn); absent when at war. */
   warNote?: string;
@@ -80,6 +85,26 @@ export const strengthText = (n: number): string => String(Math.round(n * 10) / 1
 /** "Our strength 36, theirs 18.8: Likely victory" (FR-226 words the verdict code). */
 export const estimateText = (estimate: BattleEstimate): string =>
   `Our strength ${strengthText(estimate.attack)}, theirs ${strengthText(estimate.defence)}: ${VERDICT_TEXT[estimate.verdict]}`;
+
+/** A factor to two decimals at most: 1.25, 1.43 (1 / 0.7), 2. */
+const factorText = (n: number): string => String(Math.round(n * 100) / 100);
+
+/**
+ * FR-278: what `battleEstimate` computes (FR-226), in words: each side's strength is FPN x health / 100 added up, a
+ * defender's divided by the share of damage it still takes under cover (1 - R, FR-219), which is the same as counting it
+ * 1 / (1 - R) times; the verdict's thresholds from ESTIMATE. The cover part names the protection the defenders here have:
+ * the fort when there is one (it covers them all), else entrenchment when one of them is entrenched, else none.
+ */
+export function estimateExplanation(protections: readonly Protection[]): string {
+  const fort = protections.find((p) => p.kind === "fort");
+  const cover = fort ?? protections.find((p) => p.kind === "entrenched");
+  const factor = cover ? factorText(100 / (100 - cover.percent)) : "";
+  const coverText = fort ? `; behind the fort a defender's counts ${factor} times` : cover ? `; an entrenched defender's counts ${factor} times` : "";
+  return (
+    `Strength: each regiment's firepower times its health, added up${coverText}. ` +
+    `Likely victory at ${ESTIMATE.likelyVictory} times theirs or more, uncertain at ${ESTIMATE.uncertain} or more.`
+  );
+}
 
 /** The FR-219 protection as the defenders' list words it. */
 const protectionText = (protection: Protection): string =>
@@ -101,7 +126,9 @@ export function attackView(state: GameState, nationId: string, plan: AttackPlanV
     const found = findRegiment(state, id);
     return found ? [regimentView(found.regiment)] : [];
   });
-  const defenders = defendersOf(state, plan.toProvinceId).map((d): DefenderView => ({ ...regimentView(d.regiment), protection: protectionText(d.protection) }));
+  const standing = defendersOf(state, plan.toProvinceId);
+  const defenders = standing.map((d): DefenderView => ({ ...regimentView(d.regiment), protection: protectionText(d.protection) }));
+  const entrenched = standing.some((d) => d.protection.kind === "entrenched");
   const fortLevel = fortLevelOf(state, plan.toProvinceId);
   const estimate = battleEstimate(state, plan.regimentIds, plan.toProvinceId);
   const status = attackStatus(state, nationId, plan.toProvinceId);
@@ -126,6 +153,8 @@ export function attackView(state: GameState, nationId: string, plan: AttackPlanV
     ...(defenders.length === 0 ? { noDefenders: `No one defends ${provinceName}: it falls without a battle.` } : {}),
     estimate,
     estimateText: estimateText(estimate),
+    estimateExplanation: estimateExplanation(standing.map((d) => d.protection)),
+    ...(entrenched ? { entrenchedText: `Entrenched: takes ${COMBAT.entrenchedPercent}% less damage.` } : {}),
     status,
     ...(warNote ? { warNote } : {}),
     ...(status === "ready" ? { attack: result.ok ? { order } : { order, refusal: refusalSentence(result.reason) } } : {}),

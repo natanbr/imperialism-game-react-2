@@ -124,7 +124,7 @@ test('FR-235 (1) the HUD content area shows a thin scrollbar in the palette, scr
     newsEndInside: newsBox.y + newsBox.height <= end.bottom + 0.5 && newsBox.y + newsBox.height >= end.top,
     debugInside: debugBox.y >= end.top - 0.5 && debugBox.y + debugBox.height <= end.bottom + 0.5,
   }).toEqual({ newsEndInside: true, debugInside: true });
-  await expect(news).toContainText('News, turn 1');
+  await expect(news).toContainText('News from last turn (turn 1, Spring 1815)');
   expect(await boxes(page), 'the action buttons did not move').toEqual(pinned);
   const advance = pinned[pinned.length - 1]!;
   expect(advance.y + advance.height).toBeLessThanOrEqual(720);

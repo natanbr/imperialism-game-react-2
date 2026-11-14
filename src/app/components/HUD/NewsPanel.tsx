@@ -1,6 +1,6 @@
 import React, { useId } from "react";
 import { useGameStore } from "@/store/rootStore";
-import { newsItems, refusalText } from "../gameText";
+import { dateText, newsItems, refusalText } from "../gameText";
 
 /**
  * The last refused order and the news of the last resolved turn (FR-024): the player's lines first,
@@ -32,8 +32,9 @@ export const NewsPanel: React.FC = () => {
       )}
       {lastReport && (
         <>
+          {/* FR-280: the news are the last resolved turn's, so the heading names it beside the HUD's current turn */}
           <h3 id={headingId} className="news-heading">
-            News, turn {lastReport.turn} ({lastReport.year})
+            News from last turn (turn {lastReport.turn}, {dateText(lastReport.turn, lastReport.year)})
           </h3>
           {news.length > 0 ? (
             <div className="news-scroll">

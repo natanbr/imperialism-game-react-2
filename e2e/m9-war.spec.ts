@@ -11,6 +11,9 @@ import { test, expect, Page, Locator } from '@playwright/test';
 // scrolling (FR-230, FR-231), the art pack's pictures load (FR-272), the battle's news line opens its Battle screen again
 // (FR-232). Set SCREENSHOT_DIR to also save m9-attack.png, m9-arrow.png, m9-battle.png and m9-colony.png there; the
 // Battle screen's shot is always attached to the test's report.
+// M9 QA fix round: the Battle screen's side headings (FR-276) and no spoiler before the result (FR-277), the Attack
+// screen's explanations (FR-278), the Attack screen in place of the Army screen and Cancel back to it (FR-279), the news
+// heading of last turn (FR-280).
 
 test.use({ viewport: { width: 1280, height: 720 } });
 
@@ -116,6 +119,36 @@ async function outlineAround(page: Page, nationId: string, tileId: string) {
   }, tile);
 }
 
+/**
+ * FR-276: each side's heading as drawn: above its own tokens (its bottom at or above the list's top) and over its own
+ * columns (left edge within the list's width), the attackers' to the left of the defenders'.
+ */
+async function headingsOverTheirSides(battle: Locator, attackers: string, defenders: string) {
+  const boxes = async (name: string) => ({
+    heading: (await battle.getByRole('heading', { name }).boundingBox())!,
+    list: (await battle.getByRole('list', { name }).boundingBox())!,
+  });
+  const [a, d] = [await boxes(attackers), await boxes(defenders)];
+  for (const { heading, list } of [a, d]) {
+    expect({ above: heading.y + heading.height <= list.y + 0.5, over: heading.x >= list.x - 0.5 && heading.x < list.x + list.width }).toEqual({ above: true, over: true });
+  }
+  expect(a.heading.x + a.heading.width).toBeLessThanOrEqual(d.heading.x + 0.5);
+}
+
+/** FR-278: a token's status word ("Destroyed", "Routed") stays inside its token, wrapping under the bar rather than past its edge. */
+async function statusesInsideTheirTokens(battle: Locator) {
+  const outside = await battle.getByTestId('token-status').evaluateAll((els) =>
+    els
+      .filter((el) => {
+        const token = el.closest('li')!.getBoundingClientRect();
+        const status = el.getBoundingClientRect();
+        return status.right > token.right + 0.5 || status.left < token.left - 0.5;
+      })
+      .map((el) => el.textContent)
+  );
+  expect(outside).toEqual([]);
+}
+
 /** The Army screen of Testland North-East: our marker on its seat (7-3), the province's owner first. */
 async function openNorthEast(page: Page) {
   await page.locator('[data-tile-id="7-3"]').getByTestId('army-marker').first().click();
@@ -136,6 +169,8 @@ async function attackArvelia(page: Page, attempt: number) {
 
   const attack = page.getByRole('dialog', { name: 'Attack Arvelia' });
   await expect(attack).toBeVisible();
+  // FR-279 (M9 QA item 4): the Attack screen replaces the Army screen, so one dialog shows at a time
+  await expect(page.getByRole('dialog')).toHaveCount(1);
   await expect(attack.getByRole('list', { name: 'Our regiments' }).getByRole('listitem')).toHaveCount(count);
   await expect(attack.getByRole('list', { name: 'Defenders' }).getByRole('listitem').first()).toContainText('Minutemen');
   await expect(attack.getByTestId('attack-estimate')).toHaveText(/^Our strength [\d.]+, theirs [\d.]+: (Likely victory|Uncertain|Likely defeat)$/);
@@ -143,9 +178,24 @@ async function attackArvelia(page: Page, attempt: number) {
     // The start army against Arvelia's three entrenched Minutemen (FR-226's example)
     await expect(attack.getByTestId('attack-estimate')).toHaveText('Our strength 36, theirs 18.8: Likely victory');
     await expect(attack.getByRole('list', { name: 'Defenders' }).getByTestId('protection')).toHaveText(['entrenched', 'entrenched', 'entrenched']);
+    // FR-278 (M9 QA item 3): the estimate and "entrenched" explained in words on the screen
+    await expect(attack.getByTestId('estimate-explanation')).toBeVisible();
+    await expect(attack.getByTestId('estimate-explanation')).toHaveText(/^Strength: each regiment's firepower times its health, added up; an entrenched defender's counts 1\.25 times\./);
+    await expect(attack.getByTestId('entrenched-legend')).toHaveText('Entrenched: takes 20% less damage.');
     await picturesLoaded(attack);
     await fitsTheWindow(page, attack);
     await shot(page, 'm9-attack.png');
+    // FR-279: Cancel goes back to the Army screen with the same ticks and "Attack Arvelia" still picked
+    await attack.getByRole('button', { name: 'Cancel' }).click();
+    await expect(attack).toHaveCount(0);
+    await expect(army).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCount(1);
+    for (let i = 0; i < count; i++) await expect(boxes.nth(i)).toBeChecked();
+    await expect(army.getByRole('combobox', { name: 'March to' }).locator('option:checked')).toHaveText('Attack Arvelia');
+    await expect(army.getByRole('button', { name: 'Attack…' })).toBeFocused();
+    await army.getByRole('button', { name: 'Attack…' }).click();
+    await expect(attack).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCount(1);
   }
   // FR-273 (review R6): the red arrow's file is fetched and served when the first attack draws it
   const arrowArt = attempt === 1 ? page.waitForResponse((r) => r.url().endsWith('/assets/ink-and-wash/map-ui/army-attack.svg')) : undefined;
@@ -217,20 +267,30 @@ test('FR-233 FR-230 FR-231 FR-232 FR-273 declare war on Arvelia, attack it, see 
 
     const battle = page.getByRole('dialog', { name: 'Battle at Arvelia' });
     await expect(battle).toBeVisible();
-    await expect(battle.getByTestId('battle-step')).toHaveText(/^Deployment: /);
+    // FR-277 (M9 QA item 2): the deployment shows the two forces and tells nothing of the outcome
+    await expect(battle.getByTestId('battle-step')).toHaveText('Deployment');
+    await expect(battle.getByRole('list', { name: 'Forces' }).getByRole('listitem')).toHaveText([/^Testland attacks: /, /^Arvelia defends: /]);
+    await expect(battle).not.toContainText(/rounds? (was|were) fought/);
     await expect(battle.getByRole('list', { name: 'Attackers: Testland' }).getByRole('listitem')).not.toHaveCount(0);
+    // FR-276 (M9 QA item 1): a visible heading over each side of the grid
+    await expect(battle.getByRole('heading', { name: 'Attackers: Testland' })).toBeVisible();
+    await expect(battle.getByRole('heading', { name: 'Defenders: Arvelia' })).toBeVisible();
     if (attempt === 1) {
+      await headingsOverTheirSides(battle, 'Attackers: Testland', 'Defenders: Arvelia');
       await picturesLoaded(battle);
       await fitsTheWindow(page, battle);
     }
-    // One round, then the result
+    // One round, then the result; the total of rounds only at the result (FR-277)
     if (await battle.getByRole('button', { name: 'Next round' }).isEnabled()) {
       await battle.getByRole('button', { name: 'Next round' }).click();
-      await expect(battle.getByTestId('battle-step')).toHaveText(/^(Round 1 of \d+|Result)$/);
+      await expect(battle.getByTestId('battle-step')).toHaveText(/^(Round 1|Result: no round was fought)$/);
     }
     await battle.getByRole('button', { name: 'Skip to result' }).click();
     const result = battle.getByTestId('battle-result');
     await expect(result).toHaveText(/^(Province Taken!|Attack Failed!)$/);
+    await expect(battle.getByTestId('battle-step')).toHaveText(/^Result: (\d+ rounds were fought|1 round was fought|no round was fought)$/);
+    await expect(battle).not.toContainText('KIA');
+    await statusesInsideTheirTokens(battle);
     await expect(battle.getByRole('list', { name: 'Casualties' }).getByRole('listitem')).not.toHaveCount(0);
     taken = (await result.innerText()) === 'Province Taken!';
     if (taken) {
@@ -243,6 +303,10 @@ test('FR-233 FR-230 FR-231 FR-232 FR-273 declare war on Arvelia, attack it, see 
     await expect(battle).toHaveCount(0);
   }
   expect(taken, 'Arvelia taken within 3 attacks').toBe(true);
+
+  // FR-280 (M9 QA item 5): the news are last turn's, and their heading says so beside the HUD's current turn
+  const turnNow = Number((await page.getByTestId('turn-indicator').innerText()).match(/Turn: (\d+) of 40/)![1]);
+  await expect(page.getByRole('heading', { level: 3, name: new RegExp(`^News from last turn \\(turn ${turnNow - 1}, (Spring|Summer|Fall|Winter) 1815\\)$`) })).toBeVisible();
 
   // FR-232: the battle's news line opens its Battle screen again
   const news = page.getByTestId('news-list');

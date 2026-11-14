@@ -118,7 +118,7 @@ test('FR-078 FR-104 FR-109 end 40 turns, see the game-over screen with both nati
 
   // The "n" shortcut reaches the store's advanceTurn, which does nothing after the end (FR-077).
   await page.keyboard.press('n');
-  await expect(page.getByTestId('news-panel')).toContainText('News, turn 40');
+  await expect(page.getByTestId('news-panel')).toContainText('News from last turn (turn 40, Winter 1824)');
 
   await page.getByRole('button', { name: /Final scores/ }).click();
   await expect(over).toBeVisible();

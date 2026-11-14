@@ -4,15 +4,19 @@
 // two right ones, a wall column in front of the defenders when there is a fort; each regiment a token with its name, its
 // owner's colour swatch and a health bar with its number. Controls "Next round", "Play" (one round a second; with reduced
 // motion it steps without animation) and "Skip to result". Each round lists its shots as text ("1st Regulars hits 1st
-// Minutemen: 25", "2nd Minutemen misses"); the end shows the Imp1 result line for the player's side ("Province Taken!",
-// "Attack Failed!", "Province Lost!", "Enemy Beaten Back!") and a casualty list (each regiment with its health or
-// "Routed", "Surrendered", "KIA"). The replay reads only the report. FR-232: each battle gives a news line that opens its
+// Minutemen: 25 damage", "2nd Minutemen misses"); the end shows the Imp1 result line for the player's side ("Province
+// Taken!", "Attack Failed!", "Province Lost!", "Enemy Beaten Back!") and a casualty list (each regiment with its health or
+// "Routed", "Surrendered", "Destroyed"). The replay reads only the report. FR-232: each battle gives a news line that opens its
 // Battle screen; at the start of the player's next turn the Battle screen opens by itself for each battle the player
 // fought, one after another. FR-272: the tokens show the regiment pictures (decorative) and a fort its picture.
+// M9 QA fix round: FR-276 a visible heading over each side of the grid; FR-277 no spoiler before the result ("Deployment"
+// with the two forces, "Round 1" while stepping, the number of rounds only at the result); FR-278 "Destroyed" for "KIA"
+// and "25 damage" on a hit.
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { AttackModal } from '@/components/AttackModal';
 import { BattleModal } from '@/components/BattleModal';
 import { NewsPanel } from '@/components/HUD/NewsPanel';
 import { battleView, shotText } from '@/components/army/battleView';
@@ -128,6 +132,9 @@ const dialog = (name = 'Battle at Arvelia') => screen.getByRole('dialog', { name
 const button = (name: string) => within(dialog()).getByRole('button', { name }) as HTMLButtonElement;
 const tokens = (side: 'Attackers' | 'Defenders', d = dialog()) => within(within(d).getByRole('list', { name: new RegExp(`^${side}`) })).getAllByRole('listitem');
 const healths = (d = dialog()) => [...tokens('Attackers', d), ...tokens('Defenders', d)].map((t) => text(within(t).getByTestId('token-health')));
+/** The deployment's two forces (FR-277), one line a side. */
+const forces = (d = dialog()) => within(within(d).getByRole('list', { name: 'Forces' })).getAllByRole('listitem').map((li) => text(li));
+const step = (d = dialog()) => text(within(d).getByTestId('battle-step'));
 
 afterEach(() => {
   vi.useRealTimers();
@@ -138,7 +145,8 @@ describe('FR-231 the Battle screen: the grid', () => {
     replay(TAKEN);
     expect(dialog().getAttribute('aria-modal')).toBe('true');
     expect(text(within(dialog()).getByRole('heading', { level: 2 }))).toBe('Battle at Arvelia');
-    expect(text(within(dialog()).getByTestId('battle-step'))).toBe('Deployment: 4 rounds were fought');
+    // FR-277 (QA item 2): the deployment no longer tells how many rounds were fought ("Deployment: 4 rounds were fought")
+    expect(text(within(dialog()).getByTestId('battle-step'))).toBe('Deployment');
     expect(healths()).toEqual(['100%', '100%', '100%', '100%']);
   });
 
@@ -188,21 +196,21 @@ describe('FR-231 the Battle screen: the controls', () => {
   it('FR-231 "Next round" plays one round: its shots as text and the healths after it', () => {
     replay(TAKEN);
     fireEvent.click(button('Next round'));
-    expect(text(within(dialog()).getByTestId('battle-step'))).toBe('Round 1 of 4');
+    expect(text(within(dialog()).getByTestId('battle-step'))).toBe('Round 1');
     expect(within(within(dialog()).getByRole('list', { name: 'Shots of round 1' })).getAllByRole('listitem').map((li) => text(li))).toEqual([
-      '1st Minutemen hits 1st Regulars: 10',
+      '1st Minutemen hits 1st Regulars: 10 damage',
       '2nd Minutemen misses',
-      '1st Regulars hits 1st Minutemen: 25',
-      '1st Artillery hits 1st Minutemen: 44',
+      '1st Regulars hits 1st Minutemen: 25 damage',
+      '1st Artillery hits 1st Minutemen: 44 damage',
     ]);
     expect(healths()).toEqual(['90%', '100%', '31%', '100%']);
     expect((within(tokens('Defenders')[0]).getByTestId('token-bar') as HTMLElement).style.width).toBe('31%');
 
     fireEvent.click(button('Next round'));
-    expect(text(within(dialog()).getByTestId('battle-step'))).toBe('Round 2 of 4');
+    expect(text(within(dialog()).getByTestId('battle-step'))).toBe('Round 2');
     expect(healths()).toEqual(['70%', '100%', '0%', '100%']);
-    // A regiment at 0 health is destroyed: "KIA" on its token
-    expect(text(within(tokens('Defenders')[0]).getByTestId('token-status'))).toBe('KIA');
+    // A regiment at 0 health is destroyed: "Destroyed" on its token (FR-278; it read "KIA")
+    expect(text(within(tokens('Defenders')[0]).getByTestId('token-status'))).toBe('Destroyed');
   });
 
   it('FR-231 "Skip to result": the result line for our side and the casualty list; Next round and Skip are then disabled', () => {
@@ -213,8 +221,8 @@ describe('FR-231 the Battle screen: the controls', () => {
     expect(within(casualties).getAllByRole('listitem').map((li) => text(li))).toEqual([
       '1st Regulars 60%',
       '1st Artillery 100%',
-      '1st Minutemen KIA',
-      '2nd Minutemen KIA',
+      '1st Minutemen Destroyed',
+      '2nd Minutemen Destroyed',
     ]);
     expect(healths()).toEqual(['60%', '100%', '0%', '0%']);
     expect(button('Next round').disabled).toBe(true);
@@ -237,20 +245,20 @@ describe('FR-231 the Battle screen: the controls', () => {
     act(() => {
       vi.advanceTimersByTime(1000);
     });
-    expect(text(within(dialog()).getByTestId('battle-step'))).toBe('Round 1 of 4');
+    expect(text(within(dialog()).getByTestId('battle-step'))).toBe('Round 1');
     act(() => {
       vi.advanceTimersByTime(999);
     });
-    expect(text(within(dialog()).getByTestId('battle-step'))).toBe('Round 1 of 4');
+    expect(text(within(dialog()).getByTestId('battle-step'))).toBe('Round 1');
     act(() => {
       vi.advanceTimersByTime(1);
     });
-    expect(text(within(dialog()).getByTestId('battle-step'))).toBe('Round 2 of 4');
+    expect(text(within(dialog()).getByTestId('battle-step'))).toBe('Round 2');
     fireEvent.click(button('Pause'));
     act(() => {
       vi.advanceTimersByTime(5000);
     });
-    expect(text(within(dialog()).getByTestId('battle-step'))).toBe('Round 2 of 4');
+    expect(text(within(dialog()).getByTestId('battle-step'))).toBe('Round 2');
     fireEvent.click(button('Play'));
     // One round a second: each second is its own step (React draws the round before the next second starts)
     for (let i = 0; i < 3; i++) {
@@ -291,12 +299,12 @@ describe('FR-231 the Battle screen: the controls', () => {
     ]);
   });
 
-  it('FR-231 a shot reads "X hits Y: 25" or "X misses"; two regiments of one name are told apart by their owner', () => {
+  it('FR-231 FR-278 a shot reads "X hits Y: 25 damage" or "X misses"; two regiments of one name are told apart by their owner', () => {
     const names = new Map([
       ['a', 'Testland 1st Regulars'],
       ['b', 'Valdoria 1st Regulars'],
     ]);
-    expect(shotText({ shooterId: 'a', targetId: 'b', hit: true, damage: 25 }, names)).toBe('Testland 1st Regulars hits Valdoria 1st Regulars: 25');
+    expect(shotText({ shooterId: 'a', targetId: 'b', hit: true, damage: 25 }, names)).toBe('Testland 1st Regulars hits Valdoria 1st Regulars: 25 damage');
     expect(shotText({ shooterId: 'b', targetId: 'a', hit: false, damage: 0 }, names)).toBe('Valdoria 1st Regulars misses');
     const clash: BattleReport = {
       ...BEATEN_BACK,
@@ -306,16 +314,19 @@ describe('FR-231 the Battle screen: the controls', () => {
       ],
       rounds: [{ shots: [{ shooterId: 'regiment-8', targetId: 'regiment-20', hit: true, damage: 10 }] }],
     };
-    expect(battleView(clash, continent(), N1).rounds[0]).toEqual(['Testland 1st Regulars hits Valdoria 1st Regulars: 10']);
+    expect(battleView(clash, continent(), N1).rounds[0]).toEqual(['Testland 1st Regulars hits Valdoria 1st Regulars: 10 damage']);
   });
 
   it('FR-231 FR-217 an undefended province: no round; the deployment shows the attackers and "Next round" goes to the result', () => {
     const empty: BattleReport = { ...TAKEN, regiments: TAKEN.regiments.slice(0, 2).map((r) => ({ ...r, endHealth: 100 })), rounds: [] };
     replay(empty);
-    expect(text(within(dialog()).getByTestId('battle-step'))).toBe('Deployment: no defender, no round was fought');
+    expect(text(within(dialog()).getByTestId('battle-step'))).toBe('Deployment');
     expect(within(dialog()).queryByRole('list', { name: /^Defenders/ })).toBeTruthy();
+    // FR-277: the forces say no one defends; the number of rounds waits for the result
+    expect(forces()).toEqual(['Testland attacks: 1 Regulars, 1 Artillery', 'Arvelia defends: no regiment']);
     fireEvent.click(button('Next round'));
     expect(text(within(dialog()).getByTestId('battle-result'))).toBe('Province Taken!');
+    expect(text(within(dialog()).getByTestId('battle-step'))).toBe('Result: no round was fought');
   });
 
   it('FR-231 the replay reads only the report: the regiments need not exist any more', () => {
@@ -335,6 +346,100 @@ describe('FR-231 the Battle screen: the controls', () => {
     replay(TAKEN);
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+});
+
+describe('M9 QA fix round: the Battle screen (FR-276 to FR-278)', () => {
+  it('FR-276 a visible heading over each side: "Attackers: Testland" over the left columns, "Defenders: Arvelia" over the right ones', () => {
+    replay(TAKEN);
+    const headings = within(dialog()).getAllByRole('heading', { level: 3 });
+    expect(headings.map((h) => text(h))).toEqual(['Attackers: Testland', 'Defenders: Arvelia']);
+    // Each heading names its side's list and stands in the same group, before the tokens
+    for (const [heading, side] of [
+      [headings[0], 'Attackers'],
+      [headings[1], 'Defenders'],
+    ] as const) {
+      const list = within(dialog()).getByRole('list', { name: text(heading) });
+      expect(list.getAttribute('aria-labelledby')).toBe(heading.id);
+      expect(heading.parentElement).toBe(list.parentElement);
+      expect(heading.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(tokens(side).every((t) => list.contains(t))).toBe(true);
+    }
+  });
+
+  it('FR-276 with a fort the wall stands between the two groups, the defenders\' heading over their columns only; a battle we defended names us as the defenders', () => {
+    replay(BEATEN_BACK);
+    const d = dialog('Battle at Testland North-East');
+    const [attackers, defenders] = within(d).getAllByRole('heading', { level: 3 });
+    expect([text(attackers), text(defenders)]).toEqual(['Attackers: Valdoria', 'Defenders: Testland']);
+    const wall = within(d).getByTestId('battle-wall');
+    expect(attackers.parentElement!.compareDocumentPosition(wall) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(wall.compareDocumentPosition(defenders.parentElement!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(defenders.parentElement!.contains(wall)).toBe(false);
+  });
+
+  it("FR-276 the headings match the Attack screen's: the same heading class as its \"Defenders: Arvelia\"", () => {
+    show(continent(), { attackPlan: { fromProvinceId: NE1, toProvinceId: ARVELIA_P, regimentIds: FIELD } });
+    const attack = render(<AttackModal />);
+    const className = screen.getByTestId('defenders-heading').className;
+    expect(className).not.toBe('');
+    attack.unmount();
+    replay(TAKEN);
+    expect(within(dialog()).getAllByRole('heading', { level: 3 }).map((h) => h.className)).toEqual([className, className]);
+  });
+
+  it('FR-277 the deployment does not tell the outcome: "Deployment" and the two forces, no number of rounds, no result', () => {
+    replay(TAKEN);
+    expect(step()).toBe('Deployment');
+    expect(forces()).toEqual(['Testland attacks: 1 Regulars, 1 Artillery', 'Arvelia defends: 2 Minutemen']);
+    expect(text(dialog())).not.toMatch(/rounds? (was|were) fought|of 4|Province Taken!|Destroyed/);
+  });
+
+  it('FR-277 while stepping the counter reads "Round 1" to "Round 4" without the total; the result view gives it: "Result: 4 rounds were fought"', () => {
+    replay(TAKEN);
+    fireEvent.click(button('Next round'));
+    expect(step()).toBe('Round 1');
+    expect(text(dialog())).not.toMatch(/of 4|rounds? (was|were) fought/);
+    for (let i = 0; i < 3; i++) fireEvent.click(button('Next round'));
+    expect(step()).toBe('Round 4');
+    expect(within(dialog()).queryByTestId('battle-result')).toBeNull();
+    fireEvent.click(button('Next round'));
+    expect(step()).toBe('Result: 4 rounds were fought');
+    expect(text(within(dialog()).getByTestId('battle-result'))).toBe('Province Taken!');
+  });
+
+  it('FR-277 "Skip to result" gives the result with the number of rounds; one round reads "Result: 1 round was fought"', () => {
+    const first = replay(TAKEN);
+    fireEvent.click(button('Skip to result'));
+    expect(step()).toBe('Result: 4 rounds were fought');
+    first.unmount();
+    replay(BEATEN_BACK);
+    const d = dialog('Battle at Testland North-East');
+    fireEvent.click(within(d).getByRole('button', { name: 'Skip to result' }));
+    expect(step(d)).toBe('Result: 1 round was fought');
+  });
+
+  it('FR-277 the forces behind a fort ("Testland defends behind a level 2 fort: 1 Minutemen") and of two attacking countries, counted by type', () => {
+    replay(BEATEN_BACK);
+    expect(forces(dialog('Battle at Testland North-East'))).toEqual(['Valdoria attacks: 1 Regulars, 1 Hussars', 'Testland defends behind a level 2 fort: 1 Minutemen']);
+    const joined: BattleReport = {
+      ...TAKEN,
+      attackerIds: [N1, N2],
+      regiments: [...TAKEN.regiments, { id: 'regiment-50', ownerId: N2, type: 'regulars', name: '1st Regulars', side: 'attacker', startHealth: 100, endHealth: 100, fate: 'standing' }],
+    };
+    expect(battleView(joined, continent(), N1).forces).toEqual(['Testland and Valdoria attack: 2 Regulars, 1 Artillery', 'Arvelia defends: 2 Minutemen']);
+  });
+
+  it('FR-278 a hit says what its number is ("25 damage"); a destroyed regiment reads "Destroyed" on its token and in the casualties, never "KIA"', () => {
+    replay(TAKEN);
+    fireEvent.click(button('Next round'));
+    expect(within(within(dialog()).getByRole('list', { name: 'Shots of round 1' })).getAllByRole('listitem').map((li) => text(li))).toContain(
+      '1st Regulars hits 1st Minutemen: 25 damage'
+    );
+    fireEvent.click(button('Skip to result'));
+    expect(text(dialog())).not.toContain('KIA');
+    // Two tokens and two casualty lines
+    expect(within(dialog()).getAllByText('Destroyed')).toHaveLength(4);
   });
 });
 
