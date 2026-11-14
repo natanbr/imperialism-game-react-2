@@ -49,6 +49,9 @@ test('FR-106 FR-107 FR-108 after five End Turns the HUD ranks both nations, the 
   await expect(tile(page, '14-9').locator('button')).toHaveCount(0);
   await tile(page, '14-9').click({ position: { x: 6, y: 6 } });
   await expect(tile(page, '14-9').getByTestId('selection-ring')).toBeVisible();
+  // FR-326 (M11): the art pack's corner brackets, on Valdoria's capital as on the player's own tiles
+  await expect(tile(page, '14-9').getByTestId('selection-ring').locator('img')).toHaveAttribute('data-art', 'map-ui/tile-selection.svg');
+  await expect(page.locator('img[data-art="map-ui/tile-selection.svg"]')).toHaveCount(1);
   const info = page.getByTestId('tile-info');
   await expect(info.getByTestId('tile-owner')).toHaveText('Owner: Valdoria');
   await expect(info).toContainText('Terrain: Capital');

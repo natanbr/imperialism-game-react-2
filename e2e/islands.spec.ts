@@ -61,6 +61,10 @@ test.describe('on a screen too small for the whole map', () => {
     // 800 - 250 (HUD) = 550
     expect(Math.abs(corner.x + corner.width - 550)).toBeLessThan(4);
     expect(Math.abs(corner.y + corner.height - 450)).toBeLessThan(4);
+    // FR-321 (M11): the ground scrolls with the map, its corner under the map's last tile (row 15 is odd, so shifted
+    // half a tile: its right edge is the map's)
+    const ground = (await page.getByTestId('map-ground').boundingBox())!;
+    expect([ground.x + ground.width - (corner.x + corner.width), ground.y + ground.height - (corner.y + corner.height)]).toEqual([0, 0]);
 
     await page.getByTitle('Center Camera').click();
     await expect(tile(page, '2-9')).toBeInViewport();

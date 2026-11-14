@@ -1,9 +1,10 @@
 import { test, expect, Page } from '@playwright/test';
 
 // FR-090 (M3.5 part B, NR-008, NR-009): on the default 1280x720 screen the whole 24x16 map shows left
-// of the 250 px HUD at 42 px tiles (FR-088), every land tile shows an icon and the sea none (FR-085),
-// the About panel carries the Game Icons attribution (FR-089), and rail built through the UI from the
-// capital 2-9 to a depot on 2-7 is drawn and the depot shows connected.
+// of the 250 px HUD at 42 px tiles (FR-088), every land tile shows a picture and the sea none (FR-085;
+// since M11 the art pack's picture, FR-322), the About panel carries the Game Icons attribution (FR-089),
+// and rail built through the UI from the capital 2-9 to a depot on 2-7 is drawn (with the pack's rail
+// piece, FR-328) and the depot shows connected (with the pack's station mark, FR-324).
 // Set SCREENSHOT_DIR to also save m3-5-look-map.png, -capital.png, -market.png and -zoom.png there.
 
 const tile = (page: Page, id: string) => page.locator(`[data-tile-id="${id}"]`);
@@ -60,7 +61,17 @@ test('FR-090 the whole map fits 1280x720 next to the HUD, with an icon on every 
   await expect(page.locator('[data-testid="tile"]:not([data-terrain="water"])')).toHaveCount(226);
   await expect(page.locator('[data-testid="tile"]:not([data-terrain="water"]) [data-testid="tile-icon"]')).toHaveCount(226);
   await expect(page.locator('[data-testid="tile"][data-terrain="water"] [data-testid="tile-icon"]')).toHaveCount(0);
-  await expect(tile(page, '2-9').getByTestId('tile-icon')).toHaveAttribute('data-icon', 'GiCapitol');
+  // FR-322 (M11): the pack's pictures, each loaded, filling the tile's 40 x 40 content box
+  await expect(page.locator('[data-testid="tile"]:not([data-terrain="water"]) img[data-testid="tile-icon"][data-art]')).toHaveCount(226);
+  await expect(tile(page, '2-9').getByTestId('tile-icon')).toHaveAttribute('data-art', 'terrain/capital.png');
+  await expect(tile(page, '3-9').getByTestId('tile-icon')).toHaveAttribute('data-art', 'improvements/farm-1.png');
+  await expect(tile(page, '5-2').getByTestId('tile-icon')).toHaveAttribute('data-art', 'terrain/barren-hills.png');
+  await expect
+    .poll(() => page.locator('img[data-testid="tile-icon"]').evaluateAll((imgs) => imgs.filter((i) => !(i as HTMLImageElement).complete || (i as HTMLImageElement).naturalWidth === 0).length))
+    .toBe(0);
+  const picture = (await tile(page, '3-9').getByTestId('tile-icon').boundingBox())!;
+  const farm = (await tile(page, '3-9').boundingBox())!;
+  expect([picture.x - farm.x, picture.y - farm.y, picture.width, picture.height]).toEqual([1, 1, 40, 40]);
   await expect(tile(page, '3-9').getByTestId('level-badge')).toHaveText('L1');
   await shot(page, 'map');
 
@@ -76,8 +87,18 @@ test('FR-090 the whole map fits 1280x720 next to the HUD, with an icon on every 
   for (const b of await tray.getByTestId('worker-button').all()) {
     const box = await size(b);
     expect(Math.min(box.width, box.height)).toBeGreaterThanOrEqual(24);
+    // FR-325 (M11): the civilian's pack figure, 20 px, standing on the bottom of the 24 px target
+    const figure = (await size(b.locator('img[data-art^="workers/"]')))!;
+    expect([figure.width, figure.height]).toEqual([20, 20]);
+    expect(Math.abs(box.y + box.height - 1 - (figure.y + figure.height))).toBeLessThanOrEqual(1);
   }
   await expect(tile(page, '2-9').getByTestId('selection-ring')).toBeVisible();
+  // FR-326 (M11): the ring is the pack's corner brackets over the tile's outer 42 x 42 box
+  const brackets = tile(page, '2-9').getByTestId('selection-ring').locator('img');
+  await expect(brackets).toHaveAttribute('data-art', 'map-ui/tile-selection.svg');
+  const ringBox = (await size(brackets))!;
+  const capitalBox = (await size(tile(page, '2-9')))!;
+  expect([ringBox.x, ringBox.y, ringBox.width, ringBox.height]).toEqual([capitalBox.x, capitalBox.y, 42, 42]);
 
   await page.getByRole('button', { name: /About/ }).click();
   const about = page.getByRole('dialog', { name: 'About' });
@@ -131,8 +152,21 @@ test.describe('rendered at three times the pixel density', () => {
     const depot = tile(page, '2-7').getByRole('img', { name: 'Depot: connected' });
     await expect(depot).toHaveAttribute('title', 'Depot: connected');
     await expect(depot).toHaveAttribute('data-connected', 'true');
+    // FR-324 (M11): the pack's depot at 14 px along the top edge from the right, the filled station mark on its bottom-right
+    await expect(depot.locator('img').first()).toHaveAttribute('data-art', 'infrastructure/depot.png');
+    await expect(depot.locator('img').nth(1)).toHaveAttribute('data-art', 'map-ui/station-connected.svg');
+    const depotTile = (await tile(page, '2-7').boundingBox())!;
+    const depotPicture = (await depot.locator('img').first().boundingBox())!;
+    const stationMark = (await depot.locator('img').nth(1).boundingBox())!;
+    expect([depotPicture.width, depotPicture.height, stationMark.width, stationMark.height]).toEqual([14, 14, 8, 8]);
+    expect(depotTile.x + depotTile.width - (depotPicture.x + depotPicture.width)).toBe(2); // 1 px grid line + 1 px in
+    expect(depotPicture.y - depotTile.y).toBe(2);
+    expect(stationMark.x + stationMark.width).toBeGreaterThan(depotPicture.x + depotPicture.width / 2);
+    expect(stationMark.y + stationMark.height).toBeGreaterThan(depotPicture.y + depotPicture.height / 2);
     // Nation 2 lays its own rail meanwhile (FR-102): count the player's lines only
     await expect(page.locator('[data-testid="rail-segment"][data-nation-id="nation-1"]')).toHaveCount(2);
+    // FR-328 (M11): the pack's rail piece over each link, all of them (both nations')
+    await expect(page.getByTestId('rail-art')).toHaveCount(await page.getByTestId('rail-segment').count());
 
     // The zoom: the capital's corner of island 1, with the farm 3-9 selected
     await page.locator('[data-testid="tile"][data-tile-id="3-9"]').click({ position: { x: 4, y: 4 } });

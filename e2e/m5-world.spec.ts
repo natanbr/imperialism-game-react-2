@@ -3,7 +3,8 @@ import { test, expect, Page } from '@playwright/test';
 // M5 in the running app (FR-160): a new game is the continent. The map shows the 4 minor nations' names
 // on their capitals (FR-153 d), the dotted province lines and the dashed minor borders (FR-153 b, c); the
 // tile panel names a tile's province (FR-155: "Province: Testland South-West" for 3-9) and shows a minor's
-// tile read-only; the score table lists the 2 Great Powers only (FR-156). An End Turn plays as before.
+// tile read-only; the score table lists the 2 Great Powers only (FR-156). An End Turn plays as before. Since M11 the
+// capitals show the art pack's picture (FR-322) and every border line lies on a pale halo (FR-327).
 // Set SCREENSHOT_DIR to also save m5-world.png (the whole map) and m5-arvelia.png (Arvelia selected) there.
 
 const tile = (page: Page, id: string) => page.locator(`[data-tile-id="${id}"]`);
@@ -37,7 +38,8 @@ test('FR-160 FR-153 FR-155 FR-156 a new game shows the 4 minor nations, the prov
   for (const [id, name] of MINOR_CAPITALS) {
     await expect(tile(page, id).getByTestId('minor-name')).toHaveText(name);
     await expect(tile(page, id).getByTestId('minor-name')).toBeVisible();
-    await expect(tile(page, id).getByTestId('tile-icon')).toHaveAttribute('data-icon', 'GiCapitol');
+    // FR-322 (M11): the pack's capital picture in place of the Game Icon GiCapitol
+    await expect(tile(page, id).getByTestId('tile-icon')).toHaveAttribute('data-art', 'terrain/capital.png');
     await expect(tile(page, id)).toHaveAccessibleName(`Capital, owned by ${name}`);
   }
   // FR-153 (d), review R6: a tag may be wider than its tile (Sundmark, the longest name, is about 51 px on a 42 px tile).
@@ -76,6 +78,13 @@ test('FR-160 FR-153 FR-155 FR-156 a new game shows the 4 minor nations, the prov
   expect(dashes).toMatch(/^5(px)?,? 3(px)?$/);
   expect(dots).toMatch(/^0(px)?,? 4(px)?$/);
   expect(solid).toBe('none');
+  // FR-327 (M11): each of the 8 lines lies on a solid pale halo 2 px wider, drawn in the map-halo colour
+  await expect(page.getByTestId('border-halo')).toHaveCount(2 + 2 + 4);
+  const halo = await page.getByTestId('border-halo').first().evaluate((el) => {
+    const s = getComputedStyle(el);
+    return { dash: s.strokeDasharray, width: s.strokeWidth, stroke: s.stroke };
+  });
+  expect(halo).toEqual({ dash: 'none', width: '4px', stroke: 'rgb(200, 177, 138)' });
   // FR-156: the score table holds the 2 Great Powers, no minor
   const scores = page.getByRole('table', { name: 'Scores' });
   await expect(scores.getByTestId(/^score-row-/)).toHaveCount(2);

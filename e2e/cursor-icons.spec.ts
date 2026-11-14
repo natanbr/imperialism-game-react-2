@@ -1,15 +1,22 @@
 import { test, expect, Page } from '@playwright/test';
 
+// FR-330 (M11, NR-032): the map's cursors are drawn from the art pack's pictures (the prospector, the developing civilian,
+// the fort, the rail piece, the engineer) into a 32 px canvas and used as a PNG data URL with its hotspot in the middle;
+// until a picture is drawn the cursor is `pointer`, and a tile with no action keeps `auto`. The emoji cursors are gone.
+
 /** The tray of the player's civilians on the capital 2-9 (FR-110); picking one closes it. */
 const openCapitalTray = (page: Page) => page.locator('[data-tile-id="2-9"] [data-testid="worker-stack"]').click();
 
-/** Number of tiles whose computed cursor is the given emoji cursor (see emojiToCursor in useTileVisuals). */
-const countTilesWithEmojiCursor = (page: Page, emoji: string) =>
-  page.locator('[data-testid="tile"]').evaluateAll(
-    (els, encoded) => els.filter((el) => window.getComputedStyle(el).cursor.includes(encoded)).length,
-    encodeURIComponent(emoji)
-  );
+const cursorOf = (page: Page, id: string) =>
+  page.locator(`[data-testid="tile"][data-tile-id="${id}"]`).evaluate((el) => window.getComputedStyle(el).cursor);
 
+/** Number of tiles whose computed cursor is a drawn pack picture. */
+const countTilesWithPictureCursor = (page: Page) =>
+  page.locator('[data-testid="tile"]').evaluateAll((els) => els.filter((el) => window.getComputedStyle(el).cursor.includes('data:image/png')).length);
+
+/** Number of tiles whose computed cursor is one of the old emoji cursors (an SVG data URL with a text emoji). */
+const countTilesWithEmojiCursor = (page: Page) =>
+  page.locator('[data-testid="tile"]').evaluateAll((els) => els.filter((el) => window.getComputedStyle(el).cursor.includes('data:image/svg+xml')).length);
 
 test.describe('Cursor Icon Functionality', () => {
   test.beforeEach(async ({ page }) => {
@@ -24,27 +31,15 @@ test.describe('Cursor Icon Functionality', () => {
     await openCapitalTray(page);
   });
 
-  test('should show default cursor when no worker is selected', async ({ page }) => {
-    // Find a tile
+  test('FR-330 a tile with no action keeps the default cursor when no worker is selected', async ({ page }) => {
     const tile = page.locator('[data-testid="tile"]').first();
     await expect(tile).toBeVisible();
-
-    // Get computed cursor style
-    const cursor = await tile.evaluate((el) => {
-      return window.getComputedStyle(el).cursor;
-    });
-
-    // Should be 'auto' when no worker is selected
-    expect(cursor).toBe('auto');
+    expect(await tile.evaluate((el) => window.getComputedStyle(el).cursor)).toBe('auto');
   });
 
-  test('should show prospect cursor (magnifying glass) when prospector is selected and hovering valid tile', async ({ page }) => {
-    // Select a prospector worker (assuming there's one in the initial game state)
+  test('FR-330 the prospector over barren hills shows the prospector picture as a 32 px PNG cursor, hotspot in the middle', async ({ page }) => {
     const prospectorWorker = page.locator('[data-worker-type="prospector"]').first();
-
-    const prospectorExists = await prospectorWorker.count() > 0;
-    expect(prospectorExists, 'worker must exist in the initial game state').toBe(true);
-
+    expect(await prospectorWorker.count(), 'worker must exist in the initial game state').toBeGreaterThan(0);
     await prospectorWorker.click();
 
     // A tile that can be prospected: the player's barren hills 5-2 hide coal (FR-080: the islands have no
@@ -52,129 +47,90 @@ test.describe('Cursor Icon Functionality', () => {
     // is Lorran's 13-1, minor land with its iron already found, where no civilian works (FR-149).
     const validTile = page.locator('[data-testid="tile"][data-tile-id="5-2"]');
     await expect(validTile).toHaveAttribute('data-terrain', 'barrenHills');
-
     await validTile.hover();
 
-    // Get the cursor style
-    const cursor = await validTile.evaluate((el) => {
-      return window.getComputedStyle(el).cursor;
-    });
-
-    // Should contain 'url' for the emoji cursor (magnifying glass)
-    expect(cursor).toContain('url');
-    expect(cursor).toContain('data:image/svg+xml');
+    // `pointer` until the picture is drawn, then the drawn picture
+    await expect.poll(() => cursorOf(page, '5-2'), { timeout: 10000 }).toContain('data:image/png');
+    const cursor = await cursorOf(page, '5-2');
+    expect(cursor).toMatch(/^url\("?data:image\/png;base64,[A-Za-z0-9+/=]+"?\) 16 16, pointer$/);
+    // The drawn PNG is 32 x 32
+    const size = await page.evaluate(async (value) => {
+      const url = /url\("?([^")]+)"?\)/.exec(value)![1];
+      const img = new Image();
+      img.src = url;
+      await img.decode();
+      return [img.naturalWidth, img.naturalHeight];
+    }, cursor);
+    expect(size).toEqual([32, 32]);
   });
 
-  test('should show development cursor (tractor) when development worker is selected', async ({ page }) => {
-    // Select a development worker (Farmer, Miner, etc.)
+  test('FR-330 a farmer selected: the farms it can develop show its own figure as the cursor', async ({ page }) => {
     const devWorker = page.locator('[data-worker-type="farmer"]').first();
-
-    const workerExists = await devWorker.count() > 0;
-    expect(workerExists, 'worker must exist in the initial game state').toBe(true);
-
+    expect(await devWorker.count(), 'worker must exist in the initial game state').toBeGreaterThan(0);
     await devWorker.click();
 
-    // Cursor depends on app state, so check all tiles: own developable tiles show the tractor
-    expect(await countTilesWithEmojiCursor(page, '🚜')).toBeGreaterThan(0);
+    // Cursor depends on app state, so check all tiles: own developable tiles show the farmer once drawn
+    await expect.poll(() => countTilesWithPictureCursor(page), { timeout: 10000 }).toBeGreaterThan(0);
+    expect(await countTilesWithEmojiCursor(page)).toBe(0);
   });
 
   // No tile action produces the rail cursor today: getEngineerActions only returns fort / construct-modal,
   // and rail is built implicitly on engineer move. Kept as fixme so the gap stays visible instead of passing vacuously.
-  test.fixme('should show railroad cursor when engineer is selected and hovering adjacent tile', async ({ page }) => {
-    // Select an engineer worker
+  test.fixme('FR-330 should show the rail piece cursor when engineer is selected and hovering adjacent tile', async ({ page }) => {
     const engineer = page.locator('[data-worker-type="engineer"]').first();
-
-    const engineerExists = await engineer.count() > 0;
-    expect(engineerExists, 'worker must exist in the initial game state').toBe(true);
-
+    expect(await engineer.count(), 'worker must exist in the initial game state').toBeGreaterThan(0);
     await engineer.click();
-
-    // A tile next to the engineer's rail network shows the railroad cursor
-    expect(await countTilesWithEmojiCursor(page, '🛤️')).toBeGreaterThan(0);
+    // A tile next to the engineer's rail network shows the rail piece cursor
+    await expect.poll(() => countTilesWithPictureCursor(page), { timeout: 10000 }).toBeGreaterThan(0);
   });
 
-  test('should show construction cursor when engineer clicks on own tile', async ({ page }) => {
+  test('FR-330 the engineer on its own tile: the fort or construction cursor, a drawn picture', async ({ page }) => {
     const engineer = page.locator('[data-worker-type="engineer"]').first();
-
-    const engineerExists = await engineer.count() > 0;
-    expect(engineerExists, 'worker must exist in the initial game state').toBe(true);
-
-    // Click on the engineer's tile to open construction modal
+    expect(await engineer.count(), 'worker must exist in the initial game state').toBeGreaterThan(0);
     await engineer.click();
 
-    // The tile the engineer is on should have a construction cursor: the capital, where the tray was
-    // (picking the engineer closed the tray, so the tile is found by its id)
+    // The tile the engineer is on: the capital, where the tray was (picking the engineer closed the tray,
+    // so the tile is found by its id)
     const engineerTile = page.locator('[data-testid="tile"][data-tile-id="2-9"]');
-
     await engineerTile.hover();
 
-    const cursor = await engineerTile.evaluate((el) => {
-      return window.getComputedStyle(el).cursor;
-    });
-
-    // Own tile: fort (capital/town) or construction-modal cursor
-    expect([encodeURIComponent('🏰'), encodeURIComponent('🏗️')].some(c => cursor.includes(c))).toBe(true);
+    // Own tile: fort (capital/town) or construction-choice cursor, both drawn from the pack
+    await expect.poll(() => cursorOf(page, '2-9'), { timeout: 10000 }).toContain('data:image/png');
+    expect(await cursorOf(page, '2-9')).toMatch(/ 16 16, pointer$/);
   });
 
-  test('should change cursor when switching between different worker types', async ({ page }) => {
-    // This test verifies that cursor changes when switching between workers
-
-    // Get all workers
+  test('FR-330 switching between worker types keeps every cursor a drawn picture, the pointer or auto', async ({ page }) => {
     const workers = page.locator('[data-worker-type]');
-    const workerCount = await workers.count();
+    expect(await workers.count()).toBeGreaterThanOrEqual(2);
 
-    expect(workerCount).toBeGreaterThanOrEqual(2);
-
-    // Select first worker
     await workers.first().click();
-    const tiles = page.locator('[data-testid="tile"]');
-    const testTile = tiles.nth(5);
+    const testTile = page.locator('[data-testid="tile"]').nth(5);
     await testTile.hover();
-
-    const cursor1 = await testTile.evaluate((el) => {
-      return window.getComputedStyle(el).cursor;
-    });
+    const cursor1 = await testTile.evaluate((el) => window.getComputedStyle(el).cursor);
 
     // Select second worker: picking the first closed the tray, so open it again
     await openCapitalTray(page);
     await workers.nth(1).click();
     await testTile.hover();
+    const cursor2 = await testTile.evaluate((el) => window.getComputedStyle(el).cursor);
 
-    const cursor2 = await testTile.evaluate((el) => {
-      return window.getComputedStyle(el).cursor;
-    });
-
-    // Cursors should be different (unless both workers have the same action available)
-    // At minimum, verify that custom cursors are being set
-    const hasCursor1 = cursor1.includes('url') || cursor1 === 'auto' || cursor1 === 'pointer';
-    const hasCursor2 = cursor2.includes('url') || cursor2 === 'auto' || cursor2 === 'pointer';
-
-    expect(hasCursor1).toBe(true);
-    expect(hasCursor2).toBe(true);
+    const known = (c: string) => c.includes('data:image/png') || c === 'auto' || c === 'pointer';
+    expect(known(cursor1)).toBe(true);
+    expect(known(cursor2)).toBe(true);
+    expect(await countTilesWithEmojiCursor(page)).toBe(0);
   });
 
-  test('should show regular cursor for invalid actions', async ({ page }) => {
-    // Select a worker
+  test('FR-330 a tile where the action is not valid shows the default or pointer cursor', async ({ page }) => {
     const worker = page.locator('[data-worker-type]').first();
-    const workerExists = await worker.count() > 0;
-
-    expect(workerExists, 'worker must exist in the initial game state').toBe(true);
-
+    expect(await worker.count(), 'worker must exist in the initial game state').toBeGreaterThan(0);
     await worker.click();
 
-    // Try to hover over a tile where the action is not valid
-    // (e.g., a tile too far away, or already occupied)
-    const tiles = page.locator('[data-testid="tile"]');
-    const farTile = tiles.last();
+    // A tile too far away, or already occupied
+    const farTile = page.locator('[data-testid="tile"]').last();
     // force: the HUD action bar overlays the last map tile (Playwright reports it intercepts pointer events);
     // the assertion reads the tile's computed cursor, which does not depend on the pointer position
     await farTile.hover({ force: true });
-
-    const cursor = await farTile.evaluate((el) => {
-      return window.getComputedStyle(el).cursor;
-    });
-
-    // Should be either 'auto' or 'pointer' for invalid actions
-    expect(['auto', 'pointer'].some(c => cursor.includes(c))).toBe(true);
+    const cursor = await farTile.evaluate((el) => window.getComputedStyle(el).cursor);
+    expect(['auto', 'pointer']).toContain(cursor);
   });
 });
