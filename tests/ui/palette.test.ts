@@ -1,6 +1,7 @@
 // FR-086 (NR-009): the colours are defined once, as CSS variables in styles/tokens.css, and the map,
 // HUD and dialogs use only those. FR-088: 42 px tiles, so the whole 24x16 map fits 1280x720 next to
-// the HUD. A source scan plus the palette's own numbers.
+// the HUD. A source scan plus the palette's own numbers. FR-329 (M11): the ground and halo tokens of the art pack's look,
+// and the border and rail colours at 3:1 on what they lie on.
 import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'fs';
 import { join, relative } from 'path';
@@ -348,6 +349,8 @@ describe('FR-154 the minor nation and province border colours', () => {
     expect(close).toEqual([]);
   });
 
+  // The two 3:1 tests below are superseded by FR-329 (M11): the borders now run on the map halo, and the tiles stop
+  // drawing the terrain tints. They stay green until M11's closing step removes the tints with TERRAIN_TINT (Q71).
   it('FR-154 --color-minor reaches 3:1 against every land tile background and the sea, which its dashed border runs between (WCAG 2.2, 1.4.11)', () => {
     const backgrounds = [THEME.land, ...Object.values(TERRAIN_TINT)];
     expect(backgrounds).toHaveLength(Object.values(TerrainType).length + 1);
@@ -364,6 +367,52 @@ describe('FR-154 the minor nation and province border colours', () => {
       .map((bg) => ({ bg, ratio: Math.round(contrast(token('--color-province-border'), valueOf(bg)) * 100) / 100 }))
       .filter(({ ratio }) => ratio < 3);
     expect(low).toEqual([]);
+  });
+});
+
+describe("FR-329 the tokens of the pack's look (M11, NR-032)", () => {
+  const token = (name: string) => valueOf(`var(${name})`);
+  const PACK = join(ROOT, 'public/assets/ink-and-wash');
+  const GROUND = {
+    groundWater: ['--color-ground-water', '#568392'],
+    groundShallows: ['--color-ground-shallows', '#78a5a8'],
+    groundSand: ['--color-ground-sand', '#e4cea2'],
+    groundGrass: ['--color-ground-grass', '#a6b282'],
+    groundDesert: ['--color-ground-desert', '#dcb976'],
+    groundTundra: ['--color-ground-tundra', '#afb69e'],
+    mapHalo: ['--color-map-halo', '#c8b18a'],
+  } as const;
+
+  it('FR-329 tokens.css defines the ground colours and the map halo with the values FR-329 states, and theme.ts names them', () => {
+    const named = Object.fromEntries(Object.keys(GROUND).map((key) => [key, (THEME as Record<string, string>)[key]]));
+    expect(named).toEqual(Object.fromEntries(Object.entries(GROUND).map(([key, [name]]) => [key, `var(${name})`])));
+    expect(Object.fromEntries(Object.values(GROUND).map(([name]) => [name, defined.get(name)?.toLowerCase()]))).toEqual(
+      Object.fromEntries(Object.values(GROUND).map(([name, hex]) => [name, hex]))
+    );
+    expect(themeVariables()).toEqual(expect.arrayContaining(Object.values(GROUND).map(([name]) => name)));
+    expect(token('--color-rail')).toBe('#494539');
+  });
+
+  it("FR-329 the colours are the pack's own: the demo's flat ground colours, the territory line's halo, the rail piece's ink", () => {
+    const renderer = readFileSync(join(PACK, 'terrain-renderer.js'), 'utf8');
+    for (const name of ['--color-ground-water', '--color-ground-shallows', '--color-ground-sand', '--color-ground-grass']) {
+      expect(renderer, name).toContain(`textureLayer(svg, bounds, '${token(name)}'`);
+    }
+    expect(readFileSync(join(PACK, 'map-ui/territory-line.svg'), 'utf8')).toContain(`stroke="${token('--color-map-halo')}"`);
+    expect(readFileSync(join(PACK, 'infrastructure/rail-straight.svg'), 'utf8')).toContain(`stroke="${token('--color-rail')}"`);
+  });
+
+  it('FR-329 both nation colours, the minor and the province border reach 3:1 against the map halo they lie on (WCAG 2.2, 1.4.11)', () => {
+    const lines = ['--color-nation-1', '--color-nation-2', '--color-minor', '--color-province-border'];
+    expect(NATION_COLORS).toEqual(['var(--color-nation-1)', 'var(--color-nation-2)']);
+    const low = lines
+      .map((line) => ({ line, ratio: Math.round(contrast(token(line), token('--color-map-halo')) * 100) / 100 }))
+      .filter(({ ratio }) => ratio < 3);
+    expect(low).toEqual([]);
+  });
+
+  it('FR-329 the rail reaches 3:1 against the ground grass it runs over (WCAG 2.2, 1.4.11)', () => {
+    expect(Math.round(contrast(token('--color-rail'), token('--color-ground-grass')) * 100) / 100).toBeGreaterThanOrEqual(3);
   });
 });
 

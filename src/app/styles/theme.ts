@@ -35,6 +35,15 @@ export const THEME = {
   armyAttackInk: v("color-army-attack-ink"),
   armyMove: v("color-army-move"),
   armyMoveInk: v("color-army-move-ink"),
+  /** The map's ground (FR-321, FR-329): the art pack's deep water, shallows, sand rim and grass, and its desert and tundra patches. */
+  groundWater: v("color-ground-water"),
+  groundShallows: v("color-ground-shallows"),
+  groundSand: v("color-ground-sand"),
+  groundGrass: v("color-ground-grass"),
+  groundDesert: v("color-ground-desert"),
+  groundTundra: v("color-ground-tundra"),
+  /** The pale halo under every border line (FR-327, FR-329): the pack's territory line's halo colour. */
+  mapHalo: v("color-map-halo"),
 } as const;
 
 /** One strong colour per palette slot (`Nation.colorSlot`, 1 first); used only for territory borders (FR-097). */

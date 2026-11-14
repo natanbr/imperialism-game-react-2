@@ -32,15 +32,28 @@
   --color-bad: #b23b2e;
   --color-warn: #9a6412;
   --color-highlight: #e3b341;
-  --color-rail: #4a4a4a;
-  /* Minor nations' dashed borders and name tags: one slate for every minor, apart from both nation
-     colours and from "bad", also for colour-blind eyes, and at 3:1 on every tint and the sea (FR-154;
-     the margins are thin: re-run tests/ui/palette.test.ts after any change). Province lines inside a
-     Great Power: a warm grey, dotted, at 3:1 on every land tint (WCAG 1.4.11; FR-154). */
-  --color-minor: #5e7c90;
-  --color-province-border: #7a6e5e;
+  /* The art pack's rail ink (its straight rail piece's rails), at 3:1 on the ground grass (FR-329) */
+  --color-rail: #494539;
+  /* Minor nations' dashed borders and name tags: one dark slate green for every minor, apart from both
+     nation colours and from "bad", also for colour-blind eyes (FR-154), and at 3:1 on the map halo it
+     lies on (FR-329). The old slate darkened to 3:1 came within 20 of nation 1 under protanopia; this is
+     the colour nearest the old slate (ΔE76 35) that passes every palette test. The colour-blind margin to
+     nation 1 is thin (20.0): re-run tests/ui/palette.test.ts after any change. Province lines inside a
+     Great Power: a warm grey, dotted, at 3:1 on the map halo (WCAG 1.4.11; FR-329). */
+  --color-minor: #26362c;
+  --color-province-border: #6a5f51;
+  /* The map's ground (FR-321, FR-329): the pack demo's flat colours under its textures (deep water, shallows,
+     sand rim, grass), the desert and tundra base textures' mean colours, and the pale halo of the pack's
+     territory line, under every border (FR-327). tests/ui/palette.test.ts checks them against the pack. */
+  --color-ground-water: #568392;
+  --color-ground-shallows: #78a5a8;
+  --color-ground-sand: #e4cea2;
+  --color-ground-grass: #a6b282;
+  --color-ground-desert: #dcb976;
+  --color-ground-tundra: #afb69e;
+  --color-map-halo: #c8b18a;
   /* Army orders on the map (FR-273, NR-031): the art pack's own colours, RED for an attack and GREEN for a march.
-     Copied from the pack's map-ui/army-attack.svg and army-movement-committed.svg (fill, then stroke);
+     Copied from the pack's attack arrow and committed movement arrow SVGs (fill, then stroke);
      tests/ui/inkArt.test.ts checks they still match the files. */
   --color-army-attack: #ab4335;
   --color-army-attack-ink: #553a30;

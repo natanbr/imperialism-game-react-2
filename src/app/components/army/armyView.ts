@@ -246,7 +246,7 @@ export interface AttackArrowView {
   count: number;
   /** "Arvelia: 3 regiments attacking from Testland North-East": its accessible name. */
   label: string;
-  /** The art pack's red arrow (map-ui/army-attack.svg), drawn in its own 120 x 56 units. */
+  /** The art pack's red arrow (ATTACK_ARROW_ART), drawn in its own 120 x 56 units. */
   href: string;
   width: number;
   height: number;

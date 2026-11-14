@@ -617,6 +617,28 @@ container near the window edges; over the HUD only the right edge scrolls. e2e s
 map shows before React handles clicks, and on 1280x720 the whole map fits, so the first view no
 longer scrolls.
 
+The art pack (NR-031, NR-032; M9 to M11): `components/art/inkArt.ts` is the one table from game ids to the pack's files
+in `public/assets/ink-and-wash/`, which stay as supplied (`.gitattributes` marks the folder `-text`, so a
+`core.autocrlf=true` checkout keeps the manifest's checksums). Each export gives a URL `/assets/ink-and-wash/<manifest
+file>` (no query string), or `undefined` where the pack draws nothing: `terrainArt(terrain, resource?)` (fertile hills
+with wool: the wool pasture), `improvementArt(resource, level)` (levels 1 to 3; none at 0, for fish and horses),
+`tileArt(tile)` (FR-322: capital or town its terrain, else the improvement of a level 1 to 3 resource, else the
+terrain), `resourceMarkArt(tile)` (a known coal, iron ore, gold, gems or oil), `goodsArt(commodity)`,
+`civilianArt(workerType)`, `gradeArt(grade)` and `LABOUR_ART`, `buildingArt(industryType)` and `CAPITOL_ART`,
+`regimentArt(type)`, `fortArt(level)`, `DEPOT_ART`, `PORT_ART`, `RAIL_ART` / `SELECTION_ART` (`{ url, width, height }`),
+`STATION_ART.connected` / `.disconnected` (`STATION_ART_PX` 12), `GROUND_ART.grass` / `.water` / `.desert` / `.tundra`
+(`GROUND_ART_PX` 512), `CURSOR_ART` (prospect, constructFort, constructRail, constructModal; develop is
+`civilianArt(action.workerType)`) and `ATTACK_ARROW_ART`. `INK_ART_FILES` lists every file the table names once (family,
+width, height, anchor), `INK_ART_UNUSED` every other manifest file with its reason; `artFileOf(url)` gives the manifest
+file and `artInfoOf(url)` its entry. tests/ui/inkArt.test.ts checks the table against the manifest and that no other
+source file names the pack or one of its files. `components/art/ArtPicture.tsx` `InkPicture` draws one picture as a plain
+`<img>` (`alt` required, `""` beside the text that names it) with `data-art` (the manifest file, as `data-icon` names a
+Game Icon) and `data-art-anchor`; `size`, or `width` and `height`, set its box in px, `inline` puts it on a text line
+(1.25em, the `img[data-art-inline]` rule in globals.css), and globals.css draws `data-art-anchor="bottom-center"`
+pictures (workers, army, buildings) from the bottom centre. `RegimentPicture`, `FortPicture` and `CapitolPicture` are
+InkPictures. The pack's look has its own tokens (FR-329): `--color-ground-water`, `-shallows`, `-sand`, `-grass`,
+`-desert`, `-tundra` and `--color-map-halo` (THEME `groundWater` ... `mapHalo`).
+
 ## Testing
 
 ```bash
