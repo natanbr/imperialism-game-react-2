@@ -5,12 +5,12 @@ import { act, render, screen, within } from '@testing-library/react';
 import { WarehouseModal } from '@/components/WarehouseModal';
 import { FoodWarning, NewsPanel, TurnIndicator, UpkeepWarning } from '@/components/HUD/index';
 import { useGameStore } from '@/store/rootStore';
-import { resolveTurn } from '@/engine';
+import { councilVote, resolveTurn } from '@/engine';
 import type { GameState } from '@/types/GameState';
 import { GoodsType, MaterialType, ResourceType } from '@/types/Resource';
 import { TileInfoPanel } from '@/components/TileInfoPanel';
 import { emptyWarehouse, game, N1, N2, setIndustry, setPair, setTile, setTreasury, T } from '../engine/fixtures';
-import { continent, NE1, SUNDMARK } from '../engine/armyFixtures';
+import { continent, N3, NE1, SUNDMARK, threePowers } from '../engine/armyFixtures';
 import { transferProvince } from '@/engine/world/provinces';
 import { text } from './domText';
 import { failOnActWarnings } from './actWarnings';
@@ -113,7 +113,8 @@ describe('FR-048 FR-049 HUD', () => {
 // M10 UI half. FR-301 (Imp1 Council Projection, rules 11 section 8.2; remake: the exact count): on a world with provinces the
 // turn indicator shows "Next Council: turn 20 (Winter 1819)" ("Council: this turn" on a meeting turn), whose title and
 // accessible description give the vote the Council would give now, first nominee first. Absent on two-islands, after
-// the turn-40 meeting and after game over.
+// the turn-40 meeting and after game over. QA fix round: the projection shown (FR-314), the player's nation first, a player
+// that is not a nominee the standing order (FR-313).
 describe('FR-301 the next Council in the HUD', () => {
   /** The text of the elements an element's aria-describedby names: its accessible description. */
   const description = (el: HTMLElement): string =>
@@ -164,6 +165,17 @@ describe('FR-301 the next Council in the HUD', () => {
     const line = screen.getByTestId('next-council');
     expect(text(screen.getByTestId('council-projection'))).toBe('If it met now: Testland 3, Valdoria 5, abstain 4 of 12; 9 needed');
     expect(description(line)).toBe(text(screen.getByTestId('council-projection')));
+  });
+
+  it('FR-313 a player that is not a nominee (three Great Powers, Carthia the third) sees the projection in standing order: Valdoria, the 1st nominee, first (review F2)', () => {
+    // Valdoria holds Testland North-East (4 provinces to 3); Carthia's province abstains (the nominees are equally strong)
+    const s = transferProvince(threePowers(continent()), NE1, N2);
+    expect(councilVote(s)!.nominees.map((n) => n.nationId)).toEqual([N2, N1]);
+    show(s, { activeNationId: N3 });
+    render(<TurnIndicator />);
+    const projection = screen.getByTestId('council-projection');
+    expect(text(projection)).toBe('If it met now: Valdoria 4, Testland 3, abstain 5 of 12; 9 needed');
+    expect(description(screen.getByTestId('next-council'))).toBe(text(projection));
   });
 
   it('FR-313 FR-314 the projection counts the abstentions: Sundmark at 52 with Testland votes, 3 abstain', () => {

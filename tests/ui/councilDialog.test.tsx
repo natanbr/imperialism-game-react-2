@@ -24,7 +24,7 @@ import { councilVote, proposalAnswer, type CouncilMetEvent, type Order } from '@
 import { transferProvince } from '@/engine/world/provinces';
 import type { GameState } from '@/types/GameState';
 import { N1, N2, setPair } from '../engine/fixtures';
-import { addRegiments, ARVELIA, ARVELIA_P, continent, NE1, NE2, relocate, SUNDMARK, SW1 } from '../engine/armyFixtures';
+import { addRegiments, ARVELIA, ARVELIA_P, continent, N3, NE1, NE2, relocate, SUNDMARK, SW1, threePowers } from '../engine/armyFixtures';
 import { failOnActWarnings } from './actWarnings';
 import { text } from './domText';
 
@@ -46,14 +46,6 @@ function winning(s: GameState = continent('world')): GameState {
   let t = transferProvince(transferProvince(s, NE2, N1), ARVELIA_P, N1);
   t = { ...t, minorNations: t.minorNations.map((m) => (m.id === ARVELIA ? { ...m, colonyOf: N1 } : m)) };
   return [SUNDMARK, LORRAN, PELLIS].reduce((acc, minorId) => setPair(acc, minorId, N1, { points: 60 }), t);
-}
-
-const N3 = 'nation-3';
-
-/** A third Great Power, Carthia (a copy of Valdoria without an army), holding Valdoria North-East (FR-292, FR-312). */
-function threePowers(s: GameState = continent('world')): GameState {
-  const valdoria = s.nations.find((n) => n.id === N2)!;
-  return transferProvince({ ...s, nations: [...s.nations, { ...valdoria, id: N3, name: 'Carthia', colorSlot: 3 }] }, NE2, N3);
 }
 
 /** Sundmark's points with Testland and with Valdoria. */

@@ -14,7 +14,8 @@ import { councilLineSeen } from './councilNews';
 // QA fix round: the HUD shows the projected vote under the Council line, the player's nation first, as the line's
 // description (FR-313, FR-314), both in the body text colour (FR-317); the screen's date line reads "Met at the end of
 // turn 10 (Summer 1817)" (FR-316), the player's column comes first with the rank marks (FR-313), the Other Great Powers
-// row reads "—" with its note (FR-312), each abstention its reason and the rule line under them (FR-311). A second test
+// row reads "—" with its note and is greyed, its computed colour the muted one (FR-312, review F1), each abstention its
+// reason and the rule line under them (FR-311). A second test
 // plays to the end in e2e/m10-qa.spec.ts: at game over the Council line stays whole above the Final scores button (FR-315).
 // A winning meeting is not reachable by the UI in a short spec: tests/ui/councilDialog.test.tsx and
 // tests/ui/scoreAndGameOver.test.tsx test it on a hand-built state. Set SCREENSHOT_DIR to also save m10-council.png there;
@@ -99,6 +100,40 @@ async function projectionShown(page: Page) {
   expect(colours).toEqual({ body: colours.body, line: colours.body, projection: colours.body });
 }
 
+/**
+ * FR-312 (review of the QA fix round, F1): the Other Great Powers row is greyed: its cells and its name are in the muted
+ * text colour, while the Controlled row's numbers keep the dialog's body colour. The two tokens are read as the browser
+ * computes them, from a probe put in the dialog and taken out again.
+ */
+async function unusedRowGreyed(council: Locator) {
+  const colours = await council.evaluate((dialog) => {
+    const token = (name: string) => {
+      const probe = document.createElement('span');
+      probe.style.color = `var(${name})`;
+      dialog.appendChild(probe);
+      const colour = getComputedStyle(probe).color;
+      probe.remove();
+      return colour;
+    };
+    const colourOf = (el: Element) => getComputedStyle(el).color;
+    const row = dialog.querySelector('[data-testid="council-row-otherGreatPowers"]')!;
+    const controlled = ['nation-1', 'nation-2'].map((id) => dialog.querySelector(`[data-testid="council-cell-${id}-controlled"]`)!);
+    return {
+      muted: token('--color-text-muted'),
+      primary: token('--color-text-primary'),
+      unused: [...row.querySelectorAll('th, td')].map(colourOf),
+      controlled: controlled.map(colourOf),
+    };
+  });
+  expect(colours.muted).not.toBe(colours.primary);
+  expect(colours).toEqual({
+    muted: colours.muted,
+    primary: colours.primary,
+    unused: [colours.muted, colours.muted, colours.muted],
+    controlled: [colours.primary, colours.primary],
+  });
+}
+
 test('FR-303 the Council meets on turn 10: its screen opens by itself on turn 11, closes, and reopens from the news', async ({ page }, testInfo) => {
   test.setTimeout(240000);
   const errors = collectErrors(page);
@@ -132,6 +167,7 @@ test('FR-303 the Council meets on turn 10: its screen opens by itself on turn 11
   expect([...ranks].sort()).toEqual(['1st nominee', '2nd nominee']);
   // FR-312: no third Great Power, so the Other Great Powers row reads "—" and says why
   await expect(table.getByTestId('council-row-otherGreatPowers')).toContainText('(only two Great Powers in this world)');
+  await unusedRowGreyed(council);
 
   let totals = 0;
   for (const nationId of ['nation-1', 'nation-2']) {

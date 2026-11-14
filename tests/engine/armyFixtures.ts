@@ -7,7 +7,9 @@ import type { Army, Regiment } from '@/types/Army';
 import type { RegimentType } from '@/types/Unit';
 import type { MarketMode } from '@/types/Market';
 import { newGame } from '@/engine/newGame';
+import { transferProvince } from '@/engine/world/provinces';
 import { REGIMENTS, START_FORCES } from '@/definisions/regiments';
+import { N2 } from './fixtures';
 
 export const SW1 = 'province-nation-1-sw';
 export const NW1 = 'province-nation-1-nw';
@@ -23,6 +25,17 @@ export const SUNDMARK = 'minor-2';
 
 /** A new continent game (seed 1); the partners market unless another is named. */
 export const continent = (market?: MarketMode): GameState => newGame({ seed: 1, world: 'continent', ...(market ? { market } : {}) });
+
+export const N3 = 'nation-3';
+
+/**
+ * Hand-built: a third Great Power, Carthia (a copy of Valdoria without an army, colour slot 3), holding Valdoria
+ * North-East (FR-292's Other Great Powers row; FR-312, FR-313 on the Council screen and in the HUD).
+ */
+export function threePowers(s: GameState = continent('world')): GameState {
+  const valdoria = s.nations.find(n => n.id === N2)!;
+  return transferProvince({ ...s, nations: [...s.nations, { ...valdoria, id: N3, name: 'Carthia', colorSlot: 3 }] }, NE2, N3);
+}
 
 export const armyIn = (s: GameState, ownerId: CountryId, provinceId: ProvinceId): Army | undefined =>
   s.armies.find(a => a.ownerId === ownerId && a.provinceId === provinceId);
