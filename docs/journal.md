@@ -25,8 +25,9 @@
 - 2026-11-13 M9 War and the attack screen (FR-216 to FR-234, FR-272 to FR-281) merged (PR 27, main f817da2; entries archived
   in `docs/journal/archive-M9.md`).
 - 2026-11-13 M10 Council of Governors (FR-290 to FR-305) in progress on `claude/m10-council` (worktree
-  `imperialism-game-revival-fee36d`): engine half and UI half committed, every FR-290 to FR-305 tested; next the milestone
-  review, the app check and the PR. Not pushed. Cards Q50 to Q56 to put on the progress page.
+  `imperialism-game-revival-fee36d`): engine half, UI half and the review fix round committed, every FR-290 to FR-309
+  tested; next the re-review of the fix round's delta, the app check and the PR. Not pushed. Cards Q50 to Q56 to put on
+  the progress page.
 
 Carried forward:
 - Deferred: river ports and the depot-on-port rule (rules 04); University fees; the power plant.
@@ -319,3 +320,54 @@ Q55 the scripted player does not court votes; Q56 the HUD shows the projected vo
 How to see it: a new game, End Turn 10 times; on turn 11 the Council screen opens by itself (both nominees 4 and 4, the 4
 minors abstaining); Close; the HUD reads "Next Council: turn 20 (Winter 1819)" (hover: the vote now); the news line "Council of
 Governors: ... no winner (9 needed)." opens it again. A winning meeting is tested on a hand-built state only.
+
+### Review fix round (2026-11-13)
+
+Size: M (one fix round over both halves: 13 minor findings of the M10 review passes, all fixed; no blocker or major). One
+agent (Opus 5.5, xhigh, no subagents, no advisor call), started by the M10 workflow. Branch `claude/m10-council`, not pushed.
+
+Red (behaviour fixes, on the code before each fix; `.gate/m10fix/`): R2 nomination ties `Tests 2 failed | 90 passed (92)`
+(`turn 1, reversed: expected [ 'nation-2', 'nation-1' ] to deeply equal [ 'nation-1', 'nation-2' ]`; `red-r2-engine.txt`);
+R1 news order `Tests 2 failed | 91 passed (93)` (`red-news.txt`) and the e2e `1 failed` (`Received string: "Army upkeep:
+$100."`, the first news line; `red-e2e-news.txt`). Test-only rows against a mutation, each put back: minors forced to choose
+at the last meeting fails only FR-308 and FR-305's 4-to-4 row (`Tests 2 failed | 73 passed (75)`, `mut-q53.txt`); the turn
+indicator back to a block fails FR-307's e2e check (`Expected: <= 2`, `Received: 21`, `mut-e2e-layout.txt`). R4, R7 and E1
+assert what the code already does (they passed at once).
+
+| Finding | What changed | Test |
+|---|---|---|
+| R1 engine (FR-305) | none in code: the 4-to-4 claim is asserted, not only logged | engine/continentScore.test.ts: every meeting of the FR-260 games, each nominee Controlled 4 and nothing else, the 4 minors abstaining |
+| R3 engine (Q53) | new FR-308 (the last meeting keeps the rules) | engine/council.test.ts: turn 40 of a new game, 4 abstentions, no winner; Sundmark at 49 and 30 abstains |
+| R2 UI, R3 UI, E2 | FR-296 status: "its news line is FR-297" | none (docs) |
+| R5, E3 | NR-011: "tested (FR-290 to FR-309)" | none (docs) |
+| R6 | new FR-307 (turn and date on one line, the Council line under it) | e2e/m10-council.spec.ts on turns 1 and 11 |
+| R7 | none in code (the branch kept) | ui/warehouseAndHud.test.tsx: Testland holding all 8 provinces, the line with no title, description or hidden text |
+| R1 UI | `newsItems`: a `council-met` line first, before the player's own lines (new FR-306; FR-297's place replaced) | ui/gameText.test.ts, ui/newsPanel.test.tsx; e2e: first list item, list and HUD at the top, the line inside the list's visible box above the fade |
+| R2 engine | `councilNominees` ranks ties in `intentOrder(state, state.turn)` (new FR-309; FR-291's tie part replaced) | engine/council.test.ts: the start tie on turns 1, 11, 2, 10 in both nation orders; 3 Great Powers tied for second on turns 1, 2, 3 with the same nominees, ballots and winner when reversed |
+| R4 UI | Council.module.css comment: Accept Offer does not wait, it opens over the Council | ui/councilDialog.test.tsx: z-index 85 over 77 and the page order; Escape rejects and Enter accepts the offer, the Council stays, takes the focus back and closes next |
+| E1 | none in code; FR-274's four games also collect the Council | engine/scriptedWar.test.ts: on the default partners market 4 meetings, no winner; seeds 1 to 3 Arvelia votes for Valdoria as Colonies at turns 30 and 40, seed 4 none |
+
+Decisions (defaults, nobody to ask):
+1. R1 UI: the Council line moves first rather than scrolling the list to it; the game-over line stays last. Objection: on a
+   meeting turn the player's own lines start one line lower (FR-107 and FR-268 now have an exception).
+2. R2: ties go in `intentOrder` of the state's turn (as FR-187). Objection: with two Great Powers every meeting is counted on
+   an odd turn (11, 21, ...), so Testland takes every tie at a meeting; the HUD projection on turn 10 puts Valdoria first on
+   a tie and the meeting then Testland. Only the column order changes on the continent.
+3. New ids FR-306 to FR-309 by FLOW's rule (a changed requirement gets a new id), as M9 did (M9 fix round decision 3).
+4. E1: the test reuses FR-274's four games (same setup: default market, Testland idle, Valdoria scripted) instead of playing
+   four more in continentScore.test.ts; no extra test time.
+5. Decision cards unchanged: Q53 is now FR-308's [NEEDS CLARIFICATION]; Q54's card adds "ties in the turn's order (FR-309)".
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| Red before the fixes | the new rows on the code before each fix (`.gate/m10fix/red-*.txt`) | `Tests 2 failed \| 90 passed (92)`, `Tests 2 failed \| 91 passed (93)`, e2e `1 failed` |
+| Engine and UI rows | `npx vitest run` on the 5 engine and 4 UI files (`green-engine.txt`, `green-ui.txt`) | `Tests 116 passed (116)`; `Tests 130 passed (130)` |
+| E1 numbers | `npm test` console (`gate-test.txt`) | `FR-302 Council per seed on the partners market ...: [[1,["t10 nation-2:4+0+0/nation-1:4+0+0","t20 nation-2:4+0+1/...","t30 nation-2:4+1+0/...","t40 nation-2:4+1+0/..."]], ...` |
+| Unit tests | `npm test` (`gate-test.txt`) | `Test Files 100 passed (100)`, `Tests 1983 passed (1983)` (+8 on 1975) |
+| v1 and v2 baselines unchanged | `npm test` console | `FR-125 seed 1: ... t40 1493/650 (2.30)`; `FR-260 nation 2 score at turn 40: [[1,1419],[2,1451],[3,1441],[4,1469]]`; FR-274 `[[1,21,22,305,0],[2,21,22,340,0],[3,21,22,276,0],[4,null,null,965,0]]` |
+| Lint | `npm run lint` (`gate-lint.txt`) | `✖ 3 problems (0 errors, 3 warnings)` (the three of M6) |
+| Types | `npx tsc --noEmit` | exit 0, no output |
+| Build | `npm run build` (`gate-build.txt`) | `✓ Compiled successfully in 3.3s`, `✓ Generating static pages (4/4)` |
+| e2e | `PORT=3160 npx playwright test --workers=1 --reporter=line` (`pw-full.txt`) | `37 passed (1.6m)`, `1 skipped` |
+
+Carried: decision 2's projection-versus-meeting column order on a tie (cosmetic); nothing else.
