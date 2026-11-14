@@ -2,7 +2,7 @@
   "project": "Imperialism Revival",
   "updated": "2026-11-14",
   "target": "v2: diplomacy, nation-to-nation trade, armies, war and the Council (M5 to M10)",
-  "now": "v2 is complete: M5 to M10 merged (PR 23 to 28, main 69ed08b). The game has diplomacy, trade between nations, armies, war with attack and battle screens, and the Council of Governors vote. 2001 unit tests, Playwright 38 passed. Defaults Q22 to Q59 in force. M11 Ink-and-wash restyle (NR-032) is built and reviewed on its branch, not merged: cards Q60 to Q77 are new, defaults in force.",
+  "now": "v2 is complete: M5 to M10 merged (PR 23 to 28, main 69ed08b). The game has diplomacy, trade between nations, armies, war with attack and battle screens, and the Council of Governors vote. 2001 unit tests, Playwright 38 passed. Defaults Q22 to Q59 in force. M11 Ink-and-wash restyle (NR-032) is built and reviewed on its branch, not merged: cards Q60 to Q78 are new, defaults in force.",
   "source": "docs/REVIVAL_PLAN.md and docs/report/roadmap.json in the imperialism-game-react-2 repo",
   "overview": {
     "headline": "v1 (M0 to M4.4) is merged. v2 night shift (NR-030): plan, rules research from 1997 screenshots and requirements merged (PR 22); milestones M5 to M10 merged one after another (PR 23 to 28, main 69ed08b).",
@@ -589,7 +589,7 @@
       },
       {
         "when": "When you are back",
-        "what": "Answer cards Q60 to Q77 (the restyle) or leave the defaults",
+        "what": "Answer cards Q60 to Q78 (the restyle) or leave the defaults",
         "why": "Q77 (the crowded capital's picture) and Q67 (the minor's colour) shape what you see most",
         "item": "M11"
       }
@@ -1209,7 +1209,7 @@
         "title": "How big are depot and port on a tile?",
         "status": "open",
         "context": "Alternative: the depot or port as the tile's main picture (as the demo), losing the terrain picture there.",
-        "suggestion": "Taken: 14 px pictures along the top edge with the pack's 8 px station marks (FR-324). Default in force; reversible.",
+        "suggestion": "Taken (QA fix round, FR-347): 20 px pictures in the tile's top-right corner with the pack's station marks at 11 px on their top-right, a depot and a port stacked; the first default, 14 px with 8 px marks (FR-324), was a speck at 1x. Default in force; reversible.",
         "items": [
           "M11"
         ]
@@ -1329,7 +1329,17 @@
         "title": "A crowded capital: how does it stay recognisable?",
         "status": "open",
         "context": "(review F2) The civilians' 24 px button covers the middle of any picture that fills the 40 px tile, and a capital holds the start civilians and the army chip, so on turn 1 only the spire showed. Alternatives: move the button and the army chip off the picture (they would then cover the neighbouring tiles), or keep the whole-tile picture covered and add a text cue.",
-        "suggestion": "Taken: on a capital or town with civilians or a minor's name tag the picture moves to the top centre at 24 px, above the button (FR-341), as the Game Icon did before M11. Default in force; reversible.",
+        "suggestion": "Taken (QA fix round, FR-346): on a capital or town with civilians or a minor's name tag the picture is drawn at 48 px, lifted into the gap between the row above's pictures, with the civilians in the corner and the army chip low; on turn 1 at most 22% of each capital is covered. The first default, 24 px at the top centre (FR-341), still showed only a small dome. Default in force; reversible.",
+        "items": [
+          "M11"
+        ]
+      },
+      {
+        "id": "Q78",
+        "title": "Transport's picture at 16 px?",
+        "status": "open",
+        "context": "(QA fix round) The railyard at 16 px in the HUD and the Transport heading was a brown blob; the depot, the pack's other transport picture, is no clearer at that size. Alternatives: the depot; text only in the HUD.",
+        "suggestion": "Taken: keep the railyard and draw it larger: 20 px in the HUD, every full-width action button's icon in the same 20 px box so the labels stay aligned (FR-349, FR-351), and 30 px in the Capital's Transport heading (FR-352). Default in force; reversible.",
         "items": [
           "M11"
         ]

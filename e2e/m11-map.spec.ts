@@ -266,28 +266,41 @@ test.describe('on a small 800x500 screen, where the map scrolls', () => {
   // Review P4: the ground's isolation (FR-321: contain strict, will-change transform) was guarded only by its CSS text.
   // Re-review D1: the first form of this test asked for a 95th percentile frame under 33 ms, which one dropped frame
   // (33.3 ms) breaks, and the default parallel run (6 workers) dropped one: p95 33.4 ms. The regression slows every frame
-  // (without `contain` and `will-change`: mean 79 to 89 ms), a busy machine drops a few, so the median judges it: under
-  // 25 ms, half way between a 60 Hz frame (16.7 ms) and one dropped frame (33.3 ms).
-  test('FR-321 scrolling the map for 60 frames keeps the median frame under 25 ms (the ground is a layer of its own)', async ({ page }) => {
+  // (without `contain` and `will-change`: mean 79 to 89 ms on the production build, median 150 to 167 ms here on a busy
+  // machine), while load drops frames: six copies of this test at once, on a machine busy with other work, measured scroll
+  // medians of 16.7 to 49.9 ms (idle frames 16.7 ms). So the median scroll frame is judged, under 60 ms.
+  test('FR-321 scrolling the map for 60 frames keeps the median frame under 60 ms (the ground is a layer of its own)', async ({ page }) => {
     await page.goto('/');
     await expect(page.getByTestId('map-scroll')).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
     await picturesLoaded(page);
     await page.waitForLoadState('networkidle');
+    // Frames in four blocks of 30, idle (nothing changes) and scrolling (back and forth over the whole scroll range, 8 px a
+    // frame), alternating, so both see the same load
     const frames = await page.getByTestId('map-scroll').evaluate(
       (el) =>
-        new Promise<number[]>((resolve) => {
-          const deltas: number[] = [];
+        new Promise<{ idle: number[]; scroll: number[] }>((resolve) => {
+          const out = { idle: [] as number[], scroll: [] as number[] };
+          const blocks: ('idle' | 'scroll')[] = ['idle', 'scroll', 'idle', 'scroll'];
           let last = 0;
           let n = 0;
+          let block = 0;
+          let inBlock = 0;
           const step = (now: number) => {
-            if (last) deltas.push(now - last);
+            const kind = blocks[block];
+            if (last) out[kind].push(now - last);
             last = now;
-            // Back and forth over the whole scroll range, 8 px a frame each way
-            el.scrollLeft = (n * 8) % 400;
-            el.scrollTop = (n * 6) % 300;
-            n++;
-            if (deltas.length < 60) requestAnimationFrame(step);
-            else resolve(deltas);
+            if (kind === 'scroll') {
+              el.scrollLeft = (n * 8) % 400;
+              el.scrollTop = (n * 6) % 300;
+              n++;
+            }
+            if (++inBlock === 30) {
+              block++;
+              inBlock = 0;
+              last = 0;
+            }
+            if (block < blocks.length) requestAnimationFrame(step);
+            else resolve(out);
           };
           // Warm up a few frames first, so the measured ones are steady state
           let warm = 0;
@@ -295,11 +308,18 @@ test.describe('on a small 800x500 screen, where the map scrolls', () => {
           requestAnimationFrame(warmUp);
         })
     );
-    const sorted = [...frames].sort((a, b) => a - b);
-    const p95 = sorted[Math.floor(sorted.length * 0.95) - 1];
-    const median = (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2;
-    const mean = frames.reduce((s, d) => s + d, 0) / frames.length;
-    console.log(`FR-321 scroll frames: median ${median.toFixed(1)} ms, mean ${mean.toFixed(1)} ms, p95 ${p95.toFixed(1)} ms`);
-    expect(median).toBeLessThan(25);
+    const stats = (deltas: number[]) => {
+      const sorted = [...deltas].sort((a, b) => a - b);
+      const half = Math.floor(sorted.length / 2);
+      return {
+        median: sorted.length % 2 ? sorted[half] : (sorted[half - 1] + sorted[half]) / 2,
+        mean: deltas.reduce((s, d) => s + d, 0) / deltas.length,
+        p95: sorted[Math.ceil(sorted.length * 0.95) - 1],
+      };
+    };
+    const [idle, scroll] = [stats(frames.idle), stats(frames.scroll)];
+    const f = (s: ReturnType<typeof stats>) => `median ${s.median.toFixed(1)} ms, mean ${s.mean.toFixed(1)} ms, p95 ${s.p95.toFixed(1)} ms`;
+    console.log(`FR-321 scroll frames: ${f(scroll)}; idle frames: ${f(idle)}`);
+    expect(scroll.median).toBeLessThan(60);
   });
 });
