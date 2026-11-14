@@ -1,18 +1,18 @@
 // @vitest-environment jsdom
 // M4.3 (NR-024, NR-025) and M4.4 (NR-027): the Transportation of Commodities popup. FR-133 each commodity's
-// icon before its name; FR-134 the groups by kind; FR-135 the popup lists the commodities by group in as many
+// picture before its name (M11 FR-331: the art pack's goods picture); FR-134 the groups by kind; FR-135 the popup lists the commodities by group in as many
 // CSS columns as groups shown (at most 3; the columns drawn are checked in the running app,
 // e2e/m4-3.spec.ts); FR-141 only what the network can carry; FR-142 a group all 0 / 0 is hidden.
 import { describe, it, expect } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import TransportAllocationModal from '@/components/TransportAllocationModal';
 import { COMMODITY_KINDS, NEVER_SHIPPED, SHIPPABLE_KINDS, transportKinds } from '@/components/commodityKinds';
-import { COMMODITY_ICONS } from '@/components/icons';
+import { artFileOf, goodsArt } from '@/components/art/inkArt';
 import { commodityName } from '@/components/gameText';
 import { useGameStore } from '@/store/rootStore';
 import { newGame } from '@/engine';
 import type { GameState } from '@/types/GameState';
-import { GoodsType, MaterialType, ResourceType } from '@/types/Resource';
+import { GoodsType, MaterialType, ResourceType, type WarehouseCommodities } from '@/types/Resource';
 import { setTile, tileAt } from '../engine/fixtures';
 import { failOnActWarnings } from './actWarnings';
 import { text } from './domText';
@@ -111,16 +111,19 @@ describe('FR-133 FR-135 the transport popup', () => {
     expect(text(dialog())).not.toContain('Nothing to ship');
   });
 
-  it('FR-133 every row shows the commodity\'s icon before its display name, hidden from assistive technology', () => {
+  // M11 FR-331 (replaces FR-133's Game Icon): the goods picture from the art pack, decorative (alt "")
+  it('FR-133 FR-331 every row shows the commodity\'s goods picture before its display name, decorative', () => {
     show(withHorses());
-    for (const key of shownRows() as (keyof typeof COMMODITY_ICONS)[]) {
+    for (const key of shownRows() as WarehouseCommodities[]) {
       const name = within(screen.getByTestId(`transport-row-${key}`)).getByTestId('name');
-      const icon = name.firstElementChild;
-      expect(icon?.tagName.toLowerCase(), key).toBe('svg');
-      expect(icon?.getAttribute('data-icon'), key).toBe(COMMODITY_ICONS[key]);
-      expect(icon?.getAttribute('aria-hidden'), key).toBe('true');
+      const picture = name.firstElementChild;
+      expect(picture?.tagName.toLowerCase(), key).toBe('img');
+      expect(picture?.getAttribute('data-art'), key).toBe(artFileOf(goodsArt(key)));
+      expect(picture?.getAttribute('alt'), key).toBe('');
+      expect(name.querySelector('svg'), key).toBeNull();
       expect(text(name), key).toBe(commodityName(key));
     }
+    expect(within(screen.getByTestId('transport-row-ironOre')).getByTestId('name').firstElementChild?.getAttribute('data-art')).toBe('goods/iron-ore.png');
     // The display names, not the keys
     expect(text(within(screen.getByTestId('transport-row-ironOre')).getByTestId('name'))).toBe('Iron Ore');
   });

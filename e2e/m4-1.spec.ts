@@ -1,7 +1,8 @@
 import { test, expect, Page } from '@playwright/test';
 
 // M4.1 in the running app. FR-122 after 15 End Turns Valdoria (island 2, capital 14-9) has a depot joined
-// to its capital by a few rail lines; FR-121 the market and the capital show commodity icons; FR-119 the
+// to its capital by a few rail lines; FR-121 the market and the capital show commodity pictures (M11 FR-331: the art
+// pack's goods pictures); FR-119 the
 // capital card shows "P of M". Set SCREENSHOT_DIR to also save m4-1-ai-rail.png and m4-1-icons.png there
 // (RAIL_SHOT names the rail file instead, as M4.2 did with m4-2-ai.png).
 
@@ -61,7 +62,8 @@ test('FR-121 FR-119 the market and the capital show commodity icons; a card show
   // FR-194: the continent's market is "partners", so the market dialog is the Board of Trade
   await page.getByRole('button', { name: /Open Market/ }).click();
   const market = page.getByRole('dialog', { name: 'Board of Trade' });
-  await expect(market.getByTestId('trade-row-steel').getByTestId('name').locator('svg')).toHaveAttribute('data-icon', 'GiMetalBar');
+  // M11 FR-331: the art pack's goods picture (FR-121's Game Icon replaced)
+  await expect(market.getByTestId('trade-row-steel').getByTestId('name').locator('img')).toHaveAttribute('data-art', 'goods/steel.png');
   await expect(market.getByTestId('trade-row-lumber').getByTestId('name')).toHaveText(/Lumber/);
   const marketShot = process.env.SCREENSHOT_DIR ? await market.screenshot() : undefined;
   await page.getByRole('button', { name: 'Close Board of Trade' }).click();
@@ -69,8 +71,8 @@ test('FR-121 FR-119 the market and the capital show commodity icons; a card show
   await page.getByRole('button', { name: /Open Capital/ }).click();
   const capital = page.getByRole('dialog', { name: 'Capital' });
   const steel = capital.getByTestId('output-steel');
-  await expect(steel.getByTestId('output-name').locator('svg')).toHaveAttribute('data-icon', 'GiMetalBar');
-  await expect(steel.getByTestId('input-coal').locator('svg')).toHaveAttribute('data-icon', 'GiCoalPile');
+  await expect(steel.getByTestId('output-name').locator('img')).toHaveAttribute('data-art', 'goods/steel.png');
+  await expect(steel.getByTestId('input-coal').locator('img')).toHaveAttribute('data-art', 'goods/coal.png');
   await steel.getByRole('button', { name: 'More Steel' }).click();
   await expect(steel.getByTestId('order-steel')).toHaveText('1 of 2');
   const capitalShot = process.env.SCREENSHOT_DIR ? await capital.screenshot() : undefined;

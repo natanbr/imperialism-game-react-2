@@ -6,9 +6,11 @@ import { selectActiveNation } from "../store/selectors";
 import { dateText } from "./gameText";
 import { dealBookView, type MoneyLine } from "./market/dealBookView";
 import styles from "./market/Market.module.css";
-import { COMMODITY_ICONS, UI_ICONS } from "./icons";
+import { UI_ICONS } from "./icons";
 import { GameIcon } from "./GameIcon";
 import { Modal } from "./Modal";
+import { InkPicture } from "./art/ArtPicture";
+import { goodsArt } from "./art/inkArt";
 
 interface PageProps {
   title: "Sold" | "Bought" | "Not traded";
@@ -20,7 +22,7 @@ interface PageProps {
   className?: string;
 }
 
-/** One page of the ledger: a line per deal with its commodity's icon; what was not traded in muted text. */
+/** One page of the ledger: a line per deal with its commodity's picture (FR-331); what was not traded in muted text. */
 const Page: React.FC<PageProps> = ({ title, entries, lines, none, testId, className }) => {
   const titleId = useId();
   return (
@@ -35,7 +37,7 @@ const Page: React.FC<PageProps> = ({ title, entries, lines, none, testId, classN
             const aside = entry.kind === "missed" || entry.kind === "unsold" || entry.kind === "unfilled";
             return (
               <li key={i} className={`${styles.ledgerLine} ${aside ? styles.ledgerAside : ""}`}>
-                <GameIcon name={COMMODITY_ICONS[entry.commodity]} /> {line}
+                <InkPicture src={goodsArt(entry.commodity)} alt="" inline /> {line}
               </li>
             );
           })}

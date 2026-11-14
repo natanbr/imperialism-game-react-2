@@ -3,7 +3,13 @@ import { useGameStore } from "@/store/rootStore";
 import { centreOnCapital } from "@/hooks/mapActions";
 import { UI_ICONS } from "../icons";
 import { GameIcon } from "../GameIcon";
+import { InkPicture } from "../art/ArtPicture";
+import { CAPITOL_ART, buildingArt } from "../art/inkArt";
 
+/**
+ * The HUD's actions. Warehouse, Capital and Transport show their buildings from the art pack (FR-334); the others keep
+ * their Game Icons, as the pack has no picture for them (FR-335).
+ */
 export const ActionButtons: React.FC = () => {
   const advanceTurn = useGameStore((s) => s.advanceTurn);
   const openWarehouse = useGameStore((s) => s.openWarehouse);
@@ -24,10 +30,10 @@ export const ActionButtons: React.FC = () => {
         </button>
       )}
       <button onClick={openWarehouse} className="btn btn-plain">
-        <GameIcon name={UI_ICONS.warehouse} /> Open Warehouse
+        <InkPicture src={buildingArt("warehouse")} alt="" inline /> Open Warehouse
       </button>
       <button onClick={openCapital} className="btn btn-plain">
-        <GameIcon name={UI_ICONS.capital} /> Open Capital
+        <InkPicture src={CAPITOL_ART} alt="" inline /> Open Capital
       </button>
       <button onClick={openMarket} className="btn btn-plain">
         <GameIcon name={UI_ICONS.market} /> Open Market
@@ -39,7 +45,7 @@ export const ActionButtons: React.FC = () => {
         <GameIcon name={UI_ICONS.diplomacy} /> Diplomacy
       </button>
       <button onClick={openTransportAllocation} className="btn btn-plain">
-        <GameIcon name={UI_ICONS.transport} /> Transportation of Commodities
+        <InkPicture src={buildingArt("railyard")} alt="" inline /> Transportation of Commodities
       </button>
       <div className="btn-group">
         <button onClick={centreOnCapital} title="Center Camera" className="btn btn-plain btn-sm flex-1">

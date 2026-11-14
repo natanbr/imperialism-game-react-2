@@ -4,19 +4,32 @@ import { useGameStore } from "../store/rootStore";
 import { selectActiveNation } from "../store/selectors";
 import type { Order } from "@/engine";
 import { money, refusalText } from "./gameText";
-import { armouryView, type ArmouryCardView, type ArmouryItem, type ArmouryItemKey, type AtHandItem } from "./army/armouryView";
+import { armouryView, type ArmouryCardView, type ArmouryItem, type AtHandItem } from "./army/armouryView";
 import { Stepper } from "./market/Stepper";
 import styles from "./army/Army.module.css";
-import { COMMODITY_ICONS, UI_ICONS, type IconName } from "./icons";
-import { GameIcon } from "./GameIcon";
 import { Modal } from "./Modal";
-import { RegimentPicture } from "./art/ArtPicture";
+import { InkPicture, RegimentPicture } from "./art/ArtPicture";
+import { buildingArt, goodsArt, gradeArt } from "./art/inkArt";
+import { GoodsType, ResourceType } from "@/types/Resource";
 
-const ITEM_ICONS: Record<ArmouryItemKey, IconName | null> = {
-  worker: UI_ICONS.civilians,
-  armaments: COMMODITY_ICONS.armaments,
-  horses: COMMODITY_ICONS.horses,
-  cash: null,
+/** The picture before an item (FR-331, FR-332): the worker's grade, the armaments, the horses; the cash has none. */
+const itemArt = (item: ArmouryItem): string | undefined => {
+  switch (item.key) {
+    case "worker":
+      return item.grade && gradeArt(item.grade);
+    case "armaments":
+      return goodsArt(GoodsType.Armaments);
+    case "horses":
+      return goodsArt(ResourceType.Horses);
+    case "cash":
+      return undefined;
+  }
+};
+
+/** An item's picture on its text line, decorative: the text names the item. */
+const ItemPicture: React.FC<{ item: ArmouryItem }> = ({ item }) => {
+  const src = itemArt(item);
+  return src ? <InkPicture src={src} alt="" inline /> : null;
 };
 
 /** "Cost: 1 untrained worker, 1 armament, $500" as a named list on one line (FR-264). */
@@ -27,14 +40,11 @@ const CostList: React.FC<{ items: readonly ArmouryItem[] }> = ({ items }) => (
       Cost:
     </span>
     <ul className={styles.itemList} aria-label="Cost">
-      {items.map((item) => {
-        const icon = ITEM_ICONS[item.key];
-        return (
-          <li key={item.key} className={styles.item}>
-            {icon && <GameIcon name={icon} />} {item.text}
-          </li>
-        );
-      })}
+      {items.map((item) => (
+        <li key={item.key} className={styles.item}>
+          <ItemPicture item={item} /> {item.text}
+        </li>
+      ))}
     </ul>
   </div>
 );
@@ -50,12 +60,11 @@ const AtHandList: React.FC<{ items: readonly AtHandItem[] }> = ({ items }) => (
     </span>
     <ul className={`${styles.itemList} ${styles.atHandList}`} aria-label="At hand">
       {items.map((item) => {
-        const icon = ITEM_ICONS[item.key];
         const [first, ...rest] = item.parts;
         return (
           <li key={item.key} className={`${styles.atHandItem} ${item.short ? styles.short : ""}`} data-short={item.short ? "true" : undefined}>
             <span className={styles.part}>
-              {icon && <GameIcon name={icon} />} {item.label}: {first}
+              <ItemPicture item={item} /> {item.label}: {first}
               {rest.length > 0 ? "," : ""}
             </span>
             {rest.map((part, i) => (
@@ -140,7 +149,7 @@ const Armoury: React.FC = () => {
     <Modal titleId={titleId} describedBy={noteId} onClose={close} overlayClassName={styles.overlay} className={styles.armoury}>
       <header className={styles.header}>
         <h2 id={titleId}>
-          <GameIcon name={UI_ICONS.armoury} /> Armoury
+          <InkPicture src={buildingArt("armoury")} alt="" inline /> Armoury
         </h2>
         {/* In the header, so the three rows of cards keep the height (FR-264) */}
         <p id={noteId} className={styles.headerNote} data-testid="armoury-note">

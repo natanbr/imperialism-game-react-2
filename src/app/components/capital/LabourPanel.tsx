@@ -4,6 +4,8 @@ import type { Order, ValidationResult } from "@/engine";
 import { MIGRANT_COST, TRAINING_COST } from "@/definisions/ResourceConversions";
 import type { WorkerGrade } from "@/types/Industry";
 import { commodityName, money } from "../gameText";
+import { InkPicture } from "../art/ArtPicture";
+import { LABOUR_ART, buildingArt, gradeArt } from "../art/inkArt";
 import type { LabourView } from "./capitalView";
 import styles from "./Capital.module.css";
 
@@ -24,7 +26,10 @@ const MIGRANT_TEXT = Object.entries(MIGRANT_COST)
   .map(([key, amount]) => `${amount} ${commodityName(key)}`)
   .join(", ");
 
-/** Labour, the workforce, the Trade School and the Capitol (FR-047). */
+/**
+ * Labour, the workforce, the Trade School and the Capitol (FR-047); the labour and grade pictures before their names
+ * (FR-332), the Trade School and the Capitol before their headings (FR-333).
+ */
 export const LabourPanel: React.FC<LabourPanelProps> = ({ view, nationId, submitOrder }) => {
   const { labour, grades } = view;
   const training = (grade: WorkerGrade) => grades.find((g) => g.grade === grade)?.training ?? 0;
@@ -33,14 +38,18 @@ export const LabourPanel: React.FC<LabourPanelProps> = ({ view, nationId, submit
     <section className={styles.panel} data-testid="labour-panel" aria-label="Labour">
       <h3 className={styles.panelTitle}>Labour</h3>
       <div className={styles.labourLine} data-testid="labour">
-        <span>Labour</span>
+        <span>
+          <InkPicture src={LABOUR_ART} alt="" inline /> Labour
+        </span>
         <span>{`${labour.total} total, ${labour.committed} committed, ${labour.free} free`}</span>
       </div>
 
       <ul className={styles.grades}>
         {grades.map((g) => (
           <li key={g.grade} className={styles.gradeRow} data-testid={`grade-${g.grade}`}>
-            <span className={styles.gradeName}>{GRADE_TEXT[g.grade]}</span>
+            <span className={styles.gradeName}>
+              <InkPicture src={gradeArt(g.grade)} alt="" inline /> {GRADE_TEXT[g.grade]}
+            </span>
             <span className={styles.gradeCount}>{g.count}</span>
             {g.sick > 0 && <span className={styles.sick}>{`${g.sick} sick`}</span>}
             {g.training > 0 && <span className={styles.training}>{`${g.training} in training`}</span>}
@@ -48,7 +57,9 @@ export const LabourPanel: React.FC<LabourPanelProps> = ({ view, nationId, submit
         ))}
       </ul>
 
-      <h4 className={styles.subTitle}>Trade School</h4>
+      <h4 className={styles.subTitle}>
+        <InkPicture src={buildingArt("tradeSchool")} alt="" inline /> Trade School
+      </h4>
       {TRAINING.map(({ from, article, to }) => {
         const cost = TRAINING_COST[from];
         return (
@@ -72,7 +83,9 @@ export const LabourPanel: React.FC<LabourPanelProps> = ({ view, nationId, submit
         );
       })}
 
-      <h4 className={styles.subTitle}>Capitol</h4>
+      <h4 className={styles.subTitle}>
+        <InkPicture src={buildingArt("capitol")} alt="" inline /> Capitol
+      </h4>
       <div className={styles.actionRow}>
         <button
           className={styles.actionButton}
