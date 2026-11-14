@@ -1,12 +1,14 @@
 // M5 acceptance on the continent: FR-260 (replaces FR-157 from M8) the continent plays 40 turns with the current
 // scripted player, with the start army's scores pinned; FR-215 (replaces FR-158 from M8): the start army's upkeep
 // changes the treasury, so the frozen M4 player's turn-1 orders are the same on both worlds, and without the FR-203
-// start forces it does turn by turn the same on both.
+// start forces it does turn by turn the same on both. M10: FR-305 the FR-260 games hold the 4 Council meetings without a
+// winner; FR-302 the scripted player gives the same orders as in the game without the Council.
 import { beforeAll, describe, it, expect } from 'vitest';
 import { newGame } from '@/engine/newGame';
 import { forceSize } from '@/engine/army/armies';
 import { SCRIPTED_GARRISON } from '@/definisions/regiments';
 import { resolveTurn } from '@/engine/turn/resolveTurn';
+import type { GameEvent } from '@/engine/turn/context';
 import { computerOrders } from '@/engine/ai/players';
 import { railLinksOf } from '@/engine/systems/railroadSystem';
 import { scoreOf } from '@/engine/score/score';
@@ -19,6 +21,7 @@ import type { MarketMode } from '@/types/Market';
 import { m4ScriptedPlayer } from './m4ScriptedPlayer';
 import { invariantViolations, N1, N2, nationOf, worldViolations } from './fixtures';
 import { withoutStartForces } from './armyFixtures';
+import { withoutCouncil } from './withoutCouncil';
 
 const SEEDS = [1, 2, 3, 4];
 const TURNS = 40;
@@ -42,6 +45,9 @@ interface Game {
   /** Nation 2's army upkeep each turn (FR-202; 0 on a turn without an `army-upkeep` event) and its no-pay disbands. */
   upkeep: number[];
   noPay: number;
+  /** Every nation's orders of each turn (FR-302) and the Council meetings (FR-305). */
+  orders: Record<string, Order[]>[];
+  councils: Extract<GameEvent, { type: 'council-met' }>[];
   final: GameState;
 }
 
@@ -73,7 +79,8 @@ function play(
   orders: (s: GameState) => Record<string, Order[]>,
   seed: number,
   market?: MarketMode,
-  prepare: (s: GameState) => GameState = s => s
+  prepare: (s: GameState) => GameState = s => s,
+  resolve: typeof resolveTurn = resolveTurn
 ): Game {
   const start = prepare(newGame({ seed, world, ...(market ? { market } : {}) }));
   let state = start;
@@ -82,8 +89,13 @@ function play(
   const health = { meals: 0, sick: 0, starved: 0, violations: [] as string[] };
   const upkeep: number[] = [];
   let noPay = 0;
+  const ordersByTurn: Record<string, Order[]>[] = [];
+  const councils: Game['councils'] = [];
   for (let turn = 1; turn <= TURNS; turn++) {
-    const result = resolveTurn(state, orders(state), state.seed);
+    const given = orders(state);
+    ordersByTurn.push(given);
+    const result = resolve(state, given, state.seed);
+    for (const e of result.events) if (e.type === 'council-met') councils.push(e);
     refused += result.events.filter(e => e.type === 'order-rejected').length;
     let paid = 0;
     for (const e of result.events) {
@@ -99,7 +111,7 @@ function play(
     health.violations.push(...[...invariantViolations(state), ...worldViolations(state, start)].map(v => `turn ${turn}: ${v}`));
     for (const nationId of [N1, N2]) turns[nationId].push(nationTurn(state, nationId, turn));
   }
-  return { turns, refused, health, upkeep, noPay, final: state };
+  return { turns, refused, health, upkeep, noPay, orders: ordersByTurn, councils, final: state };
 }
 
 /** The world a game was played on, as its final state records it (F1: the test must not pass on a world option ignored). */
@@ -114,15 +126,17 @@ const frozenM4 = (s: GameState) => ({ [N2]: m4ScriptedPlayer(s, N2) });
 const frozenM4Both = (s: GameState) => ({ [N1]: m4ScriptedPlayer(s, N1), [N2]: m4ScriptedPlayer(s, N2) });
 
 describe('FR-260 (replaces FR-157) the continent plays: 40 turns, nation 2 scripted, nation 1 idle, seeds 1 to 4', () => {
-  /** `bare`: the continent without its FR-203 start forces (FR-215). */
-  const games = new Map<number, { first: Game; again: Game; twoIslands: Game; bare: Game }>();
-  beforeAll(() => {
+  /** `bare`: the continent without its FR-203 start forces (FR-215); `noCouncil`: the engine without the Council (FR-302). */
+  const games = new Map<number, { first: Game; again: Game; twoIslands: Game; bare: Game; noCouncil: Game }>();
+  beforeAll(async () => {
+    const off = await withoutCouncil();
     for (const seed of SEEDS) {
       games.set(seed, {
         first: play('continent', current, seed, 'world'),
         again: play('continent', current, seed, 'world'),
         twoIslands: play('two-islands', current, seed),
         bare: play('continent', current, seed, 'world', withoutStartForces),
+        noCouncil: play('continent', s => off.computerOrders(s), seed, 'world', s => s, off.resolveTurn),
       });
     }
   }, 240_000);
@@ -206,6 +220,25 @@ describe('FR-260 (replaces FR-157) the continent plays: 40 turns, nation 2 scrip
     expect(SEEDS.map(seed => at40(games.get(seed)!.bare))).toEqual(SEEDS.map(seed => at40(games.get(seed)!.twoIslands)));
     expect(scores('twoIslands')).toEqual([1493, 1496, 1490, 1476]);
     console.log('FR-260 nation 2 score at turn 40, continent with the start army / without / two-islands:', JSON.stringify(SEEDS.map((seed, i) => [seed, scores('first')[i], scores('bare')[i], scores('twoIslands')[i]])));
+  });
+
+  it('FR-305 each FR-260 game holds 4 meetings (turns 10, 20, 30 and 40, dated Summer 1817 to Winter 1824), none with a winner, and ends by the turn limit', () => {
+    const meetings = (game: Game) => game.councils.map(c => [c.turn, c.year, c.winnerId ?? null]);
+    expect(SEEDS.map(seed => meetings(games.get(seed)!.first))).toEqual(SEEDS.map(() => [[10, 1817, null], [20, 1819, null], [30, 1822, null], [40, 1824, null]]));
+    expect(SEEDS.map(seed => games.get(seed)!.first.final.gameOver!.reason)).toEqual(SEEDS.map(() => undefined));
+    expect(SEEDS.map(seed => games.get(seed)!.twoIslands.councils)).toEqual(SEEDS.map(() => []));
+    const counts = SEEDS.map(seed => [seed, games.get(seed)!.first.councils.map(c => `t${c.turn} ${c.nominees.map(n => `${n.nationId}:${n.total}`).join('/')}`)]);
+    console.log('FR-305 Council per seed (meeting turn, the votes of each nominee, of 12):', JSON.stringify(counts));
+  });
+
+  it('FR-302 the scripted player gives the same orders on every turn as in the game without the Council, and the games end the same', () => {
+    for (const seed of SEEDS) {
+      const { first, noCouncil } = games.get(seed)!;
+      expect(first.orders).toHaveLength(TURNS);
+      for (let i = 0; i < TURNS; i++) expect(first.orders[i], `seed ${seed} turn ${i + 1}`).toEqual(noCouncil.orders[i]);
+      expect(noCouncil.councils).toEqual([]);
+      expect(first.final).toEqual(noCouncil.final);
+    }
   });
 });
 

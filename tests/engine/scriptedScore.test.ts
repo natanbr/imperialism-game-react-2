@@ -45,7 +45,8 @@ const allAtLevel = (s: GameState, level: number): GameState => ({
 interface Checkpoint { turn: number; score: number; depotsJoined: number; links: number; bound: number; deadEnds: string[] }
 /** FR-125 health: nation 2's meals (`workers-fed`) and the invariants, every turn. */
 interface Health { meals: number; sick: number; starved: number; violations: string[] }
-interface Game { checkpoints: Checkpoint[]; refused: number; health: Health; final: GameState }
+/** `councils`: the `council-met` events of the game (FR-305: none on two-islands). */
+interface Game { checkpoints: Checkpoint[]; refused: number; health: Health; councils: number; final: GameState }
 
 /** 40 turns from the real new game; nation 2's orders from `orders`, none for nation 1. */
 function play(orders: (s: GameState) => Order[], seed: number): Game {
@@ -53,9 +54,11 @@ function play(orders: (s: GameState) => Order[], seed: number): Game {
   let refused = 0;
   const checkpoints: Checkpoint[] = [];
   const health: Health = { meals: 0, sick: 0, starved: 0, violations: [] };
+  let councils = 0;
   for (let turn = 1; turn <= 40; turn++) {
     const result = resolveTurn(state, { [N2]: orders(state) }, state.seed);
     refused += result.events.filter(e => e.type === 'order-rejected' && e.nationId === N2).length;
+    councils += result.events.filter(e => e.type === 'council-met').length;
     for (const e of result.events) {
       if (e.type !== 'workers-fed' || e.nationId !== N2) continue;
       health.meals++;
@@ -70,7 +73,7 @@ function play(orders: (s: GameState) => Order[], seed: number): Game {
     const links = railLinksOf(state).filter(l => l.nationId === N2).length;
     checkpoints.push({ turn, score: scoreOf(state, N2).total, depotsJoined, links, bound: railBound(state, N2), deadEnds: railDeadEnds(state, N2) });
   }
-  return { checkpoints, refused, health, final: state };
+  return { checkpoints, refused, health, councils, final: state };
 }
 
 describe('FR-125 score acceptance: 40 turns of nation 2 on seeds 1 to 4', () => {
@@ -122,6 +125,13 @@ describe('FR-125 score acceptance: 40 turns of nation 2 on seeds 1 to 4', () => 
     // The invariant can fail: the frozen M4 player lays rail to resource tiles, not to depots, and by turn 40 it
     // ends on a tile with neither on every seed
     expect(SEEDS.map(seed => m4.get(seed)!.checkpoints[2].deadEnds.length > 0)).toEqual(SEEDS.map(() => true));
+  });
+
+  it('FR-305 two-islands has no provinces, so no Council meets: no council-met in any game, each ends by the turn limit', () => {
+    for (const games of [now, m4]) {
+      expect(SEEDS.map(seed => games.get(seed)!.councils)).toEqual(SEEDS.map(() => 0));
+      expect(SEEDS.map(seed => games.get(seed)!.final.gameOver)).toEqual(SEEDS.map(seed => ({ turn: 40, year: 1824, scores: games.get(seed)!.final.gameOver!.scores })));
+    }
   });
 
   it('FR-125 the same seed gives the same game', () => {
