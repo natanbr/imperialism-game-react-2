@@ -25,9 +25,9 @@
 - 2026-11-13 M9 War and the attack screen (FR-216 to FR-234, FR-272 to FR-281) merged (PR 27, main f817da2; entries archived
   in `docs/journal/archive-M9.md`).
 - 2026-11-13 M10 Council of Governors (FR-290 to FR-305) in progress on `claude/m10-council` (worktree
-  `imperialism-game-revival-fee36d`): engine half, UI half and the review fix round committed, every FR-290 to FR-309
-  tested; next the re-review of the fix round's delta, the app check and the PR. Not pushed. Cards Q50 to Q56 to put on
-  the progress page.
+  `imperialism-game-revival-fee36d`): engine half, UI half, the review fix round and the QA fix round (FR-310 to FR-317)
+  committed, every FR-290 to FR-317 tested; next the re-review of the fix rounds' delta and the PR. Not pushed. Cards Q50
+  to Q56 to put on the progress page.
 
 Carried forward:
 - Deferred: river ports and the depot-on-port rule (rules 04); University fees; the power plant.
@@ -129,32 +129,10 @@ Entry in `docs/journal/archive-M4.4.md`, with its probe tables and review fix ro
 what the network can carry and hides empty groups (FR-141, FR-142); the furniture bound counts 2 lumber (FR-140);
 recruiting measured and not built (probe in `scripts/probes/m4-4/`, card Q21 option a). Merged as PR 21 (main e018d85).
 
-## 2026-11-13 v2 plan (night shift, NR-030)
+## 2026-11-13 v2 plan (night shift, NR-030; archived)
 
-Size: L (plan). Branch `claude/v2-plan`. Ultracode workflow 1 (8 agents): code map (Sonnet 5.5 xhigh), four web
-research lanes (Sonnet 5.5 xhigh: trade, diplomacy, army, combat; the combat lane stalled on a browser call and
-was re-run with web pages only), rules writer (Sonnet 5.5 xhigh), spot-check (Sonnet 5.5 high), spec writer
-(Opus 5.5 high: a spec others execute).
-
-- Plan: `docs/REVIVAL_PLAN.md` section 5b (M5 to M10, seven architecture decisions).
-- Rules: `docs/rules/01`, `06`, `07`, `08` extended, new `11-screens.md`; gaps updated (F12 to F19, H1 to H18).
-  Main source: a Let's Play of Imperialism (1997) with screenshots (lparchive.org); every number tagged Imp1,
-  Imp1 [?] or remake. Spot-check: 13 of 18 claims confirmed on the screenshots, 5 tagged [?]; the orchestrator
-  opened Update 07 itself (text confirms the worker grades; costs are only on the screenshots).
-- Requirements: FR-144 to FR-234 (M5 FR-144 to 160, M6 161 to 181, M7 182 to 198, M8 199 to 215, M9 216 to 234).
-- Decision cards (defaults taken, nobody to ask; on the progress page): Q22 one land-bridge minor (Arvelia)
-  and three island minors (option b, the spec writer's suggestion: neither capital province borders a minor);
-  Q23 one province per minor; Q24 ten relation points a level, +1 a trade, +10 a pact, -40 a war; Q25 equal
-  start relations; Q26 a consulate is needed to trade with a minor (plan rule; Imp1 needs none); Q27 a minor
-  offers 1 unit per resource tile (at most 6) and buys 2 of each good; Q28 favourite partner = points +
-  subsidy / 2, deals at the board price; Q29 the computer accepts alliance at level 7 and peace when losing;
-  Q30 start army 2 Regulars, 1 Artillery, militia, fort on the capital; Q31 derived regiment costs, no
-  Sappers; Q32 simple combat numbers (8 rounds, 70% hit); Q33 one army per country per province; Q34 a taken
-  Great Power capital ends that nation, a taken minor capital makes a colony; Q35 the computer may attack the
-  weakest minor from turn 10, never a Great Power; Q36 upkeep it cannot pay disbands the newest regiments;
-  Q37 Join the Empire, rail and sea moves, generals and medals stay out of v2.
-- Objection: one province per minor and one army per province make war short (one battle takes a minor);
-  acceptable for a first playable war, revisit after Nathan plays.
+Entry in `docs/journal/archive-v2-plan.md`. Plan in `docs/REVIVAL_PLAN.md` section 5b (M5 to M10, seven architecture
+decisions); rules 01, 06, 07, 08 extended and 11-screens.md new; FR-144 to FR-234; decision cards Q22 to Q37.
 
 ## 2026-11-13 M5 World and seams for v2 (archived)
 
@@ -371,3 +349,47 @@ Decisions (defaults, nobody to ask):
 | e2e | `PORT=3160 npx playwright test --workers=1 --reporter=line` (`pw-full.txt`) | `37 passed (1.6m)`, `1 skipped` |
 
 Carried: decision 2's projection-versus-meeting column order on a tie (cosmetic); nothing else.
+
+### QA fix round (2026-11-13)
+
+Size: M (7 QA items on the Council screen and the HUD; one engine change). One agent (Opus 5.5, xhigh, no subagents, no
+advisor call), started by the M10 workflow; not pushed. QA shots: m10-qa-council-turn10.png, m10-qa-hud-news.png,
+m10-qa-council-turn40.png; after the fix: m10-qa-fix-council-turn10.png, m10-qa-fix-hud-game-over.png (`.gate/m10qa/shots.mjs`).
+
+Red (on the code before the change, `.gate/m10qa/red-*.txt`): engine `Tests 10 failed | 40 passed (50)`; UI `Tests 22 failed |
+28 passed (50)`; e2e `2 failed`: turn 1 `waiting for getByTestId('council-projection')`, game over `"inside": false`,
+`"aboveButtons": false`, each date `Received: "Turn 10, Summer 1817"`. FR-317 with the old CSS rule: `line: "rgb(106, 101, 92)"`.
+
+| Item | What changed | FR and test |
+|---|---|---|
+| 1 abstentions | engine: an abstaining ballot carries `abstention` (the minor's points and wars with each nominee, equal strength, a colony); screen: "Abstained: 4", one reason per province ("Arvelia: relation 30 of the 50 needed"), the rule line | FR-310 engine/council.test.ts; FR-311 ui/councilDialog.test.tsx, e2e/m10-council.spec.ts |
+| 2 Other Great Powers | greyed row, "—" cells, note "(only two Great Powers in this world)"; the 0 stays in the data | FR-312 ui/councilDialog.test.tsx, e2e |
+| 3 player first | the player's column first, "1st nominee" / "2nd nominee" under the names; first in the HUD projection | FR-313 ui/councilDialog.test.tsx, ui/warehouseAndHud.test.tsx, e2e |
+| 4 projection | shown under the Next Council line, "If it met now: Testland 4, Valdoria 4, abstain 4 of 12; 9 needed", its description | FR-314 ui/warehouseAndHud.test.tsx, e2e (turns 1, 11) |
+| 5 game-over news | no "No tile selected" line (41 px), game-over date line 16 px: the Council line whole above Final scores | FR-315 e2e/m10-qa.spec.ts (new), ui/warehouseAndHud.test.tsx |
+| 6 date line | "Met at the end of turn 10 (Summer 1817)" | FR-316 ui/councilDialog, ui/newsPanel, e2e (all 4 meetings) |
+| 7 colour | Next Council line and projection in the body text colour | FR-317 e2e/m10-council.spec.ts |
+
+Decisions (defaults, nobody to ask):
+1. Item 4 shows the projection (the brief's first option) instead of a button. The HUD had 5.5 px to spare (FR-268), so the
+   "No tile selected" line went (it says nothing a click on a tile does not show): it pays for item 4 (32 px) and item 5.
+   Spare now: 14.5 px on turn 11, 6.5 px at game over (`.gate/m10qa/measure.mjs`). Objection: the next HUD line has no room.
+2. Item 5 keeps Final scores where it is; the room comes from the content above the news (decision 1, the 16 px date line).
+3. Item 1's reason lives on the engine's ballot, so the screen still reads only the event; the FR-293 tests now assert it
+   too (stricter). Objection: the reasons count relation points, the Diplomacy screen shows levels ("level 4 of 9").
+4. Item 3 covers the screen and the HUD as named; the news line keeps the first nominee first (FR-297). Objection: on turn 11
+   the news reads "Valdoria 4, Testland 4" under the HUD's "Testland 4, Valdoria 4". The carried tie item above is gone.
+5. Item 5's test is a new spec, `e2e/m10-qa.spec.ts` (drawn scrollbars need a top-level `launchOptions`); the check is shared
+   in `e2e/councilNews.ts`. The v2 plan entry moved to `docs/journal/archive-v2-plan.md` to keep this file under 400 lines.
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| Red before the change | the new rows on the old code (`red-engine.txt`, `red-ui.txt`, `red-e2e.txt`) | `Tests 10 failed \| 40 passed (50)`; `Tests 22 failed \| 28 passed (50)`; `"inside": false` |
+| Unit tests | `npm test` (`gate-test-final.txt`) | `Test Files 100 passed (100)`, `Tests 2000 passed (2000)` (+17 on 1983) |
+| Baselines unchanged | `npm test` console | `FR-125 seed 1: ... t40 1493/650 (2.30)`; `FR-260 nation 2 score at turn 40: [[1,1419],[2,1451],[3,1441],[4,1469]]` |
+| Lint, types | `npm run lint`, `npx tsc --noEmit` | `✖ 3 problems (0 errors, 3 warnings)` (the three of M6); exit 0, no output |
+| Build | `npm run build` (`gate-build.txt`) | `✓ Compiled successfully in 12.2s`, `✓ Generating static pages (4/4)` |
+| e2e | `PORT=3160 npx playwright test --workers=1 --reporter=line` (`gate-e2e.txt`) | `38 passed (12.0m)`, `1 skipped` |
+
+Gate note: the first `npm test` failed tests/ui/newsPanel.test.tsx on the old date line (updated to FR-316) and once timed out
+in tests/engine/lintGuard.test.ts (`Test timed out in 30000ms`, ESLint's start under load); both passed in the next full run.

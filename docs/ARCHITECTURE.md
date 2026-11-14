@@ -47,7 +47,8 @@ src/app/
     council/council.ts     M10 (FR-290 to FR-294): the Council of Governors as pure queries: isCouncilTurn,
                            nextCouncilTurn, councilStanding, councilNominees, councilVote (ballots, rows, the
                            winner), councilMeeting (what resolveTurn calls), councilCell, abstainedProvinces;
-                           standing ties in intentOrder of the state's turn (FR-309); numbers in
+                           an abstaining ballot says why (`abstention`, FR-310), so the screen explains a
+                           meeting from its event; standing ties in intentOrder of the state's turn (FR-309); numbers in
                            definisions/council.ts, types in types/Council.ts
     rng.ts                 seeded RNG: createTurnRng(seed, turn); RNG_STREAMS and createStreamRng
                            for the per-system streams (FR-150)
@@ -271,12 +272,15 @@ only (FR-018).
   screen closes the Army screen, and a plan with `fromArmyScreen` reopens it on close. End Turn queues the battles the player
   fought (`battleQueue`, `battlesFoughtBy`); a battle's news line (`newsItems` in `gameText.ts`) opens its replay.
 - **Council screens** (UI, M10, FR-297 to FR-301): `components/council/councilView.ts` words one `council-met` event (the
-  table's cells and the provinces behind them, the abstentions, the result) from the event alone; `CouncilModal.tsx`
+  table's cells and the provinces behind them, the abstentions and their reasons, the result) from the event alone, the
+  player's column first (`playerFirst` in `gameText.ts`, FR-313); `CouncilModal.tsx`
   shows the store's `councilShown` and builds no order. End Turn sets it to the meeting just held; it waits while a
   Battle screen is to be seen, and `GameOverModal.tsx` waits for it, so the order after a turn is battles, Council, final
   scores, one dialog at a time (Accept Offer does not wait: it opens over the Council screen). The meeting's news line,
   the first line of the news (FR-306), opens it again. The HUD's `TurnIndicator.tsx` names the next meeting
-  (`nextCouncilTurn`) with `councilVote(state)` as its tooltip, under the turn line (turn and date on one line, FR-307).
+  (`nextCouncilTurn`) under the turn line (turn and date on one line, FR-307), and under it shows `councilVote(state)` as
+  the projection (`councilProjectionText`, FR-314). The HUD has no height to spare at 1280x720 (FR-268): the projection's
+  two lines came from the "No tile selected" line, which the tile panel no longer draws (FR-315).
 - **Art pack** (NR-031, FR-272, FR-273): `public/assets/ink-and-wash/` as supplied; `components/art/inkArt.ts` is the
   one table from game ids to its files (regiments, forts, the red attack arrow), `art/ArtPicture.tsx` draws them. A
   march keeps its measured line and head (FR-270, FR-271) in the pack's green; an attack is the pack's own red arrow,
