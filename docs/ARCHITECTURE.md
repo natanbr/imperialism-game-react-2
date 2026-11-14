@@ -598,7 +598,10 @@ river marker `GiRiver`; `GI` holds exactly those, and `GameIcon.tsx` draws one w
 (FR-321): `map/shoreline.ts`, a TypeScript port of the pack demo's shoreline, turns the land and water pattern into
 rounded masks for deep water, shallows, a sand rim and the grass, with desert and tundra patches; textures repeat at
 their own 512 px; the SVG is memoised on the land and water signature (the same DOM node after End Turn) and its layer
-is isolated (`contain: strict`); past the map the scroller shows the ground's water colour. MapView's SVG overlay
+is isolated (`contain: strict`; e2e/m11-map.spec.ts measures the frames while scrolling); past the map the scroller's
+background is the same open-water texture, scrolling with the map from its origin (FR-340). On a capital or town that
+holds civilians or a minor's name tag the tile picture moves to the top centre at 24 px, above the civilians' button
+(FR-341). MapView's SVG overlay
 draws, above the tile pictures and below every tile mark and the selection, first a pale halo (`--color-map-halo`,
 `border-halo`) under every border, then in this order the dotted lines between two provinces of one owner
 (`--color-province-border`), each nation's territory border, each minor nation's dashed border (`--color-minor`, on
@@ -610,7 +613,11 @@ FR-153, FR-327). A minor's capital tile carries the minor's name
 viewed) and the tile panel (owner, "(minor nation)", the province) all ask it (FR-155).
 Cursors (FR-330) are the pack's pictures, each drawn once at runtime into a 32 x 32 px canvas and used as a PNG
 data URI (`hooks/tileCursor.ts`, read by `useTileVisuals` through `useSyncExternalStore`, so a drawn cursor
-re-renders only the tiles that show it); `pointer` until a picture is ready and where no canvas exists (server render, jsdom). No source file under
+re-renders only the tiles that show it); `pointer` until a picture is ready and where no canvas exists (server render, jsdom).
+`cursorOf` only reads; a tile starts its picture loading when it subscribes, after the commit, and a failed load is tried
+again on the next request (FR-342). `components/art/prefetch.ts` `prefetchPictures` loads pictures ahead of their `<img>`
+(the pointer on a tile with the player's stack, or the focus on the stack button, loads the tray's figures); both keep
+their Image, since Chromium fetched a picture again for a later `<img>` once a detached Image was gone. No source file under
 `src/app` holds an emoji (tests/ui/noEmoji.test.ts). The HUD shows "Turn: N of 40" and the date ("Spring 1815"), cash, the score, every
 nation ranked by score with its colour swatch and name (`HUD/ScoreTable.tsx`, `NationSwatch.tsx`), the
 food warning, the selected tile, the news of the last turn and the last refused order (`components/HUD/NewsPanel.tsx`;
@@ -643,8 +650,9 @@ terrain), `resourceMarkArt(tile)` (a known coal, iron ore, gold, gems or oil), `
 (`GROUND_ART_PX` 512), `CURSOR_ART` (prospect, constructFort, constructRail, constructModal; develop is
 `civilianArt(action.workerType)`) and `ATTACK_ARROW_ART`. `INK_ART_FILES` lists every file the table names once (family,
 width, height, anchor), `INK_ART_UNUSED` every other manifest file with its reason; `artFileOf(url)` gives the manifest
-file and `artInfoOf(url)` its entry. tests/ui/inkArt.test.ts checks the table against the manifest and that no other
-source file names the pack or one of its files. `components/art/ArtPicture.tsx` `InkPicture` draws one picture as a plain
+file and `artInfoOf(url)` its entry. tests/ui/inkArt.test.ts checks the table against the manifest, every pack file
+(the five the manifest does not list too) against `docs/art/ink-and-wash-SHA256SUMS.txt`, and that no other source file
+names the pack or one of its files (`city-ground` only in `INK_ART_UNUSED`, FR-343). `components/art/ArtPicture.tsx` `InkPicture` draws one picture as a plain
 `<img>` (`alt` required, `""` beside the text that names it) with `data-art` (the manifest file, as `data-icon` names a
 Game Icon) and `data-art-anchor`; `size`, or `width` and `height`, set its box in px, `inline` puts it on a text line
 (1.25em, the `img[data-art-inline]` rule in globals.css; its `max-width: none` undoes Tailwind's `max-width: 100%`, which
