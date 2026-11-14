@@ -167,3 +167,21 @@ export { conquestWinner, isFallen } from "./army/conquest";
 export { isAttackIntent } from "./army/armies";
 export { COMBAT, ESTIMATE, SCRIPTED_WAR } from "@/definisions/combatRules";
 export type { BattleFate, BattleRegiment, BattleReport, BattleResult, BattleRound, BattleShot, BattleSide } from "@/types/Battle";
+// M10 (FR-290 to FR-296): the Council of Governors. `resolveTurn` holds a meeting on turns 10, 20, 30 and 40 of a world with
+// provinces and emits `council-met` (the whole vote); a winner ends the game (`GameOver.reason` "council", `council`).
+// The screens read the event, or `councilVote(state)` for the projection, and these helpers.
+export {
+  abstainedProvinces,
+  councilCell,
+  councilNominees,
+  councilStanding,
+  councilVote,
+  COUNCIL_ROWS,
+  type CouncilMetEvent,
+  isCouncilTurn,
+  nextCouncilTurn,
+  votesNeeded,
+} from "./council/council";
+export { yearOfTurn } from "./calendar";
+export { COUNCIL } from "@/definisions/council";
+export type { CouncilBallot, CouncilNominee, CouncilRow, CouncilVote } from "@/types/Council";

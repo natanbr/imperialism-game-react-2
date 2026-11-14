@@ -11,7 +11,8 @@ import { resolveTurn } from '@/engine/turn/resolveTurn';
 import { seasonOf } from '@/engine/calendar';
 import { GameState } from '@/types/GameState';
 import { ResourceType } from '@/types/Resource';
-import { deepFreeze, game, N1, N2, treasury } from './fixtures';
+import { transferProvince } from '@/engine/world/provinces';
+import { deepFreeze, game, N1, N2, setPair, treasury } from './fixtures';
 
 const resolve = (state: GameState, orders = {}) => resolveTurn(state, orders, state.seed);
 /** The fixture on its last turn: turn 40 is Winter 1824. */
@@ -113,5 +114,33 @@ describe('FR-069 after game over', () => {
 
   it('FR-069 the scripted player has nothing to order after the end', () => {
     expect(scriptedPlayer(over(), N1)).toEqual([]);
+  });
+});
+
+describe('FR-295 the Council of Governors can end the game (M10)', () => {
+  /** The continent on `turn`; with `win` Testland holds 5 provinces, Arvelia as its colony and the 3 island minors' votes (9 of 12). */
+  function continentOn(turn: number, year: number, win: boolean): GameState {
+    let s: GameState = { ...engineNewGame({ seed: 1, world: 'continent', market: 'world' }), turn, year };
+    if (!win) return s;
+    s = transferProvince(transferProvince(s, 'province-nation-2-ne', N1), 'province-minor-1', N1);
+    s = { ...s, minorNations: s.minorNations.map(m => (m.id === 'minor-1' ? { ...m, colonyOf: N1 } : m)) };
+    return ['minor-2', 'minor-3', 'minor-4'].reduce((acc, minorId) => setPair(acc, minorId, N1, { points: 60 }), s);
+  }
+
+  it('FR-295 FR-068 a continent game whose turn-40 Council has no winner ends by the turn limit, the record as FR-068', () => {
+    const { state } = resolve(continentOn(40, 1824, false));
+    expect(state.gameOver).toEqual({ turn: 40, year: 1824, scores: scoreTable(state) });
+  });
+
+  it('FR-295 a Council winner ends the game on a meeting turn before the last: reason council, the winner, the vote', () => {
+    const { state } = resolve(continentOn(20, 1819, true));
+    expect(state.gameOver).toMatchObject({ turn: 20, year: 1819, scores: scoreTable(state), reason: 'council', winnerId: N1 });
+    expect(state.gameOver!.council!.nominees[0]).toMatchObject({ nationId: N1, total: 9 });
+  });
+
+  it('FR-295 FR-069 after a Council win every order is refused with game-over and resolveTurn returns the same state', () => {
+    const s = deepFreeze(resolve(continentOn(20, 1819, true)).state);
+    expect(validateOrder(s, sellTimber)).toEqual({ ok: false, reason: 'game-over' });
+    expect(resolve(s, { [N1]: [sellTimber] }).state).toBe(s);
   });
 });

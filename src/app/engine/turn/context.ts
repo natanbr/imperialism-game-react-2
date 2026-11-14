@@ -7,7 +7,8 @@ import type { ResourceType } from "@/types/Resource";
 import type { ConstructionKind } from "@/types/jobs/ConstructionJob";
 import type { BuildingType, ProductionOutput } from "@/types/Industry";
 import type { TradeCommodity } from "@/types/Market";
-import type { Score } from "@/types/Score";
+import type { GameOver } from "@/types/Score";
+import type { CouncilVote } from "@/types/Council";
 import type { Order, RejectReason } from "../orders/Order";
 import type { TradeBarrier } from "../market/partners";
 import { createStreamRng, createTurnRng, RNG_STREAMS, type Rng, type RngStream } from "../rng";
@@ -42,10 +43,16 @@ export type GameEvent =
   | { type: "bid-unfilled"; nationId: NationId; commodity: TradeCommodity; amount: number; cause?: TradeMissCause }
   | { type: "turn-ended"; turn: number; year: number }
   /**
-   * The game ended (FR-068): the last turn played, its year and the final scores; with `reason` "conquest" and
-   * `winnerId` when one Great Power was left standing (FR-223).
+   * The game ended (FR-068): the fields of `state.gameOver`: the last turn played, its year and the final scores; with
+   * `reason` "conquest" and `winnerId` when one Great Power was left standing (FR-223), or `reason` "council", `winnerId`
+   * and the `council` vote when the Council of Governors elected one (FR-295).
    */
-  | { type: "game-over"; turn: number; year: number; scores: Score[]; reason?: "conquest"; winnerId?: NationId }
+  | ({ type: "game-over" } & GameOver)
+  /**
+   * FR-296: the Council of Governors met when `turn` resolved (`year` its year): the whole vote (FR-294). No `nationId`:
+   * it concerns every nation, so the news shows it as a general line (FR-107). After `turn-ended`, before any `game-over`.
+   */
+  | ({ type: "council-met"; turn: number; year: number } & CouncilVote)
   // Diplomacy (FR-176). `nationId` is the acting Great Power, so another nation's lines get its name (FR-107).
   /** An overture took effect; for an alliance or a peace between two Great Powers each of them gets one. */
   | { type: "overture-done"; nationId: NationId; overture: Exclude<Overture, "war">; targetId: CountryId }

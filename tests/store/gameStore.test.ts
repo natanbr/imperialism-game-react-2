@@ -201,6 +201,21 @@ describe('FR-021 advanceTurn resolves the turn with the engine and keeps the eve
     expect(battles.map(b => (b.type === 'battle-resolved' ? [b.nationId, b.provinceId, b.defenderId] : []))).toEqual([[N1, 'province-minor-1', 'minor-1']]);
   });
 
+  it('FR-296 a Council meeting\'s council-met is kept in the event log under its turn, and leaves it with that turn after 20 more', () => {
+    const store = createGameStore({ seed: 1 });
+    const metIn = (turn: number) =>
+      store.getState().eventLog.filter(r => r.turn === turn).flatMap(r => r.events.filter(e => e.type === 'council-met').map(e => (e.type === 'council-met' ? [e.turn, e.year, e.totalVotes, e.needed] : [])));
+    for (let i = 0; i < 10; i++) store.getState().advanceTurn();
+    expect(store.getState().game.turn).toBe(11);
+    expect(metIn(10)).toEqual([[10, 1817, 12, 9]]);
+    expect(store.getState().eventLog.flatMap(r => r.events).filter(e => e.type === 'council-met')).toHaveLength(1);
+
+    for (let i = 0; i < 20; i++) store.getState().advanceTurn();
+
+    expect(store.getState().eventLog.map(r => r.turn)).toEqual(Array.from({ length: 20 }, (_, i) => i + 11));
+    expect([metIn(10), metIn(20), metIn(30)]).toEqual([[], [[20, 1819, 12, 9]], [[30, 1822, 12, 9]]]);
+  });
+
   it(`keeps only the last ${EVENT_LOG_TURNS} turns in the event log`, () => {
     const store = createGameStore({ game: game() });
     for (let i = 0; i < EVENT_LOG_TURNS + 2; i++) store.getState().advanceTurn();

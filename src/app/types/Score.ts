@@ -1,5 +1,6 @@
 // The score (FR-067) and the end of the game (FR-068).
 import type { NationId } from "./Common";
+import type { CouncilVote } from "./Council";
 
 export interface Score {
   nationId: NationId;
@@ -20,8 +21,13 @@ export interface GameOver {
   year: number;
   /** Every nation's final score, highest first (`scoreTable`). */
   scores: Score[];
-  /** FR-223: "conquest" when one Great Power was left standing; absent when the turn limit ended the game (FR-068). */
-  reason?: "conquest";
-  /** FR-223: the Great Power left standing, with `reason` "conquest". */
+  /**
+   * FR-223: "conquest" when one Great Power was left standing; FR-295: "council" when the Council of Governors elected a
+   * winner; absent when the turn limit ended the game (FR-068).
+   */
+  reason?: "conquest" | "council";
+  /** The Great Power left standing (FR-223) or elected (FR-295), with a `reason`. */
   winnerId?: NationId;
+  /** FR-295: the vote that elected `winnerId`, with `reason` "council". */
+  council?: CouncilVote;
 }

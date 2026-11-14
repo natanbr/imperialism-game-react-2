@@ -121,3 +121,66 @@ describe('FR-150 only the development and price draws read ctx.rng', () => {
     expect(notReads.map(src => readsSharedRng(code(src)))).toEqual(notReads.map(() => false));
   });
 });
+
+describe('M10 the Council code is headless, draws nothing and is not read by the scripted player', () => {
+  const app = join(process.cwd(), 'src/app');
+  const code = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  const COUNCIL_FILES = ['engine/council/council.ts', 'definisions/council.ts', 'types/Council.ts'];
+
+  it('FR-296 the council code imports no React, store or DOM and never reads a random stream (no ctx.rng, no rngFor)', () => {
+    for (const file of COUNCIL_FILES) {
+      const src = code(readFileSync(join(app, file), 'utf8'));
+      const imports = [...src.matchAll(/from\s+["']([^"']+)["']/g)].map(m => m[1]);
+      expect(imports.filter(i => /react|zustand|store|components|^next/.test(i)), file).toEqual([]);
+      expect(/\b(window|document)\./.test(src), file).toBe(false);
+      expect(/rng/i.test(src), file).toBe(false);
+    }
+  });
+
+  /**
+   * The engine files a file loads at run time, followed through every `import ... from` and `export ... from` that is
+   * not `import type` / `export type` (types are erased), for the paths inside src/app (`@/...` and relative ones).
+   */
+  function runtimeImports(entry: string): Set<string> {
+    const seen = new Set<string>();
+    const resolveFile = (from: string, spec: string): string | undefined => {
+      const base = spec.startsWith('@/') ? join(app, spec.slice(2)) : spec.startsWith('.') ? join(from, '..', spec) : undefined;
+      if (!base) return undefined;
+      for (const candidate of [`${base}.ts`, `${base}.tsx`, join(base, 'index.ts')]) {
+        try {
+          if (statSync(candidate).isFile()) return candidate;
+        } catch {
+          // not this one
+        }
+      }
+      return undefined;
+    };
+    const visit = (file: string) => {
+      if (seen.has(file)) return;
+      seen.add(file);
+      const src = code(readFileSync(file, 'utf8'));
+      // the clause: `X`, `{ a, type B }`, `* as N`, `*`, `X, { a }`
+      const statement = /(?:^|[\n;])\s*(import|export)\s+(type\s+)?(\{[^}]*\}|\*(?:\s+as\s+\w+)?|\w+(?:\s*,\s*(?:\{[^}]*\}|\*\s+as\s+\w+))?)\s*from\s+["']([^"']+)["']/g;
+      for (const m of src.matchAll(statement)) {
+        if (m[2]) continue;
+        const next = resolveFile(file, m[4]);
+        if (next) visit(next);
+      }
+    };
+    visit(entry);
+    return seen;
+  }
+  const rel = (path: string) => relative(app, path).split(sep).join('/');
+  const reachesCouncil = (entry: string) => [...runtimeImports(join(app, entry))].map(rel).filter(f => f === 'engine/council/council.ts' || f === 'definisions/council.ts');
+
+  it('FR-302 no file of engine/ai loads the council code, directly or through another file', () => {
+    const aiFiles = readdirSync(join(app, 'engine/ai')).filter(f => f.endsWith('.ts')).map(f => `engine/ai/${f}`);
+    expect(aiFiles.length).toBeGreaterThanOrEqual(8);
+    expect(aiFiles.map(f => [f, reachesCouncil(f)])).toEqual(aiFiles.map(f => [f, []]));
+  });
+
+  it('FR-302 the scan sees the council code where it is loaded: resolveTurn and the public API reach it', () => {
+    expect(reachesCouncil('engine/turn/resolveTurn.ts').sort()).toEqual(['definisions/council.ts', 'engine/council/council.ts']);
+    expect(reachesCouncil('engine/index.ts').sort()).toEqual(['definisions/council.ts', 'engine/council/council.ts']);
+  });
+});

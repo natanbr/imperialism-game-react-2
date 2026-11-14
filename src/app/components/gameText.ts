@@ -363,6 +363,9 @@ export function eventText(event: GameEvent, nameOf: (countryId: string) => strin
       return `${nameOf(event.fallenId)} has fallen.`;
     case "minor-colonised":
       return `${nameOf(event.minorId)} is now our colony.`;
+    // M10 engine half: the event exists; its news line (FR-297) is the UI half's
+    case "council-met":
+      return null;
   }
 }
 
