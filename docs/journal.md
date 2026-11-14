@@ -432,3 +432,43 @@ the minors' army chips) and the dotted province lines (darker warm grey); Capita
 regiment pictures. Cards for the closing step: Q67 now carries the minor colour (keep #26362c; or the hue-kept near black
 #192127; or relax FR-154's colour-blind distance for the dashed minor line). Left for the closing step: FR-154's status cell
 still quotes #5e7c90 and #7a6e5e; the journal passes 400 lines (archive M10's UI half).
+
+### Lane 3: lists, dialogs, HUD and the tile info panel (FR-331 to FR-334, FR-336's dialog share)
+
+One agent (Opus 5.5 xhigh; no advisor call), parallel with lane 2 in the same checkout. Plan-lite:
+- Change: decorative `InkPicture inline` (1.25em) in 15 components: goods before every commodity name, grade and labour
+  pictures, civilians' figures, buildings on card heads, panels, titles and buttons; `ArmouryItem.grade` (a view field).
+- Consumers: the player. Tests: FR-331 commodityIcons, transportPopup, dealBook, warehouseAndHud, armouryDialog; FR-332
+  capitalDialog, armouryDialog, listArt; FR-333 and FR-334 listArt (new), warehouseAndHud; e2e m4-1, m4-3, m11-lists (new).
+- Verify: the lane's 11 test files, `npm test`, lint, tsc; Playwright and the browser at the closing step (lane rule).
+- Objection: the Armoury's widest cost line keeps only 4.9 px to spare; a longer cost text would wrap it.
+
+Red (`.gate/m11l3/red.txt`): `Test Files 7 failed | 4 passed (11)`, `Tests 17 failed | 174 passed (191)`: `expected 'svg' to
+be 'img'`, `expected [] to deeply equal [ 'buildings/railyard.png' ]` and the like for each new picture.
+
+Decisions (defaults, nobody to ask):
+1. The Transport popup's title shows the railyard (not in FR-334's list): FR-335 removes `UI_ICONS.transport`, its old
+   glyph, and the railyard is the HUD button that opens it. Objection: one picture more than the FR names.
+2. No list needed a smaller picture: Tailwind's preflight gives every element `line-height: 1.5` (buttons too, through
+   `font: inherit`), so a 1.25em picture stays inside the line and no row, button or card head grows. Widths, measured with
+   GDI+ Arial 12 px advance widths (the browser pane shows local files as static snapshots, so no script ran there): the
+   Armoury's Light Artillery cost line 317.8 of 322.7 px (308.8 before), Hussars 315.1; the "At hand" lines wrap where they
+   did. The Board of Trade's name column grows 4 px; its rows stay as high as their steppers.
+3. The freight car's cost pictures only its labour (FR-332); Lumber and Steel stay text, as FR-331 does not list the line.
+4. The tile info panel's Resource line has a picture only for a known resource: a hidden coal hill is never hinted (FR-095).
+5. Not done here: the browser check and every Playwright spec (m4-1, m4-3, m11-lists written; m7-trade and m8-armies
+   unchanged). While trying a static width harness I navigated an existing browser-pane tab (a `data:` page titled
+   "Imperialism · Connected terrain") to it and could not go back.
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| Red before the change | `npx vitest run` on the lane's 11 files (`.gate/m11l3/red.txt`) | `Test Files 7 failed \| 4 passed (11)`, `Tests 17 failed \| 174 passed (191)` |
+| FR-331 to FR-334 | the same 11 files (`green2.txt`) | `Test Files 11 passed (11)`, `Tests 191 passed (191)` |
+| Unit tests | `npm test` (`test-final.txt`) | `Tests 36 failed \| 2055 passed (2091)`: all 36 in lane 2's red files (about, accessibleNames, mapIcons, noEmoji, provinceMap, railLine, stacking, tileCursor, watchNation) |
+| Baselines unchanged | `npm test` console | `FR-125 seed 1: ... t40 1493/650 (2.30)`; `FR-260 nation 2 score at turn 40: [[1,1419],[2,1451],[3,1441],[4,1469]]` |
+| Lint, types | `npm run lint`; `npx tsc --noEmit` | `✖ 4 problems (0 errors, 4 warnings)` (M6's three, lane 2's railLine); tsc errors only in lane 2's accessibleNames, mapGround and tileCursor tests |
+| No engine, store or type change | `git diff fc01b05 -- src/app/engine src/app/store src/app/types` | empty |
+
+How to see it (after the closing step's build): open Capital (building on each card head, goods on outputs and inputs,
+grade and labour pictures, railyard on Transport), Board of Trade, Deal Book, Warehouse, the Transport popup, the Armoury
+and an engineer's Construction options; the HUD's Warehouse, Capital and Transport buttons show their buildings.
