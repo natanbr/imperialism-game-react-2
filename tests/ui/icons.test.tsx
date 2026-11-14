@@ -1,17 +1,17 @@
 // @vitest-environment jsdom
-// FR-084, FR-085 (NR-008): Game Icons for every terrain, resource and worker type; no emoji on the
-// map, in the HUD or in the dialogs. What a tile shows (FR-085) is tested in tests/ui/mapIcons.test.tsx.
+// FR-335 (M11, NR-032; narrows FR-084): the Game Icons that stay are only those the ink-and-wash pack has no picture
+// for (Q60); the per-terrain, resource, commodity and worker tables, tileIconOf and the UI icons the pack replaced are
+// gone. FR-085: no emoji on the map, in the HUD or in the dialogs. What a tile shows (FR-322 to FR-325) is tested in
+// tests/ui/mapIcons.test.tsx, the pack's table in tests/ui/inkArt.test.ts.
 import { describe, it, expect } from 'vitest';
 import { render, within } from '@testing-library/react';
 import * as gi from 'react-icons/gi';
 import Home from '@/page';
-import { GI, RESOURCE_ICONS, TERRAIN_ICONS, UI_ICONS, WORKER_ICONS, type IconName } from '@/components/icons';
+import * as icons from '@/components/icons';
+import { GI, UI_ICONS, type IconName } from '@/components/icons';
 import { useGameStore } from '@/store/rootStore';
 import { newGame, resolveTurn } from '@/engine';
 import type { GameState } from '@/types/GameState';
-import { ResourceType } from '@/types/Resource';
-import { TerrainType } from '@/types/Tile';
-import { WorkerType } from '@/types/Workers';
 import pkg from '../../package.json';
 
 const N = 'nation-1';
@@ -19,34 +19,29 @@ const show = (game: GameState, ui: Partial<ReturnType<typeof useGameStore.getSta
   useGameStore.setState({ ...useGameStore.getInitialState(), game, activeNationId: N, ...ui });
 const isGameIcon = (name: IconName) => typeof gi[name as keyof typeof gi] === 'function' && GI[name] === gi[name as keyof typeof gi];
 
-describe('FR-084 icon set: Game Icons through react-icons/gi', () => {
-  it('FR-084 react-icons is pinned to an exact version', () => {
+describe('FR-335 the Game Icons that stay (FR-084 narrowed)', () => {
+  it('FR-335 react-icons stays pinned to an exact version', () => {
     const deps = pkg.dependencies as Record<string, string>;
     expect(deps['react-icons']).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
-  it('FR-084 every terrain type has a Game Icon', () => {
-    expect(Object.keys(TERRAIN_ICONS).sort()).toEqual(Object.values(TerrainType).sort());
-    for (const name of Object.values(TERRAIN_ICONS)) expect(isGameIcon(name), name).toBe(true);
-  });
-
-  it('FR-084 every resource type has a Game Icon', () => {
-    expect(Object.keys(RESOURCE_ICONS).sort()).toEqual(Object.values(ResourceType).sort());
-    for (const name of Object.values(RESOURCE_ICONS)) expect(isGameIcon(name), name).toBe(true);
-  });
-
-  it('FR-084 every worker type has a Game Icon', () => {
-    expect(Object.keys(WORKER_ICONS).sort()).toEqual(Object.values(WorkerType).sort());
-    for (const name of Object.values(WORKER_ICONS)) expect(isGameIcon(name), name).toBe(true);
-  });
-
-  it('FR-084 the capital, infrastructure, job markers and actions have Game Icons', () => {
-    // FR-109 New game and FR-110 the civilians' stack are HUD and map actions too; FR-177 the Diplomacy screen; FR-195 the Deal Book;
-    // FR-210 the army markers (Imp1 encampment tents) and their militia; FR-212 the Armoury; FR-230 the Attack screen; FR-231 the Battle screen;
-    // FR-298 the Council screen
-    const wanted = ['capital', 'town', 'depot', 'port', 'prospecting', 'development', 'construction', 'warehouse', 'market', 'transport', 'center', 'advanceTurn', 'finalScores', 'about', 'newGame', 'civilians', 'diplomacy', 'dealBook', 'army', 'militia', 'armoury', 'attack', 'battle', 'council'];
-    expect(Object.keys(UI_ICONS).sort()).toEqual(wanted.sort());
+  it('FR-335 UI_ICONS holds exactly the icons the pack has no picture for, each a real Game Icon', () => {
+    // FR-109 New game and FR-110 the civilians' stack; the three 10 px job markers; FR-177 the Diplomacy screen; FR-195 the
+    // Deal Book; FR-210 the army chip's tent and militia; FR-230 the Attack screen; FR-231 the Battle screen; FR-298 the Council
+    const kept = ['market', 'dealBook', 'diplomacy', 'center', 'advanceTurn', 'finalScores', 'about', 'newGame', 'civilians', 'prospecting', 'development', 'construction', 'army', 'militia', 'attack', 'battle', 'council'];
+    expect(Object.keys(UI_ICONS).sort()).toEqual([...kept].sort());
     for (const name of Object.values(UI_ICONS)) expect(isGameIcon(name), name).toBe(true);
+  });
+
+  it('FR-335 the UI names no other Game Icon: GI is the UI_ICONS values and the river marker GiRiver', () => {
+    expect(Object.keys(GI).sort()).toEqual([...new Set([...Object.values(UI_ICONS), 'GiRiver'])].sort());
+    for (const name of Object.keys(GI) as IconName[]) expect(isGameIcon(name), name).toBe(true);
+  });
+
+  it('FR-335 the tables the pack replaced are removed', () => {
+    const exports = icons as Record<string, unknown>;
+    for (const gone of ['TERRAIN_ICONS', 'RESOURCE_ICONS', 'COMMODITY_ICONS', 'WORKER_ICONS', 'tileIconOf']) expect(exports[gone], gone).toBeUndefined();
+    for (const gone of ['capital', 'town', 'depot', 'port', 'warehouse', 'transport', 'armoury']) expect(gone in UI_ICONS, gone).toBe(false);
   });
 });
 

@@ -1,7 +1,6 @@
 // The palette and the map grid for TypeScript (FR-086, FR-088). The colour values live only in
 // styles/tokens.css; this module names the variables, so inline styles and SVG attributes use the
 // same colours as the CSS. tests/ui/palette.test.ts checks that every name here is defined there.
-import { TerrainType } from "@/types/Tile";
 
 /** Tile size in px: equal to --tile-width in tokens.css. Odd rows are shifted half a tile. */
 export const TILE_PX = 42;
@@ -61,13 +60,8 @@ export const RELATION_COLORS: readonly string[] = Array.from({ length: 9 }, (_, 
 /** The swatch of a relation level, clamped to 0..8. */
 export const relationColor = (level: number): string => RELATION_COLORS[Math.min(8, Math.max(0, Math.floor(level)))];
 
-/** A faint background per terrain: --terrain-<type> in tokens.css. */
-export const TERRAIN_TINT: Record<TerrainType, string> = Object.fromEntries(
-  Object.values(TerrainType).map((t) => [t, v(`terrain-${t}`)])
-) as Record<TerrainType, string>;
-
 /** Every CSS variable this module names, without `var()`. */
 export function themeVariables(): string[] {
-  const all = [...Object.values(THEME), ...NATION_COLORS, ...RELATION_COLORS, ...Object.values(TERRAIN_TINT)];
+  const all = [...Object.values(THEME), ...NATION_COLORS, ...RELATION_COLORS];
   return all.map((value) => /^var\((--[\w-]+)\)$/.exec(value)![1]);
 }

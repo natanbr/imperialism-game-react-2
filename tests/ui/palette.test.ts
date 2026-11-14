@@ -5,9 +5,8 @@
 import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'fs';
 import { join, relative } from 'path';
-import { HUD_PX, NATION_COLORS, RELATION_COLORS, TERRAIN_TINT, THEME, TILE_PX, relationColor, themeVariables } from '@/styles/theme';
+import { HUD_PX, NATION_COLORS, RELATION_COLORS, THEME, TILE_PX, relationColor, themeVariables } from '@/styles/theme';
 import { mapAreaOf, mapSizePx } from '@/components/camera';
-import { TerrainType } from '@/types/Tile';
 
 const ROOT = join(__dirname, '..', '..');
 const TOKENS = readFileSync(join(ROOT, 'src/app/styles/tokens.css'), 'utf8');
@@ -35,7 +34,7 @@ function hsl(hex: string): { h: number; s: number; l: number; c: number } {
   }
   return { h: (h + 360) % 360, s, l, c: d };
 }
-/** The value of `var(--x)` in tokens.css, following var() chains (`--terrain-water: var(--color-sea)`). */
+/** The value of `var(--x)` in tokens.css, following var() chains (`--color-bg-primary: var(--color-surface)`). */
 const valueOf = (cssVar: string): string => {
   const name = /^var\((--[\w-]+)\)$/.exec(cssVar)?.[1];
   if (!name) return cssVar;
@@ -111,13 +110,10 @@ describe('FR-086 the palette is defined once in styles/tokens.css', () => {
     expect(missing).toEqual([]);
   });
 
-  it('FR-086 every terrain has a tint, and every tint is faint: light and low in colour', () => {
-    expect(Object.keys(TERRAIN_TINT).sort()).toEqual(Object.values(TerrainType).sort());
-    const loud = Object.entries(TERRAIN_TINT).filter(([, v]) => {
-      const { c, l } = hsl(valueOf(v));
-      return l < 0.8 || c > 0.2;
-    });
-    expect(loud).toEqual([]);
+  // FR-086's per-terrain tint is replaced by FR-321 (M11): tiles lie on the map's ground and draw no tint (Q71)
+  it('FR-086 FR-321 tokens.css defines no terrain tint and theme.ts names none', () => {
+    expect([...defined.keys()].filter((name) => name.startsWith('--terrain-'))).toEqual([]);
+    expect(themeVariables().filter((name) => name.startsWith('--terrain-'))).toEqual([]);
   });
 
   it('FR-086 parchment land, pale blue sea, dark grey ink, strong nation colours, one accent', () => {
@@ -349,25 +345,8 @@ describe('FR-154 the minor nation and province border colours', () => {
     expect(close).toEqual([]);
   });
 
-  // The two 3:1 tests below are superseded by FR-329 (M11): the borders now run on the map halo, and the tiles stop
-  // drawing the terrain tints. They stay green until M11's closing step removes the tints with TERRAIN_TINT (Q71).
-  it('FR-154 --color-minor reaches 3:1 against every land tile background and the sea, which its dashed border runs between (WCAG 2.2, 1.4.11)', () => {
-    const backgrounds = [THEME.land, ...Object.values(TERRAIN_TINT)];
-    expect(backgrounds).toHaveLength(Object.values(TerrainType).length + 1);
-    const low = backgrounds
-      .map((bg) => ({ bg, ratio: Math.round(contrast(token('--color-minor'), valueOf(bg)) * 100) / 100 }))
-      .filter(({ ratio }) => ratio < 3);
-    expect(low).toEqual([]);
-  });
-
-  it('FR-154 --color-province-border reaches 3:1 against every land tile background (WCAG 2.2, 1.4.11)', () => {
-    const land = [THEME.land, ...Object.entries(TERRAIN_TINT).filter(([t]) => t !== TerrainType.Water).map(([, v]) => v)];
-    expect(land).toHaveLength(Object.values(TerrainType).length);
-    const low = land
-      .map((bg) => ({ bg, ratio: Math.round(contrast(token('--color-province-border'), valueOf(bg)) * 100) / 100 }))
-      .filter(({ ratio }) => ratio < 3);
-    expect(low).toEqual([]);
-  });
+  // FR-154's 3:1 against the terrain tints is replaced by FR-329 (M11): the borders run on the map halo, and the tiles
+  // draw no tint any more (Q71); the halo test is in the FR-329 block below.
 });
 
 describe("FR-329 the tokens of the pack's look (M11, NR-032)", () => {
