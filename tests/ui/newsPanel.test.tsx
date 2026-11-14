@@ -95,9 +95,10 @@ describe('FR-280 the news heading names the last turn', () => {
 });
 
 // M10 UI half. FR-297: the Council's news line opens the Council screen of that meeting (FR-298), as a battle's line opens
-// its Battle screen (FR-232). FR-306 (review R1): it is the first line of the list, so it shows without scrolling.
+// its Battle screen (FR-232). FR-306 (review R1): it is the first line of the list, so it shows without scrolling. FR-316
+// (QA fix round): the screen's date line reads "Met at the end of turn 10 (Summer 1817)".
 describe('FR-297 the Council in the news', () => {
-  it('FR-297 FR-306 the line "Council of Governors: Testland 4, Valdoria 4 of 12 votes; no winner (9 needed).", first in the list, opens the Council screen of that meeting', () => {
+  it('FR-297 FR-306 FR-316 the line "Council of Governors: Testland 4, Valdoria 4 of 12 votes; no winner (9 needed).", first in the list, opens the Council screen of that meeting', () => {
     const council = { type: 'council-met', turn: 10, year: 1817, ...councilVote(continent())! } as GameEvent;
     useGameStore.setState({
       ...useGameStore.getInitialState(),
@@ -120,7 +121,7 @@ describe('FR-297 the Council in the news', () => {
     fireEvent.click(within(list).getByRole('button', { name: 'Council of Governors: Testland 4, Valdoria 4 of 12 votes; no winner (9 needed).' }));
     expect(useGameStore.getState().councilShown).toEqual(council);
     const dialog = screen.getByRole('dialog', { name: 'Council of Governors' });
-    expect(text(within(dialog).getByTestId('council-date'))).toBe('Turn 10, Summer 1817');
+    expect(text(within(dialog).getByTestId('council-date'))).toBe('Met at the end of turn 10 (Summer 1817)');
     expect(text(within(dialog).getByTestId('council-result'))).toBe('No winner. The Council meets again on turn 20.');
   });
 });

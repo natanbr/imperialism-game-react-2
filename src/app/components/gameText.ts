@@ -382,6 +382,20 @@ export function eventText(event: GameEvent, nameOf: (countryId: string) => strin
 export const councilCountText = (vote: Pick<CouncilVote, "nominees" | "totalVotes">, nameOf: (countryId: string) => string): string =>
   `${vote.nominees.map((n) => `${nameOf(n.nationId)} ${n.total}`).join(", ")} of ${vote.totalVotes} votes`;
 
+/** FR-313: the two nominees with the player's nation first when it is one of them, else in standing order. */
+export const playerFirst = <T extends { nationId: string }>(nominees: readonly [T, T], playerId: string): [T, T] =>
+  nominees[1].nationId === playerId ? [nominees[1], nominees[0]] : [nominees[0], nominees[1]];
+
+/**
+ * FR-314 (FR-313: the player's nation first): the HUD's projection, the vote the Council would give now, shown under its
+ * "Next Council" line: "If it met now: Testland 4, Valdoria 4, abstain 4 of 12; 9 needed".
+ */
+export function councilProjectionText(vote: CouncilVote, playerId: string, nameOf: (countryId: string) => string): string {
+  const abstain = vote.totalVotes - vote.nominees[0].total - vote.nominees[1].total;
+  const counts = playerFirst(vote.nominees, playerId).map((n) => `${nameOf(n.nationId)} ${n.total}`);
+  return `If it met now: ${counts.join(", ")}, abstain ${abstain} of ${vote.totalVotes}; ${vote.needed} needed`;
+}
+
 const regiments = (n: number) => `${n} regiment${n === 1 ? "" : "s"}`;
 
 /** The Imp1 result lines of a battle (rules 11 section 7), as one side sees it (FR-231, FR-232). */

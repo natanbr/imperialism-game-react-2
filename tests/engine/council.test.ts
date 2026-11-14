@@ -1,7 +1,8 @@
 // M10 Council of Governors (FR-290 to FR-296, FR-305): when the Council meets, who is nominated, how each province's
 // governor votes, the count and the winner, the game over a winner gives and the `council-met` event. Hand-built
 // continent states on the world market (no trade moves a relation); the provinces attacked here are undefended, so no
-// battle draw is made.
+// battle draw is made. QA fix round: FR-310, an abstaining ballot says why (the free minor's points and wars with each
+// nominee, equal strength, or a colony holding its province).
 import { beforeAll, describe, it, expect } from 'vitest';
 import { COUNCIL } from '@/definisions/council';
 import { SCORE_WEIGHTS } from '@/definisions/scoreWeights';
@@ -85,6 +86,14 @@ function rows(v: CouncilVote, nationId: string): number[] {
   return [n.controlled, n.colonies, n.otherGreatPowers, n.otherMinorNations, n.total];
 }
 const ballotOf = (v: CouncilVote, provinceId: string) => v.ballots.find(b => b.provinceId === provinceId)!;
+/**
+ * FR-310 (M10 QA item 1): a free minor's abstaining ballot says why: each nominee's relation points with it and whether
+ * they are at war, in nominee order.
+ */
+const weighed = (provinceId: string, ...nominees: [string, number, boolean?][]) => ({
+  provinceId,
+  abstention: { reason: 'relations', nominees: nominees.map(([nationId, points, atWar = false]) => ({ nationId, points, atWar })) },
+});
 const councils = (events: GameEvent[]) => events.filter((e): e is Extract<GameEvent, { type: 'council-met' }> => e.type === 'council-met');
 /** The FR-294 fields of a `council-met` event. */
 const voteOf = (e: Extract<GameEvent, { type: 'council-met' }>): CouncilVote => {
@@ -298,10 +307,10 @@ describe('FR-292 one vote per province', () => {
     expect(ballotOf(vote(valdoriaStronger), NE2)).toEqual({ provinceId: NE2, forId: N2, row: 'otherGreatPowers' });
   });
 
-  it('FR-292 on a tie of military strength that province abstains', () => {
+  it('FR-292 FR-310 on a tie of military strength that province abstains, saying so (equal strength, its owner)', () => {
     const v = vote(threePowers());
     expect([militaryStrength(threePowers(), N1), militaryStrength(threePowers(), N2)]).toEqual([36, 36]);
-    expect(ballotOf(v, NE2)).toEqual({ provinceId: NE2 });
+    expect(ballotOf(v, NE2)).toEqual({ provinceId: NE2, abstention: { reason: 'equal-strength', ownerId: N3 } });
     expect(v.totalVotes).toBe(12);
   });
 });
@@ -314,10 +323,10 @@ describe('FR-293 a free minor\'s vote', () => {
     expect(rows(vote(sundmark(continent('world'), 52, 30)), N1)).toEqual([4, 0, 0, 1, 5]);
   });
 
-  it('FR-293 at 30 and 30 (the start) it abstains; at 50 and 50 it abstains; at 49 and 30 it abstains', () => {
-    expect(sundmarkBallot(sundmark(continent('world'), 30, 30))).toEqual({ provinceId: SUNDMARK_P });
-    expect(sundmarkBallot(sundmark(continent('world'), 50, 50))).toEqual({ provinceId: SUNDMARK_P });
-    expect(sundmarkBallot(sundmark(continent('world'), 49, 30))).toEqual({ provinceId: SUNDMARK_P });
+  it('FR-293 FR-310 at 30 and 30 (the start) it abstains; at 50 and 50 it abstains; at 49 and 30 it abstains; each says its points', () => {
+    expect(sundmarkBallot(sundmark(continent('world'), 30, 30))).toEqual(weighed(SUNDMARK_P, [N1, 30], [N2, 30]));
+    expect(sundmarkBallot(sundmark(continent('world'), 50, 50))).toEqual(weighed(SUNDMARK_P, [N1, 50], [N2, 50]));
+    expect(sundmarkBallot(sundmark(continent('world'), 49, 30))).toEqual(weighed(SUNDMARK_P, [N1, 49], [N2, 30]));
   });
 
   it('FR-293 at exactly 50 (level 5, shown as "level 6 of 9") it votes', () => {
@@ -330,17 +339,37 @@ describe('FR-293 a free minor\'s vote', () => {
     const declared = atWar(sundmark(continent('world'), 60, 55), N1, SUNDMARK, 5);
     expect(sundmarkBallot(declared)).toEqual({ provinceId: SUNDMARK_P, forId: N2, row: 'otherMinorNations' });
     const both = atWar(atWar(sundmark(continent('world'), 60, 55), N1, SUNDMARK), N2, SUNDMARK);
-    expect(sundmarkBallot(both)).toEqual({ provinceId: SUNDMARK_P });
+    expect(sundmarkBallot(both)).toEqual(weighed(SUNDMARK_P, [N1, 60, true], [N2, 55, true]));
   });
 
-  it('FR-293 equal points among those it may vote for: abstains, unless war leaves one', () => {
-    expect(sundmarkBallot(sundmark(continent('world'), 70, 70))).toEqual({ provinceId: SUNDMARK_P });
+  it('FR-293 FR-310 equal points among those it may vote for: abstains, unless war leaves one', () => {
+    expect(sundmarkBallot(sundmark(continent('world'), 70, 70))).toEqual(weighed(SUNDMARK_P, [N1, 70], [N2, 70]));
     expect(sundmarkBallot(atWar(sundmark(continent('world'), 70, 70), N2, SUNDMARK))).toEqual({ provinceId: SUNDMARK_P, forId: N1, row: 'otherMinorNations' });
   });
 
-  it('FR-293 on a new game all 4 minors abstain', () => {
+  it('FR-293 FR-310 on a new game all 4 minors abstain, each at 30 points with both nominees', () => {
     const v = vote(continent('world'));
-    expect([ARVELIA_P, SUNDMARK_P, LORRAN_P, PELLIS_P].map(p => ballotOf(v, p))).toEqual([ARVELIA_P, SUNDMARK_P, LORRAN_P, PELLIS_P].map(provinceId => ({ provinceId })));
+    expect([ARVELIA_P, SUNDMARK_P, LORRAN_P, PELLIS_P].map(p => ballotOf(v, p))).toEqual(
+      [ARVELIA_P, SUNDMARK_P, LORRAN_P, PELLIS_P].map(provinceId => weighed(provinceId, [N1, 30], [N2, 30]))
+    );
+  });
+
+  it('FR-310 at war with one nominee and below 50 with the other: it abstains, and its ballot says both', () => {
+    const s = atWar(sundmark(continent('world'), 60, 40), N1, SUNDMARK);
+    expect(sundmarkBallot(s)).toEqual(weighed(SUNDMARK_P, [N1, 60, true], [N2, 40]));
+  });
+
+  it('FR-310 the nominees in the ballot follow the nominee order: Valdoria first when it is the first nominee', () => {
+    const s = sundmark(transferProvince(continent('world'), 'province-nation-1-ne', N2), 20, 40);
+    expect(vote(s).nominees.map(n => n.nationId)).toEqual([N2, N1]);
+    expect(sundmarkBallot(s)).toEqual(weighed(SUNDMARK_P, [N2, 40], [N1, 20]));
+  });
+
+  it('FR-310 a colony still holding its own province (hand-built) abstains as a colony; a ballot that votes carries no abstention', () => {
+    const colony = { ...continent('world'), minorNations: continent('world').minorNations.map(m => (m.id === ARVELIA ? { ...m, colonyOf: N1 } : m)) };
+    const v = vote(colony);
+    expect(ballotOf(v, ARVELIA_P)).toEqual({ provinceId: ARVELIA_P, abstention: { reason: 'colony', ownerId: ARVELIA } });
+    for (const b of v.ballots.filter(x => x.forId !== undefined)) expect('abstention' in b).toBe(false);
   });
 });
 
@@ -369,11 +398,11 @@ describe('FR-294 the count and the winner', () => {
     expect(abstainedProvinces(v)).toEqual([ARVELIA_P, SUNDMARK_P, LORRAN_P, PELLIS_P]);
   });
 
-  it('FR-294 the result\'s shape: each total is its four rows; an abstention has no forId and no row', () => {
+  it('FR-294 FR-310 the result\'s shape: each total is its four rows; an abstention has no forId and no row, and says why', () => {
     const v = vote(sundmark(threePowers(), 52, 30));
     for (const n of v.nominees) expect(n.total).toBe(n.controlled + n.colonies + n.otherGreatPowers + n.otherMinorNations);
     expect(v.nominees.reduce((sum, n) => sum + n.total, 0) + abstainedProvinces(v).length).toBe(v.totalVotes);
-    for (const b of v.ballots.filter(x => x.forId === undefined)) expect(Object.keys(b)).toEqual(['provinceId']);
+    for (const b of v.ballots.filter(x => x.forId === undefined)) expect(Object.keys(b)).toEqual(['provinceId', 'abstention']);
     expect(Object.keys(v).sort()).toEqual(['ballots', 'needed', 'nominees', 'totalVotes']);
     expect(Object.keys(vote(winning())).sort()).toEqual(['ballots', 'needed', 'nominees', 'totalVotes', 'winnerId']);
   });
@@ -452,7 +481,7 @@ describe('FR-295 the Council ends the game', () => {
     expect([last.nominees.map(n => n.total), last.winnerId]).toEqual([[4, 4], undefined]);
     // Sundmark at 49 with Testland and 30 with Valdoria: below 50 with both, so it does not have to choose
     const [close] = councils(resolve(onTurn(40, 1824, sundmark(continent('world'), 49, 30))).events);
-    expect(ballotOf(close, SUNDMARK_P)).toEqual({ provinceId: SUNDMARK_P });
+    expect(ballotOf(close, SUNDMARK_P)).toEqual(weighed(SUNDMARK_P, [N1, 49], [N2, 30]));
     expect(abstainedProvinces(close)).toHaveLength(4);
   });
 

@@ -3,7 +3,7 @@
 // (`councilMeeting`) on the state after the clock and ends the game when it has a winner (FR-295).
 import { COUNCIL } from "@/definisions/council";
 import type { CountryId, NationId, ProvinceId } from "@/types/Common";
-import type { CouncilBallot, CouncilNominee, CouncilRow, CouncilVote } from "@/types/Council";
+import type { CouncilBallot, CouncilNominee, CouncilRelation, CouncilRow, CouncilVote } from "@/types/Council";
 import type { GameState } from "@/types/GameState";
 import type { Province } from "@/types/Province";
 import type { GameEvent } from "../turn/context";
@@ -68,22 +68,27 @@ function colonyProvinceIds(state: GameState): Set<ProvinceId> {
   return ids;
 }
 
+/** FR-293, FR-310: each nominee's relation points with the minor and whether they are at war (a recorded war, begun or not). */
+const minorRelations = (state: GameState, minorId: CountryId, nominees: readonly NationId[]): CouncilRelation[] =>
+  nominees.map((nationId) => ({
+    nationId,
+    points: relationOf(state, nationId, minorId)?.points ?? 0,
+    atWar: warBetween(state, nationId, minorId) !== undefined,
+  }));
+
 /**
  * FR-293 (Q52): a free minor votes for the nominee with the most relation points with it among those it is not at war
- * with (a recorded war, begun or not) that have at least `minRelationPoints`; none, or a tie, and it abstains.
+ * with that have at least `minRelationPoints`; none, or a tie, and it abstains.
  */
-function minorChoice(state: GameState, minorId: CountryId, nominees: readonly NationId[]): NationId | undefined {
-  const eligible = nominees
-    .filter((id) => warBetween(state, id, minorId) === undefined)
-    .map((id) => ({ id, points: relationOf(state, id, minorId)?.points ?? 0 }))
-    .filter((c) => c.points >= COUNCIL.minRelationPoints);
+function minorChoice(relations: readonly CouncilRelation[]): NationId | undefined {
+  const eligible = relations.filter((r) => !r.atWar && r.points >= COUNCIL.minRelationPoints);
   if (eligible.length === 0) return undefined;
-  const best = Math.max(...eligible.map((c) => c.points));
-  const top = eligible.filter((c) => c.points === best);
-  return top.length === 1 ? top[0].id : undefined;
+  const best = Math.max(...eligible.map((r) => r.points));
+  const top = eligible.filter((r) => r.points === best);
+  return top.length === 1 ? top[0].nationId : undefined;
 }
 
-/** FR-292: the province's one vote, and the row it counts in. */
+/** FR-292: the province's one vote, and the row it counts in; an abstention says why (FR-310). */
 function ballotOf(state: GameState, province: Province, nominees: readonly NationId[], colonies: ReadonlySet<ProvinceId>): CouncilBallot {
   const provinceId = province.id;
   const ownerId = province.ownerId;
@@ -91,13 +96,16 @@ function ballotOf(state: GameState, province: Province, nominees: readonly Natio
   if (state.nations.some((n) => n.id === ownerId)) {
     // Imp1 Let's Play [01:W20]: the provinces of the other Great Powers went to the militarily strongest nominee
     const [first, second] = nominees.map((id) => militaryStrength(state, id));
-    if (first === second) return { provinceId };
+    if (first === second) return { provinceId, abstention: { reason: "equal-strength", ownerId } };
     return { provinceId, forId: first > second ? nominees[0] : nominees[1], row: "otherGreatPowers" };
   }
-  // A colonised minor owns no province once its capital fell (FR-224); a hand-built one that still does abstains
   const minor = state.minorNations.find((m) => m.id === ownerId);
-  const forId = minor && minor.colonyOf === undefined ? minorChoice(state, ownerId, nominees) : undefined;
-  return forId ? { provinceId, forId, row: "otherMinorNations" } : { provinceId };
+  if (!minor) return { provinceId };
+  // A colonised minor owns no province once its capital fell (FR-224); a hand-built one that still does abstains
+  if (minor.colonyOf !== undefined) return { provinceId, abstention: { reason: "colony", ownerId } };
+  const relations = minorRelations(state, ownerId, nominees);
+  const forId = minorChoice(relations);
+  return forId ? { provinceId, forId, row: "otherMinorNations" } : { provinceId, abstention: { reason: "relations", nominees: relations } };
 }
 
 /**

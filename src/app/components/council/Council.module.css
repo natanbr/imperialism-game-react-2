@@ -81,10 +81,20 @@
   border-bottom-color: var(--color-border-strong);
 }
 
+/* The nominees' columns leave the row names half the width, so the greyed row's note fits on one line (FR-312) */
 .nominee {
-  width: 30%;
+  width: 25%;
   font-size: var(--font-size-md);
   font-weight: 700;
+}
+
+/* FR-313: the columns follow the player, so the standing shows as a small mark under the name */
+.rank {
+  display: block;
+  font-size: var(--font-size-sm);
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--color-text-muted);
 }
 
 .rowName {
@@ -97,6 +107,19 @@
   cursor: help;
 }
 
+/* FR-312: a row no province can fill in this world (Other Great Powers with two Great Powers): greyed, "—" and a note */
+.unusedRow th,
+.unusedRow td {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+.rowNote {
+  display: block;
+  font-size: var(--font-size-sm);
+  line-height: 14px;
+}
+
 .totalRow th,
 .totalRow td {
   border-top: 1px solid var(--color-border-strong);
@@ -107,6 +130,23 @@
 
 .note {
   margin: var(--spacing-sm) 0 0;
+  color: var(--color-text-muted);
+}
+
+/* FR-311: one line per abstaining province, under "Abstained: n" */
+.reasons {
+  margin: 2px 0 0;
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--color-text-muted);
+}
+
+/* FR-311: how a free minor and a colony vote */
+.rule {
+  margin: var(--spacing-sm) 0 0;
+  font-size: 13px;
+  line-height: 18px;
   color: var(--color-text-muted);
 }
 

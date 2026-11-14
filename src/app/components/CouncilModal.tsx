@@ -13,11 +13,13 @@ import { NationSwatch } from "./NationSwatch";
 /** One meeting's report; keyed by the meeting, so a news line of another meeting starts fresh. */
 const CouncilReport: React.FC<{ event: CouncilMetEvent }> = ({ event }) => {
   const game = useGameStore((s) => s.game);
+  const playerId = useGameStore((s) => s.activeNationId);
   const closeCouncil = useGameStore((s) => s.closeCouncil);
   const showGameOver = useGameStore((s) => s.showGameOver);
   const titleId = useId();
   const cellIds = useId();
-  const view = useMemo(() => councilView(event, game), [event, game]);
+  const abstainedId = useId();
+  const view = useMemo(() => councilView(event, game, playerId), [event, game, playerId]);
   const won = view.winnerName !== undefined;
   // FR-299: a winner ended the game, so every way out of its meeting (the button, Escape, the backdrop) leads to the final scores
   const close = won
@@ -27,6 +29,8 @@ const CouncilReport: React.FC<{ event: CouncilMetEvent }> = ({ event }) => {
       }
     : closeCouncil;
   const describedBy = (column: number, row: CouncilTableRow) => `${cellIds}-${column}-${row}`;
+  // FR-312: in a world of two Great Powers no province can fill the Other Great Powers row
+  const unused = (row: CouncilTableRow) => row === "otherGreatPowers" && view.unusedRowNote !== undefined;
 
   const numberCell = (column: CouncilColumnView, index: number, row: CouncilTableRow) => {
     const cell = column.cells[row];
@@ -36,8 +40,9 @@ const CouncilReport: React.FC<{ event: CouncilMetEvent }> = ({ event }) => {
         title={cell.provinces}
         aria-describedby={describedBy(index, row)}
         data-testid={`council-cell-${column.nationId}-${row}`}
+        data-count={cell.count}
       >
-        {cell.count}
+        {cell.shown}
       </td>
     );
   };
@@ -45,6 +50,10 @@ const CouncilReport: React.FC<{ event: CouncilMetEvent }> = ({ event }) => {
     <th scope="col" className={styles.nominee}>
       <NationSwatch slot={column.colorSlot} />
       {column.name}
+      {/* FR-313: the columns follow the player, so the standing shows as a mark */}
+      <span className={styles.rank} data-testid={`council-rank-${column.nationId}`}>
+        {column.rank}
+      </span>
     </th>
   );
   const [first, second] = view.columns;
@@ -74,10 +83,16 @@ const CouncilReport: React.FC<{ event: CouncilMetEvent }> = ({ event }) => {
         </thead>
         <tbody>
           {COUNCIL_TABLE_ROWS.map((row) => (
-            <tr key={row} className={row === "total" ? styles.totalRow : undefined}>
+            <tr
+              key={row}
+              className={row === "total" ? styles.totalRow : unused(row) ? styles.unusedRow : undefined}
+              data-testid={`council-row-${row}`}
+              data-unused={unused(row) ? "true" : undefined}
+            >
               {numberCell(first, 0, row)}
               <th scope="row" className={styles.rowName}>
                 {COUNCIL_ROW_TEXT[row]}
+                {unused(row) && <span className={styles.rowNote}>{view.unusedRowNote}</span>}
               </th>
               {numberCell(second, 1, row)}
             </tr>
@@ -95,8 +110,19 @@ const CouncilReport: React.FC<{ event: CouncilMetEvent }> = ({ event }) => {
         )}
       </div>
 
-      <p className={styles.note} data-testid="council-abstained">
+      {/* FR-311: who abstained and why, then how a minor votes */}
+      <p className={styles.note} id={abstainedId} data-testid="council-abstained">
         {view.abstained}
+      </p>
+      {view.abstentions.length > 0 && (
+        <ul className={styles.reasons} aria-labelledby={abstainedId} data-testid="council-abstentions">
+          {view.abstentions.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+      )}
+      <p className={styles.rule} data-testid="council-rule">
+        {view.rule}
       </p>
       <p className={styles.note} data-testid="council-needed">
         {view.needed}

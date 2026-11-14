@@ -8,8 +8,9 @@ import { useGameStore } from '@/store/rootStore';
 import { resolveTurn } from '@/engine';
 import type { GameState } from '@/types/GameState';
 import { GoodsType, MaterialType, ResourceType } from '@/types/Resource';
-import { emptyWarehouse, game, N1, N2, setIndustry, setTile, setTreasury, T } from '../engine/fixtures';
-import { continent, NE1 } from '../engine/armyFixtures';
+import { TileInfoPanel } from '@/components/TileInfoPanel';
+import { emptyWarehouse, game, N1, N2, setIndustry, setPair, setTile, setTreasury, T } from '../engine/fixtures';
+import { continent, NE1, SUNDMARK } from '../engine/armyFixtures';
 import { transferProvince } from '@/engine/world/provinces';
 import { text } from './domText';
 import { failOnActWarnings } from './actWarnings';
@@ -121,15 +122,20 @@ describe('FR-301 the next Council in the HUD', () => {
       .filter(Boolean)
       .map((id) => document.getElementById(id)?.textContent ?? '')
       .join(' ');
-  const PROJECTION = 'If the Council met now: Testland 4, Valdoria 4 of 12 votes; a winner needs 9.';
+  const PROJECTION = 'If it met now: Testland 4, Valdoria 4, abstain 4 of 12; 9 needed';
 
-  it('FR-301 a new continent game: "Next Council: turn 10 (Summer 1817)"; its title and description the projected vote', () => {
+  it('FR-301 FR-314 a new continent game: "Next Council: turn 10 (Summer 1817)"; under it the projected vote, shown, which is also its description', () => {
     show(continent());
     render(<TurnIndicator />);
     const line = screen.getByTestId('next-council');
     expect(text(line)).toBe('Next Council: turn 10 (Summer 1817)');
-    expect(line.getAttribute('title')).toBe(PROJECTION);
+    const projection = screen.getByTestId('council-projection');
+    expect(text(projection)).toBe(PROJECTION);
+    // Shown, not only a hover title (QA item 4): no title, not hidden, the line's accessible description
+    expect(line.hasAttribute('title')).toBe(false);
+    expect(projection.closest('[hidden]')).toBeNull();
     expect(description(line)).toBe(PROJECTION);
+    expect(line.getAttribute('aria-describedby')).toBe(projection.id);
     // The turn indicator's own text is unchanged (FR-048)
     expect(text(screen.getByTestId('turn-indicator'))).toBe('Turn: 1 of 40 Spring 1815');
   });
@@ -152,12 +158,18 @@ describe('FR-301 the next Council in the HUD', () => {
     expect(text(screen.getByTestId('next-council'))).toBe('Next Council: turn 40 (Winter 1824)');
   });
 
-  it('FR-301 the projection follows the game, first nominee first: Valdoria holding Testland North-East reads "Valdoria 5, Testland 3"', () => {
+  it("FR-301 FR-313 the projection follows the game, the player's nation first: Valdoria, the 1st nominee holding Testland North-East, reads second", () => {
     show(transferProvince(continent(), NE1, N2));
     render(<TurnIndicator />);
     const line = screen.getByTestId('next-council');
-    expect(line.getAttribute('title')).toBe('If the Council met now: Valdoria 5, Testland 3 of 12 votes; a winner needs 9.');
-    expect(description(line)).toBe(line.getAttribute('title'));
+    expect(text(screen.getByTestId('council-projection'))).toBe('If it met now: Testland 3, Valdoria 5, abstain 4 of 12; 9 needed');
+    expect(description(line)).toBe(text(screen.getByTestId('council-projection')));
+  });
+
+  it('FR-313 FR-314 the projection counts the abstentions: Sundmark at 52 with Testland votes, 3 abstain', () => {
+    show(setPair(continent(), SUNDMARK, N1, { points: 52 }));
+    render(<TurnIndicator />);
+    expect(text(screen.getByTestId('council-projection'))).toBe('If it met now: Testland 5, Valdoria 4, abstain 3 of 12; 9 needed');
   });
 
   it('FR-301 when councilVote gives no vote (fewer than two Great Powers holding a province) the line shows without a tooltip or a description (review R7)', () => {
@@ -173,6 +185,7 @@ describe('FR-301 the next Council in the HUD', () => {
     expect(line.hasAttribute('title')).toBe(false);
     expect(line.hasAttribute('aria-describedby')).toBe(false);
     expect(container.querySelectorAll('[hidden]')).toHaveLength(0);
+    expect(screen.queryByTestId('council-projection')).toBeNull();
   });
 
   it('FR-301 absent on two-islands, after game over, and after the turn-40 meeting', () => {
@@ -197,5 +210,24 @@ describe('FR-301 the next Council in the HUD', () => {
     show(over);
     render(<TurnIndicator />);
     expect(screen.queryByTestId('next-council')).toBeNull();
+  });
+});
+
+// M10 QA fix round. FR-315 (item 5): at game over the HUD has the Final scores button too, so the news list had no whole
+// line left for the Council line (e2e/m10-council.spec.ts measures it). The HUD gives the news the height of the "No tile
+// selected" line: with no tile selected the tile section shows nothing; and the game-over date line is a 16 px line.
+describe('FR-315 HUD room for the news at game over', () => {
+  it('FR-315 with no tile selected the tile section shows nothing: no "No tile selected" line', () => {
+    show(continent());
+    const { container } = render(<TileInfoPanel selectedTile={undefined} />);
+    expect(container.innerHTML).toBe('');
+  });
+
+  it('FR-315 the game-over turn indicator is marked as such (its date line is 16 px, globals.css), its text unchanged', () => {
+    show({ ...continent(), gameOver: { turn: 40, year: 1824, scores: [] } });
+    render(<TurnIndicator />);
+    const indicator = screen.getByTestId('turn-indicator');
+    expect(text(indicator)).toBe('Game over after turn 40 of 40 Winter 1824');
+    expect(indicator.classList.contains('turn-indicator-over')).toBe(true);
   });
 });

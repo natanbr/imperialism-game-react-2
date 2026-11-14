@@ -8,6 +8,9 @@
 // Wins!"). The player does not vote: the screen is a report. FR-299: after End Turn it opens by itself once, after the
 // Battle screens; Close, Escape and the backdrop close it and the focus goes back; on a winning meeting it opens before
 // the game-over screen, with "See the final scores" in place of "Close". Store: `councilShown`, `showCouncil`, `closeCouncil`.
+// QA fix round: FR-311 each abstention with its reason and the rule line; FR-312 the Other Great Powers row greyed ("—" and
+// a note) in a world of two Great Powers; FR-313 the player's column first, the standing as a rank mark ("1st nominee");
+// FR-316 the date line "Met at the end of turn 10 (Summer 1817)".
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -21,7 +24,7 @@ import { councilVote, proposalAnswer, type CouncilMetEvent, type Order } from '@
 import { transferProvince } from '@/engine/world/provinces';
 import type { GameState } from '@/types/GameState';
 import { N1, N2, setPair } from '../engine/fixtures';
-import { ARVELIA, ARVELIA_P, continent, NE1, NE2, relocate, SUNDMARK } from '../engine/armyFixtures';
+import { addRegiments, ARVELIA, ARVELIA_P, continent, NE1, NE2, relocate, SUNDMARK, SW1 } from '../engine/armyFixtures';
 import { failOnActWarnings } from './actWarnings';
 import { text } from './domText';
 
@@ -45,6 +48,24 @@ function winning(s: GameState = continent('world')): GameState {
   return [SUNDMARK, LORRAN, PELLIS].reduce((acc, minorId) => setPair(acc, minorId, N1, { points: 60 }), t);
 }
 
+const N3 = 'nation-3';
+
+/** A third Great Power, Carthia (a copy of Valdoria without an army), holding Valdoria North-East (FR-292, FR-312). */
+function threePowers(s: GameState = continent('world')): GameState {
+  const valdoria = s.nations.find((n) => n.id === N2)!;
+  return transferProvince({ ...s, nations: [...s.nations, { ...valdoria, id: N3, name: 'Carthia', colorSlot: 3 }] }, NE2, N3);
+}
+
+/** Sundmark's points with Testland and with Valdoria. */
+const sundmarkAt = (s: GameState, withTestland: number, withValdoria: number): GameState =>
+  setPair(setPair(s, SUNDMARK, N1, { points: withTestland }), SUNDMARK, N2, { points: withValdoria });
+
+const atWar = (s: GameState, a: string, b: string): GameState =>
+  setPair(s, a, b, { war: { aggressors: [a], since: 1 }, consulates: [], embassies: [], pact: false, alliance: false });
+
+const RULE = 'A free minor nation votes for the Great Power it has at least 50 relation points with and is not at war with; a colony votes with its owner.';
+const NOTE = '(only two Great Powers in this world)';
+
 /** The `council-met` event a meeting on this state would give (FR-296). */
 function meeting(s: GameState, turn = 10, year = 1817): CouncilMetEvent {
   const vote = councilVote(s);
@@ -66,6 +87,8 @@ const dialog = () => screen.getByRole('dialog', { name: 'Council of Governors' }
 const button = (name: string) => within(dialog()).getByRole('button', { name }) as HTMLButtonElement;
 const table = () => within(dialog()).getByRole('table', { name: 'Votes' });
 const cell = (nationId: string, row: string) => within(table()).getByTestId(`council-cell-${nationId}-${row}`);
+/** FR-311: the lines under "Abstained: n", one per abstaining province. */
+const reasons = () => within(dialog()).queryAllByRole('listitem').map((li) => text(li));
 /** The text of the elements an element's aria-describedby names: its accessible description. */
 const description = (el: HTMLElement): string =>
   (el.getAttribute('aria-describedby') ?? '')
@@ -75,11 +98,11 @@ const description = (el: HTMLElement): string =>
     .join(' ');
 
 describe('FR-298 the Council screen: what it shows', () => {
-  it('FR-298 a dialog named "Council of Governors" (the shared Modal) with the meeting date "Turn 10, Summer 1817"', () => {
+  it('FR-298 FR-316 a dialog named "Council of Governors" (the shared Modal) with the date line "Met at the end of turn 10 (Summer 1817)"', () => {
     open(meeting(continent('world')));
     expect(dialog().getAttribute('aria-modal')).toBe('true');
     expect(text(within(dialog()).getByRole('heading', { level: 2 }))).toBe('Council of Governors');
-    expect(text(within(dialog()).getByTestId('council-date'))).toBe('Turn 10, Summer 1817');
+    expect(text(within(dialog()).getByTestId('council-date'))).toBe('Met at the end of turn 10 (Summer 1817)');
   });
 
   it("FR-298 the pack's buildings/capitol.png as a decorative header picture, at most 96 px high", () => {
@@ -92,27 +115,59 @@ describe('FR-298 the Council screen: what it shows', () => {
     expect(Number(img.getAttribute('height'))).toBeLessThanOrEqual(96);
   });
 
-  it('FR-298 a table named "Votes": the first nominee, the row names, the second nominee; each nominee\'s head its swatch and name', () => {
+  it('FR-298 FR-313 FR-312 a table named "Votes": the player\'s nominee, the row names, the other nominee; each head its swatch, name and rank mark', () => {
     open(meeting(twoIslands()));
     const heads = within(table()).getAllByRole('columnheader');
-    expect(heads.map((h) => text(h))).toEqual(['Testland', 'Valdoria']);
+    expect(heads.map((h) => text(h))).toEqual(['Testland 1st nominee', 'Valdoria 2nd nominee']);
     expect(heads.map((h) => h.getAttribute('scope'))).toEqual(['col', 'col']);
     for (const head of heads) expect(within(head).getByTestId('swatch').getAttribute('aria-hidden')).toBe('true');
     expect((within(heads[0]).getByTestId('swatch') as HTMLElement).style.backgroundColor).toBe('var(--color-nation-1)');
     expect((within(heads[1]).getByTestId('swatch') as HTMLElement).style.backgroundColor).toBe('var(--color-nation-2)');
 
     const rowHeads = within(table()).getAllByRole('rowheader');
-    expect(rowHeads.map((h) => text(h))).toEqual(['Controlled', 'Colonies', 'Other Great Powers', 'Other Minor Nations', 'Total']);
+    expect(rowHeads.map((h) => text(h))).toEqual(['Controlled', 'Colonies', `Other Great Powers ${NOTE}`, 'Other Minor Nations', 'Total']);
     expect(rowHeads.map((h) => h.getAttribute('scope'))).toEqual(['row', 'row', 'row', 'row', 'row']);
-    // Each row reads left nominee, row name, right nominee
+    // Each row reads left nominee, row name, right nominee; with two Great Powers the Other Great Powers row is greyed: "—"
     const rows = within(table()).getAllByRole('row').slice(1).map((r) => text(r));
-    expect(rows).toEqual(['4 Controlled 4', '0 Colonies 0', '0 Other Great Powers 0', '2 Other Minor Nations 0', '6 Total 4']);
+    expect(rows).toEqual(['4 Controlled 4', '0 Colonies 0', `— Other Great Powers ${NOTE} —`, '2 Other Minor Nations 0', '6 Total 4']);
   });
 
-  it('FR-298 the first nominee (the higher standing) is the left column: Valdoria holding Testland North-East is first', () => {
-    open(meeting(transferProvince(continent('world'), NE1, N2)));
-    expect(within(table()).getAllByRole('columnheader').map((h) => text(h))).toEqual(['Valdoria', 'Testland']);
-    expect(text(within(table()).getAllByRole('row').at(-1)!)).toBe('5 Total 3');
+  it("FR-313 the player's nation is the first column whatever its standing; the rank marks keep the standing: Valdoria holding Testland North-East is the 1st nominee, on the right", () => {
+    const event = meeting(transferProvince(continent('world'), NE1, N2));
+    expect(event.nominees.map((n) => n.nationId)).toEqual([N2, N1]);
+    open(event);
+    expect(within(table()).getAllByRole('columnheader').map((h) => text(h))).toEqual(['Testland 2nd nominee', 'Valdoria 1st nominee']);
+    expect(text(within(table()).getAllByRole('row').at(-1)!)).toBe('3 Total 5');
+    expect(text(within(table()).getByTestId(`council-rank-${N2}`))).toBe('1st nominee');
+  });
+
+  it('FR-313 a player that is not a nominee (three Great Powers, Carthia the third) sees the nominees in standing order', () => {
+    const s = threePowers();
+    const event = meeting(s);
+    expect(event.nominees.map((n) => n.nationId)).toEqual([N1, N2]);
+    show(s, { councilShown: event, activeNationId: N3 });
+    render(<CouncilModal />);
+    expect(within(table()).getAllByRole('columnheader').map((h) => text(h))).toEqual(['Testland 1st nominee', 'Valdoria 2nd nominee']);
+  });
+
+  it('FR-312 with a third Great Power the Other Great Powers row counts as before: no "—" and no note', () => {
+    // Testland is the stronger nominee, so Carthia's province (Valdoria North-East) votes for it
+    const event = meeting(addRegiments(threePowers(), N1, SW1, ['regulars']));
+    open(event, threePowers());
+    const rows = within(table()).getAllByRole('row').slice(1).map((r) => text(r));
+    expect(rows[2]).toBe('1 Other Great Powers 0');
+    expect(cell(N1, 'otherGreatPowers').getAttribute('title')).toBe('Valdoria North-East');
+    expect(within(dialog()).queryByText(NOTE)).toBeNull();
+  });
+
+  it('FR-312 the greyed row keeps its data: the cells count 0, name "none" as title and description, and are marked as not used', () => {
+    open(meeting(continent('world')));
+    for (const nationId of [N1, N2]) {
+      const c = cell(nationId, 'otherGreatPowers');
+      expect([text(c), c.getAttribute('title'), description(c), c.getAttribute('data-count')]).toEqual(['—', 'none', 'none', '0']);
+    }
+    expect(within(table()).getByTestId('council-row-otherGreatPowers').getAttribute('data-unused')).toBe('true');
+    expect(within(table()).getByTestId('council-row-controlled').hasAttribute('data-unused')).toBe(false);
   });
 
   it('FR-298 each number cell names the provinces behind it, as its title and its accessible description', () => {
@@ -135,23 +190,53 @@ describe('FR-298 the Council screen: what it shows', () => {
     for (const c of cells) expect([c.getAttribute('title'), description(c)]).toEqual([c.getAttribute('title'), c.getAttribute('title')]);
   });
 
-  it('FR-298 under the table "Abstained: 2 (Arvelia, Pellis)" and "A winner needs more than two thirds of the 12 votes: 9."', () => {
+  it('FR-298 FR-311 under the table "Abstained: 2", one line per abstaining minor with its reason, the rule, and "A winner needs more than two thirds of the 12 votes: 9."', () => {
     open(meeting(twoIslands()));
-    expect(text(within(dialog()).getByTestId('council-abstained'))).toBe('Abstained: 2 (Arvelia, Pellis)');
+    expect(text(within(dialog()).getByTestId('council-abstained'))).toBe('Abstained: 2');
+    expect(within(dialog()).getByRole('list', { name: 'Abstained: 2' })).toBeTruthy();
+    expect(reasons()).toEqual(['Arvelia: relation 30 of the 50 needed', 'Pellis: relation 30 of the 50 needed']);
+    expect(text(within(dialog()).getByTestId('council-rule'))).toBe(RULE);
     expect(text(within(dialog()).getByTestId('council-needed'))).toBe('A winner needs more than two thirds of the 12 votes: 9.');
   });
 
-  it('FR-298 the start of a game: 4 and 4, "Abstained: 4 (Arvelia, Sundmark, Lorran, Pellis)", no winner, the next meeting on turn 20', () => {
+  it('FR-298 FR-311 the start of a game: 4 and 4, "Abstained: 4" with the 4 minors at 30 of the 50 needed, no winner, the next meeting on turn 20', () => {
     open(meeting(continent('world')));
     expect(text(within(table()).getAllByRole('row').at(-1)!)).toBe('4 Total 4');
-    expect(text(within(dialog()).getByTestId('council-abstained'))).toBe('Abstained: 4 (Arvelia, Sundmark, Lorran, Pellis)');
+    expect(text(within(dialog()).getByTestId('council-abstained'))).toBe('Abstained: 4');
+    expect(reasons()).toEqual(['Arvelia', 'Sundmark', 'Lorran', 'Pellis'].map((minor) => `${minor}: relation 30 of the 50 needed`));
     expect(text(within(dialog()).getByTestId('council-result'))).toBe('No winner. The Council meets again on turn 20.');
     expect(within(dialog()).queryByRole('heading', { level: 3 })).toBeNull();
   });
 
-  it('FR-298 on turn 40 (the last meeting of a 40-turn game): "No winner. This was the last Council; the game ends on points."', () => {
+  it.each([
+    ['different points', 'Sundmark: relation 45 with Testland and 30 with Valdoria, of the 50 needed', sundmarkAt(continent('world'), 45, 30)],
+    ['at war with one', 'Sundmark: at war with Testland; relation 30 with Valdoria, of the 50 needed', atWar(sundmarkAt(continent('world'), 60, 30), N1, SUNDMARK)],
+    ['at war with both', 'Sundmark: at war with Testland and Valdoria', atWar(atWar(sundmarkAt(continent('world'), 60, 55), N1, SUNDMARK), N2, SUNDMARK)],
+    ['a tie at 50 or more', 'Sundmark: relation 60 with both, a tie', sundmarkAt(continent('world'), 60, 60)],
+    // Valdoria is the 1st nominee here, but the reason names the player's nation first, as the columns do (FR-313)
+    ['the player second in standing', 'Sundmark: relation 20 with Testland and 40 with Valdoria, of the 50 needed', sundmarkAt(transferProvince(continent('world'), NE1, N2), 20, 40)],
+    // Hand-built: a colony keeps its province only on a state no turn gives (FR-224)
+    ['a colony holding its province', 'Arvelia: a colony that still holds its province', { ...continent('world'), minorNations: continent('world').minorNations.map((m) => (m.id === ARVELIA ? { ...m, colonyOf: N1 } : m)) }],
+  ] as const)('FR-311 a minor abstaining with %s says why: "%s"', (_, reason, state) => {
+    open(meeting(state));
+    expect(reasons()).toContain(reason);
+    expect(text(within(dialog()).getByTestId('council-rule'))).toBe(RULE);
+  });
+
+  it('FR-311 a province of a third Great Power abstains on equal strength: "Valdoria North-East (Carthia): Testland and Valdoria are equally strong"', () => {
+    open(meeting(threePowers()), threePowers());
+    expect(reasons()[0]).toBe('Valdoria North-East (Carthia): Testland and Valdoria are equally strong');
+  });
+
+  it('FR-311 the reasons come from the meeting, not the game: minors now at 60 still read 30', () => {
+    const event = meeting(continent('world'));
+    open(event, sundmarkAt(continent('world'), 60, 60));
+    expect(reasons()[1]).toBe('Sundmark: relation 30 of the 50 needed');
+  });
+
+  it('FR-298 FR-316 on turn 40 (the last meeting of a 40-turn game): "No winner. This was the last Council; the game ends on points."', () => {
     open(meeting(continent('world'), 40, 1824), onTurn(40, 1824));
-    expect(text(within(dialog()).getByTestId('council-date'))).toBe('Turn 40, Winter 1824');
+    expect(text(within(dialog()).getByTestId('council-date'))).toBe('Met at the end of turn 40 (Winter 1824)');
     expect(text(within(dialog()).getByTestId('council-result'))).toBe('No winner. This was the last Council; the game ends on points.');
   });
 
@@ -160,17 +245,19 @@ describe('FR-298 the Council screen: what it shows', () => {
     expect(text(within(dialog()).getByTestId('council-result'))).toBe('No winner. The Council meets again on turn 50.');
   });
 
-  it('FR-298 a winning meeting: the heading "Testland Wins!" (Imp1 wording), Controlled 5, Colonies 1, Other Minor Nations 3, "Abstained: none"', () => {
+  it('FR-298 FR-311 FR-312 a winning meeting: the heading "Testland Wins!" (Imp1 wording), Controlled 5, Colonies 1, Other Minor Nations 3, "Abstained: none" and no reason list; the rule stays', () => {
     const event = meeting(winning());
     expect(event.winnerId).toBe(N1);
     open(event);
     expect(text(within(dialog()).getByRole('heading', { level: 3 }))).toBe('Testland Wins!');
     expect(text(within(dialog()).getByTestId('council-result'))).toBe('Testland Wins!');
     const rows = within(table()).getAllByRole('row').slice(1).map((r) => text(r));
-    expect(rows).toEqual(['5 Controlled 3', '1 Colonies 0', '0 Other Great Powers 0', '3 Other Minor Nations 0', '9 Total 3']);
+    expect(rows).toEqual(['5 Controlled 3', '1 Colonies 0', `— Other Great Powers ${NOTE} —`, '3 Other Minor Nations 0', '9 Total 3']);
     expect(cell(N1, 'colonies').getAttribute('title')).toBe('Arvelia');
     expect(cell(N1, 'controlled').getAttribute('title')).toContain('Valdoria North-East');
     expect(text(within(dialog()).getByTestId('council-abstained'))).toBe('Abstained: none');
+    expect(within(dialog()).queryByRole('list')).toBeNull();
+    expect(text(within(dialog()).getByTestId('council-rule'))).toBe(RULE);
   });
 
   it('FR-298 the player does not vote: the screen has no control but its close button', () => {
@@ -197,7 +284,7 @@ describe('FR-299 the Council screen: when it opens and how it closes', () => {
     expect(useGameStore.getState().game.turn).toBe(11);
     const shown = useGameStore.getState().councilShown;
     expect(shown && [shown.type, shown.turn, shown.year, shown.totalVotes]).toEqual(['council-met', 10, 1817, 12]);
-    expect(text(within(dialog()).getByTestId('council-date'))).toBe('Turn 10, Summer 1817');
+    expect(text(within(dialog()).getByTestId('council-date'))).toBe('Met at the end of turn 10 (Summer 1817)');
 
     fireEvent.click(button('Close'));
     expect(useGameStore.getState().councilShown).toBeNull();
