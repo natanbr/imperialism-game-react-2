@@ -4,7 +4,7 @@ import { useGameStore } from "@/store/rootStore";
 import { selectArmyMarkersBySeat, selectAttackArrows, selectMarchArrows } from "@/store/selectors";
 import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { TileComponent } from "./Tile";
-import { RAIL_ART } from "./art/inkArt";
+import { GROUND_ART, GROUND_ART_PX, RAIL_ART } from "./art/inkArt";
 import { cameraOnCapital } from "./camera";
 import { MapGround } from "./map/MapGround";
 import { groundSignature } from "./map/shoreline";
@@ -19,6 +19,12 @@ import {
 } from "./territoryBorders";
 import { THEME, TILE_PX } from "@/styles/theme";
 import styles from "./MapView.module.css";
+
+/** The sea past the map (FR-340): the ground's own water texture at its own size; the rest of the rule is in the CSS. */
+const SEA_PAST_THE_MAP: React.CSSProperties = {
+  backgroundImage: `url(${GROUND_ART.water})`,
+  backgroundSize: `${GROUND_ART_PX}px ${GROUND_ART_PX}px`,
+};
 
 export const MapView: React.FC = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -110,7 +116,14 @@ export const MapView: React.FC = () => {
 
   return (
     <div className={styles.wrapper}>
-      <div ref={containerRef} className={styles.container} onScroll={onScroll} data-testid="map-scroll" data-ready={ready ? "true" : undefined}>
+      <div
+        ref={containerRef}
+        className={styles.container}
+        style={SEA_PAST_THE_MAP}
+        onScroll={onScroll}
+        data-testid="map-scroll"
+        data-ready={ready ? "true" : undefined}
+      >
         <div className={styles.viewport}>
           <MapGround signature={ground} />
           {map.tiles.map((row, y) => (

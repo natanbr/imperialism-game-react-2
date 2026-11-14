@@ -39,9 +39,10 @@
      lies on (FR-329). The old slate darkened to 3:1 came within 20 of nation 1 under protanopia; this is
      the colour nearest the old slate (ΔE76 35) that passes every palette test. The colour-blind margin to
      nation 1 is thin (20.0): re-run tests/ui/palette.test.ts after any change. Province lines inside a
-     Great Power: a warm grey, dotted, at 3:1 on the map halo (WCAG 1.4.11; FR-329). */
+     Great Power: a warm grey, dotted, at 3:1 on the map halo and on the ground grass, which the halo barely
+     lifts (1.09:1), so the 2 px dots hold by themselves (WCAG 1.4.11; FR-329, FR-344). */
   --color-minor: #26362c;
-  --color-province-border: #6a5f51;
+  --color-province-border: #5f5548;
   /* The map's ground (FR-321, FR-329): the pack demo's flat colours under its textures (deep water, shallows,
      sand rim, grass), the desert and tundra base textures' mean colours, and the pale halo of the pack's
      territory line, under every border (FR-327). tests/ui/palette.test.ts checks them against the pack. */

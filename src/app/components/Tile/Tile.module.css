@@ -1,6 +1,7 @@
 /*
  * Tile styles (42 px tiles, FR-088). Layout inside a tile:
- *   the whole 40 x 40 content box: the art pack's picture of what the tile holds (FR-322)
+ *   the whole 40 x 40 content box: the art pack's picture of what the tile holds (FR-322; a crowded capital's or
+ *   town's at 24 px at the top centre, FR-341)
  *   top left: level badge, job markers below it   top right: depot, port, with their station marks
  *   bottom left: a known mineral's mark, then the river marker   bottom right: the civilians, one 24 px button
  *   on a province's seat: the army markers, half over the tile's left edge (FR-210)
@@ -48,7 +49,7 @@
 }
 
 /* The picture of what the tile holds (FR-322): the whole content box, below the border and rail overlay. It never
-   shrinks or moves; civilians, badges and a minor's name tag lie over it. */
+   shrinks or moves for the marks on it, which lie over it, but on a crowded capital or town (below). */
 .icon {
   position: absolute;
   left: 0;
@@ -58,6 +59,17 @@
   object-fit: contain;
   z-index: 0;
   pointer-events: none;
+}
+
+/* A capital or town with civilians or a minor's name tag (FR-341): any 24 px button in the 40 px box covers its middle,
+   so the picture moves to the top centre at 24 px, where the civilians' button (from 15 px down), its count (from x 27)
+   and the army chip (to x 13) leave its middle clear. Lifted 4 px: the capital's drawing starts 4.4 px down its box, so
+   it now spans 0.4 to 15.5 px, above the button; only the box's empty top lies over the row above. */
+.iconCrowded {
+  left: 8px;
+  top: -4px;
+  width: 24px;
+  height: 24px;
 }
 
 /* A minor nation's name on its capital (FR-153 d): a small tag at the bottom of the picture. It may be wider than the

@@ -2,7 +2,9 @@
 // developing civilian's figure, build a fort the level-1 fort, build rail the rail piece, the construction choice the
 // engineer. Each file is drawn once at runtime into a 32 x 32 canvas (contained, figures on the bottom centre) and used as
 // `url(data:image/png;base64,...) 16 16, pointer`; until it is ready, and wherever there is no canvas (server render,
-// jsdom), the cursor is `pointer`; no action keeps `auto`. This file runs in Node: the browser is stubbed where needed.
+// jsdom), the cursor is `pointer`; no action keeps `auto`. FR-342 (review P5): `cursorOf` only reads (React calls it while
+// rendering); `requestCursor` loads, called when a tile subscribes, and a failed load is tried again on the next request.
+// This file runs in Node: the browser is stubbed where needed.
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { CURSOR_ART, RAIL_ART, civilianArt, fortArt } from '@/components/art/inkArt';
 import type { PossibleAction } from '@/types/actions';
@@ -27,8 +29,9 @@ const ACTIONS: [string, PossibleAction, string | undefined][] = [
   ['no action', null, undefined],
 ];
 
-/** A browser stand-in: Image loads on the next tick (or fails), the canvas records what it draws. */
-function stubBrowser({ fail = false } = {}) {
+/** A browser stand-in: Image loads on the next tick (or fails, until `succeed()`), the canvas records what it draws. */
+function stubBrowser({ fail: failing = false } = {}) {
+  let fail = failing;
   const images: { src: string }[] = [];
   const draws: number[][] = [];
   const canvases: { width: number; height: number }[] = [];
@@ -66,7 +69,7 @@ function stubBrowser({ fail = false } = {}) {
   vi.stubGlobal('Image', FakeImage);
   vi.stubGlobal('document', document);
   vi.stubGlobal('window', {});
-  return { images, draws, canvases };
+  return { images, draws, canvases, succeed: () => (fail = false) };
 }
 const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
 
@@ -100,9 +103,10 @@ describe('FR-330 the cursor value', () => {
 
   it('FR-330 in a browser: "pointer" until the picture is drawn, then the 32 px data URL with its hotspot in the middle', async () => {
     const browser = stubBrowser();
-    const { cursorOf, subscribeCursors } = await fresh();
+    const { cursorOf, requestCursor, subscribeCursors } = await fresh();
     const listener = vi.fn();
     const stop = subscribeCursors(listener);
+    requestCursor(CURSOR_ART.prospect);
     expect(cursorOf({ type: 'prospect' })).toBe('pointer');
     expect(browser.images.map((i) => i.src)).toEqual([CURSOR_ART.prospect]);
     await tick();
@@ -114,30 +118,30 @@ describe('FR-330 the cursor value', () => {
 
   it('FR-330 each file is loaded and drawn once, whatever the number of tiles asking', async () => {
     const browser = stubBrowser();
-    const { cursorOf, subscribeCursors } = await fresh();
+    const { cursorOf, requestCursor, subscribeCursors } = await fresh();
     const listener = vi.fn();
     subscribeCursors(listener);
     const farmer: PossibleAction = { type: 'develop', workerType: WorkerType.Farmer, level: 1 };
     for (let i = 0; i < 50; i++) {
-      cursorOf(farmer);
-      cursorOf({ type: 'construct', kind: 'rail' });
+      requestCursor(civilianArt(WorkerType.Farmer));
+      requestCursor(RAIL_ART.url);
     }
     expect(browser.images.map((i) => i.src)).toEqual([civilianArt(WorkerType.Farmer), RAIL_ART.url]);
     await tick();
-    for (let i = 0; i < 50; i++) cursorOf(farmer);
+    for (let i = 0; i < 50; i++) requestCursor(civilianArt(WorkerType.Farmer));
     expect(browser.images).toHaveLength(2);
     expect(browser.canvases).toHaveLength(2);
     expect(listener).toHaveBeenCalledTimes(2);
-    // Another civilian's develop cursor is its own figure
+    expect(cursorOf(farmer)).toBe('url(data:image/png;base64,FAKE1) 16 16, pointer');
+    // Another civilian's develop cursor is its own figure, not yet asked for
     expect(cursorOf({ type: 'develop', workerType: WorkerType.Rancher, level: 1 })).toBe('pointer');
-    expect(browser.images.map((i) => i.src)).toEqual([civilianArt(WorkerType.Farmer), RAIL_ART.url, civilianArt(WorkerType.Rancher)]);
   });
 
   it('FR-330 the picture is contained in 32 x 32: a figure fills it, the 42 x 16 rail piece is centred at full width', async () => {
     const browser = stubBrowser();
-    const { cursorOf } = await fresh();
-    cursorOf({ type: 'prospect' });
-    cursorOf({ type: 'construct', kind: 'rail' });
+    const { requestCursor } = await fresh();
+    requestCursor(CURSOR_ART.prospect);
+    requestCursor(RAIL_ART.url);
     await tick();
     const [figure, rail] = browser.draws;
     expect(figure).toEqual([0, 0, 32, 32]);
@@ -147,13 +151,49 @@ describe('FR-330 the cursor value', () => {
 
   it('FR-330 a picture that fails to load leaves "pointer" and tells no one', async () => {
     stubBrowser({ fail: true });
-    const { cursorOf, subscribeCursors } = await fresh();
+    const { cursorOf, requestCursor, subscribeCursors } = await fresh();
     const listener = vi.fn();
     subscribeCursors(listener);
+    requestCursor(fortArt(1)!);
     expect(cursorOf({ type: 'construct', kind: 'fort' })).toBe('pointer');
     await tick();
     expect(listener).not.toHaveBeenCalled();
     expect(cursorOf({ type: 'construct', kind: 'fort' })).toBe('pointer');
+  });
+
+  // Review P5: cursorOf ran inside useSyncExternalStore's getSnapshot, so a render started a network request and wrote
+  // module state, and a failed load was never tried again
+  it('FR-342 cursorOf only reads: asking for every cursor, many times, loads nothing and draws nothing', async () => {
+    const browser = stubBrowser();
+    const { cursorOf } = await fresh();
+    for (let i = 0; i < 3; i++) for (const [, action] of ACTIONS) cursorOf(action);
+    expect(browser.images).toEqual([]);
+    expect(browser.canvases).toEqual([]);
+    expect(ACTIONS.map(([, action]) => cursorOf(action))).toEqual(ACTIONS.map(([, action]) => (action ? 'pointer' : 'auto')));
+  });
+
+  it('FR-342 a picture that failed to load is tried again on the next request, and then drawn', async () => {
+    const browser = stubBrowser({ fail: true });
+    const { cursorOf, requestCursor, subscribeCursors } = await fresh();
+    const listener = vi.fn();
+    subscribeCursors(listener);
+    requestCursor(fortArt(1)!);
+    await tick();
+    requestCursor(fortArt(1)!);
+    expect(browser.images.map((i) => i.src)).toEqual([fortArt(1), fortArt(1)]);
+    // The network answers this time
+    browser.succeed();
+    requestCursor(fortArt(1)!);
+    await tick();
+    expect(cursorOf({ type: 'construct', kind: 'fort' })).toMatch(/^url\(data:image\/png;base64,FAKE\d\) 16 16, pointer$/);
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it('FR-342 in a browser without a canvas nothing is asked for', async () => {
+    const { requestCursor, cursorOf } = await fresh();
+    expect(typeof document).toBe('undefined');
+    requestCursor(CURSOR_ART.prospect);
+    expect(cursorOf({ type: 'prospect' })).toBe('pointer');
   });
 
   it('FR-330 the server snapshot is "pointer" for an action and "auto" for none, and loads nothing', async () => {

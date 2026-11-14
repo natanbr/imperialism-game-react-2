@@ -73,6 +73,22 @@ test('FR-090 the whole map fits 1280x720 next to the HUD, with an icon on every 
   const farm = (await tile(page, '3-9').boundingBox())!;
   expect([picture.x - farm.x, picture.y - farm.y, picture.width, picture.height]).toEqual([1, 1, 40, 40]);
   await expect(tile(page, '3-9').getByTestId('level-badge')).toHaveText('L1');
+  // FR-341 (review F2): what lies on top at the middle of the capital's picture, and of Arvelia's (its name tag, its army
+  // chip), is the picture itself, not the civilians' stack, its count or the army chip. The probe lets the pictures and
+  // the name tag take the pointer for a moment (they have none), so the topmost box at that point answers.
+  const onTop = (id: string) =>
+    tile(page, id)
+      .getByTestId('tile-icon')
+      .evaluate((img) => {
+        const probe = document.createElement('style');
+        probe.textContent = '[data-testid="tile"] * { pointer-events: auto !important; }';
+        document.head.append(probe);
+        const box = img.getBoundingClientRect();
+        const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+        probe.remove();
+        return hit === img ? 'picture' : `${hit?.tagName} ${hit?.getAttribute('data-testid') ?? hit?.className}`;
+      });
+  expect([await onTop('2-9'), await onTop('11-4')]).toEqual(['picture', 'picture']);
   await shot(page, 'map');
 
   // FR-110 (a): the capital's seven civilians are one 24 px stack button; its tray holds a 24 px button each

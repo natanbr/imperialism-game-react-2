@@ -11,6 +11,7 @@
 // .gitattributes line that keeps the pack's bytes on a core.autocrlf=true checkout. FR-322 and FR-323's rules (tileArt,
 // resourceMarkArt) on the new continent game.
 import { describe, it, expect } from 'vitest';
+import { execFileSync } from 'child_process';
 import { createHash } from 'crypto';
 import { existsSync, readdirSync, readFileSync, statSync } from 'fs';
 import { join, relative } from 'path';
@@ -80,6 +81,22 @@ function sourceFiles(dir: string): string[] {
     return /\.(ts|tsx|css)$/.test(name) ? [path] : [];
   });
 }
+
+const TABLE = join(ROOT, 'src', 'app', 'components', 'art', 'inkArt.ts');
+/** The table's `INK_ART_UNUSED` list, from its declaration to its closing `];`. */
+const unusedList = (source: string): string => {
+  const start = source.indexOf('export const INK_ART_UNUSED');
+  expect(start).toBeGreaterThan(-1);
+  return source.slice(start, source.indexOf('\n];', start) + 3);
+};
+/**
+ * A source file's text that may not name city/city-ground.png: all of it, but for the table's INK_ART_UNUSED list, the
+ * one place that records the file as unused (FR-343, review P6).
+ */
+const mayNotNameCityGround = (path: string): string => {
+  const source = readFileSync(path, 'utf8');
+  return path === TABLE ? source.replace(unusedList(source), '') : source;
+};
 
 describe('FR-272 one table maps the game to the art pack', () => {
   it('FR-272 the pack is served from /assets/ink-and-wash/', () => {
@@ -157,8 +174,8 @@ describe('FR-272 one table maps the game to the art pack', () => {
     }
   });
 
-  it("FR-272 the game's code never uses city/city-ground.png (an earlier study, not a capital ground)", () => {
-    const offenders = sourceFiles(join(ROOT, 'src', 'app')).filter((f) => readFileSync(f, 'utf8').includes('city-ground'));
+  it("FR-272 FR-343 the game's code never uses city/city-ground.png (an earlier study, not a capital ground): only INK_ART_UNUSED names it", () => {
+    const offenders = sourceFiles(join(ROOT, 'src', 'app')).filter((f) => mayNotNameCityGround(f).includes('city-ground'));
     expect(offenders.map((f) => relative(ROOT, f))).toEqual([]);
   });
 
@@ -431,17 +448,23 @@ describe("FR-319 the table's guards", () => {
     expect([...unused].sort()).toEqual(expected.sort());
   });
 
-  it('FR-319 no .ts, .tsx or .css file under src/app but the table names the pack or any of its files (comments included); city-ground nowhere', () => {
-    const table = join(ROOT, 'src', 'app', 'components', 'art', 'inkArt.ts');
+  it('FR-319 FR-343 no .ts, .tsx or .css file under src/app but the table names the pack or any of its files (comments included); city-ground only in INK_ART_UNUSED', () => {
     const offenders = sourceFiles(join(ROOT, 'src', 'app')).flatMap((f) => {
       const source = readFileSync(f, 'utf8');
-      if (source.includes('city-ground')) return [`${relative(ROOT, f)}: city-ground`];
-      if (f === table) return [];
+      if (mayNotNameCityGround(f).includes('city-ground')) return [`${relative(ROOT, f)}: city-ground`];
+      if (f === TABLE) return [];
       const named = manifest.filter((e) => source.includes(e.file)).map((e) => e.file);
       if (source.includes('ink-and-wash')) named.unshift('ink-and-wash');
       return named.map((n) => `${relative(ROOT, f)}: ${n}`);
     });
     expect(offenders).toEqual([]);
+  });
+
+  // Review P6: the table wrote the name in two parts so the old scan, which allowed it nowhere, kept passing
+  it('FR-343 INK_ART_UNUSED names city/city-ground.png as plain text, the one place under src/app that names it', () => {
+    const list = unusedList(readFileSync(TABLE, 'utf8'));
+    expect(list).toContain('file: "city/city-ground.png"');
+    expect(list.match(/city-ground/g)).toHaveLength(1);
   });
 
   it('FR-319 .gitattributes keeps the pack byte for byte on a core.autocrlf=true checkout; every manifest file keeps its checksum', () => {
@@ -450,6 +473,31 @@ describe("FR-319 the table's guards", () => {
     // The SVG and JSON files are text a CRLF checkout would change (found 2026-11-14 on map-ui/army-attack.svg)
     const changed = manifest.filter((e) => createHash('sha256').update(readFileSync(join(PACK, e.file))).digest('hex') !== e.sha256).map((e) => e.file);
     expect(changed).toEqual([]);
+  });
+
+  // Review P3: the manifest lists the 154 pictures, not the pack's other five files (manifest.json itself, index.html,
+  // terrain-demo.html, terrain-renderer.js, asset-catalog.js), and the one file autocrlf had changed was terrain-demo.html
+  it('FR-343 every file of the pack folder matches docs/art/ink-and-wash-SHA256SUMS.txt, and the folder holds no other file', () => {
+    const sums = readFileSync(join(ROOT, 'docs', 'art', 'ink-and-wash-SHA256SUMS.txt'), 'utf8')
+      .split(/\r?\n/)
+      .map((line) => /^([0-9a-f]{64})\s+public\/assets\/ink-and-wash\/(.+)$/.exec(line.trim()))
+      .filter((m): m is RegExpExecArray => m !== null)
+      .map(([, sha, file]) => ({ file, sha }));
+    expect(sums).toHaveLength(159);
+    const onDisk = (dir: string, prefix = ''): string[] =>
+      readdirSync(dir).flatMap((name) => (statSync(join(dir, name)).isDirectory() ? onDisk(join(dir, name), `${prefix}${name}/`) : [`${prefix}${name}`]));
+    expect(onDisk(PACK).sort()).toEqual(sums.map((s) => s.file).sort());
+    const changed = sums.filter((s) => createHash('sha256').update(readFileSync(join(PACK, s.file))).digest('hex') !== s.sha).map((s) => s.file);
+    expect(changed).toEqual([]);
+    // The five files the manifest does not list are guarded here only
+    const unlisted = sums.map((s) => s.file).filter((f) => !byFile.has(f)).sort();
+    expect(unlisted).toEqual(['asset-catalog.js', 'index.html', 'manifest.json', 'terrain-demo.html', 'terrain-renderer.js']);
+  });
+
+  it('FR-343 git treats every pack file as binary (no line-ending conversion), the HTML and JS files included', () => {
+    const files = ['terrain-demo.html', 'terrain-renderer.js', 'manifest.json', 'map-ui/army-attack.svg'].map((f) => `public/assets/ink-and-wash/${f}`);
+    const out = execFileSync('git', ['check-attr', 'text', '--', ...files], { cwd: ROOT, encoding: 'utf8' });
+    expect(out.trim().split(/\r?\n/)).toEqual(files.map((f) => `${f}: text: unset`));
   });
 });
 

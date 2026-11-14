@@ -33,8 +33,12 @@ export function cursorDrawBox(width: number, height: number, anchor: "bottom-cen
   return { x: (CURSOR_PX - w) / 2, y: anchor === "bottom-center" ? CURSOR_PX - h : (CURSOR_PX - h) / 2, width: w, height: h };
 }
 
-type Drawn = { state: "loading" } | { state: "ready"; cursor: string } | { state: "failed" };
-/** Each picture's cursor, by its URL: loaded and drawn once for the whole map. */
+/** A drawn cursor keeps its Image: the picture is also a figure on the map, which then needs no second request (FR-342). */
+type Drawn = { state: "loading" } | { state: "ready"; cursor: string; image: HTMLImageElement } | { state: "failed" };
+/**
+ * Each picture's cursor, by its URL: loaded and drawn once for the whole map. A picture that failed to load has no entry,
+ * so the next request tries again; one that loaded but cannot be drawn (no canvas) stays "failed".
+ */
 const drawn = new Map<string, Drawn>();
 const listeners = new Set<() => void>();
 
@@ -67,27 +71,32 @@ function load(url: string): void {
       drawn.set(url, { state: "failed" });
       return;
     }
-    drawn.set(url, { state: "ready", cursor: `url(${data}) ${HOTSPOT} ${HOTSPOT}, pointer` });
+    drawn.set(url, { state: "ready", cursor: `url(${data}) ${HOTSPOT} ${HOTSPOT}, pointer`, image });
     listeners.forEach((listener) => listener());
   };
-  image.onerror = () => drawn.set(url, { state: "failed" });
+  // A network error need not last: the next request tries again (FR-342)
+  image.onerror = () => drawn.delete(url);
   image.src = url;
 }
 
 /**
+ * Starts loading and drawing the cursor picture `url` unless it is drawn or on its way; nothing where nothing can be
+ * drawn. Called when a tile subscribes to its cursor (after React's commit), never while rendering (FR-342).
+ */
+export function requestCursor(url: string): void {
+  if (!canDraw() || drawn.has(url)) return;
+  load(url);
+}
+
+/**
  * The CSS cursor of a tile whose click would take `action`: `auto` without one; the picture's cursor once it is drawn;
- * until then, and where nothing can be drawn, `pointer`. Asking for a picture not yet drawn starts drawing it.
+ * until then, and where nothing can be drawn, `pointer`. It only reads: React calls it while rendering (FR-342).
  */
 export function cursorOf(action: PossibleAction): string {
   if (!action) return "auto";
   const url = cursorArtOf(action);
-  if (!url || !canDraw()) return "pointer";
-  const entry = drawn.get(url);
-  if (!entry) {
-    load(url);
-    return "pointer";
-  }
-  return entry.state === "ready" ? entry.cursor : "pointer";
+  const entry = url ? drawn.get(url) : undefined;
+  return entry?.state === "ready" ? entry.cursor : "pointer";
 }
 
 /** The cursor in a server render (and the first client render it hydrates): nothing is drawn there. */

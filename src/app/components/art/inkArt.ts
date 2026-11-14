@@ -308,9 +308,8 @@ export const INK_ART_UNUSED: readonly { readonly file: string; readonly reason: 
   ...["rifle-infantry", "modern-infantry", "sharpshooters", "rangers", "guards", "machine-gunners", "scouts", "armour", "carbine-cavalry", "mechanised-cavalry", "field-artillery", "mobile-artillery", "siege-artillery", "railroad-gun", "demolitionists", "fort-guns"].map(
     (unit) => ({ file: `army/${unit}.png`, reason: "an era-2 or era-3 unit: the game has era-1 regiments only" })
   ),
-  // Its name is written in two parts so that FR-272's and FR-319's text scan for it (nowhere under src/app) keeps
-  // proving no code uses the file: this entry only records that it is unused.
-  { file: `city/city-${"ground"}.png`, reason: "an earlier background study with baked scenery, not a capital ground (FR-272)" },
+  // The one place under src/app that may name it (FR-343): the text scans prove no code uses the file
+  { file: "city/city-ground.png", reason: "an earlier background study with baked scenery, not a capital ground (FR-272)" },
   { file: "improvements/horse-ranch-1.png", reason: "a fenced variant of the horse ranch, not a level: horses have no tiers" },
   { file: "infrastructure/rail-curve.svg", reason: "a two-link curve sample; each link is one straight piece (FR-328)" },
   { file: "infrastructure/rail-bridge.svg", reason: "a bridge: the game has no river or bridge data" },

@@ -79,6 +79,30 @@ describe('FR-093 depot and port state is named, not only coloured', () => {
     const stacked = (c: HTMLElement) => c.firstElementChild!.classList.contains(tileStyles.stationsStacked);
     expect([stacked(twoBesideBadge), stacked(twoWithoutBadge), stacked(oneBesideBadge)]).toEqual([true, false, false]);
   });
+
+  // Review R3: the wiring in Tile.tsx (the badge shows, so the stations stack), on hand-built tiles drawn by the map
+  it('FR-324 FR-345 on the map: a level-1 farm with a depot and a port stacks them beside its "L1"; at level 0 they stand in a row', () => {
+    const game = newGame({ seed: 1, world: 'continent' });
+    const tiles = game.map.tiles.flat();
+    const level0 = tiles.find((t) => t.ownerNationId === 'nation-1' && t.resource?.level === 0 && t.workers.length === 0)!;
+    expect(tiles.find((t) => t.id === '3-9')!.resource?.level).toBe(1);
+    const patched = new Set(['3-9', level0.id]);
+    useGameStore.setState({
+      ...useGameStore.getInitialState(),
+      game: { ...game, map: { ...game.map, tiles: game.map.tiles.map((row) => row.map((t) => (patched.has(t.id) ? { ...t, depot: true, port: true } : t))) } },
+      activeNationId: 'nation-1',
+    });
+    const { container, unmount } = render(<MapView />);
+    const tile = (id: string) => container.querySelector(`[data-tile-id="${id}"]`)!;
+    const stations = (id: string) => tile(id).querySelector('[aria-label^="Depot: "]')!.parentElement!;
+    expect(tile('3-9').querySelector('[data-testid="level-badge"]')?.textContent).toBe('L1');
+    expect([...stations('3-9').children].map((s) => s.getAttribute('aria-label')?.split(':')[0])).toEqual(['Depot', 'Port']);
+    expect(stations('3-9').classList.contains(tileStyles.stationsStacked)).toBe(true);
+    expect(tile(level0.id).querySelector('[data-testid="level-badge"]')).toBeNull();
+    expect(stations(level0.id).classList.contains(tileStyles.stations)).toBe(true);
+    expect(stations(level0.id).classList.contains(tileStyles.stationsStacked)).toBe(false);
+    unmount();
+  });
 });
 
 describe('FR-095 every tile has an accessible name', () => {

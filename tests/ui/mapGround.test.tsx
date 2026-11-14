@@ -224,7 +224,29 @@ describe('FR-321 the ground SVG', () => {
     expect(tiles.filter((t) => t.style.backgroundColor !== '' || t.style.background !== '')).toEqual([]);
     // The faint grid line stays (FR-087)
     expect(tiles.every((t) => t.style.border === tiles[0].style.border && t.style.border !== '')).toBe(true);
-    expect(rule(mapCss, 'container')).toMatch(/background:\s*var\(--color-ground-water\)/);
+    // Under the water texture (FR-340), while it loads
+    expect(rule(mapCss, 'container')).toMatch(/background-color:\s*var\(--color-ground-water\)/);
+    unmount();
+  });
+});
+
+// Review F1: past the 1,029 x 672 map a flat colour met the textured sea in a hard edge (1920x1080 and the 48 px strip at
+// 1280x720)
+describe('FR-340 the sea continues past the map', () => {
+  it("FR-340 the scroller's background is the ground's open-water texture at its 512 px, scrolling with the map from its origin", () => {
+    show(continent);
+    const { unmount } = render(<MapView />);
+    const scroller = screen.getByTestId('map-scroll');
+    // The URL comes from the table (no pack path in the CSS, FR-319), as the ground's own water pattern does
+    expect(scroller.style.backgroundImage).toMatch(new RegExp(`^url\\("?${GROUND_ART.water}"?\\)$`));
+    expect(scroller.style.backgroundSize).toBe(`${GROUND_ART_PX}px ${GROUND_ART_PX}px`);
+    const body = rule(mapCss, 'container');
+    // local: the background scrolls with the map, so the texture stays in step with the ground's pattern (x 0, y 0)
+    expect(body).toMatch(/background-attachment:\s*local/);
+    expect(body).toMatch(/background-repeat:\s*repeat/);
+    expect(body).toMatch(/background-position:\s*0 0/);
+    // The ground's water pattern starts at the same origin: the viewport's, which is the scroller's content origin
+    expect(rule(mapCss, 'viewport')).not.toMatch(/margin|padding-(left|top)|border/);
     unmount();
   });
 });

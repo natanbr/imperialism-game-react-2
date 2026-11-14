@@ -2,12 +2,13 @@ import React, { useCallback, useMemo } from 'react';
 import { countryName, countryOfTile } from '@/engine';
 import { useGameStore } from '@/store/rootStore';
 import { selectSelectedWorkerAndTile, selectTilesCompletedLastTurn } from '@/store/selectors';
-import { Tile } from '@/types/Tile';
+import { Tile, TerrainType } from '@/types/Tile';
 import { TransportNetwork } from '@/types/Transport';
 import { useTileActions } from '@/hooks/useTileActions';
 import { useTileVisuals } from '@/hooks/useTileVisuals';
 import { useTileClickHandler } from '@/hooks/useTileClickHandler';
-import { resourceMarkArt, tileArt } from './art/inkArt';
+import { civilianArt, resourceMarkArt, tileArt } from './art/inkArt';
+import { prefetchPictures } from './art/prefetch';
 import { tileLabel } from './gameText';
 import {
   TileBase,
@@ -87,6 +88,15 @@ const TileComponentInner: React.FC<TileProps> = ({
     align: tile.x <= 1 ? 'start' : tile.x >= map.config.cols - 2 ? 'end' : 'center',
     above: tile.y >= map.config.rows - 3,
   }), [tile.x, tile.y, map.config.cols, map.config.rows]);
+  // The player's stack: the pointer coming onto the tile starts loading the tray's figures before a click opens it (FR-342)
+  const stackArt = useMemo(() => {
+    const own = tile.workers.filter((w) => w.nationId === playerId);
+    return own.length > 1 ? own.map((w) => civilianArt(w.type)) : undefined;
+  }, [tile.workers, playerId]);
+  const prefetchStack = useMemo(() => (stackArt ? () => prefetchPictures(stackArt) : undefined), [stackArt]);
+  // A capital or town is the tile a player looks for: civilians or a minor's name tag on it move its picture clear (FR-341)
+  const crowded =
+    (tile.terrain === TerrainType.Capital || tile.terrain === TerrainType.Town) && (tile.workers.length > 0 || minorCapitalName !== undefined);
 
   // Compute infrastructure status
   const nationNetwork = tile.ownerNationId
@@ -121,8 +131,9 @@ const TileComponentInner: React.FC<TileProps> = ({
       cursor={tileVisuals.cursor}
       hasJobCompleted={jobJustCompleted}
       onClick={handleTileClick}
+      onPointerEnter={prefetchStack}
     >
-      <TileIcon src={tileArt(tile)} />
+      <TileIcon src={tileArt(tile)} crowded={crowded} />
       {minorCapitalName !== undefined && <TileName name={minorCapitalName} />}
 
       {tile.resource && <TileResource resource={tile.resource} />}

@@ -4,6 +4,7 @@ import { UI_ICONS } from '../icons';
 import { GameIcon } from '../GameIcon';
 import { InkPicture } from '../art/ArtPicture';
 import { civilianArt } from '../art/inkArt';
+import { prefetchPictures } from '../art/prefetch';
 import styles from './Tile.module.css';
 
 /**
@@ -158,6 +159,8 @@ const TileWorkersInner: React.FC<TileWorkersProps> = ({
               onOpenTray();
             }}
             onKeyDown={closeOnEscape}
+            // From the keyboard: the tray's figures start loading before Enter opens it (FR-342; the pointer: Tile.tsx)
+            onFocus={() => prefetchPictures(own.map((w) => civilianArt(w.type)))}
           >
             {selectedHere ? <Figure type={selectedHere.type} /> : <GameIcon name={UI_ICONS.civilians} />}
             <span className={styles.count} aria-hidden="true">{own.length}</span>

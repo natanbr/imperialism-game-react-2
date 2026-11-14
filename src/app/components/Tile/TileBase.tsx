@@ -18,6 +18,8 @@ export interface TileBaseProps {
   cursor: string;
   hasJobCompleted: boolean;
   onClick: () => void;
+  /** The pointer comes onto the tile: loads what a click may show next (FR-342); absent on most tiles. */
+  onPointerEnter?: () => void;
   children?: React.ReactNode;
 }
 
@@ -36,6 +38,7 @@ const TileBaseInner: React.FC<TileBaseProps> = ({
   cursor,
   hasJobCompleted,
   onClick,
+  onPointerEnter,
   children,
 }) => {
   return (
@@ -49,6 +52,7 @@ const TileBaseInner: React.FC<TileBaseProps> = ({
       className={`${styles.tile} ${hasJobCompleted ? styles.tileJobCompleted : ''}`}
       style={{ border, cursor }}
       onClick={onClick}
+      onPointerEnter={onPointerEnter}
     >
       {isSelected && (
         <span className={styles.selectionRing} data-testid="selection-ring" aria-hidden="true">

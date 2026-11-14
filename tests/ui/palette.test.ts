@@ -393,6 +393,17 @@ describe("FR-329 the tokens of the pack's look (M11, NR-032)", () => {
   it('FR-329 the rail reaches 3:1 against the ground grass it runs over (WCAG 2.2, 1.4.11)', () => {
     expect(Math.round(contrast(token('--color-rail'), token('--color-ground-grass')) * 100) / 100).toBeGreaterThanOrEqual(3);
   });
+
+  // Review F3: the halo is nearly as light as the grass (1.09:1), so on the grass most of the map is made of the 2 px
+  // dots must hold 3:1 by themselves (they were 2.76:1)
+  it('FR-344 the province line and the minor reach 3:1 against the ground grass as well as against the halo', () => {
+    expect(contrast(token('--color-map-halo'), token('--color-ground-grass'))).toBeLessThan(1.2);
+    const low = ['--color-province-border', '--color-minor']
+      .flatMap((line) => ['--color-ground-grass', '--color-map-halo'].map((ground) => ({ pair: `${line} on ${ground}`, ratio: Math.round(contrast(token(line), token(ground)) * 100) / 100 })))
+      .filter(({ ratio }) => ratio < 3);
+    expect(low).toEqual([]);
+    expect(token('--color-province-border')).toBe('#5f5548');
+  });
 });
 
 describe('FR-179 the nine relation colours', () => {

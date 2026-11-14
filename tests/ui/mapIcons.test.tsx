@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
 // M11 (NR-032) rewrote these FR-085 map tests for the art pack's pictures. FR-322: each land tile shows one pack picture
-// (`tile-icon`, alt "", 40 x 40) for what it holds, the sea none; it never shrinks or moves for civilians or a minor's
-// name tag. FR-323: a known mineral or oil shows its goods picture as a 16 px mark at the bottom-left, the level badge
-// "L1" stays, the river marker stays GiRiver beside the mark. FR-325: worker buttons show their civilian's figure.
+// (`tile-icon`, alt "", 40 x 40) for what it holds, the sea none; it never shrinks or moves for civilians, except on a
+// capital or town (FR-341, review F2: 24 px at the top centre while civilians or a minor's name tag stand there). FR-323:
+// a known mineral or oil shows its goods picture as a 16 px mark at the bottom-left, the level badge "L1" stays, the
+// river marker stays GiRiver beside the mark. FR-325: worker buttons, and another nation's lone civilian, show the
+// civilian's figure; another nation's group keeps GiMeepleGroup; the selected button adds an accent outline.
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -15,7 +17,7 @@ import { newGame } from '@/engine';
 import type { GameState } from '@/types/GameState';
 import { ResourceType } from '@/types/Resource';
 import { TerrainType, type Tile } from '@/types/Tile';
-import { WorkerType } from '@/types/Workers';
+import { WorkerStatus, WorkerType, type Worker } from '@/types/Workers';
 
 const ROOT = join(__dirname, '..', '..');
 const N = 'nation-1';
@@ -58,14 +60,35 @@ describe('FR-322 the tile picture', () => {
     unmount();
   });
 
-  it('FR-322 the picture fills the 40 x 40 content box below the overlay and never shrinks for civilians or a name tag', () => {
-    show(game);
+  it('FR-322 FR-341 the picture fills the 40 x 40 content box below the overlay; only a crowded capital or town moves it', () => {
+    // A farm with one civilian keeps the whole box (FR-322); a capital or town with civilians or a minor's name tag draws
+    // its picture at 24 px at the top centre, so their 24 px buttons leave it recognisable (FR-341, review F2)
+    const farmhand = game.map.tiles.flat().find((t) => t.ownerNationId === N && t.terrain === TerrainType.Farm && t.workers.length === 0)!;
+    const lone: Worker = { id: 'w-lone', type: WorkerType.Farmer, nationId: N, efficiency: 100, status: WorkerStatus.Available, justMoved: false };
+    const town = game.map.tiles.flat().find((t) => t.ownerNationId === N && t.terrain === TerrainType.Orchard && t.workers.length === 0)!;
+    show(
+      withTiles(game, {
+        [farmhand.id]: { workers: [lone] },
+        [town.id]: { terrain: TerrainType.Town, resource: undefined, workers: [{ ...lone, id: 'w-town' }] },
+        // Valdoria's capital, emptied of its civilians: nothing covers it
+        [game.map.tiles.flat().find((t) => t.terrain === TerrainType.Capital && t.ownerNationId === 'nation-2')!.id]: { workers: [] },
+      })
+    );
     const { container, unmount } = render(<MapView />);
     const icon = (id: string) => container.querySelector(`[data-tile-id="${id}"] [data-testid="tile-icon"]`)!;
+    const box = (id: string) => ({ size: `${icon(id).getAttribute('width')} x ${icon(id).getAttribute('height')}`, class: icon(id).getAttribute('class') });
+    const whole = { size: '40 x 40', class: tileStyles.icon };
+    const crowded = { size: '24 x 24', class: `${tileStyles.icon} ${tileStyles.iconCrowded}` };
+    const emptyCapital = game.map.tiles.flat().find((t) => t.terrain === TerrainType.Capital && t.ownerNationId === 'nation-2')!.id;
     // 2-9 holds seven civilians, 11-4 is Arvelia's capital with its name tag, 3-9 holds neither
-    const boxes = ['2-9', '11-4', '3-9'].map((id) => ({ width: icon(id).getAttribute('width'), height: icon(id).getAttribute('height'), class: icon(id).getAttribute('class') }));
-    expect(boxes).toEqual(Array(3).fill({ width: '40', height: '40', class: tileStyles.icon }));
-    expect(css).not.toMatch(/iconCrowded/);
+    expect(['2-9', '11-4', town.id, '3-9', farmhand.id, emptyCapital].map(box)).toEqual([crowded, crowded, crowded, whole, whole, whole]);
+    const lifted = rule('iconCrowded');
+    expect(lifted).toMatch(/width:\s*24px/);
+    expect(lifted).toMatch(/height:\s*24px/);
+    expect(lifted).toMatch(/left:\s*8px/);
+    // Lifted 4 px: capital.png's drawing starts 4.4 px down a 24 px box, so it spans 0.4 to 15.5 px, above the 24 px
+    // button (from 15 px down)
+    expect(lifted).toMatch(/top:\s*-4px/);
     const body = rule('icon');
     expect(body).toMatch(/width:\s*40px/);
     expect(body).toMatch(/height:\s*40px/);
@@ -211,6 +234,53 @@ describe('FR-325 civilians on the map', () => {
       // Names unchanged (FR-336)
       expect(b.getAttribute('aria-label')).toBe(type);
     }
+    unmount();
+  });
+
+  // Review R2: the clauses below had no test that would fail without them
+  it("FR-325 another nation's lone civilian shows its figure (20 px, alt \"\") in its marker; a group of theirs keeps GiMeepleGroup", () => {
+    const game = newGame({ seed: 1, world: 'continent' });
+    const free = game.map.tiles.flat().filter((t) => t.ownerNationId === N && t.workers.length === 0 && t.terrain !== TerrainType.Capital);
+    const theirs = (id: string, type: WorkerType): Worker => ({ id, type, nationId: 'nation-2', efficiency: 100, status: WorkerStatus.Available, justMoved: false });
+    show(
+      withTiles(game, {
+        [free[0].id]: { workers: [theirs('w-lone', WorkerType.Forester)] },
+        [free[1].id]: { workers: [theirs('w-a', WorkerType.Miner), theirs('w-b', WorkerType.Rancher)] },
+      })
+    );
+    const { container, unmount } = render(<MapView />);
+    const marker = (id: string) => container.querySelector(`[data-tile-id="${id}"] [data-testid="worker-marker"]`)!;
+    const lone = marker(free[0].id);
+    const figure = lone.querySelector('img')!;
+    expect([figure.getAttribute('data-art'), figure.getAttribute('alt'), figure.getAttribute('width'), figure.getAttribute('height'), figure.getAttribute('class')]).toEqual([
+      'workers/forester.png',
+      '',
+      '20',
+      '20',
+      tileStyles.workerFigure,
+    ]);
+    expect(lone.querySelector('svg[data-icon]')).toBeNull();
+    // The marker still names them (FR-336)
+    expect(lone.getAttribute('aria-label')).toBe('Valdoria: forester');
+    const group = marker(free[1].id);
+    expect(group.querySelector('svg[data-icon]')?.getAttribute('data-icon')).toBe('GiMeepleGroup');
+    expect(group.querySelector('img')).toBeNull();
+    expect([group.getAttribute('data-count'), group.getAttribute('aria-label'), group.textContent]).toEqual(['2', 'Valdoria: 2 civilians', '2']);
+    unmount();
+  });
+
+  it('FR-325 a selected button keeps the accent background and adds a 2 px accent outline (a picture cannot be recoloured)', () => {
+    const body = rule('workerButtonSelected');
+    expect(body).toMatch(/background:\s*var\(--color-accent\)/);
+    expect(body).toMatch(/outline:\s*2px solid var\(--color-accent\)/);
+    // The selected civilian's stack button carries that class and shows its figure
+    const game = newGame({ seed: 1, world: 'continent' });
+    const forester = tileOf(game, '2-9').workers.find((w) => w.nationId === N && w.type === WorkerType.Forester)!;
+    show(game, { selectedWorkerId: forester.id });
+    const { container, unmount } = render(<MapView />);
+    const stack = container.querySelector('[data-tile-id="2-9"] [data-testid="worker-stack"]')!;
+    expect(stack.classList.contains(tileStyles.workerButtonSelected)).toBe(true);
+    expect(stack.querySelector('img')?.getAttribute('data-art')).toBe('workers/forester.png');
     unmount();
   });
 });

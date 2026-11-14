@@ -4,13 +4,18 @@
   display: flex;
 }
 
-/* The ground's deep water behind the map, so the space past a map smaller than the screen reads as its sea (FR-321). */
+/* The sea past a map smaller than the screen (FR-340): the ground's open-water texture (its URL and 512 px size inline,
+   from the art table), repeating from the map's origin and scrolling with it (local), so it continues the ground's own
+   water pattern without an edge; the flat ground-water colour under it while it loads. */
 .container {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
   position: relative;
-  background: var(--color-ground-water);
+  background-color: var(--color-ground-water);
+  background-repeat: repeat;
+  background-position: 0 0;
+  background-attachment: local;
 }
 
 /* Scrolled by the camera (FR-083). The padding lets the last column scroll out from under the HUD. */
