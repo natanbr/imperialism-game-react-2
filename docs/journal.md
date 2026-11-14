@@ -25,7 +25,8 @@
 - 2026-11-13 M9 War and the attack screen (FR-216 to FR-234, FR-272 to FR-281) merged (PR 27, main f817da2; entries archived
   in `docs/journal/archive-M9.md`).
 - 2026-11-13 M10 Council of Governors (FR-290 to FR-305) in progress on `claude/m10-council` (worktree
-  `imperialism-game-revival-fee36d`): engine half first, then the UI half on its API. Not pushed.
+  `imperialism-game-revival-fee36d`): engine half and UI half committed, every FR-290 to FR-305 tested; next the milestone
+  review, the app check and the PR. Not pushed. Cards Q50 to Q56 to put on the progress page.
 
 Carried forward:
 - Deferred: river ports and the depot-on-port rule (rules 04); University fees; the power plant.
@@ -259,3 +260,62 @@ for "Winter 1819", `councilCell(vote, nationId, row)` and `abstainedProvinces(vo
 | Build | `npm run build` (`gate-build-final.txt`) | `✓ Compiled successfully in 5.7s`, `✓ Generating static pages (4/4)` |
 
 Not run: Playwright (no screen changed; the UI half adds the Council screen, e2e/m10-council.spec.ts and the FR-304 steps).
+
+## 2026-11-13 M10 Council of Governors, UI half (FR-297 to FR-301, FR-303, FR-304)
+
+Size: L (a new screen, the store's overlay slice, the HUD, the news, the game-over screen, three e2e specs). One UI agent (Opus 5.5,
+xhigh, no subagents, no advisor call), started by the M10 workflow after the engine half, on its API. Branch `claude/m10-council`,
+not pushed.
+
+Plan-lite:
+- Change: store `councilShown` / `showCouncil` / `closeCouncil` (End Turn sets the turn's `council-met`, New game clears it);
+  `CouncilModal.tsx` with `council/councilView.ts` (the report from the event alone) and `council/Council.module.css`;
+  `eventText` / `newsItems` for `council-met` (`councilCountText`), the news line a button; the game-over line; the HUD's
+  "Next Council" line; `CAPITOL_ART` in `art/inkArt.ts`; `UI_ICONS.council` (Game Icons `GiVote`).
+- Consumers: the player after End Turn on turns 10, 20, 30, 40; the long e2e specs (FR-304).
+- Tests: FR-297 `ui/gameText.test.ts`, `ui/newsPanel.test.tsx`; FR-298 `ui/councilDialog.test.tsx`, `ui/inkArt.test.ts`; FR-299
+  `ui/councilDialog.test.tsx`; FR-300 `ui/scoreAndGameOver.test.tsx`; FR-301 `ui/warehouseAndHud.test.tsx`; FR-303
+  `e2e/m10-council.spec.ts`; FR-304 `e2e/market-and-game-over.spec.ts`, `e2e/m4-1.spec.ts`; scans `ui/uiWritesOnlyOrders.test.ts`
+  (the Council screen builds no order), `ui/dialogs.test.tsx` (on the shared Modal), `ui/icons.test.tsx`.
+- Verify: the gate and `PORT=3160 npx playwright test --workers=1 --reporter=line`.
+- Objection: the HUD at 1280x720 has no height to spare: FR-268's check (whole news lines above the fade) had about 1.5 px left,
+  so a new HUD line had to take an existing line's place (decision 1). The next HUD addition needs a layout change of its own.
+
+Red (tests first, `.gate/m10ui/red.txt`): `Test Files 9 failed (9)`, `Tests 13 failed | 176 passed (189)`; `Failed to resolve
+import "@/components/CouncilModal"` (councilDialog, newsPanel), `Unable to find an element by: [data-testid="next-council"]` (3),
+`[data-testid="game-over-council"]`, `expected null to be 'Council of Governors: Testland 5, Val…'` (3), the scans (Council screen
+not found, no `council` icon, no `CAPITOL_ART`). The FR-301 "absent" rows and FR-300's "no line" row passed before (guards).
+
+Decisions (defaults, nobody to ask):
+1. FR-301's line could not be one more HUD line: the first try failed e2e/m8-qa.spec.ts (FR-268: the news list ended 22.5 px
+   behind the fade at 1280x720). The turn and the date now share one line ("Turn: 11 of 40" left, "Fall 1817" right) and the
+   Council line takes the date's old line (16 px), so the HUD is no taller; the turn indicator's text is unchanged
+   ("Turn: 11 of 40 Fall 1817"), the line is a sibling (`next-council`) outside it. Objection: the date moved.
+2. One dialog at a time after End Turn: Battle screens, then the Council screen (it waits while `battleQueue` has a report), then
+   the game-over screen (it waits while `councilShown` is set). The Council overlay is z-index 77 (over the game-over 75, under
+   the Attack 78, the Battle 79 and Accept Offer 85).
+3. On a winning meeting "See the final scores", Escape and the backdrop also call `showGameOver`, so the screen reopened from
+   the news after "Back to the map" brings the scores back too; a meeting without a winner (turn 40 included) has "Close".
+4. A number cell of 0 reads "none" as its title and description; the description is a hidden element named by
+   `aria-describedby` (the HUD line's too); the middle column's head is an empty cell.
+5. The Playwright spec is `e2e/m10-council.spec.ts` as FR-303 names it (the workflow brief also said `e2e/m10.spec.ts`).
+
+Decision cards for the progress page (defaults kept as drafted, from the engine half): Q50 meetings every 10 turns from turn 10;
+Q51 9 of 12 (more than two thirds of all votes); Q52 a free minor votes for the nominee with more relation points if at least 50
+and not at war; Q53 the turn-40 meeting uses the same rule; Q54 standing = score + 100 x provinces + 10 x military strength;
+Q55 the scripted player does not court votes; Q56 the HUD shows the projected vote in a tooltip. Suggestion on each: keep.
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| Red before the UI change | `npx vitest run` on the 9 UI files (`.gate/m10ui/red.txt`) | `Test Files 9 failed (9)`, `Tests 13 failed \| 176 passed (189)` |
+| FR-297 to FR-301 | the same 9 files (`green1.txt`) | `Test Files 9 passed (9)`, `Tests 215 passed (215)` |
+| FR-303, FR-304, FR-268 kept | `PORT=3160 npx playwright test --workers=1 --reporter=line` (`pw-full2.txt`) | `37 passed (3.2m)`, `1 skipped` (the first run, before decision 1: `1 failed` e2e/m8-qa.spec.ts FR-268, `Expected: <= 406.5`, `Received: 429`) |
+| Unit tests | `npm test` (`gate-test-final.txt`) | `Test Files 100 passed (100)`, `Tests 1975 passed (1975)` (+35 on 1940) |
+| v1 and v2 baselines unchanged | `npm test` console | `FR-125 seed 1: ... t40 1493/650 (2.30)`; `FR-260 nation 2 score at turn 40: [[1,1419],[2,1451],[3,1441],[4,1469]]`; FR-274 `[[1,21,22,305,0],[2,21,22,340,0],[3,21,22,276,0],[4,null,null,965,0]]` |
+| Lint | `npm run lint` (`gate-lint-final.txt`) | `✖ 3 problems (0 errors, 3 warnings)` (the three of M6) |
+| Types | `npx tsc --noEmit` | exit 0, no output |
+| Build | `npm run build` (`gate-build-final.txt`) | `✓ Compiled successfully in 6.2s`, `✓ Generating static pages (4/4)` |
+
+How to see it: a new game, End Turn 10 times; on turn 11 the Council screen opens by itself (both nominees 4 and 4, the 4
+minors abstaining); Close; the HUD reads "Next Council: turn 20 (Winter 1819)" (hover: the vote now); the news line "Council of
+Governors: ... no winner (9 needed)." opens it again. A winning meeting is tested on a hand-built state only.

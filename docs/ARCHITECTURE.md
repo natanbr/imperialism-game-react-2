@@ -269,6 +269,12 @@ only (FR-018).
   opens the Attack screen (`attackPlanAt`, `hooks/useTileClickHandler.ts`). One dialog at a time (FR-279): the Attack
   screen closes the Army screen, and a plan with `fromArmyScreen` reopens it on close. End Turn queues the battles the player
   fought (`battleQueue`, `battlesFoughtBy`); a battle's news line (`newsItems` in `gameText.ts`) opens its replay.
+- **Council screens** (UI, M10, FR-297 to FR-301): `components/council/councilView.ts` words one `council-met` event (the
+  table's cells and the provinces behind them, the abstentions, the result) from the event alone; `CouncilModal.tsx`
+  shows the store's `councilShown` and builds no order. End Turn sets it to the meeting just held; it waits while a
+  Battle screen is to be seen, and `GameOverModal.tsx` waits for it, so the order after a turn is battles, Council, final
+  scores, one dialog at a time. The meeting's news line opens it again. The HUD's `TurnIndicator.tsx` names the next
+  meeting (`nextCouncilTurn`) with `councilVote(state)` as its tooltip.
 - **Art pack** (NR-031, FR-272, FR-273): `public/assets/ink-and-wash/` as supplied; `components/art/inkArt.ts` is the
   one table from game ids to its files (regiments, forts, the red attack arrow), `art/ArtPicture.tsx` draws them. A
   march keeps its measured line and head (FR-270, FR-271) in the pack's green; an attack is the pack's own red arrow,
@@ -289,6 +295,7 @@ The store (`store/rootStore.ts`) holds that state under `game`, and UI state bes
 | `isWarehouseOpen`, `isCapitalOpen`, ... | overlays and dialogs | UI |
 | `armyProvinceId`, `armyTargetId`, `isArmouryOpen` | the Army screen's province (null: closed), the "March to" entry it reopens on when the Attack screen gives it back (FR-279), and the Armoury (FR-211, FR-212) | UI |
 | `armySelection`, `attackPlan`, `battleQueue` | the Army screen's ticks kept on the map, the open Attack screen, the battle reports still to replay (FR-230 to FR-232); End Turn and New game reset them | UI |
+| `councilShown` | the `council-met` event the Council screen shows, or null (FR-298, FR-299); End Turn sets the meeting just held, New game clears it | UI |
 
 Only `game` is ever passed to the engine (tested with spies in
 `tests/store/engineBoundary.test.ts`). Display text is derived, not stored: a worker's job text
