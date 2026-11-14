@@ -1,11 +1,11 @@
 {
   "project": "Imperialism Revival",
   "updated": "2026-11-13",
-  "target": "v2: diplomacy, nation-to-nation trade, armies and war (M5 to M9)",
-  "now": "M6 merged (PR 24): Diplomacy screen, overtures and relations; all dialogs share one accessible modal. M7 (trade between nations) is built and reviewed on branch claude/m7-trade (engine, Board of Trade, Deal Book, review fix round, QA fix round and its review), not merged yet. Defaults Q22 to Q47 in force.",
+  "target": "v2: diplomacy, nation-to-nation trade, armies, war and the Council (M5 to M10)",
+  "now": "v2 is complete: M5 to M10 merged (PR 23 to 28, main 69ed08b). The game has diplomacy, trade between nations, armies, war with attack and battle screens, and the Council of Governors vote. 2001 unit tests, Playwright 38 passed. Defaults Q22 to Q59 in force.",
   "source": "docs/REVIVAL_PLAN.md and docs/report/roadmap.json in the imperialism-game-react-2 repo",
   "overview": {
-    "headline": "v1 (M0 to M4.4) is merged. v2 night shift (NR-030): plan, rules research from 1997 screenshots and requirements merged (PR 22); milestones M5 to M9 run one after another.",
+    "headline": "v1 (M0 to M4.4) is merged. v2 night shift (NR-030): plan, rules research from 1997 screenshots and requirements merged (PR 22); milestones M5 to M10 merged one after another (PR 23 to 28, main 69ed08b).",
     "milestones": [
       {
         "title": "Setup: rules knowledge, light spec flow, progress page",
@@ -64,6 +64,20 @@
         "note": "PR 22: REVIVAL_PLAN 5b, docs/rules 01/06/07/08 + 11-screens, FR-144 to FR-234, cards Q22 to Q37."
       },
       {
+        "title": "v2 plan, research and requirements",
+        "status": "done",
+        "progress": 100,
+        "date": "2026-11-13",
+        "note": "PR 22: REVIVAL_PLAN 5b, docs/rules 01/06/07/08 + 11-screens, FR-144 to FR-234, cards Q22 to Q37."
+      },
+      {
+        "title": "v2 plan, research and requirements",
+        "status": "done",
+        "progress": 100,
+        "date": "2026-11-13",
+        "note": "PR 22: REVIVAL_PLAN 5b, docs/rules 01/06/07/08 + 11-screens, FR-144 to FR-234, cards Q22 to Q37."
+      },
+      {
         "title": "M5 World and seams: provinces, 4 minor nations, one random stream per system, intents",
         "status": "done",
         "progress": 100,
@@ -79,31 +93,31 @@
       },
       {
         "title": "M7 Nation-to-nation trade: Bids and Offers, favourite partner, Deal Book",
-        "status": "in progress",
-        "progress": 90,
-        "date": "v2",
-        "note": "Branch claude/m7-trade: minor offers and demand, favourite partner, Board of Trade, Deal Book; review fix round: prices move only with the Great Powers' deals (no run-away), the computer buys raw from minors. Not merged."
+        "status": "done",
+        "progress": 100,
+        "date": "2026-11-13",
+        "note": "PR 25: partners market, favourite partner, Board of Trade, Deal Book; 1458 tests, Playwright 32 passed. 20 review findings fixed (prices, computer buying); QA round (refuse impossible trades, Not traded, one money format)."
       },
       {
         "title": "M8 Armies: Armoury, regiments, upkeep, moves, Army screen",
-        "status": "planned",
-        "progress": 0,
-        "date": "v2",
-        "note": "A regiment recruited in the app appears next turn in the capital province and can be moved (FR-199 to FR-215)"
+        "status": "done",
+        "progress": 100,
+        "date": "2026-11-13",
+        "note": "PR 26: 9 era-1 regiments, Armoury, upkeep, marches, Army screen, march arrows; 1709 tests, Playwright 35 passed. 20 review findings fixed (the computer keeps its army: 0 of 20 lost, was 6); QA round (arrows, upkeep per province)."
       },
       {
         "title": "M9 War: attack screen, battles, battle replay, taking provinces, computer at war",
-        "status": "planned",
-        "progress": 0,
-        "date": "v2",
-        "note": "In the app the human declares war on a minor, attacks, sees the battle and takes the province (FR-216 to FR-234)"
+        "status": "done",
+        "progress": 100,
+        "date": "2026-11-13",
+        "note": "PR 27: attacks, battles (8 rounds, own random stream), conquest and colonies, computer at war, Attack and Battle screens with the art pack; 1885 tests, Playwright 36 passed. 20 review findings fixed (fair simultaneous battles, computer keeps its army); QA round (side headings, no spoilers, terms explained)."
       },
       {
         "title": "M10 Council of Governors vote (NR-011)",
-        "status": "planned",
-        "progress": 0,
-        "date": "v2",
-        "note": "Only after M5 to M9 are merged"
+        "status": "done",
+        "progress": 100,
+        "date": "2026-11-13",
+        "note": "PR 28: Council meets on turns 10, 20, 30, 40; 12 votes, one per province; more than two thirds (9) wins; free minors vote by relations; Council screen and HUD countdown; 2001 tests, Playwright 38 passed. Review and QA fix rounds (FR-306 to FR-317)."
       }
     ],
     "risks": [
@@ -121,8 +135,10 @@
       }
     ],
     "next": [
-      "Play the merged milestones on the play server",
-      "Answer the open cards Q21 to Q37 (defaults are in force)"
+      "Play a full game on the play server: diplomacy, trade, armies, a war on Arvelia and the Council on turns 10 to 40",
+      "Answer the cards that matter most: Q51 (votes needed to win), Q34 (capital falls), Q35 (computer wars), Q57 to Q59",
+      "Decide whether the ink-and-wash pack should restyle the whole game",
+      "Approve housekeeping: delete the merged v2 branches and the old decisions worktree"
     ]
   },
   "detail": {
@@ -415,47 +431,82 @@
           {
             "id": "M7",
             "title": "M7 Nation-to-nation trade: Bids and Offers, favourite partner, Deal Book",
-            "status": "in progress",
-            "doneWhen": "A 40-turn v2 game shows both nations trading with minor nations; the computer ends with a positive treasury (FR-182 to FR-198; review fix round FR-242 to FR-250)",
+            "status": "done",
+            "doneWhen": "A 40-turn v2 game shows both nations trading with minor nations; the computer ends with a positive treasury (FR-182 to FR-198)",
             "tasks": [
               {
-                "title": "Engine: partners market, matching, holds, prices, relations, deal events, scripted trade",
+                "title": "Engine: offers, demand, matching, holds, prices, relations",
                 "done": true
               },
               {
-                "title": "Board of Trade and Deal Book screens, M7 e2e",
+                "title": "Board of Trade and Deal Book",
                 "done": true
               },
               {
-                "title": "Review (one reviewer, 20 findings) and fix round (FR-242 to FR-250)",
+                "title": "Review (3 lenses), 20 fixes, QA round",
                 "done": true
-              },
-              {
-                "title": "PR and merge",
-                "done": false
               }
             ]
           },
           {
             "id": "M8",
             "title": "M8 Armies: Armoury, regiments, upkeep, moves, Army screen",
-            "status": "planned",
+            "status": "done",
             "doneWhen": "A regiment recruited in the app appears next turn in the capital province and can be moved (FR-199 to FR-215)",
-            "tasks": []
+            "tasks": [
+              {
+                "title": "Engine: regiments, recruiting, upkeep, marches, garrison",
+                "done": true
+              },
+              {
+                "title": "Armoury, Army screen, army markers",
+                "done": true
+              },
+              {
+                "title": "Review (3 lenses), 20 fixes, QA round",
+                "done": true
+              }
+            ]
           },
           {
             "id": "M9",
             "title": "M9 War: attack screen, battles, battle replay, taking provinces, computer at war",
-            "status": "planned",
+            "status": "done",
             "doneWhen": "In the app the human declares war on a minor, attacks, sees the battle and takes the province (FR-216 to FR-234)",
-            "tasks": []
+            "tasks": [
+              {
+                "title": "Engine: attacks, battles, conquest, scripted war",
+                "done": true
+              },
+              {
+                "title": "Attack and Battle screens, arrows, art pack",
+                "done": true
+              },
+              {
+                "title": "Review (3 lenses), 20 fixes, QA round",
+                "done": true
+              }
+            ]
           },
           {
             "id": "M10",
             "title": "M10 Council of Governors vote (NR-011)",
-            "status": "planned",
-            "doneWhen": "Only after M5 to M9 are merged",
-            "tasks": []
+            "status": "done",
+            "doneWhen": "Meetings on turns 10, 20, 30, 40; one vote per province; more than two thirds wins; the Council screen (FR-290 to FR-317)",
+            "tasks": [
+              {
+                "title": "Engine: nominees, votes, abstentions, win and fallback",
+                "done": true
+              },
+              {
+                "title": "Council screen, news, HUD countdown",
+                "done": true
+              },
+              {
+                "title": "Review (3 lenses), fixes, QA round",
+                "done": true
+              }
+            ]
           }
         ]
       },
@@ -466,7 +517,7 @@
           {
             "id": "V2",
             "title": "Real-world complexity layers",
-            "status": "in progress",
+            "status": "done",
             "doneWhen": "Planned 2026-11-13 as M5 to M10, see the v2 tier"
           },
           {
@@ -693,6 +744,166 @@
         ]
       },
       {
+        "id": "Q39",
+        "title": "Should prices on the partners market move only with the Great Powers' own deals, with no pull back toward the start price?",
+        "status": "open",
+        "context": "Before the review fix round the minors' fixed demand (24 goods a turn) and offers counted as excess demand, so goods ran to the 250% ceiling (clothing $2,250 by turn 35) and raw to the 50% floor by turn 30 whatever the players did. Now (FR-243) a price moves with the units the Great Powers bought minus the units they sold, as on the v1 world market. Measured at turn 40, seeds 1 to 4: clothing $648 to $710 (v1 world: $642), timber $144 to $180 (both computers buy it), no price at a bound. A nation that keeps buying or selling one commodity can still push it to a bound in time.",
+        "suggestion": "Taken: Great Powers' deals only (FR-243). Alternative: a pull of about 10% a turn back toward the start price, so a constant push settles near 1.4 times the start; say if you want it.",
+        "items": [
+          "M7"
+        ]
+      },
+      {
+        "id": "Q40",
+        "title": "Should the v2 trade baseline count the minors per nation or for both nations together?",
+        "status": "open",
+        "context": "FR-196 said \"deals with at least 2 minors\" without saying whose. Since the review fix round the computer opens a consulate only with a minor it will use (FR-245): nation 1 deals with all 4 minors, nation 2 only with Arvelia (Arvelia favours it and covers its 4 holds). A per-nation minimum would make the computer pay $500 for consulates it does not use.",
+        "suggestion": "Taken: both nations together, at least 2 minors; each nation at least 1 minor and at least 1 purchase (FR-247).",
+        "items": [
+          "M7"
+        ]
+      },
+      {
+        "id": "Q41",
+        "title": "Should the computer buy raw materials from minors, and open a consulate only where it will trade?",
+        "status": "open",
+        "context": "FR-193 had the computer bid only for lumber and steel, which no minor sells, so it never bought in \"partners\" and paid $2,000 for four consulates it used once. FR-245: it bids for the timber, coal, iron ore and cotton its mills lack (capped at what its partner minors offer), and orders a consulate only when the minors that favour it do not cover its holds. Score at turn 40 against the same player without raw bids, both nations summed: +82, +94, +25 and -20 (seeds 1 to 4).",
+        "suggestion": "Taken (FR-245). Reversible; FR-247 pins its numbers.",
+        "items": [
+          "M7"
+        ]
+      },
+      {
+        "id": "Q42",
+        "title": "Should a \"world\" market keep the v1 shape, with no mode key?",
+        "status": "open",
+        "context": "M7 engine decision 1: two-islands keeps its v1 market object (FR-060's assertion unchanged); a market without a mode is read as \"world\" through marketModeOf (FR-242).",
+        "suggestion": "Taken. Default in force.",
+        "items": [
+          "M7"
+        ]
+      },
+      {
+        "id": "Q43",
+        "title": "Should the engine give the Deal Book as data and the screen write the words?",
+        "status": "open",
+        "context": "M7 engine decision 3: dealBook returns entries; the ledger lines (\"Sold 1 Clothing to Arvelia @ $810\") come from the screen's dealBookView, beside the other display names (FR-244). A v3 player that reads text would want the words from the engine.",
+        "suggestion": "Taken: data in the engine, words in the screen. Revisit for v3.",
+        "items": [
+          "M7"
+        ]
+      },
+      {
+        "id": "Q44",
+        "title": "When the computer offers goods, should it count each minor's whole demand, not what the rival may sell there first?",
+        "status": "open",
+        "context": "M7 engine decision 7: its offers are capped at its partner minors' whole demand this turn; it cannot see the rival's offers (FR-245 (c)). An unsold unit comes back to the warehouse at no cost.",
+        "suggestion": "Taken. Default in force.",
+        "items": [
+          "M7"
+        ]
+      },
+      {
+        "id": "Q45",
+        "title": "Should the market e2e test sell a furniture to a minor, now that nobody buys lumber?",
+        "status": "open",
+        "context": "M7 UI decision 3: in \"partners\" nobody buys lumber, so the FR-078 e2e orders a consulate with Pellis and sells 1 furniture on turn 2, reading the income from the news instead of a fixed $300.",
+        "suggestion": "Taken. Default in force.",
+        "items": [
+          "M7"
+        ]
+      },
+      {
+        "id": "Q46",
+        "title": "Should a Board of Trade button the engine would refuse be disabled with its reason?",
+        "status": "done",
+        "context": "M7 UI decision 4 kept the v1 way (press, then read \"Purchase refused: over the limit.\"). The review asked for the M6 way: the \"+\" is disabled and its title says why: \"No free hold this turn\", \"Already 4 bids this turn, the most\", \"None left in the warehouse\", \"Not enough money\" (FR-248).",
+        "suggestion": "Done in the review fix round (FR-248).",
+        "items": [
+          "M7"
+        ]
+      },
+      {
+        "id": "Q47",
+        "title": "Should the World market also drop its greyed \"−\" at 0, as the Board of Trade does?",
+        "status": "open",
+        "context": "QA item 7 (every disabled control says why) was applied to the Board of Trade only (FR-257: at 0 there is no \"−\", only its place). The World market, shown in a \"world\" game such as two-islands, keeps the v1 stepper: a greyed \"−\" at 0 with no reason (FR-074, pinned by tests/ui/marketDialog.test.tsx and tests/ui/boardOfTrade.test.tsx). Changing it is one line in MarketModal.tsx (hideLessAtZero) plus FR-074, FR-257 and those two tests.",
+        "suggestion": "Yes, one stepper for both market dialogs. Until answered the v1 stepper stays (FR-257 as written).",
+        "items": [
+          "M7"
+        ]
+      },
+      {
+        "id": "Q50",
+        "title": "When should the Council meet?",
+        "status": "open",
+        "context": "Default: every 10 turns (10, 20, 30, 40). Options: every 8 turns like the original (turn 40 has none), or only from turn 20.",
+        "suggestion": "Default in force; reversible.",
+        "items": [
+          "M10"
+        ]
+      },
+      {
+        "id": "Q51",
+        "title": "How many votes should a Council win need?",
+        "status": "open",
+        "context": "Default: more than two thirds of all votes, 9 of 12, as in the original. With only 2 Great Powers that needs your 4 provinces, all 4 minors and one rival province, so a vote win is rare. Option: more than half (7 of 12) lets diplomacy alone win.",
+        "suggestion": "Default in force; reversible.",
+        "items": [
+          "M10"
+        ]
+      },
+      {
+        "id": "Q52",
+        "title": "How should a free minor nation vote?",
+        "status": "open",
+        "context": "Default: for the Great Power it has more relation points with, if at least 50 and not at war; ties abstain. Options: no 50-point minimum; or the favourite-partner rule, so subsidies buy votes.",
+        "suggestion": "Default in force; reversible.",
+        "items": [
+          "M10"
+        ]
+      },
+      {
+        "id": "Q53",
+        "title": "Should the last Council (turn 40) force every governor to pick a side?",
+        "status": "open",
+        "context": "Default: no, same rule as other meetings; without a winner the game ends on scores. Option: yes, so almost every game ends with a Council winner.",
+        "suggestion": "Default in force; reversible.",
+        "items": [
+          "M10"
+        ]
+      },
+      {
+        "id": "Q54",
+        "title": "Is score + 100 per province + 10 x military strength the right nomination standing?",
+        "status": "open",
+        "context": "Default: yes; with 2 Great Powers it only orders the nominees. Options: nation order; or add diplomacy.",
+        "suggestion": "Default in force; reversible.",
+        "items": [
+          "M10"
+        ]
+      },
+      {
+        "id": "Q55",
+        "title": "Should the computer try to win Council votes?",
+        "status": "open",
+        "context": "Default: no (baselines stay). Option: it pays grants to the minor closest to 50 points before a meeting.",
+        "suggestion": "Default in force; reversible.",
+        "items": [
+          "M10"
+        ]
+      },
+      {
+        "id": "Q56",
+        "title": "Should the HUD show the exact vote count if the Council met now?",
+        "status": "open",
+        "context": "Default: yes, in the Next Council tooltip. Option: only the turn of the next meeting, as in the original.",
+        "suggestion": "Default in force; reversible.",
+        "items": [
+          "M10"
+        ]
+      },
+      {
         "id": "Q22",
         "title": "Should the v2 world have one land-bridge minor nation and three island minors?",
         "status": "open",
@@ -853,6 +1064,36 @@
         ]
       },
       {
+        "id": "Q57",
+        "title": "Should the map keep the removed \"No tile selected\" hint?",
+        "status": "open",
+        "context": "The M10 QA round removed the hint under the map because it repeated what an empty side panel already says.",
+        "suggestion": "Taken: removed. Default in force; reversible.",
+        "items": [
+          "M10"
+        ]
+      },
+      {
+        "id": "Q58",
+        "title": "Should the Council news line name the player first, as the Council screen does?",
+        "status": "open",
+        "context": "Today the news line names the 1st nominee (most votes) first, while the screen lists the player first.",
+        "suggestion": "Taken: news by vote order, screen player first. Default in force; reversible.",
+        "items": [
+          "M10"
+        ]
+      },
+      {
+        "id": "Q59",
+        "title": "Should abstention reasons on the Council screen use relation levels instead of points?",
+        "status": "open",
+        "context": "The Council screen says a minor abstains below 50 relation points; the Diplomacy screen shows levels (0 to 8).",
+        "suggestion": "Taken: points (exact, matches the rule). Default in force; reversible.",
+        "items": [
+          "M10"
+        ]
+      },
+      {
         "id": "Q37",
         "title": "Should Join the Empire, rail and sea moves, generals and medals stay out of v2?",
         "status": "open",
@@ -860,96 +1101,6 @@
         "suggestion": "Taken (later milestone). Default in force; reversible.",
         "items": [
           "M6"
-        ]
-      },
-      {
-        "id": "Q39",
-        "title": "Should prices on the partners market move only with the Great Powers' own deals, with no pull back toward the start price?",
-        "status": "open",
-        "context": "Before the review fix round the minors' fixed demand (24 goods a turn) and offers counted as excess demand, so goods ran to the 250% ceiling (clothing $2,250 by turn 35) and raw to the 50% floor by turn 30 whatever the players did. Now (FR-243) a price moves with the units the Great Powers bought minus the units they sold, as on the v1 world market. Measured at turn 40, seeds 1 to 4: clothing $648 to $710 (v1 world: $642), timber $144 to $180 (both computers buy it), no price at a bound. A nation that keeps buying or selling one commodity can still push it to a bound in time.",
-        "suggestion": "Taken: Great Powers' deals only (FR-243). Alternative: a pull of about 10% a turn back toward the start price, so a constant push settles near 1.4 times the start; say if you want it.",
-        "items": [
-          "M7"
-        ]
-      },
-      {
-        "id": "Q40",
-        "title": "Should the v2 trade baseline count the minors per nation or for both nations together?",
-        "status": "open",
-        "context": "FR-196 said \"deals with at least 2 minors\" without saying whose. Since the review fix round the computer opens a consulate only with a minor it will use (FR-245): nation 1 deals with all 4 minors, nation 2 only with Arvelia (Arvelia favours it and covers its 4 holds). A per-nation minimum would make the computer pay $500 for consulates it does not use.",
-        "suggestion": "Taken: both nations together, at least 2 minors; each nation at least 1 minor and at least 1 purchase (FR-247).",
-        "items": [
-          "M7"
-        ]
-      },
-      {
-        "id": "Q41",
-        "title": "Should the computer buy raw materials from minors, and open a consulate only where it will trade?",
-        "status": "open",
-        "context": "FR-193 had the computer bid only for lumber and steel, which no minor sells, so it never bought in \"partners\" and paid $2,000 for four consulates it used once. FR-245: it bids for the timber, coal, iron ore and cotton its mills lack (capped at what its partner minors offer), and orders a consulate only when the minors that favour it do not cover its holds. Score at turn 40 against the same player without raw bids, both nations summed: +82, +94, +25 and -20 (seeds 1 to 4).",
-        "suggestion": "Taken (FR-245). Reversible; FR-247 pins its numbers.",
-        "items": [
-          "M7"
-        ]
-      },
-      {
-        "id": "Q42",
-        "title": "Should a \"world\" market keep the v1 shape, with no mode key?",
-        "status": "open",
-        "context": "M7 engine decision 1: two-islands keeps its v1 market object (FR-060's assertion unchanged); a market without a mode is read as \"world\" through marketModeOf (FR-242).",
-        "suggestion": "Taken. Default in force.",
-        "items": [
-          "M7"
-        ]
-      },
-      {
-        "id": "Q43",
-        "title": "Should the engine give the Deal Book as data and the screen write the words?",
-        "status": "open",
-        "context": "M7 engine decision 3: dealBook returns entries; the ledger lines (\"Sold 1 Clothing to Arvelia @ $810\") come from the screen's dealBookView, beside the other display names (FR-244). A v3 player that reads text would want the words from the engine.",
-        "suggestion": "Taken: data in the engine, words in the screen. Revisit for v3.",
-        "items": [
-          "M7"
-        ]
-      },
-      {
-        "id": "Q44",
-        "title": "When the computer offers goods, should it count each minor's whole demand, not what the rival may sell there first?",
-        "status": "open",
-        "context": "M7 engine decision 7: its offers are capped at its partner minors' whole demand this turn; it cannot see the rival's offers (FR-245 (c)). An unsold unit comes back to the warehouse at no cost.",
-        "suggestion": "Taken. Default in force.",
-        "items": [
-          "M7"
-        ]
-      },
-      {
-        "id": "Q45",
-        "title": "Should the market e2e test sell a furniture to a minor, now that nobody buys lumber?",
-        "status": "open",
-        "context": "M7 UI decision 3: in \"partners\" nobody buys lumber, so the FR-078 e2e orders a consulate with Pellis and sells 1 furniture on turn 2, reading the income from the news instead of a fixed $300.",
-        "suggestion": "Taken. Default in force.",
-        "items": [
-          "M7"
-        ]
-      },
-      {
-        "id": "Q46",
-        "title": "Should a Board of Trade button the engine would refuse be disabled with its reason?",
-        "status": "done",
-        "context": "M7 UI decision 4 kept the v1 way (press, then read \"Purchase refused: over the limit.\"). The review asked for the M6 way: the \"+\" is disabled and its title says why: \"No free hold this turn\", \"Already 4 bids this turn, the most\", \"None left in the warehouse\", \"Not enough money\" (FR-248).",
-        "suggestion": "Done in the review fix round (FR-248).",
-        "items": [
-          "M7"
-        ]
-      },
-      {
-        "id": "Q47",
-        "title": "Should the World market also drop its greyed \"−\" at 0, as the Board of Trade does?",
-        "status": "open",
-        "context": "QA item 7 (every disabled control says why) was applied to the Board of Trade only (FR-257: at 0 there is no \"−\", only its place). The World market, shown in a \"world\" game such as two-islands, keeps the v1 stepper: a greyed \"−\" at 0 with no reason (FR-074, pinned by tests/ui/marketDialog.test.tsx and tests/ui/boardOfTrade.test.tsx). Changing it is one line in MarketModal.tsx (hideLessAtZero) plus FR-074, FR-257 and those two tests.",
-        "suggestion": "Yes, one stepper for both market dialogs. Until answered the v1 stepper stays (FR-257 as written).",
-        "items": [
-          "M7"
         ]
       }
     ]

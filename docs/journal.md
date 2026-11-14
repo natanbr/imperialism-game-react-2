@@ -24,10 +24,20 @@
   `docs/journal/archive-M8.md`). Nathan's art pack (NR-031) committed on top (4bd00eb).
 - 2026-11-13 M9 War and the attack screen (FR-216 to FR-234, FR-272 to FR-281) merged (PR 27, main f817da2; entries archived
   in `docs/journal/archive-M9.md`).
-- 2026-11-13 M10 Council of Governors (FR-290 to FR-305) in progress on `claude/m10-council` (worktree
-  `imperialism-game-revival-fee36d`): engine half (archived in `docs/journal/archive-M10.md`), UI half, the review fix
-  round, the QA fix round (FR-310 to FR-317) and the fixes of its review (F1, F2: tests only) committed, every FR-290 to
-  FR-317 tested; next the PR. Not pushed. Cards Q50 to Q56 to put on the progress page.
+- 2026-11-13 M10 Council of Governors (FR-290 to FR-317) merged (PR 28, main 69ed08b; engine half archived in
+  `docs/journal/archive-M10.md`, the rest below). **v2 (M5 to M10) is complete.** Gate on 6fad1e0: 2001 unit tests,
+  lint 0 errors, tsc and build clean, Playwright 38 passed and 1 skipped.
+- Open decisions (defaults in force, all on the progress page): Q22 to Q59; the most important are Q51 (Council
+  threshold), Q34 and Q35, and Q57 to Q59 (new from the M10 QA round: the removed "No tile selected" hint; the news
+  line names the 1st nominee first while the screen puts the player first; abstention reasons in relation points
+  while the Diplomacy screen shows levels). Also open: restyle the whole game with the ink-and-wash pack (NR-031)
+  or keep it on the war screens only.
+- Not verified yet: a winning Council vote on screen (unit tests only); Firefox and WebKit never run; seed 4's
+  computer never campaigns. Possible flaky test: `tests/engine/lintGuard.test.ts` timed out once under load.
+- Carried from M8: the FR-213 garrison threat-recruit asks for Regulars, which a real game can never raise. Next.js
+  picks a lockfile two folders up as the project root (set `turbopack.root` / `outputFileTracingRoot` in `next.config`).
+- Housekeeping waiting for Nathan's go-ahead: merged branches `claude/v2-plan`, `claude/m5-*` to `claude/m10-council`,
+  the old `decisions` worktree.
 
 Carried forward:
 - Deferred: river ports and the depot-on-port rule (rules 04); University fees; the power plant.

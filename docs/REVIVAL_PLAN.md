@@ -238,6 +238,11 @@ shared files (orders, state, turn loop); inside a milestone engine and UI run in
 engine types are committed. A milestone that fails its fix round or its gate stays open and
 unmerged, and the night stops there.
 
+**Status 2026-11-13: v2 (M5 to M10) is merged.** M5 PR 23, M6 PR 24, M7 PR 25, M8 PR 26, M9 PR 27,
+M10 PR 28 (main 69ed08b). Requirements FR-144 to FR-317, every one tested; the gate on the last
+merge: 2001 unit tests, 38 Playwright tests passed (1 skipped, the known rail-cursor fixme). Open
+decision cards and carried notes are in `docs/journal.md` ("Resuming here") and on the progress page.
+
 ## 6. Working rules for this project (replaces the old refactoring phases)
 
 - **Done means tested.** A roadmap box is ticked only when a test exists for it. Status in
