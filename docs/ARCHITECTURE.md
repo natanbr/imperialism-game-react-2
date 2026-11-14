@@ -43,7 +43,11 @@ src/app/
     army/upkeepForecast.ts FR-261: the upkeep End Turn will charge and the cash it will find; upkeepIn, one
                            province's share (FR-266)
     army/startForces.ts    FR-203: field army, militia, capital forts, extra horses
-    calendar.ts            seasons; the year advances after winter
+    calendar.ts            seasons; the year advances after winter; yearOfTurn (the year of any turn)
+    council/council.ts     M10 (FR-290 to FR-294): the Council of Governors as pure queries: isCouncilTurn,
+                           nextCouncilTurn, councilStanding, councilNominees, councilVote (ballots, rows, the
+                           winner), councilMeeting (what resolveTurn calls), councilCell, abstainedProvinces;
+                           numbers in definisions/council.ts, types in types/Council.ts
     rng.ts                 seeded RNG: createTurnRng(seed, turn); RNG_STREAMS and createStreamRng
                            for the per-system streams (FR-150)
     diplomacy/relations.ts the diplomacy state (FR-151): pairKey, startDiplomacy, relationOf,
@@ -346,6 +350,9 @@ store.advanceTurn()
        promoteFreightCars  the cars built this turn go into service (FR-101, NR-016)
        resetWorkers        everyone may move again; working only while the job is unfinished
        advanceClock        turn + 1, year + 1 after winter (turn 1 = Spring 1815)
+       conquest?           one Great Power left: gameOver reason "conquest" (M9), no Council
+       Council?            turn 10, 20, 30, 40 with provinces: council-met on the state after the clock;
+                           a winner (9 of 12): gameOver reason "council" with the vote (M10)
        last turn?          turn == turnLimit (40): gameOver = { turn, year, scores }, game-over event
   <- { state, events }
   -> game = state; eventLog += { turn, year, events }; orderLog += one entry per nation
