@@ -370,29 +370,28 @@ component drew them); `e2e/m11-art.spec.ts` (FR-338); the replaced rows marked (
 FR-093, FR-121, FR-133, FR-154), the M11 statuses, card Q67's minor colour; ARCHITECTURE's Components; M10's UI half
 archived. Objection: a new Game Icon now needs `GI` and the icons test's list changed too (deliberate: FR-335).
 
-Red: the new icons test on the old `icons.ts`, `Tests 3 failed | 2 passed (5)` (`.gate/m11int/red-icons.txt`). First full
-run: `Tests 2 failed | 2086 passed (2088)`: my `icons.ts` comment named the pack, which FR-272's and FR-319's scans forbid.
+Red: the new icons test on the old `icons.ts`, `Tests 3 failed | 2 passed (5)` (`.gate/m11int/red-icons.txt`); the fit
+check of decision 3 on the lanes' CSS, `1 failed`: `"goods/canned-food.png: Canned Food (14 px)"` (`red-fit.txt`).
 
 Decisions (defaults, nobody to ask):
 1. `GI` pruned with the tables (its other 47 icons were reached only through them); a test pins `GI` = the `UI_ICONS`
    values and `GiRiver`, and asserts the removed exports absent.
 2. FR-086's tint test became "no `--terrain-*` token defined or named"; FR-154's two 3:1 tests went (FR-329's halo test
-   covers both lines). No other test changed.
-3. FR-336's diff check is against `origin/main` (6138531, the branch's base): the local `main` is stale (dcccaa1).
-4. FR-338's rail and depot follow look.spec (rail to 2-7, the depot there: a depot may not stand next to the capital); the
-   spec also fails on any pack request with an error status.
-5. Left for the orchestrator: `docs/report/roadmap.json` (cards Q60 to Q76), the milestone review, the browser QA pass.
+   covers both lines). No other test changed but FR-320's rule pin (decision 3).
+3. Bug seen in the first screenshots: the Board of Trade's "Canned Food" ran 14 px into its price. Root cause: preflight's
+   `img { max-width: 100% }` makes a picture count as 0 wide when a table sizes a column. Fix: `max-width: none` on
+   `img[data-art-inline]`; regression check `expectFit` in m11-art (no inline picture's box overflows). Only that cell did.
+4. FR-336's diff check is against `origin/main` (6138531, the branch's base): the local `main` is stale (dcccaa1).
+5. FR-338's rail and depot follow look.spec (a depot may not stand next to the capital); it also fails on any pack
+   request with an error status. Left for the orchestrator: `docs/report/roadmap.json` (Q60 to Q76), the review, QA.
 
 | Claim | Command | Result (quoted) |
 |---|---|---|
-| FR-335 and the touched tests | `npx vitest run` icons, stacking, listArt, mapIcons; palette (`green-*.txt`) | `Tests 27 passed (27)`; `Tests 23 passed (23)` |
-| Unit tests | `npm test` (`test-final.txt`) | `Test Files 106 passed (106)`, `Tests 2088 passed (2088)` (-3: icons -1, palette -2) |
-| Baselines unchanged | `npm test` console | `FR-125 seed 1: ... t40 1493/650 (2.30)`; `FR-260 nation 2 score at turn 40: [[1,1419],[2,1451],[3,1441],[4,1469]]` |
+| Unit tests, baselines | `npm test` (`test-final2.txt`) | `Tests 2088 passed (2088)` (-3: icons -1, palette -2); `FR-125 seed 1: ... t40 1493/650 (2.30)`; `FR-260 ... [[1,1419],[2,1451],[3,1441],[4,1469]]` |
 | Lint, types | `npm run lint`; `npx tsc --noEmit` | `✖ 3 problems (0 errors, 3 warnings)` (M6's three); exit 0, no output |
-| Build | `npm run build` (`build-1.txt`) | `✓ Compiled successfully in 3.1s`, `✓ Generating static pages (4/4)` |
-| e2e, all specs | `PORT=3311 npx playwright test --workers=1 --reporter=line` (`pw-1.txt`) | `45 passed (2.5m)`, `1 skipped` (cursor-icons' rail case, `fixme` before M11) |
+| Build | `npm run build` (`build-final.txt`) | `✓ Compiled successfully in 3.3s`, `✓ Generating static pages (4/4)` |
+| e2e, all specs | `PORT=3311 npx playwright test --workers=1 --reporter=line` (`pw-final.txt`) | `45 passed (3.4m)`, `1 skipped` (cursor-icons' rail case, `fixme` before M11); before the fix also `45 passed` |
 | FR-336 | `git diff origin/main -- src/app/engine src/app/store src/app/types` (and `tests/engine tests/store`) | empty, empty |
-| Pack bytes | `git diff origin/main --stat -- public/assets/ink-and-wash` | `1 file changed`: `terrain-demo.html` back to its supplied bytes (lane 1) |
 
-Seen in the five FR-338 screenshots (`SCREENSHOT_DIR` run): as the lanes reported, the 48 px flat-water strip under the map
-and the rail as a dark band with ties (Q68); the Next.js dev badge bottom-left (dev server only).
+Seen in the five FR-338 screenshots: as the lanes reported, the 48 px flat-water strip under the map and the rail as a
+dark band with ties (Q68); the Next.js dev badge bottom-left (dev server only).

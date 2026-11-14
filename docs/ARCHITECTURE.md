@@ -647,7 +647,8 @@ file and `artInfoOf(url)` its entry. tests/ui/inkArt.test.ts checks the table ag
 source file names the pack or one of its files. `components/art/ArtPicture.tsx` `InkPicture` draws one picture as a plain
 `<img>` (`alt` required, `""` beside the text that names it) with `data-art` (the manifest file, as `data-icon` names a
 Game Icon) and `data-art-anchor`; `size`, or `width` and `height`, set its box in px, `inline` puts it on a text line
-(1.25em, the `img[data-art-inline]` rule in globals.css), and globals.css draws `data-art-anchor="bottom-center"`
+(1.25em, the `img[data-art-inline]` rule in globals.css; its `max-width: none` undoes Tailwind's `max-width: 100%`, which
+let a table size a column as if the picture were 0 wide), and globals.css draws `data-art-anchor="bottom-center"`
 pictures (workers, army, buildings) from the bottom centre. `RegimentPicture`, `FortPicture` and `CapitolPicture` are
 InkPictures. The pack's look has its own tokens (FR-329): `--color-ground-water`, `-shallows`, `-sand`, `-grass`,
 `-desert`, `-tundra` and `--color-map-halo` (THEME `groundWater` ... `mapHalo`); the border colours reach 3:1 on the
