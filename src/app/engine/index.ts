@@ -143,4 +143,27 @@ export type { ArmyOrder } from "./orders/Order";
 export type { DisbandReason } from "./turn/context";
 export type { Army, Regiment } from "@/types/Army";
 export { RegimentCategory, type RegimentType, type UnitStats } from "@/types/Unit";
-export type { ArmyIntent, ArmyMoveIntent, DisbandIntent } from "@/types/Intent";
+export type { ArmyIntent, ArmyMoveIntent, AttackIntent, DisbandIntent } from "@/types/Intent";
+// M9 (FR-216 to FR-229): attacks are `moveArmy` into a province of a country at war (an `attack` intent); the combat
+// phase fights one battle per attacked province and emits `battle-resolved` with the whole report; conquest, colonies
+// and the conquest game over; the estimate and the helpers of the attack screen and the battle screen.
+export {
+  attackStatus,
+  attackTargets,
+  battleEstimate,
+  defenceOf,
+  defendersOf,
+  fortLevelOf,
+  protectionOf,
+  shotDamage,
+  type AttackStatus,
+  type BattleEstimate,
+  type Defender,
+  type EstimateVerdict,
+  type Protection,
+} from "./army/combat";
+export { battleFrames, battleOutcome, battlesFoughtBy, type BattleFrame, type BattleFrameRegiment, type BattleOutcome, type BattleResolvedEvent } from "./army/battleReport";
+export { conquestWinner, isFallen } from "./army/conquest";
+export { isAttackIntent } from "./army/armies";
+export { COMBAT, ESTIMATE, SCRIPTED_WAR } from "@/definisions/combatRules";
+export type { BattleFate, BattleRegiment, BattleReport, BattleResult, BattleRound, BattleShot, BattleSide } from "@/types/Battle";

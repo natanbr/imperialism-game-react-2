@@ -1,5 +1,6 @@
 import type { GameState } from "@/types/GameState";
-import type { CountryId, NationId, ProvinceId, TileId } from "@/types/Common";
+import type { CountryId, MinorNationId, NationId, ProvinceId, TileId } from "@/types/Common";
+import type { BattleReport } from "@/types/Battle";
 import type { RegimentType } from "@/types/Unit";
 import type { GrantAmount, Overture, ProposalKind, WithdrawableOverture } from "@/types/Diplomacy";
 import type { ResourceType } from "@/types/Resource";
@@ -40,8 +41,11 @@ export type GameEvent =
    */
   | { type: "bid-unfilled"; nationId: NationId; commodity: TradeCommodity; amount: number; cause?: TradeMissCause }
   | { type: "turn-ended"; turn: number; year: number }
-  /** The last turn has resolved (FR-068): the last turn played, its year and the final scores. */
-  | { type: "game-over"; turn: number; year: number; scores: Score[] }
+  /**
+   * The game ended (FR-068): the last turn played, its year and the final scores; with `reason` "conquest" and
+   * `winnerId` when one Great Power was left standing (FR-223).
+   */
+  | { type: "game-over"; turn: number; year: number; scores: Score[]; reason?: "conquest"; winnerId?: NationId }
   // Diplomacy (FR-176). `nationId` is the acting Great Power, so another nation's lines get its name (FR-107).
   /** An overture took effect; for an alliance or a peace between two Great Powers each of them gets one. */
   | { type: "overture-done"; nationId: NationId; overture: Exclude<Overture, "war">; targetId: CountryId }
@@ -71,7 +75,16 @@ export type GameEvent =
   /** Regiments of the nation marched along one route this turn (FR-206). */
   | { type: "army-moved"; nationId: NationId; fromProvinceId: ProvinceId; toProvinceId: ProvinceId; count: number }
   /** Regiments left the army: by order (FR-207) or for want of upkeep money (FR-202). */
-  | { type: "regiments-disbanded"; nationId: NationId; reason: DisbandReason; count: number };
+  | { type: "regiments-disbanded"; nationId: NationId; reason: DisbandReason; count: number }
+  // War (M9). `nationId` is the attacking or conquering Great Power.
+  /** One battle, the whole report (FR-225). */
+  | ({ type: "battle-resolved" } & BattleReport)
+  /** A province passed to `nationId` from `fromId` (FR-222). */
+  | { type: "province-taken"; nationId: NationId; provinceId: ProvinceId; fromId: CountryId }
+  /** `fallenId` lost its capital province to `nationId`: all its land passed, its regiments are gone (FR-223). */
+  | { type: "nation-fallen"; nationId: NationId; fallenId: NationId }
+  /** The minor lost its capital province to `nationId` and is now its colony (FR-224). */
+  | { type: "minor-colonised"; nationId: NationId; minorId: MinorNationId };
 
 /** Why regiments were disbanded (FR-202, FR-207). */
 export type DisbandReason = "order" | "no-pay";
@@ -107,8 +120,8 @@ export type TradeMissCause =
   | { kind: "used-up"; barred?: BarredCounterparty[] }
   | { kind: "no-hold" };
 
-/** Why a locked grant ended (FR-170). */
-export type GrantStopReason = "insufficient-funds" | "withdrawn" | "war";
+/** Why a locked grant ended (FR-170); "colony": the minor became another Great Power's colony (FR-224). */
+export type GrantStopReason = "insufficient-funds" | "withdrawn" | "war" | "colony";
 
 /** Everything a system may use besides the state itself (FR-012). */
 export interface TurnContext {

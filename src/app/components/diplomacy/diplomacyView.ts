@@ -184,9 +184,13 @@ const SINCE_THE_START = { note: "since the start", title: "Great Powers begin th
 
 /** The pair's standing treaties as chips, in the FR-177 order. */
 function treatiesOf(state: GameState, nationId: NationId, otherId: CountryId): TreatyView[] {
+  // FR-224, FR-233: a minor whose capital fell is a colony, ours or another Great Power's; first, as it outranks the rest
+  const colonyOf = state.minorNations.find((m) => m.id === otherId)?.colonyOf;
+  const colony: TreatyView[] =
+    colonyOf === undefined ? [] : [{ text: colonyOf === nationId ? "Colony" : `Colony of ${countryName(state, colonyOf) ?? colonyOf}` }];
   const pair = relationOf(state, nationId, otherId);
-  if (!pair) return [];
-  const chips: TreatyView[] = [];
+  if (!pair) return colony;
+  const chips: TreatyView[] = [...colony];
   const fromStart = pair.startTreaties === true ? SINCE_THE_START : {};
   if (pair.consulates.includes(nationId)) chips.push({ text: "Consulate", ...fromStart });
   if (pair.embassies.includes(nationId)) chips.push({ text: "Embassy", ...fromStart });

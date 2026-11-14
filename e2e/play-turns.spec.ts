@@ -42,7 +42,7 @@ test('FR-025 move a worker, start a job and end the turn, three times', async ({
   await expect(tile(page, '3-9').getByTitle('Development in progress')).toBeVisible();
   await expect(cash(page)).toContainText('Cash: $9,000');
   await endTurn(page, 2);
-  await expect(page.getByTestId('news-panel')).toContainText('News, turn 1');
+  await expect(page.getByTestId('news-panel')).toContainText('News from last turn (turn 1, Spring 1815)');
 
   // Turn 2: the engineer steps north next to the capital and builds rail there ($100).
   await pickWorker(page, 'engineer');

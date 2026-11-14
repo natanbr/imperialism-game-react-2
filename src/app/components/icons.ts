@@ -15,6 +15,7 @@ import {
   GiCow,
   GiCowboyBoot,
   GiCrossedSabres,
+  GiCrossedSwords,
   GiCrosshair,
   GiCutDiamond,
   GiDesert,
@@ -57,6 +58,7 @@ import {
   GiSpyglass,
   GiSteamLocomotive,
   GiSwamp,
+  GiSwordClash,
   GiToolbox,
   GiTrowel,
   GiWaves,
@@ -84,6 +86,7 @@ export const GI = {
   GiCow,
   GiCowboyBoot,
   GiCrossedSabres,
+  GiCrossedSwords,
   GiCrosshair,
   GiCutDiamond,
   GiDesert,
@@ -126,6 +129,7 @@ export const GI = {
   GiSpyglass,
   GiSteamLocomotive,
   GiSwamp,
+  GiSwordClash,
   GiToolbox,
   GiTrowel,
   GiWaves,
@@ -233,6 +237,10 @@ export const UI_ICONS = {
   militia: "GiPitchfork",
   /** The Armoury (FR-212) */
   armoury: "GiCrossedSabres",
+  /** The Attack screen (FR-230): the Imp1 crossed swords over an enemy province */
+  attack: "GiCrossedSwords",
+  /** The Battle screen (FR-231) */
+  battle: "GiSwordClash",
 } as const satisfies Record<string, IconName>;
 
 /**

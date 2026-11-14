@@ -83,12 +83,22 @@ function play(seed: number): Game {
  * treasuries were [0, 2176]). Before M8: deals
  * [59, 53], [59, 56], [61, 53], [76, 51]; purchases [31, 23], [30, 25], [34, 23], [45, 22]; minors [4, 1] on every seed;
  * treasuries [924, 88], [561, 492], [38, 38], [1532, 38].
+ * Measured again in M9 (FR-229, the scripted campaign on a minor): from turn 10 both nations raise Cuirassiers for a war on
+ * Arvelia; Valdoria declares on turn 21 and takes Arvelia on turn 22 in seeds 1, 3 and 4 (a colony then, FR-224), and
+ * Testland's 1 or 2 Cuirassiers raised before that stay in its capital province (capital arms 5 or 6; seed 2: no war,
+ * both keep theirs). The M8 numbers were: deals [54, 50], [47, 49], [50, 47], [54, 50]; purchases [24, 17], [19, 18],
+ * [20, 18], [25, 21]; minors [4, 1] on every seed; treasuries [805, 3177], [150, 2376], [182, 119], [870, 5]; capital
+ * arms [4, 4] on every seed.
+ * Measured again in the M9 review fix round (R1, FR-275): with the Cuirassiers beyond its capital keep each nation keeps
+ * a reserve that rises one turn of upkeep a turn from turn 28, so it spends less on turns 28 to 32. The M9 numbers before
+ * it were: deals [60, 60], [58, 52], [50, 53], [53, 63]; purchases [29, 27], [23, 19], [22, 23], [24, 28]; treasuries
+ * [1231, 3917], [3570, 2016], [608, 2488], [13, 5871]; minors, no-pay and capital arms as now.
  */
 const BASELINE = [
-  { seed: 1, minorDeals: [54, 50], minorPurchases: [24, 17], minorsDealt: [4, 1], treasury: [805, 3177], noPay: [0, 0], capitalArms: [4, 4] },
-  { seed: 2, minorDeals: [47, 49], minorPurchases: [19, 18], minorsDealt: [4, 1], treasury: [150, 2376], noPay: [0, 0], capitalArms: [4, 4] },
-  { seed: 3, minorDeals: [50, 47], minorPurchases: [20, 18], minorsDealt: [4, 1], treasury: [182, 119], noPay: [0, 0], capitalArms: [4, 4] },
-  { seed: 4, minorDeals: [54, 50], minorPurchases: [25, 21], minorsDealt: [4, 1], treasury: [870, 5], noPay: [0, 0], capitalArms: [4, 4] },
+  { seed: 1, minorDeals: [60, 60], minorPurchases: [29, 27], minorsDealt: [4, 4], treasury: [1549, 5040], noPay: [0, 0], capitalArms: [5, 4] },
+  { seed: 2, minorDeals: [59, 50], minorPurchases: [24, 19], minorsDealt: [4, 1], treasury: [4178, 959], noPay: [0, 0], capitalArms: [6, 5] },
+  { seed: 3, minorDeals: [56, 56], minorPurchases: [26, 25], minorsDealt: [4, 4], treasury: [1518, 5091], noPay: [0, 0], capitalArms: [5, 4] },
+  { seed: 4, minorDeals: [53, 60], minorPurchases: [24, 28], minorsDealt: [4, 4], treasury: [13, 3725], noPay: [0, 0], capitalArms: [5, 4] },
 ];
 
 /** The force size (FR-204) of the nation's army in its capital province at turn 40. */

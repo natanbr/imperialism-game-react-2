@@ -373,3 +373,10 @@ button.armyMarker:focus-visible {
   pointer-events: none;
   font-variant-numeric: tabular-nums;
 }
+
+/* FR-230: our regiments here are selected (ticked in the Army screen): a click on a bordering enemy province attacks with
+   them. A ring in the accent colour around the marker, the same as its focus ring but always shown */
+button.armyMarkerSelected {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}

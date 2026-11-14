@@ -5,7 +5,8 @@ import { createGameStore, randomSeed, EVENT_LOG_TURNS } from '@/store/rootStore'
 import { applyOrder, marketModeOf, newGame, resolveTurn, type Order } from '@/engine';
 import { WorkerType } from '@/types/Workers';
 import { PROSPECT_COST } from '@/definisions/workPrices';
-import { game, locate, N1, N2, setTreasury, setWarehouse, T, treasury, workerId } from '../engine/fixtures';
+import { game, locate, N1, N2, setPair, setTreasury, setWarehouse, T, treasury, workerId } from '../engine/fixtures';
+import { relocate } from '../engine/armyFixtures';
 
 const W = {
   prospector: workerId(N1, WorkerType.Prospector),
@@ -183,6 +184,21 @@ describe('FR-021 advanceTurn resolves the turn with the engine and keeps the eve
 
     expect(store.getState().lastRejection).toBeNull();
     expect(treasury(store.getState().game, N1)).toBeGreaterThanOrEqual(0);
+  });
+
+  it('FR-225 an attack ordered through the store is fought at End Turn and its battle report is kept in the event log', () => {
+    // Testland at war with Arvelia (war active) and its field army on the border, Testland North-East
+    let g = newGame({ seed: 1, world: 'continent', market: 'world' });
+    g = relocate(g, ['regiment-1', 'regiment-2', 'regiment-3'], 'province-nation-1-ne');
+    g = setPair(g, N1, 'minor-1', { war: { aggressors: [N1], since: 1 }, consulates: [], embassies: [] });
+    const store = createGameStore({ game: g });
+    const attack: Order = { kind: 'moveArmy', nationId: N1, fromProvinceId: 'province-nation-1-ne', regimentIds: ['regiment-1', 'regiment-2', 'regiment-3'], toProvinceId: 'province-minor-1' };
+    expect(store.getState().submitOrder(attack)).toEqual({ ok: true });
+
+    store.getState().advanceTurn();
+
+    const battles = store.getState().eventLog.at(-1)!.events.filter(e => e.type === 'battle-resolved');
+    expect(battles.map(b => (b.type === 'battle-resolved' ? [b.nationId, b.provinceId, b.defenderId] : []))).toEqual([[N1, 'province-minor-1', 'minor-1']]);
   });
 
   it(`keeps only the last ${EVENT_LOG_TURNS} turns in the event log`, () => {

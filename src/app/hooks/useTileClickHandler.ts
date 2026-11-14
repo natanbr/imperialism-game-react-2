@@ -4,6 +4,7 @@ import { Tile } from '@/types/Tile';
 import { Worker } from '@/types/Workers';
 import { PossibleAction } from '@/types/actions';
 import { useGameStore } from '@/store/rootStore';
+import { attackPlanAt } from '@/components/army/attackView';
 import { moveOrders, submitFirstAccepted, tileClickOrders } from './tileClickOrders';
 
 /**
@@ -29,7 +30,22 @@ export function useTileClickHandler(
       openConstructionModal,
       selectWorker,
       selectTile,
+      armySelection,
+      clearArmySelection,
+      openAttack,
     } = useGameStore.getState();
+
+    // FR-230: with regiments of ours selected, a tile of a bordering enemy province opens the Attack screen (no order
+    // yet: its Attack button orders it); any other tile drops the selection and is clicked as usual
+    if (armySelection) {
+      const plan = tile.provinceId ? attackPlanAt(game, activeNationId, armySelection, tile.provinceId) : undefined;
+      if (plan) {
+        openAttack(plan);
+        selectTile(tile.id);
+        return;
+      }
+      clearArmySelection();
+    }
 
     // Another country's tile, a Great Power's or a minor nation's, is only viewed (FR-108, FR-155):
     // no order, so no refusal in the news

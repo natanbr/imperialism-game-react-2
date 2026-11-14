@@ -77,6 +77,25 @@ describe('FR-212 the Armoury: how it opens', () => {
     expect(screen.getByRole('dialog', { name: /Capital/ })).toBeTruthy();
   });
 
+  it("FR-272 each card shows its regiment's picture from the art pack, decorative (alt \"\": the card's title names it)", () => {
+    openArmoury(continent());
+    const pictures = within(armoury())
+      .getAllByRole('article')
+      .map((article) => {
+        const img = article.querySelector('img')!;
+        return [article.getAttribute('aria-label'), img.getAttribute('src'), img.getAttribute('alt')];
+      });
+    expect(pictures).toEqual([
+      ['Skirmishers', '/assets/ink-and-wash/army/light-infantry.png', ''],
+      ['Regulars', '/assets/ink-and-wash/army/regulars.png', ''],
+      ['Grenadiers', '/assets/ink-and-wash/army/grenadiers.png', ''],
+      ['Hussars', '/assets/ink-and-wash/army/hussars.png', ''],
+      ['Cuirassiers', '/assets/ink-and-wash/army/cuirassiers.png', ''],
+      ['Light Artillery', '/assets/ink-and-wash/army/horse-artillery.png', ''],
+      ['Artillery', '/assets/ink-and-wash/army/heavy-artillery.png', ''],
+    ]);
+  });
+
   it('FR-212 two-islands has no provinces: no Armoury button', () => {
     useGameStore.setState({ ...useGameStore.getInitialState(), game: newGame({ seed: 1, world: 'two-islands' }), activeNationId: N1, isCapitalOpen: true });
     render(<CapitalModal />);

@@ -1,7 +1,7 @@
 // FR-024: display text for the HUD's news and refusals, derived from engine data.
 import { describe, it, expect } from 'vitest';
 import {
-  COMMODITY_GROUPS, COMMODITY_TEXT, commodityName, completedTileIds, dateText, eventText, foodWarningText, newsLines, refusalText, REFUSAL_TEXT,
+  COMMODITY_GROUPS, COMMODITY_TEXT, commodityName, completedTileIds, dateText, eventText, foodWarningText, newsItems, newsLines, refusalText, REFUSAL_TEXT,
   upkeepDueText, upkeepWarningText, workerJobLabel,
 } from '@/components/gameText';
 import { newGame, resolveTurn, tryApplyOrder, type GameEvent, type Order, type RejectReason } from '@/engine';
@@ -319,11 +319,12 @@ describe('FR-205 FR-209 army orders, refusals and news in plain words', () => {
     expect(REFUSAL_TEXT['not-adjacent']).toBe("that province does not border the army's province");
   });
 
-  it('FR-205 review R7, F5: a march into a country at war reads that attacks are not possible yet, not "that is not yours"', () => {
+  it('FR-216 (M9) replaces the M8 refusal of review R7, F5: a march into a country at war is an attack, so "attacks are not possible yet" is gone', () => {
     const march: Order = { kind: 'moveArmy', nationId: N, fromProvinceId: SW, regimentIds: ['regiment-1'], toProvinceId: NE };
 
-    expect(refusalText({ order: march, reason: 'attack-not-available' })).toBe('March refused: attacks are not possible yet.');
-    expect(REFUSAL_TEXT['attack-not-available']).not.toBe(REFUSAL_TEXT['not-owner']);
+    expect(Object.keys(REFUSAL_TEXT)).not.toContain('attack-not-available');
+    expect(Object.values(REFUSAL_TEXT)).not.toContain('attacks are not possible yet');
+    expect(refusalText({ order: march, reason: 'not-at-war' })).toBe('March refused: we are not at war with them.');
   });
 
   it('FR-205 FR-207 each army order has a name in a refusal', () => {
@@ -388,5 +389,69 @@ describe('FR-205 FR-209 army orders, refusals and news in plain words', () => {
     const army = events.filter(e => ['regiments-recruited', 'army-upkeep', 'army-moved', 'regiments-disbanded'].includes(e.type));
     expect([...new Set(army.map(e => e.type))].sort()).toEqual(['army-moved', 'army-upkeep', 'regiments-disbanded', 'regiments-recruited']);
     for (const e of army) expect(['nation-1', 'nation-2']).toContain((e as { nationId: string }).nationId);
+  });
+});
+
+// M9 UI half. FR-232: the war news. A battle reads "Battle at Arvelia: Province Taken!" from the attacker's side
+// ("Attack Failed!" when held); `newsItems` words a battle the player fought from the player's side ("Province Lost!",
+// "Enemy Beaten Back!") as the player's own line and carries the report so the line opens its Battle screen. A taken
+// province reads "Testland South-East taken from Testland." ("Arvelia taken." when the province bears its country's
+// name), a fallen Great Power "Valdoria has fallen.", a colony "Arvelia is now our colony."
+describe('FR-232 the war news', () => {
+  const names: Record<string, string> = {
+    'nation-1': 'Testland',
+    'nation-2': 'Valdoria',
+    'minor-1': 'Arvelia',
+    'province-minor-1': 'Arvelia',
+    'province-nation-1-se': 'Testland South-East',
+  };
+  const name = (id: string) => names[id] ?? id;
+  const battle = (over: Partial<Extract<GameEvent, { type: 'battle-resolved' }>> = {}): Extract<GameEvent, { type: 'battle-resolved' }> => ({
+    type: 'battle-resolved',
+    nationId: 'nation-1',
+    provinceId: 'province-minor-1',
+    attackerIds: ['nation-1'],
+    defenderId: 'minor-1',
+    fortLevel: 0,
+    regiments: [],
+    rounds: [],
+    result: 'attacker-won',
+    provinceTaken: true,
+    ...over,
+  });
+
+  it.each<[GameEvent, string]>([
+    [battle(), 'Battle at Arvelia: Province Taken!'],
+    [battle({ result: 'defender-held', provinceTaken: false }), 'Battle at Arvelia: Attack Failed!'],
+    [{ type: 'province-taken', nationId: 'nation-2', provinceId: 'province-nation-1-se', fromId: 'nation-1' }, 'Testland South-East taken from Testland.'],
+    [{ type: 'province-taken', nationId: 'nation-1', provinceId: 'province-minor-1', fromId: 'minor-1' }, 'Arvelia taken.'],
+    [{ type: 'nation-fallen', nationId: 'nation-1', fallenId: 'nation-2' }, 'Valdoria has fallen.'],
+    [{ type: 'minor-colonised', nationId: 'nation-1', minorId: 'minor-1' }, 'Arvelia is now our colony.'],
+  ])('FR-232 %j reads as its line', (event, line) => {
+    expect(eventText(event, name)).toBe(line);
+  });
+
+  it('FR-232 a battle we defended is our own line, from our side; it carries its report', () => {
+    const lost = battle({ nationId: 'nation-2', attackerIds: ['nation-2'], defenderId: 'nation-1', provinceId: 'province-nation-1-se' });
+    const held = battle({ nationId: 'nation-2', attackerIds: ['nation-2'], defenderId: 'nation-1', provinceId: 'province-nation-1-se', result: 'defender-held', provinceTaken: false });
+    const items = newsItems([lost, held], 'nation-1', name);
+    expect(items.map((i) => i.text)).toEqual(['Battle at Testland South-East: Province Lost!', 'Battle at Testland South-East: Enemy Beaten Back!']);
+    expect(items.map((i) => i.battle)).toEqual([lost, held]);
+    // newsLines is the text of the items
+    expect(newsLines([lost, held], 'nation-1', name)).toEqual(items.map((i) => i.text));
+  });
+
+  it("FR-232 FR-107 another nation's battle starts with its name and opens too; other lines carry no report", () => {
+    const theirs = battle({ nationId: 'nation-2', attackerIds: ['nation-2'] });
+    const items = newsItems([theirs, { type: 'minor-colonised', nationId: 'nation-2', minorId: 'minor-1' }], 'nation-1', name);
+    expect(items).toEqual([
+      { text: 'Valdoria: Battle at Arvelia: Province Taken!', battle: theirs },
+      { text: 'Valdoria: Arvelia is now our colony.' },
+    ]);
+  });
+
+  it('FR-232 with several attackers, a country whose attack failed reads "Attack Failed!" though the province was taken', () => {
+    const shared = battle({ nationId: 'nation-2', attackerIds: ['nation-2', 'nation-1'] });
+    expect(newsItems([shared], 'nation-1', name).map((i) => i.text)).toEqual(['Battle at Arvelia: Attack Failed!']);
   });
 });

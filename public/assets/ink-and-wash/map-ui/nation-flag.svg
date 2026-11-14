@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="18" height="20" viewBox="0 0 18 20" role="img" aria-label="Territory flag">
+  <path d="M4.5 17.5Q4.2 10.25 4.6 2.8" fill="none" stroke="#c8b18a" stroke-width="2.4"
+    stroke-linecap="round" opacity=".65"/>
+  <path d="M4.5 17.5Q4.2 10.25 4.6 2.8" fill="none" stroke="#514433" stroke-width="1.35" stroke-linecap="round"/>
+  <path d="M4.75 4Q9.25 2.9 14.4 4.1L12 7.05 14.4 10.3Q10.55 9 4.7 10.45Z"
+    fill="#875e52" stroke="#574337" stroke-width=".7" stroke-linejoin="round"/>
+  <path d="M5.8 4.75Q9.3 4 12.55 4.5" fill="none" stroke="#b38a73" stroke-width=".6" stroke-linecap="round"/>
+</svg>

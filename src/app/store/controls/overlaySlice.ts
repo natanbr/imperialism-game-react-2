@@ -1,5 +1,21 @@
 import { StateCreator } from 'zustand';
 import { GameStore } from '../rootStore';
+import type { BattleReport } from '@/types/Battle';
+
+/** The regiments the player ticked in one province's Army screen (FR-230): kept when the screen closes. */
+export interface ArmySelection {
+  provinceId: string;
+  regimentIds: string[];
+}
+
+/** What the Attack screen shows and its Attack button orders (FR-230). */
+export interface AttackPlan {
+  fromProvinceId: string;
+  toProvinceId: string;
+  regimentIds: string[];
+  /** Opened from the Army screen, which it replaces (FR-279): closing it brings that screen back. */
+  fromArmyScreen?: boolean;
+}
 
 export interface OverlaySlice {
   // Warehouse modal controls
@@ -32,10 +48,29 @@ export interface OverlaySlice {
   dismissedProposalIds: string[];
   dismissProposal: (proposalId: string) => void;
 
-  // The Army screen (FR-211): the province whose army it shows, opened from our marker on the map (FR-210)
+  // The Army screen (FR-211): the province whose army it shows, opened from our marker on the map (FR-210); the "March
+  // to" entry it opens on, the attacked province when the Attack screen gives it back (FR-279), else null (the first)
   armyProvinceId: string | null;
-  openArmy: (provinceId: string) => void;
+  armyTargetId: string | null;
+  openArmy: (provinceId: string, targetId?: string) => void;
   closeArmy: () => void;
+
+  // The army selection (FR-230): the Army screen's ticks, kept when it closes, so a click on a bordering enemy province
+  // opens the Attack screen with them; End Turn and a click elsewhere on the map drop it
+  armySelection: ArmySelection | null;
+  selectRegiments: (provinceId: string, regimentIds: string[]) => void;
+  clearArmySelection: () => void;
+
+  // The Attack screen (FR-230), opened from the Army screen (in its place, FR-279) or from the map
+  attackPlan: AttackPlan | null;
+  openAttack: (plan: AttackPlan) => void;
+  closeAttack: () => void;
+
+  // The Battle screen (FR-231, FR-232): the battle reports still to see, the first shown; End Turn queues the battles
+  // the player fought, a news line one battle
+  battleQueue: BattleReport[];
+  showBattle: (report: BattleReport) => void;
+  closeBattle: () => void;
 
   // The Armoury (FR-212), opened from the capital dialog
   isArmouryOpen: boolean;
@@ -85,8 +120,30 @@ export const createOverlaySlice: StateCreator<GameStore, [], [], OverlaySlice> =
 
   // Army screen and Armoury: same stale-refusal rule as the capital (FR-055)
   armyProvinceId: null,
-  openArmy: (provinceId) => set({ armyProvinceId: provinceId, lastRejection: null }),
-  closeArmy: () => set({ armyProvinceId: null }),
+  armyTargetId: null,
+  openArmy: (provinceId, targetId) => set({ armyProvinceId: provinceId, armyTargetId: targetId ?? null, lastRejection: null }),
+  closeArmy: () => set({ armyProvinceId: null, armyTargetId: null }),
+
+  armySelection: null,
+  selectRegiments: (provinceId, regimentIds) =>
+    set({ armySelection: regimentIds.length > 0 ? { provinceId, regimentIds: [...regimentIds] } : null }),
+  clearArmySelection: () => set({ armySelection: null }),
+
+  // Same stale-refusal rule as the capital (FR-055). One dialog at a time (FR-279): the Attack screen closes the Army
+  // screen, and one opened from it gives it back on close (Cancel, Escape, the backdrop, or after Attack) on the same
+  // "March to" entry; the ticks are the selection, which the store keeps
+  attackPlan: null,
+  openAttack: (plan) => set({ attackPlan: plan, armyProvinceId: null, armyTargetId: null, lastRejection: null }),
+  closeAttack: () =>
+    set((s) =>
+      s.attackPlan?.fromArmyScreen
+        ? { attackPlan: null, armyProvinceId: s.attackPlan.fromProvinceId, armyTargetId: s.attackPlan.toProvinceId, lastRejection: null }
+        : { attackPlan: null }
+    ),
+
+  battleQueue: [],
+  showBattle: (report) => set({ battleQueue: [report] }),
+  closeBattle: () => set((s) => ({ battleQueue: s.battleQueue.slice(1) })),
 
   isArmouryOpen: false,
   openArmoury: () => set({ isArmouryOpen: true, lastRejection: null }),

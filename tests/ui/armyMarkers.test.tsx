@@ -8,13 +8,15 @@ import { describe, it, expect } from 'vitest';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { MapView } from '@/components/MapView';
 import { ArmyModal } from '@/components/ArmyModal';
-import { markerLabel } from '@/components/army/armyView';
+import { attackArrows, markerLabel } from '@/components/army/armyView';
+import { ATTACK_ARROW_ART } from '@/components/art/inkArt';
 import { useGameStore } from '@/store/rootStore';
 import { newGame, type Order } from '@/engine';
 import { tryApplyOrder } from '@/engine/orders/apply';
 import { NATION_COLORS, THEME } from '@/styles/theme';
 import type { GameState } from '@/types/GameState';
-import { addRegiments, continent, idOf, NE1, NW1, SW1 } from '../engine/armyFixtures';
+import { addRegiments, ARVELIA, ARVELIA_P, continent, idOf, NE1, NW1, relocate, SW1 } from '../engine/armyFixtures';
+import { setPair } from '../engine/fixtures';
 import { failOnActWarnings } from './actWarnings';
 import { text } from './domText';
 
@@ -154,7 +156,8 @@ describe('FR-210 army markers on the seat tiles', () => {
 // M8 QA fix round, item 1. FR-263: before End Turn the map shows the player's own army orders: a dashed arrow in the
 // nation's colour from the source province's marker to the destination's seat, with the count of regiments marching,
 // named "Testland North-West: 1 regiment marching in from Testland South-West"; a disband ordered shows "−1" on the
-// source marker. The markers' names say it too.
+// source marker. The markers' names say it too. Since M9 the arrow's colour and dashes follow FR-273 (the art pack's
+// solid green movement arrow, NR-031); its ends and count are FR-263's.
 describe('FR-263 pending army orders on the map', () => {
   const N2 = 'nation-2';
   /** Renders the map on a new continent game and returns it with a way to send orders through the store. */
@@ -170,7 +173,7 @@ describe('FR-263 pending army orders on the map', () => {
   }
   const arrows = (container: HTMLElement) => within(container).queryAllByTestId('march-arrow');
 
-  it('FR-263 a march ordered: one arrow from the source marker to the destination seat, in the nation\'s colour, dashed, with its count and its name', () => {
+  it('FR-263 FR-273 a march ordered: one arrow from the source marker to the destination seat, in the pack\'s green movement treatment, with its count and its name', () => {
     const { container, send, id } = mapWithOrders();
     expect(arrows(container)).toEqual([]);
     send({ kind: 'moveArmy', nationId: N1, fromProvinceId: SW1, regimentIds: [id('1st Regulars')], toProvinceId: NW1 });
@@ -182,9 +185,15 @@ describe('FR-263 pending army orders on the map', () => {
     expect(screen.getByRole('img', { name: 'Testland North-West: 1 regiment marching in from Testland South-West' })).toBe(arrow);
     expect(text(within(arrow).getByTestId('march-count'))).toBe('1');
     const line = within(arrow).getByTestId('march-line');
-    expect(line.getAttribute('stroke')).toBe(NATION_COLORS[0]);
-    expect(line.getAttribute('stroke-dasharray')).toBeTruthy();
-    expect(within(arrow).getByTestId('march-head').getAttribute('fill')).toBe(NATION_COLORS[0]);
+    // FR-273 (NR-031, replaces FR-263's nation colour and dashes): GREEN means movement, a committed order is solid,
+    // outlined in the pack's dark ink; the head and the count badge in the same green
+    expect(line.getAttribute('stroke')).toBe(THEME.armyMove);
+    expect(line.getAttribute('stroke-dasharray')).toBeNull();
+    expect(within(arrow).getByTestId('march-outline').getAttribute('stroke')).toBe(THEME.armyMoveInk);
+    expect(within(arrow).getByTestId('march-head').getAttribute('fill')).toBe(THEME.armyMove);
+    expect(within(arrow).getByTestId('march-head').getAttribute('stroke')).toBe(THEME.armyMoveInk);
+    expect(arrow.querySelector('circle')!.getAttribute('fill')).toBe(THEME.armyMove);
+    expect(NATION_COLORS).not.toContain(line.getAttribute('stroke'));
 
     // From the South-West marker (seat 2-9, odd row: 105, 378; the marker's centre 1 px right of the tile's left edge,
     // 21 px down) towards the North-West seat's marker (4-4: 168, 168), leaving the two markers clear
@@ -291,5 +300,78 @@ describe('FR-263 pending army orders on the map', () => {
     const { container } = render(<MapView />);
     expect(arrows(container)).toEqual([]);
     expect(markersIn(container, '14-9')[0].getAttribute('aria-label')).toBe('Valdoria army: force size 4, 3 regiments, 4 militia');
+  });
+});
+
+// M9 UI half. FR-273 (NR-031; Imp1 red attack arrows, rules 11 section 5.1): an attack ordered this turn is the art pack's
+// RED attack arrow (map-ui/army-attack.svg) from the source province's marker towards the attacked province's seat, its
+// tail 15 px on from the source marker's centre and its tip 15 px short of the target's, named "Arvelia: 3 regiments
+// attacking from Testland North-East", with the count on a red badge. A march stays the GREEN arrow.
+describe('FR-273 attacks on the map', () => {
+  const FIELD = ['regiment-1', 'regiment-2', 'regiment-3'];
+  /** Testland at war with Arvelia (active) and its field army in Testland North-East, on the map. */
+  function warMap() {
+    let s = relocate(continent('world'), FIELD, NE1);
+    s = setPair(s, N1, ARVELIA, { war: { aggressors: [N1], since: 1 }, consulates: [], embassies: [], pact: false, alliance: false });
+    show(s);
+    const view = render(<MapView />);
+    const send = (order: Order) =>
+      act(() => {
+        expect(useGameStore.getState().submitOrder(order)).toEqual({ ok: true });
+      });
+    return { ...view, send };
+  }
+  const attacks = (container: HTMLElement) => within(container).queryAllByTestId('attack-arrow');
+
+  it("FR-273 an attack ordered: the pack's red arrow, named and counted; no green march arrow for it", () => {
+    const { container, send } = warMap();
+    expect(attacks(container)).toEqual([]);
+    send({ kind: 'moveArmy', nationId: N1, fromProvinceId: NE1, regimentIds: FIELD, toProvinceId: ARVELIA_P });
+
+    const [arrow] = attacks(container);
+    expect(attacks(container)).toHaveLength(1);
+    expect(within(container).queryAllByTestId('march-arrow')).toEqual([]);
+    expect(arrow.getAttribute('role')).toBe('img');
+    expect(screen.getByRole('img', { name: 'Arvelia: 3 regiments attacking from Testland North-East' })).toBe(arrow);
+    const picture = within(arrow).getByTestId('attack-art');
+    expect(picture.getAttribute('href')).toBe(ATTACK_ARROW_ART.url);
+    expect(text(within(arrow).getByTestId('attack-count'))).toBe('3');
+    expect(arrow.querySelector('circle')!.getAttribute('fill')).toBe(THEME.armyAttack);
+    // The markers say it too
+    expect(markersIn(container, '7-3')[0].getAttribute('aria-label')).toBe('Testland army: force size 4, 3 regiments, 4 militia, 3 attacking');
+  });
+
+  it("FR-273 the arrow's tail lies 15 px on from the source marker's centre and its tip 15 px short of the target's", () => {
+    const { send } = warMap();
+    send({ kind: 'moveArmy', nationId: N1, fromProvinceId: NE1, regimentIds: FIELD, toProvinceId: ARVELIA_P });
+    const [view] = attackArrows(useGameStore.getState().game, N1);
+    // Marker centres: Testland North-East's seat 7-3 (odd row: 7 x 42 + 21 + 1, 3 x 42 + 21), Arvelia's capital 11-4
+    // (a minor's capital: its markers sit higher, 13 px down)
+    const from = { x: 316, y: 147 };
+    const to = { x: 463, y: 181 };
+    const length = Math.hypot(to.x - from.x, to.y - from.y);
+    const [ux, uy] = [(to.x - from.x) / length, (to.y - from.y) / length];
+    const [a, b, c, d, e, f] = view.matrix;
+    const apply = (p: { x: number; y: number }) => ({ x: a * p.x + c * p.y + e, y: b * p.x + d * p.y + f });
+    const tail = apply(ATTACK_ARROW_ART.tail);
+    const tip = apply(ATTACK_ARROW_ART.tip);
+    expect(tail.x).toBeCloseTo(from.x + ux * 15, 1);
+    expect(tail.y).toBeCloseTo(from.y + uy * 15, 1);
+    expect(tip.x).toBeCloseTo(to.x - ux * 15, 1);
+    expect(tip.y).toBeCloseTo(to.y - uy * 15, 1);
+    // Uniform scale: the arrow keeps the pack's proportions
+    expect(Math.hypot(a, b)).toBeCloseTo(Math.hypot(c, d), 6);
+  });
+
+  it('FR-273 a march and an attack from one province: one green and one red arrow; Cancel attack takes the red one away', () => {
+    const { container, send } = warMap();
+    send({ kind: 'moveArmy', nationId: N1, fromProvinceId: NE1, regimentIds: ['regiment-1', 'regiment-2'], toProvinceId: ARVELIA_P });
+    send({ kind: 'moveArmy', nationId: N1, fromProvinceId: NE1, regimentIds: ['regiment-3'], toProvinceId: NW1 });
+    expect(attacks(container).map((a) => a.getAttribute('aria-label'))).toEqual(['Arvelia: 2 regiments attacking from Testland North-East']);
+    expect(within(container).getAllByTestId('march-arrow').map((a) => a.getAttribute('aria-label'))).toEqual([
+      'Testland North-West: 1 regiment marching in from Testland North-East',
+    ]);
+    send({ kind: 'cancelArmyMove', nationId: N1, regimentIds: ['regiment-1', 'regiment-2'] });
+    expect(attacks(container)).toEqual([]);
   });
 });

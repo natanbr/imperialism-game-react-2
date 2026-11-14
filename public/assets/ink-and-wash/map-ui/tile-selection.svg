@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="42" height="42" viewBox="0 0 42 42" role="img" aria-label="Selected tile">
+  <defs>
+    <path id="selection-corners" d="M3.85 11.85Q3.65 7 4.1 3.8Q8 4.1 12.1 3.8M30.15 3.9Q34.5 3.75 37.9 4.05Q38.25 8.1 37.8 11.8M38.2 29.9Q38.05 34.1 38 38.15Q34 37.9 29.9 38.3M12.1 38.15Q7.75 37.95 3.9 38.2Q4.15 34.2 3.8 29.8"/>
+  </defs>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <use href="#selection-corners" stroke="#c8b18a" stroke-width="3" opacity=".78"/>
+    <use href="#selection-corners" stroke="#6b4e33" stroke-width="1.65"/>
+  </g>
+</svg>

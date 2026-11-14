@@ -234,6 +234,24 @@
 /* A regiment that cannot be ticked keeps its name in line with the ticked ones */
 .unpicked {
   padding-left: 22px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* No baseline gap under the label's picture: a row with a checkbox is as tall as one without */
+.pick {
+  vertical-align: middle;
+}
+
+/* FR-272: the regiment's picture from the art pack beside its name (the figure stands on the bottom centre) */
+.rowPicture {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  margin: -3px 0;
+  object-fit: contain;
+  object-position: center bottom;
 }
 
 .militia {
@@ -276,6 +294,19 @@
 
 .marching {
   color: var(--color-accent-strong);
+  font-weight: 700;
+}
+
+/* FR-230: an attack ordered (RED means attack, NR-031) */
+.attacking {
+  color: var(--color-text-danger);
+  font-weight: 700;
+}
+
+/* "Attack…": opens the Attack screen */
+.attackButton:not(:disabled) {
+  border-color: var(--color-bad);
+  color: var(--color-text-danger);
   font-weight: 700;
 }
 
@@ -372,6 +403,21 @@
 .card h3 {
   margin: 0;
   font-size: var(--font-size-lg);
+}
+
+/* FR-272: the regiment's picture before its name, drawn over the card's top padding so the card keeps its height (FR-264) */
+.cardPicture {
+  flex: none;
+  align-self: center;
+  width: 30px;
+  height: 30px;
+  margin: -7px -2px -3px -4px;
+  object-fit: contain;
+  object-position: center bottom;
+}
+
+.cardHead h3 {
+  margin-right: auto;
 }
 
 .category {

@@ -28,7 +28,7 @@ const disband = (s: GameState, names: string[], provinceId = SW1): Order => ({ k
 
 describe('FR-263 pendingArmyOrders: this turn\'s marches and disbands of a nation', () => {
   it('FR-263 a new game has none', () => {
-    expect(pendingArmyOrders(continent(), N1)).toEqual({ marches: [], disbands: {} });
+    expect(pendingArmyOrders(continent(), N1)).toEqual({ marches: [], attacks: [], disbands: {} });
   });
 
   it('FR-263 marches are counted per pair of provinces, disbands per province; another nation\'s orders are not ours', () => {
@@ -46,17 +46,18 @@ describe('FR-263 pendingArmyOrders: this turn\'s marches and disbands of a natio
         { fromProvinceId: SW1, toProvinceId: NW1, count: 2 },
         { fromProvinceId: SW1, toProvinceId: NE1, count: 1 },
       ],
+      attacks: [],
       disbands: {},
     });
-    expect(pendingArmyOrders(s, N2)).toEqual({ marches: [], disbands: {} });
+    expect(pendingArmyOrders(s, N2)).toEqual({ marches: [], attacks: [], disbands: {} });
   });
 
   it('FR-263 a later order for a regiment replaces its earlier one: a disband takes it out of the march, cancelArmyMove out of everything', () => {
     let s = continent();
     s = ordered(s, march(s, ['1st Regulars', '2nd Regulars'], SE1), disband(s, ['2nd Regulars']));
-    expect(pendingArmyOrders(s, N1)).toEqual({ marches: [{ fromProvinceId: SW1, toProvinceId: SE1, count: 1 }], disbands: { [SW1]: 1 } });
+    expect(pendingArmyOrders(s, N1)).toEqual({ marches: [{ fromProvinceId: SW1, toProvinceId: SE1, count: 1 }], attacks: [], disbands: { [SW1]: 1 } });
     s = ordered(s, { kind: 'cancelArmyMove', nationId: N1, regimentIds: [idOf(s, N1, '1st Regulars')] });
-    expect(pendingArmyOrders(s, N1)).toEqual({ marches: [], disbands: { [SW1]: 1 } });
+    expect(pendingArmyOrders(s, N1)).toEqual({ marches: [], attacks: [], disbands: { [SW1]: 1 } });
   });
 });
 

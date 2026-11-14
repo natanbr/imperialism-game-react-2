@@ -30,6 +30,11 @@ export const THEME = {
   minor: v("color-minor"),
   /** The dotted line between two provinces of one owner (FR-153, FR-154). */
   provinceBorder: v("color-province-border"),
+  /** Army orders on the map (FR-273): the art pack's red attack and green movement colours, each with its ink outline. */
+  armyAttack: v("color-army-attack"),
+  armyAttackInk: v("color-army-attack-ink"),
+  armyMove: v("color-army-move"),
+  armyMoveInk: v("color-army-move-ink"),
 } as const;
 
 /** One strong colour per palette slot (`Nation.colorSlot`, 1 first); used only for territory borders (FR-097). */

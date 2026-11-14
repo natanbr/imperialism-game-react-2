@@ -69,6 +69,15 @@ describe('FR-022 the UI changes the game only through submitOrder', () => {
     expect(/\bsubmitOrder\b/.test(readFileSync(join(ROOT, 'src/app/components/Tile/TileArmy.tsx'), 'utf8'))).toBe(false);
   });
 
+  it('FR-230 FR-231 the Attack screen and the Battle screen are scanned; the Attack screen sends its attack through submitOrder, the Battle screen builds no order', () => {
+    const screens = ['src/app/components/AttackModal.tsx', 'src/app/components/BattleModal.tsx'];
+    const scanned = files.map((f) => relative(ROOT, f).replace(/\\/g, '/'));
+    expect(screens.filter((f) => !scanned.includes(f))).toEqual([]);
+    expect(/\bsubmitOrder\(/.test(readFileSync(join(ROOT, 'src/app/components/AttackModal.tsx'), 'utf8'))).toBe(true);
+    // The replay reads the battle report only (FR-231)
+    expect(/\bsubmitOrder\b/.test(readFileSync(join(ROOT, 'src/app/components/BattleModal.tsx'), 'utf8'))).toBe(false);
+  });
+
   it('the UI uses no pre-M1 worker action of the store', () => {
     const old = /\b(moveSelectedWorkerToTile|moveAndStartProspecting|moveAndStartDevelopment|moveAndStartConstruction|purchaseTransportCapacityIncrease|setTransportAllocations|cancelAction)\s*\(/;
     const offenders = files.filter((f) => old.test(readFileSync(f, 'utf8')));

@@ -14,6 +14,7 @@ import { validateOrder } from "../orders/validate";
 import { bestDepotSite, nextRailSections, tilesByReach, type DepotSite } from "./railPlan";
 import { planEconomy, turnsAfter } from "./economy";
 import { scriptedDiplomacyOrders } from "./diplomacy";
+import { hasFieldArmy, planWarDeclaration, planWarMoves } from "./scriptedWar";
 
 /**
  * A player is any function from the game state to its orders for this turn. Scripted and,
@@ -44,6 +45,8 @@ export const scriptedPlayer: Player = (state, nationId) => {
 
   if (!nationById(state, nationId)) return orders;
 
+  // FR-274: a declaration of war first, so this turn's economy and trade see the war
+  planWarDeclaration(() => view, nationId, propose);
   planEconomy(() => view, nationId, propose);
 
   // The engineer plans first, so the depot he starts is paid for and its tiles count as gathered
@@ -58,6 +61,9 @@ export const scriptedPlayer: Player = (state, nationId) => {
       if (propose(order)) break;
     }
   }
+
+  // At war (or declaring war this turn): the attacks and marches (FR-228, FR-274)
+  planWarMoves(() => view, nationId, propose);
 
   // Last, and only at war: a peace offer when losing (FR-174). At peace nothing is added (FR-181).
   for (const order of scriptedDiplomacyOrders(view, nationId)) propose(order);
@@ -78,11 +84,16 @@ function spendsTheUpkeep(before: GameState, after: GameState, nationId: string):
  * the upkeep of every turn left (this one included), so the field army is paid to the end even when the sales stop.
  * Review E1: with two turns only, 6 of the 20 partners-market nation-games of seeds 1 to 10 lost their field army in
  * the last turns; with this rule none did, while a flat reserve of 6 or more turns cost about 100 points at turn 40.
+ * FR-275 (M9 review R1): with regiments beyond its capital keep (a field army, FR-274) the reserve rises by one turn of
+ * upkeep a turn into the last 8 turns (turn 28: 3 turns ... turn 32: 7) instead of stepping from 2 to 8 at turn 33:
+ * after its campaign, a nation that spent down to 2 turns on turn 31 and sold nothing for two turns lost its army.
  */
 export const upkeepReserve = (state: GameState, nationId: string): number => {
   const left = turnsAfter(state) + 1;
   const { upkeepTurns, endgameTurns } = SCRIPTED_GARRISON;
-  return upkeepOf(state, nationId) * (left <= endgameTurns ? left : upkeepTurns);
+  if (left <= endgameTurns) return upkeepOf(state, nationId) * left;
+  const ramp = hasFieldArmy(state, nationId) ? 2 * endgameTurns - left : 0;
+  return upkeepOf(state, nationId) * Math.max(upkeepTurns, ramp);
 };
 
 /**

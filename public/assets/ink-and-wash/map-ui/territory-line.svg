@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="42" height="10" viewBox="0 0 42 10" role="img" aria-label="Territory border line">
+  <path d="M0 5Q12 4.7 21 5T42 5" fill="none" stroke="#c8b18a" stroke-width="2.6" opacity=".58"/>
+  <path d="M0 4.55Q11.5 4.1 20.9 4.5T42 4.55V5.45Q33 5.7 21.1 5.5T0 5.45Z"
+    fill="#795047" opacity=".9"/>
+</svg>

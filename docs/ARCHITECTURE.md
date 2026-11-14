@@ -204,8 +204,8 @@ only (FR-018).
   `setProduction`; `moveArmy` and `disbandRegiments` store an intent (`army-move`, `disband`), one per
   regiment (a later order replaces the earlier); `cancelArmyMove` takes regiments out of the moves and
   `cancelDisband` out of the disbands. `setRecruitment` and the End Turn refund share `withRecruiting`
-  (`army/armies.ts`). In M8 a march into another country's province is refused (`not-at-war`, or
-  `attack-not-available` while at war: attacks are M9's).
+  (`army/armies.ts`). A march into another country's province is refused (`not-at-war`) unless a war with it
+  is active; then it is an attack (M9, below; M8 refused it with `attack-not-available`, now gone).
 - **Phases** (`systems/armySystem.ts`, `systems/combatSystem.ts`): after trade the disbands (FR-207), then
   the upkeep, $25 per arms point, disbanding the newest regiments when the treasury cannot pay (FR-202);
   in the combat phase the marches resolve together and the regiments that did not move heal 10 (FR-206,
@@ -231,6 +231,45 @@ only (FR-018).
   between two provinces each keep 10 px to their own right (FR-270). The marker's centre is copied from
   Tile.module.css into `armyView.ts`; e2e/m8-armies.spec.ts measures the arrow ends against the drawn markers (FR-271).
 
+### War (M9)
+
+- **Attacks** (FR-216): `moveArmy` into a province of a country at war (war active) stores an `attack` intent
+  (`targetId` = the province's owner); `cancelArmyMove` takes back marches and attacks; peace drops the attacks
+  (FR-169). `regimentStatus` reads "attacking", `pendingArmyOrders` lists `attacks` beside `marches`.
+- **Battles** (`systems/combatSystem.ts`): marches first (FR-206), then one battle per attacked province in id
+  order, then healing (not for a regiment that moved or fought, `foughtOnTurn`). The round model is
+  `army/combat.ts` `fightBattle` (pure, fed `ctx.rngFor("combat")` only; numbers in `definisions/combatRules.ts`);
+  regiments leaving a battlefield (attackers home, routed defenders) are placed after the last battle, so none
+  fights twice a turn. Every battle is fought before any capital falls: the falls of the capitals taken in the
+  phase apply after the last battle, in the winners' `intentOrder` (`fallCapital`), so crossing strikes on both
+  capitals go to the first in `intentOrder`. Each battle emits `battle-resolved` with the whole report
+  (`types/Battle.ts`) and the province it took, then the falls' events.
+- **Conquest** (`army/conquest.ts`, FR-222 to FR-224): `takeProvince` moves the land (`transferProvince`), clears
+  rail, depots, ports and jobs, sends the old owner's civilians home and records the capture in the war; a fallen
+  Great Power's capital takes all its land and regiments and ends its wars (`nation-fallen`); a minor's makes it
+  a colony (`colonyOf`, `minor-colonised`), which trades with its owner alone at max(start price, P), and to
+  which no overture, grant or policy is valid (reason "colony"); a colony passes with its capital province, and a
+  fallen Great Power's colonies pass to its conqueror.
+  `resolveTurn` ends the game when one Great Power is left (`gameOver.reason` "conquest", `conquestWinner`).
+- **Screens' reads**: `battleEstimate`, `defendersOf`, `attackTargets`, `attackStatus` (`army/combat.ts`);
+  `battleFrames`, `battleOutcome`, `battlesFoughtBy` (`army/battleReport.ts`).
+- **Scripted war** (`ai/scriptedWar.ts`, FR-228, FR-274 which replaces FR-229): the capital keeps its oldest 4 arms; at war the field
+  attacks at an estimate of 1.5 or more and otherwise marches toward the province facing the strongest enemy;
+  at peace from turn 10 a campaign on the weakest bordering minor raises Cuirassiers (tuned, journal M9) through
+  the garrison's recruit (`armsWanted` in `ai/scriptedArmy.ts`), declares war at twice its defence and attacks.
+  With such a field army the upkeep reserve (`upkeepReserve`, FR-275) rises one turn of upkeep a turn from turn 28.
+- **War screens** (UI, FR-230 to FR-233): React-free views in `components/army/` (`attackView.ts`, `battleView.ts`,
+  `armyView.ts`'s `attackArrows` and `attackScreenControl`) read the engine and word it; `AttackModal.tsx` sends the
+  attack as one `moveArmy`, `BattleModal.tsx` replays a report from the report alone and builds no order. The Army
+  screen's ticks are the store's `armySelection`, kept when it closes, so a map click on a bordering enemy province
+  opens the Attack screen (`attackPlanAt`, `hooks/useTileClickHandler.ts`). One dialog at a time (FR-279): the Attack
+  screen closes the Army screen, and a plan with `fromArmyScreen` reopens it on close. End Turn queues the battles the player
+  fought (`battleQueue`, `battlesFoughtBy`); a battle's news line (`newsItems` in `gameText.ts`) opens its replay.
+- **Art pack** (NR-031, FR-272, FR-273): `public/assets/ink-and-wash/` as supplied; `components/art/inkArt.ts` is the
+  one table from game ids to its files (regiments, forts, the red attack arrow), `art/ArtPicture.tsx` draws them. A
+  march keeps its measured line and head (FR-270, FR-271) in the pack's green; an attack is the pack's own red arrow,
+  scaled and turned onto the two markers (`attackArrows` matrix). Their colours are tokens copied from the SVGs.
+
 The store (`store/rootStore.ts`) holds that state under `game`, and UI state beside it:
 
 | Store key | What | Kind |
@@ -244,7 +283,8 @@ The store (`store/rootStore.ts`) holds that state under `game`, and UI state bes
 | `selectedTileId`, `selectedWorkerId`, `hoveredTileId` | selection | UI |
 | `cameraX`, `cameraY` | map scroll | UI |
 | `isWarehouseOpen`, `isCapitalOpen`, ... | overlays and dialogs | UI |
-| `armyProvinceId`, `isArmouryOpen` | the Army screen's province (null: closed) and the Armoury (FR-211, FR-212) | UI |
+| `armyProvinceId`, `armyTargetId`, `isArmouryOpen` | the Army screen's province (null: closed), the "March to" entry it reopens on when the Attack screen gives it back (FR-279), and the Armoury (FR-211, FR-212) | UI |
+| `armySelection`, `attackPlan`, `battleQueue` | the Army screen's ticks kept on the map, the open Attack screen, the battle reports still to replay (FR-230 to FR-232); End Turn and New game reset them | UI |
 
 Only `game` is ever passed to the engine (tested with spies in
 `tests/store/engineBoundary.test.ts`). Display text is derived, not stored: a worker's job text
@@ -575,11 +615,11 @@ never imports `src/app/testing` (ESLint rule, FR-043, now FR-080).
 
 ## Not on the engine yet
 
-- Battles and interceptions are not built (diplomacy is built in M6, armies and marches in M8). Trade
-  between countries is built in M7 on the continent; there is no Shipyard (holds do not grow, so a hold
-  is never short at settlement unless the holds drop after ordering), no interception, and no attack or
-  province capture (M9): FR-174's peace condition (a) never fires, and (b) only once one side has
-  recruited more than the equal start armies.
+- Interceptions, rail and sea moves of armies, generals and medals are not built (Q37); diplomacy is built
+  in M6, armies and marches in M8, attacks, battles and conquest in M9. Trade between countries is built in
+  M7 on the continent; there is no Shipyard (holds do not grow, so a hold is never short at settlement
+  unless the holds drop after ordering). Since M9 a capture is recorded in the war, so FR-174's peace
+  condition (a) fires.
 - The maps are fixed templates, `engine/world/twoIslands.ts` (FR-080) and the continent's minor land in
   `engine/world/continent.ts` (FR-145): the same for every seed, so
   e2e specs and M4 can name tiles. Island 2 is island 1 shifted 12 columns (a shift along a row

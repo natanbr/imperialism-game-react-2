@@ -1,5 +1,6 @@
 import { StateCreator } from "zustand";
 import {
+  battlesFoughtBy,
   computerOrders,
   isGameOver,
   newGame,
@@ -154,6 +155,11 @@ export const createGameSlice =
           ordersThisTurn: [],
           turnStartTreasuries: null,
           lastRejection: null,
+          // FR-232: the player's next turn starts with the Battle screen of each battle it fought, one after another;
+          // FR-230: this turn's selection and attack plan are spent
+          battleQueue: battlesFoughtBy(events, activeNationId),
+          armySelection: null,
+          attackPlan: null,
         });
       },
 
@@ -178,6 +184,10 @@ export const createGameSlice =
           isDiplomacyOpen: false,
           dismissedProposalIds: [],
           armyProvinceId: null,
+          armyTargetId: null,
+          armySelection: null,
+          attackPlan: null,
+          battleQueue: [],
           isArmouryOpen: false,
           isWarehouseOpen: false,
           isTransportAllocationOpen: false,

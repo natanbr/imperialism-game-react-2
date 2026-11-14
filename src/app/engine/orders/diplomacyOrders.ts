@@ -41,6 +41,9 @@ function intentOf<K extends Exclude<DiplomacyIntent["kind"], "answer">>(state: G
 
 const treasury = (nation: Nation): number => nation.treasury ?? 0;
 
+/** FR-224 (M9 review F2): a minor that became a colony; its owner rules it, so no overture, grant or policy reaches it. */
+const isColony = (state: GameState, countryId: CountryId): boolean => state.minorNations.some((m) => m.id === countryId && m.colonyOf !== undefined);
+
 export function validateDiplomacyOrder(state: GameState, nation: Nation, order: DiplomacyOrder): ValidationResult {
   switch (order.kind) {
     case "proposeOverture":
@@ -78,11 +81,12 @@ function held(pair: PairDiplomacy, overture: ProposeOvertureOrder["overture"], n
  * not-at-war; any other overture while at war -> at-war; held or ordered this turn -> already-in-place;
  * an embassy without a consulate -> needs-consulate; a pact without an embassy -> needs-embassy; the cost
  * above the treasury -> insufficient-funds. A consulate or embassy "established before this turn" is one
- * in the state: the diplomacy phase is the only place that adds them.
+ * in the state: the diplomacy phase is the only place that adds them. Any overture to a colony -> colony (FR-224).
  */
 function validateOverture(state: GameState, nation: Nation, { overture, targetId }: ProposeOvertureOrder): ValidationResult {
   const pair = pairWith(state, nation.id, targetId);
   if (!pair || !isOverture(overture)) return reject("invalid-target");
+  if (isColony(state, targetId)) return reject("colony");
   if (overture === "pact" && !isMinorNation(state, targetId)) return reject("invalid-target");
   if (overture === "alliance" && !isGreatPower(state, targetId)) return reject("invalid-target");
   const ordered = intentOf(state, nation.id, overture, targetId) !== undefined;
@@ -98,10 +102,14 @@ function validateOverture(state: GameState, nation: Nation, { overture, targetId
   return treasury(nation) >= OVERTURE_COST[overture] ? OK : reject("insufficient-funds");
 }
 
-/** FR-162: one of the four sizes, not at war, an embassy held, and the cash (a grant replaced this turn gives its amount back first). */
+/**
+ * FR-162: one of the four sizes, not at war, an embassy held, and the cash (a grant replaced this turn gives its amount
+ * back first); never to a colony (FR-224).
+ */
 function validateGrant(state: GameState, nation: Nation, { targetId, amount, locked }: GiveGrantOrder): ValidationResult {
   const pair = pairWith(state, nation.id, targetId);
   if (!pair) return reject("invalid-target");
+  if (isColony(state, targetId)) return reject("colony");
   if (!GRANT_AMOUNTS.includes(amount) || typeof locked !== "boolean") return reject("invalid-amount");
   if (pair.war) return reject("at-war");
   if (!pair.embassies.includes(nation.id)) return reject("needs-embassy");
@@ -109,10 +117,14 @@ function validateGrant(state: GameState, nation: Nation, { targetId, amount, loc
   return treasury(nation) + refund >= amount ? OK : reject("insufficient-funds");
 }
 
-/** FR-162, FR-171: a subsidy step (0 removes it); a subsidy above 0 needs peace and a consulate, a boycott needs nothing. */
+/**
+ * FR-162, FR-171: a subsidy step (0 removes it); a subsidy above 0 needs peace and a consulate, a boycott needs nothing;
+ * no policy toward a colony (FR-224: it trades with its owner alone).
+ */
 function validateTradePolicy(state: GameState, nation: Nation, { targetId, subsidyPercent, boycott }: SetTradePolicyOrder): ValidationResult {
   const pair = pairWith(state, nation.id, targetId);
   if (!pair) return reject("invalid-target");
+  if (isColony(state, targetId)) return reject("colony");
   if (!SUBSIDY_PERCENTS.includes(subsidyPercent) || typeof boycott !== "boolean") return reject("invalid-amount");
   if (subsidyPercent > 0) {
     if (pair.war) return reject("at-war");

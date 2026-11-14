@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="42" height="22" viewBox="0 0 42 22" role="img" aria-label="Railway bridge">
+  <path d="M0 11H42" fill="none" stroke="#8f7b5d" stroke-width="6.4" opacity=".28"/>
+  <path d="M7.8 6.8Q18 6.4 34.6 6.75L34.45 15.1Q22 15.6 7.8 15.05Z"
+    fill="#a49579" stroke="#574b3c" stroke-width=".85" stroke-linejoin="round"/>
+  <path d="M7.7 6.05L10.15 6.3 10.25 15.75 7.65 15.8ZM32 6.35L34.5 5.95 34.9 15.8 32 15.55Z"
+    fill="#80705a" stroke="#53483b" stroke-width=".7" stroke-linejoin="round"/>
+  <path d="M3 8.6L3.3 13.4M8.8 8.55L8.65 13.4M14.6 8.7L14.8 13.35M20.4 8.5L20.7 13.5M26.2 8.65V13.3M32 8.55L32.2 13.4M37.8 8.6L37.6 13.35"
+    fill="none" stroke="#725943" stroke-width="1" stroke-linecap="round" opacity=".78"/>
+  <path d="M0 9.6Q21 9.43 42 9.6M0 12.4Q21 12.57 42 12.4"
+    fill="none" stroke="#494539" stroke-width=".85" opacity=".96"/>
+  <path d="M11.5 7.35Q20 7.2 30.8 7.4M11.3 14.75Q22 14.95 30.4 14.7"
+    fill="none" stroke="#cfb99a" stroke-width=".6" stroke-linecap="round" opacity=".67"/>
+</svg>
