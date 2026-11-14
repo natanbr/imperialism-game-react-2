@@ -472,3 +472,62 @@ Decisions (defaults, nobody to ask):
 How to see it (after the closing step's build): open Capital (building on each card head, goods on outputs and inputs,
 grade and labour pictures, railyard on Transport), Board of Trade, Deal Book, Warehouse, the Transport popup, the Armoury
 and an engineer's Construction options; the HUD's Warehouse, Capital and Transport buttons show their buildings.
+
+### Lane 2: the map (FR-321 to FR-328, FR-330, FR-337; FR-336's map share)
+
+One agent (Opus 5.5 xhigh; no advisor call), parallel with lane 3 in the same checkout. Plan-lite:
+- Change: `map/MapGround.tsx` and `map/shoreline.ts` (a port of the demo's renderShoreline); in `Tile/` the tile picture,
+  mineral marks, depot and port with station marks, civilians' figures, the corner brackets; in `MapView` the halos and the
+  rail pieces (`railArtMatrix` in `railSegments.ts`); `hooks/tileCursor.ts` (canvas cursors); the About legend's halo.
+- Consumers: the player; the closing step (FR-338's screenshots). Tests: FR-321 mapGround (new), territory; FR-322
+  mapIcons, provinceMap; FR-323 mapIcons; FR-324 accessibleNames; FR-325 mapIcons, watchNation, stacking; FR-326
+  watchNation, territory; FR-327 provinceMap, territory, about; FR-328 railLine; FR-330 tileCursor and noEmoji (new); e2e
+  look, m5-world, cursor-icons, two-nations, islands, m11-map (new, FR-337).
+- Verify: the lane's files, `npm test`, lint, tsc; the real `MapView` markup in the browser pane (no dev server: lane rule).
+- Objection: FR-328's 3 px underlay fills the gap between the pack piece's two rails, so a link reads as a dark band with
+  ties rather than the pack's light double rail (seen in the browser; for the QA pass and Q68).
+
+Red (`.gate/m11l2/red.txt`): `Test Files 11 failed (11)`, `Tests 42 failed | 53 passed (95)`: `Cannot find module
+'@/hooks/tileCursor'`, `Failed to resolve import "@/components/map/MapGround"`, `expected undefined to be 'goods/coal.png'`,
+`expected [] to have a length of 8` (halos), `... not to match /box-shadow/` (the ring).
+
+Decisions (defaults, nobody to ask):
+1. Halos: all eight first, then the lines in FR-153's order: each halo lies before its line and no halo covers another
+   border where two meet (the minor's dashes stay on top of a Great Power's line).
+2. FR-324's "disjoint from the badge": two 14 px stations side by side reach 30 px from the right of the 40 px box, into
+   the "L1" badge, and a port may share a depot's tile (queries.ts). Beside a level badge the two stack at the right edge
+   (`.stationsStacked`). Objection: on that one kind of tile the port is not along the top edge.
+3. FR-337 counts the files the map names (each `img` and SVG `image` in `map-scroll`); lane 3's three HUD pictures load on
+   the first paint too and "each URL once" covers them. Counted offline: 16 files, 1,668,187 bytes on disk; the spec's
+   "expected 14" left out Arvelia's level-1 forestry and mine. The budget of 16 is now met exactly: one more picture on
+   the first map paint (a second improvement level, a new terrain) will break it.
+4. Cursors: `useSyncExternalStore` whose snapshot is the tile's own cursor string, so a drawn cursor re-renders only the
+   tiles that show it; a file starts loading the first time a tile asks (idempotent cache), no per-tile effect. jsdom
+   loads no image, so the UI tests see `pointer` and print no act warning.
+5. `useTileVisuals(possibleAction)` lost its unused `tile` argument and `terrainColor`; TileBase lost `backgroundColor` and
+   gained `besideResourceMark` (the river marker moves to 18 px). `TERRAIN_TINT` is no longer read by any component.
+6. watchNation's `--color-selected` token line went with the box-shadow check it belonged to (FR-326 replaces the accent
+   ring); the token stays in tokens.css, now unused (closing step, with Q71's tints).
+7. Seen in the browser: the flat ground-water colour past the map and the textured water meet at the map's bottom edge
+   (a 48 px strip at 1280x720); the right edge lies under the HUD.
+
+The browser check: `MapView` rendered in jsdom with plain CSS-module class names (rail to 2-7, a depot, 3-9 selected, a
+desert and a tundra tile, 5-2's coal found), served statically with the pack and the four CSS files, at 1280x720. Not
+done here: Playwright and the dev-server check (lane rule). For the closing step: run look, m5-world, cursor-icons,
+two-nations, islands and m11-map; FR-338's screenshots.
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| Red before the change | `npx vitest run` on the lane's 11 files (`.gate/m11l2/red.txt`) | `Test Files 11 failed (11)`, `Tests 42 failed \| 53 passed (95)` |
+| FR-321 to FR-328, FR-330 | the 11 files plus camera, inkArt, palette (`green-final.txt`) | `Test Files 14 passed (14)`, `Tests 170 passed (170)` |
+| Unit tests (lanes 1 to 3) | `npm test` (`test-final.txt`) | `Test Files 106 passed (106)`, `Tests 2091 passed (2091)` |
+| Baselines unchanged | `npm test` console | `FR-125 seed 1: ... t40 1493/650 (2.30)`; `FR-260 nation 2 score at turn 40: [[1,1419],[2,1451],[3,1441],[4,1469]]` |
+| Lint, types | `npm run lint`; `npx tsc --noEmit` | `✖ 3 problems (0 errors, 3 warnings)` (M6's three); exit 0, no output |
+| No engine, store or type change | `git diff fc01b05 HEAD -- src/app/engine src/app/store src/app/types` | empty |
+| The look in Chromium | the static render in the browser pane, 1280x720 | ground `1029 x 672` at `0, 0`; tile 2-9 at `105, 378`, `42 x 42`; `imgsBroken: 0` of `240` |
+| A canvas cursor in Chromium | the pack's prospector and rail piece drawn into 32 px | `url("data:image/png;base64,iVBORw0KGgoAA...") 16 16, pointer` |
+
+How to see it (after the closing step's build): a new game shows the sea, a sand rim and grass under the islands, a pack
+picture on every land tile, the borders on a pale halo, coal and iron marks on Arvelia's mines; select a tile (corner
+brackets), pick the prospector and hover 5-2 (its figure as the cursor), lay rail from the capital and build a depot as
+e2e/look.spec.ts does (the rail piece on each link, the depot with its green station disc).
