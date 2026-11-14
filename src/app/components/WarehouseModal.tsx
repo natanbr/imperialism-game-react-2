@@ -26,7 +26,7 @@ export const WarehouseModal: React.FC = () => {
     <Modal titleId={titleId} onClose={close} overlayClassName={styles.overlay} className={styles.modal}>
         <div className={styles.header}>
           <h3 id={titleId}>
-            <InkPicture src={buildingArt("warehouse")} alt="" inline /> Warehouse — {nation?.name ?? "Unknown"}
+            <InkPicture src={buildingArt("warehouse")} alt="" inline />Warehouse — {nation?.name ?? "Unknown"}
           </h3>
           <button onClick={close} className={styles.closeButton} aria-label="Close warehouse">
             <span aria-hidden="true">×</span>
@@ -40,7 +40,7 @@ export const WarehouseModal: React.FC = () => {
               {group.keys.map((key) => (
                 <div key={key} className={styles.itemRow} data-testid={`stock-${key}`}>
                   <span className={styles.itemName}>
-                    <InkPicture src={goodsArt(key)} alt="" inline /> {commodityName(key)}
+                    <InkPicture src={goodsArt(key)} alt="" inline />{commodityName(key)}
                   </span>
                   <span className={styles.itemAmount}>{stock[key] ?? 0}</span>
                 </div>

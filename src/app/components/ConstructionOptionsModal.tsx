@@ -43,15 +43,15 @@ export const ConstructionOptionsModal: React.FC = () => {
   return (
     <Modal titleId={titleId} onClose={close} overlayClassName="construction-overlay" className="construction-dialog">
       <h2 id={titleId} className="construction-title">
-        <InkPicture src={civilianArt(WorkerType.Engineer)} alt="" inline /> Construction Options
+        <InkPicture src={civilianArt(WorkerType.Engineer)} alt="" inline />Construction Options
       </h2>
       <div className="construction-options">
         <button className="btn btn-primary" onClick={() => handleConstruct('depot')}>
-          <InkPicture src={DEPOT_ART} alt="" inline /> Build Depot
+          <InkPicture src={DEPOT_ART} alt="" inline />Build Depot
         </button>
         {canBuildPort && (
           <button className="btn btn-primary" onClick={() => handleConstruct('port')}>
-            <InkPicture src={PORT_ART} alt="" inline /> Build Port
+            <InkPicture src={PORT_ART} alt="" inline />Build Port
           </button>
         )}
       </div>

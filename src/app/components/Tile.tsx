@@ -10,6 +10,7 @@ import { useTileClickHandler } from '@/hooks/useTileClickHandler';
 import { civilianArt, resourceMarkArt, tileArt } from './art/inkArt';
 import { prefetchPictures } from './art/prefetch';
 import { tileLabel } from './gameText';
+import { isLandTerrain } from './map/shoreline';
 import {
   TileBase,
   TileIcon,
@@ -76,7 +77,7 @@ const TileComponentInner: React.FC<TileProps> = ({
   const selectedElsewhere = selectedWorkerId && !tile.workers.some((w) => w.id === selectedWorkerId) ? selectedWorker?.type : undefined;
 
   const possibleAction = useTileActions(tile, selectedWorker, map);
-  const tileVisuals = useTileVisuals(possibleAction);
+  const tileVisuals = useTileVisuals(possibleAction, isLandTerrain(tile.terrain));
   const handleTileClick = useTileClickHandler(tile, selectedWorker, possibleAction);
 
   // The stack button opens the tray: the tile selected, no worker (FR-110)
@@ -94,7 +95,8 @@ const TileComponentInner: React.FC<TileProps> = ({
     return own.length > 1 ? own.map((w) => civilianArt(w.type)) : undefined;
   }, [tile.workers, playerId]);
   const prefetchStack = useMemo(() => (stackArt ? () => prefetchPictures(stackArt) : undefined), [stackArt]);
-  // A capital or town is the tile a player looks for: civilians or a minor's name tag on it move its picture clear (FR-341)
+  // A capital or town is the tile a player looks for: civilians or a minor's name tag on it draw its picture larger and
+  // move the civilians to the corner, so it stays readable (FR-346)
   const crowded =
     (tile.terrain === TerrainType.Capital || tile.terrain === TerrainType.Town) && (tile.workers.length > 0 || minorCapitalName !== undefined);
 
@@ -143,7 +145,6 @@ const TileComponentInner: React.FC<TileProps> = ({
         depotActive={depotActive}
         port={tile.port ?? false}
         portActive={portActive}
-        besideBadge={(tile.resource?.level ?? 0) > 0}
       />
 
       <TileWorkers
@@ -156,6 +157,7 @@ const TileComponentInner: React.FC<TileProps> = ({
         selectedElsewhere={selectedElsewhere}
         onWorkerSelect={selectWorker}
         onOpenTray={openTray}
+        corner={crowded}
       />
 
       <TileJobs
@@ -164,7 +166,7 @@ const TileComponentInner: React.FC<TileProps> = ({
         constructionJob={tile.constructionJob}
       />
 
-      {armyMarkers && armyMarkers.length > 0 && <TileArmy markers={armyMarkers} onOpen={openArmy} high={minorCapitalName !== undefined} />}
+      {armyMarkers && armyMarkers.length > 0 && <TileArmy markers={armyMarkers} onOpen={openArmy} high={minorCapitalName !== undefined} low={crowded} />}
     </TileBase>
   );
 };

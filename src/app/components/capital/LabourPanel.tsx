@@ -39,7 +39,7 @@ export const LabourPanel: React.FC<LabourPanelProps> = ({ view, nationId, submit
       <h3 className={styles.panelTitle}>Labour</h3>
       <div className={styles.labourLine} data-testid="labour">
         <span>
-          <InkPicture src={LABOUR_ART} alt="" inline /> Labour
+          <InkPicture src={LABOUR_ART} alt="" inline />Labour
         </span>
         <span>{`${labour.total} total, ${labour.committed} committed, ${labour.free} free`}</span>
       </div>
@@ -48,7 +48,7 @@ export const LabourPanel: React.FC<LabourPanelProps> = ({ view, nationId, submit
         {grades.map((g) => (
           <li key={g.grade} className={styles.gradeRow} data-testid={`grade-${g.grade}`}>
             <span className={styles.gradeName}>
-              <InkPicture src={gradeArt(g.grade)} alt="" inline /> {GRADE_TEXT[g.grade]}
+              <InkPicture src={gradeArt(g.grade)} alt="" inline />{GRADE_TEXT[g.grade]}
             </span>
             <span className={styles.gradeCount}>{g.count}</span>
             {g.sick > 0 && <span className={styles.sick}>{`${g.sick} sick`}</span>}
@@ -58,7 +58,7 @@ export const LabourPanel: React.FC<LabourPanelProps> = ({ view, nationId, submit
       </ul>
 
       <h4 className={styles.subTitle}>
-        <InkPicture src={buildingArt("tradeSchool")} alt="" inline /> Trade School
+        <InkPicture src={buildingArt("tradeSchool")} alt="" inline className={styles.buildingPicture} />Trade School
       </h4>
       {TRAINING.map(({ from, article, to }) => {
         const cost = TRAINING_COST[from];
@@ -84,7 +84,7 @@ export const LabourPanel: React.FC<LabourPanelProps> = ({ view, nationId, submit
       })}
 
       <h4 className={styles.subTitle}>
-        <InkPicture src={buildingArt("capitol")} alt="" inline /> Capitol
+        <InkPicture src={buildingArt("capitol")} alt="" inline className={styles.buildingPicture} />Capitol
       </h4>
       <div className={styles.actionRow}>
         <button

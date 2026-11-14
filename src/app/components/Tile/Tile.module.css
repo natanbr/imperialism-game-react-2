@@ -1,8 +1,8 @@
 /*
  * Tile styles (42 px tiles, FR-088). Layout inside a tile:
  *   the whole 40 x 40 content box: the art pack's picture of what the tile holds (FR-322; a crowded capital's or
- *   town's at 24 px at the top centre, FR-341)
- *   top left: level badge, job markers below it   top right: depot, port, with their station marks
+ *   town's at 48 px, lifted, FR-346)
+ *   top left: level badge, job markers below it   top right: depot, port (20 px), with their station marks
  *   bottom left: a known mineral's mark, then the river marker   bottom right: the civilians, one 24 px button
  *   on a province's seat: the army markers, half over the tile's left edge (FR-210)
  * Stacking: the ground (MapGround.module.css) and the tile picture (0), MapView's border and rail overlay (1), the
@@ -61,15 +61,18 @@
   pointer-events: none;
 }
 
-/* A capital or town with civilians or a minor's name tag (FR-341): any 24 px button in the 40 px box covers its middle,
-   so the picture moves to the top centre at 24 px, where the civilians' button (from 15 px down), its count (from x 27)
-   and the army chip (to x 13) leave its middle clear. Lifted 4 px: the capital's drawing starts 4.4 px down its box, so
-   it now spans 0.4 to 15.5 px, above the button; only the box's empty top lies over the row above. */
+/* A capital or town with civilians or a minor's name tag (FR-346, QA; replaces FR-341's 24 px, at which only a small dome
+   showed): drawn larger, 48 px, and lifted 18 px, so its drawing (capital.png: x 20 to 235, y 47 to 209 of 256) spans
+   -0.3 to 40.1 px across and -9.2 to 21.2 px down: its top lies between the two pictures of the row above (odd rows are
+   shifted half a tile), its foot just below the middle, where the army chip (to x 13, from y 9) and the civilians' button
+   in the corner (.workersCorner, from y 16) cover at most 30% of it. Still z-index 0: every mark and button lies over it. */
 .iconCrowded {
-  left: 8px;
-  top: -4px;
-  width: 24px;
-  height: 24px;
+  left: -4px;
+  top: -18px;
+  width: 48px;
+  height: 48px;
+  /* Wider than the tile's 40 px content box: Tailwind's preflight `img { max-width: 100% }` would cap it there */
+  max-width: none;
 }
 
 /* A minor nation's name on its capital (FR-153 d): a small tag at the bottom of the picture. It may be wider than the
@@ -134,42 +137,39 @@
   pointer-events: none;
 }
 
-/* Depot and port (FR-324): 14 px pictures along the top edge from the right, the depot rightmost */
+/* Depot and port (FR-347, QA; replaces FR-324's 14 px row and FR-345): 20 px pictures in the top-right corner, 1 px in; a
+   tile with both stacks them, the depot on top (side by side, 1 + 20 + 1 + 20 px, they would pass the 40 px box). They end
+   6 px right of the level badge (x 1 to 13) and the job markers below it (x 1 to 11). */
 .stations {
   position: absolute;
   top: 1px;
   right: 1px;
   display: flex;
-  flex-direction: row-reverse;
-  gap: 1px;
-  z-index: 2;
-}
-
-/* Beside a level badge both would reach it (1 + 14 + 1 + 14 px from the right of the 40 px box): the port goes below */
-.stationsStacked {
   flex-direction: column;
+  z-index: 2;
 }
 
 .station {
   position: relative;
   display: block;
-  width: 14px;
-  height: 14px;
+  width: 20px;
+  height: 20px;
 }
 
 .stationPicture {
-  width: 14px;
-  height: 14px;
+  width: 20px;
+  height: 20px;
 }
 
-/* The pack's station mark on the picture's bottom-right: a filled disc when connected, a ring when not, so the state
-   shows by shape too, not only colour (FR-093) */
+/* The pack's station mark, 11 px, on the picture's top-right corner: a filled disc when connected, a ring when not, so the
+   state shows by shape too, not only colour (FR-093). At the top, the civilians' button (from y 15) and its count (from
+   y 10) leave it clear. */
 .stationMark {
   position: absolute;
   right: -1px;
-  bottom: -1px;
-  width: 8px;
-  height: 8px;
+  top: -1px;
+  width: 11px;
+  height: 11px;
 }
 
 /* Job markers, below the level badge */
@@ -199,6 +199,13 @@
   display: flex;
   gap: 1px;
   z-index: 3;
+}
+
+/* On a crowded capital or town (FR-346): in the content box's bottom-right corner, so the count on the button's top right
+   lies right of the large picture's drawing (to x 40.1), not over it */
+.workersCorner {
+  right: 0;
+  bottom: 0;
 }
 
 /* The touch target of a worker button, the stack button and the marker: WCAG 2.2 target size (FR-110) */
@@ -322,6 +329,12 @@
   top: 1px;
 }
 
+/* On a crowded capital or town without a name tag (FR-346): down at the bottom, beside the civilians in the corner, so both
+   leave the large picture's body clear (its drawing ends 21.2 px down). armyView.ts MARKER_CENTRE.dyLow copies it. */
+.armiesLow {
+  top: 16px;
+}
+
 /* The owner's colour is its border (inline); the force size sits on that colour, the militia below it on the surface */
 .armyMarker {
   width: 24px;
@@ -365,6 +378,16 @@ button.armyMarker:focus-visible {
 /* The background is the owner's colour (inline) */
 .armyForce {
   color: var(--color-on-accent);
+}
+
+/* The militia's pitchfork in the chip's ink with an outline of the same ink, 40 of its 512 units (FR-350, QA): drawn bare
+   at 8 px its thin tines came out as a light grey smudge, one pixel reaching 3:1 on the chip */
+.armyMilitia {
+  color: var(--color-ink);
+}
+
+.armyMilitia svg[data-icon] {
+  stroke-width: 40px;
 }
 
 .armyForce svg[data-icon],

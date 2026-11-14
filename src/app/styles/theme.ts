@@ -43,6 +43,8 @@ export const THEME = {
   groundTundra: v("color-ground-tundra"),
   /** The pale halo under every border line (FR-327, FR-329): the pack's territory line's halo colour. */
   mapHalo: v("color-map-halo"),
+  /** The field behind every goods picture in a list (FR-353). */
+  artBacking: v("color-art-backing"),
 } as const;
 
 /** One strong colour per palette slot (`Nation.colorSlot`, 1 first); used only for territory borders (FR-097). */

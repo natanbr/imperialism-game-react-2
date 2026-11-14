@@ -39,7 +39,7 @@ const WorldMarket: React.FC = () => {
     <Modal titleId={titleId} onClose={close} overlayClassName={styles.overlay} className={styles.dialog}>
         <header className={styles.header}>
           <h2 id={titleId}>
-            <GameIcon name={UI_ICONS.market} /> World market — {nation?.name ?? "Unknown"}
+            <GameIcon name={UI_ICONS.market} />World market — {nation?.name ?? "Unknown"}
           </h2>
           <button onClick={close} className={styles.closeButton} aria-label="Close market">
             <span aria-hidden="true">×</span>
@@ -85,7 +85,7 @@ const WorldMarket: React.FC = () => {
               {view.rows.map((row: MarketRowView) => (
                 <tr key={row.commodity} data-testid={`trade-row-${row.commodity}`}>
                   <td data-testid="name">
-                    <InkPicture src={goodsArt(row.commodity)} alt="" inline /> {row.name}
+                    <InkPicture src={goodsArt(row.commodity)} alt="" inline />{row.name}
                   </td>
                   <td className={styles.number} data-testid="price">
                     {money(row.price)}

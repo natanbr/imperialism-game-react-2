@@ -38,7 +38,7 @@ export const DiplomacyModal: React.FC = () => {
     <Modal titleId={titleId} onClose={close} overlayClassName={styles.overlay} className={styles.dialog}>
       <header className={styles.header}>
         <h2 id={titleId}>
-          <GameIcon name={UI_ICONS.diplomacy} /> Diplomacy — {nation?.name ?? "Unknown"}
+          <GameIcon name={UI_ICONS.diplomacy} />Diplomacy — {nation?.name ?? "Unknown"}
         </h2>
         {nation && (
           <span className={styles.cash} data-testid="diplomacy-cash">

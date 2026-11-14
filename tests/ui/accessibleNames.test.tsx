@@ -2,7 +2,9 @@
 // M3.5 review fix round. FR-093: depots and ports name their state ("Depot: connected") and show it by
 // shape as well as colour. FR-095: every tile has an accessible name (terrain, resource and level,
 // owner) now that the terrain text is no longer drawn. FR-096: the browser tab says "Imperialism". FR-324 (M11): the depot
-// and port are the pack's pictures with its station marks, the state still by shape and in the name.
+// and port are the pack's pictures with its station marks, the state still by shape and in the name. FR-347 (QA, replaces
+// FR-324's 14 px row with 8 px marks and FR-345): 20 px in the top-right corner, 11 px marks on their top-right, a depot
+// and a port always stacked.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -33,18 +35,19 @@ describe('FR-093 depot and port state is named, not only coloured', () => {
     expect(screen.getByRole('img', { name: 'Port: connected' })).toBeTruthy();
   });
 
-  // M11 (FR-324) replaced the CSS dots with the pack's station marks: the state shows by shape (a filled disc, a ring)
-  it('FR-093 FR-324 not connected is the pack\'s ring, connected its filled disc: the shape differs, not only the colour', () => {
+  // M11 (FR-324) replaced the CSS dots with the pack's station marks: the state shows by shape (a filled disc, a ring);
+  // FR-347 (QA) draws them at 20 px with 11 px marks, readable at 1x (14 px and 8 px were a speck)
+  it('FR-093 FR-347 not connected is the pack\'s ring, connected its filled disc: the shape differs, not only the colour', () => {
     const { container } = render(<TileInfrastructure depot depotActive port portActive={false} />);
     const pictures = (name: string) =>
       [...screen.getByRole('img', { name }).querySelectorAll('img')].map((img) => [img.getAttribute('data-art'), img.getAttribute('alt'), img.getAttribute('width')]);
     expect(pictures('Depot: connected')).toEqual([
-      ['infrastructure/depot.png', '', '14'],
-      ['map-ui/station-connected.svg', '', '8'],
+      ['infrastructure/depot.png', '', '20'],
+      ['map-ui/station-connected.svg', '', '11'],
     ]);
     expect(pictures('Port: not connected')).toEqual([
-      ['infrastructure/port.png', '', '14'],
-      ['map-ui/station-disconnected.svg', '', '8'],
+      ['infrastructure/port.png', '', '20'],
+      ['map-ui/station-disconnected.svg', '', '11'],
     ]);
     // The two files differ by shape: the connected one is one filled disc, the other a disc with a ring drawn inside
     const file = (name: string) => readFileSync(join(ROOT, 'public/assets/ink-and-wash/map-ui', name), 'utf8');
@@ -56,32 +59,37 @@ describe('FR-093 depot and port state is named, not only coloured', () => {
     expect(css).not.toMatch(/\.status(Dot|On|Off)\b/);
   });
 
-  it('FR-324 the depot and the port stand along the top edge from the right, depot rightmost, each mark on its bottom-right', () => {
+  it('FR-347 the depot and the port stand in the top-right corner, 1 px in, at 20 px, each mark 11 px on its top-right', () => {
     const css = readFileSync(join(ROOT, 'src/app/components/Tile/Tile.module.css'), 'utf8');
     const rule = (name: string) => new RegExp(`\\.${name}\\s*\\{([^}]*)\\}`).exec(css)?.[1] ?? '';
-    expect(rule('stations')).toMatch(/top:\s*1px/);
-    expect(rule('stations')).toMatch(/right:\s*1px/);
-    expect(rule('stations')).toMatch(/flex-direction:\s*row-reverse/);
-    expect(rule('stationMark')).toMatch(/right:\s*-1px/);
-    expect(rule('stationMark')).toMatch(/bottom:\s*-1px/);
+    const px = (body: string, prop: string) => Number(new RegExp(`(?:^|[;\\s])${prop}:\\s*(-?[\\d.]+)px`).exec(body)?.[1]);
+    expect([px(rule('stations'), 'top'), px(rule('stations'), 'right')]).toEqual([1, 1]);
+    expect(rule('stations')).toMatch(/flex-direction:\s*column/);
+    expect([px(rule('station'), 'width'), px(rule('station'), 'height'), px(rule('stationPicture'), 'width'), px(rule('stationPicture'), 'height')]).toEqual([20, 20, 20, 20]);
+    expect([px(rule('stationMark'), 'width'), px(rule('stationMark'), 'height'), px(rule('stationMark'), 'right'), px(rule('stationMark'), 'top')]).toEqual([11, 11, -1, -1]);
+    expect(rule('stationMark')).not.toMatch(/bottom:/);
+    // Clear of the level badge and the job markers below it, both from x 1 at the top-left (the badge's "L3" is 13 px wide,
+    // e2e/look.spec.ts measures it): the stations start 40 - 1 - 20 = 19 px from the content box's left
+    const left = 40 - px(rule('stations'), 'right') - px(rule('station'), 'width');
+    expect(left).toBeGreaterThan(px(rule('levelBadge'), 'left') + 13);
+    expect(px(rule('jobs'), 'left') + 10).toBeLessThan(left);
     const { container } = render(<TileInfrastructure depot depotActive port portActive />);
     expect([...container.querySelectorAll('[role="img"]')].map((s) => s.getAttribute('aria-label'))).toEqual(['Depot: connected', 'Port: connected']);
   });
 
-  it('FR-324 beside a level badge, a depot and a port stack at the right edge, so no mark lies over the badge', () => {
+  it('FR-347 a depot and a port on one tile always stack, the depot on top: side by side they would pass the 40 px box', () => {
     const css = readFileSync(join(ROOT, 'src/app/components/Tile/Tile.module.css'), 'utf8');
-    const rule = (name: string) => new RegExp(`\\.${name}\\s*\\{([^}]*)\\}`).exec(css)?.[1] ?? '';
-    // Two 14 px pictures side by side reach 30 px from the right, into the badge at the top-left of the 40 px box
-    expect(rule('stationsStacked')).toMatch(/flex-direction:\s*column/);
-    const twoBesideBadge = render(<TileInfrastructure depot depotActive port portActive besideBadge />).container;
-    const twoWithoutBadge = render(<TileInfrastructure depot depotActive port portActive />).container;
-    const oneBesideBadge = render(<TileInfrastructure depot depotActive={false} port={false} portActive={false} besideBadge />).container;
-    const stacked = (c: HTMLElement) => c.firstElementChild!.classList.contains(tileStyles.stationsStacked);
-    expect([stacked(twoBesideBadge), stacked(twoWithoutBadge), stacked(oneBesideBadge)]).toEqual([true, false, false]);
+    // FR-345's stacked case is the only case now: its class and the badge condition are gone
+    expect(css).not.toMatch(/\.stationsStacked\b/);
+    expect(1 + 20 + 1 + 20).toBeGreaterThan(40);
+    const two = render(<TileInfrastructure depot depotActive port portActive />).container;
+    const stations = two.firstElementChild!;
+    expect(stations.className).toBe(tileStyles.stations);
+    expect([...stations.children].map((s) => s.getAttribute('aria-label')?.split(':')[0])).toEqual(['Depot', 'Port']);
   });
 
-  // Review R3: the wiring in Tile.tsx (the badge shows, so the stations stack), on hand-built tiles drawn by the map
-  it('FR-324 FR-345 on the map: a level-1 farm with a depot and a port stacks them beside its "L1"; at level 0 they stand in a row', () => {
+  // Review R3, QA: the wiring in Tile.tsx, on hand-built tiles drawn by the map: a badge or not, the same column
+  it('FR-347 on the map: a level-1 farm and a level-0 tile with a depot and a port both stack them, the depot on top', () => {
     const game = newGame({ seed: 1, world: 'continent' });
     const tiles = game.map.tiles.flat();
     const level0 = tiles.find((t) => t.ownerNationId === 'nation-1' && t.resource?.level === 0 && t.workers.length === 0)!;
@@ -96,11 +104,11 @@ describe('FR-093 depot and port state is named, not only coloured', () => {
     const tile = (id: string) => container.querySelector(`[data-tile-id="${id}"]`)!;
     const stations = (id: string) => tile(id).querySelector('[aria-label^="Depot: "]')!.parentElement!;
     expect(tile('3-9').querySelector('[data-testid="level-badge"]')?.textContent).toBe('L1');
-    expect([...stations('3-9').children].map((s) => s.getAttribute('aria-label')?.split(':')[0])).toEqual(['Depot', 'Port']);
-    expect(stations('3-9').classList.contains(tileStyles.stationsStacked)).toBe(true);
     expect(tile(level0.id).querySelector('[data-testid="level-badge"]')).toBeNull();
-    expect(stations(level0.id).classList.contains(tileStyles.stations)).toBe(true);
-    expect(stations(level0.id).classList.contains(tileStyles.stationsStacked)).toBe(false);
+    for (const id of ['3-9', level0.id]) {
+      expect([...stations(id).children].map((s) => s.getAttribute('aria-label')?.split(':')[0])).toEqual(['Depot', 'Port']);
+      expect(stations(id).className).toBe(tileStyles.stations);
+    }
     unmount();
   });
 });

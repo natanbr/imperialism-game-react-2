@@ -92,17 +92,56 @@ describe('FR-320 InkPicture: one picture component for the pack', () => {
           .map((d) => d.split(':').map((s) => s.trim()))
       );
     };
-    // max-width none (integration): with preflight's 100% a table sized a nowrap name cell without the picture
+    // max-width none (integration): with preflight's 100% a table sized a nowrap name cell without the picture. The gap
+    // after it is its margin (FR-354, QA), not a space character, which Arial kerns against an "A"
     expect(rule('img[data-art-inline]')).toEqual({
       display: 'inline-block',
       width: '1.25em',
       height: '1.25em',
       'max-width': 'none',
+      'margin-right': '0.28em',
       'vertical-align': '-0.25em',
       flex: 'none',
       'object-fit': 'contain',
     });
     expect(rule('img[data-art-anchor="bottom-center"]')).toEqual({ 'object-fit': 'contain', 'object-position': 'center bottom' });
+  });
+
+  // QA fix round: FR-353 the goods pictures' field, FR-349 the fixed icon boxes of the dialogs' titles and the HUD's buttons
+  it('FR-353 FR-349 globals.css: every goods picture in a list on the one backing; one fixed box for title and HUD icons', () => {
+    const css = readFileSync(join(ROOT, 'src/app/globals.css'), 'utf8');
+    const rule = (selector: string) => {
+      const at = css.indexOf(`${selector} {`);
+      expect(at, selector).toBeGreaterThanOrEqual(0);
+      const body = css.slice(css.indexOf('{', at) + 1, css.indexOf('}', at));
+      return Object.fromEntries(
+        body
+          .split(';')
+          .map((d) => d.trim())
+          .filter(Boolean)
+          .map((d) => d.split(':').map((s) => s.trim()))
+      );
+    };
+    // The same field for all goods, from the token (FR-086: no colour literal), keyed on the table's goods/ family
+    expect(rule('img[data-art-inline][data-art^="goods/"]')).toEqual({ 'background-color': 'var(--color-art-backing)', 'border-radius': '3px' });
+    // A dialog's title: a Game Icon (1em) takes the inline picture's 1.25em box and gap
+    expect(rule('[role="dialog"] :is(h2, h3)[id] > svg[data-icon]')).toEqual({
+      'box-sizing': 'border-box',
+      width: '1.25em',
+      height: '1.25em',
+      padding: '0.125em',
+      'margin-right': '0.28em',
+      'vertical-align': '-0.25em',
+    });
+    // The HUD's full-width buttons: one 20 px box for a picture or a Game Icon, 2 px of it in the button's padding
+    expect(rule('.action-buttons-container > .btn-plain > :is(svg[data-icon], img[data-art-inline])')).toEqual({
+      'box-sizing': 'border-box',
+      width: '20px',
+      height: '20px',
+      margin: '-2px 0.28em -2px 0',
+      'vertical-align': 'middle',
+    });
+    expect(rule('.action-buttons-container > .btn-plain > svg[data-icon]')).toEqual({ padding: '3.5px' });
   });
 
   it('FR-320 ArtPicture.tsx draws one img element, with the one eslint-disable for no-img-element on it', () => {

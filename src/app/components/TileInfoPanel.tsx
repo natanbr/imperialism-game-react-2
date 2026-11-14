@@ -81,7 +81,7 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
       if (canProspect) {
         return (
           <button onClick={() => startProspecting(worker.id)} title={`Cost: ${money(PROSPECT_COST)}`} className="btn btn-action">
-            <InkPicture src={civilianArt(WorkerType.Prospector)} alt="" inline /> Prospect
+            <InkPicture src={civilianArt(WorkerType.Prospector)} alt="" inline />Prospect
           </button>
         );
       }
@@ -149,7 +149,7 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
         <strong>Resource:</strong>{" "}
         {known && (
           <>
-            <InkPicture src={goodsArt(resource.type)} alt="" inline />{" "}
+            <InkPicture src={goodsArt(resource.type)} alt="" inline />
           </>
         )}
         {resourceText}
@@ -183,7 +183,7 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
                 onClick={own ? () => setSelectedWorkerId(w.id) : undefined}
                 style={{ background: own && selectedWorkerId === w.id ? THEME.surfaceSunken : 'transparent', padding: '4px', borderRadius: '4px', cursor: own ? 'pointer' : 'default' }}>
                 <WorkerStatusIndicator status={w.status} />
-                <InkPicture src={civilianArt(w.type)} alt="" inline /> <span>{w.type} - {workerJobLabel(selectedTile, w) ?? w.status}</span>
+                <InkPicture src={civilianArt(w.type)} alt="" inline /><span>{w.type} - {workerJobLabel(selectedTile, w) ?? w.status}</span>
                 {own && (w.status === WorkerStatus.Moved || w.status === WorkerStatus.Working) && (
                   <button
                     onClick={() => handleCancelAction(w.id)}

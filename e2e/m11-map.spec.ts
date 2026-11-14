@@ -173,6 +173,68 @@ test('FR-322 FR-323 FR-327 the map\'s pictures load, the minerals carry their ma
   expect(errors).toEqual([]);
 });
 
+// QA fix round. FR-350: the militia's pitchfork on the army chip was a light grey smudge at 8 px (one pixel reaching 3:1
+// on the chip); at least a quarter of its box's pixels SHALL reach 3:1 against the chip's surface. FR-355: the sea showed
+// a brick-like grid of tile lines over the water texture; water tiles SHALL draw none, land tiles keep it (FR-087).
+test("FR-350 the militia's pitchfork reads on the army chip: a quarter of its pixels at 3:1", async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto('/');
+  await expect(page.getByTestId('map-scroll')).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
+  await picturesLoaded(page);
+
+  // The glyph as drawn at 1x: its share of pixels at 3:1 against the chip's surface (WCAG relative luminance), read back
+  // from a screenshot of it through a canvas
+  const inked = async (id: string) => {
+    const glyph = page.locator(`[data-tile-id="${id}"] [data-testid="army-militia"] svg`);
+    const png = (await glyph.screenshot()).toString('base64');
+    const surface = await page.locator(`[data-tile-id="${id}"] [data-testid="army-marker"]`).first().evaluate((el) => getComputedStyle(el).backgroundColor);
+    return page.evaluate(
+      async ([data, back]) => {
+        const img = new Image();
+        img.src = `data:image/png;base64,${data}`;
+        await img.decode();
+        const canvas = document.createElement('canvas');
+        [canvas.width, canvas.height] = [img.width, img.height];
+        const ctx = canvas.getContext('2d')!;
+        ctx.drawImage(img, 0, 0);
+        const px = ctx.getImageData(0, 0, img.width, img.height).data;
+        const lum = (r: number, g: number, b: number) =>
+          [r, g, b].map((v) => v / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)).reduce((s, v, i) => s + v * [0.2126, 0.7152, 0.0722][i], 0);
+        const [br, bg, bb] = back.match(/\d+/g)!.map(Number);
+        const backL = lum(br, bg, bb);
+        let at3 = 0;
+        for (let i = 0; i < px.length; i += 4) if ((backL + 0.05) / (lum(px[i], px[i + 1], px[i + 2]) + 0.05) >= 3) at3++;
+        return Math.round((at3 / (px.length / 4)) * 100) / 100;
+      },
+      [png, surface] as const
+    );
+  };
+  // Testland's two-line chip (8 px glyph) and Arvelia's militia-only chip (10 px)
+  expect(await inked('2-9')).toBeGreaterThanOrEqual(0.25);
+  expect(await inked('11-4')).toBeGreaterThanOrEqual(0.25);
+  expect(errors).toEqual([]);
+});
+
+test('FR-355 the sea shows no grid line over the water texture, the land keeps it', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto('/');
+  await expect(page.getByTestId('map-scroll')).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
+
+  // FR-355: the same 1 px border on every tile (42 px each, FR-088), transparent on the sea
+  const borders = await page.locator('[data-testid="tile"]').evaluateAll((els) => {
+    const seen: Record<string, string[]> = {};
+    for (const el of els) {
+      const sea = ['water', 'river', 'coast'].includes(el.getAttribute('data-terrain') ?? '') ? 'sea' : 'land';
+      const style = getComputedStyle(el);
+      const key = `${style.borderTopWidth} ${style.borderTopColor} ${style.borderLeftColor}`;
+      seen[sea] = [...new Set([...(seen[sea] ?? []), key])];
+    }
+    return seen;
+  });
+  expect(borders).toEqual({ land: ['1px rgba(59, 59, 59, 0.12) rgba(59, 59, 59, 0.12)'], sea: ['1px rgba(0, 0, 0, 0) rgba(0, 0, 0, 0)'] });
+  expect(errors).toEqual([]);
+});
+
 test.describe('on a 1920x1080 screen', () => {
   test.use({ viewport: { width: 1920, height: 1080 } });
 
@@ -202,9 +264,11 @@ test.describe('on a small 800x500 screen, where the map scrolls', () => {
   test.use({ viewport: { width: 800, height: 500 } });
 
   // Review P4: the ground's isolation (FR-321: contain strict, will-change transform) was guarded only by its CSS text.
-  // This test on the dev server, 2026-11-14: p95 16.8 ms with it, 83.3 ms with `contain: none; will-change: auto`
-  // (the review measured 16.7 ms and 79 to 89 ms on average on the production build).
-  test('FR-321 scrolling the map for 60 frames keeps the 95th percentile frame under 33 ms (the ground is a layer of its own)', async ({ page }) => {
+  // Re-review D1: the first form of this test asked for a 95th percentile frame under 33 ms, which one dropped frame
+  // (33.3 ms) breaks, and the default parallel run (6 workers) dropped one: p95 33.4 ms. The regression slows every frame
+  // (without `contain` and `will-change`: mean 79 to 89 ms), a busy machine drops a few, so the median judges it: under
+  // 25 ms, half way between a 60 Hz frame (16.7 ms) and one dropped frame (33.3 ms).
+  test('FR-321 scrolling the map for 60 frames keeps the median frame under 25 ms (the ground is a layer of its own)', async ({ page }) => {
     await page.goto('/');
     await expect(page.getByTestId('map-scroll')).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
     await picturesLoaded(page);
@@ -233,8 +297,9 @@ test.describe('on a small 800x500 screen, where the map scrolls', () => {
     );
     const sorted = [...frames].sort((a, b) => a - b);
     const p95 = sorted[Math.floor(sorted.length * 0.95) - 1];
+    const median = (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2;
     const mean = frames.reduce((s, d) => s + d, 0) / frames.length;
-    console.log(`FR-321 scroll frames: mean ${mean.toFixed(1)} ms, p95 ${p95.toFixed(1)} ms`);
-    expect(p95).toBeLessThan(33);
+    console.log(`FR-321 scroll frames: median ${median.toFixed(1)} ms, mean ${mean.toFixed(1)} ms, p95 ${p95.toFixed(1)} ms`);
+    expect(median).toBeLessThan(25);
   });
 });

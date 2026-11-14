@@ -40,9 +40,47 @@ img[data-art-inline] {
   width: 1.25em;
   height: 1.25em;
   max-width: none;
+  margin-right: 0.28em;
   vertical-align: -0.25em;
   flex: none;
   object-fit: contain;
+}
+
+/* The gap after an inline picture is its margin above (FR-354, QA), about a space wide, and no space character stands
+   between the picture and its label: Arial kerns a space before "A" by 0.9 px at 16 px, so "Armaments" began left of the
+   other names in a list. Every goods picture in a list lies on one parchment field, the same for all goods (FR-353), so
+   the pale ones (paper, canned food, wool, fish) do not fade into the cream. */
+img[data-art-inline][data-art^="goods/"] {
+  background-color: var(--color-art-backing);
+  border-radius: 3px;
+}
+
+/* The icon before a dialog's title (FR-349, QA): one fixed box, the inline picture's 1.25em square and gap, whether a pack
+   picture or a Game Icon (1em, centred by the padding) stands there. */
+[role="dialog"] :is(h2, h3)[id] > svg[data-icon] {
+  box-sizing: border-box;
+  width: 1.25em;
+  height: 1.25em;
+  padding: 0.125em;
+  margin-right: 0.28em;
+  vertical-align: -0.25em;
+}
+
+/* The icon before the label of each full-width HUD action button (FR-349, FR-351, QA): one fixed 20 px box, so every label
+   starts at the same place (a Game Icon is 13 px, a pack picture was 16.25 px) and the buildings are drawn at 20 px, where
+   the railyard reads (at 16 px it was a brown blob, card Q78); 2 px of the box reach into the button's padding above and
+   below, so no button grows. Center (half width, beside Advance Turn) and Advance Turn's icon after its label are not
+   in it. */
+.action-buttons-container > .btn-plain > :is(svg[data-icon], img[data-art-inline]) {
+  box-sizing: border-box;
+  width: 20px;
+  height: 20px;
+  margin: -2px 0.28em -2px 0;
+  vertical-align: middle;
+}
+
+.action-buttons-container > .btn-plain > svg[data-icon] {
+  padding: 3.5px;
 }
 
 /* Full-body figures (workers, army, buildings) stand on the bottom of their box, as the pack anchors them */

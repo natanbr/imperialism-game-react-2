@@ -12,8 +12,13 @@
 // FR-332: the tile info panel's civilians show their figures (in place of the Game Icons) and its Prospect button the
 // prospector; FR-331: its Resource line the goods picture of a known resource (Q75).
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { render, screen, within } from '@testing-library/react';
 import { CapitalModal } from '@/components/CapitalModal';
+import { MarketModal } from '@/components/MarketModal';
+import { WarehouseModal } from '@/components/WarehouseModal';
+import capitalStyles from '@/components/capital/Capital.module.css';
 import { ConstructionOptionsModal } from '@/components/ConstructionOptionsModal';
 import TransportAllocationModal from '@/components/TransportAllocationModal';
 import { TileInfoPanel } from '@/components/TileInfoPanel';
@@ -206,5 +211,75 @@ describe('FR-331 FR-332 the tile info panel', () => {
     resource = within(screen.getByTestId('tile-info')).getByText('Resource:').parentElement!;
     expect(art(resource)).toEqual([]);
     expect(text(resource)).toBe('Resource: None');
+  });
+});
+
+// QA fix round (M11). FR-352: the capital's building pictures at 30 px in the card heads and the section headings, each
+// output name on one line. FR-354: no space character between an inline picture and its label (Arial kerns " A" by
+// 0.9 px, so "Armaments" began left of the other names); the picture's margin is the gap. FR-349: the HUD's full-width
+// buttons and the dialogs' titles start with their icon, then the label, with no space between.
+describe('FR-352 FR-354 FR-349 the QA fix round in the lists, the capital and the HUD', () => {
+  /** The text right after each inline picture (or Game Icon) inside `el` that begins with a space: none expected. */
+  const spaceAfterArt = (el: Element) =>
+    [...el.querySelectorAll('img[data-art-inline], svg[data-icon]')]
+      .map((art) => ({ art: art.getAttribute('data-art') ?? art.getAttribute('data-icon'), next: art.nextSibling }))
+      .filter(({ next }) => next?.nodeType === 3 && /^\s/.test(next.textContent ?? ''))
+      .map(({ art, next }) => `${art}:"${next!.textContent}"`);
+
+  it("FR-352 each card head's building and the Trade School, Capitol and Transport headings' draw at 30 px (the CSS rule)", () => {
+    show(continent(), { isCapitalOpen: true });
+    render(<CapitalModal />);
+    const heads = screen.getAllByTestId(/^building-/).map((card) => within(card).getByRole('heading', { level: 4 }));
+    const labour = screen.getByTestId('labour-panel');
+    const headings = [
+      ...heads,
+      within(labour).getByRole('heading', { level: 4, name: 'Trade School' }),
+      within(labour).getByRole('heading', { level: 4, name: 'Capitol' }),
+      within(screen.getByTestId('freight-cars')).getByRole('heading', { level: 3 }),
+    ];
+    expect(headings).toHaveLength(10);
+    const unboxed = headings.filter((h) => !h.querySelector('img')!.classList.contains(capitalStyles.buildingPicture)).map((h) => text(h));
+    expect(unboxed).toEqual([]);
+    const css = readFileSync(join(__dirname, '..', '..', 'src/app/components/capital/Capital.module.css'), 'utf8');
+    const rule = /\.cardTitle \.buildingPicture,\s*\.panelTitle \.buildingPicture,\s*\.subTitle \.buildingPicture\s*\{([^}]*)\}/.exec(css)?.[1] ?? '';
+    expect(rule).toMatch(/width:\s*30px/);
+    expect(rule).toMatch(/height:\s*30px/);
+    // One line: "Canned Food" with its picture wrapped to two
+    expect(/\.outputName\s*\{[^}]*white-space:\s*nowrap/.test(css)).toBe(true);
+  });
+
+  it('FR-354 no space character stands between an inline picture and its label in the Capital dialog, the Board of Trade, the Warehouse and the Transport popup', () => {
+    show(continent(), { isCapitalOpen: true });
+    const capital = render(<CapitalModal />);
+    expect(spaceAfterArt(screen.getByRole('dialog', { name: 'Capital — Testland' })).filter((s) => !s.startsWith('Gi'))).toEqual([]);
+    capital.unmount();
+
+    show(continent(), { isMarketOpen: true });
+    const market = render(<MarketModal />);
+    const board = screen.getByRole('dialog', { name: 'Board of Trade — Testland' });
+    expect(spaceAfterArt(board)).toEqual([]);
+    // The names still read as before
+    expect(text(within(screen.getByTestId('trade-row-armaments')).getByTestId('name'))).toBe('Armaments');
+    market.unmount();
+
+    show(continent(), { isWarehouseOpen: true });
+    const warehouse = render(<WarehouseModal />);
+    expect(spaceAfterArt(screen.getByRole('dialog', { name: 'Warehouse — Testland' }))).toEqual([]);
+    warehouse.unmount();
+
+    show(continent());
+    render(<TransportAllocationModal capacity={15} onClose={() => {}} />);
+    expect(spaceAfterArt(screen.getByRole('dialog', { name: 'Transportation of Commodities' }))).toEqual([]);
+  });
+
+  it("FR-349 the HUD's full-width buttons and the dialogs' titles: the icon first, then the label, no space between", () => {
+    show(continent());
+    render(<HUD />);
+    const names = [/Open Warehouse/, /Open Capital/, /Open Market/, /Deal Book/, /Diplomacy/, /Transportation of Commodities/];
+    for (const name of names) {
+      const button = screen.getByRole('button', { name });
+      expect(['img', 'svg'], String(name)).toContain(button.firstElementChild?.tagName.toLowerCase());
+      expect(spaceAfterArt(button), String(name)).toEqual([]);
+    }
   });
 });

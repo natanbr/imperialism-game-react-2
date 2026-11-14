@@ -88,7 +88,7 @@ const BattleReplay: React.FC<{ report: BattleReport; remaining: number }> = ({ r
     <Modal titleId={titleId} onClose={close} overlayClassName={styles.battleOverlay} className={styles.battle}>
       <header className={styles.header}>
         <h2 id={titleId}>
-          <GameIcon name={UI_ICONS.battle} /> {view.title}
+          <GameIcon name={UI_ICONS.battle} />{view.title}
         </h2>
         <span className={styles.summary}>
           {view.attackersName} attacked {view.defenderName}

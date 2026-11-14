@@ -68,7 +68,7 @@ export const BoardOfTrade: React.FC = () => {
     <Modal titleId={titleId} describedBy={noteId} onClose={close} overlayClassName={styles.overlay} className={styles.board}>
       <header className={styles.header}>
         <h2 id={titleId}>
-          <GameIcon name={UI_ICONS.market} /> Board of Trade — {nation?.name ?? "Unknown"}
+          <GameIcon name={UI_ICONS.market} />Board of Trade — {nation?.name ?? "Unknown"}
         </h2>
         {view && (
           <div className={styles.boardSummary}>
@@ -124,7 +124,7 @@ export const BoardOfTrade: React.FC = () => {
               {view.rows.map((row: BoardRowView) => (
                 <tr key={row.commodity} data-testid={`trade-row-${row.commodity}`}>
                   <td className={styles.fixed} data-testid="name">
-                    <InkPicture src={goodsArt(row.commodity)} alt="" inline /> {row.name}
+                    <InkPicture src={goodsArt(row.commodity)} alt="" inline />{row.name}
                   </td>
                   <td className={`${styles.number} ${styles.fixed}`} data-testid="price">
                     {money(row.price)}

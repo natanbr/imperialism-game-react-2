@@ -40,6 +40,8 @@ export interface TileWorkersProps {
   /** Selects a civilian; undefined deselects (a click on the selected one, FR-115). */
   onWorkerSelect: (workerId: string | undefined) => void;
   onOpenTray: () => void;
+  /** A crowded capital or town: the civilians sit in the content box's corner, off its large picture (FR-346). */
+  corner?: boolean;
 }
 
 /** The name of a civilian button whose click goes to the tile: what the click does. */
@@ -88,6 +90,7 @@ const TileWorkersInner: React.FC<TileWorkersProps> = ({
   selectedElsewhere,
   onWorkerSelect,
   onOpenTray,
+  corner = false,
 }) => {
   const stackRef = useRef<HTMLButtonElement>(null);
   // Escape hides the tray until it opens again: reset whenever trayOpen changes (React's "adjust
@@ -122,7 +125,7 @@ const TileWorkersInner: React.FC<TileWorkersProps> = ({
 
   return (
     <>
-      <div className={styles.workers}>
+      <div className={corner ? `${styles.workers} ${styles.workersCorner}` : styles.workers}>
         {theirs.length > 0 && (
           <span
             className={`${styles.workerTarget} ${styles.workerMarker}`}

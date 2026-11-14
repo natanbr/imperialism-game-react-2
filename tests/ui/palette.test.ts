@@ -404,6 +404,19 @@ describe("FR-329 the tokens of the pack's look (M11, NR-032)", () => {
     expect(low).toEqual([]);
     expect(token('--color-province-border')).toBe('#5f5548');
   });
+
+  // QA fix round: paper, canned food, wool and the grey fish faded into the cream of the Board of Trade, the Warehouse and
+  // the Transport popup. Their field must stand off every surface a list lies on: the dialogs (surface), the capital's
+  // cards (raised) and its panels (sunken); and stay subtle, below the 3:1 of a control's edge.
+  it('FR-353 the goods pictures\' backing stands off every cream surface (at least 1.25:1) and stays subtle (under 2:1)', () => {
+    expect(THEME.artBacking).toBe('var(--color-art-backing)');
+    expect(token('--color-art-backing')).toBe('#d9ccb0');
+    const ratios = Object.fromEntries(
+      ['--color-surface', '--color-surface-raised', '--color-surface-sunken'].map((s) => [s, Math.round(contrast(token('--color-art-backing'), token(s)) * 100) / 100])
+    );
+    expect(ratios).toEqual({ '--color-surface': 1.47, '--color-surface-raised': 1.55, '--color-surface-sunken': 1.3 });
+    expect(Object.values(ratios).every((r) => r >= 1.25 && r < 2)).toBe(true);
+  });
 });
 
 describe('FR-179 the nine relation colours', () => {

@@ -46,11 +46,11 @@ export const CapitalModal: React.FC = () => {
     <Modal titleId={titleId} onClose={close} overlayClassName={styles.overlay} className={styles.dialog}>
         <header className={styles.header}>
           <h2 id={titleId} className={styles.title}>
-            <InkPicture src={CAPITOL_ART} alt="" inline /> Capital — {nation?.name ?? "Unknown"}
+            <InkPicture src={CAPITOL_ART} alt="" inline />Capital — {nation?.name ?? "Unknown"}
           </h2>
           <nav className={styles.headerButtons}>
             <button className={styles.secondaryButton} onClick={openWarehouse}>
-              <InkPicture src={buildingArt("warehouse")} alt="" inline /> Warehouse
+              <InkPicture src={buildingArt("warehouse")} alt="" inline />Warehouse
             </button>
             <button className={styles.secondaryButton} onClick={openMarket}>
               <GameIcon name={UI_ICONS.market} /> Trade
@@ -60,11 +60,11 @@ export const CapitalModal: React.FC = () => {
             </button>
             {hasProvinces && (
               <button className={styles.secondaryButton} onClick={openArmoury}>
-                <InkPicture src={buildingArt("armoury")} alt="" inline /> Armoury
+                <InkPicture src={buildingArt("armoury")} alt="" inline />Armoury
               </button>
             )}
             <button className={styles.secondaryButton} disabled title="Coming in a later milestone">
-              <InkPicture src={buildingArt("university")} alt="" inline /> Technology
+              <InkPicture src={buildingArt("university")} alt="" inline />Technology
             </button>
           </nav>
           <button className={styles.closeButton} onClick={close} aria-label="Close capital">

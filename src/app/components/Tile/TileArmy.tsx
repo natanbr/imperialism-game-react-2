@@ -11,6 +11,8 @@ export interface TileArmyProps {
   onOpen: (provinceId: string) => void;
   /** The seat carries a minor's name tag at its bottom (FR-153 d): the markers sit higher, clear of it. */
   high?: boolean;
+  /** A crowded capital or town without a name tag (FR-346): the markers sit low, clear of its large picture. */
+  low?: boolean;
 }
 
 /** The force size on the owner's colour (with the tents), then the militia (with a pitchfork). */
@@ -45,8 +47,8 @@ const DisbandMark: React.FC<{ count: number }> = ({ count }) =>
  * screen, marked "−1" while regiments there are to be disbanded (FR-263) and ringed while regiments there are selected
  * (FR-230); another country's is an image, and a click on it is a click on the tile.
  */
-const TileArmyInner: React.FC<TileArmyProps> = ({ markers, onOpen, high = false }) => (
-  <div className={`${styles.armies} ${high ? styles.armiesHigh : ''}`}>
+const TileArmyInner: React.FC<TileArmyProps> = ({ markers, onOpen, high = false, low = false }) => (
+  <div className={`${styles.armies} ${high ? styles.armiesHigh : low ? styles.armiesLow : ''}`}>
     {markers.map((marker) => {
       const className = `${styles.armyMarker} ${marker.regiments > 0 && marker.militia > 0 ? '' : styles.armyMarkerSingle} ${marker.selected > 0 ? styles.armyMarkerSelected : ''}`;
       return marker.own ? (

@@ -170,12 +170,16 @@ describe('FR-079 the rail line is drawn as one continuous line (NR-010)', () => 
     expect([...new Set(lengths)].sort()).toEqual([42, 46.96]);
   });
 
-  it('FR-328 the line stays the underlay: 3 px in --color-rail, and the overlay with it lies above the tile pictures', () => {
+  // FR-348 (QA; replaces FR-328's "drawn as a 3 px underlay in --color-rail"): the underlay filled the 2.8 px between the
+  // piece's two rails and hid its sleepers, so a link read as a dark cable. The line keeps its test id and ends (above).
+  it('FR-348 the line draws nothing of its own under the pack\'s piece, and the overlay with it lies above the tile pictures', () => {
     const mapCss = readFileSync(join(__dirname, '..', '..', 'src/app/components/MapView.module.css'), 'utf8');
     const tileCss = readFileSync(join(__dirname, '..', '..', 'src/app/components/Tile/Tile.module.css'), 'utf8');
     const rule = (css: string, name: string) => new RegExp(`\\.${name}\\s*\\{([^}]*)\\}`).exec(css)?.[1] ?? '';
-    expect(rule(mapCss, 'railSegment')).toMatch(/stroke:\s*var\(--color-rail\)/);
-    expect(rule(mapCss, 'railSegment')).toMatch(/stroke-width:\s*3;/);
+    expect(rule(mapCss, 'railSegment')).toMatch(/stroke:\s*none;/);
+    expect(rule(mapCss, 'railSegment')).not.toMatch(/stroke-width|--color-rail/);
+    // The piece's own rails are the rail colour (FR-329's 3:1 on the grass is theirs now): no other stroke covers them
+    expect(art.lines.length).toBeGreaterThan(0);
     const z = (body: string) => Number(/z-index:\s*(-?\d+)/.exec(body)?.[1] ?? NaN);
     // Above the tile picture (FR-322), below every tile mark and the selection mark (FR-110 (b))
     expect(z(rule(mapCss, 'railOverlay'))).toBeGreaterThan(z(rule(tileCss, 'icon')));

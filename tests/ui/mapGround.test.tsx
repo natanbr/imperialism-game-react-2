@@ -222,8 +222,14 @@ describe('FR-321 the ground SVG', () => {
     const { container, unmount } = render(<MapView />);
     const tiles = [...container.querySelectorAll('[data-testid="tile"]')] as HTMLElement[];
     expect(tiles.filter((t) => t.style.backgroundColor !== '' || t.style.background !== '')).toEqual([]);
-    // The faint grid line stays (FR-087)
-    expect(tiles.every((t) => t.style.border === tiles[0].style.border && t.style.border !== '')).toBe(true);
+    // The faint grid line stays on land (FR-087); the sea shows none over the water texture (FR-355, QA: the shifted rows'
+    // lines drew a brick-like grid on the water), with a border just as wide, so every tile stays 42 px (FR-088)
+    const isSea = (t: HTMLElement) => ['water', 'river', 'coast'].includes(t.getAttribute('data-terrain') ?? '');
+    const land = tiles.filter((t) => !isSea(t));
+    const sea = tiles.filter(isSea);
+    expect([land.length, sea.length]).toEqual([226, 24 * 16 - 226]);
+    expect([...new Set(land.map((t) => t.style.border))]).toEqual([`1px solid ${THEME.line}`]);
+    expect([...new Set(sea.map((t) => t.style.border))]).toEqual(['1px solid transparent']);
     // Under the water texture (FR-340), while it loads
     expect(rule(mapCss, 'container')).toMatch(/background-color:\s*var\(--color-ground-water\)/);
     unmount();

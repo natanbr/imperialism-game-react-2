@@ -16,12 +16,12 @@ interface FreightCarsProps {
 
 /**
  * The railyard: freight cars ordered this turn, one at a time (FR-039, FR-047); the capacity is the cars in service (FR-101).
- * The heading shows the railyard (FR-333), the car's labour cost the labour picture (FR-332).
+ * The heading shows the railyard at 30 px (FR-352, card Q78), the car's labour cost the labour picture (FR-332).
  */
 export const FreightCars: React.FC<FreightCarsProps> = ({ nationId, capacity, carsOrdered, submitOrder, onOpenAllocations }) => (
   <section className={styles.panel} data-testid="freight-cars" aria-label="Transport">
     <h3 className={styles.panelTitle}>
-      <InkPicture src={buildingArt("railyard")} alt="" inline /> Transport
+      <InkPicture src={buildingArt("railyard")} alt="" inline className={styles.buildingPicture} />Transport
     </h3>
     <div className={styles.labourLine}>
       <span>Transport capacity</span>
@@ -49,7 +49,7 @@ export const FreightCars: React.FC<FreightCarsProps> = ({ nationId, capacity, ca
     <div className={styles.note}>
       {`${FREIGHT_CAR_COST.lumber} Lumber, ${FREIGHT_CAR_COST.steel} Steel and `}
       <InkPicture src={LABOUR_ART} alt="" inline />
-      {` ${FREIGHT_CAR_COST.labour} labour per car`}
+      {`${FREIGHT_CAR_COST.labour} labour per car`}
     </div>
     <button className={styles.secondaryButton} onClick={onOpenAllocations}>
       Transportation of Commodities

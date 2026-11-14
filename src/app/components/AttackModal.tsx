@@ -78,7 +78,7 @@ const AttackScreen: React.FC = () => {
     <Modal titleId={titleId} describedBy={estimateId} onClose={close} overlayClassName={styles.overlay} className={styles.attack}>
       <header className={styles.header}>
         <h2 id={titleId}>
-          <GameIcon name={UI_ICONS.attack} /> {view.title}
+          <GameIcon name={UI_ICONS.attack} />{view.title}
         </h2>
       </header>
 

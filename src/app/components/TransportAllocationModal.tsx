@@ -27,7 +27,7 @@ const TransportAllocationModal: React.FC<TransportAllocationModalProps> = ({ cap
     <Modal titleId={titleId} onClose={onClose} overlayClassName="modal-overlay" className="modal-content">
         <div className="modal-header">
           <h3 id={titleId} className="modal-title">
-            <InkPicture src={buildingArt("railyard")} alt="" inline /> Transportation of Commodities
+            <InkPicture src={buildingArt("railyard")} alt="" inline />Transportation of Commodities
           </h3>
           <button onClick={onClose} className="modal-close-btn" aria-label="Close transport">
             <span aria-hidden="true">×</span>
@@ -54,7 +54,7 @@ const TransportAllocationModal: React.FC<TransportAllocationModalProps> = ({ cap
                 return (
                   <div key={key} className="transport-row" data-testid={`transport-row-${key}`}>
                     <label htmlFor={inputId} className="transport-name" data-testid="name">
-                      <InkPicture src={goodsArt(key)} alt="" inline /> {commodityName(key)}
+                      <InkPicture src={goodsArt(key)} alt="" inline />{commodityName(key)}
                     </label>
                     <input
                       id={inputId}

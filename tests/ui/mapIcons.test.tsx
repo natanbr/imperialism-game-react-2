@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 // M11 (NR-032) rewrote these FR-085 map tests for the art pack's pictures. FR-322: each land tile shows one pack picture
 // (`tile-icon`, alt "", 40 x 40) for what it holds, the sea none; it never shrinks or moves for civilians, except on a
-// capital or town (FR-341, review F2: 24 px at the top centre while civilians or a minor's name tag stand there). FR-323:
+// capital or town (FR-346, QA, replacing FR-341's 24 px: 48 px, lifted 18 px, while civilians or a minor's name tag stand
+// there, the civilians in the corner and the army chip low). FR-323:
 // a known mineral or oil shows its goods picture as a 16 px mark at the bottom-left, the level badge "L1" stays, the
 // river marker stays GiRiver beside the mark. FR-325: worker buttons, and another nation's lone civilian, show the
 // civilian's figure; another nation's group keeps GiMeepleGroup; the selected button adds an accent outline.
@@ -60,9 +61,10 @@ describe('FR-322 the tile picture', () => {
     unmount();
   });
 
-  it('FR-322 FR-341 the picture fills the 40 x 40 content box below the overlay; only a crowded capital or town moves it', () => {
+  it('FR-322 FR-346 the picture fills the 40 x 40 content box below the overlay; only a crowded capital or town draws it larger', () => {
     // A farm with one civilian keeps the whole box (FR-322); a capital or town with civilians or a minor's name tag draws
-    // its picture at 24 px at the top centre, so their 24 px buttons leave it recognisable (FR-341, review F2)
+    // its picture at 48 px, lifted 18 px, with its civilians in the corner and its army chip low (FR-346, QA; FR-341's
+    // 24 px left only a small dome)
     const farmhand = game.map.tiles.flat().find((t) => t.ownerNationId === N && t.terrain === TerrainType.Farm && t.workers.length === 0)!;
     const lone: Worker = { id: 'w-lone', type: WorkerType.Farmer, nationId: N, efficiency: 100, status: WorkerStatus.Available, justMoved: false };
     const town = game.map.tiles.flat().find((t) => t.ownerNationId === N && t.terrain === TerrainType.Orchard && t.workers.length === 0)!;
@@ -78,17 +80,17 @@ describe('FR-322 the tile picture', () => {
     const icon = (id: string) => container.querySelector(`[data-tile-id="${id}"] [data-testid="tile-icon"]`)!;
     const box = (id: string) => ({ size: `${icon(id).getAttribute('width')} x ${icon(id).getAttribute('height')}`, class: icon(id).getAttribute('class') });
     const whole = { size: '40 x 40', class: tileStyles.icon };
-    const crowded = { size: '24 x 24', class: `${tileStyles.icon} ${tileStyles.iconCrowded}` };
+    const crowded = { size: '48 x 48', class: `${tileStyles.icon} ${tileStyles.iconCrowded}` };
     const emptyCapital = game.map.tiles.flat().find((t) => t.terrain === TerrainType.Capital && t.ownerNationId === 'nation-2')!.id;
     // 2-9 holds seven civilians, 11-4 is Arvelia's capital with its name tag, 3-9 holds neither
     expect(['2-9', '11-4', town.id, '3-9', farmhand.id, emptyCapital].map(box)).toEqual([crowded, crowded, crowded, whole, whole, whole]);
     const lifted = rule('iconCrowded');
-    expect(lifted).toMatch(/width:\s*24px/);
-    expect(lifted).toMatch(/height:\s*24px/);
-    expect(lifted).toMatch(/left:\s*8px/);
-    // Lifted 4 px: capital.png's drawing starts 4.4 px down a 24 px box, so it spans 0.4 to 15.5 px, above the 24 px
-    // button (from 15 px down)
-    expect(lifted).toMatch(/top:\s*-4px/);
+    expect(lifted).toMatch(/width:\s*48px/);
+    expect(lifted).toMatch(/height:\s*48px/);
+    expect(lifted).toMatch(/left:\s*-4px/);
+    // Lifted 18 px: capital.png's drawing (y 47 to 209 of 256) then spans -9.2 to 21.2 px, its top between the two pictures
+    // of the row above, its foot above the civilians' button in the corner (from 16 px down)
+    expect(lifted).toMatch(/top:\s*-18px/);
     const body = rule('icon');
     expect(body).toMatch(/width:\s*40px/);
     expect(body).toMatch(/height:\s*40px/);
@@ -97,6 +99,16 @@ describe('FR-322 the tile picture', () => {
     expect(body).not.toMatch(/transform/);
     // Below the border and rail overlay (MapView.module.css .railOverlay, z-index 1)
     expect(Number(/z-index:\s*(-?\d+)/.exec(body)?.[1])).toBe(0);
+    // The civilians of a crowded capital or town sit in the content box's corner; elsewhere 5 px in, as before
+    const workers = (id: string) => container.querySelector(`[data-tile-id="${id}"] [data-testid="worker-stack"], [data-tile-id="${id}"] [data-testid="worker-button"]`)!.parentElement!;
+    expect([workers('2-9'), workers(town.id), workers(farmhand.id)].map((w) => w.classList.contains(tileStyles.workersCorner))).toEqual([true, true, false]);
+    expect(rule('workersCorner')).toMatch(/right:\s*0;/);
+    expect(rule('workersCorner')).toMatch(/bottom:\s*0;/);
+    // The army chip: low on a crowded capital without a name tag, high on a minor's capital (FR-153 d)
+    const armies = (id: string) => container.querySelector(`[data-tile-id="${id}"] [data-testid="army-marker"]`)!.closest(`.${tileStyles.armies}`)!;
+    expect([armies('2-9').classList.contains(tileStyles.armiesLow), armies('11-4').classList.contains(tileStyles.armiesHigh)]).toEqual([true, true]);
+    expect(armies('11-4').classList.contains(tileStyles.armiesLow)).toBe(false);
+    expect(rule('armiesLow')).toMatch(/top:\s*16px/);
     unmount();
   });
 

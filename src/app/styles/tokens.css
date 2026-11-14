@@ -97,6 +97,10 @@
   --color-text-good: var(--color-good);
   --color-border: #e0d7c2;
   --color-border-strong: #c8bda4;
+  /* The field behind every goods picture in a list (FR-353, QA): the pale goods (paper, canned food, wool, fish) faded into
+     the cream surfaces; on this darker parchment they read. At least 1.25:1 on every surface it lies on
+     (tests/ui/palette.test.ts). */
+  --color-art-backing: #d9ccb0;
   --radius-sm: 4px;
   --radius-md: 8px;
   --radius-lg: 10px;

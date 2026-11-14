@@ -73,8 +73,8 @@ test('FR-090 the whole map fits 1280x720 next to the HUD, with an icon on every 
   const farm = (await tile(page, '3-9').boundingBox())!;
   expect([picture.x - farm.x, picture.y - farm.y, picture.width, picture.height]).toEqual([1, 1, 40, 40]);
   await expect(tile(page, '3-9').getByTestId('level-badge')).toHaveText('L1');
-  // FR-341 (review F2): what lies on top at the middle of the capital's picture, and of Arvelia's (its name tag, its army
-  // chip), is the picture itself, not the civilians' stack, its count or the army chip. The probe lets the pictures and
+  // FR-341 (review F2), kept by FR-346: what lies on top at the middle of the capital's picture, and of Arvelia's (its
+  // name tag, its army chip), is the picture itself, not the civilians' stack, its count or the army chip. The probe lets the pictures and
   // the name tag take the pointer for a moment (they have none), so the topmost box at that point answers.
   const onTop = (id: string) =>
     tile(page, id)
@@ -89,6 +89,53 @@ test('FR-090 the whole map fits 1280x720 next to the HUD, with an icon on every 
         return hit === img ? 'picture' : `${hit?.tagName} ${hit?.getAttribute('data-testid') ?? hit?.className}`;
       });
   expect([await onTop('2-9'), await onTop('11-4')]).toEqual(['picture', 'picture']);
+
+  // FR-346 (QA; replaces FR-341's 24 px, at which only a small dome showed): on turn 1 every capital's picture is drawn
+  // large (its drawing at least 36 px across) and the boxes lying over its drawing (civilians, their count, army chips,
+  // name tags, badges, marks, of any tile) cover at most 30% of it; the civilians' button and the army chip stay 24 px,
+  // named and clickable. capital.png draws in x 20 to 235, y 47 to 209 of its 256 px (alpha above 32).
+  const capitals = await page.locator('[data-testid="tile"][data-terrain="capital"]').evaluateAll((els) => els.map((el) => el.getAttribute('data-tile-id')!));
+  expect(capitals).toHaveLength(6);
+  for (const id of capitals) {
+    const placement = await tile(page, id)
+      .getByTestId('tile-icon')
+      .evaluate((img) => {
+        const box = img.getBoundingClientRect();
+        const f = box.width / 256;
+        const drawing = { x0: box.x + 20 * f, y0: box.y + 47 * f, x1: box.x + 235 * f, y1: box.y + 209 * f };
+        const covers = [
+          ...document.querySelectorAll(
+            '[data-testid="worker-stack"], [data-testid="worker-stack"] > span, [data-testid="worker-button"], [data-testid="worker-marker"], ' +
+              '[data-testid="army-marker"], [data-testid="army-disband"], [data-testid="minor-name"], [data-testid="level-badge"], ' +
+              '[data-testid="resource-mark"], [role="img"][aria-label^="Depot: "], [role="img"][aria-label^="Port: "]'
+          ),
+        ]
+          .map((el) => el.getBoundingClientRect())
+          .filter((r) => r.right > drawing.x0 && r.x < drawing.x1 && r.bottom > drawing.y0 && r.y < drawing.y1);
+        let all = 0;
+        let covered = 0;
+        for (let x = drawing.x0 + 0.25; x < drawing.x1; x += 0.5)
+          for (let y = drawing.y0 + 0.25; y < drawing.y1; y += 0.5) {
+            all++;
+            if (covers.some((r) => x >= r.x && x < r.right && y >= r.y && y < r.bottom)) covered++;
+          }
+        return { width: Math.round((drawing.x1 - drawing.x0) * 10) / 10, covered: Math.round((covered / all) * 1000) / 1000 };
+      });
+    console.log(`FR-346 capital ${id}: drawing ${placement.width} px across, ${Math.round(placement.covered * 100)}% covered`);
+    expect(placement.width, id).toBeGreaterThanOrEqual(36);
+    expect(placement.covered, id).toBeLessThanOrEqual(0.3);
+    const army = tile(page, id).getByTestId('army-marker').first();
+    const armyBox = (await army.boundingBox())!;
+    expect([armyBox.width, armyBox.height], id).toEqual([24, 24]);
+    await expect(army, id).toHaveAccessibleName(/army|militia/);
+  }
+  // The player's own buttons on its capital take the pointer at their place (Playwright's trial click checks that nothing
+  // lies over them)
+  const stackButton = tile(page, '2-9').getByTestId('worker-stack');
+  expect([(await stackButton.boundingBox())!.width, (await stackButton.boundingBox())!.height]).toEqual([24, 24]);
+  await expect(stackButton).toHaveAccessibleName('7 civilians: choose one');
+  await stackButton.click({ trial: true });
+  await tile(page, '2-9').getByRole('button', { name: /^Testland army/ }).click({ trial: true });
   await shot(page, 'map');
 
   // FR-110 (a): the capital's seven civilians are one 24 px stack button; its tray holds a 24 px button each
@@ -168,21 +215,29 @@ test.describe('rendered at three times the pixel density', () => {
     const depot = tile(page, '2-7').getByRole('img', { name: 'Depot: connected' });
     await expect(depot).toHaveAttribute('title', 'Depot: connected');
     await expect(depot).toHaveAttribute('data-connected', 'true');
-    // FR-324 (M11): the pack's depot at 14 px along the top edge from the right, the filled station mark on its bottom-right
+    // FR-347 (QA; replaces FR-324's 14 px with 8 px marks): the pack's depot at 20 px in the top-right corner, 1 px in, the
+    // filled station mark at 11 px on its top-right, readable at 1x
     await expect(depot.locator('img').first()).toHaveAttribute('data-art', 'infrastructure/depot.png');
     await expect(depot.locator('img').nth(1)).toHaveAttribute('data-art', 'map-ui/station-connected.svg');
     const depotTile = (await tile(page, '2-7').boundingBox())!;
     const depotPicture = (await depot.locator('img').first().boundingBox())!;
     const stationMark = (await depot.locator('img').nth(1).boundingBox())!;
-    expect([depotPicture.width, depotPicture.height, stationMark.width, stationMark.height]).toEqual([14, 14, 8, 8]);
+    expect([depotPicture.width, depotPicture.height, stationMark.width, stationMark.height]).toEqual([20, 20, 11, 11]);
     expect(depotTile.x + depotTile.width - (depotPicture.x + depotPicture.width)).toBe(2); // 1 px grid line + 1 px in
     expect(depotPicture.y - depotTile.y).toBe(2);
-    expect(stationMark.x + stationMark.width).toBeGreaterThan(depotPicture.x + depotPicture.width / 2);
-    expect(stationMark.y + stationMark.height).toBeGreaterThan(depotPicture.y + depotPicture.height / 2);
+    expect([stationMark.x + stationMark.width - (depotPicture.x + depotPicture.width), stationMark.y - depotPicture.y]).toEqual([1, -1]);
+    // Clear of the level badge at the top-left: the widest badge on the map ends left of where a station begins (20 px)
+    const badgeEnds = await page
+      .getByTestId('level-badge')
+      .evaluateAll((badges) => badges.map((b) => b.getBoundingClientRect().right - b.closest('[data-testid="tile"]')!.getBoundingClientRect().x));
+    expect(Math.max(...badgeEnds)).toBeLessThan(depotPicture.x - depotTile.x);
     // Nation 2 lays its own rail meanwhile (FR-102): count the player's lines only
     await expect(page.locator('[data-testid="rail-segment"][data-nation-id="nation-1"]')).toHaveCount(2);
     // FR-328 (M11): the pack's rail piece over each link, all of them (both nations')
     await expect(page.getByTestId('rail-art')).toHaveCount(await page.getByTestId('rail-segment').count());
+    // FR-348 (QA): the link's line paints nothing of its own, so the piece's sleepers show (a 3 px line in the rail colour
+    // filled the space between its rails); its ends stay (FR-136)
+    expect(await page.getByTestId('rail-segment').evaluateAll((lines) => [...new Set(lines.map((l) => getComputedStyle(l).stroke))])).toEqual(['none']);
 
     // The zoom: the capital's corner of island 1, with the farm 3-9 selected
     await page.locator('[data-testid="tile"][data-tile-id="3-9"]').click({ position: { x: 4, y: 4 } });

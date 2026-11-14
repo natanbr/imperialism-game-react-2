@@ -34,7 +34,7 @@ export const GameOverModal: React.FC = () => {
     <Modal titleId={titleId} overlayClassName={styles.overlay} className={styles.dialog}>
         <header className={styles.header}>
           <h2 id={titleId}>
-            <GameIcon name={UI_ICONS.finalScores} /> Game over
+            <GameIcon name={UI_ICONS.finalScores} />Game over
           </h2>
         </header>
         <p className={styles.note} data-testid="game-over-date">

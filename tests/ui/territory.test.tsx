@@ -84,15 +84,21 @@ describe('FR-087 territory borders', () => {
 describe('FR-087 the selected tile looks different from owned tiles', () => {
   // FR-110 (b) moved the ring from the tile's own box-shadow to an element of its own above the border
   // overlay; its accent colour and stacking are checked in watchNation.test.tsx.
-  it('FR-087 FR-110 the selected tile alone has the ring; owned and unowned tiles share one plain grid border', () => {
+  // FR-355 (QA): the sea no longer shows the grid line (it drew a brick-like grid on the water), so the unowned tile compared
+  // here is the sea's, by its width only; the land of both nations shares the one grid line
+  it('FR-087 FR-110 FR-355 the selected tile alone has the ring; both nations\' land shares one plain grid border', () => {
     show(game, { selectedTileId: '3-9' });
     const { container, unmount } = render(<MapView />);
     const style = (id: string) => (container.querySelector(`[data-tile-id="${id}"]`) as HTMLElement).style;
+    const theirs = game.map.tiles.flat().find((t) => t.ownerNationId === 'nation-2')!.id;
 
     const selected = style('3-9');
     const owned = style('3-8');
     const sea = style('1-9');
-    expect(owned.border).toBe(sea.border);
+    expect(game.map.tiles[9][1].terrain).toBe('water');
+    expect(owned.border).toBe(`1px solid ${THEME.line}`);
+    expect(style(theirs).border).toBe(owned.border);
+    expect(sea.border).toBe('1px solid transparent');
     expect(selected.border).toBe(owned.border);
     // No tile's own style carries a nation colour any more: ownership is the border overlay
     const tiles = [...container.querySelectorAll('[data-testid="tile"]')] as HTMLElement[];

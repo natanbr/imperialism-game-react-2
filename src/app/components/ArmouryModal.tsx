@@ -42,7 +42,7 @@ const CostList: React.FC<{ items: readonly ArmouryItem[] }> = ({ items }) => (
     <ul className={styles.itemList} aria-label="Cost">
       {items.map((item) => (
         <li key={item.key} className={styles.item}>
-          <ItemPicture item={item} /> {item.text}
+          <ItemPicture item={item} />{item.text}
         </li>
       ))}
     </ul>
@@ -149,7 +149,7 @@ const Armoury: React.FC = () => {
     <Modal titleId={titleId} describedBy={noteId} onClose={close} overlayClassName={styles.overlay} className={styles.armoury}>
       <header className={styles.header}>
         <h2 id={titleId}>
-          <InkPicture src={buildingArt("armoury")} alt="" inline /> Armoury
+          <InkPicture src={buildingArt("armoury")} alt="" inline />Armoury
         </h2>
         {/* In the header, so the three rows of cards keep the height (FR-264) */}
         <p id={noteId} className={styles.headerNote} data-testid="armoury-note">

@@ -176,7 +176,7 @@ const ArmyScreen: React.FC<{ provinceId: string }> = ({ provinceId }) => {
     <Modal titleId={titleId} onClose={close} overlayClassName={styles.overlay} className={styles.dialog}>
       <header className={styles.header}>
         <h2 id={titleId}>
-          <GameIcon name={UI_ICONS.army} /> {view.title}
+          <GameIcon name={UI_ICONS.army} />{view.title}
         </h2>
         <span className={styles.summary} data-testid="force-size">
           Force Size: <strong>{view.forceSize}</strong>
