@@ -579,26 +579,39 @@ Turn is disabled and the store's `advanceTurn` returns at once, so no empty turn
 (`hooks/useKeyboardShortcuts.ts`, mounted by `page.tsx`) is ignored in a form field and while any `role="dialog"` is
 in the page (FR-178). A tile is `components/Tile.tsx` plus
 sub-components in `components/Tile/` and three hooks: `useTileActions` (which action the
-selected worker offers, from `workers/*`), `useTileVisuals` (terrain tint, grid line and the
-cursor) and `useTileClickHandler` (the click, as orders). The selection ring is an element of
-`TileBase` above the border overlay (FR-110). `TileWorkers` draws the player's civilians as 24 px
+selected worker offers, from `workers/*`), `useTileVisuals` (grid line and the cursor; since M11 a tile
+has no background colour of its own, FR-321) and `useTileClickHandler` (the click, as orders). The
+selection ring is an element of `TileBase` above the border overlay (FR-110), drawing the pack's corner
+brackets (FR-326). `TileWorkers` draws the player's civilians as 24 px
 buttons (one alone, or a stack button with the count whose tray opens while the tile is selected and
 no worker is) and another nation's as a marker, not a button (FR-108, FR-110); the store's
 `selectWorker` / `setSelectedWorkerId` ignore any worker that is not the player's
-(`store/controls/playersWorker.ts`), and the HUD's tile panel shows another nation's tile read-only. Look (M3.5 part B):
-icons are Game Icons (CC BY 3.0, credited in the HUD's About panel) from `react-icons/gi`, named
-in `components/icons.ts` (per terrain, resource and worker type; `tileIconOf` picks the one a tile
-shows) and drawn by `GameIcon.tsx` with `data-icon`. Colours are CSS variables defined only in
+(`store/controls/playersWorker.ts`), and the HUD's tile panel shows another nation's tile read-only. Look (M3.5 part B,
+restyled in M11): the pictures are the art pack's (the paragraph after this one). Game Icons (CC BY 3.0, credited in
+the HUD's About panel) from `react-icons/gi` remain only where the pack has no picture (FR-335, Q60): the 17
+`UI_ICONS` in `components/icons.ts` (market, Deal Book, Diplomacy, Center, Advance Turn, final scores, About, New
+game, the civilians' stack, the three job markers, the army chip's tent and militia, attack, battle, Council) and the
+river marker `GiRiver`; `GI` holds exactly those, and `GameIcon.tsx` draws one with `data-icon`. Colours are CSS variables defined only in
 `styles/tokens.css`; `styles/theme.ts` names them for TypeScript and holds `TILE_PX` (42) and
 `HUD_PX` (a test checks both files agree, and that no colour literal sits in components, hooks or
-`globals.css`). MapView's SVG overlay draws, in this order, the dotted lines between two provinces of
-one owner (`--color-province-border`), each nation's territory border, each minor nation's dashed border
-(`--color-minor`, on top where it meets a Great Power's) and the rail, above the tile tints and below the
-tile icons (`components/territoryBorders.ts`, FR-153). A minor's capital tile carries the minor's name
+`globals.css`). Under the tile rows `components/map/MapGround.tsx` draws the map's ground as one SVG
+(FR-321): `map/shoreline.ts`, a TypeScript port of the pack demo's shoreline, turns the land and water pattern into
+rounded masks for deep water, shallows, a sand rim and the grass, with desert and tundra patches; textures repeat at
+their own 512 px; the SVG is memoised on the land and water signature (the same DOM node after End Turn) and its layer
+is isolated (`contain: strict`); past the map the scroller shows the ground's water colour. MapView's SVG overlay
+draws, above the tile pictures and below every tile mark and the selection, first a pale halo (`--color-map-halo`,
+`border-halo`) under every border, then in this order the dotted lines between two provinces of one owner
+(`--color-province-border`), each nation's territory border, each minor nation's dashed border (`--color-minor`, on
+top where it meets a Great Power's) and the rail: each link a 3 px `--color-rail` line with the pack's rail piece
+over it through one transform (`railArtMatrix` in `railSegments.ts`, FR-328) (`components/territoryBorders.ts`,
+FR-153, FR-327). A minor's capital tile carries the minor's name
 (`Tile/TileName.tsx`). A tile belongs to a country by `countryOfTile` (the owner of its province, else
 `ownerNationId`): the tile's name, the click (another country's tile, a minor's included, is only
 viewed) and the tile panel (owner, "(minor nation)", the province) all ask it (FR-155).
-Cursors are still emoji SVG data URIs (`useTileVisuals`). The HUD shows "Turn: N of 40" and the date ("Spring 1815"), cash, the score, every
+Cursors (FR-330) are the pack's pictures, each drawn once at runtime into a 32 x 32 px canvas and used as a PNG
+data URI (`hooks/tileCursor.ts`, read by `useTileVisuals` through `useSyncExternalStore`, so a drawn cursor
+re-renders only the tiles that show it); `pointer` until a picture is ready and where no canvas exists (server render, jsdom). No source file under
+`src/app` holds an emoji (tests/ui/noEmoji.test.ts). The HUD shows "Turn: N of 40" and the date ("Spring 1815"), cash, the score, every
 nation ranked by score with its colour swatch and name (`HUD/ScoreTable.tsx`, `NationSwatch.tsx`), the
 food warning, the selected tile, the news of the last turn and the last refused order (`components/HUD/NewsPanel.tsx`;
 `newsLines` puts the player's lines first and names the other nations on theirs). Its information
@@ -637,7 +650,9 @@ Game Icon) and `data-art-anchor`; `size`, or `width` and `height`, set its box i
 (1.25em, the `img[data-art-inline]` rule in globals.css), and globals.css draws `data-art-anchor="bottom-center"`
 pictures (workers, army, buildings) from the bottom centre. `RegimentPicture`, `FortPicture` and `CapitolPicture` are
 InkPictures. The pack's look has its own tokens (FR-329): `--color-ground-water`, `-shallows`, `-sand`, `-grass`,
-`-desert`, `-tundra` and `--color-map-halo` (THEME `groundWater` ... `mapHalo`).
+`-desert`, `-tundra` and `--color-map-halo` (THEME `groundWater` ... `mapHalo`); the border colours reach 3:1 on the
+halo and the rail on the grass. The per-terrain tints (`--terrain-<type>`, `TERRAIN_TINT`) and `--color-selected` were
+removed in M11's closing step (Q71): tiles lie on the ground and the selection is the pack's brackets.
 
 ## Testing
 
