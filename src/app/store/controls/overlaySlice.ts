@@ -1,6 +1,7 @@
 import { StateCreator } from 'zustand';
 import { GameStore } from '../rootStore';
 import type { BattleReport } from '@/types/Battle';
+import type { CouncilMetEvent } from '@/engine';
 
 /** The regiments the player ticked in one province's Army screen (FR-230): kept when the screen closes. */
 export interface ArmySelection {
@@ -71,6 +72,12 @@ export interface OverlaySlice {
   battleQueue: BattleReport[];
   showBattle: (report: BattleReport) => void;
   closeBattle: () => void;
+
+  // The Council screen (FR-298, FR-299): the meeting it shows, or null. End Turn sets the meeting just held, so it opens by
+  // itself once (after the Battle screens: it waits while `battleQueue` has one); a news line sets its meeting (FR-297)
+  councilShown: CouncilMetEvent | null;
+  showCouncil: (event: CouncilMetEvent) => void;
+  closeCouncil: () => void;
 
   // The Armoury (FR-212), opened from the capital dialog
   isArmouryOpen: boolean;
@@ -144,6 +151,10 @@ export const createOverlaySlice: StateCreator<GameStore, [], [], OverlaySlice> =
   battleQueue: [],
   showBattle: (report) => set({ battleQueue: [report] }),
   closeBattle: () => set((s) => ({ battleQueue: s.battleQueue.slice(1) })),
+
+  councilShown: null,
+  showCouncil: (event) => set({ councilShown: event }),
+  closeCouncil: () => set({ councilShown: null }),
 
   isArmouryOpen: false,
   openArmoury: () => set({ isArmouryOpen: true, lastRejection: null }),

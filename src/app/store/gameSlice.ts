@@ -6,6 +6,7 @@ import {
   newGame,
   resolveTurn,
   tryApplyOrder,
+  type CouncilMetEvent,
   type GameEvent,
   type Order,
   type RejectReason,
@@ -158,6 +159,8 @@ export const createGameSlice =
           // FR-232: the player's next turn starts with the Battle screen of each battle it fought, one after another;
           // FR-230: this turn's selection and attack plan are spent
           battleQueue: battlesFoughtBy(events, activeNationId),
+          // FR-299: and with the Council screen of a meeting just held, once, after those Battle screens
+          councilShown: events.find((e): e is CouncilMetEvent => e.type === "council-met") ?? null,
           armySelection: null,
           attackPlan: null,
         });
@@ -188,6 +191,7 @@ export const createGameSlice =
           armySelection: null,
           attackPlan: null,
           battleQueue: [],
+          councilShown: null,
           isArmouryOpen: false,
           isWarehouseOpen: false,
           isTransportAllocationOpen: false,

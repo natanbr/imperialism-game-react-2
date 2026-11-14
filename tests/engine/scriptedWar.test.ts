@@ -9,6 +9,7 @@ import { campaignTarget, capitalKeep } from '@/engine/ai/scriptedWar';
 import { tryApplyOrder } from '@/engine/orders/apply';
 import type { Order } from '@/engine/orders/Order';
 import { resolveTurn } from '@/engine/turn/resolveTurn';
+import { councilCell, type CouncilMetEvent } from '@/engine/council/council';
 import { transferProvince } from '@/engine/world/provinces';
 import { SCRIPTED_WAR } from '@/definisions/combatRules';
 import type { GameState } from '@/types/GameState';
@@ -163,15 +164,19 @@ describe('FR-274 scripted war on minors', () => {
       warsOnGreatPowers: number;
       /** Valdoria's regiments disbanded for want of pay (FR-202; M9 review R1: 4 and 6 on seeds 1 and 3 at turn 33 before FR-275). */
       noPay: number;
+      /** The Council meetings (FR-302, M10 review E1) and how the game ended. */
+      councils: CouncilMetEvent[];
+      endReason?: string;
     }
     const runs: Run[] = [];
     beforeAll(() => {
       for (const seed of SEEDS) {
         let s = newGame({ seed, world: 'continent' });
-        const run: Run = { seed, refused: 0, lowestTreasury: Infinity, warsOnGreatPowers: 0, noPay: 0 };
+        const run: Run = { seed, refused: 0, lowestTreasury: Infinity, warsOnGreatPowers: 0, noPay: 0, councils: [] };
         for (let turn = 1; turn <= 40; turn++) {
           const { state, events } = resolveTurn(s, { [N2]: scriptedPlayer(s, N2) }, s.seed);
           for (const e of events) {
+            if (e.type === 'council-met') run.councils.push(e);
             if (e.type === 'order-rejected') run.refused++;
             if (e.type === 'regiments-disbanded' && e.reason === 'no-pay' && e.nationId === N2) run.noPay += e.count;
             if (e.type === 'war-declared' && e.nationId === N2) {
@@ -183,11 +188,16 @@ describe('FR-274 scripted war on minors', () => {
           s = state;
           run.lowestTreasury = Math.min(run.lowestTreasury, nationOf(s, N2).treasury);
         }
+        run.endReason = s.gameOver?.reason;
         runs.push(run);
       }
       console.log(
         'FR-274 per seed (declared, colonised, lowest treasury, no-pay disbands):',
         JSON.stringify(runs.map(r => [r.seed, r.declared, r.colonised, r.lowestTreasury, r.noPay]))
+      );
+      console.log(
+        'FR-302 Council per seed on the partners market (meeting turn, Valdoria and Testland: controlled+colonies+other minors):',
+        JSON.stringify(runs.map(r => [r.seed, r.councils.map(c => `t${c.turn} ${c.nominees.map(n => `${n.nationId}:${n.controlled}+${n.colonies}+${n.otherMinorNations}`).join('/')}`)]))
       );
     }, 300_000);
 
@@ -203,7 +213,19 @@ describe('FR-274 scripted war on minors', () => {
 
     it('FR-274 Valdoria declares war on a minor by turn 25 and takes its capital by turn 40 in at least 3 of the 4 seeds', () => {
       const met = runs.filter(r => r.declared !== undefined && r.declared <= 25 && r.colonised !== undefined && r.colonised <= 40);
-      expect(met.length, JSON.stringify(runs)).toBeGreaterThanOrEqual(3);
+      expect(met.length, JSON.stringify(runs.map(r => [r.seed, r.declared, r.colonised]))).toBeGreaterThanOrEqual(3);
+    });
+
+    it('FR-302 FR-305 on the default (partners) market the Council meets 4 times with no winner; the colony Valdoria won by FR-274 votes for it as Colonies at the turn-30 and turn-40 meetings (M10 review E1)', () => {
+      expect(runs.map(r => [r.seed, r.councils.map(c => [c.turn, c.winnerId ?? null]), r.endReason ?? null])).toEqual(
+        SEEDS.map(seed => [seed, [[10, null], [20, null], [30, null], [40, null]], null])
+      );
+      const colonies = (r: Run) => r.councils.map(c => [c.turn, councilCell(c, N2, 'colonies')]);
+      // Seeds 1 to 3 colonise Arvelia on turn 22 (FR-274's acceptance); seed 4 declares no war
+      expect(runs.map(r => [r.seed, r.colonised ?? null, colonies(r)])).toEqual([
+        ...[1, 2, 3].map(seed => [seed, 22, [[10, []], [20, []], [30, [ARVELIA_P]], [40, [ARVELIA_P]]]]),
+        [4, null, [[10, []], [20, []], [30, []], [40, []]]],
+      ]);
     });
   });
 });

@@ -14,3 +14,11 @@ export const seasonOf = (turn: number): Season =>
 
 /** True for winter, the last turn of a year: the year advances after it. */
 export const isLastTurnOfYear = (turn: number): boolean => seasonOf(turn) === "winter";
+
+/** The year of `turn`, counted from a known date (`from`, such as the state's turn and year): FR-290's meeting dates. */
+export function yearOfTurn(from: { turn: number; year: number }, turn: number): number {
+  let year = from.year;
+  for (let t = from.turn; t < turn; t++) if (isLastTurnOfYear(t)) year++;
+  for (let t = from.turn - 1; t >= turn; t--) if (isLastTurnOfYear(t)) year--;
+  return year;
+}

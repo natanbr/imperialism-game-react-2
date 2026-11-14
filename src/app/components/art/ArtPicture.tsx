@@ -1,6 +1,6 @@
 import React from "react";
 import type { RegimentType } from "@/engine";
-import { fortArt, regimentArt } from "./inkArt";
+import { CAPITOL_ART, fortArt, regimentArt } from "./inkArt";
 
 interface PictureProps {
   src: string;
@@ -30,3 +30,8 @@ export const FortPicture: React.FC<{ level: number; alt?: string; size?: number;
   const src = fortArt(level);
   return src ? <Picture src={src} alt={alt} size={size} className={className} /> : null;
 };
+
+/** The capitol, the Council screen's header picture (FR-298): decorative, the title beside it names the Council. */
+export const CapitolPicture: React.FC<{ size?: number; className?: string }> = ({ size = 96, className }) => (
+  <Picture src={CAPITOL_ART} alt="" size={size} className={className} />
+);

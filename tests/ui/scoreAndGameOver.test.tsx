@@ -9,7 +9,7 @@ import { useGameStore } from '@/store/rootStore';
 import { resolveTurn, scoreOf } from '@/engine';
 import type { GameState } from '@/types/GameState';
 import { emptyWarehouse, game, N1, N2, setIndustry, setPair, setTile, setTreasury, T } from '../engine/fixtures';
-import { clearArmy, continent, NW2, relocate, SW2 } from '../engine/armyFixtures';
+import { ARVELIA_P, clearArmy, continent, NE2, NW2, relocate, SW2 } from '../engine/armyFixtures';
 import { applyOrder } from '@/engine/orders/apply';
 import { transferProvince } from '@/engine/world/provinces';
 import { text } from './domText';
@@ -128,6 +128,40 @@ describe('FR-076 game-over screen', () => {
     show(finished());
     render(<GameOverModal />);
     expect(screen.queryByTestId('game-over-conquest')).toBeNull();
+  });
+
+  // M10 UI half. FR-300: a game the Council of Governors decided says so under the date line; the score table follows
+  // unchanged. FR-294's winning example on turn 10 (hand-built): Testland holds Valdoria North-East, has colonised Arvelia,
+  // and the three island minors are at 60 with it: 9 of 12 votes.
+  it('FR-300 a game won by the Council says "The Council of Governors chose Testland: 9 of 12 votes." under the date line', () => {
+    let s = transferProvince(transferProvince(continent('world'), NE2, N1), ARVELIA_P, N1);
+    s = { ...s, minorNations: s.minorNations.map((m) => (m.id === 'minor-1' ? { ...m, colonyOf: N1 } : m)) };
+    s = ['minor-2', 'minor-3', 'minor-4'].reduce((acc, minorId) => setPair(acc, minorId, N1, { points: 60 }), { ...s, turn: 10, year: 1817 });
+    const over = resolveTurn(s, {}, s.seed).state;
+    expect(over.gameOver).toMatchObject({ reason: 'council', winnerId: N1 });
+    show(over);
+    render(<GameOverModal />);
+    const dialog = screen.getByRole('dialog', { name: 'Game over' });
+    expect(text(within(dialog).getByTestId('game-over-date'))).toBe('The game ended after Summer 1817 (turn 10).');
+    const line = within(dialog).getByTestId('game-over-council');
+    expect(text(line)).toBe('The Council of Governors chose Testland: 9 of 12 votes.');
+    // Under the date line, before the score table
+    const date = within(dialog).getByTestId('game-over-date');
+    expect(date.compareDocumentPosition(line) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(line.compareDocumentPosition(within(dialog).getByRole('table', { name: 'Final scores' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(dialog).getAllByTestId(/^final-score-/)).toHaveLength(2);
+    expect(within(dialog).queryByTestId('game-over-conquest')).toBeNull();
+  });
+
+  it('FR-300 a turn-limit end and a conquest have no Council line', () => {
+    show(finished());
+    const { unmount } = render(<GameOverModal />);
+    expect(screen.queryByTestId('game-over-council')).toBeNull();
+    unmount();
+    show(resolveTurn({ ...continent('world'), turn: 40, year: 1824 }, {}, 1).state);
+    render(<GameOverModal />);
+    expect(text(screen.getByTestId('game-over-date'))).toBe('The game ended after Winter 1824 (turn 40).');
+    expect(screen.queryByTestId('game-over-council')).toBeNull();
   });
 
   it('FR-076 shows the recorded final scores, not a fresh score of the state', () => {

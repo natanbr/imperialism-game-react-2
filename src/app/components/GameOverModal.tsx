@@ -12,7 +12,8 @@ import { startNewGameOnCapital } from "@/hooks/mapActions";
 /**
  * The end of the game (FR-076): the recorded final scores (`state.gameOver`), ranked, with their
  * three parts, each nation named beside its colour (FR-106). Shown whenever the game is over unless
- * the player closed it to look at the map; New game starts the next one at once (FR-109).
+ * the player closed it to look at the map; New game starts the next one at once (FR-109). A game the Council of Governors
+ * decided says so under the date (FR-300); the Council screen of the last meeting shows first (FR-299).
  */
 export const GameOverModal: React.FC = () => {
   const gameOver = useGameStore((s) => s.game.gameOver);
@@ -20,9 +21,11 @@ export const GameOverModal: React.FC = () => {
   const activeNationId = useGameStore((s) => s.activeNationId);
   const hidden = useGameStore((s) => s.isGameOverHidden);
   const hide = useGameStore((s) => s.hideGameOver);
+  // FR-299: the last meeting's Council screen comes first; this screen shows once it is closed
+  const councilFirst = useGameStore((s) => s.councilShown !== null);
   const titleId = useId();
 
-  if (!gameOver || hidden) return null;
+  if (!gameOver || hidden || councilFirst) return null;
 
   const nationOf = (id: string) => nations.find((n) => n.id === id);
 
@@ -42,6 +45,13 @@ export const GameOverModal: React.FC = () => {
           <p className={styles.note} data-testid="game-over-conquest">
             {nationOf(gameOver.winnerId)?.name ?? gameOver.winnerId} has conquered{" "}
             {nations.filter((n) => n.id !== gameOver.winnerId).map((n) => n.name).join(" and ")}.
+          </p>
+        )}
+        {gameOver.reason === "council" && gameOver.winnerId !== undefined && gameOver.council && (
+          // FR-300: the meeting that elected the winner (FR-295)
+          <p className={styles.note} data-testid="game-over-council">
+            The Council of Governors chose {nationOf(gameOver.winnerId)?.name ?? gameOver.winnerId}:{" "}
+            {gameOver.council.nominees.find((n) => n.nationId === gameOver.winnerId)?.total ?? 0} of {gameOver.council.totalVotes} votes.
           </p>
         )}
 

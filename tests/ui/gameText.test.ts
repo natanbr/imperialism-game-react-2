@@ -455,3 +455,71 @@ describe('FR-232 the war news', () => {
     expect(newsItems([shared], 'nation-1', name).map((i) => i.text)).toEqual(['Battle at Arvelia: Attack Failed!']);
   });
 });
+
+// M10 UI half. FR-297 (Imp1 Imperial Times): a Council meeting reads "Council of Governors: Testland 5, Valdoria 4 of 12
+// votes; no winner (9 needed)." or "Council of Governors: Testland wins with 9 of 12 votes." (the first nominee first); the
+// line carries its event, so it opens the Council screen of that meeting as a battle's line opens its Battle screen
+// (FR-232). FR-306 (review R1, replaces FR-297's place "after the nations' lines"): it is the first line of the news.
+describe('FR-297 the Council in the news', () => {
+  const names: Record<string, string> = { 'nation-1': 'Testland', 'nation-2': 'Valdoria' };
+  const name = (id: string) => names[id] ?? id;
+  const nominee = (nationId: string, controlled: number, colonies = 0, otherMinorNations = 0) => ({
+    nationId,
+    standing: 1000,
+    controlled,
+    colonies,
+    otherGreatPowers: 0,
+    otherMinorNations,
+    total: controlled + colonies + otherMinorNations,
+  });
+  type Met = Extract<GameEvent, { type: 'council-met' }>;
+  const met = (first: Met['nominees'][0], second: Met['nominees'][1], winnerId?: string): Met => ({
+    type: 'council-met',
+    turn: 10,
+    year: 1817,
+    totalVotes: 12,
+    needed: 9,
+    nominees: [first, second],
+    ballots: [],
+    ...(winnerId ? { winnerId } : {}),
+  });
+
+  it('FR-297 no winner: "Council of Governors: Testland 5, Valdoria 4 of 12 votes; no winner (9 needed)."', () => {
+    expect(eventText(met(nominee('nation-1', 4, 0, 1), nominee('nation-2', 4)), name)).toBe(
+      'Council of Governors: Testland 5, Valdoria 4 of 12 votes; no winner (9 needed).'
+    );
+  });
+
+  it('FR-297 the first nominee first: Valdoria first when it is the first nominee', () => {
+    expect(eventText(met(nominee('nation-2', 5), nominee('nation-1', 3)), name)).toBe(
+      'Council of Governors: Valdoria 5, Testland 3 of 12 votes; no winner (9 needed).'
+    );
+  });
+
+  it('FR-297 a winner: "Council of Governors: Testland wins with 9 of 12 votes."', () => {
+    expect(eventText(met(nominee('nation-1', 5, 1, 3), nominee('nation-2', 3), 'nation-1'), name)).toBe(
+      'Council of Governors: Testland wins with 9 of 12 votes.'
+    );
+  });
+
+  it("FR-306 FR-297 FR-107 the first line of the news, before the player's own lines; the game over stays last; it carries its event", () => {
+    const council = met(nominee('nation-1', 4), nominee('nation-2', 4));
+    const over: GameEvent = { type: 'game-over', turn: 40, year: 1824, scores: [] };
+    const events: GameEvent[] = [
+      { type: 'army-upkeep', nationId: 'nation-2', amount: 100 },
+      { type: 'turn-ended', turn: 40, year: 1824 },
+      council,
+      over,
+      { type: 'army-upkeep', nationId: 'nation-1', amount: 125 },
+    ];
+    const items = newsItems(events, 'nation-1', name);
+    expect(items.map((i) => i.text)).toEqual([
+      'Council of Governors: Testland 4, Valdoria 4 of 12 votes; no winner (9 needed).',
+      'Army upkeep: $125.',
+      'Valdoria: Army upkeep: $100.',
+      'Game over at the end of Winter 1824.',
+    ]);
+    expect(items.map((i) => i.council)).toEqual([council, undefined, undefined, undefined]);
+    expect(items[0].battle).toBeUndefined();
+  });
+});

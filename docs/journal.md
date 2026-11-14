@@ -22,10 +22,12 @@
   `docs/journal/archive-M7.md`). Card Q47 (the World market's greyed "−") still open.
 - 2026-11-13 M8 Armies (FR-199 to FR-215, FR-260 to FR-271) merged (PR 26, main c91f2fd; entries archived in
   `docs/journal/archive-M8.md`). Nathan's art pack (NR-031) committed on top (4bd00eb).
-- 2026-11-13 M9 War and the attack screen in progress on `claude/m9-war` (worktree `imperialism-game-revival-fee36d`):
-  the engine half (FR-216 to FR-228, FR-234; FR-229 replaced by FR-274; entry archived in `docs/journal/archive-M9.md`),
-  the UI half (FR-230 to FR-233, FR-272, FR-273), the review fix round (all 17 findings; new FR-275), the QA fix round
-  (Nathan's 5 items; FR-276 to FR-280) and the fixes of its review (3 minor; FR-281) are committed. Not pushed.
+- 2026-11-13 M9 War and the attack screen (FR-216 to FR-234, FR-272 to FR-281) merged (PR 27, main f817da2; entries archived
+  in `docs/journal/archive-M9.md`).
+- 2026-11-13 M10 Council of Governors (FR-290 to FR-305) in progress on `claude/m10-council` (worktree
+  `imperialism-game-revival-fee36d`): engine half (archived in `docs/journal/archive-M10.md`), UI half, the review fix
+  round, the QA fix round (FR-310 to FR-317) and the fixes of its review (F1, F2: tests only) committed, every FR-290 to
+  FR-317 tested; next the PR. Not pushed. Cards Q50 to Q56 to put on the progress page.
 
 Carried forward:
 - Deferred: river ports and the depot-on-port rule (rules 04); University fees; the power plant.
@@ -127,32 +129,10 @@ Entry in `docs/journal/archive-M4.4.md`, with its probe tables and review fix ro
 what the network can carry and hides empty groups (FR-141, FR-142); the furniture bound counts 2 lumber (FR-140);
 recruiting measured and not built (probe in `scripts/probes/m4-4/`, card Q21 option a). Merged as PR 21 (main e018d85).
 
-## 2026-11-13 v2 plan (night shift, NR-030)
+## 2026-11-13 v2 plan (night shift, NR-030; archived)
 
-Size: L (plan). Branch `claude/v2-plan`. Ultracode workflow 1 (8 agents): code map (Sonnet 5.5 xhigh), four web
-research lanes (Sonnet 5.5 xhigh: trade, diplomacy, army, combat; the combat lane stalled on a browser call and
-was re-run with web pages only), rules writer (Sonnet 5.5 xhigh), spot-check (Sonnet 5.5 high), spec writer
-(Opus 5.5 high: a spec others execute).
-
-- Plan: `docs/REVIVAL_PLAN.md` section 5b (M5 to M10, seven architecture decisions).
-- Rules: `docs/rules/01`, `06`, `07`, `08` extended, new `11-screens.md`; gaps updated (F12 to F19, H1 to H18).
-  Main source: a Let's Play of Imperialism (1997) with screenshots (lparchive.org); every number tagged Imp1,
-  Imp1 [?] or remake. Spot-check: 13 of 18 claims confirmed on the screenshots, 5 tagged [?]; the orchestrator
-  opened Update 07 itself (text confirms the worker grades; costs are only on the screenshots).
-- Requirements: FR-144 to FR-234 (M5 FR-144 to 160, M6 161 to 181, M7 182 to 198, M8 199 to 215, M9 216 to 234).
-- Decision cards (defaults taken, nobody to ask; on the progress page): Q22 one land-bridge minor (Arvelia)
-  and three island minors (option b, the spec writer's suggestion: neither capital province borders a minor);
-  Q23 one province per minor; Q24 ten relation points a level, +1 a trade, +10 a pact, -40 a war; Q25 equal
-  start relations; Q26 a consulate is needed to trade with a minor (plan rule; Imp1 needs none); Q27 a minor
-  offers 1 unit per resource tile (at most 6) and buys 2 of each good; Q28 favourite partner = points +
-  subsidy / 2, deals at the board price; Q29 the computer accepts alliance at level 7 and peace when losing;
-  Q30 start army 2 Regulars, 1 Artillery, militia, fort on the capital; Q31 derived regiment costs, no
-  Sappers; Q32 simple combat numbers (8 rounds, 70% hit); Q33 one army per country per province; Q34 a taken
-  Great Power capital ends that nation, a taken minor capital makes a colony; Q35 the computer may attack the
-  weakest minor from turn 10, never a Great Power; Q36 upkeep it cannot pay disbands the newest regiments;
-  Q37 Join the Empire, rail and sea moves, generals and medals stay out of v2.
-- Objection: one province per minor and one army per province make war short (one battle takes a minor);
-  acceptable for a first playable war, revisit after Nathan plays.
+Entry in `docs/journal/archive-v2-plan.md`. Plan in `docs/REVIVAL_PLAN.md` section 5b (M5 to M10, seven architecture
+decisions); rules 01, 06, 07, 08 extended and 11-screens.md new; FR-144 to FR-234; decision cards Q22 to Q37.
 
 ## 2026-11-13 M5 World and seams for v2 (archived)
 
@@ -186,208 +166,196 @@ orders, upkeep and its forecast, the scripted garrison; the map markers and marc
 FR-215 and FR-260 to FR-271 tested; 1709 unit tests, Playwright 35 passed, 1 skipped; every v1 baseline unchanged. Merged as PR 26
 (main c91f2fd). Open: decision 1 of the review fix round (the reserve step at turn 33) and decision 2 (warn, do not refuse) for Nathan.
 
-## 2026-11-13 M9 War and the attack screen, engine half (archived)
+## 2026-11-13 M9 War and the attack screen (archived)
 
-Entry in `docs/journal/archive-M9.md`, with its decisions (FR-229 tuned to Cuirassiers, now FR-274) and the API for the UI half.
-The `attack` intent, one battle per attacked province in the combat phase (`army/combat.ts`), conquest, colonies and the
-conquest game over (`army/conquest.ts`), the scripted war (`ai/scriptedWar.ts`). FR-216 to FR-229 and FR-234 tested; 1778 unit
-tests; every v1 baseline and FR-260 unchanged.
+Entries in `docs/journal/archive-M9.md`: engine half, UI half, review fix round (17 findings, FR-274, FR-275), QA fix round (FR-276 to
+FR-280) and the review of the QA fix round (FR-281). Attacks as `moveArmy` intents, one battle per attacked province in the combat phase,
+conquest, colonies and the conquest game over, the scripted war on minors; the Attack and Battle screens, the red attack arrow, the art pack
+in the war screens. FR-216 to FR-228, FR-230 to FR-234, FR-272 to FR-281 tested; 1885 unit tests, Playwright 36 passed, 1 skipped; every
+v1 baseline and FR-260 unchanged. Merged as PR 27 (main f817da2). Open: the cards of the M9 decisions (Attack button, crossing strikes, ramp).
 
-## 2026-11-13 M9 War and the attack screen, UI half (FR-230 to FR-233, FR-272, FR-273)
+## 2026-11-13 M10 Council of Governors, engine half (archived)
 
-Size: L (the UI half of the milestone: two new dialogs, the Army screen, the map, the news, the store, the art pack). One UI
-agent (Opus 5.5, xhigh, no subagents, no advisor call), started by the M9 workflow, on the engine half's API. Branch
-`claude/m9-war` (worktree `imperialism-game-revival-fee36d`), not pushed.
+Entry in `docs/journal/archive-M10.md`: `engine/council/council.ts` (meeting turns, standing, nominees, one ballot per province,
+the count, the winner), the `council-met` event and the Council game over in `resolveTurn`, the API the UI half builds on, and
+the decision cards Q50 to Q56. FR-290 to FR-296, FR-302 and FR-305 tested; 1940 unit tests; every baseline unchanged.
+
+## 2026-11-13 M10 Council of Governors, UI half (FR-297 to FR-301, FR-303, FR-304)
+
+Size: L (a new screen, the store's overlay slice, the HUD, the news, the game-over screen, three e2e specs). One UI agent (Opus 5.5,
+xhigh, no subagents, no advisor call), started by the M10 workflow after the engine half, on its API. Branch `claude/m10-council`,
+not pushed.
 
 Plan-lite:
-- Change: the Attack screen (`AttackModal.tsx`, `army/attackView.ts`) from the Army screen's "Attack Arvelia" and from a map
-  click with regiments selected; the Battle screen (`BattleModal.tsx`, `army/battleView.ts`) replaying a report, opened by
-  itself after End Turn and from the news (`newsItems`); "Colony" in Diplomacy; the art pack (one table `art/inkArt.ts`)
-  in the Army screen, the Armoury, both new screens; the map's red attack arrow and green marches.
-- Consumers: the player; the store keeps `armySelection`, `attackPlan`, `battleQueue` (UI state only).
-- Tests: FR-230 `ui/attackDialog.test.tsx` (+ `ui/armyDialog.test.tsx`); FR-231 `ui/battleReplay.test.tsx`; FR-232
-  `ui/battleReplay.test.tsx`, `ui/gameText.test.ts`; FR-233 `e2e/m9-war.spec.ts` (+ `ui/diplomacyDialog.test.tsx` for the
-  chip); FR-272 `ui/inkArt.test.ts` and the picture rows of the Army, Armoury, Attack and Battle tests; FR-273
-  `ui/armyMarkers.test.tsx`, `ui/inkArt.test.ts`; FR-022 `ui/uiWritesOnlyOrders.test.ts` scans both new dialogs.
-- Verify: `npm test`, `npm run lint`, `npx tsc --noEmit`, `npm run build`, `PORT=3160 npx playwright test --workers=1`.
-- Objection: the selection kept on the map is a little hidden (tick in the Army screen, close it, click the enemy land);
-  the marker's ring and ", 3 selected" are its only signs. The Army screen's "Attack…" is the main way.
+- Change: store `councilShown` / `showCouncil` / `closeCouncil` (End Turn sets the turn's `council-met`, New game clears it);
+  `CouncilModal.tsx` with `council/councilView.ts` (the report from the event alone) and `council/Council.module.css`;
+  `eventText` / `newsItems` for `council-met` (`councilCountText`), the news line a button; the game-over line; the HUD's
+  "Next Council" line; `CAPITOL_ART` in `art/inkArt.ts`; `UI_ICONS.council` (Game Icons `GiVote`).
+- Consumers: the player after End Turn on turns 10, 20, 30, 40; the long e2e specs (FR-304).
+- Tests: FR-297 `ui/gameText.test.ts`, `ui/newsPanel.test.tsx`; FR-298 `ui/councilDialog.test.tsx`, `ui/inkArt.test.ts`; FR-299
+  `ui/councilDialog.test.tsx`; FR-300 `ui/scoreAndGameOver.test.tsx`; FR-301 `ui/warehouseAndHud.test.tsx`; FR-303
+  `e2e/m10-council.spec.ts`; FR-304 `e2e/market-and-game-over.spec.ts`, `e2e/m4-1.spec.ts`; scans `ui/uiWritesOnlyOrders.test.ts`
+  (the Council screen builds no order), `ui/dialogs.test.tsx` (on the shared Modal), `ui/icons.test.tsx`.
+- Verify: the gate and `PORT=3160 npx playwright test --workers=1 --reporter=line`.
+- Objection: the HUD at 1280x720 has no height to spare: FR-268's check (whole news lines above the fade) had about 1.5 px left,
+  so a new HUD line had to take an existing line's place (decision 1). The next HUD addition needs a layout change of its own.
 
-Red (tests first, before any UI change; `.gate/m9ui/red.txt`): `Test Files 9 failed (9)`, `Tests 10 failed | 185 passed
-(195)`; four suites fail to load (`Cannot find module '@/components/art/inkArt'`, `AttackModal`, `BattleModal`, `attackArrows`),
-`expected [ 'Consulate' ] to deeply equal [ 'Colony', 'Consulate' ]`, `expected 'Arvelia taken from Arvelia.' to be 'Arvelia
-taken.'`, the Army and Armoury picture rows `expected [] to deeply equal [ [ …(2) ], …]`.
+Red (tests first, `.gate/m10ui/red.txt`): `Test Files 9 failed (9)`, `Tests 13 failed | 176 passed (189)`; `Failed to resolve
+import "@/components/CouncilModal"` (councilDialog, newsPanel), `Unable to find an element by: [data-testid="next-council"]` (3),
+`[data-testid="game-over-council"]`, `expected null to be 'Council of Governors: Testland 5, Val…'` (3), the scans (Council screen
+not found, no `council` icon, no `CAPITOL_ART`). The FR-301 "absent" rows and FR-300's "no line" row passed before (guards).
 
-Decisions (defaults, nobody to ask; cards for the progress page):
-1. FR-230's "picks Attack Arvelia" opens the dialog through the button beside the select: picking "Attack Arvelia" turns
-   "March" into "Attack…", and that opens the Attack screen. A select that opens a dialog on change opens it on every
-   arrow key (WCAG 3.2.2 On Input). Card: "Open the Attack screen on the pick itself?" Suggestion: keep the button.
-2. "Our chosen regiments" are the ticked ones. The ticks live in the store as the army selection: kept when the Army
-   screen closes, so a click on a bordering enemy province opens the Attack screen with them (FR-230's map path); the
-   marker wears the accent ring and its name ends ", 3 selected"; End Turn and a click on any other tile drop it.
-3. NR-031's arrows (new FR-273, replacing FR-263's nation colour and dashes): an attack is the pack's own red arrow,
-   scaled and turned as one onto the two markers; a march keeps its straight measured line and head (FR-270's arrows both
-   ways side by side, FR-271's browser measure unchanged) in the pack's movement green with its ink outline. The FR-263
-   test's colour lines now assert FR-273's green (a changed requirement, not a looser test). The colours are 4 new tokens,
-   checked against the SVG files.
-4. FR-211's row "no bordering province of ours: the select is empty" no longer holds on the continent's South-West alone
-   (FR-230 lists the attacks there); it is rewritten to the attack entries, and the empty select is tested on an island
-   province (Sundmark given to Testland).
-5. The era-1 art: the pack draws three eras per Imp1 line, so Light Artillery is `horse-artillery.png` and Artillery
-   `heavy-artillery.png` (heavy line: heavy, siege, railroad gun); Minutemen are `militia.png`, Skirmishers
-   `light-infantry.png`. Pictures are plain `<img>` (one `eslint-disable` in `art/ArtPicture.tsx`): Next's optimiser would
-   re-encode files NR-031 keeps as supplied. Fort pictures show on the Attack screen and as the Battle screen's wall; the
-   map draws no fort yet, so none there.
-6. A minor's one province bears its name: "Arvelia taken." instead of "Arvelia taken from Arvelia."; a battle the player
-   fought is its own news line from its side (the engine left "Province Lost!" to do).
-7. The Battle screen lies above every dialog, the game-over screen included, so a conquest's last battle is seen first.
-8. FR-233 names `e2e/m9-war.spec.ts` (the brief said `e2e/m9.spec.ts`); the FR's name is kept, as the engine half's notes did.
+Decisions (defaults, nobody to ask):
+1. FR-301's line could not be one more HUD line: the first try failed e2e/m8-qa.spec.ts (FR-268: the news list ended 22.5 px
+   behind the fade at 1280x720). The turn and the date now share one line ("Turn: 11 of 40" left, "Fall 1817" right) and the
+   Council line takes the date's old line (16 px), so the HUD is no taller; the turn indicator's text is unchanged
+   ("Turn: 11 of 40 Fall 1817"), the line is a sibling (`next-council`) outside it. Objection: the date moved.
+2. One dialog at a time after End Turn: Battle screens, then the Council screen (it waits while `battleQueue` has a report), then
+   the game-over screen (it waits while `councilShown` is set). The Council overlay is z-index 77 (over the game-over 75, under
+   the Attack 78, the Battle 79 and Accept Offer 85).
+3. On a winning meeting "See the final scores", Escape and the backdrop also call `showGameOver`, so the screen reopened from
+   the news after "Back to the map" brings the scores back too; a meeting without a winner (turn 40 included) has "Close".
+4. A number cell of 0 reads "none" as its title and description; the description is a hidden element named by
+   `aria-describedby` (the HUD line's too); the middle column's head is an empty cell.
+5. The Playwright spec is `e2e/m10-council.spec.ts` as FR-303 names it (the workflow brief also said `e2e/m10.spec.ts`).
+
+Decision cards for the progress page (defaults kept as drafted, from the engine half): Q50 meetings every 10 turns from turn 10;
+Q51 9 of 12 (more than two thirds of all votes); Q52 a free minor votes for the nominee with more relation points if at least 50
+and not at war; Q53 the turn-40 meeting uses the same rule; Q54 standing = score + 100 x provinces + 10 x military strength;
+Q55 the scripted player does not court votes; Q56 the HUD shows the projected vote in a tooltip. Suggestion on each: keep.
 
 | Claim | Command | Result (quoted) |
 |---|---|---|
-| Red before the UI change | `npx vitest run` on the 9 new and changed UI files (`.gate/m9ui/red.txt`) | `Test Files 9 failed (9)`, `Tests 10 failed \| 185 passed (195)` |
-| FR-230 to FR-232, FR-272, FR-273, the colony chip | the same 9 files after (`.gate/m9ui/run2.txt`) | `Test Files 9 passed (9)`, `Tests 265 passed (265)` |
-| Unit tests | `npm test` (`.gate/m9ui/gate-test.txt`) | `Test Files 98 passed (98)`, `Tests 1848 passed (1848)` (+70 on 1778) |
-| v1 and v2 baselines unchanged (FR-234) | `npm test` console | `FR-125 seed 1: t15 616/390 (1.58) ... t40 1493/650 (2.30)`; `FR-260 nation 2 score at turn 40: [[1,1419],[2,1451],[3,1441],[4,1469]]` |
-| Lint | `npm run lint` (`.gate/m9ui/gate-lint.txt`) | `✖ 3 problems (0 errors, 3 warnings)` (the three of M6) |
+| Red before the UI change | `npx vitest run` on the 9 UI files (`.gate/m10ui/red.txt`) | `Test Files 9 failed (9)`, `Tests 13 failed \| 176 passed (189)` |
+| FR-297 to FR-301 | the same 9 files (`green1.txt`) | `Test Files 9 passed (9)`, `Tests 215 passed (215)` |
+| FR-303, FR-304, FR-268 kept | `PORT=3160 npx playwright test --workers=1 --reporter=line` (`pw-full2.txt`) | `37 passed (3.2m)`, `1 skipped` (the first run, before decision 1: `1 failed` e2e/m8-qa.spec.ts FR-268, `Expected: <= 406.5`, `Received: 429`) |
+| Unit tests | `npm test` (`gate-test-final.txt`) | `Test Files 100 passed (100)`, `Tests 1975 passed (1975)` (+35 on 1940) |
+| v1 and v2 baselines unchanged | `npm test` console | `FR-125 seed 1: ... t40 1493/650 (2.30)`; `FR-260 nation 2 score at turn 40: [[1,1419],[2,1451],[3,1441],[4,1469]]`; FR-274 `[[1,21,22,305,0],[2,21,22,340,0],[3,21,22,276,0],[4,null,null,965,0]]` |
+| Lint | `npm run lint` (`gate-lint-final.txt`) | `✖ 3 problems (0 errors, 3 warnings)` (the three of M6) |
 | Types | `npx tsc --noEmit` | exit 0, no output |
-| Build | `npm run build` (`.gate/m9ui/gate-build.txt`) | `✓ Compiled successfully in 7.4s`, `✓ Generating static pages (4/4)` |
-| FR-233 and the screens in the app | `PORT=3160 npx playwright test --workers=1 --reporter=line` (`.gate/m9ui/pw-final.txt`) | `36 passed (5.8m)`, `1 skipped` (37 tests; m9-war.spec.ts new, m8-armies.spec.ts unchanged and green with the pictures) |
+| Build | `npm run build` (`gate-build-final.txt`) | `✓ Compiled successfully in 6.2s`, `✓ Generating static pages (4/4)` |
 
-Seen in the app (screenshots under `.gate/m9ui/shots/`, git-ignored; `m9-battle.png` is attached to the spec's report): the Attack
-screen over the Army screen at 1280x720, the red arrow from Testland North-East into Arvelia, the Battle screen's result with
-"Province Taken!", Arvelia inside Testland's border after the conquest, the Armoury cards and Army rows with their pictures.
-
-Carried: decision 1's card (the button, not the pick); the Imp1 defender prompt and the red crossed-swords cursor over enemy
-land are not built; the map draws no fort; the rest of the art pack (terrain, goods, workers, buildings) waits for NR-031's
-separate decision.
+How to see it: a new game, End Turn 10 times; on turn 11 the Council screen opens by itself (both nominees 4 and 4, the 4
+minors abstaining); Close; the HUD reads "Next Council: turn 20 (Winter 1819)" (hover: the vote now); the news line "Council of
+Governors: ... no winner (9 needed)." opens it again. A winning meeting is tested on a hand-built state only.
 
 ### Review fix round (2026-11-13)
 
-Size: M (one fix round over both halves: 5 major and 12 minor findings of the two M9 review passes, all fixed). One agent
-(Opus 5.5, xhigh, no subagents, no advisor call), started by the M9 workflow. Branch `claude/m9-war`, not pushed.
+Size: M (one fix round over both halves: 13 minor findings of the M10 review passes, all fixed; no blocker or major). One
+agent (Opus 5.5, xhigh, no subagents, no advisor call), started by the M10 workflow. Branch `claude/m10-council`, not pushed.
 
-Red (each behaviour fix's new rows run on the code before it, the fixed files put back from HEAD for the run): F1, E2, E1
-`Tests 4 failed | 55 passed (59)` (`expected 'nation-2' to be 'nation-1'`, the crossing outcome, the conquest game over;
-`.gate/m9fix/red-engine.txt`); R1 `Tests 3 failed | 40 passed (43)` (`expected [ [ 1, 4 ], [ 2, +0 ], [ 3, 6 ], …(1) ] to
-deeply equal [ [ 1, +0 ], …`; `red-r1.txt`); F2 `Tests 2 failed | 64 passed (66)` (`red-f2.txt`). The test-only rows were
-checked against a mutation instead, each failing its new row: R8 engineers first in `FIRING_ORDER`, E3 combat reading
-`ctx.rng`, R2 the queue filled with every battle.
+Red (behaviour fixes, on the code before each fix; `.gate/m10fix/`): R2 nomination ties `Tests 2 failed | 90 passed (92)`
+(`turn 1, reversed: expected [ 'nation-2', 'nation-1' ] to deeply equal [ 'nation-1', 'nation-2' ]`; `red-r2-engine.txt`);
+R1 news order `Tests 2 failed | 91 passed (93)` (`red-news.txt`) and the e2e `1 failed` (`Received string: "Army upkeep:
+$100."`, the first news line; `red-e2e-news.txt`). Test-only rows against a mutation, each put back: minors forced to choose
+at the last meeting fails only FR-308 and FR-305's 4-to-4 row (`Tests 2 failed | 73 passed (75)`, `mut-q53.txt`); the turn
+indicator back to a block fails FR-307's e2e check (`Expected: <= 2`, `Received: 21`, `mut-e2e-layout.txt`). R4, R7 and E1
+assert what the code already does (they passed at once).
 
 | Finding | What changed | Test |
 |---|---|---|
-| F1, E2 (major) | `combatSystem`: every battle is fought before any capital falls; the falls apply after the last battle in the winners' `intentOrder` (`fallCapital`), void when the capital is back with its owner; the paths that could no longer run (`entering`, a war ended mid-phase, `gone`) removed | engine/combat.test.ts: crossing strikes, turn 1 Testland wins, turn 2 Valdoria; the game ends on that turn |
-| E1 (major) | `takeProvince`: a colony passes with its capital province (`makeColony`: treaties of the others end, points 89, `minor-colonised`); `fallNation` gives the fallen's colonies to the winner | engine/conquest.test.ts: 2 rows with `settledTradeBarrier` and `worldViolations` |
-| R1 (major) | new FR-275: with a field army the upkeep reserve is max(2, 16 - turns left) turns before the last 8, so it no longer steps from 2 to 8 at turn 33 | engine/scriptedArmy.test.ts (turns kept); FR-274's acceptance counts no-pay disbands: [4, 0, 6, 0] before, [0, 0, 0, 0] now; FR-247 re-pinned |
-| R2 (major) | none in code | ui/battleReplay.test.tsx: only Valdoria fights, nothing queued; each fights its own battle, Testland's alone queued |
-| R3 (major), F3 | FR-221 status; the overclaiming title split | engine/combat.test.ts: home lost, retreat to South-West; home lost and nowhere to go, surrender; moved after ordering, no attack; a fallen nation's regiment leaving a battle surrenders |
-| R4, F4 | FR-229 replaced by FR-274 (Cuirassiers, the horse and trained-worker gate, no-pay in the acceptance); FR-213's status gives the 5/6 capital arms | scriptedWar.test.ts titles cite FR-274 |
-| R5 | FR-167 and FR-174 statuses | none (docs) |
-| R6 | e2e takes the red arrow file's tail and tip through the image's transform onto the markers (1.5 px) and checks the SVG is served | e2e/m9-war.spec.ts |
-| R7 | `data-nation-id` on the territory outline; e2e: Testland's outline (`var(--color-nation-1)`) stops west of Arvelia's capital tile on turn 1 and runs east of it after the conquest | e2e/m9-war.spec.ts |
-| R8, R9 | none in code | combat.test.ts: Sappers fire after the artillery; conquest.test.ts: prospecting and construction jobs end, civilians removed with no capital tile |
-| R10 | the claim narrowed to what holds: above the game-over screen (79 over 75), not above Accept Offer (85); the CSS comment fixed | ui/battleReplay.test.tsx reads both overlay rules and the page's render order |
-| F2 | new refusal "colony": no overture, grant or trade policy toward a colony; the Diplomacy screen disables them with "it is a colony, ruled by its owner" | conquest.test.ts, ui/diplomacyDialog.test.tsx |
-| E3 | the FR-227 test replaced: after a battle the shared and the diplomacy streams give the same next draws as after none | combat.test.ts |
+| R1 engine (FR-305) | none in code: the 4-to-4 claim is asserted, not only logged | engine/continentScore.test.ts: every meeting of the FR-260 games, each nominee Controlled 4 and nothing else, the 4 minors abstaining |
+| R3 engine (Q53) | new FR-308 (the last meeting keeps the rules) | engine/council.test.ts: turn 40 of a new game, 4 abstentions, no winner; Sundmark at 49 and 30 abstains |
+| R2 UI, R3 UI, E2 | FR-296 status: "its news line is FR-297" | none (docs) |
+| R5, E3 | NR-011: "tested (FR-290 to FR-309)" | none (docs) |
+| R6 | new FR-307 (turn and date on one line, the Council line under it) | e2e/m10-council.spec.ts on turns 1 and 11 |
+| R7 | none in code (the branch kept) | ui/warehouseAndHud.test.tsx: Testland holding all 8 provinces, the line with no title, description or hidden text |
+| R1 UI | `newsItems`: a `council-met` line first, before the player's own lines (new FR-306; FR-297's place replaced) | ui/gameText.test.ts, ui/newsPanel.test.tsx; e2e: first list item, list and HUD at the top, the line inside the list's visible box above the fade |
+| R2 engine | `councilNominees` ranks ties in `intentOrder(state, state.turn)` (new FR-309; FR-291's tie part replaced) | engine/council.test.ts: the start tie on turns 1, 11, 2, 10 in both nation orders; 3 Great Powers tied for second on turns 1, 2, 3 with the same nominees, ballots and winner when reversed |
+| R4 UI | Council.module.css comment: Accept Offer does not wait, it opens over the Council | ui/councilDialog.test.tsx: z-index 85 over 77 and the page order; Escape rejects and Enter accepts the offer, the Council stays, takes the focus back and closes next |
+| E1 | none in code; FR-274's four games also collect the Council | engine/scriptedWar.test.ts: on the default partners market 4 meetings, no winner; seeds 1 to 3 Arvelia votes for Valdoria as Colonies at turns 30 and 40, seed 4 none |
 
-Decisions (defaults, nobody to ask; cards for the progress page):
-1. R1: the ramp only for a nation with a field army (regiments beyond its capital keep). Measured with a temporary hook (not
-   committed; `.gate/m9fix/ramp-shapes.txt`), FR-274 no-pay per seed / FR-260 scores: no ramp [4,0,6,0] / 1419, 1451, 1441,
-   1469; every nation 3 turns at turn 31 and 4 at turn 32 [0,0,0,0] / 1417, 1439, 1437, 1469; every nation 3 to 7 from turn
-   28 [0,0,0,0] / 1417, 1444, 1420, 1466; field army only, 3 to 7 from turn 28 (taken) [0,0,0,0] / 1419, 1451, 1441, 1469.
-   FR-234 protects FR-260, so no every-nation ramp. Card: "A nation with a field army keeps more cash from turn 28 so it
-   pays its army to the end. Keep, or ramp every nation (FR-260 moves by up to 21 points)?" Suggestion: keep. Objection: a
-   nation with its garrison only keeps M8's step (M8 decision 1, still open), and "a field army" stands in for "upkeep above
-   the income".
-2. F1: crossing strikes on both capitals go to the first in `intentOrder` (the review's suggestion; the same fairness as
-   FR-222's several attackers). Card: "Both capitals taken in one turn: the first in turn order wins. Keep?" Suggestion: keep.
-3. R4: FR-229 gets a new id (FR-274) by FLOW's rule although M9 is not merged; FR-275 extends FR-213 (a) rather than replace it.
-4. F2: refused, not hidden: the Diplomacy screen keeps the buttons, disabled with the reason, as for every refusal (FR-237).
+Decisions (defaults, nobody to ask):
+1. R1 UI: the Council line moves first rather than scrolling the list to it; the game-over line stays last. Objection: on a
+   meeting turn the player's own lines start one line lower (FR-107 and FR-268 now have an exception).
+2. R2: ties go in `intentOrder` of the state's turn (as FR-187). Objection: with two Great Powers every meeting is counted on
+   an odd turn (11, 21, ...), so Testland takes every tie at a meeting; the HUD projection on turn 10 puts Valdoria first on
+   a tie and the meeting then Testland. Only the column order changes on the continent.
+3. New ids FR-306 to FR-309 by FLOW's rule (a changed requirement gets a new id), as M9 did (M9 fix round decision 3).
+4. E1: the test reuses FR-274's four games (same setup: default market, Testland idle, Valdoria scripted) instead of playing
+   four more in continentScore.test.ts; no extra test time.
+5. Decision cards unchanged: Q53 is now FR-308's [NEEDS CLARIFICATION]; Q54's card adds "ties in the turn's order (FR-309)".
 
 | Claim | Command | Result (quoted) |
 |---|---|---|
-| Red before the fixes | the new rows on the code before each fix (`.gate/m9fix/red-*.txt`) | `Tests 4 failed \| 55 passed (59)`, `Tests 3 failed \| 40 passed (43)`, `Tests 2 failed \| 64 passed (66)` |
-| FR-274, FR-275 | `npm test` console (`.gate/m9fix/gate-test.txt`) | `FR-274 per seed (declared, colonised, lowest treasury, no-pay disbands): [[1,21,22,305,0],[2,21,22,340,0],[3,21,22,276,0],[4,null,null,965,0]]` |
-| Unit tests | `npm test` (`.gate/m9fix/gate-test.txt`) | `Test Files 98 passed (98)`, `Tests 1864 passed (1864)` (+16 on 1848) |
-| v1 and v2 baselines (FR-234) | `npm test` console | `FR-125 seed 1: ... t40 1493/650 (2.30)` as before; `FR-260 nation 2 score at turn 40: [[1,1419],[2,1451],[3,1441],[4,1469]]` |
-| Lint | `npm run lint` (`.gate/m9fix/gate-lint.txt`) | `✖ 3 problems (0 errors, 3 warnings)` (the three of M6) |
+| Red before the fixes | the new rows on the code before each fix (`.gate/m10fix/red-*.txt`) | `Tests 2 failed \| 90 passed (92)`, `Tests 2 failed \| 91 passed (93)`, e2e `1 failed` |
+| Engine and UI rows | `npx vitest run` on the 5 engine and 4 UI files (`green-engine.txt`, `green-ui.txt`) | `Tests 116 passed (116)`; `Tests 130 passed (130)` |
+| E1 numbers | `npm test` console (`gate-test.txt`) | `FR-302 Council per seed on the partners market ...: [[1,["t10 nation-2:4+0+0/nation-1:4+0+0","t20 nation-2:4+0+1/...","t30 nation-2:4+1+0/...","t40 nation-2:4+1+0/..."]], ...` |
+| Unit tests | `npm test` (`gate-test.txt`) | `Test Files 100 passed (100)`, `Tests 1983 passed (1983)` (+8 on 1975) |
+| v1 and v2 baselines unchanged | `npm test` console | `FR-125 seed 1: ... t40 1493/650 (2.30)`; `FR-260 nation 2 score at turn 40: [[1,1419],[2,1451],[3,1441],[4,1469]]`; FR-274 `[[1,21,22,305,0],[2,21,22,340,0],[3,21,22,276,0],[4,null,null,965,0]]` |
+| Lint | `npm run lint` (`gate-lint.txt`) | `✖ 3 problems (0 errors, 3 warnings)` (the three of M6) |
 | Types | `npx tsc --noEmit` | exit 0, no output |
-| Build | `npm run build` (`.gate/m9fix/gate-build.txt`) | `✓ Compiled successfully in 8.8s`, `✓ Generating static pages (4/4)` |
-| e2e | `PORT=3160 npx playwright test --workers=1 --reporter=line` (`.gate/m9fix/pw-final.txt`) | `36 passed (6.1m)`, `1 skipped` (37 tests; m9-war.spec.ts with the arrow measure and the outline check) |
+| Build | `npm run build` (`gate-build.txt`) | `✓ Compiled successfully in 3.3s`, `✓ Generating static pages (4/4)` |
+| e2e | `PORT=3160 npx playwright test --workers=1 --reporter=line` (`pw-full.txt`) | `37 passed (1.6m)`, `1 skipped` |
 
-Carried: M8 decision 1 (the reserve step for a nation without a field army) and decision 1 above; the Armoury's pictures are
-still not checked as loaded in the browser (e2e/m8-armies.spec.ts; FR-272's status says so); the Battle screen lies under
-Accept Offer when both open at a turn's start.
+Carried: decision 2's projection-versus-meeting column order on a tie (cosmetic); nothing else.
 
 ### QA fix round (2026-11-13)
 
-Size: M (two dialogs, the hand-over between the Army and Attack screens, the HUD's news heading). One fix agent (Opus 5.5, xhigh,
-no subagents, no advisor call), started by the M9 workflow, on Nathan's QA of `m9-qa-attack.png`, `m9-qa-arrow.png`,
-`m9-qa-battle.png` (as of 99e9f39); not pushed. Plan-lite: as in the table; consumers the player; verify the gate. Objection: the
-store keeps one more UI field (`armyTargetId`, the "March to" entry the Army screen reopens on) for the hand-over back.
-To make room (FLOW: under 400 lines) the engine half's entry moved unchanged to `docs/journal/archive-M9.md`.
+Size: M (7 QA items on the Council screen and the HUD; one engine change). One agent (Opus 5.5, xhigh, no subagents, no
+advisor call), started by the M10 workflow; not pushed. QA shots: m10-qa-council-turn10.png, m10-qa-hud-news.png,
+m10-qa-council-turn40.png; after the fix: m10-qa-fix-council-turn10.png, m10-qa-fix-hud-game-over.png (`.gate/m10qa/shots.mjs`).
 
-| Item | What changed | Test |
+Red (on the code before the change, `.gate/m10qa/red-*.txt`): engine `Tests 10 failed | 40 passed (50)`; UI `Tests 22 failed |
+28 passed (50)`; e2e `2 failed`: turn 1 `waiting for getByTestId('council-projection')`, game over `"inside": false`,
+`"aboveButtons": false`, each date `Received: "Turn 10, Summer 1817"`. FR-317 with the old CSS rule: `line: "rgb(106, 101, 92)"`.
+
+| Item | What changed | FR and test |
 |---|---|---|
-| 1 FR-276 | the Battle screen's grid: each side a group with a visible heading ("Attackers: Testland", "Defenders: Arvelia") naming its list, the wall between the groups; one heading class (`sideHeading`) on both screens | ui/battleReplay (+3), e2e m9-war (headings above and over their columns) |
-| 2 FR-277 | "Deployment" with the two forces by type ("Testland attacks: 2 Regulars, 1 Artillery", "Arvelia defends: 3 Minutemen"); "Round 1" while stepping; "Result: 7 rounds were fought" at the result, by stepping or Skip | ui/battleReplay (+4; 6 rows rewritten to FR-277/278), e2e m9-war |
-| 3 FR-278 | under the estimate "Strength: each regiment's firepower times its health, added up; an entrenched defender's counts 1.25 times. Likely victory at 1.5 times theirs or more, uncertain at 0.75 or more." (from COMBAT and ESTIMATE, the cover of this province); "Entrenched: takes 20% less damage." under the defenders; "Destroyed" for "KIA"; "25 damage" | ui/attackDialog (+5), ui/battleReplay (+1), e2e m9-war |
-| 4 FR-279 | `openAttack` closes the Army screen; a plan with `fromArmyScreen` gives it back on close (Cancel, Escape, backdrop, after Attack) with `armyTargetId`, so "Attack Arvelia" stays picked; the ticks are the store's selection; the focus back on "Attack…" | ui/attackDialog (+6; the plan row now has `fromArmyScreen`), e2e m9-war (one dialog, Cancel and back) |
-| 5 FR-280 | "News from last turn (turn 2, Summer 1815)" (`dateText`) | ui/newsPanel (+2; FR-268's name row rewritten), e2e m9-war, play-turns, m5-hud-scroll, market-and-game-over |
-| found on the shots | "Destroyed" (and already "Routed") ran past its token's right edge; `.tokenHealth` wraps the status under the bar | e2e m9-war (`statusesInsideTheirTokens`) |
+| 1 abstentions | engine: an abstaining ballot carries `abstention` (the minor's points and wars with each nominee, equal strength, a colony); screen: "Abstained: 4", one reason per province ("Arvelia: relation 30 of the 50 needed"), the rule line | FR-310 engine/council.test.ts; FR-311 ui/councilDialog.test.tsx, e2e/m10-council.spec.ts |
+| 2 Other Great Powers | greyed row, "—" cells, note "(only two Great Powers in this world)"; the 0 stays in the data | FR-312 ui/councilDialog.test.tsx, e2e |
+| 3 player first | the player's column first, "1st nominee" / "2nd nominee" under the names; first in the HUD projection | FR-313 ui/councilDialog.test.tsx, ui/warehouseAndHud.test.tsx, e2e |
+| 4 projection | shown under the Next Council line, "If it met now: Testland 4, Valdoria 4, abstain 4 of 12; 9 needed", its description | FR-314 ui/warehouseAndHud.test.tsx, e2e (turns 1, 11) |
+| 5 game-over news | no "No tile selected" line (41 px), game-over date line 16 px: the Council line whole above Final scores | FR-315 e2e/m10-qa.spec.ts (new), ui/warehouseAndHud.test.tsx |
+| 6 date line | "Met at the end of turn 10 (Summer 1817)" | FR-316 ui/councilDialog, ui/newsPanel, e2e (all 4 meetings) |
+| 7 colour | Next Council line and projection in the body text colour | FR-317 e2e/m10-council.spec.ts |
 
 Decisions (defaults, nobody to ask):
-1. Item 2's "Round 1 of 7 only on the result view": the result view has no current round, so the total reads "Result: 7 rounds were
-   fought" (the deployment's old words, moved to the result). Objection: not the literal "Round 7 of 7" form.
-2. Item 3: the brief's example ("militia count less when not entrenched") is not what `battleEstimate` computes: militia defend at
-   full strength (and never attack, FR-267); cover raises a defender's strength by 1 / (1 - R). The line says that, as "counts 1.25
-   times" (1.43 behind a level-1 fort), rather than "divided by 0.8". "Entrenched" is one legend under the defenders (as FR-265's
-   Arms legend), not repeated on each row.
-3. Item 4: "Attack" also goes back to the Army screen (its rows read "Attacking Arvelia", as when it lay underneath); a screen
-   opened from the map closes to the map; once the Army screen is closed, its next open starts at the first entry.
-4. Item 1: "matching the Attack screen's headings" read as the same style; its "Our regiments" kept.
-5. Rewritten rows assert the replacing requirement (FR-277, FR-278, FR-280), not a looser one; three FR-279 rows and two FR-278 rows
-   held before (named in their statuses).
+1. Item 4 shows the projection (the brief's first option) instead of a button. The HUD had 5.5 px to spare (FR-268), so the
+   "No tile selected" line went (it says nothing a click on a tile does not show): it pays for item 4 (32 px) and item 5.
+   Spare now: 14.5 px on turn 11, 6.5 px at game over (`.gate/m10qa/measure.mjs`). Objection: the next HUD line has no room.
+2. Item 5 keeps Final scores where it is; the room comes from the content above the news (decision 1, the 16 px date line).
+3. Item 1's reason lives on the engine's ballot, so the screen still reads only the event; the FR-293 tests now assert it
+   too (stricter). Objection: the reasons count relation points, the Diplomacy screen shows levels ("level 4 of 9").
+4. Item 3 covers the screen and the HUD as named; the news line keeps the first nominee first (FR-297). Objection: on turn 11
+   the news reads "Valdoria 4, Testland 4" under the HUD's "Testland 4, Valdoria 4". The carried tie item above is gone.
+5. Item 5's test is a new spec, `e2e/m10-qa.spec.ts` (drawn scrollbars need a top-level `launchOptions`); the check is shared
+   in `e2e/councilNews.ts`. The v2 plan entry moved to `docs/journal/archive-v2-plan.md` to keep this file under 400 lines.
 
 | Claim | Command | Result (quoted) |
 |---|---|---|
-| Red: unit, before the change | `npx vitest run` on the 3 files (`.gate/m9qa/red.txt`) | `Test Files 3 failed (3)`, `Tests 24 failed \| 45 passed (69)`; `expected 'Deployment: 4 rounds were fought' to be 'Deployment'`, `expected 'Round 1 of 4' to be 'Round 1'`, `expected [ …(2) ] to have a length of 1 but got 2`, `Unable to find an element by: [data-testid="estimate-explanation"]`, `expected 'News, turn 2 (1815)' to be 'News from last turn (turn 2, Summer 1…'` |
-| Red: e2e, before the change | `PORT=3160 npx playwright test e2e/m9-war.spec.ts e2e/play-turns.spec.ts` (`.gate/m9qa/e2e-red.txt`) | `2 failed`, `1 passed`; m9-war `Expected: 1 Received: 2` (dialogs); play-turns `Received string: "News, turn 1 (1815)…` |
-| Red: the token status | m9-war on the dev server before the wrap (`.gate/m9qa/e2e-red-status.txt`) | `+   "Routed",` `+   "Destroyed",` (4 outside); after the wrap `1 passed (12.2s)` |
-| FR-276 to FR-280 | the 3 unit files and the army, store files after (`.gate/m9qa/run2.txt`) | `Test Files 5 passed (5)`, `Tests 111 passed (111)` |
-| Unit tests | `npm test` (`.gate/m9qa/gate-test-final.txt`) | `Test Files 98 passed (98)`, `Tests 1885 passed (1885)` (+21 on 1864) |
-| Baselines unchanged (FR-234) | `npm test` console | `FR-125 seed 1: ... t40 1493/650 (2.30)`; `FR-260 nation 2 score at turn 40: [[1,1419],[2,1451],[3,1441],[4,1469]]`; FR-274 `[[1,21,22,305,0],[2,21,22,340,0],[3,21,22,276,0],[4,null,null,965,0]]` |
-| Lint, types | `npm run lint`; `npx tsc --noEmit` | `✖ 3 problems (0 errors, 3 warnings)` (the three of M6); tsc exit 0, no output |
-| Build | `npm run build` (`.gate/m9qa/gate-build-final.txt`) | `✓ Compiled successfully in 8.1s`, `✓ Generating static pages (4/4)` |
-| e2e suite | `PORT=3160 npx playwright test --workers=1 --reporter=line` (`.gate/m9qa/gate-e2e.txt`) | `36 passed (4.0m)`, `1 skipped` (the old skip; 37 tests) |
+| Red before the change | the new rows on the old code (`red-engine.txt`, `red-ui.txt`, `red-e2e.txt`) | `Tests 10 failed \| 40 passed (50)`; `Tests 22 failed \| 28 passed (50)`; `"inside": false` |
+| Unit tests | `npm test` (`gate-test-final.txt`) | `Test Files 100 passed (100)`, `Tests 2000 passed (2000)` (+17 on 1983) |
+| Baselines unchanged | `npm test` console | `FR-125 seed 1: ... t40 1493/650 (2.30)`; `FR-260 nation 2 score at turn 40: [[1,1419],[2,1451],[3,1441],[4,1469]]` |
+| Lint, types | `npm run lint`, `npx tsc --noEmit` | `✖ 3 problems (0 errors, 3 warnings)` (the three of M6); exit 0, no output |
+| Build | `npm run build` (`gate-build.txt`) | `✓ Compiled successfully in 12.2s`, `✓ Generating static pages (4/4)` |
+| e2e | `PORT=3160 npx playwright test --workers=1 --reporter=line` (`gate-e2e.txt`) | `38 passed (12.0m)`, `1 skipped` |
 
-In the app: shots `docs/journal/m9-qa-fix-attack.png` (the Attack screen alone, both explanations, the news heading) and
-`m9-qa-fix-battle.png` (the side headings, "Round 1", "10 damage"); checked as well (`.gate/m9qa/`, git-ignored): the deployment
-("Deployment", the two forces), the result ("Result: 7 rounds were fought", "Destroyed" inside the tokens), the Army screen after
-Cancel (three ticks, "Attack Arvelia", "Attack…"). Script `.gate/m9qa/shots.mjs`; no page errors.
+Gate note: the first `npm test` failed tests/ui/newsPanel.test.tsx on the old date line (updated to FR-316) and once timed out
+in tests/engine/lintGuard.test.ts (`Test timed out in 30000ms`, ESLint's start under load); both passed in the next full run.
 
 ### Review of the QA fix round (2026-11-13)
 
-Size: S (three minor findings: a CSS comment, one line's words, one test row; all fixed, none carried). One fix agent (Opus 5.5,
-xhigh, no subagents, no advisor call), started by the M9 workflow; not pushed. Evidence in `.gate/m9qarev/`.
+Size: S (two minor findings, both test coverage; no production code changed). One agent (Opus 5.5, xhigh, no subagents, no
+advisor call), started by the M10 workflow; not pushed. The engine half moved to `docs/journal/archive-M10.md` (under 400 lines).
 
 | Finding | What changed | Test |
 |---|---|---|
-| F1 | `War.module.css` header: the Attack screen opens in place of the Army screen (FR-279), never over it; its 78 is only a guard | none (comment) |
-| F2 | new FR-281: "an entrenched defender counts 1.25 times as strong" ("behind the fort a defender counts 1.43 times as strong") | ui/attackDialog (2 rows), e2e m9-war |
-| F3 | FR-278's numbers row reads the factor from the line on the screen and sets it against `battleEstimate` (entrenched, damaged, fort) | ui/attackDialog |
+| F1 FR-312's grey only in CSS | none in code | e2e/m10-council.spec.ts, turn 11: the Other Great Powers row's cells and name in the computed muted colour (both tokens read from a probe in the dialog), the Controlled numbers in the body colour |
+| F2 FR-313's HUD fallback | none in code; `threePowers` and `N3` moved to tests/engine/armyFixtures.ts for the screen and the HUD (the engine test keeps its copy with Valdoria's colour slot, which FR-152's order reads) | ui/warehouseAndHud.test.tsx: Carthia's player, Valdoria holding Testland North-East, reads "If it met now: Valdoria 4, Testland 3, abstain 5 of 12; 9 needed" |
 
-Decision: new words are a changed requirement, so a new id (FLOW); FR-281 replaces only FR-278's cover part, the other FR-278 rows keep it.
+Both rows assert what the code already does, so they passed at once; each was run against a mutation, then put back (`.gate/m10f/`):
+F1 with the row rule's `color` removed: `1 failed`, the two cells `rgb(59, 59, 59)` against the muted `rgb(106, 101, 92)`
+(`mut-f1-e2e.txt`); F2 with `playerFirst` reversing the standing for a non-nominee: `Tests 1 failed | 16 passed (17)`, only the
+new row, `Received: "If it met now: Testland 3, Valdoria 4, abstain 5 of 12; 9 needed"` (`mut-f2-hud.txt`).
 
 | Claim | Command | Result (quoted) |
 |---|---|---|
-| Red before the change | `npx vitest run tests/ui/attackDialog.test.tsx` (`red.txt`) | `Tests 3 failed \| 30 passed (33)`; F3's row `"explained": null` against `"engine"` 1.25, 1.25, 1.43 |
-| F3's row catches drift | the same, `-t "FR-278"`, the engine's divisor 1 / (1 - R/2) for one run, then put back (`mutation-f3.txt`) | `Tests 1 failed \| 4 passed \| 28 skipped (33)`: `"engine": 1.11` against `"explained": 1.25` |
-| Green | the attack, battle and army UI files (`green.txt`) | `Test Files 3 passed (3)`, `Tests 95 passed (95)` |
-| Unit tests, baselines | `npm test` (`gate-test.txt`) | `Test Files 98 passed (98)`, `Tests 1885 passed (1885)` (a row rewritten, none added); FR-125, FR-260, FR-274 lines as above |
-| Lint, types | `npm run lint`; `npx tsc --noEmit` | `✖ 3 problems (0 errors, 3 warnings)` (the three of M6); tsc exit 0, no output |
-| Build | `npm run build` (`gate-build.txt`) | `✓ Compiled successfully in 20.1s`, `✓ Generating static pages (4/4)` |
-| e2e suite | `PORT=3160 npx playwright test --workers=1 --reporter=line` (`gate-e2e.txt`) | `36 passed (11.9m)`, `1 skipped` (the old skip; 37 tests) |
+| The touched files | `npx vitest run` on the HUD, Council screen and council engine files (`green-ui.txt`) | `Test Files 3 passed (3)`, `Tests 102 passed (102)` |
+| Unit tests | `npm test` (`gate-test.txt`) | `Test Files 100 passed (100)`, `Tests 2001 passed (2001)` (+1 on 2000) |
+| Baselines unchanged | `npm test` console | `FR-125 seed 1: ... t40 1493/650 (2.30)`; `FR-260 nation 2 score at turn 40: [[1,1419],[2,1451],[3,1441],[4,1469]]` |
+| Lint, types | `npm run lint`, `npx tsc --noEmit` | `✖ 3 problems (0 errors, 3 warnings)` (the three of M6); exit 0, no output |
+| Build | `npm run build` (`gate-build.txt`) | `✓ Compiled successfully in 14.6s`, `✓ Generating static pages (4/4)` |
+| e2e | `PORT=3160 npx playwright test --workers=1 --reporter=line` (`gate-e2e.txt`) | `38 passed (5.6m)`, `1 skipped` |
 
-In the app: `docs/journal/m9-qa-fix-attack.png` taken again with the new words (script `.gate/m9qarev/shot-attack.mjs`): one dialog,
-the dialog 760x371 at 1280x720, the page does not scroll, no page errors.
+Carried: nothing.

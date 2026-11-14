@@ -8,6 +8,7 @@ import { isGameOver, turnLimitOf } from "./gameOver";
 import { scoreTable } from "../score/score";
 import { dropResolvedIntents } from "./intents";
 import { conquestWinner } from "../army/conquest";
+import { councilMeeting } from "../council/council";
 import type { GameOver } from "@/types/Score";
 
 export type OrdersByNation = Readonly<Record<string, readonly Order[]>>;
@@ -66,8 +67,9 @@ export function applyTurnOrders(
  *
  * Resolving the turn numbered `turnLimitOf(state)` ends the game (FR-068): `gameOver` records the
  * final scores, after the clock; so does a turn after which one Great Power is left standing, with
- * `reason` "conquest" and `winnerId` (FR-223). Once the game is over this is a no-op (FR-069): the
- * same state object comes back and every given order is reported as refused with `game-over`.
+ * `reason` "conquest" and `winnerId` (FR-223), and, failing that, a Council meeting with a winner, with
+ * `reason` "council" (FR-290, FR-295), which writes nothing else. Once the game is over this is a no-op
+ * (FR-069): the same state object comes back and every given order is reported as refused with `game-over`.
  */
 export function resolveTurn(state: GameState, ordersByNation: OrdersByNation, seed: number = state.seed): TurnResult {
   const events: GameEvent[] = [];
@@ -94,15 +96,20 @@ export function resolveTurn(state: GameState, ordersByNation: OrdersByNation, se
 
   emit({ type: "turn-ended", turn: s.turn, year: s.year });
 
-  // FR-223: one Great Power left standing ends the game at once; else the turn limit does (FR-068)
-  const winnerId = conquestWinner(s);
-  if (winnerId !== undefined || ordered.turn >= turnLimitOf(ordered)) {
-    const gameOver: GameOver = {
-      turn: ordered.turn,
-      year: ordered.year,
-      scores: scoreTable(s),
-      ...(winnerId !== undefined ? { reason: "conquest" as const, winnerId } : {}),
-    };
+  // FR-223: one Great Power left standing ends the game at once, and no Council meets (FR-295)
+  const conqueror = conquestWinner(s);
+  // FR-290: the Council counts the state after the clock, so this turn's conquests vote for their new owners
+  const council = conqueror === undefined ? councilMeeting(s, ordered.turn) : undefined;
+  if (council) emit({ type: "council-met", turn: ordered.turn, year: ordered.year, ...council });
+
+  // FR-295: a Council winner ends the game; else the turn limit does (FR-068)
+  const end = conqueror !== undefined
+    ? { reason: "conquest" as const, winnerId: conqueror }
+    : council?.winnerId !== undefined
+      ? { reason: "council" as const, winnerId: council.winnerId, council }
+      : undefined;
+  if (end || ordered.turn >= turnLimitOf(ordered)) {
+    const gameOver: GameOver = { turn: ordered.turn, year: ordered.year, scores: scoreTable(s), ...end };
     s = { ...s, gameOver };
     emit({ type: "game-over", ...gameOver });
   }

@@ -43,7 +43,13 @@ src/app/
     army/upkeepForecast.ts FR-261: the upkeep End Turn will charge and the cash it will find; upkeepIn, one
                            province's share (FR-266)
     army/startForces.ts    FR-203: field army, militia, capital forts, extra horses
-    calendar.ts            seasons; the year advances after winter
+    calendar.ts            seasons; the year advances after winter; yearOfTurn (the year of any turn)
+    council/council.ts     M10 (FR-290 to FR-294): the Council of Governors as pure queries: isCouncilTurn,
+                           nextCouncilTurn, councilStanding, councilNominees, councilVote (ballots, rows, the
+                           winner), councilMeeting (what resolveTurn calls), councilCell, abstainedProvinces;
+                           an abstaining ballot says why (`abstention`, FR-310), so the screen explains a
+                           meeting from its event; standing ties in intentOrder of the state's turn (FR-309); numbers in
+                           definisions/council.ts, types in types/Council.ts
     rng.ts                 seeded RNG: createTurnRng(seed, turn); RNG_STREAMS and createStreamRng
                            for the per-system streams (FR-150)
     diplomacy/relations.ts the diplomacy state (FR-151): pairKey, startDiplomacy, relationOf,
@@ -265,6 +271,16 @@ only (FR-018).
   opens the Attack screen (`attackPlanAt`, `hooks/useTileClickHandler.ts`). One dialog at a time (FR-279): the Attack
   screen closes the Army screen, and a plan with `fromArmyScreen` reopens it on close. End Turn queues the battles the player
   fought (`battleQueue`, `battlesFoughtBy`); a battle's news line (`newsItems` in `gameText.ts`) opens its replay.
+- **Council screens** (UI, M10, FR-297 to FR-301): `components/council/councilView.ts` words one `council-met` event (the
+  table's cells and the provinces behind them, the abstentions and their reasons, the result) from the event alone, the
+  player's column first (`playerFirst` in `gameText.ts`, FR-313); `CouncilModal.tsx`
+  shows the store's `councilShown` and builds no order. End Turn sets it to the meeting just held; it waits while a
+  Battle screen is to be seen, and `GameOverModal.tsx` waits for it, so the order after a turn is battles, Council, final
+  scores, one dialog at a time (Accept Offer does not wait: it opens over the Council screen). The meeting's news line,
+  the first line of the news (FR-306), opens it again. The HUD's `TurnIndicator.tsx` names the next meeting
+  (`nextCouncilTurn`) under the turn line (turn and date on one line, FR-307), and under it shows `councilVote(state)` as
+  the projection (`councilProjectionText`, FR-314). The HUD has no height to spare at 1280x720 (FR-268): the projection's
+  two lines came from the "No tile selected" line, which the tile panel no longer draws (FR-315).
 - **Art pack** (NR-031, FR-272, FR-273): `public/assets/ink-and-wash/` as supplied; `components/art/inkArt.ts` is the
   one table from game ids to its files (regiments, forts, the red attack arrow), `art/ArtPicture.tsx` draws them. A
   march keeps its measured line and head (FR-270, FR-271) in the pack's green; an attack is the pack's own red arrow,
@@ -285,6 +301,7 @@ The store (`store/rootStore.ts`) holds that state under `game`, and UI state bes
 | `isWarehouseOpen`, `isCapitalOpen`, ... | overlays and dialogs | UI |
 | `armyProvinceId`, `armyTargetId`, `isArmouryOpen` | the Army screen's province (null: closed), the "March to" entry it reopens on when the Attack screen gives it back (FR-279), and the Armoury (FR-211, FR-212) | UI |
 | `armySelection`, `attackPlan`, `battleQueue` | the Army screen's ticks kept on the map, the open Attack screen, the battle reports still to replay (FR-230 to FR-232); End Turn and New game reset them | UI |
+| `councilShown` | the `council-met` event the Council screen shows, or null (FR-298, FR-299); End Turn sets the meeting just held, New game clears it | UI |
 
 Only `game` is ever passed to the engine (tested with spies in
 `tests/store/engineBoundary.test.ts`). Display text is derived, not stored: a worker's job text
@@ -346,6 +363,9 @@ store.advanceTurn()
        promoteFreightCars  the cars built this turn go into service (FR-101, NR-016)
        resetWorkers        everyone may move again; working only while the job is unfinished
        advanceClock        turn + 1, year + 1 after winter (turn 1 = Spring 1815)
+       conquest?           one Great Power left: gameOver reason "conquest" (M9), no Council
+       Council?            turn 10, 20, 30, 40 with provinces: council-met on the state after the clock;
+                           a winner (9 of 12): gameOver reason "council" with the vote (M10)
        last turn?          turn == turnLimit (40): gameOver = { turn, year, scores }, game-over event
   <- { state, events }
   -> game = state; eventLog += { turn, year, events }; orderLog += one entry per nation

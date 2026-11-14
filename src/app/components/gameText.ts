@@ -5,6 +5,8 @@ import {
   seasonOf,
   type BattleOutcome,
   type BattleResolvedEvent,
+  type CouncilMetEvent,
+  type CouncilVote,
   type FoodForecast,
   type GameEvent,
   type GrantStopReason,
@@ -363,7 +365,35 @@ export function eventText(event: GameEvent, nameOf: (countryId: string) => strin
       return `${nameOf(event.fallenId)} has fallen.`;
     case "minor-colonised":
       return `${nameOf(event.minorId)} is now our colony.`;
+    // FR-297 (M10): a line of no nation, the first nominee first; `newsItems` puts it first (FR-306)
+    case "council-met": {
+      const winner = event.nominees.find((n) => n.nationId === event.winnerId);
+      return winner
+        ? `Council of Governors: ${nameOf(winner.nationId)} wins with ${winner.total} of ${event.totalVotes} votes.`
+        : `Council of Governors: ${councilCountText(event, nameOf)}; no winner (${event.needed} needed).`;
+    }
   }
+}
+
+/**
+ * The two nominees' totals, the first nominee first, of all the votes: "Testland 5, Valdoria 4 of 12 votes" (FR-297's news
+ * line, FR-301's projection in the HUD).
+ */
+export const councilCountText = (vote: Pick<CouncilVote, "nominees" | "totalVotes">, nameOf: (countryId: string) => string): string =>
+  `${vote.nominees.map((n) => `${nameOf(n.nationId)} ${n.total}`).join(", ")} of ${vote.totalVotes} votes`;
+
+/** FR-313: the two nominees with the player's nation first when it is one of them, else in standing order. */
+export const playerFirst = <T extends { nationId: string }>(nominees: readonly [T, T], playerId: string): [T, T] =>
+  nominees[1].nationId === playerId ? [nominees[1], nominees[0]] : [nominees[0], nominees[1]];
+
+/**
+ * FR-314 (FR-313: the player's nation first): the HUD's projection, the vote the Council would give now, shown under its
+ * "Next Council" line: "If it met now: Testland 4, Valdoria 4, abstain 4 of 12; 9 needed".
+ */
+export function councilProjectionText(vote: CouncilVote, playerId: string, nameOf: (countryId: string) => string): string {
+  const abstain = vote.totalVotes - vote.nominees[0].total - vote.nominees[1].total;
+  const counts = playerFirst(vote.nominees, playerId).map((n) => `${nameOf(n.nationId)} ${n.total}`);
+  return `If it met now: ${counts.join(", ")}, abstain ${abstain} of ${vote.totalVotes}; ${vote.needed} needed`;
 }
 
 const regiments = (n: number) => `${n} regiment${n === 1 ? "" : "s"}`;
@@ -376,39 +406,47 @@ export const BATTLE_RESULT_TEXT: Record<BattleOutcome, string> = {
   "enemy-beaten-back": "Enemy Beaten Back!",
 };
 
-/** One line of the news; a battle's line carries its report, so the line opens its Battle screen (FR-232). */
+/**
+ * One line of the news; a battle's line carries its report, so the line opens its Battle screen (FR-232); a Council
+ * meeting's line its event, so the line opens its Council screen (FR-297).
+ */
 export interface NewsItem {
   text: string;
   battle?: BattleResolvedEvent;
+  council?: CouncilMetEvent;
 }
 
 /**
- * The news of a turn as the player reads it (FR-107): the player's own lines first, as `eventText`
- * words them; then every other nation's lines, each starting with the nation's name ("Valdoria: Rail
- * finished at 15-8."); then the lines of no nation (game over). Each group keeps the event order.
+ * The news of a turn as the player reads it (FR-107): a Council meeting's line (FR-297) first of all (FR-306: it is
+ * the only way back to its screen, and the list shows only its first lines without scrolling); then the player's own
+ * lines, as `eventText` words them; then every other nation's lines, each starting with the nation's name ("Valdoria:
+ * Rail finished at 15-8."); then the lines of no nation (game over). Each group keeps the event order.
  * `nameOf` also names the countries a diplomacy line mentions, minor nations included (FR-176).
  * A battle the player fought, attacking or defending, is its own line, from its side ("Battle at Testland North-East:
  * Province Lost!", FR-232); another nation's battle reads from its attacker's side.
  */
 export function newsItems(events: readonly GameEvent[], playerId: string, nameOf: (countryId: string) => string): NewsItem[] {
+  const council: NewsItem[] = [];
   const own: NewsItem[] = [];
   const others: NewsItem[] = [];
   const general: NewsItem[] = [];
   for (const event of events) {
-    const battle = event.type === "battle-resolved" ? { battle: event } : {};
+    // The screen a line opens: its battle's (FR-232) or its meeting's (FR-297)
+    const opens = event.type === "battle-resolved" ? { battle: event } : event.type === "council-met" ? { council: event } : {};
     const ours = event.type === "battle-resolved" ? battleOutcome(event, playerId) : undefined;
     if (event.type === "battle-resolved" && ours) {
-      own.push({ text: `Battle at ${nameOf(event.provinceId)}: ${BATTLE_RESULT_TEXT[ours]}`, ...battle });
+      own.push({ text: `Battle at ${nameOf(event.provinceId)}: ${BATTLE_RESULT_TEXT[ours]}`, ...opens });
       continue;
     }
     const line = eventText(event, nameOf);
     if (line === null) continue;
     const nationId = "nationId" in event ? event.nationId : undefined;
-    if (nationId === undefined) general.push({ text: line, ...battle });
-    else if (nationId === playerId) own.push({ text: line, ...battle });
-    else others.push({ text: `${nameOf(nationId)}: ${line}`, ...battle });
+    if (event.type === "council-met") council.push({ text: line, ...opens });
+    else if (nationId === undefined) general.push({ text: line, ...opens });
+    else if (nationId === playerId) own.push({ text: line, ...opens });
+    else others.push({ text: `${nameOf(nationId)}: ${line}`, ...opens });
   }
-  return [...own, ...others, ...general];
+  return [...council, ...own, ...others, ...general];
 }
 
 /** The text of the news lines (`newsItems`). */

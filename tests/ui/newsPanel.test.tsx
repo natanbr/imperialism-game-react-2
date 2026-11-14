@@ -4,10 +4,11 @@
 // (FR-235) hiding one. The layout (whole lines, above the fade, scrolled to the last line) is checked in the running
 // app: e2e/m8-qa.spec.ts.
 import { describe, it, expect } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
+import { CouncilModal } from '@/components/CouncilModal';
 import { NewsPanel, TurnIndicator } from '@/components/HUD/index';
 import { useGameStore } from '@/store/rootStore';
-import type { GameEvent } from '@/engine';
+import { councilVote, type GameEvent } from '@/engine';
 import { continent } from '../engine/armyFixtures';
 import { failOnActWarnings } from './actWarnings';
 import { text } from './domText';
@@ -90,5 +91,37 @@ describe('FR-280 the news heading names the last turn', () => {
     });
     render(<NewsPanel />);
     expect(text(screen.getByRole('heading', { level: 3 }))).toBe('News from last turn (turn 4, Winter 1815)');
+  });
+});
+
+// M10 UI half. FR-297: the Council's news line opens the Council screen of that meeting (FR-298), as a battle's line opens
+// its Battle screen (FR-232). FR-306 (review R1): it is the first line of the list, so it shows without scrolling. FR-316
+// (QA fix round): the screen's date line reads "Met at the end of turn 10 (Summer 1817)".
+describe('FR-297 the Council in the news', () => {
+  it('FR-297 FR-306 FR-316 the line "Council of Governors: Testland 4, Valdoria 4 of 12 votes; no winner (9 needed).", first in the list, opens the Council screen of that meeting', () => {
+    const council = { type: 'council-met', turn: 10, year: 1817, ...councilVote(continent())! } as GameEvent;
+    useGameStore.setState({
+      ...useGameStore.getInitialState(),
+      game: { ...continent(), turn: 11 },
+      activeNationId: N1,
+      eventLog: [{ turn: 10, year: 1817, events: [EVENTS[0], { type: 'turn-ended', turn: 10, year: 1817 }, council], treasuries: {} } as never],
+    });
+    render(
+      <>
+        <NewsPanel />
+        <CouncilModal />
+      </>
+    );
+    const list = screen.getByTestId('news-list');
+    expect(within(list).getAllByRole('listitem').map(text)).toEqual([
+      'Council of Governors: Testland 4, Valdoria 4 of 12 votes; no winner (9 needed).',
+      'Valdoria: Army upkeep: $100.',
+    ]);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    fireEvent.click(within(list).getByRole('button', { name: 'Council of Governors: Testland 4, Valdoria 4 of 12 votes; no winner (9 needed).' }));
+    expect(useGameStore.getState().councilShown).toEqual(council);
+    const dialog = screen.getByRole('dialog', { name: 'Council of Governors' });
+    expect(text(within(dialog).getByTestId('council-date'))).toBe('Met at the end of turn 10 (Summer 1817)');
+    expect(text(within(dialog).getByTestId('council-result'))).toBe('No winner. The Council meets again on turn 20.');
   });
 });

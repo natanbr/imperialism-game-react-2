@@ -406,6 +406,8 @@ describe('FR-236 one shared component, not per-dialog copies', () => {
       'TransportAllocationModal.tsx',
       'ConstructionOptionsModal.tsx',
       'GameOverModal.tsx',
+      // M10 (FR-298): the Council screen
+      'CouncilModal.tsx',
       join('HUD', 'AboutPanel.tsx'),
     ];
     const withoutModal = dialogs.filter((f) => !/<Modal\b/.test(readFileSync(join(dir, f), 'utf8')));

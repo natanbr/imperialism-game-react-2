@@ -36,6 +36,9 @@ export const FORT_LEVELS = [1, 2, 3] as const;
 export const fortArt = (level: number): string | undefined =>
   level >= 1 ? art(`infrastructure/fort-${Math.min(Math.floor(level), FORT_LEVELS.length)}.png`) : undefined;
 
+/** The Council screen's header picture (FR-298): the capitol, 256x256, standing on the bottom centre. */
+export const CAPITOL_ART = art("buildings/capitol.png");
+
 /**
  * The pack's RED attack arrow (map-ui/army-attack.svg, 120x56): a broad curved arrow whose tail's middle and tip are
  * the points below, in the file's own units. The map scales and turns it so they land on the two army markers (FR-273).

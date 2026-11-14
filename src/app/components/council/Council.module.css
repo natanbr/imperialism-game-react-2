@@ -1,0 +1,196 @@
+/* The Council screen (FR-298, FR-299), tokens in styles/tokens.css. The frame follows the market and game-over dialogs.
+   Its 77 lies over the market and game-over (75) and the Army and Diplomacy screens (76), under the Attack (78) and
+   Battle (79) screens and Accept Offer (85). It waits while a Battle screen is to be seen and the game-over screen waits
+   for it (FR-299). Accept Offer does not wait: an offer made on a meeting turn opens over it, answers the keys first, and
+   gives the focus back to it (tests/ui/councilDialog.test.tsx, review R4).
+   At 1280x720 neither the page nor the dialog scrolls (e2e/m10-council.spec.ts). */
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--color-bg-backdrop);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 77;
+}
+
+.dialog {
+  width: 560px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-dialog);
+  padding: var(--spacing-lg);
+}
+
+.dialog:focus {
+  outline: none;
+}
+
+/* The capitol beside the title and the meeting date */
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
+}
+
+.picture {
+  flex: none;
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
+  object-position: center bottom;
+}
+
+.titles {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.titles h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.date {
+  color: var(--color-text-muted);
+}
+
+/* The Imp1 vote screen: the first nominee, the row names, the second nominee */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.table th,
+.table td {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--color-border);
+  text-align: center;
+}
+
+.table thead th,
+.table thead td {
+  border-bottom-color: var(--color-border-strong);
+}
+
+/* The nominees' columns leave the row names half the width, so the greyed row's note fits on one line (FR-312) */
+.nominee {
+  width: 25%;
+  font-size: var(--font-size-md);
+  font-weight: 700;
+}
+
+/* FR-313: the columns follow the player, so the standing shows as a small mark under the name */
+.rank {
+  display: block;
+  font-size: var(--font-size-sm);
+  font-weight: 400;
+  line-height: 16px;
+  color: var(--color-text-muted);
+}
+
+.rowName {
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.number {
+  font-weight: 700;
+  cursor: help;
+}
+
+/* FR-312: a row no province can fill in this world (Other Great Powers with two Great Powers): greyed, "—" and a note */
+.unusedRow th,
+.unusedRow td {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+.rowNote {
+  display: block;
+  font-size: var(--font-size-sm);
+  line-height: 14px;
+}
+
+.totalRow th,
+.totalRow td {
+  border-top: 1px solid var(--color-border-strong);
+  border-bottom: none;
+  color: var(--color-text-primary);
+  font-weight: 700;
+}
+
+.note {
+  margin: var(--spacing-sm) 0 0;
+  color: var(--color-text-muted);
+}
+
+/* FR-311: one line per abstaining province, under "Abstained: n" */
+.reasons {
+  margin: 2px 0 0;
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--color-text-muted);
+}
+
+/* FR-311: how a free minor and a colony vote */
+.rule {
+  margin: var(--spacing-sm) 0 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--color-text-muted);
+}
+
+.result {
+  margin: var(--spacing-md) 0 0;
+  font-weight: 700;
+}
+
+/* "Testland Wins!" (Imp1) */
+.winner {
+  margin: var(--spacing-md) 0 0;
+  font-size: var(--font-size-lg);
+  color: var(--color-text-good);
+  text-align: center;
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-lg);
+}
+
+.button,
+.primaryButton {
+  padding: 8px 14px;
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-button);
+  font: inherit;
+  cursor: pointer;
+}
+
+.button:hover {
+  background: var(--color-bg-button-hover);
+}
+
+.primaryButton {
+  color: var(--color-on-accent);
+  background: var(--color-bg-accent);
+  border-color: var(--color-bg-accent);
+}
+
+.primaryButton:hover {
+  background: var(--color-bg-accent-hover);
+}

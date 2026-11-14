@@ -3,12 +3,13 @@
 // arrow to a file of the pack; every era-1 regiment type and fort levels 1 to 3 map to a file the manifest lists and
 // that exists on disk, and the pack's files stay as supplied (the checksums in the manifest). city/city-ground.png is
 // not used anywhere in the game's code.
+// M10 UI half. FR-298: the Council screen's header picture is the pack's buildings/capitol.png, through the same table.
 import { describe, it, expect } from 'vitest';
 import { createHash } from 'crypto';
 import { existsSync, readdirSync, readFileSync, statSync } from 'fs';
 import { join, relative } from 'path';
 import { REGIMENT_TYPES } from '@/engine';
-import { ATTACK_ARROW_ART, FORT_LEVELS, INK_ART_BASE, fortArt, regimentArt } from '@/components/art/inkArt';
+import { ATTACK_ARROW_ART, CAPITOL_ART, FORT_LEVELS, INK_ART_BASE, fortArt, regimentArt } from '@/components/art/inkArt';
 
 const ROOT = join(__dirname, '..', '..');
 const PACK = join(ROOT, 'public', 'assets', 'ink-and-wash');
@@ -97,8 +98,15 @@ describe('FR-272 one table maps the game to the art pack', () => {
     expect(attack).toContain(`fill="${token('color-army-attack')}" stroke="${token('color-army-attack-ink')}"`);
   });
 
+  it("FR-298 the Council screen's picture is the pack's capitol (buildings/capitol.png), listed in the manifest and on disk", () => {
+    const file = packFile(CAPITOL_ART);
+    expect(file).toBe('buildings/capitol.png');
+    expect(byFile.get(file)?.family).toBe('buildings');
+    expect(existsSync(join(PACK, file))).toBe(true);
+  });
+
   it('FR-272 NR-031 the pack files the game uses are kept as supplied: their checksums match the manifest', () => {
-    const used = [...REGIMENT_TYPES.map(regimentArt), ...FORT_LEVELS.map((l) => fortArt(l)!), ATTACK_ARROW_ART.url].map(packFile);
+    const used = [...REGIMENT_TYPES.map(regimentArt), ...FORT_LEVELS.map((l) => fortArt(l)!), ATTACK_ARROW_ART.url, CAPITOL_ART].map(packFile);
     for (const file of used) {
       const sha = createHash('sha256').update(readFileSync(join(PACK, file))).digest('hex');
       expect(sha, file).toBe(byFile.get(file)!.sha256);

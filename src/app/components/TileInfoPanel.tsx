@@ -42,9 +42,8 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
   const activeNation = useGameStore((s) => s.game.nations.find(n => n.id === s.activeNationId));
   const game = useGameStore((s) => s.game);
 
-  if (!selectedTile) {
-    return <div style={{ padding: "10px" }}>No tile selected</div>;
-  }
+  // FR-315: nothing without a selection; the HUD needs that height for the news (the Council line at game over)
+  if (!selectedTile) return null;
 
   // The country the tile belongs to, a Great Power or a minor nation, and its province (FR-155)
   const countryId = countryOfTile(game, selectedTile);
