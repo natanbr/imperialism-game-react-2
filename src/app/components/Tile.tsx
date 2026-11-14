@@ -7,7 +7,7 @@ import { TransportNetwork } from '@/types/Transport';
 import { useTileActions } from '@/hooks/useTileActions';
 import { useTileVisuals } from '@/hooks/useTileVisuals';
 import { useTileClickHandler } from '@/hooks/useTileClickHandler';
-import { tileIconOf } from './icons';
+import { resourceMarkArt, tileArt } from './art/inkArt';
 import { tileLabel } from './gameText';
 import {
   TileBase,
@@ -33,8 +33,9 @@ interface TileProps {
 
 /**
  * One map tile: three hooks for the logic (useTileActions, useTileVisuals, useTileClickHandler) and
- * sub-components in Tile/ for what it shows (FR-085). Ownership is not drawn here: MapView draws
- * each nation's territory as a border overlay (FR-087).
+ * sub-components in Tile/ for what it shows (the art pack's pictures, FR-322 to FR-325). Ownership is not
+ * drawn here: MapView draws each nation's territory as a border overlay (FR-087), and the land and sea
+ * under the tiles as one ground (FR-321).
  *
  * Props come from MapView, so tiles do not each subscribe to the whole map; React.memo skips tiles
  * whose props did not change.
@@ -74,7 +75,7 @@ const TileComponentInner: React.FC<TileProps> = ({
   const selectedElsewhere = selectedWorkerId && !tile.workers.some((w) => w.id === selectedWorkerId) ? selectedWorker?.type : undefined;
 
   const possibleAction = useTileActions(tile, selectedWorker, map);
-  const tileVisuals = useTileVisuals(tile, possibleAction);
+  const tileVisuals = useTileVisuals(possibleAction);
   const handleTileClick = useTileClickHandler(tile, selectedWorker, possibleAction);
 
   // The stack button opens the tray: the tile selected, no worker (FR-110)
@@ -114,14 +115,14 @@ const TileComponentInner: React.FC<TileProps> = ({
       label={tileLabel(tile, ownerName)}
       terrain={tile.terrain}
       hasRiver={tile.hasRiver ?? false}
-      backgroundColor={tileVisuals.terrainColor}
+      besideResourceMark={resourceMarkArt(tile) !== undefined}
       border={tileVisuals.border}
       isSelected={isSelected}
       cursor={tileVisuals.cursor}
       hasJobCompleted={jobJustCompleted}
       onClick={handleTileClick}
     >
-      <TileIcon name={tileIconOf(tile)} crowded={tile.workers.length > 0 || minorCapitalName !== undefined} />
+      <TileIcon src={tileArt(tile)} />
       {minorCapitalName !== undefined && <TileName name={minorCapitalName} />}
 
       {tile.resource && <TileResource resource={tile.resource} />}
@@ -131,6 +132,7 @@ const TileComponentInner: React.FC<TileProps> = ({
         depotActive={depotActive}
         port={tile.port ?? false}
         portActive={portActive}
+        besideBadge={(tile.resource?.level ?? 0) > 0}
       />
 
       <TileWorkers

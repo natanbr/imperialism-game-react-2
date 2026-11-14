@@ -1,8 +1,18 @@
 import React, { useRef, useState } from 'react';
 import { Worker, WorkerType } from '@/types/Workers';
-import { UI_ICONS, WORKER_ICONS } from '../icons';
+import { UI_ICONS } from '../icons';
 import { GameIcon } from '../GameIcon';
+import { InkPicture } from '../art/ArtPicture';
+import { civilianArt } from '../art/inkArt';
 import styles from './Tile.module.css';
+
+/**
+ * A civilian's pack figure (FR-325), standing on the bottom of its 24 px target; decorative, the button or marker names
+ * the civilian. The pack has no picture of a group, so a group keeps the Game Icon (Q60).
+ */
+const Figure: React.FC<{ type: WorkerType }> = ({ type }) => (
+  <InkPicture src={civilianArt(type)} alt="" size={20} className={styles.workerFigure} />
+);
 
 /** Where the tray opens beside its tile, so it stays on the map near the map's edges. */
 export interface TrayPlacement {
@@ -51,7 +61,7 @@ const WorkerButton: React.FC<{ worker: Worker; selected: boolean; selectedElsewh
     aria-label={selectedElsewhere ? moveHere(selectedElsewhere) : worker.type}
     aria-pressed={selected}
   >
-    <GameIcon name={WORKER_ICONS[worker.type]} />
+    <Figure type={worker.type} />
   </button>
 );
 
@@ -62,7 +72,7 @@ const WorkerButton: React.FC<{ worker: Worker; selected: boolean; selectedElsewh
  * marker, not a button: a click on it falls through to the tile, which only shows them.
  * Any tile may hold a stack (FR-115). While a civilian of the player standing elsewhere is selected,
  * a click here also falls through to the tile, so the selected civilian moves or works here, and the
- * buttons here are named "Move <type> here" (their icons stay); a click on the selected civilian's own
+ * buttons here are named "Move <type> here" (their figures stay); a click on the selected civilian's own
  * button deselects it.
  * Keyboard (FR-111): Escape closes the tray, and picking from the tray or closing it puts the focus
  * back on the stack button, so it is not lost when the tray goes.
@@ -122,7 +132,7 @@ const TileWorkersInner: React.FC<TileWorkersProps> = ({
             data-nation-id={theirs[0].nationId}
             data-count={theirs.length}
           >
-            <GameIcon name={theirs.length === 1 ? WORKER_ICONS[theirs[0].type] : UI_ICONS.civilians} />
+            {theirs.length === 1 ? <Figure type={theirs[0].type} /> : <GameIcon name={UI_ICONS.civilians} />}
             {theirs.length > 1 && <span className={styles.count} aria-hidden="true">{theirs.length}</span>}
           </span>
         )}
@@ -149,7 +159,7 @@ const TileWorkersInner: React.FC<TileWorkersProps> = ({
             }}
             onKeyDown={closeOnEscape}
           >
-            <GameIcon name={selectedHere ? WORKER_ICONS[selectedHere.type] : UI_ICONS.civilians} />
+            {selectedHere ? <Figure type={selectedHere.type} /> : <GameIcon name={UI_ICONS.civilians} />}
             <span className={styles.count} aria-hidden="true">{own.length}</span>
           </button>
         )}

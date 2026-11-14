@@ -11,7 +11,8 @@ import { newGame, type Order } from '@/engine';
 import { findWorker } from '@/engine/orders/queries';
 import type { GameState } from '@/types/GameState';
 import { WorkerType } from '@/types/Workers';
-import { UI_ICONS, WORKER_ICONS } from '@/components/icons';
+import { UI_ICONS } from '@/components/icons';
+import { artFileOf, civilianArt } from '@/components/art/inkArt';
 import { failOnActWarnings } from './actWarnings';
 
 failOnActWarnings();
@@ -48,6 +49,11 @@ describe('FR-115 stacks on any tile', () => {
     fireEvent.click(buttons[1]);
     expect(useGameStore.getState().selectedWorkerId).toBe(FORESTER);
     expect(within(farm()).getByTestId('worker-stack').getAttribute('aria-label')).toBe(`2 civilians, ${WorkerType.Forester} selected`);
+    // FR-325: while one of its civilians is selected the stack shows that civilian's figure, with the count
+    const selectedStack = within(farm()).getByTestId('worker-stack');
+    expect([...selectedStack.querySelectorAll('img')].map((img) => img.getAttribute('data-art'))).toEqual([artFileOf(civilianArt(WorkerType.Forester))]);
+    expect(selectedStack.querySelector('[data-icon]')).toBeNull();
+    expect(selectedStack.textContent).toBe('2');
 
     const tile = useGameStore.getState().game.map.tiles[9][3];
     render(<TileInfoPanel selectedTile={tile} />);
@@ -63,10 +69,10 @@ describe('FR-115 stacks on any tile', () => {
     expect(button().getAttribute('aria-label')).toBe(WorkerType.Rancher);
     act(() => useGameStore.getState().selectWorker(FORESTER));
 
-    // The button says what the click does; it keeps the rancher's icon
+    // The button says what the click does; it keeps the rancher's figure (FR-325: the pack's figure since M11)
     expect(button().getAttribute('aria-label')).toBe(`Move ${WorkerType.Forester} here`);
     expect(button().getAttribute('title')).toBe(`Move ${WorkerType.Forester} here`);
-    expect(button().querySelector('[data-icon]')?.getAttribute('data-icon')).toBe(WORKER_ICONS[WorkerType.Rancher]);
+    expect([...button().querySelectorAll('img')].map((img) => img.getAttribute('data-art'))).toEqual([artFileOf(civilianArt(WorkerType.Rancher))]);
     fireEvent.click(button());
 
     expect(tileOf(FORESTER)).toBe(ORCHARD);
@@ -83,7 +89,10 @@ describe('FR-115 stacks on any tile', () => {
     const stack = within(tileEl(container, FARM)).getByTestId('worker-stack');
     expect(stack.getAttribute('aria-label')).toBe(`Move ${WorkerType.Farmer} here`);
     expect(stack.getAttribute('title')).toBe(`Move ${WorkerType.Farmer} here`);
+    // FR-325: no civilian of this tile is selected, so the stack keeps the Game Icon GiMeepleGroup (the pack has no group picture)
     expect(stack.querySelector('[data-icon]')?.getAttribute('data-icon')).toBe(UI_ICONS.civilians);
+    expect(UI_ICONS.civilians).toBe('GiMeepleGroup');
+    expect(stack.querySelector('img')).toBeNull();
     // The farm (grain level 1) is the farmer's to develop: the click on its stack starts the job
     fireEvent.click(stack);
 

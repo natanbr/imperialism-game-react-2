@@ -1,11 +1,12 @@
 /*
  * Tile styles (42 px tiles, FR-088). Layout inside a tile:
- *   top left: level badge, job markers below it   top right: depot / port with status dot
- *   middle: the icon for what the tile holds       bottom right: the civilians, one 24 px button
+ *   the whole 40 x 40 content box: the art pack's picture of what the tile holds (FR-322)
+ *   top left: level badge, job markers below it   top right: depot, port, with their station marks
+ *   bottom left: a known mineral's mark, then the river marker   bottom right: the civilians, one 24 px button
  *   on a province's seat: the army markers, half over the tile's left edge (FR-210)
- * Stacking above MapView's rail and border overlay (z-index 1): the selection ring and the icons
- * and badges (2), the civilians (3), a minor's name tag (4), the army markers (5), the civilians'
- * tray (6). The HUD (10) stays on top.
+ * Stacking: the ground (MapGround.module.css) and the tile picture (0), MapView's border and rail overlay (1), the
+ * selection mark and the marks and badges (2), the civilians (3), a minor's name tag (4), the army markers (5), the
+ * civilians' tray (6). The HUD (10) stays on top. A tile is no stacking context, so its children take part in this order.
  */
 
 .tile {
@@ -31,38 +32,36 @@
   box-shadow: var(--shadow-lg);
 }
 
-/* The selected tile's accent ring (FR-087), its own element above the territory borders and rail
-   lines, so no shore border or rail covers it (FR-110). First in the tile, so badges stay on top. */
+/* The selected tile's mark: the art pack's corner brackets over the tile's outer 42 x 42 box, grid line included
+   (FR-326); its own element above the territory borders and rail lines, so no shore border or rail covers it (FR-110).
+   First in the tile, so badges stay on top. */
 .selectionRing {
   position: absolute;
-  inset: 0;
-  box-shadow: inset 0 0 0 3px var(--color-selected);
+  inset: -1px;
   z-index: 2;
   pointer-events: none;
 }
 
-/* The icon for what the tile holds */
+.selectionMark {
+  width: 42px;
+  height: 42px;
+}
+
+/* The picture of what the tile holds (FR-322): the whole content box, below the border and rail overlay. It never
+   shrinks or moves; civilians, badges and a minor's name tag lie over it. */
 .icon {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 22px;
-  line-height: 0;
-  opacity: 0.8;
-  z-index: 2;
+  left: 0;
+  top: 0;
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  z-index: 0;
   pointer-events: none;
 }
 
-/* Civilians stand on the tile: the icon moves to the top centre, clear of their 24 px button */
-.iconCrowded {
-  top: 1px;
-  transform: translateX(-50%);
-  font-size: 15px;
-}
-
-/* A minor nation's name on its capital (FR-153 d): a small tag below the icon. It may be wider than the
-   tile, so it sits above the neighbouring tiles' icons and civilians, below the civilians' tray. */
+/* A minor nation's name on its capital (FR-153 d): a small tag at the bottom of the picture. It may be wider than the
+   tile, so it sits above the neighbouring tiles' pictures and civilians, below the civilians' tray. */
 .minorName {
   position: absolute;
   left: 50%;
@@ -91,6 +90,22 @@
   z-index: 2;
 }
 
+/* Beside the 16 px mineral mark at the bottom-left (FR-323) */
+.riverBesideMark {
+  left: 18px;
+}
+
+/* A known mineral's or oil's goods picture (FR-323): which one a mine or an oil well holds */
+.resourceMark {
+  position: absolute;
+  left: 1px;
+  bottom: 1px;
+  width: 16px;
+  height: 16px;
+  z-index: 2;
+  pointer-events: none;
+}
+
 /* Level badge "L1" to "L3" */
 .levelBadge {
   position: absolute;
@@ -107,45 +122,42 @@
   pointer-events: none;
 }
 
-/* Depot and port */
+/* Depot and port (FR-324): 14 px pictures along the top edge from the right, the depot rightmost */
 .stations {
   position: absolute;
   top: 1px;
   right: 1px;
   display: flex;
-  flex-direction: column;
+  flex-direction: row-reverse;
   gap: 1px;
   z-index: 2;
+}
+
+/* Beside a level badge both would reach it (1 + 14 + 1 + 14 px from the right of the 40 px box): the port goes below */
+.stationsStacked {
+  flex-direction: column;
 }
 
 .station {
   position: relative;
   display: block;
-  font-size: 12px;
-  line-height: 0;
-  color: var(--color-ink);
+  width: 14px;
+  height: 14px;
 }
 
-.statusDot {
+.stationPicture {
+  width: 14px;
+  height: 14px;
+}
+
+/* The pack's station mark on the picture's bottom-right: a filled disc when connected, a ring when not, so the state
+   shows by shape too, not only colour (FR-093) */
+.stationMark {
   position: absolute;
   right: -1px;
   bottom: -1px;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  border: 1px solid var(--color-surface-raised);
-}
-
-.statusOn {
-  background: var(--color-good);
-}
-
-/* A hollow ring, same 7 px footprint: the state shows by shape too, not only colour (FR-093) */
-.statusOff {
-  width: 3px;
-  height: 3px;
-  background: var(--color-surface-raised);
-  border: 2px solid var(--color-bad);
+  width: 8px;
+  height: 8px;
 }
 
 /* Job markers, below the level badge */
@@ -202,10 +214,21 @@
   border-color: var(--color-accent);
 }
 
+/* A colour picture cannot be recoloured like an icon: the selected button keeps the accent background and adds an
+   accent outline (FR-325) */
 .workerButtonSelected {
   background: var(--color-accent);
   border-color: var(--color-accent);
   color: var(--color-on-accent);
+  outline: 2px solid var(--color-accent);
+}
+
+/* The civilian's pack figure (FR-325): 20 px, standing on the bottom of the 24 px target */
+.workerFigure {
+  width: 20px;
+  height: 20px;
+  align-self: end;
+  justify-self: center;
 }
 
 .workerButtonSelected:hover {

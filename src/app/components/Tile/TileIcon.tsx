@@ -1,23 +1,21 @@
 import React from 'react';
-import type { IconName } from '../icons';
-import { GameIcon } from '../GameIcon';
+import { InkPicture } from '../art/ArtPicture';
 import styles from './Tile.module.css';
 
+/** The tile's 40 x 40 content box: the picture fills it, as the art pack's demo draws its map objects. */
+const PICTURE_PX = 40;
+
 export interface TileIconProps {
-  name: IconName | null;
-  /** Workers or a minor's name tag take the bottom half: the icon moves up and shrinks. */
-  crowded: boolean;
+  /** `tileArt(tile)`; none on water, river and coast (the ground draws them). */
+  src: string | undefined;
 }
 
-/** The icon for what the tile holds (`tileIconOf`, FR-085); none on open sea. */
-const TileIconInner: React.FC<TileIconProps> = ({ name, crowded }) => {
-  if (!name) return null;
-  return (
-    <span className={`${styles.icon} ${crowded ? styles.iconCrowded : ''}`}>
-      <GameIcon name={name} testId="tile-icon" />
-    </span>
-  );
-};
+/**
+ * The pack's picture of what the tile holds (`tileArt`, FR-322), decorative: the tile's name says it (FR-095). It
+ * fills the tile below the border and rail overlay and never shrinks or moves; the marks lie over it.
+ */
+const TileIconInner: React.FC<TileIconProps> = ({ src }) =>
+  src ? <InkPicture src={src} alt="" size={PICTURE_PX} className={styles.icon} testId="tile-icon" /> : null;
 
 export const TileIcon = React.memo(TileIconInner);
 TileIcon.displayName = 'TileIcon';

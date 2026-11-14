@@ -4,13 +4,13 @@
   display: flex;
 }
 
-/* Sea colour behind the map, so the space past a map smaller than the screen reads as sea. */
+/* The ground's deep water behind the map, so the space past a map smaller than the screen reads as its sea (FR-321). */
 .container {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
   position: relative;
-  background: var(--color-sea);
+  background: var(--color-ground-water);
 }
 
 /* Scrolled by the camera (FR-083). The padding lets the last column scroll out from under the HUD. */
@@ -28,13 +28,22 @@
   margin-left: calc(var(--tile-width) / 2);
 }
 
-/* Above the tile backgrounds, below the tile icons and workers (Tile.module.css .layer). */
+/* Above the ground (MapGround.module.css, 0) and the tile pictures (Tile.module.css .icon, 0), below every tile mark and
+   the selection mark (2 and up), FR-328 and FR-110 (b). */
 .railOverlay {
   position: absolute;
   left: 0;
   top: 0;
   pointer-events: none;
   z-index: 1;
+}
+
+/* The pale halo under every border line (FR-327): solid, 2 px wider than the line, so the line reads on any picture */
+.borderHalo {
+  fill: none;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .territoryBorder {
@@ -59,6 +68,7 @@
   stroke-linecap: butt;
 }
 
+/* The link's underlay, under the pack's rail piece (FR-328): it hides the joints between two pieces */
 .railSegment {
   stroke: var(--color-rail);
   stroke-width: 3;

@@ -65,6 +65,20 @@ describe('FR-087 territory borders', () => {
     expect(borders.every((b) => b.tagName.toLowerCase() === 'path')).toBe(true);
     unmount();
   });
+
+  it('FR-327 each nation\'s border lies on a halo path with the same d in the map-halo colour, drawn before it', () => {
+    show(game);
+    const { container, unmount } = render(<MapView />);
+    const borders = [...container.querySelectorAll('[data-testid="territory-border"]')];
+    const halos = [...container.querySelectorAll('[data-testid="border-halo"]')];
+    expect(halos.map((h) => h.getAttribute('d'))).toEqual(borders.map((b) => b.getAttribute('d')));
+    expect(halos.every((h) => h.getAttribute('stroke') === THEME.mapHalo && !h.hasAttribute('data-nation-id'))).toBe(true);
+    for (const [i, b] of borders.entries()) {
+      // DOCUMENT_POSITION_FOLLOWING: the border comes after its halo
+      expect(halos[i].compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    }
+    unmount();
+  });
 });
 
 describe('FR-087 the selected tile looks different from owned tiles', () => {
@@ -84,8 +98,13 @@ describe('FR-087 the selected tile looks different from owned tiles', () => {
     const tiles = [...container.querySelectorAll('[data-testid="tile"]')] as HTMLElement[];
     expect(tiles.filter((t) => NATION_COLORS.some((c) => t.style.cssText.includes(c)))).toEqual([]);
     expect(tiles.filter((t) => t.style.cssText.includes(THEME.accent))).toEqual([]);
+    // FR-321 (M11): no tile paints a background of its own any more; the ground SVG draws land and sea
+    expect(tiles.filter((t) => t.style.backgroundColor !== '')).toEqual([]);
     const rings = [...container.querySelectorAll('[data-testid="selection-ring"]')];
     expect(rings.map((r) => r.closest('[data-testid="tile"]')?.getAttribute('data-tile-id'))).toEqual(['3-9']);
+    // FR-326 (M11): the ring is the pack's corner brackets, on the selected tile only
+    const brackets = [...container.querySelectorAll('img[data-art="map-ui/tile-selection.svg"]')];
+    expect(brackets.map((b) => b.closest('[data-testid="selection-ring"]'))).toEqual(rings);
     expect(container.querySelector('[data-tile-id="3-9"]')?.getAttribute('data-selected')).toBe('true');
     unmount();
   });

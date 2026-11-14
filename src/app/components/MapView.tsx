@@ -4,8 +4,11 @@ import { useGameStore } from "@/store/rootStore";
 import { selectArmyMarkersBySeat, selectAttackArrows, selectMarchArrows } from "@/store/selectors";
 import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { TileComponent } from "./Tile";
+import { RAIL_ART } from "./art/inkArt";
 import { cameraOnCapital } from "./camera";
-import { computeRailSegmentsPixels } from "./railSegments";
+import { MapGround } from "./map/MapGround";
+import { groundSignature } from "./map/shoreline";
+import { computeRailSegmentsPixels, railArtMatrix } from "./railSegments";
 import {
   borderPaths,
   minorBorderPaths,
@@ -74,8 +77,17 @@ export const MapView: React.FC = () => {
     if (el) setCamera(el.scrollLeft, el.scrollTop);
   }, [setCamera]);
 
-  // The rail graph the depot lights use, drawn as it is (FR-079)
-  const railSegments = useMemo(() => computeRailSegmentsPixels(railLinksOf({ transportNetwork }), TILE_PX, TILE_PX / 2), [transportNetwork]);
+  // The ground is drawn from the land and water pattern only: a string, so MapGround's memo holds across turns (FR-321)
+  const ground = useMemo(() => groundSignature(map.tiles), [map]);
+  // The rail graph the depot lights use, drawn as it is (FR-079), each link with the pack's rail piece on it (FR-328)
+  const railSegments = useMemo(
+    () =>
+      computeRailSegmentsPixels(railLinksOf({ transportNetwork }), TILE_PX, TILE_PX / 2).map((s) => ({
+        ...s,
+        art: `matrix(${railArtMatrix(s, RAIL_ART.width, RAIL_ART.height).join(" ")})`,
+      })),
+    [transportNetwork]
+  );
   // Each nation's territory as one outline in its colour (FR-087); inside it the provinces, dotted, and
   // each minor nation's land, dashed (FR-153)
   const borders = useMemo(() => borderPaths(territoryBorderSegments(map, nations)), [map, nations]);
@@ -84,6 +96,15 @@ export const MapView: React.FC = () => {
     () => minorBorderPaths(minorBorderSegments(map, provinces, minorNations), minorNations),
     [map, provinces, minorNations]
   );
+  // FR-327: every border line lies on a pale halo, the art pack's territory-line halo colour
+  const halos = useMemo(
+    () => [
+      ...provinceBorders.map((b) => ({ key: `province:${b.ownerId}`, d: b.d })),
+      ...borders.map((b) => ({ key: `territory:${b.nationId}`, d: b.d })),
+      ...minorBorders.map((b) => ({ key: `minor:${b.minorId}`, d: b.d })),
+    ],
+    [provinceBorders, borders, minorBorders]
+  );
   const overlayWidth = map.config.cols * TILE_PX + TILE_PX / 2; // extra for odd-row shift
   const overlayHeight = map.config.rows * TILE_PX;
 
@@ -91,6 +112,7 @@ export const MapView: React.FC = () => {
     <div className={styles.wrapper}>
       <div ref={containerRef} className={styles.container} onScroll={onScroll} data-testid="map-scroll" data-ready={ready ? "true" : undefined}>
         <div className={styles.viewport}>
+          <MapGround signature={ground} />
           {map.tiles.map((row, y) => (
             <div key={y} className={`${styles.row} ${y % 2 === 1 ? styles.rowOdd : ''}`}>
               {row.map((tile) => (
@@ -106,12 +128,16 @@ export const MapView: React.FC = () => {
             </div>
           ))}
 
-          {/* Province lines, territory borders, minor borders on top where they meet one, then the railroad (FR-079, FR-153) */}
+          {/* Above the tile pictures, below every tile mark (FR-328). The pale halos first, each under its line (FR-327); then
+              province lines, territory borders, minor borders on top where they meet one, then the railroad (FR-079, FR-153) */}
           <svg
             width={overlayWidth}
             height={overlayHeight}
             className={styles.railOverlay}
           >
+            {halos.map((h) => (
+              <path key={h.key} d={h.d} stroke={THEME.mapHalo} className={styles.borderHalo} data-testid="border-halo" />
+            ))}
             {provinceBorders.map((b) => (
               <path key={b.ownerId} d={b.d} stroke={THEME.provinceBorder} className={styles.provinceBorder} data-testid="province-border" data-owner-id={b.ownerId} />
             ))}
@@ -131,6 +157,17 @@ export const MapView: React.FC = () => {
                 className={styles.railSegment}
                 data-testid="rail-segment"
                 data-nation-id={s.nationId}
+              />
+            ))}
+            {railSegments.map((s, i) => (
+              <image
+                key={i}
+                href={RAIL_ART.url}
+                width={RAIL_ART.width}
+                height={RAIL_ART.height}
+                transform={s.art}
+                aria-hidden="true"
+                data-testid="rail-art"
               />
             ))}
           </svg>

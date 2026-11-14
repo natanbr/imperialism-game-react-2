@@ -1,5 +1,7 @@
 import React from 'react';
 import { TerrainType } from '@/types/Tile';
+import { InkPicture } from '../art/ArtPicture';
+import { SELECTION_ART } from '../art/inkArt';
 import { GameIcon } from '../GameIcon';
 import styles from './Tile.module.css';
 
@@ -9,7 +11,8 @@ export interface TileBaseProps {
   label: string;
   terrain: TerrainType;
   hasRiver: boolean;
-  backgroundColor: string;
+  /** The tile shows a resource mark at its bottom-left (FR-323): the river marker moves beside it. */
+  besideResourceMark: boolean;
   border: string;
   isSelected: boolean;
   cursor: string;
@@ -19,15 +22,15 @@ export interface TileBaseProps {
 }
 
 /**
- * The tile's faint terrain tint and grid line (FR-086); the selected tile adds the accent ring (FR-087)
- * as an element of its own, drawn above the territory borders and rail (FR-110).
+ * The tile's faint grid line (FR-087) over the map's ground (FR-321: no colour of its own); the selected tile adds the
+ * art pack's corner brackets (FR-326) as an element of its own, drawn above the territory borders and rail (FR-110).
  */
 const TileBaseInner: React.FC<TileBaseProps> = ({
   tileId,
   label,
   terrain,
   hasRiver,
-  backgroundColor,
+  besideResourceMark,
   border,
   isSelected,
   cursor,
@@ -44,12 +47,16 @@ const TileBaseInner: React.FC<TileBaseProps> = ({
       data-terrain={terrain}
       data-selected={isSelected ? 'true' : undefined}
       className={`${styles.tile} ${hasJobCompleted ? styles.tileJobCompleted : ''}`}
-      style={{ backgroundColor, border, cursor }}
+      style={{ border, cursor }}
       onClick={onClick}
     >
-      {isSelected && <span className={styles.selectionRing} data-testid="selection-ring" aria-hidden="true" />}
+      {isSelected && (
+        <span className={styles.selectionRing} data-testid="selection-ring" aria-hidden="true">
+          <InkPicture src={SELECTION_ART.url} alt="" width={SELECTION_ART.width} height={SELECTION_ART.height} className={styles.selectionMark} />
+        </span>
+      )}
       {hasRiver && (
-        <span className={styles.river} title="River">
+        <span className={`${styles.river} ${besideResourceMark ? styles.riverBesideMark : ''}`} title="River">
           <GameIcon name="GiRiver" />
         </span>
       )}

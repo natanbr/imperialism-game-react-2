@@ -1,13 +1,15 @@
 // @vitest-environment jsdom
 // M3.5 review fix round. FR-093: depots and ports name their state ("Depot: connected") and show it by
 // shape as well as colour. FR-095: every tile has an accessible name (terrain, resource and level,
-// owner) now that the terrain text is no longer drawn. FR-096: the browser tab says "Imperialism".
+// owner) now that the terrain text is no longer drawn. FR-096: the browser tab says "Imperialism". FR-324 (M11): the depot
+// and port are the pack's pictures with its station marks, the state still by shape and in the name.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { render, screen } from '@testing-library/react';
 import { MapView } from '@/components/MapView';
 import { TileInfrastructure } from '@/components/Tile/TileInfrastructure';
+import tileStyles from '@/components/Tile/Tile.module.css';
 import { useGameStore } from '@/store/rootStore';
 import { newGame } from '@/engine';
 import { TerrainType } from '@/types/Tile';
@@ -31,13 +33,51 @@ describe('FR-093 depot and port state is named, not only coloured', () => {
     expect(screen.getByRole('img', { name: 'Port: connected' })).toBeTruthy();
   });
 
-  it('FR-093 not connected is a hollow ring, connected a filled dot: the shape differs, not only the colour', () => {
+  // M11 (FR-324) replaced the CSS dots with the pack's station marks: the state shows by shape (a filled disc, a ring)
+  it('FR-093 FR-324 not connected is the pack\'s ring, connected its filled disc: the shape differs, not only the colour', () => {
+    const { container } = render(<TileInfrastructure depot depotActive port portActive={false} />);
+    const pictures = (name: string) =>
+      [...screen.getByRole('img', { name }).querySelectorAll('img')].map((img) => [img.getAttribute('data-art'), img.getAttribute('alt'), img.getAttribute('width')]);
+    expect(pictures('Depot: connected')).toEqual([
+      ['infrastructure/depot.png', '', '14'],
+      ['map-ui/station-connected.svg', '', '8'],
+    ]);
+    expect(pictures('Port: not connected')).toEqual([
+      ['infrastructure/port.png', '', '14'],
+      ['map-ui/station-disconnected.svg', '', '8'],
+    ]);
+    // The two files differ by shape: the connected one is one filled disc, the other a disc with a ring drawn inside
+    const file = (name: string) => readFileSync(join(ROOT, 'public/assets/ink-and-wash/map-ui', name), 'utf8');
+    expect(file('station-connected.svg')).not.toMatch(/fill="none" stroke="#[0-9a-f]{6}" stroke-width="1\.25"/);
+    expect(file('station-disconnected.svg')).toMatch(/fill="none" stroke="#[0-9a-f]{6}" stroke-width="1\.25"/);
+    // The old dots are gone
+    expect(container.querySelector('[class*="statusDot"]')).toBeNull();
+    const css = readFileSync(join(ROOT, 'src/app/components/Tile/Tile.module.css'), 'utf8');
+    expect(css).not.toMatch(/\.status(Dot|On|Off)\b/);
+  });
+
+  it('FR-324 the depot and the port stand along the top edge from the right, depot rightmost, each mark on its bottom-right', () => {
     const css = readFileSync(join(ROOT, 'src/app/components/Tile/Tile.module.css'), 'utf8');
     const rule = (name: string) => new RegExp(`\\.${name}\\s*\\{([^}]*)\\}`).exec(css)?.[1] ?? '';
-    expect(rule('statusOn')).toMatch(/background:\s*var\(--color-good\)/);
-    // A light centre inside a red border, not a red fill
-    expect(rule('statusOff')).toMatch(/background:\s*var\(--color-surface-raised\)/);
-    expect(rule('statusOff')).toMatch(/border:\s*\d+px solid var\(--color-bad\)/);
+    expect(rule('stations')).toMatch(/top:\s*1px/);
+    expect(rule('stations')).toMatch(/right:\s*1px/);
+    expect(rule('stations')).toMatch(/flex-direction:\s*row-reverse/);
+    expect(rule('stationMark')).toMatch(/right:\s*-1px/);
+    expect(rule('stationMark')).toMatch(/bottom:\s*-1px/);
+    const { container } = render(<TileInfrastructure depot depotActive port portActive />);
+    expect([...container.querySelectorAll('[role="img"]')].map((s) => s.getAttribute('aria-label'))).toEqual(['Depot: connected', 'Port: connected']);
+  });
+
+  it('FR-324 beside a level badge, a depot and a port stack at the right edge, so no mark lies over the badge', () => {
+    const css = readFileSync(join(ROOT, 'src/app/components/Tile/Tile.module.css'), 'utf8');
+    const rule = (name: string) => new RegExp(`\\.${name}\\s*\\{([^}]*)\\}`).exec(css)?.[1] ?? '';
+    // Two 14 px pictures side by side reach 30 px from the right, into the badge at the top-left of the 40 px box
+    expect(rule('stationsStacked')).toMatch(/flex-direction:\s*column/);
+    const twoBesideBadge = render(<TileInfrastructure depot depotActive port portActive besideBadge />).container;
+    const twoWithoutBadge = render(<TileInfrastructure depot depotActive port portActive />).container;
+    const oneBesideBadge = render(<TileInfrastructure depot depotActive={false} port={false} portActive={false} besideBadge />).container;
+    const stacked = (c: HTMLElement) => c.firstElementChild!.classList.contains(tileStyles.stationsStacked);
+    expect([stacked(twoBesideBadge), stacked(twoWithoutBadge), stacked(oneBesideBadge)]).toEqual([true, false, false]);
   });
 });
 

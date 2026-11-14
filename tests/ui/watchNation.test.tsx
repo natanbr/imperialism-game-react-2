@@ -13,7 +13,7 @@ import { HUD } from '@/components/HUD';
 import { MapView } from '@/components/MapView';
 import { NewsPanel, ScoreTable } from '@/components/HUD/index';
 import { GameOverModal } from '@/components/GameOverModal';
-import { WORKER_ICONS } from '@/components/icons';
+import { SELECTION_ART, artFileOf, civilianArt } from '@/components/art/inkArt';
 import { eventText, newsLines } from '@/components/gameText';
 import tileStyles from '@/components/Tile/Tile.module.css';
 import { useGameStore } from '@/store/rootStore';
@@ -326,7 +326,8 @@ describe('FR-110 (a) worker buttons are at least 24 px', () => {
     expect(buttons.map((b) => b.getAttribute('data-worker-type'))).toEqual([...START_CIVILIANS]);
     for (const b of buttons) {
       expect(b.classList.contains(tileStyles.workerTarget)).toBe(true);
-      expect(b.querySelector('svg')?.getAttribute('data-icon')).toBe(WORKER_ICONS[b.getAttribute('data-worker-type') as WorkerType]);
+      // FR-325 (M11): the civilian's pack figure in place of its Game Icon
+      expect(b.querySelector('img')?.getAttribute('data-art')).toBe(artFileOf(civilianArt(b.getAttribute('data-worker-type') as WorkerType)));
     }
     expect(within(capital()).getByTestId('worker-stack').getAttribute('aria-expanded')).toBe('true');
 
@@ -365,9 +366,26 @@ describe('FR-110 (b) the selection ring is drawn above the borders and the rail'
     const overlay = rule(css('src/app/components/MapView.module.css'), 'railOverlay');
     const z = (body: string) => Number(/z-index:\s*(\d+)/.exec(body)?.[1] ?? NaN);
     expect(z(ring)).toBeGreaterThan(z(overlay));
-    expect(ring).toMatch(/box-shadow:\s*inset 0 0 0 3px var\(--color-selected\)/);
     expect(ring).toMatch(/pointer-events:\s*none/);
-    expect(css('src/app/styles/tokens.css')).toMatch(/--color-selected:\s*var\(--color-accent\);/);
+    // FR-326 (M11) replaced the accent inset ring (box-shadow) with the pack's corner brackets over the tile's outer box
+    expect(ring).not.toMatch(/box-shadow/);
+    expect(ring).toMatch(/inset:\s*-1px/);
+    const mark = [...rings[0].querySelectorAll('img')];
+    expect(mark.map((img) => [img.getAttribute('src'), img.getAttribute('data-art'), img.getAttribute('alt'), img.getAttribute('width'), img.getAttribute('height')])).toEqual([
+      [SELECTION_ART.url, 'map-ui/tile-selection.svg', '', '42', '42'],
+    ]);
+    // No other tile shows the brackets
+    expect(container.querySelectorAll('img[data-art="map-ui/tile-selection.svg"]')).toHaveLength(1);
+  });
+
+  it('FR-326 the brackets\' brown is no nation\'s colour, so the selection never reads as ownership (FR-087)', () => {
+    const svg = readFileSync(join(ROOT, 'public/assets/ink-and-wash/map-ui/tile-selection.svg'), 'utf8');
+    const strokes = [...svg.matchAll(/stroke="(#[0-9a-f]{6})"/gi)].map((m) => m[1].toLowerCase());
+    expect(strokes.length).toBeGreaterThan(0);
+    const tokens = css('src/app/styles/tokens.css');
+    const nations = NATION_COLORS.map((v) => new RegExp(`${/var\((--[\w-]+)\)/.exec(v)![1]}:\\s*(#[0-9a-f]{6})`, 'i').exec(tokens)![1].toLowerCase());
+    expect(nations).toHaveLength(2);
+    expect(strokes.filter((s) => nations.includes(s))).toEqual([]);
   });
 });
 
