@@ -45,10 +45,11 @@
 - 2026-11-14 housekeeping (Nathan: "Yes, clean up"): the merged branches `claude/v2-plan`, `claude/m5-world` to
   `claude/m10-council`, `claude/v2-handoff` and `claude/m11-ink-restyle` deleted locally and on GitHub, and the old
   `decisions` worktree removed (it had no uncommitted work). Then (Nathan: "Yes, check and remove") 12 of the 17
-  v1-era worktrees removed: every one's commits were already in main and it had no changes. Kept, waiting for Nathan:
-  5 agent worktrees with uncommitted source edits from 2026-11-02 to 11-04 (`agent-a0ebafd9159ca6197` on m1, 86
-  files; `agent-a75ac2363238a25c6` on m3, 28; `agent-a4c9cb9416fb072cc`, `-a8c6b9c5d3e0870d8`, `-ab5572a63222c682f` on
-  m3.5, 18, 68 and 58), all on branches already merged into main.
+  v1-era worktrees removed: every one's commits were already in main and it had no changes. The other 5 held uncommitted source
+  edits from 2026-11-02 to 11-04 (Nathan: "Back up, then remove"): each was committed to a local branch
+  `backup/v1-wip/<worktree>` (not pushed; agent-a0ebafd9159ca6197 ad3e9e3, 86 files; agent-a75ac2363238a25c6
+  5a06243, 28; agent-a4c9cb9416fb072cc 3146ae7, 18; agent-a8c6b9c5d3e0870d8 3d91a96, 68; agent-ab5572a63222c682f
+  0b7b4ea, 58), then removed. Worktrees left: the main checkout, this session's and `play`.
 
 Carried forward:
 - Deferred: river ports and the depot-on-port rule (rules 04); University fees; the power plant.
