@@ -1208,8 +1208,8 @@
         "id": "Q65",
         "title": "How big are depot and port on a tile?",
         "status": "open",
-        "context": "Alternative: the depot or port as the tile's main picture (as the demo), losing the terrain picture there.",
-        "suggestion": "Taken (QA fix round, FR-347): 20 px pictures in the tile's top-right corner with the pack's station marks at 11 px on their top-right, a depot and a port stacked; the first default, 14 px with 8 px marks (FR-324), was a speck at 1x. Default in force; reversible.",
+        "context": "Stacked (the QA round's first try) the port lay under the civilians' 24 px button. Alternatives: the depot or port as the tile's main picture (as the demo), losing the terrain picture there; or smaller stations while civilians stand there (no badge or job moves, but the speck returns).",
+        "suggestion": "Taken (QA fix round, FR-347; review F1, FR-356): 20 px pictures in the tile's top-right corner, each box cropped to the drawing's 14 rows, with the pack's station marks at 11 px on their top-right; a depot and a port side by side, the depot rightmost, the level badge and job markers then below them; civilians on a station tile in its corner, below the drawings. The first default, 14 px with 8 px marks (FR-324), was a speck at 1x. Default in force; reversible.",
         "items": [
           "M11"
         ]

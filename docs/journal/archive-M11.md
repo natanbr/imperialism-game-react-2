@@ -1,7 +1,8 @@
 # Journal archive: M11 Ink-and-wash restyle
 
 Moved from `docs/journal.md` on 2026-11-14, unchanged, in the M11 review fix round (FLOW: the journal stays under 400 lines):
-lanes 1 to 3. The entry's head, the integration step and the review fix round stay in the journal until M11 is merged.
+lanes 1 to 3; in the review of the QA fix round, the review fix round. The entry's head, the integration step and the QA fix round
+stay in the journal until M11 is merged.
 
 ## 2026-11-14 M11 Ink-and-wash restyle (NR-032; FR-318 to FR-338)
 
@@ -160,3 +161,58 @@ How to see it (after the closing step's build): a new game shows the sea, a sand
 picture on every land tile, the borders on a pale halo, coal and iron marks on Arvelia's mines; select a tile (corner
 brackets), pick the prospector and hover 5-2 (its figure as the cursor), lay rail from the capital and build a depot as
 e2e/look.spec.ts does (the rail piece on each link, the depot with its green station disc).
+
+### Review fix round (FR-339 to FR-345, card Q77)
+
+One agent (Opus 5.5; no advisor call) on the milestone review's 16 findings: R1 to R6 against the requirements, F1 to F4 in
+the running app, P1 to P6 in loading and plumbing (R1, F4 and P1 are one). New ids FR-339 to FR-345 in requirements.md's
+"M11 review fix round"; card Q77; code and tests in d66927a. Red before the fixes (`.gate/m11rv/red-unit.txt`, `red-e2e.txt`): unit `Test Files 6
+failed | 1 passed (7)`, `Tests 14 failed | 98 passed (112)`; e2e `3 failed`, `3 passed`: the middle of 2-9's picture was
+`svg` (the stack's group icon), the hover requested none of the 7 figures, the 1920x1080 sea patches were equal in 10 pairs.
+
+| Finding | What changed | Test |
+|---|---|---|
+| R1, F4, P1 (major): the budget counted only the map's files | FR-339: it counts the page's request log (every pack file until the network is idle, each once): at most 20 files and 2,050,000 bytes; FR-337 marked replaced | e2e/m11-map.spec.ts prints `FR-339 first paint: 19 pack files, 1937255 bytes` (the HUD's 3 buildings included) |
+| R2 (major): three FR-325 clauses untested | tests only | tests/ui/mapIcons.test.tsx: another nation's lone figure, its group's GiMeepleGroup, the selected button's outline; with the clauses reverted `Tests 2 failed` (`mutant-r2.txt`) |
+| F1 (major): a flat sea past the map | FR-340: the scroller's background is `GROUND_ART.water` at 512 px (inline style), `background-attachment: local` from the map's origin | tests/ui/mapGround.test.tsx; e2e at 1920x1080: five sea patches all differ (red: 10 equal pairs) |
+| F2 (major): the capital's picture covered | FR-341, card Q77: a capital or town with civilians or a name tag draws its picture at 24 px at the top centre, lifted 4 px (`.iconCrowded`) | tests/ui/mapIcons.test.tsx; e2e/look.spec.ts: the topmost box at the middle of 2-9's and 11-4's pictures is the picture (red: `svg`) |
+| R3: stations beside a badge not drawn through the map | FR-345 states the stacked case | tests/ui/accessibleNames.test.tsx: a level-1 farm with a depot and a port through MapView, and a level-0 tile |
+| R4: older rows not marked | NR-008, NR-021, NR-024, NR-031, FR-153 marked; FR-154 names the new province colour | docs |
+| R5: the Armoury's 4.9 px was an estimate | measured in Chromium (one-off Playwright run, 1280x720): Light Artillery 317.8 of 322.6 px, 4.8 px to spare; Hussars 7.5 | FR-331 status |
+| R6: cards not on the page | `docs/report/roadmap.json`: cards Q60 to Q77, an M11 item and milestone ("in review"), a need | 18 cards parsed from requirements.md; Q67 carries #26362c and 20.0 |
+| F3: province dots 2.76:1 on the grass | FR-344: `--color-province-border` #6a5f51 -> #5f5548 (3.51:1 on the halo, 3.23:1 on the grass) | tests/ui/palette.test.ts (red: 2.76) |
+| P2: the tray's figures loaded only when it opened | FR-342 (a): `components/art/prefetch.ts`; the pointer on a tile with the player's stack (`TileBase` `onPointerEnter`) or the stack's focus loads them, once | tests/ui/pictureLoading.test.tsx (red: `[]`); e2e: the hover requests the 7 before the click, the tray none again |
+| P3: five pack files unguarded | FR-343: all 159 files against `docs/art/ink-and-wash-SHA256SUMS.txt`, no other file, `git check-attr text` unset | tests/ui/inkArt.test.ts; one byte added to terrain-demo.html: `expected [ 'terrain-demo.html' ] to deeply equal []`; restored (sha 39c3dbdf...) |
+| P4: isolation guarded by CSS text only | an e2e frame test | e2e/m11-map.spec.ts at 800x500: p95 16.7 ms; with `contain: none; will-change: auto` p95 83.3 ms, red (`mutant-p4.txt`) |
+| P5: the cursor load ran in getSnapshot | FR-342 (b): `requestCursor` from the tile's subscribe (`useTileVisuals`), `cursorOf` only reads; a failed load is tried again | tests/ui/tileCursor.test.ts (red: `cursorOf` created 9 Images) |
+| P6: city-ground written in two parts | FR-343: the scans allow it only in `INK_ART_UNUSED`, now plain text | tests/ui/inkArt.test.ts (red: `file: "city/city-ground.png"` not found) |
+
+Decisions (defaults, nobody to ask):
+1. F2: the review's option (b), the pre-M11 rule for capital and town only (card Q77). Any 24 px button in a 40 px box covers
+   its middle, so option (a) would put the button and the chip over the neighbouring tiles. Lifted 4 px: capital.png's
+   drawing starts 4.4 px down its 24 px box, and at top 0 the button hid its lower third.
+2. FR-339's ceiling of 20 files and 2,050,000 bytes leaves room for about one picture of the pack's average size (102 KB).
+3. P2: loading on the pointer's entry, not on the first render, which would add 7 files and 403 KB to FR-339's first paint.
+4. Found while testing P2: End Turn requested 5 figures again. A one-off probe of four ways showed that Chromium requests a
+   picture again for a later `<img>` once the detached `new Image()` that loaded it is gone; a kept Image, a link preload
+   or a mounted `<img>` is reused. Both loaders now keep their Images; the End Turn check of FR-339 guards it.
+5. The lanes' entries moved to `docs/journal/archive-M11.md` (FLOW: under 400 lines).
+
+Carried:
+- Nation 2 #2c5c9e is 2.97:1 on the grass (3.23:1 on its halo): changing a nation colour moves FR-097's table and every
+  screen, so it waits for a card.
+- FR-339 has room for about one more picture; the HUD's three buildings are 256 px PNGs shown at about 16 px (269 KB).
+- Republish the progress page from `docs/report/roadmap.json`; the browser QA pass; the PR.
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| Red before the fixes | the 7 changed unit files; `look` and `m11-map` e2e | `Tests 14 failed \| 98 passed (112)`; e2e `3 failed`, `3 passed` |
+| Unit tests, baselines | `npm test` (`.gate/m11rv/test-final.txt`) | `Test Files 107 passed (107)`, `Tests 2102 passed (2102)` (+14); `FR-125 seed 1: ... t40 1493/650 (2.30)`; `FR-260 ... [[1,1419],[2,1451],[3,1441],[4,1469]]` |
+| Lint, types | `npm run lint`; `npx tsc --noEmit` | `✖ 3 problems (0 errors, 3 warnings)` (M6's three); exit 0, no output |
+| Build | `npm run build` (`build.txt`) | `✓ Compiled successfully in 3.2s`, `✓ Generating static pages (4/4)` |
+| e2e, all specs | `PORT=3311 npx playwright test --workers=1 --reporter=line` (`pw-final.txt`) | `47 passed (2.5m)`, `1 skipped` (cursor-icons' rail case, `fixme` before M11) |
+| FR-336 | `git diff origin/main -- src/app/engine src/app/store src/app/types tests/engine tests/store` | empty |
+
+How to see it: a new game shows the capital's domed building above its civilians' stack (and Valdoria's and the minors'
+capitals likewise); on a screen wider than 1280 px the sea runs on past the map without an edge; hover the capital and open
+its stack: the figures are there at once.

@@ -27,10 +27,10 @@
 - 2026-11-13 M10 Council of Governors (FR-290 to FR-317) merged (PR 28, main 69ed08b; engine half archived in
   `docs/journal/archive-M10.md`). **v2 (M5 to M10) is complete.** Gate on 6fad1e0: 2001 unit tests,
   lint 0 errors, tsc and build clean, Playwright 38 passed and 1 skipped.
-- 2026-11-14 M11 Ink-and-wash restyle (NR-032, FR-318 to FR-355, cards Q60 to Q78) built on `claude/m11-ink-restyle`
-  (lanes 1 to 3, the integration step, the review fix round and the QA fix round, entry below), not pushed: 2107 unit
-  tests, Playwright 51 passed and 1 skipped with one worker; the default 6-worker runs timed out on a machine at 100% CPU
-  (as did the untouched branch tip). Still to come: republishing the progress page, the PR.
+- 2026-11-14 M11 Ink-and-wash restyle (NR-032, FR-318 to FR-356, cards Q60 to Q78) built on `claude/m11-ink-restyle`
+  (lanes 1 to 3, the integration step, the review fix round, the QA fix round and its review, entry below), not pushed:
+  2111 unit tests, Playwright 51 passed and 1 skipped with one worker and in three default-config runs.
+  Still to come: republishing the progress page, the PR.
 - Open decisions (defaults in force, all on the progress page): Q22 to Q59; the most important are Q51 (Council
   threshold), Q34 and Q35, and Q57 to Q59 (new from the M10 QA round: the removed "No tile selected" hint; the news
   line names the 1st nominee first while the screen puts the player first; abstention reasons in relation points
@@ -248,60 +248,10 @@ Decisions (defaults, nobody to ask):
 Seen in the five FR-338 screenshots: as the lanes reported, the 48 px flat-water strip under the map and the rail as a
 dark band with ties (Q68); the Next.js dev badge bottom-left (dev server only).
 
-### Review fix round (FR-339 to FR-345, card Q77)
+### Review fix round (FR-339 to FR-345, card Q77; archived)
 
-One agent (Opus 5.5; no advisor call) on the milestone review's 16 findings: R1 to R6 against the requirements, F1 to F4 in
-the running app, P1 to P6 in loading and plumbing (R1, F4 and P1 are one). New ids FR-339 to FR-345 in requirements.md's
-"M11 review fix round"; card Q77; code and tests in d66927a. Red before the fixes (`.gate/m11rv/red-unit.txt`, `red-e2e.txt`): unit `Test Files 6
-failed | 1 passed (7)`, `Tests 14 failed | 98 passed (112)`; e2e `3 failed`, `3 passed`: the middle of 2-9's picture was
-`svg` (the stack's group icon), the hover requested none of the 7 figures, the 1920x1080 sea patches were equal in 10 pairs.
-
-| Finding | What changed | Test |
-|---|---|---|
-| R1, F4, P1 (major): the budget counted only the map's files | FR-339: it counts the page's request log (every pack file until the network is idle, each once): at most 20 files and 2,050,000 bytes; FR-337 marked replaced | e2e/m11-map.spec.ts prints `FR-339 first paint: 19 pack files, 1937255 bytes` (the HUD's 3 buildings included) |
-| R2 (major): three FR-325 clauses untested | tests only | tests/ui/mapIcons.test.tsx: another nation's lone figure, its group's GiMeepleGroup, the selected button's outline; with the clauses reverted `Tests 2 failed` (`mutant-r2.txt`) |
-| F1 (major): a flat sea past the map | FR-340: the scroller's background is `GROUND_ART.water` at 512 px (inline style), `background-attachment: local` from the map's origin | tests/ui/mapGround.test.tsx; e2e at 1920x1080: five sea patches all differ (red: 10 equal pairs) |
-| F2 (major): the capital's picture covered | FR-341, card Q77: a capital or town with civilians or a name tag draws its picture at 24 px at the top centre, lifted 4 px (`.iconCrowded`) | tests/ui/mapIcons.test.tsx; e2e/look.spec.ts: the topmost box at the middle of 2-9's and 11-4's pictures is the picture (red: `svg`) |
-| R3: stations beside a badge not drawn through the map | FR-345 states the stacked case | tests/ui/accessibleNames.test.tsx: a level-1 farm with a depot and a port through MapView, and a level-0 tile |
-| R4: older rows not marked | NR-008, NR-021, NR-024, NR-031, FR-153 marked; FR-154 names the new province colour | docs |
-| R5: the Armoury's 4.9 px was an estimate | measured in Chromium (one-off Playwright run, 1280x720): Light Artillery 317.8 of 322.6 px, 4.8 px to spare; Hussars 7.5 | FR-331 status |
-| R6: cards not on the page | `docs/report/roadmap.json`: cards Q60 to Q77, an M11 item and milestone ("in review"), a need | 18 cards parsed from requirements.md; Q67 carries #26362c and 20.0 |
-| F3: province dots 2.76:1 on the grass | FR-344: `--color-province-border` #6a5f51 -> #5f5548 (3.51:1 on the halo, 3.23:1 on the grass) | tests/ui/palette.test.ts (red: 2.76) |
-| P2: the tray's figures loaded only when it opened | FR-342 (a): `components/art/prefetch.ts`; the pointer on a tile with the player's stack (`TileBase` `onPointerEnter`) or the stack's focus loads them, once | tests/ui/pictureLoading.test.tsx (red: `[]`); e2e: the hover requests the 7 before the click, the tray none again |
-| P3: five pack files unguarded | FR-343: all 159 files against `docs/art/ink-and-wash-SHA256SUMS.txt`, no other file, `git check-attr text` unset | tests/ui/inkArt.test.ts; one byte added to terrain-demo.html: `expected [ 'terrain-demo.html' ] to deeply equal []`; restored (sha 39c3dbdf...) |
-| P4: isolation guarded by CSS text only | an e2e frame test | e2e/m11-map.spec.ts at 800x500: p95 16.7 ms; with `contain: none; will-change: auto` p95 83.3 ms, red (`mutant-p4.txt`) |
-| P5: the cursor load ran in getSnapshot | FR-342 (b): `requestCursor` from the tile's subscribe (`useTileVisuals`), `cursorOf` only reads; a failed load is tried again | tests/ui/tileCursor.test.ts (red: `cursorOf` created 9 Images) |
-| P6: city-ground written in two parts | FR-343: the scans allow it only in `INK_ART_UNUSED`, now plain text | tests/ui/inkArt.test.ts (red: `file: "city/city-ground.png"` not found) |
-
-Decisions (defaults, nobody to ask):
-1. F2: the review's option (b), the pre-M11 rule for capital and town only (card Q77). Any 24 px button in a 40 px box covers
-   its middle, so option (a) would put the button and the chip over the neighbouring tiles. Lifted 4 px: capital.png's
-   drawing starts 4.4 px down its 24 px box, and at top 0 the button hid its lower third.
-2. FR-339's ceiling of 20 files and 2,050,000 bytes leaves room for about one picture of the pack's average size (102 KB).
-3. P2: loading on the pointer's entry, not on the first render, which would add 7 files and 403 KB to FR-339's first paint.
-4. Found while testing P2: End Turn requested 5 figures again. A one-off probe of four ways showed that Chromium requests a
-   picture again for a later `<img>` once the detached `new Image()` that loaded it is gone; a kept Image, a link preload
-   or a mounted `<img>` is reused. Both loaders now keep their Images; the End Turn check of FR-339 guards it.
-5. The lanes' entries moved to `docs/journal/archive-M11.md` (FLOW: under 400 lines).
-
-Carried:
-- Nation 2 #2c5c9e is 2.97:1 on the grass (3.23:1 on its halo): changing a nation colour moves FR-097's table and every
-  screen, so it waits for a card.
-- FR-339 has room for about one more picture; the HUD's three buildings are 256 px PNGs shown at about 16 px (269 KB).
-- Republish the progress page from `docs/report/roadmap.json`; the browser QA pass; the PR.
-
-| Claim | Command | Result (quoted) |
-|---|---|---|
-| Red before the fixes | the 7 changed unit files; `look` and `m11-map` e2e | `Tests 14 failed \| 98 passed (112)`; e2e `3 failed`, `3 passed` |
-| Unit tests, baselines | `npm test` (`.gate/m11rv/test-final.txt`) | `Test Files 107 passed (107)`, `Tests 2102 passed (2102)` (+14); `FR-125 seed 1: ... t40 1493/650 (2.30)`; `FR-260 ... [[1,1419],[2,1451],[3,1441],[4,1469]]` |
-| Lint, types | `npm run lint`; `npx tsc --noEmit` | `✖ 3 problems (0 errors, 3 warnings)` (M6's three); exit 0, no output |
-| Build | `npm run build` (`build.txt`) | `✓ Compiled successfully in 3.2s`, `✓ Generating static pages (4/4)` |
-| e2e, all specs | `PORT=3311 npx playwright test --workers=1 --reporter=line` (`pw-final.txt`) | `47 passed (2.5m)`, `1 skipped` (cursor-icons' rail case, `fixme` before M11) |
-| FR-336 | `git diff origin/main -- src/app/engine src/app/store src/app/types tests/engine tests/store` | empty |
-
-How to see it: a new game shows the capital's domed building above its civilians' stack (and Valdoria's and the minors'
-capitals likewise); on a screen wider than 1280 px the sea runs on past the map without an edge; hover the capital and open
-its stack: the figures are there at once.
+Moved to `docs/journal/archive-M11.md`, unchanged: the milestone review's 16 findings (R1 to R6, F1 to F4, P1 to P6), FR-339
+to FR-345, card Q77, the loading budget of the page's request log, the sea past the map, the prefetch of the tray's figures.
 
 ### QA fix round (FR-346 to FR-355, card Q78)
 
@@ -368,3 +318,50 @@ How to see it: a new game shows the capitals as domed palaces at 1x, the sea wit
 build rail and a depot north of the capital: the rail shows its sleepers, the depot its green mark; the Capital dialog's
 buildings are readable, "Canned Food" is one line, the goods sit on parchment squares (`docs/journal/m11-qa-map.png`,
 `m11-qa-capital.png`).
+
+### Review of the QA fix round (F1 to F4; FR-356)
+
+One agent (Opus 5.5; no advisor call) on the re-review's four findings. FR-356 in requirements.md's "Review of the M11 QA
+fix round"; card Q65's default updated (also in `docs/report/roadmap.json`); the review fix round's entry archived. Red on
+the old code (`.gate/m11qarv/red-unit.txt`): `Tests 7 failed | 21 passed (28)`: the corner button over 29 px² of the
+depot's drawing, the classes absent, 17 spaces after pictures in the Armoury.
+
+| Finding | What changed | Test |
+|---|---|---|
+| F1 (major): the civilians' button over the depot (24% of its box) and a stacked port (72%) | FR-356: each station's box cropped to its drawing's 14 rows (`object-fit: cover`, still drawn 20 px wide; ends at y 15); civilians on a tile with a station in the corner (from y 16); a depot and a port side by side (x 0 to 39), the level badge (y 16) and job markers (y 27) below them | tests/ui/accessibleNames.test.tsx (geometry from the CSS, the wiring through the map); e2e/look.spec.ts: the reviewer's flow, then a port on 2-7 (`docs/journal/m11-qarv-stations.png`) |
+| F2: a constant assertion | the row computed from the CSS: inside the content box, the drawings apart | tests/ui/accessibleNames.test.tsx |
+| F3: the Armoury's "At hand" kept its space | the space removed; FR-354's no-space test covers the Armoury | tests/ui/listArt.test.tsx (red: 17 spaces) |
+| F4: default-config evidence incomplete | three default-config runs and one with one worker on the final tests, quoted below | none |
+
+Decisions (defaults, nobody to ask):
+1. F1: a 20 px station and the 24 px button cannot sit side by side or one above the other in the 40 px box (44 px). The
+   pictures' top and bottom 3 px are empty, so the boxes lose them (1 + 14 = 15 px) and the button moves 1 px down, to the
+   corner (from y 16). Shrinking the stations while civilians stand there was the other way; it brings the speck back.
+2. Two stations: stacked, the port lies under the button at any size; side by side they take the top band, where the badge
+   stood, so the badge and the job markers move below them (fixed places, badge or not). The layout is the same with or
+   without civilians, so nothing jumps when one arrives.
+3. A stack's count still lies over 9% of the rightmost station's drawing, and a selected button's 2 px outline reaches
+   0.7 px into it. Moving the count would put it over the port or the moved badge instead.
+4. The e2e flow: on a tile that holds a depot, a click with the engineer selected is a move order ("Move refused: not
+   possible on that tile."); the port is ordered from the tile panel (the tile first, then the engineer).
+
+Carried:
+- With a depot, a port, a river and a running job on one tile, the job marker (y 27 to 37) meets the river marker (as two
+  jobs already did); a stack's count reaches 5 px into the right neighbour (as on a crowded capital).
+- From the review fix round: nation 2 #2c5c9e is 2.97:1 on the grass (waits for a card); FR-339 has room for about one more
+  picture; republish the progress page; the PR.
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| Red before the fixes | the two changed unit files on the old code (`red-unit.txt`) | `Tests 7 failed \| 21 passed (28)` |
+| Unit tests, baselines | `npm test` (`.gate/m11qarv/test-final.txt`) | `Test Files 107 passed (107)`, `Tests 2111 passed (2111)` (+4); `FR-125 seed 1: ... t40 1493/650 (2.30)`; `FR-260 ... [[1,1419],[2,1451],[3,1441],[4,1469]]` |
+| Lint, types | `npm run lint`; `npx tsc --noEmit` | `✖ 3 problems (0 errors, 3 warnings)` (M6's three); exit 0, no output |
+| Build | `npm run build` | `✓ Compiled successfully in 11.8s`, `✓ Generating static pages (4/4)` |
+| e2e, one worker (gate) | `PORT=3311 npx playwright test --workers=1 --reporter=line` (`pw-w1-final.txt`) | `51 passed (3.8m)`, `1 skipped` (cursor-icons' rail case, `fixme` before M11); `FR-356 depot alone: [{"station":"Depot: connected","byCivilians":0,"byAll":0}]`; `depot and port: ... "byCivilians":0,"byAll":0.022}, ... "byCivilians":0,"byAll":0}]`; `FR-321 scroll frames: median 16.7 ms, mean 20.7 ms, p95 33.3 ms` |
+| e2e, default config, 3 runs (F4; 1f9b15f, CPU at 13% before) | `PORT=3321`, `3322`, `3323` `npx playwright test --reporter=line` (`pw-default-*.txt`) | `51 passed (2.6m)`, `51 passed (2.9m)`, `51 passed (3.1m)`, each `1 skipped`; FR-321 `median 16.7 ms` in all three (p95 50.0, 50.0, 66.6 ms) |
+| F3 in a browser | `node armoury-gap.cjs 3330` (one-off, 1280x720; `armoury-gap.txt`) | every picture-to-name gap in Cost and At hand `3.36` px (the review: At hand 6.03 to 6.70) |
+| FR-336, the pack | `git diff origin/main -- src/app/engine src/app/store src/app/types tests/engine tests/store`; `git diff -- public/` | empty, empty |
+
+How to see it: in a new game, the engineer lays rail north from the capital and builds a depot on 2-7, staying there: the
+depot shows whole above the engineer's button in the corner; a port built there too stands left of the depot along the top
+(`docs/journal/m11-qarv-stations.png`, at three times the pixel density).
