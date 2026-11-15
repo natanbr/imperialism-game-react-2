@@ -5,9 +5,10 @@ import { nationColor, THEME } from "@/styles/theme";
 import mapStyles from "../MapView.module.css";
 import { Modal } from "../Modal";
 
-/** A short sample of a map border line, drawn with the map's own class (line style) and colour token. */
+/** A short sample of a map border line, drawn with the map's own class (line style) and colour token, on its halo (FR-327). */
 const LineSample: React.FC<{ stroke: string; className: string }> = ({ stroke, className }) => (
   <svg width="28" height="8" viewBox="0 0 28 8" aria-hidden="true" focusable="false">
+    <line x1="2" y1="4" x2="26" y2="4" stroke={THEME.mapHalo} className={mapStyles.borderHalo} />
     <line x1="2" y1="4" x2="26" y2="4" stroke={stroke} className={className} />
   </svg>
 );

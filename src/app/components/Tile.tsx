@@ -2,13 +2,15 @@ import React, { useCallback, useMemo } from 'react';
 import { countryName, countryOfTile } from '@/engine';
 import { useGameStore } from '@/store/rootStore';
 import { selectSelectedWorkerAndTile, selectTilesCompletedLastTurn } from '@/store/selectors';
-import { Tile } from '@/types/Tile';
+import { Tile, TerrainType } from '@/types/Tile';
 import { TransportNetwork } from '@/types/Transport';
 import { useTileActions } from '@/hooks/useTileActions';
 import { useTileVisuals } from '@/hooks/useTileVisuals';
 import { useTileClickHandler } from '@/hooks/useTileClickHandler';
-import { tileIconOf } from './icons';
+import { civilianArt, resourceMarkArt, tileArt } from './art/inkArt';
+import { prefetchPictures } from './art/prefetch';
 import { tileLabel } from './gameText';
+import { isLandTerrain } from './map/shoreline';
 import {
   TileBase,
   TileIcon,
@@ -33,8 +35,9 @@ interface TileProps {
 
 /**
  * One map tile: three hooks for the logic (useTileActions, useTileVisuals, useTileClickHandler) and
- * sub-components in Tile/ for what it shows (FR-085). Ownership is not drawn here: MapView draws
- * each nation's territory as a border overlay (FR-087).
+ * sub-components in Tile/ for what it shows (the art pack's pictures, FR-322 to FR-325). Ownership is not
+ * drawn here: MapView draws each nation's territory as a border overlay (FR-087), and the land and sea
+ * under the tiles as one ground (FR-321).
  *
  * Props come from MapView, so tiles do not each subscribe to the whole map; React.memo skips tiles
  * whose props did not change.
@@ -74,7 +77,7 @@ const TileComponentInner: React.FC<TileProps> = ({
   const selectedElsewhere = selectedWorkerId && !tile.workers.some((w) => w.id === selectedWorkerId) ? selectedWorker?.type : undefined;
 
   const possibleAction = useTileActions(tile, selectedWorker, map);
-  const tileVisuals = useTileVisuals(tile, possibleAction);
+  const tileVisuals = useTileVisuals(possibleAction, isLandTerrain(tile.terrain));
   const handleTileClick = useTileClickHandler(tile, selectedWorker, possibleAction);
 
   // The stack button opens the tray: the tile selected, no worker (FR-110)
@@ -86,6 +89,20 @@ const TileComponentInner: React.FC<TileProps> = ({
     align: tile.x <= 1 ? 'start' : tile.x >= map.config.cols - 2 ? 'end' : 'center',
     above: tile.y >= map.config.rows - 3,
   }), [tile.x, tile.y, map.config.cols, map.config.rows]);
+  // The player's stack: the pointer coming onto the tile starts loading the tray's figures before a click opens it (FR-342)
+  const stackArt = useMemo(() => {
+    const own = tile.workers.filter((w) => w.nationId === playerId);
+    return own.length > 1 ? own.map((w) => civilianArt(w.type)) : undefined;
+  }, [tile.workers, playerId]);
+  const prefetchStack = useMemo(() => (stackArt ? () => prefetchPictures(stackArt) : undefined), [stackArt]);
+  // A capital or town is the tile a player looks for: civilians or a minor's name tag on it draw its picture larger and
+  // move the civilians to the corner, so it stays readable (FR-346)
+  const crowded =
+    (tile.terrain === TerrainType.Capital || tile.terrain === TerrainType.Town) && (tile.workers.length > 0 || minorCapitalName !== undefined);
+  // A depot or a port takes the top-right: the civilians move to the corner, below its drawing; a depot and a port stand
+  // side by side along the top, and the level badge and job markers below them (FR-356)
+  const station = !!tile.depot || !!tile.port;
+  const twoStations = !!tile.depot && !!tile.port;
 
   // Compute infrastructure status
   const nationNetwork = tile.ownerNationId
@@ -114,17 +131,18 @@ const TileComponentInner: React.FC<TileProps> = ({
       label={tileLabel(tile, ownerName)}
       terrain={tile.terrain}
       hasRiver={tile.hasRiver ?? false}
-      backgroundColor={tileVisuals.terrainColor}
+      besideResourceMark={resourceMarkArt(tile) !== undefined}
       border={tileVisuals.border}
       isSelected={isSelected}
       cursor={tileVisuals.cursor}
       hasJobCompleted={jobJustCompleted}
       onClick={handleTileClick}
+      onPointerEnter={prefetchStack}
     >
-      <TileIcon name={tileIconOf(tile)} crowded={tile.workers.length > 0 || minorCapitalName !== undefined} />
+      <TileIcon src={tileArt(tile)} crowded={crowded} />
       {minorCapitalName !== undefined && <TileName name={minorCapitalName} />}
 
-      {tile.resource && <TileResource resource={tile.resource} />}
+      {tile.resource && <TileResource resource={tile.resource} low={twoStations} />}
 
       <TileInfrastructure
         depot={tile.depot ?? false}
@@ -143,15 +161,17 @@ const TileComponentInner: React.FC<TileProps> = ({
         selectedElsewhere={selectedElsewhere}
         onWorkerSelect={selectWorker}
         onOpenTray={openTray}
+        corner={crowded || station}
       />
 
       <TileJobs
         prospecting={tile.prospecting}
         developmentJob={tile.developmentJob}
         constructionJob={tile.constructionJob}
+        low={twoStations}
       />
 
-      {armyMarkers && armyMarkers.length > 0 && <TileArmy markers={armyMarkers} onOpen={openArmy} high={minorCapitalName !== undefined} />}
+      {armyMarkers && armyMarkers.length > 0 && <TileArmy markers={armyMarkers} onOpen={openArmy} high={minorCapitalName !== undefined} low={crowded} />}
     </TileBase>
   );
 };

@@ -25,13 +25,19 @@
 - 2026-11-13 M9 War and the attack screen (FR-216 to FR-234, FR-272 to FR-281) merged (PR 27, main f817da2; entries archived
   in `docs/journal/archive-M9.md`).
 - 2026-11-13 M10 Council of Governors (FR-290 to FR-317) merged (PR 28, main 69ed08b; engine half archived in
-  `docs/journal/archive-M10.md`, the rest below). **v2 (M5 to M10) is complete.** Gate on 6fad1e0: 2001 unit tests,
+  `docs/journal/archive-M10.md`). **v2 (M5 to M10) is complete.** Gate on 6fad1e0: 2001 unit tests,
   lint 0 errors, tsc and build clean, Playwright 38 passed and 1 skipped.
+- 2026-11-14 M11 Ink-and-wash restyle (NR-032, FR-318 to FR-356, cards Q60 to Q78) built on `claude/m11-ink-restyle`
+  (lanes 1 to 3, the integration step, the review fix round, the QA fix round and its review, entry below), merged
+  by the orchestrator after its gate on 84b2333: 2111 unit tests, lint 0 errors, tsc and build clean, Playwright 51
+  passed and 1 skipped (--workers=1); engine, store and types unchanged; the only `public/` change restores
+  `terrain-demo.html` to its supplied sha256 (now guarded by `.gitattributes`). Progress page republished.
+  Carried: nation 2's blue is 2.97:1 on the grass; the Capital dialog's Clothing card and "Cotton or Wool" wrap were
+  already cut at 1280x720 before M11.
 - Open decisions (defaults in force, all on the progress page): Q22 to Q59; the most important are Q51 (Council
   threshold), Q34 and Q35, and Q57 to Q59 (new from the M10 QA round: the removed "No tile selected" hint; the news
   line names the 1st nominee first while the screen puts the player first; abstention reasons in relation points
-  while the Diplomacy screen shows levels). Also open: restyle the whole game with the ink-and-wash pack (NR-031)
-  or keep it on the war screens only.
+  while the Diplomacy screen shows levels). M11's Q60 to Q78 are on the page too.
 - Not verified yet: a winning Council vote on screen (unit tests only); Firefox and WebKit never run; seed 4's
   computer never campaigns. Possible flaky test: `tests/engine/lintGuard.test.ts` timed out once under load.
 - Carried from M8: the FR-213 garrison threat-recruit asks for Regulars, which a real game can never raise. Next.js
@@ -41,7 +47,8 @@
 
 Carried forward:
 - Deferred: river ports and the depot-on-port rule (rules 04); University fees; the power plant.
-- UI: the cursors are still emoji. Not built from M3: Q15 (c) "repeat last turn's trades".
+- UI: the cursors are the pack's pictures since M11 (FR-330; the rail cursor's e2e case is still `fixme`). Not built
+  from M3: Q15 (c) "repeat last turn's trades".
 - The NR-016 list of other same-turn effects (archive-M4, part A entry) waits for a decision.
 - M5 design item (M4 review note 5): partly settled by FR-115 (with a civilian selected elsewhere, a
   click on a tile's civilians is the selected civilian's order there); with none selected, a click on
@@ -190,182 +197,174 @@ Entry in `docs/journal/archive-M10.md`: `engine/council/council.ts` (meeting tur
 the count, the winner), the `council-met` event and the Council game over in `resolveTurn`, the API the UI half builds on, and
 the decision cards Q50 to Q56. FR-290 to FR-296, FR-302 and FR-305 tested; 1940 unit tests; every baseline unchanged.
 
-## 2026-11-13 M10 Council of Governors, UI half (FR-297 to FR-301, FR-303, FR-304)
+## 2026-11-13 M10 Council of Governors, UI half and fix rounds (archived)
 
-Size: L (a new screen, the store's overlay slice, the HUD, the news, the game-over screen, three e2e specs). One UI agent (Opus 5.5,
-xhigh, no subagents, no advisor call), started by the M10 workflow after the engine half, on its API. Branch `claude/m10-council`,
-not pushed.
+Entries in `docs/journal/archive-M10.md`: the UI half (FR-297 to FR-301, FR-303, FR-304: the Council screen, the news line, the
+game-over line, the HUD's Next Council line), the review fix round (13 minor findings; FR-306 to FR-309), the QA fix round (FR-310
+to FR-317: abstention reasons, the player first, the projection, the room at game over) and its review (F1, F2). 2001 unit tests,
+Playwright 38 passed, 1 skipped; every baseline unchanged. Merged as PR 28 (main 69ed08b).
 
-Plan-lite:
-- Change: store `councilShown` / `showCouncil` / `closeCouncil` (End Turn sets the turn's `council-met`, New game clears it);
-  `CouncilModal.tsx` with `council/councilView.ts` (the report from the event alone) and `council/Council.module.css`;
-  `eventText` / `newsItems` for `council-met` (`councilCountText`), the news line a button; the game-over line; the HUD's
-  "Next Council" line; `CAPITOL_ART` in `art/inkArt.ts`; `UI_ICONS.council` (Game Icons `GiVote`).
-- Consumers: the player after End Turn on turns 10, 20, 30, 40; the long e2e specs (FR-304).
-- Tests: FR-297 `ui/gameText.test.ts`, `ui/newsPanel.test.tsx`; FR-298 `ui/councilDialog.test.tsx`, `ui/inkArt.test.ts`; FR-299
-  `ui/councilDialog.test.tsx`; FR-300 `ui/scoreAndGameOver.test.tsx`; FR-301 `ui/warehouseAndHud.test.tsx`; FR-303
-  `e2e/m10-council.spec.ts`; FR-304 `e2e/market-and-game-over.spec.ts`, `e2e/m4-1.spec.ts`; scans `ui/uiWritesOnlyOrders.test.ts`
-  (the Council screen builds no order), `ui/dialogs.test.tsx` (on the shared Modal), `ui/icons.test.tsx`.
-- Verify: the gate and `PORT=3160 npx playwright test --workers=1 --reporter=line`.
-- Objection: the HUD at 1280x720 has no height to spare: FR-268's check (whole news lines above the fade) had about 1.5 px left,
-  so a new HUD line had to take an existing line's place (decision 1). The next HUD addition needs a layout change of its own.
+## 2026-11-14 M11 Ink-and-wash restyle (NR-032; FR-318 to FR-338)
 
-Red (tests first, `.gate/m10ui/red.txt`): `Test Files 9 failed (9)`, `Tests 13 failed | 176 passed (189)`; `Failed to resolve
-import "@/components/CouncilModal"` (councilDialog, newsPanel), `Unable to find an element by: [data-testid="next-council"]` (3),
-`[data-testid="game-over-council"]`, `expected null to be 'Council of Governors: Testland 5, Val…'` (3), the scans (Council screen
-not found, no `council` icon, no `CAPITOL_ART`). The FR-301 "absent" rows and FR-300's "no line" row passed before (guards).
+Size: L, plan-lite (spec fc01b05: FR-318 to FR-338, cards Q60 to Q76). Branch `claude/m11-ink-restyle`, not pushed. Lane 1
+alone (the table, its guards, the picture component, the tokens), then lane 2 (map) and lane 3 (lists, dialogs, HUD) in
+parallel on lane 1's commit, importing only; then the closing step.
+
+### Lanes 1 to 3 (archived)
+
+Moved to `docs/journal/archive-M11.md`, unchanged: lane 1 (the art table `inkArt.ts`, its guards, `InkPicture`, the pack's
+tokens; FR-318 to FR-320, FR-329), lane 3 (goods, grades, civilians and buildings in the lists, dialogs, HUD and tile panel;
+FR-331 to FR-334) and lane 2 (the map: ground, tile pictures, marks, civilians, selection, borders on halos, rail pieces,
+cursors; FR-321 to FR-328, FR-330, FR-337), each with its plan-lite, red run, decisions and evidence table.
+
+### Integration: the closing step (FR-335, FR-336, FR-338; the replaced rows)
+
+One agent (Opus 5.5; no advisor call). Change: `icons.ts` cut to FR-335's list (`GI` 65 to 18 Game Icons), `icons.test.tsx`
+rewritten; `TERRAIN_TINT`, the 19 `--terrain-*` tokens, `--color-selected` and their palette tests removed (Q71: no
+component drew them); `e2e/m11-art.spec.ts` (FR-338); the replaced rows marked (FR-084, FR-085, FR-086, FR-087, FR-090,
+FR-093, FR-121, FR-133, FR-154), the M11 statuses, card Q67's minor colour; ARCHITECTURE's Components; M10's UI half
+archived. Objection: a new Game Icon now needs `GI` and the icons test's list changed too (deliberate: FR-335).
+
+Red: the new icons test on the old `icons.ts`, `Tests 3 failed | 2 passed (5)` (`.gate/m11int/red-icons.txt`); the fit
+check of decision 3 on the lanes' CSS, `1 failed`: `"goods/canned-food.png: Canned Food (14 px)"` (`red-fit.txt`).
 
 Decisions (defaults, nobody to ask):
-1. FR-301's line could not be one more HUD line: the first try failed e2e/m8-qa.spec.ts (FR-268: the news list ended 22.5 px
-   behind the fade at 1280x720). The turn and the date now share one line ("Turn: 11 of 40" left, "Fall 1817" right) and the
-   Council line takes the date's old line (16 px), so the HUD is no taller; the turn indicator's text is unchanged
-   ("Turn: 11 of 40 Fall 1817"), the line is a sibling (`next-council`) outside it. Objection: the date moved.
-2. One dialog at a time after End Turn: Battle screens, then the Council screen (it waits while `battleQueue` has a report), then
-   the game-over screen (it waits while `councilShown` is set). The Council overlay is z-index 77 (over the game-over 75, under
-   the Attack 78, the Battle 79 and Accept Offer 85).
-3. On a winning meeting "See the final scores", Escape and the backdrop also call `showGameOver`, so the screen reopened from
-   the news after "Back to the map" brings the scores back too; a meeting without a winner (turn 40 included) has "Close".
-4. A number cell of 0 reads "none" as its title and description; the description is a hidden element named by
-   `aria-describedby` (the HUD line's too); the middle column's head is an empty cell.
-5. The Playwright spec is `e2e/m10-council.spec.ts` as FR-303 names it (the workflow brief also said `e2e/m10.spec.ts`).
-
-Decision cards for the progress page (defaults kept as drafted, from the engine half): Q50 meetings every 10 turns from turn 10;
-Q51 9 of 12 (more than two thirds of all votes); Q52 a free minor votes for the nominee with more relation points if at least 50
-and not at war; Q53 the turn-40 meeting uses the same rule; Q54 standing = score + 100 x provinces + 10 x military strength;
-Q55 the scripted player does not court votes; Q56 the HUD shows the projected vote in a tooltip. Suggestion on each: keep.
+1. `GI` pruned with the tables (its other 47 icons were reached only through them); a test pins `GI` = the `UI_ICONS`
+   values and `GiRiver`, and asserts the removed exports absent.
+2. FR-086's tint test became "no `--terrain-*` token defined or named"; FR-154's two 3:1 tests went (FR-329's halo test
+   covers both lines). No other test changed but FR-320's rule pin (decision 3).
+3. Bug seen in the first screenshots: the Board of Trade's "Canned Food" ran 14 px into its price. Root cause: preflight's
+   `img { max-width: 100% }` makes a picture count as 0 wide when a table sizes a column. Fix: `max-width: none` on
+   `img[data-art-inline]`; regression check `expectFit` in m11-art (no inline picture's box overflows). Only that cell did.
+4. FR-336's diff check is against `origin/main` (6138531, the branch's base): the local `main` is stale (dcccaa1).
+5. FR-338's rail and depot follow look.spec (a depot may not stand next to the capital); it also fails on any pack
+   request with an error status. Left for the orchestrator: `docs/report/roadmap.json` (Q60 to Q76), the review, QA.
 
 | Claim | Command | Result (quoted) |
 |---|---|---|
-| Red before the UI change | `npx vitest run` on the 9 UI files (`.gate/m10ui/red.txt`) | `Test Files 9 failed (9)`, `Tests 13 failed \| 176 passed (189)` |
-| FR-297 to FR-301 | the same 9 files (`green1.txt`) | `Test Files 9 passed (9)`, `Tests 215 passed (215)` |
-| FR-303, FR-304, FR-268 kept | `PORT=3160 npx playwright test --workers=1 --reporter=line` (`pw-full2.txt`) | `37 passed (3.2m)`, `1 skipped` (the first run, before decision 1: `1 failed` e2e/m8-qa.spec.ts FR-268, `Expected: <= 406.5`, `Received: 429`) |
-| Unit tests | `npm test` (`gate-test-final.txt`) | `Test Files 100 passed (100)`, `Tests 1975 passed (1975)` (+35 on 1940) |
-| v1 and v2 baselines unchanged | `npm test` console | `FR-125 seed 1: ... t40 1493/650 (2.30)`; `FR-260 nation 2 score at turn 40: [[1,1419],[2,1451],[3,1441],[4,1469]]`; FR-274 `[[1,21,22,305,0],[2,21,22,340,0],[3,21,22,276,0],[4,null,null,965,0]]` |
-| Lint | `npm run lint` (`gate-lint-final.txt`) | `✖ 3 problems (0 errors, 3 warnings)` (the three of M6) |
-| Types | `npx tsc --noEmit` | exit 0, no output |
-| Build | `npm run build` (`gate-build-final.txt`) | `✓ Compiled successfully in 6.2s`, `✓ Generating static pages (4/4)` |
+| Unit tests, baselines | `npm test` (`test-final2.txt`) | `Tests 2088 passed (2088)` (-3: icons -1, palette -2); `FR-125 seed 1: ... t40 1493/650 (2.30)`; `FR-260 ... [[1,1419],[2,1451],[3,1441],[4,1469]]` |
+| Lint, types | `npm run lint`; `npx tsc --noEmit` | `✖ 3 problems (0 errors, 3 warnings)` (M6's three); exit 0, no output |
+| Build | `npm run build` (`build-final.txt`) | `✓ Compiled successfully in 3.3s`, `✓ Generating static pages (4/4)` |
+| e2e, all specs | `PORT=3311 npx playwright test --workers=1 --reporter=line` (`pw-final.txt`) | `45 passed (3.4m)`, `1 skipped` (cursor-icons' rail case, `fixme` before M11); before the fix also `45 passed` |
+| FR-336 | `git diff origin/main -- src/app/engine src/app/store src/app/types` (and `tests/engine tests/store`) | empty, empty |
 
-How to see it: a new game, End Turn 10 times; on turn 11 the Council screen opens by itself (both nominees 4 and 4, the 4
-minors abstaining); Close; the HUD reads "Next Council: turn 20 (Winter 1819)" (hover: the vote now); the news line "Council of
-Governors: ... no winner (9 needed)." opens it again. A winning meeting is tested on a hand-built state only.
+Seen in the five FR-338 screenshots: as the lanes reported, the 48 px flat-water strip under the map and the rail as a
+dark band with ties (Q68); the Next.js dev badge bottom-left (dev server only).
 
-### Review fix round (2026-11-13)
+### Review fix round (FR-339 to FR-345, card Q77; archived)
 
-Size: M (one fix round over both halves: 13 minor findings of the M10 review passes, all fixed; no blocker or major). One
-agent (Opus 5.5, xhigh, no subagents, no advisor call), started by the M10 workflow. Branch `claude/m10-council`, not pushed.
+Moved to `docs/journal/archive-M11.md`, unchanged: the milestone review's 16 findings (R1 to R6, F1 to F4, P1 to P6), FR-339
+to FR-345, card Q77, the loading budget of the page's request log, the sea past the map, the prefetch of the tray's figures.
 
-Red (behaviour fixes, on the code before each fix; `.gate/m10fix/`): R2 nomination ties `Tests 2 failed | 90 passed (92)`
-(`turn 1, reversed: expected [ 'nation-2', 'nation-1' ] to deeply equal [ 'nation-1', 'nation-2' ]`; `red-r2-engine.txt`);
-R1 news order `Tests 2 failed | 91 passed (93)` (`red-news.txt`) and the e2e `1 failed` (`Received string: "Army upkeep:
-$100."`, the first news line; `red-e2e-news.txt`). Test-only rows against a mutation, each put back: minors forced to choose
-at the last meeting fails only FR-308 and FR-305's 4-to-4 row (`Tests 2 failed | 73 passed (75)`, `mut-q53.txt`); the turn
-indicator back to a block fails FR-307's e2e check (`Expected: <= 2`, `Received: 21`, `mut-e2e-layout.txt`). R4, R7 and E1
-assert what the code already does (they passed at once).
+### QA fix round (FR-346 to FR-355, card Q78)
+
+Size M. One agent (Opus 5.5; no advisor call) on the browser QA pass's ten items (`docs/journal/m11-art-*.png`) and the
+re-review's D1. New ids FR-346 to FR-355 in requirements.md's "M11 QA fix round"; card Q65's and Q77's defaults updated,
+Q78 new (also in `docs/report/roadmap.json`). Red: the new tests on a worktree of 8864598 (`.gate/m11qa/red-*.txt`): unit
+`Tests 16 failed | 99 passed (115)`; e2e `6 failed`, `5 passed`, and after splitting two tests `3 failed`. Each e2e test
+stops at its first failed check; the later checks of one test (the one-line names, the sea's borders) are red in unit tests.
+
+| Item | What changed | Test |
+|---|---|---|
+| D1 (major): the frame test failed in the default 6-worker run (p95 33.4 ms) | FR-321's test judges the median scroll frame, under 60 ms (it also logs idle frames, measured in alternating blocks) | e2e/m11-map.spec.ts: median 16.7 ms alone; six copies at once 16.7 to 49.9 ms (idle 16.7); with `contain: none; will-change: auto` 150.1 to 233.3 ms, red (`d1-mutant*.txt`) |
+| 2 the capital hard to recognise | FR-346: a crowded capital's picture at 48 px, lifted 18 px into the gap between the row above's pictures; its civilians in the corner, its army chip low (armyView's arrow ends follow) | e2e/look.spec.ts: the six capitals' drawings 40.3 px across, 17% to 22% covered (limit 30%), buttons 24 px, named, trial clicks; red: 20.2 px |
+| 3 the depot a speck | FR-347: depot and port 20 px in the top-right corner, 11 px marks on their top-right, always stacked; Q65 | tests/ui/accessibleNames.test.tsx, e2e/look.spec.ts (20/11 px, clear of the widest badge) |
+| 4 rail a dark cable | FR-348: the link's line paints nothing; the pack's piece shows its sleepers | tests/ui/railLine.test.tsx; e2e computed stroke `none` |
+| 5 HUD labels, militia | FR-349: one 20 px icon box in the six full-width HUD buttons, 1.25em for title Game Icons; FR-350: the pitchfork outlined in ink | e2e/m11-lists.spec.ts (labels at one x, buttons 33.5 px); e2e/m11-map.spec.ts (a quarter of the glyph's pixels at 3:1; red 1%) |
+| 6 the railyard a blob | FR-351, card Q78: railyard kept, 20 px in the HUD, 30 px in the Transport heading (the depot is no clearer at 16 px) | with FR-349 and FR-352 |
+| 7 capital dialog | FR-352: buildings at 30 px in card heads and headings (heads still 24 px), output names on one line, the labour lines 14 px | tests/ui/listArt.test.tsx; e2e/m11-lists.spec.ts (red: the Trade School's picture 15 px) |
+| 8 pale goods | FR-353: `--color-art-backing` #d9ccb0 behind every goods picture on a text line (1.47, 1.55, 1.30:1 on the surfaces) | tests/ui/palette.test.ts; e2e computed backgrounds |
+| 9 "Armaments" 2 px left | FR-354: the gap is the picture's `margin-right: 0.28em`, no space character before the label | tests/ui/listArt.test.tsx; e2e: the 17 names at one x (red: Armaments 95.56, Timber 96.16, others 96.45 px) |
+| 10 sea seams | FR-355: water, river and coast tiles draw a transparent 1 px border | tests/ui/mapGround.test.tsx, territory.test.tsx; e2e computed borders |
+
+Decisions (defaults, nobody to ask):
+1. Item 9's cause was not the picture: every inline picture already had the same 1.25em box. Arial kerns a space before
+   "A" (and less before "T"), so the fix is the gap as a margin with the space characters removed (30 lines, texts unchanged).
+2. Item 2: the 48 px picture was capped at 40 px by Tailwind's `img { max-width: 100% }` (found by the new e2e test:
+   Lorran's drawing 33.6 px); `.iconCrowded` sets `max-width: none`. The chip moves only on a Great Power's crowded capital;
+   a minor's stays high above its name tag (22% covered).
+3. Item 5: the HUD's box is 20 px, not the inline 1.25em (16.25 px), so the railyard is drawn larger (Q78); Center is left
+   out of it (its icon in a 20 px box wrapped "Center" to a second line in its half-width button).
+4. Item 5, militia: its colour was already the ink (computed rgb(59, 59, 59)); drawn bare at 8 px the tines came out grey,
+   so it gets a 40-unit outline in the same ink.
+5. Item 7, checked on origin/main in a worktree (`.gate/m11qa/main-capital.png`): the Clothing factory card already ran
+   86 px below the industry column's end, and "+ Freight car" 3 px below the side column's, so both were there before M11.
+   M11 made the second worse with classic scrollbars only: the Labour line's picture wrapped it (+24 px). The labour lines at
+   14 px keep it one line, and "+ Freight car" now lies inside its column.
+6. Trap: the Turbopack dev server did not pick up edits of `globals.css` until it restarted (CSS modules reloaded); and it
+   turned `margin-inline-end` into `:lang()` rules of higher specificity, so the CSS uses `margin-right`.
+7. D1's limit: the brief's "median under 25 ms" failed in five of six copies of the test run at once on this machine
+   (scroll medians 33 to 50 ms), so it is 60 ms: above anything load gave with the isolation, below anything the regression
+   gave (150 to 233 ms here, 79 to 89 ms on the review's production build). Objection: on a much faster machine the
+   regression might fall under 60 ms; the review's 79 ms is the lowest seen.
+
+Carried:
+- The Clothing factory card below the industry column's end at 1280x720 (before M11; the column scrolls). "2 Cotton or Wool
+  (20)" wraps in the Textile mill card (before M11 too).
+- `tests/engine/lintGuard.test.ts` timed out again once at 30 s while two dev servers ran; alone `Tests 17 passed (17)`.
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| Red before the fixes | the 9 changed unit files, then look, m11-lists, m11-map on a worktree of 8864598 | `Tests 16 failed \| 99 passed (115)`; `6 failed`, `5 passed`; split tests `3 failed` |
+| D1 limit vs. the regression | FR-321's test, `--repeat-each=6` (6 at once), and `--workers=1` with the isolation removed | 6 at once: scroll medians 16.7 to 49.9 ms; removed: `166.7` and `233.3` ms, `2 failed` |
+| Unit tests, baselines | `npm test` (`.gate/m11qa/test-final.txt`) | `Test Files 107 passed (107)`, `Tests 2107 passed (2107)` (+5); `FR-125 seed 1: ... t40 1493/650 (2.30)`; `FR-260 ... [[1,1419],[2,1451],[3,1441],[4,1469]]` |
+| Lint, types | `npm run lint`; `npx tsc --noEmit` | `✖ 3 problems (0 errors, 3 warnings)` (M6's three); exit 0, no output |
+| Build | `npm run build` | `✓ Compiled successfully in 16.7s`, `✓ Generating static pages (4/4)` |
+| e2e, one worker (gate, final tests) | `PORT=3311 npx playwright test --workers=1 --reporter=line` (`pw-w1-final.txt`) | `51 passed (7.5m)`, `1 skipped` (cursor-icons' rail case, `fixme` before M11); `FR-321 scroll frames: median 33.4 ms ... idle frames: median 16.7 ms` |
+| e2e, default config, 3 runs (fa06069, frame limit 25 ms) | `PORT=3312`, `3313`, `3314` `npx playwright test --reporter=line` | `22 failed`, `29 passed (7.2m)`; `21 failed`, `30 passed (9.3m)`; `18 failed`, `33 passed (7.1m)`; each `1 skipped`. Every failure a timeout (`page.goto`, `data-ready`, clicks), no assertion on what the page shows |
+| e2e, default config, final tests (9d76f3e) | `PORT=3318 npx playwright test --reporter=line` (`pw-default-4-final.txt`) | `14 failed`, `37 passed (5.8m)`, `1 skipped`, all timeouts; FR-321 passed: `median 25.0 ms, mean 32.5 ms, p95 66.8 ms; idle frames: median 16.7 ms` (both old limits would have failed it) |
+| The same on 8864598 (control) | `PORT=3315 npx playwright test --reporter=line` on the untouched branch tip | `18 failed`, `29 passed (8.0m)`, all timeouts: the machine ran at 100% CPU with other sessions' work (another repo's e2e and CI checks) |
+| FR-336, the pack | `git diff origin/main -- src/app/engine src/app/store src/app/types tests/engine tests/store`; `git diff -- public/` | empty, empty |
+| Screenshots | `node .gate/m11qa/qa-shots.cjs 3311` | `docs/journal/m11-qa-map.png` (turn 6, rail and depot), `m11-qa-capital.png`; `"errors":[]` |
+
+How to see it: a new game shows the capitals as domed palaces at 1x, the sea without a grid, the HUD's labels in one column;
+build rail and a depot north of the capital: the rail shows its sleepers, the depot its green mark; the Capital dialog's
+buildings are readable, "Canned Food" is one line, the goods sit on parchment squares (`docs/journal/m11-qa-map.png`,
+`m11-qa-capital.png`).
+
+### Review of the QA fix round (F1 to F4; FR-356)
+
+One agent (Opus 5.5; no advisor call) on the re-review's four findings. FR-356 in requirements.md's "Review of the M11 QA
+fix round"; card Q65's default updated (also in `docs/report/roadmap.json`); the review fix round's entry archived. Red on
+the old code (`.gate/m11qarv/red-unit.txt`): `Tests 7 failed | 21 passed (28)`: the corner button over 29 px² of the
+depot's drawing, the classes absent, 17 spaces after pictures in the Armoury.
 
 | Finding | What changed | Test |
 |---|---|---|
-| R1 engine (FR-305) | none in code: the 4-to-4 claim is asserted, not only logged | engine/continentScore.test.ts: every meeting of the FR-260 games, each nominee Controlled 4 and nothing else, the 4 minors abstaining |
-| R3 engine (Q53) | new FR-308 (the last meeting keeps the rules) | engine/council.test.ts: turn 40 of a new game, 4 abstentions, no winner; Sundmark at 49 and 30 abstains |
-| R2 UI, R3 UI, E2 | FR-296 status: "its news line is FR-297" | none (docs) |
-| R5, E3 | NR-011: "tested (FR-290 to FR-309)" | none (docs) |
-| R6 | new FR-307 (turn and date on one line, the Council line under it) | e2e/m10-council.spec.ts on turns 1 and 11 |
-| R7 | none in code (the branch kept) | ui/warehouseAndHud.test.tsx: Testland holding all 8 provinces, the line with no title, description or hidden text |
-| R1 UI | `newsItems`: a `council-met` line first, before the player's own lines (new FR-306; FR-297's place replaced) | ui/gameText.test.ts, ui/newsPanel.test.tsx; e2e: first list item, list and HUD at the top, the line inside the list's visible box above the fade |
-| R2 engine | `councilNominees` ranks ties in `intentOrder(state, state.turn)` (new FR-309; FR-291's tie part replaced) | engine/council.test.ts: the start tie on turns 1, 11, 2, 10 in both nation orders; 3 Great Powers tied for second on turns 1, 2, 3 with the same nominees, ballots and winner when reversed |
-| R4 UI | Council.module.css comment: Accept Offer does not wait, it opens over the Council | ui/councilDialog.test.tsx: z-index 85 over 77 and the page order; Escape rejects and Enter accepts the offer, the Council stays, takes the focus back and closes next |
-| E1 | none in code; FR-274's four games also collect the Council | engine/scriptedWar.test.ts: on the default partners market 4 meetings, no winner; seeds 1 to 3 Arvelia votes for Valdoria as Colonies at turns 30 and 40, seed 4 none |
+| F1 (major): the civilians' button over the depot (24% of its box) and a stacked port (72%) | FR-356: each station's box cropped to its drawing's 14 rows (`object-fit: cover`, still drawn 20 px wide; ends at y 15); civilians on a tile with a station in the corner (from y 16); a depot and a port side by side (x 0 to 39), the level badge (y 16) and job markers (y 27) below them | tests/ui/accessibleNames.test.tsx (geometry from the CSS, the wiring through the map); e2e/look.spec.ts: the reviewer's flow, then a port on 2-7 (`docs/journal/m11-qarv-stations.png`) |
+| F2: a constant assertion | the row computed from the CSS: inside the content box, the drawings apart | tests/ui/accessibleNames.test.tsx |
+| F3: the Armoury's "At hand" kept its space | the space removed; FR-354's no-space test covers the Armoury | tests/ui/listArt.test.tsx (red: 17 spaces) |
+| F4: default-config evidence incomplete | three default-config runs and one with one worker on the final tests, quoted below | none |
 
 Decisions (defaults, nobody to ask):
-1. R1 UI: the Council line moves first rather than scrolling the list to it; the game-over line stays last. Objection: on a
-   meeting turn the player's own lines start one line lower (FR-107 and FR-268 now have an exception).
-2. R2: ties go in `intentOrder` of the state's turn (as FR-187). Objection: with two Great Powers every meeting is counted on
-   an odd turn (11, 21, ...), so Testland takes every tie at a meeting; the HUD projection on turn 10 puts Valdoria first on
-   a tie and the meeting then Testland. Only the column order changes on the continent.
-3. New ids FR-306 to FR-309 by FLOW's rule (a changed requirement gets a new id), as M9 did (M9 fix round decision 3).
-4. E1: the test reuses FR-274's four games (same setup: default market, Testland idle, Valdoria scripted) instead of playing
-   four more in continentScore.test.ts; no extra test time.
-5. Decision cards unchanged: Q53 is now FR-308's [NEEDS CLARIFICATION]; Q54's card adds "ties in the turn's order (FR-309)".
+1. F1: a 20 px station and the 24 px button cannot sit side by side or one above the other in the 40 px box (44 px). The
+   pictures' top and bottom 3 px are empty, so the boxes lose them (1 + 14 = 15 px) and the button moves 1 px down, to the
+   corner (from y 16). Shrinking the stations while civilians stand there was the other way; it brings the speck back.
+2. Two stations: stacked, the port lies under the button at any size; side by side they take the top band, where the badge
+   stood, so the badge and the job markers move below them (fixed places, badge or not). The layout is the same with or
+   without civilians, so nothing jumps when one arrives.
+3. A stack's count still lies over 9% of the rightmost station's drawing, and a selected button's 2 px outline reaches
+   0.7 px into it. Moving the count would put it over the port or the moved badge instead.
+4. The e2e flow: on a tile that holds a depot, a click with the engineer selected is a move order ("Move refused: not
+   possible on that tile."); the port is ordered from the tile panel (the tile first, then the engineer).
+
+Carried:
+- With a depot, a port, a river and a running job on one tile, the job marker (y 27 to 37) meets the river marker (as two
+  jobs already did); a stack's count reaches 5 px into the right neighbour (as on a crowded capital).
+- From the review fix round: nation 2 #2c5c9e is 2.97:1 on the grass (waits for a card); FR-339 has room for about one more
+  picture; republish the progress page; the PR.
 
 | Claim | Command | Result (quoted) |
 |---|---|---|
-| Red before the fixes | the new rows on the code before each fix (`.gate/m10fix/red-*.txt`) | `Tests 2 failed \| 90 passed (92)`, `Tests 2 failed \| 91 passed (93)`, e2e `1 failed` |
-| Engine and UI rows | `npx vitest run` on the 5 engine and 4 UI files (`green-engine.txt`, `green-ui.txt`) | `Tests 116 passed (116)`; `Tests 130 passed (130)` |
-| E1 numbers | `npm test` console (`gate-test.txt`) | `FR-302 Council per seed on the partners market ...: [[1,["t10 nation-2:4+0+0/nation-1:4+0+0","t20 nation-2:4+0+1/...","t30 nation-2:4+1+0/...","t40 nation-2:4+1+0/..."]], ...` |
-| Unit tests | `npm test` (`gate-test.txt`) | `Test Files 100 passed (100)`, `Tests 1983 passed (1983)` (+8 on 1975) |
-| v1 and v2 baselines unchanged | `npm test` console | `FR-125 seed 1: ... t40 1493/650 (2.30)`; `FR-260 nation 2 score at turn 40: [[1,1419],[2,1451],[3,1441],[4,1469]]`; FR-274 `[[1,21,22,305,0],[2,21,22,340,0],[3,21,22,276,0],[4,null,null,965,0]]` |
-| Lint | `npm run lint` (`gate-lint.txt`) | `✖ 3 problems (0 errors, 3 warnings)` (the three of M6) |
-| Types | `npx tsc --noEmit` | exit 0, no output |
-| Build | `npm run build` (`gate-build.txt`) | `✓ Compiled successfully in 3.3s`, `✓ Generating static pages (4/4)` |
-| e2e | `PORT=3160 npx playwright test --workers=1 --reporter=line` (`pw-full.txt`) | `37 passed (1.6m)`, `1 skipped` |
+| Red before the fixes | the two changed unit files on the old code (`red-unit.txt`) | `Tests 7 failed \| 21 passed (28)` |
+| Unit tests, baselines | `npm test` (`.gate/m11qarv/test-final.txt`) | `Test Files 107 passed (107)`, `Tests 2111 passed (2111)` (+4); `FR-125 seed 1: ... t40 1493/650 (2.30)`; `FR-260 ... [[1,1419],[2,1451],[3,1441],[4,1469]]` |
+| Lint, types | `npm run lint`; `npx tsc --noEmit` | `✖ 3 problems (0 errors, 3 warnings)` (M6's three); exit 0, no output |
+| Build | `npm run build` | `✓ Compiled successfully in 11.8s`, `✓ Generating static pages (4/4)` |
+| e2e, one worker (gate) | `PORT=3311 npx playwright test --workers=1 --reporter=line` (`pw-w1-final.txt`) | `51 passed (3.8m)`, `1 skipped` (cursor-icons' rail case, `fixme` before M11); `FR-356 depot alone: [{"station":"Depot: connected","byCivilians":0,"byAll":0}]`; `depot and port: ... "byCivilians":0,"byAll":0.022}, ... "byCivilians":0,"byAll":0}]`; `FR-321 scroll frames: median 16.7 ms, mean 20.7 ms, p95 33.3 ms` |
+| e2e, default config, 3 runs (F4; 1f9b15f, CPU at 13% before) | `PORT=3321`, `3322`, `3323` `npx playwright test --reporter=line` (`pw-default-*.txt`) | `51 passed (2.6m)`, `51 passed (2.9m)`, `51 passed (3.1m)`, each `1 skipped`; FR-321 `median 16.7 ms` in all three (p95 50.0, 50.0, 66.6 ms) |
+| F3 in a browser | `node armoury-gap.cjs 3330` (one-off, 1280x720; `armoury-gap.txt`) | every picture-to-name gap in Cost and At hand `3.36` px (the review: At hand 6.03 to 6.70) |
+| FR-336, the pack | `git diff origin/main -- src/app/engine src/app/store src/app/types tests/engine tests/store`; `git diff -- public/` | empty, empty |
 
-Carried: decision 2's projection-versus-meeting column order on a tie (cosmetic); nothing else.
-
-### QA fix round (2026-11-13)
-
-Size: M (7 QA items on the Council screen and the HUD; one engine change). One agent (Opus 5.5, xhigh, no subagents, no
-advisor call), started by the M10 workflow; not pushed. QA shots: m10-qa-council-turn10.png, m10-qa-hud-news.png,
-m10-qa-council-turn40.png; after the fix: m10-qa-fix-council-turn10.png, m10-qa-fix-hud-game-over.png (`.gate/m10qa/shots.mjs`).
-
-Red (on the code before the change, `.gate/m10qa/red-*.txt`): engine `Tests 10 failed | 40 passed (50)`; UI `Tests 22 failed |
-28 passed (50)`; e2e `2 failed`: turn 1 `waiting for getByTestId('council-projection')`, game over `"inside": false`,
-`"aboveButtons": false`, each date `Received: "Turn 10, Summer 1817"`. FR-317 with the old CSS rule: `line: "rgb(106, 101, 92)"`.
-
-| Item | What changed | FR and test |
-|---|---|---|
-| 1 abstentions | engine: an abstaining ballot carries `abstention` (the minor's points and wars with each nominee, equal strength, a colony); screen: "Abstained: 4", one reason per province ("Arvelia: relation 30 of the 50 needed"), the rule line | FR-310 engine/council.test.ts; FR-311 ui/councilDialog.test.tsx, e2e/m10-council.spec.ts |
-| 2 Other Great Powers | greyed row, "—" cells, note "(only two Great Powers in this world)"; the 0 stays in the data | FR-312 ui/councilDialog.test.tsx, e2e |
-| 3 player first | the player's column first, "1st nominee" / "2nd nominee" under the names; first in the HUD projection | FR-313 ui/councilDialog.test.tsx, ui/warehouseAndHud.test.tsx, e2e |
-| 4 projection | shown under the Next Council line, "If it met now: Testland 4, Valdoria 4, abstain 4 of 12; 9 needed", its description | FR-314 ui/warehouseAndHud.test.tsx, e2e (turns 1, 11) |
-| 5 game-over news | no "No tile selected" line (41 px), game-over date line 16 px: the Council line whole above Final scores | FR-315 e2e/m10-qa.spec.ts (new), ui/warehouseAndHud.test.tsx |
-| 6 date line | "Met at the end of turn 10 (Summer 1817)" | FR-316 ui/councilDialog, ui/newsPanel, e2e (all 4 meetings) |
-| 7 colour | Next Council line and projection in the body text colour | FR-317 e2e/m10-council.spec.ts |
-
-Decisions (defaults, nobody to ask):
-1. Item 4 shows the projection (the brief's first option) instead of a button. The HUD had 5.5 px to spare (FR-268), so the
-   "No tile selected" line went (it says nothing a click on a tile does not show): it pays for item 4 (32 px) and item 5.
-   Spare now: 14.5 px on turn 11, 6.5 px at game over (`.gate/m10qa/measure.mjs`). Objection: the next HUD line has no room.
-2. Item 5 keeps Final scores where it is; the room comes from the content above the news (decision 1, the 16 px date line).
-3. Item 1's reason lives on the engine's ballot, so the screen still reads only the event; the FR-293 tests now assert it
-   too (stricter). Objection: the reasons count relation points, the Diplomacy screen shows levels ("level 4 of 9").
-4. Item 3 covers the screen and the HUD as named; the news line keeps the first nominee first (FR-297). Objection: on turn 11
-   the news reads "Valdoria 4, Testland 4" under the HUD's "Testland 4, Valdoria 4". The carried tie item above is gone.
-5. Item 5's test is a new spec, `e2e/m10-qa.spec.ts` (drawn scrollbars need a top-level `launchOptions`); the check is shared
-   in `e2e/councilNews.ts`. The v2 plan entry moved to `docs/journal/archive-v2-plan.md` to keep this file under 400 lines.
-
-| Claim | Command | Result (quoted) |
-|---|---|---|
-| Red before the change | the new rows on the old code (`red-engine.txt`, `red-ui.txt`, `red-e2e.txt`) | `Tests 10 failed \| 40 passed (50)`; `Tests 22 failed \| 28 passed (50)`; `"inside": false` |
-| Unit tests | `npm test` (`gate-test-final.txt`) | `Test Files 100 passed (100)`, `Tests 2000 passed (2000)` (+17 on 1983) |
-| Baselines unchanged | `npm test` console | `FR-125 seed 1: ... t40 1493/650 (2.30)`; `FR-260 nation 2 score at turn 40: [[1,1419],[2,1451],[3,1441],[4,1469]]` |
-| Lint, types | `npm run lint`, `npx tsc --noEmit` | `✖ 3 problems (0 errors, 3 warnings)` (the three of M6); exit 0, no output |
-| Build | `npm run build` (`gate-build.txt`) | `✓ Compiled successfully in 12.2s`, `✓ Generating static pages (4/4)` |
-| e2e | `PORT=3160 npx playwright test --workers=1 --reporter=line` (`gate-e2e.txt`) | `38 passed (12.0m)`, `1 skipped` |
-
-Gate note: the first `npm test` failed tests/ui/newsPanel.test.tsx on the old date line (updated to FR-316) and once timed out
-in tests/engine/lintGuard.test.ts (`Test timed out in 30000ms`, ESLint's start under load); both passed in the next full run.
-
-### Review of the QA fix round (2026-11-13)
-
-Size: S (two minor findings, both test coverage; no production code changed). One agent (Opus 5.5, xhigh, no subagents, no
-advisor call), started by the M10 workflow; not pushed. The engine half moved to `docs/journal/archive-M10.md` (under 400 lines).
-
-| Finding | What changed | Test |
-|---|---|---|
-| F1 FR-312's grey only in CSS | none in code | e2e/m10-council.spec.ts, turn 11: the Other Great Powers row's cells and name in the computed muted colour (both tokens read from a probe in the dialog), the Controlled numbers in the body colour |
-| F2 FR-313's HUD fallback | none in code; `threePowers` and `N3` moved to tests/engine/armyFixtures.ts for the screen and the HUD (the engine test keeps its copy with Valdoria's colour slot, which FR-152's order reads) | ui/warehouseAndHud.test.tsx: Carthia's player, Valdoria holding Testland North-East, reads "If it met now: Valdoria 4, Testland 3, abstain 5 of 12; 9 needed" |
-
-Both rows assert what the code already does, so they passed at once; each was run against a mutation, then put back (`.gate/m10f/`):
-F1 with the row rule's `color` removed: `1 failed`, the two cells `rgb(59, 59, 59)` against the muted `rgb(106, 101, 92)`
-(`mut-f1-e2e.txt`); F2 with `playerFirst` reversing the standing for a non-nominee: `Tests 1 failed | 16 passed (17)`, only the
-new row, `Received: "If it met now: Testland 3, Valdoria 4, abstain 5 of 12; 9 needed"` (`mut-f2-hud.txt`).
-
-| Claim | Command | Result (quoted) |
-|---|---|---|
-| The touched files | `npx vitest run` on the HUD, Council screen and council engine files (`green-ui.txt`) | `Test Files 3 passed (3)`, `Tests 102 passed (102)` |
-| Unit tests | `npm test` (`gate-test.txt`) | `Test Files 100 passed (100)`, `Tests 2001 passed (2001)` (+1 on 2000) |
-| Baselines unchanged | `npm test` console | `FR-125 seed 1: ... t40 1493/650 (2.30)`; `FR-260 nation 2 score at turn 40: [[1,1419],[2,1451],[3,1441],[4,1469]]` |
-| Lint, types | `npm run lint`, `npx tsc --noEmit` | `✖ 3 problems (0 errors, 3 warnings)` (the three of M6); exit 0, no output |
-| Build | `npm run build` (`gate-build.txt`) | `✓ Compiled successfully in 14.6s`, `✓ Generating static pages (4/4)` |
-| e2e | `PORT=3160 npx playwright test --workers=1 --reporter=line` (`gate-e2e.txt`) | `38 passed (5.6m)`, `1 skipped` |
-
-Carried: nothing.
+How to see it: in a new game, the engineer lays rail north from the capital and builds a depot on 2-7, staying there: the
+depot shows whole above the engineer's button in the corner; a port built there too stands left of the depot along the top
+(`docs/journal/m11-qarv-stations.png`, at three times the pixel density).

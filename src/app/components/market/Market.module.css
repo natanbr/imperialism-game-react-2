@@ -389,7 +389,8 @@
   gap: 6px;
 }
 
-.ledgerLine svg {
+/* The commodity's picture (FR-331): a flex item here, so centred on the line rather than on the baseline */
+.ledgerLine img {
   flex: none;
   align-self: center;
 }

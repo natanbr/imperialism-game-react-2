@@ -73,10 +73,14 @@ describe('FR-195 the Deal Book', () => {
     expect(within(dialog()).queryByRole('table', { name: 'Treasury' })).toBeNull();
     expect(text(within(dialog()).getByTestId('deal-book-turn'))).toBe('Turn 1, Spring 1815');
     expect(within(dialog()).queryByText('No deals last turn.')).toBeNull();
-    // Each line shows its commodity's icon, decorative (FR-121)
+    // Each line shows its commodity's goods picture first, decorative (M11 FR-331, which replaces FR-121's Game Icon)
     const sold = within(within(dialog()).getByRole('list', { name: 'Sold' })).getAllByRole('listitem');
-    expect(sold[0].querySelector('svg')?.getAttribute('data-icon')).toBe('GiShirt');
-    expect(sold[0].querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
+    expect(sold[0].firstElementChild?.tagName.toLowerCase()).toBe('img');
+    expect(sold[0].querySelector('img')?.getAttribute('data-art')).toBe('goods/clothing.png');
+    expect(sold[0].querySelector('img')?.getAttribute('alt')).toBe('');
+    expect(sold[0].querySelector('svg')).toBeNull();
+    const notTraded = within(within(dialog()).getByRole('list', { name: 'Not traded' })).getAllByRole('listitem');
+    expect(notTraded.map((li) => li.querySelector('img')?.getAttribute('data-art'))).toEqual(['goods/furniture.png', 'goods/iron-ore.png']);
   });
 
   it('FR-195 only the last resolved turn counts; a loss shows as a negative net', () => {

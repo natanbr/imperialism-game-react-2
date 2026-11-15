@@ -2,6 +2,8 @@
 import React from "react";
 import type { Order, ValidationResult } from "@/engine";
 import { FREIGHT_CAR_COST } from "@/definisions/ResourceConversions";
+import { InkPicture } from "../art/ArtPicture";
+import { LABOUR_ART, buildingArt } from "../art/inkArt";
 import styles from "./Capital.module.css";
 
 interface FreightCarsProps {
@@ -12,10 +14,15 @@ interface FreightCarsProps {
   onOpenAllocations: () => void;
 }
 
-/** The railyard: freight cars ordered this turn, one at a time (FR-039, FR-047); the capacity is the cars in service (FR-101). */
+/**
+ * The railyard: freight cars ordered this turn, one at a time (FR-039, FR-047); the capacity is the cars in service (FR-101).
+ * The heading shows the railyard at 30 px (FR-352, card Q78), the car's labour cost the labour picture (FR-332).
+ */
 export const FreightCars: React.FC<FreightCarsProps> = ({ nationId, capacity, carsOrdered, submitOrder, onOpenAllocations }) => (
   <section className={styles.panel} data-testid="freight-cars" aria-label="Transport">
-    <h3 className={styles.panelTitle}>Transport</h3>
+    <h3 className={styles.panelTitle}>
+      <InkPicture src={buildingArt("railyard")} alt="" inline className={styles.buildingPicture} />Transport
+    </h3>
     <div className={styles.labourLine}>
       <span>Transport capacity</span>
       <span>{capacity}</span>
@@ -40,7 +47,9 @@ export const FreightCars: React.FC<FreightCarsProps> = ({ nationId, capacity, ca
     {/* Cars ordered now are built at the end of the turn and carry goods from the next one (FR-101). */}
     <div className={styles.note} data-testid="cars-ordered">{`${carsOrdered} ordered this turn, carrying goods from next turn`}</div>
     <div className={styles.note}>
-      {`${FREIGHT_CAR_COST.lumber} Lumber, ${FREIGHT_CAR_COST.steel} Steel and ${FREIGHT_CAR_COST.labour} labour per car`}
+      {`${FREIGHT_CAR_COST.lumber} Lumber, ${FREIGHT_CAR_COST.steel} Steel and `}
+      <InkPicture src={LABOUR_ART} alt="" inline />
+      {`${FREIGHT_CAR_COST.labour} labour per car`}
     </div>
     <button className={styles.secondaryButton} onClick={onOpenAllocations}>
       Transportation of Commodities

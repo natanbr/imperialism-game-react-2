@@ -579,26 +579,46 @@ Turn is disabled and the store's `advanceTurn` returns at once, so no empty turn
 (`hooks/useKeyboardShortcuts.ts`, mounted by `page.tsx`) is ignored in a form field and while any `role="dialog"` is
 in the page (FR-178). A tile is `components/Tile.tsx` plus
 sub-components in `components/Tile/` and three hooks: `useTileActions` (which action the
-selected worker offers, from `workers/*`), `useTileVisuals` (terrain tint, grid line and the
-cursor) and `useTileClickHandler` (the click, as orders). The selection ring is an element of
-`TileBase` above the border overlay (FR-110). `TileWorkers` draws the player's civilians as 24 px
+selected worker offers, from `workers/*`), `useTileVisuals` (grid line and the cursor; since M11 a tile
+has no background colour of its own, FR-321) and `useTileClickHandler` (the click, as orders). The
+selection ring is an element of `TileBase` above the border overlay (FR-110), drawing the pack's corner
+brackets (FR-326). `TileWorkers` draws the player's civilians as 24 px
 buttons (one alone, or a stack button with the count whose tray opens while the tile is selected and
 no worker is) and another nation's as a marker, not a button (FR-108, FR-110); the store's
 `selectWorker` / `setSelectedWorkerId` ignore any worker that is not the player's
-(`store/controls/playersWorker.ts`), and the HUD's tile panel shows another nation's tile read-only. Look (M3.5 part B):
-icons are Game Icons (CC BY 3.0, credited in the HUD's About panel) from `react-icons/gi`, named
-in `components/icons.ts` (per terrain, resource and worker type; `tileIconOf` picks the one a tile
-shows) and drawn by `GameIcon.tsx` with `data-icon`. Colours are CSS variables defined only in
+(`store/controls/playersWorker.ts`), and the HUD's tile panel shows another nation's tile read-only. Look (M3.5 part B,
+restyled in M11): the pictures are the art pack's (the paragraph after this one). Game Icons (CC BY 3.0, credited in
+the HUD's About panel) from `react-icons/gi` remain only where the pack has no picture (FR-335, Q60): the 17
+`UI_ICONS` in `components/icons.ts` (market, Deal Book, Diplomacy, Center, Advance Turn, final scores, About, New
+game, the civilians' stack, the three job markers, the army chip's tent and militia, attack, battle, Council) and the
+river marker `GiRiver`; `GI` holds exactly those, and `GameIcon.tsx` draws one with `data-icon`. Colours are CSS variables defined only in
 `styles/tokens.css`; `styles/theme.ts` names them for TypeScript and holds `TILE_PX` (42) and
 `HUD_PX` (a test checks both files agree, and that no colour literal sits in components, hooks or
-`globals.css`). MapView's SVG overlay draws, in this order, the dotted lines between two provinces of
-one owner (`--color-province-border`), each nation's territory border, each minor nation's dashed border
-(`--color-minor`, on top where it meets a Great Power's) and the rail, above the tile tints and below the
-tile icons (`components/territoryBorders.ts`, FR-153). A minor's capital tile carries the minor's name
+`globals.css`). Under the tile rows `components/map/MapGround.tsx` draws the map's ground as one SVG
+(FR-321): `map/shoreline.ts`, a TypeScript port of the pack demo's shoreline, turns the land and water pattern into
+rounded masks for deep water, shallows, a sand rim and the grass, with desert and tundra patches; textures repeat at
+their own 512 px; the SVG is memoised on the land and water signature (the same DOM node after End Turn) and its layer
+is isolated (`contain: strict`; e2e/m11-map.spec.ts measures the frames while scrolling); past the map the scroller's
+background is the same open-water texture, scrolling with the map from its origin (FR-340). On a capital or town that
+holds civilians or a minor's name tag the tile picture moves to the top centre at 24 px, above the civilians' button
+(FR-341). MapView's SVG overlay
+draws, above the tile pictures and below every tile mark and the selection, first a pale halo (`--color-map-halo`,
+`border-halo`) under every border, then in this order the dotted lines between two provinces of one owner
+(`--color-province-border`), each nation's territory border, each minor nation's dashed border (`--color-minor`, on
+top where it meets a Great Power's) and the rail: each link a 3 px `--color-rail` line with the pack's rail piece
+over it through one transform (`railArtMatrix` in `railSegments.ts`, FR-328) (`components/territoryBorders.ts`,
+FR-153, FR-327). A minor's capital tile carries the minor's name
 (`Tile/TileName.tsx`). A tile belongs to a country by `countryOfTile` (the owner of its province, else
 `ownerNationId`): the tile's name, the click (another country's tile, a minor's included, is only
 viewed) and the tile panel (owner, "(minor nation)", the province) all ask it (FR-155).
-Cursors are still emoji SVG data URIs (`useTileVisuals`). The HUD shows "Turn: N of 40" and the date ("Spring 1815"), cash, the score, every
+Cursors (FR-330) are the pack's pictures, each drawn once at runtime into a 32 x 32 px canvas and used as a PNG
+data URI (`hooks/tileCursor.ts`, read by `useTileVisuals` through `useSyncExternalStore`, so a drawn cursor
+re-renders only the tiles that show it); `pointer` until a picture is ready and where no canvas exists (server render, jsdom).
+`cursorOf` only reads; a tile starts its picture loading when it subscribes, after the commit, and a failed load is tried
+again on the next request (FR-342). `components/art/prefetch.ts` `prefetchPictures` loads pictures ahead of their `<img>`
+(the pointer on a tile with the player's stack, or the focus on the stack button, loads the tray's figures); both keep
+their Image, since Chromium fetched a picture again for a later `<img>` once a detached Image was gone. No source file under
+`src/app` holds an emoji (tests/ui/noEmoji.test.ts). The HUD shows "Turn: N of 40" and the date ("Spring 1815"), cash, the score, every
 nation ranked by score with its colour swatch and name (`HUD/ScoreTable.tsx`, `NationSwatch.tsx`), the
 food warning, the selected tile, the news of the last turn and the last refused order (`components/HUD/NewsPanel.tsx`;
 `newsLines` puts the player's lines first and names the other nations on theirs). Its information
@@ -616,6 +636,32 @@ container near the window edges; over the HUD only the right edge scrolls. e2e s
 `data-ready` on `map-scroll` (set after MapView's first view) before clicking: the server-rendered
 map shows before React handles clicks, and on 1280x720 the whole map fits, so the first view no
 longer scrolls.
+
+The art pack (NR-031, NR-032; M9 to M11): `components/art/inkArt.ts` is the one table from game ids to the pack's files
+in `public/assets/ink-and-wash/`, which stay as supplied (`.gitattributes` marks the folder `-text`, so a
+`core.autocrlf=true` checkout keeps the manifest's checksums). Each export gives a URL `/assets/ink-and-wash/<manifest
+file>` (no query string), or `undefined` where the pack draws nothing: `terrainArt(terrain, resource?)` (fertile hills
+with wool: the wool pasture), `improvementArt(resource, level)` (levels 1 to 3; none at 0, for fish and horses),
+`tileArt(tile)` (FR-322: capital or town its terrain, else the improvement of a level 1 to 3 resource, else the
+terrain), `resourceMarkArt(tile)` (a known coal, iron ore, gold, gems or oil), `goodsArt(commodity)`,
+`civilianArt(workerType)`, `gradeArt(grade)` and `LABOUR_ART`, `buildingArt(industryType)` and `CAPITOL_ART`,
+`regimentArt(type)`, `fortArt(level)`, `DEPOT_ART`, `PORT_ART`, `RAIL_ART` / `SELECTION_ART` (`{ url, width, height }`),
+`STATION_ART.connected` / `.disconnected` (`STATION_ART_PX` 12), `GROUND_ART.grass` / `.water` / `.desert` / `.tundra`
+(`GROUND_ART_PX` 512), `CURSOR_ART` (prospect, constructFort, constructRail, constructModal; develop is
+`civilianArt(action.workerType)`) and `ATTACK_ARROW_ART`. `INK_ART_FILES` lists every file the table names once (family,
+width, height, anchor), `INK_ART_UNUSED` every other manifest file with its reason; `artFileOf(url)` gives the manifest
+file and `artInfoOf(url)` its entry. tests/ui/inkArt.test.ts checks the table against the manifest, every pack file
+(the five the manifest does not list too) against `docs/art/ink-and-wash-SHA256SUMS.txt`, and that no other source file
+names the pack or one of its files (`city-ground` only in `INK_ART_UNUSED`, FR-343). `components/art/ArtPicture.tsx` `InkPicture` draws one picture as a plain
+`<img>` (`alt` required, `""` beside the text that names it) with `data-art` (the manifest file, as `data-icon` names a
+Game Icon) and `data-art-anchor`; `size`, or `width` and `height`, set its box in px, `inline` puts it on a text line
+(1.25em, the `img[data-art-inline]` rule in globals.css; its `max-width: none` undoes Tailwind's `max-width: 100%`, which
+let a table size a column as if the picture were 0 wide), and globals.css draws `data-art-anchor="bottom-center"`
+pictures (workers, army, buildings) from the bottom centre. `RegimentPicture`, `FortPicture` and `CapitolPicture` are
+InkPictures. The pack's look has its own tokens (FR-329): `--color-ground-water`, `-shallows`, `-sand`, `-grass`,
+`-desert`, `-tundra` and `--color-map-halo` (THEME `groundWater` ... `mapHalo`); the border colours reach 3:1 on the
+halo and the rail on the grass. The per-terrain tints (`--terrain-<type>`, `TERRAIN_TINT`) and `--color-selected` were
+removed in M11's closing step (Q71): tiles lie on the ground and the selection is the pack's brackets.
 
 ## Testing
 

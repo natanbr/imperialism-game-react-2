@@ -196,11 +196,12 @@ describe('FR-263 pending army orders on the map', () => {
     expect(NATION_COLORS).not.toContain(line.getAttribute('stroke'));
 
     // From the South-West marker (seat 2-9, odd row: 105, 378; the marker's centre 1 px right of the tile's left edge,
-    // 21 px down) towards the North-West seat's marker (4-4: 168, 168), leaving the two markers clear
+    // 28 px down: the capital holds its civilians, so the chip sits low, FR-346) towards the North-West seat's marker
+    // (4-4: 168, 168), leaving the two markers clear
     const [x1, y1, x2, y2] = ['x1', 'y1', 'x2', 'y2'].map((a) => Number(line.getAttribute(a)));
     const near = (x: number, y: number, cx: number, cy: number) => Math.hypot(x - cx, y - cy);
-    expect(near(x1, y1, 106, 399)).toBeGreaterThanOrEqual(12);
-    expect(near(x1, y1, 106, 399)).toBeLessThanOrEqual(18);
+    expect(near(x1, y1, 106, 406)).toBeGreaterThanOrEqual(12);
+    expect(near(x1, y1, 106, 406)).toBeLessThanOrEqual(18);
     expect(near(x2, y2, 169, 189)).toBeGreaterThanOrEqual(12);
     expect(near(x2, y2, 169, 189)).toBeLessThanOrEqual(26);
     expect(y2).toBeLessThan(y1);
@@ -259,9 +260,9 @@ describe('FR-263 pending army orders on the map', () => {
     expect(text(within(north).getByTestId('march-count'))).toBe('2');
     expect(text(within(south).getByTestId('march-count'))).toBe('1');
 
-    // The line between the two markers' centres (South-West 106, 399; North-West 169, 189, as in the first FR-263 test):
+    // The line between the two markers' centres (South-West 106, 406; North-West 169, 189, as in the first FR-263 test):
     // the signed distance of a point from it, positive on the right of the way north
-    const [ax, ay, bx, by] = [106, 399, 169, 189];
+    const [ax, ay, bx, by] = [106, 406, 169, 189];
     const length = Math.hypot(bx - ax, by - ay);
     const side = (x: number, y: number) => ((x - ax) * (by - ay) - (y - ay) * (bx - ax)) / -length;
     const ends = (arrow: HTMLElement) => {

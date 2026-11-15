@@ -1,63 +1,73 @@
 // @vitest-environment jsdom
-// M4.1 FR-121 (NR-021): every warehouse commodity has a Game Icon; the market dialog and the capital's
-// production cards show it before the commodity's name, decorative (aria-hidden), the name stays text.
+// M11 FR-331 (NR-032; replaces FR-121's Game Icons, M4.1 NR-021): each warehouse commodity's goods picture from the art pack
+// stands before its name, decorative (an img with alt ""), in the World market's and the Board of Trade's rows and on the
+// capital's production cards (the output and each input; cotton or wool shows both pictures); the name stays text.
 import { describe, it, expect } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
-import * as gi from 'react-icons/gi';
 import { MarketModal } from '@/components/MarketModal';
 import { CapitalModal } from '@/components/CapitalModal';
-import { COMMODITY_ICONS, GI, RESOURCE_ICONS, type IconName } from '@/components/icons';
+import { artFileOf, artInfoOf, goodsArt } from '@/components/art/inkArt';
 import { commodityName } from '@/components/gameText';
 import { TRADE_COMMODITIES } from '@/definisions/marketPrices';
 import { useGameStore } from '@/store/rootStore';
 import { newGame } from '@/engine';
-import { GoodsType, MaterialType, ResourceType } from '@/types/Resource';
+import { GoodsType, MaterialType, ResourceType, type WarehouseCommodities } from '@/types/Resource';
 import { failOnActWarnings } from './actWarnings';
 import { text } from './domText';
 
 failOnActWarnings();
 
 const N1 = 'nation-1';
-const isGameIcon = (name: IconName) => typeof gi[name as keyof typeof gi] === 'function' && GI[name] === gi[name as keyof typeof gi];
-const iconOf = (el: Element) => el.querySelector('svg')?.getAttribute('data-icon');
+const fileOf = (c: WarehouseCommodities) => artFileOf(goodsArt(c));
+/** The pack file of each picture inside an element, in document order. */
+const pictures = (el: Element) => [...el.querySelectorAll('img')].map((img) => img.getAttribute('data-art'));
 
-describe('FR-121 commodity icons', () => {
-  it('FR-121 every resource, material and good has a Game Icon; resources keep the map icons', () => {
+describe('FR-331 goods pictures', () => {
+  it('FR-331 every resource, material and good has its own goods picture (FR-318 (c))', () => {
     const all = [...Object.values(ResourceType), ...Object.values(MaterialType), ...Object.values(GoodsType)];
-    expect(Object.keys(COMMODITY_ICONS).sort()).toEqual([...all].sort());
-    for (const name of Object.values(COMMODITY_ICONS)) expect(isGameIcon(name), name).toBe(true);
-    for (const type of Object.values(ResourceType)) expect(COMMODITY_ICONS[type]).toBe(RESOURCE_ICONS[type]);
-    // The made goods each get their own icon, none borrowed from a resource
-    const made = [...Object.values(MaterialType), ...Object.values(GoodsType)].map((c) => COMMODITY_ICONS[c]);
-    expect(new Set(made).size).toBe(made.length);
-    for (const icon of made) expect(Object.values(RESOURCE_ICONS)).not.toContain(icon);
+    expect(all).toHaveLength(23);
+    const files = all.map(fileOf);
+    expect(new Set(files).size).toBe(all.length);
+    for (const c of all) expect(artInfoOf(goodsArt(c))?.family, c).toBe('goods');
   });
 
-  it('FR-121 the market shows each commodity\'s icon before its name, hidden from assistive technology', () => {
-    useGameStore.setState({ ...useGameStore.getInitialState(), game: newGame({ seed: 1 }), activeNationId: N1, isMarketOpen: true });
+  it.each([
+    ['the World market (market mode "world")', () => newGame({ seed: 1 })],
+    ['the Board of Trade (the continent, "partners")', () => newGame({ seed: 1, world: 'continent' })],
+  ])("FR-331 %s shows each commodity's picture before its name, decorative; the name stays text", (_name, game) => {
+    useGameStore.setState({ ...useGameStore.getInitialState(), game: game(), activeNationId: N1, isMarketOpen: true });
     render(<MarketModal />);
+    expect(TRADE_COMMODITIES).toHaveLength(17);
     for (const commodity of TRADE_COMMODITIES) {
       const cell = within(screen.getByTestId(`trade-row-${commodity}`)).getByTestId('name');
-      expect(iconOf(cell)).toBe(COMMODITY_ICONS[commodity]);
-      expect(cell.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
-      expect(cell.firstElementChild?.tagName.toLowerCase()).toBe('svg');
+      const first = cell.firstElementChild;
+      expect(first?.tagName.toLowerCase(), commodity).toBe('img');
+      expect(first?.getAttribute('data-art'), commodity).toBe(fileOf(commodity));
+      expect(first?.getAttribute('alt'), commodity).toBe('');
+      expect(first?.hasAttribute('data-art-inline'), commodity).toBe(true);
+      expect(cell.querySelector('svg'), commodity).toBeNull();
       expect(text(cell)).toBe(commodityName(commodity));
     }
   });
 
-  it('FR-121 the capital\'s production cards show the icon of each output and of each input', () => {
+  it("FR-331 the capital's production cards show the picture of each output and of each input", () => {
     useGameStore.setState({ ...useGameStore.getInitialState(), game: newGame({ seed: 1 }), activeNationId: N1, isCapitalOpen: true });
     render(<CapitalModal />);
     const steel = screen.getByTestId('output-steel');
     const name = within(steel).getByTestId('output-name');
-    expect(iconOf(name)).toBe(COMMODITY_ICONS.steel);
+    expect(name.firstElementChild?.getAttribute('data-art')).toBe('goods/steel.png');
     expect(text(name)).toBe('Steel');
-    expect(iconOf(within(steel).getByTestId('input-coal'))).toBe(COMMODITY_ICONS.coal);
-    expect(iconOf(within(steel).getByTestId('input-ironOre'))).toBe(COMMODITY_ICONS.ironOre);
-    // A mixed input shows one icon per commodity it may be made from
+    expect(pictures(within(steel).getByTestId('input-coal'))).toEqual(['goods/coal.png']);
+    expect(pictures(within(steel).getByTestId('input-ironOre'))).toEqual(['goods/iron-ore.png']);
+    // A mixed input shows one picture per commodity it may be made from
     const cotton = within(screen.getByTestId('output-fabric')).getByTestId('input-cotton');
-    expect([...cotton.querySelectorAll('svg')].map((s) => s.getAttribute('data-icon'))).toEqual([COMMODITY_ICONS.cotton, COMMODITY_ICONS.wool]);
+    expect(pictures(cotton)).toEqual([fileOf(ResourceType.Cotton), fileOf(ResourceType.Wool)]);
     expect(text(cotton)).toBe('2 Cotton or Wool (20)');
-    for (const svg of screen.getByRole('main', { name: 'Industry' }).querySelectorAll('svg')) expect(svg.getAttribute('aria-hidden')).toBe('true');
+    // Every picture in the Industry region is decorative, and no commodity Game Icon is left there
+    const industry = screen.getByRole('main', { name: 'Industry' });
+    const imgs = [...industry.querySelectorAll('img')];
+    expect(imgs.length).toBeGreaterThan(0);
+    for (const img of imgs) expect(img.getAttribute('alt'), img.getAttribute('data-art') ?? '').toBe('');
+    expect(industry.querySelectorAll('svg[data-icon]')).toHaveLength(0);
   });
 });

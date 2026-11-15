@@ -3,9 +3,13 @@
 // coast tile to a depot lit the depot green, but the map drew no line on the coast tile. The two-island
 // map has no coast tiles (decision Q16, FR-080), so the line now runs along the shore: the land tiles
 // next to the sea. The game is played through the order API on the real new-game map, then the map is
-// rendered and its rail <line> elements are read back as tile pairs.
+// rendered and its rail <line> elements are read back as tile pairs. FR-328 (M11): each line also carries the art pack's
+// straight rail piece, an <image> turned and stretched along it.
 import { describe, it, expect, beforeAll } from 'vitest';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { render } from '@testing-library/react';
+import { RAIL_ART } from '@/components/art/inkArt';
 import { MapView } from '@/components/MapView';
 import { useGameStore } from '@/store/rootStore';
 import { newGame, resolveTurn, type Order } from '@/engine';
@@ -67,10 +71,38 @@ function drawnPairs(state: GameState): [XY, XY][] {
   });
   const depotLight = container.querySelector(`[data-tile-id="${createTileId(...DEPOT)}"] [title^="Depot: "]`)?.getAttribute('data-connected') ?? '';
   lastDepotLight = depotLight;
+  lastRailArt = railArtOf(container);
   unmount();
   return pairs;
 }
 let lastDepotLight = '';
+
+/** FR-328: each rail-segment line and the rail-art images of the overlay, with the images' matrices applied to the piece's ends. */
+interface DrawnArt {
+  lines: { x1: number; y1: number; x2: number; y2: number; nationId: string | null }[];
+  images: { href: string | null; size: [string | null, string | null]; hidden: string | null; ends: [number, number][]; height: number }[];
+}
+let lastRailArt: DrawnArt = { lines: [], images: [] };
+function railArtOf(container: HTMLElement): DrawnArt {
+  const lines = [...container.querySelectorAll('svg line[data-testid="rail-segment"]')].map((l) => {
+    const n = (name: string) => Number(l.getAttribute(name));
+    return { x1: n('x1'), y1: n('y1'), x2: n('x2'), y2: n('y2'), nationId: l.getAttribute('data-nation-id') };
+  });
+  const images = [...container.querySelectorAll('svg image[data-testid="rail-art"]')].map((img) => {
+    const m = /^matrix\(([^)]+)\)$/.exec(img.getAttribute('transform') ?? '')![1].split(/[\s,]+/).map(Number);
+    const at = (x: number, y: number): [number, number] => [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]];
+    // The piece's height drawn: the distance between its top and bottom middles
+    const [top, bottom] = [at(21, 0), at(21, 16)];
+    return {
+      href: img.getAttribute('href'),
+      size: [img.getAttribute('width'), img.getAttribute('height')] as [string | null, string | null],
+      hidden: img.getAttribute('aria-hidden'),
+      ends: [at(0, 8), at(42, 8)],
+      height: Math.hypot(bottom[0] - top[0], bottom[1] - top[1]),
+    };
+  });
+  return { lines, images };
+}
 
 /** The tiles reachable from `start` along drawn segments. */
 function reachable(pairs: [XY, XY][], start: XY): Set<string> {
@@ -105,6 +137,7 @@ describe('FR-079 the rail line is drawn as one continuous line (NR-010)', () => 
   let built: GameState;
   let pairs: [XY, XY][];
   let light: string;
+  let art: DrawnArt;
 
   beforeAll(() => {
     let s = newGame({ seed: 1 });
@@ -116,7 +149,44 @@ describe('FR-079 the rail line is drawn as one continuous line (NR-010)', () => 
     built = s;
     pairs = drawnPairs(built);
     light = lastDepotLight;
+    art = lastRailArt;
   }, 30000);
+
+  // M11 (NR-032): the pack's straight rail piece over each line, the line kept as its underlay
+  it('FR-328 one rail-art image per segment, whose transform runs the piece\'s middle from the line\'s start to its end', () => {
+    expect(art.lines.length).toBe(pairs.length);
+    expect(art.images).toHaveLength(art.lines.length);
+    for (const [i, line] of art.lines.entries()) {
+      const image = art.images[i];
+      expect([image.href, image.size, image.hidden]).toEqual([RAIL_ART.url, ['42', '16'], 'true']);
+      const [start, end] = image.ends;
+      expect(Math.hypot(start[0] - line.x1, start[1] - line.y1)).toBeLessThan(0.5);
+      expect(Math.hypot(end[0] - line.x2, end[1] - line.y2)).toBeLessThan(0.5);
+      // Stretched along its length only: the 16 px height kept
+      expect(Math.abs(image.height - 16)).toBeLessThan(0.01);
+    }
+    // A 42 px east-west link is drawn unscaled; a diagonal one is 46.96 px long
+    const lengths = art.lines.map((l) => Math.round(Math.hypot(l.x2 - l.x1, l.y2 - l.y1) * 100) / 100);
+    expect([...new Set(lengths)].sort()).toEqual([42, 46.96]);
+  });
+
+  // FR-348 (QA; replaces FR-328's "drawn as a 3 px underlay in --color-rail"): the underlay filled the 2.8 px between the
+  // piece's two rails and hid its sleepers, so a link read as a dark cable. The line keeps its test id and ends (above).
+  it('FR-348 the line draws nothing of its own under the pack\'s piece, and the overlay with it lies above the tile pictures', () => {
+    const mapCss = readFileSync(join(__dirname, '..', '..', 'src/app/components/MapView.module.css'), 'utf8');
+    const tileCss = readFileSync(join(__dirname, '..', '..', 'src/app/components/Tile/Tile.module.css'), 'utf8');
+    const rule = (css: string, name: string) => new RegExp(`\\.${name}\\s*\\{([^}]*)\\}`).exec(css)?.[1] ?? '';
+    expect(rule(mapCss, 'railSegment')).toMatch(/stroke:\s*none;/);
+    expect(rule(mapCss, 'railSegment')).not.toMatch(/stroke-width|--color-rail/);
+    // The piece's own rails are the rail colour (FR-329's 3:1 on the grass is theirs now): no other stroke covers them
+    expect(art.lines.length).toBeGreaterThan(0);
+    const z = (body: string) => Number(/z-index:\s*(-?\d+)/.exec(body)?.[1] ?? NaN);
+    // Above the tile picture (FR-322), below every tile mark and the selection mark (FR-110 (b))
+    expect(z(rule(mapCss, 'railOverlay'))).toBeGreaterThan(z(rule(tileCss, 'icon')));
+    for (const mark of ['selectionRing', 'resourceMark', 'levelBadge', 'stations', 'jobs', 'workers', 'river']) {
+      expect({ mark, above: z(rule(tileCss, mark)) > z(rule(mapCss, 'railOverlay')) }).toEqual({ mark, above: true });
+    }
+  });
 
   it('FR-079 the engine accepts rail on every shore tile of the line and lights the depot at its end green', () => {
     expect(LINE.filter(xy => !tileAt(built, xy).connected)).toEqual([]);

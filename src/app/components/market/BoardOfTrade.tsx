@@ -8,9 +8,11 @@ import { money, refusalText } from "../gameText";
 import { boardView, type BoardRowView, type PartnerView } from "./boardView";
 import { Stepper } from "./Stepper";
 import styles from "./Market.module.css";
-import { COMMODITY_ICONS, UI_ICONS } from "../icons";
+import { UI_ICONS } from "../icons";
 import { GameIcon } from "../GameIcon";
 import { Modal } from "../Modal";
+import { InkPicture } from "../art/ArtPicture";
+import { goodsArt } from "../art/inkArt";
 
 /** "Sellers: Arvelia: 4 units (no consulate) …": the minors on one row, the barrier marked in words. */
 const PartnerList: React.FC<{ label: "Sellers" | "Buyers"; partners: PartnerView[]; testId: string }> = ({ label, partners, testId }) => (
@@ -66,7 +68,7 @@ export const BoardOfTrade: React.FC = () => {
     <Modal titleId={titleId} describedBy={noteId} onClose={close} overlayClassName={styles.overlay} className={styles.board}>
       <header className={styles.header}>
         <h2 id={titleId}>
-          <GameIcon name={UI_ICONS.market} /> Board of Trade — {nation?.name ?? "Unknown"}
+          <GameIcon name={UI_ICONS.market} />Board of Trade — {nation?.name ?? "Unknown"}
         </h2>
         {view && (
           <div className={styles.boardSummary}>
@@ -122,7 +124,7 @@ export const BoardOfTrade: React.FC = () => {
               {view.rows.map((row: BoardRowView) => (
                 <tr key={row.commodity} data-testid={`trade-row-${row.commodity}`}>
                   <td className={styles.fixed} data-testid="name">
-                    <GameIcon name={COMMODITY_ICONS[row.commodity]} /> {row.name}
+                    <InkPicture src={goodsArt(row.commodity)} alt="" inline />{row.name}
                   </td>
                   <td className={`${styles.number} ${styles.fixed}`} data-testid="price">
                     {money(row.price)}

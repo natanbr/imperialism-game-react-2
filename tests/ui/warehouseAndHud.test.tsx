@@ -7,8 +7,9 @@ import { FoodWarning, NewsPanel, TurnIndicator, UpkeepWarning } from '@/componen
 import { useGameStore } from '@/store/rootStore';
 import { councilVote, resolveTurn } from '@/engine';
 import type { GameState } from '@/types/GameState';
-import { GoodsType, MaterialType, ResourceType } from '@/types/Resource';
+import { GoodsType, MaterialType, ResourceType, type WarehouseCommodities } from '@/types/Resource';
 import { TileInfoPanel } from '@/components/TileInfoPanel';
+import { artFileOf, goodsArt } from '@/components/art/inkArt';
 import { emptyWarehouse, game, N1, N2, setIndustry, setPair, setTile, setTreasury, T } from '../engine/fixtures';
 import { continent, N3, NE1, SUNDMARK, threePowers } from '../engine/armyFixtures';
 import { transferProvince } from '@/engine/world/provinces';
@@ -42,6 +43,29 @@ describe('FR-050 warehouse dialog', () => {
     expect(screen.queryByTestId('stock-gold')).toBeNull();
     expect(screen.queryByTestId('stock-gems')).toBeNull();
     for (const row of rows) expect(text(row)).not.toMatch(/[a-z][A-Z]/); // no camelCase key on screen
+  });
+
+  // M11 FR-331 (Q75): a picture the Warehouse had none of before; FR-334 its title shows the warehouse building
+  it("FR-331 FR-334 each of the 21 rows shows its commodity's goods picture before the name, decorative; the row's text is unchanged", () => {
+    show(emptyWarehouse(game(), N1, { cannedFood: 12, ironOre: 3, furniture: 1 }), { isWarehouseOpen: true });
+    render(<WarehouseModal />);
+    const rows = screen.getAllByTestId(/^stock-/);
+    expect(rows).toHaveLength(21);
+    for (const row of rows) {
+      const key = row.getAttribute('data-testid')!.replace('stock-', '') as WarehouseCommodities;
+      const pictures = [...row.querySelectorAll('img')];
+      expect(pictures.map((img) => img.getAttribute('data-art')), key).toEqual([artFileOf(goodsArt(key))]);
+      expect(pictures[0].getAttribute('alt'), key).toBe('');
+      expect(pictures[0].hasAttribute('data-art-inline'), key).toBe(true);
+    }
+    expect(text(screen.getByTestId('stock-cannedFood'))).toBe('Canned Food 12');
+    expect(screen.getByTestId('stock-cannedFood').querySelector('img')?.getAttribute('data-art')).toBe('goods/canned-food.png');
+    expect(text(screen.getByTestId('stock-ironOre'))).toBe('Iron Ore 3');
+    // The fixture's nation 1 is Britannia
+    const dialog = screen.getByRole('dialog', { name: 'Warehouse — Britannia' });
+    const title = within(dialog).getByRole('heading', { level: 3, name: 'Warehouse — Britannia' });
+    expect(title.firstElementChild?.getAttribute('data-art')).toBe('buildings/warehouse.png');
+    expect(title.querySelector('svg')).toBeNull();
   });
 });
 

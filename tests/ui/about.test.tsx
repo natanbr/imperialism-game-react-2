@@ -52,30 +52,34 @@ describe('FR-235 map legend in the About panel', () => {
         };
       });
 
-  it('FR-235 three rows: solid Great Power, dashed slate minor, dotted province, each with a sample in the map\'s token and line class', () => {
+  // FR-327 (M11): each sample lies on the map's pale halo, as the borders on the map do
+  const halo = { stroke: THEME.mapHalo, class: mapStyles.borderHalo };
+
+  it('FR-235 FR-327 three rows: solid Great Power, dashed slate minor, dotted province, each sample in the map\'s token and line class on its halo', () => {
     expect(samples(openLegend('nation-1'))).toEqual([
-      { text: 'Solid line: Great Power border', svgs: [{ hidden: 'true', lines: [{ stroke: NATION_COLORS[0], class: mapStyles.territoryBorder }] }] },
-      { text: 'Dashed slate line: minor nation border', svgs: [{ hidden: 'true', lines: [{ stroke: THEME.minor, class: mapStyles.minorBorder }] }] },
-      { text: 'Dotted line: province border', svgs: [{ hidden: 'true', lines: [{ stroke: THEME.provinceBorder, class: mapStyles.provinceBorder }] }] },
+      { text: 'Solid line: Great Power border', svgs: [{ hidden: 'true', lines: [halo, { stroke: NATION_COLORS[0], class: mapStyles.territoryBorder }] }] },
+      { text: 'Dashed slate line: minor nation border', svgs: [{ hidden: 'true', lines: [halo, { stroke: THEME.minor, class: mapStyles.minorBorder }] }] },
+      { text: 'Dotted line: province border', svgs: [{ hidden: 'true', lines: [halo, { stroke: THEME.provinceBorder, class: mapStyles.provinceBorder }] }] },
     ]);
   });
 
   it('FR-235 the Great Power sample is in the colour of the nation being viewed (Valdoria when watching it)', () => {
     const [greatPower] = samples(openLegend('nation-2'));
-    expect(greatPower.svgs[0].lines[0].stroke).toBe(NATION_COLORS[1]);
+    expect(greatPower.svgs[0].lines[1].stroke).toBe(NATION_COLORS[1]);
   });
 
-  it('FR-235 the legend\'s classes and colours are the ones the map draws with (FR-153)', () => {
+  it('FR-235 FR-327 the legend\'s classes and colours are the ones the map draws with (FR-153), halo included', () => {
     useGameStore.setState({ ...useGameStore.getInitialState(), game: newGame({ seed: 1, world: 'continent' }), activeNationId: 'nation-1' });
     const { container } = render(<MapView />);
     const drawn = (id: string) => {
       const path = container.querySelector(`[data-testid="${id}"]`)!;
       return { stroke: path.getAttribute('stroke'), class: path.getAttribute('class') };
     };
-    expect([drawn('territory-border'), drawn('minor-border'), drawn('province-border')]).toEqual([
+    expect([drawn('territory-border'), drawn('minor-border'), drawn('province-border'), drawn('border-halo')]).toEqual([
       { stroke: NATION_COLORS[0], class: mapStyles.territoryBorder },
       { stroke: THEME.minor, class: mapStyles.minorBorder },
       { stroke: THEME.provinceBorder, class: mapStyles.provinceBorder },
+      halo,
     ]);
   });
 });

@@ -228,6 +228,21 @@ declares war on a minor nation, attacks, sees the battle, and takes the province
 **M10, Council of Governors (M, NR-011).** Only if M5 to M9 are merged. The vote that ends the
 game once one nation is strong enough; the 40-turn end stays as the fallback.
 
+**M11, Ink-and-wash restyle (L, NR-032).** After M9, as Nathan answered; starts now that v2 is merged. Nathan's
+approved art pack (NR-031, `public/assets/ink-and-wash/`) restyles the whole game: the map's ground (a shoreline
+drawing under the whole map), a terrain or improvement picture on every land tile by its development level, the
+mineral marks, depots, ports and their station marks, civilians, rail, the selection mark and the borders on the pack's
+halo; goods, worker-grade and building pictures in every list, dialog and the HUD; cursors drawn from the pack's
+figures in place of emoji. Game Icons stay only where the pack has no picture (Q60). Drawing only: no game rule and no
+engine, store or type file changes; every name, test id and layout check stays. Requirements FR-318 to FR-338,
+decision cards Q60 to Q76. Built in three lanes: (1) the complete art table, its guards, the picture component and the
+tokens, first and alone; then (2) the map and (3) the lists, dialogs and HUD, in parallel on disjoint files; a closing
+step removes the Game Icon tables and terrain tints nothing uses and runs the QA pass. Done when: a new continent game
+at 1280x720 shows the pack's ground and pictures on every land tile, the Capital dialog, Board of Trade and Transport
+popup show pack pictures before every name, every pack file the game names keeps its manifest checksum, the first map
+paint stays inside FR-337's budget, and the full gate (unit, lint, types, build, Playwright) is green with no engine
+file changed.
+
 **How a milestone runs in v2 (NR-030).** One ultracode workflow per milestone: requirements rows
 (spec), tests red, implementation in one worktree (Opus 5.5 xhigh), the gate, a review by three
 lenses (requirements coverage, correctness, engine rules: purity, determinism, headless) on

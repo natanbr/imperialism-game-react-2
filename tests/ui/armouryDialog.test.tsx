@@ -96,6 +96,34 @@ describe('FR-212 the Armoury: how it opens', () => {
     ]);
   });
 
+  // M11 FR-331, FR-332, FR-334: the art pack's pictures in the costs and at hand, after the regiment's (each card's first img
+  // stays the regiment's, above), all decorative; the cash has none; the title shows the armory building
+  it("FR-331 FR-332 each cost and at-hand line shows its item's picture: the worker's grade, armaments, horses; cash none", () => {
+    openArmoury(continent());
+    const pictures = (name: string, list: 'Cost' | 'At hand') =>
+      within(within(card(name)).getByRole('list', { name: list }))
+        .getAllByRole('listitem')
+        .map((li) => [...li.querySelectorAll('img')].map((img) => `${img.getAttribute('data-art')}|${img.getAttribute('alt')}`));
+    expect(pictures('Regulars', 'Cost')).toEqual([['worker-icons/untrained.png|'], ['goods/armaments.png|'], []]);
+    expect(pictures('Hussars', 'Cost')).toEqual([['worker-icons/untrained.png|'], ['goods/armaments.png|'], ['goods/horses.png|'], []]);
+    expect(pictures('Artillery', 'Cost')).toEqual([['worker-icons/trained.png|'], ['goods/armaments.png|'], []]);
+    expect(pictures('Light Artillery', 'At hand')).toEqual([['worker-icons/trained.png|'], ['goods/armaments.png|'], ['goods/horses.png|'], []]);
+    expect(pictures('Skirmishers', 'At hand')).toEqual([['worker-icons/untrained.png|'], ['goods/armaments.png|'], []]);
+    // No Game Icon is left in a card: the regiment's picture first, then the items' pictures
+    for (const article of within(armoury()).getAllByRole('article')) {
+      expect(article.querySelectorAll('svg[data-icon]'), article.getAttribute('aria-label') ?? '').toHaveLength(0);
+      expect(article.querySelector('img')?.getAttribute('data-art')?.startsWith('army/')).toBe(true);
+    }
+    // The texts are unchanged (FR-264)
+    expect(items('Hussars', 'Cost')).toEqual(['1 untrained worker', '1 armament', '1 horse', '$100']);
+    expect(items('Artillery', 'At hand')).toEqual(['Trained workers: 2 free', 'Armaments: 0 in warehouse (short)', 'Cash: $10,000']);
+    // FR-334: the title's picture is the armory, the name stays "Armoury"
+    const title = within(armoury()).getByRole('heading', { level: 2 });
+    expect(title.firstElementChild?.getAttribute('data-art')).toBe('buildings/armory.png');
+    expect(title.querySelector('svg')).toBeNull();
+    expect(text(title)).toBe('Armoury');
+  });
+
   it('FR-212 two-islands has no provinces: no Armoury button', () => {
     useGameStore.setState({ ...useGameStore.getInitialState(), game: newGame({ seed: 1, world: 'two-islands' }), activeNationId: N1, isCapitalOpen: true });
     render(<CapitalModal />);

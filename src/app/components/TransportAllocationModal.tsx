@@ -1,11 +1,11 @@
 "use client";
 import React, { useId } from "react";
 import { useTransportAllocations } from "../hooks/useTransportAllocations";
-import { COMMODITY_ICONS, UI_ICONS } from "./icons";
-import { GameIcon } from "./GameIcon";
 import { transportKinds } from "./commodityKinds";
 import { commodityName } from "./gameText";
 import { Modal } from "./Modal";
+import { InkPicture } from "./art/ArtPicture";
+import { buildingArt, goodsArt } from "./art/inkArt";
 
 interface TransportAllocationModalProps {
   capacity: number;
@@ -14,8 +14,9 @@ interface TransportAllocationModalProps {
 
 /**
  * The transport plan (FR-133, FR-135): one slider per commodity, the commodities grouped by kind
- * (FR-134) and the groups laid out in up to three columns, each row the commodity's icon and name.
- * Only what the network can carry is listed (FR-141), and a group all 0 / 0 is hidden (FR-142).
+ * (FR-134) and the groups laid out in up to three columns, each row the commodity's picture and name (FR-331).
+ * Only what the network can carry is listed (FR-141), and a group all 0 / 0 is hidden (FR-142). The title shows the
+ * railyard, as the HUD button that opens it (FR-334).
  */
 const TransportAllocationModal: React.FC<TransportAllocationModalProps> = ({ capacity, onClose }) => {
   const { allocations, handleAllocChange, totalAllocated, remaining, sliderMax } = useTransportAllocations(capacity);
@@ -26,7 +27,7 @@ const TransportAllocationModal: React.FC<TransportAllocationModalProps> = ({ cap
     <Modal titleId={titleId} onClose={onClose} overlayClassName="modal-overlay" className="modal-content">
         <div className="modal-header">
           <h3 id={titleId} className="modal-title">
-            <GameIcon name={UI_ICONS.transport} /> Transportation of Commodities
+            <InkPicture src={buildingArt("railyard")} alt="" inline />Transportation of Commodities
           </h3>
           <button onClick={onClose} className="modal-close-btn" aria-label="Close transport">
             <span aria-hidden="true">×</span>
@@ -53,7 +54,7 @@ const TransportAllocationModal: React.FC<TransportAllocationModalProps> = ({ cap
                 return (
                   <div key={key} className="transport-row" data-testid={`transport-row-${key}`}>
                     <label htmlFor={inputId} className="transport-name" data-testid="name">
-                      <GameIcon name={COMMODITY_ICONS[key]} /> {commodityName(key)}
+                      <InkPicture src={goodsArt(key)} alt="" inline />{commodityName(key)}
                     </label>
                     <input
                       id={inputId}

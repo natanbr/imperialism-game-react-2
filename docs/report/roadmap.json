@@ -1,8 +1,8 @@
 {
   "project": "Imperialism Revival",
-  "updated": "2026-11-13",
+  "updated": "2026-11-14",
   "target": "v2: diplomacy, nation-to-nation trade, armies, war and the Council (M5 to M10)",
-  "now": "v2 is complete: M5 to M10 merged (PR 23 to 28, main 69ed08b). The game has diplomacy, trade between nations, armies, war with attack and battle screens, and the Council of Governors vote. 2001 unit tests, Playwright 38 passed. Defaults Q22 to Q59 in force.",
+  "now": "M11 Ink-and-wash restyle merged: the whole game now uses your art pack (FR-318 to FR-356). v2 (M5 to M10) was merged before it. 2111 unit tests, Playwright 51 passed. Defaults Q22 to Q78 in force.",
   "source": "docs/REVIVAL_PLAN.md and docs/report/roadmap.json in the imperialism-game-react-2 repo",
   "overview": {
     "headline": "v1 (M0 to M4.4) is merged. v2 night shift (NR-030): plan, rules research from 1997 screenshots and requirements merged (PR 22); milestones M5 to M10 merged one after another (PR 23 to 28, main 69ed08b).",
@@ -64,20 +64,6 @@
         "note": "PR 22: REVIVAL_PLAN 5b, docs/rules 01/06/07/08 + 11-screens, FR-144 to FR-234, cards Q22 to Q37."
       },
       {
-        "title": "v2 plan, research and requirements",
-        "status": "done",
-        "progress": 100,
-        "date": "2026-11-13",
-        "note": "PR 22: REVIVAL_PLAN 5b, docs/rules 01/06/07/08 + 11-screens, FR-144 to FR-234, cards Q22 to Q37."
-      },
-      {
-        "title": "v2 plan, research and requirements",
-        "status": "done",
-        "progress": 100,
-        "date": "2026-11-13",
-        "note": "PR 22: REVIVAL_PLAN 5b, docs/rules 01/06/07/08 + 11-screens, FR-144 to FR-234, cards Q22 to Q37."
-      },
-      {
         "title": "M5 World and seams: provinces, 4 minor nations, one random stream per system, intents",
         "status": "done",
         "progress": 100,
@@ -118,6 +104,13 @@
         "progress": 100,
         "date": "2026-11-13",
         "note": "PR 28: Council meets on turns 10, 20, 30, 40; 12 votes, one per province; more than two thirds (9) wins; free minors vote by relations; Council screen and HUD countdown; 2001 tests, Playwright 38 passed. Review and QA fix rounds (FR-306 to FR-317)."
+      },
+      {
+        "title": "M11 Ink-and-wash restyle: the art pack across the game (NR-032)",
+        "status": "done",
+        "progress": 100,
+        "date": "2026-11-14",
+        "note": "The art pack on the map (ground with shorelines, terrain, improvements by level, civilians, rail, depots, ports, cursors) and in every list, dialog and the HUD; Game Icons only where the pack has no picture. 2111 tests, Playwright 51 passed. Review and QA fix rounds (FR-339 to FR-356)."
       }
     ],
     "risks": [
@@ -137,7 +130,7 @@
     "next": [
       "Play a full game on the play server: diplomacy, trade, armies, a war on Arvelia and the Council on turns 10 to 40",
       "Answer the cards that matter most: Q51 (votes needed to win), Q34 (capital falls), Q35 (computer wars), Q57 to Q59",
-      "Decide whether the ink-and-wash pack should restyle the whole game",
+      "Look at the restyled game on the play server; answer Q77 (the crowded capital) and Q67 (the minor's colour)",
       "Approve housekeeping: delete the merged v2 branches and the old decisions worktree"
     ]
   },
@@ -511,6 +504,44 @@
         ]
       },
       {
+        "title": "Look",
+        "subtitle": "Nathan's ink-and-wash art pack across the game (NR-032)",
+        "items": [
+          {
+            "id": "M11",
+            "title": "M11 Ink-and-wash restyle (NR-032)",
+            "status": "in-review",
+            "doneWhen": "The pack's pictures replace Game Icons and emoji on the map, in the lists, dialogs and HUD, every name and test id kept (FR-318 to FR-345)",
+            "tasks": [
+              {
+                "title": "The art table, its guards, InkPicture and the tokens",
+                "done": true
+              },
+              {
+                "title": "The map: ground, tile pictures, marks, civilians, selection, borders, rail, cursors",
+                "done": true
+              },
+              {
+                "title": "Lists, dialogs, HUD and the tile panel",
+                "done": true
+              },
+              {
+                "title": "Closing step: Game Icons cut, tints removed, e2e of the look",
+                "done": true
+              },
+              {
+                "title": "Review (16 findings) and its fix round",
+                "done": true
+              },
+              {
+                "title": "Browser QA pass, PR and merge",
+                "done": false
+              }
+            ]
+          }
+        ]
+      },
+      {
         "title": "After v1",
         "subtitle": "chosen once v1 is fun",
         "items": [
@@ -541,6 +572,12 @@
         "what": "Answer cards Q21 to Q37 or leave the defaults",
         "why": "Each default is reversible; changing one before its milestone is cheapest",
         "item": "M5"
+      },
+      {
+        "when": "When you are back",
+        "what": "Answer cards Q60 to Q78 (the restyle) or leave the defaults",
+        "why": "Q77 (the crowded capital's picture) and Q67 (the minor's colour) shape what you see most",
+        "item": "M11"
       }
     ],
     "decisions": [
@@ -1101,6 +1138,196 @@
         "suggestion": "Taken (later milestone). Default in force; reversible.",
         "items": [
           "M6"
+        ]
+      },
+      {
+        "id": "Q60",
+        "title": "Keep Game Icons where the pack has no picture?",
+        "status": "open",
+        "context": "The pack has nothing for the market scales, Deal Book, Diplomacy, Center, Advance Turn, final scores, About, New game, a group of civilians, the three job markers, the army chip's tent and pitchfork, attack, battle, Council and the river. Alternative: drop them to text only, or draw new art.",
+        "suggestion": "Taken: those keep their Game Icon (FR-335); `react-icons` and the About credit stay. Default in force; reversible.",
+        "items": [
+          "M11"
+        ]
+      },
+      {
+        "id": "Q61",
+        "title": "Cursors from the pack's figures?",
+        "status": "open",
+        "context": "Alternative: keep the emoji cursors (against NR-032), or plain system cursors.",
+        "suggestion": "Taken: 32 px cursors drawn at runtime from the prospector, the developing civilian, the fort, the rail piece and the engineer (FR-330); emoji removed; `pointer` until ready. Default in force; reversible.",
+        "items": [
+          "M11"
+        ]
+      },
+      {
+        "id": "Q62",
+        "title": "Which picture for fertile hills?",
+        "status": "open",
+        "context": "The pack has `wool-pasture.png` (sheep, no fence) and `fertile-hills.png` (bare hills).",
+        "suggestion": "Taken: wool pasture on a tile with wool, bare hills without a resource. No real world has fertile hills yet. Default in force; reversible.",
+        "items": [
+          "M11"
+        ]
+      },
+      {
+        "id": "Q63",
+        "title": "How does a mine or oil well say which mineral?",
+        "status": "open",
+        "context": "Alternative: no mark (the tile info panel names it).",
+        "suggestion": "Taken: a 16 px goods mark (coal, iron ore, gold, gems, oil) at the tile's bottom-left once the resource is known (FR-323). Default in force; reversible.",
+        "items": [
+          "M11"
+        ]
+      },
+      {
+        "id": "Q64",
+        "title": "Keep the \"L1\" to \"L3\" badge now that the picture shows the level?",
+        "status": "open",
+        "context": "Alternative: drop it.",
+        "suggestion": "Taken: keep it (a text cue, pinned by tests). Default in force; reversible.",
+        "items": [
+          "M11"
+        ]
+      },
+      {
+        "id": "Q65",
+        "title": "How big are depot and port on a tile?",
+        "status": "open",
+        "context": "Stacked (the QA round's first try) the port lay under the civilians' 24 px button. Alternatives: the depot or port as the tile's main picture (as the demo), losing the terrain picture there; or smaller stations while civilians stand there (no badge or job moves, but the speck returns).",
+        "suggestion": "Taken (QA fix round, FR-347; review F1, FR-356): 20 px pictures in the tile's top-right corner, each box cropped to the drawing's 14 rows, with the pack's station marks at 11 px on their top-right; a depot and a port side by side, the depot rightmost, the level badge and job markers then below them; civilians on a station tile in its corner, below the drawings. The first default, 14 px with 8 px marks (FR-324), was a speck at 1x. Default in force; reversible.",
+        "items": [
+          "M11"
+        ]
+      },
+      {
+        "id": "Q66",
+        "title": "The pack's corner brackets for the selection?",
+        "status": "open",
+        "context": "Alternative: keep the teal ring.",
+        "suggestion": "Taken: yes, in place of the teal inset ring (FR-326). Default in force; reversible.",
+        "items": [
+          "M11"
+        ]
+      },
+      {
+        "id": "Q67",
+        "title": "Borders: nation colours on a pale halo?",
+        "status": "open",
+        "context": "The pack's territory line is one brown, so it cannot show which nation owns the land. Alternative: the pack's brown line for all borders plus another ownership cue. The minor's colour (lane 1): the old slate darkened to 3:1 came within 20 of nation 1 under protanopia (FR-154), so the default is #26362c (dark slate green, 6.14:1 on the halo, colour-blind margin to nation 1 only 20.0); alternatives: the hue-kept near black #192127, or relax FR-154's colour-blind distance for the dashed minor line.",
+        "suggestion": "Taken: the vector borders stay in nation colours on the pack's halo colour; minor and province colours are darkened to reach 3:1 on the halo (FR-327, FR-329). Default in force; reversible.",
+        "items": [
+          "M11"
+        ]
+      },
+      {
+        "id": "Q68",
+        "title": "Rail: the pack's straight piece turned along every link?",
+        "status": "open",
+        "context": "Alternative: keep the plain dark line.",
+        "suggestion": "Taken: yes, diagonals stretched from 42 to 47 px; the curve and bridge samples unused (FR-328). Default in force; reversible.",
+        "items": [
+          "M11"
+        ]
+      },
+      {
+        "id": "Q69",
+        "title": "March arrows stay straight?",
+        "status": "open",
+        "context": "",
+        "suggestion": "Taken: yes (FR-273's decision kept, so FR-270 and FR-271 hold); the pack's curved green arrow stays unused. Default in force; reversible.",
+        "items": [
+          "M11"
+        ]
+      },
+      {
+        "id": "Q70",
+        "title": "Ground: one shoreline drawing under the whole map?",
+        "status": "open",
+        "context": "Alternative: one texture per tile (cheaper, square coasts).",
+        "suggestion": "Taken: a port of the demo's shoreline with textures repeating at their own size, the sea past the map's edge in the ground's water colour (FR-321). Default in force; reversible.",
+        "items": [
+          "M11"
+        ]
+      },
+      {
+        "id": "Q71",
+        "title": "Retire the per-terrain tile tints?",
+        "status": "open",
+        "context": "Alternative: keep them as a fallback colour.",
+        "suggestion": "Taken: tiles become transparent over the ground; the 19 `--terrain-*` tokens and `TERRAIN_TINT` are removed in M11's closing step with their palette test. Default in force; reversible.",
+        "items": [
+          "M11"
+        ]
+      },
+      {
+        "id": "Q72",
+        "title": "Civilians at 20 px?",
+        "status": "open",
+        "context": "The pack's figures were reviewed at 42 px; the button must stay 24 px (FR-110). Alternative: larger buttons (more overlap on a crowded tile).",
+        "suggestion": "Taken: 20 px figures in the 24 px button (FR-325). Default in force; reversible.",
+        "items": [
+          "M11"
+        ]
+      },
+      {
+        "id": "Q73",
+        "title": "Capital buildings on the existing cards, or a city view?",
+        "status": "open",
+        "context": "Alternative: a new city screen (a separate milestone).",
+        "suggestion": "Taken: pictures on the existing cards and panels (FR-333); no city view; shipyard and power plant unused. Default in force; reversible.",
+        "items": [
+          "M11"
+        ]
+      },
+      {
+        "id": "Q74",
+        "title": "Draw forts on the map?",
+        "status": "open",
+        "context": "The game does not draw them today and every capital has a level-1 fort.",
+        "suggestion": "Taken: no fort mark on the map in M11. Default in force; reversible.",
+        "items": [
+          "M11"
+        ]
+      },
+      {
+        "id": "Q75",
+        "title": "Add pictures to lists that have none today?",
+        "status": "open",
+        "context": "",
+        "suggestion": "Taken: yes for the Warehouse rows, the Labour panel and the tile info panel's resource and civilian lines (FR-331, FR-332); the terrain line stays text. Default in force; reversible.",
+        "items": [
+          "M11"
+        ]
+      },
+      {
+        "id": "Q76",
+        "title": "List picture size?",
+        "status": "open",
+        "context": "The goods art was reviewed at 22 px; list text is 12 to 14 px. Alternative: 22 px with taller rows (the Board of Trade and Armoury fits would need changing).",
+        "suggestion": "Taken: 1.25em on the text line (about 17 px), within today's fits (FR-331). Default in force; reversible.",
+        "items": [
+          "M11"
+        ]
+      },
+      {
+        "id": "Q77",
+        "title": "A crowded capital: how does it stay recognisable?",
+        "status": "open",
+        "context": "(review F2) The civilians' 24 px button covers the middle of any picture that fills the 40 px tile, and a capital holds the start civilians and the army chip, so on turn 1 only the spire showed. Alternatives: move the button and the army chip off the picture (they would then cover the neighbouring tiles), or keep the whole-tile picture covered and add a text cue.",
+        "suggestion": "Taken (QA fix round, FR-346): on a capital or town with civilians or a minor's name tag the picture is drawn at 48 px, lifted into the gap between the row above's pictures, with the civilians in the corner and the army chip low; on turn 1 at most 22% of each capital is covered. The first default, 24 px at the top centre (FR-341), still showed only a small dome. Default in force; reversible.",
+        "items": [
+          "M11"
+        ]
+      },
+      {
+        "id": "Q78",
+        "title": "Transport's picture at 16 px?",
+        "status": "open",
+        "context": "(QA fix round) The railyard at 16 px in the HUD and the Transport heading was a brown blob; the depot, the pack's other transport picture, is no clearer at that size. Alternatives: the depot; text only in the HUD.",
+        "suggestion": "Taken: keep the railyard and draw it larger: 20 px in the HUD, every full-width action button's icon in the same 20 px box so the labels stay aligned (FR-349, FR-351), and 30 px in the Capital's Transport heading (FR-352). Default in force; reversible.",
+        "items": [
+          "M11"
         ]
       }
     ]

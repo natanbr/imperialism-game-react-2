@@ -114,6 +114,30 @@
   margin: 0;
 }
 
+/* A building's picture before a card's or a section's name (FR-352, QA): 30 px, where the building is recognisable (on the
+   text line, 19 px, the seven factories, the Trade School, the Capitol and the railyard were murky silhouettes). Its
+   negative margins keep the line as high as the text's, so the card heads stay at most 24 px (FR-333): the picture reaches
+   into the space around the line. */
+.cardTitle .buildingPicture,
+.panelTitle .buildingPicture,
+.subTitle .buildingPicture {
+  width: 30px;
+  height: 30px;
+  vertical-align: middle;
+}
+
+.cardTitle .buildingPicture {
+  margin: -5px 0.28em -5px 0;
+}
+
+.panelTitle .buildingPicture {
+  margin: -4px 0.28em -4px 0;
+}
+
+.subTitle .buildingPicture {
+  margin: -7px 0.28em -7px 0;
+}
+
 .subTitle {
   margin: 6px 0 0;
   font-size: var(--font-size-sm);
@@ -122,10 +146,13 @@
   letter-spacing: 0.06em;
 }
 
+/* 14 px (FR-352, QA): at 16 px the Labour line with its picture (FR-332) needed 294 px, and the side column, 279 px wide
+   beside a classic scrollbar, wrapped it to two lines, which pushed "+ Freight car" 24 px further below the column's end */
 .labourLine {
   display: flex;
   justify-content: space-between;
   gap: 8px;
+  font-size: var(--font-size-md);
 }
 
 .labourLine span:first-child {
@@ -212,14 +239,16 @@
     "name amount"
     "inputs amount"
     "short short";
-  column-gap: 8px;
+  column-gap: 4px;
   padding-top: 6px;
   border-top: 1px solid var(--color-border);
 }
 
+/* One line (FR-352, QA): with its picture "Canned Food" wrapped to two; the gaps around the amount are 4 px for it */
 .outputName {
   grid-area: name;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .inputs {
@@ -250,7 +279,7 @@
   grid-area: amount;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
 }
 
 .amountValue {

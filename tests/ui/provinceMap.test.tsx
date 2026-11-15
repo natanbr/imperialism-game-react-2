@@ -2,12 +2,14 @@
 // FR-153 (M5): the map draws (a) the Great Power borders as before, (b) a dotted line between two
 // provinces of the same owner, (c) each minor nation's border dashed in --color-minor, and (d) the
 // minor's name on its capital tile beside the capital icon. A new continent game shows 2 Great Power
-// borders, 8 Great Power provinces and 4 minor names; two-islands (no provinces, no minors) is as before.
+// borders, 8 Great Power provinces and 4 minor names; two-islands (no provinces, no minors) is as before. FR-327 (M11):
+// each border line lies on a pale halo path (the pack's territory-line halo colour), the lines themselves unchanged.
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { render, within } from '@testing-library/react';
 import { MapView } from '@/components/MapView';
+import mapStyles from '@/components/MapView.module.css';
 import { minorBorderSegments, provinceBorderSegments, territoryBorderSegments } from '@/components/territoryBorders';
 import { useGameStore } from '@/store/rootStore';
 import { newGame } from '@/engine';
@@ -159,13 +161,14 @@ describe('FR-153 MapView on a new continent game', () => {
     unmount();
   });
 
-  it('FR-153 (d) each minor capital shows the capital icon and the minor\'s name; no other tile shows a name', () => {
+  it('FR-153 (d) FR-322 each minor capital shows the capital picture and the minor\'s name; no other tile shows a name', () => {
     show(continent);
     const { container, unmount } = render(<MapView />);
     for (const [, name, tileId] of MINOR_CAPITALS) {
       const tile = container.querySelector(`[data-tile-id="${tileId}"]`) as HTMLElement;
       expect(tile.getAttribute('data-terrain')).toBe('capital');
-      expect(within(tile).getByTestId('tile-icon').getAttribute('data-icon')).toBe('GiCapitol');
+      // FR-322 (M11): the pack's capital picture in place of the Game Icon GiCapitol
+      expect(within(tile).getByTestId('tile-icon').getAttribute('data-art')).toBe('terrain/capital.png');
       expect(within(tile).getByTestId('minor-name').textContent).toBe(name);
     }
     const names = [...container.querySelectorAll('[data-testid="minor-name"]')];
@@ -173,6 +176,42 @@ describe('FR-153 MapView on a new continent game', () => {
     // The Great Power capitals carry no name label
     for (const id of ['2-9', '14-9']) expect(container.querySelector(`[data-tile-id="${id}"] [data-testid="minor-name"]`)).toBeNull();
     unmount();
+  });
+
+  it('FR-327 every border lies on a halo drawn before it: the same d, the map-halo colour, no owner attribute; the lines unchanged', () => {
+    show(continent);
+    const { container, unmount } = render(<MapView />);
+    const overlay = container.querySelector('[data-testid="territory-border"]')!.closest('svg')!;
+    const all = [...overlay.children];
+    const halos = all.filter((el) => el.getAttribute('data-testid') === 'border-halo');
+    const lines = all.filter((el) => ['territory-border', 'province-border', 'minor-border'].includes(el.getAttribute('data-testid') ?? ''));
+    expect(lines).toHaveLength(2 + 2 + 4);
+    expect(halos).toHaveLength(lines.length);
+    for (const line of lines) {
+      const halo = halos.find((h) => h.getAttribute('d') === line.getAttribute('d'));
+      expect(halo, line.getAttribute('data-testid')!).toBeDefined();
+      expect(all.indexOf(halo!)).toBeLessThan(all.indexOf(line));
+      expect([halo!.tagName.toLowerCase(), halo!.getAttribute('stroke'), halo!.getAttribute('class')]).toEqual(['path', THEME.mapHalo, mapStyles.borderHalo]);
+      expect(['data-nation-id', 'data-owner-id', 'data-minor-id'].filter((a) => halo!.hasAttribute(a))).toEqual([]);
+    }
+    // The bordered lines keep their test ids, owners, strokes and classes (FR-153, as the tests above)
+    expect(lines.map((l) => [l.getAttribute('data-testid'), l.getAttribute('class')])).toEqual([
+      ...['nation-1', 'nation-2'].map(() => ['province-border', mapStyles.provinceBorder]),
+      ...['nation-1', 'nation-2'].map(() => ['territory-border', mapStyles.territoryBorder]),
+      ...['minor-1', 'minor-2', 'minor-3', 'minor-4'].map(() => ['minor-border', mapStyles.minorBorder]),
+    ]);
+    // Every halo lies below every line: all halos come first
+    expect(Math.max(...halos.map((h) => all.indexOf(h)))).toBeLessThan(Math.min(...lines.map((l) => all.indexOf(l))));
+    unmount();
+  });
+
+  it('FR-327 the halo is solid and 2 px wider than each line, with round caps', () => {
+    const halo = rule('borderHalo');
+    const width = (body: string) => Number(/stroke-width:\s*([\d.]+)/.exec(body)?.[1]);
+    expect(dashArray(halo)).toBeUndefined();
+    expect(halo).toMatch(/stroke-linecap:\s*round/);
+    expect(halo).toMatch(/fill:\s*none/);
+    for (const line of ['territoryBorder', 'provinceBorder', 'minorBorder']) expect(width(halo)).toBe(width(rule(line)) + 2);
   });
 
   it('FR-153 FR-159 on two-islands the map draws the 2 Great Power borders only, as before M5', () => {

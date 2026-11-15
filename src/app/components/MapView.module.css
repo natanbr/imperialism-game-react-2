@@ -4,13 +4,18 @@
   display: flex;
 }
 
-/* Sea colour behind the map, so the space past a map smaller than the screen reads as sea. */
+/* The sea past a map smaller than the screen (FR-340): the ground's open-water texture (its URL and 512 px size inline,
+   from the art table), repeating from the map's origin and scrolling with it (local), so it continues the ground's own
+   water pattern without an edge; the flat ground-water colour under it while it loads. */
 .container {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
   position: relative;
-  background: var(--color-sea);
+  background-color: var(--color-ground-water);
+  background-repeat: repeat;
+  background-position: 0 0;
+  background-attachment: local;
 }
 
 /* Scrolled by the camera (FR-083). The padding lets the last column scroll out from under the HUD. */
@@ -28,13 +33,22 @@
   margin-left: calc(var(--tile-width) / 2);
 }
 
-/* Above the tile backgrounds, below the tile icons and workers (Tile.module.css .layer). */
+/* Above the ground (MapGround.module.css, 0) and the tile pictures (Tile.module.css .icon, 0), below every tile mark and
+   the selection mark (2 and up), FR-328 and FR-110 (b). */
 .railOverlay {
   position: absolute;
   left: 0;
   top: 0;
   pointer-events: none;
   z-index: 1;
+}
+
+/* The pale halo under every border line (FR-327): solid, 2 px wider than the line, so the line reads on any picture */
+.borderHalo {
+  fill: none;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .territoryBorder {
@@ -59,10 +73,11 @@
   stroke-linecap: butt;
 }
 
+/* The link from tile centre to tile centre (FR-136, FR-328): the pack's rail piece over it draws it. No stroke of its own
+   (FR-348, QA): a 3 px line in the rail colour filled the 2.8 px between the piece's two rails and hid its sleepers, so a
+   link read as a dark cable. */
 .railSegment {
-  stroke: var(--color-rail);
-  stroke-width: 3;
-  stroke-linecap: round;
+  stroke: none;
 }
 
 /* This turn's marches (FR-263): above the tile icons (2) and the civilians (3), below the army markers (5), so each end

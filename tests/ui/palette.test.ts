@@ -1,12 +1,12 @@
 // FR-086 (NR-009): the colours are defined once, as CSS variables in styles/tokens.css, and the map,
 // HUD and dialogs use only those. FR-088: 42 px tiles, so the whole 24x16 map fits 1280x720 next to
-// the HUD. A source scan plus the palette's own numbers.
+// the HUD. A source scan plus the palette's own numbers. FR-329 (M11): the ground and halo tokens of the art pack's look,
+// and the border and rail colours at 3:1 on what they lie on.
 import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'fs';
 import { join, relative } from 'path';
-import { HUD_PX, NATION_COLORS, RELATION_COLORS, TERRAIN_TINT, THEME, TILE_PX, relationColor, themeVariables } from '@/styles/theme';
+import { HUD_PX, NATION_COLORS, RELATION_COLORS, THEME, TILE_PX, relationColor, themeVariables } from '@/styles/theme';
 import { mapAreaOf, mapSizePx } from '@/components/camera';
-import { TerrainType } from '@/types/Tile';
 
 const ROOT = join(__dirname, '..', '..');
 const TOKENS = readFileSync(join(ROOT, 'src/app/styles/tokens.css'), 'utf8');
@@ -34,7 +34,7 @@ function hsl(hex: string): { h: number; s: number; l: number; c: number } {
   }
   return { h: (h + 360) % 360, s, l, c: d };
 }
-/** The value of `var(--x)` in tokens.css, following var() chains (`--terrain-water: var(--color-sea)`). */
+/** The value of `var(--x)` in tokens.css, following var() chains (`--color-bg-primary: var(--color-surface)`). */
 const valueOf = (cssVar: string): string => {
   const name = /^var\((--[\w-]+)\)$/.exec(cssVar)?.[1];
   if (!name) return cssVar;
@@ -110,13 +110,10 @@ describe('FR-086 the palette is defined once in styles/tokens.css', () => {
     expect(missing).toEqual([]);
   });
 
-  it('FR-086 every terrain has a tint, and every tint is faint: light and low in colour', () => {
-    expect(Object.keys(TERRAIN_TINT).sort()).toEqual(Object.values(TerrainType).sort());
-    const loud = Object.entries(TERRAIN_TINT).filter(([, v]) => {
-      const { c, l } = hsl(valueOf(v));
-      return l < 0.8 || c > 0.2;
-    });
-    expect(loud).toEqual([]);
+  // FR-086's per-terrain tint is replaced by FR-321 (M11): tiles lie on the map's ground and draw no tint (Q71)
+  it('FR-086 FR-321 tokens.css defines no terrain tint and theme.ts names none', () => {
+    expect([...defined.keys()].filter((name) => name.startsWith('--terrain-'))).toEqual([]);
+    expect(themeVariables().filter((name) => name.startsWith('--terrain-'))).toEqual([]);
   });
 
   it('FR-086 parchment land, pale blue sea, dark grey ink, strong nation colours, one accent', () => {
@@ -348,22 +345,77 @@ describe('FR-154 the minor nation and province border colours', () => {
     expect(close).toEqual([]);
   });
 
-  it('FR-154 --color-minor reaches 3:1 against every land tile background and the sea, which its dashed border runs between (WCAG 2.2, 1.4.11)', () => {
-    const backgrounds = [THEME.land, ...Object.values(TERRAIN_TINT)];
-    expect(backgrounds).toHaveLength(Object.values(TerrainType).length + 1);
-    const low = backgrounds
-      .map((bg) => ({ bg, ratio: Math.round(contrast(token('--color-minor'), valueOf(bg)) * 100) / 100 }))
+  // FR-154's 3:1 against the terrain tints is replaced by FR-329 (M11): the borders run on the map halo, and the tiles
+  // draw no tint any more (Q71); the halo test is in the FR-329 block below.
+});
+
+describe("FR-329 the tokens of the pack's look (M11, NR-032)", () => {
+  const token = (name: string) => valueOf(`var(${name})`);
+  const PACK = join(ROOT, 'public/assets/ink-and-wash');
+  const GROUND = {
+    groundWater: ['--color-ground-water', '#568392'],
+    groundShallows: ['--color-ground-shallows', '#78a5a8'],
+    groundSand: ['--color-ground-sand', '#e4cea2'],
+    groundGrass: ['--color-ground-grass', '#a6b282'],
+    groundDesert: ['--color-ground-desert', '#dcb976'],
+    groundTundra: ['--color-ground-tundra', '#afb69e'],
+    mapHalo: ['--color-map-halo', '#c8b18a'],
+  } as const;
+
+  it('FR-329 tokens.css defines the ground colours and the map halo with the values FR-329 states, and theme.ts names them', () => {
+    const named = Object.fromEntries(Object.keys(GROUND).map((key) => [key, (THEME as Record<string, string>)[key]]));
+    expect(named).toEqual(Object.fromEntries(Object.entries(GROUND).map(([key, [name]]) => [key, `var(${name})`])));
+    expect(Object.fromEntries(Object.values(GROUND).map(([name]) => [name, defined.get(name)?.toLowerCase()]))).toEqual(
+      Object.fromEntries(Object.values(GROUND).map(([name, hex]) => [name, hex]))
+    );
+    expect(themeVariables()).toEqual(expect.arrayContaining(Object.values(GROUND).map(([name]) => name)));
+    expect(token('--color-rail')).toBe('#494539');
+  });
+
+  it("FR-329 the colours are the pack's own: the demo's flat ground colours, the territory line's halo, the rail piece's ink", () => {
+    const renderer = readFileSync(join(PACK, 'terrain-renderer.js'), 'utf8');
+    for (const name of ['--color-ground-water', '--color-ground-shallows', '--color-ground-sand', '--color-ground-grass']) {
+      expect(renderer, name).toContain(`textureLayer(svg, bounds, '${token(name)}'`);
+    }
+    expect(readFileSync(join(PACK, 'map-ui/territory-line.svg'), 'utf8')).toContain(`stroke="${token('--color-map-halo')}"`);
+    expect(readFileSync(join(PACK, 'infrastructure/rail-straight.svg'), 'utf8')).toContain(`stroke="${token('--color-rail')}"`);
+  });
+
+  it('FR-329 both nation colours, the minor and the province border reach 3:1 against the map halo they lie on (WCAG 2.2, 1.4.11)', () => {
+    const lines = ['--color-nation-1', '--color-nation-2', '--color-minor', '--color-province-border'];
+    expect(NATION_COLORS).toEqual(['var(--color-nation-1)', 'var(--color-nation-2)']);
+    const low = lines
+      .map((line) => ({ line, ratio: Math.round(contrast(token(line), token('--color-map-halo')) * 100) / 100 }))
       .filter(({ ratio }) => ratio < 3);
     expect(low).toEqual([]);
   });
 
-  it('FR-154 --color-province-border reaches 3:1 against every land tile background (WCAG 2.2, 1.4.11)', () => {
-    const land = [THEME.land, ...Object.entries(TERRAIN_TINT).filter(([t]) => t !== TerrainType.Water).map(([, v]) => v)];
-    expect(land).toHaveLength(Object.values(TerrainType).length);
-    const low = land
-      .map((bg) => ({ bg, ratio: Math.round(contrast(token('--color-province-border'), valueOf(bg)) * 100) / 100 }))
+  it('FR-329 the rail reaches 3:1 against the ground grass it runs over (WCAG 2.2, 1.4.11)', () => {
+    expect(Math.round(contrast(token('--color-rail'), token('--color-ground-grass')) * 100) / 100).toBeGreaterThanOrEqual(3);
+  });
+
+  // Review F3: the halo is nearly as light as the grass (1.09:1), so on the grass most of the map is made of the 2 px
+  // dots must hold 3:1 by themselves (they were 2.76:1)
+  it('FR-344 the province line and the minor reach 3:1 against the ground grass as well as against the halo', () => {
+    expect(contrast(token('--color-map-halo'), token('--color-ground-grass'))).toBeLessThan(1.2);
+    const low = ['--color-province-border', '--color-minor']
+      .flatMap((line) => ['--color-ground-grass', '--color-map-halo'].map((ground) => ({ pair: `${line} on ${ground}`, ratio: Math.round(contrast(token(line), token(ground)) * 100) / 100 })))
       .filter(({ ratio }) => ratio < 3);
     expect(low).toEqual([]);
+    expect(token('--color-province-border')).toBe('#5f5548');
+  });
+
+  // QA fix round: paper, canned food, wool and the grey fish faded into the cream of the Board of Trade, the Warehouse and
+  // the Transport popup. Their field must stand off every surface a list lies on: the dialogs (surface), the capital's
+  // cards (raised) and its panels (sunken); and stay subtle, below the 3:1 of a control's edge.
+  it('FR-353 the goods pictures\' backing stands off every cream surface (at least 1.25:1) and stays subtle (under 2:1)', () => {
+    expect(THEME.artBacking).toBe('var(--color-art-backing)');
+    expect(token('--color-art-backing')).toBe('#d9ccb0');
+    const ratios = Object.fromEntries(
+      ['--color-surface', '--color-surface-raised', '--color-surface-sunken'].map((s) => [s, Math.round(contrast(token('--color-art-backing'), token(s)) * 100) / 100])
+    );
+    expect(ratios).toEqual({ '--color-surface': 1.47, '--color-surface-raised': 1.55, '--color-surface-sunken': 1.3 });
+    expect(Object.values(ratios).every((r) => r >= 1.25 && r < 2)).toBe(true);
   });
 });
 

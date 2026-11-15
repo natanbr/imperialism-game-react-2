@@ -9,9 +9,11 @@ import { marketView, type MarketRowView } from "./market/marketView";
 import { BoardOfTrade } from "./market/BoardOfTrade";
 import { Stepper } from "./market/Stepper";
 import styles from "./market/Market.module.css";
-import { COMMODITY_ICONS, UI_ICONS } from "./icons";
+import { UI_ICONS } from "./icons";
 import { GameIcon } from "./GameIcon";
 import { Modal } from "./Modal";
+import { InkPicture } from "./art/ArtPicture";
+import { goodsArt } from "./art/inkArt";
 
 /**
  * The world market (FR-073, FR-074): per tradeable commodity its price, stock, offer and bid, plus
@@ -37,7 +39,7 @@ const WorldMarket: React.FC = () => {
     <Modal titleId={titleId} onClose={close} overlayClassName={styles.overlay} className={styles.dialog}>
         <header className={styles.header}>
           <h2 id={titleId}>
-            <GameIcon name={UI_ICONS.market} /> World market — {nation?.name ?? "Unknown"}
+            <GameIcon name={UI_ICONS.market} />World market — {nation?.name ?? "Unknown"}
           </h2>
           <button onClick={close} className={styles.closeButton} aria-label="Close market">
             <span aria-hidden="true">×</span>
@@ -83,7 +85,7 @@ const WorldMarket: React.FC = () => {
               {view.rows.map((row: MarketRowView) => (
                 <tr key={row.commodity} data-testid={`trade-row-${row.commodity}`}>
                   <td data-testid="name">
-                    <GameIcon name={COMMODITY_ICONS[row.commodity]} /> {row.name}
+                    <InkPicture src={goodsArt(row.commodity)} alt="" inline />{row.name}
                   </td>
                   <td className={styles.number} data-testid="price">
                     {money(row.price)}

@@ -12,10 +12,14 @@ import styles from "./capital/Capital.module.css";
 import { UI_ICONS } from "./icons";
 import { GameIcon } from "./GameIcon";
 import { Modal } from "./Modal";
+import { InkPicture } from "./art/ArtPicture";
+import { CAPITOL_ART, buildingArt } from "./art/inkArt";
 
 /**
  * The capital: production cards, labour, training, migration and freight cars (FR-046, FR-047).
  * Every button sends one order through submitOrder; the engine decides, and a refusal shows here.
+ * The title shows the capitol, and the Warehouse, Armoury and Technology buttons their buildings (FR-333); Trade and
+ * Diplomacy keep their Game Icons, as the pack has no picture for them (FR-335).
  */
 export const CapitalModal: React.FC = () => {
   const isOpen = useGameStore((s) => s.isCapitalOpen);
@@ -42,11 +46,11 @@ export const CapitalModal: React.FC = () => {
     <Modal titleId={titleId} onClose={close} overlayClassName={styles.overlay} className={styles.dialog}>
         <header className={styles.header}>
           <h2 id={titleId} className={styles.title}>
-            <GameIcon name={UI_ICONS.capital} /> Capital — {nation?.name ?? "Unknown"}
+            <InkPicture src={CAPITOL_ART} alt="" inline />Capital — {nation?.name ?? "Unknown"}
           </h2>
           <nav className={styles.headerButtons}>
             <button className={styles.secondaryButton} onClick={openWarehouse}>
-              <GameIcon name={UI_ICONS.warehouse} /> Warehouse
+              <InkPicture src={buildingArt("warehouse")} alt="" inline />Warehouse
             </button>
             <button className={styles.secondaryButton} onClick={openMarket}>
               <GameIcon name={UI_ICONS.market} /> Trade
@@ -56,11 +60,11 @@ export const CapitalModal: React.FC = () => {
             </button>
             {hasProvinces && (
               <button className={styles.secondaryButton} onClick={openArmoury}>
-                <GameIcon name={UI_ICONS.armoury} /> Armoury
+                <InkPicture src={buildingArt("armoury")} alt="" inline />Armoury
               </button>
             )}
             <button className={styles.secondaryButton} disabled title="Coming in a later milestone">
-              Technology
+              <InkPicture src={buildingArt("university")} alt="" inline />Technology
             </button>
           </nav>
           <button className={styles.closeButton} onClick={close} aria-label="Close capital">

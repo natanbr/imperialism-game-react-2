@@ -179,6 +179,33 @@ describe('FR-047 capital dialog: labour, training, migration, freight cars', () 
     expect(text(within(panel).getByTestId('grade-expert'))).toContain('Expert 1');
   });
 
+  // M11 FR-332 (Q75): the art pack's worker-grade and labour pictures, decorative, the texts above unchanged
+  it("FR-332 each grade's row shows its grade picture before the name, the Labour line and the freight car's labour cost the labour picture", () => {
+    openCapital(setIndustry(stocked(), N1, {
+      workers: { untrained: 4, trained: 2, expert: 1 },
+      sick: { untrained: 1, trained: 0, expert: 0 },
+      training: { untrained: 1, trained: 0, expert: 0 },
+    }));
+    const panel = screen.getByTestId('labour-panel');
+    const pictures = (el: Element) => [...el.querySelectorAll('img')].map((img) => [img.getAttribute('data-art'), img.getAttribute('alt')]);
+    for (const [grade, name] of [['untrained', 'Untrained'], ['trained', 'Trained'], ['expert', 'Expert']]) {
+      const row = within(panel).getByTestId(`grade-${grade}`);
+      expect(pictures(row), grade).toEqual([[`worker-icons/${grade}.png`, '']]);
+      // Before the grade's name, in the name's cell (the row's first part)
+      const nameCell = row.firstElementChild!;
+      expect(nameCell.firstElementChild?.tagName.toLowerCase(), grade).toBe('img');
+      expect(text(nameCell), grade).toBe(name);
+    }
+    expect(text(within(panel).getByTestId('grade-untrained'))).toBe('Untrained 4 1 sick 1 in training');
+    const labour = within(panel).getByTestId('labour');
+    expect(pictures(labour)).toEqual([['worker-icons/labour.png', '']]);
+    expect(text(labour)).toBe('Labour 10 total, 0 committed, 10 free');
+    const freight = screen.getByTestId('freight-cars');
+    const cost = within(freight).getByText((_, el) => el?.tagName === 'DIV' && /labour per car$/.test(el.textContent ?? ''));
+    expect(pictures(cost)).toEqual([['worker-icons/labour.png', '']]);
+    expect(text(cost)).toBe('1 Lumber, 1 Steel and 2 labour per car');
+  });
+
   it('FR-047 Trade School buttons send trainWorkers, and a cancel sends a negative delta', () => {
     openCapital(stocked());
 

@@ -3,10 +3,12 @@ import React, { useId, useMemo } from "react";
 import { useGameStore } from "../store/rootStore";
 import { isPortSite } from "@/engine/orders/queries";
 import { parseTileIdToArray } from "@/utils/tileIdUtils";
-import { UI_ICONS } from "./icons";
-import { GameIcon } from "./GameIcon";
+import { WorkerType } from "@/types/Workers";
 import { Modal } from "./Modal";
+import { InkPicture } from "./art/ArtPicture";
+import { DEPOT_ART, PORT_ART, civilianArt } from "./art/inkArt";
 
+/** The engineer's choice of a depot or a port on his tile; the title shows the engineer, each button its building (FR-334). */
 export const ConstructionOptionsModal: React.FC = () => {
   const isOpen = useGameStore((s) => s.isConstructionModalOpen);
   const tileId = useGameStore((s) => s.constructionModalTileId);
@@ -41,15 +43,15 @@ export const ConstructionOptionsModal: React.FC = () => {
   return (
     <Modal titleId={titleId} onClose={close} overlayClassName="construction-overlay" className="construction-dialog">
       <h2 id={titleId} className="construction-title">
-        <GameIcon name={UI_ICONS.construction} /> Construction Options
+        <InkPicture src={civilianArt(WorkerType.Engineer)} alt="" inline />Construction Options
       </h2>
       <div className="construction-options">
         <button className="btn btn-primary" onClick={() => handleConstruct('depot')}>
-          Build Depot
+          <InkPicture src={DEPOT_ART} alt="" inline />Build Depot
         </button>
         {canBuildPort && (
           <button className="btn btn-primary" onClick={() => handleConstruct('port')}>
-            Build Port
+            <InkPicture src={PORT_ART} alt="" inline />Build Port
           </button>
         )}
       </div>

@@ -64,7 +64,7 @@ const CouncilReport: React.FC<{ event: CouncilMetEvent }> = ({ event }) => {
         <CapitolPicture size={96} className={styles.picture} />
         <div className={styles.titles}>
           <h2 id={titleId}>
-            <GameIcon name={UI_ICONS.council} /> Council of Governors
+            <GameIcon name={UI_ICONS.council} />Council of Governors
           </h2>
           <span className={styles.date} data-testid="council-date">
             {view.date}

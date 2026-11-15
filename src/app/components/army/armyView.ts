@@ -24,6 +24,7 @@ import {
   type RejectReason,
 } from "@/engine";
 import type { GameState } from "@/types/GameState";
+import { TerrainType } from "@/types/Tile";
 import { nationColor, THEME, TILE_PX } from "@/styles/theme";
 import { money, REFUSAL_TEXT, upkeepDueText, upkeepWarningText } from "../gameText";
 import { namesText } from "../market/dealBookView";
@@ -146,10 +147,11 @@ export function markersBySeat(
 
 /**
  * Where the province owner's marker centre lies from its seat tile's top left corner (Tile.module.css `.armies`: the
- * chip ends 13 px into the tile, 24 px wide, 9 px down; 1 px down on a minor's capital, above its name tag). A copy of
- * the CSS: e2e/m8-armies.spec.ts measures the arrow ends against the markers as drawn (FR-271), so keep them together.
+ * chip ends 13 px into the tile, 24 px wide, 9 px down; 1 px down on a minor's capital, above its name tag; 16 px down on
+ * a capital or town holding civilians, below its large picture, FR-346). A copy of the CSS: e2e/m8-armies.spec.ts
+ * measures the arrow ends against the markers as drawn (FR-271), so keep them together.
  */
-const MARKER_CENTRE = { dx: 1, dy: 21, dyHigh: 13 };
+const MARKER_CENTRE = { dx: 1, dy: 21, dyHigh: 13, dyLow: 28 };
 /** The line stays this far from each marker's centre (a chip's half width and a little). */
 const MARKER_CLEARANCE = 15;
 const HEAD_LENGTH = 8;
@@ -197,9 +199,11 @@ function markerCentre(state: GameState, seatTileId: string): { x: number; y: num
   const tile = state.map.tiles.flat().find((t) => t.id === seatTileId);
   if (!tile) return undefined;
   const high = state.minorNations.some((m) => m.capitalTileId === seatTileId);
+  // Tile.tsx's `crowded` without a name tag: a capital or town holding civilians (FR-346)
+  const low = !high && (tile.terrain === TerrainType.Capital || tile.terrain === TerrainType.Town) && tile.workers.length > 0;
   return {
     x: tile.x * TILE_PX + (tile.y % 2 === 1 ? TILE_PX / 2 : 0) + MARKER_CENTRE.dx,
-    y: tile.y * TILE_PX + (high ? MARKER_CENTRE.dyHigh : MARKER_CENTRE.dy),
+    y: tile.y * TILE_PX + (high ? MARKER_CENTRE.dyHigh : low ? MARKER_CENTRE.dyLow : MARKER_CENTRE.dy),
   };
 }
 
@@ -246,7 +250,7 @@ export interface AttackArrowView {
   count: number;
   /** "Arvelia: 3 regiments attacking from Testland North-East": its accessible name. */
   label: string;
-  /** The art pack's red arrow (map-ui/army-attack.svg), drawn in its own 120 x 56 units. */
+  /** The art pack's red arrow (ATTACK_ARROW_ART), drawn in its own 120 x 56 units. */
   href: string;
   width: number;
   height: number;

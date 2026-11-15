@@ -1,7 +1,6 @@
 // The palette and the map grid for TypeScript (FR-086, FR-088). The colour values live only in
 // styles/tokens.css; this module names the variables, so inline styles and SVG attributes use the
 // same colours as the CSS. tests/ui/palette.test.ts checks that every name here is defined there.
-import { TerrainType } from "@/types/Tile";
 
 /** Tile size in px: equal to --tile-width in tokens.css. Odd rows are shifted half a tile. */
 export const TILE_PX = 42;
@@ -35,6 +34,17 @@ export const THEME = {
   armyAttackInk: v("color-army-attack-ink"),
   armyMove: v("color-army-move"),
   armyMoveInk: v("color-army-move-ink"),
+  /** The map's ground (FR-321, FR-329): the art pack's deep water, shallows, sand rim and grass, and its desert and tundra patches. */
+  groundWater: v("color-ground-water"),
+  groundShallows: v("color-ground-shallows"),
+  groundSand: v("color-ground-sand"),
+  groundGrass: v("color-ground-grass"),
+  groundDesert: v("color-ground-desert"),
+  groundTundra: v("color-ground-tundra"),
+  /** The pale halo under every border line (FR-327, FR-329): the pack's territory line's halo colour. */
+  mapHalo: v("color-map-halo"),
+  /** The field behind every goods picture in a list (FR-353). */
+  artBacking: v("color-art-backing"),
 } as const;
 
 /** One strong colour per palette slot (`Nation.colorSlot`, 1 first); used only for territory borders (FR-097). */
@@ -52,13 +62,8 @@ export const RELATION_COLORS: readonly string[] = Array.from({ length: 9 }, (_, 
 /** The swatch of a relation level, clamped to 0..8. */
 export const relationColor = (level: number): string => RELATION_COLORS[Math.min(8, Math.max(0, Math.floor(level)))];
 
-/** A faint background per terrain: --terrain-<type> in tokens.css. */
-export const TERRAIN_TINT: Record<TerrainType, string> = Object.fromEntries(
-  Object.values(TerrainType).map((t) => [t, v(`terrain-${t}`)])
-) as Record<TerrainType, string>;
-
 /** Every CSS variable this module names, without `var()`. */
 export function themeVariables(): string[] {
-  const all = [...Object.values(THEME), ...NATION_COLORS, ...RELATION_COLORS, ...Object.values(TERRAIN_TINT)];
+  const all = [...Object.values(THEME), ...NATION_COLORS, ...RELATION_COLORS];
   return all.map((value) => /^var\((--[\w-]+)\)$/.exec(value)![1]);
 }

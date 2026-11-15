@@ -10,8 +10,8 @@ import { PROSPECT_COST, DEVELOPMENT_COST, CONSTRUCTION_COST } from "@/definision
 import { parseTileIdToArray } from "@/utils/tileIdUtils";
 import { ConstructionKind } from "@/types/jobs/ConstructionJob";
 import { commodityName, money, TERRAIN_TEXT, workerJobLabel } from "./gameText";
-import { UI_ICONS, WORKER_ICONS } from "./icons";
-import { GameIcon } from "./GameIcon";
+import { InkPicture } from "./art/ArtPicture";
+import { civilianArt, goodsArt } from "./art/inkArt";
 import { THEME } from "@/styles/theme";
 
 interface TileInfoPanelProps {
@@ -32,6 +32,7 @@ const WorkerStatusIndicator: React.FC<{ status: WorkerStatus }> = ({ status }) =
  * The selected tile in the HUD. On the player's land it offers the selected civilian's jobs; another
  * country's tile, a Great Power's or a minor nation's, is shown read-only, with no control that builds
  * an order (FR-108, FR-155). On a world with provinces it names a Great Power tile's province (FR-155, FR-235).
+ * A known resource shows its goods picture (FR-331), each civilian its figure and Prospect the prospector (FR-332).
  */
 export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) => {
   const selectedWorkerId = useGameStore((s) => s.selectedWorkerId);
@@ -53,9 +54,10 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
   const isTheirs = countryId !== undefined && countryId !== activeNationId;
   const ownerText = !ownerName ? "Unclaimed" : minor ? `${ownerName} (minor nation)` : `${ownerName}${countryId === activeNationId ? " (you)" : ""}`;
   const resource = selectedTile.resource;
+  const known = resource !== undefined && resource.discovered !== false;
   const resourceText = !resource
     ? "None"
-    : resource.discovered === false
+    : !known
       ? "Not yet prospected"
       : `${commodityName(resource.type)} (L${resource.level})`;
 
@@ -77,7 +79,11 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
     if (worker.type === WorkerType.Prospector) {
       const canProspect = !selectedTile.prospecting && (activeNation?.treasury ?? 0) >= PROSPECT_COST && PROSPECTABLE_TERRAIN_TYPES.includes(selectedTile.terrain);
       if (canProspect) {
-        return <button onClick={() => startProspecting(worker.id)} title={`Cost: ${money(PROSPECT_COST)}`} className="btn btn-action"><GameIcon name={UI_ICONS.prospecting} /> Prospect</button>;
+        return (
+          <button onClick={() => startProspecting(worker.id)} title={`Cost: ${money(PROSPECT_COST)}`} className="btn btn-action">
+            <InkPicture src={civilianArt(WorkerType.Prospector)} alt="" inline />Prospect
+          </button>
+        );
       }
     }
 
@@ -139,7 +145,15 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
       <h3>Tile Info</h3>
       <p><strong>Terrain:</strong> {TERRAIN_TEXT[selectedTile.terrain] ?? selectedTile.terrain}</p>
       <p><strong>River:</strong> {selectedTile.hasRiver ? "Yes" : "No"}</p>
-      <p><strong>Resource:</strong> {resourceText}</p>
+      <p>
+        <strong>Resource:</strong>{" "}
+        {known && (
+          <>
+            <InkPicture src={goodsArt(resource.type)} alt="" inline />
+          </>
+        )}
+        {resourceText}
+      </p>
       <p data-testid="tile-owner">
         <strong>Owner:</strong> {ownerText}
       </p>
@@ -169,7 +183,7 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
                 onClick={own ? () => setSelectedWorkerId(w.id) : undefined}
                 style={{ background: own && selectedWorkerId === w.id ? THEME.surfaceSunken : 'transparent', padding: '4px', borderRadius: '4px', cursor: own ? 'pointer' : 'default' }}>
                 <WorkerStatusIndicator status={w.status} />
-                <GameIcon name={WORKER_ICONS[w.type]} /> <span>{w.type} - {workerJobLabel(selectedTile, w) ?? w.status}</span>
+                <InkPicture src={civilianArt(w.type)} alt="" inline /><span>{w.type} - {workerJobLabel(selectedTile, w) ?? w.status}</span>
                 {own && (w.status === WorkerStatus.Moved || w.status === WorkerStatus.Working) && (
                   <button
                     onClick={() => handleCancelAction(w.id)}

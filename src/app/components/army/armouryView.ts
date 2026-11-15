@@ -26,6 +26,8 @@ export interface ArmouryItem {
   key: ArmouryItemKey;
   /** "1 untrained worker", "1 armament", "2 armaments", "1 horse", "$500" */
   text: string;
+  /** A worker item's grade, for its grade picture (FR-332); absent on the other items. */
+  grade?: WorkerGrade;
 }
 
 /**
@@ -131,7 +133,7 @@ export function armouryView(state: GameState, nation: Nation): ArmouryView {
     const arms = def.stats.armamentsCost;
     const count = recruitingOf(nation, type);
     const cost: ArmouryItem[] = [
-      { key: "worker", text: workers(1, grade) },
+      { key: "worker", grade, text: workers(1, grade) },
       { key: "armaments", text: armaments(arms) },
       ...(def.horses > 0 ? [{ key: "horses" as const, text: horses(def.horses) }] : []),
       { key: "cash", text: money(def.cash) },
@@ -148,7 +150,7 @@ export function armouryView(state: GameState, nation: Nation): ArmouryView {
     const none = count === 0;
     const plain = (n: number) => `${n}`;
     const atHand: AtHandItem[] = [
-      atHandItem("worker", `${capitalized(grade)} workers`, `${freeWorkersOf(before, grade)} free`, own.worker, others.worker, plain, none && free < 1),
+      { ...atHandItem("worker", `${capitalized(grade)} workers`, `${freeWorkersOf(before, grade)} free`, own.worker, others.worker, plain, none && free < 1), grade },
       atHandItem("armaments", "Armaments", `${stockBefore(GoodsType.Armaments)} in warehouse`, own.armaments, others.armaments, plain, none && stock(GoodsType.Armaments) < arms),
       ...(def.horses > 0
         ? [atHandItem("horses", "Horses", `${stockBefore(ResourceType.Horses)} in warehouse`, own.horses, others.horses, plain, none && stock(ResourceType.Horses) < def.horses)]

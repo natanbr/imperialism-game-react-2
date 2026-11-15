@@ -4,11 +4,14 @@ import { useGameStore } from "../store/rootStore";
 import { selectActiveNation } from "../store/selectors";
 import { COMMODITY_GROUPS, commodityName } from "./gameText";
 import styles from "./WarehouseModal.module.css";
-import { UI_ICONS } from "./icons";
-import { GameIcon } from "./GameIcon";
 import { Modal } from "./Modal";
+import { InkPicture } from "./art/ArtPicture";
+import { buildingArt, goodsArt } from "./art/inkArt";
 
-/** The active nation's stock of every commodity, by display name, in three groups (FR-050). */
+/**
+ * The active nation's stock of every commodity, by display name, in three groups (FR-050); each name after its goods
+ * picture (FR-331), the title after the warehouse building (FR-334).
+ */
 export const WarehouseModal: React.FC = () => {
   const isOpen = useGameStore((s) => s.isWarehouseOpen);
   const close = useGameStore((s) => s.closeWarehouse);
@@ -23,7 +26,7 @@ export const WarehouseModal: React.FC = () => {
     <Modal titleId={titleId} onClose={close} overlayClassName={styles.overlay} className={styles.modal}>
         <div className={styles.header}>
           <h3 id={titleId}>
-            <GameIcon name={UI_ICONS.warehouse} /> Warehouse — {nation?.name ?? "Unknown"}
+            <InkPicture src={buildingArt("warehouse")} alt="" inline />Warehouse — {nation?.name ?? "Unknown"}
           </h3>
           <button onClick={close} className={styles.closeButton} aria-label="Close warehouse">
             <span aria-hidden="true">×</span>
@@ -36,7 +39,9 @@ export const WarehouseModal: React.FC = () => {
             <div className={styles.grid}>
               {group.keys.map((key) => (
                 <div key={key} className={styles.itemRow} data-testid={`stock-${key}`}>
-                  <span className={styles.itemName}>{commodityName(key)}</span>
+                  <span className={styles.itemName}>
+                    <InkPicture src={goodsArt(key)} alt="" inline />{commodityName(key)}
+                  </span>
                   <span className={styles.itemAmount}>{stock[key] ?? 0}</span>
                 </div>
               ))}

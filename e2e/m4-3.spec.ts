@@ -1,7 +1,7 @@
 import { test, expect, Page } from '@playwright/test';
 
 // M4.3 in the running app. FR-133 FR-135: on the default 1280x720 screen the Transportation of Commodities
-// popup shows the commodities with their icons, grouped by kind in columns, without scrolling; on a
+// popup shows the commodities with their pictures (M11 FR-331), grouped by kind in columns, without scrolling; on a
 // narrow screen the groups stack in one column. FR-142 (M4.4): groups that are all 0 / 0 are hidden, so the
 // start shows two groups. FR-139: the engineer builds rail from the capital 2-9 to 3-9, walks back, and
 // builds from the capital to 3-8; the three tiles are neighbours, yet the map draws two lines, not a
@@ -72,7 +72,10 @@ test('FR-133 FR-135 FR-142 the transport popup shows what can be shipped with it
   await expect(dialog.locator('[data-testid^="transport-row-"]')).toHaveCount(10);
   await expect(dialog.getByTestId('transport-row-cannedFood')).toHaveCount(0);
   await expect(dialog.getByTestId('transport-row-ironOre').getByTestId('name')).toHaveText(/Iron Ore/);
-  await expect(dialog.getByTestId('transport-row-ironOre').locator('svg')).toHaveAttribute('data-icon', 'GiOre');
+  // M11 FR-331: the art pack's goods picture (FR-133's Game Icon replaced), loaded
+  const ironOre = dialog.getByTestId('transport-row-ironOre').getByTestId('name').locator('img');
+  await expect(ironOre).toHaveAttribute('data-art', 'goods/iron-ore.png');
+  await expect.poll(() => ironOre.evaluate((img) => (img as HTMLImageElement).complete && (img as HTMLImageElement).naturalWidth > 0)).toBe(true);
   await expect(dialog.getByRole('slider', { name: 'Grain' })).toHaveAttribute('max', '4');
 
   // The whole list is in view: the dialog does not scroll, and every row lies inside the screen
