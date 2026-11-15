@@ -42,8 +42,10 @@
   computer never campaigns. Possible flaky test: `tests/engine/lintGuard.test.ts` timed out once under load.
 - Carried from M8: the FR-213 garrison threat-recruit asks for Regulars, which a real game can never raise. Next.js
   picks a lockfile two folders up as the project root (set `turbopack.root` / `outputFileTracingRoot` in `next.config`).
-- Housekeeping waiting for Nathan's go-ahead: merged branches `claude/v2-plan`, `claude/m5-*` to `claude/m10-council`,
-  the old `decisions` worktree.
+- 2026-11-14 housekeeping (Nathan: "Yes, clean up"): the merged branches `claude/v2-plan`, `claude/m5-world` to
+  `claude/m10-council`, `claude/v2-handoff` and `claude/m11-ink-restyle` deleted locally and on GitHub, and the old
+  `decisions` worktree removed (it had no uncommitted work). Not asked, still there: 15 v1-era agent worktrees
+  (`.claude/worktrees/agent-*`), `look` and `m0-cleanup-3d481f`, some on the merged v1 branches `claude/m1-*` to `claude/m3-5-*`.
 
 Carried forward:
 - Deferred: river ports and the depot-on-port rule (rules 04); University fees; the power plant.
