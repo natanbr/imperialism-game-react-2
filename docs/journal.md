@@ -28,13 +28,16 @@
   `docs/journal/archive-M10.md`). **v2 (M5 to M10) is complete.** Gate on 6fad1e0: 2001 unit tests,
   lint 0 errors, tsc and build clean, Playwright 38 passed and 1 skipped.
 - 2026-11-14 M11 Ink-and-wash restyle (NR-032, FR-318 to FR-356, cards Q60 to Q78) built on `claude/m11-ink-restyle`
-  (lanes 1 to 3, the integration step, the review fix round, the QA fix round and its review, entry below), not pushed:
-  2111 unit tests, Playwright 51 passed and 1 skipped with one worker and in three default-config runs.
-  Still to come: republishing the progress page, the PR.
+  (lanes 1 to 3, the integration step, the review fix round, the QA fix round and its review, entry below), merged
+  by the orchestrator after its gate on 84b2333: 2111 unit tests, lint 0 errors, tsc and build clean, Playwright 51
+  passed and 1 skipped (--workers=1); engine, store and types unchanged; the only `public/` change restores
+  `terrain-demo.html` to its supplied sha256 (now guarded by `.gitattributes`). Progress page republished.
+  Carried: nation 2's blue is 2.97:1 on the grass; the Capital dialog's Clothing card and "Cotton or Wool" wrap were
+  already cut at 1280x720 before M11.
 - Open decisions (defaults in force, all on the progress page): Q22 to Q59; the most important are Q51 (Council
   threshold), Q34 and Q35, and Q57 to Q59 (new from the M10 QA round: the removed "No tile selected" hint; the news
   line names the 1st nominee first while the screen puts the player first; abstention reasons in relation points
-  while the Diplomacy screen shows levels). M11's Q60 to Q77 are in roadmap.json (the page is not republished yet).
+  while the Diplomacy screen shows levels). M11's Q60 to Q78 are on the page too.
 - Not verified yet: a winning Council vote on screen (unit tests only); Firefox and WebKit never run; seed 4's
   computer never campaigns. Possible flaky test: `tests/engine/lintGuard.test.ts` timed out once under load.
 - Carried from M8: the FR-213 garrison threat-recruit asks for Regulars, which a real game can never raise. Next.js

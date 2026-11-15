@@ -2,7 +2,7 @@
   "project": "Imperialism Revival",
   "updated": "2026-11-14",
   "target": "v2: diplomacy, nation-to-nation trade, armies, war and the Council (M5 to M10)",
-  "now": "v2 is complete: M5 to M10 merged (PR 23 to 28, main 69ed08b). The game has diplomacy, trade between nations, armies, war with attack and battle screens, and the Council of Governors vote. 2001 unit tests, Playwright 38 passed. Defaults Q22 to Q59 in force. M11 Ink-and-wash restyle (NR-032) is built and reviewed on its branch, not merged: cards Q60 to Q78 are new, defaults in force.",
+  "now": "M11 Ink-and-wash restyle merged: the whole game now uses your art pack (FR-318 to FR-356). v2 (M5 to M10) was merged before it. 2111 unit tests, Playwright 51 passed. Defaults Q22 to Q78 in force.",
   "source": "docs/REVIVAL_PLAN.md and docs/report/roadmap.json in the imperialism-game-react-2 repo",
   "overview": {
     "headline": "v1 (M0 to M4.4) is merged. v2 night shift (NR-030): plan, rules research from 1997 screenshots and requirements merged (PR 22); milestones M5 to M10 merged one after another (PR 23 to 28, main 69ed08b).",
@@ -64,20 +64,6 @@
         "note": "PR 22: REVIVAL_PLAN 5b, docs/rules 01/06/07/08 + 11-screens, FR-144 to FR-234, cards Q22 to Q37."
       },
       {
-        "title": "v2 plan, research and requirements",
-        "status": "done",
-        "progress": 100,
-        "date": "2026-11-13",
-        "note": "PR 22: REVIVAL_PLAN 5b, docs/rules 01/06/07/08 + 11-screens, FR-144 to FR-234, cards Q22 to Q37."
-      },
-      {
-        "title": "v2 plan, research and requirements",
-        "status": "done",
-        "progress": 100,
-        "date": "2026-11-13",
-        "note": "PR 22: REVIVAL_PLAN 5b, docs/rules 01/06/07/08 + 11-screens, FR-144 to FR-234, cards Q22 to Q37."
-      },
-      {
         "title": "M5 World and seams: provinces, 4 minor nations, one random stream per system, intents",
         "status": "done",
         "progress": 100,
@@ -121,10 +107,10 @@
       },
       {
         "title": "M11 Ink-and-wash restyle: the art pack across the game (NR-032)",
-        "status": "in-review",
-        "progress": 85,
+        "status": "done",
+        "progress": 100,
         "date": "2026-11-14",
-        "note": "Branch claude/m11-ink-restyle, not merged: the map's ground and pictures, goods, civilians and buildings in every list, cursors from the pack. Review fix round done (FR-339 to FR-345: the sea past the map, the capital's picture, the loading budget). Still to come: the browser QA pass and the PR."
+        "note": "The art pack on the map (ground with shorelines, terrain, improvements by level, civilians, rail, depots, ports, cursors) and in every list, dialog and the HUD; Game Icons only where the pack has no picture. 2111 tests, Playwright 51 passed. Review and QA fix rounds (FR-339 to FR-356)."
       }
     ],
     "risks": [
@@ -144,7 +130,7 @@
     "next": [
       "Play a full game on the play server: diplomacy, trade, armies, a war on Arvelia and the Council on turns 10 to 40",
       "Answer the cards that matter most: Q51 (votes needed to win), Q34 (capital falls), Q35 (computer wars), Q57 to Q59",
-      "Look at M11, the ink-and-wash restyle, once it is merged; answer Q77 (the crowded capital) and Q67 (the minor's colour)",
+      "Look at the restyled game on the play server; answer Q77 (the crowded capital) and Q67 (the minor's colour)",
       "Approve housekeeping: delete the merged v2 branches and the old decisions worktree"
     ]
   },
