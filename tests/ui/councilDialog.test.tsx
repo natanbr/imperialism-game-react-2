@@ -522,6 +522,21 @@ describe('FR-425 the Council screen at 800x600', () => {
     expect(document.activeElement).toBe(button('Close'));
   });
 
+  // M12 review (L3-04): the body that scrolls is a Tab stop, so the keyboard can scroll it to the result line (the arrow
+  // keys and Page Down scroll a focused scroller); Close keeps the first focus, and Tab goes from Close to the body
+  it('FR-425 the scrolling body is a named Tab stop after Close, which keeps the focus on open', () => {
+    open(meeting(continent('world')));
+    const body = within(dialog()).getByTestId('council-body');
+    expect(document.activeElement).toBe(button('Close'));
+    expect(body.tabIndex).toBe(0);
+    expect(body.getAttribute('role')).toBe('region');
+    expect(body.getAttribute('aria-label')).toBe('Votes and result');
+    fireEvent.keyDown(document.activeElement!, { key: 'Tab' });
+    expect(document.activeElement).toBe(body);
+    fireEvent.keyDown(document.activeElement!, { key: 'Tab' });
+    expect(document.activeElement).toBe(button('Close'));
+  });
+
   it('FR-425 the dialog is a column whose body alone scrolls', () => {
     const css = readFileSync(join(ROOT, 'src/app/components/council/Council.module.css'), 'utf8');
     expect(css).toMatch(/\.dialog \{[^}]*display: flex;[^}]*flex-direction: column;[^}]*overflow: hidden;/);

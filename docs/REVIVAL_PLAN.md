@@ -277,7 +277,7 @@ and a browser QA pass at 1280x720, 800x600 and 390x844 cannot reproduce the T1 t
 **M13, Computer nations that play (L; T11).** The computer recruits workers and regiments when it needs them, runs
 steady campaigns, defends and counter-attacks when invaded, staffs the mills it builds, and makes deals and proposals to
 the player; measured on random seeds, not only on pinned ones. Done when: over random seeds it starts a war in most games
-(today about one in three), an invaded computer recruits and fights back, and its workforce no longer shrinks. Depends
+(today 19% to 33% by the seed set: 23 of 120 seeds in ARMY-WAR-02, 8 of 24 in AISIM-01), an invaded computer recruits and fights back, and its workforce no longer shrinks. Depends
 on: M12 (honest screens to watch it with; FR-408's peace rule). Findings: AISIM-01 to -04, ARMY-WAR-01 to -03,
 diplomacy-council-02 and -03, MKT-02, MKT-13.
 

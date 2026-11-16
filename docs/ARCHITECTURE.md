@@ -163,7 +163,8 @@ e2e/                       Playwright smoke suite (cursor icons, three turns pla
 
 `GameState` (`types/GameState.ts`) is the whole game as the engine sees it: turn, year, `seed`,
 `worldId`, the Great Powers (`nations`), the minor nations, provinces, diplomacy and intents (M5,
-below), map, transport network and allocations, technology, difficulty. It holds game data
+below), map, transport network and allocations, technology, and `difficulty` (set to "normal" by `newGame` and read
+nowhere: no rule depends on it yet, FR-441). It holds game data
 only (FR-018).
 
 ### Worlds, countries and the v2 seams (M5)

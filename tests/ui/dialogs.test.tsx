@@ -473,6 +473,16 @@ describe('FR-236 one shared component, not per-dialog copies', () => {
       // M10 (FR-298): the Council screen
       'CouncilModal.tsx',
       join('HUD', 'AboutPanel.tsx'),
+      // M12 (spec trap 1, review L3-05): Saved game, How to play, ConfirmSpend and the Cancel question (Tile Info)
+      'SavedGameDialog.tsx',
+      'HowToPlay.tsx',
+      'ConfirmSpend.tsx',
+      'TileInfoPanel.tsx',
+      // the army dialogs, which rendered Modal before the list named them
+      'ArmyModal.tsx',
+      'AttackModal.tsx',
+      'BattleModal.tsx',
+      'ArmouryModal.tsx',
     ];
     const withoutModal = dialogs.filter((f) => !/<Modal\b/.test(readFileSync(join(dir, f), 'utf8')));
     expect(withoutModal).toEqual([]);

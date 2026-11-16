@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import { TileInfoPanel } from "./TileInfoPanel";
 import { useGameStore } from '../store/rootStore';
 import { selectActiveNation } from "../store/selectors";
-import { TurnIndicator, NationStats, ActionButtons, NewsPanel, FoodWarning, UpkeepWarning, ScoreIndicator, ScoreTable } from "./HUD/index";
+import { TurnIndicator, NextCouncil, NationStats, ActionButtons, NewsPanel, FoodWarning, UpkeepWarning, ScoreIndicator, ScoreTable } from "./HUD/index";
 import { AboutPanel } from "./HUD/AboutPanel";
 import { UI_ICONS } from "./icons";
 import { GameIcon } from "./GameIcon";
@@ -84,6 +84,8 @@ export const HUD: React.FC = () => {
                 {/* FR-371: the selected tile where the player looks, right under the turn, cash and score */}
                 <TileInfoPanel selectedTile={selectedTile} />
                 <ScoreTable />
+                {/* FR-371: the Council line and its projection after Tile Info (FR-301, FR-314) */}
+                <NextCouncil />
                 <FoodWarning />
                 <UpkeepWarning />
                 <NewsPanel />

@@ -50,6 +50,10 @@
   `backup/v1-wip/<worktree>` (not pushed; agent-a0ebafd9159ca6197 ad3e9e3, 86 files; agent-a75ac2363238a25c6
   5a06243, 28; agent-a4c9cb9416fb072cc 3146ae7, 18; agent-a8c6b9c5d3e0870d8 3d91a96, 68; agent-ab5572a63222c682f
   0b7b4ea, 58), then removed. Worktrees left: the main checkout, this session's and `play`.
+  2026-11-16 (M12 review, D9): the five `backup/v1-wip/*` branches no longer exist (`git for-each-ref` lists none, and
+  no ref contains the five commits). The commits themselves are still in the object store, unreferenced, so a `git gc`
+  can prune them once they are older than its expiry (two weeks by default). `git branch backup/v1-wip/<worktree> <hash>`
+  restores one. Who deleted the branches is not recorded; Nathan decides whether to restore them.
 
 Carried forward:
 - Deferred: river ports and the depot-on-port rule (rules 04); University fees; the power plant.

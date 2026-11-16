@@ -583,14 +583,24 @@ img[data-art-anchor="bottom-center"] {
   column-gap: 8px;
 }
 
-/* FR-301: the next Council meeting on the line under the turn (no gap: the turn indicator's margin moves under it), 16 px,
-   the old date line's height; in the body text colour, so it is not missed (FR-317). FR-314: the projected vote is shown
-   under it the same way, on two lines; the HUD gave the news the "No tile selected" line in exchange (FR-315). */
+/* FR-301: the next Council meeting on a 16 px line, in the body text colour, so it is not missed (FR-317). FR-314: the
+   projected vote is shown under it the same way, on two lines; the HUD gave the news the "No tile selected" line in
+   exchange (FR-315). */
 .next-council,
 .council-projection {
-  margin: -8px 0 8px;
   font-size: 13px;
   line-height: 16px;
+}
+
+/* M12 review (L2-05, FR-371): the two lines come after Tile Info and the score table. The line sits in the table's 4 px
+   gap and the projection gives the 4 px back to what follows, so the HUD is no taller than with the lines under the turn
+   (FR-268's news minimum at 1280x720 has about 2 px to spare). */
+.next-council {
+  margin: -4px 0 0;
+}
+
+.council-projection {
+  margin: 0 0 4px;
 }
 
 /* FR-315: at game over the date wraps under "Game over after turn 40 of 40" on a 16 px line, so the news keeps whole

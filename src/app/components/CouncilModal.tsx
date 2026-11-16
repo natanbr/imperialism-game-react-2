@@ -59,7 +59,7 @@ const CouncilReport: React.FC<{ event: CouncilMetEvent }> = ({ event }) => {
   const [first, second] = view.columns;
 
   return (
-    <Modal titleId={titleId} onClose={close} overlayClassName={styles.overlay} className={styles.dialog}>
+    <Modal titleId={titleId} onClose={close} initialFocus="last-control" overlayClassName={styles.overlay} className={styles.dialog}>
       <header className={styles.header}>
         <CapitolPicture size={96} className={styles.picture} />
         <div className={styles.titles}>
@@ -72,8 +72,10 @@ const CouncilReport: React.FC<{ event: CouncilMetEvent }> = ({ event }) => {
         </div>
       </header>
 
-      {/* FR-425: only the body scrolls, so on a short window the title, the picture and Close stay in view */}
-      <div className={styles.body} data-testid="council-body">
+      {/* FR-425: only the body scrolls, so on a short window the title, the picture and Close stay in view. It is a Tab stop
+          after Close (M12 review L3-04), so the arrow keys and Page Down can scroll it to the result line; Close keeps the
+          first focus (initialFocus) */}
+      <div className={styles.body} data-testid="council-body" tabIndex={0} role="region" aria-label="Votes and result">
         <table className={styles.table} aria-label="Votes">
           <thead>
             <tr>

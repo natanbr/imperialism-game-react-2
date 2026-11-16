@@ -443,20 +443,38 @@ describe('FR-430 How to play on the first new game', () => {
     expect(window.localStorage.getItem(HOW_TO_PLAY_SEEN_KEY)).not.toBeNull();
   });
 
-  it('FR-430 New game in the Saved game dialog opens it (a new game); Continue does not (no new game)', () => {
+  // M12 review (L3-03): the first new game autosaves at once, so a reload before How to play was closed offers that game
+  // to continue; Continue then opens it too, as the browser has still not closed it. Once closed, Continue does not.
+  it('FR-430 a reload before How to play was closed: Continue opens it; after it was closed, Continue does not', () => {
+    window.localStorage.removeItem(HOW_TO_PLAY_SEEN_KEY);
+    window.localStorage.removeItem(SAVE_KEY);
+    useGameStore.setState({ ...useGameStore.getInitialState(), game: newGame({ seed: 5, world: 'continent' }) });
+    const first = render(React.createElement(Home));
+    expect(howTo()).toBeTruthy();
+    expect(window.localStorage.getItem(SAVE_KEY)).not.toBeNull();
+    first.unmount();
+
+    // the reload: the slot holds the first game, the flag is not set
+    useGameStore.setState({ ...useGameStore.getInitialState(), game: newGame({ seed: 6, world: 'continent' }) });
+    const second = render(React.createElement(Home));
+    expect(howTo()).toBeNull();
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Saved game' })).getByRole('button', { name: 'Continue' }));
+    expect(howTo()).toBeTruthy();
+    fireEvent.click(within(howTo()!).getByRole('button', { name: 'Close' }));
+    second.unmount();
+
+    useGameStore.setState({ ...useGameStore.getInitialState(), game: newGame({ seed: 6, world: 'continent' }) });
+    render(React.createElement(Home));
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Saved game' })).getByRole('button', { name: 'Continue' }));
+    expect(howTo()).toBeNull();
+  });
+
+  it('FR-430 New game in the Saved game dialog opens it (a new game)', () => {
     const store = createGameStore({ seed: 4 });
     store.getState().advanceTurn();
     const save = JSON.stringify(saveOf(store.getState()));
 
     window.localStorage.removeItem(HOW_TO_PLAY_SEEN_KEY);
-    window.localStorage.setItem(SAVE_KEY, save);
-    useGameStore.setState({ ...useGameStore.getInitialState(), game: newGame({ seed: 5, world: 'continent' }) });
-    const first = render(React.createElement(Home));
-    expect(howTo()).toBeNull();
-    fireEvent.click(within(screen.getByRole('dialog', { name: 'Saved game' })).getByRole('button', { name: 'Continue' }));
-    expect(howTo()).toBeNull();
-    first.unmount();
-
     window.localStorage.setItem(SAVE_KEY, save);
     useGameStore.setState({ ...useGameStore.getInitialState(), game: newGame({ seed: 5, world: 'continent' }) });
     render(React.createElement(Home));

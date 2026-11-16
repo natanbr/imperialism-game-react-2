@@ -113,6 +113,9 @@ const TileComponentInner: React.FC<TileProps> = ({
   // there (more than one civilian: a count shows)
   const fortLevel = tile.fortLevel ?? 0;
   const fortRightTaken = station || tile.workers.length > 1;
+  // A fort in the top-left would lie over the level badge and the job markers: they move below it, as under two stations
+  // (M12 review L2-08). Not on a crowded capital, whose army chips stand low (FR-346); it has no level badge.
+  const marksLow = twoStations || (fortLevel > 0 && fortRightTaken && !crowded);
 
   // Compute infrastructure status
   const nationNetwork = tile.ownerNationId
@@ -153,7 +156,7 @@ const TileComponentInner: React.FC<TileProps> = ({
       <TileIcon src={tileArt(tile)} crowded={crowded} />
       {minorCapitalName !== undefined && <TileName name={minorCapitalName} />}
 
-      {tile.resource && <TileResource resource={tile.resource} low={twoStations} />}
+      {tile.resource && <TileResource resource={tile.resource} low={marksLow} />}
 
       <TileInfrastructure
         depot={tile.depot ?? false}
@@ -181,7 +184,7 @@ const TileComponentInner: React.FC<TileProps> = ({
         prospecting={tile.prospecting}
         developmentJob={tile.developmentJob}
         constructionJob={tile.constructionJob}
-        low={twoStations}
+        low={marksLow}
       />
 
       {armyMarkers && armyMarkers.length > 0 && <TileArmy markers={armyMarkers} onOpen={openArmy} high={minorCapitalName !== undefined} low={crowded} />}

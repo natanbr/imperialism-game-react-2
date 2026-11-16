@@ -29,8 +29,9 @@ import { centreOnCapital, startNewGameOnCapital } from './hooks/mapActions';
  * The game in play (FR-359, FR-360, FR-362): at the start the page reads the save slot once (the only place that loads a
  * save). An empty slot plays the store's new game at once; a save, usable or not, waits for the player's choice in the
  * "Saved game" dialog. Once the game in play is decided the autosave keeps the slot up to date (FR-357, FR-358) and the
- * page asks before leaving only while the game is not stored (FR-363). A new game started here opens How to play in a
- * browser that has not closed it before (FR-430); a continued game does not.
+ * page asks before leaving only while the game is not stored (FR-363). A game started or continued here opens How to play
+ * in a browser that has not closed it before (FR-430): the first game autosaves at once, so a reload before Close offers
+ * that game to continue (M12 review L3-03).
  */
 function useSavedGame() {
   const [offered, setOffered] = useState<Exclude<SaveSlot, { kind: 'empty' }> | null>(null);
@@ -76,6 +77,8 @@ function useSavedGame() {
       decide(() => {
         if (offered?.kind === 'usable') useGameStore.getState().restoreGame(offered.save);
         centreOnCapital();
+        // The restore closes every dialog, so How to play opens after it
+        offerHowToPlay();
       }),
     onNewGame: () =>
       decide(() => {
@@ -86,7 +89,7 @@ function useSavedGame() {
   };
 }
 
-/** FR-430: How to play on a browser's first new game; the flag is written when it is closed, not when it opens. */
+/** FR-430: How to play until the browser has closed it once; the flag is written when it is closed, not when it opens. */
 function offerHowToPlay() {
   if (!readFlag(HOW_TO_PLAY_SEEN_KEY)) useGameStore.getState().openHowToPlay();
 }

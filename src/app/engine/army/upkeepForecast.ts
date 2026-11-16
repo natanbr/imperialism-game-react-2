@@ -9,6 +9,8 @@ import { isMilitia, REGIMENTS, UPKEEP_PER_ARMS } from "@/definisions/regiments";
 import { marketOf, priceOf, tradeOrdersOf } from "../market/market";
 import { diplomacyAfterThisTurn, marketModeOf } from "../market/partners";
 import { settlePartnerTrade } from "../market/settlePartners";
+import type { GiveGrantOrder } from "../orders/Order";
+import { applyDiplomacyOrder } from "../orders/diplomacyOrders";
 import { armyAt, isArmyIntent, regimentsOf, serialOf } from "./armies";
 
 export interface UpkeepForecast {
@@ -82,14 +84,15 @@ function lostAt(regiments: readonly Regiment[], due: number, cash: number): Regi
 
 /**
  * What End Turn's upkeep step will ask of the nation and what the treasury will hold before this turn's sales.
- * `extraSpend` (FR-393, for FR-422): money about to be spent this turn (a grant not yet ordered), taken off the cash.
+ * `extraSpend` (FR-393): money about to be spent this turn, taken off the cash; negative is money given back. A grant
+ * about to be ordered goes through `upkeepForecastWithGrant` instead, as it can also replace a standing grant.
  */
 export function upkeepForecast(state: GameState, nationId: NationId, extraSpend = 0): UpkeepForecast {
   const disbanding = disbandingOf(state, nationId);
   const paying = regimentsOf(state, nationId).filter((r) => !isMilitia(r.type) && !disbanding.has(r.id));
   const due = upkeepOn(paying, disbanding);
 
-  let cash = (state.nations.find((n) => n.id === nationId)?.treasury ?? 0) - Math.max(0, extraSpend);
+  let cash = (state.nations.find((n) => n.id === nationId)?.treasury ?? 0) - extraSpend;
   // A standing locked grant replaced by a locked grant ordered this turn (paid when ordered) or stopped this turn is not
   // paid again; the others are paid, in pair order, while the treasury holds them (FR-170).
   const settled = new Set(
@@ -108,3 +111,12 @@ export function upkeepForecast(state: GameState, nationId: NationId, extraSpend 
   const short = cash < due;
   return { due, cash, short, shortBy: short ? due - cash : 0, regimentsLost: short ? lostAt(paying, due, cash) : [] };
 }
+
+/**
+ * FR-422 with FR-393: the forecast once this grant is ordered, for the question a large grant asks first. The order goes
+ * through the engine's own `giveGrant` step on a copy (the UI never applies an order, FR-022), so the forecast counts
+ * what End Turn will: this turn's grant to the same country given back (FR-161), the standing locked grant to it not
+ * paid again when a locked one replaces it, and the other standing grants paid in pair order with what is left (FR-170).
+ */
+export const upkeepForecastWithGrant = (state: GameState, order: GiveGrantOrder): UpkeepForecast =>
+  upkeepForecast(applyDiplomacyOrder(state, order), order.nationId);

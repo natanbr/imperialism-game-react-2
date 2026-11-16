@@ -130,7 +130,7 @@ export {
   type RegimentLocation,
   type RegimentStatus,
 } from "./army/armies";
-export { upkeepForecast, upkeepIn, type UpkeepForecast } from "./army/upkeepForecast";
+export { upkeepForecast, upkeepForecastWithGrant, upkeepIn, type UpkeepForecast } from "./army/upkeepForecast";
 export {
   entrenches,
   isMilitia,

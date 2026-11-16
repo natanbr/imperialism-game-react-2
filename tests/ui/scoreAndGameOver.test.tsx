@@ -111,6 +111,25 @@ describe('FR-076 game-over screen', () => {
     expect(text(within(rows[0]).getByTestId('nation'))).toBe(name(N2));
   });
 
+  // M12 review (F4): FR-402's work in progress is part of the total that ranks the nations, so the table shows it
+  it('FR-076 FR-402 a job still open at the end has its own column, so the parts add up to the total', () => {
+    const over = finished();
+    const [first, ...rest] = over.gameOver!.scores;
+    const open = { ...first, points: { ...first.points, workInProgress: 10 }, total: first.total + 10 };
+    show({ ...over, gameOver: { ...over.gameOver!, scores: [open, ...rest] } });
+    render(<GameOverModal />);
+    const dialog = screen.getByRole('dialog', { name: 'Game over' });
+    expect(within(dialog).getByRole('columnheader', { name: 'In progress' }).getAttribute('title')).toBe(
+      'Work in progress: 1 point per $100 paid for each job not yet finished'
+    );
+    const rows = within(dialog).getAllByTestId(/^final-score-/);
+    for (const row of rows) {
+      const n = (id: string) => Number(text(within(row).getByTestId(id)));
+      expect(n('treasury') + n('industry') + n('development') + n('work-in-progress')).toBe(n('total'));
+    }
+    expect(text(within(rows[0]).getByTestId('work-in-progress'))).toBe('10');
+  });
+
   it('FR-403 the Development column says what a level is worth now: 10, 10 more, 50 more (not "10 points per resource level")', () => {
     show(finished());
     render(<GameOverModal />);

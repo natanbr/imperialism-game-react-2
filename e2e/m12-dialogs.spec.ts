@@ -67,6 +67,20 @@ async function select(page: Page, name: string) {
 test.describe('at 1280x720', () => {
   test.use({ viewport: { width: 1280, height: 720 } });
 
+  // M12 review (L3-06): FR-423's own Verify, a real double click in the browser (two clicks, a React commit between them)
+  test('FR-423 a double click on Advance Turn on turn 1 ends one turn: turn 2', async ({ page }) => {
+    const errors = collectErrors(page);
+    await open(page);
+    await expect(page.getByTestId('turn-indicator')).toContainText('Turn: 1 of 40');
+    await page.getByRole('button', { name: /Advance Turn/ }).dblclick();
+    await expect(page.getByTestId('turn-indicator')).toContainText('Turn: 2 of 40');
+    // the lock (600 ms) has passed: still turn 2, and the button works again
+    await expect(page.getByRole('button', { name: /Advance Turn/ })).not.toHaveAttribute('aria-busy', 'true');
+    await expect(page.getByTestId('turn-indicator')).toContainText('Turn: 2 of 40');
+    await endTurn(page, 3);
+    expect(errors).toEqual([]);
+  });
+
   test('FR-175 FR-410 FR-411 Accept Offer: Valdoria\'s alliance offer says what accepting does; closed, it is answered in Diplomacy and holds at End Turn', async ({ page }) => {
     test.setTimeout(90000);
     const errors = collectErrors(page);
@@ -143,6 +157,34 @@ test.describe('at 800x600', () => {
     expect(sideways).toBe(0);
     const box = (await board.boundingBox())!;
     expect(box.x + box.width).toBeLessThanOrEqual(800);
+    expect(errors).toEqual([]);
+  });
+
+  // M12 review (L3-04): the Council half of FR-425 in the browser, and the keyboard reaching the result line
+  test('FR-425 the Council screen shows its title and picture while Close has the focus; Tab and End scroll its body to the result', async ({ page }) => {
+    test.setTimeout(120000);
+    const errors = collectErrors(page);
+    await open(page);
+    const council = page.getByRole('dialog', { name: 'Council of Governors' });
+    for (let turn = 1; turn <= 10; turn++) await endTurn(page, turn + 1);
+    await expect(council).toBeVisible();
+    const close = council.getByRole('button', { name: 'Close' });
+    await expect(close).toBeFocused();
+    for (const part of [council.getByRole('heading', { level: 2 }), council.locator('img').first(), close]) {
+      const box = (await part.boundingBox())!;
+      expect(box.y).toBeGreaterThanOrEqual(0);
+      expect(box.y + box.height).toBeLessThanOrEqual(600);
+    }
+    const body = council.getByTestId('council-body');
+    const overflow = await body.evaluate((el) => el.scrollHeight - el.clientHeight);
+    expect(overflow, 'the body is taller than its box at 800x600').toBeGreaterThan(0);
+    await page.keyboard.press('Tab');
+    await expect(body).toBeFocused();
+    await page.keyboard.press('End');
+    await expect.poll(() => body.evaluate((el) => el.scrollTop)).toBeGreaterThanOrEqual(overflow - 1);
+    const result = (await council.getByTestId('council-result').boundingBox())!;
+    const seen = (await body.boundingBox())!;
+    expect(result.y + result.height).toBeLessThanOrEqual(seen.y + seen.height + 0.5);
     expect(errors).toEqual([]);
   });
 });

@@ -19,9 +19,8 @@ import {
   relationLevel,
   relationOf,
   scoreOf,
-  pairKey,
   SUBSIDY_PERCENTS,
-  upkeepForecast,
+  upkeepForecastWithGrant,
   validateOrder,
   type CountryId,
   type DiplomacyIntent,
@@ -262,25 +261,19 @@ export interface GrantAsk {
 }
 
 /**
- * FR-422: the question for a grant of GRANT_ASK_FROM or more; undefined below it. The UI never applies an order (FR-022),
- * so the grant goes to `upkeepForecast` as extra spend (FR-393), counted as End Turn will: a grant ordered this turn to
- * the same country is taken back first (FR-161), and the standing locked grant to it is paid at End Turn unless a locked
- * grant or a stop of this turn replaces it (FR-170, the forecast's own rule).
+ * FR-422: the question for a grant of GRANT_ASK_FROM or more; undefined below it. The UI never applies an order (FR-022):
+ * the engine's `upkeepForecastWithGrant` counts the grant as End Turn will (FR-393), with a grant ordered this turn to the
+ * same country taken back first (FR-161) and the standing locked grants paid as FR-170 says.
  */
 export function grantAsk(state: GameState, nationId: NationId, targetId: CountryId, amount: GrantAmount, locked: boolean): GrantAsk | undefined {
   if (amount < GRANT_ASK_FROM) return undefined;
-  const ours = (kind: string) => state.intents.find((i) => i.nationId === nationId && i.kind === kind && i.targetId === targetId);
-  const replaced = ours("grant") as GrantIntent | undefined;
-  const stopped = ours("grant-stop") !== undefined;
-  const standing = state.diplomacy[pairKey(nationId, targetId)]?.lockedGrants[nationId] ?? 0;
-  const standingPaid = (replacedByLocked: boolean) => (replacedByLocked || stopped ? 0 : standing);
+  const replaced = state.intents.find((i) => i.nationId === nationId && i.kind === "grant" && i.targetId === targetId) as GrantIntent | undefined;
   const refund = replaced?.cost ?? 0;
-  const extraSpend = amount - refund + standingPaid(locked) - standingPaid(replaced?.locked === true);
   const name = countryName(state, targetId) ?? targetId;
   const treasury = (state.nations.find((n) => n.id === nationId)?.treasury ?? 0) + refund - amount;
   return {
     question: `Give ${money(amount)} to ${name}${locked ? " each turn" : ""}? The treasury will hold ${money(treasury)} after it.`,
-    upkeep: upkeepWarningText(upkeepForecast(state, nationId, extraSpend)),
+    upkeep: upkeepWarningText(upkeepForecastWithGrant(state, { kind: "giveGrant", nationId, targetId, amount, locked })),
     confirm: `Give ${money(amount)}`,
   };
 }

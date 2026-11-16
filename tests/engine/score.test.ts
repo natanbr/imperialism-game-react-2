@@ -9,6 +9,7 @@ import { DEVELOPMENT_COST } from '@/definisions/workPrices';
 import { ResourceType } from '@/types/Resource';
 import { TerrainType } from '@/types/Tile';
 import { WorkerType } from '@/types/Workers';
+import type { GameState } from '@/types/GameState';
 import { deepFreeze, game, N1, N2, put, setBuilding, setTile, setTreasury, T, workerId } from './fixtures';
 
 // The two-nation fixture: each nation has the six mills and factories (mills 2, factories 1:
@@ -128,7 +129,17 @@ describe('M12 FR-402 ordering a job does not lower the score (work in progress)'
     const farm = s.map.tiles.flat().find(t => t.id === '2-8')!;
     expect(farm.resource?.level).toBe(2);
     expect(scoreOf(s, N1).points.development).toBe(60);
-    expect(scoreOf(s, N1).points.workInProgress).toBe(s.map.tiles.flat().some(t => t.constructionJob?.workerId === ENGINEER) ? 20 : 0);
+    // M12 review (F5): read from the depot itself, not from the job the score reads: 20 points while the depot is not
+    // built, none once it stands (a finished structure has no points of its own: the drop is an open decision)
+    const depotBuilt = (g: GameState) => g.map.tiles.flat().find(t => t.id === '3-7')!.depot === true;
+    expect(scoreOf(s, N1).points.workInProgress).toBe(depotBuilt(s) ? 0 : 20);
+    while (!depotBuilt(s) && turns < 10) {
+      expect(scoreOf(s, N1).points.workInProgress).toBe(20);
+      s = resolveTurn(s, {}, s.seed).state;
+      turns++;
+    }
+    expect(depotBuilt(s)).toBe(true);
+    expect(scoreOf(s, N1).points.workInProgress).toBe(0);
   });
 
   it('FR-402 a rail job counts its terrain price: $150 is 1 point, $300 is 3', () => {

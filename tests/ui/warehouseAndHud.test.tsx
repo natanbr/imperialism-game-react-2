@@ -3,7 +3,7 @@
 import { describe, it, expect } from 'vitest';
 import { act, render, screen, within } from '@testing-library/react';
 import { WarehouseModal } from '@/components/WarehouseModal';
-import { FoodWarning, NewsPanel, TurnIndicator, UpkeepWarning } from '@/components/HUD/index';
+import { FoodWarning, NewsPanel, NextCouncil, TurnIndicator, UpkeepWarning } from '@/components/HUD/index';
 import { useGameStore } from '@/store/rootStore';
 import { councilVote, resolveTurn } from '@/engine';
 import type { GameState } from '@/types/GameState';
@@ -157,7 +157,7 @@ describe('FR-301 the next Council in the HUD', () => {
 
   it('FR-301 FR-314 a new continent game: "Next Council: turn 10 (Summer 1817)"; under it the projected vote, shown, which is also its description', () => {
     show(continent());
-    render(<TurnIndicator />);
+    render(<><TurnIndicator /><NextCouncil /></>);
     const line = screen.getByTestId('next-council');
     expect(text(line)).toBe('Next Council: turn 10 (Summer 1817)');
     const projection = screen.getByTestId('council-projection');
@@ -173,25 +173,25 @@ describe('FR-301 the next Council in the HUD', () => {
 
   it('FR-301 on turn 11 "Next Council: turn 20 (Winter 1819)"; on a meeting turn "Council: this turn"', () => {
     show({ ...continent(), turn: 11, year: 1817 });
-    const { rerender } = render(<TurnIndicator />);
+    const { rerender } = render(<NextCouncil />);
     expect(text(screen.getByTestId('next-council'))).toBe('Next Council: turn 20 (Winter 1819)');
 
     act(() => show({ ...continent(), turn: 10, year: 1817 }));
-    rerender(<TurnIndicator />);
+    rerender(<NextCouncil />);
     expect(text(screen.getByTestId('next-council'))).toBe('Council: this turn');
 
     act(() => show({ ...continent(), turn: 40, year: 1824 }));
-    rerender(<TurnIndicator />);
+    rerender(<NextCouncil />);
     expect(text(screen.getByTestId('next-council'))).toBe('Council: this turn');
 
     act(() => show({ ...continent(), turn: 31, year: 1822 }));
-    rerender(<TurnIndicator />);
+    rerender(<NextCouncil />);
     expect(text(screen.getByTestId('next-council'))).toBe('Next Council: turn 40 (Winter 1824)');
   });
 
   it("FR-301 FR-313 the projection follows the game, the player's nation first: Valdoria, the 1st nominee holding Testland North-East, reads second", () => {
     show(transferProvince(continent(), NE1, N2));
-    render(<TurnIndicator />);
+    render(<NextCouncil />);
     const line = screen.getByTestId('next-council');
     expect(text(screen.getByTestId('council-projection'))).toBe('If it met now: Testland 3, Valdoria 5, abstain 4 of 12; 9 needed');
     expect(description(line)).toBe(text(screen.getByTestId('council-projection')));
@@ -202,7 +202,7 @@ describe('FR-301 the next Council in the HUD', () => {
     const s = transferProvince(threePowers(continent()), NE1, N2);
     expect(councilVote(s)!.nominees.map((n) => n.nationId)).toEqual([N2, N1]);
     show(s, { activeNationId: N3 });
-    render(<TurnIndicator />);
+    render(<NextCouncil />);
     const projection = screen.getByTestId('council-projection');
     expect(text(projection)).toBe('If it met now: Valdoria 4, Testland 3, abstain 5 of 12; 9 needed');
     expect(description(screen.getByTestId('next-council'))).toBe(text(projection));
@@ -210,7 +210,7 @@ describe('FR-301 the next Council in the HUD', () => {
 
   it('FR-313 FR-314 the projection counts the abstentions: Sundmark at 52 with Testland votes, 3 abstain', () => {
     show(setPair(continent(), SUNDMARK, N1, { points: 52 }));
-    render(<TurnIndicator />);
+    render(<NextCouncil />);
     expect(text(screen.getByTestId('council-projection'))).toBe('If it met now: Testland 5, Valdoria 4, abstain 3 of 12; 9 needed');
   });
 
@@ -221,7 +221,7 @@ describe('FR-301 the next Council in the HUD', () => {
       continent()
     );
     show(alone);
-    const { container } = render(<TurnIndicator />);
+    const { container } = render(<NextCouncil />);
     const line = screen.getByTestId('next-council');
     expect(text(line)).toBe('Next Council: turn 10 (Summer 1817)');
     expect(line.hasAttribute('title')).toBe(false);
@@ -232,16 +232,16 @@ describe('FR-301 the next Council in the HUD', () => {
 
   it('FR-301 absent on two-islands, after game over, and after the turn-40 meeting', () => {
     show(game());
-    const { rerender } = render(<TurnIndicator />);
+    const { rerender } = render(<NextCouncil />);
     expect(screen.queryByTestId('next-council')).toBeNull();
 
     act(() => show({ ...continent(), gameOver: { turn: 40, year: 1824, scores: [] } }));
-    rerender(<TurnIndicator />);
+    rerender(<NextCouncil />);
     expect(screen.queryByTestId('next-council')).toBeNull();
 
     // A longer game past its last meeting (turn limit 45): no meeting is left
     act(() => show({ ...continent(), turn: 41, year: 1825, turnLimit: 45 }));
-    rerender(<TurnIndicator />);
+    rerender(<NextCouncil />);
     expect(screen.queryByTestId('next-council')).toBeNull();
   });
 
@@ -250,7 +250,7 @@ describe('FR-301 the next Council in the HUD', () => {
     const over = resolveTurn(s, {}, s.seed).state;
     expect(over.gameOver).toBeDefined();
     show(over);
-    render(<TurnIndicator />);
+    render(<NextCouncil />);
     expect(screen.queryByTestId('next-council')).toBeNull();
   });
 });
@@ -299,6 +299,11 @@ describe('FR-371 FR-377 FR-424 the HUD column', () => {
     expect(at('score-table')).toBeGreaterThan(at('tile-info'));
     expect(at('upkeep-warning')).toBeGreaterThan(at('tile-info'));
     expect(at('news-panel')).toBeGreaterThan(at('upkeep-warning'));
+    // M12 review (L2-05): the Council projection (under its Next Council line, FR-314) comes after Tile Info too, in the
+    // row's order: score table, Council projection, warnings, news
+    expect(at('next-council'), order.join(', ')).toBeGreaterThan(at('score-table'));
+    expect(at('council-projection'), order.join(', ')).toBe(at('next-council') + 1);
+    expect(at('upkeep-warning')).toBeGreaterThan(at('council-projection'));
   });
 
   it('FR-371 the river is on the terrain line, not a line of its own: "Terrain: <terrain>, river"', () => {

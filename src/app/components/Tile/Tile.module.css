@@ -199,14 +199,15 @@
 /* A fort (FR-388, card Q88): the pack's fort, 16 px, in a top corner over the grid line (y -1 to 15), so it ends above a
    lone civilian's button 5 px in (from y 15) or in the corner (from y 16). The top-right (x 25 to 41) unless a depot or a
    port stands there or a stack's count reaches into it (from y 10); then the top-left (x -1 to 15), clear of a crowded
-   capital's low army chips (from y 16) and its picture's middle (x 20). Under the civilians and the army chips. */
+   capital's low army chips (from y 16) and its picture's middle (x 20), and the level badge and job markers move below it
+   (Tile.tsx `marksLow`). Under the civilians and the army chips. It takes the pointer, so its title "Fort level 1" shows
+   on hover; a click on it reaches the tile it is in. */
 .fortMark {
   position: absolute;
   top: -1px;
   width: 16px;
   height: 16px;
   z-index: 2;
-  pointer-events: none;
 }
 
 .fortMarkLeft {

@@ -87,7 +87,7 @@ test('FR-362 a slot the game cannot load says why and offers New game only; New 
 test.describe('FR-430 a browser that has not seen How to play', () => {
   test.use({ storageState: { cookies: [], origins: [] } });
 
-  test('FR-430 FR-431 the first new game opens How to play with Close focused; closing records the flag; About opens it again; a continued game does not', async ({ page }) => {
+  test('FR-430 FR-431 the first new game opens How to play with Close focused; closing records the flag; About opens it again; Continue opens it only until it was closed', async ({ page }) => {
     test.setTimeout(90000);
     const errors = collectErrors(page);
     const howTo = page.getByRole('dialog', { name: 'How to play' });
@@ -103,6 +103,14 @@ test.describe('FR-430 a browser that has not seen How to play', () => {
     await expect(howTo.getByTestId('howto-first-turn').getByRole('listitem')).toHaveCount(3);
     expect(await flag()).toBeNull();
 
+    // M12 review (L3-03): a reload before Close offers the autosaved first game; Continue opens How to play again, as
+    // this browser has still not closed it
+    await page.reload();
+    await savedGame(page).getByRole('button', { name: 'Continue' }).click();
+    await expect(savedGame(page)).toHaveCount(0);
+    await expect(howTo).toBeVisible();
+    expect(await flag()).toBeNull();
+
     await howTo.getByRole('button', { name: 'Close' }).click();
     await expect(howTo).toHaveCount(0);
     expect(await flag()).not.toBeNull();
@@ -115,7 +123,7 @@ test.describe('FR-430 a browser that has not seen How to play', () => {
     await page.keyboard.press('Escape');
     await expect(howTo).toHaveCount(0);
 
-    // A continued game is no new game: How to play stays closed
+    // Once closed, a continued game does not open it
     await page.reload();
     await savedGame(page).getByRole('button', { name: 'Continue' }).click();
     await expect(savedGame(page)).toHaveCount(0);

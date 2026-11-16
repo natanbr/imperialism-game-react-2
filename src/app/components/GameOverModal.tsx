@@ -81,6 +81,8 @@ export const GameOverModal: React.FC = () => {
               <th className={styles.number} title="1 point per $100">Treasury</th>
               <th className={styles.number} title="10 points per capacity point of the mills and factories">Industry</th>
               <th className={styles.number} title="Resource levels on own tiles: 10 points for level 1, 10 more for level 2, 50 more for level 3">Development</th>
+              {/* FR-402 (M12 review F4): the total counts the jobs still open, so the parts add up to it */}
+              <th className={styles.number} title="Work in progress: 1 point per $100 paid for each job not yet finished">In progress</th>
               <th className={styles.number}>Total</th>
             </tr>
           </thead>
@@ -98,6 +100,7 @@ export const GameOverModal: React.FC = () => {
                   <td className={styles.number} data-testid="treasury">{score.points.treasury}</td>
                   <td className={styles.number} data-testid="industry">{score.points.industry}</td>
                   <td className={styles.number} data-testid="development">{score.points.development}</td>
+                  <td className={styles.number} data-testid="work-in-progress">{score.points.workInProgress}</td>
                   <td className={styles.number} data-testid="total">
                     <strong>{score.total}</strong>
                   </td>

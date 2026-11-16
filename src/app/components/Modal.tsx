@@ -18,8 +18,11 @@ export interface ModalProps {
   onClose?: () => void;
   /** What Escape does when it is not `onClose` (Accept Offer: reject, FR-175). */
   onEscape?: () => void;
-  /** Where the focus goes on open: the first control (default), or the dialog itself (Accept Offer: Enter accepts). */
-  initialFocus?: "first-control" | "dialog";
+  /**
+   * Where the focus goes on open: the first control (default), the last one (the Council: its scrolling body is a Tab stop
+   * before Close), or the dialog itself (Accept Offer: Enter accepts).
+   */
+  initialFocus?: "first-control" | "last-control" | "dialog";
   /** When it changes, the focus moves in again as on open (Accept Offer: the next offer in the same dialog). */
   focusKey?: string;
   /** The backdrop's class: it covers the page and centres the dialog. */
@@ -40,6 +43,13 @@ function tabbables(root: HTMLElement): HTMLElement[] {
   return [...root.querySelectorAll<HTMLElement>(TABBABLE)].filter(
     (el) => el.tabIndex >= 0 && !el.closest("[hidden], [inert]") && (typeof el.checkVisibility !== "function" || el.checkVisibility())
   );
+}
+
+/** Moves the focus in as on open (both effects: React's development double effects run the focusKey one too). */
+function focusInto(dialog: HTMLElement, where: NonNullable<ModalProps["initialFocus"]>): void {
+  if (where === "dialog") return dialog.focus();
+  const controls = tabbables(dialog);
+  (controls[where === "last-control" ? controls.length - 1 : 0] ?? dialog).focus();
 }
 
 /** What last took the focus inside the dialog, and its place among the controls when it took it (-1: not a control). */
@@ -139,7 +149,7 @@ export const Modal: React.FC<ModalProps> = ({
       if (e.target instanceof HTMLElement) last = { el: e.target, index: tabbables(el).indexOf(e.target) };
     };
     el.addEventListener("focusin", onFocusIn);
-    (initialFocus === "dialog" ? el : (tabbables(el)[0] ?? el)).focus();
+    focusInto(el, initialFocus);
 
     const onKeyDown = (e: KeyboardEvent) => {
       // Only the top dialog answers; a key a control already handled (preventDefault) is left alone
@@ -173,7 +183,7 @@ export const Modal: React.FC<ModalProps> = ({
       opened.current = true;
       return;
     }
-    (initialFocus === "dialog" ? el : (tabbables(el)[0] ?? el)).focus();
+    focusInto(el, initialFocus);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusKey]);
 

@@ -108,12 +108,38 @@ test('FR-369 the arrow keys move the focus between tiles and Enter selects; FR-3
   await expect(page.getByTestId('tile-info')).toHaveCount(0);
 });
 
+// M12 review (L2-04): at 1024x768 the map (1029 px) is wider than its area (774 px); the HUD lies over the window's right
+// 250 px, so a tile under it is not in view: the arrow keys scroll the map until the focused tile is left of the HUD
+test('FR-369 at 1024x768 the arrow keys scroll the focused tile out from under the HUD', async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await open(page);
+  const hudLeft = (await page.locator('.hud-container').boundingBox())!.x;
+  expect(hudLeft).toBe(1024 - 250);
+  await tile(page, '2-9').focus();
+  for (let x = 3; x <= 22; x++) {
+    await page.keyboard.press('ArrowRight');
+    await expect(tile(page, `${x}-9`)).toBeFocused();
+    const box = (await tile(page, `${x}-9`).boundingBox())!;
+    expect(box.x + box.width, `${x}-9 ends left of the HUD`).toBeLessThanOrEqual(hudLeft + 0.5);
+  }
+  expect((await scroll(page)).x).toBeGreaterThan(0);
+});
+
+/** The HUD's visible box less its sticky fade (the bottom 24 px, half of it opaque) when its content overflows. */
+const hudSeen = (page: Page) =>
+  page.locator('.hud-content').evaluate((el: HTMLElement) => {
+    const r = el.getBoundingClientRect();
+    const fade = el.scrollHeight > el.clientHeight ? parseFloat(getComputedStyle(el, '::after').height) : 0;
+    return { top: r.top, bottom: r.top + el.clientHeight - fade, scrollTop: el.scrollTop };
+  });
+
 for (const viewport of [{ width: 1280, height: 720 }, { width: 1024, height: 768 }]) {
   test(`FR-371 at ${viewport.width}x${viewport.height} the capital selected: Tile Info's heading, terrain line and first civilian row are in the HUD's visible box`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await open(page);
     await select(page, '2-9');
-    const area = await hudArea(page);
+    // M12 review (L2-06): above the fade, so a row half under it fails
+    const area = await hudSeen(page);
     expect(area.scrollTop).toBe(0);
     const info = page.getByTestId('tile-info');
     const boxes = [
@@ -359,9 +385,14 @@ test('FR-388 both capitals show the fort mark, Tile Info "Fort: level 1"; FR-391
     await expect(fort).toHaveAttribute('title', 'Fort level 1');
     const box = (await fort.boundingBox())!;
     expect([box.width, box.height]).toEqual([16, 16]);
+    // M12 review (L2-07): the pointer over the mark's middle reaches the mark, so its title shows as a tooltip
+    const hit = await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.closest('[data-testid="fort-mark"]') !== null, [box.x + 8, box.y + 8]);
+    expect(hit, `the fort mark on ${id} is under the pointer`).toBe(true);
   }
   await expect(page.getByTestId('fort-mark')).toHaveCount(2);
+  // `select` clicks the tile at (6, 6), on the fort mark: the click reaches the tile
   await select(page, '2-9');
+  await expect(tile(page, '2-9')).toHaveAttribute('data-selected', 'true');
   await expect(page.getByTestId('tile-info').getByTestId('tile-fort')).toHaveText('Fort: level 1');
   await select(page, '3-9');
   await expect(page.getByTestId('tile-info').getByTestId('tile-collected')).toHaveText('Collected by the capital: 2 grain a turn');
@@ -396,8 +427,11 @@ test('FR-376 the news line of the prospector\'s find at 5-2 is a button: it sele
   const line = page.getByTestId('news-list').getByRole('button', { name: /5-2/ });
   for (let turn = 2; turn <= 4 && !(await line.count()); turn++) await endTurn(page, turn);
   await expect(line).toBeVisible();
-  // Scroll the map away first, so the line has to bring 5-2 back
+  // Scroll the map away first, so the line has to bring 5-2 back (M12 review L2-10: at 1024x768, where the map is wider
+  // than its area; at 1280x720 it fits and nothing scrolls)
+  await page.setViewportSize({ width: 1024, height: 768 });
   await page.getByTestId('map-scroll').evaluate((el: HTMLElement) => el.scrollTo(el.scrollWidth, el.scrollHeight));
+  await expect(tile(page, '5-2')).not.toBeInViewport();
   await line.click();
   await expect(tile(page, '5-2')).toHaveAttribute('data-selected', 'true');
   await expect(tile(page, '5-2')).toBeInViewport();

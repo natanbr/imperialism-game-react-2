@@ -1333,4 +1333,44 @@ describe('FR-407 FR-395 FR-416 FR-417 FR-418 FR-422 Diplomacy says what each cho
     expect(asked(both, 3000, false).upkeep).toBe(truth(both, 3000, false).upkeep);
     expect(asked(both, 3000, false).upkeep).toMatch(/: \$40 short\./);
   });
+
+  // M12 review (L1-ENG-1, L3-01): a grant that costs less than what it replaces gives money back; the ask must not warn
+  // of a disband that End Turn will not do, nor miss one it will do
+  it('FR-422 FR-393 a smaller grant that replaces a larger one: the ask reads the cash End Turn will find', () => {
+    const base = setPair(start(), N1, ARVELIA, { consulates: [N1], embassies: [N1] });
+    const due = upkeepForecast(base, N1).due;
+    const applied = (s: GameState, amount: 1000 | 3000 | 5000 | 10000, locked: boolean, target = ARVELIA) =>
+      tryApplyOrder(s, { kind: 'giveGrant', nationId: N1, targetId: target, amount, locked }).state;
+    const truth = (s: GameState, amount: 1000 | 3000 | 5000 | 10000, locked: boolean, target = ARVELIA) =>
+      upkeepWarningText(upkeepForecast(applied(s, amount, locked, target), N1));
+    const asked = (s: GameState, amount: 1000 | 3000 | 5000 | 10000, locked: boolean, target = ARVELIA) =>
+      grantAsk(s, N1, target, amount, locked)!.upkeep;
+
+    // $10,000 ordered this turn (the treasury is empty, the HUD warns), then $1,000 instead: $9,000 comes back
+    const ordered = applied(setTreasury(base, N1, 10000), 10000, false);
+    expect(upkeepWarningText(upkeepForecast(ordered, N1))).toMatch(/short/);
+    expect(truth(ordered, 1000, false)).toBeNull();
+    expect(asked(ordered, 1000, false)).toBe(truth(ordered, 1000, false));
+    // ... or $5,000 instead, with only $40 short of the upkeep before the ask: $5,000 comes back
+    const tight = applied(setTreasury(base, N1, 10000 + due - 40), 10000, false);
+    expect(truth(tight, 5000, false)).toBeNull();
+    expect(asked(tight, 5000, false)).toBe(truth(tight, 5000, false));
+
+    // A standing $3,000 each turn, treasury $3,000 + half the upkeep: $1,000 each turn replaces it, so End Turn pays the
+    // $1,000 now and not the $3,000 (the audit's case: the ask read "$50 short" and named a regiment)
+    const standing = setTreasury(setPair(base, N1, ARVELIA, { lockedGrants: { [N1]: 3000 } }), N1, 3000 + due / 2);
+    expect(truth(standing, 1000, true)).toBeNull();
+    expect(asked(standing, 1000, true)).toBe(truth(standing, 1000, true));
+
+    // Two standing grants, $1,000 to Arvelia (paid first, pair order) and $3,000 to Sundmark; $1,000 each turn to Sundmark
+    // replaces its $3,000: the cash left cannot hold Arvelia's $1,000, so End Turn is $40 short (counting the $3,000 as
+    // given back, the forecast would pay Arvelia and find no shortage)
+    const two = setTreasury(
+      setPair(setPair(base, N1, ARVELIA, { lockedGrants: { [N1]: 1000 } }), N1, SUNDMARK, { consulates: [N1], embassies: [N1], lockedGrants: { [N1]: 3000 } }),
+      N1,
+      1000 + due - 40
+    );
+    expect(truth(two, 1000, true, SUNDMARK)).toMatch(/: \$40 short\./);
+    expect(asked(two, 1000, true, SUNDMARK)).toBe(truth(two, 1000, true, SUNDMARK));
+  });
 });

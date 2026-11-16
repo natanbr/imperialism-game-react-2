@@ -346,12 +346,32 @@ describe('FR-388 forts can be seen', () => {
     unmount();
   });
 
+  // M12 review (L2-08): a fort in the top-left would lie over the level badge (top 1, left 1) and the job markers (top
+  // 12): they move below it, as under a depot and a port (FR-356's y 16 and y 27)
+  it('FR-388 FR-356 a fort in the top-left moves the level badge and the job markers below it', () => {
+    const start = newGame({ seed: 1, world: 'continent' });
+    const farm = tileOf(start, '3-9');
+    show(withTiles(start, { '3-9': { fortLevel: 1, depot: true, resource: { ...farm.resource!, level: 2, discovered: true } } }));
+    const { container, unmount } = render(<MapView />);
+    const tile = container.querySelector<HTMLElement>('[data-tile-id="3-9"]')!;
+    expect(tile.querySelector('[data-testid="fort-mark"]')!.classList.contains(tileStyles.fortMarkLeft)).toBe(true);
+    expect(tile.querySelector('[data-testid="level-badge"]')!.className).toBe(`${tileStyles.levelBadge} ${tileStyles.levelBadgeLow}`);
+    unmount();
+    // Without the fort (one depot) the badge stays at the top
+    show(withTiles(start, { '3-9': { depot: true, resource: { ...farm.resource!, level: 2, discovered: true } } }));
+    const again = render(<MapView />);
+    expect(again.container.querySelector('[data-tile-id="3-9"] [data-testid="level-badge"]')!.className).toBe(tileStyles.levelBadge);
+    again.unmount();
+  });
+
   it('FR-388 the mark covers no other mark where it stands: 16 px on the top corner, clear of the low army chip, the count, a lone civilian and the capital picture\'s middle', () => {
     type Box = { x0: number; y0: number; x1: number; y1: number };
     const meet = (a: Box, b: Box) => Math.max(0, Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0)) * Math.max(0, Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0));
     const mark = rule('fortMark');
     expect(mark).toMatch(/position:\s*absolute/);
-    expect(mark).toMatch(/pointer-events:\s*none/);
+    // M12 review (L2-07): the mark takes the pointer, so its title "Fort level 1" shows on hover (a click still reaches the
+    // tile: the mark is inside it); e2e/m12-map.spec.ts checks the hit in the browser
+    expect(mark).not.toMatch(/pointer-events/);
     const size = px(mark, 'width');
     expect([size, px(mark, 'height')]).toEqual([16, 16]);
     const top = px(mark, 'top');

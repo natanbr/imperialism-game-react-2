@@ -141,6 +141,9 @@
   background-repeat: repeat;
   background-position: 0 0;
   background-attachment: local;
+  /* FR-369 (M12 review L2-04): the HUD lies over the window's right side, so a tile scrolled into view by the arrow keys
+     (`scrollIntoView`, "nearest") must end left of it */
+  scroll-padding-right: var(--hud-width);
 }
 
 .container::-webkit-scrollbar {

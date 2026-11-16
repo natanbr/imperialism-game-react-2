@@ -61,7 +61,7 @@ export interface War {
   captures?: ProvinceCapture[];
   /** FR-408: the battles of this war, oldest first; absent while none was fought. */
   battles?: WarBattle[];
-  /** Per Great Power of the pair: the last turn it proposed peace in this war (FR-174: at most once every 3 turns). */
+  /** Per Great Power of the pair: the last turn it proposed peace in this war (FR-408, card Q92: at most once every `SCRIPTED_DIPLOMACY.offerAgainTurns`, 6 turns; FR-174 had 3). */
   lastPeaceOffer?: Partial<Record<NationId, number>>;
 }
 

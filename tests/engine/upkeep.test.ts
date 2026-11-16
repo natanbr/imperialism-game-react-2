@@ -247,6 +247,8 @@ describe('FR-393 the forecast says by how much and which regiments go (card Q99:
     expect(upkeepForecast(s, N1, 9950)).toMatchObject({ due: 100, cash: 50, short: true, shortBy: 50 });
     expect(lostNames(s, 9950)).toEqual(['1st Artillery']);
     expect(upkeepForecast(s, N1, 0)).toEqual(upkeepForecast(s, N1));
+    // M12 review (L1-ENG-1): a negative extra spend is money given back, not dropped
+    expect(upkeepForecast(setTreasury(s, N1, 50), N1, -50)).toMatchObject({ due: 100, cash: 100, short: false, shortBy: 0 });
   });
 
   it('FR-393 not short: shortBy 0 and nobody lost', () => {
