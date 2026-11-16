@@ -4,7 +4,7 @@
 > - 28 technologies, bought with cash from the Invest in Technology screen; a purchase is final at End Turn and usable the next turn. A tech is world-wide available ("cannot be kept secret") but each nation pays for it; available techs stay available.
 > - Every nation starts with High Pressure Steam Engine and Seed Drill. Others appear in a year window (about 5 years of jitter per game), only if all prerequisites are owned do they show a price.
 > - Effects: build permissions (rail terrain, units, ships, buildings), civilian level-ups (see 02), and military upgrades (see 08).
-> - CODE MISMATCH: only `oilDrillingTechUnlocked` exists in code; `technologies` is an empty list.
+> - CODE MISMATCH (rewritten 2026-11-15, still true): there is no technology catalogue, purchase or per-nation state. `GameState.technologyState` holds `oilDrillingTechUnlocked` (false in a new game) and a `technologies` list that `newGame` fills with the 5 start technologies of `START_TECHNOLOGIES` (`engine/world/startWorld.ts`), all already purchased: the rules' two start technologies and three that the rules sell (NR-015, card Q8).
 
 Source tags: `[M pN]` manual PDF page marker; `[W#]` web source (see Sources); `[?]` unverified or inferred.
 
@@ -81,8 +81,8 @@ Notes
 
 ## CODE MISMATCH
 
-- CODE MISMATCH: `types/Technology.ts` has the right shape (`approximateArrival`, `prerequisites`, `benefits`, `cost`) but `technologySlice.ts` ships `technologies: []` and one hard-coded flag `oilDrillingTechUnlocked`. No catalogue, no purchase order, no per-nation tech state (the state is global in `GameState.technologyState`, rules say per nation).
-- Rail terrain limits, unit and level unlocks are not gated by technology anywhere in code (`startFarmerWork` etc. do not check levels against owned techs).
+- CODE MISMATCH (rewritten 2026-11-15; there is no `technologySlice.ts`): `types/Technology.ts` has the right shape (`approximateArrival`, `prerequisites`, `benefits`, `cost`), but the only technologies in the game are the 5 purchased ones of `START_TECHNOLOGIES` and the flag `oilDrillingTechUnlocked`. No catalogue of the other technologies, no purchase order, no per-nation tech state (the state is global in `GameState.technologyState`, the rules say per nation).
+- RESOLVED 2026-11-15 for rail terrain, was "not gated by technology anywhere in code": `railTerrainAllowed` in `engine/orders/queries.ts` reads `hasTechnology` (Compound Steam Engine for hills, Iron Railroad Bridge for swamp, Dynamite for mountains; all three are start technologies, NR-015). CODE MISMATCH, still true 2026-11-15: development levels 2 and 3, the Rancher, Forester and Driller, and regiments are not gated by any technology (`startFarmerWork` etc. do not check levels against owned techs; RULES-GAP-02).
 
 ## Sources
 

@@ -9,6 +9,12 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { CURSOR_ART, RAIL_ART, civilianArt, fortArt } from '@/components/art/inkArt';
 import type { PossibleAction } from '@/types/actions';
 import { WorkerType } from '@/types/Workers';
+import type { GameState } from '@/types/GameState';
+import type { CursorAction } from '@/hooks/tileCursor';
+import { clickCursors } from '@/hooks/tileClickOrders';
+import { newGame } from '@/engine/newGame';
+import { addDepot, addRailroad } from '@/engine/systems/railroadSystem';
+import { game, N1, put, setTile, T, workerId } from '../engine/fixtures';
 
 /** A fresh copy of the module: its cache of drawn cursors is module state. */
 const fresh = async () => {
@@ -201,5 +207,78 @@ describe('FR-330 the cursor value', () => {
     const { serverCursorOf } = await fresh();
     expect(ACTIONS.map(([, action]) => serverCursorOf(action))).toEqual(ACTIONS.map(([, action]) => (action ? 'pointer' : 'auto')));
     expect(browser.images).toEqual([]);
+  });
+});
+
+// M12 (NR-033), lane L2. FR-379 (ECONOMY-03): with a civilian selected, a tile's cursor follows the order its click would
+// send first, as the engine would take it: the construction cursor only on the engineer's own tile where Construction
+// Options opens, the fort cursor only where `isFortSite` holds, the rail cursor where the click lays rail (FR-380,
+// FR-TRUTH-08), the develop and prospect cursors only where that job is valid, `pointer` for a plain move; a click the
+// engine would refuse altogether (the sea, another country's land) keeps `auto`.
+describe('FR-379 FR-380 the cursor says what the click does', () => {
+  const E = workerId(N1, WorkerType.Engineer);
+  const P = workerId(N1, WorkerType.Prospector);
+  const F = workerId(N1, WorkerType.Farmer);
+  const FORT: CursorAction = { type: 'construct', kind: 'fort' };
+  const RAIL: CursorAction = { type: 'construct', kind: 'rail' };
+  const MOVE: CursorAction = { type: 'move' };
+  const at = (s: GameState, worker: string, tileId: string) => clickCursors(s, N1, worker).get(tileId) ?? null;
+
+  it('FR-379 a plain move is the pointer (no picture); nothing selected, no cursor table', async () => {
+    const { cursorArtOf, cursorOf, serverCursorOf } = await fresh();
+    expect(cursorArtOf(MOVE)).toBeUndefined();
+    expect(cursorOf(MOVE)).toBe('pointer');
+    expect(serverCursorOf(MOVE)).toBe('pointer');
+    expect(clickCursors(game(), N1, undefined).size).toBe(0);
+  });
+
+  it('FR-379 the construction cursor only on the engineer\'s own tile, where Construction Options opens; elsewhere a move', () => {
+    const s = put(game(), E, T.orchard1);
+    expect(at(s, E, T.orchard1)).toEqual({ type: 'open-construct-modal' });
+    // homeOrchard1 is not next to orchard1: the click only moves the engineer there
+    expect(at(s, E, T.homeOrchard1)).toEqual(MOVE);
+  });
+
+  it('FR-378 FR-379 the fort cursor only where isFortSite holds: a town without a fort, not the capital nor a fortified town', () => {
+    const s = put(game(), E, T.town1);
+    expect(at(s, E, T.town1)).toEqual(FORT);
+    expect(at(setTile(s, T.town1, { fortLevel: 1 }), E, T.town1)).not.toEqual(FORT);
+    expect(at(put(game(), E, T.capital1), E, T.capital1)).not.toEqual(FORT);
+  });
+
+  it('FR-380 the rail cursor where the click lays rail: rail-on-move from the capital 2-9 onto 3-9, and the section into the capital', () => {
+    const ENGINEER = 'worker-nation-1-7';
+    const s = newGame({ seed: 1 });
+    expect(at(s, ENGINEER, '3-9')).toEqual(RAIL);
+    // FR-378: the engineer on 3-9, on the line from the depot at 4-9, over the capital: the section 3-9 to 2-9
+    const xy = (tileId: string) => {
+      const [x, y] = tileId.split('-').map(Number);
+      return { x, y };
+    };
+    let line = addDepot(setTile(s, '4-9', { depot: true }), N1, xy('4-9'));
+    line = put(addRailroad(line, N1, xy('3-9'), xy('4-9')), ENGINEER, '3-9');
+    expect(at(line, ENGINEER, '2-9')).toEqual(RAIL);
+  });
+
+  it('FR-379 the develop cursor only where the job is valid: a farm to develop, not one with a job on it', () => {
+    const s = put(game(), F, T.capital1);
+    expect(at(s, F, T.farm1)).toEqual({ type: 'develop', workerType: WorkerType.Farmer, level: 1 });
+    const busy = setTile(s, T.farm1, {
+      developmentJob: { workerId: 'someone', workerType: WorkerType.Farmer, targetLevel: 1, startedOnTurn: 1, durationTurns: 3 },
+    });
+    expect(at(busy, F, T.farm1)).toEqual(MOVE);
+  });
+
+  it('FR-379 the prospect cursor only where the job is valid: hidden minerals, not a tile being prospected; a farm is a move', () => {
+    const s = put(game(), P, T.capital1);
+    expect(at(s, P, T.mountains1)).toEqual({ type: 'prospect' });
+    expect(at(setTile(s, T.mountains1, { prospecting: { workerId: 'someone', startedOnTurn: 1 } }), P, T.mountains1)).not.toEqual({ type: 'prospect' });
+    expect(at(s, P, T.farm1)).toEqual(MOVE);
+  });
+
+  it('FR-379 a click the engine would refuse altogether keeps auto: the sea, another nation\'s land', () => {
+    const s = put(game(), P, T.capital1);
+    expect(at(s, P, T.water)).toBeNull();
+    expect(at(s, P, T.farm2)).toBeNull();
   });
 });

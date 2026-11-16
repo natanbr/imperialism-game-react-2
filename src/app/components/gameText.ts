@@ -18,8 +18,9 @@ import {
   type UpkeepForecast,
   type WithdrawableOverture,
 } from "@/engine";
+import type { GameState } from "@/types/GameState";
 import { TerrainType, type Tile } from "@/types/Tile";
-import { REGIMENTS } from "@/definisions/regiments";
+import { REGIMENTS, UPKEEP_PER_ARMS } from "@/definisions/regiments";
 import type { BuildingType } from "@/types/Industry";
 import { GoodsType, MaterialType, ResourceType, type WarehouseCommodities } from "@/types/Resource";
 import { WorkerStatus, WorkerType, type Worker } from "@/types/Workers";
@@ -81,6 +82,7 @@ export const REFUSAL_TEXT: Record<RejectReason, string> = {
   "no-buyer": "no one buys this",
   "buyers-barred": "we may not trade with any buyer",
   "not-adjacent": "that province does not border the army's province",
+  "no-land-route": "no army can reach them over land (that needs ships, a later milestone)",
 };
 
 /** Why an offer passed the nation by, in the news and the Deal Book (FR-244). */
@@ -211,13 +213,20 @@ export function foodWarningText(forecast: FoodForecast): string | null {
 export const upkeepDueText = (forecast: Pick<UpkeepForecast, "due">): string => `Army upkeep at End Turn: ${money(forecast.due)}`;
 
 /**
- * FR-261: shown while the cash End Turn's upkeep step will find is below the upkeep (M8 review F2): "Cash is short of
- * the army upkeep: $100 is due at End Turn and $40 will be left. Unless this turn's sales cover the rest, the newest
- * regiments are disbanded."
+ * FR-261, worded by FR-393 (M12): shown while the cash End Turn's upkeep step will find is below the upkeep: "Army upkeep
+ * of $50 is due at End Turn and the treasury will hold $16: $34 short. Unless this turn's sales bring in $34, 1 regiment
+ * is disbanded (2nd Hussars)."; when the lost regiments' upkeep is the whole of it, "... all 3 regiments are disbanded."
  */
 export function upkeepWarningText(forecast: UpkeepForecast): string | null {
   if (!forecast.short) return null;
-  return `Cash is short of the army upkeep: ${money(forecast.due)} is due at End Turn and ${money(Math.max(0, forecast.cash))} will be left. Unless this turn's sales cover the rest, the newest regiments are disbanded.`;
+  const lost = forecast.regimentsLost;
+  const lostUpkeep = lost.reduce((sum, r) => sum + UPKEEP_PER_ARMS * REGIMENTS[r.type].stats.armamentsCost, 0);
+  const who =
+    lost.length > 1 && lostUpkeep >= forecast.due
+      ? `all ${lost.length} regiments are disbanded`
+      : `${regiments(lost.length)} ${lost.length === 1 ? "is" : "are"} disbanded (${lost.map((r) => r.name).join(", ")})`;
+  const gap = money(forecast.shortBy);
+  return `Army upkeep of ${money(forecast.due)} is due at End Turn and the treasury will hold ${money(Math.max(0, forecast.cash))}: ${gap} short. Unless this turn's sales bring in ${gap}, ${who}.`;
 }
 
 /** News of a meal: only bad news is news. */
@@ -290,21 +299,44 @@ function diplomacyText(event: GameEvent, name: (countryId: string) => string): s
   }
 }
 
+/** The name of a tile's place for the news (FR-375): its province's name, or undefined (two-islands has no provinces). */
+export type PlaceOf = (tileId: string) => string | undefined;
+
+/**
+ * FR-375: the place lookup for `eventText` and `newsItems`: a tile's province by `nameOf` ("Testland North-West"; a
+ * minor's one province bears its name, "Lorran").
+ */
+export function tilePlaces(game: Pick<GameState, "map">, nameOf: (id: string) => string): PlaceOf {
+  const provinceOf = new Map(game.map.tiles.flat().map((t) => [t.id, t.provinceId] as const));
+  return (tileId) => {
+    const provinceId = provinceOf.get(tileId);
+    return provinceId ? nameOf(provinceId) : undefined;
+  };
+}
+
+/** Events about one tile (FR-375): their lines name the place and their news items carry the tile. */
+const tileOf = (event: GameEvent): string | undefined =>
+  event.type === "resource-discovered" || event.type === "development-completed" || event.type === "construction-completed" ? event.tileId : undefined;
+
 /**
  * One line of news for the event, or null when it is not news (the end of the turn). `nameOf` names the
  * countries a diplomacy line mentions (FR-176) and the provinces of a march (FR-209); without it their ids
- * stand in.
+ * stand in. `placeOf` (FR-375) adds a tile's province after its id ("coal at 5-2 in Testland North-West").
  */
-export function eventText(event: GameEvent, nameOf: (countryId: string) => string = (id) => id): string | null {
+export function eventText(event: GameEvent, nameOf: (countryId: string) => string = (id) => id, placeOf?: PlaceOf): string | null {
+  const at = (tileId: string) => {
+    const place = placeOf?.(tileId);
+    return place ? `${tileId} in ${place}` : tileId;
+  };
   switch (event.type) {
     case "order-rejected":
       return refusalText(event);
     case "resource-discovered":
-      return `Prospectors found ${event.resource ? commodityName(event.resource).toLowerCase() : "nothing"} at ${event.tileId}.`;
+      return `Prospectors found ${event.resource ? commodityName(event.resource).toLowerCase() : "nothing"} at ${at(event.tileId)}.`;
     case "development-completed":
-      return `Tile ${event.tileId} developed to level ${event.level}.`;
+      return `Tile ${at(event.tileId)} developed to level ${event.level}.`;
     case "construction-completed":
-      return `${capitalize(event.structure)} finished at ${event.tileId}.`;
+      return `${capitalize(event.structure)} finished at ${at(event.tileId)}.`;
     case "goods-produced":
       return `Produced ${event.amount} ${commodityName(event.output)}.`;
     case "freight-cars-built":
@@ -365,21 +397,23 @@ export function eventText(event: GameEvent, nameOf: (countryId: string) => strin
       return `${nameOf(event.fallenId)} has fallen.`;
     case "minor-colonised":
       return `${nameOf(event.minorId)} is now our colony.`;
-    // FR-297 (M10): a line of no nation, the first nominee first; `newsItems` puts it first (FR-306)
+    // FR-297 (M10): a line of no nation; `newsItems` puts it first (FR-306). FR-414: the nominees by votes, most first,
+    // ties in standing order (the event keeps the standing order for the Council screen, FR-313)
     case "council-met": {
       const winner = event.nominees.find((n) => n.nationId === event.winnerId);
+      const byVotes = [...event.nominees].sort((a, b) => b.total - a.total);
       return winner
         ? `Council of Governors: ${nameOf(winner.nationId)} wins with ${winner.total} of ${event.totalVotes} votes.`
-        : `Council of Governors: ${councilCountText(event, nameOf)}; no winner (${event.needed} needed).`;
+        : `Council of Governors: ${councilCountText({ ...event, nominees: byVotes }, nameOf)}; no winner (${event.needed} needed).`;
     }
   }
 }
 
 /**
- * The two nominees' totals, the first nominee first, of all the votes: "Testland 5, Valdoria 4 of 12 votes" (FR-297's news
- * line, FR-301's projection in the HUD).
+ * The nominees' totals in the order given, of all the votes: "Testland 5, Valdoria 4 of 12 votes" (FR-297's news line,
+ * which passes them by votes, FR-414).
  */
-export const councilCountText = (vote: Pick<CouncilVote, "nominees" | "totalVotes">, nameOf: (countryId: string) => string): string =>
+export const councilCountText = (vote: { nominees: readonly CouncilVote["nominees"][number][]; totalVotes: number }, nameOf: (countryId: string) => string): string =>
   `${vote.nominees.map((n) => `${nameOf(n.nationId)} ${n.total}`).join(", ")} of ${vote.totalVotes} votes`;
 
 /** FR-313: the two nominees with the player's nation first when it is one of them, else in standing order. */
@@ -414,6 +448,8 @@ export interface NewsItem {
   text: string;
   battle?: BattleResolvedEvent;
   council?: CouncilMetEvent;
+  /** The tile a line is about (FR-375): the news panel selects it and scrolls it into view (FR-376). */
+  tileId?: string;
 }
 
 /**
@@ -424,21 +460,23 @@ export interface NewsItem {
  * `nameOf` also names the countries a diplomacy line mentions, minor nations included (FR-176).
  * A battle the player fought, attacking or defending, is its own line, from its side ("Battle at Testland North-East:
  * Province Lost!", FR-232); another nation's battle reads from its attacker's side.
+ * FR-375: a line about a tile names its province through `placeOf` (`tilePlaces`) and carries its `tileId`.
  */
-export function newsItems(events: readonly GameEvent[], playerId: string, nameOf: (countryId: string) => string): NewsItem[] {
+export function newsItems(events: readonly GameEvent[], playerId: string, nameOf: (countryId: string) => string, placeOf?: PlaceOf): NewsItem[] {
   const council: NewsItem[] = [];
   const own: NewsItem[] = [];
   const others: NewsItem[] = [];
   const general: NewsItem[] = [];
   for (const event of events) {
-    // The screen a line opens: its battle's (FR-232) or its meeting's (FR-297)
-    const opens = event.type === "battle-resolved" ? { battle: event } : event.type === "council-met" ? { council: event } : {};
+    // The screen a line opens: its battle's (FR-232) or its meeting's (FR-297); the tile it leads to (FR-375)
+    const tileId = tileOf(event);
+    const opens = event.type === "battle-resolved" ? { battle: event } : event.type === "council-met" ? { council: event } : tileId ? { tileId } : {};
     const ours = event.type === "battle-resolved" ? battleOutcome(event, playerId) : undefined;
     if (event.type === "battle-resolved" && ours) {
       own.push({ text: `Battle at ${nameOf(event.provinceId)}: ${BATTLE_RESULT_TEXT[ours]}`, ...opens });
       continue;
     }
-    const line = eventText(event, nameOf);
+    const line = eventText(event, nameOf, placeOf);
     if (line === null) continue;
     const nationId = "nationId" in event ? event.nationId : undefined;
     if (event.type === "council-met") council.push({ text: line, ...opens });
@@ -450,8 +488,8 @@ export function newsItems(events: readonly GameEvent[], playerId: string, nameOf
 }
 
 /** The text of the news lines (`newsItems`). */
-export const newsLines = (events: readonly GameEvent[], playerId: string, nameOf: (countryId: string) => string): string[] =>
-  newsItems(events, playerId, nameOf).map((item) => item.text);
+export const newsLines = (events: readonly GameEvent[], playerId: string, nameOf: (countryId: string) => string, placeOf?: PlaceOf): string[] =>
+  newsItems(events, playerId, nameOf, placeOf).map((item) => item.text);
 
 /** Tiles whose development or construction finished in these events (the map's "done" mark). */
 export function completedTileIds(events: readonly GameEvent[]): ReadonlySet<string> {

@@ -4,7 +4,7 @@
 > - Military is **not v1**. Model it as a later layer: provinces are single combat spaces; regiments are garrison members; fleets hold ships in sea zones. Costs are mostly arms (a commodity made in the Metal Works) plus workers lost for good, plus upkeep $25 per arms point per turn.
 > - One combat engine only: the readme says "all fighting is the same"; auto-resolved and AI-vs-AI fights run the tactical rules without drawing them. A strategic formula does not exist separately.
 > - Many numbers are known (stat tables, forts, entrenchment, landing size, rail deploy size); damage per shot, naval odds and heal rate are not documented (see gaps.md).
-> - CODE MISMATCH: `types/Unit.ts`, `types/Navy.ts` match the stat table fields; `Army.morale/supply` have no rule; no combat code exists.
+> - CODE MISMATCH: `types/Unit.ts` and `types/Navy.ts` match the stat table fields (checked 2026-11-15, still true); ships have no values and no code (the navy is M17). `Army.morale/supply` RESOLVED 2026-11-15 (`types/Army.ts` has neither) and "no combat code exists" RESOLVED 2026-11-15 (M9: `engine/systems/combatSystem.ts`, `engine/army/combat.ts`).
 > - UPDATE 2026-11-12: section 7 adds six Armoury costs read off screens (four table rows filled), derived costs for eight more regiments, Force Size, the upkeep check (F10 closed), the in-game tech texts (F2 closed) and capital-loss evidence (F4 now leans to "garrisons attack").
 
 Source tags: `[M pN]` manual PDF page marker; `[W#]` web source (see Sources); `[?]` unverified or inferred.
@@ -198,11 +198,11 @@ Screen-verified (Armoury card: cost row and stat block). Worker grade is shown o
 
 ## CODE MISMATCH
 
-- `types/Unit.ts` `UnitStats` fields (fpNormal, fpMelee, range, defense, defenseEntrenched, move, armamentsCost) match the manual table; `RegimentCategory` has the 9 categories. No unit data, costs, workers or unlock techs exist yet.
-- `types/Navy.ts` `ShipType` has all 8 ships and the right stat fields; no values loaded.
-- CODE MISMATCH: `types/Army.ts` `morale` and `supply` (0-100) and `Army.leader.moraleBonus` have no rule in the manual (morale is per regiment inside a battle).
-- Garrison model: the rules use one garrison per province (militia + regiments); code uses `Army` with `locationProvinceId` and `City.garrison: string[]`. Either works if "units in a province defend together".
-- `types/GameState.ts` `TurnOrderSummary` lists 6 phases (diplomacy, trade, production, combat, interceptions, logistics); the manual lists the same six with transport arrival as the last. Matches. `runTurnPhases` adds development/transport connectivity phases that the manual does not have (worker jobs are resolved at End Turn too).
+- `types/Unit.ts` `UnitStats` fields (fpNormal, fpMelee, range, defense, defenseEntrenched, move, armamentsCost) match the manual table; `RegimentCategory` has the 9 categories. RESOLVED 2026-11-15, was "No unit data, costs, workers or unlock techs exist yet": `definisions/regiments.ts` holds the 9 era-1 regiment types with their stats, costs and worker grades (FR-199, M8). Still true: no regiment needs a technology, and there is no ship data.
+- `types/Navy.ts` `ShipType` has all 8 ships and the right stat fields; no values loaded. Checked 2026-11-15, still true: `definisions/` holds no ship data.
+- RESOLVED 2026-11-15, was: `types/Army.ts` `morale` and `supply` (0-100) and `Army.leader.moraleBonus` had no rule in the manual (morale is per regiment inside a battle). `types/Army.ts` now holds only `id`, `ownerId`, `provinceId` and `regiments` (each with a `health`), so none of them exists.
+- RESOLVED 2026-11-15, was: the rules use one garrison per province (militia + regiments); the code used `Army` with `locationProvinceId` and `City.garrison: string[]`. Now `state.armies` holds at most one `Army` per country per province (`types/Army.ts`, FR-204), so the units in a province defend together; `City.garrison` no longer exists.
+- RESOLVED 2026-11-15, was: `types/GameState.ts` `TurnOrderSummary` listed 6 phases and `runTurnPhases` added development and transport connectivity phases. `TurnOrderSummary` no longer exists; `engine/turn/phases.ts` runs 13 systems (see 01); worker jobs are resolved by `developmentSystem` at End Turn.
 
 ## Sources
 

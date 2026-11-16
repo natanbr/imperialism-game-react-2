@@ -29,6 +29,7 @@ import { mealNeeds } from "../systems/foodSystem";
 import { productionSystem } from "../systems/productionSystem";
 import { computeLogisticsTransport, logisticsSystem } from "../systems/logisticsSystem";
 import { transportConnectivitySystem } from "../systems/transportConnectivitySystem";
+import { developmentSystem } from "../systems/developmentSystem";
 import { createTurnContext } from "../turn/context";
 import { turnLimitOf } from "../turn/gameOver";
 import { SCRIPTED_GARRISON } from "@/definisions/regiments";
@@ -128,8 +129,55 @@ export function shippingWants(state: GameState, nationId: string): [string, numb
   ];
 }
 
+/**
+ * The scripted transport plan since FR-389 (a set amount is exact, an absent commodity automatic), for `capacity` cars
+ * and the `collected` units: each commodity with a want is set, in the wants' order, to the larger of its want and what
+ * the rule from before FR-389 (the wants first, then the cars left filled in tile order) ships of it; every other
+ * commodity stays automatic and takes the cars left in tile order. The logistics phase then ships what that rule
+ * shipped. Example: 15 cars, collected grain 10, livestock 4, fruit 5, cotton 2, wants livestock 1 and cotton 2:
+ * { livestock: 3, cotton: 2 }, and the logistics phase ships livestock 3, cotton 2, grain 10.
+ */
+export function priorityPlan(capacity: number, collected: Stock, wants: readonly (readonly [string, number])[]): Record<string, number> {
+  const shipped: Stock = {};
+  let used = 0;
+  const ship = (res: string, wanted: number) => {
+    const units = Math.max(0, Math.min(wanted, (collected[res] ?? 0) - (shipped[res] ?? 0), capacity - used));
+    if (units <= 0) return;
+    shipped[res] = (shipped[res] ?? 0) + units;
+    used += units;
+  };
+  const wanted = wants.map(([res, want]) => [res, Math.floor(want) || 0] as const).filter(([, want]) => want > 0);
+  for (const [res, want] of wanted) ship(res, want);
+  for (const [res, amount] of Object.entries(collected)) ship(res, amount);
+  return Object.fromEntries(wanted.map(([res, want]) => [res, Math.max(want, shipped[res] ?? 0)]));
+}
+
+const carsOf = (state: GameState, nationId: string): number => Math.max(0, nationOf(state, nationId).transportCapacity ?? 0);
+
+/** The first plan, on what the hubs collect now: the one the trade's projection ships (`projectTurn` runs no development). */
 function planTransport(state: GameState, nationId: string, propose: Propose): void {
-  propose({ kind: "setTransportAllocations", nationId, allocations: Object.fromEntries(shippingWants(state, nationId)) });
+  const allocations = priorityPlan(carsOf(state, nationId), gatheredOf(state, nationId), shippingWants(state, nationId));
+  propose({ kind: "setTransportAllocations", nationId, allocations });
+}
+
+/**
+ * What the hubs collect in the logistics phase of the turn `view` plans (its orders given): after the development
+ * phase finishes this turn's jobs (a rail, a depot, a tile's next level) and the connectivity phase updates the hubs.
+ */
+export function collectedAtLogistics(view: GameState, nationId: string): Stock {
+  const ctx = createTurnContext({ turn: view.turn });
+  return gatheredOf(transportConnectivitySystem(developmentSystem(view, ctx), ctx), nationId);
+}
+
+/**
+ * FR-389: the plan given again once the turn's other orders are known (scriptedPlayer, after the civilians): a rail
+ * an engineer starts may finish in this turn's development phase and join a new hub, and a set amount no longer takes
+ * the cars that frees. The wants are the turn's start's (`start`), the collection the logistics phase's
+ * (`collectedAtLogistics(view)`); the cars ordered this turn join only after the phases.
+ */
+export function planFinalTransport(start: GameState, view: GameState, nationId: string, propose: Propose): void {
+  const allocations = priorityPlan(carsOf(view, nationId), collectedAtLogistics(view, nationId), shippingWants(start, nationId));
+  propose({ kind: "setTransportAllocations", nationId, allocations });
 }
 
 /** One freight car a turn while the cargo worth shipping is more than the cars carry (FR-127). */

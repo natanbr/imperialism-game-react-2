@@ -432,7 +432,8 @@ describe('FR-170 grants', () => {
 
   it('FR-170 FR-202 FR-261 review R6: a $10,000 grant from $10,000 leaves nothing for the upkeep: the forecast warns, and End Turn disbands the 3 field regiments (no-pay) with no upkeep paid', () => {
     const s = order(embassy(continent()), grant(10000));
-    expect(upkeepForecast(s, N1)).toEqual({ due: UPKEEP, cash: 0, short: true });
+    expect(upkeepForecast(s, N1)).toMatchObject({ due: UPKEEP, cash: 0, short: true, shortBy: UPKEEP });
+    expect(upkeepForecast(s, N1).regimentsLost).toHaveLength(3);
 
     const { state, events } = endTurnAll(s);
 
@@ -684,8 +685,9 @@ describe('FR-173 simultaneous and fair', () => {
   });
 
   it('FR-173 FR-176 every diplomacy event names the acting Great Power as nationId; proposal-received names the receiving human and the proposer as fromId', () => {
-    const start = embassy(continent());
-    const { events } = endTurn(order(order(start, grant(1000, true)), propose(N1, 'war', LORRAN)), {
+    // M12 FR-406: the war is on Arvelia (Lorran has no land route), so the grant goes to Pellis, not the victim
+    const start = embassy(continent(), N1, PELLIS);
+    const { events } = endTurn(order(order(start, grant(1000, true, PELLIS)), propose(N1, 'war', ARVELIA)), {
       [N2]: [propose(N2, 'consulate', ARVELIA), propose(N2, 'alliance', N1)],
     });
 
@@ -701,7 +703,7 @@ describe('FR-173 simultaneous and fair', () => {
 
   it('FR-013 FR-173 the diplomacy phase leaves a deep-frozen input unchanged', () => {
     let s = setPair(embassy(continent()), N1, N2, { lockedGrants: { [N1]: 1000 } });
-    for (const o of [propose(N1, 'consulate', SUNDMARK), propose(N1, 'pact', ARVELIA), grant(3000, true), propose(N1, 'war', LORRAN), policy(0, true, PELLIS)]) s = order(s, o);
+    for (const o of [propose(N1, 'consulate', SUNDMARK), propose(N1, 'pact', ARVELIA), grant(3000, true), propose(N1, 'war', N2), policy(0, true, PELLIS)]) s = order(s, o);
     const frozen = deepFreeze(s);
     const snapshot = structuredClone(frozen);
 
@@ -767,13 +769,14 @@ describe('FR-173 simultaneous and fair', () => {
 });
 
 describe('FR-239 the news names a war as the reason for a relation change (M6 QA fix round)', () => {
-  it('FR-239 Testland declares war on Lorran: every change it caused carries the war, the pair itself included', () => {
-    const { events } = endTurn(order(continent(), propose(N1, 'war', LORRAN)));
+  // M12 FR-406: Arvelia, the one minor with a land route, replaces Lorran as the victim
+  it('FR-239 Testland declares war on Arvelia: every change it caused carries the war, the pair itself included', () => {
+    const { events } = endTurn(order(continent(), propose(N1, 'war', ARVELIA)));
 
-    const byWar = [{ aggressorId: N1, targetId: LORRAN }];
+    const byWar = [{ aggressorId: N1, targetId: ARVELIA }];
     expect(ofType(events, 'relation-changed')).toEqual(expect.arrayContaining([
-      { type: 'relation-changed', nationId: N1, otherId: LORRAN, from: 3, to: 0, wars: byWar },
-      { type: 'relation-changed', nationId: N1, otherId: ARVELIA, from: 3, to: 2, wars: byWar },
+      { type: 'relation-changed', nationId: N1, otherId: ARVELIA, from: 3, to: 0, wars: byWar },
+      { type: 'relation-changed', nationId: N1, otherId: LORRAN, from: 3, to: 2, wars: byWar },
     ]));
   });
 
@@ -793,13 +796,14 @@ describe('FR-239 the news names a war as the reason for a relation change (M6 QA
   it('FR-239 two wars that both move a pair are both named, in the order resolved; a grant alone names none', () => {
     // Turn 1: Testland goes first (FR-152). Both declare on a minor; Sundmark loses 5 with each aggressor (FR-168).
     const s = setPair(embassy(continent(), N1, PELLIS), N1, PELLIS, { points: 38 });
-    const { events } = endTurn(order(order(s, propose(N1, 'war', LORRAN)), grant(1000, false, PELLIS)), {
+    // M12 FR-406: both wars are on Arvelia, the one minor with a land route (Testland's was on Lorran)
+    const { events } = endTurn(order(order(s, propose(N1, 'war', ARVELIA)), grant(1000, false, PELLIS)), {
       [N2]: [propose(N2, 'war', ARVELIA)],
     });
 
     const changes = ofType(events, 'relation-changed');
     // Testland's own war moved Testland and Sundmark (30 -> 25); Valdoria's war on Arvelia did not touch that pair
-    expect(changes).toContainEqual({ type: 'relation-changed', nationId: N1, otherId: SUNDMARK, from: 3, to: 2, wars: [{ aggressorId: N1, targetId: LORRAN }] });
+    expect(changes).toContainEqual({ type: 'relation-changed', nationId: N1, otherId: SUNDMARK, from: 3, to: 2, wars: [{ aggressorId: N1, targetId: ARVELIA }] });
     expect(changes).toContainEqual({ type: 'relation-changed', nationId: N2, otherId: SUNDMARK, from: 3, to: 2, wars: [{ aggressorId: N2, targetId: ARVELIA }] });
     // Pellis: 38 - 5 (the war on Lorran) + 2 (the grant) = 35, level 3: no change, no event
     expect(changes.filter(e => e.otherId === PELLIS && e.nationId === N1)).toEqual([]);

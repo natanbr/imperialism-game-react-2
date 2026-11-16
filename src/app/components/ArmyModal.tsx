@@ -10,6 +10,7 @@ import {
   disbandQuestion,
   marchControl,
   type ArmyControl,
+  type AttackCancelView,
   type RegimentRowView,
 } from "./army/armyView";
 import { RegimentPicture } from "./art/ArtPicture";
@@ -116,6 +117,32 @@ const RegimentRow: React.FC<RowProps> = ({ row, ticked, onTick, onSubmit }) => {
         </span>
       </td>
     </tr>
+  );
+};
+
+/** FR-420: "Cancel attack on Arvelia" for each planned attack out of the province; the rows keep their own Cancel. */
+const AttackCancels: React.FC<{ cancels: AttackCancelView[]; onCancel: (cancel: AttackCancelView) => void }> = ({ cancels, onCancel }) => {
+  const titleId = useId();
+  const reasonIds = useId();
+  return (
+    <div className={styles.controlGroup} role="group" aria-labelledby={titleId} data-testid="attack-cancels">
+      <span id={titleId} className={styles.label}>
+        Planned attacks
+      </span>
+      {cancels.map((cancel, i) => (
+        <React.Fragment key={cancel.toProvinceId}>
+          <button
+            className={styles.button}
+            disabled={cancel.refusal !== undefined}
+            aria-describedby={cancel.refusal ? `${reasonIds}-${i}` : undefined}
+            onClick={() => onCancel(cancel)}
+          >
+            {cancel.label}
+          </button>
+          <Reason id={`${reasonIds}-${i}`} control={{ order: cancel.orders[0], refusal: cancel.refusal }} />
+        </React.Fragment>
+      ))}
+    </div>
   );
 };
 
@@ -238,6 +265,11 @@ const ArmyScreen: React.FC<{ provinceId: string }> = ({ provinceId }) => {
         </p>
       )}
 
+      {view.attackCancels.length > 0 && (
+        // One order a regiment, sent together (FR-420)
+        <AttackCancels cancels={view.attackCancels} onCancel={(cancel) => cancel.orders.forEach((order) => submitOrder(order))} />
+      )}
+
       {/* FR-267: militia never march or disband, so a militia-only province has no controls, only the reason, once */}
       {view.militiaOnly && (
         <p className={styles.noOrders} data-testid="army-no-orders">
@@ -318,7 +350,7 @@ const ArmyScreen: React.FC<{ provinceId: string }> = ({ provinceId }) => {
  * The Army screen (FR-211; Imp1 Garrison Book, rules 11 section 5.2): our regiments in one province with their picture
  * (FR-272), category, ARMS, health and status; tick the Available ones to march them to a bordering province of ours, to
  * attack a bordering province of another country ("Attack Arvelia", then "Attack…" opens the Attack screen, FR-230) or
- * to disband them (asked in place first); cancel a march or an attack. Opened from our marker on the map (FR-210, store flag `armyProvinceId`). Every
+ * to disband them (asked in place first); cancel a march or an attack, or a whole attack (FR-420). Opened from our marker on the map (FR-210, store flag `armyProvinceId`). Every
  * control sends one order through submitOrder; a control the engine would refuse is disabled and says why.
  */
 export const ArmyModal: React.FC = () => {

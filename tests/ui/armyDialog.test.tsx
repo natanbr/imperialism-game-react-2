@@ -12,7 +12,9 @@ import { ArmyModal } from '@/components/ArmyModal';
 import { useGameStore } from '@/store/rootStore';
 import { transferProvince, type Order } from '@/engine';
 import type { GameState } from '@/types/GameState';
-import { continent, idOf, NE1, NW1, patchRegiment, relocate, SE1, SW1 } from '../engine/armyFixtures';
+import { ARVELIA, ARVELIA_P, clearArmy, continent, idOf, NE1, NW1, patchRegiment, relocate, SE1, SW1 } from '../engine/armyFixtures';
+import { setPair } from '../engine/fixtures';
+import { applyOrder } from '@/engine/orders/apply';
 import { failOnActWarnings } from './actWarnings';
 import { text } from './domText';
 
@@ -157,12 +159,13 @@ describe('FR-211 the Army screen: what it shows', () => {
     expect(legend.compareDocumentPosition(within(dialog()).getByRole('table')) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
   });
 
-  it('FR-261 review F2: with less cash than the upkeep the screen warns that the newest regiments would be disbanded', () => {
+  // FR-393 (M12, lane L1) words the warning: how much is short and which regiments go
+  it('FR-261 FR-393 review F2: with less cash than the upkeep the screen warns how much is short and which regiment would be disbanded', () => {
     openArmy({ ...continent(), nations: continent().nations.map((n) => (n.id === N1 ? { ...n, treasury: 60 } : n)) });
     const warning = within(dialog()).getByTestId('army-upkeep-warning');
     expect(warning.getAttribute('role')).toBe('status');
     expect(text(warning)).toBe(
-      "Cash is short of the army upkeep: $100 is due at End Turn and $60 will be left. Unless this turn's sales cover the rest, the newest regiments are disbanded."
+      "Army upkeep of $100 is due at End Turn and the treasury will hold $60: $40 short. Unless this turn's sales bring in $40, 1 regiment is disbanded (1st Artillery)."
     );
   });
 
@@ -397,5 +400,56 @@ describe('FR-211 a refused order: the control is disabled with the refusal text'
     openArmy({ ...s, armies: s.armies.filter((a) => !(a.ownerId === N1 && a.provinceId === SW1)) });
     expect(text(within(dialog()).getByTestId('no-army'))).toBe('No regiment of ours is here.');
     expect(text(within(dialog()).getByTestId('force-size'))).toBe('Force Size: 0');
+  });
+});
+
+// FR-420 (ARMY-WAR-14): one button cancels a whole planned attack, one cancelArmyMove a regiment, sent together
+describe('FR-420 cancel a whole attack', () => {
+  const NE_TITLE = 'Army in Testland North-East';
+  const FIELD = ['regiment-1', 'regiment-2', 'regiment-3'];
+  const atWar = (s: GameState, a: string, b: string): GameState =>
+    setPair(s, a, b, { war: { aggressors: [a], since: 1 }, consulates: [], embassies: [], pact: false, alliance: false });
+  /** The field army in Testland North-East; Valdoria holds Testland North-West (hand-built); at war with both neighbours. */
+  function border(): GameState {
+    let s = atWar(atWar(relocate(continent('world'), FIELD, NE1), N1, ARVELIA), N1, 'nation-2');
+    s = { ...s, provinces: s.provinces.map((p) => (p.id === NW1 ? { ...p, ownerId: 'nation-2', name: 'Valdoria North-West' } : p)) };
+    return clearArmy(s, N1, NW1);
+  }
+  /** 1st Regulars and 1st Artillery attack Arvelia, 2nd Regulars attacks Valdoria North-West. */
+  function twoAttacks(): GameState {
+    let s = applyOrder(border(), { kind: 'moveArmy', nationId: N1, fromProvinceId: NE1, regimentIds: ['regiment-1', 'regiment-3'], toProvinceId: ARVELIA_P });
+    s = applyOrder(s, { kind: 'moveArmy', nationId: N1, fromProvinceId: NE1, regimentIds: ['regiment-2'], toProvinceId: NW1 });
+    return s;
+  }
+  const ne = () => screen.getByRole('dialog', { name: NE_TITLE });
+  const planned = () => within(ne()).getByRole('group', { name: 'Planned attacks' });
+  const statusIn = (name: string) => text(within(within(ne()).getByTestId(`regiment-${name}`)).getByTestId('status'));
+
+  it('FR-420 one "Cancel attack on <province>" per planned attack, in the rows\' order', () => {
+    openArmy(twoAttacks(), NE1);
+    expect(within(planned()).getAllByRole('button').map((b) => text(b))).toEqual(['Cancel attack on Arvelia', 'Cancel attack on Valdoria North-West']);
+  });
+
+  it('FR-420 it sends one cancelArmyMove a regiment of that attack, together; the other attack stays', () => {
+    openArmy(twoAttacks(), NE1);
+    fireEvent.click(within(planned()).getByRole('button', { name: 'Cancel attack on Arvelia' }));
+    expect(submitted).toEqual([
+      { kind: 'cancelArmyMove', nationId: N1, regimentIds: ['regiment-1'] },
+      { kind: 'cancelArmyMove', nationId: N1, regimentIds: ['regiment-3'] },
+    ]);
+    expect([statusIn('1st Regulars'), statusIn('1st Artillery'), statusIn('2nd Regulars')]).toEqual(['Available', 'Available', 'Attacking Valdoria North-West']);
+    expect(within(planned()).getAllByRole('button').map((b) => text(b))).toEqual(['Cancel attack on Valdoria North-West']);
+  });
+
+  it('FR-420 the per-regiment Cancel stays', () => {
+    openArmy(twoAttacks(), NE1);
+    fireEvent.click(within(within(ne()).getByTestId('regiment-1st Artillery')).getByRole('button', { name: 'Cancel attack of 1st Artillery' }));
+    expect(submitted).toEqual([{ kind: 'cancelArmyMove', nationId: N1, regimentIds: ['regiment-3'] }]);
+    expect(within(planned()).getAllByRole('button').map((b) => text(b))).toEqual(['Cancel attack on Arvelia', 'Cancel attack on Valdoria North-West']);
+  });
+
+  it('FR-420 no attack planned (none, or a march only): no such button', () => {
+    openArmy(border(), NE1);
+    expect(within(ne()).queryByRole('group', { name: 'Planned attacks' })).toBeNull();
   });
 });

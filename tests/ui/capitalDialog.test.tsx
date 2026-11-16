@@ -271,3 +271,61 @@ describe('FR-047 capital dialog: labour, training, migration, freight cars', () 
     expect(text(within(freight).getByTestId('cars-ordered'))).toBe('1 ordered this turn, carrying goods from next turn');
   });
 });
+
+// FR-426 (card Q97): a column that does not fit says so: an always-drawn scrollbar and a fade at its cut edge. jsdom has
+// no layout, so each column's sizes are set by hand: 600 px of content in a 400 px window, scrolled `top` px.
+describe('FR-426 FR-428 the Capital columns show that there is more', () => {
+  function sized(el: HTMLElement, content: number, window: number) {
+    let top = 0;
+    Object.defineProperty(el, 'scrollHeight', { configurable: true, get: () => content });
+    Object.defineProperty(el, 'clientHeight', { configurable: true, get: () => window });
+    Object.defineProperty(el, 'scrollTop', { configurable: true, get: () => top, set: (v: number) => (top = v) });
+    return (to: number) => {
+      top = to;
+      fireEvent.scroll(el);
+    };
+  }
+  const industry = () => screen.getByRole('main', { name: 'Industry' });
+  const side = () => screen.getByTestId('labour-panel').parentElement!;
+
+  it('FR-426 a column cut at its bottom shows a fade there; scrolled to its end, none; a column that fits has none', () => {
+    openCapital(stocked());
+    const scrollIndustry = sized(industry(), 600, 400);
+    sized(side(), 300, 400);
+    // A window resize measures again (as a render does)
+    fireEvent(window, new Event('resize'));
+    expect(screen.getByTestId('industry-fade').getAttribute('aria-hidden')).toBe('true');
+    expect(screen.queryByTestId('side-fade')).toBeNull();
+
+    scrollIndustry(200);
+    expect(screen.queryByTestId('industry-fade')).toBeNull();
+    scrollIndustry(150);
+    expect(screen.getByTestId('industry-fade')).toBeTruthy();
+  });
+
+  it('FR-426 the fade lies over the cut edge, outside the scrolling content, and lets clicks through', () => {
+    openCapital(stocked());
+    sized(industry(), 600, 400);
+    fireEvent(window, new Event('resize'));
+    const fade = screen.getByTestId('industry-fade');
+    expect(industry().contains(fade)).toBe(false);
+    expect(fade.parentElement).toBe(industry().parentElement);
+    const css = readFileSync(join(ROOT, 'src/app/components/capital/Capital.module.css'), 'utf8');
+    expect(css).toMatch(/\.fade \{[^}]*position: absolute;[^}]*bottom: 0;[^}]*pointer-events: none;/);
+    expect(css).toMatch(/\.column \{[^}]*position: relative;/);
+  });
+
+  it('FR-426 both columns draw an always-visible scrollbar when they scroll (not the overlay one)', () => {
+    const css = readFileSync(join(ROOT, 'src/app/components/capital/Capital.module.css'), 'utf8');
+    expect(css).toMatch(/\.industry::-webkit-scrollbar,\s*\.side::-webkit-scrollbar \{[^}]*width: \d+px/);
+    expect(css).toMatch(/\.industry::-webkit-scrollbar-thumb,\s*\.side::-webkit-scrollbar-thumb \{[^}]*background/);
+  });
+
+  it('FR-428 below 600 px the columns stack and the body scrolls as one; the header wraps so the close button stays', () => {
+    const css = readFileSync(join(ROOT, 'src/app/components/capital/Capital.module.css'), 'utf8');
+    const narrow = /@media \(max-width: 599\.98px\) \{([\s\S]*?)\n\}/.exec(css)?.[1] ?? '';
+    expect(narrow).toMatch(/\.dialog \{[^}]*width: calc\(100vw - 16px\)/);
+    expect(narrow).toMatch(/\.body \{[^}]*grid-template-columns: minmax\(0, 1fr\);[^}]*overflow-y: auto;/);
+    expect(narrow).toMatch(/\.header \{[^}]*flex-wrap: wrap;/);
+  });
+});

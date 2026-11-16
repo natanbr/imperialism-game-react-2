@@ -1,10 +1,5 @@
 import { ResourceType } from '../types/Resource';
 
-export interface ResourceProductionLevel {
-  level: number;
-  production: number;
-}
-
 export const ResourceDevelopmentTable: Record<ResourceType, Record<number, number>> = {
   [ResourceType.Grain]: {
     0: 1,

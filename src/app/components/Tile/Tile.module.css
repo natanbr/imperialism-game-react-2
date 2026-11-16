@@ -31,6 +31,14 @@
   box-shadow: var(--shadow-md);
 }
 
+/* FR-369: the tile the keyboard is on, a dashed ring inside its box: not the selection's corner brackets (FR-326), so a
+   focused tile and the selected one read apart. No z-index: the tile stays no stacking context (its marks keep their
+   order with the neighbours'), so a border or rail line may cross the ring. */
+.tile:focus-visible {
+  outline: 2px dashed var(--color-accent-strong);
+  outline-offset: -3px;
+}
+
 .tileJobCompleted {
   box-shadow: var(--shadow-lg);
 }
@@ -188,6 +196,33 @@
   margin-right: -1px;
 }
 
+/* A fort (FR-388, card Q88): the pack's fort, 16 px, in a top corner over the grid line (y -1 to 15), so it ends above a
+   lone civilian's button 5 px in (from y 15) or in the corner (from y 16). The top-right (x 25 to 41) unless a depot or a
+   port stands there or a stack's count reaches into it (from y 10); then the top-left (x -1 to 15), clear of a crowded
+   capital's low army chips (from y 16) and its picture's middle (x 20). Under the civilians and the army chips. */
+.fortMark {
+  position: absolute;
+  top: -1px;
+  width: 16px;
+  height: 16px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.fortMarkLeft {
+  left: -1px;
+}
+
+.fortMarkRight {
+  right: -1px;
+}
+
+.fortPicture {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
 /* Job markers, below the level badge */
 .jobs {
   position: absolute;
@@ -330,6 +365,23 @@
 .trayAbove {
   top: auto;
   bottom: calc(100% + 2px);
+}
+
+/* One civilian in the tray (FR-433): the 24 px button, its type written under it; the column as wide as the longest */
+.trayItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+
+.trayName {
+  font-size: var(--font-size-xs);
+  line-height: 12px;
+  color: var(--color-ink);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
 }
 
 /* Army markers on a province's seat (FR-210; Imp1 encampment tents): one 24 x 24 chip per country, the province's

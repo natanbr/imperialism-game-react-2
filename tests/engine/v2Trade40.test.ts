@@ -93,12 +93,15 @@ function play(seed: number): Game {
  * a reserve that rises one turn of upkeep a turn from turn 28, so it spends less on turns 28 to 32. The M9 numbers before
  * it were: deals [60, 60], [58, 52], [50, 53], [53, 63]; purchases [29, 27], [23, 19], [22, 23], [24, 28]; treasuries
  * [1231, 3917], [3570, 2016], [608, 2488], [13, 5871]; minors, no-pay and capital arms as now.
+ * Measured again in M12 (FR-405) for FR-401: at equal points a minor breaks the tie by an order fixed per game from the
+ * seed and its id, no longer by the turn's intentOrder. Seeds 1 to 3 are unchanged; seed 4 was deals [53, 60], purchases
+ * [24, 28], treasuries [13, 3725], capital arms [5, 4]. (FR-389 moves nothing here: the scripted plan ships as before.)
  */
 const BASELINE = [
   { seed: 1, minorDeals: [60, 60], minorPurchases: [29, 27], minorsDealt: [4, 4], treasury: [1549, 5040], noPay: [0, 0], capitalArms: [5, 4] },
   { seed: 2, minorDeals: [59, 50], minorPurchases: [24, 19], minorsDealt: [4, 1], treasury: [4178, 959], noPay: [0, 0], capitalArms: [6, 5] },
   { seed: 3, minorDeals: [56, 56], minorPurchases: [26, 25], minorsDealt: [4, 4], treasury: [1518, 5091], noPay: [0, 0], capitalArms: [5, 4] },
-  { seed: 4, minorDeals: [53, 60], minorPurchases: [24, 28], minorsDealt: [4, 4], treasury: [13, 3725], noPay: [0, 0], capitalArms: [5, 4] },
+  { seed: 4, minorDeals: [63, 53], minorPurchases: [30, 24], minorsDealt: [4, 4], treasury: [2668, 13], noPay: [0, 0], capitalArms: [4, 5] },
 ];
 
 /** The force size (FR-204) of the nation's army in its capital province at turn 40. */

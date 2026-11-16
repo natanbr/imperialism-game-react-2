@@ -329,6 +329,24 @@ describe('FR-155 a minor nation\'s tile is named with the minor as its owner', (
   });
 });
 
+// M12 (NR-033), lane L2. FR-388 (card Q88): the fort mark adds a title, not a name: the tile keeps its name (FR-095), and
+// the mark's picture is decoration (alt "") inside a span with no role, outside the tab order.
+describe('FR-388 the fort mark adds no name', () => {
+  it('FR-388 FR-095 the capitals keep "Capital, owned by Testland" and "Capital, owned by Valdoria"; each mark is titled "Fort level 1", no image to a screen reader', () => {
+    useGameStore.setState({ ...useGameStore.getInitialState(), game: newGame({ seed: 1, world: 'continent' }), activeNationId: 'nation-1' });
+    const { container } = render(<MapView />);
+    const label = (id: string) => container.querySelector(`[data-tile-id="${id}"]`)!.getAttribute('aria-label');
+    expect([label('2-9'), label('14-9')]).toEqual(['Capital, owned by Testland', 'Capital, owned by Valdoria']);
+    const marks = screen.getAllByTitle('Fort level 1');
+    expect(marks.map((m) => m.closest('[data-testid="tile"]')!.getAttribute('data-tile-id'))).toEqual(['2-9', '14-9']);
+    for (const m of marks) {
+      expect([m.getAttribute('role'), m.getAttribute('aria-label'), m.getAttribute('tabindex')]).toEqual([null, null, null]);
+      expect(m.querySelector('img')!.getAttribute('alt')).toBe('');
+    }
+    expect(screen.queryAllByRole('img', { name: /fort/i })).toEqual([]);
+  });
+});
+
 describe('FR-096 the browser tab title', () => {
   it('FR-096 layout.tsx titles the page "Imperialism"', () => {
     const layout = readFileSync(join(ROOT, 'src/app/layout.tsx'), 'utf8');

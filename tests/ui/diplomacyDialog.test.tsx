@@ -12,7 +12,7 @@
 // treaties say "since the start" (FR-240), "we are already at war with them" (FR-241). QA review (FR-236): Tab from the
 // war question or a disabled control goes on from it; Escape answers the war question wherever the focus is; after an
 // order disables or removes the focused control, Tab goes on from its place.
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { act, fireEvent, render, renderHook, screen, within } from '@testing-library/react';
@@ -22,11 +22,30 @@ import { DiplomacyModal } from '@/components/DiplomacyModal';
 import { AcceptOfferModal } from '@/components/AcceptOfferModal';
 import { CapitalModal } from '@/components/CapitalModal';
 import { ActionButtons } from '@/components/HUD/index';
-import { diplomacyRows } from '@/components/diplomacy/diplomacyView';
+import { compareStrength, diplomacyRows, grantAsk } from '@/components/diplomacy/diplomacyView';
+import { money, upkeepWarningText } from '@/components/gameText';
 import { useGameStore } from '@/store/rootStore';
-import { newGame, pairKey, proposalAnswer, tryApplyOrder, type Order, type Proposal } from '@/engine';
+import { HOW_TO_PLAY_SEEN_KEY } from '@/store/persistence';
+import {
+  COUNCIL,
+  isMilitia,
+  militaryStrength,
+  newGame,
+  OVERTURE_COST,
+  pairKey,
+  proposalAnswer,
+  provincesOf,
+  regimentsOf,
+  scoreOf,
+  tryApplyOrder,
+  upkeepForecast,
+  type Order,
+  type Proposal,
+} from '@/engine';
+import { SCRIPTED_DIPLOMACY, WAR_RELATION } from '@/definisions/diplomacyRules';
 import type { GameState } from '@/types/GameState';
 import { setPair, setTreasury, treasury } from '../engine/fixtures';
+import { addRegiments, SW2 } from '../engine/armyFixtures';
 import { failOnActWarnings } from './actWarnings';
 import { text } from './domText';
 
@@ -37,6 +56,8 @@ const N1 = 'nation-1';
 const N2 = 'nation-2';
 const ARVELIA = 'minor-1';
 const LORRAN = 'minor-3';
+// FR-406: of the minors only Arvelia can be reached over land; war on Sundmark, Lorran or Pellis needs ships (FR-407)
+const SUNDMARK = 'minor-2';
 
 let submitted: Order[] = [];
 
@@ -89,9 +110,25 @@ const description = (el: HTMLElement): string =>
     .map((id) => document.getElementById(id)?.textContent ?? '')
     .join(' ');
 const now = () => useGameStore.getState().game;
+/** FR-422: Give asks first; this answers the question with "Give $…". */
+const give = (countryName: string) => {
+  fireEvent.click(within(country(countryName)).getByRole('button', { name: 'Give' }));
+  const ask = within(country(countryName)).getByRole('group', { name: `Confirm grant to ${countryName}` });
+  fireEvent.click(within(ask).getByRole('button', { name: /^Give \$/ }));
+};
+/** FR-395: what a subsidy toward a minor costs. */
+const subsidyCost = (name: string, percent: number) =>
+  `Subsidy ${percent}%: no fee; ${name} pays us ${percent}% less for our goods and charges us ${percent}% more for its own.`;
 
+// FR-430: this browser has seen "How to play", so the page (Home) does not open it over these tests
 beforeEach(() => {
   submitted = [];
+  window.localStorage.setItem(HOW_TO_PLAY_SEEN_KEY, '1');
+});
+
+// The page (Home) autosaves to the browser (FR-357): each test starts with an empty slot, so no "Saved game" dialog
+afterEach(() => {
+  window.localStorage.clear();
 });
 
 describe('FR-177 the Diplomacy screen: the countries', () => {
@@ -185,22 +222,22 @@ describe('FR-177 the Diplomacy screen: the countries', () => {
     expect(ordered('Arvelia')).toEqual([]);
   });
 
-  it('FR-177 a grant, a trade policy and a declaration ordered this turn are listed; a free one says "free"', () => {
+  it('FR-177 FR-395 a grant, a trade policy and a declaration ordered this turn are listed; a free one says "free", a subsidy what it costs', () => {
     let s = setPair(start(), N1, ARVELIA, { consulates: [N1], embassies: [N1] });
     for (const order of [
       { kind: 'giveGrant', nationId: N1, targetId: ARVELIA, amount: 3000, locked: true },
       { kind: 'setTradePolicy', nationId: N1, targetId: ARVELIA, subsidyPercent: 10, boycott: true },
-      { kind: 'proposeOverture', nationId: N1, overture: 'war', targetId: LORRAN },
+      { kind: 'proposeOverture', nationId: N1, overture: 'war', targetId: N2 },
     ] as Order[]) {
       s = tryApplyOrder(s, order).state;
     }
     openDiplomacy(s);
 
-    expect(ordered('Arvelia')).toEqual(['Grant $3,000, each turn $3,000 Withdraw', 'Trade policy: subsidy 10%, boycott free Withdraw']);
-    expect(ordered('Lorran')).toEqual(['Declaration of war free Withdraw']);
+    expect(ordered('Arvelia')).toEqual(['Grant $3,000, each turn $3,000 Withdraw', `Trade policy: subsidy 10%, boycott ${subsidyCost('Arvelia', 10)} Withdraw`]);
+    expect(ordered('Valdoria')).toEqual(['Declaration of war free Withdraw']);
     expect(button('Arvelia', 'Withdraw grant $3,000, each turn')).toBeTruthy();
     expect(button('Arvelia', 'Withdraw trade policy: subsidy 10%, boycott')).toBeTruthy();
-    expect(button('Lorran', 'Withdraw declaration of war')).toBeTruthy();
+    expect(button('Valdoria', 'Withdraw declaration of war')).toBeTruthy();
   });
 
   it('FR-177 FR-170 the screen says that a grant\'s money goes to no country (review B-R3: a grant buys relations only)', () => {
@@ -302,10 +339,10 @@ describe('FR-178 the Diplomacy screen: the overtures', () => {
     expect([...amount.options].map((o) => o.textContent)).toEqual(['$1,000', '$3,000', '$5,000', '$10,000']);
     expect([...often.options].map((o) => o.textContent)).toEqual(['once', 'each turn']);
 
-    fireEvent.click(row.getByRole('button', { name: 'Give' }));
+    give('Arvelia');
     fireEvent.change(amount, { target: { value: '3000' } });
     fireEvent.change(often, { target: { value: 'each-turn' } });
-    fireEvent.click(row.getByRole('button', { name: 'Give' }));
+    give('Arvelia');
 
     expect(submitted).toEqual([
       { kind: 'giveGrant', nationId: N1, targetId: ARVELIA, amount: 1000, locked: false },
@@ -349,7 +386,7 @@ describe('FR-178 the Diplomacy screen: the overtures', () => {
     // Withdraw the grant, stop the lock, give the once grant again: the lock ends and only the once grant is paid
     fireEvent.click(button('Arvelia', 'Withdraw grant $1,000, once'));
     fireEvent.click(button('Arvelia', 'Stop grant'));
-    fireEvent.click(within(country('Arvelia')).getByRole('button', { name: 'Give' }));
+    give('Arvelia');
     const withdrawGrant = { kind: 'withdrawOverture', nationId: N1, overture: 'grant', targetId: ARVELIA };
     expect(submitted).toEqual([withdrawGrant, withdrawGrant, { kind: 'giveGrant', nationId: N1, targetId: ARVELIA, amount: 1000, locked: false }]);
     expect(ordered('Arvelia')).toEqual(['Grant stops at End Turn free', 'Grant $1,000, once $1,000 Withdraw']);
@@ -379,7 +416,7 @@ describe('FR-178 the Diplomacy screen: the overtures', () => {
     fireEvent.click(row.getByRole('button', { name: 'Set policy' }));
 
     expect(submitted).toEqual([{ kind: 'setTradePolicy', nationId: N1, targetId: ARVELIA, subsidyPercent: 10, boycott: true }]);
-    expect(ordered('Arvelia')).toEqual(['Trade policy: subsidy 10%, boycott free Withdraw']);
+    expect(ordered('Arvelia')).toEqual([`Trade policy: subsidy 10%, boycott ${subsidyCost('Arvelia', 10)} Withdraw`]);
   });
 
   it('FR-178 FR-162 a subsidy without a consulate is disabled ("we need a consulate there first"); a boycott alone is not', () => {
@@ -442,7 +479,7 @@ describe('FR-178 the Diplomacy screen: the overtures', () => {
     );
     const alliance = ask('Valdoria');
     expect(text(within(alliance).getByTestId('war-cost'))).toBe('This breaks our alliance with Valdoria: relations with every other country get worse.');
-    expect(within(ask('Sundmark')).queryByTestId('war-cost')).toBeNull();
+    // Without a treaty there is no such line: FR-167's test above (Arvelia, the one minor an army can reach, FR-407)
   });
 
   it('FR-178 FR-022 the screen changes the game only through submitOrder: replaying the submitted orders gives the same game', () => {
@@ -450,7 +487,7 @@ describe('FR-178 the Diplomacy screen: the overtures', () => {
     openDiplomacy(s);
     fireEvent.click(button('Arvelia', 'Pact'));
     fireEvent.click(button('Sundmark', 'Consulate ($500)'));
-    fireEvent.click(within(country('Arvelia')).getByRole('button', { name: 'Give' }));
+    give('Arvelia');
     fireEvent.click(within(country('Arvelia')).getByRole('button', { name: 'Set policy' }));
     fireEvent.click(button('Sundmark', 'Withdraw consulate'));
     expect(submitted).toHaveLength(5);
@@ -527,7 +564,7 @@ describe("FR-237 two panes: the countries and the selected country's details (QA
 
     fireEvent.click(button('Arvelia', 'Pact'));
     expect(text(mark('Arvelia')!)).toBe('1 ordered');
-    fireEvent.click(within(country('Arvelia')).getByRole('button', { name: 'Give' }));
+    give('Arvelia');
     expect(text(mark('Arvelia')!)).toBe('2 ordered');
     expect(description(tab('Arvelia'))).toContain('2 ordered');
     expect(mark('Valdoria')).toBeNull();
@@ -871,6 +908,99 @@ describe('FR-175 Accept Offer', () => {
   });
 });
 
+describe('FR-410 FR-411 a closed offer stays answerable in Diplomacy; an offer says what accepting does', () => {
+  const offer = (kind: 'alliance' | 'peace'): Proposal => ({ id: 'proposal-1-1', fromId: N2, toId: N1, kind, turn: 1 });
+  /** Turn 2 with Valdoria's offer from turn 1; a peace offer comes during a war, with Valdoria at `points` (5: dark brown). */
+  const offered = (kind: 'alliance' | 'peace', points = 5): GameState => {
+    const s: GameState = { ...start(), turn: 2, proposals: [offer(kind)] };
+    return kind === 'peace' ? setPair(s, N1, N2, { points, war: { aggressors: [N2], since: 1 }, consulates: [], embassies: [] }) : s;
+  };
+  const offerDialog = () => screen.getByRole('dialog', { name: 'Accept Offer' });
+  /** The page's Diplomacy screen and Accept Offer, as page.tsx mounts them. */
+  const page = () =>
+    render(
+      <>
+        <DiplomacyModal />
+        <AcceptOfferModal />
+      </>
+    );
+  const closeOfferThenOpenDiplomacy = () => {
+    fireEvent.click(within(offerDialog()).getByRole('button', { name: 'Close offer' }));
+    expect(screen.queryByRole('dialog', { name: 'Accept Offer' })).toBeNull();
+    act(() => useGameStore.getState().openDiplomacy());
+  };
+  const offerGroup = (countryName: string) => within(country(countryName)).getByRole('group', { name: 'Offer' });
+
+  it.each([
+    ['peace', 'Valdoria asks for peace'],
+    ['alliance', 'Valdoria offers an alliance'],
+  ] as const)('FR-410 after × on a %s offer, Valdoria\'s panel shows "%s" with Accept and Reject; Accept builds answerProposal', (kind, line) => {
+    show(offered(kind));
+    page();
+    closeOfferThenOpenDiplomacy();
+    expect(submitted).toEqual([]);
+
+    const group = offerGroup('Valdoria');
+    expect(text(within(group).getByTestId('offer-line'))).toBe(line);
+    fireEvent.click(within(group).getByRole('button', { name: 'Accept' }));
+    expect(submitted).toEqual([{ kind: 'answerProposal', nationId: N1, proposalId: 'proposal-1-1', accept: true }]);
+    expect(proposalAnswer(now(), 'proposal-1-1')).toBe(true);
+    // Answered: the offer leaves the panel, and Accept Offer does not come back
+    expect(within(country('Valdoria')).queryByRole('group', { name: 'Offer' })).toBeNull();
+    expect(screen.queryByRole('dialog', { name: 'Accept Offer' })).toBeNull();
+  });
+
+  it('FR-410 Reject in the panel builds answerProposal false', () => {
+    show(offered('alliance'));
+    page();
+    closeOfferThenOpenDiplomacy();
+    fireEvent.click(within(offerGroup('Valdoria')).getByRole('button', { name: 'Reject' }));
+    expect(submitted).toEqual([{ kind: 'answerProposal', nationId: N1, proposalId: 'proposal-1-1', accept: false }]);
+  });
+
+  it('FR-410 the country list marks the proposer ("Offer"), as the tab\'s description, and only the proposer; answering removes the mark', () => {
+    show(offered('alliance'));
+    page();
+    closeOfferThenOpenDiplomacy();
+    const mark = within(tab('Valdoria')).getByTestId('offer-mark');
+    expect(text(mark)).toBe('Offer');
+    expect(description(tab('Valdoria'))).toContain('Offer');
+    expect(within(tab('Arvelia')).queryByTestId('offer-mark')).toBeNull();
+    expect(within(country('Arvelia')).queryByRole('group', { name: 'Offer' })).toBeNull();
+
+    fireEvent.click(within(offerGroup('Valdoria')).getByRole('button', { name: 'Accept' }));
+    expect(within(tab('Valdoria')).queryByTestId('offer-mark')).toBeNull();
+  });
+
+  it('FR-410 FR-166 an offer still unanswered at End Turn is refused as before; the × title still says so', () => {
+    show(offered('alliance'));
+    page();
+    expect(within(offerDialog()).getByRole('button', { name: 'Close offer' }).getAttribute('title')).toBe('Close: an offer not answered by End Turn is refused');
+    closeOfferThenOpenDiplomacy();
+    act(() => useGameStore.getState().advanceTurn());
+    expect(now().proposals).toEqual([]);
+    expect(useGameStore.getState().eventLog.at(-1)!.events).toContainEqual({ type: 'overture-refused', nationId: N2, overture: 'alliance', targetId: N1 });
+  });
+
+  it.each([
+    ['peace', 5, 'Accepting ends the war at End Turn. Relations stay dark brown; treaties are not restored.'],
+    ['peace', 34, 'Accepting ends the war at End Turn. Relations stay yellow; treaties are not restored.'],
+    ['alliance', 5, 'We become allies at End Turn.'],
+  ] as const)('FR-411 a %s offer (relations %i) says under the Imp1 sentence: "%s", in Accept Offer and in the panel', (kind, points, effect) => {
+    show(offered(kind, points));
+    page();
+    const sentence = within(offerDialog()).getByTestId('offer-text');
+    const line = within(offerDialog()).getByTestId('offer-effect');
+    expect(text(line)).toBe(effect);
+    expect(sentence.compareDocumentPosition(line) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Part of the dialog's description, with the sentence
+    expect(description(offerDialog())).toContain(effect);
+
+    closeOfferThenOpenDiplomacy();
+    expect(text(within(offerGroup('Valdoria')).getByTestId('offer-effect'))).toBe(effect);
+  });
+});
+
 describe('FR-178 the End Turn key "n" on the page (review blocker B-R1)', () => {
   const turn = () => now().turn;
   const press = (target: Element, key = 'n') => fireEvent.keyDown(target, { key });
@@ -925,5 +1055,282 @@ describe('FR-178 the End Turn key "n" on the page (review blocker B-R1)', () => 
     } finally {
       field.remove();
     }
+  });
+});
+
+// FR-427 (diplomacy-council-11): below 600 px the details pane shrank to 34 px; jsdom has no layout, so the rule is read
+// from the style sheet (the e2e at 390x844 measures it)
+describe('FR-427 Diplomacy on a narrow window', () => {
+  const narrow = () => {
+    const css = readFileSync(join(ROOT, 'src/app/components/diplomacy/Diplomacy.module.css'), 'utf8');
+    return /@media \(max-width: 599\.98px\) \{([\s\S]*?)\n\}/.exec(css)?.[1] ?? '';
+  };
+
+  it('FR-427 below 600 px the country list stacks above the details, one column', () => {
+    expect(narrow()).toMatch(/\.panes \{[^}]*grid-template-columns: minmax\(0, 1fr\);[^}]*grid-template-rows: minmax\(0, 2fr\) minmax\(0, 3fr\);/);
+  });
+
+  it('FR-427 at 390 px the details get at least 340 px: the dialog 8 px from each edge, 12 px of padding (390 - 16 - 24 = 350)', () => {
+    expect(narrow()).toMatch(/\.dialog \{[^}]*max-width: calc\(100vw - 16px\);[^}]*padding: 12px;/);
+  });
+
+  it('FR-427 the list comes first in the page order, so it stacks above the details', () => {
+    openDiplomacy(start());
+    expect(countries().compareDocumentPosition(within(dialog()).getByRole('tabpanel')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
+// M12 T7 (cards Q82, Q83): Diplomacy says what each choice does and what the other country is. FR-407 the war no army can
+// reach; FR-395 what a subsidy costs; FR-416 a line per overture, its numbers from the rules; FR-417 the relation points
+// a Council vote reads; FR-418 the other country's provinces, army and industry; FR-422 a grant asks once first.
+describe('FR-407 FR-395 FR-416 FR-417 FR-418 FR-422 Diplomacy says what each choice does', () => {
+  const regiments = (n: number) => `${n} regiment${n === 1 ? '' : 's'}`;
+
+  it('FR-407 war on a country no army can reach over land: Declare war is disabled with "No army can reach Sundmark over land. War needs ships (a later milestone)."', () => {
+    openDiplomacy(start());
+    const line = 'No army can reach Sundmark over land. War needs ships (a later milestone).';
+    const war = button('Sundmark', 'Declare war') as HTMLButtonElement;
+    expect(war.disabled).toBe(true);
+    expect(description(war)).toBe(line);
+    expect(within(country('Sundmark')).getAllByTestId('reason').map(text)).toContain(`Declare war: ${line}`);
+    fireEvent.click(war);
+    expect(within(country('Sundmark')).queryByRole('group', { name: 'Confirm war on Sundmark' })).toBeNull();
+    expect(submitted).toEqual([]);
+
+    for (const name of ['Lorran', 'Pellis']) expect(description(button(name, 'Declare war'))).toBe(`No army can reach ${name} over land. War needs ships (a later milestone).`);
+    for (const name of ['Arvelia', 'Valdoria']) expect((button(name, 'Declare war') as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('FR-395 a subsidy ordered this turn says what it costs, not "free"; removing it says "no fee"', () => {
+    let s = setPair(start(), N1, SUNDMARK, { consulates: [N1] });
+    s = setPair(s, N1, ARVELIA, { consulates: [N1], subsidies: { [N1]: 10 } });
+    s = tryApplyOrder(s, { kind: 'setTradePolicy', nationId: N1, targetId: SUNDMARK, subsidyPercent: 25, boycott: false }).state;
+    s = tryApplyOrder(s, { kind: 'setTradePolicy', nationId: N1, targetId: ARVELIA, subsidyPercent: 0, boycott: false }).state;
+    openDiplomacy(s);
+
+    expect(ordered('Sundmark')).toEqual([
+      'Trade policy: subsidy 25% Subsidy 25%: no fee; Sundmark pays us 25% less for our goods and charges us 25% more for its own. Withdraw',
+    ]);
+    expect(ordered('Arvelia')).toEqual(['Trade policy: no subsidy no fee Withdraw']);
+  });
+
+  it('FR-395 FR-416 the trade policy says what the chosen step does, and what a boycott does', () => {
+    openDiplomacy(setPair(start(), N1, SUNDMARK, { consulates: [N1] }));
+    const policy = () => within(within(country('Sundmark')).getByRole('group', { name: 'Trade policy' }));
+    expect(text(policy().getByTestId('subsidy-help'))).toBe('No subsidy: we trade at the Board price.');
+    expect(text(policy().getByTestId('boycott-help'))).toBe('Boycott (free): no trade between us and Sundmark while it stands.');
+
+    fireEvent.change(policy().getByRole('combobox', { name: 'Subsidy' }), { target: { value: '25' } });
+    expect(text(policy().getByTestId('subsidy-help'))).toBe(`${subsidyCost('Sundmark', 25)} In return it ranks us higher as a trading partner.`);
+
+    // A Great Power: our subsidy sets only what it pays for our goods; its own subsidy sets what we pay it (FR-189 (3))
+    fireEvent.click(tab('Valdoria'));
+    const valdoria = within(within(country('Valdoria')).getByRole('group', { name: 'Trade policy' }));
+    fireEvent.change(valdoria.getByRole('combobox', { name: 'Subsidy' }), { target: { value: '10' } });
+    expect(text(valdoria.getByTestId('subsidy-help'))).toBe('Subsidy 10%: no fee; Valdoria pays us 10% less for our goods.');
+  });
+
+  it('FR-416 each overture says what it does and what it costs, beside its button', () => {
+    openDiplomacy(start());
+    const help = (name: string) =>
+      within(within(country(name)).getByRole('group', { name: 'Overtures' }))
+        .getAllByTestId('overture-help')
+        .map(text);
+    expect(help('Arvelia')).toEqual([
+      '$500: opens at End Turn; then Arvelia trades with us and we may set a subsidy and build an embassy.',
+      '$5,000: needs our consulate; then we may give grants and offer a pact.',
+      'Free: needs our embassy; Arvelia accepts at End Turn and relations rise by 10 points.',
+      'Free: the war starts next turn; relations with Arvelia fall by 40 points.',
+      'Free: Arvelia always accepts; the war ends at End Turn.',
+    ]);
+    expect(help('Valdoria')).toEqual([
+      '$500: opens at End Turn; then we may set a subsidy and build an embassy.',
+      '$5,000: needs our consulate; then we may give grants.',
+      'Free: Valdoria accepts at level 7 (grey) or higher.',
+      'Free: the war starts next turn; relations with Valdoria fall by 40 points.',
+      'Free: Valdoria accepts when it is losing, or after 6 turns of war if no province changed hands in the last 3.',
+    ]);
+    // Each line sits after its own button
+    const group = within(country('Arvelia')).getByRole('group', { name: 'Overtures' });
+    const pact = within(group).getByRole('button', { name: 'Pact' });
+    expect(text(pact.nextElementSibling!)).toBe('Free: needs our embassy; Arvelia accepts at End Turn and relations rise by 10 points.');
+  });
+
+  it('FR-416 the grant says what the chosen amount adds, once or each turn', () => {
+    openDiplomacy(setPair(start(), N1, ARVELIA, { consulates: [N1], embassies: [N1] }));
+    const grant = () => within(within(country('Arvelia')).getByRole('group', { name: 'Grant' }));
+    expect(text(grant().getByTestId('grant-help'))).toBe('$1,000 once: +2 relation points; needs our embassy.');
+    fireEvent.change(grant().getByRole('combobox', { name: 'Amount' }), { target: { value: '10000' } });
+    fireEvent.change(grant().getByRole('combobox', { name: 'How often' }), { target: { value: 'each-turn' } });
+    expect(text(grant().getByTestId('grant-help'))).toBe('$10,000 each turn: +8 relation points each turn; needs our embassy.');
+  });
+
+  it("FR-416 FR-417 the numbers are the rules': a changed constant in diplomacyRules.ts or council.ts changes the text", () => {
+    const scripted = SCRIPTED_DIPLOMACY as { allianceLevel: number; peaceAfterTurns: number };
+    const cost = OVERTURE_COST as Record<string, number>;
+    const war = WAR_RELATION as { pair: number };
+    const council = COUNCIL as { minRelationPoints: number };
+    const was = { alliance: scripted.allianceLevel, peace: scripted.peaceAfterTurns, consulate: cost.consulate, war: war.pair, vote: council.minRelationPoints };
+    try {
+      scripted.allianceLevel = 5;
+      scripted.peaceAfterTurns = 8;
+      cost.consulate = 750;
+      war.pair = -30;
+      council.minRelationPoints = 60;
+      const rows = diplomacyRows(start(), N1);
+      const row = (id: string) => rows.find((r) => r.id === id)!;
+      expect(row(N2).overtures.map((o) => o.help)).toEqual([
+        '$750: opens at End Turn; then we may set a subsidy and build an embassy.',
+        '$5,000: needs our consulate; then we may give grants.',
+        'Free: Valdoria accepts at level 6 (brown) or higher.',
+        'Free: the war starts next turn; relations with Valdoria fall by 30 points.',
+        'Free: Valdoria accepts when it is losing, or after 8 turns of war if no province changed hands in the last 3.',
+      ]);
+      expect(row(ARVELIA).vote).toBe('Arvelia: 30 with us, 30 with Valdoria; a vote needs 60 and more than the rival');
+    } finally {
+      scripted.allianceLevel = was.alliance;
+      scripted.peaceAfterTurns = was.peace;
+      cost.consulate = was.consulate;
+      war.pair = was.war;
+      council.minRelationPoints = was.vote;
+    }
+  });
+
+  it('FR-417 each minor shows its relation points with us and with the rival, and what a Council vote needs', () => {
+    let s = setPair(start(), N2, ARVELIA, { points: 46 });
+    openDiplomacy(s);
+    expect(text(within(country('Arvelia')).getByTestId('council-vote'))).toBe('Arvelia: 30 with us, 46 with Valdoria; a vote needs 50 and more than the rival');
+    expect(within(country('Valdoria')).queryByTestId('council-vote')).toBeNull();
+    // The two islands have no provinces, so no Council
+    s = newGame({ seed: 1 });
+    expect(diplomacyRows(s, N1).map((r) => r.vote)).toEqual(diplomacyRows(s, N1).map(() => undefined));
+  });
+
+  it('FR-418 a Great Power shows its provinces, its regiments without the militia, its strength against ours and its industry capacity', () => {
+    const s = start();
+    openDiplomacy(s);
+    const facts = (name: string) => within(within(country(name)).getByRole('group', { name: 'Strength' })).getAllByTestId('fact').map(text);
+    const army = regimentsOf(s, N2).filter((r) => !isMilitia(r.type)).length;
+    expect(army).toBeGreaterThan(0);
+    expect(militaryStrength(s, N2)).toBe(militaryStrength(s, N1));
+    expect(facts('Valdoria')).toEqual([
+      `Provinces ${provincesOf(s, N2).length}`,
+      `Army ${regiments(army)}, about equal to ours`,
+      `Industry capacity ${scoreOf(s, N2).capacity}`,
+    ]);
+
+    // A minor: its provinces and its militia
+    const militia = regimentsOf(s, ARVELIA).filter((r) => isMilitia(r.type)).length;
+    expect(militia).toBeGreaterThan(0);
+    expect(facts('Arvelia')).toEqual([`Provinces ${provincesOf(s, ARVELIA).length}`, `Militia ${regiments(militia)}`]);
+  });
+
+  it('FR-418 a stronger or weaker Great Power says so', () => {
+    const stronger = addRegiments(start(), N2, SW2, ['regulars', 'regulars', 'regulars', 'regulars']);
+    expect(militaryStrength(stronger, N2)).toBeGreaterThan(1.1 * militaryStrength(stronger, N1));
+    const { unmount } = openDiplomacy(stronger);
+    const army = () => within(within(country('Valdoria')).getByRole('group', { name: 'Strength' })).getAllByTestId('fact')[1];
+    expect(text(army())).toMatch(/, stronger than ours$/);
+    unmount();
+
+    openDiplomacy({ ...start(), armies: start().armies.filter((a) => a.ownerId !== N2) });
+    expect(text(army())).toBe('Army 0 regiments, weaker than ours');
+  });
+
+  it('FR-418 "about equal" is within 10% of our strength', () => {
+    expect([compareStrength(36, 36), compareStrength(39.6, 36), compareStrength(39.7, 36), compareStrength(32.4, 36), compareStrength(32.3, 36)]).toEqual([
+      'about equal',
+      'about equal',
+      'stronger',
+      'about equal',
+      'weaker',
+    ]);
+    expect([compareStrength(0, 0), compareStrength(5, 0)]).toEqual(['about equal', 'stronger']);
+  });
+
+  it('FR-422 Give asks once first, naming the treasury after it: "Keep the money" sends nothing, "Give $10,000" sends the order', () => {
+    let s = setPair(start(), N1, ARVELIA, { consulates: [N1], embassies: [N1] });
+    s = setTreasury(s, N1, 50000);
+    openDiplomacy(s);
+    const grant = () => within(within(country('Arvelia')).getByRole('group', { name: 'Grant' }));
+    const ask = () => grant().queryByRole('group', { name: 'Confirm grant to Arvelia' });
+    fireEvent.change(grant().getByRole('combobox', { name: 'Amount' }), { target: { value: '10000' } });
+
+    fireEvent.click(grant().getByRole('button', { name: 'Give' }));
+    expect(ask()).toBeTruthy();
+    expect(document.activeElement).toBe(ask());
+    expect(text(within(ask()!).getByTestId('grant-question'))).toBe('Give $10,000 to Arvelia? The treasury will hold $40,000 after it.');
+    expect(within(ask()!).queryByTestId('grant-upkeep')).toBeNull();
+    expect(within(ask()!).getAllByRole('button').map((b) => b.textContent)).toEqual(['Give $10,000', 'Keep the money']);
+    expect(submitted).toEqual([]);
+
+    fireEvent.click(within(ask()!).getByRole('button', { name: 'Keep the money' }));
+    expect(ask()).toBeNull();
+    expect(submitted).toEqual([]);
+    expect(document.activeElement).toBe(grant().getByRole('button', { name: 'Give' }));
+
+    // Escape keeps the money too, and the dialog stays
+    fireEvent.click(grant().getByRole('button', { name: 'Give' }));
+    fireEvent.keyDown(ask()!, { key: 'Escape' });
+    expect(ask()).toBeNull();
+    expect(dialog()).toBeTruthy();
+
+    fireEvent.click(grant().getByRole('button', { name: 'Give' }));
+    fireEvent.click(within(ask()!).getByRole('button', { name: 'Give $10,000' }));
+    expect(submitted).toEqual([{ kind: 'giveGrant', nationId: N1, targetId: ARVELIA, amount: 10000, locked: false }]);
+    expect(treasury(now(), N1)).toBe(40000);
+    expect(ask()).toBeNull();
+  });
+
+  it("FR-422 FR-393 a grant that leaves the cash short of the army upkeep names the regiments at risk in FR-393's words", () => {
+    let s = setPair(start(), N1, ARVELIA, { consulates: [N1], embassies: [N1] });
+    const due = upkeepForecast(s, N1).due;
+    expect(due).toBeGreaterThan(40);
+    s = setTreasury(s, N1, 3000 + due - 40);
+    openDiplomacy(s);
+    const grant = within(within(country('Arvelia')).getByRole('group', { name: 'Grant' }));
+    fireEvent.change(grant.getByRole('combobox', { name: 'Amount' }), { target: { value: '3000' } });
+    fireEvent.change(grant.getByRole('combobox', { name: 'How often' }), { target: { value: 'each-turn' } });
+    fireEvent.click(grant.getByRole('button', { name: 'Give' }));
+    const ask = grant.getByRole('group', { name: 'Confirm grant to Arvelia' });
+
+    expect(text(within(ask).getByTestId('grant-question'))).toBe(`Give $3,000 to Arvelia each turn? The treasury will hold ${money(due - 40)} after it.`);
+    const warning = upkeepWarningText(upkeepForecast(s, N1, 3000))!;
+    expect(warning).toMatch(/: \$40 short\. Unless this turn's sales bring in \$40, 1 regiment is disbanded \(.+\)\.$/);
+    expect(text(within(ask).getByTestId('grant-upkeep'))).toBe(warning);
+    expect(within(ask).getByRole('button', { name: 'Give $3,000' })).toBeTruthy();
+  });
+
+  // The ask reads the game as End Turn will, without applying the order (FR-022: no component calls tryApplyOrder): each
+  // case is checked against the game with the grant really applied
+  it('FR-422 FR-393 a grant that replaces this turn\'s grant counts its refund; a locked one that replaces the standing locked grant is not counted twice', () => {
+    const base = setPair(start(), N1, ARVELIA, { consulates: [N1], embassies: [N1] });
+    const due = upkeepForecast(base, N1).due;
+    const applied = (s: GameState, amount: 1000 | 3000 | 5000 | 10000, locked: boolean) =>
+      tryApplyOrder(s, { kind: 'giveGrant', nationId: N1, targetId: ARVELIA, amount, locked }).state;
+    const truth = (s: GameState, amount: 1000 | 3000 | 5000 | 10000, locked: boolean) => {
+      const after = applied(s, amount, locked);
+      return { treasury: treasury(after, N1), upkeep: upkeepWarningText(upkeepForecast(after, N1)) };
+    };
+    const asked = (s: GameState, amount: 1000 | 3000 | 5000 | 10000, locked: boolean) => grantAsk(s, N1, ARVELIA, amount, locked)!;
+
+    // $5,000 ordered this turn, then $10,000 instead: the $5,000 comes back first
+    const replacing = applied(setTreasury(base, N1, 10000 + due - 40), 5000, false);
+    expect(asked(replacing, 10000, false).question).toBe(`Give $10,000 to Arvelia? The treasury will hold ${money(due - 40)} after it.`);
+    expect(truth(replacing, 10000, false).treasury).toBe(due - 40);
+    expect(asked(replacing, 10000, false).upkeep).toBe(truth(replacing, 10000, false).upkeep);
+    expect(asked(replacing, 10000, false).upkeep).toMatch(/: \$40 short\./);
+
+    // A standing $3,000 each turn, renewed at $3,000 each turn: End Turn pays the new one only, so the cash is not short
+    // (counted twice, the cash would be $40 short)
+    const standing = setTreasury(setPair(base, N1, ARVELIA, { lockedGrants: { [N1]: 3000 } }), N1, 6000 + due - 40);
+    expect(upkeepForecast(standing, N1, 3000).shortBy).toBe(40);
+    expect(asked(standing, 3000, true).upkeep).toBeNull();
+    expect(truth(standing, 3000, true)).toEqual({ treasury: 3000 + due - 40, upkeep: null });
+
+    // A one-off grant leaves the standing one paid at End Turn as well
+    const both = setTreasury(setPair(base, N1, ARVELIA, { lockedGrants: { [N1]: 3000 } }), N1, 6000 + due - 40);
+    expect(asked(both, 3000, false).upkeep).toBe(truth(both, 3000, false).upkeep);
+    expect(asked(both, 3000, false).upkeep).toMatch(/: \$40 short\./);
   });
 });

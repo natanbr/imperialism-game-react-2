@@ -39,15 +39,19 @@ const add = (amounts: TradeAmounts, commodity: TradeCommodity, n: number): void 
   if (n > 0) amounts[commodity] = (amounts[commodity] ?? 0) + n;
 };
 
-/** The deal price from the board price P and a subsidy percent, rounded down (FR-189; Imp1 ledgers [06:W35]). */
-const dealPrice = (price: number, percent: number): number => Math.max(0, Math.floor((price * (100 + percent)) / 100));
+/**
+ * The deal price from the board price P and a subsidy percent, rounded down (FR-189; Imp1 ledgers [06:W35]): a buyer
+ * pays floor(P x (1 + s)) to a seller it subsidises, a seller gets floor(P x (1 - s)) from a buyer it subsidises (pass
+ * -s). The Board of Trade (FR-394) and the upkeep forecast (FR-392) read the same rule.
+ */
+export const dealPrice = (price: number, percent: number): number => Math.max(0, Math.floor((price * (100 + percent)) / 100));
 const subsidyOf = (state: GameState, nationId: NationId, otherId: CountryId): number => relationOf(state, nationId, otherId)?.subsidies[nationId] ?? 0;
 
 export function settlePartnerTrade(state: GameState, turn: number, emit: (event: GameEvent) => void): PartnerSettlement {
   const market = marketOf(state);
   const order = intentOrder(state, turn);
   const minors: MinorNationId[] = state.minorNations.map((m) => m.id).sort();
-  const ranking = new Map(minors.map((m) => [m, partnerRanking(state, m, turn)]));
+  const ranking = new Map(minors.map((m) => [m, partnerRanking(state, m)]));
   const offersOf = new Map(minors.map((m) => [m, minorOffers(state, m)]));
   const demandOf = new Map(minors.map((m) => [m, minorDemand(state, m)]));
   const colonies = new Set(state.minorNations.filter((m) => m.colonyOf !== undefined).map((m) => m.id));

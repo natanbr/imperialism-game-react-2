@@ -1,9 +1,15 @@
 // FR-067: the score, a pure query over the state.
 import { describe, it, expect } from 'vitest';
 import { scoreOf, scoreTable } from '@/engine/score/score';
+import { newGame } from '@/engine/newGame';
+import { applyOrder } from '@/engine/orders/apply';
+import { resolveTurn } from '@/engine/turn/resolveTurn';
 import { SCORE_WEIGHTS } from '@/definisions/scoreWeights';
+import { DEVELOPMENT_COST } from '@/definisions/workPrices';
 import { ResourceType } from '@/types/Resource';
-import { deepFreeze, game, N1, N2, setBuilding, setTile, setTreasury, T } from './fixtures';
+import { TerrainType } from '@/types/Tile';
+import { WorkerType } from '@/types/Workers';
+import { deepFreeze, game, N1, N2, put, setBuilding, setTile, setTreasury, T, workerId } from './fixtures';
 
 // The two-nation fixture: each nation has the six mills and factories (mills 2, factories 1:
 // 9 capacity points) and three level-1 tiles (an orchard next to the capital, another orchard and
@@ -11,7 +17,8 @@ import { deepFreeze, game, N1, N2, setBuilding, setTile, setTreasury, T } from '
 
 describe('FR-067 score', () => {
   it('FR-067 weights: 1 point per $100, 10 per capacity point, 10 per resource level', () => {
-    expect(SCORE_WEIGHTS).toEqual({ dollarsPerPoint: 100, pointsPerCapacity: 10, pointsPerLevel: 10 });
+    // M12 FR-403: the score reads `levelPoints`; `pointsPerLevel` stays for the scripted player's FR-131 rule
+    expect(SCORE_WEIGHTS).toEqual({ dollarsPerPoint: 100, pointsPerCapacity: 10, pointsPerLevel: 10, levelPoints: [10, 10, 50] });
   });
 
   it('FR-067 a fixture nation at the start scores 100 + 90 + 30 = 220, with the parts', () => {
@@ -23,7 +30,9 @@ describe('FR-067 score', () => {
       treasury: 10000,
       capacity: 9,
       developedLevels: 3,
-      points: { treasury: 100, industry: 90, development: 30 },
+      // M12 FR-402: no job in the fixture, so no work in progress
+      jobsPaid: 0,
+      points: { treasury: 100, industry: 90, development: 30, workInProgress: 0 },
       total: 220,
     });
     expect(scoreOf(state, N2).total).toBe(200);
@@ -58,8 +67,8 @@ describe('FR-067 score', () => {
 
   it('FR-067 an unknown nation scores 0', () => {
     expect(scoreOf(game(), 'nation-9')).toEqual({
-      nationId: 'nation-9', treasury: 0, capacity: 0, developedLevels: 0,
-      points: { treasury: 0, industry: 0, development: 0 }, total: 0,
+      nationId: 'nation-9', treasury: 0, capacity: 0, developedLevels: 0, jobsPaid: 0,
+      points: { treasury: 0, industry: 0, development: 0, workInProgress: 0 }, total: 0,
     });
   });
 
@@ -67,5 +76,68 @@ describe('FR-067 score', () => {
     expect(scoreTable(game()).map(s => [s.nationId, s.total])).toEqual([[N1, 220], [N2, 200]]);
     expect(scoreTable(setTreasury(game(), N2, 10000)).map(s => [s.nationId, s.total])).toEqual([[N1, 220], [N2, 220]]);
     expect(scoreTable(setTreasury(game(), N2, 20000)).map(s => [s.nationId, s.total])).toEqual([[N2, 320], [N1, 220]]);
+  });
+});
+
+describe('M12 FR-403 a level is worth its price (replaces FR-067\'s 10 per resource level)', () => {
+  it('FR-403 10 points for level 1, 10 more for level 2, 50 more for level 3: a level-3 tile is worth 70', () => {
+    expect(SCORE_WEIGHTS.levelPoints).toEqual([10, 10, 50]);
+    const at = (level: number) => scoreOf(setTile(game(), T.farm1, { resource: { type: ResourceType.Grain, level } }), N1);
+    // the fixture's three level-1 tiles give 30; farm1 adds 0, 10, 20, 70
+    expect([0, 1, 2, 3].map(level => at(level).points.development)).toEqual([30, 40, 50, 100]);
+    expect(at(3).developedLevels).toBe(6);
+  });
+
+  it('FR-403 no finished level is worth less than its price / 100 ($100, $1,000, $5,000)', () => {
+    let points = 0;
+    for (const level of [1, 2, 3] as const) {
+      points += SCORE_WEIGHTS.levelPoints[level - 1];
+      expect({ level, worth: points >= DEVELOPMENT_COST[level] / SCORE_WEIGHTS.dollarsPerPoint }).toEqual({ level, worth: true });
+    }
+  });
+});
+
+describe('M12 FR-402 ordering a job does not lower the score (work in progress)', () => {
+  const FARMER = 'worker-nation-1-2';
+  const ENGINEER = 'worker-nation-1-7';
+
+  it('FR-402 example: a $1,000 development order on turn 1 leaves the score at 240', () => {
+    const s = newGame({ seed: 1 });
+    expect(scoreOf(s, N1).total).toBe(240);
+    const after = applyOrder(s, { kind: 'moveAndStartDevelopment', nationId: N1, workerId: FARMER, toTileId: '2-8' });
+    expect(scoreOf(after, N1)).toMatchObject({
+      treasury: 9000,
+      jobsPaid: 1000,
+      points: { treasury: 90, industry: 90, development: 50, workInProgress: 10 },
+      total: 240,
+    });
+  });
+
+  it('FR-402 each job counts floor(price / 100) until it finishes; then its level replaces it', () => {
+    let s = applyOrder(newGame({ seed: 1 }), { kind: 'moveAndStartDevelopment', nationId: N1, workerId: FARMER, toTileId: '2-8' });
+    // a depot ($2,000) on the empty orchard 3-7 (3-8 has no depot site on seed 1)
+    s = applyOrder(s, { kind: 'moveAndStartConstruction', nationId: N1, workerId: ENGINEER, toTileId: '3-7', structure: 'depot' });
+    expect(scoreOf(s, N1)).toMatchObject({ jobsPaid: 3000, points: { workInProgress: 30 } });
+    expect(scoreOf(s, N2).points.workInProgress).toBe(0);
+    // run the turns until the development has finished: its 10 points of work become level 2's 10
+    let turns = 0;
+    while (s.map.tiles.flat().some(t => t.developmentJob?.workerId === FARMER) && turns < 10) {
+      s = resolveTurn(s, {}, s.seed).state;
+      turns++;
+    }
+    const farm = s.map.tiles.flat().find(t => t.id === '2-8')!;
+    expect(farm.resource?.level).toBe(2);
+    expect(scoreOf(s, N1).points.development).toBe(60);
+    expect(scoreOf(s, N1).points.workInProgress).toBe(s.map.tiles.flat().some(t => t.constructionJob?.workerId === ENGINEER) ? 20 : 0);
+  });
+
+  it('FR-402 a rail job counts its terrain price: $150 is 1 point, $300 is 3', () => {
+    const engineer = workerId(N1, WorkerType.Engineer);
+    const rail = (terrain: TerrainType) => {
+      const s = setTile(put(game(), engineer, T.farm1), T.farm1, { terrain, constructionJob: { workerId: engineer, kind: 'rail', startedOnTurn: 1, durationTurns: 1 } });
+      return scoreOf(s, N1).points.workInProgress;
+    };
+    expect(rail(TerrainType.Tundra)).toBe(1);
+    expect(rail(TerrainType.Swamp)).toBe(3);
   });
 });

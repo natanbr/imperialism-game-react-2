@@ -43,7 +43,7 @@ export interface CouncilColumnView {
   nationId: string;
   name: string;
   colorSlot: number | undefined;
-  /** "1st nominee" or "2nd nominee": the standing (FR-313), as the columns follow the player */
+  /** "1st by standing" or "2nd by standing" (FR-313, FR-413): the standing, as the columns follow the player */
   rank: string;
   cells: Record<CouncilTableRow, CouncilCellView>;
 }
@@ -59,18 +59,28 @@ export interface CouncilView {
   abstained: string;
   /** One line per abstaining province, in state order: "Arvelia: relation 30 of the 50 needed" (FR-311) */
   abstentions: string[];
+  /** FR-413: how the two nominees are chosen, and that the votes decide (the columns follow the standing, not the votes) */
+  nominated: string;
   /** FR-311: how a minor and a colony vote */
   rule: string;
   /** "A winner needs more than two thirds of the 12 votes: 9." */
   needed: string;
   /** The winner's name when the meeting elected one. */
   winnerName?: string;
-  /** "Testland Wins!" (Imp1), or "No winner. The Council meets again on turn 20." / "... This was the last Council; the game ends on points." */
+  /** FR-415: the meeting elected another nation than the player's */
+  lost: boolean;
+  /**
+   * "Testland Wins!" (Imp1) for the player's win, "Valdoria wins. We lost." for another's (FR-415), or "No winner. The
+   * Council meets again on turn 20." / "... This was the last Council; the game ends on points."
+   */
   result: string;
 }
 
 const list = (names: string[]) => (names.length > 0 ? names.join(", ") : "none");
-const RANK_TEXT = ["1st nominee", "2nd nominee"];
+const RANK_TEXT = ["1st by standing", "2nd by standing"];
+
+/** FR-413 (card Q94): the standing weights are the Council's rule data (FR-291), so a changed weight changes the line. */
+export const NOMINATED_TEXT = `The two nations with the highest standing (score + ${COUNCIL.provinceWeight} a province + ${COUNCIL.militaryWeight} a strength point) are nominated; the votes decide.`;
 
 /**
  * FR-311: why a governor abstained, the nominees named in the screen's column order: "relation 30 of the 50 needed" (the
@@ -130,6 +140,7 @@ export function councilView(event: CouncilMetEvent, game: GameState, playerId: s
       return why ? `${provinceName(b.provinceId)}${owner}: ${why}` : provinceName(b.provinceId);
     });
   const winnerName = event.winnerId === undefined ? undefined : countryName(event.winnerId);
+  const lost = event.winnerId !== undefined && event.winnerId !== playerId;
   const next = event.turn + COUNCIL.interval;
   const last = !isCouncilTurn(game, next);
   return {
@@ -138,11 +149,15 @@ export function councilView(event: CouncilMetEvent, game: GameState, playerId: s
     ...(unusedRowNote ? { unusedRowNote } : {}),
     abstained: abstained.length > 0 ? `Abstained: ${abstained.length}` : "Abstained: none",
     abstentions,
+    nominated: NOMINATED_TEXT,
     rule: `A free minor nation votes for the Great Power it has at least ${COUNCIL.minRelationPoints} relation points with and is not at war with; a colony votes with its owner.`,
     needed: `A winner needs more than two thirds of the ${event.totalVotes} votes: ${event.needed}.`,
     winnerName,
+    lost,
     result: winnerName
-      ? `${winnerName} Wins!`
+      ? lost
+        ? `${winnerName} wins. We lost.`
+        : `${winnerName} Wins!`
       : last
         ? "No winner. This was the last Council; the game ends on points."
         : `No winner. The Council meets again on turn ${next}.`,

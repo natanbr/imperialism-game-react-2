@@ -37,6 +37,7 @@ Compact, topic-split rules of the original game (Frog City / SSI, version 1.1) f
 | `[06:W31]` | used only in `gaps.md`: tag `[W31]` in the Sources list of file 06 (same pattern for 01, 07, 08, 11). |
 | `[?]` | unverified or inferred; the row says what it was inferred from. Treat as a default that a later source may change. |
 | `CODE MISMATCH:` | the rule differs from a value or model in `src/app/` (types, `definisions/`, `constants/`, systems). |
+| `RESOLVED <date>` | a former `CODE MISMATCH:` that the code has since fixed; the line keeps what it was and names the file that fixes it. A `CODE MISMATCH` line with "checked <date>, still true" was compared with the code on that date. |
 
 Source quality, best to worst: manual and readmes > fan-wiki rule pages > player game reports > forum posts. Where manual and web disagree both are shown and `gaps.md` section F lists the pick. Some wiki pages (for example `Trade_(Imp1)`) mix in Imperialism II numbers; those rows carry `[?]`.
 

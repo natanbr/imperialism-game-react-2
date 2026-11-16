@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useSyncExternalStore } from 'react';
-import { PossibleAction } from '@/types/actions';
 import { THEME } from '@/styles/theme';
-import { cursorArtOf, cursorOf, requestCursor, serverCursorOf, subscribeCursors } from './tileCursor';
+import { cursorArtOf, cursorOf, requestCursor, serverCursorOf, subscribeCursors, type CursorAction } from './tileCursor';
 
 export interface TileVisuals {
   /** The faint grid line on land; none on the sea, where the ground's water runs on (FR-087, FR-321, FR-355). */
@@ -20,11 +19,11 @@ const SEA_BORDER = '1px solid transparent';
  * and only then, since the snapshot is the cursor's own string. Its picture starts loading when the tile subscribes,
  * after React's commit; the snapshot only reads (FR-342).
  *
- * @param possibleAction - The action that can be performed on this tile
+ * @param possibleAction - What a click on this tile would do (FR-379): a job, a construction, a plain move or nothing
  * @param onLand - The ground draws the tile as land (`isLandTerrain`): only land shows the grid line (FR-355)
  * @returns Visual properties for rendering the tile
  */
-export function useTileVisuals(possibleAction: PossibleAction, onLand: boolean): TileVisuals {
+export function useTileVisuals(possibleAction: CursorAction, onLand: boolean): TileVisuals {
   const art = cursorArtOf(possibleAction);
   const subscribe = useCallback(
     (listener: () => void) => {

@@ -5,10 +5,20 @@ import { createSelector } from 'reselect';
 import { completedTileIds } from '@/components/gameText';
 import { attackArrows, marchArrows, markersBySeat } from '@/components/army/armyView';
 import { foodForecast, scoreOf, scoreTable, upkeepForecast } from '@/engine';
+import { clickCursors } from '@/hooks/tileClickOrders';
 import { GameStore } from './rootStore';
 
 const selectNations = (state: GameStore) => state.game.nations;
 const selectActiveNationId = (state: GameStore) => state.activeNationId;
+
+/**
+ * Every tile's cursor while a civilian is selected (FR-379, FR-380): worked out once for the whole map when the game, the
+ * player or the selection changes, not per tile on every store change (the camera moves the store on every scroll).
+ */
+export const selectClickCursors = createSelector(
+  [(state: GameStore) => state.game, selectActiveNationId, (state: GameStore) => state.selectedWorkerId],
+  (game, nationId, workerId) => clickCursors(game, nationId, workerId)
+);
 
 export const selectActiveNation = createSelector(
   [selectNations, selectActiveNationId],

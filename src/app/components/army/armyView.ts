@@ -376,6 +376,17 @@ export interface RegimentRowView {
   cancel?: ArmyControl & { label: "Cancel march" | "Cancel attack" | "Cancel disband" };
 }
 
+/**
+ * FR-420: "Cancel attack on Arvelia", one per planned attack out of the province: one `cancelArmyMove` a regiment of that
+ * attack, sent together; refused (with the first refusal) when any of them would be.
+ */
+export interface AttackCancelView {
+  toProvinceId: string;
+  label: string;
+  orders: Order[];
+  refusal?: string;
+}
+
 export interface ArmyView {
   provinceName: string;
   /** "Army in Testland South-West": the dialog's name. */
@@ -393,6 +404,8 @@ export interface ArmyView {
   upkeepWarning?: string;
   /** The regiments that may march first, then the militia, each group by id (the army's order). */
   rows: RegimentRowView[];
+  /** FR-420: one whole-attack cancel per province attacked from here, in the order of the rows. */
+  attackCancels: AttackCancelView[];
   /**
    * "March to": the bordering provinces of ours, in state order, then the bordering provinces of other countries as
    * "Attack Arvelia" (FR-230), at war or not: the Attack screen says when no attack can be ordered yet.
@@ -449,6 +462,16 @@ export function armyView(state: GameState, nationId: string, provinceId: string)
         return { ...base, status: "Defending", selectable: false };
     }
   });
+  const attacks = new Map<string, string[]>();
+  for (const r of regiments) {
+    const status = regimentStatus(state, r.id);
+    if (status?.kind === "attacking") attacks.set(status.toProvinceId, [...(attacks.get(status.toProvinceId) ?? []), r.id]);
+  }
+  const attackCancels = [...attacks].map(([toProvinceId, ids]): AttackCancelView => {
+    const controls = ids.map((id) => control(state, { kind: "cancelArmyMove", nationId, regimentIds: [id] }));
+    const refusal = controls.find((c) => c.refusal)?.refusal;
+    return { toProvinceId, label: `Cancel attack on ${provinceName(state, toProvinceId)}`, orders: controls.map((c) => c.order), ...(refusal ? { refusal } : {}) };
+  });
   const name = provinceName(state, provinceId);
   const forecast = upkeepForecast(state, nationId);
   const warning = upkeepWarningText(forecast);
@@ -462,6 +485,7 @@ export function armyView(state: GameState, nationId: string, provinceId: string)
     militiaOnly: regiments.length > 0 && regiments.every((r) => isMilitia(r.type)),
     ...(warning ? { upkeepWarning: warning } : {}),
     rows,
+    attackCancels,
     targets: [
       ...marchTargets(state, nationId, provinceId).map((p): ArmyTarget => ({ id: p.id, name: p.name, kind: "march", text: p.name })),
       ...attackTargets(state, nationId, provinceId).map((p): ArmyTarget => ({ id: p.id, name: p.name, kind: "attack", text: `Attack ${p.name}` })),

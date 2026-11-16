@@ -1,5 +1,6 @@
 "use client";
 import React, { useId } from "react";
+import type { GameOver } from "@/types/Score";
 import { useGameStore } from "../store/rootStore";
 import { dateText } from "./gameText";
 import styles from "./market/Market.module.css";
@@ -8,6 +9,16 @@ import { GameIcon } from "./GameIcon";
 import { NationSwatch } from "./NationSwatch";
 import { Modal } from "./Modal";
 import { startNewGameOnCapital } from "@/hooks/mapActions";
+
+/**
+ * FR-415: "Defeat: Valdoria won the Council of Governors." or "Defeat: Valdoria won by conquest." when another nation won;
+ * undefined for our win and for a turn-limit end (no winner: the ranked scores tell).
+ */
+export function defeatText(gameOver: GameOver, playerId: string, nameOf: (id: string) => string): string | undefined {
+  if (gameOver.winnerId === undefined || gameOver.winnerId === playerId) return undefined;
+  const winner = nameOf(gameOver.winnerId);
+  return gameOver.reason === "council" ? `Defeat: ${winner} won the Council of Governors.` : `Defeat: ${winner} won by conquest.`;
+}
 
 /**
  * The end of the game (FR-076): the recorded final scores (`state.gameOver`), ranked, with their
@@ -28,6 +39,7 @@ export const GameOverModal: React.FC = () => {
   if (!gameOver || hidden || councilFirst) return null;
 
   const nationOf = (id: string) => nations.find((n) => n.id === id);
+  const defeat = defeatText(gameOver, activeNationId, (id) => nationOf(id)?.name ?? id);
 
   return (
     // No onClose: neither Escape nor the backdrop ends the game-over screen (FR-236); "Back to the map" does
@@ -37,6 +49,12 @@ export const GameOverModal: React.FC = () => {
             <GameIcon name={UI_ICONS.finalScores} />Game over
           </h2>
         </header>
+        {defeat && (
+          // FR-415: a game another nation won says so first (Market.module.css is layout only in M12: the colour is set here)
+          <p className={styles.note} style={{ color: "var(--color-text-danger)", fontWeight: 700 }} data-testid="game-over-outcome">
+            {defeat}
+          </p>
+        )}
         <p className={styles.note} data-testid="game-over-date">
           The game ended after {dateText(gameOver.turn, gameOver.year)} (turn {gameOver.turn}).
         </p>
@@ -62,7 +80,7 @@ export const GameOverModal: React.FC = () => {
               <th>Nation</th>
               <th className={styles.number} title="1 point per $100">Treasury</th>
               <th className={styles.number} title="10 points per capacity point of the mills and factories">Industry</th>
-              <th className={styles.number} title="10 points per resource level on own tiles">Development</th>
+              <th className={styles.number} title="Resource levels on own tiles: 10 points for level 1, 10 more for level 2, 50 more for level 3">Development</th>
               <th className={styles.number}>Total</th>
             </tr>
           </thead>

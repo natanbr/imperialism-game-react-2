@@ -17,6 +17,12 @@ export default defineConfig({
     baseURL: BASE_URL,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
+    // FR-430: every spec starts in a browser that has seen "How to play", so it does not cover the map on the first
+    // new game; a spec about that dialog clears it (test.use({ storageState: { cookies: [], origins: [] } }))
+    storageState: {
+      cookies: [],
+      origins: [{ origin: BASE_URL, localStorage: [{ name: 'imperialism-remake.howto-seen', value: '1' }] }],
+    },
   },
 
   projects: [

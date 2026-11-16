@@ -34,7 +34,10 @@ export interface DealBottomLine {
   sold: number;
   bought: number;
   militaryUpkeep: number;
-  /** The trade net (FR-256): sold - bought - militaryUpkeep. */
+  /**
+   * What trade and upkeep moved (FR-256): sold - bought - militaryUpkeep. The Deal Book screen shows its "Trade net" as
+   * sold - bought and the upkeep on its own line (FR-396).
+   */
   net: number;
 }
 

@@ -12,7 +12,7 @@ import { upkeepOf } from "../army/armies";
 import { SCRIPTED_GARRISON } from "@/definisions/regiments";
 import { validateOrder } from "../orders/validate";
 import { bestDepotSite, nextRailSections, tilesByReach, type DepotSite } from "./railPlan";
-import { planEconomy, turnsAfter } from "./economy";
+import { planEconomy, planFinalTransport, turnsAfter } from "./economy";
 import { scriptedDiplomacyOrders } from "./diplomacy";
 import { hasFieldArmy, planWarDeclaration, planWarMoves } from "./scriptedWar";
 
@@ -61,6 +61,9 @@ export const scriptedPlayer: Player = (state, nationId) => {
       if (propose(order)) break;
     }
   }
+
+  // FR-389: the transport plan again, now that this turn's rails are known (a rail finished this turn joins a hub)
+  planFinalTransport(state, view, nationId, propose);
 
   // At war (or declaring war this turn): the attacks and marches (FR-228, FR-274)
   planWarMoves(() => view, nationId, propose);

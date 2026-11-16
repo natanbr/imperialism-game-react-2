@@ -78,8 +78,8 @@ const MoneyTable: React.FC<{ title: string; lines: MoneyLine[]; caption?: string
  * The Deal Book (FR-195, FR-248, FR-255, FR-256; Imp1 Deal Book, rules 11 section 2): the player's deals of the last
  * resolved turn, Sold and Bought side by side, then what was Not traded (units not sold, offers missed, bids nobody
  * filled, each with its cause), the turn it shows ("Turn 1, Spring 1815"), the bottom line ending in the Trade net and,
- * beside it, the Treasury: the trade net, the diplomacy costs and the rest add up to the treasury's change over the
- * turn. It only reads the turn's events and treasuries; it builds no order.
+ * beside it, the Treasury: the trade net, the army upkeep (FR-396), the diplomacy costs and the rest add up to the
+ * treasury's change over the turn. It only reads the turn's events and treasuries; it builds no order.
  */
 export const DealBookModal: React.FC = () => {
   const isOpen = useGameStore((s) => s.isDealBookOpen);

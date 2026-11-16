@@ -417,7 +417,8 @@ describe('FR-186 matching in the Board of Trade order', () => {
     let s = setWarehouse(setWarehouse(consulates(consulates(continent(), N1, ARVELIA), N2, ARVELIA), N1, { furniture: 1 }), N2, { furniture: 1 });
     s = ordered(s, sell(N1, GoodsType.Furniture, 1), sell(N2, GoodsType.Furniture, 1));
 
-    expect(deals(trade(s).events)).toEqual([['sold', N1, ARVELIA, GoodsType.Furniture, 1, 900], ['sold', N2, ARVELIA, GoodsType.Furniture, 1, 900]]);
+    // M12 FR-401: at equal points seed 1's Arvelia favours Valdoria (until M12 turn 1's intentOrder put Testland first)
+    expect(deals(trade(s).events)).toEqual([['sold', N2, ARVELIA, GoodsType.Furniture, 1, 900], ['sold', N1, ARVELIA, GoodsType.Furniture, 1, 900]]);
   });
 
   it('FR-186 FR-013 the trade phase leaves a deep-frozen input unchanged', () => {
@@ -453,9 +454,20 @@ describe('FR-187 the favourite partner', () => {
     expect(favouritePartner(setPair(s, N1, ARVELIA, { subsidies: {} }), ARVELIA)).toBe(N2);
   });
 
-  it('FR-187 FR-152 ties in intentOrder of the turn: Testland first on turn 1, Valdoria on turn 2', () => {
-    expect(partnerRanking(continent(), ARVELIA)).toEqual([N1, N2]);
-    expect(partnerRanking({ ...continent(), turn: 2 }, ARVELIA)).toEqual([N2, N1]);
+  it('M12 FR-401 (replaces FR-187\'s ties in intentOrder of the turn) at equal points each minor favours one Great Power on all 40 turns', () => {
+    const s = continent();
+    for (const minor of s.minorNations) {
+      const favourites = new Set(Array.from({ length: 40 }, (_, i) => favouritePartner({ ...s, turn: i + 1 }, minor.id)));
+      expect({ minor: minor.id, favourites: favourites.size }).toEqual({ minor: minor.id, favourites: 1 });
+    }
+  });
+
+  it('M12 FR-401 the tie order is fixed per minor from the seed and the minor id: seed 1 Valdoria first with Arvelia, Sundmark and Lorran, Testland with Pellis; seed 4 Testland with Arvelia and Lorran', () => {
+    const firsts = (s: GameState) => s.minorNations.map(m => [m.id, partnerRanking(s, m.id)[0]]);
+    expect(firsts(continent())).toEqual([['minor-1', N2], ['minor-2', N2], ['minor-3', N2], ['minor-4', N1]]);
+    expect(firsts(newGame({ seed: 4, world: 'continent' }))).toEqual([['minor-1', N1], ['minor-2', N2], ['minor-3', N1], ['minor-4', N2]]);
+    // no random stream is drawn (FR-019): the same state gives the same order whatever the turn and however often asked
+    expect(firsts({ ...continent(), turn: 7 })).toEqual(firsts(continent()));
   });
 
   it('FR-187 the favourite gets the first units: Valdoria at 33 takes 2 of Arvelia\'s 3 coal, Testland 1', () => {
@@ -465,8 +477,8 @@ describe('FR-187 the favourite partner', () => {
     expect(deals(trade(s).events)).toEqual([['bought', N2, ARVELIA, ResourceType.Coal, 2, 100], ['bought', N1, ARVELIA, ResourceType.Coal, 1, 100]]);
   });
 
-  it('FR-187 on turn 2 with equal points Valdoria is served first', () => {
-    let s = { ...consulates(consulates(continent(), N1, ARVELIA), N2, ARVELIA), turn: 2 };
+  it.each([1, 2])('M12 FR-401 with equal points Arvelia serves Valdoria first on turn %i too (seed 1)', turn => {
+    let s = { ...consulates(consulates(continent(), N1, ARVELIA), N2, ARVELIA), turn };
     s = ordered(s, buy(N1, ResourceType.Coal, 2), buy(N2, ResourceType.Coal, 2));
 
     expect(deals(trade(s).events)).toEqual([['bought', N2, ARVELIA, ResourceType.Coal, 2, 100], ['bought', N1, ARVELIA, ResourceType.Coal, 1, 100]]);
@@ -486,7 +498,8 @@ describe('FR-188 holds', () => {
   });
 
   it('FR-188 each hold carries one unit a turn: with 3 holds at settlement the fourth unit passes on, the rest of the offer to Valdoria', () => {
-    let s = consulates(consulates(continent(), N1, ARVELIA), N2, ARVELIA);
+    // Testland is Arvelia's favourite by 1 point (M12 FR-401: at equal points seed 1's Arvelia favours Valdoria)
+    let s = setPair(consulates(consulates(continent(), N1, ARVELIA), N2, ARVELIA), N1, ARVELIA, { points: 31 });
     s = setHolds(ordered(s, buy(N1, ResourceType.Timber, 4), buy(N2, ResourceType.Timber, 1)), N1, 3);
 
     const { events } = trade(s);
@@ -791,9 +804,10 @@ describe('FR-194 the Board of Trade rows (engine data for the screen)', () => {
       available: 10,
       bid: 2,
       offer: 0,
+      // M12 FR-401: seed 1's tie order (until M12 every minor favoured Testland on turn 1)
       sellers: [
-        { minorId: ARVELIA, units: 3, favouriteId: N1 },
-        { minorId: SUNDMARK, units: 1, favouriteId: N1, barrier: 'no-consulate' },
+        { minorId: ARVELIA, units: 3, favouriteId: N2 },
+        { minorId: SUNDMARK, units: 1, favouriteId: N2, barrier: 'no-consulate' },
         { minorId: PELLIS, units: 1, favouriteId: N1, barrier: 'boycott' },
       ],
       buyers: [],

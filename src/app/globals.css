@@ -378,6 +378,79 @@ img[data-art-anchor="bottom-center"] {
   text-align: center;
 }
 
+/* A job offer: its button, the price beside it, the reason under a refused one (FR-381, FR-382) */
+.job-offers {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.job-offer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 2px;
+}
+
+.construction-options .job-offer > .btn {
+  flex: 1 1 100%;
+}
+
+.job-name {
+  font-weight: 600;
+}
+
+.job-price {
+  color: var(--color-ink-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.job-reason {
+  flex: 1 1 100%;
+  color: var(--color-warn);
+  font-size: 12px;
+}
+
+/* A question before an order: a costly one (FR-383), a Cancel (FR-386) */
+.question-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--color-bg-backdrop);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 110;
+}
+
+.question-dialog {
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  padding: 20px;
+  border-radius: 8px;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-dialog);
+}
+
+.question-title {
+  margin: 0 0 12px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.question-text {
+  margin: 0 0 16px;
+  line-height: 1.4;
+}
+
+.question-answers {
+  display: flex;
+  gap: 8px;
+}
+
 /* One row per border line: the sample, then its meaning (FR-235) */
 .map-legend {
   list-style: none;
@@ -397,6 +470,14 @@ img[data-art-anchor="bottom-center"] {
 .tile-note {
   color: var(--color-ink-muted);
   font-size: 12px;
+}
+
+/* FR-370: Tile Info's heading with its close button at the right */
+.tile-info-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
 }
 
 .hud-header-actions {
@@ -424,9 +505,13 @@ img[data-art-anchor="bottom-center"] {
 }
 
 /* Every nation's score, ranked (FR-106) */
+/* M12 integration: 4 px below the table (was 8). FR-432's "N civilians without orders" line takes 16 px of the HUD, and
+   at 1280x720 the news list's minimum of 3 lines then reached 1.5 px into the fade (FR-268, FR-306: e2e/m8-qa.spec.ts,
+   m10-council.spec.ts); this gap gives the 4 px back. A war line (FR-412) takes 16 px more: the HUD's height budget is
+   FR-372's open decision. */
 .score-table {
   width: 100%;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   border-collapse: collapse;
   font-size: 13px;
   font-variant-numeric: tabular-nums;
@@ -587,9 +672,10 @@ img[data-art-anchor="bottom-center"] {
   outline-offset: 1px;
 }
 
-/* FR-232: a battle's line opens its Battle screen. A button that reads as a link and keeps the line's 20 px height, so
-   the list still holds whole lines (FR-268) */
-.news-battle {
+/* FR-232: a battle's line opens its Battle screen; FR-376: a line about a tile shows it on the map. A button that reads
+   as a link and keeps the line's 20 px height, so the list still holds whole lines (FR-268) */
+.news-battle,
+.news-place {
   display: inline;
   margin: 0;
   padding: 0;
@@ -603,11 +689,13 @@ img[data-art-anchor="bottom-center"] {
   cursor: pointer;
 }
 
-.news-battle:hover {
+.news-battle:hover,
+.news-place:hover {
   color: var(--color-accent);
 }
 
-.news-battle:focus-visible {
+.news-battle:focus-visible,
+.news-place:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 1px;
 }
@@ -647,6 +735,55 @@ img[data-art-anchor="bottom-center"] {
   font-size: 13px;
 }
 
+/* FR-424 (UIV-06): a window under 500 px high (a 1280x720 window at 200% zoom is 640x360) keeps the turn, the date, the
+   cash and the score in sight. The six dialog buttons form two columns, one line each (a long name ends in an ellipsis;
+   the button's name is unchanged), Center and Advance Turn a row of their own; the header is one row, New game and About
+   showing their icons only (the label is hidden from sight, not from the name); the panel's padding is 8 px. */
+@media (max-height: 499.98px) {
+  .hud-container {
+    padding: 8px;
+  }
+
+  .hud-header {
+    flex-wrap: nowrap;
+    margin-bottom: 4px;
+  }
+
+  .hud-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .hud-header-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .action-buttons-container {
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    margin-top: 4px;
+  }
+
+  .action-buttons-container > .btn-group {
+    grid-column: 1 / -1;
+  }
+
+  .action-buttons-container .btn {
+    padding: 4px 6px;
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
 /* Buttons: one accent colour for the primary action, the rest plain (FR-086) */
 .btn {
   width: 100%;
@@ -661,15 +798,16 @@ img[data-art-anchor="bottom-center"] {
   transition: background-color 0.2s, opacity 0.2s;
 }
 
-.btn:hover:not(:disabled) {
+.btn:hover:not(:disabled):not([aria-disabled="true"]) {
   background: var(--color-bg-button-hover);
 }
 
-.btn:active:not(:disabled) {
+.btn:active:not(:disabled):not([aria-disabled="true"]) {
   transform: translateY(1px);
 }
 
-.btn:disabled {
+.btn:disabled,
+.btn[aria-disabled="true"] {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -686,8 +824,8 @@ img[data-art-anchor="bottom-center"] {
   text-align: center;
 }
 
-.btn-primary:hover:not(:disabled),
-.btn-action:hover:not(:disabled) {
+.btn-primary:hover:not(:disabled):not([aria-disabled="true"]),
+.btn-action:hover:not(:disabled):not([aria-disabled="true"]) {
   background: var(--color-accent-strong);
 }
 

@@ -310,7 +310,7 @@
   const AU = { ok: ['Held up', 'au-ok'], gaps: ['Held up with gaps', 'au-gaps'], over: ['Overstated', 'au-over'] };
   const SEV = { major: 'Major', minor: 'Minor', nit: 'Nit' };
   let FIND = new Map(), CARDS = new Set(), THEMES = new Map();
-  const ID_RE = /\b(?:UIV|ECONOMY|RULES-GAP|AISIM|ARMY-WAR|MKT|FR-TRUTH|diplomacy-council)-\d\d\b|\bQ\d{1,2}\b/g;
+  const ID_RE = /\b(?:UIV|ECONOMY|RULES-GAP|AISIM|ARMY-WAR|MKT|FR-TRUTH|diplomacy-council)-\d\d\b|\bQ\d{1,3}\b/g;
   // Escape first, then turn known finding ids and card ids into links.
   const rich = (t) => h(t).replace(ID_RE, (m) => FIND.has(m) ? `<a class="fid" href="#f-${m}" data-f="${m}" title="${h(FIND.get(m).title)}">${m}</a>` : CARDS.has(m) ? `<a class="fid" href="#q-${m}" data-q="${m}">${m}</a>` : m);
   const idLinks = (ids) => ids.map((i) => rich(i)).join(' ');

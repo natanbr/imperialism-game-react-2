@@ -193,9 +193,17 @@ describe('FR-124 AI acceptance: 15 turns of nation 2', () => {
     expect(computerOrders(newGame({ seed: 1 }))[N2]).toEqual(scriptedPlayer(newGame({ seed: 1 }), N2));
   });
 
-  it('FR-124 the numbers, for the journal', () => {
+  it('FR-124 the numbers (pinned, seed 1, 15 turns): the M4.1 player and the frozen M4 player', () => {
+    // Was a console.log with one assertion (FR-TRUTH-15). A moved number is a moved baseline (FR-405): re-record it
+    // here with its reason in the journal; never loosen the check.
+    // M12 re-record (integration): the pins were measured on a half-built M12 tree (sold 19, score 613; M4 401). With
+    // L1's FR-389 final transport plan the scripted players ship what they shipped before M12 (sold 29), and FR-402
+    // (work in progress +21) and FR-403 (the M4 player's level-3 tile worth 50 more) move the scores: 616+21 = 637,
+    // M4 390+21+40 = 451.
     const row = (r: Run) => ({ depots: network(r.state).depots.length, links: linksOf(r.state), yieldPerTurn: yieldOf(r.state), shipped: r.shipped, sold: r.sold, score: scoreOf(r.state, N2).total });
-    console.log('FR-124 M4.1', JSON.stringify({ ...row(now), bound: railBound(now.state), refused: now.refused }), 'M4', JSON.stringify({ ...row(m4), bound: railBound(m4.state), refused: m4.refused }));
-    expect(row(now).depots).toBeGreaterThan(0);
+    expect({ ...row(now), bound: railBound(now.state), refused: now.refused })
+      .toEqual({ depots: 2, links: 7, yieldPerTurn: 33, shipped: 200, sold: 29, score: 637, bound: 10, refused: 0 });
+    expect({ ...row(m4), bound: railBound(m4.state), refused: m4.refused })
+      .toEqual({ depots: 1, links: 10, yieldPerTurn: 21, shipped: 181, sold: 32, score: 451, bound: 11, refused: 0 });
   });
 });

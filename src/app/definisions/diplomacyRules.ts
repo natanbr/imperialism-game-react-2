@@ -49,6 +49,9 @@ export const SCRIPTED_DIPLOMACY = {
   peaceAfterTurns: 6,
   /** ...with no province changed hands between the two in this many turns. */
   quietTurns: 3,
-  /** It proposes peace at most once in this many turns. */
-  offerEveryTurns: 3,
+  /**
+   * FR-408 (card Q92; was 3, FR-174): after a peace offer that did not end the war it proposes again only this many
+   * turns after that offer.
+   */
+  offerAgainTurns: 6,
 } as const;

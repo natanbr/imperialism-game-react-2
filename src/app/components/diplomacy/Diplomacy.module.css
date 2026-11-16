@@ -222,6 +222,16 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* FR-410: the country has an offer to us still unanswered this turn */
+.offerMark {
+  flex: none;
+  padding: 0 8px;
+  border: 1px solid var(--color-accent);
+  border-radius: 999px;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+}
+
 .tabInfo {
   display: flex;
   flex-direction: column;
@@ -353,6 +363,46 @@
   gap: 6px;
 }
 
+/* FR-416: each overture button beside its line (cost and effect) */
+.overtureRows {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: center;
+  gap: 6px 10px;
+}
+
+/* FR-395, FR-416, FR-417: what a control does, under or beside it */
+.help {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  line-height: 1.35;
+  color: var(--color-text-muted);
+}
+
+/* FR-418: the Strength facts on one wrapping line */
+.facts {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+}
+
+.fact {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.fact dt {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.fact dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
 /* A refusal once per group (FR-237): "Embassy: we need a consulate there first" */
 .reasons {
   list-style: none;
@@ -398,6 +448,25 @@
   font-weight: 400;
 }
 
+/* FR-422: the grant question spends money, it is no war: the accent frame; only the upkeep warning is red */
+.confirmGrant {
+  border-color: var(--color-accent);
+  background: var(--color-bg-you);
+}
+
+.confirmGrant:focus {
+  outline-color: var(--color-accent);
+}
+
+.confirmGrant p {
+  flex-basis: 100%;
+  color: var(--color-text-primary);
+}
+
+.confirmGrant .warCost {
+  color: var(--color-text-danger);
+}
+
 .fields {
   display: flex;
   flex-wrap: wrap;
@@ -420,9 +489,40 @@
 /* Accept Offer */
 
 .offerText {
-  margin: var(--spacing-md) 0 var(--spacing-lg);
+  margin: var(--spacing-md) 0 var(--spacing-sm);
   font-size: var(--font-size-lg);
   line-height: 1.45;
+}
+
+/* FR-411: what accepting does, under the Imp1 sentence */
+.offerEffect {
+  margin: 0 0 var(--spacing-lg);
+  color: var(--color-text-muted);
+}
+
+/* FR-410: an offer in the country's details, with Accept and Reject */
+.offerBlock {
+  padding: 8px 10px;
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-sm);
+}
+
+.offerBlock p {
+  margin: 0;
+}
+
+.offerLine {
+  font-weight: 600;
+}
+
+.offerAccept {
+  color: var(--color-on-accent);
+  background: var(--color-bg-accent);
+  border-color: var(--color-bg-accent);
+}
+
+.offerAccept:hover:not(:disabled) {
+  background: var(--color-bg-accent-hover);
 }
 
 .offerFooter {
@@ -435,4 +535,30 @@
 .offerHint {
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
+}
+
+/* FR-427 (diplomacy-council-11): below 600 px the country list stacks above the details (the details pane shrank to 34 px
+   beside it); 8 px from each window edge and 12 px of padding leave the details 350 px at 390 px */
+@media (max-width: 599.98px) {
+  .dialog {
+    max-width: calc(100vw - 16px);
+    height: calc(100vh - 16px);
+    padding: 12px;
+  }
+
+  .header {
+    flex-wrap: wrap;
+  }
+
+  .panes {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 2fr) minmax(0, 3fr);
+  }
+
+  /* FR-416: the line under its button */
+  .overtureRows {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: start;
+    gap: 2px;
+  }
 }

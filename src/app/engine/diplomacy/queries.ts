@@ -5,6 +5,7 @@ import type { Overture, Proposal, War } from "@/types/Diplomacy";
 import type { GameState } from "@/types/GameState";
 import type { AnswerIntent, DiplomacyIntent, Intent } from "@/types/Intent";
 import { regimentsOf, strength } from "../army/armies";
+import { adjacentProvinces, provincesOf } from "../world/provinces";
 import { relationOf } from "./relations";
 
 /** The overtures of `proposeOverture`, in the Imp1 panel's order (FR-161). */
@@ -70,3 +71,25 @@ export const pendingProposalsFor = (state: GameState, nationId: NationId): Propo
  * 36 and each minor 0 (militia only, FR-203); two-islands 0.
  */
 export const militaryStrength = (state: GameState, countryId: CountryId): number => strength(regimentsOf(state, countryId));
+
+/**
+ * FR-406 (card Q83): a chain of land-adjacent provinces, of any owners, joins one of the nation's provinces to one of the
+ * country's, so an army could march there. False on a world without provinces and for a country that holds none. Armies
+ * have no sea or rail moves yet (Q37), so a war without such a route could never be fought.
+ */
+export function hasLandRoute(state: GameState, nationId: CountryId, countryId: CountryId): boolean {
+  const targets = new Set(provincesOf(state, countryId).map((p) => p.id));
+  if (targets.size === 0) return false;
+  const seen = new Set(provincesOf(state, nationId).map((p) => p.id));
+  const queue = [...seen];
+  while (queue.length > 0) {
+    const provinceId = queue.shift()!;
+    if (targets.has(provinceId)) return true;
+    for (const next of adjacentProvinces(state, provinceId)) {
+      if (seen.has(next.id)) continue;
+      seen.add(next.id);
+      queue.push(next.id);
+    }
+  }
+  return false;
+}

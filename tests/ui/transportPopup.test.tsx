@@ -4,7 +4,7 @@
 // CSS columns as groups shown (at most 3; the columns drawn are checked in the running app,
 // e2e/m4-3.spec.ts); FR-141 only what the network can carry; FR-142 a group all 0 / 0 is hidden.
 import { describe, it, expect } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import TransportAllocationModal from '@/components/TransportAllocationModal';
 import { COMMODITY_KINDS, NEVER_SHIPPED, SHIPPABLE_KINDS, transportKinds } from '@/components/commodityKinds';
 import { artFileOf, goodsArt } from '@/components/art/inkArt';
@@ -86,21 +86,82 @@ describe('FR-141 FR-142 what the popup lists', () => {
     expect(shownGroups()).toEqual(['Food', 'Raw materials']);
     expect(shownRows()).toEqual(START_KEYS);
     for (const key of ['horses', 'steel', 'clothing', 'paper', 'cannedFood', 'fuel', 'armaments']) expect(screen.queryByTestId(`transport-row-${key}`), key).toBeNull();
-    // A shown group keeps its 0 / 0 rows: fish and oil are in groups with something to ship
-    expect(text(screen.getByTestId('transport-row-fish'))).toContain('0 / 0');
+    // A shown group keeps its rows with nothing to ship: fish and oil are in groups with something to ship
+    // (changed in M12, FR-390: an untouched row is automatic and reads "Auto: 0", it read "0 / 0")
+    expect(text(screen.getByTestId('transport-row-fish'))).toContain('Auto: 0');
   });
 
   it('FR-142 a group appears as soon as one of its commodities has something to ship', () => {
     show(withHorses());
     expect(shownGroups()).toEqual(['Food', 'Raw materials', 'Other resources']);
     expect(shownRows()).toEqual([...START_KEYS, 'horses', 'gold', 'gems']);
-    expect(text(screen.getByTestId('transport-row-horses'))).toContain('0 / 1');
+    // M12 FR-390: automatic, the 1 horse a turn ships (it read "0 / 1")
+    expect(text(screen.getByTestId('transport-row-horses'))).toContain('Auto: 1');
   });
 
   it('FR-142 with nothing to ship at all, the popup says so instead of an empty list', () => {
     show(bareGame());
     expect(shownGroups()).toEqual([]);
     expect(text(dialog())).toContain('Nothing to ship this turn.');
+  });
+});
+
+describe('FR-390 the popup shows set and automatic (M12, card Q80, audit ECONOMY-01, ECONOMY-25)', () => {
+  const row = (key: string) => screen.getByTestId(`transport-row-${key}`);
+  const plan = () => useGameStore.getState().game.transportAllocationsByNation?.['nation-1'];
+  const infoBar = () => text(dialog().querySelector('.modal-info-bar')!);
+
+  it('FR-390 a new game: every row automatic, reading what it ships this turn; Allocated 0, Remaining all of the capacity; no Auto button', () => {
+    show();
+    expect(text(row('grain'))).toBe('Grain Auto: 4');
+    expect(text(row('fruit'))).toBe('Fruit Auto: 4');
+    expect(text(row('cotton'))).toBe('Cotton Auto: 2');
+    expect(infoBar()).toBe('Capacity: 15 Allocated: 0 Remaining: 15');
+    expect(screen.queryByRole('button', { name: /^Auto / })).toBeNull();
+    // The slider of an automatic row stands at what it ships
+    expect((screen.getByRole('slider', { name: 'Grain' }) as HTMLInputElement).value).toBe('4');
+  });
+
+  it('FR-390 the fixed note says when shipped goods arrive', () => {
+    show();
+    expect(text(dialog())).toContain("Goods shipped this turn reach the warehouse after this turn's production.");
+  });
+
+  it('FR-390 FR-389 moving a slider sets that commodity: "n / max" and an Auto button; the plan holds it; the others stay automatic', () => {
+    show();
+    fireEvent.change(screen.getByRole('slider', { name: 'Grain' }), { target: { value: '1' } });
+
+    expect(plan()).toEqual({ grain: 1 });
+    expect(text(row('grain'))).toBe('Grain 1 / 4 Auto');
+    expect(within(row('grain')).getByRole('button', { name: 'Auto Grain' })).toBeTruthy();
+    expect(text(row('fruit'))).toBe('Fruit Auto: 4');
+    expect(infoBar()).toBe('Capacity: 15 Allocated: 1 Remaining: 14');
+  });
+
+  it('FR-390 FR-389 a slider set to 0 is set (ships nothing), not automatic', () => {
+    show();
+    fireEvent.change(screen.getByRole('slider', { name: 'Grain' }), { target: { value: '0' } });
+
+    expect(plan()).toEqual({ grain: 0 });
+    expect(text(row('grain'))).toBe('Grain 0 / 4 Auto');
+  });
+
+  it('FR-390 the Auto button returns the commodity to automatic: the plan drops it', () => {
+    show({ ...newGame({ seed: 1 }), transportAllocationsByNation: { 'nation-1': { grain: 1, fruit: 0 } } });
+    expect(text(row('grain'))).toBe('Grain 1 / 4 Auto');
+
+    fireEvent.click(within(row('grain')).getByRole('button', { name: 'Auto Grain' }));
+
+    expect(plan()).toEqual({ fruit: 0 });
+    expect(text(row('grain'))).toBe('Grain Auto: 4');
+    expect(text(row('fruit'))).toBe('Fruit 0 / 4 Auto');
+    expect(infoBar()).toBe('Capacity: 15 Allocated: 0 Remaining: 15');
+  });
+
+  it('FR-390 automatic rows share what the set ones leave: capacity 15 with grain set to 4 and fruit to 4 leaves cotton its 2', () => {
+    show({ ...newGame({ seed: 1 }), transportAllocationsByNation: { 'nation-1': { grain: 4, fruit: 4 } } });
+    expect(infoBar()).toBe('Capacity: 15 Allocated: 8 Remaining: 7');
+    expect(text(row('cotton'))).toBe('Cotton Auto: 2');
   });
 });
 

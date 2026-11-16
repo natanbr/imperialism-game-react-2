@@ -117,14 +117,18 @@ test('FR-269 FR-261 a $10,000 grant leaves less than the army upkeep: the HUD sh
   const grant = valdoria.getByRole('group', { name: 'Grant' });
   await grant.getByRole('combobox', { name: 'Amount' }).selectOption({ label: '$10,000' });
   await grant.getByRole('combobox', { name: 'How often' }).selectOption('once');
-  await grant.getByRole('button', { name: 'Give' }).click();
+  await grant.getByRole('button', { name: 'Give', exact: true }).click();
+  // M12 FR-422: a grant asks once first; "Give $10,000" sends it
+  await grant.getByRole('group', { name: 'Confirm grant to Valdoria' }).getByRole('button', { name: 'Give $10,000' }).click();
   await dialog.getByRole('button', { name: 'Close diplomacy' }).click();
   await expect(dialog).toHaveCount(0);
 
   await expect(page.locator('.nation-stats')).toContainText('$0');
   const warning = page.getByTestId('upkeep-warning');
+  // M12 FR-393: the warning names the shortfall and what it disbands (was "Cash is short of the army upkeep: ... the
+  // newest regiments are disbanded.")
   await expect(warning).toHaveText(
-    "Cash is short of the army upkeep: $100 is due at End Turn and $0 will be left. Unless this turn's sales cover the rest, the newest regiments are disbanded."
+    "Army upkeep of $100 is due at End Turn and the treasury will hold $0: $100 short. Unless this turn's sales bring in $100, all 3 regiments are disbanded."
   );
   await expect(warning).toHaveAttribute('role', 'status');
   await expect(warning).toBeInViewport({ ratio: 1 });

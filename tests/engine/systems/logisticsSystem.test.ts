@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { logisticsSystem, computeLogisticsTransport, updateNationStateWithTransportedResources } from '@/engine/systems/logisticsSystem';
+import { logisticsSystem, collectingHub, computeLogisticsTransport, transportShipments, updateNationStateWithTransportedResources } from '@/engine/systems/logisticsSystem';
+import { newGame } from '@/engine/newGame';
+import { ResourceDevelopmentTable } from '@/definisions/ResourceDevelopment';
+import { N1, N2 } from '../fixtures';
 import { createTurnContext } from '@/engine/turn/context';
 import { GameState } from '@/types/GameState';
 import { initWorld } from '@/testing/worldInit';
@@ -315,17 +318,10 @@ describe('logisticsSystem', () => {
     const network = state.transportNetwork.railroadNetworks![nationId];
     const collected = computeLogisticsTransport(state.map, nationId, network);
 
-    // Verify that SOME resources are collected (depends on actual adjacency)
-    const total = Object.values(collected).reduce((sum, val) => sum + val, 0);
-    expect(total).toBeGreaterThan(0);
-
-    // Verify that if grain or cotton were collected, they have the right amounts
-    if (collected[ResourceType.Grain]) {
-      expect(collected[ResourceType.Grain]).toBeGreaterThanOrEqual(1);
-    }
-    if (collected[ResourceType.Cotton]) {
-      expect(collected[ResourceType.Cotton]).toBeGreaterThanOrEqual(1);
-    }
+    // FR-443 (audit FR-TRUTH-15): the exact units. The capital is 0-0; the farm 1-0 and the plantation 0-1 are its only
+    // neighbours with a resource: grain level 2 gives 3, cotton level 3 gives 4 (ResourceDevelopmentTable)
+    expect([farm && `${farm.x}-${farm.y}`, plantation && `${plantation.x}-${plantation.y}`, `${capital.x}-${capital.y}`]).toEqual(['1-0', '0-1', '0-0']);
+    expect(collected).toEqual({ [ResourceType.Grain]: 3, [ResourceType.Cotton]: 4 });
   });
 
   it('capital does not collect resources from tiles that are not owned by the nation', () => {
@@ -382,6 +378,90 @@ describe('logisticsSystem', () => {
     expect(Object.keys(collected).length).toBe(0);
   });
 });
+describe('FR-389 a set slider is a hard cap; an untouched commodity is automatic (card Q80, audit ECONOMY-01)', () => {
+  /** Seed 1, nation 1 on two-islands: the capital collects grain 4, fruit 4 and cotton 2 a turn (FR-081). */
+  const shipped = (capacity: number, plan?: Record<string, number>): Record<string, number> => {
+    const s = newGame({ seed: 1, world: 'two-islands' });
+    const before: GameState = {
+      ...s,
+      nations: s.nations.map(n => (n.id === N1 ? { ...n, transportCapacity: capacity } : n)),
+      transportAllocationsByNation: plan ? { [N1]: plan } : {},
+    };
+    const after = logisticsSystem(before, createTurnContext({ turn: before.turn }));
+    const was = before.nations[0].warehouse as Record<string, number>;
+    const now = after.nations[0].warehouse as Record<string, number>;
+    return Object.fromEntries(Object.keys(now).filter(k => now[k] !== was[k]).map(k => [k, now[k] - was[k]]));
+  };
+
+  it('FR-389 the ECONOMY-01 example: capacity 15, grain, fruit and cotton set to 0 and nothing else collected: nothing ships', () => {
+    expect(shipped(15, { grain: 0, fruit: 0, cotton: 0 })).toEqual({});
+  });
+
+  it('FR-389 a set commodity ships at most its set amount; the spare capacity goes to the automatic ones only', () => {
+    expect(shipped(15, { grain: 1 })).toEqual({ grain: 1, fruit: 4, cotton: 2 });
+    expect(shipped(15, { grain: 1, cotton: 0 })).toEqual({ grain: 1, fruit: 4 });
+  });
+
+  it('FR-389 a set amount above what is collected ships what is collected', () => {
+    expect(shipped(15, { grain: 10 })).toEqual({ grain: 4, fruit: 4, cotton: 2 });
+  });
+
+  it('FR-389 with no plan every commodity is automatic, up to the capacity (today\'s behaviour)', () => {
+    expect(shipped(15)).toEqual({ grain: 4, fruit: 4, cotton: 2 });
+    expect(shipped(15, {})).toEqual({ grain: 4, fruit: 4, cotton: 2 });
+    const total = Object.values(shipped(5)).reduce((a, b) => a + b, 0);
+    expect(total).toBe(5);
+  });
+
+  it('FR-389 set amounts come first, then the automatic ones share what is left', () => {
+    expect(shipped(3, { grain: 2, fruit: 0 })).toEqual({ grain: 2, cotton: 1 });
+    expect(shipped(3, { grain: 4 })).toEqual({ grain: 3 });
+  });
+
+  it('FR-389 FR-390 transportShipments tells the popup what each commodity ships, set or automatic', () => {
+    const collected = { grain: 4, fruit: 4, cotton: 2 };
+    expect(transportShipments(15, collected, { grain: 1, cotton: 0 })).toEqual({ grain: 1, fruit: 4 });
+    expect(transportShipments(6, collected)).toEqual({ grain: 4, fruit: 2 });
+  });
+});
+
+describe('FR-391 collectingHub: the logistics phase\'s own rule, for Tile Info', () => {
+  const start = () => newGame({ seed: 1, world: 'two-islands' });
+  const capitalId = (s: GameState, nationId: string) => {
+    const c = s.transportNetwork.railroadNetworks![nationId].capital!;
+    return `${c.x}-${c.y}`;
+  };
+
+  it('the capital collects itself and its six neighbours; a tile two away has no hub', () => {
+    const s = start();
+    const id = capitalId(s, N1);
+    const [x, y] = id.split('-').map(Number);
+    expect(collectingHub(s, N1, id)).toEqual({ tileId: id, kind: 'capital' });
+    expect(collectingHub(s, N1, `${x + 1}-${y}`)).toEqual({ tileId: id, kind: 'capital' });
+    expect(collectingHub(s, N1, `${x + 3}-${y}`)).toBeUndefined();
+  });
+
+  it('a tile of another nation, an unknown id or a nation without a network: no hub', () => {
+    const s = start();
+    expect(collectingHub(s, N2, capitalId(s, N1))).toBeUndefined();
+    expect(collectingHub(s, N1, capitalId(s, N2))).toBeUndefined();
+    expect(collectingHub(s, N1, '99-99')).toBeUndefined();
+    expect(collectingHub({ ...s, transportNetwork: { ...s.transportNetwork, railroadNetworks: {} } }, N1, capitalId(s, N1))).toBeUndefined();
+  });
+
+  it('agrees with computeLogisticsTransport on every tile of the start world', () => {
+    const s = start();
+    const network = s.transportNetwork.railroadNetworks![N1];
+    const byHub: Record<string, number> = {};
+    for (const t of s.map.tiles.flat()) {
+      if (!t.resource || !collectingHub(s, N1, t.id)) continue;
+      const amount = ResourceDevelopmentTable[t.resource.type]?.[t.resource.level] ?? 0;
+      if (amount > 0) byHub[t.resource.type] = (byHub[t.resource.type] ?? 0) + amount;
+    }
+    expect(byHub).toEqual(computeLogisticsTransport(s.map, N1, network));
+  });
+});
+
 describe('gold and gems cash value', () => {
   it('credits $200 per gold unit and $500 per gem unit and keeps them out of the warehouse', () => {
     const nation = baseState().nations.find(n => n.id === 'nation-1')!;

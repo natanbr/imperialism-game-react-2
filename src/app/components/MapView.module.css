@@ -2,20 +2,149 @@
 
 .wrapper {
   display: flex;
+  position: relative;
+}
+
+/* FR-368: the zoom buttons side by side at the map area's bottom left (at 1280x720 below the map's last row, which ends at
+   672 px), over the map elsewhere (above the tiles' marks and the army markers,
+   below the HUD at 10 and the dialogs) */
+.zoomControls {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  z-index: 8;
+  display: flex;
+  flex-direction: row;
+  gap: 4px;
+}
+
+.zoomButton {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  color: var(--color-ink);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: var(--shadow-panel);
+  cursor: pointer;
+}
+
+.zoomButton:hover:not(:disabled) {
+  background: var(--color-bg-button-hover);
+}
+
+.zoomButton:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.zoomButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* FR-373 (UIV-05, card Q81): the map's status line, at the bottom centre of the map area (left of the HUD), over the map
+   and its zoom buttons' row, under the HUD at 10; clicks pass through the empty band to the map */
+.mapStatus {
+  position: absolute;
+  bottom: 12px;
+  left: 0;
+  right: var(--hud-width);
+  z-index: 9;
+  display: flex;
+  justify-content: center;
+  /* Clear of the zoom buttons at the bottom left (12 to 80 px), the same on both sides so the line stays centred */
+  padding: 0 96px;
+  pointer-events: none;
+}
+
+.mapStatusText {
+  max-width: 560px;
+  padding: 6px 12px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-panel);
+  color: var(--color-ink);
+  font-size: 14px;
+  line-height: 20px;
+  text-align: center;
+  pointer-events: auto;
+}
+
+/* FR-429 (UIV-12, card Q96): the line for a narrow window, across the top of the screen (over the HUD at 10, under the
+   dialogs), shown below 700 px of width only; Dismiss removes it until the page is loaded again */
+.narrowWindow {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 4px 4px 12px;
+  border-bottom: 1px solid var(--color-warn);
+  background: var(--color-bg-warn);
+  color: var(--color-ink);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.narrowWindow > span {
+  flex: 1 1 auto;
+}
+
+.narrowDismiss {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-button);
+  color: var(--color-ink);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.narrowDismiss:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+@media (max-width: 699.98px) {
+  .narrowWindow {
+    display: flex;
+  }
 }
 
 /* The sea past a map smaller than the screen (FR-340): the ground's open-water texture (its URL and 512 px size inline,
    from the art table), repeating from the map's origin and scrolling with it (local), so it continues the ground's own
-   water pattern without an edge; the flat ground-water colour under it while it loads. */
+   water pattern without an edge; the flat ground-water colour under it while it loads.
+   FR-364, FR-365 (UIV-02): the camera is this scroll position (FR-083), so the wheel, Shift and the wheel, a trackpad and
+   a finger scroll it natively; no scrollbar is drawn over the map (edge scrolling, useEdgeScroll, still works too). */
 .container {
   width: 100vw;
   height: 100vh;
-  overflow: hidden;
+  overflow: auto;
+  scrollbar-width: none;
+  touch-action: pan-x pan-y;
+  overscroll-behavior: none;
   position: relative;
   background-color: var(--color-ground-water);
   background-repeat: repeat;
   background-position: 0 0;
   background-attachment: local;
+}
+
+.container::-webkit-scrollbar {
+  display: none;
 }
 
 /* Scrolled by the camera (FR-083). The padding lets the last column scroll out from under the HUD. */

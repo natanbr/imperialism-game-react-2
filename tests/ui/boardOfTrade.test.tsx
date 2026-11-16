@@ -16,12 +16,13 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { MarketModal } from '@/components/MarketModal';
 import { CapitalModal } from '@/components/CapitalModal';
 import { ActionButtons } from '@/components/HUD/index';
-import { barredText, boardView, partnerText, BARRIER_TEXT } from '@/components/market/boardView';
+import { barredText, boardView, lastTurnTrades, partnerText, BARRIER_TEXT } from '@/components/market/boardView';
 import { useGameStore } from '@/store/rootStore';
 import { BOARD_ORDER, marketOf, newGame, pairKey, tradeOrdersOf, type Order } from '@/engine';
 import { TRADE_COMMODITIES } from '@/definisions/marketPrices';
 import type { GameState } from '@/types/GameState';
-import { ResourceType } from '@/types/Resource';
+import type { SubsidyPercent } from '@/types/Diplomacy';
+import { GoodsType, ResourceType } from '@/types/Resource';
 import { setPair, setTile, setWarehouse, stockOf, treasury } from '../engine/fixtures';
 import { failOnActWarnings } from './actWarnings';
 import { text } from './domText';
@@ -38,8 +39,13 @@ const PELLIS = 'minor-4';
 const BOARD = 'Board of Trade — Testland';
 let submitted: Order[] = [];
 
-/** A new continent game: "partners" (FR-242). Testland is nation-1; on turn 1 every minor favours it (FR-187, FR-197). */
+/** A new continent game: "partners" (FR-242). Testland is nation-1. */
 const start = (): GameState => newGame({ seed: 1, world: 'continent' });
+/**
+ * M12 FR-401: at equal points each minor's tie order is fixed from the seed and its id; on seed 1 Arvelia, Sundmark and
+ * Lorran favour Valdoria, Pellis Testland (until M12 every minor favoured Testland on turn 1, FR-187's intentOrder).
+ */
+const FAVOURITES_SEED_1 = 'Arvelia, Sundmark and Lorran favour Valdoria; Pellis favours Testland.';
 
 /** Opens the market dialog on `state` for the player and records every order it submits. */
 function openBoard(state: GameState) {
@@ -92,8 +98,11 @@ const order = (o: Order) => {
   expect(result).toEqual({ ok: true });
 };
 
+// M12 FR-399: the note under the title starts with how long orders last
+const DURATION = 'Bids and offers last one turn; production orders in the Capital stay.';
 const NOTE_START =
-  'Deals settle at End Turn at the board price; bought goods arrive next turn. Minor nations sell what their land yields and buy only clothing, furniture and hardware. A minor trades only where we hold a consulate (one ordered this turn counts) and serves the Great Power it favours first';
+  DURATION +
+  ' Deals settle at End Turn at the board price; bought goods arrive next turn. Minor nations sell what their land yields and buy only clothing, furniture and hardware. A minor trades only where we hold a consulate (one ordered this turn counts) and serves the Great Power it favours first';
 
 describe('FR-194 the Board of Trade: what it shows', () => {
   it('FR-194 in "partners" the market dialog is named "Board of Trade", not "World market"', () => {
@@ -177,12 +186,14 @@ describe('FR-194 the Board of Trade: what it shows', () => {
 
   it('FR-251 FR-187 the favourites are named once, in the note, not in every chip', () => {
     openBoard(start());
-    expect(text(within(dialog()).getByTestId('board-favourites'))).toBe('Arvelia, Sundmark, Lorran and Pellis favour Testland.');
-    expect(within(dialog()).queryByText(/favours Testland/)).toBeNull();
+    // M12 FR-401: seed 1's tie order (until M12 turn 1 gave "Arvelia, Sundmark, Lorran and Pellis favour Testland.")
+    expect(text(within(dialog()).getByTestId('board-favourites'))).toBe(FAVOURITES_SEED_1);
+    expect([...partners('coal', 'sellers'), ...partners('timber', 'sellers'), ...partners('clothing', 'buyers')].filter(t => /favour/.test(t))).toEqual([]);
   });
 
   it('FR-251 FR-187 the FR example: Arvelia favours Valdoria at 40 points; its chip keeps only its units', () => {
-    openBoard(setPair(start(), N2, ARVELIA, { points: 40 }));
+    // Testland 1 point ahead with Sundmark and Lorran, which favour Valdoria at equal points on seed 1 (M12 FR-401)
+    openBoard(setPair(setPair(setPair(start(), N2, ARVELIA, { points: 40 }), N1, SUNDMARK, { points: 31 }), N1, LORRAN, { points: 31 }));
     expect(text(within(dialog()).getByTestId('board-favourites'))).toBe('Arvelia favours Valdoria; Sundmark, Lorran and Pellis favour Testland.');
     expect(partners('coal', 'sellers')[0]).toBe('Arvelia: 3 units (no consulate)');
   });
@@ -225,7 +236,7 @@ describe('FR-194 the Board of Trade: what it shows', () => {
   it('FR-248 FR-253 FR-251 the note under the title says when deals settle, that minors buy only clothing, furniture and hardware, and whom each favours; it is the dialog\'s description', () => {
     openBoard(start());
     const note = document.getElementById(dialog().getAttribute('aria-describedby')!)!;
-    expect(text(note)).toBe(`${NOTE_START}: Arvelia, Sundmark, Lorran and Pellis favour Testland.`);
+    expect(text(note)).toBe(`${NOTE_START}: ${FAVOURITES_SEED_1}`);
   });
 
   it('FR-194 the cash, "Holds: 4 of 4 free" and the bids used of 4', () => {
@@ -405,14 +416,190 @@ describe('FR-194 the Board of Trade: orders', () => {
     openBoard(setWarehouse(setTreasuryOf(open(), 50), N1, { furniture: 1 }));
     expect(plus('clothing', 'Offer one more Clothing')).toMatchObject({ disabled: true, title: 'None left in the warehouse', note: 'None left in the warehouse' });
     expect(plus('coal', 'Bid one more Coal')).toMatchObject({ disabled: true, title: 'Not enough money', note: 'Not enough money' });
-    // A row the player can trade has an enabled "+" with no title
-    expect(plus('furniture', 'Offer one more Furniture')).toEqual({ disabled: false, title: '', note: null, description: '' });
+    // A row the player can trade has an enabled "+" with no title (M12 FR-401: seed 1's Arvelia favours Valdoria at equal
+    // points, so the note says so, FR-252; until M12 turn 1 favoured Testland and there was no note)
+    expect(plus('furniture', 'Offer one more Furniture')).toEqual({ disabled: false, title: '', note: 'Arvelia favours Valdoria', description: 'Arvelia favours Valdoria' });
   });
 
   it('FR-194 Close closes the Board of Trade', () => {
     openBoard(start());
     fireEvent.click(within(dialog()).getByRole('button', { name: 'Close Board of Trade' }));
     expect(useGameStore.getState().isMarketOpen).toBe(false);
+  });
+});
+
+describe('M12 FR-394 FR-400 FR-434 the deal price, the offer cap and the first sale', () => {
+  /** Test setup: our subsidy toward the minor, in percent (FR-162; the pair's record as the diplomacy phase leaves it). */
+  const withSubsidy = (s: GameState, minorId: string, percent: SubsidyPercent): GameState =>
+    setPair(s, N1, minorId, { subsidies: { ...s.diplomacy[pairKey(N1, minorId)].subsidies, [N1]: percent } });
+  const withPrice = (s: GameState, commodity: string, price: number): GameState => {
+    const market = marketOf(s);
+    return { ...s, market: { ...market, prices: { ...market.prices, [commodity]: price } } };
+  };
+  const withHolds = (s: GameState, holds: number): GameState => ({
+    ...s,
+    nations: s.nations.map((n) => (n.id === N1 ? { ...n, merchantMarine: { ...n.merchantMarine, holds } } : n)),
+  });
+  const dealPrices = (commodity: string) => within(row(commodity)).queryAllByTestId('deal-price').map((el) => text(el));
+  const firstSale = () => within(dialog()).queryByTestId('first-sale');
+  const FIRST_SALE =
+    'Minor nations buy Clothing, Furniture and Hardware. Make them in the Capital (Clothing factory, Furniture factory, Metal works) and open a consulate in Diplomacy ($500).';
+
+  it('FR-394 a minor we may trade with and subsidise shows the deal price under the board price: "Sundmark pays $0 with our 100% subsidy", "Arvelia charges $114 with our 10%"', () => {
+    let s = withConsulate(withConsulate(start(), N1, ARVELIA), N1, SUNDMARK);
+    s = withSubsidy(withSubsidy(s, SUNDMARK, 100), ARVELIA, 10);
+    // Lorran: a subsidy on the record but no consulate, so no trade and no line
+    s = withSubsidy(s, LORRAN, 50);
+    openBoard(withPrice(s, 'coal', 104));
+    // Sundmark buys clothing at P less our subsidy (floor(900 x 0)); Arvelia sells coal at P plus ours (floor(104 x 1.1))
+    expect(dealPrices('clothing')).toEqual(['Arvelia pays $810 with our 10% subsidy', 'Sundmark pays $0 with our 100% subsidy']);
+    expect(dealPrices('coal')).toEqual(['Arvelia charges $114 with our 10%', 'Sundmark charges $208 with our 100%']);
+    expect(cell('coal', 'price')).toMatch(/^\$104/);
+    // Lorran sells timber; no consulate, so no deal price; no subsidy, no line
+    expect(dealPrices('timber')).toEqual(['Arvelia charges $110 with our 10%', 'Sundmark charges $200 with our 100%']);
+    expect(dealPrices('lumber')).toEqual([]);
+    // Bid and Offer work as before
+    fireEvent.click(button('coal', 'Bid one more Coal'));
+    expect(tradeOrdersOf(now(), N1).buy.coal).toBe(1);
+  });
+
+  it('FR-394 a subsidy ordered this turn counts at once, as the trade phase will find it (FR-246)', () => {
+    openBoard(withConsulate(start(), N1, PELLIS));
+    expect(dealPrices('cotton')).toEqual([]);
+    order({ kind: 'setTradePolicy', nationId: N1, targetId: PELLIS, subsidyPercent: 25, boycott: false });
+    expect(dealPrices('cotton')).toEqual(['Pellis charges $125 with our 25%']);
+    expect(dealPrices('furniture')).toEqual(['Pellis pays $675 with our 25% subsidy']);
+  });
+
+  it('FR-400 the Offer "+" stops at what the minors we may trade with want, with the line "Arvelia and Sundmark want 4"; the engine still takes more', () => {
+    const s = withHolds(withConsulate(withConsulate(start(), N1, ARVELIA), N1, SUNDMARK), 8);
+    openBoard(setWarehouse(s, N1, { clothing: 6 }));
+    for (let i = 0; i < 3; i++) fireEvent.click(button('clothing', 'Offer one more Clothing'));
+    expect(plus('clothing', 'Offer one more Clothing').disabled).toBe(false);
+    fireEvent.click(button('clothing', 'Offer one more Clothing'));
+    expect(cell('clothing', 'offer')).toBe('4');
+    const want = 'Arvelia and Sundmark want 4';
+    expect(plus('clothing', 'Offer one more Clothing')).toEqual({ disabled: true, title: want, note: want, description: want });
+    // Card Q104: the Board only; an order for more is still accepted (the surplus comes back)
+    order({ kind: 'sellCommodity', nationId: N1, commodity: GoodsType.Clothing, amount: 5 });
+    expect(plus('clothing', 'Offer one more Clothing').note).toBe(want);
+  });
+
+  it('FR-400 one buyer reads "Arvelia wants 2"; a minor without a consulate is not counted', () => {
+    openBoard(setWarehouse(withConsulate(start(), N1, ARVELIA), N1, { furniture: 3 }));
+    fireEvent.click(button('furniture', 'Offer one more Furniture'));
+    fireEvent.click(button('furniture', 'Offer one more Furniture'));
+    expect(plus('furniture', 'Offer one more Furniture')).toMatchObject({ disabled: true, title: 'Arvelia wants 2', note: 'Arvelia wants 2' });
+  });
+
+  it('FR-434 a new game, nothing to offer: one line names the goods the minors buy, their buildings and the consulate step', () => {
+    openBoard(start());
+    expect(text(firstSale()!)).toBe(FIRST_SALE);
+  });
+
+  it('FR-434 with a consulate held the line drops the consulate step; with goods to offer it is gone', () => {
+    openBoard(withConsulate(start(), N1, ARVELIA));
+    expect(text(firstSale()!)).toBe('Minor nations buy Clothing, Furniture and Hardware. Make them in the Capital (Clothing factory, Furniture factory, Metal works).');
+    act(() => useGameStore.setState({ game: setWarehouse(now(), N1, { hardware: 1 }) }));
+    expect(firstSale()).toBeNull();
+  });
+
+  it('FR-434 boardView gives the line, built from the recipes and the consulate cost', () => {
+    const s = start();
+    expect(boardView(s, s.nations[0]).firstSaleText).toBe(FIRST_SALE);
+    const stocked = setWarehouse(withConsulate(s, N1, ARVELIA), N1, { clothing: 1 });
+    expect(boardView(stocked, stocked.nations[0]).firstSaleText).toBeUndefined();
+  });
+});
+
+describe('M12 FR-397 FR-398 FR-399 repeat last turn\'s trades; how long orders last', () => {
+  const REPEAT = "Repeat last turn's trades";
+  const repeatButton = () => within(dialog()).queryByRole('button', { name: REPEAT });
+  const repeatLine = () => within(dialog()).queryByTestId('repeat-result');
+  const endTurn = () => act(() => useGameStore.getState().advanceTurn());
+  /** Turn 1 with a consulate in Arvelia and 2 clothing in stock: bid 2 coal and offer 1 clothing on the Board, then End Turn. */
+  const tradedTurn = () => {
+    openBoard(setWarehouse(withConsulate(start(), N1, ARVELIA), N1, { clothing: 2 }));
+    fireEvent.click(button('coal', 'Bid one more Coal'));
+    fireEvent.click(button('coal', 'Bid one more Coal'));
+    fireEvent.click(button('clothing', 'Offer one more Clothing'));
+    endTurn();
+    submitted = [];
+  };
+
+  it('FR-399 under the title the Board says "Bids and offers last one turn; production orders in the Capital stay."', () => {
+    openBoard(start());
+    const line = within(dialog()).getByTestId('board-duration');
+    expect(text(line)).toBe(DURATION);
+    // The first words under the header, and part of the dialog's description
+    expect(dialog().querySelector('header')!.nextElementSibling!.firstElementChild).toBe(line);
+    expect(text(document.getElementById(dialog().getAttribute('aria-describedby')!)!).startsWith(DURATION)).toBe(true);
+  });
+
+  it('FR-397 no trades last turn (a new game, or a turn without bids or offers): no Repeat button', () => {
+    openBoard(start());
+    expect(repeatButton()).toBeNull();
+    endTurn();
+    expect(repeatButton()).toBeNull();
+  });
+
+  it('FR-397 after a turn with a bid of 2 coal and an offer of 1 clothing, Repeat orders them again unit by unit through submitOrder', () => {
+    tradedTurn();
+    expect(cell('coal', 'bid')).toBe('0');
+    fireEvent.click(repeatButton()!);
+    expect(submitted).toEqual([
+      { kind: 'buyCommodity', nationId: N1, commodity: 'coal', amount: 1 },
+      { kind: 'buyCommodity', nationId: N1, commodity: 'coal', amount: 2 },
+      { kind: 'sellCommodity', nationId: N1, commodity: 'clothing', amount: 1 },
+    ]);
+    expect(cell('coal', 'bid')).toBe('2');
+    expect(cell('clothing', 'offer')).toBe('1');
+    expect(text(within(dialog()).getByTestId('market-bids'))).toBe('Bids: 1 of 4');
+    expect(text(repeatLine()!)).toBe('Repeated 3 of 3 units.');
+    // A second press finds them in place and sends nothing
+    submitted = [];
+    fireEvent.click(repeatButton()!);
+    expect(submitted).toEqual([]);
+    expect(text(repeatLine()!)).toBe('Repeated 3 of 3 units.');
+    // The next End Turn: the line goes; the button stays, for this turn's trades
+    endTurn();
+    expect(repeatLine()).toBeNull();
+    expect(repeatButton()).not.toBeNull();
+  });
+
+  it('FR-398 a refused unit is said in one line: "Repeated 2 of 3 units. Coal bid: not enough money."; no other alert', () => {
+    tradedTurn();
+    // Money for one coal and a half: the second unit is refused
+    const price = marketOf(now()).prices.coal!;
+    act(() => useGameStore.setState({ game: setTreasuryOf(now(), Math.floor(price * 1.5)) }));
+    fireEvent.click(repeatButton()!);
+    expect(cell('coal', 'bid')).toBe('1');
+    expect(cell('clothing', 'offer')).toBe('1');
+    expect(text(repeatLine()!)).toBe('Repeated 2 of 3 units. Coal bid: not enough money.');
+    expect(within(dialog()).queryByRole('alert')).toBeNull();
+  });
+
+  it('FR-398 goods gone: "Clothing offer: none left in the warehouse."', () => {
+    tradedTurn();
+    act(() => useGameStore.setState({ game: setWarehouse(now(), N1, { clothing: 0 }) }));
+    fireEvent.click(repeatButton()!);
+    expect(text(repeatLine()!)).toBe('Repeated 2 of 3 units. Clothing offer: none left in the warehouse.');
+  });
+
+  it('FR-397 lastTurnTrades reads the final total of each bid and offer of the turn just resolved, in the order first given', () => {
+    const buy = (commodity: string, amount: number) => ({ kind: 'buyCommodity', nationId: N1, commodity, amount }) as Order;
+    const sell = (commodity: string, amount: number) => ({ kind: 'sellCommodity', nationId: N1, commodity, amount }) as Order;
+    const log = [
+      { turn: 1, nationId: N1, orders: [buy('coal', 1)] },
+      { turn: 2, nationId: N2, orders: [buy('timber', 3)] },
+      { turn: 2, nationId: N1, orders: [buy('coal', 1), sell('clothing', 2), buy('coal', 3), buy('timber', 1), buy('timber', 0), sell('clothing', 1)] },
+    ];
+    expect(lastTurnTrades(log, N1, 3)).toEqual([
+      { side: 'bid', commodity: 'coal', amount: 3 },
+      { side: 'offer', commodity: 'clothing', amount: 1 },
+    ]);
+    expect(lastTurnTrades(log, N1, 2)).toEqual([{ side: 'bid', commodity: 'coal', amount: 1 }]);
+    expect(lastTurnTrades(log, N1, 4)).toEqual([]);
   });
 });
 
@@ -444,7 +631,7 @@ describe('FR-194 boardView, the screen\'s rows without React', () => {
     const view = boardView(s, s.nations[0]);
     expect(view.holdsText).toBe('Holds: 4 of 4 free');
     expect(view.bids).toEqual({ used: 0, max: 4 });
-    expect(view.favouritesText).toBe('Arvelia, Sundmark, Lorran and Pellis favour Testland.');
+    expect(view.favouritesText).toBe(FAVOURITES_SEED_1);
     expect(view.rows.map((r) => r.commodity)).toEqual([...BOARD_ORDER]);
     const coal = view.rows.find((r) => r.commodity === 'coal')!;
     expect(coal.sellers.map((p) => p.minorId)).toEqual([ARVELIA, SUNDMARK, PELLIS]);

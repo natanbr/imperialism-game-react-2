@@ -9,7 +9,7 @@ import { useGameStore } from '@/store/rootStore';
 import { resolveTurn, scoreOf } from '@/engine';
 import type { GameState } from '@/types/GameState';
 import { emptyWarehouse, game, N1, N2, setIndustry, setPair, setTile, setTreasury, T } from '../engine/fixtures';
-import { ARVELIA_P, clearArmy, continent, NE2, NW2, relocate, SW2 } from '../engine/armyFixtures';
+import { ARVELIA_P, clearArmy, continent, NE1, NE2, NW2, relocate, SW2 } from '../engine/armyFixtures';
 import { applyOrder } from '@/engine/orders/apply';
 import { transferProvince } from '@/engine/world/provinces';
 import { text } from './domText';
@@ -111,6 +111,15 @@ describe('FR-076 game-over screen', () => {
     expect(text(within(rows[0]).getByTestId('nation'))).toBe(name(N2));
   });
 
+  it('FR-403 the Development column says what a level is worth now: 10, 10 more, 50 more (not "10 points per resource level")', () => {
+    show(finished());
+    render(<GameOverModal />);
+    const dialog = screen.getByRole('dialog', { name: 'Game over' });
+    expect(within(dialog).getByRole('columnheader', { name: 'Development' }).getAttribute('title')).toBe(
+      'Resource levels on own tiles: 10 points for level 1, 10 more for level 2, 50 more for level 3'
+    );
+  });
+
   it('FR-223 a game won by conquest says so: "Testland has conquered Valdoria."; a game ended by the turn limit does not', () => {
     // Testland holds Valdoria North-West (hand-built) and takes Valdoria's undefended capital province (FR-217, FR-223)
     let s = transferProvince(continent('world'), NW2, N1);
@@ -151,6 +160,40 @@ describe('FR-076 game-over screen', () => {
     expect(line.compareDocumentPosition(within(dialog).getByRole('table', { name: 'Final scores' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(within(dialog).getAllByTestId(/^final-score-/)).toHaveLength(2);
     expect(within(dialog).queryByTestId('game-over-conquest')).toBeNull();
+  });
+
+  // FR-415: a game another nation won begins with "Defeat:" (audit diplomacy-council-10: the word never appeared)
+  it('FR-415 Valdoria won the Council: the screen begins "Defeat: Valdoria won the Council of Governors.", before the date line', () => {
+    let s = transferProvince(transferProvince(continent('world'), NE1, N2), ARVELIA_P, N2);
+    s = { ...s, minorNations: s.minorNations.map((m) => (m.id === 'minor-1' ? { ...m, colonyOf: N2 } : m)) };
+    s = ['minor-2', 'minor-3', 'minor-4'].reduce((acc, minorId) => setPair(acc, minorId, N2, { points: 60 }), { ...s, turn: 10, year: 1817 });
+    const over = resolveTurn(s, {}, s.seed).state;
+    expect(over.gameOver).toMatchObject({ reason: 'council', winnerId: N2 });
+    show(over);
+    render(<GameOverModal />);
+    const dialog = screen.getByRole('dialog', { name: 'Game over' });
+    const first = within(dialog).getByTestId('game-over-outcome');
+    expect(text(first)).toBe('Defeat: Valdoria won the Council of Governors.');
+    // The first thing under the title
+    expect(dialog.querySelector('p')).toBe(first);
+    expect(text(within(dialog).getByTestId('game-over-council'))).toBe('The Council of Governors chose Valdoria: 9 of 12 votes.');
+  });
+
+  it('FR-415 Valdoria won by conquest: "Defeat: Valdoria won by conquest."', () => {
+    show({ ...continent('world'), gameOver: { turn: 12, year: 1818, scores: [], reason: 'conquest', winnerId: N2 } });
+    render(<GameOverModal />);
+    expect(text(screen.getByTestId('game-over-outcome'))).toBe('Defeat: Valdoria won by conquest.');
+  });
+
+  it('FR-415 our win and a turn-limit end have no defeat line (a turn-limit end is decided on the scores shown)', () => {
+    show({ ...continent('world'), gameOver: { turn: 12, year: 1818, scores: [], reason: 'conquest', winnerId: N1 } });
+    const { unmount } = render(<GameOverModal />);
+    expect(screen.queryByTestId('game-over-outcome')).toBeNull();
+    expect(screen.getByRole('dialog', { name: 'Game over' }).textContent).not.toMatch(/Defeat/);
+    unmount();
+    show(finished());
+    render(<GameOverModal />);
+    expect(screen.queryByTestId('game-over-outcome')).toBeNull();
   });
 
   it('FR-300 a turn-limit end and a conquest have no Council line', () => {

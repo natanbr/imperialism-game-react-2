@@ -61,7 +61,7 @@ describe('FR-115 stacks on any tile', () => {
     expect(items.map((li) => li.textContent)).toEqual([expect.stringContaining(WorkerType.Rancher), expect.stringContaining(WorkerType.Forester)]);
   });
 
-  it("FR-115 with a civilian selected, a click on another tile's lone civilian moves the selected one there instead of selecting the other", () => {
+  it("FR-385 with a civilian selected, a click on another tile's lone civilian selects that one, named \"Select rancher\"; no move is ordered", () => {
     show(newGame({ seed: 1 }));
     const { container } = render(<MapView />);
     submit({ kind: 'moveWorker', nationId: N1, workerId: RANCHER, toTileId: ORCHARD });
@@ -70,32 +70,53 @@ describe('FR-115 stacks on any tile', () => {
     act(() => useGameStore.getState().selectWorker(FORESTER));
 
     // The button says what the click does; it keeps the rancher's figure (FR-325: the pack's figure since M11)
-    expect(button().getAttribute('aria-label')).toBe(`Move ${WorkerType.Forester} here`);
-    expect(button().getAttribute('title')).toBe(`Move ${WorkerType.Forester} here`);
+    expect(button().getAttribute('aria-label')).toBe(`Select ${WorkerType.Rancher}`);
+    expect(button().getAttribute('title')).toBe(`Select ${WorkerType.Rancher}`);
     expect([...button().querySelectorAll('img')].map((img) => img.getAttribute('data-art'))).toEqual([artFileOf(civilianArt(WorkerType.Rancher))]);
+    const ordersBefore = useGameStore.getState().ordersThisTurn.length;
     fireEvent.click(button());
 
+    expect(useGameStore.getState().selectedWorkerId).toBe(RANCHER);
+    expect(tileOf(FORESTER)).toBe('2-9');
+    expect(useGameStore.getState().ordersThisTurn.length).toBe(ordersBefore);
+    expect(button().getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('FR-385 a move onto a tile with a civilian is a click on the tile outside the button', () => {
+    show(newGame({ seed: 1 }));
+    const { container } = render(<MapView />);
+    submit({ kind: 'moveWorker', nationId: N1, workerId: RANCHER, toTileId: ORCHARD });
+    act(() => useGameStore.getState().selectWorker(FORESTER));
+    fireEvent.click(tileEl(container, ORCHARD));
     expect(tileOf(FORESTER)).toBe(ORCHARD);
     expect(within(tileEl(container, ORCHARD)).getByTestId('worker-stack').getAttribute('data-count')).toBe('2');
   });
 
-  it("FR-115 with a civilian selected, a click on another tile's stack gives the selected civilian its job there", () => {
+  it("FR-385 with a civilian selected, a click on another tile's stack opens its tray (no order); the tile outside the button still takes the selected civilian's job", () => {
     show(newGame({ seed: 1 }));
     const { container } = render(<MapView />);
     submit({ kind: 'moveWorker', nationId: N1, workerId: RANCHER, toTileId: FARM });
     submit({ kind: 'moveWorker', nationId: N1, workerId: FORESTER, toTileId: FARM });
     act(() => useGameStore.getState().selectWorker(FARMER));
 
-    const stack = within(tileEl(container, FARM)).getByTestId('worker-stack');
-    expect(stack.getAttribute('aria-label')).toBe(`Move ${WorkerType.Farmer} here`);
-    expect(stack.getAttribute('title')).toBe(`Move ${WorkerType.Farmer} here`);
+    const stack = () => within(tileEl(container, FARM)).getByTestId('worker-stack');
+    expect(stack().getAttribute('aria-label')).toBe('2 civilians: choose one');
+    expect(stack().getAttribute('title')).toBe('2 civilians: choose one');
     // FR-325: no civilian of this tile is selected, so the stack keeps the Game Icon GiMeepleGroup (the pack has no group picture)
-    expect(stack.querySelector('[data-icon]')?.getAttribute('data-icon')).toBe(UI_ICONS.civilians);
+    expect(stack().querySelector('[data-icon]')?.getAttribute('data-icon')).toBe(UI_ICONS.civilians);
     expect(UI_ICONS.civilians).toBe('GiMeepleGroup');
-    expect(stack.querySelector('img')).toBeNull();
-    // The farm (grain level 1) is the farmer's to develop: the click on its stack starts the job
-    fireEvent.click(stack);
+    expect(stack().querySelector('img')).toBeNull();
+    fireEvent.click(stack());
+    expect(tileOf(FARMER)).toBe('2-9');
+    const tray = within(tileEl(container, FARM)).getByRole('group', { name: 'Civilians on this tile' });
+    fireEvent.click(within(tray).getAllByTestId('worker-button')[1]);
+    expect(useGameStore.getState().selectedWorkerId).toBe(FORESTER);
 
+    // The farm (grain level 1) is the farmer's to develop: a click on the tile itself starts the job, at $1,000 once the
+    // player says Spend (FR-383)
+    act(() => useGameStore.getState().selectWorker(FARMER));
+    fireEvent.click(tileEl(container, FARM));
+    fireEvent.click(screen.getByRole('button', { name: 'Spend $1,000' }));
     const game = useGameStore.getState().game;
     expect(tileOf(FARMER)).toBe(FARM);
     expect(game.map.tiles[9][3].developmentJob).toMatchObject({ workerId: FARMER, targetLevel: 2 });
@@ -114,5 +135,58 @@ describe('FR-115 stacks on any tile', () => {
     fireEvent.click(button());
     expect(useGameStore.getState().selectedWorkerId).toBeUndefined();
     expect(button().getAttribute('aria-pressed')).toBe('false');
+  });
+});
+
+describe('FR-384 a plain move ends the selection', () => {
+  it('FR-384 the forester moved by a click is no longer selected; the next click only selects a tile, with no "already moved" refusal', () => {
+    show(newGame({ seed: 1 }));
+    const { container } = render(<MapView />);
+    act(() => useGameStore.getState().selectWorker(FORESTER));
+    fireEvent.click(tileEl(container, ORCHARD));
+    expect(tileOf(FORESTER)).toBe(ORCHARD);
+    expect(useGameStore.getState().selectedWorkerId).toBeUndefined();
+    expect(useGameStore.getState().selectedTileId).toBe(ORCHARD);
+
+    fireEvent.click(tileEl(container, FARM));
+    expect(tileOf(FORESTER)).toBe(ORCHARD);
+    expect(useGameStore.getState().selectedTileId).toBe(FARM);
+    expect(useGameStore.getState().lastRejection).toBeNull();
+  });
+
+  it('FR-384 a refused move keeps the selection, so the player can click elsewhere', () => {
+    show(newGame({ seed: 1 }));
+    const { container } = render(<MapView />);
+    act(() => useGameStore.getState().selectWorker(FORESTER));
+    // 0-0 is the sea
+    fireEvent.click(tileEl(container, '0-0'));
+    expect(tileOf(FORESTER)).toBe('2-9');
+    expect(useGameStore.getState().selectedWorkerId).toBe(FORESTER);
+  });
+});
+
+// M12 (NR-033), lane L2. FR-433 (UIV-21): each figure in the civilians' tray shows its type as visible text under its
+// 24 px button ("Prospector"); the buttons keep their names (FR-110, FR-111) and stay 24 px (the text is outside them, and
+// hidden from screen readers, which hear the button's name); a click on the text picks that civilian as the button does.
+describe('FR-433 the tray names its civilians', () => {
+  it('FR-433 the capital\'s tray shows "Prospector", "Engineer" and the others under their figures; the buttons keep their names; a click on "Engineer" picks the engineer', () => {
+    show(newGame({ seed: 1 }));
+    const { container } = render(<MapView />);
+    fireEvent.click(within(tileEl(container, '2-9')).getByTestId('worker-stack'));
+    const tray = within(tileEl(container, '2-9')).getByRole('group', { name: 'Civilians on this tile' });
+    const buttons = within(tray).getAllByTestId('worker-button');
+    const types = buttons.map((b) => b.getAttribute('data-worker-type')!);
+    expect(types).toHaveLength(7);
+    const captions = buttons.map((b) => b.parentElement!.querySelector('[data-testid="worker-caption"]') as HTMLElement);
+    expect(captions.map((c) => c?.textContent)).toEqual(types.map((t) => t.charAt(0).toUpperCase() + t.slice(1)));
+    expect(captions.map((c) => c.textContent)).toEqual(expect.arrayContaining(['Prospector', 'Engineer']));
+    expect(captions.every((c) => c.getAttribute('aria-hidden') === 'true' && !c.closest('button'))).toBe(true);
+    // The names stay the type (FR-110); the visible text is not inside the buttons
+    expect(buttons.map((b) => b.getAttribute('aria-label'))).toEqual(types);
+    expect(buttons.map((b) => b.textContent)).toEqual(types.map(() => ''));
+    expect(within(tray).getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual(types);
+
+    fireEvent.click(captions[types.indexOf(WorkerType.Engineer)]);
+    expect(useGameStore.getState().selectedWorkerId).toBe('worker-nation-1-7');
   });
 });

@@ -9,7 +9,7 @@
 // Battle screens; Close, Escape and the backdrop close it and the focus goes back; on a winning meeting it opens before
 // the game-over screen, with "See the final scores" in place of "Close". Store: `councilShown`, `showCouncil`, `closeCouncil`.
 // QA fix round: FR-311 each abstention with its reason and the rule line; FR-312 the Other Great Powers row greyed ("—" and
-// a note) in a world of two Great Powers; FR-313 the player's column first, the standing as a rank mark ("1st nominee");
+// a note) in a world of two Great Powers; FR-313 the player's column first, the standing as a rank mark ("1st by standing", FR-413);
 // FR-316 the date line "Met at the end of turn 10 (Summer 1817)".
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
@@ -20,7 +20,7 @@ import { BattleModal } from '@/components/BattleModal';
 import { CouncilModal } from '@/components/CouncilModal';
 import { GameOverModal } from '@/components/GameOverModal';
 import { useGameStore } from '@/store/rootStore';
-import { councilVote, proposalAnswer, type CouncilMetEvent, type Order } from '@/engine';
+import { COUNCIL, councilVote, proposalAnswer, type CouncilMetEvent, type Order } from '@/engine';
 import { transferProvince } from '@/engine/world/provinces';
 import type { GameState } from '@/types/GameState';
 import { N1, N2, setPair } from '../engine/fixtures';
@@ -48,6 +48,13 @@ function winning(s: GameState = continent('world')): GameState {
   return [SUNDMARK, LORRAN, PELLIS].reduce((acc, minorId) => setPair(acc, minorId, N1, { points: 60 }), t);
 }
 
+/** FR-415: the same win for Valdoria: it holds Testland North-East, has colonised Arvelia, the three island minors at 60 with it. */
+function losing(s: GameState = continent('world')): GameState {
+  let t = transferProvince(transferProvince(s, NE1, N2), ARVELIA_P, N2);
+  t = { ...t, minorNations: t.minorNations.map((m) => (m.id === ARVELIA ? { ...m, colonyOf: N2 } : m)) };
+  return [SUNDMARK, LORRAN, PELLIS].reduce((acc, minorId) => setPair(acc, minorId, N2, { points: 60 }), t);
+}
+
 /** Sundmark's points with Testland and with Valdoria. */
 const sundmarkAt = (s: GameState, withTestland: number, withValdoria: number): GameState =>
   setPair(setPair(s, SUNDMARK, N1, { points: withTestland }), SUNDMARK, N2, { points: withValdoria });
@@ -57,6 +64,7 @@ const atWar = (s: GameState, a: string, b: string): GameState =>
 
 const RULE = 'A free minor nation votes for the Great Power it has at least 50 relation points with and is not at war with; a colony votes with its owner.';
 const NOTE = '(only two Great Powers in this world)';
+const NOMINATED = 'The two nations with the highest standing (score + 100 a province + 10 a strength point) are nominated; the votes decide.';
 
 /** The `council-met` event a meeting on this state would give (FR-296). */
 function meeting(s: GameState, turn = 10, year = 1817): CouncilMetEvent {
@@ -110,7 +118,7 @@ describe('FR-298 the Council screen: what it shows', () => {
   it('FR-298 FR-313 FR-312 a table named "Votes": the player\'s nominee, the row names, the other nominee; each head its swatch, name and rank mark', () => {
     open(meeting(twoIslands()));
     const heads = within(table()).getAllByRole('columnheader');
-    expect(heads.map((h) => text(h))).toEqual(['Testland 1st nominee', 'Valdoria 2nd nominee']);
+    expect(heads.map((h) => text(h))).toEqual(['Testland 1st by standing', 'Valdoria 2nd by standing']);
     expect(heads.map((h) => h.getAttribute('scope'))).toEqual(['col', 'col']);
     for (const head of heads) expect(within(head).getByTestId('swatch').getAttribute('aria-hidden')).toBe('true');
     expect((within(heads[0]).getByTestId('swatch') as HTMLElement).style.backgroundColor).toBe('var(--color-nation-1)');
@@ -128,9 +136,9 @@ describe('FR-298 the Council screen: what it shows', () => {
     const event = meeting(transferProvince(continent('world'), NE1, N2));
     expect(event.nominees.map((n) => n.nationId)).toEqual([N2, N1]);
     open(event);
-    expect(within(table()).getAllByRole('columnheader').map((h) => text(h))).toEqual(['Testland 2nd nominee', 'Valdoria 1st nominee']);
+    expect(within(table()).getAllByRole('columnheader').map((h) => text(h))).toEqual(['Testland 2nd by standing', 'Valdoria 1st by standing']);
     expect(text(within(table()).getAllByRole('row').at(-1)!)).toBe('3 Total 5');
-    expect(text(within(table()).getByTestId(`council-rank-${N2}`))).toBe('1st nominee');
+    expect(text(within(table()).getByTestId(`council-rank-${N2}`))).toBe('1st by standing');
   });
 
   it('FR-313 a player that is not a nominee (three Great Powers, Carthia the third) sees the nominees in standing order', () => {
@@ -139,7 +147,7 @@ describe('FR-298 the Council screen: what it shows', () => {
     expect(event.nominees.map((n) => n.nationId)).toEqual([N1, N2]);
     show(s, { councilShown: event, activeNationId: N3 });
     render(<CouncilModal />);
-    expect(within(table()).getAllByRole('columnheader').map((h) => text(h))).toEqual(['Testland 1st nominee', 'Valdoria 2nd nominee']);
+    expect(within(table()).getAllByRole('columnheader').map((h) => text(h))).toEqual(['Testland 1st by standing', 'Valdoria 2nd by standing']);
   });
 
   it('FR-312 with a third Great Power the Other Great Powers row counts as before: no "—" and no note', () => {
@@ -250,6 +258,45 @@ describe('FR-298 the Council screen: what it shows', () => {
     expect(text(within(dialog()).getByTestId('council-abstained'))).toBe('Abstained: none');
     expect(within(dialog()).queryByRole('list')).toBeNull();
     expect(text(within(dialog()).getByTestId('council-rule'))).toBe(RULE);
+  });
+
+  it('FR-413 the rank marks say what they rank: "1st by standing", "2nd by standing"; the screen says once how nominees are chosen', () => {
+    open(meeting(transferProvince(continent('world'), NE1, N2)));
+    expect([N1, N2].map((id) => text(within(table()).getByTestId(`council-rank-${id}`)))).toEqual(['2nd by standing', '1st by standing']);
+    const line = within(dialog()).getByTestId('council-nominated');
+    expect(text(line)).toBe(NOMINATED);
+    expect(within(dialog()).getAllByText(NOMINATED)).toHaveLength(1);
+    // Between the table and the vote rule
+    expect(table().compareDocumentPosition(line) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(line.compareDocumentPosition(within(dialog()).getByTestId('council-rule')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("FR-413 the weights in the line are the Council's rule data (definisions/council.ts)", () => {
+    open(meeting(continent('world')));
+    expect(text(within(dialog()).getByTestId('council-nominated'))).toContain(
+      `(score + ${COUNCIL.provinceWeight} a province + ${COUNCIL.militaryWeight} a strength point)`
+    );
+  });
+
+  it("FR-415 another nation wins: \"Valdoria wins. We lost.\" as the heading, in the theme's bad colour; the way out still leads to the final scores", () => {
+    const event = meeting(losing());
+    expect(event.winnerId).toBe(N2);
+    open(event, losing());
+    const heading = within(dialog()).getByRole('heading', { level: 3 });
+    expect(text(heading)).toBe('Valdoria wins. We lost.');
+    expect(heading.className).toMatch(/lost/);
+    expect(heading.className).not.toMatch(/winner/);
+    const css = readFileSync(join(ROOT, 'src/app/components/council/Council.module.css'), 'utf8');
+    expect(css).toMatch(/\.lost \{[^}]*color: var\(--color-text-danger\)/);
+    expect(button('See the final scores')).toBeTruthy();
+  });
+
+  it('FR-415 our win keeps the Imp1 "Testland Wins!" in the good colour', () => {
+    open(meeting(winning()));
+    const heading = within(dialog()).getByRole('heading', { level: 3 });
+    expect(text(heading)).toBe('Testland Wins!');
+    expect(heading.className).toMatch(/winner/);
+    expect(heading.className).not.toMatch(/lost/);
   });
 
   it('FR-298 the player does not vote: the screen has no control but its close button', () => {
@@ -421,28 +468,12 @@ describe('FR-299 the Council screen: when it opens and how it closes', () => {
     expect(screen.getByRole('dialog', { name: 'Game over' })).toBeTruthy();
   });
 
-  it('FR-299 FR-175 an offer made on the meeting turn: Accept Offer lies over the Council screen (85 over 77, rendered after it) (review R4)', () => {
-    // jsdom computes no stacking, so the test reads the two overlays' CSS rules and the page's render order
-    const zIndexOf = (cssFile: string, selector: string): number => {
-      const css = readFileSync(join(ROOT, cssFile), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
-      const values = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)]
-        .filter(([, selectors, body]) => selectors.split(',').some((s) => s.trim() === selector) && /z-index/.test(body))
-        .map(([, , body]) => Number(/z-index:\s*(\d+)/.exec(body)![1]));
-      return values.at(-1)!;
-    };
-    expect(readFileSync(join(ROOT, 'src/app/components/CouncilModal.tsx'), 'utf8')).toContain('overlayClassName={styles.overlay}');
-    expect(readFileSync(join(ROOT, 'src/app/components/AcceptOfferModal.tsx'), 'utf8')).toContain('overlayClassName={styles.offerOverlay}');
-    const council = zIndexOf('src/app/components/council/Council.module.css', '.overlay');
-    const offer = zIndexOf('src/app/components/diplomacy/Diplomacy.module.css', '.offerOverlay');
-    expect({ council, offer, above: offer > council }).toEqual({ council: 77, offer: 85, above: true });
-    const page = readFileSync(join(ROOT, 'src/app/page.tsx'), 'utf8');
-    expect(page.indexOf('<AcceptOfferModal />')).toBeGreaterThan(page.indexOf('<CouncilModal />'));
-  });
-
+  // FR-409 (M12, replaces review R4's "Accept Offer lies over the Council screen"): one dialog at a time, the Council
+  // screen first, then the offer, so Enter or Escape meant for the Council screen never answers an offer
   it.each([
     ['Escape', false],
     ['Enter', true],
-  ] as const)('FR-299 FR-175 with an offer and the Council screen open together, %s answers the offer (accept: %s); the Council screen stays, takes the focus back and closes next (review R4)', (key, accept) => {
+  ] as const)('FR-409 FR-299 FR-175 an offer made on the meeting turn waits for the Council screen; once it is closed the offer opens and %s answers it (accept: %s)', (key, accept) => {
     const offer = { id: 'proposal-10-1', fromId: N2, toId: N1, kind: 'alliance' as const, turn: 10 };
     show({ ...onTurn(11, 1817), proposals: [offer] }, { councilShown: meeting(continent('world')) });
     render(
@@ -452,24 +483,50 @@ describe('FR-299 the Council screen: when it opens and how it closes', () => {
       </>
     );
     const titles = () => screen.getAllByRole('dialog').map((d) => text(within(d).getByRole('heading', { level: 2 })));
-    expect(titles()).toEqual(['Council of Governors', 'Accept Offer']);
+    expect(titles()).toEqual(['Council of Governors']);
+    expect(dialog().contains(document.activeElement)).toBe(true);
+
+    fireEvent.keyDown(document.activeElement!, { key: 'Enter' });
+    expect(proposalAnswer(useGameStore.getState().game, offer.id)).toBeUndefined();
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+    expect(useGameStore.getState().councilShown).toBeNull();
+    expect(titles()).toEqual(['Accept Offer']);
     const acceptOffer = screen.getByRole('dialog', { name: 'Accept Offer' });
     expect(document.activeElement).toBe(acceptOffer);
 
     fireEvent.keyDown(acceptOffer, { key });
     expect(proposalAnswer(useGameStore.getState().game, offer.id)).toBe(accept);
-    expect(titles()).toEqual(['Council of Governors']);
-    expect(useGameStore.getState().councilShown).not.toBeNull();
-    expect(dialog().contains(document.activeElement)).toBe(true);
-
-    fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
     expect(screen.queryByRole('dialog')).toBeNull();
-    expect(useGameStore.getState().councilShown).toBeNull();
   });
 
   it('FR-299 a new game drops the Council screen still to see', () => {
     show(continent('world'), { councilShown: meeting(continent('world')) });
     act(() => useGameStore.getState().startNewGame({ seed: 2 }));
     expect(useGameStore.getState().councilShown).toBeNull();
+  });
+});
+
+// FR-425 (UIV-17): at 800x600 the Council screen is taller than the window; its title, picture and Close stay outside the
+// part that scrolls, so Close can have the focus with the title and picture in view
+describe('FR-425 the Council screen at 800x600', () => {
+  it('FR-425 the header (title, date, picture) and the footer (Close) lie outside the scrolling body, which holds the rest', () => {
+    open(meeting(continent('world')));
+    const body = within(dialog()).getByTestId('council-body');
+    const heading = within(dialog()).getByRole('heading', { level: 2 });
+    expect(body.contains(heading)).toBe(false);
+    expect(body.contains(dialog().querySelector('img'))).toBe(false);
+    expect(body.contains(button('Close'))).toBe(false);
+    expect(body.contains(table())).toBe(true);
+    expect(body.contains(within(dialog()).getByTestId('council-result'))).toBe(true);
+    // Close has the focus on open
+    expect(document.activeElement).toBe(button('Close'));
+  });
+
+  it('FR-425 the dialog is a column whose body alone scrolls', () => {
+    const css = readFileSync(join(ROOT, 'src/app/components/council/Council.module.css'), 'utf8');
+    expect(css).toMatch(/\.dialog \{[^}]*display: flex;[^}]*flex-direction: column;[^}]*overflow: hidden;/);
+    expect(css).toMatch(/\.body \{[^}]*min-height: 0;[^}]*overflow-y: auto;/);
+    expect(css).toMatch(/\.header \{[^}]*flex: none;/);
+    expect(css).toMatch(/\.footer \{[^}]*flex: none;/);
   });
 });

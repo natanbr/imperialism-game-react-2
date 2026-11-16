@@ -8,6 +8,7 @@ import { FortPicture, RegimentPicture } from "./art/ArtPicture";
 import { UI_ICONS } from "./icons";
 import { GameIcon } from "./GameIcon";
 import { Modal } from "./Modal";
+import { MoreBelow, useMoreBelow } from "./AttackModal";
 
 /** One round a second while "Play" runs (FR-231). */
 const ROUND_MS = 1000;
@@ -52,6 +53,7 @@ const BattleReplay: React.FC<{ report: BattleReport; remaining: number }> = ({ r
   const attackersId = useId();
   const defendersId = useId();
   const closeButton = useRef<HTMLButtonElement>(null);
+  const [field, below] = useMoreBelow<HTMLDivElement>();
   const view = useMemo(() => battleView(report, game, playerId), [report, game, playerId]);
   const rounds = view.rounds.length;
   // 0 the deployment, 1 to n the rounds, n + 1 the result
@@ -97,28 +99,32 @@ const BattleReplay: React.FC<{ report: BattleReport; remaining: number }> = ({ r
 
       <div className={styles.battleBody}>
         {/* FR-276: each side under a visible heading in the Attack screen's style, so the swatches are not the only cue */}
-        <div className={styles.field}>
-          <section className={styles.fieldGroup}>
-            <h3 id={attackersId} className={styles.sideHeading}>
-              Attackers: {view.attackersName}
-            </h3>
-            <ul className={styles.fieldSide} aria-labelledby={attackersId}>
-              {side("attacker").map((t) => token(t, 1))}
-            </ul>
-          </section>
-          {wall && (
-            <div className={styles.wall} data-testid="battle-wall">
-              <FortPicture level={view.fortLevel} alt={`Fort level ${view.fortLevel}`} size={56} className={styles.wallPicture} />
-            </div>
-          )}
-          <section className={styles.fieldGroup}>
-            <h3 id={defendersId} className={styles.sideHeading}>
-              Defenders: {view.defenderName}
-            </h3>
-            <ul className={styles.fieldSide} aria-labelledby={defendersId}>
-              {side("defender").map((t) => token(t, wall ? 4 : 3))}
-            </ul>
-          </section>
+        <div className={styles.fieldColumn}>
+          <div ref={field} className={styles.field} data-testid="battle-field">
+            <section className={styles.fieldGroup}>
+              <h3 id={attackersId} className={styles.sideHeading}>
+                Attackers: {view.attackersName}
+              </h3>
+              <ul className={styles.fieldSide} aria-labelledby={attackersId}>
+                {side("attacker").map((t) => token(t, 1))}
+              </ul>
+            </section>
+            {wall && (
+              <div className={styles.wall} data-testid="battle-wall">
+                <FortPicture level={view.fortLevel} alt={`Fort level ${view.fortLevel}`} size={56} className={styles.wallPicture} />
+              </div>
+            )}
+            <section className={styles.fieldGroup}>
+              <h3 id={defendersId} className={styles.sideHeading}>
+                Defenders: {view.defenderName}
+              </h3>
+              <ul className={styles.fieldSide} aria-labelledby={defendersId}>
+                {side("defender").map((t) => token(t, wall ? 4 : 3))}
+              </ul>
+            </section>
+          </div>
+          {/* FR-419: the regiments the field hides */}
+          <MoreBelow count={below} testId="battle-more-below" />
         </div>
 
         <div className={styles.log}>

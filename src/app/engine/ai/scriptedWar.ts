@@ -1,9 +1,10 @@
 // The scripted war (M9; rules remake, decision card Q35). FR-228, at war: (a) the capital province keeps its 4 arms
 // (FR-213), (b) the other regiments march one province a turn toward the nation's province that borders the strongest
 // enemy force, (c) they attack a bordering enemy province when the estimate (FR-226) is 1.5 or more, a province lost in
-// this war first, then the lowest id; (d) peace is FR-174's (diplomacy.ts). FR-274, at peace: from turn 10 it picks the
-// bordering minor with the lowest defence, recruits until its field army is twice that defence, declares war (one war
-// at a time, never on a Great Power) and marches. On a world without provinces it orders nothing.
+// this war first, then the lowest id; (d) peace: FR-174's answers, FR-408's offers (diplomacy.ts). FR-274, at peace:
+// from turn 10 it picks the bordering minor with the lowest defence, recruits until its field army is twice that
+// defence, declares war (one war at a time, never on a Great Power) and marches. On a world without provinces it orders
+// nothing.
 import type { CountryId, MinorNationId, NationId, ProvinceId, RegimentId } from "@/types/Common";
 import type { GameState } from "@/types/GameState";
 import type { Province } from "@/types/Province";

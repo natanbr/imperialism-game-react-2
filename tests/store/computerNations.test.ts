@@ -178,7 +178,8 @@ describe('FR-160 startNewGame resets every overlay flag, also the ones a later m
    * player scrolled. Every other key of the store, whatever its name or type (a flag, a selected id, a
    * log), is part of the old game's session (review F3: a guard by name missed `constructionModalTileId`).
    */
-  const KEPT = ['game', 'cameraX', 'cameraY', 'cameraMoves'];
+  // M12 FR-368: 'zoom' is a camera key (cameraSlice), kept by a new game like the camera's position
+  const KEPT = ['game', 'cameraX', 'cameraY', 'cameraMoves', 'zoom'];
   /** A value unlike `value` of the same kind: a flag flipped, a number moved, an id or a list filled. */
   const changed = (value: unknown): unknown => {
     if (typeof value === 'boolean') return !value;

@@ -109,7 +109,8 @@ test.describe('rendered at twice the pixel density', () => {
     await tile(page, '3-9').click();
     await expect(tile(page, '3-9').getByTitle('Construction in progress')).toBeVisible();
     await endTurn(page, 2);
-    await expect(page.getByTestId('news-panel')).toContainText('Rail finished at 3-9.');
+    // M12 FR-375: the line names the province (the news panel passes `tilePlaces`)
+    await expect(page.getByTestId('news-panel')).toContainText('Rail finished at 3-9 in Testland South-West.');
 
     // Turn 2: he walks back to the capital (the section 2-9/3-9 exists, so the click is a plain move)
     await pickWorker(page, 'engineer');
@@ -123,7 +124,7 @@ test.describe('rendered at twice the pixel density', () => {
     await tile(page, '3-8').click();
     await expect(tile(page, '3-8').getByTitle('Construction in progress')).toBeVisible();
     await endTurn(page, 4);
-    await expect(page.getByTestId('news-panel')).toContainText('Rail finished at 3-8.');
+    await expect(page.getByTestId('news-panel')).toContainText('Rail finished at 3-8 in Testland South-West.');
 
     // Two lines from the capital; the third side 3-8/3-9 is not drawn
     await expect(page.locator('[data-testid="rail-segment"][data-nation-id="nation-1"]')).toHaveCount(2);

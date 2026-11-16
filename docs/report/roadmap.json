@@ -1,12 +1,13 @@
 {
  "project": "Imperialism Revival",
  "schema": 3,
- "updated": "2026-11-15",
+ "updated": "2026-11-16",
  "audit": {
   "date": "2026-11-14",
   "reviewers": 8,
   "folder": "docs/audit/2026-11-14",
-  "branch": "claude/m12-honest-game"
+  "branch": "claude/m12-honest-game",
+  "main": "a690759"
  },
  "source": "docs/report/roadmap.json, docs/audit/2026-11-14/*.json and docs/requirements.md in the imperialism-game-react-2 repo",
  "reality": {
@@ -179,7 +180,7 @@
    "text": "Of 24 rule topics of the original game: 3 built, 14 partial, 1 wrong, 1 dead code, 5 missing."
   },
   "notChecked": "Not checked by the audit: Firefox and Safari, real touch on a phone, screen readers, and a human game played all the way to a Council win.",
-  "notFixed": "No finding is fixed yet. This page records what was found and what is planned.",
+  "notFixed": "No finding is fixed yet. This page records what was found and what is planned. Main is a690759 (after M11 and three housekeeping merges); M12 is built on the branch claude/m12-honest-game.",
   "filedNote": "The plan named 122 of the 160 findings in its themes. I filed the other 38 under the nearest theme; they are marked \"filed\" and can be moved."
  },
  "statusLegend": [
@@ -1275,7 +1276,8 @@
      "Click a tile: its panel is at the top of the side pane and a refusal shows on the map (card Q81).",
      "Order a fort or a level 3 job: the price shows and the game asks once (card Q82).",
      "Set a transport slider to 0: that commodity stops shipping (card Q80).",
-     "Open the game at phone width: Capital, Diplomacy and Board of Trade are usable."
+     "Open the game at phone width: Capital, Diplomacy and Board of Trade are usable.",
+     "The full gate is green (unit tests, lint, types, build, Playwright), and a browser pass at 1280x720, 800x600 and 390x844 cannot reproduce the findings of themes T1 to T10."
     ],
     "depends": "Nothing. It starts first.",
     "findings": 103,
@@ -1305,7 +1307,7 @@
      "The computer offers you a trade deal or a pact.",
      "Its workforce no longer shrinks from 7 to 4 or 5."
     ],
-    "depends": "Nothing blocks it. It follows M12 by player impact.",
+    "depends": "M12 (honest screens to watch it with, and the peace rule of FR-408).",
     "findings": 11,
     "severity": {
      "major": 8,
@@ -1330,9 +1332,10 @@
     "check": [
      "At the turn-40 Council every governor must pick a side.",
      "A game can be won by votes without taking land.",
-     "The final ranking shows and counts provinces."
+     "The final ranking shows and counts provinces.",
+     "Headless games end by Council in a measured share, and a peaceful path to 9 votes exists in a test."
     ],
-    "depends": "Your answers to Q51 (votes needed), Q53 (forced last vote) and Q34 (what a fallen capital gives).",
+    "depends": "M13 (a rival that plays), and your answers to Q51 (votes needed), Q53 (forced last vote) and Q34 (what a fallen capital gives).",
     "findings": 7,
     "severity": {
      "major": 4,
@@ -1582,6 +1585,483 @@
     "ARMY-WAR-05",
     "FR-TRUTH-01",
     "AISIM-07"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q84",
+   "title": "Centre and zoom the map?",
+   "status": "open",
+   "context": "Today the map has no zoom, and on a large screen the small map sits in the top-left corner: at 1920x1080 it fills about a quarter of the screen and the rest is empty sea (UIV-10).",
+   "options": [
+    {
+     "label": "Default: centre only when there is room, and zoom in three steps",
+     "means": "The map is centred on an axis only when more than 64 px are spare, so 1280x720 looks as it does today. Zoom steps are 100%, 150% and 200%."
+    },
+    {
+     "label": "Always centre; free zoom with the wheel",
+     "means": "Looks the same on every screen and zooms smoothly, but the 1280x720 layout moves and every map layer must follow a continuous scale."
+    }
+   ],
+   "suggestion": "The default. It fixes the large-screen look without moving the screens that are already checked.",
+   "objection": "Zoom touches every map layer (ground, rail, borders, arrows, cursors); if it cannot keep the 100% checks green inside the lane, the row parks as blocked rather than shipping half done.",
+   "ids": [
+    "UIV-10"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q85",
+   "title": "How does the keyboard reach the map?",
+   "status": "open",
+   "context": "Today the map tiles cannot be reached with the keyboard, so a keyboard-only player cannot select a tile or give any map order (UIV-11).",
+   "options": [
+    {
+     "label": "Default: the map is one Tab stop",
+     "means": "Tab reaches the map once, the arrow keys move between tiles, and Enter acts on the focused tile."
+    },
+    {
+     "label": "Every tile is a Tab stop",
+     "means": "Simple to build, but 384 Tab stops must be crossed before the keyboard reaches the rest of the page."
+    }
+   ],
+   "suggestion": "The default. 384 Tab stops would make every other control hard to reach.",
+   "objection": "Screen readers then hear only the focused tile, not the whole map.",
+   "ids": [
+    "UIV-11"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q86",
+   "title": "Keep the plain-move fallback of a refused job?",
+   "status": "open",
+   "context": "Today a rail click onto a tile that already has a job, and the last rail section into the capital, silently become a plain move: no rail, no message, and the civilian's turn is lost (ECONOMY-24, ECONOMY-02).",
+   "options": [
+    {
+     "label": "Default: keep the fallback and say so",
+     "means": "A refused job still moves the civilian (FR-023). The status line says that the job was refused and why, and Cancel undoes the move."
+    },
+    {
+     "label": "No fallback",
+     "means": "A refused job moves nothing and shows the reason. A click that was meant as a move needs a second click."
+    }
+   ],
+   "suggestion": "The default. It keeps what players already rely on and removes the silence.",
+   "objection": "A player who misses the line still loses the civilian's turn.",
+   "ids": [
+    "ECONOMY-24",
+    "ECONOMY-02"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q87",
+   "title": "Clicking another civilian: select it or move onto it?",
+   "status": "open",
+   "context": "Today clicking another civilian while one is selected moves the selected one next to it instead of switching the selection, and there is no other way to deselect (ECONOMY-08).",
+   "options": [
+    {
+     "label": "Default: select it",
+     "means": "The click switches the selection. A move onto that tile is a click on the tile beside the button."
+    },
+    {
+     "label": "Keep \"move here\" and switch with a modifier key",
+     "means": "Moving onto a crowded tile stays one click; switching the selection needs a key held down."
+    }
+   ],
+   "suggestion": "The default. A click on a figure should select it.",
+   "objection": "Moving onto a crowded tile needs a more careful click.",
+   "ids": [
+    "ECONOMY-08"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q88",
+   "title": "Draw forts on the map?",
+   "status": "open",
+   "context": "Today forts are never drawn on the map (not even the one the Engineer builds for $5,000), only level 1 exists, and the Attack screen is the only place that shows one (ARMY-WAR-10, ECONOMY-04). This replaces the default \"no\" of card Q74.",
+   "options": [
+    {
+     "label": "Default: draw a fort mark",
+     "means": "A 16 px fort mark on every tile with a fort, with \"Fort level 1\" in its title and in Tile Info."
+    },
+    {
+     "label": "Tile Info only",
+     "means": "The map stays as crowded as today; a fort is visible only after you click the tile."
+    }
+   ],
+   "suggestion": "The default. A $5,000 building should be visible.",
+   "objection": "One more mark on the crowded capital tiles.",
+   "ids": [
+    "ARMY-WAR-10",
+    "ECONOMY-04"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q89",
+   "title": "Trade orders are forgotten every turn: what helps?",
+   "status": "open",
+   "context": "Today trade bids and offers are cleared every turn, while production orders in the same Capital dialog persist (MKT-04, RULES-GAP-12). Card Q15 was answered on 2026-11-09 with one-turn trade orders and a repeat button \"if play feels tedious\"; the audit found it tedious: up to four clicks a turn for 40 turns.",
+   "options": [
+    {
+     "label": "Default: a repeat button on the Board of Trade",
+     "means": "Built from the order log, with no engine change, so no test baseline moves. One click repeats last turn's orders."
+    },
+    {
+     "label": "Standing orders as in Imperialism 1997",
+     "means": "Orders stay until you change them (rules 06 section 2). An engine change that would replace the answer to Q15 (NR-018)."
+    }
+   ],
+   "suggestion": "The default. It removes most of the clicks without touching the engine.",
+   "objection": "It is still one click a turn, and the 1997 game kept orders by itself.",
+   "ids": [
+    "MKT-04",
+    "RULES-GAP-12"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q90",
+   "title": "How does a tie between Great Powers for a minor's favour break?",
+   "status": "open",
+   "context": "Today the favourite partner of a minor flips every turn when two Great Powers have equal relations, against the fixed order in the rules (MKT-11).",
+   "options": [
+    {
+     "label": "Default: an order fixed per minor for the whole game",
+     "means": "Derived from the seed, so the favourite never flips by turn parity and neither nation is favoured overall."
+    },
+    {
+     "label": "The rules' fixed Great Power order",
+     "means": "Nation 1 always comes first. Matches the 1997 rule, but goes against architecture decision 5 and favours one nation in every game."
+    }
+   ],
+   "suggestion": "The default.",
+   "objection": "One nation may hold the tie with a given minor for the whole game by luck of the seed.",
+   "ids": [
+    "MKT-11"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q91",
+   "title": "Should the score stop punishing investment?",
+   "status": "open",
+   "context": "Today the score formula punishes investment: ordering a job lowers the score at once, and level 3 development costs 50 points for +10 (ECONOMY-23).",
+   "options": [
+    {
+     "label": "Default: count what you paid for",
+     "means": "Unfinished paid jobs count at their price / 100, and level 3 is worth 50 points (its $5,000)."
+    },
+    {
+     "label": "Keep FR-067 and only explain it",
+     "means": "The score stays as it is and the game says why it drops (FR-404)."
+    }
+   ],
+   "suggestion": "The default. A score that falls when you invest teaches the wrong play.",
+   "objection": "It changes every score and the scripted player's numbers, and NR-018 had kept the score weights for v1.",
+   "ids": [
+    "ECONOMY-23"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q92",
+   "title": "When does the computer ask for peace?",
+   "status": "open",
+   "context": "Today Valdoria asks for peace every 3 turns from the first turn of war, before any battle, and the offer, the Battle screen and the Council dialog can stack at turn start (ARMY-WAR-17, diplomacy-council-16).",
+   "options": [
+    {
+     "label": "Default: only after a loss",
+     "means": "The computer offers peace only after it lost a province or a battle in this war, and not again for 6 turns after a refusal. Its answers to the player's offers stay (FR-174)."
+    },
+    {
+     "label": "Keep \"weaker than the enemy\" and slow the offers down",
+     "means": "The trigger stays as it is; the offers come less often."
+    }
+   ],
+   "suggestion": "The default.",
+   "objection": "A computer that is badly outnumbered but not yet beaten never offers peace.",
+   "ids": [
+    "ARMY-WAR-17",
+    "diplomacy-council-16"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q93",
+   "title": "What does closing Accept Offer do?",
+   "status": "open",
+   "context": "Today closing an Accept Offer with the x cannot be undone: the offer is gone from every screen for the turn. The dialog and the alliance flow cannot happen in normal play and have no browser test (diplomacy-council-19, FR-TRUTH-10).",
+   "options": [
+    {
+     "label": "Default: the x hides the dialog",
+     "means": "The offer stays answerable in Diplomacy until End Turn, then it is refused."
+    },
+    {
+     "label": "The x refuses at once",
+     "means": "After asking \"Refuse this offer?\". Final, but no forgotten offers."
+    }
+   ],
+   "suggestion": "The default.",
+   "objection": "An offer can be forgotten in Diplomacy and refused by default.",
+   "ids": [
+    "diplomacy-council-19",
+    "FR-TRUTH-10"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q94",
+   "title": "Council nominees: by standing or by votes?",
+   "status": "open",
+   "context": "Today \"1st nominee / 2nd nominee\" and the news line contradict the vote counts (diplomacy-council-08).",
+   "options": [
+    {
+     "label": "Default: the screen keeps the standing order and says so",
+     "means": "The screen keeps FR-313's standing order and names it; the news line orders by votes."
+    },
+    {
+     "label": "Order both by votes",
+     "means": "One order everywhere, but the standing order of FR-313 is no longer shown."
+    }
+   ],
+   "suggestion": "The default.",
+   "objection": "The screen and the news then list the nominees in different orders (as card Q58 already notes).",
+   "ids": [
+    "diplomacy-council-08"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q95",
+   "title": "Guard Advance Turn how?",
+   "status": "open",
+   "context": "Today Advance Turn has no guard: a double click ends two turns and five quick clicks end five, even with all civilians idle and no orders given (UIV-20). A new player is also not told that civilians are idle (UIV-21).",
+   "options": [
+    {
+     "label": "Default: a short lock and an information line",
+     "means": "A 600 ms lock after each End Turn and a \"civilians without orders\" line, but no question."
+    },
+    {
+     "label": "Ask first",
+     "means": "A question such as \"End the turn with 7 civilians idle?\" before every such End Turn."
+    }
+   ],
+   "suggestion": "The default.",
+   "objection": "Ending a turn with idle civilians on purpose is common late in a game, so a question would nag; the line only informs.",
+   "ids": [
+    "UIV-20",
+    "UIV-21"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q96",
+   "title": "Are phones supported?",
+   "status": "open",
+   "context": "Today at phone width (390x844) the Capital, Diplomacy and Board of Trade dialogs break and the map cannot be used; on the Board the Bid and Offer columns sit 623 px off to the side (UIV-12, MKT-15).",
+   "options": [
+    {
+     "label": "Default: no, but nothing breaks",
+     "means": "Below 700 px a line says the game is made for 1024 px and wider, the map pans by touch, and the Capital, Board of Trade and Diplomacy dialogs stay readable and closable."
+    },
+    {
+     "label": "A full phone layout",
+     "means": "For example the HUD as a bottom sheet. A large piece of work that is its own milestone."
+    }
+   ],
+   "suggestion": "The default.",
+   "objection": "The page's viewport tag invites phones.",
+   "ids": [
+    "UIV-12",
+    "MKT-15"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q97",
+   "title": "Make the Capital dialog fit 1280x720, or show that it scrolls?",
+   "status": "open",
+   "context": "Today the Capital dialog is cut off at 1280x720 and 1366x768: the Clothing factory card and the Transport footer need an inner scroll that is easy to miss (ECONOMY-17, UIV-14).",
+   "options": [
+    {
+     "label": "Default: show that it scrolls",
+     "means": "An always-visible scrollbar and a fade on a column that does not fit."
+    },
+    {
+     "label": "A denser layout that fits 1280x720",
+     "means": "Nothing is cut off, but the fits of FR-352 are already tight and every dialog row gets smaller."
+    }
+   ],
+   "suggestion": "The default.",
+   "objection": "The Clothing factory card still starts below the fold.",
+   "ids": [
+    "ECONOMY-17",
+    "UIV-14"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q98",
+   "title": "When does \"How to play\" open?",
+   "status": "open",
+   "context": "Today a new player gets no hint what to do: no goal text, no tutorial, no first-step prompt, a hidden \"n\" shortcut, and no guidance for the first turns of trade (ECONOMY-11, UIV-21, MKT-12).",
+   "options": [
+    {
+     "label": "Default: on the first new game in this browser",
+     "means": "It also opens from About at any time."
+    },
+    {
+     "label": "On every new game, or a tutorial",
+     "means": "Every new game shows it; or a tutorial walks through turn 1, which is more to build and test."
+    }
+   ],
+   "suggestion": "The default.",
+   "objection": "A second player on the same browser never sees it unless they open About.",
+   "ids": [
+    "ECONOMY-11",
+    "UIV-21",
+    "MKT-12"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q99",
+   "title": "A small upkeep shortfall disbands the whole army: change the rule?",
+   "status": "open",
+   "context": "Today a $100 upkeep shortfall disbands the whole army, the warning does not say so, and its wording contradicts itself (\"$50 is due ... and $16 will be left\") (ECONOMY-21, ARMY-WAR-13, MKT-07).",
+   "options": [
+    {
+     "label": "Default: no rule change in M12",
+     "means": "The warning says exactly how many regiments go. Credit and debt (rules 06 section 6, Nation.creditLimit) come with M18."
+    },
+    {
+     "label": "Pay what the treasury holds",
+     "means": "Disband only the regiments the rest cannot pay. A rule change in the engine."
+    }
+   ],
+   "suggestion": "The default. M12 adds no game system; the wording fix is enough for now.",
+   "objection": "The rule still wipes out an army for a $100 gap.",
+   "ids": [
+    "ECONOMY-21",
+    "ARMY-WAR-13",
+    "MKT-07"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q100",
+   "title": "NR-016 says orders wait for End Turn; FR-021 says they apply at once. Which holds?",
+   "status": "open",
+   "context": "Today two requirements marked \"tested\" contradict each other (FR-TRUTH-09). In the code, only freight cars wait for End Turn; every other order applies when it is given.",
+   "options": [
+    {
+     "label": "Default: the code's behaviour (FR-021)",
+     "means": "Orders apply when given, with a full same-turn cancel. The status of NR-016 says so; queued orders are not planned."
+    },
+    {
+     "label": "Build queued orders",
+     "means": "Orders wait for End Turn as NR-016 says. A large engine change, later."
+    }
+   ],
+   "suggestion": "The default. It matches what players see and what the tests check.",
+   "objection": "NR-016 was Nathan's own decision (Q9).",
+   "ids": [
+    "FR-TRUTH-09"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q101",
+   "title": "The v1 \"World market\" dialog cannot be reached in the app: show it or document it?",
+   "status": "open",
+   "context": "Today Open Market always opens the Board of Trade, so the v1 World market dialog (FR-073, FR-074, FR-078) cannot be reached in the app (MKT-05).",
+   "options": [
+    {
+     "label": "Default: document it as a test-only fixture",
+     "means": "The three rows say that they are tested in unit tests on the two-islands world and not reachable in the app."
+    },
+    {
+     "label": "A New game option for the v1 world",
+     "means": "Players can open it; more screens to keep working."
+    }
+   ],
+   "suggestion": "The default.",
+   "objection": "FR-073, FR-074 and FR-078 describe a screen no player can see.",
+   "ids": [
+    "MKT-05"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q102",
+   "title": "Hide the Debug box?",
+   "status": "open",
+   "context": "Today a \"Debug\" box with the tile id and the game seed is shown to every player in the HUD (ECONOMY-18, UIV-07).",
+   "options": [
+    {
+     "label": "Default: shown only with ?debug in the URL",
+     "means": "Players do not see it; anyone who adds ?debug to the address does."
+    },
+    {
+     "label": "Remove it",
+     "means": "Gone for everyone, including you; the seed is then harder to read out."
+    }
+   ],
+   "suggestion": "The default.",
+   "objection": "Bug reports lose the seed unless the reporter knows the switch.",
+   "ids": [
+    "ECONOMY-18",
+    "UIV-07"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q103",
+   "title": "A baseline moves: keep the old behaviour or re-record the number?",
+   "status": "open",
+   "context": "Several M12 changes move numbers that tests pin for the scripted player: transport sliders (FR-389), the favourite partner (FR-401) and the score (FR-403). This card has no finding of its own; the ids are the findings behind those three changes (FR-405).",
+   "options": [
+    {
+     "label": "Default: re-record the number with its reason",
+     "means": "Never loosen a check; keep NR-023's margin."
+    },
+    {
+     "label": "Keep the scripted player's old behaviour",
+     "means": "Special cases in the engine so that old numbers stay true."
+    }
+   ],
+   "suggestion": "The default. The reason is written next to the number.",
+   "objection": "Re-recorded baselines stop proving that nothing else changed.",
+   "ids": [
+    "ECONOMY-01",
+    "MKT-11",
+    "ECONOMY-23"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q104",
+   "title": "Cap offers at the buyers' demand in the engine or on the Board only?",
+   "status": "open",
+   "context": "Today the Board of Trade lets you offer more units than the minor buyers take; the surplus wastes a cargo hold (ECONOMY-20).",
+   "options": [
+    {
+     "label": "Default: the Board only",
+     "means": "The Board stops you at the demand. The engine still accepts a larger offer and returns the surplus."
+    },
+    {
+     "label": "The engine refuses it",
+     "means": "The engine returns \"limit-reached\" for a larger offer, for every player including the scripted one."
+    }
+   ],
+   "suggestion": "The default.",
+   "objection": "A scripted or future LLM player can still waste a hold.",
+   "ids": [
+    "ECONOMY-20"
    ],
    "group": "new"
   },
@@ -2212,7 +2692,7 @@
    "date": "Nov 2026",
    "claimed": "Done. PR 9; 91 tests.",
    "audit": "gaps",
-   "says": "Type check, lint (0 errors) and tests are green. Its last task (6 old branches kept) is still open, one e2e test is still marked fixme, and dead code remains.",
+   "says": "Type check, lint (0 errors) and tests were green. The old-branches task is closed: git branch -a lists only main and the M12 branch (and their origin copies). One e2e test is still marked fixme (e2e/cursor-icons.spec.ts) and dead code remains; M12 plans both (FR-380 and FR-442).",
    "ids": [
     "FR-TRUTH-12",
     "FR-TRUTH-14"
@@ -2224,7 +2704,7 @@
    "date": "2026-11-03",
    "claimed": "Done. PR 12; 280 tests.",
    "audit": "ok",
-   "says": "The engine held up: 94 games of 40 turns, 0 invariant breaks, identical replays. One open conflict: a requirement says orders take effect at End Turn, another when submitted.",
+   "says": "The engine held up: 94 games of 40 turns, 0 invariant breaks, identical replays. Two requirements contradicted each other (orders take effect at End Turn, or when submitted); the code applies orders when given, except freight cars, and card Q100 asks which rule holds.",
    "ids": [
     "FR-TRUTH-09"
    ]
@@ -2275,7 +2755,7 @@
    "date": "Nov 2026",
    "claimed": "Done. PRs 17 to 21.",
    "audit": "over",
-   "says": "The other nation is visible and scores. But both M4 tasks were never checked off, \"Recruiting AI\" never recruits workers, and the computer scores 3.5 times a human with an idle workforce.",
+   "says": "The other nation is visible and scores. Both M4 tasks were built. \"Recruiting AI\" (M4.4) was not: the computer never recruits workers, and the M4.4 heading now says so (NR-028, card Q21). The computer scores 3.5 times a human with an idle workforce.",
    "ids": [
     "FR-TRUTH-04",
     "AISIM-03",
@@ -2382,7 +2862,7 @@
    "date": "2026-11-14",
    "claimed": "Done. 2111 tests, 51 e2e.",
    "audit": "gaps",
-   "says": "The pack shows everywhere and 7 dialogs fit at 5 window sizes. The progress data still said \"in review\", one cursor can never appear, depot and port marks are tiny, the credits omit the art pack, and phone width breaks.",
+   "says": "The pack shows everywhere and 7 dialogs fit at 5 window sizes. At the audit the progress data still said \"in review\", one cursor could never appear, depot and port marks were tiny, the credits omitted the art pack, and phone width broke. M11 was merged as PR 30 (main 3d819d6).",
    "ids": [
     "FR-TRUTH-05",
     "FR-TRUTH-08",

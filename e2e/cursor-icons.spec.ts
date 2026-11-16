@@ -74,17 +74,20 @@ test.describe('Cursor Icon Functionality', () => {
     expect(await countTilesWithEmojiCursor(page)).toBe(0);
   });
 
-  // No tile action produces the rail cursor today: getEngineerActions only returns fort / construct-modal,
-  // and rail is built implicitly on engineer move. Kept as fixme so the gap stays visible instead of passing vacuously.
-  test.fixme('FR-330 should show the rail piece cursor when engineer is selected and hovering adjacent tile', async ({ page }) => {
+  // FR-380 (FR-TRUTH-08): the engineer in the capital 2-9 over its neighbour 3-9, where a click lays rail (rail-on-move):
+  // the rail piece. Any picture on 3-9 is the rail piece: Construction Options' cursor shows only on the engineer's own tile.
+  test('FR-380 the engineer selected: a neighbour where the click lays rail shows the rail piece cursor', async ({ page }) => {
     const engineer = page.locator('[data-worker-type="engineer"]').first();
     expect(await engineer.count(), 'worker must exist in the initial game state').toBeGreaterThan(0);
     await engineer.click();
-    // A tile next to the engineer's rail network shows the rail piece cursor
-    await expect.poll(() => countTilesWithPictureCursor(page), { timeout: 10000 }).toBeGreaterThan(0);
+    await page.locator('[data-testid="tile"][data-tile-id="3-9"]').hover();
+    await expect.poll(() => cursorOf(page, '3-9'), { timeout: 10000 }).toContain('data:image/png');
+    expect(await cursorOf(page, '3-9')).toMatch(/ 16 16, pointer$/);
   });
 
-  test('FR-330 the engineer on its own tile: the fort or construction cursor, a drawn picture', async ({ page }) => {
+  // FR-378, FR-379 (ECONOMY-03): the capital holds its level-1 fort, so the engineer standing there is offered no fort and
+  // a click on its own tile does nothing: the default cursor, not the fort picture
+  test('FR-378 FR-379 the engineer in the capital: no fort cursor on its own tile (the capital has its fort)', async ({ page }) => {
     const engineer = page.locator('[data-worker-type="engineer"]').first();
     expect(await engineer.count(), 'worker must exist in the initial game state').toBeGreaterThan(0);
     await engineer.click();
@@ -93,10 +96,8 @@ test.describe('Cursor Icon Functionality', () => {
     // so the tile is found by its id)
     const engineerTile = page.locator('[data-testid="tile"][data-tile-id="2-9"]');
     await engineerTile.hover();
-
-    // Own tile: fort (capital/town) or construction-choice cursor, both drawn from the pack
-    await expect.poll(() => cursorOf(page, '2-9'), { timeout: 10000 }).toContain('data:image/png');
-    expect(await cursorOf(page, '2-9')).toMatch(/ 16 16, pointer$/);
+    await expect.poll(() => cursorOf(page, '3-9'), { timeout: 10000 }).toContain('data:image/png');
+    expect(await cursorOf(page, '2-9')).toBe('auto');
   });
 
   test('FR-330 switching between worker types keeps every cursor a drawn picture, the pointer or auto', async ({ page }) => {

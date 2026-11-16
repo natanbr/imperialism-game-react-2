@@ -29,7 +29,8 @@ describe('FR-180 diplomacy through the store (the engine half of the M6 e2e)', (
     expect(newsLines(eventLog.at(-1)!.events, N1, nameOf)).toContain('Consulate opened in Arvelia.');
   });
 
-  it('FR-164 FR-167 FR-180 consulate on turn 1, embassy on turn 2, war on Lorran on turn 3: at war since turn 4; the log replays the game', () => {
+  // M12: war on Lorran is refused, as no army can reach it over land (FR-406, FR-407); the war is on Arvelia, as in the e2e
+  it('FR-164 FR-167 FR-180 FR-407 consulate on turn 1, embassy on turn 2, war on Arvelia on turn 3 (Lorran out of reach): at war since turn 4; the log replays the game', () => {
     const store = createGameStore({ seed: 3 });
     const initial = store.getState().game;
 
@@ -38,14 +39,16 @@ describe('FR-180 diplomacy through the store (the engine half of the M6 e2e)', (
     expect(store.getState().submitOrder(propose('embassy', ARVELIA)).ok).toBe(true);
     store.getState().advanceTurn();
     expect(store.getState().game.diplomacy[pairKey(N1, ARVELIA)].embassies).toEqual([N1]);
-    expect(store.getState().submitOrder(propose('war', LORRAN)).ok).toBe(true);
+    expect(store.getState().submitOrder(propose('war', LORRAN))).toEqual({ ok: false, reason: 'no-land-route' });
+    expect(store.getState().submitOrder(propose('war', ARVELIA)).ok).toBe(true);
     store.getState().advanceTurn();
 
     const { game, eventLog, orderLog } = store.getState();
     expect(game.turn).toBe(4);
-    expect(game.diplomacy[pairKey(N1, LORRAN)].war).toEqual({ aggressors: [N1], since: 4 });
+    expect(game.diplomacy[pairKey(N1, ARVELIA)].war).toEqual({ aggressors: [N1], since: 4 });
+    expect(game.diplomacy[pairKey(N1, LORRAN)].war).toBeUndefined();
     const nameOf = (id: string) => countryName(game, id) ?? id;
-    expect(newsLines(eventLog.at(-1)!.events, N1, nameOf)).toContain('War declared on Lorran! The war starts next turn.');
+    expect(newsLines(eventLog.at(-1)!.events, N1, nameOf)).toContain('War declared on Arvelia! The war starts next turn.');
     expect(eventLog.flatMap(r => r.events).filter(e => e.type === 'order-rejected' || e.type === 'overture-failed')).toEqual([]);
 
     let replayed = initial;

@@ -1,14 +1,14 @@
 // FR-024: display text for the HUD's news and refusals, derived from engine data.
-import { describe, it, expect } from 'vitest';
+import { beforeAll, describe, it, expect } from 'vitest';
 import {
   COMMODITY_GROUPS, COMMODITY_TEXT, commodityName, completedTileIds, dateText, eventText, foodWarningText, newsItems, newsLines, refusalText, REFUSAL_TEXT,
-  upkeepDueText, upkeepWarningText, workerJobLabel,
+  tilePlaces, upkeepDueText, upkeepWarningText, workerJobLabel,
 } from '@/components/gameText';
-import { newGame, resolveTurn, tryApplyOrder, type GameEvent, type Order, type RejectReason } from '@/engine';
+import { newGame, resolveTurn, tryApplyOrder, upkeepForecast, type GameEvent, type Order, type RejectReason } from '@/engine';
 import { GameState } from '@/types/GameState';
 import { GoodsType, MaterialType, ResourceType } from '@/types/Resource';
 import { WorkerType } from '@/types/Workers';
-import { game, locate, N1, put, T, workerId } from '../engine/fixtures';
+import { game, locate, N1, put, setTreasury, T, workerId } from '../engine/fixtures';
 
 const ALL_REASONS: RejectReason[] = [
   'unknown-nation', 'unknown-worker', 'not-owner', 'wrong-worker-type', 'worker-busy', 'worker-moved',
@@ -347,10 +347,44 @@ describe('FR-205 FR-209 army orders, refusals and news in plain words', () => {
 
   it('FR-261 the upkeep line and the warning: none while the cash covers the upkeep', () => {
     expect(upkeepDueText({ due: 125 })).toBe('Army upkeep at End Turn: $125');
-    expect(upkeepWarningText({ due: 100, cash: 100, short: false })).toBeNull();
-    expect(upkeepWarningText({ due: 100, cash: 40, short: true })).toBe(
-      'Cash is short of the army upkeep: $100 is due at End Turn and $40 will be left. Unless this turn\'s sales cover the rest, the newest regiments are disbanded.'
-    );
+    expect(upkeepWarningText({ due: 100, cash: 100, short: false, shortBy: 0, regimentsLost: [] })).toBeNull();
+  });
+
+  // M12 FR-393 (replaces FR-261's "... and $40 will be left. Unless this turn's sales cover the rest, the newest regiments
+  // are disbanded.", audit ECONOMY-21, ARMY-WAR-13, MKT-07): the cash, the gap and exactly who goes
+  describe('FR-393 the upkeep warning tells the truth', () => {
+    const regiment = (n: number, type: 'regulars' | 'hussars' | 'artillery', name: string) => ({ id: `regiment-${n}`, type, name, health: 100 });
+    const continentAt = (cash: number) => setTreasury(newGame({ seed: 1, world: 'continent' }), N1, cash);
+
+    it('FR-393 the spec example: $50 due, $16 held, $34 short, 1 regiment named', () => {
+      expect(upkeepWarningText({ due: 50, cash: 16, short: true, shortBy: 34, regimentsLost: [regiment(7, 'hussars', '2nd Hussars')] })).toBe(
+        "Army upkeep of $50 is due at End Turn and the treasury will hold $16: $34 short. Unless this turn's sales bring in $34, 1 regiment is disbanded (2nd Hussars)."
+      );
+    });
+
+    it('FR-393 two of three regiments go: both named, newest first', () => {
+      const lost = [regiment(3, 'artillery', '1st Artillery'), regiment(2, 'regulars', '2nd Regulars')];
+      expect(upkeepWarningText({ due: 100, cash: 49, short: true, shortBy: 51, regimentsLost: lost })).toBe(
+        "Army upkeep of $100 is due at End Turn and the treasury will hold $49: $51 short. Unless this turn's sales bring in $51, 2 regiments are disbanded (1st Artillery, 2nd Regulars)."
+      );
+    });
+
+    it('FR-393 every regiment goes: "all 3 regiments are disbanded"', () => {
+      const lost = [regiment(3, 'artillery', '1st Artillery'), regiment(2, 'regulars', '2nd Regulars'), regiment(1, 'regulars', '1st Regulars')];
+      expect(upkeepWarningText({ due: 100, cash: 0, short: true, shortBy: 100, regimentsLost: lost })).toBe(
+        "Army upkeep of $100 is due at End Turn and the treasury will hold $0: $100 short. Unless this turn's sales bring in $100, all 3 regiments are disbanded."
+      );
+    });
+
+    it('FR-393 read from the engine\'s forecast: $20 for the start army\'s $100', () => {
+      const s = continentAt(20);
+      expect(upkeepWarningText(upkeepForecast(s, N1))).toBe(
+        "Army upkeep of $100 is due at End Turn and the treasury will hold $20: $80 short. Unless this turn's sales bring in $80, all 3 regiments are disbanded."
+      );
+      expect(upkeepWarningText(upkeepForecast(continentAt(60), N1))).toBe(
+        "Army upkeep of $100 is due at End Turn and the treasury will hold $60: $40 short. Unless this turn's sales bring in $40, 1 regiment is disbanded (1st Artillery)."
+      );
+    });
   });
 
   it.each<[GameEvent, string]>([
@@ -521,5 +555,79 @@ describe('FR-297 the Council in the news', () => {
     ]);
     expect(items.map((i) => i.council)).toEqual([council, undefined, undefined, undefined]);
     expect(items[0].battle).toBeUndefined();
+  });
+
+  it('M12 FR-414 the news line names the nominees by votes, most first: "Testland 8, Valdoria 4 of 12 votes"', () => {
+    // Valdoria is the first nominee (the higher standing), Testland has more votes
+    expect(eventText(met(nominee('nation-2', 4), nominee('nation-1', 7, 0, 1)), name)).toBe(
+      'Council of Governors: Testland 8, Valdoria 4 of 12 votes; no winner (9 needed).'
+    );
+    expect(newsLines([met(nominee('nation-2', 2), nominee('nation-1', 5))], 'nation-2', name)).toEqual([
+      'Council of Governors: Testland 5, Valdoria 2 of 12 votes; no winner (9 needed).',
+    ]);
+  });
+
+  it('M12 FR-414 equal votes keep the standing order (the first nominee first)', () => {
+    expect(eventText(met(nominee('nation-2', 4), nominee('nation-1', 4)), name)).toBe(
+      'Council of Governors: Valdoria 4, Testland 4 of 12 votes; no winner (9 needed).'
+    );
+  });
+
+  it('M12 FR-414 the event keeps its standing order (the Council screen reads it, FR-313)', () => {
+    const event = met(nominee('nation-2', 4), nominee('nation-1', 8));
+    eventText(event, name);
+    expect(event.nominees.map((n) => n.nationId)).toEqual(['nation-2', 'nation-1']);
+  });
+});
+
+// M12 FR-375: a news line about a tile names it by its id and its province ("coal at 5-2 in Testland North-West"; on a
+// minor's land "in Lorran"), and its news item carries the `tileId` (FR-376 makes the line lead to the tile).
+describe('M12 FR-375 the news names the place', () => {
+  let world: GameState;
+  let placeOf: (tileId: string) => string | undefined;
+  const nameOf = (id: string) =>
+    world.nations.find((n) => n.id === id)?.name ?? world.minorNations.find((m) => m.id === id)?.name ?? world.provinces.find((p) => p.id === id)?.name ?? id;
+  const V = 'nation-2';
+  beforeAll(() => {
+    world = newGame({ seed: 1, world: 'continent' });
+    placeOf = tilePlaces(world, nameOf);
+  });
+
+  it('FR-375 `tilePlaces` names a tile\'s province: 5-2 is in Testland North-West, 10-1 in Lorran; two-islands has none', () => {
+    expect(placeOf('5-2')).toBe('Testland North-West');
+    expect(placeOf('10-1')).toBe('Lorran');
+    expect(placeOf('99-99')).toBeUndefined();
+    const islands = newGame({ seed: 1 });
+    expect(tilePlaces(islands, nameOf)('5-2')).toBeUndefined();
+  });
+
+  it('FR-375 resource found, development finished and construction finished name the tile and its province', () => {
+    expect(eventText({ type: 'resource-discovered', tileId: '5-2', nationId: N1, resource: ResourceType.Coal }, nameOf, placeOf)).toBe(
+      'Prospectors found coal at 5-2 in Testland North-West.'
+    );
+    expect(eventText({ type: 'resource-discovered', tileId: '5-2', nationId: N1 }, nameOf, placeOf)).toBe('Prospectors found nothing at 5-2 in Testland North-West.');
+    expect(eventText({ type: 'development-completed', tileId: '5-2', nationId: N1, level: 2 }, nameOf, placeOf)).toBe(
+      'Tile 5-2 in Testland North-West developed to level 2.'
+    );
+    expect(eventText({ type: 'construction-completed', tileId: '10-1', nationId: N1, structure: 'rail' }, nameOf, placeOf)).toBe('Rail finished at 10-1 in Lorran.');
+  });
+
+  it('FR-375 `newsItems` gives each tile line its tileId, the computer\'s lines too; other lines have none', () => {
+    const events: GameEvent[] = [
+      { type: 'resource-discovered', tileId: '5-2', nationId: N1, resource: ResourceType.Coal },
+      { type: 'construction-completed', tileId: '10-1', nationId: V, structure: 'rail' },
+      { type: 'army-upkeep', nationId: N1, amount: 100 },
+    ];
+    expect(newsItems(events, N1, nameOf, placeOf)).toEqual([
+      { text: 'Prospectors found coal at 5-2 in Testland North-West.', tileId: '5-2' },
+      { text: 'Army upkeep: $100.' },
+      { text: 'Valdoria: Rail finished at 10-1 in Lorran.', tileId: '10-1' },
+    ]);
+  });
+
+  it('FR-375 without a place lookup (or on a tile with no province) the line keeps its old words and still carries the tileId', () => {
+    const found: GameEvent = { type: 'development-completed', tileId: '2-1', nationId: N1, level: 1 };
+    expect(newsItems([found], N1, nameOf)).toEqual([{ text: 'Tile 2-1 developed to level 1.', tileId: '2-1' }]);
+    expect(newsItems([found], N1, nameOf, () => undefined)).toEqual([{ text: 'Tile 2-1 developed to level 1.', tileId: '2-1' }]);
   });
 });

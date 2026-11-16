@@ -10,7 +10,13 @@ export interface Score {
   capacity: number;
   /** Resource levels on the nation's own tiles (a level-2 farm counts 2). */
   developedLevels: number;
-  points: { treasury: number; industry: number; development: number };
+  /** FR-402: the cash paid for the nation's development and construction jobs not yet finished. */
+  jobsPaid: number;
+  /**
+   * `development`: each level's points (FR-403: 10, 10 more, 50 more); `workInProgress`: floor(price / 100) for each
+   * unfinished job (FR-402), until its own points replace them.
+   */
+  points: { treasury: number; industry: number; development: number; workInProgress: number };
   total: number;
 }
 

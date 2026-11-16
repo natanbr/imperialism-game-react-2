@@ -2,11 +2,12 @@
 // FR-125 the 40-turn acceptance on four seeds; FR-126 to FR-132 the rules that earn the points.
 import { beforeAll, describe, it, expect } from 'vitest';
 import { newGame } from '@/engine/newGame';
-import { resolveTurn } from '@/engine/turn/resolveTurn';
+import { applyTurnOrders, resolveTurn } from '@/engine/turn/resolveTurn';
 import { applyOrder } from '@/engine/orders/apply';
 import { computerOrders } from '@/engine/ai/players';
 import { scriptedPlayer, type Player } from '@/engine/ai/scriptedPlayer';
-import { CASH_RESERVE, PAIR_VALUE } from '@/engine/ai/economy';
+import { CASH_RESERVE, collectedAtLogistics, PAIR_VALUE, planFinalTransport, priorityPlan, shippingWants } from '@/engine/ai/economy';
+import { transportShipments } from '@/engine/systems/logisticsSystem';
 import { bestDepotSite, capitalComponent } from '@/engine/ai/railPlan';
 import { addDepot, railLinksOf } from '@/engine/systems/railroadSystem';
 import { scoreOf } from '@/engine/score/score';
@@ -178,12 +179,16 @@ describe('FR-126 every lumber + steel pair becomes capacity', () => {
 describe('FR-127 transport plan and freight cars', () => {
   it('FR-127 the plan asks for the missing meal first (and a canned-food batch while the cans are short), then coal and iron (the scarcer first), timber, cotton and wool', () => {
     const planOf = (s: GameState) => Object.entries(ofKind(ordersOf(s), 'setTransportAllocations')[0].allocations);
+    const s = emptyWarehouse(start(), N2, { coal: 5 });
     // 7 workers eat 4 grain, 2 fruit, 1 meat; a batch is 2 grain, 1 fruit, 1 meat; turn 1 gathers grain 4, fruit 4 and cotton 2;
     // iron (0 in stock) comes before coal (5)
-    expect(planOf(emptyWarehouse(start(), N2, { coal: 5 }))).toEqual([
+    expect(shippingWants(s, N2)).toEqual([
       ['grain', 6], ['fruit', 3], ['livestock', 2], ['ironOre', 0], ['coal', 0], ['timber', 0], ['cotton', 2], ['wool', 0],
     ]);
-    expect(planOf(emptyWarehouse(start(), N2, { coal: 5, cannedFood: 7 })).slice(0, 3)).toEqual([['grain', 4], ['fruit', 2], ['livestock', 1]]);
+    // M12 FR-389 (FR-405; until M12 the plan was these wants, topped up by the logistics phase): a set amount is exact,
+    // so the plan sets each wanted commodity to its want or what the spare cars add (fruit: the 4 gathered), the rest automatic
+    expect(planOf(s)).toEqual([['grain', 6], ['fruit', 4], ['livestock', 2], ['cotton', 2]]);
+    expect(shippingWants(emptyWarehouse(start(), N2, { coal: 5, cannedFood: 7 }), N2).slice(0, 3)).toEqual([['grain', 4], ['fruit', 2], ['livestock', 1]]);
   });
 
   it('FR-127 a freight car only while that cargo is more than the cars carry, and none in the last 8 turns', () => {
@@ -192,6 +197,57 @@ describe('FR-127 transport plan and freight cars', () => {
     const s = { ...stocked, nations: stocked.nations.map(n => (n.id === N2 ? { ...n, transportCapacity: 0 } : n)) };
     expect(ofKind(ordersOf(s), 'changeTransportCapacity')).toEqual([{ kind: 'changeTransportCapacity', nationId: N2, delta: 1 }]);
     expect(ofKind(ordersOf(atTurn(s, turnLimitOf(s) - 7)), 'changeTransportCapacity')).toEqual([]);
+  });
+});
+
+describe('M12 FR-389 FR-405 the scripted transport plan under exact amounts ships what the wants-then-fill rule shipped', () => {
+  /** The logistics phase before FR-389: the plan first (capped), then every commodity topped up in tile order. */
+  const fillRule = (capacity: number, collected: Record<string, number>, wants: [string, number][]) => {
+    const shipped: Record<string, number> = {};
+    let used = 0;
+    const ship = (res: string, n: number) => {
+      const take = Math.max(0, Math.min(n, (collected[res] ?? 0) - (shipped[res] ?? 0), capacity - used));
+      if (take <= 0) return;
+      shipped[res] = (shipped[res] ?? 0) + take;
+      used += take;
+    };
+    for (const [res, n] of wants) ship(res, n);
+    for (const [res, n] of Object.entries(collected)) ship(res, n);
+    return shipped;
+  };
+  const WANTS: [string, number][] = [['grain', 0], ['fruit', 0], ['livestock', 1], ['ironOre', 0], ['coal', 0], ['timber', 0], ['cotton', 2], ['wool', 0]];
+
+  it('M12 FR-389 example: 15 cars, collected grain 10, livestock 4, fruit 5, cotton 2, wanted livestock 1 and cotton 2: the plan { livestock 3, cotton 2 } ships livestock 3, cotton 2, grain 10', () => {
+    const collected = { grain: 10, livestock: 4, fruit: 5, cotton: 2 };
+    const plan = priorityPlan(15, collected, WANTS);
+    expect(plan).toEqual({ livestock: 3, cotton: 2 });
+    expect(transportShipments(15, collected, plan)).toEqual({ livestock: 3, cotton: 2, grain: 10 });
+    expect(transportShipments(15, collected, plan)).toEqual(fillRule(15, collected, WANTS));
+  });
+
+  it.each([
+    [0, { grain: 4, fruit: 4, cotton: 2 }],
+    [9, { grain: 4, fruit: 4, cotton: 2 }],
+    [30, { grain: 10, livestock: 4, fruit: 5, cotton: 2 }],
+    [12, { timber: 6, ironOre: 4, livestock: 9, coal: 2, grain: 14, fruit: 7, cotton: 5 }],
+  ])('M12 FR-389 with %i cars the plan ships what the old rule shipped (%j)', (cars, collected) => {
+    const wants: [string, number][] = [['grain', 4], ['fruit', 2], ['livestock', 1], ['coal', 2], ['ironOre', 4], ['timber', 4], ['cotton', 5], ['wool', 0]];
+    expect(transportShipments(cars, collected, priorityPlan(cars, collected, wants))).toEqual(fillRule(cars, collected, wants));
+  });
+
+  it('M12 FR-389 a rail the engineer starts and finishes this turn joins a hub: the final plan, on what the logistics phase collects, ships its livestock as the old rule did (continent, seed 1, turn 6)', () => {
+    let s = newGame({ seed: 1, world: 'continent' });
+    for (let turn = 1; turn <= 5; turn++) s = resolveTurn(s, { [N2]: scriptedPlayer(s, N2) }, s.seed).state;
+    const orders = scriptedPlayer(s, N2);
+    expect(orders).toContainEqual(expect.objectContaining({ kind: 'moveAndStartConstruction', structure: 'rail', toTileId: '15-6' }));
+    const view = applyTurnOrders(s, { [N2]: orders }, () => {}).state;
+    expect(collectedAtLogistics(s, N2)).toEqual({ grain: 4, fruit: 4, cotton: 2 });
+    expect(collectedAtLogistics(view, N2)).toEqual({ grain: 10, livestock: 4, fruit: 5, cotton: 2 });
+    // the first plan, made before the civilians, sees no livestock yet; set exactly, it would ship 1 and the fruit 2 more
+    expect(ofKind(orders, 'setTransportAllocations')[0].allocations).toEqual({ livestock: 1, cotton: 2 });
+    const final: Order[] = [];
+    planFinalTransport(s, view, N2, o => (final.push(o), true));
+    expect(final).toEqual([{ kind: 'setTransportAllocations', nationId: N2, allocations: { livestock: 3, cotton: 2 } }]);
   });
 });
 
