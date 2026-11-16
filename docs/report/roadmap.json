@@ -2023,7 +2023,7 @@
    "id": "Q103",
    "title": "A baseline moves: keep the old behaviour or re-record the number?",
    "status": "open",
-   "context": "Several M12 changes move numbers that tests pin for the scripted player: transport sliders (FR-389), the favourite partner (FR-401) and the score (FR-403). This card has no finding of its own; the ids are the findings behind those three changes (FR-405). Measured at the M12 integration: FR-403 and the 1.5 margin conflict. The frozen M4 player's level-3 tiles gain 40 points each, the scripted player builds none, and the margin at turn 15 falls to 1.39 to 1.46 (FR-125 red, not loosened). Choose: an AI task for the scripted player's early economy, a lower turn-15 margin, or a smaller level-3 value.",
+   "context": "Several M12 changes move numbers that tests pin for the scripted player: transport sliders (FR-389), the favourite partner (FR-401) and the score (FR-403). This card has no finding of its own; the ids are the findings behind those three changes (FR-405). Measured at the M12 integration: FR-403 and the 1.5 margin conflict. The frozen M4 player's level-3 tiles gain 40 points each, the scripted player builds none, and the margin at turn 15 falls to 1.39 to 1.46 (FR-125 red, not loosened). Choose: an AI task for the scripted player's early economy, a lower turn-15 margin, or a smaller level-3 value. Review round 2 (2026-11-16): changing the scripted player's cash reserve ($1,500 to $6,000) leaves the lowest turn-15 ratio at 1.35 to 1.42, so the AI task is a work item of its own, not a constant.",
    "options": [
     {
      "label": "Default: re-record the number with its reason",
