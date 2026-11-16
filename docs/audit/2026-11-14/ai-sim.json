@@ -1,0 +1,162 @@
+{
+  "track": "ai-sim",
+  "coverage": "Headless, on the real engine (newGame continent = the app's world, store-like turn loop: human orders applied one by one with tryApplyOrder, then computerOrders + resolveTurn). 94 full 40-turn games on 29 seeds (1-24 plus 31337, 424242, 1234567, 987654321, 2147483646): 29 with the scripted player standing in for the human, 29 with a passive human (End Turn only), 24 with a random-order 'fuzz' human (plus garbage orders that must be refused), 12 with a 'war' human (test setup injects an army and Arvelia on turn 4). Extra: 12 games with a rich fuzz human (about 13,000 accepted random orders of all kinds), 14 games on the two-islands world, 16 games that check resolveTurn(s, orders) == apply first and resolve with none. Per turn: finite numbers, no negative treasury or stock, integer cash, ids unique (tiles, workers, regiments, armies, intents, proposals), no orphaned job or army, rail/depot/port against the map, diplomacy and price bounds, JSON round trip, score formula and score drops explained, money reconciliation of every nation's treasury against the events (income, cost, bid reserve, upkeep, refunds, repeated grants, gold and gems), A-sold = B-bought, offered = sold + unsold, bid = bought + unfilled + missed, the HUD's food and upkeep forecasts against what happened, game over once and final. Result: every one of these held in all 94+ games (the detectors were proven to fire on 12 injected faults, selftest.test.ts); the engine is deterministic (final-state hash identical across a plain run, a JSON-round-trip-every-turn run and a separate process, 20 of 20 compared); every game ended by the turn limit at turn 40 (the war test with an injected 40-regiment army ends by conquest at turn 11). resolveTurn per turn on this shared machine: p50 2.1-2.6 ms, p95 4.9-6.6 ms, max 187 ms; computerOrders p50 12-14 ms, p95 45-78 ms, max 354 ms; state about 78 KB. Score curves per seed, council results and AI profiles: .gate/audit/ai-sim/report-tables.txt (median turn-40 score: idle human 200 vs computer 1318; both scripted 1337 vs 1320). Scripts: .gate/audit/ai-sim/ (sim.ts, humans.ts, sim.test.ts, selftest.test.ts, diag*.test.ts, probe-*.test.ts, agg.js; run with npx vitest run --config .gate/audit/ai-sim/vitest.config.ts).",
+  "not_covered": "Nothing was run in the browser: this track is the headless engine only, so what the HUD or dialogs show for the findings below was not checked on screen (findings say so in their confidence). Only the continent world with 40 turns was played (the app's setting); other turn limits, difficulty levels and the 'world' market mode were not. The 'war' human is a scripted player with an injected army (a test setup, not something the app lets a player do on turn 4); a human who gets a real army to the other island by play was not simulated. Timing was measured while other audit agents used the same machine, so the milliseconds are an upper bound. No Council vote with a winner could be produced by any simulated player short of capturing a province of the other Great Power.",
+  "findings": [
+    {
+      "id": "AISIM-01",
+      "kind": "bug",
+      "severity": "major",
+      "title": "The computer nation campaigns in only a third of the games; in the others it stalls at 2 of 3 Cuirassiers with no trained worker left",
+      "area": "ai",
+      "repro": [
+        "In the worktree run: npx vitest run --config .gate/audit/ai-sim/vitest.config.ts diag7.test   (24 games, nation 1 gives no orders, nation 2 played by computerOrders as in the store)",
+        "Read the per-seed lines it prints: 'never declared; at turn 40 field strength 30 of 37.5 needed, trained workers 0, horses 2'",
+        "Trace of one game: DIAG_SEEDS=4 npx vitest run --config .gate/audit/ai-sim/vitest.config.ts diag.test  (prints cash, horses, trained workers, field strength and campaignRecruit for every turn from 8)",
+        "In the app the same shows as: play any number of games with End Turn only; Valdoria declares war on Arvelia (news 'war', Arvelia becomes its colony about turn 22) in only some of them"
+      ],
+      "expected": "FR-274: from turn 10 the computer raises Cuirassiers until its field army is twice Arvelia's defence (37.5), declares war, and takes Arvelia; the requirement's acceptance sentence says 'by turn 25 ... in at least 3 of the 4 seeds'.",
+      "actual": "Seeds 1-24, passive human: the computer declares a war in 8 of 24 games (11 of 29 with the 5 large seeds); with the scripted player as the human, 15 of 29. In the 16 stalled games it has exactly 2 Cuirassiers (strength 30 of the 37.5 needed), 0 trained workers (the economy promotes every trained worker to expert, FR-130), 2 spare horses and $1.4K to $8.2K idle cash at turn 40 (peak $14.9K at turn 30, mean $7.8K). campaignRecruit stays false for the rest of the game. The journal's 'seed 4's computer never campaigns' is this, and it is the common case, not an odd seed.",
+      "evidence": "diag7 output: 'seed 4: never declared; at turn 40 field strength 30 of 37.5 needed, trained workers 0, horses 2, treasury 3694 -> no trained worker' ... 'campaigned 8/24; stuck for no trained worker 16, no horse 0, other 0'. diag trace seed 4: 't19 cash 3462 horses 3 trained 1 field 15 ... recruiting cuirassiersx1', 't20 cash 1971 horses 2 trained 0 field 30 wanted false recruitOK false', unchanged to 't40 cash 3844 horses 2 trained 0 field 30'. Table: .gate/audit/ai-sim/report-tables.txt (section 'computer nation (nation-2) profile', column war-declared).",
+      "frs": [
+        "FR-274",
+        "FR-229",
+        "FR-228"
+      ],
+      "suspect": "src/app/engine/ai/scriptedWar.ts:119 campaignRecruit needs a healthy trained worker, while the training plan in src/app/engine/ai/economy.ts:159 planTraining (FR-130) turns every trained worker into an expert; the two rules were tuned on seeds 1 to 4 only.",
+      "fix_size": "M",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "AISIM-02",
+      "kind": "bug",
+      "severity": "major",
+      "title": "When invaded, the computer never recruits: the 'garrison recruits Regulars' rule can never run, and it loses 3 of its 4 provinces in 3 turns",
+      "area": "war",
+      "repro": [
+        "Run: AUDIT_OUT=out-w AUDIT_SEEDS=1-12 AUDIT_MODES=war-human AUDIT_DET=0 npx vitest run --config .gate/audit/ai-sim/vitest.config.ts sim.test   (human = scripted player; on turn 4 a test setup gives it 10 regiments and Arvelia, so the two Great Powers border; it declares war on Valdoria on turn 5)",
+        "Trace of one game: npx vitest run --config .gate/audit/ai-sim/vitest.config.ts diag2.test   (per turn: the computer's cash, whether armyThreat is true, why a Regulars or Cuirassiers recruit would be refused, its orders, the battles)",
+        "In the app the same situation is: take Arvelia, march an army into a Valdoria province, and watch what Valdoria does"
+      ],
+      "expected": "FR-213: while an enemy army is stronger than its own in a province bordering one of its provinces, the computer orders 1 Regulars a turn (it has the cash: $2.8K to $3.6K).",
+      "actual": "In all 12 games the computer recruits 0 regiments during the invasion, loses Valdoria North-West, North-East and South-East on turns 8, 9 and 10, and ends with 1 province and 7 regiments (turn-40 score about 750 against 1,200). armyThreat is true from turn 8, but the Regulars recruit is refused every turn: 'insufficient-resources' (no armament) and from turn 9 'insufficient-labour' (0 untrained workers: they were all trained by turn 4). A Cuirassiers recruit would be accepted ('cuirassiers-recruit: ok' from turn 9) but the garrison only asks for Regulars. Its only reaction is a peace proposal.",
+      "evidence": "diag2 output: 't8 n2 cash 3477 threat true untrained 0 trained 4 regulars-recruit: insufficient-resources; cuirassiers-recruit: insufficient-resources ... battle@province-nation-2-nw nation-1->nation-2 attacker-won', 't9 ... threat true ... regulars-recruit: insufficient-labour; cuirassiers-recruit: ok ... province-taken province-nation-2-ne', 't10 ... province-taken province-nation-2-se'. Over 12 games: 'n2 recruits 0' and 'n2 provinces final 1' for every seed. The journal already carries 'the FR-213 garrison threat-recruit asks for Regulars, which a real game can never raise', while FR-213 is marked tested.",
+      "frs": [
+        "FR-213",
+        "FR-228"
+      ],
+      "suspect": "src/app/engine/ai/scriptedArmy.ts:49 picks SCRIPTED_GARRISON.regiment (regulars) under a threat; propose() drops it silently because no untrained worker exists after turn 4.",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "AISIM-03",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "The computer builds mills it cannot staff and never recruits workers; its workforce shrinks from 7 to 4 or 5",
+      "area": "ai",
+      "repro": [
+        "Run: npx vitest run --config .gate/audit/ai-sim/vitest.config.ts diag6.test   (10 games, idle human, prints the computer's workers, labour and building capacity at turn 40)",
+        "Or count orders: in out-final/continent-passive-human-*.json the 'recruitWorkers' order never appears for nation-2 and no 'workers-recruited' event occurs (0 in 29 games, 1,160 computer turns)"
+      ],
+      "expected": "NR-028 (Nathan's decision Q19): the scripted nation recruits workers (migrants) so it uses the building capacity it builds.",
+      "actual": "Workers: 7 at the start, 4 or 5 at turn 40 (each Cuirassiers raised takes a worker; none is ever replaced). Labour at turn 40 is 16 to 20 while building capacity is 64 to 84 (mean 70.4), so about three quarters of its mills cannot run, yet capacity gives it about 690 of its roughly 1,300 points (10 per capacity point). The computer's civilians also stand idle more late in the game (idle share of its civilians by decade: 17%, 33%, 29%, 44%). The requirements file itself says 'recruiting not built' and the decision was left open.",
+      "evidence": "diag6 output: 'seed 1: workers 4 (start 7), labour 16, building capacity 68' ... 'mean workers 4.6, mean labour 18.4, mean capacity 70.4'. Score parts at turn 40, mean of 29 passive games: treasury 37, industry 688, development 602.",
+      "frs": [
+        "NR-028",
+        "NR-023"
+      ],
+      "suspect": "src/app/engine/ai/economy.ts has no recruitWorkers order (held for decision M4.4-1 in the journal).",
+      "fix_size": "M",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "AISIM-04",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "The computer never deals with, proposes to or attacks the other Great Power, so the human is never approached",
+      "area": "diplomacy",
+      "repro": [
+        "Run the 94 games (see coverage) and read out-final/*.json: profile.nation-2.totals 'units-sold-to-other-great-power' and 'units-bought-from-other-great-power', and 'ev:proposal-received' of nation-1",
+        "Or play the app with End Turn only: no Accept Offer dialog, no war declaration against you, no trade deal with Valdoria appears in the news"
+      ],
+      "expected": "M6 and M7 call alliance and peace proposals to the human (Accept Offer dialog, FR-166) and trade between Great Powers (FR-184, FR-187) done; a computer rival would be expected to use them at least sometimes.",
+      "actual": "Across 94 games of 40 turns: 0 units traded between the two Great Powers (the computer only bids and offers what the minor nations sell and want, FR-245); 0 proposals to the human unless the human declared war first (100 'proposal-received' events, all peace offers in the 12 games where the human attacked); the computer never declares war on a Great Power; its only overtures are consulates with minors (about 3 a game) and the war on Arvelia (none of its 28 war declarations in the 94 games was on a Great Power). So a human that does not act is never threatened, and the Accept Offer dialog is only reachable after the human starts a war.",
+      "evidence": "Totals over all passive, scripted, fuzz and war games: 'GP-GP units by mode {fuzz-human:0, passive-human:0, scripted-human:0, war-human:0}', 'proposal-received by mode {fuzz-human:0, passive-human:0, scripted-human:0, war-human:100}', 'proposeOverture' 86 orders in 29 passive games: 75 consulates with minors and 11 war declarations on Arvelia.",
+      "frs": [
+        "FR-166",
+        "FR-175",
+        "FR-245"
+      ],
+      "suspect": "src/app/engine/ai/scriptedPlayer.ts and ai/diplomacy.ts: scriptedDiplomacyOrders only offers peace to a Great Power it is already at war with; ai/scriptedPartners.ts caps trade at minors.",
+      "fix_size": "M",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "AISIM-05",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "A Council of Governors vote can never be won peacefully: the best possible is 8 votes of the 9 needed, so no game ended by Council in 376 meetings",
+      "area": "council",
+      "repro": [
+        "Run: npx vitest run --config .gate/audit/ai-sim/vitest.config.ts probe-council.test",
+        "It sets every minor nation to 89 relation points with Testland and prints the vote; then conquers Arvelia; then takes one Valdoria province",
+        "Count winners in the simulated games: node -e over out-final/*.json 'council' arrays"
+      ],
+      "expected": "NR-011: the game ends the way the original does, by a Council vote once a nation is strong enough; a player who builds relations with the minors should be able to win it.",
+      "actual": "12 provinces, 9 votes needed. Both Great Powers are always the two nominees, so each keeps its own 4 provinces; the other 4 votes are the minors. Best peaceful result: 4 own + 4 minors (or Arvelia as a colony) = 8 of 9. Only after capturing at least one Valdoria province does the vote reach 9. In the 94 games (376 meetings at turns 10, 20, 30, 40) no meeting had a winner; the computer's own best is 5 votes. The journal says a winning Council vote was 'not verified on screen'; this is why it is hard to ever see.",
+      "evidence": "probe-council output: 'all 4 minors at 89 points with nation-1 ... needed 9 of 12 nominees nation-2 4 ... | nation-1 8 (controlled 4, colonies 0, other GP 0, minors 4) winner undefined'; 'Arvelia conquered + 3 island minors at 89: nation-1 8 ... winner undefined'; '...and one province of nation-2 taken: nation-1 9 | nation-2 3 winner nation-1'. Simulated meetings: 'council meetings 376 with a winner 0'.",
+      "frs": [
+        "FR-290",
+        "FR-294",
+        "FR-295",
+        "NR-011"
+      ],
+      "suspect": "src/app/engine/council/council.ts ballotOf: a province of a nominee always votes for it, and only provinces of non-nominated Great Powers can go to the stronger nominee; with two Great Powers that row is always empty (FR-312).",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "AISIM-06",
+      "kind": "bug",
+      "severity": "minor",
+      "title": "The upkeep warning says cash is enough, then End Turn disbands regiments because a subsidised bid costs more than its reserve",
+      "area": "trade",
+      "repro": [
+        "Run: npx vitest run --config .gate/audit/ai-sim/vitest.config.ts probe-forecast.test",
+        "By hand: turn 1 open a consulate with Sundmark; turn 2 with about $250 in the treasury set a 100% subsidy toward Sundmark and bid for 1 timber; look at the HUD warning; press End Turn"
+      ],
+      "expected": "FR-261: the HUD warns while the cash End Turn will find is short of the army upkeep.",
+      "actual": "A bid reserves 1 x P ($101) when ordered but is settled at floor(P x (1 + subsidy)) = $202, and the extra $101 is taken from the treasury in the trade phase, before the upkeep step. upkeepForecast counts only locked grants, so it said due 100, cash 150, short false. At End Turn the treasury was 49 when the upkeep ran: 2 of the 3 non-militia start regiments were disbanded for no pay and $25 was charged, ending at $24. Seen first in a random-order game (fuzz seed 24, turn 11, 1 Artillery lost) and then rebuilt as a fixed probe.",
+      "evidence": "probe-forecast output: 'price 101 treasury after the orders 150 HUD forecast {due:100,cash:150,short:false}', 'goods-bought timber price 202 cost 202', 'regiments-disbanded reason no-pay count 2', 'army-upkeep amount 25', 'treasury after End Turn 24'. FR-189 documents the extra being paid from the treasury; FR-261 does not take it into account.",
+      "frs": [
+        "FR-261",
+        "FR-189"
+      ],
+      "suspect": "src/app/engine/army/upkeepForecast.ts:39 upkeepForecast (cash ignores the extra cost of this turn's bids at a subsidised deal price, settlePartners.ts:79 reserve = amount x P).",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "AISIM-07",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "Only Arvelia can ever be attacked: Sundmark, Lorran and Pellis border no province, so the 'war on minors' and the colonies row cover one minor, for one Great Power",
+      "area": "war",
+      "repro": [
+        "Run: npx vitest run --config .gate/audit/ai-sim/vitest.config.ts geo.test   (prints each province with the provinces next to it)",
+        "In the app: select Sundmark, Lorran or Pellis and try to march an army there"
+      ],
+      "expected": "M8/M9 describe war on minor nations, with the computer picking 'the weakest bordering minor'; the Council counts colonies.",
+      "actual": "province-minor-2, -3 and -4 (Sundmark, Lorran, Pellis) have no adjacent province, so no army can reach them (sea moves are not built, ARCHITECTURE 'Not on the engine yet'). Arvelia is the only land bridge and touches Testland North-East and Valdoria North-West: whichever Great Power takes it first leaves the other with no minor to campaign against, and the computer's campaign and the colony vote can only ever involve that one province. In the games where the computer takes Arvelia (turn 22) it has no target for the remaining 18 turns.",
+      "evidence": "geo output: 'province-minor-2 Sundmark owner minor-2 tiles 5 seat 12-9 adj ' (empty), same for minor-3 and minor-4; 'province-minor-1 Arvelia ... adj province-nation-1-ne(nation-1) province-nation-2-nw(nation-2)'.",
+      "frs": [
+        "FR-145",
+        "FR-274"
+      ],
+      "suspect": "src/app/engine/world/continent.ts: the three island minors are placed with no land link; armies cannot cross water.",
+      "fix_size": "L",
+      "confidence": "reproduced"
+    }
+  ]
+}

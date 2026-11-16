@@ -1,0 +1,445 @@
+{
+  "track": "diplomacy-council",
+  "coverage": "Played the running build on :3170 in my own Chromium context (a copy of the app chunk was patched in that context only, to expose the zustand store as window.__stores for fast turns, store edits and submitOrder). Diplomacy screen: every overture, refusals, withdraw and refunds (cash arithmetic checked), grants once/locked/stop/insufficient funds, subsidy, boycott, war question texts, peace, colony tab, relation palette, keyboard, focus, 1280x720 to 390x844. Relations: trade +1 per commodity, pact +10, grants, war -40/-5/-20 checked against FR-168/170 and news lines against the tabs (they agree). Alliance with Valdoria (reached with a cash edit). Council: HUD line and projection every turn, meetings turns 10/20/30/40 on 3 seeds, abstention texts incl. \"at war\", tie, colony, cell titles, news line reopen, Escape/n key/New game. Winning vote: verified in the UI twice: (a) state edit at turn 10 for Testland and for Valdoria (screens, game-over text, HUD, New game); (b) a real conquest game: an engine-planned order list (war on Arvelia and Valdoria, grants and pact to Pellis) replayed on seed 7 through submitOrder with real Advance Turn clicks, state matching the engine on all 40 turns, ending \"Council of Governors: Testland wins with 9 of 12 votes.\" on turn 40. Also: idle 40-turn games, conquest game over, 60-seed 2400-turn invariant fuzz of diplomacy/council (0 violations), 24-seed AI behaviour scan, repo specs m6-diplomacy, m10-council, m10-qa and 241 related unit tests all pass.",
+  "not_covered": "Mouse-driven play of the Army and Attack screens (another track; the conquest orders were sent through the store). Only Chromium on Windows; Firefox/WebKit and screen readers not run. Alliance offers from the computer cannot happen, so that Accept Offer variant was not seen. Colony boycott, Join the Empire and pact intervention do not exist in v2. Trade internals (Board of Trade rules) only checked where they change relations or subsidy money.",
+  "findings": [
+    {
+      "id": "diplomacy-council-01",
+      "kind": "gap",
+      "severity": "major",
+      "title": "A Council victory cannot be reached by diplomacy; it always needs a war that takes land from Valdoria",
+      "area": "council",
+      "repro": [
+        "Start a new game (Testland, 12 provinces: Testland 4, Valdoria 4, four minors with 1 each; 9 votes needed).",
+        "In Diplomacy bring all four minors to Brown, level 6 of 9 or higher with Testland (consulate, embassy, pact, grants, trade) and keep Valdoria below them. (To save time the audit set the relation points to 89 for Testland and 0 for Valdoria with a store edit.)",
+        "End turns until the Council screen opens on turn 11 and read the HUD line and the screen."
+      ],
+      "expected": "rules/01 section 4 and NR-011: a nation with the best economy and diplomacy can be elected by more than two thirds of the governors and the game ends; the roadmap calls M10 done with \"more than two thirds wins\".",
+      "actual": "Best possible peaceful result: HUD \"If it met now: Testland 8, Valdoria 4, abstain 0 of 12; 9 needed\"; Council screen \"No winner. The Council meets again on turn 20.\" Own 4 + four minors = 8, one short. Testland and Valdoria provinces do not touch (Arvelia lies between), so a win needs war on Arvelia first and then war on Valdoria. A headless all-in conqueror (war on Arvelia turn 1, on Valdoria turn 3, grants and pact to Pellis) won the Council in 4 of 8 seeds (2, 5, 6, 7), every time only at the turn-40 meeting; seeds 3, 4 and 8 stopped at 8 votes because Pellis stayed at 42 to 44 points, seed 1 at 7 provinces. The same plan replayed in the running app on seed 7 ended with \"Council of Governors: Testland wins with 9 of 12 votes.\" on turn 40. Nothing in the HUD, Diplomacy or Council screen tells the player that peaceful play cannot win.",
+      "evidence": "C:\\Users\\brnat\\AppData\\Local\\Temp\\claude\\6d278f4c60cadc55\\c11c618f-69f1-4659-b2b1-f3416944c4fb\\scratchpad\\audit\\shots\\diplomacy-council-c19-max-diplomacy-council.png (8 vs 4, no winner); C:\\Users\\brnat\\AppData\\Local\\Temp\\claude\\6d278f4c60cadc55\\c11c618f-69f1-4659-b2b1-f3416944c4fb\\scratchpad\\audit\\shots\\diplomacy-council-f7-council-win-ui.png and C:\\Users\\brnat\\AppData\\Local\\Temp\\claude\\6d278f4c60cadc55\\c11c618f-69f1-4659-b2b1-f3416944c4fb\\scratchpad\\audit\\shots\\diplomacy-council-f7-gameover-win-ui.png (win after conquest, seed 7, turn 40); .gate/audit/diplomacy-council/conq4-output.txt (8 seeds); command: npx vitest run --config .gate/audit/diplomacy-council/vitest.config.ts .gate/audit/diplomacy-council/conq4.test.ts",
+      "frs": [
+        "FR-290",
+        "FR-292",
+        "FR-293",
+        "FR-294",
+        "NR-011"
+      ],
+      "suspect": "src/app/engine/council/council.ts votesNeeded(12) = 9 against the continent world of 4+4+4x1 provinces (engine/world/continent.ts); a colony or a free minor adds at most 4 votes",
+      "fix_size": "M",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "diplomacy-council-02",
+      "kind": "bug",
+      "severity": "major",
+      "title": "The computer nation never attacks or counter-attacks; it lets itself lose 3 of its 4 provinces",
+      "area": "ai",
+      "repro": [
+        "New game, seed 7 (the audit replays a fixed plan: war on Arvelia on turn 1, war on Valdoria on turn 3, army marched through Arvelia).",
+        "Turn 5: Testland takes Valdoria North-West; turn 16 North-East; turn 27 South-East. Read the news of each turn."
+      ],
+      "expected": "docs/REVIVAL_PLAN M9: \"The scripted Great Power defends, counter-attacks, accepts peace when losing\"; FR-228 (c): it attacks a bordering enemy province when the estimate is 1.5 or more, a province lost in this war first.",
+      "actual": "In 8 headless games with the same plan Valdoria fought 0 battles as attacker against about 65 fought by Testland. It never retook a province, never raised a field army, and ended with 1 province. In the app replay no \"Valdoria: Battle at ...\" line appeared in 40 turns. Its only reaction is a peace offer every 3 turns.",
+      "evidence": ".gate/audit/diplomacy-council/conq4-output.txt: \"BATTLES human-side N valdoria-side 0\" with N = 8, 7, 9, 10, 8, 8, 8, 7 for seeds 1 to 8 (65 battles, 0 by Valdoria); UI replay log of seed 7 (turns 1 to 40, state matched the engine run on every turn)",
+      "frs": [
+        "FR-228",
+        "FR-213",
+        "FR-274"
+      ],
+      "suspect": "src/app/engine/ai/scriptedWar.ts planWarMoves: only regiments beyond capitalKeep() count as field, and the journal admits the threat-recruit asks for Regulars a real game can never raise (journal \"Carried from M8\")",
+      "fix_size": "M",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "diplomacy-council-03",
+      "kind": "gap",
+      "severity": "major",
+      "title": "The computer starts a war in only a third of games, never against a Great Power, and never offers an alliance or a pact",
+      "area": "ai",
+      "repro": [
+        "Headless: 24 new continent games (seeds 1 to 24) where Testland only ends turns; read the war-declared events of Valdoria (.gate/audit/diplomacy-council/ai2.test.ts).",
+        "In the app: seed 1 idle, End Turn x40 (war on Arvelia on turn 21, colony on turn 22), seed 4 idle (nothing happens)."
+      ],
+      "expected": "rules/10 and the M9 plan: the computer picks off minor nations and acts as a rival; M10 expects it to be able to win votes.",
+      "actual": "Valdoria declared war in 8 of 24 seeds (turn 20 or 21, always on Arvelia, never again); in 16 of 24 it never declared war, ended with 4 provinces and 1 or 2 consulates. campaignTarget() returns nothing while at war with a Great Power, so it never attacks Testland. Its diplomacy orders are consulates for trade and a peace offer when losing; no embassy, pact, grant or alliance ever. So in most games the four Council meetings all end \"No winner\". The journal knows seed 4 \"never campaigns\"; the real rate is 2 of 3 seeds.",
+      "evidence": ".gate/audit/diplomacy-council/ai2-output.txt (CAMPAIGNS 8/24, per-seed rows); C:\\Users\\brnat\\AppData\\Local\\Temp\\claude\\6d278f4c60cadc55\\c11c618f-69f1-4659-b2b1-f3416944c4fb\\scratchpad\\audit\\shots\\diplomacy-council-idle-s1-t40-gameover.png (seed 1 idle ends 4 provinces v 5, \"Valdoria 1381, Testland 200\")",
+      "frs": [
+        "FR-274",
+        "FR-302",
+        "FR-174"
+      ],
+      "suspect": "src/app/engine/ai/scriptedWar.ts campaignRecruit/planWarDeclaration (needs a horse and a trained worker for Cuirassiers) and ai/diplomacy.ts (peace offers only)",
+      "fix_size": "M",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "diplomacy-council-04",
+      "kind": "bug",
+      "severity": "major",
+      "title": "A subsidy is shown as \"free\" but silently cuts all income from that minor, down to $0 at 100%",
+      "area": "trade",
+      "repro": [
+        "New game. Give yourself clothing (or produce it). Turn 1: Diplomacy, Sundmark, Consulate ($500); End Turn.",
+        "Turn 2: Diplomacy, Sundmark, Subsidy 100%, \"Set policy\". The ordered list reads \"Trade policy: subsidy 100%  free\".",
+        "Open Market: Clothing shows the board price $919 and Sundmark buys 2 units. Offer 2 Clothing. End Turn."
+      ],
+      "expected": "The Diplomacy and Board screens say what a subsidy costs (rules 07 / 06: a subsidy is a price concession), or the Board shows the deal price.",
+      "actual": "News: \"Sold 2 Clothing to Sundmark for $0.\" (50% gave \"$918\" for 2 units at $919). Nothing in the Diplomacy dialog (\"free\"), the Board of Trade (price stays $919, the word subsidy never appears) or the news explains it. Bought goods cost the percent extra in the same way. engine/market/settlePartners.ts dealPrice(price, +-percent).",
+      "evidence": "C:\\Users\\brnat\\AppData\\Local\\Temp\\claude\\6d278f4c60cadc55\\c11c618f-69f1-4659-b2b1-f3416944c4fb\\scratchpad\\audit\\shots\\diplomacy-council-c32-subsidy-free-label.png, C:\\Users\\brnat\\AppData\\Local\\Temp\\claude\\6d278f4c60cadc55\\c11c618f-69f1-4659-b2b1-f3416944c4fb\\scratchpad\\audit\\shots\\diplomacy-council-c32-market-price-with-subsidy.png, C:\\Users\\brnat\\AppData\\Local\\Temp\\claude\\6d278f4c60cadc55\\c11c618f-69f1-4659-b2b1-f3416944c4fb\\scratchpad\\audit\\shots\\diplomacy-council-c32-news-sold-for-0.png; script .gate/audit/diplomacy-council/c30.js and c32.js",
+      "frs": [
+        "FR-171",
+        "FR-189",
+        "FR-178"
+      ],
+      "suspect": "src/app/components/diplomacy/diplomacyView.ts orderedView(): costText \"free\" for trade-policy; market/boardView.ts shows board price only",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "diplomacy-council-05",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "Alliance, pact and embassy do nothing beyond a chip and a few relation points",
+      "area": "diplomacy",
+      "repro": [
+        "New game with a store edit giving Testland $100,000. Diplomacy, Valdoria: Give $10,000 \"each turn\" for 4 turns (points 40 to 72), then order Alliance.",
+        "End Turn: news \"Alliance signed with Valdoria.\" and the chip \"Alliance\". Play on."
+      ],
+      "expected": "rules/07 section 5: alliance means mutual defence and shared wars; a pact brings help when the minor is attacked; an embassy opens land to civilians.",
+      "actual": "The alliance flag is read only by the AI answer rule, the war penalty and the chip (grep of src/app/engine and components finds no other use); no joint war, no vote, no trade or relation effect. A pact only adds 10 points, an embassy only unlocks grants and the pact. Reaching the alliance cost 3 grants of $10,000 for a flag. The AI never offers an alliance, so the \"Valdoria seeks to enter into an alliance\" Accept Offer cannot be reached in play.",
+      "evidence": "C:\\Users\\brnat\\AppData\\Local\\Temp\\claude\\6d278f4c60cadc55\\c11c618f-69f1-4659-b2b1-f3416944c4fb\\scratchpad\\audit\\shots\\diplomacy-council-c3-alliance.png; command output of .gate/audit/diplomacy-council/c3.js (\"Alliance signed with Valdoria\", tab chips); grep -rn \"alliance\" src/app/engine src/app/components",
+      "frs": [
+        "FR-165",
+        "FR-166",
+        "FR-175"
+      ],
+      "suspect": "src/app/engine/systems/diplomacySystem.ts makeAlliance only sets alliance:true",
+      "fix_size": "M",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "diplomacy-council-06",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "The Diplomacy screen never says what an overture does or what thresholds matter",
+      "area": "dialogs",
+      "repro": [
+        "Open Diplomacy on turn 1 and read every tab and control; hover the buttons."
+      ],
+      "expected": "A player can tell what a pact, embassy, grant, subsidy or alliance gives, and what level the Council or the computer needs.",
+      "actual": "No tooltip or help text on any overture (DOM: the only title attributes are the \"since the start\" chips); the words Council, vote and points appear nowhere in the dialog. The Alliance button is enabled while the computer refuses below 60 points (Brown level 6 is not enough, Grey level 7 is) and the only feedback is the news line \"Valdoria refused our alliance.\" after End Turn. The Council needs 50 points (level 6 of 9) but the dialog shows only levels.",
+      "evidence": "C:\\Users\\brnat\\AppData\\Local\\Temp\\claude\\6d278f4c60cadc55\\c11c618f-69f1-4659-b2b1-f3416944c4fb\\scratchpad\\audit\\shots\\diplomacy-council-02-diplomacy-open.png; DOM check .gate/audit/diplomacy-council/c17.js (mentions Council? false, vote? false, points? false); C:\\Users\\brnat\\AppData\\Local\\Temp\\claude\\6d278f4c60cadc55\\c11c618f-69f1-4659-b2b1-f3416944c4fb\\scratchpad\\audit\\shots\\diplomacy-council-04-t2-dia.png",
+      "frs": [
+        "FR-177",
+        "FR-178",
+        "FR-174"
+      ],
+      "suspect": "components/diplomacy/CountryDetails.tsx has no explanatory text",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "diplomacy-council-07",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "The player cannot see what decides the minors' votes: relation points are hidden and the rival's standing with the minors is invisible",
+      "area": "council",
+      "repro": [
+        "Play to turn 11 (idle). Compare the Council screen with the Diplomacy screen for Arvelia."
+      ],
+      "expected": "Council screen and Diplomacy screen use the same measure.",
+      "actual": "Council: \"Arvelia: relation 30 with Testland and 46 with Valdoria, of the 50 needed\". Diplomacy: \"Yellow, level 4 of 9\" and nothing about Valdoria. Points exist only on the Council screen and only after a meeting; the HUD shows counts. The rival's relations appear only as news lines when a level changes. (Known as decision Q59.) In all 24 idle seeds Valdoria ends at 89 points with Arvelia (by trade in the 16 seeds without a war, by the colony rule in the others), so Arvelia's vote is Valdoria's unless the player also reaches 89 (a tie abstains).",
+      "evidence": "C:\\Users\\brnat\\AppData\\Local\\Temp\\claude\\6d278f4c60cadc55\\c11c618f-69f1-4659-b2b1-f3416944c4fb\\scratchpad\\audit\\shots\\diplomacy-council-idle-s1-t30-council.png; .gate/audit/diplomacy-council/ai2-output.txt (first number of \"rel w/ minors\" is 89 in every row)",
+      "frs": [
+        "FR-311",
+        "FR-177",
+        "FR-314"
+      ],
+      "suspect": "engine/council/council.ts minorRelations and components/diplomacy/diplomacyView.ts relationText",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "diplomacy-council-08",
+      "kind": "bug",
+      "severity": "minor",
+      "title": "\"1st nominee / 2nd nominee\" and the news line contradict the vote counts",
+      "area": "council",
+      "repro": [
+        "New game, end 9 turns, with all minors at 89 points for Testland (store edit), End Turn on turn 10.",
+        "Read the Council screen column heads and the news line."
+      ],
+      "expected": "The rank marks and the news order follow the votes, or the screen explains they follow a hidden \"standing\".",
+      "actual": "Testland has 8 votes and is labelled \"2nd nominee\"; Valdoria has 4 and is \"1st nominee\". The news reads \"Council of Governors: Valdoria 4, Testland 8 of 12 votes; no winner (9 needed).\" (known as Q58). The rank comes from FR-291 standing (score + 100 x provinces + 10 x strength), which the screen never mentions.",
+      "evidence": "C:\\Users\\brnat\\AppData\\Local\\Temp\\claude\\6d278f4c60cadc55\\c11c618f-69f1-4659-b2b1-f3416944c4fb\\scratchpad\\audit\\shots\\diplomacy-council-c19-max-diplomacy-council.png",
+      "frs": [
+        "FR-291",
+        "FR-297",
+        "FR-313"
+      ],
+      "suspect": "engine/council/council.ts councilNominees order; components/gameText.ts council line",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "diplomacy-council-09",
+      "kind": "visual",
+      "severity": "minor",
+      "title": "Accept Offer opens on top of the Battle screen (and the Council screen): two modal dialogs at once, the first half hidden",
+      "area": "dialogs",
+      "repro": [
+        "Replay seed 7 (see finding 2) to turn 13: a battle of turn 12 and a Valdoria peace offer arrive together.",
+        "Look at the screen; press Escape twice."
+      ],
+      "expected": "One dialog at a time (FR-279 states it for Army/Attack; FR-232 queues Battle screens).",
+      "actual": "The small Accept Offer card sits in the middle of the Battle screen and covers its token lists; both have role dialog. Escape rejects the offer first and a second Escape closes the battle (works, but confusing). FR-299 documents the Council overlap only.",
+      "evidence": "C:\\Users\\brnat\\AppData\\Local\\Temp\\claude\\6d278f4c60cadc55\\c11c618f-69f1-4659-b2b1-f3416944c4fb\\scratchpad\\audit\\shots\\diplomacy-council-stacked-dialogs.png",
+      "frs": [
+        "FR-232",
+        "FR-279",
+        "FR-299"
+      ],
+      "suspect": "AcceptOfferModal z-index 85 over BattleModal 79 / CouncilModal 77",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "diplomacy-council-10",
+      "kind": "gap",
+      "severity": "nit",
+      "title": "When the computer wins the Council the screen still says \"Valdoria Wins!\" in the same green and the game-over screen has no defeat wording",
+      "area": "council",
+      "repro": [
+        "New game, end 9 turns, give Valdoria Testland NW, NE, SE and Arvelia as colony plus one minor at 60 points (store edit), End Turn on turn 10."
+      ],
+      "expected": "The player is told clearly that the game was lost.",
+      "actual": "Council screen: green \"Valdoria Wins!\"; game over: \"The Council of Governors chose Valdoria: 9 of 12 votes.\" and the score table; the word \"you\" or \"defeat\" never appears.",
+      "evidence": "C:\\Users\\brnat\\AppData\\Local\\Temp\\claude\\6d278f4c60cadc55\\c11c618f-69f1-4659-b2b1-f3416944c4fb\\scratchpad\\audit\\shots\\diplomacy-council-c13-valdoria-wins.png, C:\\Users\\brnat\\AppData\\Local\\Temp\\claude\\6d278f4c60cadc55\\c11c618f-69f1-4659-b2b1-f3416944c4fb\\scratchpad\\audit\\shots\\diplomacy-council-c13-valdoria-wins-over.png",
+      "frs": [
+        "FR-298",
+        "FR-300"
+      ],
+      "suspect": "components/council/CouncilModal.tsx and GameOverModal.tsx",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "diplomacy-council-11",
+      "kind": "visual",
+      "severity": "minor",
+      "title": "The Diplomacy dialog is unusable below about 500 px width: the details pane shrinks to 34 px",
+      "area": "dialogs",
+      "repro": [
+        "Open the game at 390x844 (or any window narrower than 500 px). Click Diplomacy."
+      ],
+      "expected": "FR-237: the dialog stays readable; the Council dialog does.",
+      "actual": "At 390 px the countries list keeps 280 px and the details pane is 34 px wide (content 116 px wide, cut off); at 480 px it is 124 px. It is readable from about 600 px (244 px). The Council dialog is fine at 390 px.",
+      "evidence": "C:\\Users\\brnat\\AppData\\Local\\Temp\\claude\\6d278f4c60cadc55\\c11c618f-69f1-4659-b2b1-f3416944c4fb\\scratchpad\\audit\\shots\\diplomacy-council-v2-dia-390x844.png, C:\\Users\\brnat\\AppData\\Local\\Temp\\claude\\6d278f4c60cadc55\\c11c618f-69f1-4659-b2b1-f3416944c4fb\\scratchpad\\audit\\shots\\diplomacy-council-v3-dia-480.png; widths measured by .gate/audit/diplomacy-council/v3.js",
+      "frs": [
+        "FR-237"
+      ],
+      "suspect": "components/diplomacy/Diplomacy.module.css: fixed 280 px list column, no stacking breakpoint",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "diplomacy-council-12",
+      "kind": "bug",
+      "severity": "nit",
+      "title": "Trade policy accepts a no-op and a contradiction: \"Set policy\" with nothing changed is an order, and Subsidy 100% together with Boycott is allowed",
+      "area": "diplomacy",
+      "repro": [
+        "Diplomacy, Lorran, press \"Set policy\" without changing anything.",
+        "Arvelia (consulate held): Subsidy 100%, tick Boycott, Set policy."
+      ],
+      "expected": "No order when nothing changes; a boycott makes a subsidy meaningless, so one of them is refused or greyed.",
+      "actual": "The first creates \"Trade policy: no subsidy / free\" and a \"1 ordered\" marker that changes nothing. The second shows the chips \"We boycott them\" and \"Subsidy 100%\" together.",
+      "evidence": "C:\\Users\\brnat\\AppData\\Local\\Temp\\claude\\6d278f4c60cadc55\\c11c618f-69f1-4659-b2b1-f3416944c4fb\\scratchpad\\audit\\shots\\diplomacy-council-c20-chips-arvelia.png; output of .gate/audit/diplomacy-council/c18.js",
+      "frs": [
+        "FR-171",
+        "FR-178"
+      ],
+      "suspect": "components/diplomacy/CountryDetails.tsx PolicyForm; orders/diplomacyOrders.ts validateTradePolicy accepts any subsidy with a consulate",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "diplomacy-council-13",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "A game cannot be saved; a page reload throws away a 40-turn game",
+      "area": "hud",
+      "repro": [
+        "Play to turn 6 (or 36). Press F5 / reload the page."
+      ],
+      "expected": "The game survives a reload, or the browser warns before leaving.",
+      "actual": "Back to \"Turn: 1 of 40\", a new random seed; localStorage and sessionStorage are empty; no beforeunload warning. Not in the requirements either.",
+      "evidence": "output of .gate/audit/diplomacy-council/c25.js: \"before reload Turn: 6 of 40 ... storage keys {ls:[],ss:[]} ... after reload Turn: 1 of 40\"",
+      "frs": [],
+      "suspect": "store/rootStore.ts has no persistence",
+      "fix_size": "M",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "diplomacy-council-14",
+      "kind": "doc-lie",
+      "severity": "minor",
+      "title": "The last Council is not a forced vote, so the turn-40 meeting almost never decides the game",
+      "area": "council",
+      "repro": [
+        "Play 40 turns idle (seed 1) and read the turn-40 Council screen."
+      ],
+      "expected": "rules/01 section 4 (manual p19): at the last meeting every governor must choose a nominee and the nominee with more governors wins.",
+      "actual": "\"No winner. This was the last Council; the game ends on points.\" Minors under 50 points still abstain (FR-308, open decision Q53). Because of finding 1 the final meeting is decisive only after a full conquest.",
+      "evidence": "C:\\Users\\brnat\\AppData\\Local\\Temp\\claude\\6d278f4c60cadc55\\c11c618f-69f1-4659-b2b1-f3416944c4fb\\scratchpad\\audit\\shots\\diplomacy-council-idle-s1-t40-council.png (Valdoria 5, Testland 4, abstained 3, no winner)",
+      "frs": [
+        "FR-308",
+        "FR-290"
+      ],
+      "suspect": "engine/council/council.ts ballotOf has no forced-choice branch for the last meeting",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "diplomacy-council-15",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "No peaceful way to use a high relation: Join the Empire, pact intervention and colony boycott are not built, so levels 7 to 9 are only a vote",
+      "area": "diplomacy",
+      "repro": [
+        "Raise a minor to Dark green, level 9 of 9 (20 turns of a $1,000 locked grant did it for Arvelia in the audit).",
+        "Look for a way to use it in Diplomacy."
+      ],
+      "expected": "rules/07 sections 1 and 4: at dark green plus an embassy the minor can be asked to join and becomes a colony.",
+      "actual": "The overtures are Consulate, Embassy, Pact, Declare war, Propose peace. Nothing happens at level 9. Colonies come only from conquest. Documented as \"Not in v2 (Q37)\" but M6 is marked done with \"nine relation levels\".",
+      "evidence": "output of .gate/audit/diplomacy-council/c16.js (\"Arvelia | Dark green, level 9 of 9 | Consulate | Embassy | Pact | Subsidy 10% | Grant $1,000 each turn\"); docs/requirements.md line 389",
+      "frs": [
+        "FR-165",
+        "FR-177"
+      ],
+      "suspect": "",
+      "fix_size": "M",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "diplomacy-council-16",
+      "kind": "gap",
+      "severity": "nit",
+      "title": "The computer's peace offer returns every 3 turns with no context and needs a click each time",
+      "area": "dialogs",
+      "repro": [
+        "Replay seed 7 (finding 2) and watch the start of turns 7, 10, 13, ... 40."
+      ],
+      "expected": "The offer tells what accepting does and does not nag; Imp1 warns \"Accepting will break our alliances with their enemies\".",
+      "actual": "\"Valdoria asks for an end to our war. Do you accept?\" appeared 12 times in one game, each needing Reject/Escape. It shows nothing about who is winning or what changes (relations stay dark brown, no treaties return).",
+      "evidence": "C:\\Users\\brnat\\AppData\\Local\\Temp\\claude\\6d278f4c60cadc55\\c11c618f-69f1-4659-b2b1-f3416944c4fb\\scratchpad\\audit\\shots\\diplomacy-council-c4-accept-offer.png; replay log turns 7 to 40",
+      "frs": [
+        "FR-175",
+        "FR-174"
+      ],
+      "suspect": "",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "diplomacy-council-17",
+      "kind": "bug",
+      "severity": "nit",
+      "title": "Conquering a minor sets the relation to dark green with no news line",
+      "area": "diplomacy",
+      "repro": [
+        "Replay seed 7, turns 1 and 2 (war on Arvelia, attack, Arvelia taken).",
+        "Read the news and the Diplomacy tab on turn 3."
+      ],
+      "expected": "FR-172: a level change produces \"Relations with Arvelia: ... to ...\" for the player.",
+      "actual": "Arvelia goes from Dark brown (war) to \"Dark green, level 9 of 9, Colony\" with only \"Arvelia taken. Arvelia is now our colony.\"",
+      "evidence": "output of .gate/audit/diplomacy-council/c31.js; engine/army/conquest.ts sets points 89 without relation-changed",
+      "frs": [
+        "FR-172",
+        "FR-224"
+      ],
+      "suspect": "src/app/engine/army/conquest.ts (points set to 89 with no relation-changed event)",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "diplomacy-council-18",
+      "kind": "gap",
+      "severity": "nit",
+      "title": "Peace repairs nothing: after \"Peace made with Lorran\" the relation stays at war level and all treaties must be bought again",
+      "area": "diplomacy",
+      "repro": [
+        "Turn 2: declare war on Lorran. Turn 3: Propose peace. Turn 4: read the tab."
+      ],
+      "expected": "rules/07: war worsens relations; the player can recover (trade, grants, treaties).",
+      "actual": "\"Peace made with Lorran.\" and the tab stays \"Dark brown, level 1 of 9 | No treaties\"; the consulate ($500) and embassy ($5,000) are lost. By FR-169 design (\"relations stay\"). Nothing in the war question warns that the damage is lasting.",
+      "evidence": "output of .gate/audit/diplomacy-council/c2.js (T4 start: Lorran 0 after peace)",
+      "frs": [
+        "FR-169",
+        "FR-238"
+      ],
+      "suspect": "",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "diplomacy-council-19",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "Closing an Accept Offer with the x cannot be undone: the offer is gone from every screen for the turn",
+      "area": "dialogs",
+      "repro": [
+        "Declare war on Valdoria, End Turn. When Valdoria offers peace the Accept Offer dialog opens at the start of the turn (the audit injected a pending proposal with a store edit to get it on turn 2).",
+        "Press the x (title: \"Close: an offer not answered by End Turn is refused\"). Open Diplomacy, Valdoria."
+      ],
+      "expected": "The offer can be reopened, or the x asks before refusing.",
+      "actual": "The dialog does not come back, the Diplomacy screen and the Valdoria panel show no pending offer, and End Turn refuses it (\"Valdoria: Testland refused our peace offer.\"). The only recovery is a new \"Propose peace\", which the computer may refuse.",
+      "evidence": "output of .gate/audit/diplomacy-council/c33.js (\"after x: dialogs 0\", panel mentions offer? false, reappears? 0)",
+      "frs": [
+        "FR-175"
+      ],
+      "suspect": "AcceptOfferModal / store dismissProposal (dismissedProposalIds): dismissal hides the dialog for the turn and nothing else lists the proposal",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "diplomacy-council-20",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "Diplomacy shows nothing about the other country's strength, so war and peace are chosen blind",
+      "area": "diplomacy",
+      "repro": [
+        "Open Diplomacy and look at Valdoria and a minor."
+      ],
+      "expected": "rules/11 section 3.1: an information page with provinces, military and industry in words, so a player can judge a war or an alliance.",
+      "actual": "Each tab shows only the kind, the relation level and treaty chips; provinces, army and industry of the other country are not shown anywhere in the dialog (the Attack screen shows a defender estimate only for a province next to the player's army).",
+      "evidence": "C:Users\brnatAppDataLocalTempclaude\u0006d278f4c60cadc55c11c618f-69f1-4659-b2b1-f3416944c4fbscratchpadauditshotsdiplomacy-council-02-diplomacy-open.png",
+      "frs": [
+        "FR-177"
+      ],
+      "suspect": "",
+      "fix_size": "M",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "diplomacy-council-21",
+      "kind": "gap",
+      "severity": "nit",
+      "title": "No total of promised (locked) grants on the Diplomacy screen",
+      "area": "diplomacy",
+      "repro": [
+        "Order locked grants ($1,000, $5,000, $10,000 \"each turn\") to two countries, End Turn, open Diplomacy."
+      ],
+      "expected": "rules/11 section 3.3: \"Promised Grants: $X\", the sum of the locked grants, so the player sees the standing drain.",
+      "actual": "Only a chip \"Grant $10,000 each turn\" per country and \"Cash: $83,700\" in the header; the standing total is not shown and the grant stops silently when cash runs short (\"Grant to Valdoria stopped: not enough money.\" appears in the news only).",
+      "evidence": "C:Users\brnatAppDataLocalTempclaude\u0006d278f4c60cadc55c11c618f-69f1-4659-b2b1-f3416944c4fbscratchpadauditshotsdiplomacy-council-c20-chips-arvelia.png; output of .gate/audit/diplomacy-council/c10.js",
+      "frs": [
+        "FR-170",
+        "FR-177"
+      ],
+      "suspect": "",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    }
+  ]
+}

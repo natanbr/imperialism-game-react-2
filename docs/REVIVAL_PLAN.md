@@ -258,6 +258,52 @@ M10 PR 28 (main 69ed08b). Requirements FR-144 to FR-317, every one tested; the g
 merge: 2001 unit tests, 38 Playwright tests passed (1 skipped, the known rail-cursor fixme). Open
 decision cards and carried notes are in `docs/journal.md` ("Resuming here") and on the progress page.
 
+**Status 2026-11-14 (audit).** After M11 (main a690759) Nathan asked for an honest review (NR-033). Eight audit tracks
+played the running app and the headless engine and wrote 160 findings (34 major, 92 minor, 34 nit) to
+`docs/audit/2026-11-14/`. The engine is sound (94 headless games of 40 turns with no broken invariant; 42 of 43 test
+mutations caught), but the player-facing UI has many real bugs and texts that do not match what happens, the computer
+nations barely play, and large parts of Imperialism were never put on any milestone (technology, University, ships and
+sea war, saving, credit, town growth). The old "100% done" meant only that the compact scope of M0 to M11 passed its own
+tests. The findings are grouped into themes T1 to T16, and the themes into milestones M12 to M18 below, ordered by player
+impact and by dependency. M12's requirements are FR-357 to FR-443 with cards Q79 to Q104 (`docs/requirements.md`).
+
+**M12, Honest game (L; themes T1 to T10).** Everything a player can see wrong or that lies: save and load (T1), moving
+the map (T2), Tile Info, refusals and the news where the player looks (T3), click and order bugs and hidden costs (T4),
+transport sliders that limit (T5), honest money figures (T6), honest war and diplomacy (T7), robustness and small screens
+(T8), first-turn guidance (T9), and project documents that match the code (T10). No new game system. Done when: every
+FR-357 to FR-443 row is tested, the full gate is green (unit, lint, types, build, Playwright), a reload keeps the game,
+and a browser QA pass at 1280x720, 800x600 and 390x844 cannot reproduce the T1 to T10 findings. Depends on: nothing.
+
+**M13, Computer nations that play (L; T11).** The computer recruits workers and regiments when it needs them, runs
+steady campaigns, defends and counter-attacks when invaded, staffs the mills it builds, and makes deals and proposals to
+the player; measured on random seeds, not only on pinned ones. Done when: over random seeds it starts a war in most games
+(today about one in three), an invaded computer recruits and fights back, and its workforce no longer shrinks. Depends
+on: M12 (honest screens to watch it with; FR-408's peace rule). Findings: AISIM-01 to -04, ARMY-WAR-01 to -03,
+diplomacy-council-02 and -03, MKT-02, MKT-13.
+
+**M14, A game that can end well (M; T12).** The final ranking counts provinces, army and the Council; the last Council
+is a forced vote; a peaceful Council win can be reached; conquest is no longer the cheapest score. Done when: headless
+games end by Council in a measured share, and a peaceful path to 9 votes exists in a test. Depends on: M13 (a rival that
+plays). Findings: RULES-GAP-11, FR-TRUTH-02, AISIM-05, diplomacy-council-01 and -14, ARMY-WAR-18.
+
+**M15, People and ships (L; T13).** The University and civilian training, the Shipyard and a merchant marine that
+grows past 4 holds, a source of horses, and minor nations whose supply, demand and prices move. Done when: a nation can
+build a civilian and a cargo ship in the app, and horses can be replenished. Depends on: M12. Findings: ECONOMY-13,
+RULES-GAP-03, MKT-01, RULES-GAP-04, FR-TRUTH-16, ARMY-WAR-09, RULES-GAP-09, MKT-09, MKT-10, RULES-GAP-13.
+
+**M16, Technology (L; T14).** The technology list, its purchase screen and its effects (development levels 2 and 3,
+the Oil Refinery, fuel and power). Done when: a technology bought in the app unlocks what the rules say, and levels 2 and
+3 need it. Depends on: M15 (the University). Findings: FR-TRUTH-03, RULES-GAP-01, -02, -16 and -23, UIV-09.
+
+**M17, Sea war and reach (L; T15).** A navy, sea transport and landings, so the island minors can be reached and
+attacked, and army transport by rail. Done when: an army lands on Sundmark in the app and the war-on-islands block of
+FR-406 is lifted. Depends on: M15 (the Shipyard). Findings: FR-TRUTH-01, ARMY-WAR-04, ARMY-WAR-11, AISIM-07, RULES-GAP-05.
+
+**M18, World variety and depth (several pieces; T16).** More terrains and resources, random maps and game options,
+town development, the Developer and overseas profit, credit, the diplomacy leftovers and the original screens; to be
+split into smaller milestones when it comes up. Done when: defined per piece. Depends on: M15 to M17 for most pieces.
+Findings: RULES-GAP-06, -07, -08, -14, -15, -17, -19, -20, -21, -22 and -24, ECONOMY-14, diplomacy-council-05 and -15.
+
 ## 6. Working rules for this project (replaces the old refactoring phases)
 
 - **Done means tested.** A roadmap box is ticked only when a test exists for it. Status in

@@ -1,0 +1,452 @@
+{
+  "track": "ui-visual",
+  "coverage": "Played the production build on http://localhost:3170/ with Playwright (own browser context each run, scripts in .gate/audit/ui-visual/). First screen at 1280x720, 1920x1080, 1024x768, 800x600, 390x844 and 640x360 (200 percent zoom). Opened Warehouse, Capital, Armoury, Board of Trade, Deal Book, Diplomacy (with a war ordered), Transportation, About, Construction Options (depot and port), Army, Attack, Battle (deployment, round, result), Council (turns 11, 21, 31, 41) and Game over at 1280x720, and the first nine plus Army/Attack/Battle/Council/Game over also at 800x600; the first seven at 1024x768, 390x844 and 1920x1080. Per dialog I measured fit, inner scrollers, clipped text, unnamed controls, broken images, small text, tiny click targets and computed colour contrast ratios; I looked at about 45 screenshots. Played a full 40-turn game with no orders (timing 89-234 ms per Advance Turn, no console message), tile selection, worker tray, rail/depot/port building, invalid orders, double click and rapid clicks on Advance Turn, reload, browser back, New game (from the HUD and from Game over), Tab order of the first screen, Escape on dialogs, map scrolling (wheel, keys, edge hover, Center). Listed every tile with its picture file (all 226 land tiles show a sensible picture of the right kind; every pack picture loaded). Console: zero console messages, page errors or failed requests on every screen, except a 404 for /favicon.ico (see UIV-19).",
+  "not_covered": "Accept Offer dialog (needs a proposal from a computer nation; none appeared in my runs). Touch panning on a real phone (only a 390x844 viewport, no touch gestures; touch result is code reading). Screen reader output. Market bids and offers with a consulate, Deal Book with real deals, Armoury recruiting with armaments, Diplomacy alliance/pact/grant results (other tracks). Wool pasture and fort pictures (no such tile or fort appeared on the continent map). Tile hover cursor pictures were only checked as present (data URL cursor), not looked at one by one.",
+  "findings": [
+    {
+      "id": "UIV-01",
+      "kind": "gap",
+      "severity": "major",
+      "title": "Reloading, going back or closing the tab throws the whole game away, with no save and no warning",
+      "area": "hud",
+      "repro": [
+        "Open http://localhost:3170/ and press Advance Turn 5 times (Turn: 6 of 40, Cash $9,500).",
+        "Press F5 (or the browser back button).",
+        "The game shows Turn: 1 of 40, Cash $10,000 again."
+      ],
+      "expected": "A 40-turn strategy game keeps its state across a reload (autosave), or at least warns before leaving the page.",
+      "actual": "The state lives only in memory. localStorage and sessionStorage are empty. No beforeunload prompt. Back goes to about:blank. There is no Save or Load button anywhere.",
+      "evidence": "Script .gate/audit/ui-visual/b1.cjs output: 'after 5 rapid clicks: Turn: 6 of 40 Summer 1816 Cash: $9,500' then 'after reload: Turn: 1 of 40 Spring 1815 Cash: $10,000' and 'storage keys {\"local\":[],\"session\":[],...}'; 'after back url: about:blank'. docs/REVIVAL_PLAN.md:35 admits 'No save/load'.",
+      "frs": [],
+      "suspect": "src/app/store/rootStore.ts: no persistence layer; docs/REVIVAL_PLAN.md:35 lists save/load as not done.",
+      "fix_size": "M",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "UIV-02",
+      "kind": "bug",
+      "severity": "major",
+      "title": "The map cannot be scrolled with the mouse wheel, trackpad, touch or keyboard; only by holding the pointer at the window edge",
+      "area": "map",
+      "repro": [
+        "Open the game in a 800x600 window (map 1029x672 plus the 250 px HUD does not fit).",
+        "Put the pointer on the map and turn the mouse wheel down and sideways; press ArrowRight, End, PageDown.",
+        "Nothing moves. Only pointing within 20 px of the window edge scrolls (at 10 px a frame)."
+      ],
+      "expected": "The camera is the map container's scroll position (FR-083), so the usual scroll inputs move it.",
+      "actual": "Wheel and key input leave scrollLeft at 0 although the maximum is 479 (and scrollTop 72 of 72). The container is overflow:hidden and only useEdgeScroll moves it. On a touch screen there is no pointer, so the map cannot be panned at all.",
+      "evidence": "Script h1.cjs / h2.cjs at 800x600: 'initial L=0 T=72 maxL=479', 'after wheel right ... \"left\":0', 'after keys L=0'; pointer at the right edge 'L=340' after 0.5 s and 'L=479' after 2 s. Same at 1024x768 (maxL=255, wheel changes nothing).",
+      "frs": ["FR-083", "FR-088"],
+      "suspect": "src/app/components/MapView.module.css .container { overflow: hidden } and src/app/hooks/useEdgeScroll.ts: the edge hover is the only scroll input.",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "UIV-03",
+      "kind": "bug",
+      "severity": "minor",
+      "title": "Edge scrolling also fires over the HUD buttons at the window's right edge, so reaching Advance Turn drags the map",
+      "area": "map",
+      "repro": [
+        "Open the game in a 800x600 or 1024x768 window.",
+        "Move the pointer over the right end of the Advance Turn button (x above window width minus 20) or anywhere on the HUD's right 20 px.",
+        "The map scrolls right at 10 px a frame until the end of the map."
+      ],
+      "expected": "Pressing a HUD button does not move the map (the code comment says this is the intent for the bottom edge).",
+      "actual": "Only the vertical edge is excluded over the HUD; the right 20 px of the window always scrolls horizontally, and the scroll keeps running while the pointer stays there. The HUD buttons end 12 px from the window edge, so their right 8 px lie in the zone.",
+      "evidence": "Script h2.cjs at 800x600: pointer at (795,250) gave 'L=340' after 0.5 s and 'L=479' after 2 s; Advance Turn spans x=651-788 at that width.",
+      "frs": ["FR-083"],
+      "suspect": "src/app/hooks/useEdgeScroll.ts:33-35 sets dy=0 over [data-edge-scroll=horizontal-only] but leaves dx; the rAF loop has no mouseleave stop.",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "UIV-04",
+      "kind": "visual",
+      "severity": "major",
+      "title": "After clicking a tile, the Tile Info, workers, job state and news are below the fold of the HUD pane; on small windows the panel is not visible at all",
+      "area": "hud",
+      "repro": [
+        "Open the game at 1280x720, click any own tile (for example the farm 5-8).",
+        "The HUD shows Tile Info only down to 'Province:' (cut off by a fade); 'Workers on Tile', the job and Cancel button, and 'News from last turn' need an inner scroll with no visible scrollbar.",
+        "At 800x600 click a tile: the HUD looks unchanged, because the Tile Info starts below the visible 298 px pane."
+      ],
+      "expected": "Selecting a tile shows what is on it and what it is doing where the player looks.",
+      "actual": "The six dialog buttons and Center/Advance Turn take 260 px of the HUD column, leaving a scroll pane of 418 px at 1280x720 and 298 px at 800x600, while the content is 693-773 px tall. Nothing tells the player to scroll (scrollbar not visible, only a fade).",
+      "evidence": "Script c2.cjs: 'clientH:418, scrollH:693, newsTop:483 (pane bottom 430)'; a6.cjs: '800x600 ... clientH:298, scrollH:773'. Screenshots ui-visual-21-farm-selected-1280x720.png, ui-visual-23-hud-tile-selected-800x600.png, ui-visual-47-hud-scroll-zoom.png, ui-visual-48-hud-scrolled-bottom.png.",
+      "frs": ["FR-106", "FR-108"],
+      "suspect": "src/app/components/HUD.tsx hud-content (overflow auto) above a fixed button column; FR-106 says its layout line was 'checked by eye'.",
+      "fix_size": "M",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "UIV-05",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "A refused map order (for example a prospector sent onto the sea) shows its reason only in the hidden part of the Tile Info panel",
+      "area": "hud",
+      "repro": [
+        "At 1280x720 pick the prospector from the capital's civilian tray.",
+        "Click the sea tile in the top-left corner (tile 0-0).",
+        "Look at the screen."
+      ],
+      "expected": "A visible message near the click or at the top of the HUD.",
+      "actual": "The only feedback is the line 'Move refused: not possible on that tile.' inside the Tile Info panel under 'Workers on Tile', below the fold (UIV-04). On screen the player sees only that the sea tile is selected. Same for a miner sent onto Valdoria's land.",
+      "evidence": "Script k1.cjs: 'prospector -> sea ... alerts: [ \"Move refused: not possible on that tile.\" ]'; screenshot ui-visual-110-invalid-sea-click.png shows the HUD ending at 'Owner: Unclaimed' with no message.",
+      "frs": [],
+      "suspect": "src/app/components/TileInfoPanel.tsx renders lastRejection inside the scrolled pane.",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "UIV-06",
+      "kind": "visual",
+      "severity": "minor",
+      "title": "At 200 percent browser zoom (640x360 CSS px) the HUD shows only the title; turn, date, cash and score sit in a 58 px scroll window",
+      "area": "hud",
+      "repro": [
+        "Open the game in a 640x360 viewport (a 1280x720 window at 200 percent zoom) or a window about 400 px high.",
+        "Look at the HUD."
+      ],
+      "expected": "Turn, date and cash stay readable (WCAG reflow).",
+      "actual": "The fixed button column takes 282 px of the 360; the scroll pane is 58 px, showing the title and half of the New game / About row. Cash, turn and score need inner scrolling.",
+      "evidence": "Script n1.cjs: '640x360 hudContent [12,70]'; screenshot ui-visual-140-small-640x360.png.",
+      "frs": [],
+      "suspect": "src/app/components/HUD.tsx / globals.css: .hud-content flex:1 under fixed action buttons, no compact layout.",
+      "fix_size": "M",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "UIV-07",
+      "kind": "visual",
+      "severity": "nit",
+      "title": "A 'Debug' box with the tile id and the game seed is shown to the player in the HUD",
+      "area": "hud",
+      "repro": [
+        "Click any tile.",
+        "Scroll the HUD pane to the bottom."
+      ],
+      "expected": "No debug output in the finished game, or behind a switch.",
+      "actual": "A dashed 'Debug' box with 'Tile: 5,8 (id 5-8)' and 'Seed: 2027236226' (and the tile coordinates written in a different format than the news uses).",
+      "evidence": "Screenshot ui-visual-48-hud-scrolled-bottom.png and ui-visual-190-hud-workers-on-tile.png.",
+      "frs": [],
+      "suspect": "src/app/components/HUD.tsx (hud-debug-section).",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "UIV-08",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "News names places by internal tile ids ('coal at 5-2', 'Rail finished at 2-8') but the map shows no coordinates, so the player cannot find them",
+      "area": "hud",
+      "repro": [
+        "Order a prospector on a hidden barren-hills tile and end the turn.",
+        "Read the news: 'Prospectors found coal at 5-2.'",
+        "Try to find tile 5-2 on the map."
+      ],
+      "expected": "A place name (province) or a map highlight when clicking the news line.",
+      "actual": "Only the raw id 'col-row' is given. The only place showing coordinates is the Debug box, in the form '5,2'. Also seen in the Valdoria lines ('Tile 17-4 developed to level 2').",
+      "evidence": "Script c1.cjs news text: 'Prospectors found coal at 5-2. | Rail finished at 2-8. ... Valdoria: Prospectors found coal at 17-4.'",
+      "frs": ["FR-024"],
+      "suspect": "src/app/components/gameText.ts eventText: resource-discovered, development-completed, construction-completed print event.tileId.",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "UIV-09",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "The Capital dialog has a permanently disabled 'Technology' button (placeholder: 'Coming in a later milestone')",
+      "area": "capital",
+      "repro": [
+        "Click Open Capital.",
+        "Look at the top-right button row: Warehouse, Trade, Diplomacy, Armoury, Technology.",
+        "Technology is greyed out; its tooltip reads 'Coming in a later milestone'."
+      ],
+      "expected": "Either a working Technology screen or no button on a game marked done.",
+      "actual": "A visible placeholder with a university picture; the game has no technology screen.",
+      "evidence": "Screenshot ui-visual-11-dlg-Capital-1280x720.png; src/app/components/CapitalModal.tsx:66 disabled title=\"Coming in a later milestone\".",
+      "frs": ["FR-333"],
+      "suspect": "src/app/components/CapitalModal.tsx:66.",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "UIV-10",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "No zoom, and on large screens the small map is not centred: at 1920x1080 it fills the top-left quarter and the rest is empty sea",
+      "area": "map",
+      "repro": [
+        "Open the game at 1920x1080.",
+        "The 1029x672 map sits in the top-left; roughly 55 percent of the area is empty sea. No zoom control or key exists (tiles are fixed at 42 px)."
+      ],
+      "expected": "The map can be zoomed, or at least is centred / scaled to the free area.",
+      "actual": "Fixed 42 px tiles, camera 0,0 when the map fits.",
+      "evidence": "Screenshot ui-visual-002-first-1920x1080.png; no zoom in docs/requirements.md (grep zoom: nothing).",
+      "frs": ["FR-088"],
+      "suspect": "src/app/components/MapView.tsx, styles/theme.ts TILE_PX fixed.",
+      "fix_size": "M",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "UIV-11",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "Map tiles cannot be reached with the keyboard, so a keyboard-only player cannot select a tile or give any map order",
+      "area": "map",
+      "repro": [
+        "Open the game and press Tab repeatedly.",
+        "The focus visits 5 army/civilian buttons on the map, then New game, About, the six HUD buttons, Advance Turn, then the page; it never lands on a tile."
+      ],
+      "expected": "Tiles (role group with a full accessible name) are focusable, or another keyboard route exists to select a tile and act on it.",
+      "actual": "Prospecting, development, rail, depot and port orders are mouse-only.",
+      "evidence": "Script b2.cjs: Tab 0-4 = army/stack buttons, 5-14 = HUD buttons, 15 = BODY, then the cycle repeats; no TILE/group in the list.",
+      "frs": ["FR-111"],
+      "suspect": "src/app/components/Tile.tsx: the tile div has no tabIndex or key handler.",
+      "fix_size": "M",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "UIV-12",
+      "kind": "visual",
+      "severity": "minor",
+      "title": "At phone width (390x844) the Capital, Diplomacy and Board of Trade dialogs break and the map cannot be used",
+      "area": "dialogs",
+      "repro": [
+        "Open the game at 390x844.",
+        "Open Capital: the Industry column is squeezed to about 25 px ('Ir'), and the close button, Armoury and Technology buttons are pushed outside the dialog (scrollWidth 561 against 367).",
+        "Open Diplomacy: the right pane (Overtures, Grant) is cut off at the edge. Open Market: the table is wider than the dialog.",
+        "On the map screen the 250 px HUD leaves 140 px of map, and touch cannot pan it (UIV-02)."
+      ],
+      "expected": "At least a readable, closable layout; or a statement that phones are not supported.",
+      "actual": "Content cut off and horizontally overflowing; the viewport meta tag (width=device-width) invites phones.",
+      "evidence": "Screenshots ui-visual-11-dlg-Capital-390x844.png, ui-visual-14-dlg-Diplomacy-390x844.png, ui-visual-002-first-390x844.png; audit output 'Capital @390x844 rootScroll sw:561 cw:367'.",
+      "frs": [],
+      "suspect": "Capital.module.css, Diplomacy.module.css, Market.module.css have no narrow breakpoint.",
+      "fix_size": "L",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "UIV-13",
+      "kind": "visual",
+      "severity": "minor",
+      "title": "Board of Trade: the 'Minor Nations' column (who buys and sells, and which consulate is missing) is cut off at 800x600 and below",
+      "area": "market",
+      "repro": [
+        "Open the game at 800x600 and click Open Market.",
+        "The table is wider than the dialog; the Minor Nations column starts at the right edge showing only 'Buyer' / 'No m'.",
+        "At 1024x768 the table fits but the pane scrolls 782 px inside a 646 px area."
+      ],
+      "expected": "All columns visible or an obvious horizontal scroll.",
+      "actual": "The key trade information needs a horizontal scroll with no visible cue.",
+      "evidence": "Screenshot ui-visual-12-dlg-Board-of-Trade-800x600.png; audit 'beyond: TABLE.Market-module__we34vq__table ...' at 800x600.",
+      "frs": ["FR-194"],
+      "suspect": "src/app/components/market/Market.module.css table width / .boardPane.",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "UIV-14",
+      "kind": "visual",
+      "severity": "nit",
+      "title": "Capital dialog needs inner scrolling in both columns even at 1280x720 (Clothing factory and the lower Transport panel are cut off at the bottom)",
+      "area": "capital",
+      "repro": [
+        "At 1280x720 click Open Capital.",
+        "The Clothing factory card is half cut at the bottom edge; the Transport panel on the right is cut after 'Freight car'.",
+        "At 800x600 the Industry column is 1238 px tall in a 443 px area."
+      ],
+      "expected": "A primary area that fits, or a visible scroll cue.",
+      "actual": "Two independent inner scrollers (Industry 664/577, side panel 681/577) with no scrollbar visible in the screenshot.",
+      "evidence": "Screenshot ui-visual-11-dlg-Capital-1280x720.png; audit scrollers 'MAIN.Capital-module__KzaqGW__industry 664/577, ASIDE ... 681/577'; at 800x600 '1238/443'.",
+      "frs": [],
+      "suspect": "src/app/components/capital/Capital.module.css.",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "UIV-15",
+      "kind": "visual",
+      "severity": "nit",
+      "title": "Small text and small click targets: 10 px notes in the Board of Trade, 22x22 px stepper buttons, 21x24 px About close button",
+      "area": "market",
+      "repro": [
+        "Open Open Market: the notes 'No minor nation sells this', 'We need a consulate with a buyer', 'No one buys this' are 10 px.",
+        "The '+' stepper buttons measure 22x22 px; the About dialog's '×' is 21x24 px."
+      ],
+      "expected": "Text of at least 11-12 px; targets of at least 24x24 px (WCAG 2.2 target size, which FR-110 applies to worker buttons).",
+      "actual": "As listed.",
+      "evidence": "Audit output of a4.cjs: 'smallText:[\"10px:No minor nation sell\",...]', 'tinyTargets:[\"+ 22x22\" x8]', About 'tinyTargets:[\"× 21x24\"]'.",
+      "frs": ["FR-110"],
+      "suspect": "market/Stepper.tsx and Market.module.css; HUD/AboutPanel.tsx.",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "UIV-16",
+      "kind": "visual",
+      "severity": "nit",
+      "title": "Disabled controls are drawn at 2.1 to 2.4 to 1 contrast, including the always-disabled Cancel buttons",
+      "area": "dialogs",
+      "repro": [
+        "Open Capital, Diplomacy, Army or the Battle screen.",
+        "Compute the colour ratio of the disabled buttons (Cancel, Technology, Consulate, Embassy, Propose peace, March, Disband, Next round, Skip to result, '+' and '−')."
+      ],
+      "expected": "Readable (WCAG exempts disabled controls, but these carry information such as which overtures are unavailable).",
+      "actual": "Text rgb(59,59,59) at reduced opacity on #fffcf5 gives 2.40:1 (2.14:1 for the Board's '+'). All other text I scanned in the HUD, map and dialogs reached at least 4.5:1.",
+      "evidence": "contrast() scan in .gate/audit/ui-visual/lib.cjs via a4.cjs and f1.cjs: '2.40 (need 4.5) fs=13 \"Technology\"', '2.14 ... \"+\"'. Token ratios (computed): ink #3b3b3b on surface #faf6ec is above 9:1.",
+      "frs": ["FR-094"],
+      "suspect": "global .btn:disabled opacity rule.",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "UIV-17",
+      "kind": "visual",
+      "severity": "nit",
+      "title": "Council dialog at 800x600 is taller than the window; focus on Close scrolls the title and picture out of view",
+      "area": "council",
+      "repro": [
+        "Open the game at 800x600 and press Advance Turn 10 times; the Council opens by itself on turn 11.",
+        "The dialog is 632 px of content in a 568 px box; the header 'Council of Governors' is cut at the top."
+      ],
+      "expected": "The whole dialog visible (FR-299 only guarantees this at 1280x720).",
+      "actual": "The dialog scrolls itself and the title is hidden once Close has the focus.",
+      "evidence": "Screenshot ui-visual-120-Council-of-Governors-turn11-800x600.png; audit 'rootScroll sh:632 ch:568'.",
+      "frs": ["FR-299"],
+      "suspect": "src/app/components/council/Council.module.css (max-height without compact spacing).",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "UIV-18",
+      "kind": "gap",
+      "severity": "nit",
+      "title": "No page landmarks, no h1 and no live region: the HUD title is an h2 and news, refusals and the food warning are not announced",
+      "area": "hud",
+      "repro": [
+        "Inspect the page: no main, nav, header or aside element, no h1 (only the h2 'Testland'), no aria-live or role=status region.",
+        "End a turn: the new news, the 'Food is short' warning and 'Move refused' lines appear silently."
+      ],
+      "expected": "A screen reader user gets landmarks and announcements for turn results.",
+      "actual": "None.",
+      "evidence": "Script j1.cjs: 'landmarks:[], h1:[], headings:[\"H2:Testland\"], live:[]'.",
+      "frs": [],
+      "suspect": "src/app/page.tsx, HUD.tsx, HUD/NewsPanel.tsx.",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "UIV-19",
+      "kind": "bug",
+      "severity": "nit",
+      "title": "/favicon.ico answers 404 (a console error in a real browser) and public/ still holds the create-next-app template files",
+      "area": "hud",
+      "repro": [
+        "Request http://localhost:3170/favicon.ico (or watch the console of a normal browser tab).",
+        "Look in public/: file.svg, globe.svg, next.svg, vercel.svg, window.svg."
+      ],
+      "expected": "A tab icon; no unused template assets.",
+      "actual": "404 'Failed to load resource'; the tab shows the default icon; five unused template files ship.",
+      "evidence": "curl: 'favicon.ico: 404'; browser console '[console.error] Failed to load resource: the server responded with a status of 404 (Not Found)' after a fetch of /favicon.ico (headless Chromium does not request it on its own, so seen via fetch).",
+      "frs": ["FR-096"],
+      "suspect": "No icon in src/app/layout.tsx or src/app/favicon.ico; public/*.svg unused.",
+      "fix_size": "S",
+      "confidence": "seen-once"
+    },
+    {
+      "id": "UIV-20",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "Advance Turn has no guard: a double click ends two turns and five quick clicks end five, even with all civilians idle and no orders given",
+      "area": "hud",
+      "repro": [
+        "On turn 1 double-click Advance Turn.",
+        "The HUD shows Turn: 3 of 40 (two turns resolved, no confirmation, no undo)."
+      ],
+      "expected": "A short lock after the click, or a warning when civilians are idle.",
+      "actual": "Each click resolves a full turn at once (about 100-230 ms). A mis-click costs a turn irrevocably; nothing warns that all seven civilians are idle.",
+      "evidence": "Script k1.cjs: 'after dblclick Advance: Turn: 3 of 40 Fall 1815'; b1.cjs: 5 clicks without waiting gave 'Turn: 6 of 40'. d1.cjs: an idle player reaches turn 40 with score 200 against 1277 and never gets a hint.",
+      "frs": [],
+      "suspect": "src/app/components/HUD/ActionButtons.tsx onClick advanceTurn without guard.",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "UIV-21",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "A new player gets no guidance: the first screen never says what to do, the civilian tray holds unlabelled 24 px figures, and the HUD says nothing when the turn is ended idle",
+      "area": "hud",
+      "repro": [
+        "Open the game and look at the first screen at 1280x720.",
+        "Click the stack of 7 civilians: seven small figures without text appear (only a tooltip 'prospector', 'farmer', ... in lowercase).",
+        "End the turn without orders."
+      ],
+      "expected": "A hint of the first steps (pick a civilian, click a tile) and visible labels.",
+      "actual": "No instructions, tutorial text or 'N civilians idle' line. The tile panel lists workers as '●prospector - available'. Only the About dialog has a legend, and only for borders.",
+      "evidence": "Screenshots ui-visual-001-first-1280x720.png and ui-visual-170-tray.png; script r1.cjs: 'prospector title=prospector aria=prospector size=24x24'.",
+      "frs": [],
+      "suspect": "No onboarding component in src/app/components.",
+      "fix_size": "M",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "UIV-22",
+      "kind": "visual",
+      "severity": "nit",
+      "title": "Depot and port marks are tiny and an engineer standing on the tile hides them; the capital picture is mostly covered by the army marker and the civilian stack",
+      "area": "map",
+      "repro": [
+        "Build rail 2-8 and 2-7, then a depot or a port on 2-7 (engineer, click the tile's free corner, Construction Options).",
+        "After the building is done, the engineer figure and the selection frame cover the tile; the port is a mark about 25x12 px at the tile's top-left.",
+        "Look at the capital tile 2-9: army marker (left) and civilian stack (right) cover most of the capitol drawing."
+      ],
+      "expected": "The new building is easy to see.",
+      "actual": "Only the tooltip 'Port: connected' (aria-label) identifies it while the engineer stays.",
+      "evidence": "Screenshots ui-visual-160-port-built.png, ui-visual-162-port-after-engineer-left.png, ui-visual-61-rail-depot-built.png, ui-visual-25-capital-zoom.png.",
+      "frs": ["FR-324"],
+      "suspect": "Tile/TileInfrastructure.tsx mark size and z-order against TileWorkers.",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "UIV-23",
+      "kind": "gap",
+      "severity": "nit",
+      "title": "About credits name only Game Icons; the ink-and-wash art pack that draws the map, goods, buildings and figures is not mentioned",
+      "area": "docs",
+      "repro": [
+        "Click About: 'A web remake of Imperialism (1997). Icons by game-icons.net contributors, CC BY 3.0.' plus the border legend."
+      ],
+      "expected": "Credit for the main art source (and its licence), as FR-089 did for the previous icons.",
+      "actual": "Only the small Game Icons set (HUD and marker icons) is credited.",
+      "evidence": "Screenshot ui-visual-16-dlg-About-1280x720.png.",
+      "frs": ["FR-089"],
+      "suspect": "src/app/components/HUD/AboutPanel.tsx.",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "UIV-24",
+      "kind": "visual",
+      "severity": "nit",
+      "title": "Small naming and noise issues in the HUD: 'Open Market' opens the 'Board of Trade'; Tile Info always prints 'River: No' although the game has no rivers; Escape does not close the New game question",
+      "area": "hud",
+      "repro": [
+        "Click Open Market: the dialog is titled 'Board of Trade'.",
+        "Click any land tile: 'River: No' is printed for every tile.",
+        "Click New game, press Escape: the question 'Start a new game? This game will be lost.' stays."
+      ],
+      "expected": "Consistent names; no meaningless rows; Escape dismisses the inline question like it dismisses every dialog.",
+      "actual": "As listed.",
+      "evidence": "Script k1.cjs: 'confirm still there after Escape? 1'; HUD text 'Terrain: Farm | River: No | Resource: Grain (L0)'.",
+      "frs": ["FR-109", "FR-250"],
+      "suspect": "HUD.tsx ConfirmNewGame has no key handler; TileInfoPanel.tsx prints River.",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    }
+  ]
+}

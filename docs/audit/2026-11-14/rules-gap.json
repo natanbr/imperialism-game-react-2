@@ -1,0 +1,612 @@
+{
+  "track": "rules-gap",
+  "coverage": "EXERCISED: read rules 01-11 and gaps.md, REVIVAL_PLAN, roadmap.json; read the engine (orders, validate, phases, systems, market, council, score, ai, world) and the Capital/Board/Diplomacy/Armoury/Warehouse/Transport/Deal Book dialogs; drove the live app at http://localhost:3170/ with Playwright (e1-e8.cjs) and the headless engine with vitest (p1-p4.test.ts) in .gate/audit/rules-gap/. No repository file was edited.\nTABLE: topic | status | evidence\nTurn structure and calendar | built (13 phases; interceptions is a no-op) | phases.ts:23-37; interceptionsSystem.ts:4-9; Spring 1815 start, 40 turns to Winter 1824\nMap and terrain | partial | one hand-drawn 24x16 map, 6 of 14 land terrains, no river/coast/wrap, no seeded generation; twoIslands.ts:14-31; p1\nScale (nations, provinces) | partial, compressed | 2 Great Powers (7), 4 minors (16), 12 provinces (120); p1\nResources and prospecting | partial | 7 of 13 resources on the map (no wool, fish, horses, oil, gold, gems); coal and iron hidden + prospect works but always succeeds; level table matches rules 02; p1\nDevelopment levels and tech gates | wrong | levels 2-3 and Rancher/Forester/Driller need no tech; p2; RULES-GAP-02\nCivilians | partial | 7 start civilians work (jobs, costs, durations match rules 03); no University, no Developer; no engineer rest; RULES-GAP-03, 18\nTransport (rail, depot, port, capacity, allocation) | built, partial | rail by terrain and cost, depot, port, connectivity, 15 freight cars, sliders work; no river ports, fish, blockade, town development; gold/gems cash path dead\nIndustry buildings and chains | built (7 of 8 production buildings) | textile, clothing, lumber/paper, furniture, steel, metal works (hardware/armaments), food processing, expansion ladder, labour grades, food, training, migration work (p4 chain: armaments -> Regulars in 2 turns, paper -> trained worker)\nFuel, oil, refinery, power plant | stub/dead | refinery card hidden, oilDrillingTechUnlocked true only in tests, no Power Plant; RULES-GAP-16\nTechnology and research | missing | 5 flags (3 free), Technology button disabled; RULES-GAP-01\nUniversity | missing | no order or button; RULES-GAP-03\nShipyard and merchant ships | missing | holds fixed at 4; RULES-GAP-04\nTrade and world market | partial | 4 bids, offers, holds, favourite partner, subsidy 6 steps, boycott, price drift, Deal Book work; orders reset each turn; minors constant; no offer sheet or Trade Book; RULES-GAP-12, 13\nCredit, finance, wages | partial | Deal Book sold/bought/upkeep/net only; no credit, interest, overseas profit; Imp1 has no wages (matches); RULES-GAP-14\nTariffs and spies | not in Imp1 | neither exists in rules 01-11 (subsidies and boycotts exist and work); not a gap\nDiplomacy | partial | consulate, embassy, pact, alliance, war, peace, 4 grant sizes, 9 levels, scripted answers work; no Join the Empire, colony boycott, auto-subsidy, intervention; alliance is a flag; RULES-GAP-08, 21\nMinor nations | partial | 4 minors, one province each, 3 Minutemen, no fort; 3 of 4 unreachable by land; trade and Council votes work; RULES-GAP-05, 19\nColonies and Developer | partial | colony by conquest only; Council votes as colonies; no overseas profit; RULES-GAP-08\nLand military | partial | 9 era-1 regiments (7 recruitable), Armoury, upkeep $25/arms, marches, attacks, auto battle replay, fort level 1, conquest work; no generals, medals, sappers, rail deploy, landing; horses finite; RULES-GAP-09, 20\nNavy and sea transport | missing | fleets [] , interceptions TODO, no sea zones; RULES-GAP-05\nCouncil of Governors | built, compressed | turns 10/20/30/40, 12 votes, 9 needed, top-2 nominees, minors by relations; no charts, no forced last vote; RULES-GAP-11\nVictory and score | partial | conquest win, Council win, 40-turn ranking by treasury/100 + 10 x capacity + 10 x levels; not the 9-category score; RULES-GAP-11\nScreens (rules/11) | partial | Board, Deal Book, Diplomacy (list), Armoury, Army, Attack, Battle, Council, Game over, Engineer options present; 12 screens missing; RULES-GAP-22\nComputer nation | partial | economy, trade and war on the weakest bordering minor from turn 10; never allies, never attacks the human; RULES-GAP-21\nGame setup and saving | missing | no save/load, no difficulty, no options, fixed map; RULES-GAP-07, 10, 24\nDocs vs code | wrong in places | CODE MISMATCH blocks stale; roadmap data inconsistent; RULES-GAP-28, 29, 30",
+  "not_covered": "I did not play 40 turns by hand or reach a winning Council vote on screen; AI play quality, battle fairness, prices and balance are other tracks. Tech and unit counts, town development, credit and the transport rules were judged from code and probes, not from play. Original-game numbers were not re-verified against the PDF (not allowed); Firefox and mobile widths not tried.",
+  "findings": [
+    {
+      "id": "RULES-GAP-01",
+      "kind": "gap",
+      "severity": "major",
+      "title": "No technology tree: 28 technologies, the purchase screen and research are missing",
+      "area": "economy",
+      "repro": [
+        "Open http://localhost:3170/, click Open Capital.",
+        "Look at the Technology button in the dialog header (greyed out, tooltip \"Coming in a later milestone\").",
+        "Search the order list: Order.ts has 27 order kinds and none buys a technology."
+      ],
+      "expected": "Rules 09: 28 technologies bought with cash on a technology screen, each unlocking rail terrain, civilians, levels, buildings, units and ships; techs appear by year window.",
+      "actual": "The game has 5 technology flags in a list shared by both nations (technologyState). Only 2 are the real start techs (High Pressure Steam Engine, Seed Drill); Compound Steam Engine, Iron Railroad Bridge and Dynamite are given free by decision Q8/NR-015. Nothing can be bought, and nothing but rail/depot-on-hills reads the list. Planning note: the game ends in Winter 1824, so a faithful tech tree would show at most 5 of the 26 purchasable techs (windows 1816-1825); the game length must be decided together with the tech tree.",
+      "evidence": "Live: C:/Users/brnat/AppData/Local/Temp/claude/6d278f4c60cadc55/c11c618f-69f1-4659-b2b1-f3416944c4fb/scratchpad/audit/shots/rules-gap-02-capital.png (Technology greyed). Headless p1.test.ts output: \"techs highPressureSteamEngine:true,seedDrill:true,compoundSteamEngine:true,ironRailroadBridge:true,dynamite:true\". Command: npx vitest run --config .gate/audit/rules-gap/vitest.config.ts .gate/audit/rules-gap/p1.test.ts",
+      "frs": [
+        "FR-051",
+        "FR-059"
+      ],
+      "suspect": "src/app/components/CapitalModal.tsx:66 (disabled button); src/app/engine/world/startWorld.ts:45-92 (free techs); src/app/engine/orders/Order.ts:279-307 (no tech order).",
+      "fix_size": "L",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "RULES-GAP-02",
+      "kind": "bug",
+      "severity": "major",
+      "title": "Resource levels 2 and 3 and the Rancher, Forester and Driller need no technology: whole development ladder open on turn 1",
+      "area": "workers",
+      "repro": [
+        "Headless: npx vitest run --config .gate/audit/rules-gap/vitest.config.ts .gate/audit/rules-gap/p2.test.ts",
+        "In the app the same validateOrder applies (not clicked by me): Farmer on the capital, click a farm tile next to the capital (level 1), the level-2 order costs $1,000; 3 turns later level 3 for $5,000."
+      ],
+      "expected": "Rules 02 section 3 and 09: level 2 needs Steel and Iron Plows / Spinning Jenny / Barbed Wire / Compound Steam Engine / Square-Set Timbering / Chemistry, level 3 needs Mechanical Reaper / Power Loom / Dynamite / Internal Combustion; the Rancher needs Feed Grasses, the Forester Iron Railroad Bridge, the Driller Oil Drilling; cotton level 1 needs Cotton Gin.",
+      "actual": "validateOrder returns ok:true for: farmer farm L1->L2, farmer plantation L1->L2, rancher open range L0->L1, forester forest L0->L1; after 3 turns the same farm accepts L2->L3 ($5,000). All 7 civilian types (also Rancher, Forester and Driller) stand on the capital at turn 1 (tile panel lists them). Every level is open at once, so the original pacing (tech years 1816-1898) is gone and \"10 points per level\" in the score is cheap to farm.",
+      "evidence": "p2.test.ts stdout: \"farmer -> farm L1->L2 {\"ok\":true}\", \"rancher -> open range L0->L1 {\"ok\":true}\", \"forester -> forest L0->L1 {\"ok\":true}\", \"farm level after 4 turns 2\", \"farm L2->L3 {\"ok\":true}\". Live tile panel: C:/Users/brnat/AppData/Local/Temp/claude/6d278f4c60cadc55/c11c618f-69f1-4659-b2b1-f3416944c4fb/scratchpad/audit/shots/rules-gap-11-capital-tile.png (\"Workers on Tile: prospector, farmer, rancher, forester, miner, driller, engineer\").",
+      "frs": [
+        "FR-051"
+      ],
+      "suspect": "src/app/engine/orders/validate.ts:190-202 checkDevelopment has no technology check (only level <= 3 and cost); only rail/depot-on-hills read hasTechnology (queries.ts:103-107, 167-172).",
+      "fix_size": "M",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "RULES-GAP-03",
+      "kind": "gap",
+      "severity": "major",
+      "title": "No University: civilians cannot be built, a nation has exactly 7 for the whole game, and there is no Developer",
+      "area": "workers",
+      "repro": [
+        "Open Capital: look for a University button or card (there is none; the University picture is used for the disabled Technology button).",
+        "Select the capital tile: \"Workers on Tile\" lists 7 civilians (1 each of prospector, farmer, rancher, forester, miner, driller, engineer).",
+        "Play any number of turns: no order or button creates, disbands or replaces a civilian."
+      ],
+      "expected": "Rules 03 and 05: the University turns 1 expert worker + cash + 2 paper into a civilian each turn; extra Farmers, Miners, Engineers are the way to grow; the Developer is a reward unit for buying land in Minor Nations; disband returns an expert worker.",
+      "actual": "Civilian count is fixed at the 7 start units per nation. No Developer exists (WorkerType.Developer is only an enum value and a dead src/app/workers/DeveloperWorker.ts). One Engineer must build all rail, depots, ports and forts of the game; one Miner must raise all mines.",
+      "evidence": "Live capital dialog button list (e1.cjs): Warehouse, Trade, Diplomacy, Armoury, Technology(disabled), production cards, Labour, Trade School, Capitol, Freight car. C:/Users/brnat/AppData/Local/Temp/claude/6d278f4c60cadc55/c11c618f-69f1-4659-b2b1-f3416944c4fb/scratchpad/audit/shots/rules-gap-02-capital.png; C:/Users/brnat/AppData/Local/Temp/claude/6d278f4c60cadc55/c11c618f-69f1-4659-b2b1-f3416944c4fb/scratchpad/audit/shots/rules-gap-11-capital-tile.png. Journal \"Carried forward: Deferred: ... University fees; the power plant\". Decision NR-029.",
+      "frs": [
+        "FR-114"
+      ],
+      "suspect": "No order kind for civilians in src/app/engine/orders/Order.ts:242-269; start units placed in src/app/engine/world/startWorld.ts:154-181.",
+      "fix_size": "M",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "RULES-GAP-04",
+      "kind": "gap",
+      "severity": "major",
+      "title": "Merchant marine is frozen at 4 cargo holds: no Shipyard, trade is capped at 4 units per turn for the whole game",
+      "area": "trade",
+      "repro": [
+        "Open Market (Board of Trade).",
+        "Read the header: \"Holds: 4 of 4 free\".",
+        "End several turns and look again: it stays 4; no button or order adds a ship."
+      ],
+      "expected": "Rules 06 section 3: holds grow through merchant ships built at the Shipyard (Trader 2, Indiaman 4, Clipper 4, Steamship 8): 4 holds in 1815, 12 in 1816, 60 in 1843, 222 in 1875.",
+      "actual": "Every sale and bid takes one hold and the nation has 4, so total trade is at most 4 units a turn (about $3,600 at goods prices) for 40 turns. The same cap binds the computer nation. Card Q14/NR-018 keeps this \"until ships exist\"; ships were never scheduled.",
+      "evidence": "Live C:/Users/brnat/AppData/Local/Temp/claude/6d278f4c60cadc55/c11c618f-69f1-4659-b2b1-f3416944c4fb/scratchpad/audit/shots/rules-gap-03-market.png (\"Holds: 4 of 4 free\", \"Bids: 0 of 4\"). Code: merchantMarine { holds: 4, avgSpeed: 10 } at startWorld.ts:131; no code ever writes merchantMarine.holds.",
+      "frs": [
+        "FR-063",
+        "FR-188"
+      ],
+      "suspect": "src/app/engine/world/startWorld.ts:131; src/app/engine/market/market.ts:57 reads holds; no Shipyard/ship order exists.",
+      "fix_size": "M",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "RULES-GAP-05",
+      "kind": "gap",
+      "severity": "major",
+      "title": "No navy or sea war: fleets are empty arrays, the interceptions phase is a TODO, and 3 of the 4 minor nations can never be reached",
+      "area": "war",
+      "repro": [
+        "Headless probe p1.test.ts prints each province's neighbours: province-minor-2 (Sundmark), province-minor-3 (Lorran), province-minor-4 (Pellis) have no adjacent province.",
+        "moveArmy needs a bordering province (reason \"not-adjacent\", armyOrders.ts:98); no order moves anything by sea.",
+        "Open src/app/engine/systems/interceptionsSystem.ts: the phase body is \"TODO ... return state\"."
+      ],
+      "expected": "Rules 08 section 6 and 04 section 3: 8 warships built at the Shipyard, fleets in sea zones with Patrol/Blockade/Landing missions, landings, interception of merchants, blockades that cut ports, naval battles.",
+      "actual": "No ships, fleets, sea zones or merchant interception exist (types/Navy.ts and types/Sea.ts are unused; newGame sets fleets: []). The only war targets are the other Great Power and Arvelia. Sundmark, Lorran and Pellis can only be traded with and voted by relations, never attacked or colonised, and no blockade can ever hurt trade. The art pack has 13 ship pictures that nothing shows (inkArt.ts:306 \"the game has no navy yet\").",
+      "evidence": "Command: npx vitest run --config .gate/audit/rules-gap/vitest.config.ts .gate/audit/rules-gap/p1.test.ts -> \"ADJ province-minor-2 ->\" (empty), same for -3 and -4; \"ADJ province-minor-1 -> province-nation-1-ne, province-nation-2-nw\". Code lines quoted in suspect.",
+      "frs": [],
+      "suspect": "src/app/engine/systems/interceptionsSystem.ts:4-9; src/app/engine/newGame.ts:53 (fleets: []); src/app/components/art/inkArt.ts:306.",
+      "fix_size": "L",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "RULES-GAP-06",
+      "kind": "gap",
+      "severity": "major",
+      "title": "The world has only 6 of 14 land terrains and 7 of 13 resources: no wool, fish, horses, oil, gold or gems, no mountains, swamp, desert, tundra, rivers",
+      "area": "map",
+      "repro": [
+        "Headless: npx vitest run --config .gate/audit/rules-gap/vitest.config.ts .gate/audit/rules-gap/p1.test.ts",
+        "Read \"terrains\" and \"resources\" lines.",
+        "Live: open the Warehouse and Transport popups and read the always-zero rows Fish, Wool, Oil."
+      ],
+      "expected": "Rules 02 section 2: Dry Plains, Farm, Orchard, Plantation, Open Range, Fertile Hills, Horse Ranch, Hardwood and Scrub Forest, Barren Hills, Mountains, Swamp, Desert, Tundra, rivers; resources incl. wool, fish, horses, oil, gold, gems; hidden minerals in hills, mountains and oil land.",
+      "actual": "terrains {\"water\":158,\"hardwoodForest\":56,\"capital\":6,\"barrenHills\":27,\"openRange\":50,\"farm\":40,\"plantation\":25,\"orchard\":22}; resources {\"timber\":56,\"ironOre\":12,\"livestock\":50,\"coal\":15,\"grain\":40,\"cotton\":25,\"fruit\":22}; 0 river tiles. So the Driller, Oil Drilling, fuel, gold/gems cash (logisticsSystem.ts:59-62), fish, wool (the start warehouse holds 10 wool that cannot be replenished) and horses are all dead paths. Prospecting happens only on hills.",
+      "evidence": "p1.test.ts stdout (terrains / resources / \"hasRiver tiles 0\"). Live C:/Users/brnat/AppData/Local/Temp/claude/6d278f4c60cadc55/c11c618f-69f1-4659-b2b1-f3416944c4fb/scratchpad/audit/shots/rules-gap-05-warehouse.png and C:/Users/brnat/AppData/Local/Temp/claude/6d278f4c60cadc55/c11c618f-69f1-4659-b2b1-f3416944c4fb/scratchpad/audit/shots/rules-gap-06-transport.png.",
+      "frs": [
+        "FR-080"
+      ],
+      "suspect": "src/app/engine/world/twoIslands.ts:14-31 (hand-drawn map legend: only F O R P T c i).",
+      "fix_size": "L",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "RULES-GAP-07",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "One hand-drawn map for every game: no key-word or seeded map, no Great Power/minor choice, 2 Great Powers, 4 minors, 12 provinces",
+      "area": "map",
+      "repro": [
+        "Read src/app/engine/newGame.ts: the map comes from buildWorld(world) and never from the seed; the seed only feeds prices and combat. Names (Testland, Valdoria, Arvelia, Sundmark, Lorran, Pellis) are constants."
+      ],
+      "expected": "Rules 02 section 1: seeded world generation by key word, 7 Great Powers, 16 Minor Nations, 120 provinces, wrap-around map; the human can pick the nation.",
+      "actual": "newGame builds the same 24x16 map for every seed (\"the map is the same for every seed\"); the seed only feeds prices and combat. Decision Q22/Q23 chose the compact world; replay value and the original's many-nation diplomacy (alliances, gang-ups) are lost.",
+      "evidence": "newGame.ts doc comment; p1.test.ts: 2 nations, 4 minors, 12 provinces. Journal/plan 5b \"The v2 world\".",
+      "frs": [
+        "FR-144"
+      ],
+      "suspect": "src/app/engine/newGame.ts:36-62; src/app/engine/world/worlds.ts.",
+      "fix_size": "L",
+      "confidence": "code-reading-only"
+    },
+    {
+      "id": "RULES-GAP-08",
+      "kind": "gap",
+      "severity": "major",
+      "title": "No Developer, overseas profits or Join the Empire: minor nations are only trading partners and conquest is the only way to a colony",
+      "area": "diplomacy",
+      "repro": [
+        "Open Diplomacy, select Arvelia: overtures are Consulate, Embassy, Pact, Declare war, Propose peace (no Join the Empire).",
+        "Open the Deal Book after a turn: lines are Sold, Bought, Military upkeep, Trade net; there is no Overseas Profits line."
+      ],
+      "expected": "Rules 03 section 5 and 07 section 4: the Developer (reward at about relation level 7) buys land tiles in Minor Nations for 20 x price and pays overseas profits (75% to 100%); a minor at dark green joins the empire as a colony; colonies give 100% profit and Council votes.",
+      "actual": "Cash comes only from selling goods. No land purchase in minors, no overseas profit, no peaceful colony. Decision Q37 left \"Join the Empire\" out of v2. A relation level above the pact threshold has no use except Council votes.",
+      "evidence": "Live C:/Users/brnat/AppData/Local/Temp/claude/6d278f4c60cadc55/c11c618f-69f1-4659-b2b1-f3416944c4fb/scratchpad/audit/shots/rules-gap-10-diplomacy-arvelia.png (button list printed by e4.cjs: Consulate, Embassy, Pact, Declare war, Propose peace, Give, Set policy). dealBookView.ts:109 bottomLine has no overseas line.",
+      "frs": [
+        "FR-161"
+      ],
+      "suspect": "src/app/types/Diplomacy.ts:11 (Overture without \"empire\"); src/app/workers/DeveloperWorker.ts (dead).",
+      "fix_size": "L",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "RULES-GAP-09",
+      "kind": "gap",
+      "severity": "major",
+      "title": "Horses can never be replenished: 4 horses for the whole game cap Hussars, Cuirassiers and Light Artillery at 4 units in total, also for the computer",
+      "area": "army",
+      "repro": [
+        "Open Capital > Armoury: Hussars, Cuirassiers and Light Artillery cost \"1 horse\"; \"Horses: 4 in warehouse\".",
+        "Open Market: the Horses row says \"No minor nation sells this\".",
+        "Headless: p3.test.ts probe 3c: buy 1 horse -> {\"ok\":false,\"reason\":\"no-seller\"}."
+      ],
+      "expected": "Rules 02 and 08: Horse Ranch tiles give 1 horse a turn; horses are tradeable ($300); cavalry and field artillery need them.",
+      "actual": "No tile produces horses (0 horse tiles), no minor sells them, so 3 of the 7 recruitable regiment types stop after 4 recruits in a whole game. The scripted nation's war unit is Cuirassiers (combatRules.ts:43-48), so its campaign is also capped at 4 horses.",
+      "evidence": "p3.test.ts: \"horse tiles 0 fish tiles 0 warehouse horses 4\", \"buy 1 horse => no-seller\". C:/Users/brnat/AppData/Local/Temp/claude/6d278f4c60cadc55/c11c618f-69f1-4659-b2b1-f3416944c4fb/scratchpad/audit/shots/rules-gap-08-armoury.png and C:/Users/brnat/AppData/Local/Temp/claude/6d278f4c60cadc55/c11c618f-69f1-4659-b2b1-f3416944c4fb/scratchpad/audit/shots/rules-gap-03-market.png. Command: npx vitest run --config .gate/audit/rules-gap/vitest.config.ts .gate/audit/rules-gap/p3.test.ts",
+      "frs": [
+        "FR-199",
+        "FR-200"
+      ],
+      "suspect": "src/app/definisions/regiments.ts:108 extraHorses: 4; no horse tile in twoIslands.ts.",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "RULES-GAP-10",
+      "kind": "gap",
+      "severity": "major",
+      "title": "No save or load: reloading the page throws the game away",
+      "area": "hud",
+      "repro": [
+        "Open the app, click Advance Turn 3 times (Turn: 4 of 40).",
+        "Reload the page (F5).",
+        "The game is back at Turn 1; localStorage and sessionStorage are empty."
+      ],
+      "expected": "The original has Save/Load; a 40-turn game needs it so that a closed tab, crash or reload does not lose the session.",
+      "actual": "Reload shows \"Turn: 1 of 40, Spring 1815\"; no persistence of any kind (no localStorage/sessionStorage use in src/app).",
+      "evidence": "e5.cjs output: \"before reload: Turn: 4 of 40 / Winter 1815\", \"localStorage keys: [] sessionStorage: []\", \"after reload: Turn: 1 of 40 / Spring 1815\".",
+      "frs": [],
+      "suspect": "src/app/store/rootStore.ts and gameSlice.ts keep game state in memory only (GameState is plain JSON, so saving is cheap).",
+      "fix_size": "M",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "RULES-GAP-11",
+      "kind": "gap",
+      "severity": "major",
+      "title": "Game-over ranking ignores provinces, army and the Council: a nation with 1 of 12 provinces can rank first",
+      "area": "hud",
+      "repro": [
+        "Headless: npx vitest run --config .gate/audit/rules-gap/vitest.config.ts .gate/audit/rules-gap/p3.test.ts (probe 3a): give nation-1 three of nation-2's provinces (7 vs 1), set nation-2's cash to $300,000 and turn 40, resolve the turn.",
+        "In the app the same happens when the human conquers provinces but spends the cash (army upkeep, recruits)."
+      ],
+      "expected": "Rules 01 sections 4 and 5: the last Council meeting forces every governor to choose and the nominee with more governors wins; the score has 9 categories (labour, transport, industry, provinces, military, navy, diplomacy, merchant marine, year) times a difficulty multiplier.",
+      "actual": "Council vote at turn 40: nation-1 7 votes, nation-2 1 vote, 9 needed, no winner. gameOver has no reason and no winner; the table ranks nation-2 first: [{\"id\":\"nation-2\",\"total\":3139},{\"id\":\"nation-1\",\"total\":239}]. The score is treasury/100 + 10 x mill capacity + 10 x resource levels only. Card Q53 (forced last vote) is open; card Q11 (weights) was settled as \"keep\".",
+      "evidence": "p3.test.ts stdout: \"council vote now: needed 9 nominees [nation-2 total 1, nation-1 total 7] winner undefined\", \"gameOver reason undefined winnerId undefined\", \"final ranking [nation-2 3139, nation-1 239]\", \"provinces held n1/n2 7 1\".",
+      "frs": [
+        "FR-067",
+        "FR-068",
+        "FR-295"
+      ],
+      "suspect": "src/app/engine/score/score.ts:30-41 (three terms only); src/app/engine/turn/resolveTurn.ts:101-113 (no forced vote at the last turn); src/app/components/GameOverModal.tsx names no winner.",
+      "fix_size": "M",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "RULES-GAP-12",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "Trade bids and offers are cleared every turn; the original keeps them",
+      "area": "trade",
+      "repro": [
+        "Order a consulate with Arvelia (Diplomacy), open Market, click \"Bid one more Coal\" (Bids 1 of 4, cash $9,400).",
+        "Advance Turn, open Market again.",
+        "Coal bid is 0 again; \"Bids: 0 of 4\"."
+      ],
+      "expected": "Rules 06 section 2: orders persist between turns; revisit the screen only to change them.",
+      "actual": "Both trade modes write market.orders = {} at the end of the trade phase, so 4 bids and every offer must be typed again each of the 40 turns. Card Q15 (c) \"repeat last turn's trades\" was never built.",
+      "evidence": "e8.cjs: \"Coal row: Coal $100 10 - 1 +\" before; \"turn2 Coal row: Coal $103 11 0 +\" after; header \"Holds: 4 of 4 free | Bids: 0 of 4\". C:/Users/brnat/AppData/Local/Temp/claude/6d278f4c60cadc55/c11c618f-69f1-4659-b2b1-f3416944c4fb/scratchpad/audit/shots/rules-gap-12-board-turn2.png",
+      "frs": [
+        "FR-061",
+        "FR-062"
+      ],
+      "suspect": "src/app/engine/systems/tradeSystem.ts:66 and src/app/engine/market/settlePartners.ts:245 (orders: {}).",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "RULES-GAP-13",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "Minor nations are constant machines: fixed offers and demand, endless money, price only moves with the two Great Powers",
+      "area": "market",
+      "repro": [
+        "Open Market and compare turn 1 and turn 10: the sellers and \"Buyers: 2 units\" lines never change.",
+        "Read the header text: \"buy only clothing, furniture and hardware\"."
+      ],
+      "expected": "Rules 06 section 4 and gaps A2/C5: price is set by all countries' supply and demand; minors offer and buy more or less depending on last turn's price, year and relations.",
+      "actual": "Each minor offers 1 unit per resource tile (cap 6) and bids for exactly 2 clothing, 2 furniture, 2 hardware every turn, forever. Minors' own volume moves no price (only Great Power net deals do, tradeSystem.ts:21-27), so prices are a bounded random walk (3% a turn, 50% to 250%) rather than a market. Steel, lumber, fabric, paper, canned food and armaments have no buyer except a rival that happens to bid.",
+      "evidence": "Live C:/Users/brnat/AppData/Local/Temp/claude/6d278f4c60cadc55/c11c618f-69f1-4659-b2b1-f3416944c4fb/scratchpad/audit/shots/rules-gap-03-market.png (\"No one buys this\" on 10 rows). Code constants quoted in suspect.",
+      "frs": [
+        "FR-183",
+        "FR-184"
+      ],
+      "suspect": "src/app/definisions/partnersMarket.ts:34-39 (MINOR_OFFER_CAP, MINOR_DEMAND); src/app/engine/market/partners.ts:23-33; src/app/definisions/marketPrices.ts (drift 0.03, floor 0.5, ceiling 2.5).",
+      "fix_size": "M",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "RULES-GAP-14",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "No credit, interest or forced sale; the Deal Book is not the original ledger",
+      "area": "economy",
+      "repro": [
+        "Open Deal Book after a turn with a purchase.",
+        "Compare with rules 06 section 7.5: Sold, Bought, Military Upkeep, Overseas Profits, Interest, net, Credit Limit.",
+        "Let treasury fall below the upkeep: newest regiments are disbanded."
+      ],
+      "expected": "Rules 06 section 6: you may end a trade phase in debt up to a credit limit that grows with income; interest above half the limit; beyond it stock is force-sold; spending orders are checked against cash plus credit.",
+      "actual": "Nation.creditLimit (5000) and Nation.debt (0) are set at start and never read. Orders need cash on hand; unpaid upkeep disbands the newest regiments (decision Q36, \"v2 has no credit\"). The Deal Book bottom line has Sold, Bought, Military upkeep, Trade net plus a treasury block where all domestic spending (jobs, mills, workers) is one lump \"Other (building, workers, gold, gems)\". There are no wages in Imp1 and none here (that matches).",
+      "evidence": "src/app/components/market/dealBookView.ts:109. Grep for creditLimit|debt|interest in src/app (excluding testing) finds only the two start fields. Live C:/Users/brnat/AppData/Local/Temp/claude/6d278f4c60cadc55/c11c618f-69f1-4659-b2b1-f3416944c4fb/scratchpad/audit/shots/rules-gap-07-dealbook.png (empty before turn 1 ends).",
+      "frs": [
+        "FR-256"
+      ],
+      "suspect": "src/app/engine/world/startWorld.ts:127-128 (debt: 0, creditLimit: 5000, unused); src/app/engine/systems/armySystem.ts:48-62.",
+      "fix_size": "M",
+      "confidence": "code-reading-only"
+    },
+    {
+      "id": "RULES-GAP-15",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "No town development: provinces never grow or ship free steel, lumber, fabric and goods",
+      "area": "transport",
+      "repro": [
+        "Search src/app/engine for \"town\", \"village\", \"hamlet\", \"industrialis\": no match.",
+        "In the app only the capital produces; connected depots in other provinces only gather raw tiles."
+      ],
+      "expected": "Rules 04 section 6: a connected depot next to a town makes it produce materials (1 per 2 resource tiles) and later goods; the wiki calls it a large free income.",
+      "actual": "No code. Provinces have a seat tile but no town state.",
+      "evidence": "grep -rniE \"town|village|hamlet|industrialis\" src/app/engine returns nothing.",
+      "frs": [],
+      "suspect": "Rule absent from src/app/engine/systems/*; rules/04 CODE MISMATCH line 119 still says so.",
+      "fix_size": "M",
+      "confidence": "code-reading-only"
+    },
+    {
+      "id": "RULES-GAP-16",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "Oil, fuel, Oil Refinery and Power Plant are unreachable dead code; labour can never exceed people",
+      "area": "economy",
+      "repro": [
+        "Open Capital: no refinery card.",
+        "Open Market and Warehouse: Fuel and Oil rows exist and are always 0 / \"No minor nation sells this\".",
+        "Grep oilDrillingTechUnlocked: it is set to true only in tests."
+      ],
+      "expected": "Rules 05 section 6: the Power Plant turns fuel (2 oil -> 1 fuel at the Refinery) into labour; fuel also feeds late units and steamships; Oil Drilling (1856-60) unlocks them.",
+      "actual": "The refinery recipe, card and order exist but oilDrillingTechUnlocked is never true outside tests; there is no oil tile; there is no Power Plant at all. The game window (1815-1824) never reaches 1856 anyway, so this is invisible until the game is made longer.",
+      "evidence": "Only tests set it: tests/engine/industry.test.ts:75, workPrices.test.ts:116, tests/ui/capitalDialog.test.tsx:65, listArt.test.tsx:55. C:/Users/brnat/AppData/Local/Temp/claude/6d278f4c60cadc55/c11c618f-69f1-4659-b2b1-f3416944c4fb/scratchpad/audit/shots/rules-gap-03-market.png shows Fuel and Oil rows.",
+      "frs": [
+        "FR-033"
+      ],
+      "suspect": "src/app/engine/orders/industryOrders.ts:131; src/app/components/capital/capitalView.ts:97,106; src/app/definisions/industryBuildings.ts:23.",
+      "fix_size": "M",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "RULES-GAP-17",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "Transport rules not modelled: river ports and fish, blockade, depot-on-port rule, cutting a line by conquering a province downstream",
+      "area": "transport",
+      "repro": [
+        "Probe: hasRiver tiles = 0 and fish tiles = 0 (p1.test.ts).",
+        "Read transportConnectivitySystem.ts: ports must be ocean-adjacent; a depot reachable from any port tile is active."
+      ],
+      "expected": "Rules 04 sections 1 and 3: ports on rivers, fish collected by ports, depot needed on a distant port tile, sea ports cut by an undisputed enemy fleet.",
+      "actual": "Ports are ocean-only; the port tile need not hold a depot; there is no fish; no fleet can blockade. Docs/rules/04 still list these as CODE MISMATCH and the journal lists \"river ports and the depot-on-port rule\" as deferred.",
+      "evidence": "src/app/engine/systems/transportConnectivitySystem.ts:55-88; docs/journal.md \"Carried forward\".",
+      "frs": [],
+      "suspect": "src/app/engine/systems/transportConnectivitySystem.ts:55-88; src/app/engine/orders/queries.ts:177-183.",
+      "fix_size": "M",
+      "confidence": "code-reading-only"
+    },
+    {
+      "id": "RULES-GAP-18",
+      "kind": "doc-lie",
+      "severity": "nit",
+      "title": "The Engineer can move and start a depot, port, fort or rail in the same turn; the rules say he must rest the turn after moving",
+      "area": "workers",
+      "repro": [
+        "Headless: npx vitest run --config .gate/audit/rules-gap/vitest.config.ts .gate/audit/rules-gap/p3.test.ts (probe 3b).",
+        "In the app the same validateOrder applies (not clicked by me): select the Engineer, click another own tile, choose a construction."
+      ],
+      "expected": "Rules 03 section 1: an Engineer cannot work on the turn he deploys (other civilians can move and start work in the same turn).",
+      "actual": "validateOrder accepts moveAndStartConstruction for the Engineer onto 94 own tiles for a depot at turn 1 (33 for a port, 99 for a fort).",
+      "evidence": "p3.test.ts stdout: \"tiles where the engineer can MOVE and start a depot in the same turn: 94\", \"same for a port: 33\", \"same for a fort: 99\". FR-008/FR-137 define move-and-build on purpose, so the rules file and the requirement disagree.",
+      "frs": [
+        "FR-008",
+        "FR-137"
+      ],
+      "suspect": "src/app/engine/orders/validate.ts:78,143-177 (no rest rule for the Engineer).",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "RULES-GAP-19",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "Minor nations are far weaker than in the rules: one province, 3 Minutemen, no fort",
+      "area": "army",
+      "repro": [
+        "Headless p1.test.ts: Arvelia 12 tiles, Sundmark 5, Lorran 4, Pellis 5 tiles, each one province.",
+        "Armies of a minor at start: 3 Minutemen (startForces.ts)."
+      ],
+      "expected": "Rules 02/07/08: a minor has 4 provinces (3 hamlets and a fortified capital); manual p37 gives 3 militia per hamlet; an observed fortified minor capital held 3 Minutemen + 4 Regulars + 1 Artillery.",
+      "actual": "3 Minutemen in total and no fort, so each minor is a single lightly defended province (decision Q23 chose 1 province per minor). The Imp1 fortified minor capital is not modelled.",
+      "evidence": "src/app/engine/army/startForces.ts:12-13,25-27; p1.test.ts province list (\"province-minor-1:minor-1:12\" ...).",
+      "frs": [
+        "FR-203"
+      ],
+      "suspect": "src/app/definisions/regiments.ts:105-106 (militia 4 per Great Power province, 3 per minor province).",
+      "fix_size": "S",
+      "confidence": "code-reading-only"
+    },
+    {
+      "id": "RULES-GAP-20",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "Land war is era 1 only: 9 of 27 regiments (7 recruitable), no Generals, medals, Sappers, walls, landings or rail deployment, forts level 1 only",
+      "area": "army",
+      "repro": [
+        "Open Capital > Armoury: 7 cards (Skirmishers, Regulars, Grenadiers, Hussars, Cuirassiers, Light Artillery, Artillery).",
+        "Engineer construction options: fort level 1 only."
+      ],
+      "expected": "Rules 08: 27 regiments in 3 eras, upgrades, medals, Generals, fort levels 1-3, Sappers and Combat Engineers against walls, rail deployment of 1 arms per 5 capacity, tactical battle with auto-resolve.",
+      "actual": "Era-1 table only; battles are automatic 8-round replays (decision Q32); one army per province, no merge; no upgrades. Because the game ends in 1824 the original would also show only era-1 units, so this gap grows only when the game is made longer or the tech tree is built (RULES-GAP-01).",
+      "evidence": "Live C:/Users/brnat/AppData/Local/Temp/claude/6d278f4c60cadc55/c11c618f-69f1-4659-b2b1-f3416944c4fb/scratchpad/audit/shots/rules-gap-08-armoury.png. regiments.ts:62-79 (REGIMENT_TYPES, RECRUITABLE_REGIMENTS).",
+      "frs": [
+        "FR-199",
+        "FR-212"
+      ],
+      "suspect": "src/app/definisions/regiments.ts:62-79; src/app/engine/orders/queries.ts:187-188 (isFortSite: level 1 only).",
+      "fix_size": "L",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "RULES-GAP-21",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "Diplomacy leftovers: no colony boycott, no Foreign Minister auto-subsidy, no intervention, no allied defence; an alliance is only a flag, and the computer never allies or attacks the human",
+      "area": "diplomacy",
+      "repro": [
+        "Open Diplomacy > Valdoria: Alliance and Declare war are offered.",
+        "Order an alliance: it is stored as pair.alliance = true; the only readers are the already-in-place check, the Alliance chip and the broken-treaty relation penalty on a war declaration.",
+        "scriptedWar.ts campaignTarget picks only minors; scriptedDiplomacy only proposes peace."
+      ],
+      "expected": "Rules 07 sections 1, 4, 5 and 7.2: colony boycott, Ctrl-click auto-subsidy, one-time intervention offers when a pact partner is invaded, defence demands that an ally must answer, AI alliance offers and wars between Great Powers.",
+      "actual": "With one other Great Power an alliance can never bind a third party, so it does nothing; the computer nation never proposes an alliance, never declares war on the human and never defends one. Minor wars do not drag anyone in.",
+      "evidence": "Live C:/Users/brnat/AppData/Local/Temp/claude/6d278f4c60cadc55/c11c618f-69f1-4659-b2b1-f3416944c4fb/scratchpad/audit/shots/rules-gap-04-diplomacy.png. Grep \".alliance\" outside diplomacySystem/diplomacyOrders/relations: only components/diplomacy/diplomacyView.ts:198,248.",
+      "frs": [
+        "FR-166",
+        "FR-174"
+      ],
+      "suspect": "src/app/engine/ai/diplomacy.ts:1-3,13-27 (peace only); src/app/engine/ai/scriptedWar.ts:89-100.",
+      "fix_size": "M",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "RULES-GAP-22",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "Many original screens have no counterpart: Offer Sheet and Foreign Minister advice, Trade Book, diplomacy map modes, strength charts and rankings, Garrison Book, Scouting Report, Task Force, reward popups, Technology, University, Shipyard",
+      "area": "dialogs",
+      "repro": [
+        "Compare docs/rules/11-screens.md sections 1-9 with the HUD buttons (Warehouse, Capital, Market, Deal Book, Diplomacy, Transportation) and the Capital dialog."
+      ],
+      "expected": "Rules 11 implementation notes: the remake need not copy layouts but must show the same information and allow the same orders.",
+      "actual": "Present: Board of Trade, Deal Book, Diplomacy (list pane, no map), Armoury, Army/Attack/Battle, Council, Game over, Engineer options. Missing: accept/reject offer sheets (deals settle automatically), Trade Book, Council Projection and the Interior/Diplomatic/Military/Merchant/Exports/Industry/Labor/Transport charts (HUD has one line \"If it met now\"), Garrison Book, Scouting Report, Task Force report, reward and advice popups, Technology list, University, Shipyard.",
+      "evidence": "Live HUD button list in C:/Users/brnat/AppData/Local/Temp/claude/6d278f4c60cadc55/c11c618f-69f1-4659-b2b1-f3416944c4fb/scratchpad/audit/shots/rules-gap-01-start.png; capital dialog buttons printed by e1.cjs.",
+      "frs": [],
+      "suspect": "No component for these screens under src/app/components.",
+      "fix_size": "L",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "RULES-GAP-23",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "Capital dialog: the Technology button is disabled; every other advertised item works",
+      "area": "capital",
+      "repro": [
+        "Open Capital; try each header button: Warehouse, Trade, Diplomacy, Armoury open their dialogs (e6.cjs); Technology is disabled with title \"Coming in a later milestone\".",
+        "Production cards (+/-, Expand, Cancel), Trade School, Capitol and Freight car buttons all send orders; training and migration without paper/clothing/furniture show a refusal."
+      ],
+      "expected": "FR-333 shows buildings on the Capital buttons; the original capital screen opens University, Shipyard, Technology, Armoury, Trade School, Capitol, Railyard.",
+      "actual": "Tested live: Warehouse, Trade, Diplomacy, Armoury, production +/- and Expand, Train, Recruit, Freight car all work. Technology is a permanent dead button; University, Shipyard and Power Plant have no entry at all.",
+      "evidence": "e6.cjs: \"Technology disabled= true dialogs open: [Capital - Testland]\"; e3.cjs refusals \"Training refused: not enough goods in the warehouse.\" / \"Migration refused: not enough goods in the warehouse.\" C:/Users/brnat/AppData/Local/Temp/claude/6d278f4c60cadc55/c11c618f-69f1-4659-b2b1-f3416944c4fb/scratchpad/audit/shots/rules-gap-02-capital.png",
+      "frs": [
+        "FR-333"
+      ],
+      "suspect": "src/app/components/CapitalModal.tsx:66.",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "RULES-GAP-24",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "No difficulty levels, scenarios or game options; game length fixed at 40 turns (10 years)",
+      "area": "hud",
+      "repro": [
+        "Click New game: only \"Start new game / Keep playing\".",
+        "Search the UI for difficulty or turn limit: none."
+      ],
+      "expected": "Rules 01 section 3: five difficulty levels, scenarios (Recovery of France 1820 ...), about 400 turns, nation choice.",
+      "actual": "GameState.difficulty is hard-coded \"normal\" and read nowhere. The engine accepts turnLimit up to 400 (FR-105) but the app always starts 40. With the tech windows of rules 09 this makes everything after 1824 unreachable.",
+      "evidence": "src/app/engine/newGame.ts:61; src/app/components/HUD.tsx:14-39 (ConfirmNewGame has no options); gameConstants.ts TIME_CONFIG.TURN_LIMIT 40.",
+      "frs": [
+        "FR-068",
+        "FR-105"
+      ],
+      "suspect": "src/app/types/GameState.ts:77 (difficulty never used).",
+      "fix_size": "M",
+      "confidence": "code-reading-only"
+    },
+    {
+      "id": "RULES-GAP-25",
+      "kind": "bug",
+      "severity": "nit",
+      "title": "Prospecting always succeeds with a fixed answer; \"may find nothing\" and the random mineral pick never happen",
+      "area": "workers",
+      "repro": [
+        "Headless: checkProspecting requires a hidden resource already on the tile; every hills tile holds exactly coal or iron.",
+        "Prospect any hills tile: the result is always the pre-placed mineral."
+      ],
+      "expected": "Rules 02 section 4: hills and mountains may yield nothing; the mineral found is unknown until prospected; oil land needs Oil Drilling.",
+      "actual": "validate.ts:180-188 rejects a tile with no resource, so the random branch in developmentSystem.ts:88-112 (random mineral, oil for swamp/desert/tundra) is dead; the Prospector only reveals what the map already holds, one $100 job per tile.",
+      "evidence": "Code: src/app/engine/orders/validate.ts:180-188 and src/app/engine/systems/developmentSystem.ts:88-110.",
+      "frs": [],
+      "suspect": "src/app/engine/systems/developmentSystem.ts:88-110 (dead branch).",
+      "fix_size": "S",
+      "confidence": "code-reading-only"
+    },
+    {
+      "id": "RULES-GAP-26",
+      "kind": "gap",
+      "severity": "nit",
+      "title": "Dead rows for goods nobody can make: Wool, Fish, Oil, Fuel and (after 4) Horses appear in Warehouse, Transport and Board lists",
+      "area": "dialogs",
+      "repro": [
+        "Open Warehouse: Fish 0, Wool 10, Oil 0, Fuel 0.",
+        "Open Transportation of Commodities: Livestock 0/0, Fish 0/0, Wool 0/0, Oil 0/0.",
+        "Open Market: Wool, Horses, Fuel, Oil rows say \"No minor nation sells this\" / \"No one buys this\"."
+      ],
+      "expected": "Lists should show what the player can use; the original hides commodities the game does not have.",
+      "actual": "Rows and sliders for impossible commodities clutter the three dialogs; the Textile mill card advertises \"2 Cotton or Wool\" although no wool exists.",
+      "evidence": "C:/Users/brnat/AppData/Local/Temp/claude/6d278f4c60cadc55/c11c618f-69f1-4659-b2b1-f3416944c4fb/scratchpad/audit/shots/rules-gap-05-warehouse.png, C:/Users/brnat/AppData/Local/Temp/claude/6d278f4c60cadc55/c11c618f-69f1-4659-b2b1-f3416944c4fb/scratchpad/audit/shots/rules-gap-06-transport.png, C:/Users/brnat/AppData/Local/Temp/claude/6d278f4c60cadc55/c11c618f-69f1-4659-b2b1-f3416944c4fb/scratchpad/audit/shots/rules-gap-03-market.png.",
+      "frs": [
+        "FR-141",
+        "FR-142"
+      ],
+      "suspect": "src/app/components/commodityKinds.ts; src/app/definisions/partnersMarket.ts:11-30.",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "RULES-GAP-27",
+      "kind": "bug",
+      "severity": "nit",
+      "title": "Trade School and Capitol buttons look available but fail with a message that does not name the missing good",
+      "area": "capital",
+      "repro": [
+        "Open Capital at turn 1 (no paper, clothing or furniture in the warehouse).",
+        "Click \"Untrained -> Trained\", \"Trained -> Expert\" or \"Recruit a migrant\"."
+      ],
+      "expected": "Rules 05 section 2 and the original dialogs mark the missing input in red before you click (the production cards here do: \"x 2 Fabric (0)\").",
+      "actual": "The buttons are enabled; the click shows \"Training refused: not enough goods in the warehouse.\" or \"Migration refused: not enough goods in the warehouse.\" without saying paper, clothing or furniture.",
+      "evidence": "e3.cjs output lines \"CLICK Train an untrained worker => refusal: Training refused: not enough goods in the warehouse.\" and \"CLICK Recruit a migrant => refusal: Migration refused: ...\".",
+      "frs": [
+        "FR-047"
+      ],
+      "suspect": "src/app/components/capital/LabourPanel.tsx:62-99 (buttons never disabled or annotated).",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "RULES-GAP-28",
+      "kind": "doc-lie",
+      "severity": "minor",
+      "title": "docs/rules still say the code is a stub where it now works: CODE MISMATCH blocks describe the code of 2026-11-02",
+      "area": "docs",
+      "repro": [
+        "Open docs/rules/07-diplomacy-and-minors.md line 142: \"Everything in this file is unimplemented stub (diplomacySystem, diplomacySlice)\".",
+        "Also 08 line 7 \"no combat code exists\" and line 201 \"No unit data, costs, workers or unlock techs exist yet\"; 10 line 7 \"No AI code exists\"; 01 line 130 \"No Council in code\"; 09 lines 7 and 84 (\"technologies is an empty list\", technologySlice.ts); 04 line 116 and 02 line 107 (gold/gems pay $100/$1000, now $200/$500); 06 lines 7, 204, 205 (stubbed tradeSystem, TradeRoute model)."
+      ],
+      "expected": "The rules README tells agents each topic file starts with a correct \"where the code disagrees\" note.",
+      "actual": "These notes are false for diplomacy, military, AI, Council, trade and gold/gems; an agent that trusts them plans work that is already done and misses what is really missing (technology, navy, University).",
+      "evidence": "Quoted lines above (grep -n \"CODE MISMATCH\\|unimplemented stub\\|No AI code\\|No Council\" docs/rules/*.md).",
+      "frs": [],
+      "suspect": "docs/rules/01,02,04,06,07,08,09,10 CODE MISMATCH sections.",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "RULES-GAP-29",
+      "kind": "doc-lie",
+      "severity": "minor",
+      "title": "Progress page data contradicts itself: M4 is \"done 100%\" with both tasks unchecked, M11 is \"in-review\" in the detail and \"done\" in the overview",
+      "area": "docs",
+      "repro": [
+        "node -e \"const r=require('./docs/report/roadmap.json');\" and list tiers[].items[].tasks with done:false.",
+        "Compare overview.milestones (M4, M11 done) with detail.tiers items (M4 tasks false, M11 status in-review with \"Browser QA pass, PR and merge\" false)."
+      ],
+      "expected": "The progress page is the status source (\"Done means tested\").",
+      "actual": "M0, M1, M4 and M11 carry unchecked tasks while shown as complete; \"now\" says M11 merged.",
+      "evidence": "Printed by a one-line node check: M0 done UNDONE: Six old branches...; M1 done UNDONE: Carried to M4...; M4 done UNDONE: Second capital, territory, workers | Scripted (view) => Order[] player; M11 in-review UNDONE: Browser QA pass, PR and merge.",
+      "frs": [],
+      "suspect": "docs/report/roadmap.json detail.tiers.",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "RULES-GAP-30",
+      "kind": "doc-lie",
+      "severity": "major",
+      "title": "\"Everything done\" is true only for a compact scope: no milestone exists for 11 rule topics of the original (technology, University, Shipyard and navy, Developer and colonies, town development, power, credit, saving, difficulty, forced Council vote, era 2-3 units)",
+      "area": "docs",
+      "repro": [
+        "Read docs/report/roadmap.json overview.milestones: M0-M11 all \"done\".",
+        "Read docs/REVIVAL_PLAN.md section 5 \"Deferred past v1 ... technology tree ... Council\" and section 5b: v2 = diplomacy, trade, armies, war, Council only.",
+        "Compare with the coverage table in this file."
+      ],
+      "expected": "Nathan's question: is everything marked done really done? \"Done\" should say what share of the original rules exists.",
+      "actual": "The remake models a 2-nation, 12-province, 40-turn game of the economy, minor-nation trade, diplomacy, era-1 land war and a Council. Technology, civilian production, ships and sea war, overseas development, town growth, power, credit, save/load, difficulty and scoring categories were deferred in cards Q8, Q14, Q17/NR-029, Q37, Q53 and never put on a milestone, so the progress page reads 100% while, of the 24 rule-topic rows in the coverage table, 3 are built, 14 partial, 1 wrong, 1 dead and 5 missing.",
+      "evidence": "Coverage table in this JSON; roadmap.json overview; REVIVAL_PLAN.md lines 148-150 and 154-244.",
+      "frs": [],
+      "suspect": "docs/REVIVAL_PLAN.md section 5/5b; docs/report/roadmap.json.",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    }
+  ]
+}

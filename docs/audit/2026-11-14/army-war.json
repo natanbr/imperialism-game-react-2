@@ -1,0 +1,351 @@
+{
+  "track": "army-war",
+  "coverage": "Played in the running app (http://localhost:3170/, Playwright chromium 1280x720, own context) the whole war chain several times: Armoury and recruiting (armaments from the Metal Works, Regulars, Hussars), Army screen, markers and march arrows, declaring war (Arvelia, Sundmark, Valdoria), Attack screen (also from a map click), Battle screen (Next round, Play, Skip), a failed attack, conquest of Arvelia, a full campaign on Valdoria (3 provinces, capital fell on turn 13, game over 'Testland has conquered Valdoria.'), peace offers both ways, upkeep shortfall, disband and cancel, Deal Book lines. Attacks, battles and conquests were clicked in the UI; recruit orders and turn advances in the long runs used the store's own submitOrder/advanceTurn (reached through React fibers) to save time. Battle maths checked against FR-219/220 and shot-by-shot in the UI (25/44/10/6-damage hits, 70% hit, rout at 25, 8 rounds, healing +10). Headless engine runs (same code as the app): idle Testland over 120 seeds, a 70-game war fuzz with invariants (178 battles, 62 provinces taken, 0 violations), AI probes. 312 unit tests of the area pass; no console error or warning in any run.",
+  "not_covered": "The defender's side of a battle in the app (the computer never attacked the player in any run, so 'Province Lost!' and 'Enemy Beaten Back!' were not seen in the UI); the player losing a capital; two battles queued in one turn; accepting Valdoria's peace offer in the UI (it was only rejected; own peace offers to Sundmark (accepted) and Valdoria (refused) were made); production from conquered tiles (only that civilians may be moved there); era-2/3 regiments, Sappers, fort building, ships (none exist in the game); Firefox/WebKit; phone widths.",
+  "findings": [
+    {
+      "id": "ARMY-WAR-01",
+      "kind": "bug",
+      "severity": "major",
+      "title": "At war with the player the computer nation does nothing: no recruit, no march, no attack, hoards 2 armaments (carried item FR-213 confirmed in the running game)",
+      "area": "ai",
+      "repro": [
+        "Open http://localhost:3170/ (new game).",
+        "Turn 1: Diplomacy > Valdoria > Declare war > confirm. Also order 1 Armaments in the Metal Works and march the start army SW -> NE -> Arvelia (two turns), take Arvelia (Attack on turn 2) so Testland borders Valdoria North-West.",
+        "End turns for 20 more turns. Watch Valdoria's army marker and the news."
+      ],
+      "expected": "FR-213: when a country at war with it has more strength next to its land it orders 1 Regulars a turn; FR-228: it keeps 4 arms in the capital, marches its other regiments to the border and attacks at estimate 1.5 or more.",
+      "actual": "From turn 4 to turn 25 Valdoria's army never changed (1st and 2nd Regulars, 1st Artillery in its capital, nothing else), it recruited nothing and attacked nothing; the only news lines were 'Valdoria: Army upkeep: $100.'. Its workers were {untrained 0, trained 4-5, expert 2-3} from turn 4 and then {0, 0, 7}, so the Regulars it asks for (untrained worker) can never be raised; its armaments stayed at 2 from turn 6 to turn 25 (made for the recruit, kept off the market). It never uses its 4 horses and trained workers for Cuirassiers while at war. It only asks for peace every 3 turns.",
+      "evidence": "Run seed 2029750844 (script .gate/audit/army-war/e3.js, war on Valdoria from turn 3, nothing else). Quoted log lines: 'T4 N1 $9700 N2 $4803 ... N2 workers={\"untrained\":0,\"trained\":5,\"expert\":2} arms=0 horses=4' then on the next line '2@nation-2-sw:1stRegu100,2ndRegu100,1stArti100 | 1@minor-1:1stRegu30,2ndRegu100,1stArti100'; 'T21 ... N2 workers={\"untrained\":0,\"trained\":0,\"expert\":7} arms=2 horses=4'; 'T25 N1 $7600 N2 $2407 ... 2@nation-2-sw:1stRegu100,2ndRegu100,1stArti100 | 1@minor-1:1stRegu100,2ndRegu100,1stArti100'. An earlier run (seed 667075224, turns 4 to 11) shows the same unchanged army list. Screenshot C:/Users/brnat/AppData/Local/Temp/claude/6d278f4c60cadc55/c11c618f-69f1-4659-b2b1-f3416944c4fb/scratchpad/audit/shots/army-war-01-war-valdoria-end.png (turn 26, still war, Valdoria's markers unchanged).",
+      "frs": ["FR-213", "FR-228"],
+      "suspect": "src/app/engine/ai/scriptedArmy.ts:49 picks SCRIPTED_GARRISON.regiment (Regulars, untrained worker) under a threat; the scripted economy trains every untrained worker (FR-130), so propose() never validates. campaignTarget (scriptedWar.ts:93) returns undefined while at war with a Great Power, so the Cuirassier campaign path is closed too.",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "ARMY-WAR-02",
+      "kind": "bug",
+      "severity": "major",
+      "title": "The computer's war on minors (FR-274) starts in only 19% of random games; in 81% it stalls at 2 Cuirassiers with up to $15,000 idle",
+      "area": "ai",
+      "repro": [
+        "Headless, same engine code as the app: .gate/audit/army-war/h1.test.ts (newGame continent, Testland idle, Valdoria = scriptedPlayer, 40 turns) for seeds 1 to 120: npx vitest run --config .gate/audit/army-war/vitest.config.ts with SEED_FROM=1 SEED_TO=60 and SEED_FROM=61 SEED_TO=120.",
+        "Or in the app: start new games, end 25 turns idle each (store seed is random): most games show no 'War declared on Arvelia' line for Valdoria."
+      ],
+      "expected": "FR-274 acceptance: Valdoria declares war on a minor by turn 25 and takes its capital by turn 40 'in at least 3 of the 4 seeds'; the computer 'picks off minor nations' so it competes for land.",
+      "actual": "Of 120 seeds only 23 had Valdoria declare war on Arvelia (turn 20 or 21) and take it one turn later; 97 games had no war at all in 40 turns. Cause seen with .gate/audit/army-war/h4.test.ts: it recruits 2 Cuirassiers (field strength 30), needs 37.5 (2 x Arvelia's 18.75), but its last trained worker becomes an expert, so the third Cuirassier can never be raised; treasury climbs to $15,420 (seed 6, turn 29) and stays idle. The acceptance test pins seeds 1 to 4 only, so the claim 'tested' holds for those seeds and not for the game a player gets.",
+      "evidence": "Output of h1: 'games 120 declared war on minor 23 colonised 23'. Output of h4 for seed 6: 'T20 $2329 workers {\"untrained\":0,\"trained\":0,\"expert\":5} horses 2 arms 1 field 30 target minor-1 def 18.8 ... T29 $15420 ... field 30'; seeds 7 and 9 the same pattern ($9,216 and $13,052 idle).",
+      "frs": ["FR-229", "FR-274", "FR-228"],
+      "suspect": "src/app/engine/ai/scriptedWar.ts:113-120 campaignRecruit needs a healthy trained worker while the scripted training (FR-130) promotes them to experts; no fallback to Skirmishers/Grenadiers/Hussars or to more arms.",
+      "fix_size": "M",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "ARMY-WAR-03",
+      "kind": "gap",
+      "severity": "major",
+      "title": "The computer never attacks the player and never defends, so a conquest win on turn 13 needs only 9 regiments",
+      "area": "war",
+      "repro": [
+        "New game. Turn 1: order Steel 2 and Armaments 1 (standing orders), declare war on Arvelia, march the start army to Testland North-East.",
+        "Turn 2: Army screen > tick all > March to 'Attack Arvelia' > Attack. Turn 3: Arvelia is taken; declare war on Valdoria.",
+        "Each turn recruit Regulars (4 untrained workers), then 2 Cuirassiers, send everything to Arvelia and on to Valdoria North-West. Attack North-West when the Attack screen says Likely victory (turn 7). Gather the army there.",
+        "Turn 13: Attack 'Valdoria South-West' (the capital, fort level 1) with 9 regiments. End turn."
+      ],
+      "expected": "A war against a Great Power is a contest: the computer defends, reinforces and counter-attacks (FR-228 (b)(c)).",
+      "actual": "Valdoria never reinforced (same 3 regiments in its capital, 4 militia in each province), never attacked, and asked for peace every 3 turns. Valdoria North-West fell on turn 7, the capital on turn 13: Game over screen 'Testland has conquered Valdoria.' (scores 504 to 230). The whole war takes 12 turns of play and no decision beyond 'attack when the estimate says so'. The computer cannot threaten the player at any time because it never declares war on a Great Power (decision Q35) and cannot reinforce at war (ARMY-WAR-01).",
+      "evidence": "Run seed 1668745479 (.gate/audit/army-war/e9.js, output e9-out.txt): 'T7 ... Province Taken', 'T13 Battle at Valdoria South-West ... Province Taken!', 'GAME OVER {\"turn\":13,... \"reason\":\"conquest\",\"winnerId\":\"nation-1\"}'. Screenshots shots/army-war-10-attack-13.png (Our strength 92.2, theirs 80: Uncertain), army-war-11-battle-t13-0.png (Province Taken!), army-war-12-war-end.png (Game over, 504 to 230). The 'FR-223 conquest end' works in the UI.",
+      "frs": ["FR-228", "FR-223", "FR-233"],
+      "suspect": "src/app/engine/ai/scriptedArmy.ts / scriptedWar.ts (see ARMY-WAR-01); decision Q35 in docs/report/roadmap.json.",
+      "fix_size": "M",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "ARMY-WAR-04",
+      "kind": "gap",
+      "severity": "major",
+      "title": "Three of the four minor nations (Sundmark, Lorran, Pellis) can never be attacked: no ships, no landing",
+      "area": "war",
+      "repro": [
+        "New game. Open the Army screen of any province, and of Arvelia after taking it.",
+        "Look at the 'March to' list: only own provinces, 'Attack Arvelia' and 'Attack Valdoria North-West' ever appear. Sundmark, Lorran and Pellis are never offered."
+      ],
+      "expected": "Rules 08 sections 5 and 6: a fleet sets a beachhead and armies attack overseas; warships exist (8 types).",
+      "actual": "There is no ship, fleet, port move or landing in the game (state.fleets is empty; no UI). Armies attack only into bordering provinces, and Sundmark, Lorran and Pellis border nothing, so 3 of 4 minors and their 9 militia are out of reach for ever; the computer's campaign has only Arvelia as a target. Documented in docs/REVIVAL_PLAN.md ('trade only until ships exist') and open card Q37, so this is a known gap, but the rules sections 5 and 6 are unbuilt.",
+      "evidence": "Army screen texts: 'March to | Testland North-East | Attack Valdoria North-West' (Arvelia, run e7/e9); code: src/app/engine/world/provinces.ts:26 adjacentProvinces is tile adjacency only.",
+      "frs": ["FR-205", "FR-216"],
+      "suspect": "",
+      "fix_size": "L",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "ARMY-WAR-05",
+      "kind": "bug",
+      "severity": "minor",
+      "title": "The game lets the player declare war on an island minor that can never be attacked, with no warning",
+      "area": "diplomacy",
+      "repro": [
+        "New game. Diplomacy > Sundmark > Declare war. The confirmation reads only 'Declare war on Sundmark? The war starts next turn. A war on a minor nation also lowers our relations with every other minor nation, by half a level each.'",
+        "End turn."
+      ],
+      "expected": "A war that cannot be fought is refused or at least flagged ('no army can reach Sundmark').",
+      "actual": "War is declared. Its only effect is the relations: news 'Relations with Arvelia: yellow to dark brown (our war on Arvelia and our war on Sundmark)', 'Relations with Lorran: yellow to orange ...'. The next turn the player may propose peace, which Sundmark accepts ('Peace made with Sundmark.').",
+      "evidence": "Run .gate/audit/army-war/e7.js: tab 'Sundmark | Minor nation | Dark brown, level 1 of 9 | At war since turn 2'; news 'Peace made with Sundmark.'; screenshot shots/army-war-01-dip-sundmark-war.png.",
+      "frs": ["FR-238"],
+      "suspect": "",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "ARMY-WAR-06",
+      "kind": "bug",
+      "severity": "minor",
+      "title": "Deal Book shows 'Trade net -$100' with 'No deals last turn': the army upkeep hides inside Trade net",
+      "area": "hud",
+      "repro": [
+        "New game. Turn 1: Capital > Metal works > More Armaments, End turn.",
+        "Turn 2: Capital > Armoury > recruit 1 Hussars ($100). End turn.",
+        "Turn 3: Deal Book."
+      ],
+      "expected": "The ledger names what it charged: army upkeep $100 and recruits $100 (FR-262), and nothing called trade when there was no trade.",
+      "actual": "Deal Book reads 'No deals last turn.' then Treasury: 'Trade net -$100', '1 Hussars recruited -$100', 'Treasury change -$200, From $9,900 to $9,700'. The -$100 is the army upkeep ($25 x 4 arms); the 'Military upkeep' row exists only in the Sold/Bought table, which is not shown on a turn without deals. The player reads a $100 loss from trade that did not happen.",
+      "evidence": "Screenshot C:/Users/brnat/AppData/Local/Temp/claude/6d278f4c60cadc55/c11c618f-69f1-4659-b2b1-f3416944c4fb/scratchpad/audit/shots/army-war-01-dealbook-recruit.png; text 'DEALBOOK Deal Book — Testland | Turn 2, Summer 1815 | No deals last turn. | TREASURY | Trade net -$100 | 1 Hussars recruited -$100 | Treasury change -$200 | From $9,900 to $9,700'.",
+      "frs": ["FR-256", "FR-262", "FR-202"],
+      "suspect": "src/app/components/market/dealBookView.ts:103 (tradeNet line is Sold - Bought - Military upkeep; no separate upkeep line in the Treasury table).",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "ARMY-WAR-07",
+      "kind": "visual",
+      "severity": "minor",
+      "title": "Attack and Battle screens hide regiments beyond about 8 per side behind an unmarked inner scroll area",
+      "area": "dialogs",
+      "repro": [
+        "Play the Valdoria campaign of ARMY-WAR-03 to turn 13 with 9 regiments in Valdoria North-West.",
+        "Army screen > tick all > March to 'Attack Valdoria South-West' > Attack...: the 'Our regiments' list.",
+        "End turn; the Battle screen opens by itself: the attackers' tokens."
+      ],
+      "expected": "All regiments visible or a clear scroll cue (the HUD got a visible thin scrollbar in FR-235).",
+      "actual": "In the Attack screen the 9th row ('2nd Cuirassiers') is cut in half at the bottom of the list. In the Battle screen the attackers' column ends with '6th Regulars' cut off and the two Cuirassiers are not on screen at all (they appear only in the Result list on the right); no scrollbar or fade tells that more tokens lie below.",
+      "evidence": "Screenshots C:/Users/brnat/AppData/Local/Temp/claude/6d278f4c60cadc55/c11c618f-69f1-4659-b2b1-f3416944c4fb/scratchpad/audit/shots/army-war-10-attack-13.png and army-war-11-battle-t13-0.png (seen once; scrollbar presence not measured). CSS: src/app/components/army/War.module.css:165 '.list { max-height: 340px; overflow-y: auto }' and :302 '.field { max-height: 460px; overflow-y: auto }'.",
+      "frs": ["FR-230", "FR-231"],
+      "suspect": "src/app/components/army/War.module.css:165 and :302",
+      "fix_size": "S",
+      "confidence": "seen-once"
+    },
+    {
+      "id": "ARMY-WAR-08",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "Move and Range are printed on the Armoury cards but change nothing (melee firepower is stored and unused); Light Artillery and Skirmishers are dominated units",
+      "area": "army",
+      "repro": [
+        "Capital > Armoury: read 'Firepower 10 Move 5 Range 9' on Light Artillery and 'Firepower 10 Move 4 Range 5' on Regulars.",
+        "Search the engine: only fpNormal and defense are read in combat (src/app/engine/army/combat.ts:39-42); stats.move and stats.range appear only in src/app/components/army/armouryView.ts:166-167; fpMelee is read nowhere under src/app."
+      ],
+      "expected": "The stats the card prints decide something (range for artillery, move for cavalry) or are not printed as if they did.",
+      "actual": "A march is always one province a turn, a battle has no distance, so Move 11 (Hussars) and Range 11 (Artillery) are decoration. Light Artillery (FPN 10, DEF 3, 2 arms, $1,000, a horse) is strictly worse than Regulars (FPN 10, DEF 5, 1 arm, $500, no horse); Skirmishers (FPN 5, 1 arm) lose to Regulars per arm. Cuirassiers' melee value 19 (rules 08) is never used.",
+      "evidence": "Armoury text 'Light Artillery ... Firepower 10 Move 5 Range 9 Entrench: no ... 1 trained worker 2 armaments 1 horse $1,000' (shots/army-war-02-armoury.png); grep result above.",
+      "frs": ["FR-199", "FR-212"],
+      "suspect": "src/app/engine/army/combat.ts:39-42 shotDamage",
+      "fix_size": "M",
+      "confidence": "code-reading-only"
+    },
+    {
+      "id": "ARMY-WAR-09",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "Horses (needed by Hussars, Cuirassiers, Light Artillery) have no source: the 4 start horses are all a player ever gets",
+      "area": "army",
+      "repro": [
+        "New game: Warehouse shows Horses 4. Open Market > Horses row.",
+        "Recruit up to 4 cavalry or Light Artillery over the game, then try for a fifth."
+      ],
+      "expected": "A resource the Armoury asks for can be made or bought (Imp1: horses from ranches or trade).",
+      "actual": "Board of Trade row 'Horses $300 | 4 | ... No minor nation sells this ... No one buys this'; the map has no horse tile (resources present: timber, iron ore, livestock, coal, grain, cotton, fruit). After 4 horses the three cavalry-type cards read 'Not enough horses' for the rest of the game. The Armoury does not say horses are finite.",
+      "evidence": "Run .gate/audit/army-war/e16.js: 'Horses -> Horses $300 4 | 0 | + | No minor nation sells this | ... | No one buys this | No minor trades this'; 'horse tiles: 0'.",
+      "frs": ["FR-200", "FR-203", "FR-212"],
+      "suspect": "",
+      "fix_size": "M",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "ARMY-WAR-10",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "Forts are never drawn on the map (also not the one the Engineer builds for $5,000) and only level 1 exists; the Attack screen is the only place that shows one",
+      "area": "map",
+      "repro": [
+        "New game: zoom on Valdoria's capital tile 14-9 (aria-label 'Capital, owned by Valdoria'): no fort picture.",
+        "Order the Engineer to build a fort on tile 7-3 (store order moveAndStartConstruction structure 'fort', as the Construction Options dialog would): cash 10,000 -> 5,000, done after 3 turns, state shows fortLevel 1 on 7-3; the map and the tile still show nothing.",
+        "Attack Valdoria South-West: the Attack screen shows 'Fort level 1: our hits do 30% less damage'."
+      ],
+      "expected": "Rules 08 sections 4 and 7.1: forts level 1 to 3 ($5,000 / $7,500 / $10,000), a visible part of defence; a player sees which province is fortified.",
+      "actual": "Forts exist (the two capitals at the start, any tile with an Engineer for $5,000, 3 turns) and protect every defender of the whole province by 30% (it replaces the 20% entrenchment), but the map never shows them (card Q74 decided 'no fort mark on the map'), the Army screen and tile info say nothing about them, and developmentSystem.ts:137 can only make level 1 (no level 2 or 3). A player cannot see which enemy province is fortified before opening the Attack screen.",
+      "evidence": "Run .gate/audit/army-war/e18.js: 'fort order at 7-3 {\"ok\":true} ... cash 5000 jobs [[\"7-3\",{... \"kind\":\"fort\" ... \"durationTurns\":3}]]' then 'T4 forts 7-3:L1,2-9:L1,14-9:L1'; zoom shots/army-war-01b-valdoria-capital-zoom.png (no fort on the capital) and shots/army-war-01b-fort-zoom.png (tile 7-3 with the fort built: no picture); Attack screen shots/army-war-10-attack-13.png.",
+      "frs": ["FR-203", "FR-230"],
+      "suspect": "src/app/engine/systems/developmentSystem.ts:137 (fortLevel = max(1, ...)); decision Q74 in docs/report/roadmap.json",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "ARMY-WAR-11",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "No rail or transport move for armies: one bordering province per turn, so the start army needs 2 turns to reach Arvelia",
+      "area": "army",
+      "repro": [
+        "New game. Army in Testland South-West. Order March to Testland North-East. End turn; then March to Arvelia / Attack Arvelia. End turn."
+      ],
+      "expected": "Rules 08 section 5: by rail to any distant own province (1 arms point per 5 transport capacity).",
+      "actual": "Every move is one adjacent province per turn (FR-205). The start army needs turn 1 and turn 2 to stand in Arvelia; a Regulars ordered on turn 3 (joins in the capital on turn 4) stands in Arvelia on turn 6. Open card Q37 ('rail and sea moves ... stay out of v2').",
+      "evidence": "e9 run: 'T4 ... mobile [sw:3rdRegulars100, sw:4thRegulars100, ...]' then 'T5 ... ne:3rdRegulars100' then 'minor-1' on T6 (one province per turn).",
+      "frs": ["FR-205"],
+      "suspect": "",
+      "fix_size": "M",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "ARMY-WAR-12",
+      "kind": "gap",
+      "severity": "nit",
+      "title": "Medals, generals, experience and army rewards from the rules are not in the game",
+      "area": "army",
+      "repro": [
+        "Win several battles with the same regiments (turn 3 to 13 of ARMY-WAR-03): the Army screen shows only name, category, arms, health, status."
+      ],
+      "expected": "Rules 08 section 3: a medal per 3 victories (about 2x power at 4), generals, new recruits with medals.",
+      "actual": "Nothing records victories; 'FR-231' casualty list only shows health. Open card Q37 (generals and medals out of v2).",
+      "evidence": "Army screen text 'REGIMENT CATEGORY ARMS HEALTH STATUS' (shots/army-war-01-army-capital.png).",
+      "frs": [],
+      "suspect": "",
+      "fix_size": "L",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "ARMY-WAR-13",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "A $100 upkeep shortfall disbands the whole army, and the warning does not say so",
+      "area": "army",
+      "repro": [
+        "New game. Diplomacy > Valdoria > Grant $10,000 (once) > Give; the treasury is $0.",
+        "Look at the HUD: 'Cash is short of the army upkeep: $100 is due at End Turn and $0 will be left. Unless this turn's sales cover the rest, the newest regiments are disbanded.' End turn."
+      ],
+      "expected": "A warning that says how many regiments go; a small shortfall costs a small loss (Imp1 goes into debt, Q36 notes this).",
+      "actual": "News: '3 regiments disbanded: no money for their upkeep.' The whole start army (1st and 2nd Regulars and 1st Artillery, 4 arms, their workers and armaments lost for good) disappears because with $0 each disband still leaves upkeep above $0. The warning reads as if only the newest one goes.",
+      "evidence": "Run .gate/audit/army-war/e5.js: 'HUD TEXT: Cash is short of the army upkeep: $100 is due at End Turn and $0 will be left ...'; 'T2 cash 0 armies [[],[],[],[]]'; 'NEWS ... 3 regiments disbanded: no money for their upkeep.'; screenshot shots/army-war-01-upkeep-short-hud.png.",
+      "frs": ["FR-202", "FR-261"],
+      "suspect": "src/app/engine/systems/armySystem.ts (no-pay disband loop)",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "ARMY-WAR-14",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "Cancelling an attack needs one click per regiment; there is no 'Cancel attack' for the whole force",
+      "area": "army",
+      "repro": [
+        "Turn 2 with 3 regiments in North-East: tick all, March to Attack Arvelia, Attack. Open the Army screen again.",
+        "Each row reads 'Attacking Arvelia' with its own 'Cancel attack' button."
+      ],
+      "expected": "One control undoes the attack order (FR-230 says 'Cancel attack').",
+      "actual": "Three 'Cancel attack' buttons; cancelling one leaves the other two attacking (a 1-regiment attack then loses). With 9 regiments that is 9 clicks.",
+      "evidence": "Run .gate/audit/army-war/e10.js: 'cancel attack buttons 3' and after one click '1st Regulars ... Available | 2nd Regulars ... Attacking Arvelia | Cancel attack'.",
+      "frs": ["FR-230", "FR-211"],
+      "suspect": "src/app/components/ArmyModal.tsx (per-row cancel only)",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "ARMY-WAR-15",
+      "kind": "gap",
+      "severity": "nit",
+      "title": "Clicking an enemy tile that the selected army does not border does nothing and silently drops the selection",
+      "area": "map",
+      "repro": [
+        "Turn 2 with 2nd Regulars in Testland North-West: Army screen > tick it > close. Click a tile of Arvelia.",
+        "Compare with a selection in North-East, where the same click opens the Attack screen."
+      ],
+      "expected": "A line says why (not next to that province) or the click is refused visibly.",
+      "actual": "No dialog and no message; the tile info panel just switches to the clicked tile, and the marker's ', 1 selected' disappears.",
+      "evidence": "Run .gate/audit/army-war/e14.js: 'after click on Arvelia tile, dialogs 0' and marker labels without 'selected'; screenshot shots/army-war-01-mixed-selection.png.",
+      "frs": ["FR-230"],
+      "suspect": "src/app/hooks/tileClickOrders.ts (not read in detail)",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "ARMY-WAR-16",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "The HUD never says the player is at war; war state is only in the Diplomacy tabs",
+      "area": "hud",
+      "repro": [
+        "New game. Declare war on Valdoria, end 3 turns. Read the HUD above the news."
+      ],
+      "expected": "A need for the player: who we are at war with and since when (or an alert when an enemy army borders our land; Imp1 Defense Minister advice).",
+      "actual": "After the declaration news scrolls away the HUD (turn, council line, cash, score, ranking) holds no word 'war'; the map tile of the enemy capital reads only 'Capital, owned by Valdoria'. The status exists only as 'At war since turn 2' on the Diplomacy country tab.",
+      "evidence": "Run .gate/audit/army-war/e17.js: 'war {\"aggressors\":[\"nation-1\"],\"since\":2}' and 'word war in HUD above news: false'; screenshot shots/army-war-01-hud-at-war.png.",
+      "frs": [],
+      "suspect": "",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "ARMY-WAR-17",
+      "kind": "bug",
+      "severity": "minor",
+      "title": "Valdoria asks for peace every 3 turns from the first turn of war, before any battle; the offer, the Battle screen and the Council dialog can stack at turn start",
+      "area": "dialogs",
+      "repro": [
+        "Take Arvelia (turns 1 to 3), declare war on Valdoria on turn 3, recruit 2 Regulars.",
+        "From turn 5 on, at the start of every third turn an 'Accept Offer' dialog 'Valdoria asks for an end to our war. Do you accept?' opens; on turn 8 it opens at the same time as the Battle screen of the attack on Valdoria North-West, and on turn 11 next to the Council dialog."
+      ],
+      "expected": "A computer nation asks for peace when it is really losing, and one dialog at a time.",
+      "actual": "Offers came at the start of turns 5, 8, 11, 14, 17, 20, 23, 26 and 29, the first one before any battle against Valdoria had been fought; the offer opens above the Battle replay and blocks it until Reject/Accept (Enter accepts, so a mashed Enter ends the war). Its test is non-militia strength below the enemy's (scriptedAnswers.ts:losingWar, militaryStrength), which is true as soon as the player owns more regiments, because the computer cannot recruit (ARMY-WAR-01).",
+      "evidence": "Run .gate/audit/army-war/e8.js (output e8-out.txt): 'DIALOG at T5: Accept Offer ... Valdoria asks for an end to our war. Do you accept?', 'REJECT offer at T11', '... T14', '... T17' ... 'T29'; screenshot shots/army-war-06-offer-t7.png (HUD 'Turn: 8 of 40', Accept Offer over the Battle at Valdoria North-West).",
+      "frs": ["FR-174", "FR-175", "FR-232"],
+      "suspect": "src/app/engine/diplomacy/scriptedAnswers.ts:18-22 losingWar (strength of non-militia regiments)",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "ARMY-WAR-18",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "Conquest is by far the cheapest way to score: taking Arvelia on turn 2 adds +109 points (45% of the start score) with no development work",
+      "area": "economy",
+      "repro": [
+        "New game (score 240 each). Take Arvelia as in ARMY-WAR-03 turns 1 to 3. Read the score line on turn 3 and compare with turn 2 (239)."
+      ],
+      "expected": "Score follows the documented formula (cash/100 + 10 per capacity + 10 per resource level); a conquered, unconnected province should not outweigh built industry.",
+      "actual": "Turn 3 score is 348 vs 239 the turn before; the 11 level-1 tiles of Arvelia count 10 points each. The conquered tiles have no rail, no depot and produce nothing for the player (Warehouse unchanged), yet the score jumps; at game end of ARMY-WAR-03 the winner had 370 'Development' points from 37 conquered levels. Meanwhile the player's score drops 1 point a turn from the $100 upkeep.",
+      "evidence": "Run e7/e13: 'T3 ... SCORES: 1 Testland (you) 348 ; 2 Valdoria 288' after 'T2 ... Score: 239'; e9 game over table 'Testland treasury 44 industry 90 development 370 total 504; Valdoria 30 / 200 / 0 / 230'.",
+      "frs": ["FR-222"],
+      "suspect": "src/app/definisions/scoreWeights.ts (pointsPerLevel 10 for every owned tile level)",
+      "fix_size": "M",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "ARMY-WAR-19",
+      "kind": "doc-lie",
+      "severity": "nit",
+      "title": "Requirements and journal call the scripted war 'tested' and 'done' while it only holds on four pinned seeds",
+      "area": "docs",
+      "repro": [
+        "Read docs/requirements.md FR-274 'Acceptance: continent, seeds 1 to 4 ... at least 3 of the 4 seeds' and FR-213 'tested'.",
+        "Run the headless seeds 1 to 120 (ARMY-WAR-02) and the in-app war of ARMY-WAR-01."
+      ],
+      "expected": "A status that says what holds in a game a player starts (random seed, human at war).",
+      "actual": "All 312 unit tests of the area pass, yet in the running app the computer at war is inert (ARMY-WAR-01) and campaigns in 19% of games (ARMY-WAR-02). The journal line 'the FR-213 garrison threat-recruit asks for Regulars, which a real game can never raise' was carried for several rounds and the requirement still reads 'tested'.",
+      "evidence": "npx vitest run on 12 army/war test files: 'Test Files 12 passed (12) Tests 312 passed (312)'; docs/journal.md 'Carried from M8: the FR-213 garrison threat-recruit asks for Regulars, which a real game can never raise.'",
+      "frs": ["FR-213", "FR-274"],
+      "suspect": "",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    }
+  ]
+}
