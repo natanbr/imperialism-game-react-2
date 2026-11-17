@@ -219,7 +219,7 @@ describe('FR-260 (replaces FR-157) the continent plays: 40 turns, nation 2 scrip
     expect(scores('first')).toEqual([1507, 1546, 1548, 1685]);
   });
 
-  it('FR-260 FR-215 without the start forces nation 2\'s turn-40 score on the continent is the same seed\'s score on two-islands: 1590, 1546, 1524, 1655', () => {
+  it('FR-260 FR-215 without the start forces nation 2\'s turn-40 score on the continent is the same seed\'s score on two-islands: 1643, 1546, 1530, 1637', () => {
     // The seams of M5 to M8 change nothing else: only the start army (its upkeep) and the 4 horses move the continent game.
     const at40 = (game: Game) => game.turns[N2][TURNS - 1].score;
     expect(SEEDS.map(seed => at40(games.get(seed)!.bare))).toEqual(SEEDS.map(seed => at40(games.get(seed)!.twoIslands)));
@@ -227,8 +227,12 @@ describe('FR-260 (replaces FR-157) the continent plays: 40 turns, nation 2 scrip
     // M12 FR-459 re-record: 1551, 1591, 1592, 1522 -> 1590, 1546, 1524, 1655 (FR-125's turn-40 numbers). Every seed first
     // differs on turn 10 (the rancher works 17-5, not 16-5 on the depot 17-4's rail path, which is joined a turn earlier
     // by one section fewer); seeds 2 and 3 end lower (-45, -68) with the same depots and as many development jobs.
-    // Accepted: no depot is joined late any more (FR-125's dead-end check passes) and every turn-40 ratio is 2.02 or more
-    expect(scores('twoIslands')).toEqual([1590, 1546, 1524, 1655]);
+    // Accepted: no depot waits for a job on its rail path any more and every turn-40 ratio is 2.02 or more
+    // M12 FR-460 re-record: 1590, 1546, 1524, 1655 -> 1643, 1546, 1530, 1637. From turn 18 a training to expert ($1,000)
+    // waits until the cash above the reserve pays for it; seeds 1 and 3 end higher (+53, +6), seed 4 lower (-18: 3 experts
+    // at turn 40, not 5), seed 2 is unchanged. Accepted: the engineer is no longer kept from a rail section for want of
+    // cash (two-islands seeds 7 and 15 joined the depot 20-2 a turn late), and the lowest FR-125 ratio rose from 1.51 to 1.60
+    expect(scores('twoIslands')).toEqual([1643, 1546, 1530, 1637]);
     console.log('FR-260 nation 2 score at turn 40, continent with the start army / without / two-islands:', JSON.stringify(SEEDS.map((seed, i) => [seed, scores('first')[i], scores('bare')[i], scores('twoIslands')[i]])));
   });
 

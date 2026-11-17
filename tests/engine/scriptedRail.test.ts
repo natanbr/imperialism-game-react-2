@@ -8,19 +8,21 @@ import { validateOrder } from '@/engine/orders/validate';
 import { applyOrder } from '@/engine/orders/apply';
 import { computerOrders } from '@/engine/ai/players';
 import { scriptedPlayer, type Player } from '@/engine/ai/scriptedPlayer';
-import { bestDepotSite, capitalComponent, coveredTiles, railPath } from '@/engine/ai/railPlan';
+import { bestDepotSite, capitalComponent, coveredTiles, pendingRailTiles, railPath } from '@/engine/ai/railPlan';
+import { cashReserve } from '@/engine/ai/economy';
 import { railLinksOf, addDepot, addRailroad } from '@/engine/systems/railroadSystem';
 import { computeLogisticsTransport } from '@/engine/systems/logisticsSystem';
 import { scoreOf } from '@/engine/score/score';
 import type { Order } from '@/engine/orders/Order';
 import type { GameState } from '@/types/GameState';
 import { m4ScriptedPlayer } from './m4ScriptedPlayer';
-import { put, setTile } from './fixtures';
+import { put, setIndustry, setTile, setTreasury, setWarehouse } from './fixtures';
 import { landDistanceToCapital as distanceToCapital, railBound as bound, railDeadEnds } from './railBound';
 
 const N2 = 'nation-2';
 const CAPITAL_2 = '14-9';
 const ENGINEER_2 = 'worker-nation-2-7';
+const FORESTER_2 = 'worker-nation-2-4';
 const key = (tileId: string) => tileId.replace('-', ',');
 const network = (s: GameState) => s.transportNetwork.railroadNetworks![N2];
 const linksOf = (s: GameState) => railLinksOf(s).filter(l => l.nationId === N2).length;
@@ -152,28 +154,31 @@ describe('FR-123 the others work the gathered tiles first', () => {
   });
 });
 
-describe('FR-459 no civilian starts a job on a tile the engineer\'s rail still needs', () => {
-  // The two-islands games of seeds 3 and 4 at turn 25 (M12 review): the depot 20-2 is built and not joined, the rail
-  // reaches 18-2. The engineer laid 18-2 -> 19-2 and the forester then started a job on 20-2, so the last section (built
-  // on 20-2) was refused "tile-has-job" on turns 26 and 27 and the depot was joined on turn 28.
-  const RAIL = ['14-9', '15-8', '15-7', '16-6', '16-5', '17-4', '17-3', '18-2'];
-  const node = (tileId: string) => {
-    const [x, y] = tileId.split('-').map(Number);
-    return { x, y };
-  };
-  const PATH = ['19-2', '20-2'];
-  /** Seed 1's start with that rail and depot; every other resource tile of nation 2 at level 3, so only the path is left to develop. */
-  const blocked = (): GameState => {
-    let s = newGame({ seed: 1 });
-    for (let i = 1; i < RAIL.length; i++) s = addRailroad(s, N2, node(RAIL[i]), node(RAIL[i - 1]));
-    s = setTile(addDepot(s, N2, node('20-2')), '20-2', { depot: true });
-    const tiles = s.map.tiles.map(row =>
-      row.map(t => (t.ownerNationId === N2 && t.resource && !PATH.includes(t.id) ? { ...t, resource: { ...t.resource, level: 3 } } : t))
-    );
-    return put({ ...s, map: { ...s.map, tiles } }, ENGINEER_2, '20-2');
-  };
-  const jobTile = (o: Order): string | undefined => ('toTileId' in o ? o.toTileId : 'tileId' in o ? o.tileId : undefined);
+// The two-islands games of seeds 3 and 4 at turn 25 (M12 review): the depot 20-2 is built and not joined, the rail
+// reaches 18-2. The engineer laid 18-2 -> 19-2 and the forester then started a job on 20-2, so the last section (built
+// on 20-2) was refused "tile-has-job" on turns 26 and 27 and the depot was joined on turn 28.
+const RAIL = ['14-9', '15-8', '15-7', '16-6', '16-5', '17-4', '17-3', '18-2'];
+const node = (tileId: string) => {
+  const [x, y] = tileId.split('-').map(Number);
+  return { x, y };
+};
+const PATH = ['19-2', '20-2'];
+/**
+ * Seed 1's start with the rail of `RAIL` up to `railTo` and the depot 20-2 built; every other resource tile of nation 2
+ * at level 3, so only the path is left to develop. `railTo` '17-3' leaves 18-2 unrailed: a path of three missing sections.
+ */
+const blocked = (railTo = '18-2'): GameState => {
+  let s = newGame({ seed: 1 });
+  for (let i = 1; i <= RAIL.indexOf(railTo); i++) s = addRailroad(s, N2, node(RAIL[i]), node(RAIL[i - 1]));
+  s = setTile(addDepot(s, N2, node('20-2')), '20-2', { depot: true });
+  const tiles = s.map.tiles.map(row =>
+    row.map(t => (t.ownerNationId === N2 && t.resource && !PATH.includes(t.id) ? { ...t, resource: { ...t.resource, level: 3 } } : t))
+  );
+  return put({ ...s, map: { ...s.map, tiles } }, ENGINEER_2, '20-2');
+};
+const jobTile = (o: Order): string | undefined => ('toTileId' in o ? o.toTileId : 'tileId' in o ? o.tileId : undefined);
 
+describe('FR-459 no civilian starts a job on a tile the engineer\'s rail still needs', () => {
   it('FR-459 with a built depot not joined, the engineer lays the first section and no other civilian takes the depot\'s tile or its path', () => {
     const s = blocked();
     expect(railPath(s, N2, '20,2', capitalComponent(s, N2))).toEqual(['20,2', '19,2', '18,2']);
@@ -188,6 +193,52 @@ describe('FR-459 no civilian starts a job on a tile the engineer\'s rail still n
     let s = blocked();
     for (let turn = 1; turn <= 2; turn++) s = resolveTurn(s, { [N2]: scriptedPlayer(s, N2) }, s.seed).state;
     expect({ joined: capitalComponent(s, N2).has('20,2'), deadEnds: railDeadEnds(s, N2) }).toEqual({ joined: true, deadEnds: [] });
+  });
+
+  // M12 delta review 2: the two tests above cannot see the path half of the rule (the engineer's own job on 19-2 refuses a
+  // developer there anyway); with 18-2 unrailed his job goes on 18-2 and only FR-459 keeps 19-2 free.
+  it('FR-459 pendingRailTiles: the depot and both ends of each missing section outside the capital\'s rail', () => {
+    expect([...pendingRailTiles(blocked(), N2)].sort()).toEqual(['19-2', '20-2']);
+    expect([...pendingRailTiles(blocked('17-3'), N2)].sort()).toEqual(['18-2', '19-2', '20-2']);
+  });
+
+  it('FR-459 with three sections missing, the engineer lays the first and no other civilian takes a tile farther along the path', () => {
+    const s = blocked('17-3');
+    expect(railPath(s, N2, '20,2', capitalComponent(s, N2))).toEqual(['20,2', '19,2', '18,2', '17,3']);
+    // The forester could start on 19-2 (timber, level 0): only FR-459 keeps it free
+    expect(validateOrder(s, { kind: 'moveAndStartDevelopment', nationId: N2, workerId: FORESTER_2, toTileId: '19-2' }).ok).toBe(true);
+    const orders = workerOrders(scriptedPlayer(s, N2));
+    expect(orders.filter(o => o.workerId === ENGINEER_2)).toEqual([
+      { kind: 'moveAndStartConstruction', nationId: N2, workerId: ENGINEER_2, toTileId: '18-2', structure: 'rail', fromTileId: '17-3' },
+    ]);
+    expect(orders.filter(o => o.workerId !== ENGINEER_2 && ['18-2', ...PATH].includes(jobTile(o) ?? ''))).toEqual([]);
+  });
+});
+
+describe('FR-460 training leaves the cash the civilians need', () => {
+  // Two-islands seeds 7 and 15 (M12 delta review 2): the economy plans before the civilians, and trainings to expert
+  // ($1,000 each) left $116 (seed 7, turn 25: one) and $21 (seed 15, turn 24: three) for the engineer's rail section, which
+  // was then refused "insufficient-funds"; the depot 20-2 joined a turn late and the turn-25 checkpoint saw the dead end 19,2.
+  /** `blocked()` (5 developers and a depot to join: a reserve of $800) with `cash`, `paper` and no untrained worker. */
+  const short = (cash: number, paper = 2): GameState =>
+    setIndustry(setWarehouse(setTreasury(blocked(), N2, cash), N2, { paper }), N2, { workers: { untrained: 0, trained: 3, expert: 1 } });
+  const training = (s: GameState) => scriptedPlayer(s, N2).filter(o => o.kind === 'trainWorkers');
+  const toExpert = (delta: number): Order => ({ kind: 'trainWorkers', nationId: N2, from: 'trained', delta });
+
+  it('FR-460 with $1,116 and a reserve of $800 no worker trains to expert ($1,000), and the engineer lays his section', () => {
+    const s = short(1116);
+    expect(cashReserve(s, N2)).toBe(800);
+    const orders = scriptedPlayer(s, N2);
+    expect(orders.filter(o => o.kind === 'trainWorkers')).toEqual([]);
+    expect(workerOrders(orders).filter(o => o.workerId === ENGINEER_2)).toEqual([
+      { kind: 'moveAndStartConstruction', nationId: N2, workerId: ENGINEER_2, toTileId: '19-2', structure: 'rail', fromTileId: '18-2' },
+    ]);
+    expect(training(short(1799, 4))).toEqual([]);
+  });
+
+  it('FR-460 the cash above the reserve still trains: $1,800 trains one worker, $2,800 two', () => {
+    expect(training(short(1800, 4))).toEqual([toExpert(1)]);
+    expect(training(short(2800, 4))).toEqual([toExpert(2)]);
   });
 });
 

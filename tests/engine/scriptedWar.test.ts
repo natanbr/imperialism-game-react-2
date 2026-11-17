@@ -6,6 +6,7 @@ import { beforeAll, describe, it, expect } from 'vitest';
 import { newGame } from '@/engine/newGame';
 import { scriptedPlayer } from '@/engine/ai/scriptedPlayer';
 import { campaignTarget, capitalKeep, workersKeptForCampaign } from '@/engine/ai/scriptedWar';
+import { cashReserve } from '@/engine/ai/economy';
 import { tryApplyOrder } from '@/engine/orders/apply';
 import type { Order } from '@/engine/orders/Order';
 import { resolveTurn } from '@/engine/turn/resolveTurn';
@@ -175,6 +176,12 @@ describe('FR-274 scripted war on minors', () => {
       expect(training(campaign(0))).toEqual([trainTrained(3)]);
       expect(workersKeptForCampaign(campaign(2, 9), N2, 'trained')).toBe(0);
       expect(training(campaign(2, 9))).toEqual([trainTrained(3)]);
+    });
+
+    it('FR-460 a nation with an army trains below its reserve as before: with $1,500 and a reserve of $2,500 one worker trains', () => {
+      const s = setTreasury(campaign(0), N2, 1500);
+      expect(cashReserve(s, N2)).toBe(2500);
+      expect(training(s)).toEqual([trainTrained(1)]);
     });
   });
 

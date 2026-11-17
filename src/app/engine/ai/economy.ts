@@ -57,10 +57,11 @@ const RAIL_RESERVE = 300;
 const DEVELOPERS: readonly WorkerType[] = [WorkerType.Farmer, WorkerType.Rancher, WorkerType.Forester, WorkerType.Miner, WorkerType.Driller];
 
 /**
- * FR-454: the cash the civilians need soon, kept from bids and the pairs-first run (FR-128, FR-129): a level-1 job
- * ($100) for each developer, plus a depot's price while the engineer is free to start one (no depot being built, every
- * built depot joined to the capital), else one rail section. Cash beyond it buys lumber + steel pairs instead of lying
- * idle until the next depot. A new game keeps CASH_RESERVE; so does a nation with an army (FR-213, FR-274).
+ * FR-454: the cash the civilians need soon, kept from bids and the pairs-first run (FR-128, FR-129) and, without an
+ * army, from training (FR-460): a level-1 job ($100) for each developer, plus a depot's price while the engineer is
+ * free to start one (no depot being built, every built depot joined to the capital), else one rail section. Cash beyond
+ * it buys lumber + steel pairs instead of lying idle until the next depot. A new game keeps CASH_RESERVE; so does a
+ * nation with an army (FR-213, FR-274).
  */
 export function cashReserve(state: GameState, nationId: string): number {
   if (upkeepOf(state, nationId) > 0) return Math.max(CASH_RESERVE, SCRIPTED_GARRISON.treasuryFloor);
@@ -224,8 +225,18 @@ function clearStandingOrders(state: GameState, nationId: string, propose: Propos
 }
 
 /**
+ * FR-460: the cash training may spend. The economy plans before the civilians, so a nation without an army keeps its
+ * reserve (`cashReserve`, FR-454) for them: before FR-460 a training to expert ($1,000) left the engineer $116 for a
+ * rail section (two-islands seed 7, turn 25), and the depot joined a turn late. A nation with an army trains as before
+ * (FR-455, FR-458: its regiments draw trained workers): keeping a reserve there too lowered FR-260's start-army scores
+ * (by up to 55 points), so its engineer can still wait a turn for a section (card Q107).
+ */
+const trainingCash = (state: GameState, nation: Nation): number =>
+  nation.treasury - (upkeepOf(state, nation.id) > 0 ? 0 : cashReserve(state, nation.id));
+
+/**
  * Training (FR-130), only on a turn whose run would use all the labour (less than 2 left, so more
- * labour would be used): as many as the paper and cash allow, untrained first.
+ * labour would be used): as many as the paper and cash allow (`trainingCash`, FR-460), untrained first.
  */
 function planTraining(view: () => GameState, nationId: string, propose: Propose): void {
   const left = turnsAfter(view());
@@ -237,7 +248,7 @@ function planTraining(view: () => GameState, nationId: string, propose: Propose)
     const paper = (nation.warehouse as Stock)[MaterialType.Paper] ?? 0;
     // FR-458: the campaign's recruits keep their grade
     const free = healthyWorkers(nation.industry, from) - workersKeptForCampaign(view(), nationId, from);
-    const most = Math.min(free, Math.floor(paper / cost.paper), Math.floor(nation.treasury / cost.cash));
+    const most = Math.min(free, Math.floor(paper / cost.paper), Math.floor(trainingCash(view(), nation) / cost.cash));
     for (let n = most; n > 0; n--) if (propose({ kind: "trainWorkers", nationId, from, delta: n })) break;
   }
 }

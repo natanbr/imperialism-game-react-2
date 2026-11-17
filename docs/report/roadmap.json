@@ -2067,21 +2067,65 @@
   },
   {
    "id": "Q105",
-   "title": "Keep the paper rule that changed two v1 turn-1 tests, or turn it off on the two-islands world?",
+   "title": "Keep the paper rule that changed three v1 turn-1 test cases, or turn it off on the two-islands world?",
    "status": "open",
-   "context": "What happened: FR-159 (decision 1) says the v1 two-islands tests keep their numbers. The new rule FR-455 (the computer makes no paper for training while its workers can already handle everything its depots bring in) changes what it makes on turn 1, so two turn-1 tests were re-recorded: the trade orders of newGame(11) in twoNations.test.ts (nation 1 now buys steel 2, lumber 1, steel 3 and sells timber 1; before: lumber 1, steel 1, lumber 2, steel 2 and timber 1) and the FR-129 plan in scriptedScore.test.ts (lumber 2 and no paper; before: paper 2). Without FR-455 the computer falls below the 1.5 margin at turn 15 (1.41 to 1.48, FR-125 red). The default below is in the code now; nothing waits on it.",
+   "context": "What happened: FR-159 (decision 1) says the v1 two-islands tests keep their numbers. The new rule FR-455 (the computer makes no paper for training while its workers can already handle everything its depots bring in) changes what it makes on turn 1, so three turn-1 test cases were re-recorded: in twoNations.test.ts the trade orders of newGame(11) (nation 1 now buys steel 2, lumber 1, steel 3 and sells timber 1; before: lumber 1, steel 1, lumber 2, steel 2 and timber 1) and the goods-first test (after the furniture it now bids for steel 2; before: lumber 1 and steel 1), and in scriptedScore.test.ts the FR-129 plan (lumber 2 and no paper; before: paper 2). Without FR-455 the computer falls below the 1.5 margin at turn 15 (1.41 to 1.48, FR-125 red). The default below is in the code now; nothing waits on it.",
    "options": [
     {
      "label": "Default: keep FR-455 everywhere",
-     "means": "The two turn-1 tests stay re-recorded and FR-159 gets a new row that accepts them. The computer keeps the 1.5 margin on every seed and checkpoint (lowest 1.51, seed 3 turn 25)."
+     "means": "The three turn-1 test cases stay re-recorded and FR-159 gets a new row that accepts them. The computer keeps the 1.5 margin on every seed and checkpoint (lowest 1.60, seed 3 turn 25, since FR-460)."
     },
     {
      "label": "Turn FR-455 off for the v1 two-islands world",
-     "means": "The two turn-1 tests pass with their old numbers again, but the margin test, which runs on two-islands, fails at turn 15 (1.41 to 1.48) and needs another fix or an answer to Q103."
+     "means": "The three turn-1 test cases pass with their old numbers again, but the margin test, which runs on two-islands, fails at turn 15 (1.41 to 1.48) and needs another fix or an answer to Q103."
     }
    ],
-   "suggestion": "The default: FR-455 is what makes the margin hold, and the two tests that moved pin turn-1 orders, not a rule a player relies on.",
-   "objection": "FR-159 was decision 1: the v1 tests were meant to prove that v1 play did not change, and two of them no longer do.",
+   "suggestion": "The default: FR-455 is what makes the margin hold, and the three test cases that moved pin turn-1 orders, not a rule a player relies on.",
+   "objection": "FR-159 was decision 1: the v1 tests were meant to prove that v1 play did not change, and three of their cases no longer do.",
+   "ids": [
+    "Q103"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q106",
+   "title": "The rail check at turns 15, 25 and 40 sees a rail still being laid: keep it strict, or let it skip the end of a rail going to a built depot?",
+   "status": "open",
+   "context": "What happened: FR-125's check \"no dead end at any checkpoint\" (a rail end that is not a depot, NR-022) passes on seeds 1 to 4, but by timing. On seeds 3 and 4 the depot 20-2 gets its two rail sections on turns 24 and 25, so the open end 19,2 is gone at the turn-25 checkpoint by one turn. Before FR-459 the sections came on turns 25 and 28 and the check was red; FR-459 removed the block (a forester working on 20-2), but that alone would have laid them on turns 25 and 26, still red; the check cleared because the rail also came one turn earlier. A rail being laid always has an open end for a turn or more: on the continent (start army, its default market) every seed 1 to 16 has one at 15,8 at turn 15, where no test looks. So any later AI change that moves the rail by one turn can turn the check red with nothing wrong. The strategy C gate listed this decision with no card; this is that card. FR-459 and FR-460 removed the two things that kept the engineer from laying a section (a job on the tile, a training that spent his cash). The default below is how the test is now; nothing waits on it.",
+   "options": [
+    {
+     "label": "Default: keep the check strict",
+     "means": "Nothing changes. The check is green on seeds 1 to 4 today. A later AI change that shifts a depot's rail by one turn can make it red with no fault in the rail, and the next agent has to show it is timing, as this review did."
+    },
+    {
+     "label": "Let the check skip the open end of a rail going to a built depot",
+     "means": "A new FR row: an open end on the shortest path to a built depot that is not joined yet is not a dead end. The check stops depending on timing and still catches rail that leads to no depot. It no longer proves the rail is finished at the checkpoint (FR-125's other check, a depot joined, still holds)."
+    }
+   ],
+   "suggestion": "The second option: NR-022 is about rail that joins nothing, and a rail on its way to a built depot is not that. The test's own comment already says a path being laid has an open end for a few turns.",
+   "objection": "It changes a test's check (FR-405: no check is loosened to hide a change, so only Nathan can choose it), and a real dead end that happens to lie on the way to a built depot would then pass.",
+   "ids": [
+    "Q103"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q107",
+   "title": "Should a nation with an army also keep its civilians' cash when it trains workers?",
+   "status": "open",
+   "context": "What happened: the computer plans its economy before its civilians, so training could spend the cash the engineer needed for his next rail section. FR-460 makes a nation without an army keep its reserve (FR-454: $100 a developer plus a depot or a rail section) when it trains; on two-islands seeds 7 and 15 a depot no longer joins a turn late. A nation with an army still trains as before. Measured on the continent (world market, start army): on seed 7, turn 15 four trainings to expert left $264, and the engineer's $100 section was dropped because it would take the treasury under the army's upkeep floor of $200 (FR-213). Keeping a reserve there too costs score: the whole reserve ($2,500) lowered FR-260's start-army scores on seeds 2, 3 and 4 (1546 -> 1521, 1548 -> 1531, 1685 -> 1630); only the civilians' share plus the upkeep lowered seed 2 (1546 -> 1495). The default below is in the code now; nothing waits on it.",
+   "options": [
+    {
+     "label": "Default: a nation with an army trains as before",
+     "means": "FR-260's start-army scores stay as they are (1507, 1546, 1548, 1685). Its engineer can still wait a turn for a section when training spends the cash."
+    },
+    {
+     "label": "Every nation keeps its civilians' cash when it trains",
+     "means": "The engineer is never kept from a section by training. FR-260's start-army scores drop by up to 55 points and are re-recorded; with the whole reserve the FR-247 trade baseline moves too."
+    }
+   ],
+   "suggestion": "The default: the score loss is measured, the engineer was kept from a section once in eight games (seed 7, turn 15), and the armed nation's campaign needs its trained workers (FR-458).",
+   "objection": "The same fault FR-460 fixes for a nation without an army stays for a nation with one.",
    "ids": [
     "Q103"
    ],
