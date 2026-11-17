@@ -151,9 +151,9 @@ function candidateOrders(view: GameState, nationId: string, { worker, tile }: Wo
 
 /**
  * The engineer (FR-122, FR-138): (1) the next missing rail section of the shortest path joining a built
- * depot to the capital's network, naming its start; else (2), while no depot is being built, the depot
- * that newly gathers most, if it pays back (FR-132). It lays no rail that joins nothing and builds no
- * port (nothing it ships needs one).
+ * depot to the capital's network, naming its start; else (2), while no depot is being built, the best
+ * depot site (`bestDepotSite`: an urgent meal first, then the shortest payback of what the nation will
+ * use, FR-456, FR-457), if it pays back (FR-132). It lays no rail that joins nothing and builds no port.
  */
 function engineerOrders(view: GameState, nationId: string, workerId: string, standingOn: string): Order[] {
   const rail = nextRailSections(view, nationId).map(

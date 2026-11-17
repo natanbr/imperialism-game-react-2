@@ -34,6 +34,10 @@ import { createTurnContext } from "../turn/context";
 import { turnLimitOf } from "../turn/gameOver";
 import { SCRIPTED_GARRISON } from "@/definisions/regiments";
 import { armsWanted, planGarrison } from "./scriptedArmy";
+import { workersKeptForCampaign } from "./scriptedWar";
+import { capitalComponent } from "./railPlan";
+import { upkeepOf } from "../army/armies";
+import { WorkerType } from "@/types/Workers";
 
 export type Propose = (order: Order) => boolean;
 type Stock = Record<string, number>;
@@ -42,11 +46,30 @@ type Stock = Record<string, number>;
 export const turnsAfter = (state: GameState): number => Math.max(0, turnLimitOf(state) - state.turn);
 
 /**
- * Cash kept for the civilians (FR-128, FR-129): bids never take the treasury below it, and below it
- * the run makes goods for sale before pairs. One depot and five level-1 jobs, what the civilians
- * spend in a few turns. Measured: $1,500 and $4,000 both scored lower at turn 40 (journal, M4.2).
+ * The cash reserve of a new game (FR-128, FR-129): one depot and a level-1 job for each of the five developers. Since
+ * FR-454 the reserve follows what the civilians need soon (`cashReserve`); this is its value while the engineer is free
+ * to start a depot, and a nation with an army keeps it (FR-213's recruit floor).
  */
 export const CASH_RESERVE = CONSTRUCTION_COST.depot + 5 * DEVELOPMENT_COST[1];
+
+/** The most one rail section costs (swamp, mountains): kept while a depot is being built or joined (FR-454). */
+const RAIL_RESERVE = 300;
+const DEVELOPERS: readonly WorkerType[] = [WorkerType.Farmer, WorkerType.Rancher, WorkerType.Forester, WorkerType.Miner, WorkerType.Driller];
+
+/**
+ * FR-454: the cash the civilians need soon, kept from bids and the pairs-first run (FR-128, FR-129): a level-1 job
+ * ($100) for each developer, plus a depot's price while the engineer is free to start one (no depot being built, every
+ * built depot joined to the capital), else one rail section. Cash beyond it buys lumber + steel pairs instead of lying
+ * idle until the next depot. A new game keeps CASH_RESERVE; so does a nation with an army (FR-213, FR-274).
+ */
+export function cashReserve(state: GameState, nationId: string): number {
+  if (upkeepOf(state, nationId) > 0) return Math.max(CASH_RESERVE, SCRIPTED_GARRISON.treasuryFloor);
+  const own = state.map.tiles.flat().filter((t) => t.ownerNationId === nationId);
+  const developers = own.reduce((n, t) => n + t.workers.filter((w) => w.nationId === nationId && DEVELOPERS.includes(w.type)).length, 0);
+  const component = capitalComponent(state, nationId);
+  const depotWork = own.some((t) => t.constructionJob?.kind === "depot" || (!!t.depot && !component.has(`${t.x},${t.y}`)));
+  return developers * DEVELOPMENT_COST[1] + (depotWork ? RAIL_RESERVE : CONSTRUCTION_COST.depot);
+}
 
 /** Untrained to trained gives 1 more labour a turn from next turn on; trained to expert 2 more (FR-130). */
 export const TRAIN_MIN_TURNS = 3;
@@ -212,7 +235,9 @@ function planTraining(view: () => GameState, nationId: string, propose: Propose)
     const nation = nationOf(view(), nationId);
     const cost = TRAINING_COST[from];
     const paper = (nation.warehouse as Stock)[MaterialType.Paper] ?? 0;
-    const most = Math.min(healthyWorkers(nation.industry, from), Math.floor(paper / cost.paper), Math.floor(nation.treasury / cost.cash));
+    // FR-458: the campaign's recruits keep their grade
+    const free = healthyWorkers(nation.industry, from) - workersKeptForCampaign(view(), nationId, from);
+    const most = Math.min(free, Math.floor(paper / cost.paper), Math.floor(nation.treasury / cost.cash));
     for (let n = most; n > 0; n--) if (propose({ kind: "trainWorkers", nationId, from, delta: n })) break;
   }
 }
@@ -295,8 +320,31 @@ function make(run: Run, output: ProductionOutput, units: number): number {
   return batches * recipe.batch;
 }
 
-/** Paper next turn's training can use: one per untrained worker, two per trained one (when it still pays). */
+/**
+ * FR-455: the labour one turn of what the hubs gather needs (`gatheredOf`, the transport screen's figures): a timber
+ * (half a lumber), a coal + iron ore pair (a steel) 2, a cotton or wool 1 for its half fabric and 1/2 for its quarter
+ * clothing. The start stock is left out: it is spent within a few turns whatever the labour.
+ */
+export function hubLabourNeed(state: GameState, nationId: string): number {
+  const gathered = gatheredOf(state, nationId);
+  const of = (type: ResourceType) => gathered[type] ?? 0;
+  const steel = Math.min(of(ResourceType.Coal), of(ResourceType.IronOre)) * RECIPES[MaterialType.Steel].labour;
+  const timber = (of(ResourceType.Timber) / RECIPES[MaterialType.Lumber].inputs[0].amount) * RECIPES[MaterialType.Lumber].labour;
+  const fibre = of(ResourceType.Cotton) + of(ResourceType.Wool);
+  const fabric = fibre / RECIPES[MaterialType.Fabric].inputs[0].amount;
+  const clothing = fabric / RECIPES[GoodsType.Clothing].inputs[0].amount;
+  return steel + timber + fabric * RECIPES[MaterialType.Fabric].labour + clothing * RECIPES[GoodsType.Clothing].labour;
+}
+
+/**
+ * Paper next turn's training can use: one per untrained worker, two per trained one (when it still pays). FR-455: none
+ * while the workers' labour covers what the hubs gather a turn (`hubLabourNeed`): more labour would then stand idle,
+ * and the paper only takes the lumber mill's timber from lumber (measured: the 10 start timber made into paper on turns
+ * 1 and 2 cost 4 lumber + steel pairs by turn 15). A nation with an army trains as before: its regiments draw trained
+ * workers (the campaign's Cuirassiers, FR-274), so there training pays beyond the labour.
+ */
 function paperWanted(state: GameState, nation: Nation): number {
+  if (upkeepOf(state, nation.id) === 0 && hubLabourNeed(state, nation.id) <= labourTotal(nation.industry)) return 0;
   const left = turnsAfter(state) - 1;
   const { industry } = nation;
   let want = 0;
@@ -309,7 +357,7 @@ function paperWanted(state: GameState, nation: Nation): number {
  * This turn's run on the current plan (FR-129; nothing is ordered), by priority: under an army threat
  * the armaments the garrison recruits with, up to 2 in stock (FR-213); canned food while
  * the cans are fewer than the workers; paper for next turn's training; then the pairs and the goods,
- * the goods first while the treasury is below CASH_RESERVE; last, canned food from raw food above a
+ * the goods first while the treasury is below the reserve (`cashReserve`, FR-454); last, canned food from raw food above a
  * meal. Pairs: lumber + steel, the scarcer one first, so the pairs stay even. Goods for the holds
  * from stock the pairs do not need: clothing, furniture from unpaired lumber, and fabric and spare
  * lumber for next turn's goods. On the last turn nothing is made: it would be neither used nor sold.
@@ -356,7 +404,7 @@ export function planRun(state: GameState, nationId: string): Run {
     const spareLumber = have(MaterialType.Lumber) - have(MaterialType.Steel);
     make(run, MaterialType.Lumber, 2 * capacityOf(nation, "furnitureFactory") - spareLumber);
   };
-  if (nation.treasury < CASH_RESERVE) {
+  if (nation.treasury < cashReserve(state, nationId)) {
     goods();
     pairs();
   } else {
@@ -461,7 +509,7 @@ function rawWants(state: GameState, nationId: string, next: Stock): TradeAmounts
  * The 4 cargo holds (FR-063, FR-128) each turn: (1) offer the units that pay more a hold than half
  * a bought pair gains, best world price first (ties in market order); (2) bid for the lumber or
  * steel that pairs with stock, then for whole pairs, while lumber + steel cost less than PAIR_VALUE
- * and the bids leave CASH_RESERVE (not on the last turn); (3) offer the rest, best price first.
+ * and the bids leave the reserve (`cashReserve`, FR-454; not on the last turn); (3) offer the rest, best price first.
  * Offers stop at what this turn's run leaves and next turn's run keeps.
  *
  * In a "partners" market (FR-245; scriptedPartners.ts) nobody sells lumber or steel: a consulate first, only
@@ -479,7 +527,7 @@ function planTrade(view: () => GameState, nationId: string, propose: Propose): v
   const raw = partners ? rawWants(start, nationId, next) : {};
   if (partners) {
     const sell = Object.fromEntries(MINOR_GOODS.map((c) => [c, Math.max(0, sellable(c))]).filter(([, n]) => (n as number) > 0));
-    planConsulate(view, nationId, CASH_RESERVE, { buy: raw, sell }, propose);
+    planConsulate(view, nationId, cashReserve(start, nationId), { buy: raw, sell }, propose);
   }
   const supply = partners ? partnerSupply(view(), nationId) : undefined;
   const demand = partners ? partnerDemand(view(), nationId) : undefined;
@@ -502,7 +550,7 @@ function planTrade(view: () => GameState, nationId: string, propose: Propose): v
   };
   const bid = (commodity: TradeCommodity, units: number): number => {
     const current = tradeOrdersOf(view(), nationId).buy[commodity] ?? 0;
-    const cash = nationOf(view(), nationId).treasury - CASH_RESERVE;
+    const cash = nationOf(view(), nationId).treasury - cashReserve(start, nationId);
     const offered = supply ? (supply[commodity] ?? 0) - current : Infinity;
     const most = Math.min(units, tradeCapacityOf(view(), nationId).free, Math.floor(cash / priceOf(market, commodity)), offered);
     for (let n = most; n > 0; n--) if (propose({ kind: "buyCommodity", nationId, commodity, amount: current + n })) return n;
@@ -519,7 +567,7 @@ function planTrade(view: () => GameState, nationId: string, propose: Propose): v
     else if (steel > lumber) bid(MaterialType.Lumber, steel - lumber);
     for (let guard = 0; guard < 16; guard++) {
       if (tradeCapacityOf(view(), nationId).free < 2) break;
-      if (nationOf(view(), nationId).treasury - CASH_RESERVE < pairPrice) break;
+      if (nationOf(view(), nationId).treasury - cashReserve(start, nationId) < pairPrice) break;
       if (bid(MaterialType.Lumber, 1) === 0 || bid(MaterialType.Steel, 1) === 0) break;
     }
   }

@@ -6,7 +6,7 @@ import { applyTurnOrders, resolveTurn } from '@/engine/turn/resolveTurn';
 import { applyOrder } from '@/engine/orders/apply';
 import { computerOrders } from '@/engine/ai/players';
 import { scriptedPlayer, type Player } from '@/engine/ai/scriptedPlayer';
-import { CASH_RESERVE, collectedAtLogistics, PAIR_VALUE, planFinalTransport, priorityPlan, shippingWants } from '@/engine/ai/economy';
+import { CASH_RESERVE, collectedAtLogistics, hubLabourNeed, PAIR_VALUE, planFinalTransport, priorityPlan, shippingWants } from '@/engine/ai/economy';
 import { transportShipments } from '@/engine/systems/logisticsSystem';
 import { bestDepotSite, capitalComponent } from '@/engine/ai/railPlan';
 import { addDepot, railLinksOf } from '@/engine/systems/railroadSystem';
@@ -235,19 +235,21 @@ describe('M12 FR-389 FR-405 the scripted transport plan under exact amounts ship
     expect(transportShipments(cars, collected, priorityPlan(cars, collected, wants))).toEqual(fillRule(cars, collected, wants));
   });
 
-  it('M12 FR-389 a rail the engineer starts and finishes this turn joins a hub: the final plan, on what the logistics phase collects, ships its livestock as the old rule did (continent, seed 1, turn 6)', () => {
+  it('M12 FR-389 a rail the engineer starts and finishes this turn joins a hub: the final plan, on what the logistics phase collects, ships the cotton of the new hub as the old rule did (continent, seed 1, turn 6)', () => {
     let s = newGame({ seed: 1, world: 'continent' });
     for (let turn = 1; turn <= 5; turn++) s = resolveTurn(s, { [N2]: scriptedPlayer(s, N2) }, s.seed).state;
     const orders = scriptedPlayer(s, N2);
-    expect(orders).toContainEqual(expect.objectContaining({ kind: 'moveAndStartConstruction', structure: 'rail', toTileId: '15-6' }));
+    // M12 strategy C re-record (FR-456, FR-457: the first depot is 16-12, no longer 15-6, whose rail on turn 6 brought
+    // livestock 4 and grain 6 more; the old rule shipped livestock 3, the first plan's 1 would have shipped the fruit instead)
+    expect(orders).toContainEqual(expect.objectContaining({ kind: 'moveAndStartConstruction', structure: 'rail', toTileId: '16-12' }));
     const view = applyTurnOrders(s, { [N2]: orders }, () => {}).state;
     expect(collectedAtLogistics(s, N2)).toEqual({ grain: 4, fruit: 4, cotton: 2 });
-    expect(collectedAtLogistics(view, N2)).toEqual({ grain: 10, livestock: 4, fruit: 5, cotton: 2 });
-    // the first plan, made before the civilians, sees no livestock yet; set exactly, it would ship 1 and the fruit 2 more
+    expect(collectedAtLogistics(view, N2)).toEqual({ grain: 5, fruit: 7, cotton: 5, timber: 2 });
+    // the first plan, made before the civilians, sees only the 2 cotton of the capital; the final plan ships 1 more
     expect(ofKind(orders, 'setTransportAllocations')[0].allocations).toEqual({ livestock: 1, cotton: 2 });
     const final: Order[] = [];
     planFinalTransport(s, view, N2, o => (final.push(o), true));
-    expect(final).toEqual([{ kind: 'setTransportAllocations', nationId: N2, allocations: { livestock: 3, cotton: 2 } }]);
+    expect(final).toEqual([{ kind: 'setTransportAllocations', nationId: N2, allocations: { livestock: 1, cotton: 3 } }]);
   });
 });
 
@@ -314,14 +316,20 @@ describe('FR-129 the production run', () => {
     expect(made(ordersOf(lastTurn(start())))).toEqual({});
   });
 
-  it('FR-129 paper for next turn\'s training comes before the pairs: the new game\'s lumber mill makes paper, none when training no longer pays', () => {
-    // No paper in stock: 4 untrained want 1 each and 2 trained 2 each, 8 in all; the lumber mill (2) makes 2 paper and no lumber
+  it('FR-129 FR-455 paper for next turn\'s training comes before the pairs, only while the hubs gather more than the labour works; none when training no longer pays', () => {
+    // M12 strategy C (FR-455; it was: the new game's lumber mill makes 2 paper and no lumber). A new game's hubs gather
+    // grain 4, fruit 4, cotton 2: 3 labour of the 12, so the start timber makes lumber for pairs and no paper
     const s = start();
     expect(nationOf(s, N2).warehouse.paper).toBe(0);
-    expect(made(ordersOf(s))).toMatchObject({ paper: 2 });
-    expect(made(ordersOf(s)).lumber).toBeUndefined();
+    expect(hubLabourNeed(s, N2)).toBe(3);
+    expect(made(ordersOf(s)).paper).toBeUndefined();
+    expect(made(ordersOf(s))).toMatchObject({ lumber: 2 });
+    // 2 untrained workers (2 labour) work less than the hubs need: their 2 paper come first, 1 within the labour, no lumber
+    const short = setIndustry(s, N2, { workers: { untrained: 2, trained: 0, expert: 0 } });
+    expect(made(ordersOf(short))).toMatchObject({ paper: 1 });
+    expect(made(ordersOf(short)).lumber).toBeUndefined();
     // 3 turns to go: a worker trained next turn would work only 2 turns (TRAIN_MIN_TURNS 3)
-    expect(made(ordersOf(atTurn(s, turnLimitOf(s) - 3))).paper).toBeUndefined();
+    expect(made(ordersOf(atTurn(short, turnLimitOf(short) - 3))).paper).toBeUndefined();
   });
 
   // 3 experts (12 labour) and no ores: no pair can be made, so the goods show alone

@@ -202,7 +202,9 @@ describe('FR-124 AI acceptance: 15 turns of nation 2', () => {
     // M4 390+21+40 = 451.
     const row = (r: Run) => ({ depots: network(r.state).depots.length, links: linksOf(r.state), yieldPerTurn: yieldOf(r.state), shipped: r.shipped, sold: r.sold, score: scoreOf(r.state, N2).total });
     expect({ ...row(now), bound: railBound(now.state), refused: now.refused })
-      .toEqual({ depots: 2, links: 7, yieldPerTurn: 33, shipped: 200, sold: 29, score: 637, bound: 10, refused: 0 });
+      // M12 strategy C re-record (FR-454 to FR-457): links 7 -> 9 (bound 10 -> 11), yield 33 -> 36, sold 29 -> 19 (the
+      // start timber and the gathered inputs go into pairs instead of the holds), score 637 -> 747
+      .toEqual({ depots: 2, links: 9, yieldPerTurn: 36, shipped: 200, sold: 19, score: 747, bound: 11, refused: 0 });
     expect({ ...row(m4), bound: railBound(m4.state), refused: m4.refused })
       .toEqual({ depots: 1, links: 10, yieldPerTurn: 21, shipped: 181, sold: 32, score: 451, bound: 11, refused: 0 });
   });

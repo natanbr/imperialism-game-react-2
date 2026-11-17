@@ -17,11 +17,13 @@ describe('FR-128 the scripted player trades (replaces FR-070)', () => {
   it('FR-128 FR-105 on turn 1 each nation bids for lumber + steel pairs within its holds (5 and 3), then offers what is left over', () => {
     const state = newGame(11);
 
+    // M12 FR-455 re-record: the start timber is made into lumber, not paper (the hubs' labour need is below the labour),
+    // so nation-1 first bids for the 2 steel that pair with its spare lumber, then a whole pair (it was lumber 1 + steel 1,
+    // then lumber 2 + steel 2, then timber 1 offered); the holds are still all used and the timber still offered last.
     expect(tradeOrders(scriptedPlayer(state, 'nation-1'))).toEqual([
-      { kind: 'buyCommodity', nationId: 'nation-1', commodity: 'lumber', amount: 1 },
-      { kind: 'buyCommodity', nationId: 'nation-1', commodity: 'steel', amount: 1 },
-      { kind: 'buyCommodity', nationId: 'nation-1', commodity: 'lumber', amount: 2 },
       { kind: 'buyCommodity', nationId: 'nation-1', commodity: 'steel', amount: 2 },
+      { kind: 'buyCommodity', nationId: 'nation-1', commodity: 'lumber', amount: 1 },
+      { kind: 'buyCommodity', nationId: 'nation-1', commodity: 'steel', amount: 3 },
       { kind: 'sellCommodity', nationId: 'nation-1', commodity: 'timber', amount: 1 },
     ]);
     // nation-2 has holds for 3 units: one pair, then one of its 30 coal.
@@ -35,10 +37,11 @@ describe('FR-128 the scripted player trades (replaces FR-070)', () => {
   it('FR-128 goods that pay more a hold than half a bought pair go first, then the bids; canned food above a meal waits for a free hold', () => {
     const state = setWarehouse(newGame(11), N1, { furniture: 3, cannedFood: 10 });
 
+    // M12 FR-455 re-record: the 2 holds after the furniture bid for the steel that pairs with the lumber the start timber
+    // now makes (it was a whole pair, lumber 1 + steel 1)
     expect(tradeOrders(scriptedPlayer(state, N1))).toEqual([
       { kind: 'sellCommodity', nationId: N1, commodity: 'furniture', amount: 3 },
-      { kind: 'buyCommodity', nationId: N1, commodity: 'lumber', amount: 1 },
-      { kind: 'buyCommodity', nationId: N1, commodity: 'steel', amount: 1 },
+      { kind: 'buyCommodity', nationId: N1, commodity: 'steel', amount: 2 },
     ]);
   });
 });

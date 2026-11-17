@@ -96,12 +96,17 @@ function play(seed: number): Game {
  * Measured again in M12 (FR-405) for FR-401: at equal points a minor breaks the tie by an order fixed per game from the
  * seed and its id, no longer by the turn's intentOrder. Seeds 1 to 3 are unchanged; seed 4 was deals [53, 60], purchases
  * [24, 28], treasuries [13, 3725], capital arms [5, 4]. (FR-389 moves nothing here: the scripted plan ships as before.)
+ * Measured again in M12 strategy C (FR-456, FR-457 depot sites; FR-458 the campaign keeps its trained workers): more
+ * deals and purchases on every seed and both nations, minors [4, 4] on every seed. The numbers before were: deals
+ * [60, 60], [59, 50], [56, 56], [63, 53]; purchases [29, 27], [24, 19], [26, 25], [30, 24]; minors [4, 4], [4, 1],
+ * [4, 4], [4, 4]; treasuries [1549, 5040], [4178, 959], [1518, 5091], [2668, 13]; capital arms [5, 4], [6, 5], [5, 4],
+ * [4, 5] (each still at least SCRIPTED_GARRISON.capitalArms).
  */
 const BASELINE = [
-  { seed: 1, minorDeals: [60, 60], minorPurchases: [29, 27], minorsDealt: [4, 4], treasury: [1549, 5040], noPay: [0, 0], capitalArms: [5, 4] },
-  { seed: 2, minorDeals: [59, 50], minorPurchases: [24, 19], minorsDealt: [4, 1], treasury: [4178, 959], noPay: [0, 0], capitalArms: [6, 5] },
-  { seed: 3, minorDeals: [56, 56], minorPurchases: [26, 25], minorsDealt: [4, 4], treasury: [1518, 5091], noPay: [0, 0], capitalArms: [5, 4] },
-  { seed: 4, minorDeals: [63, 53], minorPurchases: [30, 24], minorsDealt: [4, 4], treasury: [2668, 13], noPay: [0, 0], capitalArms: [4, 5] },
+  { seed: 1, minorDeals: [73, 70], minorPurchases: [40, 39], minorsDealt: [4, 4], treasury: [3880, 4138], noPay: [0, 0], capitalArms: [4, 4] },
+  { seed: 2, minorDeals: [72, 68], minorPurchases: [36, 37], minorsDealt: [4, 4], treasury: [5730, 2324], noPay: [0, 0], capitalArms: [7, 4] },
+  { seed: 3, minorDeals: [73, 69], minorPurchases: [39, 39], minorsDealt: [4, 4], treasury: [4103, 3949], noPay: [0, 0], capitalArms: [4, 4] },
+  { seed: 4, minorDeals: [66, 74], minorPurchases: [35, 41], minorsDealt: [4, 4], treasury: [2563, 3168], noPay: [0, 0], capitalArms: [4, 7] },
 ];
 
 /** The force size (FR-204) of the nation's army in its capital province at turn 40. */

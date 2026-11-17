@@ -221,11 +221,12 @@ describe('FR-274 scripted war on minors', () => {
         SEEDS.map(seed => [seed, [[10, null], [20, null], [30, null], [40, null]], null])
       );
       const colonies = (r: Run) => r.councils.map(c => [c.turn, councilCell(c, N2, 'colonies')]);
-      // Seeds 1 to 3 colonise Arvelia on turn 22 (FR-274's acceptance); seed 4 declares no war
-      expect(runs.map(r => [r.seed, r.colonised ?? null, colonies(r)])).toEqual([
-        ...[1, 2, 3].map(seed => [seed, 22, [[10, []], [20, []], [30, [ARVELIA_P]], [40, [ARVELIA_P]]]]),
-        [4, null, [[10, []], [20, []], [30, []], [40, []]]],
-      ]);
+      // Every seed colonises Arvelia on turn 17 (FR-274's acceptance), so Valdoria votes for it from the turn-20 meeting.
+      // M12 strategy C re-record (FR-456, FR-457 depots gather more; FR-458 keeps the Cuirassiers' trained workers): seeds
+      // 1 to 3 colonised it on turn 22 and voted from turn 30, seed 4 declared no war.
+      expect(runs.map(r => [r.seed, r.colonised ?? null, colonies(r)])).toEqual(
+        [1, 2, 3, 4].map(seed => [seed, 17, [[10, []], [20, [ARVELIA_P]], [30, [ARVELIA_P]], [40, [ARVELIA_P]]]])
+      );
     });
   });
 });

@@ -5,9 +5,14 @@ import { ResourceDevelopmentTable } from "@/definisions/ResourceDevelopment";
 import type { GameState } from "@/types/GameState";
 import { TerrainType, type Tile } from "@/types/Tile";
 import { getNeighborCoords } from "../map/mapHelpers";
-import { hasJob, isDepotSite, isGreatPowerCapital, isLand, railTerrainAllowed } from "../orders/queries";
+import { hasJob, isDepotSite, isGreatPowerCapital, isLand, nationById, railTerrainAllowed } from "../orders/queries";
 import { isRailLinked } from "../systems/railroadSystem";
-import { constructionCost } from "@/definisions/workPrices";
+import { CONSTRUCTION_COST, constructionCost } from "@/definisions/workPrices";
+import { MaterialType, ResourceType } from "@/types/Resource";
+import { buildingOf } from "../industry/industryState";
+import { mealNeeds } from "../systems/foodSystem";
+import { SCORE_WEIGHTS } from "@/definisions/scoreWeights";
+import { EngineerBuildDurationsTurns } from "@/definisions/workerDurations";
 
 const key = (x: number, y: number) => `${x},${y}`;
 const keyOf = (tile: Pick<Tile, "x" | "y">) => key(tile.x, tile.y);
@@ -147,7 +152,7 @@ export function nextRailSections(state: GameState, nationId: string): RailSectio
 
 export interface DepotSite {
   tileId: string;
-  /** Yield a turn of the tiles it newly covers (itself and its neighbours). */
+  /** Units a turn of the tiles it newly covers (itself and its neighbours) that the nation will use (FR-456). */
   gain: number;
   /** Rail sections needed to join it to the capital's component, the one into the depot included (FR-138). */
   railNeeded: number;
@@ -158,34 +163,149 @@ export interface DepotSite {
 /** At least this much new yield a turn makes a depot worth its price. */
 export const MIN_DEPOT_GAIN = 2;
 
+/** The use a gathered resource is counted against: the meal's three kinds, the mills' inputs, an ore not yet prospected. */
+type Use = "grain" | "fruit" | "meat" | "fibre" | "timber" | "coal" | "iron" | "ore";
+const USE_OF: Partial<Record<string, Use>> = {
+  [ResourceType.Grain]: "grain",
+  [ResourceType.Fruit]: "fruit",
+  [ResourceType.Livestock]: "meat",
+  [ResourceType.Fish]: "meat",
+  [ResourceType.Cotton]: "fibre",
+  [ResourceType.Wool]: "fibre",
+  [ResourceType.Timber]: "timber",
+  [ResourceType.Coal]: "coal",
+  [ResourceType.IronOre]: "iron",
+};
+
 /**
- * The depot site that newly covers the most yield (FR-122 (2)): a valid depot site (FR-030) free of
- * jobs and joinable by rail; ties go to the shorter rail path, then map order. Undefined when no site
- * gains at least MIN_DEPOT_GAIN.
+ * What a tile will yield a turn once its first level is done (the developers work the gathered tiles first, FR-123),
+ * and the use it counts against. A resource not yet prospected counts as a level-1 ore: the tile panel shows "Not yet
+ * prospected", not which ore (coal and iron ore yield the same at level 1).
+ */
+function plannedOf(tile: Tile): { use: Use | string; units: number } | undefined {
+  const res = tile.resource;
+  if (!res) return undefined;
+  if (res.discovered === false) return { use: "ore", units: ResourceDevelopmentTable[ResourceType.Coal][1] };
+  return { use: USE_OF[res.type] ?? res.type, units: ResourceDevelopmentTable[res.type]?.[Math.max(1, res.level)] ?? 0 };
+}
+
+/** FR-456: a meal kind the hubs do not cover becomes urgent once the stock (with the canned food) lasts fewer turns. */
+export const MEAL_HORIZON = 15;
+type MealKind = "grain" | "fruit" | "meat";
+interface Shortfall {
+  /** Units a turn still usable, by use. */
+  short: Record<string, number>;
+  /** Units a turn of the meal itself the hubs do not cover, for the kinds whose stock runs out within MEAL_HORIZON. */
+  urgentMeal: Record<MealKind, number>;
+}
+
+/**
+ * Units a turn the nation can still use of each kind, beyond what its hubs (built or planned) gather once developed:
+ * the meal and one canned-food batch (FR-127), two turns' input of the lumber and textile mills a turn (2 units each a
+ * batch) and the steel mill's coal and iron. An ore not yet prospected fills the coal and iron still short. A kind with
+ * no use listed (gold, horses ...) is not capped. Also the meal kinds that are urgent (see `Shortfall`).
+ */
+function shortfallOf(state: GameState, nationId: string, covered: Set<string>): Shortfall {
+  const nation = nationById(state, nationId);
+  if (!nation) return { short: {}, urgentMeal: { grain: 0, fruit: 0, meat: 0 } };
+  const size = (b: "steelMill" | "lumberMill" | "textileMill") => buildingOf(nation, b).capacity;
+  const { untrained, trained, expert } = nation.industry.workers;
+  const needs = mealNeeds(untrained + trained + expert);
+  const uses: Record<Use, number> = {
+    grain: needs.grain + 2,
+    fruit: needs.fruit + 1,
+    meat: needs.meat + 1,
+    fibre: 2 * size("textileMill"),
+    timber: 2 * size("lumberMill"),
+    coal: size("steelMill"),
+    iron: size("steelMill"),
+    ore: 0,
+  };
+  const supply: Record<string, number> = {};
+  for (const k of covered) {
+    const t = tileAtKey(state, k);
+    const planned = t.ownerNationId === nationId ? plannedOf(t) : undefined;
+    if (planned) supply[planned.use] = (supply[planned.use] ?? 0) + planned.units;
+  }
+  const short: Record<string, number> = {};
+  for (const use of Object.keys(uses) as Use[]) short[use] = Math.max(0, uses[use] - (supply[use] ?? 0));
+  short.ore = Math.max(0, short.coal + short.iron - (supply.ore ?? 0));
+  const stock = nation.warehouse as Record<string, number>;
+  const cans = stock[MaterialType.CannedFood] ?? 0;
+  const inStock: Record<MealKind, number> = {
+    grain: stock[ResourceType.Grain] ?? 0,
+    fruit: stock[ResourceType.Fruit] ?? 0,
+    meat: (stock[ResourceType.Livestock] ?? 0) + (stock[ResourceType.Fish] ?? 0),
+  };
+  const urgentMeal = { grain: 0, fruit: 0, meat: 0 };
+  for (const kind of ["grain", "fruit", "meat"] as const) {
+    const missing = Math.max(0, needs[kind] - (supply[kind] ?? 0));
+    if (missing > 0 && inStock[kind] + cans < MEAL_HORIZON * missing) urgentMeal[kind] = missing;
+  }
+  return { short, urgentMeal };
+}
+
+/** The units a turn each use gets from `tiles` (their level-1 yield, `plannedOf`). */
+function foundOf(tiles: Tile[]): Record<string, number> {
+  const found: Record<string, number> = {};
+  for (const t of tiles) {
+    const planned = plannedOf(t);
+    if (planned) found[planned.use] = (found[planned.use] ?? 0) + planned.units;
+  }
+  return found;
+}
+
+/**
+ * FR-457: turns from the order until a depot's gathering has paid its price and rail, in FR-132's terms: it delivers
+ * from two turns after the build starts plus one turn per rail section, `gain` units a turn at $100 each.
+ */
+export const paybackTurns = (site: DepotSite): number =>
+  EngineerBuildDurationsTurns.depot - 1 + site.railNeeded + (CONSTRUCTION_COST.depot + site.railCost) / SCORE_WEIGHTS.dollarsPerPoint / site.gain;
+
+/** FR-456: the units a turn of `found` that the nation will use (`short`); a kind with no use listed counts in full. */
+const usefulGain = (found: Record<string, number>, short: Record<string, number>): number =>
+  Object.entries(found).reduce((sum, [use, units]) => sum + (use in short ? Math.min(units, short[use]) : units), 0);
+
+/** FR-456: the urgent meal units a turn (`Shortfall.urgentMeal`) that `found` covers. */
+const mealFilled = (found: Record<string, number>, urgent: Record<MealKind, number>): number =>
+  (["grain", "fruit", "meat"] as const).reduce((sum, kind) => sum + Math.min(found[kind] ?? 0, urgent[kind]), 0);
+
+/**
+ * The best depot site (FR-122 (2)): a valid depot site (FR-030) free of jobs and joinable by rail whose newly covered
+ * tiles gain at least MIN_DEPOT_GAIN units a turn the nation will use (FR-456: `usefulGain`, at their level-1 yield).
+ * FR-456: a site that covers more of an urgent meal comes first (the workers fall sick when the meal runs out); then
+ * FR-457: the site that pays back first (`paybackTurns`), ties to the larger gain, then map order. Until FR-457 the
+ * largest gain won, so a depot 8 rail sections away was joined only on turn 12. Undefined when no site gains enough.
  */
 export function bestDepotSite(state: GameState, nationId: string): DepotSite | undefined {
   const component = capitalComponent(state, nationId);
   if (component.size === 0) return undefined;
   const covered = coveredTiles(state, nationId);
-  let best: DepotSite | undefined;
+  const { short, urgentMeal } = shortfallOf(state, nationId, covered);
+  let best: { site: DepotSite; meal: number; turns: number } | undefined;
   for (const tile of state.map.tiles.flat()) {
     if (tile.ownerNationId !== nationId || !isLand(tile) || hasJob(tile) || !isDepotSite(state, tile)) continue;
     const cell = [keyOf(tile), ...neighbourKeys(state, keyOf(tile))];
-    const gain = cell
-      .filter((k) => !covered.has(k))
-      .map((k) => tileAtKey(state, k))
-      .filter((t) => t.ownerNationId === nationId)
-      .reduce((sum, t) => sum + yieldOf(t), 0);
+    const found = foundOf(
+      cell
+        .filter((k) => !covered.has(k))
+        .map((k) => tileAtKey(state, k))
+        .filter((t) => t.ownerNationId === nationId)
+    );
+    const gain = usefulGain(found, short);
     if (gain < MIN_DEPOT_GAIN) continue;
     const path = railPath(state, nationId, keyOf(tile), component);
     if (!path) continue;
     const builtOn = missingSteps(state, nationId, path).map((i) => tileAtKey(state, path[i]));
-    const railNeeded = builtOn.length;
-    if (!best || gain > best.gain || (gain === best.gain && railNeeded < best.railNeeded)) {
-      best = { tileId: tile.id, gain, railNeeded, railCost: builtOn.reduce((sum, t) => sum + constructionCost("rail", t.terrain), 0) };
-    }
+    const railCost = builtOn.reduce((sum, t) => sum + constructionCost("rail", t.terrain), 0);
+    const site: DepotSite = { tileId: tile.id, gain, railNeeded: builtOn.length, railCost };
+    const meal = mealFilled(found, urgentMeal);
+    const turns = paybackTurns(site);
+    const better =
+      !best || meal > best.meal || (meal === best.meal && (turns < best.turns || (turns === best.turns && gain > best.site.gain)));
+    if (better) best = { site, meal, turns };
   }
-  return best;
+  return best?.site;
 }
 
 /**
