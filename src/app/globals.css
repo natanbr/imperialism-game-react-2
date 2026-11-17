@@ -66,11 +66,10 @@ img[data-art-inline][data-art^="goods/"] {
   vertical-align: -0.25em;
 }
 
-/* The icon before the label of each full-width HUD action button (FR-349, FR-351, QA): one fixed 20 px box, so every label
+/* The icon before the label of each of the six dialog buttons (FR-349, FR-351, QA): one fixed 20 px box, so every label
    starts at the same place (a Game Icon is 13 px, a pack picture was 16.25 px) and the buildings are drawn at 20 px, where
-   the railyard reads (at 16 px it was a brown blob, card Q78); 2 px of the box reach into the button's padding above and
-   below, so no button grows. Center (half width, beside Advance Turn) and Advance Turn's icon after its label are not
-   in it. */
+   the railyard reads (at 16 px it was a brown blob, card Q78). M12b: they are the top bar's 32 x 32 icon buttons (the
+   .topbar* rules below); Advance Turn's icon after its label is not in it. */
 .action-buttons-container > .btn-plain > :is(svg[data-icon], img[data-art-inline]) {
   box-sizing: border-box;
   width: 20px;
@@ -189,13 +188,14 @@ img[data-art-anchor="bottom-center"] {
   font-variant-numeric: tabular-nums;
 }
 
-/* HUD Styles */
+/* HUD Styles. The right pane (FR-465): 250 px wide, from the top bar's bottom (components/HUD/TopBar.module.css) to the
+   window's bottom */
 .hud-container {
   position: absolute;
-  top: 0;
+  top: var(--topbar-height);
   right: 0;
   width: var(--hud-width);
-  height: 100%;
+  height: calc(100% - var(--topbar-height));
   background-color: var(--color-surface);
   color: var(--color-ink);
   border-left: 1px solid var(--color-border);
@@ -205,12 +205,11 @@ img[data-art-anchor="bottom-center"] {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
   font-size: 14px;
 }
 
-/* The HUD's information scrolls on its own; the action buttons below it never scroll away.
-   Its scrollbar is the panel's own, thin and in the palette (FR-235): the platform's default one is hidden
+/* The right pane's one scroll area (M12b FR-470 to FR-473: Tile Info, alerts, news, groups); the commands live in the top
+   bar (card Q113), so nothing below it needs to stay in sight. Its scrollbar is the panel's own, thin and in the palette (FR-235): the platform's default one is hidden
    until used on overlay-scrollbar systems (macOS, touch), so the cut-off content gave no cue. Playwright's
    Chromium hides every scrollbar, this one too (--hide-scrollbars; e2e/m5-hud-scroll.spec.ts turns it off).
    The gutter is kept, so the text does not shift when a selection makes the content overflow. */
@@ -251,7 +250,7 @@ img[data-art-anchor="bottom-center"] {
 }
 
 /* While more lies below, the content fades into the panel at the bottom edge, so no cut box edge is drawn
-   right above the action buttons (FR-235). Sticky at the scroll area's bottom; at the end of the content it
+   at the pane's foot (FR-235). Sticky at the scroll area's bottom; at the end of the content it
    sits below the last section instead, so the last section is whole. */
 .hud-content::after {
   content: "";
@@ -263,21 +262,18 @@ img[data-art-anchor="bottom-center"] {
   pointer-events: none;
 }
 
-.hud-header {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
+/* The nation's name in the top bar (FR-466); short of room it ends in an ellipsis (TopBar.module.css .nation) */
 .hud-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 16px;
   font-weight: 700;
   margin: 0;
 }
 
+/* A small bordered button with an icon: About's close button */
 .icon-button {
   display: inline-flex;
   align-items: center;
@@ -318,9 +314,13 @@ img[data-art-anchor="bottom-center"] {
   background: var(--color-surface-sunken);
 }
 
+/* FR-529: never taller than the window less 32 px; what does not fit scrolls (How to play scrolls only its text, below) */
 .about-panel {
   width: 360px;
   max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  box-sizing: border-box;
   padding: 12px 16px 16px;
   border-radius: var(--radius-md);
   background: var(--color-surface);
@@ -333,6 +333,33 @@ img[data-art-anchor="bottom-center"] {
 
 .about-panel p {
   margin: 0;
+}
+
+/* FR-529 (M12b QA: at 640x360 How to play was 419 px high, its title above the window and Close below it): the title and
+   Close stay in view and only the text between them scrolls, as the Council's body (FR-425); the text is a Tab stop
+   (HowToPlay.tsx), so the keys scroll it too */
+.howto-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.howto-panel > * {
+  flex: none;
+}
+
+/* After the rule above (the same weight): the one part that shrinks */
+.howto-body {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  gap: 6px;
+}
+
+.howto-body:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
 }
 
 .about-header {
@@ -488,18 +515,32 @@ img[data-art-anchor="bottom-center"] {
   gap: 8px;
 }
 
-.hud-header-actions {
-  display: flex;
-  gap: 4px;
+/* A news place line or a Work in progress row moves the focus here (components/HUD/showTile.ts); the ring inside the
+   heading, as the pane's scroll area clips what lies outside it */
+.tile-info-heading:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
 }
 
-/* New game asks in place before it throws the game away (FR-109) */
+/* New game asks before it throws the game away (FR-109): a panel under the top bar, under New game (FR-480). It stands
+   right after the button inside the bar (the Tab order, M12b review A11Y-1) and is fixed, so the strip's sideways scroll
+   does not clip it; components/HUD/ConfirmNewGame.tsx sets its left edge under the button's (8 px until then). It lies
+   over the map, the pane and the FR-429 line, under every dialog, because the bar does (TopBar.module.css, z-index 30);
+   its own z-index only counts inside the bar. */
 .confirm-panel {
-  margin-bottom: 8px;
+  position: fixed;
+  top: calc(var(--topbar-height) + 4px);
+  left: 8px;
+  z-index: 1;
+  width: max-content;
+  max-width: calc(100vw - 16px);
+  box-sizing: border-box;
   padding: 8px;
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
   background: var(--color-surface-raised);
+  color: var(--color-ink);
+  box-shadow: var(--shadow-dialog);
   font-size: 13px;
 }
 
@@ -556,63 +597,234 @@ img[data-art-anchor="bottom-center"] {
   vertical-align: -1px;
 }
 
+/* M12b FR-476: the Details for bug reports group's panel (the class kept for e2e/m12-map.spec.ts), shown to every
+   player (card Q102); its lines and the Copy details button */
 .hud-debug-section {
-  margin-top: 8px;
-  margin-bottom: 8px;
+  margin: 0 0 8px;
   padding: 8px;
   border: 1px dashed var(--color-border-strong);
   border-radius: var(--radius-sm);
   color: var(--color-ink-muted);
   font-size: 12px;
+  overflow-wrap: anywhere;
 }
 
-.hud-debug-title {
-  font-weight: 700;
-  margin-bottom: 4px;
+.hud-debug-copy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
 }
 
-/* HUD Sub-components Styles */
-.turn-indicator, .nation-stats, .hud-score {
+.hud-debug-copy .btn {
+  width: auto;
+}
+
+.hud-debug-copied {
+  color: var(--color-ink);
+}
+
+/* M12b FR-470: the pane's first line while no tile is selected (card Q112), in Tile Info's place and frame */
+.hud-tile-none {
+  margin: 0 0 8px;
+  padding: 8px 0 0;
+  border-top: 1px solid var(--color-border);
+  color: var(--color-ink-muted);
+  font-size: 13px;
+  line-height: 16px;
+}
+
+/* M12b FR-471: what must not be missed, under Tile Info and above the news, never in a group */
+.hud-alerts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   margin-bottom: 8px;
 }
 
+.hud-alerts > .food-warning {
+  margin-bottom: 0;
+}
+
+/* FR-534: a war line and the idle civilians line carry the warnings' warn colour as a rule at their left, so they read as
+   alerts, not as Tile Info's lines above them (card Q111: a war must not be missed); the height stays 16 px */
+.hud-alert-line {
+  font-size: 13px;
+  line-height: 16px;
+  border-left: 3px solid var(--color-warn);
+  padding-left: 5px;
+}
+
+/* M12b FR-473: the groups at the pane's bottom, closed by default (the WAI-ARIA accordion: a heading's button and its
+   region). Trap: a rule that sets `display` on a panel overrides `hidden` and shows a closed group; the [hidden] rule
+   below keeps it closed whatever class the panel carries (.hud-debug-section). */
+.hud-groups {
+  margin-top: 8px;
+  border-top: 1px solid var(--color-border);
+}
+
+.hud-group {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.hud-group-heading {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.hud-group-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 32px;
+  padding: 4px 2px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.hud-group-button:hover {
+  background: var(--color-surface-sunken);
+}
+
+.hud-group-button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+/* A chevron drawn with two borders: right while closed, down while open */
+.hud-group-chevron {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  margin: 0 2px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 0.15s ease-out;
+}
+
+.hud-group-button[aria-expanded="true"] .hud-group-chevron {
+  transform: rotate(45deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud-group-chevron {
+    transition: none;
+  }
+}
+
+.hud-group-panel[hidden] {
+  display: none;
+}
+
+.hud-group-panel {
+  padding: 0 2px 8px;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.hud-group-panel p {
+  margin: 0 0 4px;
+}
+
+/* FR-536: the Details lines on the pane's 16 px rhythm (the panel rule above gives the groups 18 px, and wins over
+   .hud-debug-section's own rules by coming later), so the twelfth line, the window's size, costs no height: 12 x 16 =
+   192 px against 11 x 18 = 198 px before. With 18 px lines, at 1280x720 with Nation and Details open, the news end left
+   the view by 1 px at the scroll's end (e2e/m5-hud-scroll.spec.ts FR-235 (1)). */
+.hud-group-panel.hud-debug-section {
+  line-height: 16px;
+}
+
+/* FR-474: the score's parts as a plain list, one "Treasury 120" line each */
+.hud-score-parts {
+  margin: 0 0 6px;
+  padding: 0;
+  list-style: none;
+}
+
+/* FR-475: one row per job; a row about a tile reads as a link, like a news place line (FR-376) */
+.hud-work-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hud-work-list li {
+  margin: 0 0 4px;
+}
+
+.hud-work-row {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  line-height: inherit;
+  text-align: left;
+  color: var(--color-accent-strong);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.hud-work-row:hover {
+  color: var(--color-accent);
+}
+
+.hud-work-row:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+/* The top bar's turn block (FR-466, components/HUD/TopBar.tsx). M12b: the HUD's 8 px gaps under the turn, cash and score
+   lines are gone; in the bar each block is two 16 px lines. */
 .turn-date {
   font-weight: 700;
 }
 
-/* FR-048: the turn and the date share one line (the game-over text wraps the date under it), so FR-301's next Council
-   takes the date's old line and the HUD is no taller: at 1280x720 it has no height to spare, and the news list must keep
-   whole lines above the fade (FR-268, e2e/m8-qa.spec.ts) */
+/* FR-048: the turn and the date share line 1, the date right-aligned (e2e/m10-council.spec.ts turnLineLayout), never
+   wrapped; FR-301's next Council is line 2. At game over the date is line 2 under "Game over after turn 40 of 40". */
 .turn-indicator {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: space-between;
   align-items: baseline;
   column-gap: 8px;
 }
 
-/* FR-301: the next Council meeting on a 16 px line, in the body text colour, so it is not missed (FR-317). FR-314: the
-   projected vote is shown under it the same way, on two lines; the HUD gave the news the "No tile selected" line in
-   exchange (FR-315). */
-.next-council,
+.turn-indicator-over {
+  display: block;
+}
+
+/* FR-301: the next Council meeting on a 16 px line, in the body text colour, so it is not missed (FR-317); the turn
+   block's line 2. Short of room (a narrow window) it ends in an ellipsis, the turn and date above it whole (FR-467). */
+/* M12b T1: one block per selector (same values as the shared block before), as the next-council line goes to the top
+   bar (task T2) and the projection to the pane's Nation group (task T3); .gate/hud/ownership.md */
+.next-council {
+  min-width: 0;
+  font-size: 13px;
+  line-height: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .council-projection {
   font-size: 13px;
   line-height: 16px;
 }
 
-/* M12 review (L2-05, FR-371): the two lines come after Tile Info and the score table. The line sits in the table's 4 px
-   gap and the projection gives the 4 px back to what follows, so the HUD is no taller than with the lines under the turn
-   (FR-268's news minimum at 1280x720 has about 2 px to spare). */
-.next-council {
-  margin: -4px 0 0;
-}
-
+/* M12 review (L2-05, FR-371): the projection gives 4 px back to what follows. (M12b T2: the next-council line's -4 px
+   top margin, which sat it in the score table's gap, is gone with the line's move to the top bar.) */
 .council-projection {
   margin: 0 0 4px;
 }
 
-/* FR-315: at game over the date wraps under "Game over after turn 40 of 40" on a 16 px line, so the news keeps whole
-   lines for the Council line above the Final scores button (e2e/m10-qa.spec.ts) */
+/* FR-315: at game over the date is on a 16 px line under "Game over after turn 40 of 40" */
 .turn-indicator-over .turn-date {
   line-height: 16px;
 }
@@ -668,9 +880,10 @@ img[data-art-anchor="bottom-center"] {
   container-type: size;
 }
 
+/* FR-533: 4 px on the right, so a line's text ends before the list's scrollbar (it touched it) */
 .news-list {
   margin: 0;
-  padding: 0 0 0 16px;
+  padding: 0 4px 0 16px;
   line-height: var(--news-line);
   /* Without container queries or round(): five lines, then the box of whole lines that fits */
   max-height: calc(5 * var(--news-line));
@@ -740,41 +953,112 @@ img[data-art-anchor="bottom-center"] {
   }
 }
 
-.action-buttons-container {
+/* M12b top bar buttons (FR-466 to FR-468, docs/specs/hud.md section 2a; components/HUD/ActionButtons.tsx). The six dialog
+   buttons (.action-buttons-container, the class e2e and the 20 px icon box rule read), Center, New game, About and, at
+   game over, Final scores are 32 x 32 icon buttons below 1800 px of width, each name a .topbar-label span hidden from
+   sight only, so the name, the title and FR-354's no-space rule hold (WCAG 2.5.3, label in name); from 1800 px the label
+   shows beside the icon. They lie in a strip that scrolls sideways below 1024 px; Advance Turn, the one End Turn control
+   (card Q113), stands outside it at the right end, so it never scrolls away. FR-424's window-height rules for the pane's
+   old header and button grid are gone: the bar keeps the turn, date, cash and score in sight at 640x360 (FR-467). */
+.topbar-buttons {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.topbar-strip {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.action-buttons-container,
+.topbar-group {
+  display: flex;
   flex: none;
-  margin-top: 8px;
-  display: grid;
-  gap: 6px;
+  gap: 4px;
 }
 
-/* Compact, so the HUD's information above keeps most of the height (FR-106, FR-108) */
-.action-buttons-container .btn {
-  padding: 6px 10px;
+.btn.topbar-button {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
   font-size: 13px;
+  white-space: nowrap;
 }
 
-/* FR-424 (UIV-06): a window under 500 px high (a 1280x720 window at 200% zoom is 640x360) keeps the turn, the date, the
-   cash and the score in sight. The six dialog buttons form two columns, one line each (a long name ends in an ellipsis;
-   the button's name is unchanged), Center and Advance Turn a row of their own; the header is one row, New game and About
-   showing their icons only (the label is hidden from sight, not from the name); the panel's padding is 8 px. */
-@media (max-height: 499.98px) {
-  .hud-container {
-    padding: 8px;
-  }
+/* FR-349's 20 px box for every icon of the bar, a pack picture or a Game Icon (the .action-buttons-container rule at the
+   top of this file is the same box); the 0.28em is the gap before the label */
+.btn.topbar-button > :is(svg[data-icon], img[data-art-inline]) {
+  box-sizing: border-box;
+  width: 20px;
+  height: 20px;
+  margin: 0 0.28em 0 0;
+  flex: none;
+}
 
-  .hud-header {
-    flex-wrap: nowrap;
-    margin-bottom: 4px;
-  }
+.btn.topbar-button > svg[data-icon] {
+  padding: 3.5px;
+}
 
-  .hud-title {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
+.btn.topbar-advance {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: auto;
+  height: 32px;
+  padding: 0 12px;
+  font-size: 13px;
+  white-space: nowrap;
+}
 
-  .hud-header-label {
+/* The score's parts (FR-404) hang under the bar, so the bar keeps its height */
+.hud-score {
+  position: relative;
+}
+
+.topbar-popover {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 1;
+  padding: 6px 8px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-dialog);
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+/* Line 2 of the cash and score blocks: what the number means */
+.cash-change,
+.score-rank {
+  color: var(--color-ink-muted);
+}
+
+/* Labels from 1800 px, not the spec's estimated 1600 px (M12b T2, measured in the running app on turn 2): with labels the
+   buttons take 1225 px and the row 1746 px; at 1600 px the nation's name was squeezed to 0 px, the Council line cut from
+   215 to 150 px and the score block ran 6 px into the buttons. .gate/hud/T2-notes.md, decision for the orchestrator. */
+@media (min-width: 1800px) {
+  .btn.topbar-button {
+    width: auto;
+    padding: 0 8px;
+  }
+}
+
+@media (max-width: 1799.98px) {
+  .topbar-label {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -783,22 +1067,81 @@ img[data-art-anchor="bottom-center"] {
     white-space: nowrap;
   }
 
-  .action-buttons-container {
-    grid-template-columns: 1fr 1fr;
-    gap: 4px;
-    margin-top: 4px;
+  /* Alone in its 32 px button the icon is centred: no gap after it */
+  .topbar-strip .btn.topbar-button > :is(svg[data-icon], img[data-art-inline]) {
+    margin: 0;
   }
+}
 
-  .action-buttons-container > .btn-group {
-    grid-column: 1 / -1;
-  }
+/* The keyboard ring of the bar's buttons, drawn inside the button (offset + width = 0): below 1024 px the strip scrolls
+   sideways, so it clips what lies outside its 32 px high box, the browser's ring among it (M12b review A11Y-2, WCAG 2.4.7) */
+.btn.topbar-button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
 
-  .action-buttons-container .btn {
-    padding: 4px 6px;
+/* From 1024 to 1799 px the buttons show only their icons: a keyboard focus shows the name under the button, as a mouse
+   pointer shows the title (M12b review A11Y-4). The same span stays the accessible name; only its look changes. Not below
+   1024 px: there the strip clips what hangs below it, and a label inside it would make it scroll up and down. */
+@media (min-width: 1024px) and (max-width: 1799.98px) {
+  .btn.topbar-button:focus-visible > .topbar-label {
+    top: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip-path: none;
+    padding: 2px 6px;
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-raised);
+    color: var(--color-ink);
+    box-shadow: var(--shadow-dialog);
     font-size: 12px;
-    white-space: nowrap;
+    line-height: 16px;
+    pointer-events: none;
+  }
+}
+
+/* Row 2 of the two-row bar: the strip takes the room left of Advance Turn and scrolls sideways when it must (a phone; at
+   800 and 640 px it fits). Its scrollbar is hidden, so the 40 px row keeps the 32 px buttons whole; touch, the wheel and
+   Tab scroll it. */
+@media (max-width: 1023.98px) {
+  .topbar-buttons {
+    flex: 1 1 auto;
+  }
+
+  .topbar-strip {
+    flex: 1 1 auto;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+
+  .topbar-strip::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* FR-467: below 700 px the nation's name and the "Turn:", "Cash:", "Score:" prefixes are hidden from sight only, so the
+   texts the e2e suite reads stay whole */
+@media (max-width: 699.98px) {
+  .topbar-wide-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
     overflow: hidden;
-    text-overflow: ellipsis;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+/* FR-424: the right pane's padding is 8 px in a window under 500 px high (the pane's only window-height rule; the old
+   header and button-grid rules left with the top bar, M12b). */
+@media (max-height: 499.98px) {
+  .hud-container {
+    padding: 8px;
   }
 }
 

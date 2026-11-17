@@ -32,6 +32,9 @@ test('FR-106 FR-107 FR-108 after five End Turns the HUD ranks both nations, the 
   test.setTimeout(90000);
   const errors = collectErrors(page);
   await start(page);
+  // M12b (FR-474): the score table is in the right pane's Nation group, closed by default, so it is opened first (was
+  // always shown); it stays open across the End Turns below (FR-473)
+  await page.getByRole('button', { name: 'Nation', exact: true }).click();
   await expect(scores(page).getByTestId(/^score-row-/)).toHaveCount(2);
   await expect(scores(page).getByTestId('score-row-nation-1')).toContainText('Testland (you)');
   await expect(scores(page).getByTestId('score-row-nation-2')).toContainText('Valdoria');

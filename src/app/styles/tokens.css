@@ -11,6 +11,10 @@
   /* The HUD lies over the map's right edge (styles/theme.ts HUD_PX) */
   --hud-width: 250px;
 
+  /* The top bar across the window's top (FR-465; styles/theme.ts TOPBAR_PX): one 40 px row from 1024 px of width, two
+     rows below (the @media block after this one). The right pane and the map are drawn from its bottom. */
+  --topbar-height: 40px;
+
   /* Palette (NR-009): parchment land, pale sea, dark grey ink, one accent, one colour per nation.
      Muted, good, warn and danger text keep 4.5:1 on the surfaces (FR-094, FR-110). Nation 1 is a
      crimson, apart from the red of "bad" and from nation 2's blue, also for colour-blind eyes (FR-110;
@@ -132,4 +136,12 @@
   --shadow-lg: inset 0 0 0 2px var(--color-highlight);
   --shadow-panel: 0 0 10px rgba(40, 36, 28, 0.15);
   --shadow-dialog: 0 10px 30px rgba(40, 36, 28, 0.25);
+}
+
+/* FR-465: below 1024 px of width the top bar is two 40 px rows (styles/theme.ts TOPBAR_NARROW_PX, TOPBAR_BREAKPOINT;
+   topBarPx must say the same, tests/ui/palette.test.ts) */
+@media (max-width: 1023.98px) {
+  :root {
+    --topbar-height: 80px;
+  }
 }

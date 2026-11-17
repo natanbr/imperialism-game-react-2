@@ -23,7 +23,7 @@ import capitalStyles from '@/components/capital/Capital.module.css';
 import { ConstructionOptionsModal } from '@/components/ConstructionOptionsModal';
 import TransportAllocationModal from '@/components/TransportAllocationModal';
 import { TileInfoPanel } from '@/components/TileInfoPanel';
-import { HUD } from '@/components/HUD';
+import { TopBar } from '@/components/HUD/TopBar';
 import { artFileOf, buildingArt, civilianArt } from '@/components/art/inkArt';
 import { BUILDING_TEXT } from '@/components/gameText';
 import { useGameStore } from '@/store/rootStore';
@@ -105,10 +105,12 @@ describe('FR-333 the capital\'s buildings', () => {
   });
 });
 
+// M12b T2 (FR-466, FR-468; docs/specs/hud.md section 5): the HUD's buttons moved to the top bar, so these render <TopBar />
+// (was <HUD />); every assertion is unchanged, the names now come from the buttons' .topbar-label spans.
 describe('FR-334 HUD and dialog titles', () => {
   it('FR-334 the HUD\'s Capital, Warehouse and Transport buttons show their buildings; every other glyph stays; the names are exactly as before', () => {
     show(continent());
-    render(<HUD />);
+    render(<TopBar />);
     const button = (name: string | RegExp) => screen.getByRole('button', { name });
     expect([art(button('Open Warehouse')), icons(button('Open Warehouse'))]).toEqual([['buildings/warehouse.png'], []]);
     expect([art(button('Open Capital')), icons(button('Open Capital'))]).toEqual([['buildings/capitol.png'], []]);
@@ -133,7 +135,7 @@ describe('FR-334 HUD and dialog titles', () => {
   it('FR-334 after the game the Final scores button keeps its Game Icon', () => {
     const over = resolveTurn({ ...newGame({ seed: 1 }), turnLimit: 1 }, {}, 1).state;
     show(over);
-    render(<HUD />);
+    render(<TopBar />);
     const scores = screen.getByRole('button', { name: 'Final scores' });
     expect([art(scores), icons(scores)]).toEqual([[], ['GiCheckeredFlag']]);
   });
@@ -288,9 +290,10 @@ describe('FR-352 FR-354 FR-349 the QA fix round in the lists, the capital and th
     expect(spaceAfterArt(screen.getByRole('dialog', { name: 'Transportation of Commodities' }))).toEqual([]);
   });
 
+  // M12b T2: rendered from the top bar (was <HUD />), assertions unchanged
   it("FR-349 the HUD's full-width buttons and the dialogs' titles: the icon first, then the label, no space between", () => {
     show(continent());
-    render(<HUD />);
+    render(<TopBar />);
     const names = [/Open Warehouse/, /Open Capital/, /Open Market/, /Deal Book/, /Diplomacy/, /Transportation of Commodities/];
     for (const name of names) {
       const button = screen.getByRole('button', { name });

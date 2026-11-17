@@ -6,6 +6,16 @@
 export const TILE_PX = 42;
 /** --hud-width in tokens.css: the HUD lies over the map's right edge. */
 export const HUD_PX = 250;
+/**
+ * --topbar-height in tokens.css (FR-465): the top bar is one 40 px row from TOPBAR_BREAKPOINT px of window width, two rows
+ * (80 px) below it. Trap: the CSS query is `max-width: 1023.98px`; it and topBarPx must agree, or the camera centres the
+ * map on the wrong area (tests/ui/palette.test.ts checks both). At 1280x720 the 672 px map needs 40 + 672 <= 720, so the
+ * one-row height may never exceed 48 px.
+ */
+export const TOPBAR_PX = 40;
+export const TOPBAR_NARROW_PX = 80;
+export const TOPBAR_BREAKPOINT = 1024;
+export const topBarPx = (innerWidth: number): number => (innerWidth < TOPBAR_BREAKPOINT ? TOPBAR_NARROW_PX : TOPBAR_PX);
 
 const v = (name: string) => `var(--${name})`;
 

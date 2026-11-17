@@ -46,28 +46,32 @@ export function howToPlayText(state: GameState): HowToPlayText {
 /**
  * How to play (FR-430, FR-431): the goal, how money is made and a first turn. page.tsx opens it on a browser's first new
  * game and About opens it at any time; Close (focused) and Escape close it, and page.tsx records that it was seen.
+ * FR-529: in a short window (640x360, 1280x720 at 200% zoom) only the text scrolls, the title and Close stay in view; the
+ * text is a Tab stop before Close, so the focus opens on Close, the last control (as the Council's body, FR-425).
  */
 export const HowToPlay: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const game = useGameStore((s) => s.game);
   const titleId = useId();
   const text = howToPlayText(game);
   return (
-    <Modal titleId={titleId} onClose={onClose} overlayClassName="about-overlay" className="about-panel">
+    <Modal titleId={titleId} onClose={onClose} initialFocus="last-control" overlayClassName="about-overlay" className="about-panel howto-panel">
       <div className="about-header">
         <h2 id={titleId} className="about-title">
           How to play
         </h2>
       </div>
-      <h3>The goal</h3>
-      <p data-testid="howto-goal">{text.goal}</p>
-      <h3>Making money</h3>
-      <p data-testid="howto-money">{text.money}</p>
-      <h3>Your first turn</h3>
-      <ol data-testid="howto-first-turn">
-        {text.firstTurn.map((line) => (
-          <li key={line}>{line}</li>
-        ))}
-      </ol>
+      <div className="howto-body" tabIndex={0} role="region" aria-label="How to play text">
+        <h3>The goal</h3>
+        <p data-testid="howto-goal">{text.goal}</p>
+        <h3>Making money</h3>
+        <p data-testid="howto-money">{text.money}</p>
+        <h3>Your first turn</h3>
+        <ol data-testid="howto-first-turn">
+          {text.firstTurn.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ol>
+      </div>
       <div className="confirm-actions">
         <button type="button" className="btn btn-primary btn-sm" onClick={onClose}>
           Close

@@ -10,6 +10,7 @@ import { join } from 'path';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import Home from '@/page';
 import { HUD } from '@/components/HUD';
+import { TopBar } from '@/components/HUD/TopBar';
 import { MapView } from '@/components/MapView';
 import { NewsPanel, ScoreTable } from '@/components/HUD/index';
 import { GameOverModal } from '@/components/GameOverModal';
@@ -74,7 +75,15 @@ describe('FR-106 score table', () => {
 
   it("FR-106 the HUD shows the player's score and the table", () => {
     show(newGame({ seed: 1 }));
-    render(<HUD />);
+    // M12b: the score line is the top bar's (FR-466), the table is in the right pane's Nation group (FR-474), closed by
+    // default (was <HUD /> alone, the table always shown)
+    render(
+      <>
+        <TopBar />
+        <HUD />
+      </>
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Nation' }));
     expect(text(screen.getByTestId('hud-score'))).toBe('Score: 240');
     expect(screen.getByRole('table', { name: 'Scores' })).toBeTruthy();
   });
@@ -261,7 +270,8 @@ describe('FR-108 no orders for another nation', () => {
 describe('FR-109 New game', () => {
   it('FR-109 the HUD asks in place; Keep playing changes nothing; Start new game replaces the game and clears the session', () => {
     show(newGame({ seed: 1 }));
-    render(<HUD />);
+    // M12b (FR-480): New game and its question are the top bar's (was <HUD />)
+    render(<TopBar />);
     act(() => useGameStore.getState().advanceTurn());
     act(() => useGameStore.setState({ selectedTileId: '3-9', isCapitalOpen: true, isMarketOpen: true }));
     const before = useGameStore.getState();
@@ -456,7 +466,8 @@ describe('FR-111 keyboard and screen reader use of the worker tray and New game'
 
   it('FR-111 the HUD New game toggle says whether the question is open and moves the focus into it', () => {
     show(newGame({ seed: 1 }));
-    render(<HUD />);
+    // M12b (FR-480): New game and its question are the top bar's (was <HUD />)
+    render(<TopBar />);
     const toggle = screen.getByRole('button', { name: /New game/ });
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
 

@@ -247,9 +247,10 @@ test.describe('on a 1920x1080 screen', () => {
     await page.waitForLoadState('networkidle');
     const ground = (await page.getByTestId('map-ground').boundingBox())!;
     // M12 FR-367: a map smaller than its area is centred, half the spare space on each side rounded down (camera.ts
-    // mapOffset): (1920 - 250 HUD - 1029) / 2 = 320 and (1080 - 672) / 2 = 204 (it was drawn at 0, 0). Every patch below
-    // still lies in the sea past the map.
-    expect([ground.x, ground.y, ground.width, ground.height]).toEqual([320, 204, 1029, 672]);
+    // mapOffset): (1920 - 250 HUD - 1029) / 2 = 320 and (1080 - 672) / 2 = 204 (it was drawn at 0, 0). M12b (FR-465): the
+    // area is 1040 px high under the 40 px top bar, so (1040 - 672) / 2 = 184, drawn at 40 + 184 = 224 (was 204). Every
+    // patch below still lies in the sea past the map (the map spans y 224 to 896, x 320 to 1349).
+    expect([ground.x, ground.y, ground.width, ground.height]).toEqual([320, 224, 1029, 672]);
     // Equal-sized patches of a flat colour are the same picture; of the texture (512 px repeat, these offsets differ
     // modulo 512) they are not. Below the map, right of it (left of the HUD), and across its bottom edge.
     const patch = (x: number, y: number) => page.screenshot({ clip: { x, y, width: 48, height: 48 } });

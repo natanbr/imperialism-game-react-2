@@ -93,7 +93,8 @@ test('FR-090 the whole map fits 1280x720 next to the HUD, with an icon on every 
     const box = (await tile(page, id).boundingBox())!;
     expect(box.width).toBe(42);
     expect(box.x).toBeGreaterThanOrEqual(0);
-    expect(box.y).toBeGreaterThanOrEqual(0);
+    // M12b (FR-465): the map is drawn from the 40 px top bar's bottom (was y >= 0); 40 + 672 = 712 <= 720 below
+    expect(box.y).toBeGreaterThanOrEqual(40);
     expect(box.x + box.width).toBeLessThanOrEqual(1030);
     expect(box.y + box.height).toBeLessThanOrEqual(720);
   }
@@ -165,10 +166,12 @@ test('FR-090 the whole map fits 1280x720 next to the HUD, with an icon on every 
             all++;
             if (covers.some((r) => x >= r.x && x < r.right && y >= r.y && y < r.bottom)) covered++;
           }
-        return { width: Math.round((drawing.x1 - drawing.x0) * 10) / 10, covered: Math.round((covered / all) * 1000) / 1000 };
+        return { width: Math.round((drawing.x1 - drawing.x0) * 10) / 10, covered: Math.round((covered / all) * 1000) / 1000, top: Math.round(drawing.y0 * 10) / 10 };
       });
-    console.log(`FR-346 capital ${id}: drawing ${placement.width} px across, ${Math.round(placement.covered * 100)}% covered`);
+    console.log(`FR-346 capital ${id}: drawing ${placement.width} px across, ${Math.round(placement.covered * 100)}% covered, top at y ${placement.top}`);
     expect(placement.width, id).toBeGreaterThanOrEqual(36);
+    // M12b (FR-465): the top bar covers no map: every capital's drawing starts below the bar's 40 px
+    expect(placement.top, id).toBeGreaterThanOrEqual(40);
     expect(placement.covered, id).toBeLessThanOrEqual(0.3);
     const army = tile(page, id).getByTestId('army-marker').first();
     const armyBox = (await army.boundingBox())!;

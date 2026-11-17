@@ -85,7 +85,9 @@ test('FR-160 FR-153 FR-155 FR-156 a new game shows the 4 minor nations, the prov
     return { dash: s.strokeDasharray, width: s.strokeWidth, stroke: s.stroke };
   });
   expect(halo).toEqual({ dash: 'none', width: '4px', stroke: 'rgb(200, 177, 138)' });
-  // FR-156: the score table holds the 2 Great Powers, no minor
+  // FR-156: the score table holds the 2 Great Powers, no minor. M12b (FR-474): the table is in the right pane's Nation
+  // group, closed by default, so it is opened first (was always shown); it stays open across the End Turn below (FR-473)
+  await page.getByRole('button', { name: 'Nation', exact: true }).click();
   const scores = page.getByRole('table', { name: 'Scores' });
   await expect(scores.getByTestId(/^score-row-/)).toHaveCount(2);
   await expect(scores).not.toContainText(/Arvelia|Sundmark|Lorran|Pellis/);

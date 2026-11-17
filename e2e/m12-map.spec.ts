@@ -4,8 +4,9 @@ import { test, expect, Page } from '@playwright/test';
 // capital at 2-9 with its seven civilians. Written by the lane, run by the integration step (the lane runs no browser).
 // FR-364, FR-365: the wheel scrolls the map (no scrollbar drawn). FR-366: no edge scrolling over the HUD. FR-367: a small
 // map is centred at 1920x1080. FR-368: Zoom in makes a tile 63 px. FR-369, FR-370: the map by keyboard, Escape. FR-371:
-// Tile Info in sight when the capital is selected. FR-372: whole news lines (the 8-line figure is parked, see the case).
-// FR-377: no Debug box without ?debug. FR-424: the HUD at 640x360. FR-429: the narrow-window line at 390x844.
+// Tile Info in sight when the capital is selected. FR-372: at least 8 whole news lines (M12b FR-472, no longer parked).
+// FR-377: the bug-report details for every player (M12b FR-476, card Q102). FR-424: the top bar at 640x360 (M12b FR-467).
+// FR-429: the narrow-window line at 390x844, under the top bar (M12b FR-479).
 // FR-381, FR-382: job offers with prices and reasons; FR-383: a costly job asks once. FR-384 to FR-387: selection after a
 // move, picking another civilian, the Cancel question. FR-388: the fort mark; FR-391: who collects a tile; FR-433: the
 // tray's names; FR-376: a news line selects its tile (needs L1's FR-375).
@@ -28,13 +29,6 @@ async function open(page: Page, path = '/') {
 const tile = (page: Page, id: string) => page.locator(`[data-tile-id="${id}"]`);
 const scroll = (page: Page) =>
   page.getByTestId('map-scroll').evaluate((el: HTMLElement) => ({ x: el.scrollLeft, y: el.scrollTop, bar: el.offsetWidth - el.clientWidth }));
-
-/** The HUD's scroll area: its visible box and scroll position. */
-const hudArea = (page: Page) =>
-  page.locator('.hud-content').evaluate((el: HTMLElement) => {
-    const r = el.getBoundingClientRect();
-    return { top: r.top, bottom: r.top + el.clientHeight, scrollTop: el.scrollTop };
-  });
 
 /** Selects a tile with a click on its top-left corner (clear of the civilians' stack and the marks). */
 async function select(page: Page, id: string) {
@@ -59,12 +53,17 @@ test('FR-364 FR-365 the wheel scrolls the map, Shift and the wheel sideways; no 
   expect(errors).toEqual([]);
 });
 
-test('FR-366 the pointer on Advance Turn at the HUD\'s right end for 1 s does not scroll the map (1024x768)', async ({ page }) => {
+// M12b (FR-479): Advance Turn is in the top bar now, at its right end (was the HUD's right end); the same check, plus the
+// pointer on the bar's left end (2, 20), which carries data-edge-scroll too
+test('FR-366 FR-479 the pointer on Advance Turn at the top bar\'s right end, then on the bar\'s left end, for 1 s each does not scroll the map (1024x768)', async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 768 });
   await open(page);
   const before = await scroll(page);
   const advance = (await page.getByRole('button', { name: /Advance Turn/ }).boundingBox())!;
   await page.mouse.move(advance.x + advance.width - 2, advance.y + advance.height / 2);
+  await page.waitForTimeout(1000);
+  expect(await scroll(page)).toEqual(before);
+  await page.mouse.move(2, 20);
   await page.waitForTimeout(1000);
   expect(await scroll(page)).toEqual(before);
 });
@@ -73,9 +72,10 @@ test('FR-367 at 1920x1080 the map is centred in the area left of the HUD; FR-088
   await page.setViewportSize({ width: 1920, height: 1080 });
   await open(page);
   const map = (await page.getByTestId('map-viewport').boundingBox())!;
-  // The area is 1670 x 1080, the map 1,029 x 672: 320.5 and 204 px to spare on each side
+  // M12b (FR-465): the area is 1670 x 1040 under the 40 px top bar (was 1670 x 1080), the map 1,029 x 672: 320.5 and
+  // 184 px to spare on each side, so the map is drawn at y 40 + 184 = 224 (was 204)
   expect(Math.abs(map.x - 320.5)).toBeLessThanOrEqual(1);
-  expect(Math.abs(map.y - 204)).toBeLessThanOrEqual(1);
+  expect(Math.abs(map.y - 224)).toBeLessThanOrEqual(1);
 
   await page.setViewportSize({ width: 1280, height: 720 });
   await expect.poll(async () => (await page.getByTestId('map-viewport').boundingBox())!.x).toBe(0);
@@ -193,47 +193,68 @@ test('FR-374 the engineer clicks the farm where the farmer has just started: the
   );
 });
 
-// Parked by lane L2: at 1280x720 the HUD's column above the news (header, turn, Council and idle lines, cash, score, score
-// table, the two-line news heading) leaves about 55 to 75 px, so 3 lines; 8 need about 100 px more, which only a
-// two-column action grid at full height (FR-349's one-x pin and the button names) or a wider HUD would give.
-test.fixme('FR-372 at 1280x720 on turn 2 with no tile selected the news list shows at least 8 whole lines', async ({ page }) => {
+// M12b (FR-472) closes FR-372: the pane holds no buttons now (they are in the top bar), so the news takes the free height.
+// Was test.fixme (parked by lane L2: the pane's header, status lines and seven buttons left the list 3 lines). Expected
+// about 20 lines (spec section 2b budget; T3 measured 20 in the running app); the count is logged.
+test('FR-372 FR-472 at 1280x720 on turn 2 with no tile selected and the groups closed the news list shows at least 8 whole lines', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
   await open(page);
   await page.getByRole('button', { name: /Advance Turn/ }).click();
   await expect(page.getByTestId('turn-indicator')).toContainText('Turn: 2 of 40');
+  await expect(page.getByTestId('tile-info')).toHaveCount(0);
+  await expect(page.getByTestId('tile-info-none')).toBeVisible();
+  for (const name of ['Nation', /^Work in progress/, 'Details for bug reports']) {
+    await expect(page.getByRole('button', { name })).toHaveAttribute('aria-expanded', 'false');
+  }
   const list = await page.getByTestId('news-list').evaluate((el) => ({ height: el.clientHeight, line: parseFloat(getComputedStyle(el).lineHeight) }));
+  console.log(`FR-372 news list ${list.height} px, ${list.height / list.line} lines of ${list.line} px`);
   expect(list.height % list.line).toBe(0);
   expect(list.height / list.line).toBeGreaterThanOrEqual(8);
 });
 
-test('FR-377 no Debug box for the player; with ?debug the selected tile\'s coordinates and the seed show', async ({ page }) => {
+// M12b (FR-476, Nathan's card Q102): the bug-report details are a closed group for every player, not a ?debug-only box.
+// Was: no .hud-debug-section without ?debug, the box with ?debug. Now: the group's button on a page without ?debug, its
+// panel hidden until it is opened; open it, then the selected tile's coordinates and the seed; the same with ?debug.
+test('FR-377 FR-476 the "Details for bug reports" group shows without ?debug: closed, then the selected tile\'s coordinates and the seed', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
   await open(page);
   await select(page, '5-8');
-  await expect(page.locator('.hud-debug-section')).toHaveCount(0);
+  const details = page.getByRole('button', { name: 'Details for bug reports' });
+  await expect(details).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('.hud-debug-section')).toBeHidden();
+  await details.click();
+  await expect(details).toHaveAttribute('aria-expanded', 'true');
+  const panel = page.getByRole('region', { name: 'Details for bug reports' });
+  await expect(panel).toBeVisible();
+  await expect(panel).toContainText('Tile: 5,8 (id 5-8)');
+  await expect(panel).toContainText(/Seed: \d+/);
   await page.goto('/?debug');
   // M12 FR-359: the first visit saved its game, so the second one offers it first; Continue keeps that game
   await page.getByRole('dialog', { name: 'Saved game' }).getByRole('button', { name: 'Continue' }).click();
   await expect(page.getByTestId('map-scroll')).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
   await select(page, '5-8');
+  // A reload closes the groups (FR-473): open it again
+  await page.getByRole('button', { name: 'Details for bug reports' }).click();
   await expect(page.locator('.hud-debug-section')).toContainText('Tile: 5,8 (id 5-8)');
 });
 
-test('FR-424 at 640x360 the turn, the date, the cash and the score are in sight without scrolling; the action buttons are two columns', async ({ page }) => {
+// M12b (FR-467 replaces FR-424's HUD part): the turn, the date, the cash and the score are in the top bar now (was the
+// pane's scroll area), so they are checked inside the window and inside the bar's box; the two-column check is removed
+// with the pane's button grid, which no longer exists (the buttons are the bar's row 2)
+test('FR-424 FR-467 at 640x360 the turn, the date, the cash and the score are in sight in the top bar without scrolling; New game is visible', async ({ page }) => {
   await page.setViewportSize({ width: 640, height: 360 });
   await open(page);
-  const area = await hudArea(page);
-  expect(area.scrollTop).toBe(0);
+  const bar = (await page.getByTestId('topbar').boundingBox())!;
+  expect([bar.x, bar.y, bar.width, bar.height]).toEqual([0, 0, 640, 80]);
   for (const part of [page.getByTestId('turn-indicator'), page.locator('.turn-date'), page.locator('.nation-stats'), page.getByTestId('hud-score')]) {
     const box = (await part.boundingBox())!;
-    expect(box.y).toBeGreaterThanOrEqual(area.top);
-    expect(box.y + box.height).toBeLessThanOrEqual(area.bottom + 0.5);
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.y).toBeGreaterThanOrEqual(bar.y);
+    expect(box.x + box.width).toBeLessThanOrEqual(640 + 0.5);
+    expect(box.y + box.height).toBeLessThanOrEqual(bar.y + bar.height + 0.5);
   }
-  const warehouse = (await page.getByRole('button', { name: /Open Warehouse/ }).boundingBox())!;
-  const capital = (await page.getByRole('button', { name: /Open Capital/ }).boundingBox())!;
-  expect(capital.y).toBe(warehouse.y);
-  expect(capital.x).toBeGreaterThan(warehouse.x);
   await expect(page.getByRole('button', { name: 'New game' })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(640);
 });
 
 test('FR-429 at 390x844 one line says the game is made for 1024 px; Dismiss removes it; at 1280x720 it is not shown', async ({ page }) => {
@@ -242,6 +263,13 @@ test('FR-429 at 390x844 one line says the game is made for 1024 px; Dismiss remo
   const note = page.getByTestId('narrow-window');
   await expect(note).toBeVisible();
   await expect(note).toContainText('Imperialism is made for a window at least 1024 px wide.');
+  // M12b (FR-479): the line is drawn under the 80 px top bar, not over it, and the bar's buttons stay clickable
+  expect((await note.boundingBox())!.y).toBeGreaterThanOrEqual(80);
+  await page.getByRole('button', { name: 'Diplomacy', exact: true }).click();
+  const diplomacy = page.getByRole('dialog', { name: /Diplomacy/ });
+  await expect(diplomacy).toBeVisible();
+  await diplomacy.getByRole('button', { name: 'Close diplomacy' }).click();
+  await expect(diplomacy).toHaveCount(0);
   await note.getByRole('button', { name: 'Dismiss' }).click();
   await expect(note).toHaveCount(0);
 

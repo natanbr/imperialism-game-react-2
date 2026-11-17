@@ -13,7 +13,8 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { computerOrders, newGame, resolveTurn, type Order } from '@/engine';
 import { createGameStore, useGameStore } from '@/store/rootStore';
 import { HOW_TO_PLAY_SEEN_KEY, readSave, saveOf, startAutosave, SAVE_DELAY_MS, SAVE_KEY, SAVE_VERSION, type SavedGame } from '@/store/persistence';
-import { NationStats } from '@/components/HUD/NationStats';
+// M12b (FR-471): the Not saved line moved from the cash block (NationStats) to the right pane's alerts
+import { Alerts } from '@/components/HUD/Alerts';
 import { isDialogOpen } from '@/store/controls/overlaySlice';
 import Home from '@/page';
 import { text } from '../ui/domText';
@@ -347,7 +348,7 @@ describe('FR-363 leaving the page and a failed write', () => {
     };
     useGameStore.setState({ ...useGameStore.getInitialState(), game: newGame({ seed: 1, world: 'continent' }) });
     const autosave = startAutosave(useGameStore, { storage: failing });
-    render(React.createElement(NationStats));
+    render(React.createElement(Alerts));
     expect(screen.queryByText(/Not saved/)).toBeNull();
 
     act(() => void expect(autosave.saveNow()).toBe(false));

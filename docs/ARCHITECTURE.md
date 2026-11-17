@@ -300,10 +300,11 @@ only (FR-018).
   shows the store's `councilShown` and builds no order. End Turn sets it to the meeting just held; it waits while a
   Battle screen is to be seen, and `GameOverModal.tsx` waits for it, so the order after a turn is battles, Council, final
   scores, one dialog at a time (since M12 Accept Offer waits too, for any open dialog: FR-409, `isDialogOpen`). The meeting's news line,
-  the first line of the news (FR-306), opens it again. The HUD's `TurnIndicator.tsx` names the next meeting
-  (`nextCouncilTurn`) under the turn line (turn and date on one line, FR-307), and under it shows `councilVote(state)` as
-  the projection (`councilProjectionText`, FR-314). The HUD has no height to spare at 1280x720 (FR-268): the projection's
-  two lines came from the "No tile selected" line, which the tile panel no longer draws (FR-315).
+  the first line of the news (FR-306), opens it again. `HUD/TurnIndicator.tsx` names the next meeting
+  (`nextCouncilTurn`, `NextCouncil`) as line 2 of the top bar's turn block (turn and date on line 1, FR-307, FR-466), and
+  `CouncilProjection` shows `councilVote(state)` as the projection (`councilProjectionText`, FR-314) in the right pane's
+  Nation group (M12b, FR-474); the Council line names it by its fixed id as its `aria-describedby`, also while the group is
+  closed.
 - **Art pack** (NR-031, FR-272, FR-273): `public/assets/ink-and-wash/` as supplied; `components/art/inkArt.ts` is the
   one table from game ids to its files (regiments, forts, the red attack arrow), `art/ArtPicture.tsx` draws them. A
   march keeps its measured line and head (FR-270, FR-271) in the pack's green; an attack is the pack's own red arrow,
@@ -423,7 +424,9 @@ its own stream, `ctx.rngFor(name)` for a name of `RNG_STREAMS` ("diplomacy", "co
 `createTurnRng((seed ^ fnv1a32(name)) >>> 0, turn)`, one stream per name and turn, so its draws never
 shift the price or development draws. The same initial state and orders always give the same result
 (`tests/engine/determinism.test.ts`); two scripted nations play 20 turns headlessly in
-`tests/engine/twoNations.test.ts`. The seed shows in the HUD's Debug box only with `?debug` in the URL and a tile selected (FR-377).
+`tests/engine/twoNations.test.ts`. The seed shows in the right pane's closed group "Details for bug reports", for every
+player (M12b, FR-476, Nathan's card Q102; it replaced FR-377's `?debug` rule). Its lines mount only while the group is
+open: the server and the browser each draw a new game's seed (FR-019), so a seed in the server's HTML fails hydration.
 
 ## How to add an order kind
 
@@ -616,7 +619,7 @@ unusable     the same dialog with the reason and New game only (FR-362)
 
 ## Components
 
-`page.tsx` renders `MapView`, `HUD` and the modals (`HowToPlay` and `SavedGameDialog` included). The capital dialog (`CapitalModal.tsx`)
+`page.tsx` renders `TopBar`, `MapView`, `HUD` (in that order, the order Tab follows: FR-535) and the modals (`HowToPlay` and `SavedGameDialog` included). The capital dialog (`CapitalModal.tsx`)
 renders views from `capital/capitalView.ts`: a production card per built building (inputs with
 stock, the standing order and the most `validateOrder` accepts, Expand), the labour panel (labour,
 grades, sick, trainees, Trade School, Capitol) and the freight cars; each button sends one order,
@@ -710,22 +713,39 @@ re-renders only the tiles that show it); `pointer` until a picture is ready and 
 again on the next request (FR-342). `components/art/prefetch.ts` `prefetchPictures` loads pictures ahead of their `<img>`
 (the pointer on a tile with the player's stack, or the focus on the stack button, loads the tray's figures); both keep
 their Image, since Chromium fetched a picture again for a later `<img>` once a detached Image was gone. No source file under
-`src/app` holds an emoji (tests/ui/noEmoji.test.ts). The HUD shows "Turn: N of 40" and the date ("Spring 1815"), cash, the score, every
-nation ranked by score with its colour swatch and name (`HUD/ScoreTable.tsx`, `NationSwatch.tsx`), the
-food warning, the selected tile, the news of the last turn and the last refused order (`components/HUD/NewsPanel.tsx`;
-`newsLines` puts the player's lines first and names the other nations on theirs). Its information
-scrolls on its own (`.hud-content`); the action buttons stay below it. `.hud-content` is a flex column: the
+`src/app` holds an emoji (tests/ui/noEmoji.test.ts). The HUD (M12b, docs/specs/hud.md) is two parts. The top bar
+(`HUD/TopBar.tsx`, FR-466) shows the nation, "Turn: N of 40" and the date ("Spring 1815") with the next Council line, the
+cash with last turn's change, the score with its rank, then the buttons (`HUD/ActionButtons.tsx`: the six dialogs as
+32 px icon buttons whose names are `.topbar-label` spans hidden from sight below 1800 px, Center, New game with its
+question `HUD/ConfirmNewGame.tsx`, About, Final scores at game over) in a strip that scrolls sideways below 1024 px, and
+Advance Turn last, outside the strip: the one End Turn control on the page (card Q113). The right pane (`HUD.tsx`) shows
+Tile Info (or the line "No tile selected", FR-470), the alerts (`HUD/Alerts.tsx`: not saved, food and upkeep warnings,
+wars, idle civilians, FR-471), the news of the last turn and the last refused order (`components/HUD/NewsPanel.tsx`;
+`newsLines` puts the player's lines first and names the other nations on theirs), then three groups closed by default
+(`HUD/HudGroups.tsx`, the WAI-ARIA accordion, open state in `HUD`'s component state, never in the store or the save,
+FR-473): Nation (Council projection, score parts, every nation ranked by score with its colour swatch and name,
+`HUD/ScoreTable.tsx`, `NationSwatch.tsx`, upkeep and treasury lines), Work in progress and Details for bug reports. Their
+texts come from pure helpers in `HUD/hudView.ts` (`workInProgressRows`, `leftInWindow` for what hangs from the bar and others), tested without React. The pane's
+information scrolls on its own (`.hud-content`). `.hud-content` is a flex column: the
 news panel takes the height left, and its list scrolls on its own in whole lines (a size container and
-`round()` in globals.css, FR-268), so the fade at the bottom never covers a line of news. New game (HUD, asked in place, and
+`round()` in globals.css, FR-268), so the fade at the bottom never covers a line of news. New game (the top bar, asked in a panel under it, FR-480, and
 the game-over screen) calls `hooks/mapActions.ts` `startNewGameOnCapital`: the store's `startNewGame`
 clears the session (selection, dialogs, logs) and the camera goes back to the capital. The
 camera is the scroll position of MapView's container (FR-083), so the browser keeps it inside the
 map; the store's `cameraX`/`cameraY` mirror it (written on each scroll event) and `setCamera`
-scrolls the container. The first view and the HUD's Center button centre the capital
+scrolls the container. The page frame (M12b, FR-465): `components/HUD/TopBar.tsx` spans the window's top at
+`--topbar-height` (40 px from 1024 px of width, 80 px in two rows below; `styles/theme.ts` `topBarPx` says the same and
+tests/ui/palette.test.ts checks both), and the right pane (`.hud-container`) and the map scroller both start under it, so
+the map area is the window less the bar and the 250 px pane (`camera.ts` `mapAreaOf`: 1030 x 680 at 1280x720). What hangs
+from the bar (the score parts, New game's question, a focused button's name) is drawn in the bar's stacking context, so the
+bar's z-index (30) must stay above the pane's (10) and the FR-429 line's (20) and under the dialogs' (60 and up). A news
+place line and a Work in progress row both go through `HUD/showTile.ts` (select the tile, centre it, focus Tile Info's
+heading). The first
+view and the HUD's Center button centre the capital
 (`components/camera.ts`, `cameraOnCapital`); the map has right padding of `--hud-width` so its last
 column can scroll out from under the HUD. Edge scroll (`hooks/useEdgeScroll.ts`) scrolls the
 container near the map area's edges, only while the pointer is inside the map scroller and not inside
-`[data-edge-scroll]` (the HUD) or a dialog, and it stops when the pointer leaves the window; the right zone is the 20 px
+`[data-edge-scroll]` (the HUD, the top bar) or a dialog, and it stops when the pointer leaves the window; the right zone is the 20 px
 left of the HUD (`rightInset`, FR-366). e2e specs wait for
 `data-ready` on `map-scroll` (set after MapView's first view) before clicking: the server-rendered
 map shows before React handles clicks, and on 1280x720 the whole map fits, so the first view no

@@ -1,7 +1,10 @@
 import { test, expect, Page } from '@playwright/test';
 
 // FR-235 (M5 QA fix round, items 1 and 2) at 1280x720, the QA screenshots' size. The HUD's content area
-// (`.hud-content`) scrolls above the pinned action buttons.
+// (`.hud-content`) scrolls while the action buttons stay pinned. M12b: the buttons are the top bar's now (FR-466), the
+// Debug box is the "Details for bug reports" group's panel (FR-476), and the news takes the pane's free height (FR-472),
+// so the pane overflows only with groups open: each test opens the Nation and Details groups first (was: the pane
+// overflowed as it was, the buttons pinned under it). The checks themselves are unchanged.
 // (1) Its scrollbar is the panel's own: thin and painted in the palette (thumb --color-ink-muted, track
 //     --color-surface-sunken), and scrolling reaches the end of the News and the whole Debug box while the action
 //     buttons stay where they are. Playwright launches Chromium with --hide-scrollbars, which hides every scrollbar
@@ -16,7 +19,8 @@ const tile = (page: Page, id: string) => page.locator(`[data-tile-id="${id}"]`);
 const content = (page: Page) => page.locator('.hud-content');
 const ACTIONS = [/Open Warehouse/, /Open Capital/, /Open Market/, /Transportation of Commodities/, /Center/, /Advance Turn/];
 
-// FR-377: the Debug box shows only with `debug` in the URL's query
+// FR-377 then: the Debug box showed only with `debug` in the URL's query; M12b FR-476 shows the group without it too, and
+// ?debug is kept so this file still opens the page it always did
 async function open(page: Page) {
   await page.goto('/?debug');
   await expect(page.getByTestId('map-scroll')).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
@@ -46,6 +50,23 @@ const area = (page: Page) =>
   });
 
 const boxes = (page: Page) => Promise.all(ACTIONS.map((name) => page.getByRole('button', { name }).boundingBox()));
+
+/**
+ * M12b: opens the Nation and the Details for bug reports groups (FR-473), so the pane's content is taller than its area,
+ * then scrolls the pane back to its top as the measurements below expect (the click on a group's button scrolls that
+ * button into view first; in the gate's first run the Details box then started at y 683, inside the area).
+ */
+async function openGroups(page: Page) {
+  for (const name of ['Nation', 'Details for bug reports']) {
+    const button = page.getByRole('button', { name, exact: true });
+    await button.click();
+    await expect(button).toHaveAttribute('aria-expanded', 'true');
+  }
+  await expect(page.locator('.hud-debug-section')).toBeVisible();
+  await content(page).evaluate((el) => el.scrollTo(0, 0));
+  await expect.poll(() => content(page).evaluate((el) => el.scrollTop)).toBe(0);
+  await page.mouse.move(640, 360);
+}
 
 /** Scrolls the area to its end with the mouse wheel, as a player would. */
 async function scrollToEnd(page: Page) {
@@ -96,6 +117,7 @@ test('FR-235 (1) the HUD content area shows a thin scrollbar in the palette, scr
   await expect(page.getByRole('dialog', { name: 'About' })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog', { name: 'About' })).toHaveCount(0);
+  await openGroups(page);
 
   const start = await area(page);
   expect(start.maxScroll, 'the content is taller than its area').toBeGreaterThan(0);
@@ -135,6 +157,7 @@ test('FR-235 (2) no cut box edge is drawn above the action buttons while more li
   test.setTimeout(90000);
   await open(page);
   await selectArvelia(page);
+  await openGroups(page);
   const surface = await token(page, '--color-surface');
 
   const start = await area(page);

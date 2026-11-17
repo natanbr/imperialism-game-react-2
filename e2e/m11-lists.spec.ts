@@ -203,37 +203,61 @@ test('FR-331 FR-334 the Board of Trade, the Warehouse and the Transport popup: e
   expect(errors).toEqual([]);
 });
 
-test("FR-334 the HUD's Warehouse, Capital and Transport buttons are as high as those with a Game Icon, their pictures loaded", async ({ page }) => {
+// M12b (FR-468): the dialog buttons are the top bar's 32 x 32 icon buttons now (was: full-width buttons in the pane, the
+// three picture buttons as high as Open Market); all six are 32 px high, pictures loaded (unchanged)
+test("FR-334 FR-468 the top bar's six dialog buttons, Warehouse, Capital and Transport with their pictures loaded, are all 32 px high", async ({ page }) => {
   const errors = collectErrors(page);
   await open(page);
   const height = async (name: RegExp) => (await page.getByRole('button', { name }).boundingBox())!.height;
-  const plain = await height(/Open Market/);
-  for (const name of [/Open Warehouse/, /Open Capital/, /Transportation of Commodities/]) {
-    expect(Math.abs((await height(name)) - plain), String(name)).toBeLessThanOrEqual(0.5);
-    await expectLoaded(page.getByRole('button', { name }), 1);
+  for (const name of [/Open Warehouse/, /Open Capital/, /Open Market/, /^Deal Book$/, /^Diplomacy$/, /Transportation of Commodities/]) {
+    expect(await height(name), String(name)).toBe(32);
   }
+  for (const name of [/Open Warehouse/, /Open Capital/, /Transportation of Commodities/]) await expectLoaded(page.getByRole('button', { name }), 1);
   expect(errors).toEqual([]);
 });
 
-test("FR-349 the HUD's labels start at one x and its icons share one 20 px box; a dialog's title icon is 1.25em, Game Icon or picture", async ({ page }) => {
-  const errors = collectErrors(page);
-  await open(page);
-  // The six full-width action buttons (Center, half wide beside Advance Turn, is not one of them)
-  const hud = await page.locator('.action-buttons-container > .btn-plain').evaluateAll((buttons) =>
+/** The six dialog buttons of the top bar: name, icon box, the label span's box, the button's box. */
+const barButtons = (page: Page) =>
+  page.locator('.action-buttons-container > .btn-plain').evaluateAll((buttons) =>
     buttons.map((b) => {
       const icon = b.firstElementChild!.getBoundingClientRect();
-      const label = [...b.childNodes].find((n) => n.nodeType === 3 && (n.textContent ?? '').trim())!;
-      const range = document.createRange();
-      range.setStart(label, 0);
-      range.setEnd(label, 1);
-      return { name: (b.textContent ?? '').trim(), icon: [icon.width, icon.height], x: Math.round(range.getBoundingClientRect().left * 100) / 100, height: b.getBoundingClientRect().height };
+      const label = b.querySelector('.topbar-label')!.getBoundingClientRect();
+      const box = b.getBoundingClientRect();
+      return {
+        name: (b.textContent ?? '').trim(),
+        icon: [icon.width, icon.height],
+        iconRight: icon.right,
+        label: { left: label.left, width: label.width },
+        em: parseFloat(getComputedStyle(b).fontSize),
+        size: [box.width, box.height],
+      };
     })
   );
+
+// M12b (FR-468): at 1280x720 the labels are hidden from sight (clip-path), so the one-x label check moves to 1920x1080
+// where they show beside the icons; there each label starts at its icon's right + 0.28em (was: the six labels of the
+// pane's full-width buttons at one x). Icons 20 x 20 (kept); buttons 32 x 32 (were 33.5 px high, full width).
+test("FR-349 FR-468 the top bar's icons share one 20 px box and its buttons are 32 x 32; at 1920 px each label starts 0.28em right of its icon; a dialog's title icon is 1.25em, Game Icon or picture", async ({ page }) => {
+  const errors = collectErrors(page);
+  await open(page);
+  const hud = await barButtons(page);
   expect(hud.map((b) => b.name)).toEqual(['Open Warehouse', 'Open Capital', 'Open Market', 'Deal Book', 'Diplomacy', 'Transportation of Commodities']);
-  expect(hud.filter((b) => b.x !== hud[0].x).map((b) => `${b.name} at ${b.x}, not ${hud[0].x}`)).toEqual([]);
   expect([...new Set(hud.map((b) => b.icon.join('x')))]).toEqual(['20x20']);
-  // The 20 px box reaches into the buttons' padding: no button grew (a 13 px line, 6 px padding, 1 px border: 33.5 px)
-  expect([...new Set(hud.map((b) => b.height))]).toEqual([33.5]);
+  expect([...new Set(hud.map((b) => b.size.join('x')))]).toEqual(['32x32']);
+  expect([...new Set(hud.map((b) => b.label.width))], 'labels hidden from sight at 1280 px').toEqual([1]);
+
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await expect.poll(async () => (await barButtons(page))[0].label.width).toBeGreaterThan(1);
+  const wide = await barButtons(page);
+  const bar = (await page.getByTestId('topbar').boundingBox())!;
+  for (const b of wide) {
+    expect(Math.abs(b.label.left - (b.iconRight + 0.28 * b.em)), `${b.name}: label at ${b.label.left}, icon right ${b.iconRight}`).toBeLessThanOrEqual(0.5);
+    expect(b.size[1], b.name).toBe(32);
+  }
+  const last = await page.locator('.action-buttons-container > .btn-plain').last().boundingBox();
+  expect(last!.x + last!.width).toBeLessThanOrEqual(bar.x + bar.width);
+  expect([...new Set(wide.map((b) => b.icon.join('x')))]).toEqual(['20x20']);
+  await page.setViewportSize({ width: 1280, height: 720 });
 
   // A title's icon box: the Board of Trade's Game Icon and the Warehouse's picture are both 1.25em of their title's font
   const titleBox = (dialog: Locator) =>

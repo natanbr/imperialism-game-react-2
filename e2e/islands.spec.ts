@@ -4,7 +4,7 @@ import { test, expect, Page } from '@playwright/test';
 // minor nations' land between them, FR-144, FR-145) with the camera on the capital 2-9
 // and never beyond the map's edges. At 42 px tiles (FR-088) the map is 1,029 x 672 px and fits the
 // default 1280x720 screen (e2e/look.spec.ts), so the camera rules are checked on an 800x450 screen:
-// the map area left of the 250 px HUD is 550x450.
+// the map area left of the 250 px HUD and under the 80 px top bar (M12b, FR-465) is 550x370.
 // Set SCREENSHOT_DIR to also save the whole map as m3-5-islands.png there.
 
 const tile = (page: Page, id: string) => page.locator(`[data-tile-id="${id}"]`);
@@ -26,14 +26,16 @@ test.describe('on a screen too small for the whole map', () => {
     const errors = collectErrors(page);
     await page.goto('/');
     await expect(page.getByTestId('map-scroll')).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
-    // FR-091: ready means scrolled, read at once with no waiting
-    expect(await page.getByTestId('map-scroll').evaluate((el) => ({ x: el.scrollLeft, y: el.scrollTop }))).toEqual({ x: 0, y: 174 });
+    // FR-091: ready means scrolled, read at once with no waiting. M12b (FR-465): the map area is 550 x 370 under the
+    // 80 px top bar (was 550 x 450), so the camera is 399 - 185 = 214 (was 174)
+    expect(await page.getByTestId('map-scroll').evaluate((el) => ({ x: el.scrollLeft, y: el.scrollTop }))).toEqual({ x: 0, y: 214 });
     await expect(tile(page, '2-9')).toBeInViewport({ timeout: 15000 });
     await expect(tile(page, '2-9')).toHaveAttribute('data-terrain', 'capital');
 
-    // Row 9 is 378 to 420 px down the map: centred at 225 px, the camera scrolled 174 px.
+    // Row 9 is 378 to 420 px down the map: centred at 399 px, the camera scrolled 214 px, so on the page at 80 + 185 = 265
+    // (was 225, with no bar)
     const capital = await box(page, '2-9');
-    expect(Math.abs(capital.y + capital.height / 2 - 225)).toBeLessThan(25);
+    expect(Math.abs(capital.y + capital.height / 2 - 265)).toBeLessThan(25);
     // The capital is 126 px from the map's left edge, so the camera stops at that edge: no space beyond
     // it. Tile 0-8 starts the map's even row 8 (odd rows are shifted 21 px).
     expect((await box(page, '0-8')).x).toBeGreaterThanOrEqual(0);
@@ -69,7 +71,8 @@ test.describe('on a screen too small for the whole map', () => {
     await page.getByTitle('Center Camera').click();
     await expect(tile(page, '2-9')).toBeInViewport();
     const capital = await box(page, '2-9');
-    expect(Math.abs(capital.y + capital.height / 2 - 225)).toBeLessThan(25);
+    // M12b (FR-465): the middle of the 370 px map area under the 80 px bar is 265 (was 225)
+    expect(Math.abs(capital.y + capital.height / 2 - 265)).toBeLessThan(25);
 
     expect(errors).toEqual([]);
   });

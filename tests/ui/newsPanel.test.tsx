@@ -7,6 +7,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { CouncilModal } from '@/components/CouncilModal';
 import { NewsPanel, TurnIndicator } from '@/components/HUD/index';
+import { HUD } from '@/components/HUD';
 import { cameraOnTile, mapAreaOf } from '@/components/camera';
 import { newsItems, type NewsItem } from '@/components/gameText';
 import { useGameStore } from '@/store/rootStore';
@@ -170,6 +171,27 @@ describe('FR-376 a news line leads to its place', () => {
     const camera = cameraOnTile({ x: 14, y: 9 }, mapAreaOf(window), game.map.config, s.zoom);
     expect(camera.x).toBeGreaterThan(0);
     expect([s.cameraX, s.cameraY, s.cameraMoves]).toEqual([camera.x, camera.y, moves + 1]);
+  });
+
+  // M12b review A11Y-3, NL-3: a news place line and a Work in progress row (FR-475) run one function (HUD/showTile.ts), so
+  // the two cannot drift apart; both move the focus to Tile Info's heading at the pane's top, which the pane scrolls to
+  // (FR-463), instead of leaving it on a line scrolled out of sight.
+  it('FR-376 in the pane, the line moves the focus to Tile Info\'s heading of the tile it selected', () => {
+    news.items = [{ text: 'Valdoria: Rail finished at 14-9.', tileId: '14-9' }];
+    useGameStore.setState({
+      ...useGameStore.getInitialState(),
+      game: continent(),
+      activeNationId: N1,
+      eventLog: [{ turn: 3, year: 1815, events: EVENTS, treasuries: {} } as never],
+    });
+    render(<HUD />);
+    expect(screen.queryByTestId('tile-info')).toBeNull();
+    const line = within(screen.getByTestId('news-list')).getByRole('button', { name: 'Valdoria: Rail finished at 14-9.' });
+    line.focus();
+    fireEvent.click(line);
+    expect(useGameStore.getState().selectedTileId).toBe('14-9');
+    const heading = within(screen.getByTestId('tile-info')).getByRole('heading', { level: 3 });
+    expect(document.activeElement).toBe(heading);
   });
 
   // M12 integration: L1's FR-375 has landed, so this real-path test always runs (it was `it.skipIf` until then); the
