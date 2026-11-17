@@ -19,13 +19,15 @@ export const tradeSystem: TurnSystem = (state: GameState, ctx: TurnContext): Gam
  * FR-243: the deals, then the FR-065 price step (one drift draw from the shared stream per commodity in
  * TRADE_COMMODITIES order) on the units the Great Powers bought minus the units they sold, as in "world": a deal
  * between two Great Powers nets out, and the minors' fixed offers and demand alone move no price. FR-491: the orders
- * the deals start from are kept in `lastOrders` (the settlement clears `orders`), replacing last turn's.
+ * the deals start from are kept in `lastOrders` (the settlement clears `orders`); FR-541: last turn's record moves to
+ * `ordersTwoTurnsAgo`.
  */
 function partnersTrade(state: GameState, ctx: TurnContext): GameState {
   const lastOrders = publicOrders(state);
+  const ordersTwoTurnsAgo = marketOf(state).lastOrders ?? {};
   const { state: settled, sold, bought } = settlePartnerTrade(state, ctx.turn, ctx.emit);
   const market = marketOf(settled);
-  return { ...settled, market: { ...market, prices: nextPrices(market.prices, sold, bought, ctx.rng), lastOrders } };
+  return { ...settled, market: { ...market, prices: nextPrices(market.prices, sold, bought, ctx.rng), lastOrders, ordersTwoTurnsAgo } };
 }
 
 /** FR-491: each Great Power's bids and offers of this turn, positive amounts only; a nation with none has no entry. */

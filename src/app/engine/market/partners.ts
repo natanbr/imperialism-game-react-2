@@ -158,6 +158,12 @@ export function lastTradeOrdersOf(state: GameState, nationId: NationId): TradeOr
   return { sell: { ...(last?.sell ?? {}) }, buy: { ...(last?.buy ?? {}) } };
 }
 
+/** FR-541: the nation's public trade orders of the trade phase before the last one (`market.ordersTwoTurnsAgo`); empty as above. */
+export function tradeOrdersTwoTurnsAgoOf(state: GameState, nationId: NationId): TradeOrders {
+  const before = state.market?.ordersTwoTurnsAgo?.[nationId];
+  return { sell: { ...(before?.sell ?? {}) }, buy: { ...(before?.buy ?? {}) } };
+}
+
 /** The minors that offer the commodity this turn (FR-183), in id order. */
 export const sellersOf = (state: GameState, commodity: TradeCommodity): MinorNationId[] =>
   sortedMinorIds(state).filter((m) => (minorOffers(state, m)[commodity] ?? 0) > 0);

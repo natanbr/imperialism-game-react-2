@@ -283,6 +283,49 @@ describe('FR-493 (a) the computer bids for lumber and steel toward the other Gre
       expect(bidOrder(lastTurn(busy(), { [N2]: { sell: {}, buy: { lumber: 2 } }, [N1]: { sell: {}, buy: { clothing: 1 } } }))).toEqual(['lumber']);
       expect(bidOrder(lastTurn(busy(), { [N2]: { sell: {}, buy: { lumber: 2 } } }))).toEqual(['timber']);
     });
+
+    // M13 final round, FR-541 (by-eye QA, track A extra 2 and track B extra 1; card Q118 (a)): a person who offers lumber
+    // only when the Board says Valdoria bid for it last turn sold none in 24 games: Valdoria answered an offer on the next
+    // turn, the person answered that bid on the turn after, and the two never met. Valdoria now also keeps its bid on the turn
+    // after the one it answered, because the person sees that answer on the Board now and may be answering it.
+    /** Test setup: the public orders of the last two trade phases (FR-491, FR-541), as the trade phase would have left them. */
+    const lastTwoTurns = (s: GameState, last: Record<string, { sell: Record<string, number>; buy: Record<string, number> }>, before: Record<string, { sell: Record<string, number>; buy: Record<string, number> }>): GameState =>
+      ({ ...s, market: { ...marketOf(s), lastOrders: last, ordersTwoTurnsAgo: before } }) as GameState;
+    const answered = { [N2]: { sell: {}, buy: { lumber: 2 } } };
+    const offeredBefore = { [N1]: { sell: { lumber: 1 }, buy: {} } };
+
+    it('FR-541 offeredLastTurn: Valdoria bid for lumber last turn and Testland offered lumber the turn before: lumber; without that offer, or without that bid, nothing', () => {
+      const next = { lumber: 1, steel: 1 };
+      expect(greatPowerTradeCaps(lastTwoTurns(continent(), answered, offeredBefore), N2, next).offeredLastTurn).toEqual(['lumber']);
+      expect(greatPowerTradeCaps(lastTwoTurns(continent(), answered, {}), N2, next).offeredLastTurn).toEqual([]);
+      expect(greatPowerTradeCaps(lastTwoTurns(continent(), {}, offeredBefore), N2, next).offeredLastTurn).toEqual([]);
+      // Valdoria's own offer two turns ago, or Testland's offer of steel, is no answer to a lumber bid
+      expect(greatPowerTradeCaps(lastTwoTurns(continent(), answered, { [N2]: { sell: { lumber: 1 }, buy: {} } }), N2, next).offeredLastTurn).toEqual([]);
+      expect(greatPowerTradeCaps(lastTwoTurns(continent(), answered, { [N1]: { sell: { steel: 1 }, buy: {} } }), N2, next).offeredLastTurn).toEqual([]);
+      expect(greatPowerTradeCaps(atWar(lastTwoTurns(continent(), answered, offeredBefore)), N2, next).offeredLastTurn).toEqual([]);
+    });
+
+    it('FR-541 with 2 holds left the kept lumber bid comes before the raw input (timber)', () => {
+      expect(bidOrder(lastTwoTurns(busy(), answered, offeredBefore))).toEqual(['lumber']);
+      expect(bidOrder(lastTwoTurns(busy(), answered, {}))).toEqual(['timber']);
+    });
+
+    it('FR-541 End Turn, continent seed 1: a person who offers 1 lumber on each turn after Valdoria bid for it sells from its second offer on (was: never)', () => {
+      let s = continent();
+      const log: string[] = [];
+      for (let turn = 1; turn <= 8; turn++) {
+        const bidLast = (marketOf(s).lastOrders?.[N2]?.buy.lumber ?? 0) > 0;
+        if (bidLast) s = tryApplyOrder(s, { kind: 'sellCommodity', nationId: N1, commodity: 'lumber', amount: 1 } as Order).state;
+        const { state, events } = resolveTurn(s, { [N2]: scriptedPlayer(s, N2) }, s.seed);
+        expect(events.filter(e => e.type === 'order-rejected')).toEqual([]);
+        const sold = events.some(e => e.type === 'goods-sold' && e.nationId === N1 && e.commodity === 'lumber' && e.counterpartyId === N2);
+        log.push(`t${turn}${bidLast ? ' offered' : ''}${sold ? ' sold' : ''}`);
+        s = state;
+      }
+      // Valdoria bids on turn 1 (free holds); the offer of turn 2 finds no bid; Valdoria answers it on turn 3, keeps the bid
+      // on turn 4, where the person answers turn 3's bid, and so on
+      expect(log).toEqual(['t1', 't2 offered', 't3', 't4 offered sold', 't5 offered sold', 't6 offered sold', 't7 offered sold', 't8 offered sold']);
+    });
   });
 
   it('FR-493 the scripted player bids for them once its holds are free of offers and raw bids, each bid at most 2, and the reserve kept', () => {

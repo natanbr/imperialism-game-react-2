@@ -303,11 +303,17 @@ describe('FR-481 the idle game on seed 1, before M13 (2026-11-16, docs/specs/m13
     expect(atTurn(idle, 40)!.labour[COMPUTER_ID]).toBe(24);
   });
 
-  it('FR-481 FR-492 FR-493 FR-538 the trader human trades 6 units with Valdoria (was 0); its bids are refused only while at war ("sellers-barred"; was "no-seller"), 6 times (was 7)', () => {
+  // Re-recorded by the M13 final round (FR-541, FR-499): units 6 -> 9 and refused bids 6 -> 8. Valdoria now keeps its lumber
+  // bid on the turn after it answered the trader's offer, so the trader sells 1 lumber on each of turns 4 to 12 (was 6 units).
+  // The cash Valdoria spends on that lumber moves its war on Arvelia from turn 18 to 20 and on Testland from 23 to 26 (province
+  // taken 24 -> 27, no peace: the trader never answers), so the trader's clothing bids meet the war on turns 28 and 34 to 40
+  // (was 25, 35 and 37 to 40), still all "sellers-barred". Measured with the FR-541 clause switched off and on:
+  // .gate/m13/final/trader2-before.txt and trader2-after.txt.
+  it('FR-481 FR-492 FR-493 FR-538 FR-541 the trader human trades 9 units with Valdoria (was 0, then 6); its bids are refused only while at war ("sellers-barred"; was "no-seller"), 8 times (was 7, then 6)', () => {
     const game = runGame({ seed: 1, human: 'trader' });
-    expect(unitsTradedBetweenGreatPowers(game)).toBe(6);
+    expect(unitsTradedBetweenGreatPowers(game)).toBe(9);
     const refused = game.turns.flatMap(t => t.humanRefused);
-    expect(refused).toHaveLength(6);
+    expect(refused).toHaveLength(8);
     expect(new Set(refused.map(r => `${r.kind}:${r.reason}`))).toEqual(new Set(['buyCommodity:sellers-barred']));
   });
 });

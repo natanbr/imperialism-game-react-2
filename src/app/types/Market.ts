@@ -49,4 +49,10 @@ export interface WorldMarket {
    * empty (`lastTradeOrdersOf`), so those saves still load. Written by the trade phase only.
    */
   lastOrders?: Record<NationId, TradeOrders>;
+  /**
+   * FR-541 (M13 final round): in "partners", the `lastOrders` of the trade phase before the last one, moved here by each
+   * trade phase: the Board a person of the nation saw two turns ago. The scripted Great Power keeps a bid the other one may
+   * be answering (scriptedGreatPowerTrade.ts). Optional like `lastOrders`: absent reads as empty, so older saves load.
+   */
+  ordersTwoTurnsAgo?: Record<NationId, TradeOrders>;
 }

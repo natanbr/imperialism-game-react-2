@@ -9,7 +9,7 @@ import type { TradeAmounts, TradeCommodity } from "@/types/Market";
 import { GoodsType, MaterialType } from "@/types/Resource";
 import { SCORE_WEIGHTS } from "@/definisions/scoreWeights";
 import { marketOf, priceOf } from "../market/market";
-import { lastTradeOrdersOf, marketModeOf, tradeBarrier } from "../market/partners";
+import { lastTradeOrdersOf, marketModeOf, tradeBarrier, tradeOrdersTwoTurnsAgoOf } from "../market/partners";
 import { turnLimitOf } from "../turn/gameOver";
 
 /** What the nation may trade with another Great Power this turn, beyond what the minors it may trade with offer and want. */
@@ -21,6 +21,8 @@ export interface GreatPowerTradeCaps {
   /**
    * FR-493 (a), M13 T-15: the commodities of `buy` another Great Power it may trade with offered last turn (FR-491).
    * `planTrade` bids for these before its mills' inputs, so a rival that answers its bid finds it again; the others after.
+   * FR-541: also a commodity it bid for last turn in answer to that Great Power's offer of the turn before, which the
+   * other one sees on its Board now and may be answering.
    */
   offeredLastTurn: TradeCommodity[];
 }
@@ -56,6 +58,9 @@ export function greatPowerTradeCaps(state: GameState, nationId: NationId, next: 
     rivals.some((id) => {
       const theirs = lastTradeOrdersOf(state, id);
       if ((theirs.sell[c] ?? 0) > 0) return true;
+      // FR-541: the other one may offer only after our bid of the turn before (Q118 (a)), so it can never offer on two
+      // turns running unless we bid on two turns running. Without this, answer and offer stayed one turn apart.
+      if ((own.buy[c] ?? 0) > 0 && (tradeOrdersTwoTurnsAgoOf(state, id).sell[c] ?? 0) > 0) return true;
       const traded = [...Object.values(theirs.sell), ...Object.values(theirs.buy)].some((n) => (n ?? 0) > 0);
       return (own.buy[c] ?? 0) > 0 && traded && (theirs.buy[c] ?? 0) === 0;
     })

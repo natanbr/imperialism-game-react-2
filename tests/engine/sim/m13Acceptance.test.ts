@@ -21,6 +21,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { newGame } from '@/engine/newGame';
 import { computerOrders } from '@/engine/ai/players';
 import { tryApplyOrder } from '@/engine/orders/apply';
+import type { Order } from '@/engine/orders/Order';
 import type { GameState } from '@/types/GameState';
 import {
   atTurn,
@@ -80,6 +81,14 @@ const REQUIRED = {
    */
   steelBidShown: { games: 18, of: 24, turns: 9, fromTurn: 3, toTurn: 20 },
   steelSold: { games: 18, of: 24, atLeast: 1 },
+  /**
+   * M13 final round (by-eye QA, track A extra 2 and track B extra 1; card Q118 (a)), written before the fix (2026-11-17).
+   * FR-541: the `follower` human plays as the QA did: each turn it offers 1 lumber when the Board says Valdoria bid for
+   * lumber last turn, and nothing else. It sells at least 1 lumber, and at least half of its lumber offers, in 18 of 24
+   * games. Before: 0 of 24 (0 of 145 offers sold over 24 games: Valdoria bid on turns 1, 3, 5 ... and the follower offered
+   * on turns 2, 4, 6 ..., each answer one turn after the other's).
+   */
+  followerSells: { games: 18, of: 24, atLeast: 1, share: 0.5 },
 } as const;
 
 /**
@@ -93,14 +102,14 @@ const FR_489_EXERCISED = { games: 18, of: 24 } as const;
 // ---- playing the games -----------------------------------------------------------------------------------------------------
 
 interface Played {
-  human: HumanName;
+  human: string;
   seeds: readonly number[];
   games: GameRecord[];
   crashed: { seed: number; message: string }[];
   seconds: number;
 }
 
-function play(human: HumanName, seeds: readonly number[]): Played {
+function play(human: HumanName | HumanPolicy, seeds: readonly number[]): Played {
   const began = performance.now();
   const games: GameRecord[] = [];
   const crashed: Played['crashed'] = [];
@@ -111,12 +120,28 @@ function play(human: HumanName, seeds: readonly number[]): Played {
       crashed.push({ seed, message: e instanceof Error ? `${e.message}\n${e.stack?.split('\n').slice(1, 4).join('\n')}` : String(e) });
     }
   }
-  return { human, seeds, games, crashed, seconds: (performance.now() - began) / 1000 };
+  return { human: typeof human === 'string' ? human : human.name, seeds, games, crashed, seconds: (performance.now() - began) / 1000 };
 }
+
+/**
+ * FR-541 (M13 final round): the person as the by-eye QA played, answering the Board of Trade: each turn it offers 1 lumber
+ * when the Board says Valdoria bid for lumber last turn (FR-494, the public orders of FR-491), while it has the lumber, and
+ * gives no other order. Defined here, not in humans.ts: only this row uses it.
+ */
+const follower: HumanPolicy = {
+  name: 'follower',
+  orders: (state, { lastTrade }) => {
+    const me = state.nations.find(n => n.id === HUMAN_ID);
+    const lumber = (me?.warehouse as Record<string, number> | undefined)?.lumber ?? 0;
+    if ((lastTrade[COMPUTER_ID]?.buy.lumber ?? 0) < 1 || lumber < 1) return [];
+    return [{ kind: 'sellCommodity', nationId: HUMAN_ID, commodity: 'lumber', amount: 1 } as Order];
+  },
+};
 
 const idle = play('idle', SEEDS_24);
 const aggressor = play('aggressor', SEEDS_12);
 const trader = play('trader', SEEDS_24);
+const followers = play(follower, SEEDS_24);
 
 // ---- measuring a row -------------------------------------------------------------------------------------------------------
 
@@ -125,7 +150,7 @@ interface Row {
   id: string;
   /** What is measured, in words. */
   what: string;
-  human: HumanName;
+  human: string;
   measured: number;
   of: number;
   required: number;
@@ -427,9 +452,29 @@ const steelSoldRow = measure(
   steelSoldToValdoria
 );
 
+// ---- M13 final round: FR-541 (follower) --------------------------------------------------------------------------------------
+
+/** FR-541: the turns on which Testland offered lumber (its public orders of the turn, `lastOrders` on the record). */
+const lumberOffers = (game: GameRecord): number => game.turns.filter(t => (t.lastOrders[HUMAN_ID]?.sell.lumber ?? 0) > 0).length;
+/** FR-541: the lumber units Testland sold Valdoria over the game. */
+const lumberSoldToValdoria = (game: GameRecord): number =>
+  game.turns.flatMap(t => t.greatPowerSales).filter(s => s.sellerId === HUMAN_ID && s.buyerId === COMPUTER_ID && s.commodity === 'lumber').reduce((n, s) => n + s.amount, 0);
+/** FR-541: at least `atLeast` lumber sold, and at least `share` of the lumber offers (1 unit each) sold. */
+const followerSold = (game: GameRecord): boolean =>
+  lumberSoldToValdoria(game) >= REQUIRED.followerSells.atLeast && lumberSoldToValdoria(game) >= REQUIRED.followerSells.share * lumberOffers(game);
+
+const followerRow = measure(
+  'FR-541',
+  `the follower sells Valdoria at least ${REQUIRED.followerSells.atLeast} lumber and at least half of its lumber offers`,
+  followers,
+  REQUIRED.followerSells.games,
+  followerSold,
+  lumberSoldToValdoria
+);
+
 // ---- FR-497: every sim game --------------------------------------------------------------------------------------------------
 
-const allSims: Played[] = [idle, aggressor, trader];
+const allSims: Played[] = [idle, aggressor, trader, followers];
 const allGames = allSims.flatMap(p => p.games);
 const valdoriaRejected = allGames.flatMap(g => g.turns.flatMap(t => t.ordersRejected.filter(r => r.nationId === COMPUTER_ID).map(r => ({ seed: g.seed, human: g.human, turn: t.turn, ...r }))));
 const invariantBreaks = allGames.flatMap(g => g.turns.flatMap(t => t.invariantViolations.map(v => `${g.human} seed ${g.seed} turn ${t.turn}: ${v}`)));
@@ -451,7 +496,7 @@ describe('M13 acceptance (FR-500): the sim thresholds of the table, seeds 1 to 2
       [
         '',
         'M13 acceptance table (docs/specs/m13-m16.md, under FR-500)',
-        `  games: idle ${idle.games.length}/${idle.seeds.length} in ${idle.seconds.toFixed(1)} s, aggressor ${aggressor.games.length}/${aggressor.seeds.length} in ${aggressor.seconds.toFixed(1)} s, trader ${trader.games.length}/${trader.seeds.length} in ${trader.seconds.toFixed(1)} s`,
+        `  games: idle ${idle.games.length}/${idle.seeds.length} in ${idle.seconds.toFixed(1)} s, aggressor ${aggressor.games.length}/${aggressor.seeds.length} in ${aggressor.seconds.toFixed(1)} s, trader ${trader.games.length}/${trader.seeds.length} in ${trader.seconds.toFixed(1)} s, follower ${followers.games.length}/${followers.seeds.length} in ${followers.seconds.toFixed(1)} s`,
         ...lines,
         `  FR-497 rejected orders of Valdoria ${valdoriaRejected.length} (required ${REQUIRED.fair.rejected}), invariant breaks ${invariantBreaks.length} (required ${REQUIRED.fair.invariantBreaks}), no-pay disbands in idle games ${noPayDisbands.length} (required ${REQUIRED.fair.noPayDisbands}), computerOrders p95 ${ordersP95.toFixed(1)} ms and max ${ordersMax.toFixed(1)} ms over ${turnsPlayed} turns of ${gamesPlayed} games (p95 required <= ${REQUIRED.fair.p95Ms})`,
         `  other numbers, no threshold: aggressor games: Valdoria attacks anyone in ${aggressor.games.filter(g => attacksOnAnyone(g) > 0).length} of ${aggressor.games.length}; lost provinces by turn ${REQUIRED.provincesKept.byTurn} by the province count: ${aggressor.games.map(g => provincesLostNet(g, REQUIRED.provincesKept.byTurn) ?? '-').join(',')}; Valdoria's last turn: ${aggressor.games.map(g => g.turns.length).join(',')}`,
@@ -545,8 +590,16 @@ describe('M13 acceptance (FR-500): the sim thresholds of the table, seeds 1 to 2
     });
   });
 
+  describe('FR-541 (M13 final round, QA) Valdoria keeps its lumber bid while the person answers it (follower, seeds 1 to 24)', () => {
+    it(named(followerRow), () => {
+      expect(followers.crashed, 'crashed games').toEqual([]);
+      const detail = followers.games.map(g => `${lumberSoldToValdoria(g)}/${lumberOffers(g)}`).join(',');
+      expect(followerRow.measured, `${missNote(followerRow, followers)}; sold/offered per game: ${detail}`).toBeGreaterThanOrEqual(followerRow.required);
+    });
+  });
+
   describe('FR-497 the computer plays fair, in every sim game', () => {
-    it(`FR-497 no sim game crashes: ${gamesPlayed} of ${SEEDS_24.length * 2 + SEEDS_12.length} games played (${turnsPlayed} turns)`, () => {
+    it(`FR-497 no sim game crashes: ${gamesPlayed} of ${allSims.reduce((n, p) => n + p.seeds.length, 0)} games played (${turnsPlayed} turns)`, () => {
       expect(allSims.flatMap(p => p.crashed.map(c => `${p.human} seed ${c.seed}: ${c.message}`))).toEqual([]);
     });
     it(`FR-497 Valdoria has ${valdoriaRejected.length} order-rejected events in ${gamesPlayed} games, required ${REQUIRED.fair.rejected}`, () => {
@@ -907,5 +960,19 @@ describe('M13 acceptance: the measures of this file read a crafted record as the
     expect(steelBidTurns(g, 3, 20)).toBe(1);
     const sale = (sellerId: string, buyerId: string, commodity: string, amount: number) => ({ greatPowerSales: [{ sellerId, buyerId, commodity, amount }] });
     expect(steelSoldToValdoria(game(upTo(10, { 3: sale(HUMAN_ID, COMPUTER_ID, 'steel', 1), 4: sale(COMPUTER_ID, HUMAN_ID, 'steel', 2), 5: sale(HUMAN_ID, COMPUTER_ID, 'lumber', 1) })))).toBe(1);
+  });
+
+  it("FR-541 counts Testland's lumber offers by turn and the lumber it sold Valdoria; met at 1 sold and half the offers sold", () => {
+    const offer = (n: number) => ({ lastOrders: { [HUMAN_ID]: { sell: { lumber: n }, buy: {} }, [COMPUTER_ID]: { sell: {}, buy: {} } } });
+    const sold = (sellerId: string, commodity: string, amount: number) => ({
+      ...offer(1),
+      greatPowerSales: [{ sellerId, buyerId: sellerId === HUMAN_ID ? COMPUTER_ID : HUMAN_ID, commodity, amount }],
+    });
+    // four offers (turns 2, 4, 5, 6); two sold to Valdoria (turns 5, 6); Valdoria's sale and a steel sale do not count
+    const half = game(upTo(10, { 2: offer(1), 4: offer(1), 5: sold(HUMAN_ID, 'lumber', 1), 6: sold(HUMAN_ID, 'lumber', 1), 7: { greatPowerSales: [{ sellerId: COMPUTER_ID, buyerId: HUMAN_ID, commodity: 'lumber', amount: 3 }] } }));
+    expect([lumberOffers(half), lumberSoldToValdoria(half), followerSold(half)]).toEqual([4, 2, true]);
+    const less = game(upTo(10, { 2: offer(1), 3: offer(1), 4: offer(1), 6: sold(HUMAN_ID, 'lumber', 1), 8: sold(HUMAN_ID, 'steel', 1) }));
+    expect([lumberOffers(less), lumberSoldToValdoria(less), followerSold(less)]).toEqual([5, 1, false]);
+    expect(followerSold(game(upTo(10)))).toBe(false);
   });
 });

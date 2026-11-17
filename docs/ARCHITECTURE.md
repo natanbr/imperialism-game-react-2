@@ -912,7 +912,10 @@ move (FR-498). New state fields are optional, so M12 saves load and `SAVE_VERSIO
   through while another Great Power we may trade with exists (`bidSellersOf`) and an offer once that power bid for it
   last turn. `ai/scriptedGreatPowerTrade.ts` caps the scripted player's lumber and steel bids and its goods offers toward
   the other power (`greatPowerTradeCaps`); a bid that power answered last turn goes before the mills' inputs
-  (`offeredLastTurn`, M13 T-15). The Board of Trade shows last turn's line ("Valdoria bid for 2 last turn").
+  (`offeredLastTurn`, M13 T-15), and so does a bid it placed last turn in answer to an offer of the turn before (FR-541:
+  the trade phase moves `lastOrders` to `market.ordersTwoTurnsAgo`, read by `tradeOrdersTwoTurnsAgoOf`; without it the
+  computer's answer and the person's offer stayed one turn apart). The Board of Trade shows last turn's line ("Valdoria
+  bid for 2 last turn").
 - **Fair play** (FR-497): `diplomacyAfterThisTurn(state, viewerId)` is the FR-246 forecast as one nation sees it: only
   that nation's intents of this turn run through `diplomacySystem`, so neither the Board nor the scripted player sees
   another nation's war, boycott or consulate before it resolves. `tradeBarrier`'s fourth argument names the viewer.

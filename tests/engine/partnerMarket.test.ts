@@ -20,7 +20,7 @@ import { tradeDeliverySystem } from '@/engine/systems/tradeDeliverySystem';
 import { marketOf, nextPrices } from '@/engine/market/market';
 import {
   boardOfTrade, buyersOf, favouritePartner, lastTradeOrdersOf, marketModeOf, minorDemand, minorOffers, partnerRanking, partnerRefusal,
-  settledTradeBarrier, tradeBarrier,
+  settledTradeBarrier, tradeBarrier, tradeOrdersTwoTurnsAgoOf,
 } from '@/engine/market/partners';
 import { readSave, saveOf, SAVE_KEY, SAVE_VERSION, writeSave } from '@/store/persistence';
 import { dealBook } from '@/engine/market/dealBook';
@@ -901,7 +901,30 @@ describe('FR-491 last turn\'s trade orders are public', () => {
     const v1 = ordered(newGame({ seed: 1, world: 'two-islands' }), sell(N1, MaterialType.Lumber, 1));
     const { state } = trade(v1);
     expect(Object.hasOwn(marketOf(state), 'lastOrders')).toBe(false);
+    expect(Object.hasOwn(marketOf(state), 'ordersTwoTurnsAgo')).toBe(false);
     expect(lastTradeOrdersOf(state, N1)).toEqual({ sell: {}, buy: {} });
+  });
+
+  // M13 final round, FR-541: the computer keeps a bid the person may be answering, which needs the public orders of the trade
+  // phase before the last one too (what a person of that nation saw on its Board two turns ago; FR-497).
+  it('FR-541 each trade phase moves the last record to market.ordersTwoTurnsAgo: empty after the first phase, then the phase before', () => {
+    const first = trade(placed(continent(), buy(N2, MaterialType.Steel, 2))).state;
+    expect(marketOf(first).ordersTwoTurnsAgo).toEqual({});
+    expect(tradeOrdersTwoTurnsAgoOf(first, N2)).toEqual({ sell: {}, buy: {} });
+    const second = trade(placed(first, sell(N1, MaterialType.Lumber, 1))).state;
+    expect(marketOf(second).ordersTwoTurnsAgo).toEqual({ [N2]: { sell: {}, buy: { steel: 2 } } });
+    expect(tradeOrdersTwoTurnsAgoOf(second, N2)).toEqual({ sell: {}, buy: { steel: 2 } });
+    const third = trade(second).state;
+    expect(tradeOrdersTwoTurnsAgoOf(third, N1)).toEqual({ sell: { lumber: 1 }, buy: {} });
+    expect(tradeOrdersTwoTurnsAgoOf(third, N2)).toEqual({ sell: {}, buy: {} });
+  });
+
+  it('FR-541 a state or save without the field reads as empty (a new game, an M12 or M13 save; SAVE_VERSION stays 1)', () => {
+    expect(Object.hasOwn(continent().market!, 'ordersTwoTurnsAgo')).toBe(false);
+    expect(tradeOrdersTwoTurnsAgoOf(continent(), N1)).toEqual({ sell: {}, buy: {} });
+    const m13 = { ...continent(), market: { ...marketOf(continent()), lastOrders: { [N2]: { sell: {}, buy: { steel: 2 } } } } } as GameState;
+    expect(tradeOrdersTwoTurnsAgoOf(m13, N2)).toEqual({ sell: {}, buy: {} });
+    expect(tradeOrdersTwoTurnsAgoOf(trade(m13).state, N2)).toEqual({ sell: {}, buy: { steel: 2 } });
   });
 });
 
