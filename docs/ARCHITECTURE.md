@@ -619,7 +619,7 @@ unusable     the same dialog with the reason and New game only (FR-362)
 
 ## Components
 
-`page.tsx` renders `MapView`, `TopBar`, `HUD` and the modals (`HowToPlay` and `SavedGameDialog` included). The capital dialog (`CapitalModal.tsx`)
+`page.tsx` renders `TopBar`, `MapView`, `HUD` (in that order, the order Tab follows: FR-535) and the modals (`HowToPlay` and `SavedGameDialog` included). The capital dialog (`CapitalModal.tsx`)
 renders views from `capital/capitalView.ts`: a production card per built building (inputs with
 stock, the standing order and the most `validateOrder` accepts, Expand), the labour panel (labour,
 grades, sick, trainees, Trade School, Capitol) and the freight cars; each button sends one order,
@@ -725,7 +725,7 @@ wars, idle civilians, FR-471), the news of the last turn and the last refused or
 (`HUD/HudGroups.tsx`, the WAI-ARIA accordion, open state in `HUD`'s component state, never in the store or the save,
 FR-473): Nation (Council projection, score parts, every nation ranked by score with its colour swatch and name,
 `HUD/ScoreTable.tsx`, `NationSwatch.tsx`, upkeep and treasury lines), Work in progress and Details for bug reports. Their
-texts come from pure helpers in `HUD/hudView.ts` (`workInProgressRows` and others), tested without React. The pane's
+texts come from pure helpers in `HUD/hudView.ts` (`workInProgressRows`, `leftInWindow` for what hangs from the bar and others), tested without React. The pane's
 information scrolls on its own (`.hud-content`). `.hud-content` is a flex column: the
 news panel takes the height left, and its list scrolls on its own in whole lines (a size container and
 `round()` in globals.css, FR-268), so the fade at the bottom never covers a line of news. New game (the top bar, asked in a panel under it, FR-480, and

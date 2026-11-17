@@ -76,15 +76,17 @@
   pointer-events: auto;
 }
 
-/* FR-429 (UIV-12, card Q96): the line for a narrow window, across the screen right under the top bar (FR-479: never over
-   the bar's turn, cash and score; over the HUD at 10, under the dialogs), shown below 700 px of width only; Dismiss
-   removes it until the page is loaded again */
+/* FR-429 (UIV-12, card Q96): the line for a narrow window, right under the top bar (FR-479: never over the bar's turn,
+   cash and score) and over the map area only, from the window's left edge to the pane's (FR-532: across the whole width it
+   lay over the pane's top, Tile Info's heading and its Close tile info button with it); under the dialogs. Shown below
+   700 px of width only; Dismiss removes it until the page is loaded again. At 390 px it wraps to a few lines over the
+   map, which pans under it. */
 .narrowWindow {
   display: none;
   position: absolute;
   top: var(--topbar-height);
   left: 0;
-  right: 0;
+  right: var(--hud-width);
   z-index: 20;
   align-items: center;
   gap: 8px;

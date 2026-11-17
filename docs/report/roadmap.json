@@ -180,7 +180,7 @@
    "text": "Of 24 rule topics of the original game: 3 built, 14 partial, 1 wrong, 1 dead code, 5 missing."
   },
   "notChecked": "Not checked by the audit: Firefox and Safari, real touch on a phone, screen readers, and a human game played all the way to a Council win.",
-  "notFixed": "M12 (themes T1 to T10, FR-357 to FR-464) is merged into main 91d7edc (pull request 34), so its findings are fixed on main. M12b (the HUD you asked for, FR-465 to FR-480) is built and committed on the branch claude/m12b-hud, not yet pushed or merged. Themes T11 to T16 are not fixed: M13 to M16 are planned, M17 and M18 later.",
+  "notFixed": "M12 (themes T1 to T10, FR-357 to FR-464) is merged into main 91d7edc (pull request 34), so its findings are fixed on main. M12b (the HUD you asked for, FR-465 to FR-480, and its by-eye QA fixes FR-529 to FR-537) is built and committed on the branch claude/m12b-hud, not yet pushed or merged. Themes T11 to T16 are not fixed: M13 to M16 are planned, M17 and M18 later.",
   "filedNote": "The plan named 122 of the 160 findings in its themes. I filed the other 38 under the nearest theme; they are marked \"filed\" and can be moved."
  },
  "statusLegend": [
@@ -1250,7 +1250,7 @@
   }
  ],
  "plan": {
-  "orderNote": "The order follows player impact first, then dependency. M12 is merged. M12b (the HUD, which you asked for) is built and waits for review; M13 is planned for tonight; M14 to M16 follow, as far as the quota goes. M16 needs M15's University, and M17 needs M15's Shipyard. Cards marked \"Needed before\" decide work that cannot be finished without your answer.",
+  "orderNote": "The order follows player impact first, then dependency. M12 is merged. M12b (the HUD, which you asked for) is built, reviewed and QA-fixed, and waits for its pull request; M13 is planned for tonight; M14 to M16 follow, as far as the quota goes. M16 needs M15's University, and M17 needs M15's Shipyard. Cards marked \"Needed before\" decide work that cannot be finished without your answer.",
   "milestones": [
    {
     "id": "M12",
@@ -1319,8 +1319,8 @@
      "M": 0,
      "L": 0
     },
-    "statusText": "Built and committed on the branch claude/m12b-hud (not pushed, no pull request yet). FR-465 to FR-480 are tested: a top bar across the window with the nation, turn and date with the next Council line, cash with last turn's change, score with its rank, the dialog buttons as icons and the one Advance Turn at the right end (card Q113); the right pane holds Tile Info, the alerts, the news (20 whole lines at 1280x720 on turn 2, so FR-372 is closed) and three closed groups: Nation, Work in progress and Details for bug reports, shown without ?debug (card Q102). Gate 1 (2026-11-17): 2503 unit tests, lint 0 errors, tsc and build clean, Playwright 105 passed. Labels beside the icons from 1800 px of width, not 1600 (measured; FR-468).",
-    "sizeText": "Medium: 16 rows (FR-465 to FR-480), one lane. It has no audit findings of its own.",
+    "statusText": "Built and committed on the branch claude/m12b-hud (not pushed, no pull request yet). FR-465 to FR-480 are tested: a top bar across the window with the nation, turn and date with the next Council line, cash with last turn's change, score with its rank, the dialog buttons as icons and the one Advance Turn at the right end (card Q113); the right pane holds Tile Info, the alerts, the news (20 whole lines at 1280x720 on turn 2, so FR-372 is closed) and three closed groups: Nation, Work in progress and Details for bug reports, shown without ?debug (card Q102). Gate 1 (2026-11-17): 2503 unit tests, lint 0 errors, tsc and build clean, Playwright 105 passed. Labels beside the icons from 1800 px of width, not 1600 (measured; FR-468). Then a review fix round (15 findings) and a by-eye QA fix round, FR-529 to FR-537, all tested: How to play fits a 640x360 window, the score's parts stay inside a 320 to 390 px window, a focused button of the bar's strip is shown whole, the narrow-window line no longer covers Close tile info, a gutter before the news scrollbar, war and idle lines marked as alerts, Tab runs the bar, the map, then the pane, the window size in Details for bug reports, and the Council line's own text as its title. Gate 2 on the final tree (2026-11-17): 2525 unit tests, lint 0 errors, tsc and build clean, Playwright 125 passed (its first run found one red pin from the review round, recorded as FR-537 and re-run).",
+    "sizeText": "Medium: 16 rows (FR-465 to FR-480) and 9 QA fix rows (FR-529 to FR-537), one lane. It has no audit findings of its own.",
     "fixesText": "None of the 16 themes (it answers NR-034)",
     "spec": "docs/specs/hud.md"
    },

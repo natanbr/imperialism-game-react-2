@@ -431,7 +431,10 @@ describe('FR-429 a narrow window is told', () => {
     expect(screen.queryByTestId('narrow-window')).toBeNull();
   });
 
-  it('FR-429 the line shows only below 700 px of width (CSS), over the HUD and under the dialogs; FR-479 under the top bar', () => {
+  // Name moved (M12b QA fix round, FR-532, old -> new): "over the HUD" -> "beside the HUD": the line now ends at the pane's
+  // left edge (right: var(--hud-width), tests/ui/hudQa.test.tsx), so it no longer covers Tile Info's Close tile info. Its
+  // z-index (20, still checked here) keeps it over the map's marks and under the dialogs.
+  it('FR-429 the line shows only below 700 px of width (CSS), over the map beside the HUD and under the dialogs; FR-479 under the top bar', () => {
     const css = readFileSync(join(__dirname, '..', '..', 'src/app/components/MapView.module.css'), 'utf8');
     const rule = css.slice(css.indexOf('.narrowWindow {'), css.indexOf('}', css.indexOf('.narrowWindow {')));
     expect(rule).toMatch(/display: none;/);
@@ -493,10 +496,15 @@ describe('FR-465 the frame: top bar, the right pane under it, the map under it',
     expect(rule).toMatch(/height: calc\(100vh - var\(--topbar-height\)\);/);
   });
 
-  it('FR-465 page.tsx mounts the top bar after the map and before the HUD', () => {
+  // Pin moved (M12b QA fix round, FR-535, old -> new): "the top bar after the map, before the HUD" -> "the top bar before
+  // the map, the map before the HUD". After the map, Tab met about eight map stops before the bar's score and Advance
+  // Turn, while the bar is what the eye meets first. The bar is placed by its own CSS (absolute, z-index 30), so the
+  // order changes no box (e2e/m13-hud.spec.ts measures them).
+  it('FR-465 FR-535 page.tsx mounts the top bar before the map, and the map before the HUD', () => {
     const page = readFileSync(join(ROOT, 'src/app/page.tsx'), 'utf8');
     expect(page).toMatch(/import \{ TopBar \} from '\.\/components\/HUD\/TopBar';/);
-    expect(page.indexOf('<TopBar />')).toBeGreaterThan(page.indexOf('<MapView />'));
-    expect(page.indexOf('<TopBar />')).toBeLessThan(page.indexOf('<HUD />'));
+    expect(page.indexOf('<TopBar />')).toBeGreaterThanOrEqual(0);
+    expect(page.indexOf('<TopBar />')).toBeLessThan(page.indexOf('<MapView />'));
+    expect(page.indexOf('<MapView />')).toBeLessThan(page.indexOf('<HUD />'));
   });
 });

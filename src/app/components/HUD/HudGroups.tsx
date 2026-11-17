@@ -96,9 +96,21 @@ const WorkGroupContent: React.FC<{ rows: ReturnType<typeof workInProgressRows> }
 
 const COPIED_MS = 2000;
 
+/** FR-536: the window's inner size, kept current on a resize (read only while Details is open: no line in the server HTML). */
+function useWindowSize(): { width: number; height: number } {
+  const [size, setSize] = useState(() => ({ width: window.innerWidth, height: window.innerHeight }));
+  useEffect(() => {
+    const read = () => setSize({ width: window.innerWidth, height: window.innerHeight });
+    window.addEventListener("resize", read);
+    return () => window.removeEventListener("resize", read);
+  }, []);
+  return size;
+}
+
 /**
  * FR-476: what a bug report needs, for every player (Nathan, card Q102: not only with ?debug), and a button that copies
- * it as plain text. "Copied" shows for 2 s; a browser that refuses the clipboard shows nothing.
+ * it as plain text. "Copied" shows for 2 s; a browser that refuses the clipboard shows nothing. FR-536: the window's size
+ * too, as most layout bugs depend on it.
  */
 const DetailsGroupContent: React.FC = () => {
   const game = useGameStore((s) => s.game);
@@ -111,6 +123,7 @@ const DetailsGroupContent: React.FC = () => {
   const zoom = useGameStore((s) => s.zoom);
   const cameraX = useGameStore((s) => s.cameraX);
   const cameraY = useGameStore((s) => s.cameraY);
+  const windowSize = useWindowSize();
   // Counts the copies, so a second copy within 2 s shows "Copied" for 2 s from then
   const [copied, setCopied] = useState(0);
   useEffect(() => {
@@ -128,6 +141,7 @@ const DetailsGroupContent: React.FC = () => {
     lastRefusal,
     zoom,
     camera: { x: cameraX, y: cameraY },
+    window: windowSize,
     saveVersion: SAVE_VERSION,
   });
   const copy = async () => {

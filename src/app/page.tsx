@@ -111,8 +111,10 @@ export default function Home() {
 
   return (
     <div style={{ position: "relative", width: "100vw", height: "100vh", overflow: "hidden" }}>
-      <MapView />
+      {/* FR-535: in the order the eye meets them, so Tab runs the bar (the score, the buttons, Advance Turn), then the
+          map, then the pane; each is placed by its own CSS, the bar drawn over the map by its z-index */}
       <TopBar />
+      <MapView />
       <HUD />
       <WarehouseModal />
       <CapitalModal />

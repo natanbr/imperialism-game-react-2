@@ -10,8 +10,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { TopBar } from '@/components/HUD/TopBar';
 import { HUD } from '@/components/HUD';
-import { confirmPanelLeft } from '@/components/HUD/ConfirmNewGame';
-import { scoreParts } from '@/components/HUD/hudView';
+import { leftInWindow, scoreParts } from '@/components/HUD/hudView';
 import Home from '@/page';
 import { useGameStore } from '@/store/rootStore';
 import type { TurnReport } from '@/store/gameSlice';
@@ -376,11 +375,11 @@ describe('FR-480 New game in the bar', () => {
 
   it('FR-480 the question opens under New game: its left edge at the button\'s, kept 8 px inside the window', () => {
     // Pure: the button's left, the panel's width, the window's width
-    expect(confirmPanelLeft(268, 272, 800)).toBe(268);
-    expect(confirmPanelLeft(1100, 272, 1280)).toBe(1280 - 8 - 272);
-    expect(confirmPanelLeft(-20, 272, 390)).toBe(8);
+    expect(leftInWindow(268, 272, 800)).toBe(268);
+    expect(leftInWindow(1100, 272, 1280)).toBe(1280 - 8 - 272);
+    expect(leftInWindow(-20, 272, 390)).toBe(8);
     // A window narrower than the panel: the left margin wins (the panel's max-width is the window less 16 px)
-    expect(confirmPanelLeft(100, 400, 300)).toBe(8);
+    expect(leftInWindow(100, 400, 300)).toBe(8);
 
     // In the component: jsdom has no layout, so the boxes are given (New game at `at`, the panel 272 px wide); jsdom's
     // window is 1024 px wide

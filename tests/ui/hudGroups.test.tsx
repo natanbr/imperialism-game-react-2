@@ -295,7 +295,9 @@ describe("FR-477 nothing lost: the pane's share", () => {
 });
 
 describe('FR-476 Details for bug reports', () => {
-  it('FR-476 shown without ?debug: the tile, seed, turn, nation, civilian, orders, refusal, zoom, camera, map and save version', () => {
+  // Pin moved (M12b QA fix round, FR-536, old -> new): eleven lines -> twelve, "Window: 1024 x 768" (jsdom's window) after
+  // the camera. The QA's layout findings each depended on the window's size, which a copied report did not hold.
+  it('FR-476 FR-536 shown without ?debug: the tile, seed, turn, nation, civilian, orders, refusal, zoom, camera, window, map and save version', () => {
     expect(window.location.search).toBe('');
     const state = continent();
     const capital = state.map.tiles.flat().find((t) => t.cityId === state.nations[0].cities[0])!;
@@ -315,6 +317,7 @@ describe('FR-476 Details for bug reports', () => {
       'Last refusal: none',
       'Zoom: 100%',
       'Camera: 0, 0',
+      'Window: 1024 x 768',
       'Map: 24 x 16',
       `Save version: ${SAVE_VERSION}`,
     ]);
@@ -338,6 +341,7 @@ describe('FR-476 Details for bug reports', () => {
       `Last refusal: ${reason}`,
       'Zoom: 100%',
       'Camera: 40, 84',
+      'Window: 1024 x 768',
       'Map: 24 x 16',
       `Save version: ${SAVE_VERSION}`,
     ]);
@@ -372,8 +376,11 @@ describe('FR-476 Details for bug reports', () => {
       ordersThisTurn: 0,
       zoom: 1,
       camera: { x: 0, y: 0 },
+      // FR-536 (M12b QA fix round): the window's size is copied too; jsdom's window is 1024 x 768
+      window: { width: 1024, height: 768 },
       saveVersion: SAVE_VERSION,
     });
+    expect(expected).toContain('Window: 1024 x 768');
     expect(writeText).toHaveBeenCalledWith(expected.join('\n'));
     expect(text(within(panel).getByRole('status'))).toBe('Copied');
     act(() => vi.advanceTimersByTime(1999));

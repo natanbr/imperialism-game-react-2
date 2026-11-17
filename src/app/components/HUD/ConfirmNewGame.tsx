@@ -1,11 +1,8 @@
 import React, { useEffect, useLayoutEffect, useRef } from "react";
 import { startNewGameOnCapital } from "@/hooks/mapActions";
+import { leftInWindow } from "./hudView";
 
 export const CONFIRM_NEW_GAME_ID = "confirm-new-game";
-
-/** FR-480: the question's left edge under New game's, kept `margin` px inside the window (the right edge pushes it left). */
-export const confirmPanelLeft = (buttonLeft: number, panelWidth: number, windowWidth: number, margin = 8): number =>
-  Math.max(margin, Math.min(buttonLeft, windowWidth - margin - panelWidth));
 
 /**
  * New game throws the running game away, so the top bar asks first (FR-109), in a panel under New game (FR-480). The panel
@@ -25,7 +22,8 @@ export const ConfirmNewGame: React.FC<{ anchor: React.RefObject<HTMLElement | nu
       const button = anchor.current;
       const el = panel.current;
       if (!button || !el) return;
-      el.style.left = `${confirmPanelLeft(button.getBoundingClientRect().left, el.getBoundingClientRect().width, window.innerWidth)}px`;
+      // FR-480: under New game, kept 8 px inside the window
+      el.style.left = `${leftInWindow(button.getBoundingClientRect().left, el.getBoundingClientRect().width, window.innerWidth)}px`;
     };
     place();
     window.addEventListener("resize", place);

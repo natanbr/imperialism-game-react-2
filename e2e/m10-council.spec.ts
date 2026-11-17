@@ -95,7 +95,11 @@ async function projectionShown(page: Page) {
   await expect(projection).toBeVisible();
   await expect(projection).toHaveText(/^If it met now: Testland \d+, Valdoria \d+, abstain \d+ of 12; 9 needed$/);
   await expect(line).toHaveAccessibleDescription((await projection.innerText()).trim());
-  await expect(line).not.toHaveAttribute('title');
+  // Pin moved (M12b final gate, FR-537, old -> new): "no title" -> "the title is the line's own text, never the projection". The
+  // M10 pin guarded against the projection living only in a tooltip (it was the title before FR-314's QA fix, 8607fe9).
+  // M12b review A11Y-5 gave the line its own text as a title, for the ellipsis of a narrow bar; the projection stays out.
+  await expect(line).toHaveAttribute('title', (await line.innerText()).trim());
+  await expect(line).not.toHaveAttribute('title', /met now/);
   const box = (await projection.boundingBox())!;
   const panel = (await page.getByRole('region', { name: 'Nation' }).boundingBox())!;
   expect(box.y).toBeGreaterThanOrEqual(panel.y - 0.5);

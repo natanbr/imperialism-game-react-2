@@ -27,6 +27,16 @@ export const BarButton: React.FC<BarButtonProps> = ({ name, icon, title = name, 
 );
 
 /**
+ * FR-531: a focus on a strip button scrolls the strip by the least amount that shows the whole button. Trap: Chromium's own
+ * focus scroll leaves a partly shown button where it is (at 390 px Center lay at x 228 to 260 in a strip ending at 251).
+ * Only the bar's buttons: New game's question, inside the strip too, is fixed and must not move it. `?.`: jsdom has no
+ * scrollIntoView.
+ */
+const showFocusedButton = (e: React.FocusEvent<HTMLDivElement>) => {
+  if (e.target instanceof HTMLElement && e.target.classList.contains("topbar-button")) e.target.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+};
+
+/**
  * The top bar's buttons (FR-466): the six dialogs (Warehouse, Capital and Transport show their buildings from the art
  * pack, FR-334; the others their Game Icons, FR-335), Center, then `children` (the bar's New game and About), Final
  * scores at game over, all in a strip that scrolls sideways in a narrow window; Advance Turn last, outside the strip, so
@@ -47,7 +57,7 @@ export const ActionButtons: React.FC<{ children?: React.ReactNode }> = ({ childr
   // One accent colour for the primary action, Advance Turn (FR-086); the rest are plain.
   return (
     <div className="topbar-buttons">
-      <div className="topbar-strip" data-testid="topbar-strip">
+      <div className="topbar-strip" data-testid="topbar-strip" onFocus={showFocusedButton}>
         <div className="action-buttons-container">
           <BarButton name="Open Warehouse" onClick={openWarehouse} icon={<InkPicture src={buildingArt("warehouse")} alt="" inline />} />
           <BarButton name="Open Capital" onClick={openCapital} icon={<InkPicture src={CAPITOL_ART} alt="" inline />} />

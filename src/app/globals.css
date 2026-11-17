@@ -314,9 +314,13 @@ img[data-art-anchor="bottom-center"] {
   background: var(--color-surface-sunken);
 }
 
+/* FR-529: never taller than the window less 32 px; what does not fit scrolls (How to play scrolls only its text, below) */
 .about-panel {
   width: 360px;
   max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  box-sizing: border-box;
   padding: 12px 16px 16px;
   border-radius: var(--radius-md);
   background: var(--color-surface);
@@ -329,6 +333,33 @@ img[data-art-anchor="bottom-center"] {
 
 .about-panel p {
   margin: 0;
+}
+
+/* FR-529 (M12b QA: at 640x360 How to play was 419 px high, its title above the window and Close below it): the title and
+   Close stay in view and only the text between them scrolls, as the Council's body (FR-425); the text is a Tab stop
+   (HowToPlay.tsx), so the keys scroll it too */
+.howto-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.howto-panel > * {
+  flex: none;
+}
+
+/* After the rule above (the same weight): the one part that shrinks */
+.howto-body {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  gap: 6px;
+}
+
+.howto-body:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
 }
 
 .about-header {
@@ -615,9 +646,13 @@ img[data-art-anchor="bottom-center"] {
   margin-bottom: 0;
 }
 
+/* FR-534: a war line and the idle civilians line carry the warnings' warn colour as a rule at their left, so they read as
+   alerts, not as Tile Info's lines above them (card Q111: a war must not be missed); the height stays 16 px */
 .hud-alert-line {
   font-size: 13px;
   line-height: 16px;
+  border-left: 3px solid var(--color-warn);
+  padding-left: 5px;
 }
 
 /* M12b FR-473: the groups at the pane's bottom, closed by default (the WAI-ARIA accordion: a heading's button and its
@@ -696,6 +731,14 @@ img[data-art-anchor="bottom-center"] {
 
 .hud-group-panel p {
   margin: 0 0 4px;
+}
+
+/* FR-536: the Details lines on the pane's 16 px rhythm (the panel rule above gives the groups 18 px, and wins over
+   .hud-debug-section's own rules by coming later), so the twelfth line, the window's size, costs no height: 12 x 16 =
+   192 px against 11 x 18 = 198 px before. With 18 px lines, at 1280x720 with Nation and Details open, the news end left
+   the view by 1 px at the scroll's end (e2e/m5-hud-scroll.spec.ts FR-235 (1)). */
+.hud-group-panel.hud-debug-section {
+  line-height: 16px;
 }
 
 /* FR-474: the score's parts as a plain list, one "Treasury 120" line each */
@@ -837,9 +880,10 @@ img[data-art-anchor="bottom-center"] {
   container-type: size;
 }
 
+/* FR-533: 4 px on the right, so a line's text ends before the list's scrollbar (it touched it) */
 .news-list {
   margin: 0;
-  padding: 0 0 0 16px;
+  padding: 0 4px 0 16px;
   line-height: var(--news-line);
   /* Without container queries or round(): five lines, then the box of whole lines that fits */
   max-height: calc(5 * var(--news-line));

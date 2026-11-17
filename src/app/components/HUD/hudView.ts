@@ -27,6 +27,13 @@ export const scoreParts = ({ treasury, industry, development, workInProgress }: 
   ["Work in progress", workInProgress],
 ];
 
+/**
+ * What hangs from the top bar (New game's question FR-480, the score's parts FR-530): its left edge at its anchor's,
+ * moved left as far as the window's right edge needs, and never closer than `margin` px to either edge.
+ */
+export const leftInWindow = (anchorLeft: number, width: number, windowWidth: number, margin = 8): number =>
+  Math.max(margin, Math.min(anchorLeft, windowWidth - margin - width));
+
 /** FR-432: the player's civilians with no move or job this turn. */
 export const idleCivilianCount = (game: GameState, playerId: string): number =>
   game.map.tiles.flat().reduce((n, tile) => n + tile.workers.filter((w) => w.nationId === playerId && w.status === WorkerStatus.Available).length, 0);
@@ -145,6 +152,8 @@ export interface DetailsInput {
   lastRefusal?: string;
   zoom: number;
   camera: { x: number; y: number };
+  /** FR-536: the window's inner size in CSS px; most layout bugs depend on it. */
+  window: { width: number; height: number };
   saveVersion: number;
 }
 
@@ -163,6 +172,7 @@ export function detailLines(input: DetailsInput): string[] {
     `Last refusal: ${input.lastRefusal ?? "none"}`,
     `Zoom: ${Math.round(input.zoom * 100)}%`,
     `Camera: ${Math.round(input.camera.x)}, ${Math.round(input.camera.y)}`,
+    `Window: ${input.window.width} x ${input.window.height}`,
     `Map: ${game.map.config.cols} x ${game.map.config.rows}`,
     `Save version: ${input.saveVersion}`,
   ];
