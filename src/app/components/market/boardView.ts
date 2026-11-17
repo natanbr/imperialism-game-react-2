@@ -54,12 +54,16 @@ export const MORE_REFUSAL_TEXT = {
 
 /**
  * FR-494 (card Q118 (a)): the line beside an enabled Bid "+" of a row no minor sells, where the bid goes to the other Great
- * Powers we may trade with (FR-492): "A bid is refunded if Valdoria does not sell." The FR's full line ("No minor nation
- * sells this; a bid is ...") takes 3 lines in the 104 px note and, on the 13 such rows of a new game, made the board
- * scroll by 109 px at 1280x720 (FR-257, e2e/m7-trade.spec.ts); the row's minors column already shows no seller.
+ * Powers we may trade with (FR-492). In full, "No minor nation sells this; a bid is refunded if Valdoria does not sell.",
+ * on a row minors buy (clothing, furniture, hardware), whose minors column lists those buyers (M13 review UTH-2). On a row
+ * no minor trades, the column says "No minor trades this", so the line drops its first clause: "A bid is refunded if
+ * Valdoria does not sell." In full on all 13 such rows of a new game it took 3 lines of the 104 px note and made the board
+ * scroll by 109 px at 1280x720 (FR-257, e2e/m7-trade.spec.ts).
  */
-export const rivalSellerText = (names: readonly string[]): string =>
-  `A bid is refunded if ${namesText(names)} ${names.length > 1 ? "do" : "does"} not sell.`;
+export const rivalSellerText = (names: readonly string[], minorsBuy: boolean): string => {
+  const refund = `refunded if ${namesText(names)} ${names.length > 1 ? "do" : "does"} not sell.`;
+  return minorsBuy ? `${MORE_REFUSAL_TEXT.noSeller}; a bid is ${refund}` : `A bid is ${refund}`;
+};
 
 /** "We need a consulate with a seller" (FR-252, FR-253): the barriers of every seller (or buyer), the consulate first. */
 export function barredText(barriers: readonly (TradeBarrier | undefined)[], side: "seller" | "buyer"): string {
@@ -323,7 +327,7 @@ export function boardView(state: GameState, nation: Nation): BoardView {
 
   const rows = board.map((row): BoardRowView => {
     const bidMore = moreRefusal("buyCommodity", row, row.bid);
-    // An offer no minor we may trade with wants is still allowed while another Great Power may bid for it (FR-253)
+    // An offer no minor we may trade with wants is still allowed after another Great Power bid for it last turn (FR-540)
     const openBuyers = row.buyers.filter((b) => !b.barrier);
     const wanted = openBuyers.reduce((sum, b) => sum + b.units, 0);
     // FR-400 (card Q104): "+" stops at what the minors we may trade with want; the engine still accepts more
@@ -338,7 +342,8 @@ export function boardView(state: GameState, nation: Nation): BoardView {
     // FR-494: no minor sells it, so a bid goes to the other Great Powers we may trade with (FR-492), refunded if unfilled
     const rivalSellers =
       row.sellers.length > 0 ? [] : bidSellersOf(state, nation.id, row.commodity).filter((id) => tradeBarrier(state, nation.id, id) === undefined);
-    const bidNote = refusal(bidMore) ?? info(rivalSellers.length > 0 ? rivalSellerText(rivalSellers.map(nameOf)) : rivalFavourites(row.sellers));
+    const bidNote =
+      refusal(bidMore) ?? info(rivalSellers.length > 0 ? rivalSellerText(rivalSellers.map(nameOf), row.buyers.length > 0) : rivalFavourites(row.sellers));
     const rivalLastTurn = rivalLastTurnText(state, nation.id, row.commodity, nameOf);
     const offerNote =
       refusal(offerMore) ?? info(onlyPowers.length > 0 ? `Only ${namesText(onlyPowers.map(nameOf))} may buy this` : rivalFavourites(row.buyers));

@@ -17,6 +17,7 @@ import { SCRIPTED_WAR } from '@/definisions/combatRules';
 import { defenceOf } from '@/engine/army/combat';
 import { upkeepOf } from '@/engine/army/armies';
 import { fallCapital, takeProvince } from '@/engine/army/conquest';
+import { borderThreat } from '@/components/HUD/hudView';
 import type { GameState } from '@/types/GameState';
 import type { ProvinceCapture } from '@/types/Diplomacy';
 import type { RegimentType } from '@/types/Unit';
@@ -132,9 +133,12 @@ describe('FR-488 war on the other Great Power (card Q114 (b); from turn 20 it re
     expect(campaignTarget({ ...continent('world'), turn: 20 }, N2)).toBe(ARVELIA);
   });
 
-  it('FR-488 a field strength of 2 x the defence of Testland North-East (25) declares war: 5 Regulars (50) declare, 4 (40) recruit one more as in a campaign', () => {
+  // Re-recorded by FR-538 (M13 review ST-01): 5 Regulars (50) declared -> they recruit one more. 50 is not "more than
+  // twice" 25, so the Defense Minister's warning (FR-495) never showed before the war; the war now needs what the warning shows.
+  it('FR-488 FR-538 a field strength in Arvelia of more than 2 x the defence of Testland North-East (25) declares war: 6 Regulars (60) declare; 5 (50) and 4 (40) recruit one more as in a campaign', () => {
     expect(defenceOf(colonised(20), NE1)).toBe(25);
-    expect(warOrders(scriptedPlayer(addRegiments(colonised(20), N2, ARVELIA_P, REGULARS_5), N2))).toEqual([warOn(N1)]);
+    expect(warOrders(scriptedPlayer(addRegiments(colonised(20), N2, ARVELIA_P, [...REGULARS_5, 'regulars']), N2))).toEqual([warOn(N1)]);
+    expect(warOrders(scriptedPlayer(addRegiments(colonised(20), N2, ARVELIA_P, REGULARS_5), N2))).toEqual([recruitOne]);
     expect(warOrders(scriptedPlayer(addRegiments(colonised(20), N2, ARVELIA_P, REGULARS_5.slice(1)), N2))).toEqual([recruitOne]);
   });
 
@@ -144,12 +148,49 @@ describe('FR-488 war on the other Great Power (card Q114 (b); from turn 20 it re
     expect(campaignTarget(setPair(colonised(21), N1, N2, { peaceTurn: 11 }), N2)).toBe(N1);
   });
 
-  it('FR-488 FR-489 never for the capital: Testland\'s capital province is left out of the measure, even with no defender in it (40 does not declare, 50 does)', () => {
+  // Re-recorded by FR-538 (M13 review ST-01): [40, 50] declared [false, true] -> [40, 50, 60] declare [false, false, true]
+  // (the war needs more than twice the defence, what the warning of FR-495 shows).
+  it('FR-488 FR-489 FR-538 never for the capital: Testland\'s capital province is left out of the measure, even with no defender in it (40 and 50 do not declare, 60 does)', () => {
     // Valdoria holds Testland North-East (hand-built, at peace), which borders Testland North-West and South-East (25 each) and the capital
     const s = clearArmy(clearArmy(transferProvince(colonised(20), NE1, N2), N1, NE1), N1, SW1);
     expect(defenceOf(s, SW1)).toBe(0);
     const declares = (regiments: RegimentType[]) => warOrders(scriptedPlayer(addRegiments(s, N2, NE1, regiments), N2)).some(o => o.kind === 'proposeOverture');
-    expect([declares(REGULARS_5.slice(1)), declares(REGULARS_5)]).toEqual([false, true]);
+    expect([declares(REGULARS_5.slice(1)), declares(REGULARS_5), declares([...REGULARS_5, 'regulars'])]).toEqual([false, false, true]);
+  });
+});
+
+describe('FR-538 (M13 review ST-01) before a war on a Great Power the army gathers in sight, so the warning (FR-495) comes first', () => {
+  const REGULARS_6: RegimentType[] = [...REGULARS_5, 'regulars'];
+  const SIX = ['regiment-901', 'regiment-902', 'regiment-903', 'regiment-904', 'regiment-905', 'regiment-906'];
+  const moves = (s: GameState): Order[] => warOrders(scriptedPlayer(s, N2)).filter(o => o.kind === 'moveArmy');
+
+  it('FR-538 at peace with Testland its target, 6 Regulars (60) in Valdoria North-West do not declare: Testland sees no warning yet, so they march to Arvelia, the province that borders Testland North-East', () => {
+    const s = addRegiments(colonised(20), N2, NW2, REGULARS_6);
+    expect(campaignTarget(s, N2)).toBe(N1);
+    expect(borderThreat(s, N1)).toBeUndefined();
+    expect(warOrders(scriptedPlayer(s, N2))).toEqual([march(NW2, SIX, ARVELIA_P)]);
+  });
+
+  it('FR-538 the same 6 Regulars in Arvelia: Testland sees "60 against our 25" at Testland North-East, so the war declared now comes after the warning; the army stays', () => {
+    const s = addRegiments(colonised(20), N2, ARVELIA_P, REGULARS_6);
+    expect(borderThreat(s, N1)).toMatchObject({ nationId: N2, provinceId: NE1, strength: 60, defence: 25 });
+    expect(warOrders(scriptedPlayer(s, N2))).toEqual([warOn(N1)]);
+  });
+
+  it('FR-538 6 Regulars (60) beyond the keep in the capital province: ready, they march toward the front (Valdoria South-West to North-West) and do not declare yet', () => {
+    const s = addRegiments(colonised(20), N2, SW2, REGULARS_6);
+    expect(warOrders(scriptedPlayer(s, N2))).toEqual([march(SW2, SIX, NW2)]);
+  });
+
+  // A field army that marched while short stood at the border for many turns. With both nations scripted (FR-247's games)
+  // each one's army at its front raised the defence the other had to beat, so neither declared, both kept recruiting and
+  // making armaments, and on seed 2 Testland went to $24 and lost 7 regiments for want of pay (.gate/m13/fix/both-538only.txt).
+  it('FR-538 while the campaign is short (1 Regulars beyond the keep: 10 against the more than 50 it needs) nothing marches before the war; with a minor the target nothing marches either, as FR-274 had it', () => {
+    const greatPower = addRegiments(colonised(20), N2, SW2, ['regulars']);
+    expect(warOrders(scriptedPlayer(greatPower, N2))).toEqual([recruitOne]);
+    const minor = addRegiments({ ...continent('world'), turn: 20 }, N2, SW2, ['regulars']);
+    expect(campaignTarget(minor, N2)).toBe(ARVELIA);
+    expect(moves(minor)).toEqual([]);
   });
 });
 

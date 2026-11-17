@@ -9,7 +9,7 @@ import type { TradeAmounts, TradeCommodity } from "@/types/Market";
 import { GoodsType, MaterialType } from "@/types/Resource";
 import { SCORE_WEIGHTS } from "@/definisions/scoreWeights";
 import { marketOf, priceOf } from "../market/market";
-import { lastTradeOrdersOf, marketModeOf, settledTradeBarrier } from "../market/partners";
+import { lastTradeOrdersOf, marketModeOf, tradeBarrier } from "../market/partners";
 import { turnLimitOf } from "../turn/gameOver";
 
 /** What the nation may trade with another Great Power this turn, beyond what the minors it may trade with offer and want. */
@@ -37,14 +37,17 @@ const PAIR_VALUE = SCORE_WEIGHTS.pointsPerCapacity * SCORE_WEIGHTS.dollarsPerPoi
 /**
  * FR-493: the caps of this turn, from the state as `planTrade` sees it after the consulate and the grants, and the
  * projected warehouse at the start of next turn (`next`: this turn's run and shipment in, before trade). Only in
- * "partners" (FR-498), and only toward a Great Power it may trade with on the diplomacy record as it stands (FR-185: not
- * at war, no boycott); a war or boycott ordered this turn is the order-time check's to refuse (FR-492).
+ * "partners" (FR-498), and only toward a Great Power it may trade with in this End Turn's trade phase as it knows it
+ * (`tradeBarrier`, FR-185, FR-246: not at war, no boycott). M13 review EFD-1: its own war or boycott ordered this turn
+ * already counts (planWarDeclaration runs first); the order-time check alone did not stop an offer raised for a rival it
+ * was declaring war on, because the minors that want the good are buyers too. The other nation's orders of this turn
+ * are not read (FR-497).
  */
 export function greatPowerTradeCaps(state: GameState, nationId: NationId, next: Readonly<Record<string, number>>): GreatPowerTradeCaps {
   if (marketModeOf(state) !== "partners") return { buy: {}, sell: {}, offeredLastTurn: [] };
   const rivals = state.nations
     .map((n) => n.id)
-    .filter((id) => id !== nationId && settledTradeBarrier(state, nationId, id) === undefined)
+    .filter((id) => id !== nationId && tradeBarrier(state, nationId, id) === undefined)
     .sort();
   if (rivals.length === 0) return { buy: {}, sell: {}, offeredLastTurn: [] };
   const buy = pairBids(state, next);

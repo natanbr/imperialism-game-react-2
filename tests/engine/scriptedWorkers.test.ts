@@ -166,6 +166,17 @@ describe('FR-486 the mills it builds are staffed', () => {
     expect(migrants(scriptedPlayer(atTurn(s, 38), N2))).toEqual([]);
   });
 
+  // M13 review ST-08: the "partners only" half of FR-486 was untested. In "world" every good it makes sells, so a migrant
+  // would always give up a sale; FR-485's replacement of lost workers still runs there.
+  it('FR-486 (M13 review ST-08) in a "world" market it orders none, though its capacity stands idle for want of labour and it holds the goods; FR-485 still orders one with 5 workers', () => {
+    const world = (): GameState => newGame({ seed: 1, world: 'continent', market: 'world' });
+    const s = setWarehouse(withWorkers(builtUp(world()), SEVEN), N2, { ...RAW, cannedFood: 10, clothing: 9, furniture: 9 });
+    expect(idleForWantOfLabour(s, N2)).toBeGreaterThanOrEqual(4);
+    expect(migrants(scriptedPlayer(s, N2))).toEqual([]);
+    const short = setWarehouse(withWorkers(builtUp(world()), FIVE), N2, { ...RAW, cannedFood: 10, clothing: 9, furniture: 9 });
+    expect(migrants(scriptedPlayer(short, N2))).toEqual([{ kind: 'recruitWorkers', nationId: N2, delta: 1 }]);
+  });
+
   it('FR-498 on two-islands it orders none, though its capacity stands idle for want of labour', () => {
     const s = setWarehouse(withWorkers(builtUp(twoIslands()), SEVEN), N2, { ...RAW, cannedFood: 10, clothing: 9, furniture: 9 });
     expect(idleForWantOfLabour(s, N2)).toBeGreaterThanOrEqual(4);

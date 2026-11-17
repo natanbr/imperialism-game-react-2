@@ -334,6 +334,20 @@ describe('FR-493 (b) its offers of goods count the other Great Power\'s bid of l
     expect(sales(scriptedPlayer(atWar(bidLastTurn), N2)).at(-1)).toEqual([GoodsType.Clothing, 2]);
   });
 
+  it('FR-493 FR-492 (M13 review EFD-1) a war or a boycott Valdoria orders on Testland this turn already counts: no extra offer toward Testland', () => {
+    const bidLastTurn = lastTurn(seller(), { [N1]: { sell: {}, buy: { clothing: 2 } } });
+    const declared = tryApplyOrder(bidLastTurn, { kind: 'proposeOverture', nationId: N2, overture: 'war', targetId: N1 } as Order);
+    expect(declared.result).toEqual({ ok: true });
+    expect(greatPowerTradeCaps(declared.state, N2, {}).sell).toEqual({});
+    const boycott = tryApplyOrder(bidLastTurn, { kind: 'setTradePolicy', nationId: N2, targetId: N1, subsidyPercent: 0, boycott: true } as Order);
+    expect(boycott.result).toEqual({ ok: true });
+    expect(greatPowerTradeCaps(boycott.state, N2, {})).toEqual({ buy: {}, sell: {}, offeredLastTurn: [] });
+    // Testland's own boycott of Valdoria ordered this turn is Testland's order: it is not read (FR-497)
+    const theirs = tryApplyOrder(bidLastTurn, { kind: 'setTradePolicy', nationId: N1, targetId: N2, subsidyPercent: 0, boycott: true } as Order);
+    expect(theirs.result).toEqual({ ok: true });
+    expect(greatPowerTradeCaps(theirs.state, N2, {}).sell).toEqual({ clothing: 2 });
+  });
+
   it('FR-493 FR-497 Testland\'s bid of this turn is not read: with no bid last turn Valdoria still offers 2', () => {
     const s = tryApplyOrder(seller(), { kind: 'buyCommodity', nationId: N1, commodity: 'clothing', amount: 2 } as Order).state;
     expect(tradeOrdersOf(s, N1).buy.clothing).toBe(2);

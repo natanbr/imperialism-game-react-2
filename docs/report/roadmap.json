@@ -1352,7 +1352,7 @@
      "M": 9,
      "L": 0
     },
-    "statusText": "Built on the branch claude/m13-nations and committed (2026-11-17), not pushed, no pull request yet. Cards Q114 to Q119 were built as their defaults. FR-481 to FR-489 and FR-491 to FR-499 are tested; FR-500 is partial; FR-490 (grants before a Council) is blocked and its test stays red. Measured on random seeds (tests/engine/sim/m13Acceptance.test.ts): the computer declares war on a minor in 24 of 24 idle games (turns 17 to 18; the audit found 19% to 33%) and takes its capital in 24 of 24; invaded, it recruits 3 to 5 regiments and attacks in 12 of 12 games and loses at most 2 provinces by turn 12; it keeps 7 healthy workers at turn 40 in 24 of 24 (before 4); it declares war on you on turns 21 to 23 in 24 of 24 idle games, takes one province, offers peace within a turn and never takes your capital; it trades 5 to 7 units with the other Great Power in 24 of 24; 0 refused orders in 60 games, computerOrders p95 13.6 ms. Blocked, needs your answer on card Q117: Valdoria wins a minor's vote at the turn-30 Council in 0 of 24 games (required 18): the best free minor stands at 36 to 43 points on turns 26 to 29, a vote needs 50, and option (a)'s grants add 8 at most. Also for you: the shortened Bid line of FR-494. Gate 1 on the final tree: 2687 unit tests, 2686 passed and 1 failed (FR-490 only); lint 0 errors; tsc and build clean; Playwright 129 passed.",
+    "statusText": "Built on the branch claude/m13-nations and committed (2026-11-17), not pushed, no pull request yet. Cards Q114 to Q119 were built as their defaults. FR-481 to FR-489 and FR-491 to FR-499 are tested; FR-500 is partial; FR-490 (grants before a Council) is blocked and its test stays red. Measured on random seeds (tests/engine/sim/m13Acceptance.test.ts): the computer declares war on a minor in 24 of 24 idle games (turns 17 to 18; the audit found 19% to 33%) and takes its capital in 24 of 24; invaded, it recruits 3 to 5 regiments and attacks in 12 of 12 games and loses at most 2 provinces by turn 12; it keeps 7 healthy workers at turn 40 in 24 of 24 (before 4); it declares war on you on turns 21 to 23 in 24 of 24 idle games, takes one province, offers peace within a turn and never takes your capital; it trades 5 to 7 units with the other Great Power in 24 of 24; 0 refused orders in 60 games, computerOrders p95 13.6 ms. Blocked, needs your answer on card Q117: Valdoria wins a minor's vote at the turn-30 Council in 0 of 24 games (required 18): the best free minor stands at 36 to 43 points on turns 26 to 29, a vote needs 50, and option (a)'s grants add 8 at most. Also for you: the shortened Bid line of FR-494. Gate 1 on the final tree: 2687 unit tests, 2686 passed and 1 failed (FR-490 only); lint 0 errors; tsc and build clean; Playwright 129 passed. Review fix round (2026-11-17, commit \"M13: review fixes\", not pushed): 13 findings. New rows FR-538 to FR-540. FR-538: before a war on you the computer's army now gathers in Arvelia, in sight, and declares only at more than twice your province's defence, so the Defense Minister's warning shows first in 24 of 24 idle games (was 0 of 24); its war on you moves to turns 23 to 25. FR-540: an offer only Valdoria may buy is open only after Valdoria bid for it last turn (cotton, coal and iron ore no longer invite offers that come back unsold). FR-539 is blocked and stays red: in a real game the computer bids no steel toward you (0 of 24); a standing bid fixed it but moved an M12 guard test, so it needs your answer. The \"5 to 7 units traded\" above come from a test player that offers lumber, not from ordinary play. FR-494 is now partial (the short Bid line on the 10 rows no minor trades needs your answer; clothing, furniture and hardware show the full line). Card Q117: the embassy half of option (b) is already built under (a). Gate on the fix round's final tree: 2704 unit tests, 2701 passed and 3 failed (FR-490 and the two FR-539 rows, all blocked); lint 0 errors; tsc and build clean; Playwright 40 passed (the touched specs and the 40-turn idle games; the full Playwright suite was not run in this round).",
     "spec": "docs/specs/m13-m16.md"
    },
    {
@@ -2390,11 +2390,11 @@
    "options": [
     {
      "label": "Option (a), suggested",
-     "means": "$1,000 grants in the 4 turns before each Council, to the minor where it is between 40 and 49 points and not behind the player."
+     "means": "$1,000 grants in the 4 turns before each Council, to the minor where it is between 40 and 49 points and not behind the player. As built it also buys the embassy ($5,000) the grants need (a grant needs an embassy, FR-162), once, from 35 points (M13 review ST-05)."
     },
     {
      "label": "Option (b)",
-     "means": "Also an embassy ($5,000) and a pact (+10 points)."
+     "means": "Also an embassy ($5,000) and a pact (+10 points). The embassy is already built under (a); only the pact would be new."
     },
     {
      "label": "Option (c)",
@@ -2403,7 +2403,7 @@
    ],
    "suggestion": "Option (a).",
    "objection": "Grants cost its treasury, about 30 to 80 score points a game. The player may see this as buying votes, although Imp1 allows the same.",
-   "needed": "Now, to close FR-490 (M13 T-15, 2026-11-17): option (a) is built and gives Valdoria a minor's vote in 0 of 24 idle games (required 18). The best free minor stands at 36 to 43 points with Valdoria on turns 26 to 29 and a vote needs 50; 4 grants add 8 points at most, and none was given because a grant needs an embassy first. Choices: option (b) (embassy and a pact of +10), a lower band for the grants, or earlier consulates; each moves the continent pins again.",
+   "needed": "Now, to close FR-490 (M13 T-15, 2026-11-17): option (a) is built and gives Valdoria a minor's vote in 0 of 24 idle games (required 18). The best free minor stands at 36 to 43 points with Valdoria on turns 26 to 29 and a vote needs 50; 4 grants add 8 points at most, and none was given because a grant needs an embassy first. Choices: option (b)'s pact of +10 (its embassy half is already built under (a), M13 review ST-05), a lower band for the grants, or earlier consulates; each moves the continent pins again.",
    "ids": [
     "diplomacy-council-03",
     "AISIM-04"

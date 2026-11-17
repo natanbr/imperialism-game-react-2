@@ -252,11 +252,15 @@ describe('FR-252 FR-253 FR-257 the reasons beside the controls', () => {
   // Valdoria does not sell, so that "+" is enabled with FR-494's line. Old: disabled, title, note and description
   // "No minor nation sells this". New: enabled, no title, note and description "A bid is refunded if Valdoria does not
   // sell." (FR-494's line without its first clause, which broke FR-257's fit at 1280x720; see the FR-494 describe).
-  it('FR-252 FR-257 FR-494 a new game: a bid no minor sells is open toward Valdoria, "A bid is refunded if Valdoria does not sell."; a bid without a consulate "We need a consulate with a seller", beside the disabled "+" and as its description', () => {
+  // Re-recorded by M13 review UTH-2: Clothing's line was the short one -> FR-494's in full ("No minor nation sells this;
+  // a bid is ..."): minors buy clothing, so its minors column lists buyers and never said that no minor sells it.
+  it('FR-252 FR-257 FR-494 a new game: a bid no minor sells is open toward Valdoria, "A bid is refunded if Valdoria does not sell." (in full where minors buy it); a bid without a consulate "We need a consulate with a seller", beside the disabled "+" and as its description', () => {
     openBoard(start());
     const rival = 'A bid is refunded if Valdoria does not sell.';
     const noSeller = { disabled: false, title: '', note: rival, description: rival };
-    for (const c of ['Clothing', 'Lumber', 'Steel', 'Wool', 'Oil']) expect(plus(c === 'Oil' ? 'oil' : c.toLowerCase(), `Bid one more ${c}`)).toEqual(noSeller);
+    const full = `No minor nation sells this; a bid is refunded if Valdoria does not sell.`;
+    expect(plus('clothing', 'Bid one more Clothing')).toEqual({ disabled: false, title: '', note: full, description: full });
+    for (const c of ['Lumber', 'Steel', 'Wool', 'Oil']) expect(plus(c === 'Oil' ? 'oil' : c.toLowerCase(), `Bid one more ${c}`)).toEqual(noSeller);
     const consulate = 'We need a consulate with a seller';
     for (const [c, name] of [['coal', 'Coal'], ['timber', 'Timber'], ['ironOre', 'Iron Ore'], ['cotton', 'Cotton']]) {
       expect(plus(c, `Bid one more ${name}`)).toEqual({ disabled: true, title: consulate, note: consulate, description: consulate });
@@ -287,8 +291,14 @@ describe('FR-252 FR-253 FR-257 the reasons beside the controls', () => {
     expect(barredText(['at-war', 'no-consulate'], 'seller')).toBe('We need a consulate with a seller');
   });
 
-  it('FR-253 an offer only a rival Great Power may buy is allowed and says so: "Only Valdoria may buy this"', () => {
-    openBoard(withConsulate(start(), N2, ARVELIA));
+  // Re-recorded by the M13 review fix round, FR-540 (UTH-1; card Q118 (a)): Valdoria's consulate in Arvelia, which sells
+  // timber, made Valdoria a buyer of Testland's timber (old: enabled, "Only Valdoria may buy this"), and the offer always
+  // came back unsold (audit MKT-02). Now only Valdoria's bid of last turn makes it a buyer (FR-491).
+  it('FR-253 FR-540 an offer only a rival Great Power may buy: "No one buys this" while it did not bid for it last turn (was "Only Valdoria may buy this"); after its bid "Only Valdoria may buy this"', () => {
+    const s = withConsulate(start(), N2, ARVELIA);
+    openBoard(s);
+    expect(plus('timber', 'Offer one more Timber').note).toBe('No one buys this');
+    act(() => useGameStore.setState({ game: { ...s, market: { ...marketOf(s), lastOrders: { [N2]: { sell: {}, buy: { timber: 2 } } } } as GameState['market'] } }));
     expect(plus('timber', 'Offer one more Timber')).toEqual({
       disabled: false,
       title: '',
@@ -296,6 +306,16 @@ describe('FR-252 FR-253 FR-257 the reasons beside the controls', () => {
       description: 'Only Valdoria may buy this',
     });
     expect(plus('lumber', 'Offer one more Lumber').note).toBe('No one buys this');
+  });
+
+  it('FR-540 (M13 review UTH-1) a new game, idle: cotton, coal and iron ore (minors sell them, none buys) have no open Offer "+" while Valdoria did not bid for them last turn', () => {
+    let s = setWarehouse(start(), N1, { cotton: 12, coal: 10, ironOre: 10 });
+    for (const m of [ARVELIA, SUNDMARK, LORRAN, PELLIS]) s = withConsulate(s, N2, m);
+    openBoard(s);
+    const none = 'No one buys this';
+    for (const [c, name] of [['cotton', 'Cotton'], ['coal', 'Coal'], ['ironOre', 'Iron Ore']]) {
+      expect(plus(c, `Offer one more ${name}`)).toEqual({ disabled: true, title: none, note: none, description: none });
+    }
   });
 
   it('FR-252 a bid a rival may win is allowed and says so: "Arvelia favours Valdoria"; a minor that favours us says nothing', () => {
@@ -615,8 +635,10 @@ describe('M12 FR-397 FR-398 FR-399 repeat last turn\'s trades; how long orders l
 // each row says what another Great Power we may trade with bid or offered last turn; a row no minor sells may be bid toward
 // it (refunded if it does not sell), and a row no minor buys may be offered once it bid for it last turn (FR-492).
 // The Bid line is FR-494's "No minor nation sells this; a bid is refunded if Valdoria does not sell." without its first
-// clause: in full it takes 3 lines of the 104 px note, and on the 13 rows no minor sells it made a new game's board scroll
-// by 109 px at 1280x720 (FR-257, e2e/m7-trade.spec.ts, measured); the row's minors column already shows no seller.
+// clause on a row no minor trades: in full it takes 3 lines of the 104 px note, and on the 13 rows no minor sells it made a
+// new game's board scroll by 109 px at 1280x720 (FR-257, e2e/m7-trade.spec.ts, measured); those rows' minors column
+// already says "No minor trades this". On the clothing, furniture and hardware rows that column lists the minors that buy,
+// so the line is in full there (M13 review UTH-2).
 describe('M13 FR-494 the Board shows the other Great Power\'s last turn', () => {
   const RIVAL_BID = 'A bid is refunded if Valdoria does not sell.';
   /** Test setup: the Great Powers' bids and offers of the last trade phase (FR-491). */
@@ -652,10 +674,12 @@ describe('M13 FR-494 the Board shows the other Great Power\'s last turn', () => 
     expect(rivalLines()).toEqual([]);
   });
 
-  it('FR-494 FR-492 the Bid "+" of a row no minor sells is enabled with "A bid is refunded if Valdoria does not sell."; a press sends the bid', () => {
+  // Re-recorded by M13 review UTH-2: 'clothing' left this list (its line is now in full, the test below)
+  it('FR-494 FR-492 the Bid "+" of a row no minor trades is enabled with "A bid is refunded if Valdoria does not sell."; a press sends the bid', () => {
     openBoard(start());
-    for (const [c, name] of [['clothing', 'Clothing'], ['lumber', 'Lumber'], ['steel', 'Steel'], ['armaments', 'Armaments'], ['oil', 'Oil']]) {
+    for (const [c, name] of [['lumber', 'Lumber'], ['steel', 'Steel'], ['armaments', 'Armaments'], ['oil', 'Oil']]) {
       expect(plus(c, `Bid one more ${name}`)).toEqual({ disabled: false, title: '', note: RIVAL_BID, description: RIVAL_BID });
+      expect(cell(c, 'no-minor')).toBe('No minor trades this');
     }
     fireEvent.click(button('steel', 'Bid one more Steel'));
     expect(submitted).toEqual([{ kind: 'buyCommodity', nationId: N1, commodity: 'steel', amount: 1 }]);
@@ -663,6 +687,18 @@ describe('M13 FR-494 the Board shows the other Great Power\'s last turn', () => 
     expect(plus('steel', 'Bid one more Steel').note).toBe(RIVAL_BID);
     // A row a minor sells keeps its own reason (FR-252)
     expect(plus('coal', 'Bid one more Coal').note).toBe('We need a consulate with a seller');
+  });
+
+  it('FR-494 (M13 review UTH-2) the clothing, furniture and hardware rows list the minors that buy them, not "No minor trades this", so their Bid line is FR-494\'s in full: "No minor nation sells this; a bid is refunded if Valdoria does not sell."', () => {
+    const full = 'No minor nation sells this; a bid is refunded if Valdoria does not sell.';
+    openBoard(start());
+    for (const [c, name] of [['clothing', 'Clothing'], ['furniture', 'Furniture'], ['hardware', 'Hardware']]) {
+      expect(plus(c, `Bid one more ${name}`)).toEqual({ disabled: false, title: '', note: full, description: full });
+      expect(partners(c, 'buyers').length).toBeGreaterThan(0);
+      expect(within(row(c)).queryByTestId('no-minor')).toBeNull();
+    }
+    const clothing = boardView(start(), start().nations[0]).rows.find((r) => r.commodity === 'clothing')!;
+    expect(clothing.bidNote).toEqual({ text: full, tone: 'info' });
   });
 
   it('FR-494 FR-492 at war with Valdoria, a war declared on it this turn, or a boycott: that "+" is disabled and names the barrier', () => {

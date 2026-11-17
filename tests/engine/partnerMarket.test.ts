@@ -369,8 +369,11 @@ describe('FR-186 matching in the Board of Trade order', () => {
     expect(treasury(state, N1)).toBe(9900);
   });
 
+  // M13 review fix round, FR-540: Valdoria's coal offer was ordered through the order-time check, which counted
+  // Testland's bid of this turn as a buyer; that read of another nation's order of this turn is gone (FR-497), so the offer
+  // is placed without the check (as the other settlement tests do). What the settlement does with it is unchanged.
   it('FR-186 step 1 before step 3: Testland bids 4 coal, takes Arvelia\'s 3, then 1 of Valdoria\'s 2', () => {
-    const s = ordered(consulates(continent(), N1, ARVELIA), buy(N1, ResourceType.Coal, 4), sell(N2, ResourceType.Coal, 2));
+    const s = placed(ordered(consulates(continent(), N1, ARVELIA), buy(N1, ResourceType.Coal, 4)), sell(N2, ResourceType.Coal, 2));
 
     const { state, events } = trade(s);
 

@@ -64,6 +64,22 @@ const REQUIRED = {
   traded: { games: 18, of: 24, atLeast: 5 },
   /** FR-497: rejected orders 0, invariant breaks 0, no-pay disbands 0 in idle games, `computerOrders` p95 at most 100 ms. */
   fair: { rejected: 0, invariantBreaks: 0, noPayDisbands: 0, p95Ms: 100 },
+  /**
+   * M13 review fix round, written before the fix (2026-11-17). FR-538 (ST-01; spec section 1, QA checks 6 and 7, card
+   * Q114's objection): idle: the FR-495 border warning shows to Testland at peace before Valdoria's war on it is recorded,
+   * in every game (a game without that war counts as met; FR-488 measures the war). Before: 0 of 24.
+   * And the warning shows before the first province Testland loses, in every game. Before: 18 of 24.
+   */
+  warningBeforeWar: { games: 24, of: 24 },
+  warningBeforeLoss: { games: 24, of: 24 },
+  /**
+   * M13 review fix round, written before the fix. FR-539 (ST-02; spec section 1, QA check 4, risk "useless if the Board
+   * lines never appear in a real game"): idle: the Board's steel row says Valdoria bid for steel last turn on at least 9
+   * of turns 3 to 20 (at peace with Testland). Before: 0 of 24 (a steel bid on 0 turns in 23 games, 1 turn in one).
+   * trader: Testland sells Valdoria at least 1 steel. Before: 0 of 24 (lumber only).
+   */
+  steelBidShown: { games: 18, of: 24, turns: 9, fromTurn: 3, toTurn: 20 },
+  steelSold: { games: 18, of: 24, atLeast: 1 },
 } as const;
 
 /**
@@ -345,6 +361,72 @@ const tradedRow = measure(
   unitsTradedBetweenGreatPowers
 );
 
+// ---- M13 review fix round: FR-538 (idle) and FR-539 (idle, trader) -----------------------------------------------------------
+
+/**
+ * FR-538: true when Valdoria never declared war on Testland, or Testland saw the border warning on a turn before the war was
+ * recorded (record t < the turn T it was declared: the state after t, seen on turn t + 1 <= T, is still at peace).
+ */
+function warnedBeforeWar(game: GameRecord): boolean {
+  const war = greatPowerWarTurn(game);
+  if (war === undefined) return true;
+  return game.turns.some(t => t.turn < war && t.borderWarning[HUMAN_ID]);
+}
+/** FR-538: true when Testland lost no province to Valdoria, or saw the warning on a turn before the record of the first loss. */
+function warnedBeforeLoss(game: GameRecord): boolean {
+  const lost = game.turns.find(t => t.provincesTaken.some(p => p.byId === COMPUTER_ID && p.fromId === HUMAN_ID))?.turn;
+  if (lost === undefined) return true;
+  return game.turns.some(t => t.turn < lost && t.borderWarning[HUMAN_ID]);
+}
+/** The first turn Testland saw the warning (the record's turn + 1), if ever. */
+const firstWarningSeen = (game: GameRecord): number | undefined => {
+  const t = game.turns.find(r => r.borderWarning[HUMAN_ID]);
+  return t ? t.turn + 1 : undefined;
+};
+
+const warningBeforeWarRow = measure(
+  'FR-538 (war)',
+  "Testland sees the border warning at peace before Valdoria's war on it is recorded (or no war)",
+  idle,
+  REQUIRED.warningBeforeWar.games,
+  warnedBeforeWar,
+  firstWarningSeen
+);
+const warningBeforeLossRow = measure(
+  'FR-538 (loss)',
+  'Testland sees the border warning before it loses its first province (or no loss)',
+  idle,
+  REQUIRED.warningBeforeLoss.games,
+  warnedBeforeLoss,
+  firstWarningSeen
+);
+
+/** FR-539: the turns from..to on which the Board's steel row says Valdoria bid for steel last turn (record t-1's public orders). */
+const steelBidTurns = (game: GameRecord, from: number, to: number): number =>
+  turnsIn(game, from - 1, to - 1).filter(t => (t.lastOrders[COMPUTER_ID]?.buy.steel ?? 0) > 0).length;
+const lumberBidTurns = (game: GameRecord, from: number, to: number): number =>
+  turnsIn(game, from - 1, to - 1).filter(t => (t.lastOrders[COMPUTER_ID]?.buy.lumber ?? 0) > 0).length;
+/** FR-539: the steel units Testland sold Valdoria over the game. */
+const steelSoldToValdoria = (game: GameRecord): number =>
+  game.turns.flatMap(t => t.greatPowerSales).filter(s => s.sellerId === HUMAN_ID && s.buyerId === COMPUTER_ID && s.commodity === 'steel').reduce((n, s) => n + s.amount, 0);
+
+const steelBidRow = measure(
+  'FR-539 (Board)',
+  `the steel row says Valdoria bid for steel last turn on at least ${REQUIRED.steelBidShown.turns} of turns ${REQUIRED.steelBidShown.fromTurn} to ${REQUIRED.steelBidShown.toTurn}`,
+  idle,
+  REQUIRED.steelBidShown.games,
+  g => steelBidTurns(g, REQUIRED.steelBidShown.fromTurn, REQUIRED.steelBidShown.toTurn) >= REQUIRED.steelBidShown.turns,
+  g => steelBidTurns(g, REQUIRED.steelBidShown.fromTurn, REQUIRED.steelBidShown.toTurn)
+);
+const steelSoldRow = measure(
+  'FR-539 (sold)',
+  `Testland sells Valdoria at least ${REQUIRED.steelSold.atLeast} steel`,
+  trader,
+  REQUIRED.steelSold.games,
+  g => steelSoldToValdoria(g) >= REQUIRED.steelSold.atLeast,
+  steelSoldToValdoria
+);
+
 // ---- FR-497: every sim game --------------------------------------------------------------------------------------------------
 
 const allSims: Played[] = [idle, aggressor, trader];
@@ -441,6 +523,25 @@ describe('M13 acceptance (FR-500): the sim thresholds of the table, seeds 1 to 2
     it(named(tradedRow), () => {
       expect(trader.crashed, 'crashed games').toEqual([]);
       expect(tradedRow.measured, missNote(tradedRow, trader)).toBeGreaterThanOrEqual(tradedRow.required);
+    });
+  });
+
+  describe('FR-538 (M13 review ST-01) the army gathers in sight before the war on the player (idle)', () => {
+    it(named(warningBeforeWarRow), () => {
+      expect(warningBeforeWarRow.measured, missNote(warningBeforeWarRow, idle)).toBeGreaterThanOrEqual(warningBeforeWarRow.required);
+    });
+    it(named(warningBeforeLossRow), () => {
+      expect(warningBeforeLossRow.measured, missNote(warningBeforeLossRow, idle)).toBeGreaterThanOrEqual(warningBeforeLossRow.required);
+    });
+  });
+
+  describe('FR-539 (M13 review ST-02) the computer\'s steel bid toward the player shows in a real game', () => {
+    it(named(steelBidRow), () => {
+      const lumber = idle.games.map(g => lumberBidTurns(g, REQUIRED.steelBidShown.fromTurn, REQUIRED.steelBidShown.toTurn));
+      expect(steelBidRow.measured, `${missNote(steelBidRow, idle)}; lumber bid turns per game: ${lumber.join(',')}`).toBeGreaterThanOrEqual(steelBidRow.required);
+    });
+    it(named(steelSoldRow), () => {
+      expect(steelSoldRow.measured, missNote(steelSoldRow, trader)).toBeGreaterThanOrEqual(steelSoldRow.required);
     });
   });
 
@@ -648,6 +749,9 @@ describe('M13 acceptance: the measures of this file read a crafted record as the
     votes: {},
     council: null,
     unitsTradedBetweenGreatPowers: 0,
+    greatPowerSales: [],
+    lastOrders: both({ sell: {}, buy: {} }, { sell: {}, buy: {} }),
+    borderWarning: both(false, false),
     ordersRejected: [],
     humanRefused: [],
     humanOrders: 0,
@@ -780,5 +884,28 @@ describe('M13 acceptance: the measures of this file read a crafted record as the
   it("FR-493 sums the units the Great Powers traded over the game, and p95 follows the audit's rule", () => {
     expect(unitsTradedBetweenGreatPowers(game(upTo(40, { 3: { unitsTradedBetweenGreatPowers: 2 }, 20: { unitsTradedBetweenGreatPowers: 3 } })))).toBe(5);
     expect(percentile(Array.from({ length: 100 }, (_, i) => i + 1), 95)).toBe(96);
+  });
+
+  it("FR-538 reads Testland's warning on a record before the war's (at peace) and before the first loss's; Valdoria's warning does not count", () => {
+    const war = { warsDeclared: [{ byId: COMPUTER_ID, onId: HUMAN_ID, turn: 21 }] };
+    const loss = { provincesTaken: [taken(COMPUTER_ID, 'province-nation-1-ne', HUMAN_ID)] };
+    const warned = (over: Partial<TurnRecord>) => ({ borderWarning: { [HUMAN_ID]: true, [COMPUTER_ID]: false }, ...over });
+    expect(warnedBeforeWar(game(upTo(30, { 20: warned({}), 21: war, 22: loss })))).toBe(true);
+    // the warning first seen with the war record (record 21) is not before it; Valdoria's own warning is not Testland's
+    expect(warnedBeforeWar(game(upTo(30, { 21: warned(war), 22: loss })))).toBe(false);
+    expect(warnedBeforeWar(game(upTo(30, { 20: { borderWarning: { [HUMAN_ID]: false, [COMPUTER_ID]: true } }, 21: war })))).toBe(false);
+    expect(warnedBeforeWar(game(upTo(30)))).toBe(true);
+    expect(warnedBeforeLoss(game(upTo(30, { 21: warned(war), 22: loss })))).toBe(true);
+    expect(warnedBeforeLoss(game(upTo(30, { 21: war, 22: warned(loss) })))).toBe(false);
+    expect(firstWarningSeen(game(upTo(30, { 20: warned({}) })))).toBe(21);
+  });
+
+  it("FR-539 counts the turns from..to whose Board shows Valdoria's steel bid (the public orders of the turn before), and the steel Testland sold Valdoria", () => {
+    const steel = (n: number) => ({ lastOrders: { [HUMAN_ID]: { sell: {}, buy: {} }, [COMPUTER_ID]: { sell: {}, buy: { steel: n } } } });
+    // records 2 and 20 are seen on turns 3 and 21: only the first is in turns 3 to 20; Testland's own bid does not count
+    const g = game(upTo(30, { 1: steel(1), 2: steel(2), 20: steel(1), 5: { lastOrders: { [HUMAN_ID]: { sell: {}, buy: { steel: 1 } }, [COMPUTER_ID]: { sell: {}, buy: {} } } } }));
+    expect(steelBidTurns(g, 3, 20)).toBe(1);
+    const sale = (sellerId: string, buyerId: string, commodity: string, amount: number) => ({ greatPowerSales: [{ sellerId, buyerId, commodity, amount }] });
+    expect(steelSoldToValdoria(game(upTo(10, { 3: sale(HUMAN_ID, COMPUTER_ID, 'steel', 1), 4: sale(COMPUTER_ID, HUMAN_ID, 'steel', 2), 5: sale(HUMAN_ID, COMPUTER_ID, 'lumber', 1) })))).toBe(1);
   });
 });

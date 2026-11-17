@@ -4,8 +4,8 @@
 // this war first, then the lowest id; (d) peace: FR-174's answers, FR-408's offers (diplomacy.ts). FR-274, at peace:
 // from turn 10 it picks the bordering minor with the lowest defence, recruits until its field army is twice that
 // defence, declares war (one war at a time) and marches. M13: from turn 20, with no minor left to take, the other Great
-// Power (FR-488, card Q114 (b)), for one province and never its capital (FR-489, card Q115 (a)). On a world without
-// provinces it orders nothing.
+// Power (FR-488, card Q114 (b)), for one province and never its capital (FR-489, card Q115 (a)); its army gathers at the
+// front first, in sight, and declares at more than twice the defence (FR-538). On a world without provinces it orders nothing.
 import type { CountryId, NationId, ProvinceId, RegimentId } from "@/types/Common";
 import type { GameState } from "@/types/GameState";
 import type { Nation } from "@/types/Nation";
@@ -136,10 +136,37 @@ export function campaignTarget(state: GameState, nationId: NationId): CountryId 
 /** FR-274: the field army twice the target's defence. */
 const campaignNeed = (state: GameState, nationId: NationId, targetId: CountryId): number => SCRIPTED_WAR.strengthFactor * targetDefence(state, nationId, targetId);
 
-/** FR-274: the campaign has a target and its field strength is below twice the target's defence. */
+/**
+ * FR-274: the campaign has a target and its field strength is below twice the target's defence. FR-538: against a Great
+ * Power, at most twice: its war waits for more than twice (`planWarDeclaration`), so the recruits go on until then.
+ */
 function campaignShort(state: GameState, nationId: NationId): boolean {
   const target = campaignTarget(state, nationId);
-  return target !== undefined && fieldStrength(state, nationId) < campaignNeed(state, nationId, target);
+  if (target === undefined) return false;
+  const field = fieldStrength(state, nationId);
+  const need = campaignNeed(state, nationId, target);
+  return isGreatPower(state, target) ? field <= need : field < need;
+}
+
+/**
+ * FR-538 (M13 review ST-01): with a Great Power the campaign's target and the campaign no longer short, the nation's
+ * province that borders the target's weakest province (`targetDefence`; ties: lowest id), lowest id first. The field
+ * army gathers there at peace, in sight of the other nation: what the Defense Minister's warning (FR-495, more than twice
+ * the defence) reads. Undefined with a minor or no target, and while short: an army that stood at the border while it
+ * recruited raised the defence the other nation had to beat, so two scripted nations never declared and kept recruiting
+ * until one could not pay its regiments (FR-247's seed 2). Not exported: `planWarMoves` and `planWarDeclaration` use it.
+ */
+function campaignFront(state: GameState, nationId: NationId): ProvinceId | undefined {
+  const target = campaignTarget(state, nationId);
+  if (target === undefined || !isGreatPower(state, target) || campaignShort(state, nationId)) return undefined;
+  const [weakestProvince] = borderProvinces(state, nationId, target)
+    .map((p) => ({ id: p.id, defence: defenceOf(state, p.id) }))
+    .sort((a, b) => a.defence - b.defence || compareIds(a.id, b.id));
+  if (!weakestProvince) return undefined;
+  return adjacentProvinces(state, weakestProvince.id)
+    .filter((p) => p.ownerId === nationId)
+    .map((p) => p.id)
+    .sort(compareIds)[0];
 }
 
 /**
@@ -177,6 +204,9 @@ export function campaignRecruit(state: GameState, nationId: NationId): boolean {
 /**
  * FR-274: at war with no one, the declaration of war on the campaign's target once at least one regiment beyond the
  * keep makes a field strength of twice its defence. Planned first, so the economy and the trade of this turn see it.
+ * FR-538 (M13 review ST-01): on a Great Power, only once the field regiments in the front province (`campaignFront`)
+ * are more than twice that defence: the state it plans from is the one the other nation sees, so its Defense Minister
+ * has warned (FR-495) before the war is recorded.
  */
 export function planWarDeclaration(view: () => GameState, nationId: NationId, propose: Propose): void {
   const state = view();
@@ -185,6 +215,11 @@ export function planWarDeclaration(view: () => GameState, nationId: NationId, pr
   if (target === undefined) return;
   const field = fieldRegiments(state, nationId);
   if (field.length === 0 || strength(field.map((f) => f.regiment)) < campaignNeed(state, nationId, target)) return;
+  if (isGreatPower(state, target)) {
+    const front = campaignFront(state, nationId);
+    const atFront = field.filter((f) => f.provinceId === front).map((f) => f.regiment);
+    if (front === undefined || strength(atFront) <= campaignNeed(state, nationId, target)) return;
+  }
   // M13 T-15 (FR-497, FR-247): a war on a minor waits for SCRIPTED_WAR.minorWarUpkeepTurns of upkeep in the treasury. A
   // war on a Great Power keeps its own reserve instead (`upkeepReserve`, FR-488).
   const cash = nationById(state, nationId)?.treasury ?? 0;
@@ -227,20 +262,35 @@ function stagingProvince(state: GameState, nationId: NationId, enemies: readonly
   return scored[0]?.id;
 }
 
+/** FR-228 (b), FR-538: the field regiments not `used`, in each of the nation's provinces but `to`, march one province toward `to`. */
+function marchToward(state: GameState, nationId: NationId, field: readonly FieldRegiment[], used: ReadonlySet<RegimentId>, to: ProvinceId, propose: Propose): void {
+  for (const province of provincesOf(state, nationId)) {
+    if (province.id === to) continue;
+    const ids = field.filter((f) => f.provinceId === province.id && !used.has(f.regiment.id)).map((f) => f.regiment.id);
+    const next = ids.length > 0 ? nextStep(state, nationId, province.id, to) : undefined;
+    if (next) propose({ kind: "moveArmy", nationId, fromProvinceId: province.id, regimentIds: ids, toProvinceId: next });
+  }
+}
+
 /**
  * FR-228 (c) and (b), and FR-274's march: at war, or declaring war this turn, the attacks the estimate allows, then the
  * marches of the regiments left toward the staging province. Planned after the economy and the civilians. FR-489: in
  * its war of choice on a Great Power it attacks only that country's provinces bordering its own other than the capital
  * province (`borderProvinces`), and none once it holds one it took (`warAimHeld`); its own provinces lost in that war
- * it still retakes.
+ * it still retakes. FR-538: at peace with a Great Power the campaign's target, the field regiments march toward the front
+ * (`campaignFront`); with a minor the target they wait for the war, as FR-274 had it.
  */
 export function planWarMoves(view: () => GameState, nationId: NationId, propose: Propose): void {
   const state = view();
   if (state.provinces.length === 0) return;
   const enemies = [...new Set([...enemiesOf(state, nationId), ...declaredOn(state, nationId)])];
-  if (enemies.length === 0) return;
   const field = fieldRegiments(state, nationId);
   const used = new Set<RegimentId>();
+  if (enemies.length === 0) {
+    const front = campaignFront(state, nationId);
+    if (front !== undefined) marchToward(state, nationId, field, used, front, propose);
+    return;
+  }
 
   // (c) a province lost in this war first, then the lowest id
   const lost = (p: Province) =>
@@ -271,11 +321,5 @@ export function planWarMoves(view: () => GameState, nationId: NationId, propose:
 
   // (b) the others march one province toward the staging province
   const staging = stagingProvince(state, nationId, enemies);
-  if (!staging) return;
-  for (const province of provincesOf(state, nationId)) {
-    if (province.id === staging) continue;
-    const ids = field.filter((f) => f.provinceId === province.id && !used.has(f.regiment.id)).map((f) => f.regiment.id);
-    const next = ids.length > 0 ? nextStep(state, nationId, province.id, staging) : undefined;
-    if (next) propose({ kind: "moveArmy", nationId, fromProvinceId: province.id, regimentIds: ids, toProvinceId: next });
-  }
+  if (staging) marchToward(state, nationId, field, used, staging, propose);
 }

@@ -201,7 +201,8 @@ describe('FR-260 (replaces FR-157) the continent plays: 40 turns, nation 2 scrip
   // Re-recorded by M13 T-15 (FR-499; moved by FR-482, FR-487, FR-488, FR-489): was "$100 upkeep every turn and 4 arms in
   // its capital province" on every seed (no regiment recruited in 40 turns). With FR-482 the campaign raises the regiments
   // it can (no horses in "world": Grenadiers, Skirmishers, Regulars) from turn 11, so the upkeep rises from turn 12; seed 1
-  // colonises Arvelia (war turn 21) and takes Testland North-East (war turn 28, FR-488, FR-489), seed 3 colonises Arvelia
+  // colonises Arvelia (war turn 21) and takes Testland North-East (war turn 30 since FR-538, was 28; FR-488, FR-489; the
+  // upkeep steps did not move with it), seed 3 colonises Arvelia
   // (war turn 27). On seeds 2 and 4 the campaign stops short (field 29 against 37.5 needed on seed 4: the $2,500 campaign
   // floor stops the recruits) and its regiments stay in the capital province: 7 arms. Still exact, and still nothing
   // disbanded for want of money.
@@ -221,7 +222,7 @@ describe('FR-260 (replaces FR-157) the continent plays: 40 turns, nation 2 scrip
   /** Nation 2's turn-40 score of each seed in one game kind. */
   const scores = (kind: 'first' | 'bare' | 'twoIslands') => SEEDS.map(seed => games.get(seed)![kind].turns[N2][TURNS - 1].score.total);
 
-  it('FR-260 with the start army nation 2\'s turn-40 score is the pinned 1454, 1352, 1477, 1430 (seeds 1 to 4)', () => {
+  it('FR-260 with the start army nation 2\'s turn-40 score is the pinned 1443, 1352, 1477, 1430 (seeds 1 to 4)', () => {
     // Review R1: the start army's $100 upkeep (FR-202) moves the score from the two-islands one; these are the numbers a
     // change must move on purpose, as FR-159's v1 baselines.
     // M12 strategy C re-record (FR-456, FR-457 depot sites; FR-458 the campaign keeps its trained workers): 1419, 1451,
@@ -232,7 +233,11 @@ describe('FR-260 (replaces FR-157) the continent plays: 40 turns, nation 2 scrip
     // 1685 -> 1454, 1352, 1477, 1430, every seed down (-53, -194, -71, -255). The campaign's regiments (FR-482) cost their
     // price and upkeep from turn 11 (see the upkeep test); seeds 1 and 3 win a colony for it, seeds 2 and 4 never reach the
     // campaign's strength in "world" (no horses) and keep paying. The partners game, the app's, is FR-487's and FR-247's.
-    expect(scores('first')).toEqual([1454, 1352, 1477, 1430]);
+    // M13 review fix round re-record (FR-538, review ST-01: before a war on a Great Power the army gathers at the front and
+    // declares only at more than twice the defence there, so the warning shows first): seed 1 1454 -> 1443 (-11; the war
+    // on Testland turn 28 -> 30 and Testland North-East taken turn 29 -> 31, 2 turns less of its output); seeds 2 to 4
+    // unchanged (no war on a Great Power)
+    expect(scores('first')).toEqual([1443, 1352, 1477, 1430]);
   });
 
   it('FR-260 FR-215 without the start forces nation 2\'s turn-40 score on the continent is the same seed\'s score on two-islands: 1643, 1546, 1530, 1637', () => {
@@ -265,6 +270,9 @@ describe('FR-260 (replaces FR-157) the continent plays: 40 turns, nation 2 scrip
   // and 4 still are; seed 1 colonises Arvelia (turn 22) and takes Testland North-East (turn 29), so the turn-30 and turn-40
   // meetings are Valdoria 6 (Controlled 5, Colonies 1) to Testland 3; seed 3 colonises Arvelia (turn 28): 5 to 4. Arvelia's
   // province no longer abstains on those seeds. Still no winner (9 needed).
+  // Re-recorded by the M13 review fix round (FR-538, review ST-01): seed 1 takes Testland North-East on turn 31 (war turn
+  // 30; was 29 and 28), after the turn-30 meeting, so that meeting is Testland 4 to Valdoria 5 (Controlled 4, Colonies 1;
+  // was 3 to 6); the turn-40 meeting is unchanged (3 to 6). Seeds 2 to 4 unchanged.
   it('FR-305 the meetings of those games: 4 to 4 while no province changes hands (seeds 2 and 4 to the end), the 4 minors abstaining (review R1); then the colony and the province taken count', () => {
     // On the world market no trade moves a relation, so only a province taken moves a vote
     const columns = (game: Game) =>
@@ -290,7 +298,7 @@ describe('FR-260 (replaces FR-157) the continent plays: 40 turns, nation 2 scrip
       abstained: ['province-minor-2', 'province-minor-3', 'province-minor-4'],
     });
     expect(SEEDS.map(seed => columns(games.get(seed)!.first))).toEqual([
-      [fourToFour(10), fourToFour(20), afterTurn20(30, [3, 0, 0, 0, 3], [5, 1, 0, 0, 6]), afterTurn20(40, [3, 0, 0, 0, 3], [5, 1, 0, 0, 6])],
+      [fourToFour(10), fourToFour(20), afterTurn20(30, [4, 0, 0, 0, 4], [4, 1, 0, 0, 5]), afterTurn20(40, [3, 0, 0, 0, 3], [5, 1, 0, 0, 6])],
       [10, 20, 30, 40].map(fourToFour),
       [fourToFour(10), fourToFour(20), afterTurn20(30, [4, 0, 0, 0, 4], [4, 1, 0, 0, 5]), afterTurn20(40, [4, 0, 0, 0, 4], [4, 1, 0, 0, 5])],
       [10, 20, 30, 40].map(fourToFour),

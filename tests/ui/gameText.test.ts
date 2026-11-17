@@ -552,6 +552,35 @@ describe('FR-496 the news names the other Great Power\'s moves', () => {
     expect(items).toEqual([{ text: 'Valdoria: Battle at Arvelia: Province Taken!', battle }]);
   });
 
+  // M13 review UTH-3: before M13 the computer never offered the player peace nor declared war on it, so Valdoria's own
+  // first-person lines about the player ("Valdoria: Testland refused our peace offer.") first reached a player in M13
+  it('FR-496 (M13 review UTH-3) Valdoria\'s peace offer the player did not answer reads from the player\'s side, as its own line: "We did not accept Valdoria\'s peace offer.", not "Valdoria: Testland refused our peace offer."', () => {
+    let s = setPair({ ...continent(), turn: 5 }, N1, N2, { war: { aggressors: [N2], since: 3 } });
+    s = apply(s, { kind: 'proposeOverture', nationId: N2, overture: 'peace', targetId: N1 });
+    const asked = resolveTurn(s, {}, s.seed);
+    const closed = resolveTurn(asked.state, {}, asked.state.seed);
+    expect(closed.events.filter((e) => e.type === 'overture-refused')).toEqual([{ type: 'overture-refused', nationId: N2, overture: 'peace', targetId: N1 }]);
+    const lines = newsLines(closed.events, N1, nameOf(s));
+    once(lines, 'We did not accept Valdoria\'s peace offer.');
+    expect(lines.filter((l) => /refused/.test(l))).toEqual([]);
+    // Valdoria's own news is unchanged
+    once(newsLines(closed.events, N2, nameOf(s)), 'Testland refused our peace offer.');
+    // An alliance offer reads the same way
+    expect(newsLines([{ type: 'overture-refused', nationId: N2, overture: 'alliance', targetId: N1 }], N1, nameOf(s))).toEqual(['We did not accept Valdoria\'s alliance.']);
+  });
+
+  it('FR-496 FR-239 (M13 review UTH-3) Valdoria\'s war on the player changes their relations once in the news, the player\'s own line ("Valdoria\'s war on us"), not again under Valdoria\'s name ("our war on Testland")', () => {
+    const s = apply(continent(), { kind: 'proposeOverture', nationId: N2, overture: 'war', targetId: N1 });
+    const { events } = resolveTurn(s, {}, s.seed);
+    const between = events.filter((e) => e.type === 'relation-changed' && [N1, N2].includes(e.nationId) && [N1, N2].includes(e.otherId));
+    expect(between.map((e) => (e as { nationId: string }).nationId)).toEqual([N1, N2]);
+    const relations = (viewer: string) => newsLines(events, viewer, nameOf(s)).filter((l) => /Relations with (Testland|Valdoria)/.test(l));
+    expect(relations(N1)).toHaveLength(1);
+    expect(relations(N1)[0]).toMatch(/^Relations with Valdoria: .* \(Valdoria's war on us\)\.$/);
+    expect(relations(N2)).toHaveLength(1);
+    expect(relations(N2)[0]).toMatch(/^Relations with Testland: .* \(our war on Testland\)\.$/);
+  });
+
   it('FR-496 an alliance between the two is said once too; a peace Valdoria made with a minor stays its own line', () => {
     const name = nameOf(continent());
     const events: GameEvent[] = [

@@ -173,20 +173,16 @@ export function bidSellersOf(state: GameState, nationId: NationId, commodity: Tr
 }
 
 /**
- * Who could buy one more unit of the nation's offer this turn (FR-253, FR-492), in id order: the minors that want the
- * commodity (FR-184), then the other Great Powers that may bid for it: those that already bid for it, that a minor
- * offering it may trade with (FR-253's test), or that bid for it last turn (FR-492, `lastTradeOrdersOf`). The nation's
+ * Who could buy one more unit of the nation's offer this turn (FR-253, FR-492, FR-540), in id order: the minors that want
+ * the commodity (FR-184), then the other Great Powers that bid for it last turn (`lastTradeOrdersOf`; card Q118 (a): an
+ * offer toward the rival only after its bid). FR-540 (M13 review UTH-1, EFD-2) replaced FR-253's two other Great Power
+ * buyers: one whose consulate let it buy the commodity from a minor (the Board invited offers that always came back
+ * unsold, audit MKT-02), and one that bid for it this turn (another nation's order of this turn, FR-497). The nation's
  * own barriers are not applied.
  */
 export function buyersOf(state: GameState, nationId: NationId, commodity: TradeCommodity): CountryId[] {
   const minors = sortedMinorIds(state).filter((m) => (minorDemand(state, m)[commodity] ?? 0) > 0);
-  const sellers = sellersOf(state, commodity);
-  const powers = otherPowersOf(state, nationId).filter(
-    (id) =>
-      (tradeOrdersOf(state, id).buy[commodity] ?? 0) > 0 ||
-      (lastTradeOrdersOf(state, id).buy[commodity] ?? 0) > 0 ||
-      sellers.some((m) => tradeBarrier(state, id, m, nationId) === undefined)
-  );
+  const powers = otherPowersOf(state, nationId).filter((id) => (lastTradeOrdersOf(state, id).buy[commodity] ?? 0) > 0);
   return [...minors, ...powers];
 }
 

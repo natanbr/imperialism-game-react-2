@@ -17,6 +17,8 @@ import { capitalProvinceOf, regimentsOf } from '@/engine/army/armies';
 import { GRADES, healthyWorkers, labourTotal } from '@/engine/industry/labour';
 import { tradeCapacityOf, tradeOrdersOf } from '@/engine/market/market';
 import { isGreatPower } from '@/engine/world/countries';
+import { lastTradeOrdersOf } from '@/engine/market/partners';
+import { borderThreat } from '@/components/HUD/hudView';
 import type { GameState } from '@/types/GameState';
 import type { GameEvent } from '@/engine/turn/context';
 import type { Order, RejectReason } from '@/engine/orders/Order';
@@ -81,6 +83,12 @@ export interface TurnRecord {
   council: CouncilMeeting | null;
   /** Units sold by one Great Power to the other this turn (the same units as the other one bought). */
   unitsTradedBetweenGreatPowers: number;
+  /** M13 review fix round (FR-539): those sales one by one, by seller, buyer and commodity. */
+  greatPowerSales: { sellerId: string; buyerId: string; commodity: string; amount: number }[];
+  /** FR-491, FR-539: each Great Power's public bids and offers of the turn (`market.lastOrders`), what the Board shows on turn + 1. */
+  lastOrders: ByNation<TradeOrders>;
+  /** FR-495, FR-538: the HUD's border warning (`borderThreat`) shows to that Great Power on the state after the turn. */
+  borderWarning: ByNation<boolean>;
   /** `order-rejected` events of the turn: orders the computer gave that the engine refused (FR-497: none). */
   ordersRejected: RejectedOrder[];
   /** Orders the human policy planned that the engine refused when applied one by one (the store would show the refusal). */
@@ -214,6 +222,9 @@ function recordTurn(input: {
     votes: Object.fromEntries((councilVote(next)?.nominees ?? []).map(n => [n.nationId, n.total])),
     council: null,
     unitsTradedBetweenGreatPowers: 0,
+    greatPowerSales: [],
+    lastOrders: mapNations(next, id => lastTradeOrdersOf(next, id)),
+    borderWarning: mapNations(next, id => borderThreat(next, id) !== undefined),
     ordersRejected: [],
     humanRefused: input.humanRefused,
     humanOrders: input.humanOrders,
@@ -262,7 +273,10 @@ function recordTurn(input: {
         record.council = { totalVotes: e.totalVotes, needed: e.needed, winnerId: e.winnerId, nominees: e.nominees.map(n => ({ ...n })) };
         break;
       case 'goods-sold':
-        if (e.counterpartyId !== undefined && isGreatPower(next, e.counterpartyId)) record.unitsTradedBetweenGreatPowers += e.amount;
+        if (e.counterpartyId !== undefined && isGreatPower(next, e.counterpartyId)) {
+          record.unitsTradedBetweenGreatPowers += e.amount;
+          record.greatPowerSales.push({ sellerId: e.nationId, buyerId: e.counterpartyId, commodity: e.commodity, amount: e.amount });
+        }
         break;
       case 'order-rejected':
         record.ordersRejected.push({ nationId: e.nationId, kind: e.order.kind, reason: e.reason });

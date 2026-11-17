@@ -127,7 +127,9 @@ describe('FR-481 the human policies', () => {
     // Re-recorded by M13 T-15 (FR-499; moved by FR-485 and FR-486): was "taken by turn 17"; the migrants take goods and
     // cash the campaign used before, both declare on turn 18 and Testland takes Arvelia on turn 19 (measured: 19; lane A's
     // attribution: without `planMigrants` the campaign takes Arvelia on turn 16)
-    expect(firstProvinceTakenTurn(game)).toBeLessThanOrEqual(19);
+    // M13 review fix round (review ST-04): "by turn 17" -> "by turn 19" loosened a bound, which FR-499 forbids; it is now
+    // the exact measured turn, so it cannot drift again unseen (FR-538 does not move it: the race is on a minor)
+    expect(firstProvinceTakenTurn(game)).toBe(19);
     expect(game.turns.flatMap(t => t.invariantViolations)).toEqual([]);
   });
 
@@ -262,18 +264,23 @@ describe('FR-481 the idle game on seed 1, before M13 (2026-11-16, docs/specs/m13
   // - 4 healthy workers at turn 40 (4 experts, labour 16) -> 7 (1 trained, 6 experts, labour 26): FR-485's migrants.
   // - the trader's 0 units (bids refused "no-seller") -> 6 units, bids refused "sellers-barred" only while at war (FR-492,
   //   FR-493).
+  // Re-recorded by FR-538 (M13 review ST-01: the army gathers in Arvelia first and declares at more than twice the
+  // defence, so the Defense Minister's warning shows before the war): the war on Testland turn 21 -> 23 and Testland
+  // North-East taken on turn 23 -> 24; at turn 40 1 trained and 6 experts, labour 26 -> 2 trained and 5 experts, labour
+  // 24 (the sixth regiment it raises takes a trained worker, the war comes 2 turns later); the trader's refused bids
+  // 7 -> 6 (the same war, 2 turns later, bars Valdoria's steel 1 turn less).
   const idle = runGame({ seed: 1, human: 'idle' });
 
-  it('FR-481 FR-487 FR-488 FR-489 Arvelia is taken on turn 19 (war turn 18; was 17 and 16), then Testland North-East on turn 23 (war turn 21)', () => {
+  it('FR-481 FR-487 FR-488 FR-489 FR-538 Arvelia is taken on turn 19 (war turn 18; was 17 and 16), then Testland North-East on turn 24 (war turn 23; was 23 and 21)', () => {
     expect(firstProvinceTakenTurn(idle)).toBe(19);
     expect(idle.turns.flatMap(t => t.warsDeclared)).toEqual([
       { byId: COMPUTER_ID, onId: 'minor-1', turn: 18 },
-      { byId: COMPUTER_ID, onId: HUMAN_ID, turn: 21 },
+      { byId: COMPUTER_ID, onId: HUMAN_ID, turn: 23 },
     ]);
     expect(atTurn(idle, 19)!.minorsColonised).toEqual([{ nationId: COMPUTER_ID, minorId: 'minor-1' }]);
     expect(atTurn(idle, 19)!.provincesTaken).toEqual([{ byId: COMPUTER_ID, provinceId: 'province-minor-1', fromId: 'minor-1' }]);
     expect(atTurn(idle, 19)!.provincesHeld).toEqual({ [HUMAN_ID]: 4, [COMPUTER_ID]: 5 });
-    expect(atTurn(idle, 23)!.provincesTaken).toEqual([{ byId: COMPUTER_ID, provinceId: 'province-nation-1-ne', fromId: HUMAN_ID }]);
+    expect(atTurn(idle, 24)!.provincesTaken).toEqual([{ byId: COMPUTER_ID, provinceId: 'province-nation-1-ne', fromId: HUMAN_ID }]);
     expect(atTurn(idle, 40)!.provincesHeld).toEqual({ [HUMAN_ID]: 3, [COMPUTER_ID]: 6 });
   });
 
@@ -289,18 +296,18 @@ describe('FR-481 the idle game on seed 1, before M13 (2026-11-16, docs/specs/m13
     expect(unitsTradedBetweenGreatPowers(idle)).toBe(0);
   });
 
-  it('FR-481 FR-485 Valdoria has 7 healthy workers at turn 40 (was 4; 7 at the start), labour 26 (was 16)', () => {
+  it('FR-481 FR-485 FR-538 Valdoria has 7 healthy workers at turn 40 (was 4; 7 at the start), labour 24 (was 16, then 26)', () => {
     expect(healthyWorkersAt(idle, 1, COMPUTER_ID)).toBeLessThanOrEqual(7);
     expect(healthyWorkersAt(idle, 40, COMPUTER_ID)).toBe(7);
-    expect(atTurn(idle, 40)!.workers[COMPUTER_ID]).toEqual({ untrained: 0, trained: 1, expert: 6 });
-    expect(atTurn(idle, 40)!.labour[COMPUTER_ID]).toBe(26);
+    expect(atTurn(idle, 40)!.workers[COMPUTER_ID]).toEqual({ untrained: 0, trained: 2, expert: 5 });
+    expect(atTurn(idle, 40)!.labour[COMPUTER_ID]).toBe(24);
   });
 
-  it('FR-481 FR-492 FR-493 the trader human trades 6 units with Valdoria (was 0); its bids are refused only while at war ("sellers-barred"; was "no-seller")', () => {
+  it('FR-481 FR-492 FR-493 FR-538 the trader human trades 6 units with Valdoria (was 0); its bids are refused only while at war ("sellers-barred"; was "no-seller"), 6 times (was 7)', () => {
     const game = runGame({ seed: 1, human: 'trader' });
     expect(unitsTradedBetweenGreatPowers(game)).toBe(6);
     const refused = game.turns.flatMap(t => t.humanRefused);
-    expect(refused).toHaveLength(7);
+    expect(refused).toHaveLength(6);
     expect(new Set(refused.map(r => `${r.kind}:${r.reason}`))).toEqual(new Set(['buyCommodity:sellers-barred']));
   });
 });
