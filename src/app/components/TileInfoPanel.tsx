@@ -139,8 +139,9 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
 
   return (
     <div data-testid="tile-info" style={{ padding: "8px 0", borderTop: `1px solid ${THEME.line}` }}>
-      {/* FR-370: the heading's button drops the selection (Escape does too, one step at a time) */}
-      <h3 ref={heading} className="tile-info-heading">
+      {/* FR-370: the heading's button drops the selection (Escape does too, one step at a time). tabIndex -1: a news place
+          line or a Work in progress row moves the focus here (HUD/showTile.ts); no Tab stop of its own */}
+      <h3 ref={heading} className="tile-info-heading" tabIndex={-1}>
         Tile Info
         <button
           type="button"

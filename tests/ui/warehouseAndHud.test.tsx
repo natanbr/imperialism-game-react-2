@@ -172,8 +172,11 @@ describe('FR-301 the next Council in the HUD', () => {
     expect(text(line)).toBe('Next Council: turn 10 (Summer 1817)');
     const projection = screen.getByTestId('council-projection');
     expect(text(projection)).toBe(PROJECTION);
-    // Shown, not only a hover title (QA item 4): no title, not hidden, the line's accessible description
-    expect(line.hasAttribute('title')).toBe(false);
+    // Shown, not only a hover title (QA item 4): not in a title, not hidden, the line's accessible description. Pin moved
+    // (M12b review A11Y-5, old -> new): "the line has no title" -> "its title is its own text, never the projection": in a
+    // narrow top bar the line ends in an ellipsis, and the title gives the cut text back
+    expect(line.getAttribute('title')).toBe('Next Council: turn 10 (Summer 1817)');
+    expect(line.getAttribute('title')).not.toContain('If it met now');
     expect(projection.closest('[hidden]')).toBeNull();
     expect(description(line)).toBe(PROJECTION);
     expect(line.getAttribute('aria-describedby')).toBe(projection.id);
@@ -234,7 +237,8 @@ describe('FR-301 the next Council in the HUD', () => {
     const { container } = render(<Council />);
     const line = screen.getByTestId('next-council');
     expect(text(line)).toBe('Next Council: turn 10 (Summer 1817)');
-    expect(line.hasAttribute('title')).toBe(false);
+    // Pin moved (M12b review A11Y-5, old -> new): "no title" -> "the title is the line's own text" (no projection in it)
+    expect(line.getAttribute('title')).toBe(text(line));
     expect(line.hasAttribute('aria-describedby')).toBe(false);
     expect(container.querySelectorAll('[hidden]')).toHaveLength(0);
     expect(screen.queryByTestId('council-projection')).toBeNull();

@@ -736,7 +736,11 @@ map; the store's `cameraX`/`cameraY` mirror it (written on each scroll event) an
 scrolls the container. The page frame (M12b, FR-465): `components/HUD/TopBar.tsx` spans the window's top at
 `--topbar-height` (40 px from 1024 px of width, 80 px in two rows below; `styles/theme.ts` `topBarPx` says the same and
 tests/ui/palette.test.ts checks both), and the right pane (`.hud-container`) and the map scroller both start under it, so
-the map area is the window less the bar and the 250 px pane (`camera.ts` `mapAreaOf`: 1030 x 680 at 1280x720). The first
+the map area is the window less the bar and the 250 px pane (`camera.ts` `mapAreaOf`: 1030 x 680 at 1280x720). What hangs
+from the bar (the score parts, New game's question, a focused button's name) is drawn in the bar's stacking context, so the
+bar's z-index (30) must stay above the pane's (10) and the FR-429 line's (20) and under the dialogs' (60 and up). A news
+place line and a Work in progress row both go through `HUD/showTile.ts` (select the tile, centre it, focus Tile Info's
+heading). The first
 view and the HUD's Center button centre the capital
 (`components/camera.ts`, `cameraOnCapital`); the map has right padding of `--hud-width` so its last
 column can scroll out from under the HUD. Edge scroll (`hooks/useEdgeScroll.ts`) scrolls the

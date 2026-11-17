@@ -14,7 +14,8 @@ import styles from "./TopBar.module.css";
 
 /**
  * New game and About (FR-109, FR-089). The question and the credits are view state only, so they live here; the question
- * opens under the bar (FR-480) and gives the focus back to New game when it closes.
+ * opens under New game (FR-480), right after it in the page (the Tab order, M12b review A11Y-1), and gives the focus back
+ * to New game when it closes.
  */
 const GameButtons: React.FC = () => {
   const [isConfirming, setConfirming] = useState(false);
@@ -31,15 +32,16 @@ const GameButtons: React.FC = () => {
         aria-expanded={isConfirming}
         aria-controls={isConfirming ? CONFIRM_NEW_GAME_ID : undefined}
       />
-      <BarButton name="About" title="About and credits" icon={<GameIcon name={UI_ICONS.about} />} onClick={() => setAboutOpen((open) => !open)} />
       {isConfirming && (
         <ConfirmNewGame
+          anchor={newGame}
           onDone={() => {
             setConfirming(false);
             newGame.current?.focus();
           }}
         />
       )}
+      <BarButton name="About" title="About and credits" icon={<GameIcon name={UI_ICONS.about} />} onClick={() => setAboutOpen((open) => !open)} />
       {isAboutOpen && <AboutPanel onClose={() => setAboutOpen(false)} />}
     </div>
   );
@@ -60,7 +62,10 @@ export const TopBar: React.FC = () => {
       <div className={styles.status} data-testid="topbar-status">
         <div className={`${styles.nation} topbar-wide-only`} data-testid="topbar-nation">
           <NationSwatch slot={nation?.colorSlot} />
-          <h2 className="hud-title">{nation?.name ?? "HUD"}</h2>
+          {/* The title: short of room the name ends in an ellipsis (M12b review A11Y-5) */}
+          <h2 className="hud-title" title={nation?.name}>
+            {nation?.name ?? "HUD"}
+          </h2>
         </div>
         <div className={`${styles.block} ${styles.turn}`} data-testid="topbar-turn">
           <TurnIndicator />

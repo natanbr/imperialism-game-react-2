@@ -3,8 +3,8 @@
 ## Resuming here
 - 2026-11-17: M12 Honest game is merged (pull request 34, main 91d7edc). M12b Better HUD (FR-465 to FR-480, cards Q108 to Q113) is
   built and committed on `claude/m12b-hud`, not pushed, no pull request yet. Gate 1: 2503 unit tests, lint 0 errors, tsc and build
-  clean, Playwright 105 passed. FR-372 is closed (20 whole news lines at 1280x720); FR-357 to FR-443: 78 tested, 9 partial (M12 entry).
-  Decision taken in the build: labels beside the icons from 1800 px, not 1600 (M12b entry below).
+  clean, Playwright 105 passed; then the review fix round (15 findings, commit "M12b: review fixes"; the whole suite and the build
+  not rerun since). FR-372 is closed; FR-357 to FR-443: 78 tested, 9 partial. Labels beside the icons from 1800 px, not 1600.
 - Next (NR-034, in this order): push `claude/m12b-hud` and open its pull request, then M13 to M16 (FR-481 to FR-528,
   `docs/specs/m13-m16.md`, cards Q114 to Q135; planned, nothing built). Merged so far: M0 to M12 (main 91d7edc).
 - Answered by Nathan 2026-11-16: Q79 to Q83 as suggested, Q102 "keep the debug", Q113 one static Advance Turn. Needed from him: Q114
@@ -363,3 +363,37 @@ Pins moved (old -> new; each reason is written in the test):
 Not verified: Firefox and WebKit; game over at 1800 px wide (Final scores adds about 116 px; T2 estimated 1752 px needed). Seen in the
 gate's screenshots (`.gate/hud/shots/m13-hud-*.png`): at 390x844 the narrow-window line still covers the pane's first line until it is
 closed (FR-429 as before), and the nation's name gives way first in the narrow bar (spec section 8).
+
+## 2026-11-17 M12b review fix round (15 findings: ST-1 to ST-4, LP-1 to LP-4, A11Y-1 to A11Y-5, NL-2, NL-3)
+
+Size: M, UI only (engine, store and types untouched). Same branch, one commit "M12b: review fixes", not pushed. One task, Opus 5.5
+xhigh, no advisor call; red before green for every row; logs `.gate/hud/R-*.txt`.
+- What hangs from the bar (score parts, New game's question, the focus label) is drawn in the bar's stacking context, so the bar now
+  lies above the pane: `.bar` z-index 10 -> 30 (pane 10, FR-429 line 20, dialogs 60 and up) (LP-1, NL-2).
+- New game's question renders right after New game in the bar, no portal: Tab order New game, question, About; its left edge under
+  the button, kept 8 px inside the window; Escape closes it and gives the focus back (A11Y-1 major, LP-3).
+- Keyboard: an inset focus ring on the bar buttons (A11Y-2, LP-2); from 1024 to 1799 px a focus shows the button's name under it
+  (A11Y-4); the nation name and the Council line carry their full text as a title (A11Y-5); a news place line or a Work row moves
+  the focus to Tile Info's heading (A11Y-3), both through one `HUD/showTile.ts`; the score parts come from one `scoreParts` (NL-3).
+- Tests and docs: FR-473's Enter/Space unit test presses the keys (ST-3); the bar's fit is measured at its widest states (turn 2,
+  turn 39 with $1,234,567, game over with Final scores) at seven sizes, and the sideways check reads the frame that holds the bar,
+  not the document (ST-4, LP-4); NR-034, Q102, FR-466, FR-480 and the spec's section 4 statuses corrected (ST-1, ST-2).
+
+Pins moved (old -> new; each reason is written in the test): camera FR-465 bar z 10 -> 30; topBar FR-468 CSS one `.topbar-label {`
+rule -> two (still one clip-path); FR-480 panel "rendered into the body" -> "right after New game, inside the bar"; FR-480 CSS
+"right: 8px, own z 30 in the body" -> "left set by the component, the bar's z between 20 and 60"; warehouseAndHud FR-301 (2) "no
+title" -> "title = the line's own text"; m13-hud `document.documentElement.scrollWidth` (could not fail) -> the frame's scroll width.
+
+| Claim | Command | Quoted result |
+|---|---|---|
+| The new tests were red | `npx vitest run` on 4 files; `npx playwright test e2e/m13-hud.spec.ts` (R-red-unit.txt, R-red-e2e-m13.clean.txt) | `Tests  12 failed \| 74 passed (86)`; `7 failed`, `16 passed (56.9s)` |
+| The old Enter/Space test could not fail | a key handler added to HudGroup (R-red-st3-mutation.txt) | old check passed; new: `Nation after Enter: expected 'true' to be 'false'` |
+| The widest-states e2e can fail; the old sideways check could not | a longer cash line (R-red-e2e-mutation-lp4.txt, R-red-e2e-mutation-lp4a.txt) | `the score block ends at 842.59375, past the buttons' start at 680.59375`; `docScrollWidth":1024,"appScrollWidth":1120`, old check `true`, new `false` |
+| The affected unit files pass | `npx vitest run` on 31 files (R-green-unit-affected-2.txt) | `Test Files  31 passed (31)`, `Tests  592 passed (592)` |
+| m13-hud passes | `npx playwright test e2e/m13-hud.spec.ts` (R-green-e2e-m13-2.txt) | `23 passed (52.7s)` |
+| The neighbour specs pass | m12-map, two-nations, m5-hud-scroll, look (R-green-e2e-neighbours.txt) | `27 passed (1.3m)`, `exit 0` |
+| Types and lint | `npx tsc --noEmit`, `npm run lint` (R-tsc.txt, R-lint.txt) | `tsc exit 0`; `✖ 2 problems (0 errors, 2 warnings)` (the gate 1 two) |
+
+Not run: the whole unit suite, the build, the whole Playwright suite (the next gate's). Not fixed: below 1024 px a focused button's
+name is not shown (the strip clips it; it would need a label placed by script); a title reaches a mouse only, so a keyboard user
+still cannot read a cut Council line; `useCouncil` computes `councilVote` twice (one function, no drift risk; speed only).

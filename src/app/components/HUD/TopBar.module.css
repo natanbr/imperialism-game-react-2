@@ -1,7 +1,11 @@
 /* The top bar (FR-465, docs/specs/hud.md section 2a). Task T2 owns this file; .gate/hud/ownership.md.
    Frame rules task T1 set, which tests/ui/camera.test.tsx reads and the camera depends on (camera.ts mapAreaOf): the bar
    spans the window's top at --topbar-height (40 px from 1024 px of width, never more than 48 px there; 80 px, two rows,
-   below), border included (border-box), under the dialogs (60 and up) and the FR-429 line (20).
+   below), border included (border-box).
+   Trap, z-index 30: what hangs below the bar (the score's parts, New game's question, a focused button's label) is drawn
+   in the bar's stacking context, so the bar must lie above the pane (10, later in the page) and the FR-429 line (20, which
+   starts at the bar's bottom), and under every dialog (60 and up). At 10 the pane covered the score's parts below 1024 px
+   (M12b review LP-1).
    Not overflow: hidden: the score's parts hang below the bar (globals.css .topbar-popover). Its bottom line is a shadow, not
    a border, so below 1024 px the two 40 px rows fill the 80 px exactly (FR-467). Text: 13 px on 16 px lines, two lines in
    each status block. */
@@ -12,7 +16,7 @@
   right: 0;
   height: var(--topbar-height);
   box-sizing: border-box;
-  z-index: 10;
+  z-index: 30;
   display: flex;
   align-items: center;
   gap: 12px;

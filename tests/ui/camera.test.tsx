@@ -465,7 +465,11 @@ describe('FR-465 the frame: top bar, the right pane under it, the map under it',
     expect([...bar.children].map((c) => c.getAttribute('data-testid'))).toEqual(['topbar-status', 'topbar-actions']);
   });
 
-  it('FR-465 the bar spans the window\'s top at --topbar-height, under the dialogs and the FR-429 line (z 10)', () => {
+  // Pin moved (M12b review LP-1, old -> new): "z 10, under the FR-429 line" -> "z 30, over the pane (10) and the FR-429
+  // line (20), under the dialogs (60 and up)". At z 10, before the pane in the page, the pane was drawn over what hangs
+  // from the bar: the score's parts below 1024 px (measured at 800x600: the popover's bottom right under the pane). The
+  // bar and the line never overlap (the line starts at the bar's bottom, FR-479), so only what hangs from the bar moves up.
+  it('FR-465 the bar spans the window\'s top at --topbar-height, over the pane and the FR-429 line, under the dialogs (z 30)', () => {
     const rule = ruleOf('src/app/components/HUD/TopBar.module.css', '.bar');
     expect(rule).toMatch(/position: absolute;/);
     expect(rule).toMatch(/top: 0;/);
@@ -473,7 +477,7 @@ describe('FR-465 the frame: top bar, the right pane under it, the map under it',
     expect(rule).toMatch(/right: 0;/);
     expect(rule).toMatch(/height: var\(--topbar-height\);/);
     expect(rule).toMatch(/box-sizing: border-box;/);
-    expect(rule).toMatch(/z-index: 10;/);
+    expect(rule).toMatch(/z-index: 30;/);
   });
 
   it('FR-465 the right pane starts under the bar and ends at the window\'s bottom', () => {

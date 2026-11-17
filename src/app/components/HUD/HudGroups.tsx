@@ -2,10 +2,10 @@ import React, { useEffect, useId, useMemo, useState } from "react";
 import { useGameStore } from "@/store/rootStore";
 import { selectActiveNation, selectActiveScore, selectSelectedWorkerAndTile, selectUpkeepForecast } from "@/store/selectors";
 import { SAVE_VERSION } from "@/store/persistence";
-import { cameraOnTileId } from "../camera";
 import { ScoreTable } from "./ScoreTable";
 import { CouncilProjection } from "./TurnIndicator";
-import { detailLines, lastTurnTreasuryText, spentThisTurnText, upkeepForecastText, workInProgressRows } from "./hudView";
+import { showTile } from "./showTile";
+import { detailLines, lastTurnTreasuryText, scoreParts, spentThisTurnText, upkeepForecastText, workInProgressRows } from "./hudView";
 
 export type GroupId = "nation" | "work" | "details";
 export type GroupsOpen = Record<GroupId, boolean>;
@@ -54,20 +54,13 @@ const NationGroupContent: React.FC = () => {
   const playerId = useGameStore((s) => s.activeNationId);
   const start = useGameStore((s) => s.turnStartTreasuries?.[playerId]);
   const lastTreasuries = useGameStore((s) => s.eventLog.at(-1)?.treasuries?.[playerId]);
-  const { treasury, industry, development, workInProgress } = score.points;
   const spent = spentThisTurnText(start, nation?.treasury ?? 0);
   const lastTurn = lastTurnTreasuryText(lastTreasuries);
-  const parts: [string, number][] = [
-    ["Treasury", treasury],
-    ["Industry", industry],
-    ["Development", development],
-    ["Work in progress", workInProgress],
-  ];
   return (
     <>
       <CouncilProjection />
       <ul className="hud-score-parts" data-testid="nation-score-parts" aria-label="Score parts">
-        {parts.map(([name, points]) => (
+        {scoreParts(score.points).map(([name, points]) => (
           <li key={name}>
             {name} {points}
           </li>
@@ -81,15 +74,7 @@ const NationGroupContent: React.FC = () => {
   );
 };
 
-/** FR-475: a row about a tile selects it (no civilian, so Tile Info shows the tile) and centres it, as a news place line (FR-376). */
-function showTile(tileId: string): void {
-  const { selectWorker, selectTile, moveCamera } = useGameStore.getState();
-  selectWorker(undefined);
-  selectTile(tileId);
-  const camera = cameraOnTileId(useGameStore.getState().game, tileId);
-  if (camera) moveCamera(camera.x, camera.y);
-}
-
+/** FR-475: a row about a tile works as a news place line (FR-376): one function, `showTile`. */
 const WorkGroupContent: React.FC<{ rows: ReturnType<typeof workInProgressRows> }> = ({ rows }) =>
   rows.length === 0 ? (
     <p>Nothing in progress.</p>

@@ -9,11 +9,14 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { TopBar } from '@/components/HUD/TopBar';
+import { HUD } from '@/components/HUD';
+import { confirmPanelLeft } from '@/components/HUD/ConfirmNewGame';
+import { scoreParts } from '@/components/HUD/hudView';
 import Home from '@/page';
 import { useGameStore } from '@/store/rootStore';
 import type { TurnReport } from '@/store/gameSlice';
 import { HOW_TO_PLAY_SEEN_KEY } from '@/store/persistence';
-import { newGame, ordinal, resolveTurn, scoreTable } from '@/engine';
+import { newGame, ordinal, resolveTurn, scoreOf, scoreTable } from '@/engine';
 import { money } from '@/components/gameText';
 import type { GameState } from '@/types/GameState';
 import { emptyWarehouse, N1, N2, setPair, setTreasury } from '../engine/fixtures';
@@ -267,8 +270,11 @@ describe('FR-468 the icon buttons', () => {
     const hide = /\.topbar-label \{([^}]*)\}/.exec(below)?.[1] ?? '';
     for (const d of ['position: absolute;', 'width: 1px;', 'height: 1px;', 'overflow: hidden;', 'clip-path: inset(50%);', 'white-space: nowrap;'])
       expect(hide, d).toContain(d);
-    // The only rule that hides the label is that one: from 1800 px it is an ordinary inline span
-    expect(css.match(/\.topbar-label \{/g)).toHaveLength(1);
+    // The only rule that hides the label is that one: from 1800 px it is an ordinary inline span. Pin moved (M12b review
+    // A11Y-4, old -> new): "one .topbar-label rule" -> "two": the second shows the label under a keyboard-focused button
+    // from 1024 to 1799 px (the A11Y-4 test below); it hides nothing
+    expect(css.match(/\.topbar-label \{/g)).toHaveLength(2);
+    expect(css.match(/\.topbar-label \{[^}]*clip-path: inset\(50%\);/g)).toHaveLength(1);
     // 32 x 32 below 1800 px; from 1800 px as wide as icon and label
     const button = rule(css, '.btn.topbar-button');
     expect(button).toMatch(/width: 32px;/);
@@ -322,7 +328,7 @@ describe("FR-477 nothing lost: the bar's share", () => {
 });
 
 describe('FR-480 New game in the bar', () => {
-  it('FR-480 FR-109 FR-111 New game opens the question as a panel outside the bar, the focus on it; Keep playing closes it, the focus back on New game', () => {
+  it('FR-480 FR-109 FR-111 New game opens the question as a panel right after it in the bar, the focus on it; Keep playing closes it, the focus back on New game', () => {
     show(continent());
     render(<TopBar />);
     const toggle = screen.getByRole('button', { name: 'New game' });
@@ -336,9 +342,13 @@ describe('FR-480 New game in the bar', () => {
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
     expect(toggle.getAttribute('aria-controls')).toBe('confirm-new-game');
     expect(document.activeElement).toBe(panel);
-    // Rendered into the body, so it lies above the pane (the bar's own stacking context would put it under the pane)
-    expect(screen.getByTestId('topbar').contains(panel)).toBe(false);
-    expect(panel.parentElement).toBe(document.body);
+    // Pin moved (M12b review A11Y-1, old -> new): "rendered into the body" -> "right after New game, inside the bar". In the
+    // body the Tab order was cut from the button: Shift+Tab went to the pane's last control and Tab from Keep playing left
+    // the page. Now it runs New game, the question, About. The bar's z-index (above the pane, TopBar.module.css) keeps the
+    // panel drawn over the pane, the reason it had been moved to the body (CSS test below).
+    expect(screen.getByTestId('topbar').contains(panel)).toBe(true);
+    expect(toggle.nextElementSibling).toBe(panel);
+    expect(panel.nextElementSibling).toBe(screen.getByRole('button', { name: 'About' }));
     // A pointer over it never scrolls the map (FR-366), as over the bar
     expect(panel.hasAttribute('data-edge-scroll')).toBe(true);
 
@@ -346,6 +356,57 @@ describe('FR-480 New game in the bar', () => {
     expect(screen.queryByRole('group', { name: 'Confirm new game' })).toBeNull();
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
     expect(document.activeElement).toBe(toggle);
+  });
+
+  it('FR-480 FR-111 Escape in the question closes it, the focus back on New game; the key is taken (the map\'s Escape does not also drop the selection)', () => {
+    show(continent());
+    render(<TopBar />);
+    const toggle = screen.getByRole('button', { name: 'New game' });
+    fireEvent.click(toggle);
+    const panel = screen.getByRole('group', { name: 'Confirm new game' });
+    // From a button inside the panel too: the key bubbles to the panel
+    const keep = within(panel).getByRole('button', { name: 'Keep playing' });
+    keep.focus();
+    // fireEvent returns false when the handler called preventDefault (hooks/useMapKeyboard.ts skips such a key)
+    expect(fireEvent.keyDown(keep, { key: 'Escape' })).toBe(false);
+    expect(screen.queryByRole('group', { name: 'Confirm new game' })).toBeNull();
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(toggle);
+  });
+
+  it('FR-480 the question opens under New game: its left edge at the button\'s, kept 8 px inside the window', () => {
+    // Pure: the button's left, the panel's width, the window's width
+    expect(confirmPanelLeft(268, 272, 800)).toBe(268);
+    expect(confirmPanelLeft(1100, 272, 1280)).toBe(1280 - 8 - 272);
+    expect(confirmPanelLeft(-20, 272, 390)).toBe(8);
+    // A window narrower than the panel: the left margin wins (the panel's max-width is the window less 16 px)
+    expect(confirmPanelLeft(100, 400, 300)).toBe(8);
+
+    // In the component: jsdom has no layout, so the boxes are given (New game at `at`, the panel 272 px wide); jsdom's
+    // window is 1024 px wide
+    expect(window.innerWidth).toBe(1024);
+    show(continent());
+    render(<TopBar />);
+    const toggle = screen.getByRole('button', { name: 'New game' });
+    let at = 268;
+    const box = (left: number, width: number) => ({ left, right: left + width, width, top: 44, bottom: 76, height: 32, x: left, y: 44, toJSON: () => ({}) }) as DOMRect;
+    const rects = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      return this === toggle ? box(at, 32) : box(0, 272);
+    });
+    try {
+      fireEvent.click(toggle);
+      expect(screen.getByRole('group', { name: 'Confirm new game' }).style.left).toBe('268px');
+      fireEvent.click(toggle);
+      at = 900;
+      fireEvent.click(toggle);
+      expect(screen.getByRole('group', { name: 'Confirm new game' }).style.left).toBe(`${1024 - 8 - 272}px`);
+      // A window resized while it is open: placed again
+      at = 500;
+      act(() => void window.dispatchEvent(new Event('resize')));
+      expect(screen.getByRole('group', { name: 'Confirm new game' }).style.left).toBe('500px');
+    } finally {
+      rects.mockRestore();
+    }
   });
 
   it('FR-480 FR-109 Start new game goes back to turn 1 and closes the question', () => {
@@ -360,14 +421,68 @@ describe('FR-480 New game in the bar', () => {
     expect(screen.queryByRole('group', { name: 'Confirm new game' })).toBeNull();
   });
 
-  it('FR-480 CSS: the panel is fixed under the bar at its right, above the pane and the FR-429 line (z 20), below the dialogs (the lowest, Capital, is 60)', () => {
+  // Pin moved (M12b review LP-1, LP-3, A11Y-1, old -> new): "the panel at the window's right (right: 8px) with its own
+  // z-index 30 in the body" -> "the panel fixed under the bar, its left set under New game by the component; the bar's
+  // own z-index above the pane (10) and the FR-429 line (20), below the dialogs (the lowest, Capital, is 60)". The panel
+  // is inside the bar now, so the bar's stacking context decides what it lies over; the score's parts (FR-404) and a
+  // focused button's label hang from the bar the same way and were drawn under the pane below 1024 px.
+  it('FR-480 FR-404 CSS: the panel is fixed under the bar (its left from the component); the bar lies above the pane and the FR-429 line (z 20), below the dialogs (60)', () => {
     const panel = rule(GLOBALS(), '.confirm-panel');
     expect(panel).toMatch(/position: fixed;/);
     expect(panel).toMatch(/top: calc\(var\(--topbar-height\) \+ 4px\);/);
-    expect(panel).toMatch(/right: 8px;/);
-    const z = Number(/z-index: (\d+);/.exec(panel)?.[1]);
+    expect(panel).not.toMatch(/right:/);
+    const z = Number(/z-index: (\d+);/.exec(rule(MODULE(), '.bar'))?.[1]);
     expect(z).toBeGreaterThan(20);
     expect(z).toBeLessThan(60);
+    // The pane stays at 10
+    expect(rule(GLOBALS(), '.hud-container')).toMatch(/z-index: 10;/);
+  });
+});
+
+describe('M12b review: what hangs from the bar, and keyboard use (A11Y-2, A11Y-4, A11Y-5, NL-3)', () => {
+  it('FR-467 the Council line and the nation name carry their full text as a title, so a line cut by an ellipsis can be read whole (A11Y-5)', () => {
+    show(continent());
+    render(<TopBar />);
+    const council = screen.getByTestId('next-council');
+    expect(council.getAttribute('title')).toBe('Next Council: turn 10 (Summer 1817)');
+    expect(council.getAttribute('title')).toBe(text(council));
+    const title = document.querySelector('.hud-title')!;
+    expect(title.getAttribute('title')).toBe('Testland');
+  });
+
+  it('FR-468 CSS: a focused bar button draws its ring inside its own box (the strip clips what lies outside below 1024 px; A11Y-2)', () => {
+    const focus = rule(GLOBALS(), '.btn.topbar-button:focus-visible');
+    expect(focus).toMatch(/outline: 2px solid var\(--color-accent\);/);
+    // offset + width <= 0: the ring ends at the border edge, inside the strip's clip box
+    expect(focus).toMatch(/outline-offset: -2px;/);
+  });
+
+  it('FR-468 CSS: from 1024 to 1799 px a keyboard focus shows the button\'s name under it (A11Y-4); not below 1024 px, where the strip clips it', () => {
+    const css = GLOBALS();
+    const block = mediaBlock(css, 'min-width: 1024px) and (max-width: 1799.98px');
+    const shown = /\.btn\.topbar-button:focus-visible > \.topbar-label \{([^}]*)\}/.exec(block)?.[1] ?? '';
+    for (const d of ['clip-path: none;', 'width: auto;', 'height: auto;', 'top: calc(100% + 6px);']) expect(shown, d).toContain(d);
+    // The same span is the accessible name: only its look changes
+    expect(css.match(/\.topbar-label \{/g)).toHaveLength(2);
+  });
+
+  it('FR-474 FR-404 the bar\'s score parts and the Nation group\'s are one list (scoreParts)', () => {
+    const s = continent();
+    show(s);
+    expect(scoreParts(scoreOf(s, N1).points).map(([name]) => name)).toEqual(['Treasury', 'Industry', 'Development', 'Work in progress']);
+    render(
+      <>
+        <TopBar />
+        <HUD />
+      </>
+    );
+    act(() => screen.getByTestId('hud-score').focus());
+    const popover = [...screen.getByTestId('score-parts').children].map(text);
+    fireEvent.click(screen.getByRole('button', { name: 'Nation' }));
+    const list = within(screen.getByTestId('nation-score-parts')).getAllByRole('listitem').map(text);
+    const expected = scoreParts(scoreOf(s, N1).points).map(([name, points]) => `${name} ${points}`);
+    expect(list).toEqual(expected);
+    expect(popover).toEqual([...expected, 'Investments count at their price until they are done.']);
   });
 });
 

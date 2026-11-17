@@ -1,5 +1,5 @@
 // The right pane's alerts and groups (FR-471 to FR-476) as plain data: pure reads of the game and the session, no React.
-import { countryName, provinceOf, warBetween, type UpkeepForecast } from "@/engine";
+import { countryName, provinceOf, warBetween, type Score, type UpkeepForecast } from "@/engine";
 import { TRAINED_TO } from "@/definisions/ResourceConversions";
 import type { GameState } from "@/types/GameState";
 import type { WorkerGrade } from "@/types/Industry";
@@ -15,6 +15,17 @@ export function playerWars(game: GameState, playerId: string): { id: string; nam
     return war ? [{ id, name: countryName(game, id) ?? id, since: war.since }] : [];
   });
 }
+
+/**
+ * The score's four parts (FR-402), in the order and words the bar's popover (FR-404) and the Nation group (FR-474) both
+ * list: one list, so the two never drift apart (M12b review NL-3).
+ */
+export const scoreParts = ({ treasury, industry, development, workInProgress }: Score["points"]): [string, number][] => [
+  ["Treasury", treasury],
+  ["Industry", industry],
+  ["Development", development],
+  ["Work in progress", workInProgress],
+];
 
 /** FR-432: the player's civilians with no move or job this turn. */
 export const idleCivilianCount = (game: GameState, playerId: string): number =>

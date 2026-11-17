@@ -2,6 +2,7 @@ import React, { useId, useState } from "react";
 import { ordinal } from "@/engine";
 import { useGameStore } from "@/store/rootStore";
 import { selectActiveScore, selectScoreTable } from "@/store/selectors";
+import { scoreParts } from "./hudView";
 
 /**
  * The active nation's score total (FR-075). Hover or focus shows its parts as visible text (FR-404), work in progress
@@ -14,12 +15,6 @@ export const ScoreIndicator: React.FC = () => {
   const [open, setOpen] = useState(false);
   const partsId = useId();
   const title = `Treasury ${treasury} + industry ${industry} + development ${development}${workInProgress > 0 ? ` + work in progress ${workInProgress}` : ""}`;
-  const parts: [string, number][] = [
-    ["Treasury", treasury],
-    ["Industry", industry],
-    ["Development", development],
-    ["Work in progress", workInProgress],
-  ];
 
   return (
     <div
@@ -39,7 +34,7 @@ export const ScoreIndicator: React.FC = () => {
       <strong className="topbar-wide-only">Score:</strong> {score.total}
       {open && (
         <div id={partsId} role="tooltip" data-testid="score-parts" className="tile-note topbar-popover">
-          {parts.map(([name, points]) => (
+          {scoreParts(score.points).map(([name, points]) => (
             <div key={name}>
               {name} {points}
             </div>

@@ -484,14 +484,23 @@ img[data-art-anchor="bottom-center"] {
   gap: 8px;
 }
 
-/* New game asks before it throws the game away (FR-109): a panel under the top bar at its right end, under New game
-   (FR-480). Fixed and rendered into the body (components/HUD/ConfirmNewGame.tsx), so it lies above the map, the pane (10)
-   and the FR-429 line (20), and below every dialog (the lowest, Capital, is 60). */
+/* A news place line or a Work in progress row moves the focus here (components/HUD/showTile.ts); the ring inside the
+   heading, as the pane's scroll area clips what lies outside it */
+.tile-info-heading:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+/* New game asks before it throws the game away (FR-109): a panel under the top bar, under New game (FR-480). It stands
+   right after the button inside the bar (the Tab order, M12b review A11Y-1) and is fixed, so the strip's sideways scroll
+   does not clip it; components/HUD/ConfirmNewGame.tsx sets its left edge under the button's (8 px until then). It lies
+   over the map, the pane and the FR-429 line, under every dialog, because the bar does (TopBar.module.css, z-index 30);
+   its own z-index only counts inside the bar. */
 .confirm-panel {
   position: fixed;
   top: calc(var(--topbar-height) + 4px);
-  right: 8px;
-  z-index: 30;
+  left: 8px;
+  z-index: 1;
   width: max-content;
   max-width: calc(100vw - 16px);
   box-sizing: border-box;
@@ -1017,6 +1026,37 @@ img[data-art-anchor="bottom-center"] {
   /* Alone in its 32 px button the icon is centred: no gap after it */
   .topbar-strip .btn.topbar-button > :is(svg[data-icon], img[data-art-inline]) {
     margin: 0;
+  }
+}
+
+/* The keyboard ring of the bar's buttons, drawn inside the button (offset + width = 0): below 1024 px the strip scrolls
+   sideways, so it clips what lies outside its 32 px high box, the browser's ring among it (M12b review A11Y-2, WCAG 2.4.7) */
+.btn.topbar-button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+/* From 1024 to 1799 px the buttons show only their icons: a keyboard focus shows the name under the button, as a mouse
+   pointer shows the title (M12b review A11Y-4). The same span stays the accessible name; only its look changes. Not below
+   1024 px: there the strip clips what hangs below it, and a label inside it would make it scroll up and down. */
+@media (min-width: 1024px) and (max-width: 1799.98px) {
+  .btn.topbar-button:focus-visible > .topbar-label {
+    top: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip-path: none;
+    padding: 2px 6px;
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-raised);
+    color: var(--color-ink);
+    box-shadow: var(--shadow-dialog);
+    font-size: 12px;
+    line-height: 16px;
+    pointer-events: none;
   }
 }
 

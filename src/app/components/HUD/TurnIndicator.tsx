@@ -33,9 +33,11 @@ function useCouncil(): { next: number | undefined; projection: string | undefine
 export const NextCouncil: React.FC = () => {
   const { next, projection, game } = useCouncil();
   if (next === undefined) return null;
+  const text = next === game.turn ? "Council: this turn" : `Next Council: turn ${next} (${dateText(next, yearOfTurn(game, next))})`;
+  // The title: in a narrow bar the line ends in an ellipsis, and the meeting's turn is shown nowhere else (M12b review A11Y-5)
   return (
-    <div className="next-council" data-testid="next-council" aria-describedby={projection ? COUNCIL_PROJECTION_ID : undefined}>
-      {next === game.turn ? "Council: this turn" : `Next Council: turn ${next} (${dateText(next, yearOfTurn(game, next))})`}
+    <div className="next-council" data-testid="next-council" title={text} aria-describedby={projection ? COUNCIL_PROJECTION_ID : undefined}>
+      {text}
     </div>
   );
 };

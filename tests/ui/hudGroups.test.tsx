@@ -90,15 +90,28 @@ describe('FR-473 the right pane groups', () => {
     expect(document.activeElement).toBe(nation);
   });
 
-  it('FR-473 Enter and Space: each heading button is a native <button> with no key handler or tabindex of its own, so the browser activates it', () => {
-    // jsdom does not turn a key press into a click; the browser does for a native button (e2e/m13-hud.spec.ts presses them)
+  // M12b review ST-3: this test read `hasAttribute('onkeydown')`, which React never renders, so it could not fail. Now the
+  // keys themselves: jsdom does not turn a key press into a click, so a key press that toggles here comes from a key
+  // handler of the group's own, which in a browser would toggle twice (the handler, then the native click): Enter would
+  // open and at once close the group. The browser's own Enter and Space: e2e/m13-hud.spec.ts FR-473.
+  it('FR-473 Enter and Space: each heading button is a native <button>, no tabindex, and no key handler of its own (a key press alone toggles nothing), so the browser activates it once', () => {
     show(continent());
     render(<HUD />);
     for (const name of GROUP_NAMES) {
       const button = groupButton(name);
+      expect(button.tagName, name).toBe('BUTTON');
       expect(button.hasAttribute('tabindex'), name).toBe(false);
-      expect(button.hasAttribute('onkeydown'), name).toBe(false);
       expect((button as HTMLButtonElement).disabled, name).toBe(false);
+      button.focus();
+      for (const key of ['Enter', ' ']) {
+        fireEvent.keyDown(button, { key, code: key === ' ' ? 'Space' : key });
+        fireEvent.keyPress(button, { key, code: key === ' ' ? 'Space' : key, charCode: key === ' ' ? 32 : 13 });
+        fireEvent.keyUp(button, { key, code: key === ' ' ? 'Space' : key });
+        expect(button.getAttribute('aria-expanded'), `${name} after ${key === ' ' ? 'Space' : key}`).toBe('false');
+      }
+      // A click still toggles it (the browser's Enter and Space end in one)
+      fireEvent.click(button);
+      expect(button.getAttribute('aria-expanded'), name).toBe('true');
     }
   });
 
@@ -227,6 +240,24 @@ describe('FR-475 the Work in progress group', () => {
     expect(after.cameraMoves).toBe(moves + 1);
     const camera = cameraOnTileId(after.game, T.farm1);
     expect({ x: after.cameraX, y: after.cameraY }).toEqual({ x: camera!.x, y: camera!.y });
+  });
+
+  // M12b review A11Y-3: Tile Info scrolls the pane to its top when it opens (FR-463), so a row at the pane's bottom used
+  // with the keyboard kept the focus out of sight, and nothing told a screen reader what opened. The focus now moves to
+  // Tile Info's heading, the tile's panel at the pane's top.
+  it('FR-475 a row used from the keyboard moves the focus to Tile Info\'s heading, where the pane scrolls to', () => {
+    show(put(game(), FARMER, T.farm1));
+    render(<HUD />);
+    act(() => void useGameStore.getState().submitOrder({ kind: 'startDevelopment', nationId: N1, workerId: FARMER, tileId: T.farm1 }));
+    const panel = openGroup('Work in progress');
+    const row = within(panel).getByRole('button', { name: /^Farmer: grain to level 1 at 2-1/ });
+    row.focus();
+    fireEvent.click(row);
+    const heading = within(screen.getByTestId('tile-info')).getByRole('heading', { level: 3 });
+    expect(text(heading)).toBe('Tile Info ×');
+    expect(document.activeElement).toBe(heading);
+    // Focusable by script only: not a stop of its own in the Tab order
+    expect(heading.getAttribute('tabindex')).toBe('-1');
   });
 });
 
