@@ -93,8 +93,14 @@ test('FR-448 FR-453 at 1280x720 the engineer picked on the farm 7-8: Tile Info s
       return box.y + box.height <= (await hudSeen(page)).bottom + 0.5;
     })
     .toBe(true);
+  // FR-463: the heading's top inside the HUD's box, as FR-371 (e2e/m12-map.spec.ts); `top - heading.height` let a heading
+  // scrolled out of sight above the box pass (it was at y -8 against a top of 12: the engineer picked at the capital on
+  // turn 1 had left the HUD scrolled 196 px down)
   const heading = (await page.getByTestId('tile-info').getByRole('heading', { name: /Tile Info/ }).boundingBox())!;
-  expect(heading.y).toBeGreaterThanOrEqual((await hudSeen(page)).top - heading.height);
+  const offerBox = (await first.boundingBox())!;
+  const seen = await hudSeen(page);
+  console.log('FR-463', JSON.stringify({ headingY: heading.y, seenTop: seen.top, offerBottom: offerBox.y + offerBox.height, seenBottom: seen.bottom }));
+  expect(heading.y).toBeGreaterThanOrEqual(seen.top);
   expect(errors).toEqual([]);
 });
 

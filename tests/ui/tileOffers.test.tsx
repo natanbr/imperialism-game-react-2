@@ -369,16 +369,26 @@ describe('FR-388 Tile Info shows the fort', () => {
 // above the fade (`.hud-content` keeps the fade's 24 px as scroll padding); only that far, so Tile Info's heading stays in
 // sight (the whole row with four offers pushed it out: e2e/m12-qa.spec.ts).
 describe('FR-448 the selected civilian\'s offers come into view', () => {
-  const scrolled: { el: Element; options: unknown }[] = [];
+  /** Every scroll in order: a scrollIntoView call (`options`), or a scroll position set (`scrollTop`). */
+  const scrolled: { el: Element; options?: unknown; scrollTop?: number }[] = [];
   const original = Element.prototype.scrollIntoView;
+  const scrollTop = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollTop')!;
   beforeEach(() => {
     scrolled.length = 0;
     Element.prototype.scrollIntoView = function (this: Element, options?: unknown) {
       scrolled.push({ el: this, options });
     };
+    Object.defineProperty(Element.prototype, 'scrollTop', {
+      ...scrollTop,
+      set(this: Element, value: number) {
+        scrolled.push({ el: this, scrollTop: value });
+        scrollTop.set!.call(this, value);
+      },
+    });
   });
   afterEach(() => {
     Element.prototype.scrollIntoView = original;
+    Object.defineProperty(Element.prototype, 'scrollTop', scrollTop);
   });
 
   it('FR-448 the engineer selected on 7-8: the first of its four offers is scrolled into view ("nearest")', () => {
@@ -398,6 +408,25 @@ describe('FR-448 the selected civilian\'s offers come into view', () => {
       const row = rowOf(type);
       expect(scrolled.map((s) => s.el)).toContain(row.querySelector('[data-testid="job-offer"]') ?? row);
     }
+  });
+
+  // FR-463's bound (e2e/m12-qa.spec.ts) found the heading at y -8 against the HUD's top at 12: the engineer picked at the
+  // capital (its seventh civilian row) had scrolled the HUD 196 px down to its first offer; on turn 2, picked on 7-8, its
+  // first offer was already in view, so "nearest" did not scroll, and the HUD stayed scrolled past Tile Info's heading.
+  // Each new selection starts from the HUD's top, then scrolls only as far as the first offer needs ("only that far")
+  it('FR-448 FR-463 a new selection scrolls the HUD from its top, then to the first offer: an earlier scroll does not hide the heading', () => {
+    showOffers(newGame({ seed: 1 }), WorkerType.Engineer, '7-8');
+    const hud = tileInfo().closest('.hud-content')!;
+    const first = offerOf(within(tileInfo()).getByRole('button', { name: 'Construct Depot' }));
+    expect(scrolled).toEqual([
+      { el: hud, scrollTop: 0 },
+      { el: first, options: { block: 'nearest' } },
+    ]);
+    // A tile selected with no civilian: the HUD from its top, nothing more
+    cleanup();
+    scrolled.length = 0;
+    showTile(newGame({ seed: 1 }), '7-8');
+    expect(scrolled).toEqual([{ el: tileInfo().closest('.hud-content')!, scrollTop: 0 }]);
   });
 
   it('FR-448 the HUD keeps the fade\'s height as its bottom scroll padding, so a row scrolled into view ends above the fade', () => {

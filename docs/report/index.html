@@ -80,7 +80,7 @@
   .st-partial { background: var(--part-soft); color: var(--part); } .st-partial::before { background: linear-gradient(90deg, currentColor 50%, transparent 50%); box-shadow: inset 0 0 0 1.5px currentColor; }
   .st-missing { background: var(--bad-soft); color: var(--bad); } .st-missing::before { content: "\2715"; background: none; width: auto; height: auto; font-size: 11px; }
   .au-ok { background: var(--ok-soft); color: var(--ok); } .au-gaps { background: var(--warn-soft); color: var(--warn); } .au-over { background: var(--bad-soft); color: var(--bad); }
-  .ms-tonight { background: var(--brass-soft); color: var(--brass); } .ms-planned { background: var(--hover); color: var(--muted); }
+  .ms-tonight { background: var(--brass-soft); color: var(--brass); } .ms-planned { background: var(--hover); color: var(--muted); } .ms-built { background: var(--ok-soft); color: var(--ok); }
   .c-new { background: var(--brass-soft); color: var(--brass); } .c-default { background: var(--accent-soft); color: var(--accent); } .c-done { background: var(--ok-soft); color: var(--ok); }
   .sev-major { background: var(--hi-soft); color: var(--hi); } .sev-minor { background: var(--hover); color: var(--ink); } .sev-nit { background: var(--hover); color: var(--muted); }
   a.fid { font-family: var(--mono); font-size: 12px; white-space: nowrap; }
@@ -143,6 +143,7 @@
   .plan { display: grid; gap: 12px; }
   .ms { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; display: grid; gap: 12px; scroll-margin-top: 60px; }
   .ms.tonight { border-color: var(--brass); }
+  .ms.built { border-color: var(--ok); }
   .ms .top { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
   .ms .top h3 { font-size: 18px; font-family: var(--heading); }
   .ms .goal { max-width: 74ch; }
@@ -166,7 +167,8 @@
   .card .opts { display: grid; gap: 6px; }
   .card .opt { display: grid; gap: 0; padding: 8px 10px; border-radius: 8px; background: var(--hover); font-size: 14px; }
   .card .opt b { font-weight: 600; }
-  .card .sug, .card .obj, .card .aud, .card .ruled { font-size: 14px; }
+  .card .sug, .card .obj, .card .aud, .card .ruled, .card .need { font-size: 14px; }
+  .card .need { padding: 8px 10px; border-radius: 8px; background: var(--brass-soft); }
   .card .obj { color: var(--muted); }
   .card .aud { padding: 8px 10px; border-radius: 8px; background: var(--brass-soft); }
   details.more { margin-top: 18px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
@@ -274,7 +276,7 @@
   </section>
 
   <section class="block" id="decisions" aria-labelledby="h-dec">
-    <div class="sec-head"><h2 id="h-dec">Decisions for you</h2><p>Every card has a default that is already in force, so nothing waits on you. Change a default before its milestone starts and it costs the least.</p></div>
+    <div class="sec-head"><h2 id="h-dec">Decisions for you</h2><p>Every card has a default that is already in force. A card marked "Needed before" decides work that cannot be finished without your answer; the others wait on nothing. Change a default before its milestone starts and it costs the least.</p></div>
     <div id="cards"></div>
   </section>
 
@@ -339,10 +341,11 @@
   const sevStack = (sv, scale) => { const t = sv.major + sv.minor + sv.nit; return `<div class="stack" style="width:${Math.max(18, t / scale * 100).toFixed(1)}%" role="img" aria-label="${sv.major} major, ${sv.minor} minor, ${sv.nit} nit">${[['major', 'var(--sev1)'], ['minor', 'var(--sev2)'], ['nit', 'var(--sev3)']].filter((x) => sv[x[0]]).map((x) => `<i style="flex:${sv[x[0]]} 1 0;background:${x[1]}"></i>`).join('')}</div>`; };
   function renderThemes(d) {
     const scale = Math.max(...d.themes.map((t) => t.count));
+    const msStatus = new Map(d.plan.milestones.map((m) => [m.id, m.status]));
     $('themes').innerHTML = d.themes.map((t) => `<article class="theme" id="t-${t.id}"><div class="top"><h3><span class="tid mono">${t.id}</span>${h(t.title)}</h3><span class="cnt">${t.count} findings</span></div>
       ${sevStack(t.severity, scale)}<div class="sub">${t.severity.major} major &middot; ${t.severity.minor} minor &middot; ${t.severity.nit} nit${t.filedIds.length ? ` &middot; ${t.filedIds.length} filed by me` : ''}</div>
       <p>${h(t.plain)}</p><ul>${t.worst.map((w) => `<li>${h(w.text)} ${idLinks(w.ids)}</li>`).join('')}</ul>
-      <div class="fix"><span>Fixed in</span><a class="chip ${t.milestone === 'M12' || t.milestone === 'M13' ? 'ms-tonight' : 'ms-planned'}" href="#ms-${t.milestone}" data-ms="${t.milestone}">${t.milestone}</a></div></article>`).join('');
+      <div class="fix"><span>Fixed in</span><a class="chip ms-${msStatus.get(t.milestone) || 'planned'}" href="#ms-${t.milestone}" data-ms="${t.milestone}">${t.milestone}</a></div></article>`).join('');
     $('filednote').textContent = d.reality.filedNote;
   }
   const sizeWord = (s) => { const p = s.S + 3 * s.M + 8 * s.L; return p < 20 ? 'Small' : p < 50 ? 'Medium' : p < 100 ? 'Large' : 'Very large'; };
@@ -350,13 +353,14 @@
     $('ordernote').textContent = d.plan.orderNote;
     $('ms').innerHTML = d.plan.milestones.map((m) => {
       const w = sizeWord(m.size), n = { Small: 1, Medium: 2, Large: 3, 'Very large': 4 }[w];
-      return `<article class="ms ${m.status}" id="ms-${m.id}"><div class="top"><h3>${m.id} ${h(m.title)}</h3>${pill(m.status === 'tonight' ? 'ms-tonight' : 'ms-planned', m.statusLabel)}</div>
+      return `<article class="ms ${m.status}" id="ms-${m.id}"><div class="top"><h3>${m.id} ${h(m.title)}</h3>${pill('ms-' + m.status, m.statusLabel)}</div>
       <p class="goal">${h(m.goal)}</p>
       <div class="cols"><div><h4>What you will be able to check in the app</h4><ul>${m.check.map((c) => `<li>${rich(c)}</li>`).join('')}</ul></div>
-      <dl class="kv"><dt>Size</dt><dd><span class="sizebar" aria-hidden="true">${[1, 2, 3, 4].map((i) => `<i class="${i <= n ? 'on' : ''}"></i>`).join('')}</span><b>${w}</b>: ${m.findings} findings (${m.size.S} small, ${m.size.M} medium, ${m.size.L} large fixes)</dd>
+      <dl class="kv"><dt>Size</dt><dd>${m.sizeText ? h(m.sizeText) : `<span class="sizebar" aria-hidden="true">${[1, 2, 3, 4].map((i) => `<i class="${i <= n ? 'on' : ''}"></i>`).join('')}</span><b>${w}</b>: ${m.findings} findings (${m.size.S} small, ${m.size.M} medium, ${m.size.L} large fixes)`}</dd>
       <dt>Depends on</dt><dd>${rich(m.depends)}</dd>
-      <dt>Fixes</dt><dd>${m.themes.map((t) => `<a class="fid" href="#t-${t}" data-t="${t}">${t}</a>`).join(' ')}</dd>
-      <dt>Status</dt><dd>${m.status === 'tonight' ? 'Nothing built yet. Planned for tonight.' : 'Nothing built yet. Planned.'}</dd></dl></div></article>`;
+      <dt>Fixes</dt><dd>${m.themes.length ? m.themes.map((t) => `<a class="fid" href="#t-${t}" data-t="${t}">${t}</a>`).join(' ') : h(m.fixesText || 'No audit theme')}</dd>
+      ${m.spec ? `<dt>Spec</dt><dd>${h(m.spec)}</dd>` : ''}
+      <dt>Status</dt><dd>${h(m.statusText || (m.status === 'tonight' ? 'Nothing built yet. Planned for tonight.' : 'Nothing built yet. Planned.'))}</dd></dl></div></article>`;
     }).join('');
   }
   const cardHtml = (q, compact) => {
@@ -368,13 +372,15 @@
       ${q.suggestion ? `<p class="sug"><b>${q.options ? 'Suggestion' : 'Default'}.</b> ${rich(q.suggestion)}</p>` : ''}
       ${q.objection ? `<p class="obj"><b>Objection.</b> ${h(q.objection)}</p>` : ''}
       ${q.audit ? `<p class="aud"><b>What the audit adds.</b> ${rich(q.audit)}</p>` : ''}
+      ${q.needed ? `<p class="need"><b>Needed before.</b> ${rich(q.needed)}</p>` : ''}
       ${q.ruling ? `<p class="ruled"><b>Ruled.</b> ${h(q.ruling)}</p>` : ''}</article>`;
   };
   function renderCards(d) {
     const by = (g) => d.decisions.filter((q) => q.group === g);
-    const nw = by('new'), pr = by('priority'), df = by('default'), an = by('answered');
+    const nw = by('new'), pr = by('priority'), df = by('default'), an = by('answered'), dc = by('decided');
     $('cards').innerHTML = `
-      <div class="group-title">New cards for the work planned tonight <span>${nw.map((q) => q.id).join(', ')}. The spec file docs/requirements.md carries the same cards.</span></div><div class="cards">${nw.map((q) => cardHtml(q)).join('')}</div>
+      ${dc.length ? `<div class="group-title">Answered by you on ${h(d.updated)} <span>${dc.map((q) => q.id).join(', ')}. Each card keeps the question and your answer.</span></div><div class="cards">${dc.map((q) => cardHtml(q, true)).join('')}</div>` : ''}
+      <div class="group-title">New cards, each with its default <span>${nw.map((q) => q.id).join(', ')}. The spec file docs/requirements.md carries the same cards.</span></div><div class="cards">${nw.map((q) => cardHtml(q)).join('')}</div>
       <div class="group-title">Older cards that matter most now <span>${pr.map((q) => q.id).join(', ')}</span></div><div class="cards">${pr.map((q) => cardHtml(q)).join('')}</div>
       <details class="more"><summary>${df.length} more cards with defaults in force (${df[0].id} to ${df[df.length - 1].id})</summary><div class="cards">${df.map((q) => cardHtml(q, true)).join('')}</div></details>
       <details class="more"><summary>${an.length} cards answered or settled earlier (${an[0].id} to ${an[an.length - 1].id})</summary><div class="cards">${an.map((q) => cardHtml(q, true)).join('')}</div></details>`;

@@ -80,10 +80,15 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
   const cancelTitleId = useId();
   const cancelTextId = useId();
   // FR-448: the selected civilian's first job offer (else its row) scrolled into the HUD's view, above its fade; only that
-  // far, so Tile Info's heading stays in sight at 1280x720 (the whole row of four offers would push it out)
+  // far, so Tile Info's heading stays in sight at 1280x720 (the whole row of four offers would push it out). FR-463: from
+  // the HUD's top, as an earlier selection may have left it scrolled past the heading (the capital's seventh civilian
+  // row) with this offer already in view, where "nearest" alone does not scroll
+  const heading = useRef<HTMLHeadingElement>(null);
   const selectedRow = useRef<HTMLLIElement>(null);
   const selectedTileId = selectedTile?.id;
   useEffect(() => {
+    const hud = heading.current?.closest<HTMLElement>(".hud-content");
+    if (hud) hud.scrollTop = 0;
     const row = selectedRow.current;
     (row?.querySelector('[data-testid="job-offer"]') ?? row)?.scrollIntoView?.({ block: "nearest" });
   }, [selectedWorkerId, selectedTileId]);
@@ -135,7 +140,7 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
   return (
     <div data-testid="tile-info" style={{ padding: "8px 0", borderTop: `1px solid ${THEME.line}` }}>
       {/* FR-370: the heading's button drops the selection (Escape does too, one step at a time) */}
-      <h3 className="tile-info-heading">
+      <h3 ref={heading} className="tile-info-heading">
         Tile Info
         <button
           type="button"

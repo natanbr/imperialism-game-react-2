@@ -11,24 +11,27 @@ import {
   type RejectReason,
   type ValidationResult,
 } from "@/engine";
-import { areTilesAdjacent, canBuildRailAt } from "@/engine/map/mapHelpers";
-import { findWorker, isRailNode, railSectionStart, tileById } from "@/engine/orders/queries";
+import { areTilesAdjacent } from "@/engine/map/mapHelpers";
+import { findWorker, isRailNode, railOnMoveStart, railSectionStart, tileById } from "@/engine/orders/queries";
 import { REFUSAL_TEXT, refusalText } from "@/components/gameText";
 import { refusalDetail, spendQuestion } from "@/components/tileSiteText";
 import { useGameStore } from "@/store/rootStore";
 import type { PendingSpend } from "@/store/controls/controlsSlice";
 import type { GameState } from "@/types/GameState";
 import type { PossibleAction } from "@/types/actions";
+import { TerrainType } from "@/types/Tile";
 import { WorkerType } from "@/types/Workers";
 import type { CursorAction } from "./tileCursor";
 import { getPossibleAction } from "./useTileActions";
 
 /**
  * The orders a plain move tries, best first. An engineer stepping onto a neighbour builds rail on
- * the way: onto a tile without rail by rail-on-move; from a rail node onto a rail node not yet
- * linked to it, the section between the two (FR-137), else two networks that meet head on could
- * never be joined by a click. Otherwise, and as the fallback, it just moves; so does a step between two tiles the rail
- * already joins (FR-446: the capital is no tile with rail of its own, and rail-on-move onto it was tried and refused).
+ * the way: by rail-on-move where the engine's railOnMoveStart finds the section it would build;
+ * from a rail node onto a rail node not yet linked to it, the section between the two (FR-137),
+ * else two networks that meet head on could never be joined by a click. Otherwise, and as the
+ * fallback, it just moves: a step between two tiles the rail already joins (FR-446), or onto a
+ * tile where rail-on-move would be refused (FR-461; the map's own canBuildRailAt said yes to the
+ * capital and to a depot the rail already reaches, and the click said "Rail refused").
  */
 export function moveOrders(state: GameState, nationId: string, workerId: string, toTileId: string): Order[] {
   const from = findWorker(state, workerId);
@@ -38,9 +41,9 @@ export function moveOrders(state: GameState, nationId: string, workerId: string,
   const engineerStep =
     from.worker.type === WorkerType.Engineer && areTilesAdjacent(state.map, from.tile.x, from.tile.y, to.x, to.y);
   if (!engineerStep) return [move];
-  // Two neighbouring rail nodes with no section to start between them are already joined
-  if (isRailNode(from.tile, nationId) && isRailNode(to, nationId) && !railSectionStart(state, nationId, to, from.tile)) return [move];
-  if (canBuildRailAt(state.map, to.x, to.y, nationId)) return [{ kind: "moveAndBuildRail", nationId, workerId, toTileId }, move];
+  // The capital is where the rail network starts: only a section from the engineer's rail node reaches it (FR-378, FR-461)
+  const capital = to.terrain === TerrainType.Capital;
+  if (!capital && railOnMoveStart(state, nationId, from.tile, to)) return [{ kind: "moveAndBuildRail", nationId, workerId, toTileId }, move];
   if (isRailNode(to, nationId) && railSectionStart(state, nationId, to, from.tile)) {
     return [{ kind: "moveAndStartConstruction", nationId, workerId, toTileId, structure: "rail", fromTileId: from.tile.id }, move];
   }

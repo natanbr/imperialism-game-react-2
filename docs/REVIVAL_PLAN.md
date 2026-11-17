@@ -256,7 +256,7 @@ unmerged, and the night stops there.
 **Status 2026-11-13: v2 (M5 to M10) is merged.** M5 PR 23, M6 PR 24, M7 PR 25, M8 PR 26, M9 PR 27,
 M10 PR 28 (main 69ed08b). Requirements FR-144 to FR-317, every one tested; the gate on the last
 merge: 2001 unit tests, 38 Playwright tests passed (1 skipped, the known rail-cursor fixme). Open
-decision cards and carried notes are in `docs/journal.md` ("Resuming here") and on the progress page.
+decision cards are on the progress page; the carried notes of that time are in `docs/journal/archive-resuming-before-M12.md`.
 
 **Status 2026-11-14 (audit).** After M11 (main a690759) Nathan asked for an honest review (NR-033). Eight audit tracks
 played the running app and the headless engine and wrote 160 findings (34 major, 92 minor, 34 nit) to
@@ -265,35 +265,56 @@ mutations caught), but the player-facing UI has many real bugs and texts that do
 nations barely play, and large parts of Imperialism were never put on any milestone (technology, University, ships and
 sea war, saving, credit, town growth). The old "100% done" meant only that the compact scope of M0 to M11 passed its own
 tests. The findings are grouped into themes T1 to T16, and the themes into milestones M12 to M18 below, ordered by player
-impact and by dependency. M12's requirements are FR-357 to FR-443 with cards Q79 to Q104 (`docs/requirements.md`).
+impact and by dependency. M12's requirements started as FR-357 to FR-443 with cards Q79 to Q104 (`docs/requirements.md`).
 
-**M12, Honest game (L; themes T1 to T10).** Everything a player can see wrong or that lies: save and load (T1), moving
-the map (T2), Tile Info, refusals and the news where the player looks (T3), click and order bugs and hidden costs (T4),
-transport sliders that limit (T5), honest money figures (T6), honest war and diplomacy (T7), robustness and small screens
-(T8), first-turn guidance (T9), and project documents that match the code (T10). No new game system. Done when: every
-FR-357 to FR-443 row is tested, the full gate is green (unit, lint, types, build, Playwright), a reload keeps the game,
-and a browser QA pass at 1280x720, 800x600 and 390x844 cannot reproduce the T1 to T10 findings. Depends on: nothing.
+**Status 2026-11-16 (NR-034).** M12 is built and in a pull request (FR-357 to FR-464 gated, the close-out FR-461 to FR-464 included; cards Q79 to Q107). Nathan asked to keep
+going: a better HUD (M12b, FR-465 to FR-480, `docs/specs/hud.md`), then M13 to M16 (FR-481 to FR-528,
+`docs/specs/m13-m16.md`, cards Q108 to Q135), planned and not built. The progress page and `docs/report/roadmap.json` show
+the same state.
 
-**M13, Computer nations that play (L; T11).** The computer recruits workers and regiments when it needs them, runs
-steady campaigns, defends and counter-attacks when invaded, staffs the mills it builds, and makes deals and proposals to
-the player; measured on random seeds, not only on pinned ones. Done when: over random seeds it starts a war in most games
-(today 19% to 33% by the seed set: 23 of 120 seeds in ARMY-WAR-02, 8 of 24 in AISIM-01), an invaded computer recruits and fights back, and its workforce no longer shrinks. Depends
-on: M12 (honest screens to watch it with; FR-408's peace rule). Findings: AISIM-01 to -04, ARMY-WAR-01 to -03,
+**M12, Honest game (L; themes T1 to T10): built, in a pull request (2026-11-16).** Everything a player can see wrong or
+that lies: save and load (T1), moving the map (T2), Tile Info, refusals and the news where the player looks (T3), click
+and order bugs and hidden costs (T4), transport sliders that limit (T5), honest money figures (T6), honest war and
+diplomacy (T7), robustness and small screens (T8), first-turn guidance (T9), and project documents that match the code
+(T10); then a QA fix round (FR-444 to FR-453), the AI margin (FR-454 to FR-460) and the close-out (FR-461 to FR-464).
+Requirements FR-357 to FR-464, cards Q79 to Q107; Nathan decided Q79 to Q83 as suggested and ruled Q102 the other way
+(keep the debug group). Gate 4 on b384b99 (FR-357 to FR-460): 2438 unit tests, lint 0 errors, tsc and build clean,
+Playwright 92 passed and 1 skipped (FR-372 parked). The close-out rows FR-461 to FR-464 passed gate 5: 2446 unit tests, lint
+0 errors, tsc and build clean, Playwright 92 passed and 1 skipped. Not yet merged: Nathan reviews the pull request.
+
+**M12b, A better HUD (M; NR-034).** The right pane stops being one long scroll. A top bar holds the nation, the turn and
+the Council countdown, cash, score and rank, the dialog buttons as icons and the one Advance Turn button, always on screen;
+the right pane keeps Tile Info, alerts and the news, and moves the rest into closed accordion groups. Rows FR-465 to
+FR-480 (`docs/specs/hud.md`), cards Q108 to Q113 (Nathan decided Q113: one static Advance Turn, never at the bottom of a
+scroll). Done when: at 1280x720, 800x600 and 390x844 the bar and Advance Turn are inside the window on turn 1 and with a
+long news list, no accessible name the tests use is lost, and the full gate is green. Depends on: M12 merged.
+
+**M13, Computer nations that play (L; T11).** The computer recruits the regiments it can raise, keeps its workforce and
+staffs its mills, defends and counter-attacks when invaded, competes for votes and trades with the player, and may go to
+war with the player for one province once Arvelia is gone (cards Q114, Q115; needs an answer before the military lane
+finishes). Rows FR-481 to FR-500, spec `docs/specs/m13-m16.md`; a sim harness measures it on random seeds. Done when:
+over random seeds the computer starts a war in most games (today 19% to 33%), an invaded computer recruits and fights back,
+and its workforce no longer shrinks. Depends on: M12. Findings: AISIM-01 to -04, ARMY-WAR-01 to -03,
 diplomacy-council-02 and -03, MKT-02, MKT-13.
 
-**M14, A game that can end well (M; T12).** The final ranking counts provinces, army and the Council; the last Council
-is a forced vote; a peaceful Council win can be reached; conquest is no longer the cheapest score. Done when: headless
-games end by Council in a measured share, and a peaceful path to 9 votes exists in a test. Depends on: M13 (a rival that
-plays). Findings: RULES-GAP-11, FR-TRUTH-02, AISIM-05, diplomacy-council-01 and -14, ARMY-WAR-18.
+**M14, A game that can end well (M; T12).** Every continent game ends with a result that follows the rules: the last
+Council is a forced vote, the final table counts provinces and army, and a conquered province counts only when collected.
+With two Great Powers, 7 of 12 votes win (card Q121, needs Nathan before FR-503 is built): the old goal "a peaceful path
+to 9 votes" cannot be met on this map (the best peaceful total is 8), so it is replaced. Rows FR-501 to FR-510. Done when:
+headless games end by Council in a measured share and a peaceful path to 7 votes exists in a test. Depends on: M13 (a rival
+that plays). Findings: RULES-GAP-11, FR-TRUTH-02, AISIM-05, diplomacy-council-01 and -14, ARMY-WAR-18.
 
-**M15, People and ships (L; T13).** The University and civilian training, the Shipyard and a merchant marine that
-grows past 4 holds, a source of horses, and minor nations whose supply, demand and prices move. Done when: a nation can
-build a civilian and a cargo ship in the app, and horses can be replenished. Depends on: M12. Findings: ECONOMY-13,
-RULES-GAP-03, MKT-01, RULES-GAP-04, FR-TRUTH-16, ARMY-WAR-09, RULES-GAP-09, MKT-09, MKT-10, RULES-GAP-13.
+**M15, People and ships (L; T13).** The University and civilian training, disbanding a civilian, the Shipyard and a
+merchant marine that grows past 4 holds, and a source of horses. Living minors are left out (card Q128). Rows FR-511 to
+FR-518. Done when: a nation can build a civilian and a cargo ship in the app, and horses can be replenished. Depends on:
+M12. Findings: ECONOMY-13, RULES-GAP-03, MKT-01, RULES-GAP-04, FR-TRUTH-16, ARMY-WAR-09, RULES-GAP-09, MKT-09,
+MKT-10, RULES-GAP-13.
 
-**M16, Technology (L; T14).** The technology list, its purchase screen and its effects (development levels 2 and 3,
-the Oil Refinery, fuel and power). Done when: a technology bought in the app unlocks what the rules say, and levels 2 and
-3 need it. Depends on: M15 (the University). Findings: FR-TRUTH-03, RULES-GAP-01, -02, -16 and -23, UIV-09.
+**M16, Technology (L; T14).** The 28 technologies, each nation's own list, the clock by year, the purchase screen and the
+effects (development levels 2 and 3, the Oil Refinery, fuel and power); the computer buys too. Rows FR-519 to FR-528.
+Needs Nathan's answer to card Q130 (game length and technology years) before it starts. Done when: a technology bought in
+the app unlocks what the rules say, and levels 2 and 3 need it. Depends on: M15 (the University). Findings: FR-TRUTH-03,
+RULES-GAP-01, -02, -16 and -23, UIV-09.
 
 **M17, Sea war and reach (L; T15).** A navy, sea transport and landings, so the island minors can be reached and
 attacked, and army transport by rail. Done when: an army lands on Sundmark in the app and the war-on-islands block of

@@ -9,28 +9,24 @@ import { scriptedPlayer, type Player } from '@/engine/ai/scriptedPlayer';
 import { CASH_RESERVE, cashReserve, collectedAtLogistics, hubLabourNeed, PAIR_VALUE, planFinalTransport, priorityPlan, shippingWants } from '@/engine/ai/economy';
 import { transportShipments } from '@/engine/systems/logisticsSystem';
 import { bestDepotSite, capitalComponent, paybackTurns, railPath } from '@/engine/ai/railPlan';
-import { addDepot, addRailroad, railLinksOf } from '@/engine/systems/railroadSystem';
-import { scoreOf } from '@/engine/score/score';
+import { addDepot, addRailroad } from '@/engine/systems/railroadSystem';
 import { turnLimitOf } from '@/engine/turn/gameOver';
 import type { Order } from '@/engine/orders/Order';
 import type { GameState } from '@/types/GameState';
 import { ResourceType } from '@/types/Resource';
 import { withoutStartForces } from './armyFixtures';
 import { m4ScriptedPlayer } from './m4ScriptedPlayer';
-import { railBound, railDeadEnds } from './railBound';
-import { emptyWarehouse, invariantViolations, N2, nationOf, setBuilding, setIndustry, setTile, setTreasury, setWarehouse, tileAt } from './fixtures';
+import { emptyWarehouse, N2, nationOf, setBuilding, setIndustry, setTile, setTreasury, setWarehouse, tileAt } from './fixtures';
+import { CHECKPOINTS, play, SEEDS, start, type Game } from './scriptedGame';
 
 const ENGINEER_2 = 'worker-nation-2-7';
 const PROSPECTOR_2 = 'worker-nation-2-1';
-const SEEDS = [1, 2, 3, 4];
-const CHECKPOINTS = [15, 25, 40];
 /**
  * FR-125: at least half again the frozen M4 player's score. Measured lowest ratio 1.55 (seed 3, turn 15: 614 vs 396)
  * since M4.3, when a depot started needing its own rail section (FR-136); 1.60 before.
  */
 const MARGIN = 1.5;
 
-const start = (seed = 1): GameState => newGame({ seed });
 const atTurn = (s: GameState, turn: number): GameState => ({ ...s, turn });
 const lastTurn = (s: GameState): GameState => atTurn(s, turnLimitOf(s));
 const ordersOf = (s: GameState): Order[] => scriptedPlayer(s, N2);
@@ -44,40 +40,6 @@ const allAtLevel = (s: GameState, level: number): GameState => ({
   ...s,
   map: { ...s.map, tiles: s.map.tiles.map(row => row.map(t => (t.ownerNationId === N2 && t.resource ? { ...t, resource: { ...t.resource, level } } : t))) },
 });
-
-interface Checkpoint { turn: number; score: number; depotsJoined: number; links: number; bound: number; deadEnds: string[] }
-/** FR-125 health: nation 2's meals (`workers-fed`) and the invariants, every turn. */
-interface Health { meals: number; sick: number; starved: number; violations: string[] }
-/** `councils`: the `council-met` events of the game (FR-305: none on two-islands). */
-interface Game { checkpoints: Checkpoint[]; refused: number; health: Health; councils: number; final: GameState }
-
-/** 40 turns from the real new game; nation 2's orders from `orders`, none for nation 1. */
-function play(orders: (s: GameState) => Order[], seed: number): Game {
-  let state = start(seed);
-  let refused = 0;
-  const checkpoints: Checkpoint[] = [];
-  const health: Health = { meals: 0, sick: 0, starved: 0, violations: [] };
-  let councils = 0;
-  for (let turn = 1; turn <= 40; turn++) {
-    const result = resolveTurn(state, { [N2]: orders(state) }, state.seed);
-    refused += result.events.filter(e => e.type === 'order-rejected' && e.nationId === N2).length;
-    councils += result.events.filter(e => e.type === 'council-met').length;
-    for (const e of result.events) {
-      if (e.type !== 'workers-fed' || e.nationId !== N2) continue;
-      health.meals++;
-      health.sick += e.sick;
-      health.starved += e.starved;
-    }
-    state = result.state;
-    health.violations.push(...invariantViolations(state).map(v => `turn ${turn}: ${v}`));
-    if (!CHECKPOINTS.includes(turn)) continue;
-    const component = capitalComponent(state, N2);
-    const depotsJoined = state.transportNetwork.railroadNetworks![N2].depots.filter(d => d.isActive && component.has(`${d.x},${d.y}`)).length;
-    const links = railLinksOf(state).filter(l => l.nationId === N2).length;
-    checkpoints.push({ turn, score: scoreOf(state, N2).total, depotsJoined, links, bound: railBound(state, N2), deadEnds: railDeadEnds(state, N2) });
-  }
-  return { checkpoints, refused, health, councils, final: state };
-}
 
 describe('FR-125 score acceptance: 40 turns of nation 2 on seeds 1 to 4', () => {
   const now = new Map<number, Game>();

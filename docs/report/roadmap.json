@@ -155,14 +155,14 @@
     "text": "94 full games of 40 turns: 0 invariant breaks, identical replays."
    },
    {
-    "value": "2111",
+    "value": "2438",
     "label": "Unit tests pass",
-    "text": "Engine 1285, store and screens 826. Type check clean, lint 0 errors, 98.4% of lines covered."
+    "text": "On the M12 branch at b384b99: 117 test files. Type check clean, lint 0 errors, build clean."
    },
    {
-    "value": "51",
+    "value": "92",
     "label": "End-to-end tests pass",
-    "text": "Playwright in a real browser, 1 skipped (an old cursor case)."
+    "text": "Playwright in a real browser on the M12 branch at b384b99, 1 skipped (FR-372, parked for the new HUD)."
    },
    {
     "value": "42 of 43",
@@ -180,7 +180,7 @@
    "text": "Of 24 rule topics of the original game: 3 built, 14 partial, 1 wrong, 1 dead code, 5 missing."
   },
   "notChecked": "Not checked by the audit: Firefox and Safari, real touch on a phone, screen readers, and a human game played all the way to a Council win.",
-  "notFixed": "No finding is fixed yet. This page records what was found and what is planned. Main is a690759 (after M11 and three housekeeping merges); M12 is built on the branch claude/m12-honest-game.",
+  "notFixed": "M12 (themes T1 to T10, FR-357 to FR-464) is built on the branch claude/m12-honest-game and is in a pull request, not merged: main is still a690759 (after M11 and three housekeeping merges), so the findings are fixed on the branch only. Themes T11 to T16 are not fixed: M12b and M13 to M16 are planned, M17 and M18 later.",
   "filedNote": "The plan named 122 of the 160 findings in its themes. I filed the other 38 under the nearest theme; they are marked \"filed\" and can be moved."
  },
  "statusLegend": [
@@ -1250,13 +1250,13 @@
   }
  ],
  "plan": {
-  "orderNote": "The order follows player impact first, then dependency. M12 and M13 come first because they are what a player meets in the first hour: lies, lost games and an opponent that does not play. M16 needs M15's University, and M17 needs M15's Shipyard. Tonight the plan is M12 and M13 in full, then as far as the quota goes.",
+  "orderNote": "The order follows player impact first, then dependency. M12 is built and waits for review. M12b (the HUD, which you asked for) and M13 are planned for tonight; M14 to M16 follow, as far as the quota goes. M16 needs M15's University, and M17 needs M15's Shipyard. Cards marked \"Needed before\" decide work that cannot be finished without your answer.",
   "milestones": [
    {
     "id": "M12",
     "title": "Honest game",
-    "status": "tonight",
-    "statusLabel": "Planned for tonight",
+    "status": "built",
+    "statusLabel": "Built, in a pull request",
     "themes": [
      "T1",
      "T2",
@@ -1269,7 +1269,7 @@
      "T9",
      "T10"
     ],
-    "goal": "Fix everything a player can see wrong or that lies: saving, map movement, the tile panel, hidden costs, transport sliders, money figures, war and diplomacy wording, small screens, first-turn guidance and the project documents. No new game systems.",
+    "goal": "Fix everything a player can see wrong or that lies: saving, map movement, the tile panel, hidden costs, transport sliders, money figures, war and diplomacy wording, small screens, first-turn guidance and the project documents. No new game systems. Built on the branch, with a QA fix round (FR-444 to FR-453), an AI margin (FR-454 to FR-460) and a close-out (FR-461 to FR-464).",
     "check": [
      "Reload the page and press Continue: your game is back (card Q79).",
      "Scroll the map with the wheel, keys or touch, and zoom it.",
@@ -1279,7 +1279,7 @@
      "Open the game at phone width: Capital, Diplomacy and Board of Trade are usable.",
      "The full gate is green (unit tests, lint, types, build, Playwright), and a browser pass at 1280x720, 800x600 and 390x844 cannot reproduce the findings M12's rows fix: 85 of the 103 in themes T1 to T10 (the other 18 nits and minors are listed under \"Not in M12\" in docs/requirements.md)."
     ],
-    "depends": "Nothing. It starts first.",
+    "depends": "Nothing. It started first; it is built and waits for your review of the pull request.",
     "findings": 103,
     "severity": {
      "major": 9,
@@ -1290,7 +1290,39 @@
      "S": 86,
      "M": 15,
      "L": 2
-    }
+    },
+    "statusText": "Built on the branch claude/m12-honest-game, in a pull request, not merged. Gate 4 on b384b99 (FR-357 to FR-460): 2438 unit tests, lint 0 errors, tsc and build clean, Playwright 92 passed and 1 skipped. The close-out rows FR-461 to FR-464 are tested; gate 5 on the close-out: 2446 unit tests, lint 0 errors, tsc and build clean, Playwright 92 passed and 1 skipped. Parked: FR-372 (eight whole news lines at 1280x720; the new HUD, M12b, decides it).",
+    "spec": "docs/requirements.md, section M12"
+   },
+   {
+    "id": "M12b",
+    "title": "A better HUD",
+    "status": "tonight",
+    "statusLabel": "Planned for tonight",
+    "themes": [],
+    "goal": "The right pane stops being one long scroll. A top bar holds your nation, the turn and the Council countdown, cash, score and rank, the dialog buttons as icons, and the one Advance Turn button; the right pane keeps Tile Info, alerts and the news, and moves the rest into closed groups. You asked for this (NR-034); it follows the original game's layout.",
+    "check": [
+     "A top bar across the window shows your nation, the turn and date, cash with last turn's change, and score with its rank.",
+     "There is exactly one Advance Turn button, always on screen: at 1280x720, 800x600 and 390x844, on turn 1 and with a long news list (card Q113).",
+     "The right pane starts with Tile Info, then alerts and the news; Nation, Work in progress and Details for bug reports are closed groups you open (cards Q102, Q108 to Q112).",
+     "At 1280x720 the news shows at least 8 whole lines on turn 2, and nothing the old pane showed is lost."
+    ],
+    "depends": "M12 (the HUD it rebuilds). It answers NR-034; the audit findings UIV-04, UIV-05 and UIV-20 are touched by it.",
+    "findings": 0,
+    "severity": {
+     "major": 0,
+     "minor": 0,
+     "nit": 0
+    },
+    "size": {
+     "S": 0,
+     "M": 0,
+     "L": 0
+    },
+    "statusText": "Rows FR-465 to FR-480 are written (docs/specs/hud.md) and the build is under way tonight. Nothing is merged.",
+    "sizeText": "Medium: 16 rows (FR-465 to FR-480), one lane. It has no audit findings of its own.",
+    "fixesText": "None of the 16 themes (it answers NR-034)",
+    "spec": "docs/specs/hud.md"
    },
    {
     "id": "M13",
@@ -1300,14 +1332,15 @@
     "themes": [
      "T11"
     ],
-    "goal": "Make the computer nations play a real game: recruit workers and regiments, run steady campaigns, defend and counter-attack, staff their mills, and make deals with you.",
+    "goal": "Make the computer nations play a real game: recruit the regiments they can raise, keep their workers and staff their mills, defend and counter-attack when invaded, compete for votes, trade with you, and once Arvelia is gone possibly go to war with you for one province. A sim harness measures it on random seeds.",
     "check": [
      "Watch 10 games: the computer starts a war in most of them (today 19% to 33%, by the seed set: 23 of 120 seeds in ARMY-WAR-02, 8 of 24 in AISIM-01).",
      "Invade Valdoria: it recruits and fights back instead of losing 3 provinces in 3 turns.",
-     "The computer offers you a trade deal or a pact.",
-     "Its workforce no longer shrinks from 7 to 4 or 5."
+     "The computer offers you a trade deal, and trades steel, lumber and goods with you.",
+     "Its workforce no longer shrinks from 7 to 4 or 5.",
+     "After Arvelia falls it may declare war on you, take one province and offer peace (cards Q114 and Q115)."
     ],
-    "depends": "M12 (honest screens to watch it with, and the peace rule of FR-408).",
+    "depends": "M12 merged (honest screens to watch it with, and the peace rule of FR-408). Your answers to Q114 and Q115 before its military lane is finished.",
     "findings": 11,
     "severity": {
      "major": 8,
@@ -1318,7 +1351,9 @@
      "S": 2,
      "M": 9,
      "L": 0
-    }
+    },
+    "statusText": "Rows FR-481 to FR-500 are written (docs/specs/m13-m16.md), not built. Cards Q114 and Q115 (war on you) need your answer before the military lane is finished.",
+    "spec": "docs/specs/m13-m16.md"
    },
    {
     "id": "M14",
@@ -1330,12 +1365,12 @@
     ],
     "goal": "Make the end of a game fair: a forced last Council vote, a way to win by diplomacy, a ranking that counts provinces, and conquest that is no longer the cheapest score.",
     "check": [
-     "At the turn-40 Council every governor must pick a side.",
-     "A game can be won by votes without taking land.",
-     "The final ranking shows and counts provinces.",
-     "Headless games end by Council in a measured share, and a peaceful path to 9 votes exists in a test."
+     "At the turn-40 Council every governor must pick a side, and the vote names a winner (cards Q120 and Q122).",
+     "A game can be won by votes without taking land: with two Great Powers 7 of 12 votes win (card Q121). The old goal of 9 votes cannot be met on this map; the best peaceful total is 8.",
+     "The final ranking shows and counts provinces and army, and a conquered province counts only when it is collected.",
+     "Headless games end by Council in a measured share, and a peaceful path to 7 votes exists in a test."
     ],
-    "depends": "M13 (a rival that plays), and your answers to Q51 (votes needed), Q53 (forced last vote) and Q34 (what a fallen capital gives).",
+    "depends": "M13 (a rival that plays), and your answers to Q121 (votes needed), Q120 and Q122 (forced last vote) and Q34 (what a fallen capital gives).",
     "findings": 7,
     "severity": {
      "major": 4,
@@ -1346,7 +1381,9 @@
      "S": 3,
      "M": 4,
      "L": 0
-    }
+    },
+    "statusText": "Rows FR-501 to FR-510 are written, not built. Card Q121 (7 of 12 votes with two Great Powers) needs your answer before FR-503.",
+    "spec": "docs/specs/m13-m16.md"
    },
    {
     "id": "M15",
@@ -1356,14 +1393,14 @@
     "themes": [
      "T13"
     ],
-    "goal": "Build the University (civilians), the Shipyard (cargo holds past 4), a source of horses, and minor nations whose offers, demand and prices change over time.",
+    "goal": "Build the University (civilians), disbanding a civilian, the Shipyard (cargo holds past 4) and a source of horses. Minor nations whose offers, demand and prices change are left out of this milestone (card Q128).",
     "check": [
-     "Order a new civilian at the University and see it on the map.",
+     "Order a new civilian at the University in the Capital dialog and see it on the map next turn.",
+     "Disband a civilian in Tile Info: it becomes an expert worker.",
      "Order a ship at the Shipyard: your trade limit rises above 4 units a turn.",
-     "Horses can be bought or produced again.",
-     "A minor nation's offers and demand change during the game."
+     "Horses can be bought or produced again."
     ],
-    "depends": "Nothing hard; planned after M12 so costs and money are honest first.",
+    "depends": "M12 merged; planned after it so costs and money are honest first. Card Q128 decides whether living minors belong here.",
     "findings": 10,
     "severity": {
      "major": 5,
@@ -1374,7 +1411,9 @@
      "S": 1,
      "M": 6,
      "L": 3
-    }
+    },
+    "statusText": "Rows FR-511 to FR-518 are written, not built.",
+    "spec": "docs/specs/m13-m16.md"
    },
    {
     "id": "M16",
@@ -1384,12 +1423,13 @@
     "themes": [
      "T14"
     ],
-    "goal": "Add the technology system: buy technologies, gate levels and civilians behind them, and make the Technology button work.",
+    "goal": "Add the technology system: 28 technologies, each nation with its own list, available by year, bought with cash on the Technology screen; development levels 2 and 3 and some civilians need their technology, and the computer buys technologies too.",
     "check": [
      "The Technology button opens a screen where you buy a technology with cash.",
-     "A level 2 or 3 development or a Rancher is refused until its technology is owned."
+     "A level 2 or 3 development or a Rancher is refused until its technology is owned.",
+     "A new technology is announced in the news on the turn it becomes available."
     ],
-    "depends": "M15 (the University).",
+    "depends": "M15 (the University), and your answer to Q130 (game length and technology years) before it starts.",
     "findings": 6,
     "severity": {
      "major": 3,
@@ -1400,7 +1440,9 @@
      "S": 2,
      "M": 2,
      "L": 2
-    }
+    },
+    "statusText": "Rows FR-519 to FR-528 are written, not built. Card Q130 (game length and technology years) needs your answer before M16 starts.",
+    "spec": "docs/specs/m13-m16.md"
    },
    {
     "id": "M17",
@@ -1460,7 +1502,7 @@
   {
    "id": "Q79",
    "title": "Should the game save itself automatically, in this browser only?",
-   "status": "open",
+   "status": "done",
    "context": "Today reloading, going back or closing the tab destroys a 40-turn game with no warning (UIV-01).",
    "options": [
     {
@@ -1484,12 +1526,13 @@
     "RULES-GAP-10",
     "diplomacy-council-13"
    ],
-   "group": "new"
+   "group": "decided",
+   "ruling": "Nathan, 2026-11-16 (\"Q79 your suggestion, Q80, Q81, Q82, Q83 your suggestion\"): the default below, built in M12 (FR-357 to FR-363)."
   },
   {
    "id": "Q80",
    "title": "Should a transport slider you set be a hard limit?",
-   "status": "open",
+   "status": "done",
    "context": "Today every slider limits nothing: set all to 0 and \"Remaining 15\" still ships everything (ECONOMY-01).",
    "options": [
     {
@@ -1507,12 +1550,13 @@
     "ECONOMY-01",
     "ECONOMY-15"
    ],
-   "group": "new"
+   "group": "decided",
+   "ruling": "Nathan, 2026-11-16 (\"Q79 your suggestion, Q80, Q81, Q82, Q83 your suggestion\"): the default below, built in M12 (FR-389, FR-390)."
   },
   {
    "id": "Q81",
    "title": "Where should refusals and errors be shown?",
-   "status": "open",
+   "status": "done",
    "context": "Today the reason for a refused order shows only in the lower part of the side panel, which is below the fold (UIV-04, UIV-05).",
    "options": [
     {
@@ -1532,12 +1576,13 @@
     "ECONOMY-16",
     "MKT-14"
    ],
-   "group": "new"
+   "group": "decided",
+   "ruling": "Nathan, 2026-11-16 (\"Q79 your suggestion, Q80, Q81, Q82, Q83 your suggestion\"): the default below, built in M12 (FR-371, FR-373)."
   },
   {
    "id": "Q82",
    "title": "Should a costly order ask once before it spends?",
-   "status": "open",
+   "status": "done",
    "context": "Today one click can spend $1,000 to $5,000 on a level 2 or 3 job or a fort with no price shown (ECONOMY-04, ECONOMY-10).",
    "options": [
     {
@@ -1562,12 +1607,13 @@
     "ECONOMY-09",
     "MKT-17"
    ],
-   "group": "new"
+   "group": "decided",
+   "ruling": "Nathan, 2026-11-16 (\"Q79 your suggestion, Q80, Q81, Q82, Q83 your suggestion\"): the default below, built in M12 (FR-383, FR-386, FR-422)."
   },
   {
    "id": "Q83",
    "title": "Should war on a minor with no land border be blocked until ships exist?",
-   "status": "open",
+   "status": "done",
    "context": "Today the game offers war on Sundmark, Lorran and Pellis, which can never be attacked (ARMY-WAR-05, FR-TRUTH-01).",
    "options": [
     {
@@ -1586,7 +1632,8 @@
     "FR-TRUTH-01",
     "AISIM-07"
    ],
-   "group": "new"
+   "group": "decided",
+   "ruling": "Nathan, 2026-11-16 (\"Q79 your suggestion, Q80, Q81, Q82, Q83 your suggestion\"): the default below, built in M12 (FR-406, FR-407)."
   },
   {
    "id": "Q84",
@@ -1999,7 +2046,7 @@
   {
    "id": "Q102",
    "title": "Hide the Debug box?",
-   "status": "open",
+   "status": "done",
    "context": "Today a \"Debug\" box with the tile id and the game seed is shown to every player in the HUD (ECONOMY-18, UIV-07).",
    "options": [
     {
@@ -2011,19 +2058,19 @@
      "means": "Gone for everyone, including you; the seed is then harder to read out."
     }
    ],
-   "suggestion": "The default.",
-   "objection": "Bug reports lose the seed unless the reporter knows the switch.",
+   "suggestion": "Not taken: Nathan ruled the other way (see Ruled).",
    "ids": [
     "ECONOMY-18",
     "UIV-07"
    ],
-   "group": "new"
+   "group": "decided",
+   "ruling": "Nathan, 2026-11-16: \"keep the debug\". The bug-report details stay and show without ?debug, in a closed group \"Details for bug reports\" in the right pane (FR-476, built in M12b). This replaces the default above and ends FR-377's ?debug rule once M12b is built."
   },
   {
    "id": "Q103",
    "title": "A baseline moves: keep the old behaviour or re-record the number?",
    "status": "open",
-   "context": "Several M12 changes move numbers that tests pin for the scripted player: transport sliders (FR-389), the favourite partner (FR-401) and the score (FR-403). This card has no finding of its own; the ids are the findings behind those three changes (FR-405). Measured at the M12 integration: FR-403 and the 1.5 margin conflict. The frozen M4 player's level-3 tiles gain 40 points each, the scripted player builds none, and the margin at turn 15 falls to 1.39 to 1.46 (FR-125 red, not loosened). Choose: an AI task for the scripted player's early economy, a lower turn-15 margin, or a smaller level-3 value. Review round 2 (2026-11-16): changing the scripted player's cash reserve ($1,500 to $6,000) leaves the lowest turn-15 ratio at 1.35 to 1.42, so the AI task is a work item of its own, not a constant.",
+   "context": "Several M12 changes move numbers that tests pin for the scripted player: transport sliders (FR-389), the favourite partner (FR-401) and the score (FR-403). This card has no finding of its own; the ids are the findings behind those three changes (FR-405). Measured at the M12 integration: FR-403 and the 1.5 margin conflict. The frozen M4 player's level-3 tiles gain 40 points each, the scripted player builds none, and the margin at turn 15 falls to 1.39 to 1.46 (FR-125 red, not loosened). Choose: an AI task for the scripted player's early economy, a lower turn-15 margin, or a smaller level-3 value. Review round 2 (2026-11-16): changing the scripted player's cash reserve ($1,500 to $6,000) leaves the lowest turn-15 ratio at 1.35 to 1.42, so the AI task is a work item of its own, not a constant. Update 2026-11-16: the AI task was done (M12 strategy C, FR-454 to FR-458): the scripted player holds the 1.5 margin on seeds 1 to 4 (lowest 1.50, seed 3 at turn 25), so FR-125 is green again; the baselines that moved were re-recorded with their reasons (Q105 to Q107).",
    "options": [
     {
      "label": "Default: re-record the number with its reason",
@@ -2128,6 +2175,692 @@
    "objection": "The same fault FR-460 fixes for a nation without an army stays for a nation with one.",
    "ids": [
     "Q103"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q108",
+   "title": "Should the top bar have Army and Council buttons?",
+   "status": "open",
+   "context": "The original game has an army panel on the map screen. Here no standing screen exists behind such buttons: the Army screen needs a province (it opens from the map) and the Council screen only replays a meeting from the news. Council information sits in the turn block and the Nation group.",
+   "options": [
+    {
+     "label": "Default: not now",
+     "means": "The bar holds the six dialog buttons, Center, New game, About and Advance Turn. No new behaviour."
+    },
+    {
+     "label": "Army and Council buttons",
+     "means": "\"Army\" opens the Army screen for the capital's province; \"Council\" opens the last meeting (disabled before turn 10). Small, but new behaviour that needs its own rows."
+    }
+   ],
+   "suggestion": "Not now, no Army or Council button.",
+   "objection": "The original has an army panel on the map screen, so players of the first game may look for it.",
+   "ids": [
+    "UIV-09"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q109",
+   "title": "New game and About as two buttons or a Game menu, and is a Save button needed?",
+   "status": "open",
+   "context": "The top bar needs a place for New game and About. Autosave runs on every order (FR-357, FR-358) and the \"Not saved\" alert covers the failure case.",
+   "options": [
+    {
+     "label": "Default: two plain buttons, no Save button",
+     "means": "Names stay for the e2e suite and no extra click."
+    },
+    {
+     "label": "A \"Game\" menu with New game, About and Save",
+     "means": "Fewer buttons in the bar; hides the names from the e2e suite and adds a click."
+    }
+   ],
+   "suggestion": "Two plain buttons and no Save button.",
+   "objection": "New game sits near Advance Turn and could be clicked by mistake. The FR-109 question already guards it.",
+   "ids": [
+    "UIV-01"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q110",
+   "title": "Should the right pane show a Warehouse summary group?",
+   "status": "open",
+   "context": "Open Warehouse is one click away in the top bar. A group with food, coal and iron would save that click while placing civilians.",
+   "options": [
+    {
+     "label": "Default: no group",
+     "means": "One copy of the stock list, in the Warehouse dialog."
+    },
+    {
+     "label": "A \"Warehouse summary\" group",
+     "means": "Food, coal and iron in the pane; a second copy of the stock list to keep in step."
+    }
+   ],
+   "suggestion": "No group now.",
+   "objection": "Seeing coal and grain while placing civilians saves a dialog round trip. It could come later as one line (food, coal, iron).",
+   "ids": [
+    "UIV-04"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q111",
+   "title": "Should the war lines stay always in sight, or move into the Nation group?",
+   "status": "open",
+   "context": "A war is rare and must not be missed. The alerts block under Tile Info costs 16 px per war.",
+   "options": [
+    {
+     "label": "Default: always in sight",
+     "means": "In the alerts under Tile Info, with the other warnings."
+    },
+    {
+     "label": "Inside the Nation group",
+     "means": "A calmer pane; the war line is hidden until the group is opened."
+    }
+   ],
+   "suggestion": "Always in sight.",
+   "objection": "The brief put the war lines in the Nation group to keep the pane calm.",
+   "ids": [
+    "ARMY-WAR-16"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q112",
+   "title": "With no tile selected, should the pane show a placeholder line or nothing?",
+   "status": "open",
+   "context": "FR-315 removed the \"No tile selected\" hint only to save space; the new pane has the room.",
+   "options": [
+    {
+     "label": "Default: one line",
+     "means": "\"No tile selected: click a tile on the map.\" It tells where Tile Info appears."
+    },
+    {
+     "label": "Nothing",
+     "means": "As FR-315 says today."
+    }
+   ],
+   "suggestion": "One line, the placeholder stays.",
+   "objection": "One more line of text that says nothing new to a returning player.",
+   "ids": [
+    "UIV-04"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q113",
+   "title": "Where does Advance Turn sit?",
+   "status": "done",
+   "context": "The HUD redesign moves the buttons out of the right pane. The spec suggested the top bar's right end; in the original, End Turn is a bar at the bottom of the right column. The other option was a full-width Advance Turn at the pane's bottom (about 40 px).",
+   "ruling": "Nathan, 2026-11-16: \"one STATIC end turn is enough, just do not force me to scroll to find it at the bottom\". So: exactly one Advance Turn button, always on screen, never scrolled away and never at the bottom of a scrolling pane. It is the top bar's right end (FR-466); FR-467 tests it at 1280x720, 800x600 and 390x844 on turn 1 and with a long news list.",
+   "ids": [
+    "UIV-20"
+   ],
+   "group": "decided"
+  },
+  {
+   "id": "Q114",
+   "title": "Should the computer go to war with the player?",
+   "status": "open",
+   "context": "After Arvelia falls (turn 16 or 17 in every game), the computer has nothing left to do for 23 turns. The rules report that the AI declares war when the military balance is lopsided (rules 10 section 3). Decides FR-488 (War on the other Great Power).",
+   "options": [
+    {
+     "label": "Option (a)",
+     "means": "Never, as today: an idle player is never threatened."
+    },
+    {
+     "label": "Option (b), suggested",
+     "means": "From turn 20, when its field army is twice the defence of our weakest border province, with limited aims (Q115)."
+    },
+    {
+     "label": "Option (c)",
+     "means": "Like (b), but also earlier and at random, by a \"personality\"."
+    }
+   ],
+   "suggestion": "Option (b).",
+   "objection": "A new or idle player loses a province around turn 25 in most games, and many continent pins move. Some testers will call a punished idle player unfair. The FR-495 warning is the answer to that.",
+   "ids": [
+    "ARMY-WAR-03",
+    "AISIM-04",
+    "diplomacy-council-03"
+   ],
+   "group": "new",
+   "needed": "Before the M13 military lane (FR-488 and FR-489) is finished and merged: it decides whether the computer may go to war with the player at all, and it changes every idle continent game and many pins. If nobody has answered by then, the night shift builds the suggestion and records it."
+  },
+  {
+   "id": "Q115",
+   "title": "What does the computer want from a war with the player?",
+   "status": "open",
+   "context": "Decides FR-489 (One province, then peace).",
+   "options": [
+    {
+     "label": "Option (a), suggested",
+     "means": "One province, then peace offers every 6 turns."
+    },
+    {
+     "label": "Option (b)",
+     "means": "Fight on while the estimate allows, which can take the capital and end the game by conquest."
+    },
+    {
+     "label": "Option (c)",
+     "means": "Take everything except the capital province."
+    }
+   ],
+   "suggestion": "Option (a).",
+   "objection": "It is predictable, and an expert player can bait it, for example by leaving a province weak on purpose. The Imp1 AI re-declares when it thinks the player took too much.",
+   "ids": [
+    "ARMY-WAR-03"
+   ],
+   "group": "new",
+   "needed": "Before the M13 military lane (FR-489) is finished and merged, together with Q114. Same default rule."
+  },
+  {
+   "id": "Q116",
+   "title": "Recruit workers: only to replace losses, or also to staff the mills?",
+   "status": "open",
+   "context": "NR-028 says the computer recruits to use its capacity. M4.4 measured that this lowers its score by about 6%, and FR-125's thinnest margin is 58.5 points (seed 3, turn 25: 903 against 844.5 needed), so a 6% loss would leave about 4. Decides FR-485 (Migrants keep the workforce), FR-486 (The mills it builds are staffed).",
+   "options": [
+    {
+     "label": "Option (a)",
+     "means": "FR-485 only: replace the workers its regiments took."
+    },
+    {
+     "label": "Option (b), suggested",
+     "means": "(a) plus FR-486, on worlds with provinces only."
+    },
+    {
+     "label": "Option (c)",
+     "means": "Both rules on both worlds: FR-125 would most likely fail."
+    }
+   ],
+   "suggestion": "Option (b).",
+   "objection": "The scripted player then has two rule sets, and the v1 world no longer shows how the continent AI plays.",
+   "ids": [
+    "AISIM-03",
+    "MKT-13"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q117",
+   "title": "How does the computer compete for minors' votes?",
+   "status": "open",
+   "context": "Decides FR-490 (Grants before a Council).",
+   "options": [
+    {
+     "label": "Option (a), suggested",
+     "means": "$1,000 grants in the 4 turns before each Council, to the minor where it is between 40 and 49 points and not behind the player."
+    },
+    {
+     "label": "Option (b)",
+     "means": "Also an embassy ($5,000) and a pact (+10 points)."
+    },
+    {
+     "label": "Option (c)",
+     "means": "None."
+    }
+   ],
+   "suggestion": "Option (a).",
+   "objection": "Grants cost its treasury, about 30 to 80 score points a game. The player may see this as buying votes, although Imp1 allows the same.",
+   "ids": [
+    "diplomacy-council-03",
+    "AISIM-04"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q118",
+   "title": "How do the two Great Powers trade with each other?",
+   "status": "open",
+   "context": "Imp1 shows offer sheets from other powers during the turn. Here the computer orders after the player, so the player cannot see its orders of this turn. Decides FR-491 (Last turn's trade orders are public), FR-494 (The Board shows the other Great Power's last turn).",
+   "options": [
+    {
+     "label": "Option (a), suggested",
+     "means": "Last turn's bids and offers are public; a bid toward the rival is always allowed (refunded if unfilled); an offer is allowed only after the rival bid for that commodity last turn."
+    },
+    {
+     "label": "Option (b)",
+     "means": "Imp1's offer sheets: the computer plans before the player each turn (a large change to the turn loop)."
+    },
+    {
+     "label": "Option (c)",
+     "means": "No trade between Great Powers."
+    }
+   ],
+   "suggestion": "Option (a).",
+   "objection": "There is a one-turn lag, and a bid can come back refunded. The Board line says so.",
+   "ids": [
+    "MKT-02",
+    "AISIM-04"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q119",
+   "title": "What does the computer recruit, and how low may its cash go when invaded?",
+   "status": "open",
+   "context": "Decides FR-482 (Recruit what can be raised), FR-483 (The cash floor under invasion).",
+   "options": [
+    {
+     "label": "Option (a), suggested",
+     "means": "The two lists in FR-482 and the upkeep reserve as the floor under a threat."
+    },
+    {
+     "label": "Option (b)",
+     "means": "Choose by strength per dollar."
+    },
+    {
+     "label": "Option (c)",
+     "means": "Keep Regulars only and train fewer workers."
+    }
+   ],
+   "suggestion": "Option (a).",
+   "objection": "The lists ignore price, and Cuirassiers use the 4 scarce horses (more horses come in M15).",
+   "ids": [
+    "AISIM-02",
+    "ARMY-WAR-01"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q120",
+   "title": "Should the last Council force every governor to choose?",
+   "status": "open",
+   "context": "The rules say yes (rules 01 section 4). Decides FR-501 (Every governor chooses at the last meeting).",
+   "options": [
+    {
+     "label": "Option (a), suggested",
+     "means": "Yes, by relation points, with no floor."
+    },
+    {
+     "label": "Option (b)",
+     "means": "No, as today: most turn-40 meetings end with no winner."
+    }
+   ],
+   "suggestion": "Option (a).",
+   "objection": "Nearly every game gets a \"winner\" at turn 40 even when both nations are weak, so the score matters less.",
+   "ids": [
+    "diplomacy-council-14"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q121",
+   "title": "How many votes win with only two Great Powers?",
+   "status": "open",
+   "context": "Decides FR-503 (Votes needed in a world of two Great Powers).",
+   "options": [
+    {
+     "label": "Option (a), suggested",
+     "means": "More than half (7 of 12) while fewer than 3 Great Powers exist."
+    },
+    {
+     "label": "Option (b)",
+     "means": "Two thirds (9 of 12), as the manual says: a peaceful win stays impossible here."
+    },
+    {
+     "label": "Option (c)",
+     "means": "Count each minor as 4 votes (its Imp1 size), so 24 votes and 17 needed."
+    }
+   ],
+   "suggestion": "Option (a).",
+   "objection": "It departs from the manual. With Arvelia (from turn 17) and two minors, the computer can win at turn 30.",
+   "ids": [
+    "AISIM-05",
+    "FR-TRUTH-02",
+    "diplomacy-council-01"
+   ],
+   "group": "new",
+   "needed": "Before M14 builds FR-503. REVIVAL_PLAN's old M14 goal \"a peaceful path to 9 votes\" cannot be met on this map with two Great Powers (best peaceful total 8 of 12), so it needs rewording whichever way this goes."
+  },
+  {
+   "id": "Q122",
+   "title": "Equal votes at the last meeting: who wins?",
+   "status": "open",
+   "context": "Decides FR-502 (The last meeting always names a winner).",
+   "options": [
+    {
+     "label": "Option (a), suggested",
+     "means": "The higher standing."
+    },
+    {
+     "label": "Option (b)",
+     "means": "The higher score."
+    },
+    {
+     "label": "Option (c)",
+     "means": "Nobody: the game ends on points."
+    }
+   ],
+   "suggestion": "Option (a), because standing already orders the nominees.",
+   "objection": "Standing adds 100 per province, so conquest also decides ties.",
+   "ids": [
+    "FR-TRUTH-02"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q123",
+   "title": "How should conquered land count in the score?",
+   "status": "open",
+   "context": "Decides FR-505 (A conquered province counts when it is collected).",
+   "options": [
+    {
+     "label": "Option (a), suggested",
+     "means": "Only collected tiles of conquered provinces count."
+    },
+    {
+     "label": "Option (b)",
+     "means": "Only collected tiles count anywhere (this also changes home tiles and may move FR-125)."
+    },
+    {
+     "label": "Option (c)",
+     "means": "No change."
+    }
+   ],
+   "suggestion": "Option (a).",
+   "objection": "A conqueror who builds a depot gets the points back, and standing still rewards the province itself.",
+   "ids": [
+    "ARMY-WAR-18"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q124",
+   "title": "Should a game with no Council name a result?",
+   "status": "open",
+   "context": "Decides FR-508 (The end of a game without a Council).",
+   "options": [
+    {
+     "label": "Option (a), suggested",
+     "means": "\"Best score: X\"."
+    },
+    {
+     "label": "Option (b)",
+     "means": "Nothing, as FR-300 says today."
+    }
+   ],
+   "suggestion": "Option (a).",
+   "objection": "How to play calls the best score the goal, but it is the only result on the test world only.",
+   "ids": [
+    "FR-TRUTH-02"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q125",
+   "title": "What does each civilian cost at the University?",
+   "status": "open",
+   "context": "The rules give 1 expert, 2 paper and $500 to $1,500 (Prospector $500, Miner $1,500 seen). Decides FR-511 (The University).",
+   "options": [
+    {
+     "label": "Option (a), suggested",
+     "means": "Prospector $500, Miner $1,500, the others $1,000."
+    },
+    {
+     "label": "Option (b)",
+     "means": "All $1,000."
+    },
+    {
+     "label": "Option (c)",
+     "means": "All $500."
+    }
+   ],
+   "suggestion": "Option (a).",
+   "objection": "A guessed price; an Engineer is the most valuable civilian here and may be too cheap.",
+   "ids": [
+    "RULES-GAP-03",
+    "ECONOMY-13"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q126",
+   "title": "How do ships and the computer's fleet start?",
+   "status": "open",
+   "context": "Decides FR-514 (Merchant ships), FR-516 (The computer builds ships).",
+   "options": [
+    {
+     "label": "Option (a), suggested",
+     "means": "The 4 start holds become one Indiaman; the computer builds Indiamen when its holds are full on 3 of 4 turns."
+    },
+    {
+     "label": "Option (b)",
+     "means": "The computer starts with 6 to 8 holds, as observed in Imp1."
+    },
+    {
+     "label": "Option (c)",
+     "means": "The computer builds no ships."
+    }
+   ],
+   "suggestion": "Option (a).",
+   "objection": "The computer's rule acts only on the continent (to keep FR-125), and lumber spent on ships is lumber not spent on mills.",
+   "ids": [
+    "RULES-GAP-04",
+    "MKT-01",
+    "FR-TRUTH-16"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q127",
+   "title": "Where do the Horse Ranch tiles go?",
+   "status": "open",
+   "context": "Decides FR-517 (Horses from a ranch).",
+   "options": [
+    {
+     "label": "Option (a), suggested",
+     "means": "One open-range tile per Great Power within reach of the capital, and one in Arvelia."
+    },
+    {
+     "label": "Option (b)",
+     "means": "Only in minors (horses must be bought)."
+    },
+    {
+     "label": "Option (c)",
+     "means": "None: horses only by trade."
+    }
+   ],
+   "suggestion": "Option (a).",
+   "objection": "It changes the hand-drawn map, so every continent tile-count pin moves.",
+   "ids": [
+    "ARMY-WAR-09",
+    "RULES-GAP-09"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q128",
+   "title": "Living minors (supply, demand and prices that move): M15 or later?",
+   "status": "open",
+   "context": "Living minors have no row yet: M15 leaves them out, and this card asks when they come.",
+   "options": [
+    {
+     "label": "Option (a), suggested",
+     "means": "A separate M15b after M16."
+    },
+    {
+     "label": "Option (b)",
+     "means": "Inside M15 (it would need about 2 more hours)."
+    },
+    {
+     "label": "Option (c)",
+     "means": "In M18."
+    }
+   ],
+   "suggestion": "Option (a).",
+   "objection": "Trade stays narrow (3 goods with buyers) for one more milestone.",
+   "ids": [
+    "MKT-09",
+    "MKT-10",
+    "RULES-GAP-13"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q129",
+   "title": "Should the computer build civilians in M15?",
+   "status": "open",
+   "context": "Decides FR-518 (Baselines).",
+   "options": [
+    {
+     "label": "Option (a), suggested",
+     "means": "No, measure it first (it has one Engineer for all its rail)."
+    },
+    {
+     "label": "Option (b)",
+     "means": "A second Engineer when it has an expert and $1,000 beyond its reserve."
+    }
+   ],
+   "suggestion": "Option (a).",
+   "objection": "The player gets a tool the computer does not use, which is an advantage for the player.",
+   "ids": [
+    "ECONOMY-13",
+    "RULES-GAP-03"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q130",
+   "title": "What game length and which technology years should M16 use?",
+   "status": "open",
+   "context": "The game ends in Winter 1824. With the rules' real years only 5 technologies can appear (Cotton Gin and the four of 1821 to 1825), and level 2 for farms (Steel and Iron Plows, 1831) would never come. Decides FR-521 (The technology clock).",
+   "options": [
+    {
+     "label": "Option (a), suggested",
+     "means": "Compress the technology years into the game: 100 years over the turn limit (40 turns: a new set about every 2 turns)."
+    },
+    {
+     "label": "Option (b)",
+     "means": "The real years, 40 turns: 5 technologies, no level-2 farms."
+    },
+    {
+     "label": "Option (c)",
+     "means": "A longer default game (for example 120 turns, 1815 to 1845) with the real years."
+    }
+   ],
+   "suggestion": "Option (a).",
+   "objection": "The calendar says 1820 while Internal Combustion is for sale, and the late prices ($40,000 to $150,000) are out of reach in 40 turns.",
+   "ids": [
+    "RULES-GAP-01",
+    "FR-TRUTH-03"
+   ],
+   "group": "new",
+   "needed": "Before M16 starts. It decides whether M16 has 5 technologies or 28. If nobody has answered by then, the night shift builds option (a) with every number in data, so a change costs one file."
+  },
+  {
+   "id": "Q131",
+   "title": "Keep NR-015's three free technologies?",
+   "status": "open",
+   "context": "Decides FR-520 (Each nation owns its technologies).",
+   "options": [
+    {
+     "label": "Option (a), suggested",
+     "means": "Keep them (rail on hills, timber levels and the mines' level 3 stay open as today)."
+    },
+    {
+     "label": "Option (b)",
+     "means": "Remove them: rail on hills waits for Compound Steam Engine (turn 9 under (a) of Q130, $7,000)."
+    }
+   ],
+   "suggestion": "Option (a).",
+   "objection": "Dynamite (an 1871 technology) owned on turn 1 is not the rules.",
+   "ids": [
+    "RULES-GAP-01"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q132",
+   "title": "Do the start civilians need technology?",
+   "status": "open",
+   "context": "Decides FR-524 (Civilians need their technology).",
+   "options": [
+    {
+     "label": "Option (a), suggested",
+     "means": "No, the 7 start civilians stay."
+    },
+    {
+     "label": "Option (b)",
+     "means": "Remove the Rancher, Forester and Driller until their technology is bought."
+    }
+   ],
+   "suggestion": "Option (a).",
+   "objection": "A Rancher on turn 1 without Feed Grasses can do nothing until it is bought, which looks like a bug.",
+   "ids": [
+    "RULES-GAP-02"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q133",
+   "title": "Which technology does the computer buy?",
+   "status": "open",
+   "context": "Decides FR-527 (The computer buys technology).",
+   "options": [
+    {
+     "label": "Option (a), suggested",
+     "means": "The cheapest one that unlocks a level it would order."
+    },
+    {
+     "label": "Option (b)",
+     "means": "A fixed list from the rules' \"recommended early buys\" (Iron Railroad Bridge, Square-Set Timbering)."
+    },
+    {
+     "label": "Option (c)",
+     "means": "None."
+    }
+   ],
+   "suggestion": "Option (a).",
+   "objection": "It ignores ships and military technologies until those milestones exist.",
+   "ids": [
+    "RULES-GAP-01"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q134",
+   "title": "Power Plant, oil and era-2 units: now or later?",
+   "status": "open",
+   "context": "The fuel-to-labour rate is not documented, and the map has no oil. Decides FR-525 (What else the technologies unlock now).",
+   "options": [
+    {
+     "label": "Option (a), suggested",
+     "means": "Later (M17 and M18): the Power Plant, oil and era-2 units wait for the sea war and the world pieces."
+    },
+    {
+     "label": "Option (b)",
+     "means": "Now: build the Power Plant and the era-2 units in M16, on a guessed fuel-to-labour rate."
+    }
+   ],
+   "suggestion": "Option (a): later (M17 and M18).",
+   "objection": "Oil Drilling can be bought but does nothing.",
+   "ids": [
+    "RULES-GAP-16",
+    "RULES-GAP-06"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q135",
+   "title": "What happens to saves made before technologies belong to each nation?",
+   "status": "open",
+   "context": "Decides FR-520 (Each nation owns its technologies).",
+   "options": [
+    {
+     "label": "Option (a), suggested",
+     "means": "Migrate them."
+    },
+    {
+     "label": "Option (b)",
+     "means": "Refuse them with FR-362's message."
+    }
+   ],
+   "suggestion": "Option (a), since Nathan tests on deployed environments with autosaves.",
+   "objection": "One migration function to keep until the next version.",
+   "ids": [
+    "FR-TRUTH-03"
    ],
    "group": "new"
   },
