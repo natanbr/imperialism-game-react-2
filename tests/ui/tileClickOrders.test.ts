@@ -3,7 +3,7 @@
 // now run through the same orders and the same stop rule the UI uses.
 import { describe, it, expect } from 'vitest';
 import { clickStatusText, moveOrders, submitFirstAccepted, tileClickOrders } from '@/hooks/tileClickOrders';
-import { tryApplyOrder, type Order, type ValidationResult } from '@/engine';
+import { tryApplyOrder, validateOrder, type Order, type ValidationResult } from '@/engine';
 import { GameState } from '@/types/GameState';
 import { WorkerStatus, WorkerType } from '@/types/Workers';
 import { CONSTRUCTION_COST, PROSPECT_COST, constructionCost } from '@/definisions/workPrices';
@@ -428,6 +428,32 @@ describe('FR-374 a fallback move is said', () => {
     expect(said).toBeUndefined();
   });
 
+  // Closeout review 3: the first FR-461 fix also kept rail-on-move off the capital altogether, which the two cases above do
+  // not need (railOnMoveStart alone finds no section there). That took away a click the engine accepts: from the plain
+  // tile 2-8, with 3-9 on the line from the depot at 4-9 and the capital not yet joined to it, rail-on-move onto the
+  // capital lays the section 3-9 to 2-9 (railOnMoveStart starts it from the capital's rail neighbour 3-9)
+  it('FR-461 FR-137 from a plain tile next to the capital not yet joined to the rail beside it, the click lays that section by rail-on-move', () => {
+    let s = newGame({ seed: 1 });
+    s = addDepot(setTile(s, '4-9', { depot: true }), N1, { x: 4, y: 9 });
+    s = addRailroad(s, N1, { x: 3, y: 9 }, { x: 4, y: 9 });
+    s = put(s, ENGINEER_ID, '2-8');
+    expect(isRailNode(tileAt(s, '2-8'), N1)).toBe(false);
+    expect(railOnMoveStart(s, N1, tileAt(s, '2-8'), tileAt(s, '2-9'))?.id).toBe('3-9');
+    const rail: Order = { kind: 'moveAndBuildRail', nationId: N1, workerId: ENGINEER_ID, toTileId: '2-9' };
+    expect(validateOrder(s, rail)).toEqual({ ok: true });
+
+    const before = treasury(s, N1);
+    const { orders, after, said } = clickOn(s, '2-9');
+    expect(orders).toEqual([rail, { kind: 'moveWorker', nationId: N1, workerId: ENGINEER_ID, toTileId: '2-9' }]);
+    expect(locate(after, ENGINEER_ID)?.tile.id).toBe('2-9');
+    expect(tileAt(after, '2-9').constructionJob).toMatchObject({ kind: 'rail', workerId: ENGINEER_ID, railFrom: '3-9' });
+    expect(treasury(after, N1)).toBe(before - constructionCost('rail', tileAt(s, '2-9').terrain));
+    expect(said).toBeUndefined();
+    const next = resolveTurn(after, {}, after.seed).state;
+    expect(isRailLinked(next.transportNetwork.railroadNetworks![N1], { x: 3, y: 9 }, { x: 2, y: 9 })).toBe(true);
+    expect(next.transportNetwork.railroadNetworks![N1].depots.find((d) => createTileId(d.x, d.y) === '4-9')!.isActive).toBe(true);
+  });
+
   it('FR-373 a refused click says its last refusal; an accepted click without a fallback says nothing', () => {
     const s = newGame({ seed: 1 });
     expect(clickStatusText(s, { order: move, last: { ok: false, reason: 'invalid-target' }, firstRefusal: { order: rail, reason: 'invalid-target' } })).toBe(
@@ -458,11 +484,9 @@ describe('FR-378 the last rail section into the capital by a click', () => {
     expect(action).toBeNull();
     // As useTileClickHandler sends it: no action on the tile, so the click is moveOrders
     const orders = moveOrders(s, N1, ENGINEER_ID, '2-9');
-    // The section 3-9 to 2-9 first (FR-137), then the plain move. Re-recorded for FR-461: it was rail-on-move onto the
-    // capital (moveAndBuildRail); a step onto the capital no longer tries rail-on-move, and the section order builds the
-    // same job from the same start for the same price
+    // A rail order first (rail-on-move: the new game's capital has no rail yet), then the plain move
     expect(orders).toEqual([
-      { kind: 'moveAndStartConstruction', nationId: N1, workerId: ENGINEER_ID, toTileId: '2-9', structure: 'rail', fromTileId: '3-9' },
+      { kind: 'moveAndBuildRail', nationId: N1, workerId: ENGINEER_ID, toTileId: '2-9' },
       { kind: 'moveWorker', nationId: N1, workerId: ENGINEER_ID, toTileId: '2-9' },
     ]);
     const before = treasury(s, N1);

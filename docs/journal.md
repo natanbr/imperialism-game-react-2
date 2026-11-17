@@ -1,10 +1,11 @@
 # Journal
 
 ## Resuming here
-- 2026-11-16 night: M12 Honest game is built on `claude/m12-honest-game` and in a pull request, not merged (FR-357 to FR-464, cards
+- 2026-11-16 night: M12 Honest game is built on `claude/m12-honest-game`; its pull request is being opened, not merged (FR-357 to FR-464, cards
   Q79 to Q107). Gate 5 on the close-out (FR-461 to FR-464 tested): 2446 unit tests, lint 0 errors, tsc and build clean, Playwright 92
-  passed and 1 skipped. FR-357 to FR-443 still read `planned (L1)` to `(L4)` in requirements.md; marking them tested with their test
-  names is still to do.
+  passed and 1 skipped. Gate 6 on the final tree (after close-out 3, the click onto the capital, FR-461), 2026-11-17: 2447 unit
+  tests, lint 0 errors, tsc and build clean, Playwright 92 passed and 1 skipped. FR-357 to FR-443 now read their real status in requirements.md, each with its test files: 77 tested, 9 partial, 1 parked
+  (FR-372, closed by M12b); the partial rows are listed in the M12 entry below.
 - Next (NR-034, in this order): M12b HUD (FR-465 to FR-480, `docs/specs/hud.md`, cards Q108 to Q113), then M13 to M16 (FR-481 to
   FR-528, `docs/specs/m13-m16.md`, cards Q114 to Q135). All rows are planned, nothing is built. Merged so far: M0 to M11 (main a690759).
 - Answered by Nathan 2026-11-16: Q79 to Q83 as suggested, Q102 "keep the debug", Q113 one static Advance Turn. Needed from him: Q114
@@ -155,7 +156,7 @@ Carried: nation 2's blue is 2.97:1 on the grass; the Capital dialog's Clothing c
 
 ## 2026-11-14 to 2026-11-16 M12 Honest game (NR-033, NR-034; FR-357 to FR-464, cards Q79 to Q107)
 
-Size: L. Branch `claude/m12-honest-game`, in a pull request, not merged. Eight commits on main a690759: bf9b705 audit and spec, 792ae9d the
+Size: L. Branch `claude/m12-honest-game`, pull request being opened, not merged. Eight commits on main a690759: bf9b705 audit and spec, 792ae9d the
 four lanes integrated, 8024805 review round 1, 6d965a9 review round 2, e95fdc4 QA fix round, 6cd4d0d the AI margin (strategy C), a83a25c
 and b384b99 its follow-ups, then the close-out commit (FR-461 to FR-464, gate 5 below).
 
@@ -225,7 +226,7 @@ check may not be loosened. Three attempts ran in throwaway probes: A and B did n
 kept by need, not a flat $2,500), FR-455 (no paper for training while the workers' labour covers what the hubs gather), FR-456 and
 FR-457 (a depot site is chosen by the gain the nation can still use, then by payback), FR-458 (training keeps the campaign's
 recruits). Result on seeds 1 to 4: the ratio is 1.63 to 1.69 at turn 15, 1.50 to 1.78 at turn 25 and 2.09 to 2.24 at turn 40; the lowest was
-seed 3 at turn 25, 847 against 845 needed (2 points). It re-recorded 13 pins, each an exact equality with the reason in the test, and
+seed 3 at turn 25, 847 against 845 needed (2 points then; 58.5 points since FR-460: 903 against 844.5). It re-recorded 13 pins, each an exact equality with the reason in the test, and
 changed three v1 turn-1 test cases (FR-159 against FR-455: card Q105). The strategy left one red test, the no-dead-end check at turn 25
 on seeds 3 and 4 (a developer started a job on the depot tile before the engineer's last rail section: card Q106); FR-459 (no civilian
 works a tile the engineer's rail still needs, a83a25c) addresses that block (gate 3 had no red test) and FR-460 (training keeps the civilians' cash, b384b99)
@@ -237,15 +238,54 @@ Nathan said to keep going: update the progress page and the roadmap, build a bet
 original, a right pane with accordions), then M13 to M16 and on. Done by the docs agent (Sonnet 5.5): requirements rows FR-461 to
 FR-464 (close-out, below), the HUD rows FR-465 to FR-480 and the M13 to M16 rows FR-481 to FR-528 from the two research specs
 (`docs/specs/hud.md`, `docs/specs/m13-m16.md`), cards Q108 to Q135 with "Needed before" notes on Q114, Q115, Q121 and Q130, Nathan's
-answers to Q79 to Q83, Q102 and Q113, the roadmap and progress page, REVIVAL_PLAN, and this entry. The close-out rows: FR-461 a move onto
-the capital is a plain move, FR-462 the main tsconfig does not list `.next-e2e`, FR-463 the FR-448 e2e check has a bound, FR-464 a
+answers to Q79 to Q83, Q102 and Q113, the roadmap and progress page, REVIVAL_PLAN, and this entry. The close-out rows: FR-461 a click is a plain
+move where no rail section can be ordered, FR-462 the main tsconfig does not list `.next-e2e`, FR-463 the FR-448 e2e check has a bound, FR-464 a
 golden guard for the v1 two-islands games. They were built at the same time by the code agent (Opus 5.5), each red before
 its fix (`.gate/m12/closeout2-code-notes.md`). FR-463's tighter bound found a real FR-448 defect: an earlier selection left the
 HUD scrolled past Tile Info's heading (y -8 against a top of 12); each new selection now scrolls the HUD from its top. FR-461
 changes one behaviour: an engineer's click onto hills, swamp or mountains where rail is refused is a plain move with no
-"Rail refused" line (Tile Info still gives the reason). The gate agent (Opus 5.5) ran gate 5, flipped the four rows to tested,
+"Rail refused" line (Tile Info still gives the reason). A first version also barred rail-on-move onto the capital; the review found the
+engine accepts that click where a section into the capital can be laid, and close-out 3 (Opus 5.5, `.gate/m12/closeout3-code-notes.md`) removed
+the bar, so FR-378's test is back to its original expectation. The gate agent (Opus 5.5) ran gate 5, flipped the four rows to tested,
 corrected the FR-125 margin quoted as 4.5 points in the new spec, card Q116 and the golden test (it was 4.5 before FR-460; it is
 58.5 now) and marked FR-444 as replaced in part by FR-462.
+
+### Status of FR-357 to FR-443 (docs agent, Sonnet 5.5, 2026-11-16)
+
+The 87 rows still read `planned (L1)` to `(L4)`. Each now has its real status in `docs/requirements.md`, set from the lane notes (L1 to L4,
+integration, AI margin, close-out) and from the tests whose titles name the row; every test file a status names exists. Result: 77 tested,
+9 partial, 1 parked. `partial` and `parked` are defined in the file's header. A row with no passing test that can be found is never tested.
+- Parked: FR-372 (the news list shows 3 lines, not 8, at 1280x720; its e2e case is `test.fixme`; the HUD milestone M12b closes it, FR-472).
+- Partial, in the code: FR-365 (touch panning is checked only as a style rule; no test drags a finger) and FR-388 (the mark follows
+  `tile.fortLevel`, so the four minor nations' capitals show none, and FR-346's coverage check does not count it; both wait for a decision).
+- Partial, documents: FR-435 to FR-441 are checked by `.gate/m12/L4-check-req.cjs` and `L4-check-roadmap.cjs` (both PASS) and by reading; no test of
+  the suite reads `requirements.md` or `roadmap.json` (a suite test that runs those checks would make them tested).
+- Moved with it: FR-461 now says a click is a plain move where `railOnMoveStart` finds no section (the capital is no exception), and FR-023,
+  FR-137 and FR-374 name it as replacing their rail-on-move-first clause in part; the FR-125 margin is quoted as 58.5 points in every document outside `docs/audit` (the 2026-11-14 record);
+  the progress data and the plan say the M12 pull request is being opened.
+
+| Claim | Command | Quoted result |
+|---|---|---|
+| The test files of 78 of the 87 rows pass | `npx vitest run <file>` one file at a time, 36 files (`.gate/m12/docs-sample.txt`, `docs-sample2.txt`) | for example `persistence.test.ts` `Tests  32 passed (32)`, `diplomacyDialog.test.tsx` `Tests  78 passed (78)`, `scriptedScore.test.ts` `Tests  48 passed (48)`; no file failed |
+| NR-023's margin holds (FR-405) | `npx vitest run tests/engine/scriptedScore.test.ts` | `FR-125 seed 3: t15 757/457 (1.66) ... t25 903/563 (1.60)`, the lowest of the twelve checkpoints; 903 against 844.5 needed is 58.5 points |
+| The click onto the capital (FR-461) after close-out 3 | `npx vitest run tests/ui/tileClickOrders.test.ts` and three more files (closeout3-green.txt); `npx playwright test` on m4-3, m12-map and cursor-icons (closeout3-e2e.txt, closeout3-e2e-rerun.txt) | `Test Files  4 passed (4)`, `Tests  81 passed (81)`; e2e `27 passed`, `1 skipped`, `2 failed` (cold dev-server page loads, 30 s), the two rerun: `2 passed` |
+| The status words are valid and no row is still planned (L1 to L4) | `node .gate/m12/L4-check-req.cjs` | `FR-357..443 status words: {"tested":77,"partial":9,"parked":1}`, `PASS` |
+| The progress data agrees with itself | `node .gate/m12/L4-check-roadmap.cjs` | `PASS` (milestones M12, M12b and M13 to M18, 132 cards, 160 findings) |
+
+### Evidence (gate 6 on the final tree, acc63d0 plus close-out 3 and the FR-357 to FR-443 statuses, 2026-11-17; logs in `.gate/m12/`, git-ignored)
+
+Run by the verify agent (Opus 5.5). Full Playwright, not only the three specs close-out 3 ran: `clickCursors` calls `moveOrders` for every
+tile while a civilian is selected, so every spec that selects one runs the changed line.
+
+| Claim | Command | Quoted result |
+|---|---|---|
+| Every unit test passes | `npm test` (gate6-unit.txt) | `Test Files  118 passed (118)`, `Tests  2447 passed (2447)`, `EXIT 0` (gate 5 plus close-out 3's one new test) |
+| Lint has no error | `npm run lint` (gate6-lint.txt) | `✖ 2 problems (0 errors, 2 warnings)`, `EXIT 0`; the same two warnings as gates 4 and 5 |
+| Types are clean | `npx tsc --noEmit` (gate6-tsc.txt) | no output, `EXIT 0` |
+| The build works | `npm run build` (gate6-build.txt) | `✓ Compiled successfully in 5.6s`, `✓ Generating static pages (4/4)`, `EXIT 0` |
+| The browser suite passes | `npx playwright test --workers=1` (gate6-e2e.txt) | `1 skipped`, `92 passed (8.5m)`, `EXIT 0`, first run; `FR-463 {"headingY":162,"seenTop":12,"offerBottom":405.5,"seenBottom":406}` |
+| The e2e run leaves tsconfig.json alone (FR-462) | `git hash-object tsconfig.json` before and after (gate6-tsconfig-sha.txt) | `cf3b9d2` both times, not in `git status` |
+| The documents agree with themselves | `node .gate/m12/L4-check-req.cjs`, `L4-check-roadmap.cjs`, `gate5-ids.cjs` | `PASS` each, `{"tested":77,"partial":9,"parked":1}` |
 
 ### Evidence (gate 5 on the close-out tree, b384b99 plus FR-461 to FR-464; logs in `.gate/m12/`, git-ignored)
 

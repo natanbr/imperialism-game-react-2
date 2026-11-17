@@ -180,7 +180,7 @@
    "text": "Of 24 rule topics of the original game: 3 built, 14 partial, 1 wrong, 1 dead code, 5 missing."
   },
   "notChecked": "Not checked by the audit: Firefox and Safari, real touch on a phone, screen readers, and a human game played all the way to a Council win.",
-  "notFixed": "M12 (themes T1 to T10, FR-357 to FR-464) is built on the branch claude/m12-honest-game and is in a pull request, not merged: main is still a690759 (after M11 and three housekeeping merges), so the findings are fixed on the branch only. Themes T11 to T16 are not fixed: M12b and M13 to M16 are planned, M17 and M18 later.",
+  "notFixed": "M12 (themes T1 to T10, FR-357 to FR-464) is built on the branch claude/m12-honest-game and its pull request is being opened, not merged: main is still a690759 (after M11 and three housekeeping merges), so the findings are fixed on the branch only. Themes T11 to T16 are not fixed: M12b and M13 to M16 are planned, M17 and M18 later.",
   "filedNote": "The plan named 122 of the 160 findings in its themes. I filed the other 38 under the nearest theme; they are marked \"filed\" and can be moved."
  },
  "statusLegend": [
@@ -1256,7 +1256,7 @@
     "id": "M12",
     "title": "Honest game",
     "status": "built",
-    "statusLabel": "Built, in a pull request",
+    "statusLabel": "Built, pull request being opened",
     "themes": [
      "T1",
      "T2",
@@ -1279,7 +1279,7 @@
      "Open the game at phone width: Capital, Diplomacy and Board of Trade are usable.",
      "The full gate is green (unit tests, lint, types, build, Playwright), and a browser pass at 1280x720, 800x600 and 390x844 cannot reproduce the findings M12's rows fix: 85 of the 103 in themes T1 to T10 (the other 18 nits and minors are listed under \"Not in M12\" in docs/requirements.md)."
     ],
-    "depends": "Nothing. It started first; it is built and waits for your review of the pull request.",
+    "depends": "Nothing. It started first; it is built on the branch claude/m12-honest-game and waits for your review once its pull request is open.",
     "findings": 103,
     "severity": {
      "major": 9,
@@ -1291,7 +1291,7 @@
      "M": 15,
      "L": 2
     },
-    "statusText": "Built on the branch claude/m12-honest-game, in a pull request, not merged. Gate 4 on b384b99 (FR-357 to FR-460): 2438 unit tests, lint 0 errors, tsc and build clean, Playwright 92 passed and 1 skipped. The close-out rows FR-461 to FR-464 are tested; gate 5 on the close-out: 2446 unit tests, lint 0 errors, tsc and build clean, Playwright 92 passed and 1 skipped. Parked: FR-372 (eight whole news lines at 1280x720; the new HUD, M12b, decides it).",
+    "statusText": "Built on the branch claude/m12-honest-game, pull request being opened, not merged. Gate 4 on b384b99 (FR-357 to FR-460): 2438 unit tests, lint 0 errors, tsc and build clean, Playwright 92 passed and 1 skipped. The close-out rows FR-461 to FR-464 are tested; gate 5 on the close-out: 2446 unit tests, lint 0 errors, tsc and build clean, Playwright 92 passed and 1 skipped. Parked: FR-372 (eight whole news lines at 1280x720; the new HUD, M12b, decides it). Status of FR-357 to FR-443 (2026-11-16): 77 tested, 9 partial, 1 parked. Partial: FR-365 (touch panning is checked only as a style rule, no test drags a finger), FR-388 (the four minor nations' capitals show no fort mark) and FR-435 to FR-441 (document rows, checked by a script and by reading, not by a test of the suite). Gate 6 on the final tree (2026-11-17, after the last close-out change, a click onto the capital, FR-461): 2447 unit tests, lint 0 errors, tsc and build clean, Playwright 92 passed and 1 skipped.",
     "spec": "docs/requirements.md, section M12"
    },
    {

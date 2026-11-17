@@ -19,7 +19,6 @@ import { useGameStore } from "@/store/rootStore";
 import type { PendingSpend } from "@/store/controls/controlsSlice";
 import type { GameState } from "@/types/GameState";
 import type { PossibleAction } from "@/types/actions";
-import { TerrainType } from "@/types/Tile";
 import { WorkerType } from "@/types/Workers";
 import type { CursorAction } from "./tileCursor";
 import { getPossibleAction } from "./useTileActions";
@@ -31,7 +30,8 @@ import { getPossibleAction } from "./useTileActions";
  * else two networks that meet head on could never be joined by a click. Otherwise, and as the
  * fallback, it just moves: a step between two tiles the rail already joins (FR-446), or onto a
  * tile where rail-on-move would be refused (FR-461; the map's own canBuildRailAt said yes to the
- * capital and to a depot the rail already reaches, and the click said "Rail refused").
+ * capital and to a depot the rail already reaches, and the click said "Rail refused"). The capital
+ * is no exception: rail-on-move onto it is offered where railOnMoveStart finds a section into it.
  */
 export function moveOrders(state: GameState, nationId: string, workerId: string, toTileId: string): Order[] {
   const from = findWorker(state, workerId);
@@ -41,9 +41,7 @@ export function moveOrders(state: GameState, nationId: string, workerId: string,
   const engineerStep =
     from.worker.type === WorkerType.Engineer && areTilesAdjacent(state.map, from.tile.x, from.tile.y, to.x, to.y);
   if (!engineerStep) return [move];
-  // The capital is where the rail network starts: only a section from the engineer's rail node reaches it (FR-378, FR-461)
-  const capital = to.terrain === TerrainType.Capital;
-  if (!capital && railOnMoveStart(state, nationId, from.tile, to)) return [{ kind: "moveAndBuildRail", nationId, workerId, toTileId }, move];
+  if (railOnMoveStart(state, nationId, from.tile, to)) return [{ kind: "moveAndBuildRail", nationId, workerId, toTileId }, move];
   if (isRailNode(to, nationId) && railSectionStart(state, nationId, to, from.tile)) {
     return [{ kind: "moveAndStartConstruction", nationId, workerId, toTileId, structure: "rail", fromTileId: from.tile.id }, move];
   }

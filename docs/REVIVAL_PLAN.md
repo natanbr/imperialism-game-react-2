@@ -267,12 +267,12 @@ sea war, saving, credit, town growth). The old "100% done" meant only that the c
 tests. The findings are grouped into themes T1 to T16, and the themes into milestones M12 to M18 below, ordered by player
 impact and by dependency. M12's requirements started as FR-357 to FR-443 with cards Q79 to Q104 (`docs/requirements.md`).
 
-**Status 2026-11-16 (NR-034).** M12 is built and in a pull request (FR-357 to FR-464 gated, the close-out FR-461 to FR-464 included; cards Q79 to Q107). Nathan asked to keep
+**Status 2026-11-16 (NR-034).** M12 is built on the branch `claude/m12-honest-game` and its pull request is being opened (FR-357 to FR-464 gated, the close-out FR-461 to FR-464 included; cards Q79 to Q107). Nathan asked to keep
 going: a better HUD (M12b, FR-465 to FR-480, `docs/specs/hud.md`), then M13 to M16 (FR-481 to FR-528,
 `docs/specs/m13-m16.md`, cards Q108 to Q135), planned and not built. The progress page and `docs/report/roadmap.json` show
 the same state.
 
-**M12, Honest game (L; themes T1 to T10): built, in a pull request (2026-11-16).** Everything a player can see wrong or
+**M12, Honest game (L; themes T1 to T10): built, pull request being opened (2026-11-16).** Everything a player can see wrong or
 that lies: save and load (T1), moving the map (T2), Tile Info, refusals and the news where the player looks (T3), click
 and order bugs and hidden costs (T4), transport sliders that limit (T5), honest money figures (T6), honest war and
 diplomacy (T7), robustness and small screens (T8), first-turn guidance (T9), and project documents that match the code
@@ -280,7 +280,7 @@ diplomacy (T7), robustness and small screens (T8), first-turn guidance (T9), and
 Requirements FR-357 to FR-464, cards Q79 to Q107; Nathan decided Q79 to Q83 as suggested and ruled Q102 the other way
 (keep the debug group). Gate 4 on b384b99 (FR-357 to FR-460): 2438 unit tests, lint 0 errors, tsc and build clean,
 Playwright 92 passed and 1 skipped (FR-372 parked). The close-out rows FR-461 to FR-464 passed gate 5: 2446 unit tests, lint
-0 errors, tsc and build clean, Playwright 92 passed and 1 skipped. Not yet merged: Nathan reviews the pull request.
+0 errors, tsc and build clean, Playwright 92 passed and 1 skipped. Not yet merged: Nathan reviews the pull request of `claude/m12-honest-game` once it is open.
 
 **M12b, A better HUD (M; NR-034).** The right pane stops being one long scroll. A top bar holds the nation, the turn and
 the Council countdown, cash, score and rank, the dialog buttons as icons and the one Advance Turn button, always on screen;
