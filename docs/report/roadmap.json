@@ -2066,6 +2066,28 @@
    "group": "new"
   },
   {
+   "id": "Q105",
+   "title": "Keep the paper rule that changed two v1 turn-1 tests, or turn it off on the two-islands world?",
+   "status": "open",
+   "context": "What happened: FR-159 (decision 1) says the v1 two-islands tests keep their numbers. The new rule FR-455 (the computer makes no paper for training while its workers can already handle everything its depots bring in) changes what it makes on turn 1, so two turn-1 tests were re-recorded: the trade orders of newGame(11) in twoNations.test.ts (nation 1 now buys steel 2, lumber 1, steel 3 and sells timber 1; before: lumber 1, steel 1, lumber 2, steel 2 and timber 1) and the FR-129 plan in scriptedScore.test.ts (lumber 2 and no paper; before: paper 2). Without FR-455 the computer falls below the 1.5 margin at turn 15 (1.41 to 1.48, FR-125 red). The default below is in the code now; nothing waits on it.",
+   "options": [
+    {
+     "label": "Default: keep FR-455 everywhere",
+     "means": "The two turn-1 tests stay re-recorded and FR-159 gets a new row that accepts them. The computer keeps the 1.5 margin on every seed and checkpoint (lowest 1.51, seed 3 turn 25)."
+    },
+    {
+     "label": "Turn FR-455 off for the v1 two-islands world",
+     "means": "The two turn-1 tests pass with their old numbers again, but the margin test, which runs on two-islands, fails at turn 15 (1.41 to 1.48) and needs another fix or an answer to Q103."
+    }
+   ],
+   "suggestion": "The default: FR-455 is what makes the margin hold, and the two tests that moved pin turn-1 orders, not a rule a player relies on.",
+   "objection": "FR-159 was decision 1: the v1 tests were meant to prove that v1 play did not change, and two of them no longer do.",
+   "ids": [
+    "Q103"
+   ],
+   "group": "new"
+  },
+  {
    "id": "Q51",
    "title": "How many votes should a Council win need?",
    "status": "open",

@@ -6,14 +6,16 @@ import { applyTurnOrders, resolveTurn } from '@/engine/turn/resolveTurn';
 import { applyOrder } from '@/engine/orders/apply';
 import { computerOrders } from '@/engine/ai/players';
 import { scriptedPlayer, type Player } from '@/engine/ai/scriptedPlayer';
-import { CASH_RESERVE, collectedAtLogistics, hubLabourNeed, PAIR_VALUE, planFinalTransport, priorityPlan, shippingWants } from '@/engine/ai/economy';
+import { CASH_RESERVE, cashReserve, collectedAtLogistics, hubLabourNeed, PAIR_VALUE, planFinalTransport, priorityPlan, shippingWants } from '@/engine/ai/economy';
 import { transportShipments } from '@/engine/systems/logisticsSystem';
-import { bestDepotSite, capitalComponent } from '@/engine/ai/railPlan';
-import { addDepot, railLinksOf } from '@/engine/systems/railroadSystem';
+import { bestDepotSite, capitalComponent, paybackTurns, railPath } from '@/engine/ai/railPlan';
+import { addDepot, addRailroad, railLinksOf } from '@/engine/systems/railroadSystem';
 import { scoreOf } from '@/engine/score/score';
 import { turnLimitOf } from '@/engine/turn/gameOver';
 import type { Order } from '@/engine/orders/Order';
 import type { GameState } from '@/types/GameState';
+import { ResourceType } from '@/types/Resource';
+import { withoutStartForces } from './armyFixtures';
 import { m4ScriptedPlayer } from './m4ScriptedPlayer';
 import { railBound, railDeadEnds } from './railBound';
 import { emptyWarehouse, invariantViolations, N2, nationOf, setBuilding, setIndustry, setTile, setTreasury, setWarehouse, tileAt } from './fixtures';
@@ -285,6 +287,92 @@ describe('FR-128 the cargo holds', () => {
   });
 });
 
+describe('FR-454 the cash reserve follows what the civilians need soon', () => {
+  const s = start();
+  const site = bestDepotSite(s, N2)!; // 16-12, 3 sections from the capital
+  const node = (k: string) => ({ x: Number(k.split(/[,-]/)[0]), y: Number(k.split(/[,-]/)[1]) });
+  const depotOrder: Order = { kind: 'moveAndStartConstruction', nationId: N2, workerId: ENGINEER_2, toTileId: site.tileId, structure: 'depot' };
+  const building = applyOrder(s, depotOrder);
+  const built = addDepot(setTile(s, site.tileId, { depot: true }), N2, node(site.tileId));
+  const path = railPath(built, N2, site.tileId.replace('-', ','), capitalComponent(built, N2))!;
+  const joined = path.slice(0, -1).reduceRight((v, k, i) => addRailroad(v, N2, node(k), node(path[i + 1])), built);
+  const withoutWorker = (v: GameState, id: string): GameState => ({
+    ...v,
+    map: { ...v.map, tiles: v.map.tiles.map(row => row.map(t => ({ ...t, workers: t.workers.filter(w => w.id !== id) }))) },
+  });
+
+  it('FR-454 $100 for each developer, plus a depot\'s $2,000 while the engineer is free: a new game keeps CASH_RESERVE', () => {
+    expect(cashReserve(s, N2)).toBe(CASH_RESERVE);
+    expect(capitalComponent(joined, N2).has(site.tileId.replace('-', ','))).toBe(true);
+    expect(cashReserve(joined, N2)).toBe(CASH_RESERVE);
+    // the farmer gone: 4 developers
+    expect(cashReserve(withoutWorker(s, 'worker-nation-2-2'), N2)).toBe(CASH_RESERVE - 100);
+  });
+
+  it('FR-454 while a depot is being built, or built and not joined, one rail section ($300) instead of the depot', () => {
+    expect(cashReserve(building, N2)).toBe(5 * 100 + 300);
+    expect(cashReserve(built, N2)).toBe(5 * 100 + 300);
+  });
+
+  it('FR-454 the cash above it buys pairs: with a depot being built, bids at $1,500; with every depot joined and the engineer free, none at $2,600', () => {
+    expect(ofKind(ordersOf(setTreasury(building, N2, 1500)), 'buyCommodity').map(o => o.commodity)).toEqual(['lumber', 'steel']);
+    expect(ofKind(ordersOf(setTreasury(joined, N2, CASH_RESERVE + 100)), 'buyCommodity')).toEqual([]);
+  });
+
+  it('FR-454 a nation with an army keeps CASH_RESERVE (FR-213\'s recruit floor) while a depot is being built', () => {
+    const continent = newGame({ seed: 1, world: 'continent' });
+    const order: Order = { kind: 'moveAndStartConstruction', nationId: N2, workerId: ENGINEER_2, toTileId: bestDepotSite(continent, N2)!.tileId, structure: 'depot' };
+    const armed = applyOrder(continent, order);
+    expect(cashReserve(armed, N2)).toBe(CASH_RESERVE);
+    // the same game without the start forces: the rail section's $300
+    expect(cashReserve(withoutStartForces(armed), N2)).toBe(5 * 100 + 300);
+  });
+});
+
+describe('FR-456 FR-457 depot sites by what the nation will use, then by payback', () => {
+  /** Seed 1's start with no resource on nation 2's land but `resources` (level 0), and `stock` the only goods. */
+  const placed = (resources: Partial<Record<ResourceType, string[]>>, stock: Record<string, number> = { grain: 100, fruit: 100, livestock: 100 }): GameState => {
+    const s = start();
+    let v: GameState = { ...s, map: { ...s.map, tiles: s.map.tiles.map(row => row.map(t => (t.ownerNationId === N2 ? { ...t, resource: undefined } : t))) } };
+    for (const [type, ids] of Object.entries(resources)) {
+      for (const id of ids) v = setTile(v, id, { resource: { type: type as ResourceType, level: 0, discovered: true } });
+    }
+    return emptyWarehouse(v, N2, stock);
+  };
+  const lumberMill = (s: GameState, capacity: number) => setBuilding(s, N2, 'lumberMill', { capacity });
+  const FORESTS = ['16-8', '17-8', '17-10']; // the three next to 16-9, 2 sections from the capital
+
+  it('FR-456 a site counts only what the nation can use: three forests (6 timber a turn) count 6 for a lumber mill of 3, 2 for a mill of 1, none for no mill', () => {
+    const forests = placed({ [ResourceType.Timber]: FORESTS });
+    expect(bestDepotSite(lumberMill(forests, 3), N2)).toEqual({ tileId: '16-9', gain: 6, railNeeded: 2, railCost: 200 });
+    // two turns of a mill of 1 use 2 timber: every site with a forest gains 2, and the first of the shortest paybacks wins
+    expect(bestDepotSite(lumberMill(forests, 1), N2)).toEqual({ tileId: '15-7', gain: 2, railNeeded: 2, railCost: 200 });
+    expect(bestDepotSite(lumberMill(forests, 0), N2)).toBeUndefined();
+  });
+
+  it('FR-456 a site covering a meal kind that runs out within 15 turns comes first: the far grain before the near timber', () => {
+    const both = lumberMill(placed({ [ResourceType.Timber]: FORESTS, [ResourceType.Grain]: ['19-10', '20-10'] }), 3);
+    // 100 grain feed the 7 workers (4 a turn) for 25 turns: the timber pays back first
+    expect(bestDepotSite(both, N2)?.tileId).toBe('16-9');
+    // no grain and no canned food: the grain comes first, 5 sections away
+    const hungry = emptyWarehouse(both, N2, { fruit: 100, livestock: 100 });
+    expect(bestDepotSite(hungry, N2)).toEqual({ tileId: '19-9', gain: 4, railNeeded: 5, railCost: 500 });
+  });
+
+  it('FR-457 among sites with the same meal cover, the one that pays back first: 4 timber a turn 2 sections away before 6 a turn 7 sections away', () => {
+    const far = ['19-5', '20-5', '21-6'];
+    const s = lumberMill(placed({ [ResourceType.Timber]: ['16-8', '17-10', ...far] }), 10);
+    const best = bestDepotSite(s, N2)!;
+    expect(best).toEqual({ tileId: '16-9', gain: 4, railNeeded: 2, railCost: 200 });
+    // the far forests alone: their best site gains 6 a turn, 7 sections away
+    const farSite = bestDepotSite(lumberMill(placed({ [ResourceType.Timber]: far }), 10), N2)!;
+    expect({ tileId: farSite.tileId, gain: farSite.gain, railNeeded: farSite.railNeeded }).toEqual({ tileId: '20-6', gain: 6, railNeeded: 7 });
+    // 2 build turns + 2 sections + ($2,000 + $200) / $100 / 4 a turn, against 2 + 7 + (2,000 + rail) / 100 / 6
+    expect(paybackTurns(best)).toBe(9.5);
+    expect(paybackTurns(farSite)).toBeGreaterThan(paybackTurns(best));
+  });
+});
+
 describe('FR-129 the production run', () => {
   // 3 experts (12 labour, nobody to train: no paper wanted), mills at 4, inputs for 3 pairs and a clothing
   const base = (treasury: number) =>
@@ -418,8 +506,16 @@ describe('FR-131 development: the cheapest level that pays first', () => {
     const goTo = (toTileId: string) => [{ kind: 'moveAndStartProspecting', nationId: N2, workerId: PROSPECTOR_2, toTileId }];
     // Seed 1: of the nine hills he can prospect, 17-4 is nearest the capital
     expect(prospector(start())).toEqual(goTo('17-4'));
-    // A depot on 20-3, the hills farthest away: it and 20-4 next to it come first, in map order
-    expect(prospector(setTile(start(), '20-3', { depot: true }))).toEqual(goTo('20-3'));
+    // A depot on 20-3, the hills farthest away, joined to the capital: it and 20-4 next to it come first, in map order
+    // (M12 FR-459: the depot is joined here; until FR-459 the test's depot had no rail)
+    const depot = addDepot(setTile(start(), '20-3', { depot: true }), N2, { x: 20, y: 3 });
+    const path = railPath(depot, N2, '20,3', capitalComponent(depot, N2))!;
+    const node = (k: string) => ({ x: Number(k.split(',')[0]), y: Number(k.split(',')[1]) });
+    const joined = path.slice(0, -1).reduceRight((s, k, i) => addRailroad(s, N2, node(k), node(path[i + 1])), depot);
+    expect(capitalComponent(joined, N2).has('20,3')).toBe(true);
+    expect(prospector(joined)).toEqual(goTo('20-3'));
+    // FR-459: while the depot is not joined, its tile is left to the engineer's rail, so 20-4 next to it comes first
+    expect(prospector(setTile(start(), '20-3', { depot: true }))).toEqual(goTo('20-4'));
   });
 
   it('FR-131 no job that cannot finish by the last turn', () => {

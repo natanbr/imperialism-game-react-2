@@ -9,13 +9,13 @@ import { applyOrder } from '@/engine/orders/apply';
 import { computerOrders } from '@/engine/ai/players';
 import { scriptedPlayer, type Player } from '@/engine/ai/scriptedPlayer';
 import { bestDepotSite, capitalComponent, coveredTiles, railPath } from '@/engine/ai/railPlan';
-import { railLinksOf, addDepot } from '@/engine/systems/railroadSystem';
+import { railLinksOf, addDepot, addRailroad } from '@/engine/systems/railroadSystem';
 import { computeLogisticsTransport } from '@/engine/systems/logisticsSystem';
 import { scoreOf } from '@/engine/score/score';
 import type { Order } from '@/engine/orders/Order';
 import type { GameState } from '@/types/GameState';
 import { m4ScriptedPlayer } from './m4ScriptedPlayer';
-import { setTile } from './fixtures';
+import { put, setTile } from './fixtures';
 import { landDistanceToCapital as distanceToCapital, railBound as bound, railDeadEnds } from './railBound';
 
 const N2 = 'nation-2';
@@ -152,6 +152,45 @@ describe('FR-123 the others work the gathered tiles first', () => {
   });
 });
 
+describe('FR-459 no civilian starts a job on a tile the engineer\'s rail still needs', () => {
+  // The two-islands games of seeds 3 and 4 at turn 25 (M12 review): the depot 20-2 is built and not joined, the rail
+  // reaches 18-2. The engineer laid 18-2 -> 19-2 and the forester then started a job on 20-2, so the last section (built
+  // on 20-2) was refused "tile-has-job" on turns 26 and 27 and the depot was joined on turn 28.
+  const RAIL = ['14-9', '15-8', '15-7', '16-6', '16-5', '17-4', '17-3', '18-2'];
+  const node = (tileId: string) => {
+    const [x, y] = tileId.split('-').map(Number);
+    return { x, y };
+  };
+  const PATH = ['19-2', '20-2'];
+  /** Seed 1's start with that rail and depot; every other resource tile of nation 2 at level 3, so only the path is left to develop. */
+  const blocked = (): GameState => {
+    let s = newGame({ seed: 1 });
+    for (let i = 1; i < RAIL.length; i++) s = addRailroad(s, N2, node(RAIL[i]), node(RAIL[i - 1]));
+    s = setTile(addDepot(s, N2, node('20-2')), '20-2', { depot: true });
+    const tiles = s.map.tiles.map(row =>
+      row.map(t => (t.ownerNationId === N2 && t.resource && !PATH.includes(t.id) ? { ...t, resource: { ...t.resource, level: 3 } } : t))
+    );
+    return put({ ...s, map: { ...s.map, tiles } }, ENGINEER_2, '20-2');
+  };
+  const jobTile = (o: Order): string | undefined => ('toTileId' in o ? o.toTileId : 'tileId' in o ? o.tileId : undefined);
+
+  it('FR-459 with a built depot not joined, the engineer lays the first section and no other civilian takes the depot\'s tile or its path', () => {
+    const s = blocked();
+    expect(railPath(s, N2, '20,2', capitalComponent(s, N2))).toEqual(['20,2', '19,2', '18,2']);
+    const orders = workerOrders(scriptedPlayer(s, N2));
+    expect(orders.filter(o => o.workerId === ENGINEER_2)).toEqual([
+      { kind: 'moveAndStartConstruction', nationId: N2, workerId: ENGINEER_2, toTileId: '19-2', structure: 'rail', fromTileId: '18-2' },
+    ]);
+    expect(orders.filter(o => o.workerId !== ENGINEER_2 && PATH.includes(jobTile(o) ?? ''))).toEqual([]);
+  });
+
+  it('FR-459 so the depot is joined on the second turn, with no dead end', () => {
+    let s = blocked();
+    for (let turn = 1; turn <= 2; turn++) s = resolveTurn(s, { [N2]: scriptedPlayer(s, N2) }, s.seed).state;
+    expect({ joined: capitalComponent(s, N2).has('20,2'), deadEnds: railDeadEnds(s, N2) }).toEqual({ joined: true, deadEnds: [] });
+  });
+});
+
 describe('FR-124 AI acceptance: 15 turns of nation 2', () => {
   const now = play(scriptedPlayer);
   const m4 = play(m4ScriptedPlayer);
@@ -204,7 +243,10 @@ describe('FR-124 AI acceptance: 15 turns of nation 2', () => {
     expect({ ...row(now), bound: railBound(now.state), refused: now.refused })
       // M12 strategy C re-record (FR-454 to FR-457): links 7 -> 9 (bound 10 -> 11), yield 33 -> 36, sold 29 -> 19 (the
       // start timber and the gathered inputs go into pairs instead of the holds), score 637 -> 747
-      .toEqual({ depots: 2, links: 9, yieldPerTurn: 36, shipped: 200, sold: 19, score: 747, bound: 11, refused: 0 });
+      // M12 FR-459 re-record: links 9 -> 8, yield 36 -> 35, sold 19 -> 22, score 747 -> 760. On turn 10 the rancher took
+      // 16-5, on the 5-section path of the new depot 17-4, so the rail went round it (6 sections, joined on turn 15); now
+      // he works 17-5, the depot is joined on turn 14 by 5 sections and the engineer starts the depot 18-2 on turn 15
+      .toEqual({ depots: 2, links: 8, yieldPerTurn: 35, shipped: 200, sold: 22, score: 760, bound: 11, refused: 0 });
     expect({ ...row(m4), bound: railBound(m4.state), refused: m4.refused })
       .toEqual({ depots: 1, links: 10, yieldPerTurn: 21, shipped: 181, sold: 32, score: 451, bound: 11, refused: 0 });
   });

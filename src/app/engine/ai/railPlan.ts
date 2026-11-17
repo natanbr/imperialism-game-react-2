@@ -125,6 +125,25 @@ function missingSteps(state: GameState, nationId: string, path: string[]): numbe
   return path.slice(0, -1).flatMap((k, i) => (isRailLinked(network, at(k), at(path[i + 1])) ? [] : [i]));
 }
 
+/** A built depot not in the capital's rail component, with its shortest path there and that path's missing steps. */
+interface UnjoinedDepot {
+  tile: Tile;
+  /** Depot first, a tile of the capital's component last; undefined when no path exists. */
+  path?: string[];
+  missing: number[];
+}
+
+/** The built depots not joined to the capital, in map order (FR-122 (1), FR-138). */
+function unjoinedDepots(state: GameState, nationId: string, component: Set<string>): UnjoinedDepot[] {
+  return state.map.tiles
+    .flat()
+    .filter((tile) => tile.ownerNationId === nationId && !!tile.depot && !component.has(keyOf(tile)))
+    .map((tile) => {
+      const path = railPath(state, nationId, keyOf(tile), component);
+      return { tile, path, missing: path ? missingSteps(state, nationId, path) : [] };
+    });
+}
+
 /**
  * The rail sections to try next for each built depot not joined to the capital (FR-122 (1), FR-138), depots
  * in map order: per depot, the first missing section of its shortest path from the capital's end (built from
@@ -136,18 +155,33 @@ export function nextRailSections(state: GameState, nationId: string): RailSectio
   if (component.size === 0) return [];
   const id = (k: string) => tileAtKey(state, k).id;
   const sections: RailSection[] = [];
-  for (const tile of state.map.tiles.flat()) {
-    if (tile.ownerNationId !== nationId || !tile.depot || component.has(keyOf(tile))) continue;
-    const path = railPath(state, nationId, keyOf(tile), component);
-    if (!path) continue;
-    const missing = missingSteps(state, nationId, path);
-    if (missing.length === 0) continue;
+  for (const { path, missing } of unjoinedDepots(state, nationId, component)) {
+    if (!path || missing.length === 0) continue;
     const last = missing[missing.length - 1];
     sections.push({ fromTileId: id(path[last + 1]), toTileId: id(path[last]) });
     const first = missing[0];
     if (first !== last) sections.push({ fromTileId: id(path[first]), toTileId: id(path[first + 1]) });
   }
   return sections;
+}
+
+/**
+ * FR-459: the tile ids the engineer's rail still needs, kept free of the other civilians' jobs until the rail joins:
+ * every built depot not joined to the capital, and on its shortest path both ends of each missing section outside the
+ * capital's component (a section's job goes on one of them, FR-138). One job on a tile refuses the section on it
+ * ("tile-has-job", FR-113): before FR-459 a forester's job on a built depot's tile kept the depot unjoined 2 turns.
+ */
+export function pendingRailTiles(state: GameState, nationId: string): Set<string> {
+  const component = capitalComponent(state, nationId);
+  const tiles = new Set<string>();
+  if (component.size === 0) return tiles;
+  for (const { tile, path, missing } of unjoinedDepots(state, nationId, component)) {
+    tiles.add(tile.id);
+    for (const i of missing) {
+      for (const k of [path![i], path![i + 1]]) if (!component.has(k)) tiles.add(tileAtKey(state, k).id);
+    }
+  }
+  return tiles;
 }
 
 export interface DepotSite {

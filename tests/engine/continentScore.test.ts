@@ -209,20 +209,26 @@ describe('FR-260 (replaces FR-157) the continent plays: 40 turns, nation 2 scrip
   /** Nation 2's turn-40 score of each seed in one game kind. */
   const scores = (kind: 'first' | 'bare' | 'twoIslands') => SEEDS.map(seed => games.get(seed)![kind].turns[N2][TURNS - 1].score.total);
 
-  it('FR-260 with the start army nation 2\'s turn-40 score is the pinned 1507, 1546, 1548, 1660 (seeds 1 to 4)', () => {
+  it('FR-260 with the start army nation 2\'s turn-40 score is the pinned 1507, 1546, 1548, 1685 (seeds 1 to 4)', () => {
     // Review R1: the start army's $100 upkeep (FR-202) moves the score from the two-islands one; these are the numbers a
     // change must move on purpose, as FR-159's v1 baselines.
     // M12 strategy C re-record (FR-456, FR-457 depot sites; FR-458 the campaign keeps its trained workers): 1419, 1451,
     // 1441, 1469 -> 1507, 1546, 1548, 1660, every seed up
-    expect(scores('first')).toEqual([1507, 1546, 1548, 1660]);
+    // M12 FR-459 re-record (no civilian works a tile the engineer's rail still needs): seed 4 1660 -> 1685, seeds 1 to 3
+    // unchanged
+    expect(scores('first')).toEqual([1507, 1546, 1548, 1685]);
   });
 
-  it('FR-260 FR-215 without the start forces nation 2\'s turn-40 score on the continent is the same seed\'s score on two-islands: 1551, 1591, 1592, 1522', () => {
+  it('FR-260 FR-215 without the start forces nation 2\'s turn-40 score on the continent is the same seed\'s score on two-islands: 1590, 1546, 1524, 1655', () => {
     // The seams of M5 to M8 change nothing else: only the start army (its upkeep) and the 4 horses move the continent game.
     const at40 = (game: Game) => game.turns[N2][TURNS - 1].score;
     expect(SEEDS.map(seed => at40(games.get(seed)!.bare))).toEqual(SEEDS.map(seed => at40(games.get(seed)!.twoIslands)));
     // M12 strategy C re-record (FR-454 to FR-457, the FR-125 margin): 1493, 1496, 1490, 1476 -> 1551, 1591, 1592, 1522
-    expect(scores('twoIslands')).toEqual([1551, 1591, 1592, 1522]);
+    // M12 FR-459 re-record: 1551, 1591, 1592, 1522 -> 1590, 1546, 1524, 1655 (FR-125's turn-40 numbers). Every seed first
+    // differs on turn 10 (the rancher works 17-5, not 16-5 on the depot 17-4's rail path, which is joined a turn earlier
+    // by one section fewer); seeds 2 and 3 end lower (-45, -68) with the same depots and as many development jobs.
+    // Accepted: no depot is joined late any more (FR-125's dead-end check passes) and every turn-40 ratio is 2.02 or more
+    expect(scores('twoIslands')).toEqual([1590, 1546, 1524, 1655]);
     console.log('FR-260 nation 2 score at turn 40, continent with the start army / without / two-islands:', JSON.stringify(SEEDS.map((seed, i) => [seed, scores('first')[i], scores('bare')[i], scores('twoIslands')[i]])));
   });
 
