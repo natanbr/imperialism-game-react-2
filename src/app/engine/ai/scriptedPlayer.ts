@@ -11,8 +11,8 @@ import { findWorker, nationById, nextResourceLevel, treasuryOf, workersOf, type 
 import { upkeepOf } from "../army/armies";
 import { SCRIPTED_GARRISON } from "@/definisions/regiments";
 import { validateOrder } from "../orders/validate";
-import { bestDepotSite, nextRailSections, tilesByReach, type DepotSite } from "./railPlan";
-import { planEconomy, turnsAfter } from "./economy";
+import { bestDepotSite, nextRailSections, pendingRailTiles, tilesByReach, type DepotSite } from "./railPlan";
+import { planEconomy, planFinalTransport, turnsAfter } from "./economy";
 import { scriptedDiplomacyOrders } from "./diplomacy";
 import { hasFieldArmy, planWarDeclaration, planWarMoves } from "./scriptedWar";
 
@@ -29,7 +29,8 @@ export type Player = (state: GameState, nationId: string) => Order[];
  * training, freight cars, expansion, production, world-market trade; economy.ts, FR-126 to FR-130),
  * then the civilians: the engineer joins depots to the capital by the shortest rail path or starts
  * the depot that gathers most when it pays back (FR-122, FR-132), the prospector works the gathered
- * tiles first (FR-123) and the developers start the cheapest level that pays first (FR-131).
+ * tiles first (FR-123) and the developers start the cheapest level that pays first (FR-131); neither starts a job on
+ * a tile the engineer's rail still needs (FR-459).
  */
 export const scriptedPlayer: Player = (state, nationId) => {
   const orders: Order[] = [];
@@ -54,13 +55,18 @@ export const scriptedPlayer: Player = (state, nationId) => {
   const civilians = workersOf(state, nationId).sort(
     (a, b) => Number(b.worker.type === WorkerType.Engineer) - Number(a.worker.type === WorkerType.Engineer)
   );
+  // FR-459: taken before the engineer's section of this turn, whose job would hide the rest of the path from railPath
+  const railTiles = pendingRailTiles(view, nationId);
   for (const { worker } of civilians) {
     const current = findWorker(view, worker.id);
     if (!current || current.worker.status !== WorkerStatus.Available || current.worker.justMoved) continue;
-    for (const order of candidateOrders(view, nationId, current)) {
+    for (const order of candidateOrders(view, nationId, current, railTiles)) {
       if (propose(order)) break;
     }
   }
+
+  // FR-389: the transport plan again, now that this turn's rails are known (a rail finished this turn joins a hub)
+  planFinalTransport(state, view, nationId, propose);
 
   // At war (or declaring war this turn): the attacks and marches (FR-228, FR-274)
   planWarMoves(() => view, nationId, propose);
@@ -122,12 +128,15 @@ function developmentLevel(view: GameState, tile: Tile, worker: Worker): number |
   return turnsAfter(view) >= duration - 1 ? level : undefined;
 }
 
-/** What this civilian could do, best first; validation picks the first one that is allowed. */
-function candidateOrders(view: GameState, nationId: string, { worker, tile }: WorkerLocation): Order[] {
+/**
+ * What this civilian could do, best first; validation picks the first one that is allowed. The prospector and the
+ * developers leave `railTiles` (`pendingRailTiles`, FR-459) to the engineer.
+ */
+function candidateOrders(view: GameState, nationId: string, { worker, tile }: WorkerLocation, railTiles: Set<string>): Order[] {
   const workerId = worker.id;
   if (worker.type === WorkerType.Engineer) return engineerOrders(view, nationId, workerId, tile.id);
   const prospecting = worker.type === WorkerType.Prospector;
-  let tiles = tilesByReach(view, nationId);
+  let tiles = tilesByReach(view, nationId).filter((t) => !railTiles.has(t.id));
   if (!prospecting) {
     // The cheapest level first; the sort is stable, so each level keeps the FR-123 order.
     tiles = tiles
@@ -148,9 +157,9 @@ function candidateOrders(view: GameState, nationId: string, { worker, tile }: Wo
 
 /**
  * The engineer (FR-122, FR-138): (1) the next missing rail section of the shortest path joining a built
- * depot to the capital's network, naming its start; else (2), while no depot is being built, the depot
- * that newly gathers most, if it pays back (FR-132). It lays no rail that joins nothing and builds no
- * port (nothing it ships needs one).
+ * depot to the capital's network, naming its start; else (2), while no depot is being built, the best
+ * depot site (`bestDepotSite`: an urgent meal first, then the shortest payback of what the nation will
+ * use, FR-456, FR-457), if it pays back (FR-132). It lays no rail that joins nothing and builds no port.
  */
 function engineerOrders(view: GameState, nationId: string, workerId: string, standingOn: string): Order[] {
   const rail = nextRailSections(view, nationId).map(

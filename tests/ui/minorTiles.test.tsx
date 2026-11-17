@@ -24,6 +24,8 @@ const show = (game: GameState, ui: Partial<ReturnType<typeof useGameStore.getSta
   useGameStore.setState({ ...useGameStore.getInitialState(), game, activeNationId: N1, ...ui });
 const tileEl = (container: HTMLElement, id: string) => container.querySelector(`[data-tile-id="${id}"]`) as HTMLElement;
 const panel = () => screen.getByTestId('tile-info');
+// FR-370 (M12): every Tile Info holds its 'Close tile info' button, which builds no order; the other buttons are order controls
+const orderControls = (el: HTMLElement) => within(el).queryAllByRole('button').filter((b) => b.getAttribute('aria-label') !== 'Close tile info');
 
 describe('FR-155 a minor nation\'s tile in the tile panel', () => {
   it('FR-155 FR-235 a click on Arvelia\'s forest selects it read-only: the minor, terrain, resource and level, no province line, no button', () => {
@@ -39,7 +41,7 @@ describe('FR-155 a minor nation\'s tile in the tile panel', () => {
     expect(text(panel())).toContain('Resource: Timber (L1)');
     expect(text(panel())).toContain('Arvelia is a minor nation: you can watch its land, not give orders here.');
     expect(text(panel())).not.toContain('Unclaimed');
-    expect(within(panel()).queryAllByRole('button')).toEqual([]);
+    expect(orderControls(panel())).toEqual([]);
   });
 
   it('FR-155 FR-235 a click on a minor capital (Sundmark, 12-9) shows the capital read-only, with no province line', () => {
@@ -51,7 +53,7 @@ describe('FR-155 a minor nation\'s tile in the tile panel', () => {
     expect(within(panel()).queryByTestId('tile-province')).toBeNull();
     expect(text(panel())).toContain('Terrain: Capital');
     expect(text(panel())).toContain('Resource: None');
-    expect(within(panel()).queryAllByRole('button')).toEqual([]);
+    expect(orderControls(panel())).toEqual([]);
   });
 
   it('FR-155 FR-149 with the player\'s engineer selected a click on minor land builds no order and selects the tile for viewing', () => {
@@ -75,7 +77,7 @@ describe('FR-155 a minor nation\'s tile in the tile panel', () => {
     }
     expect(submitted).toEqual([]);
     expect(useGameStore.getState().lastRejection).toBeNull();
-    expect(within(panel()).queryAllByRole('button')).toEqual([]);
+    expect(orderControls(panel())).toEqual([]);
     // Every minor tile is still empty of civilians
     const game = useGameStore.getState().game;
     expect(game.map.tiles.flat().filter((t) => !t.ownerNationId && t.workers.length > 0)).toEqual([]);

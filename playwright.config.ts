@@ -17,6 +17,12 @@ export default defineConfig({
     baseURL: BASE_URL,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
+    // FR-430: every spec starts in a browser that has seen "How to play", so it does not cover the map on the first
+    // new game; a spec about that dialog clears it (test.use({ storageState: { cookies: [], origins: [] } }))
+    storageState: {
+      cookies: [],
+      origins: [{ origin: BASE_URL, localStorage: [{ name: 'imperialism-remake.howto-seen', value: '1' }] }],
+    },
   },
 
   projects: [
@@ -28,6 +34,8 @@ export default defineConfig({
 
   webServer: {
     command: `npm run dev -- --port ${PORT}`,
+    // FR-444: its own build folder (next.config.ts), so the production build in .next survives the e2e run
+    env: { NEXT_DIST_DIR: '.next-e2e' },
     url: BASE_URL,
     reuseExistingServer: process.env.PW_REUSE_SERVER === '1',
     timeout: 120000,

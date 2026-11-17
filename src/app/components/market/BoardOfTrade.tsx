@@ -1,11 +1,11 @@
 "use client";
-import React, { useId, useMemo } from "react";
+import React, { useId, useMemo, useState } from "react";
 import { useGameStore } from "../../store/rootStore";
 import { selectActiveNation } from "../../store/selectors";
 import type { Order } from "@/engine";
 import type { TradeCommodity } from "@/types/Market";
 import { money, refusalText } from "../gameText";
-import { boardView, type BoardRowView, type PartnerView } from "./boardView";
+import { boardView, lastTurnTrades, repeatTrades, type BoardRowView, type PartnerView } from "./boardView";
 import { Stepper } from "./Stepper";
 import styles from "./Market.module.css";
 import { UI_ICONS } from "../icons";
@@ -56,12 +56,24 @@ export const BoardOfTrade: React.FC = () => {
   const titleId = useId();
   const noteId = useId();
 
+  const orderLog = useGameStore((s) => s.orderLog);
+  const [repeated, setRepeated] = useState<{ turn: number; text: string } | null>(null);
+
   const view = useMemo(() => (nation ? boardView(game, nation) : null), [game, nation]);
+  // FR-397: last turn's bids and offers, from the order log (NR-018 kept: the engine holds no standing trade order)
+  const lastTrades = useMemo(() => (nation ? lastTurnTrades(orderLog, nation.id, game.turn) : []), [orderLog, nation, game.turn]);
 
   const send = (kind: "sellCommodity" | "buyCommodity", commodity: TradeCommodity) => (amount: number) => {
     if (!nation) return;
     const order: Order = { kind, nationId: nation.id, commodity, amount };
     submitOrder(order);
+  };
+
+  /** FR-397, FR-398: each unit through submitOrder; the line says how many and, for a refused one, why. Shown this turn only. */
+  const repeat = () => {
+    if (!nation) return;
+    const outcome = repeatTrades(lastTrades, nation.id, () => useGameStore.getState().game, submitOrder);
+    setRepeated({ turn: game.turn, text: outcome.text });
   };
 
   return (
@@ -89,6 +101,8 @@ export const BoardOfTrade: React.FC = () => {
       </header>
 
       <p id={noteId} className={styles.boardNote}>
+        {/* FR-399 (NR-018, card Q15): trade orders are one turn's; the Capital's production orders stand */}
+        <span data-testid="board-duration">Bids and offers last one turn; production orders in the Capital stay.</span>{" "}
         Deals settle at End Turn at the board price; bought goods arrive next turn. Minor nations sell what their land
         yields and buy only clothing, furniture and hardware. A minor trades only where we hold a consulate (one ordered
         this turn counts) and serves the Great Power it favours first
@@ -100,6 +114,28 @@ export const BoardOfTrade: React.FC = () => {
           "."
         )}
       </p>
+
+      {view?.firstSaleText && (
+        <p className={styles.boardNote} data-testid="first-sale">
+          {view.firstSaleText}
+        </p>
+      )}
+
+      {nation && lastTrades.length > 0 && (
+        <p className={styles.boardNote}>
+          <button type="button" className={styles.plainButton} onClick={repeat}>
+            Repeat last turn&apos;s trades
+          </button>
+          {repeated?.turn === game.turn && (
+            <>
+              {" "}
+              <span data-testid="repeat-result" role="status">
+                {repeated.text}
+              </span>
+            </>
+          )}
+        </p>
+      )}
 
       {lastRejection && (
         <div className={styles.refusal} role="alert" data-testid="market-refusal">
@@ -128,6 +164,12 @@ export const BoardOfTrade: React.FC = () => {
                   </td>
                   <td className={`${styles.number} ${styles.fixed}`} data-testid="price">
                     {money(row.price)}
+                    {/* FR-394: the price a deal with a minor we subsidise gives, under the board price */}
+                    {row.dealPrices?.map((line) => (
+                      <div key={line} className={`${styles.stepNote} ${styles.stepRefusal}`} data-testid="deal-price">
+                        {line}
+                      </div>
+                    ))}
                   </td>
                   <td className={`${styles.number} ${styles.fixed}`} data-testid="available">
                     {row.available}

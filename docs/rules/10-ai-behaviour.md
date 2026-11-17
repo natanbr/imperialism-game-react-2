@@ -4,7 +4,7 @@
 > - For the later AI phase (v3). Nothing here is a documented algorithm: the original AI is known only from the manual, the two readmes and player reports. Treat every row marked `players: n` as an observation by n independent players, not a rule.
 > - Design target (project decision, not original): an AI nation is a function `view -> Order[]`; the original AI is deterministic enough to be "extremely predictable" for a watching human, so a heuristic bot (not a learned one) can imitate it.
 > - Minor Nations are scripted markets, not players: they never attack, sell raw materials, buy goods, accept every consulate/embassy/pact/peace.
-> - No AI code exists. Open questions (decision thresholds, tech order, build orders) are listed in gaps.md.
+> - AI code exists since M4 (RESOLVED 2026-11-15, was "No AI code exists"): `engine/ai/scriptedPlayer.ts` and its parts (`economy.ts`, `diplomacy.ts`, `scriptedArmy.ts`, `scriptedWar.ts`, `scriptedPartners.ts`, `railPlan.ts`) play a Great Power through `Order`s only, registered in `engine/ai/players.ts` (the registry NR-006 names). Minor Nations have no player. Open questions (decision thresholds, tech order, build orders) are listed in gaps.md.
 
 Source tags: `[M pN]` manual PDF page marker; `[W#]` web source (see Sources); `[?]` unverified or inferred. `players: n` = independent reporters.
 
@@ -94,7 +94,7 @@ Source tags: `[M pN]` manual PDF page marker; `[W#]` web source (see Sources); `
 
 ## CODE MISMATCH
 
-- None applicable: no AI code, no personalities. The project plan (`docs/REVIVAL_PLAN.md`) requires every nation to act only through the same `Order` interface; the rules above show that the original AI also used the same player screens (bids, offers, subsidies, overtures, unit moves).
+- RESOLVED 2026-11-15, was "None applicable: no AI code": the scripted player exists (see the notes at the top). Still true (checked 2026-11-15): it has no personalities. The project plan (`docs/REVIVAL_PLAN.md`) requires every nation to act only through the same `Order` interface; the rules above show that the original AI also used the same player screens (bids, offers, subsidies, overtures, unit moves).
 
 ## Sources
 

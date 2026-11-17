@@ -16,8 +16,9 @@ const tile = (page: Page, id: string) => page.locator(`[data-tile-id="${id}"]`);
 const content = (page: Page) => page.locator('.hud-content');
 const ACTIONS = [/Open Warehouse/, /Open Capital/, /Open Market/, /Transportation of Commodities/, /Center/, /Advance Turn/];
 
+// FR-377: the Debug box shows only with `debug` in the URL's query
 async function open(page: Page) {
-  await page.goto('/');
+  await page.goto('/?debug');
   await expect(page.getByTestId('map-scroll')).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
   await expect(tile(page, '11-4')).toBeVisible({ timeout: 15000 });
 }

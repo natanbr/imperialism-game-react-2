@@ -188,12 +188,13 @@ describe('FR-108 no orders for another nation', () => {
     expect(text(within(panel).getByTestId('tile-owner'))).toBe('Owner: Valdoria');
     expect(text(panel)).toContain('Capital');
     expect(within(panel).getAllByRole('listitem')).toHaveLength(7);
-    expect(within(panel).queryAllByRole('button')).toEqual([]);
+    // FR-370 (M12): only Tile Info's own 'Close tile info' button, which builds no order
+    expect(within(panel).queryAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual(['Close tile info']);
 
     // Clicking a listed civilian of Valdoria selects nothing
     fireEvent.click(within(panel).getAllByRole('listitem')[0]);
     expect(useGameStore.getState().selectedWorkerId).toBeUndefined();
-    expect(within(screen.getByTestId('tile-info')).queryAllByRole('button')).toEqual([]);
+    expect(within(screen.getByTestId('tile-info')).queryAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual(['Close tile info']);
 
     // Display names; a resource not yet prospected is not named (as in the tile's name, FR-095)
     fireEvent.click(tileEl(container, '17-2'));
@@ -242,6 +243,8 @@ describe('FR-108 no orders for another nation', () => {
     openTray();
     pick(WorkerType.Farmer);
     fireEvent.click(tileEl(container, '3-9'));
+    // Level 2 costs $1,000: the job is sent once the player says Spend (FR-383)
+    fireEvent.click(screen.getByRole('button', { name: 'Spend $1,000' }));
     // Every button the HUD's tile panel offers on Valdoria's capital (there are none)
     fireEvent.click(tileEl(container, '14-9'));
     for (const button of within(screen.getByTestId('tile-info')).queryAllByRole('button')) fireEvent.click(button);
@@ -419,6 +422,24 @@ describe('FR-111 keyboard and screen reader use of the worker tray and New game'
     expect(document.activeElement).toBe(stack());
     expect(stack().getAttribute('aria-label')).toBe(`7 civilians, ${WorkerType.Engineer} selected`);
     expect(screen.getByRole('button', { name: `7 civilians, ${WorkerType.Engineer} selected` })).toBe(stack());
+  });
+
+  it("FR-385 with the farmer selected on 3-9, the capital's stack opens its tray (no order) and a pick there selects that civilian", () => {
+    show(newGame({ seed: 1 }));
+    const { container } = render(<MapView />);
+    act(() => {
+      useGameStore.getState().submitOrder({ kind: 'moveWorker', nationId: N1, workerId: 'worker-nation-1-2', toTileId: '3-9' });
+    });
+    act(() => useGameStore.getState().selectWorker('worker-nation-1-2'));
+    const stack = within(tileEl(container, '2-9')).getByTestId('worker-stack');
+    expect(stack.getAttribute('title')).toBe('6 civilians: choose one');
+    const before = useGameStore.getState().ordersThisTurn.length;
+    fireEvent.click(stack);
+    expect(useGameStore.getState().ordersThisTurn.length).toBe(before);
+    const tray = within(tileEl(container, '2-9')).getByRole('group', { name: 'Civilians on this tile' });
+    const engineer = within(tray).getAllByTestId('worker-button').find((b) => b.getAttribute('data-worker-type') === WorkerType.Engineer)!;
+    fireEvent.click(engineer);
+    expect(useGameStore.getState().selectedWorkerId).toBe('worker-nation-1-7');
   });
 
   it('FR-111 a lone worker button says whether it is selected (aria-pressed)', () => {

@@ -41,6 +41,17 @@ export interface ProvinceCapture {
   turn: number;
 }
 
+/**
+ * FR-408: one battle between the two countries of a war, as the combat phase fought it: an attack that took the
+ * province is won by the attacker, one the defender held by the defender.
+ */
+export interface WarBattle {
+  provinceId: ProvinceId;
+  turn: number;
+  winnerId: CountryId;
+  loserId: CountryId;
+}
+
 export interface War {
   /** The countries that declared it, in id order. */
   aggressors: CountryId[];
@@ -48,7 +59,9 @@ export interface War {
   since: number;
   /** The provinces taken in this war, oldest first; absent while none was (always in M6). */
   captures?: ProvinceCapture[];
-  /** Per Great Power of the pair: the last turn it proposed peace in this war (FR-174: at most once every 3 turns). */
+  /** FR-408: the battles of this war, oldest first; absent while none was fought. */
+  battles?: WarBattle[];
+  /** Per Great Power of the pair: the last turn it proposed peace in this war (FR-408, card Q92: at most once every `SCRIPTED_DIPLOMACY.offerAgainTurns`, 6 turns; FR-174 had 3). */
   lastPeaceOffer?: Partial<Record<NationId, number>>;
 }
 

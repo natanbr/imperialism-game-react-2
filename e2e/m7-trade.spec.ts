@@ -2,8 +2,8 @@ import { test, expect, Page } from '@playwright/test';
 
 // FR-197 (M7 done) in the running app, on a new game: order a consulate with Arvelia in Diplomacy, bid 2 coal on the
 // Board of Trade, end the turn and see "Bought 2 Coal from Arvelia" in the Deal Book. On turn 1 both Great Powers have
-// 30 points with Arvelia and intentOrder puts Testland first, so Arvelia serves Testland's bid before any bid of the
-// scripted Valdoria (which bids for raw too, FR-245): both units are ours at the board price, $100, whatever the seed.
+// 30 points with Arvelia; since M12 (FR-401) the tie order comes from the game's seed, but the scripted Valdoria bids
+// only for 2 timber on turn 1 (FR-245; seeds 1 to 12 checked), so both coal units are ours at $100 whatever the seed.
 // On the way (FR-194): the coal's sellers in units (FR-251), the "no consulate" mark and the reason beside the disabled
 // "+" that the consulate ordered this turn lifts (FR-185, FR-252, FR-257), "Holds: 2 of 4 free" after the bid and no
 // offer control on a row with a bid; the HUD's Deal Book button (FR-195) with the Trade net and the Treasury, where the
@@ -66,7 +66,8 @@ test('FR-197 FR-194 FR-195 a consulate with Arvelia and 2 coal bid on the Board 
   await openBoard(page);
   await expect(board(page).getByRole('heading', { level: 2 })).toHaveText(/Board of Trade — Testland/);
   await expect(sellers(page, 'coal').first()).toHaveText('Arvelia: 3 units (no consulate)');
-  await expect(board(page).getByTestId('board-favourites')).toHaveText('Arvelia, Sundmark, Lorran and Pellis favour Testland.');
+  // M12 FR-401: whom each minor favours at equal points depends on the game's seed (until M12: all Testland on turn 1)
+  await expect(board(page).getByTestId('board-favourites')).toHaveText(/^(Arvelia|Sundmark|Lorran|Pellis)\b.* favours? (Testland|Valdoria)\.$/);
   const coalPlus = row(page, 'coal').getByRole('button', { name: 'Bid one more Coal' });
   await expect(coalPlus).toBeDisabled();
   await expect(row(page, 'coal').getByTestId('bid-note')).toHaveText('We need a consulate with a seller');
@@ -79,7 +80,8 @@ test('FR-197 FR-194 FR-195 a consulate with Arvelia and 2 coal bid on the Board 
   // Back on the board: the consulate ordered this turn counts, so the mark and the reason are gone; bid 2 coal
   await openBoard(page);
   await expect(sellers(page, 'coal').first()).toHaveText('Arvelia: 3 units');
-  await expect(row(page, 'coal').getByTestId('bid-note')).toHaveCount(0);
+  // M12 FR-401: on a seed where Arvelia favours Valdoria at equal points the bid says so (FR-252); no other note
+  await expect(row(page, 'coal').getByTestId('bid-note').filter({ hasNotText: 'Arvelia favours Valdoria' })).toHaveCount(0);
   await coalPlus.click();
   await coalPlus.click();
   await expect(row(page, 'coal').getByTestId('bid')).toHaveText('2');
@@ -106,10 +108,12 @@ test('FR-197 FR-194 FR-195 a consulate with Arvelia and 2 coal bid on the Board 
   await expect(dealBook.getByTestId('deal-book-turn')).toHaveText('Turn 1, Spring 1815');
   await expect(dealBook.getByRole('list', { name: 'Bought' }).getByRole('listitem')).toHaveText(['Bought 2 Coal from Arvelia @ $100']);
   await expect(dealBook.getByTestId('sold-none')).toHaveText('Nothing sold.');
-  await expect(dealBook.getByRole('table', { name: 'Bottom line' }).getByRole('row')).toHaveText([/Sold\s*\$0/, /Bought\s*\$200/, /Military upkeep\s*\$100/, /Trade net\s*-\$300/]);
-  // FR-256: the trade net and the consulate make the whole change of the treasury
+  // M12 FR-396: the bottom line is the trade only; the army upkeep is its own Treasury line
+  await expect(dealBook.getByRole('table', { name: 'Bottom line' }).getByRole('row')).toHaveText([/Sold\s*\$0/, /Bought\s*\$200/, /Trade net\s*-\$200/]);
+  // FR-256: the trade net, the upkeep and the consulate make the whole change of the treasury
   await expect(dealBook.getByRole('table', { name: 'Treasury' }).getByRole('row')).toHaveText([
-    /Trade net\s*-\$300/,
+    /Trade net\s*-\$200/,
+    /Army upkeep\s*-\$100/,
     /Consulate in Arvelia\s*-\$500/,
     /Treasury change\s*-\$800/,
   ]);

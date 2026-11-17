@@ -5,6 +5,7 @@ import type { GameState } from "@/types/GameState";
 import type { CountryId, NationId, ProvinceId, RegimentId } from "@/types/Common";
 import type { Regiment } from "@/types/Army";
 import type { BattleFate, BattleRegiment, BattleReport } from "@/types/Battle";
+import type { WarBattle } from "@/types/Diplomacy";
 import { FULL_HEALTH, HEALING_PER_TURN, isMilitia } from "@/definisions/regiments";
 import {
   armyAt,
@@ -19,6 +20,7 @@ import {
 import { byRegimentId, fightBattle, fortLevelOf, type BattleUnit } from "../army/combat";
 import { capitalOwnerOf, fallCapital, takeProvince } from "../army/conquest";
 import { warActive } from "../diplomacy/queries";
+import { pairKey } from "../diplomacy/relations";
 import { adjacentProvinces, provinceById } from "../world/provinces";
 import { byIntentOrder, intentOrder } from "../turn/intents";
 import type { GameEvent, TurnContext, TurnSystem } from "../turn/context";
@@ -170,6 +172,11 @@ function battles(state: GameState, ctx: TurnContext): GameState {
     };
     const events: GameEvent[] = [];
     told.push({ report, events });
+    // FR-408: each attacker's war with the defender remembers the battle and who won it
+    for (const attackerId of attackerIds) {
+      const won = fight.result === "attacker-won";
+      s = recordBattle(s, attackerId, ownerId, { provinceId, turn, winnerId: won ? attackerId : ownerId, loserId: won ? ownerId : attackerId });
+    }
 
     for (const x of attackers) {
       const health = fight.health[x.regiment.id];
@@ -220,6 +227,14 @@ function battles(state: GameState, ctx: TurnContext): GameState {
   }
   for (const e of fallEvents) ctx.emit(e);
   return s;
+}
+
+/** FR-408: the battle added to the war between the attacker and the defender, oldest first; nothing without a war. */
+function recordBattle(s: GameState, attackerId: CountryId, defenderId: CountryId, battle: WarBattle): GameState {
+  const key = pairKey(attackerId, defenderId);
+  const war = s.diplomacy[key]?.war;
+  if (!war) return s;
+  return { ...s, diplomacy: { ...s.diplomacy, [key]: { ...s.diplomacy[key], war: { ...war, battles: [...(war.battles ?? []), battle] } } } };
 }
 
 function reportLine(r: Regiment, ownerId: CountryId, side: "attacker" | "defender", endHealth: number, fate: BattleFate): BattleRegiment {

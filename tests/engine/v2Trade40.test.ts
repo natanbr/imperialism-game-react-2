@@ -93,12 +93,31 @@ function play(seed: number): Game {
  * a reserve that rises one turn of upkeep a turn from turn 28, so it spends less on turns 28 to 32. The M9 numbers before
  * it were: deals [60, 60], [58, 52], [50, 53], [53, 63]; purchases [29, 27], [23, 19], [22, 23], [24, 28]; treasuries
  * [1231, 3917], [3570, 2016], [608, 2488], [13, 5871]; minors, no-pay and capital arms as now.
+ * Measured again in M12 (FR-405) for FR-401: at equal points a minor breaks the tie by an order fixed per game from the
+ * seed and its id, no longer by the turn's intentOrder. Seeds 1 to 3 are unchanged; seed 4 was deals [53, 60], purchases
+ * [24, 28], treasuries [13, 3725], capital arms [5, 4]. (FR-389 moves nothing here: the scripted plan ships as before.)
+ * Measured again in M12 strategy C (FR-456, FR-457 depot sites; FR-458 the campaign keeps its trained workers): more
+ * deals and purchases on every seed and both nations, minors [4, 4] on every seed. The numbers before were: deals
+ * [60, 60], [59, 50], [56, 56], [63, 53]; purchases [29, 27], [24, 19], [26, 25], [30, 24]; minors [4, 4], [4, 1],
+ * [4, 4], [4, 4]; treasuries [1549, 5040], [4178, 959], [1518, 5091], [2668, 13]; capital arms [5, 4], [6, 5], [5, 4],
+ * [4, 5] (each still at least SCRIPTED_GARRISON.capitalArms).
+ * Numbers that went down in strategy C, and why they are accepted: capital arms 5 -> 4 for seed 1 nation 1, seed 2
+ * nation 2 and seed 3 nation 1 (seed 2 nation 1 6 -> 7 and seed 4 nation 2 5 -> 7 went up). The arms above 4 are
+ * campaign Cuirassiers that stayed in the capital province (M9 above); 4 is the keep's floor (FR-228 (a),
+ * SCRIPTED_GARRISON.capitalArms) and "the garrison is kept to the end" passes, so no capital is less defended than the
+ * rule asks. Treasuries 5040 -> 4138 (seed 1 nation 2), 5091 -> 3949 (seed 3 nation 2) and 2668 -> 2563 (seed 4
+ * nation 1): the same nations bought more from minors (purchases 27 -> 39, 25 -> 39, 30 -> 35); both nations here
+ * have an army, so FR-454 keeps their CASH_RESERVE. Accepted because FR-247 is a measured baseline, not a target: every
+ * treasury stays above 0 (the lowest 2324, seed 2 nation 2, up from 959), no regiment is disbanded for want of pay
+ * (noPay [0, 0] on every seed), and the scripted nation's turn-40 score on the continent rose on every seed (FR-260,
+ * nation 1 idle).
+ * FR-459 (no civilian works a tile the engineer's rail still needs) moves nothing here.
  */
 const BASELINE = [
-  { seed: 1, minorDeals: [60, 60], minorPurchases: [29, 27], minorsDealt: [4, 4], treasury: [1549, 5040], noPay: [0, 0], capitalArms: [5, 4] },
-  { seed: 2, minorDeals: [59, 50], minorPurchases: [24, 19], minorsDealt: [4, 1], treasury: [4178, 959], noPay: [0, 0], capitalArms: [6, 5] },
-  { seed: 3, minorDeals: [56, 56], minorPurchases: [26, 25], minorsDealt: [4, 4], treasury: [1518, 5091], noPay: [0, 0], capitalArms: [5, 4] },
-  { seed: 4, minorDeals: [53, 60], minorPurchases: [24, 28], minorsDealt: [4, 4], treasury: [13, 3725], noPay: [0, 0], capitalArms: [5, 4] },
+  { seed: 1, minorDeals: [73, 70], minorPurchases: [40, 39], minorsDealt: [4, 4], treasury: [3880, 4138], noPay: [0, 0], capitalArms: [4, 4] },
+  { seed: 2, minorDeals: [72, 68], minorPurchases: [36, 37], minorsDealt: [4, 4], treasury: [5730, 2324], noPay: [0, 0], capitalArms: [7, 4] },
+  { seed: 3, minorDeals: [73, 69], minorPurchases: [39, 39], minorsDealt: [4, 4], treasury: [4103, 3949], noPay: [0, 0], capitalArms: [4, 4] },
+  { seed: 4, minorDeals: [66, 74], minorPurchases: [35, 41], minorsDealt: [4, 4], treasury: [2563, 3168], noPay: [0, 0], capitalArms: [4, 7] },
 ];
 
 /** The force size (FR-204) of the nation's army in its capital province at turn 40. */

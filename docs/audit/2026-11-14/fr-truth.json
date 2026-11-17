@@ -1,0 +1,1432 @@
+{
+ "track": "fr-truth",
+ "coverage": "(1) Judged 104 requirement rows across M1 to M11 (list in fr_sample): read test bodies, ran 43 mutations in a scratch copy (42 killed, 1 equivalent mutant), ran the repo's own e2e specs against :3170 (51 passed, 1 skipped), and checked UI rows in the running app with Playwright scripts (tour1 to tour10 in .gate/audit/fr-truth).\nVerified by command: unit tests 2111 passed (engine 1285 in 59 files, store/ui/workers 826 in 48 files) = the roadmap's \"2111\"; Playwright 52 tests = 51 passed + 1 test.fixme = the roadmap's \"51 passed\"; tsc clean; eslint 0 errors, 3 warnings; v8 line coverage of src/app 98.38 % (branches 93.30 %, functions 98.13 %), only layout.tsx, types/Cursor.ts, workers/DeveloperWorker.ts at 0 % and hooks/useEdgeScroll.ts at 37.5 %.\n(2) Counts: it.skip 0, test.skip 0, .todo 0, test.fixme 1 (e2e/cursor-icons.spec.ts:79), TODO 1 (src/app/engine/systems/interceptionsSystem.ts:5), FIXME/HACK 0, [NEEDS CLARIFICATION] in 46 FR rows (43 of them say tested) and 13 src lines. Rows: 347 FR rows; 102 status exactly \"tested\"; 19 start with \"replaced\"; 41 more are replaced inside a \"tested\" text; 11 have no it()/test() title citing the id (FR-004, 198, 304, 307, 317, 324, 336, 337, 341, 345, 351, all covered another way except the one-time check of FR-336); 4 rows are cited by no test file at all (FR-017 and FR-043 and FR-051 replaced, FR-351). NR rows: NR-001 to NR-006 \"planned\", NR-016 and NR-028 partial. Decision cards: 75, of which 55 open.\n(3) Hygiene: dead code and unused exports, stale docs, repo clutter, lint warnings, coverage holes (findings FR-TRUTH-11 to 17).\n(4) Roadmap goals checked against the running app: see roadmap_goals below.",
+ "not_covered": "Did not drive a full human game to a Council win or to conquest of Valdoria in the browser (no way to win by votes without taking a Valdoria province, shown by probe and row text instead). Did not run Firefox or WebKit. Did not verify the Valdoria treasury is positive at turn 40 in the browser (the HUD shows no treasury of the other nation); headless probe shows it never went negative on 42 games. Visual checks were taken at 1280x720, 1366x768, 1024x768, 1920x1080 and 800x600 for 7 dialogs: all fit. Mobile widths not checked. Mutations were limited to 43 and to constants and key branches; UI layout rows were checked by running the repo's e2e, not by mutation.",
+ "findings": [
+  {
+   "id": "FR-TRUTH-01",
+   "kind": "gap",
+   "severity": "major",
+   "title": "Three of the four minor nations can never be attacked or taken, but the game offers war on them",
+   "area": "war",
+   "repro": [
+    "Open http://localhost:3170/ and click Diplomacy, tab Lorran (or Sundmark, Pellis), Declare war, confirm, Advance Turn twice.",
+    "Click the Testland army marker on the capital (Army in Testland South-West) and open the \"March to\" list.",
+    "The list holds only Testland North-West, North-East and South-East. There is no way to reach Lorran. Repeat the check for Sundmark and Pellis: same.",
+    "Headless proof: run .gate/audit/fr-truth/probes/world.test.ts (npx vitest run --config .gate/audit/fr-truth/vitest.audit.config.ts probes/world)."
+   ],
+   "expected": "M9 is called done with the goal \"the human declares war on a minor, attacks, sees the battle and takes the province\" (roadmap.json doneWhen, FR-233). A war on any of the 4 minors should be playable, or the Diplomacy screen should say a minor cannot be reached.",
+   "actual": "Only Arvelia has a land border (province-minor-1 touches Testland North-East and Valdoria North-West). Sundmark, Lorran and Pellis list adj=[] (no neighbouring province), because rail and sea moves of armies are not built (Q37). Declaring war on them only drops relations (news: \"Relations with Lorran: yellow to dark brown\") and ends trade; the player cannot act on the war. The Diplomacy war question does not warn about this.",
+   "evidence": "Probe output: \"province-minor-2 Sundmark adj=[]\", \"province-minor-3 Lorran adj=[]\", \"province-minor-4 Pellis adj=[]\", \"DIRECT LAND BORDER nation-1 -> nation-2 provinces from: []\". Tour output: March to options at capital: [\"Testland North-West\",\"Testland North-East\",\"Testland South-East\"]. Screenshot C:/Users/brnat/AppData/Local/Temp/claude/6d278f4c60cadc55/c11c618f-69f1-4659-b2b1-f3416944c4fb/scratchpad/audit/shots/fr-truth-08-army-war-lorran.png",
+   "frs": [
+    "FR-205",
+    "FR-216",
+    "FR-233",
+    "FR-274"
+   ],
+   "suspect": "src/app/engine/world/continent.ts (minors 2 to 4 are islands) with src/app/engine/orders/armyOrders.ts:98 (a march needs an adjacent province); docs/ARCHITECTURE.md \"Not on the engine yet\" and card Q37 say sea moves stay out of v2.",
+   "fix_size": "L",
+   "confidence": "reproduced"
+  },
+  {
+   "id": "FR-TRUTH-02",
+   "kind": "gap",
+   "severity": "major",
+   "title": "The Council of Governors vote can practically never end a game; every simulated game ends on turn 40",
+   "area": "council",
+   "repro": [
+    "Run: npx vitest run --config .gate/audit/fr-truth/vitest.audit.config.ts probes/seeds (about 55 s).",
+    "Read the line \"RUNS 42 with something odd: 0\" and the \"both scripted\" lines: every game ended by the turn limit and every meeting (turns 10, 20, 30, 40) says winner none.",
+    "In the app: play to turn 10, the Council screen says \"No winner. The Council meets again on turn 20.\" and shows Abstained: 4 of 12."
+   ],
+   "expected": "NR-011 (a decision by Nathan): the game ends the way the original does, by a Council vote once one nation is strong enough. Roadmap M10 goal: \"more than two thirds wins\".",
+   "actual": "12 votes, 9 needed. A nation holds 4 provinces, the 4 minors add at most 4 (Arvelia as a colony plus 3 free minors by relations), so 8 at most without taking a province from the rival Great Power. In 46 simulated games (4 pinned seeds from FR-305 plus 42 probe games on seeds 5 to 36, 10 of them with both nations scripted) no meeting ever gave a winner. Card Q51 states the same and is still open.",
+   "evidence": "Probe: \"RUNS 42 with something odd: 0\" (odd = any game not ending on the turn limit); FR-305 row: \"each emit exactly 4 council-met events ... with no winner\"; FR-304 row: \"an idle player cannot reach 9 votes: it holds 4 provinces and the 4 minors give at most 4 more\". Roadmap card Q51 status open. Screenshot C:/Users/brnat/AppData/Local/Temp/claude/6d278f4c60cadc55/c11c618f-69f1-4659-b2b1-f3416944c4fb/scratchpad/audit/shots/fr-truth-10-council-turn10.png",
+   "frs": [
+    "FR-294",
+    "FR-305",
+    "FR-302"
+   ],
+   "suspect": "src/app/definisions/council.ts and src/app/engine/council/council.ts:38 (votesNeeded = floor(2n/3)+1 with n = 12); decision Q51 (option: more than half, 7 of 12).",
+   "fix_size": "S",
+   "confidence": "reproduced"
+  },
+  {
+   "id": "FR-TRUTH-03",
+   "kind": "gap",
+   "severity": "major",
+   "title": "There is no technology system; the Technology button is disabled and the Oil Refinery and Fuel can never be reached",
+   "area": "capital",
+   "repro": [
+    "Open http://localhost:3170/, click Open Capital.",
+    "The header button \"Technology\" is greyed out (title: \"Coming in a later milestone\"). The Industry panel has 7 cards and no Oil Refinery card.",
+    "Search the code: grep -rn oilDrillingTechUnlocked src/app shows it is set to false in newGame.ts:60 and nowhere set to true."
+   ],
+   "expected": "FR-046: the refinery card appears \"only after Oil Drilling\". Rules 09 describe 28 technologies. A feature that is shown as coming later should have a milestone.",
+   "actual": "No order buys a technology. No roadmap milestone or plan section schedules technology (REVIVAL_PLAN section 5 lists it under \"deferred past v1\"; section 5b has no technology milestone). So the refinery card, the Fuel commodity and everything that needs them are unreachable for the whole game. The unit test for FR-046 passes only because it sets oilDrillingTechUnlocked to true by hand (tests/ui/capitalDialog.test.tsx:63).",
+   "evidence": "Screenshot C:/Users/brnat/AppData/Local/Temp/claude/6d278f4c60cadc55/c11c618f-69f1-4659-b2b1-f3416944c4fb/scratchpad/audit/shots/fr-truth-02-capital.png (disabled Technology button, 7 cards, no refinery). grep shows 3 reads and 1 write (false) of oilDrillingTechUnlocked. src/app/components/CapitalModal.tsx:66 has the disabled button.",
+   "frs": [
+    "FR-046",
+    "FR-051",
+    "FR-059"
+   ],
+   "suspect": "src/app/engine/newGame.ts:60 and src/app/components/capital/capitalView.ts:97; there is no technology purchase order in src/app/engine/orders/Order.ts.",
+   "fix_size": "L",
+   "confidence": "reproduced"
+  },
+  {
+   "id": "FR-TRUTH-04",
+   "kind": "doc-lie",
+   "severity": "minor",
+   "title": "Milestone M4.4 is titled \"Recruiting AI\" but the computer never recruits workers",
+   "area": "ai",
+   "repro": [
+    "grep -rn recruitWorkers src/app/engine/ai (no result).",
+    "Read NR-028 in docs/requirements.md: \"recruiting not built ... held for Nathan's decision M4.4-1\".",
+    "Read roadmap.json: M4 and its follow-ups are \"done\", 100."
+   ],
+   "expected": "A milestone called done delivers what its title says. NR-028 (answer to decision Q19, \"let the computer recruit workers\") is Nathan's own requirement.",
+   "actual": "Only the furniture-limit fix (FR-140) and the transport popup rules (FR-141, FR-142) were built. The computer nation keeps 7 workers plus training for the whole game. Card Q21 is still open and option (a) \"no recruiting\" was taken meanwhile. The section header of requirements.md still reads \"M4.4 Recruiting AI and empty groups\".",
+   "evidence": "grep returns nothing in src/app/engine/ai. NR-028 row status begins \"partly: furniture-limit bug fixed (FR-140); recruiting not built\". docs/journal.md \"Resuming here\": \"Recruiting not built ... option (a) no recruiting taken meanwhile\".",
+   "frs": [
+    "FR-140"
+   ],
+   "suspect": "docs/requirements.md:338 (header) and :40 (NR-028).",
+   "fix_size": "S",
+   "confidence": "reproduced"
+  },
+  {
+   "id": "FR-TRUTH-05",
+   "kind": "doc-lie",
+   "severity": "minor",
+   "title": "docs/report/roadmap.json contradicts itself about what is done",
+   "area": "docs",
+   "repro": [
+    "node -e \"const r=require('./docs/report/roadmap.json'); console.log(r.overview.milestones.at(-1).status, r.detail.tiers.flatMap(t=>t.items).find(i=>i.id==='M11').status)\"",
+    "Read the open tasks of the items marked done (script in .gate/audit/fr-truth, or read the file)."
+   ],
+   "expected": "One status per milestone; a milestone called done has no open task.",
+   "actual": "M11: overview says done, 100; the detail tier says \"in-review\" with the open task \"Browser QA pass, PR and merge\", and its doneWhen still reads FR-318 to FR-345 (rows now reach FR-356). M4 is done but both of its tasks are done:false (\"Second capital, territory, workers\", \"Scripted player\"). M1 keeps an open carry-over task, M0 an open task about 6 old branches. The headline stops at M10 (\"main 69ed08b\"; main is now a690759, after M11 and three housekeeping merges). The needs list still says \"Nobody played them yet\". NR-032 in requirements.md says \"the milestone review and the browser QA pass to come\".",
+   "evidence": "Script output: overview \"done 100\" vs detail \"in-review\"; open tasks: M0 1, M1 1, M4 2, M11 1. Roadmap card list: Q51 and others open: 55 of 75 decision cards are status open.",
+   "frs": [
+    "NR-004",
+    "NR-032"
+   ],
+   "suspect": "docs/report/roadmap.json (overview.milestones vs detail.tiers; headline; needs).",
+   "fix_size": "S",
+   "confidence": "reproduced"
+  },
+  {
+   "id": "FR-TRUTH-06",
+   "kind": "doc-lie",
+   "severity": "minor",
+   "title": "The status \"tested\" in requirements.md does not mean what a reader expects",
+   "area": "docs",
+   "repro": [
+    "node .gate/audit/fr-truth/parse.js (parses all rows), then read rows.json statuses.",
+    "Check FR-199, FR-324, FR-337, FR-341, FR-345, FR-336 and NR-005 in docs/requirements.md."
+   ],
+   "expected": "FLOW.md: a changed requirement gets a new id and the old row says \"replaced by FR-###\"; status values are planned, tested, replaced, dropped.",
+   "actual": "347 FR rows (the brief says about 356: ids FR-143 and FR-282 to FR-289 do not exist; FR-143 was deleted instead of marked dropped). Status is free text up to 1,804 characters. Only 19 rows start with \"replaced\", but 41 more rows say \"tested\" while a later row replaced their wording (e.g. FR-324 -> FR-347, FR-337 -> FR-339, FR-341 -> FR-346). 46 rows carry an open [NEEDS CLARIFICATION] and 43 of them say \"tested\": tested means \"the code equals the row\", not \"the row equals the 1997 game\" (FR-199: 5 of 9 regiment costs are \"derived\" or \"low\" confidence guesses). NR-005 (gold $200, gems $500) still says \"planned\" although cashValues.ts holds 200 and 500. FR-336 (\"nothing else changes\") was verified by a one-time git diff, not by a standing test.",
+   "evidence": "Parser output: 347 rows, 102 exactly \"tested\", 19 \"replaced\", 226 free text, 41 with \"replaced by\" inside the text; FR-143 removal in commit 6d4e223 \"drop FR-143 (a process step, not a requirement)\".",
+   "frs": [
+    "FR-199",
+    "FR-336",
+    "FR-337",
+    "FR-324",
+    "NR-005"
+   ],
+   "suspect": "docs/requirements.md status column; docs/FLOW.md \"Requirement ids are permanent\".",
+   "fix_size": "S",
+   "confidence": "reproduced"
+  },
+  {
+   "id": "FR-TRUTH-07",
+   "kind": "bug",
+   "severity": "minor",
+   "title": "The tile panel offers Construct Depot, Port and Fort on the capital, where all three are invalid; the refusal shows far away",
+   "area": "workers",
+   "repro": [
+    "Open http://localhost:3170/ at 1280x720. Click the stack of civilians on the capital (tile 2-9) and pick the engineer.",
+    "Click the capital tile once more so the Tile Info panel shows (close the Army screen with Escape if it opens).",
+    "The buttons \"Construct Depot\", \"Construct Port\", \"Construct Fort\" are enabled (Construct Rail is greyed). Click each one.",
+    "Cash stays $10,000, no job starts, and the only feedback is the red line \"Build refused: that tile is not a valid site.\" in the HUD under the panel."
+   ],
+   "expected": "A button that cannot work on this tile is disabled with a reason, as the Develop button is (\"Resource not discovered - use Prospector first\"). FR-030: construction sites are refused with invalid-site; the UI should not offer them.",
+   "actual": "Depot, Port and Fort buttons depend only on the nation having the money (canAfford). The capital already holds a level-1 fort (isFortSite is false) and is no depot or port site, so the engine refuses all three.",
+   "evidence": "Tour output: buttons [{\"t\":\"Construct Depot\",\"dis\":false},{\"t\":\"Construct Port\",\"dis\":false},{\"t\":\"Construct Fort\",\"dis\":false},{\"t\":\"Construct Rail\",\"dis\":true}]; \"NEWS after depot click: Build refused: that tile is not a valid site.\"; cash unchanged. Screenshot C:/Users/brnat/AppData/Local/Temp/claude/6d278f4c60cadc55/c11c618f-69f1-4659-b2b1-f3416944c4fb/scratchpad/audit/shots/fr-truth-07-engineer-capital-panel.png",
+   "frs": [
+    "FR-030",
+    "FR-009"
+   ],
+   "suspect": "src/app/components/TileInfoPanel.tsx:124-136 (enablement uses only canAfford; the fort button has no condition at all); src/app/engine/orders/queries.ts:185-188 (isFortSite).",
+   "fix_size": "S",
+   "confidence": "reproduced"
+  },
+  {
+   "id": "FR-TRUTH-08",
+   "kind": "gap",
+   "severity": "minor",
+   "title": "FR-330 says five cursors from the pack; the \"build rail\" cursor can never appear",
+   "area": "map",
+   "repro": [
+    "Read e2e/cursor-icons.spec.ts:77-86 (test.fixme \"should show the rail piece cursor when engineer is selected and hovering adjacent tile\").",
+    "Read src/app/workers/EngineerWorker.ts:6-25: getEngineerActions returns only fort or the construction modal.",
+    "Run the e2e file: result \"1 skipped\"."
+   ],
+   "expected": "FR-330: \"the five emoji cursors SHALL be replaced: prospect, develop, build a fort, build rail, the construction choice\".",
+   "actual": "The rail cursor mapping (CURSOR_ART.constructRail in tileCursor.ts:22) is dead code. Rail is built by moving the engineer next to its network, and the map gives no cursor or hint for that. This is the only skipped test in the repo and has been since before M11. The row is marked tested.",
+   "evidence": "Playwright run on :3170: \"- 7 [chromium] > cursor-icons.spec.ts:79:8 ... should show the rail piece cursor ...\" then \"1 skipped, 26 passed\". Comment in the spec: \"No tile action produces the rail cursor today ... Kept as fixme so the gap stays visible\".",
+   "frs": [
+    "FR-330"
+   ],
+   "suspect": "src/app/workers/EngineerWorker.ts:11 and src/app/hooks/tileCursor.ts:22.",
+   "fix_size": "S",
+   "confidence": "reproduced"
+  },
+  {
+   "id": "FR-TRUTH-09",
+   "kind": "doc-lie",
+   "severity": "minor",
+   "title": "Two \"tested\" requirements contradict each other: NR-016 (orders take effect at End Turn) and FR-021 (orders take effect when submitted)",
+   "area": "docs",
+   "repro": [
+    "Read NR-016, FR-021, FR-022 in docs/requirements.md and \"Why immediate\" in docs/ARCHITECTURE.md (Turn flow).",
+    "In the app: pick the farmer, click the farm east of the capital: cash drops from $10,000 to $9,000 at once and the farmer is on the new tile before End Turn (e2e/play-turns.spec.ts FR-025 asserts exactly this)."
+   ],
+   "expected": "NR-016 (Nathan's decision Q9, as in the original game): during a turn the player only selects actions; every order can be changed or cancelled until End Turn and takes effect when the turn ends.",
+   "actual": "Only freight cars follow NR-016 (FR-101). Moves, job starts and their costs happen at once; FR-021 and ARCHITECTURE say so. The NR-016 row admits \"the other orders ... not changed yet\". Roadmap M1 still lists \"queued UI orders so human and AI orders resolve together\" as an open, carried task.",
+   "evidence": "e2e/play-turns.spec.ts:39-43: cash \"$9,000\" right after the click, before endTurn. NR-016 status text.",
+   "frs": [
+    "FR-021",
+    "FR-022",
+    "FR-101"
+   ],
+   "suspect": "docs/requirements.md NR-016 vs FR-021; src/app/store/gameSlice.ts submitOrder applies at once.",
+   "fix_size": "L",
+   "confidence": "reproduced"
+  },
+  {
+   "id": "FR-TRUTH-10",
+   "kind": "gap",
+   "severity": "minor",
+   "title": "The Accept Offer dialog and the alliance flow cannot happen in normal play and have no browser test",
+   "area": "diplomacy",
+   "repro": [
+    "Read src/app/engine/ai/diplomacy.ts: the scripted Great Power proposes only peace, and only to a Great Power it is losing a war against.",
+    "In the app: Diplomacy, Valdoria, Alliance, Advance Turn: news \"Valdoria refused our alliance.\" (start relation is level 5, it needs level 6).",
+    "grep -il \"accept offer\" e2e/*.ts returns nothing."
+   ],
+   "expected": "M6 goal: every overture covered headless and the screens usable (FR-175 Accept Offer, FR-166 alliance).",
+   "actual": "The only Great Power besides the player never proposes an alliance and proposes peace only after losing a province, which needs a war against it that the map makes hard (see FR-TRUTH-01). The FR-175 tests build the proposal by hand (withProposal in tests/engine/orders/diplomacyOrders.test.ts). No e2e touches Accept Offer, alliance, boycott or subsidy.",
+   "evidence": "Tour 3 news text: \"Valdoria refused our alliance.\"; coverage grep counts: Accept Offer e2e files 0, alliance 0, boycott 0, subsidy 0.",
+   "frs": [
+    "FR-166",
+    "FR-174",
+    "FR-175"
+   ],
+   "suspect": "src/app/engine/ai/diplomacy.ts:1-3 and :14-19.",
+   "fix_size": "M",
+   "confidence": "reproduced"
+  },
+  {
+   "id": "FR-TRUTH-11",
+   "kind": "doc-lie",
+   "severity": "minor",
+   "title": "docs/rules \"CODE MISMATCH\" lines are stale, and the M2 goal to close them was never finished",
+   "area": "docs",
+   "repro": [
+    "grep -n \"CODE MISMATCH\" docs/rules/*.md | grep -v RESOLVED",
+    "Compare with the code: src/app/definisions/cashValues.ts, grep RESOURCE_VALUES src, ls src/app/store."
+   ],
+   "expected": "REVIVAL_PLAN section 5, M2: \"Fix every CODE MISMATCH: line in docs/rules/02 to 06\". The rules files tell agents where the code disagrees.",
+   "actual": "Still listed as mismatches although fixed: rules/02:107 (gold 100 and gems 1000; code has 200 and 500), rules/02:108 and 06:203 (RESOURCE_VALUES: no such constant), rules/01:130 (\"No Council in code\"), rules/06:208 (six subsidy steps: the UI has them), rules/08:7 (\"no combat code exists\"), rules/09:7 and :84 (technologySlice.ts: no such file). Still true: river ports never active, a depot reachable from any port, no blockades (rules/04:117-119). Also types/TradeRoute.ts and state.tradeRoutes remain although the rules say there are no routes.",
+   "evidence": "cashValues.ts: GOLD_CASH_PER_UNIT = 200, GEMS_CASH_PER_UNIT = 500; grep RESOURCE_VALUES src returns nothing; src/app/store has no technologySlice.ts; src/app/constants/gameConstants.ts holds only TIME_CONFIG.",
+   "frs": [
+    "NR-003"
+   ],
+   "suspect": "docs/rules/01, 02, 04, 06, 08, 09.",
+   "fix_size": "S",
+   "confidence": "reproduced"
+  },
+  {
+   "id": "FR-TRUTH-12",
+   "kind": "gap",
+   "severity": "minor",
+   "title": "Dead code: a no-op turn phase, 3 orphan files and about 10 unused exports remain",
+   "area": "engine",
+   "repro": [
+    "grep -rn TODO src tests e2e (one hit).",
+    "node .gate/audit/fr-truth/unused.js (output in .gate/audit/fr-truth/unused.txt).",
+    "cat src/app/engine/systems/interceptionsSystem.ts"
+   ],
+   "expected": "No dead code (CLAUDE.md: no half-finished work). One stub phase is documented as not built (Q37).",
+   "actual": "interceptionsSystem is a TODO stub that stays in TURN_PHASES and in the ARCHITECTURE turn flow. Files never imported: src/app/types/Cursor.ts (CommandCursor), src/app/types/Sea.ts (SeaZone), src/app/workers/DeveloperWorker.ts (getDeveloperActions, 0% coverage). Exports used nowhere: FORT_LEVEL_COST (5,000/7,500/10,000 for fort levels the game never builds), mockMap5x5, isValidTileId, BuildingId, ResourceProductionLevel, OrderLogEntry, OrderRejection; 13 type re-exports in engine/index.ts. GameState.tradeRoutes and types/TradeRoute.ts are always []. 53 exports are used by tests only. FEEDING_ORDER in foodSystem.ts is only summed, so the \"fed experts first\" order of FR-040 is carried by HUNGRY_FIRST alone.",
+   "evidence": "TODO at src/app/engine/systems/interceptionsSystem.ts:5; unused.txt lists the exports; coverage summary: zero-coverage files layout.tsx, types/Cursor.ts, types/Navy.ts, workers/DeveloperWorker.ts; mutation M24 (reverse FEEDING_ORDER) survived because the order has no effect.",
+   "frs": [
+    "FR-040"
+   ],
+   "suspect": "see list.",
+   "fix_size": "S",
+   "confidence": "reproduced"
+  },
+  {
+   "id": "FR-TRUTH-13",
+   "kind": "gap",
+   "severity": "nit",
+   "title": "Repository hygiene: a third-party manual, 13 MB of screenshots, one-off probes, template files and demo pages are tracked or served",
+   "area": "docs",
+   "repro": [
+    "git ls-files | grep -E \"Imperialism-1-manual|^docs/journal/.*png|^scripts/probes|^public/[a-z]+\\.svg\"",
+    "ls public/assets/ink-and-wash (index.html, terrain-demo.html, terrain-renderer.js)."
+   ],
+   "expected": "Only product files, docs and tests are tracked. The brief names stray files such as e2e/NewsPanel.new.tsx, e2e/arch.js, e2e/bot.txt.",
+   "actual": "Those three are NOT in e2e/ or tracked: they sit in the git-ignored .gate/ folder (about 2,300 scratch files there). Tracked and questionable: docs/Imperialism-1-manual.pdf (1.77 MB, the 1997 manual, which CLAUDE.md says never to read), 63 PNG screenshots in docs/journal (12.96 MB), 20 one-off files under scripts/probes, 5 unused Next template SVGs in public/ (file, globe, next, vercel, window), and the pack demo pages and script (index.html, terrain-demo.html, terrain-renderer.js) that production serves under /assets/ink-and-wash/.",
+   "evidence": "git ls-files output; du of journal pngs 12,957,439 bytes; grep for the svg names in src finds no use.",
+   "frs": [],
+   "suspect": "",
+   "fix_size": "S",
+   "confidence": "reproduced"
+  },
+  {
+   "id": "FR-TRUTH-14",
+   "kind": "gap",
+   "severity": "nit",
+   "title": "Three lint warnings (0 errors, tsc clean)",
+   "area": "tests",
+   "repro": [
+    "npx eslint src tests e2e",
+    "npx tsc --noEmit"
+   ],
+   "expected": "FLOW.md gate: lint and tsc green.",
+   "actual": "ESLint: 3 warnings, 0 errors. 1) src/app/hooks/useTransportAllocations.ts:80:6 react-hooks/exhaustive-deps, missing dependency sliderMax (harmless today: sliderMax only reads collected, which is in the list). 2) tests/engine/systems/logisticsSystem.test.ts:267 and 3) :337 \"capital is assigned a value but never used\". tsc exits 0.",
+   "evidence": "Saved output: .gate/audit/fr-truth/eslint.txt (\"3 problems (0 errors, 3 warnings)\", \"eslint exit 0\") and tsc.txt (\"tsc exit 0\").",
+   "frs": [],
+   "suspect": "the three lines above.",
+   "fix_size": "S",
+   "confidence": "reproduced"
+  },
+  {
+   "id": "FR-TRUTH-15",
+   "kind": "gap",
+   "severity": "minor",
+   "title": "A few tests cannot fail or only print numbers",
+   "area": "tests",
+   "repro": [
+    "Read tests/engine/systems/logisticsSystem.test.ts:262-328.",
+    "Read tests/engine/scriptedRail.test.ts:196-200.",
+    "node .gate/audit/fr-truth/weak.js (lists 44 blocks with only weak expects; most are correct \"nothing happens\" checks)."
+   ],
+   "expected": "A test named after a rule asserts the rule.",
+   "actual": "\"capital collects resources with correct production amounts based on resource levels\" sets grain to level 2 and cotton to level 3 and says in comments they give 3 and 4 units, but asserts only total > 0 and, inside if-blocks, >= 1. \"FR-124 the numbers, for the journal\" is a console.log with one assertion (depots > 0). The FR-046 refinery test sets the unlock flag by hand (FR-TRUTH-03). FR-022 and the FR-194/FR-298 \"builds no order\" tests are regular-expression scans of source text (they pass for any code that avoids the exact words). Everything else I mutated was killed (see mutation_results).",
+   "evidence": "logisticsSystem.test.ts lines 320-327: expect(total).toBeGreaterThan(0); if (collected[Grain]) expect(...).toBeGreaterThanOrEqual(1). weak.js: \"ONLY weak expects: 44\".",
+   "frs": [
+    "FR-124",
+    "FR-046",
+    "FR-022"
+   ],
+   "suspect": "",
+   "fix_size": "S",
+   "confidence": "reproduced"
+  },
+  {
+   "id": "FR-TRUTH-16",
+   "kind": "gap",
+   "severity": "minor",
+   "title": "Trade is narrow: 4 units a turn for the whole game, and only 3 finished goods have buyers",
+   "area": "trade",
+   "repro": [
+    "Open the app, click Open Market: \"Holds: 4 of 4 free\", \"Bids: 0 of 4\".",
+    "Read docs/ARCHITECTURE.md \"Not on the engine yet\": \"there is no Shipyard (holds do not grow ...)\". NR-018: the 4-hold limit stays \"until ships exist\". The art pack lists 13 ships as unused: \"the game has no navy yet\"."
+   ],
+   "expected": "M7 goal: both nations trade with minor nations. NR-018 expects ships to lift the limit later. FR-073 and FR-257: the Board lists every tradeable commodity and says why a control is disabled.",
+   "actual": "No milestone builds ships, a Shipyard or a merchant marine (shipyard exists only as a type name and a picture mapping), so the limit of 4 units a turn (offers and bids together) is permanent. Minor nations buy only clothing, furniture and hardware, 2 units per minor and good; on turn 2 with two consulates the Board says \"No one buys this\" for armaments, canned food, fabric, lumber, paper and steel, so the start stock of 10 lumber, 10 steel and 10 canned food can only be used at home. The market is small by design (FR-184) but the roadmap calls trade done without saying so.",
+   "evidence": "Board of Trade text read in the app (tour10, tour11): \"Holds: 4 of 4 free | Bids: 0 of 4\", rows \"Steel $300 ... No one buys this\"; inkArt.ts INK_ART_UNUSED lists navy/*.png as \"the game has no navy yet\". Screenshot C:/Users/brnat/AppData/Local/Temp/claude/6d278f4c60cadc55/c11c618f-69f1-4659-b2b1-f3416944c4fb/scratchpad/audit/shots/fr-truth-11-board-t2.png",
+   "frs": [
+    "FR-063",
+    "FR-188"
+   ],
+   "suspect": "",
+   "fix_size": "L",
+   "confidence": "reproduced"
+  },
+  {
+   "id": "FR-TRUTH-17",
+   "kind": "doc-lie",
+   "severity": "nit",
+   "title": "ARCHITECTURE.md and rules/01 still describe fixtures and a difficulty setting that do not exist in play",
+   "area": "docs",
+   "repro": [
+    "Read docs/ARCHITECTURE.md \"Testing\" (5x5 initWorld map, mockMap5x5).",
+    "grep difficulty src/app: GameState.difficulty is \"normal\" and read nowhere."
+   ],
+   "expected": "Docs match the code.",
+   "actual": "mockMap5x5 is unused. docs/rules/01 lists five difficulty levels; the state has a difficulty field with no UI and no effect. docs/ARCHITECTURE.md names 123 of the 182 source files; the other 59 (all HUD parts, worker modules, systems other than a few) are covered only by folder description.",
+   "evidence": "unused.txt: mockMap5x5; rules/01 line 130 \"no effect of difficulty exists in code\".",
+   "frs": [],
+   "suspect": "",
+   "fix_size": "S",
+   "confidence": "code-reading-only"
+  }
+ ],
+ "mutation_results": [
+  {
+   "id": "M01",
+   "fr": "FR-067",
+   "change": "score: cash points per $50 instead of $100",
+   "result": "KILLED",
+   "first_failing_test": "tests/engine/score.test.ts > FR-067 score > FR-067 weights: 1 point per $100, 10 per capacity point, 10 per resource level",
+   "note": ""
+  },
+  {
+   "id": "M02",
+   "fr": "FR-067",
+   "change": "score: industry weight 10 -> 5",
+   "result": "KILLED",
+   "first_failing_test": "tests/engine/score.test.ts > FR-067 score > FR-067 weights: 1 point per $100, 10 per capacity point, 10 per resource level",
+   "note": ""
+  },
+  {
+   "id": "M03",
+   "fr": "FR-029",
+   "change": "depot cost 2000 -> 1500",
+   "result": "KILLED",
+   "first_failing_test": "tests/engine/rulesData.test.ts > FR-029 job costs > FR-029 development $100 / $1,000 / $5,000; depot $2,000; port $3,000; fort $5,000; prosp",
+   "note": ""
+  },
+  {
+   "id": "M04",
+   "fr": "FR-029",
+   "change": "development level 3 cost 5000 -> 4000",
+   "result": "KILLED",
+   "first_failing_test": "tests/engine/rulesData.test.ts > FR-029 job costs > FR-029 development $100 / $1,000 / $5,000; depot $2,000; port $3,000; fort $5,000; prosp",
+   "note": ""
+  },
+  {
+   "id": "M05",
+   "fr": "FR-065",
+   "change": "price drift 3% -> 6%",
+   "result": "KILLED",
+   "first_failing_test": "tests/engine/market.test.ts > FR-065 prices > FR-065 with no trade and no drift a price stays; the drift is at most 3% either way",
+   "note": ""
+  },
+  {
+   "id": "M06",
+   "fr": "FR-202",
+   "change": "upkeep $25 -> $30 per arms point",
+   "result": "KILLED",
+   "first_failing_test": "tests/engine/upkeep.test.ts > FR-202 army upkeep > FR-202 the example: the FR-203 start army (4 arms) costs each Great Power $100 a turn, as",
+   "note": ""
+  },
+  {
+   "id": "M07",
+   "fr": "FR-208",
+   "change": "healing 10 -> 5 per turn",
+   "result": "KILLED",
+   "first_failing_test": "tests/engine/armies.test.ts > FR-208 healing > FR-208 at the end of the combat phase each regiment that did not move gains 10 health, up to ",
+   "note": ""
+  },
+  {
+   "id": "M08",
+   "fr": "FR-219",
+   "change": "entrenchment 20% -> 10%",
+   "result": "KILLED",
+   "first_failing_test": "tests/engine/combat.test.ts > FR-218 rounds: defenders first; cavalry, infantry, artillery; the weakest enemy is the target > FR-218 FR-219 ",
+   "note": ""
+  },
+  {
+   "id": "M09",
+   "fr": "FR-219",
+   "change": "hit chance 0.7 -> 0.8",
+   "result": "KILLED",
+   "first_failing_test": "tests/engine/combat.test.ts > FR-219 hit and damage > FR-219 a shot hits when its draw is below 0.70: one draw per shot, in shot order",
+   "note": ""
+  },
+  {
+   "id": "M10",
+   "fr": "FR-220",
+   "change": "rout threshold 25 -> 15",
+   "result": "KILLED",
+   "first_failing_test": "tests/engine/combat.test.ts > FR-220 rout and result > FR-220 a hit that leaves a non-militia regiment at 25 or less routs it: it stops firi",
+   "note": ""
+  },
+  {
+   "id": "M11",
+   "fr": "FR-218",
+   "change": "max rounds 8 -> 6",
+   "result": "KILLED",
+   "first_failing_test": "tests/engine/combat.test.ts > FR-218 rounds: defenders first; cavalry, infantry, artillery; the weakest enemy is the target > FR-218 a battl",
+   "note": ""
+  },
+  {
+   "id": "M12",
+   "fr": "FR-294",
+   "change": "council: needed = floor(2n/3) (not 'more than')",
+   "result": "KILLED",
+   "first_failing_test": "tests/engine/council.test.ts > FR-294 the count and the winner > FR-294 needed = floor(2 x totalVotes / 3) + 1: 12 gives 9, 120 gives 81 (mo",
+   "note": ""
+  },
+  {
+   "id": "M13",
+   "fr": "FR-293",
+   "change": "council: free minor votes at 40 points instead of 50",
+   "result": "KILLED",
+   "first_failing_test": "tests/engine/council.test.ts > FR-290 Council meetings > FR-290 definisions/council.ts holds the numbers",
+   "note": ""
+  },
+  {
+   "id": "M14",
+   "fr": "FR-290",
+   "change": "council interval 10 -> 12",
+   "result": "KILLED",
+   "first_failing_test": "tests/engine/council.test.ts > FR-290 Council meetings > FR-290 definisions/council.ts holds the numbers",
+   "note": ""
+  },
+  {
+   "id": "M15",
+   "fr": "FR-291",
+   "change": "council: province weight 100 -> 50",
+   "result": "KILLED",
+   "first_failing_test": "tests/engine/council.test.ts > FR-290 Council meetings > FR-290 definisions/council.ts holds the numbers",
+   "note": ""
+  },
+  {
+   "id": "M16",
+   "fr": "FR-172",
+   "change": "relation points max 89 -> 99",
+   "result": "KILLED",
+   "first_failing_test": "tests/engine/diplomacy.test.ts > FR-168 war and broken treaties move relations > FR-168 FR-172 the points stay within 0 to 89: 87 + 5 -> 89",
+   "note": ""
+  },
+  {
+   "id": "M17",
+   "fr": "FR-161",
+   "change": "consulate $500 -> $400",
+   "result": "KILLED",
+   "first_failing_test": "tests/engine/diplomacy.test.ts > FR-163 consulate > FR-163 FR-180 turn 1 Testland orders a consulate with Arvelia: 10,000 -> 9,500 at once; ",
+   "note": ""
+  },
+  {
+   "id": "M18",
+   "fr": "FR-170",
+   "change": "grant 3000 points 4 -> 5",
+   "result": "KILLED",
+   "first_failing_test": "tests/engine/diplomacy.test.ts > FR-170 grants > FR-170 FR-180 a undefined grant once: paid when ordered, +4 points at End Turn, no lock",
+   "note": ""
+  },
+  {
+   "id": "M19",
+   "fr": "FR-069",
+   "change": "game over no longer refuses orders",
+   "result": "KILLED",
+   "first_failing_test": "tests/engine/gameOver.test.ts > FR-069 after game over > FR-069 every order is refused with game-over, even one that was valid before",
+   "note": ""
+  },
+  {
+   "id": "M20",
+   "fr": "FR-063",
+   "change": "trade: limit-reached off by one (>= instead of >)",
+   "result": "KILLED",
+   "first_failing_test": "tests/engine/market.test.ts > FR-061 FR-062 trade order validation > FR-061 FR-063 more units than the holds",
+   "note": ""
+  },
+  {
+   "id": "M21",
+   "fr": "FR-216",
+   "change": "march into a foreign province needs no war",
+   "result": "KILLED",
+   "first_failing_test": "tests/engine/validate.test.ts > FR-200 FR-205 FR-207 army order refusals, on the continent (one row per refusal) > FR-200 FR-205 FR-207 a ma",
+   "note": ""
+  },
+  {
+   "id": "M22",
+   "fr": "FR-205",
+   "change": "march needs no adjacency",
+   "result": "KILLED",
+   "first_failing_test": "tests/engine/validate.test.ts > FR-200 FR-205 FR-207 army order refusals, on the continent (one row per refusal) > FR-200 FR-205 FR-207 a ma",
+   "note": ""
+  },
+  {
+   "id": "M23",
+   "fr": "FR-185",
+   "change": "trade with a minor without consulate",
+   "result": "KILLED",
+   "first_failing_test": "tests/engine/partnerMarket.test.ts > FR-184 what minors buy > FR-224 (replaces FR-249) a colony keeps its demand, which only its owner may f",
+   "note": ""
+  },
+  {
+   "id": "M24",
+   "fr": "FR-040",
+   "change": "feed untrained workers first",
+   "result": "SURVIVED",
+   "first_failing_test": "",
+   "note": "equivalent mutant: FEEDING_ORDER is only summed, the order has no effect"
+  },
+  {
+   "id": "M25",
+   "fr": "FR-201",
+   "change": "new regiments start at health 50",
+   "result": "KILLED",
+   "first_failing_test": "tests/engine/armies.test.ts > FR-203 start forces on the continent > FR-203 FR-204 every regiment starts at health 100 with an id no other r",
+   "note": ""
+  },
+  {
+   "id": "M26",
+   "fr": "FR-226",
+   "change": "estimate: likely victory threshold 1.5 -> 2",
+   "result": "KILLED",
+   "first_failing_test": "tests/engine/combat.test.ts > FR-226 battle estimate > FR-226 the start army against Arvelia's three entrenched Minutemen: 36 against 18.75,",
+   "note": ""
+  },
+  {
+   "id": "M27",
+   "fr": "FR-274",
+   "change": "scripted war starts turn 12 not 10",
+   "result": "KILLED",
+   "first_failing_test": "tests/engine/scriptedWar.test.ts > FR-274 scripted war on minors > FR-274 before turn 10 nothing: no recruit, no war",
+   "note": ""
+  },
+  {
+   "id": "M28",
+   "fr": "FR-223",
+   "change": "a Great Power's capital never falls",
+   "result": "KILLED",
+   "first_failing_test": "tests/engine/conquest.test.ts > FR-223 a Great Power's capital falls > FR-223 all its provinces pass to the winner, its regiments are remove",
+   "note": ""
+  },
+  {
+   "id": "M29",
+   "fr": "FR-223",
+   "change": "conquest winner needs zero standing",
+   "result": "KILLED",
+   "first_failing_test": "tests/engine/conquest.test.ts > FR-223 a Great Power's capital falls > FR-223 with one Great Power left standing the game ends at once: game",
+   "note": ""
+  },
+  {
+   "id": "M30",
+   "fr": "FR-075",
+   "change": "HUD score shows treasury part only",
+   "result": "KILLED",
+   "first_failing_test": "tests/ui/scoreAndGameOver.test.tsx > FR-075 HUD score and game length > FR-075 shows the active nation's score total, its three parts on hov",
+   "note": ""
+  },
+  {
+   "id": "M31",
+   "fr": "FR-301",
+   "change": "Council line on a meeting turn changes text",
+   "result": "SURVIVED",
+   "first_failing_test": "",
+   "note": "mis-aimed: the first match was a code comment; redone as M31b (KILLED)"
+  },
+  {
+   "id": "M32",
+   "fr": "FR-299",
+   "change": "Council screen never opens by itself",
+   "result": "KILLED",
+   "first_failing_test": "tests/ui/councilDialog.test.tsx > FR-299 the Council screen: when it opens and how it closes > FR-299 End Turn on a meeting turn opens the C",
+   "note": ""
+  },
+  {
+   "id": "M33",
+   "fr": "FR-232",
+   "change": "battle screens never queue",
+   "result": "KILLED",
+   "first_failing_test": "tests/ui/battleReplay.test.tsx > FR-232 battles in the news and at the start of the next turn > FR-232 End Turn with an attack ordered: the ",
+   "note": ""
+  },
+  {
+   "id": "M34",
+   "fr": "FR-061",
+   "change": "sell: units do not leave warehouse (see validateSell)",
+   "result": "KILLED",
+   "first_failing_test": "tests/engine/market.test.ts > FR-061 FR-062 trade order validation > FR-062 a fifth commodity in one turn",
+   "note": ""
+  },
+  {
+   "id": "M35",
+   "fr": "FR-040",
+   "change": "hungry places: experts starve first instead of untrained",
+   "result": "KILLED",
+   "first_failing_test": "tests/engine/systems/foodSystem.test.ts > FR-040 workers eat > FR-040 other raw food feeds but makes the worker sick: no labour next turn, t",
+   "note": ""
+  },
+  {
+   "id": "M36",
+   "fr": "FR-203",
+   "change": "start militia per Great Power province 4 -> 3",
+   "result": "KILLED",
+   "first_failing_test": "tests/engine/armies.test.ts > FR-203 start forces on the continent > FR-203 nation-1: 2 Regulars and 1 Artillery in its capital province (fo",
+   "note": ""
+  },
+  {
+   "id": "M37",
+   "fr": "FR-203",
+   "change": "capital fort level 1 -> 0",
+   "result": "KILLED",
+   "first_failing_test": "tests/engine/armies.test.ts > FR-203 start forces on the continent > FR-203 a level-1 fort on each Great Power capital tile, none on a minor",
+   "note": ""
+  },
+  {
+   "id": "M38",
+   "fr": "FR-191",
+   "change": "trade does not raise relations",
+   "result": "KILLED",
+   "first_failing_test": "tests/engine/partnerMarket.test.ts > FR-191 FR-172 trade raises relations > FR-191 example: Testland buys 2 coal and 1 timber from Arvelia a",
+   "note": ""
+  },
+  {
+   "id": "M39",
+   "fr": "FR-058",
+   "change": "trained to expert cash cost lowered",
+   "result": "KILLED",
+   "first_failing_test": "tests/engine/industry.test.ts > industry orders: validation > FR-041 training without the cash",
+   "note": ""
+  },
+  {
+   "id": "M40",
+   "fr": "FR-212",
+   "change": "Armoury button always shown",
+   "result": "KILLED",
+   "first_failing_test": "tests/ui/armouryDialog.test.tsx > FR-212 the Armoury: how it opens > FR-212 two-islands has no provinces: no Armoury button",
+   "note": ""
+  },
+  {
+   "id": "M41",
+   "fr": "FR-046",
+   "change": "capital Technology button enabled",
+   "result": "KILLED",
+   "first_failing_test": "tests/ui/listArt.test.tsx > FR-333 the capital's buildings > FR-333 the Capital dialog's title shows the capitol; Warehouse, Armoury and Tec",
+   "note": ""
+  },
+  {
+   "id": "M42",
+   "fr": "FR-109",
+   "change": "New game does not ask first",
+   "result": "KILLED",
+   "first_failing_test": "tests/ui/watchNation.test.tsx > FR-109 New game > FR-109 the HUD asks in place; Keep playing changes nothing; Start new game replaces the ga",
+   "note": ""
+  },
+  {
+   "id": "M43",
+   "fr": "FR-076",
+   "change": "game over screen lists no final scores heading",
+   "result": "KILLED",
+   "first_failing_test": "tests/ui/scoreAndGameOver.test.tsx > FR-076 game-over screen > FR-300 a game won by the Council says \"The Council of Governors chose Testlan",
+   "note": ""
+  },
+  {
+   "id": "M31b",
+   "fr": "FR-301",
+   "change": "Council line on a meeting turn changes text (redo: first match was a comment)",
+   "result": "KILLED",
+   "first_failing_test": "tests/ui/warehouseAndHud.test.tsx > FR-301 the next Council in the HUD > FR-301 on turn 11 \"Next Council: turn 20 (Winter 1819)\"; on a meeti",
+   "note": ""
+  }
+ ],
+ "fr_sample": [
+  {
+   "fr": "FR-001",
+   "milestone": "M1",
+   "how": "test body read (tests/engine/lintGuard.test.ts, lints probe text with the real ESLint config) + grep of src/app/engine",
+   "verdict": "honest; engine has no React, Math.random or Date.now"
+  },
+  {
+   "fr": "FR-004",
+   "milestone": "M1",
+   "how": "table test read (validate.test.ts); no it() title carries the id",
+   "verdict": "honest; covered under FR-004 names inside a table"
+  },
+  {
+   "fr": "FR-013",
+   "milestone": "M1",
+   "how": "test body read (diplomacy.test.ts:702, deep-frozen input equals snapshot)",
+   "verdict": "honest"
+  },
+  {
+   "fr": "FR-020",
+   "milestone": "M1",
+   "how": "test body read (engineBoundary.test.ts, vi.mock wraps the real function and calls through)",
+   "verdict": "honest; the mock is a spy, not a replacement"
+  },
+  {
+   "fr": "FR-021",
+   "milestone": "M1",
+   "how": "test body read + row read",
+   "verdict": "honest, but contradicts NR-016 (FR-TRUTH-09)"
+  },
+  {
+   "fr": "FR-022",
+   "milestone": "M1B",
+   "how": "test body read (source-text regex scan)",
+   "verdict": "weak: passes for any code that avoids the scanned words"
+  },
+  {
+   "fr": "FR-025",
+   "milestone": "M1B",
+   "how": "e2e run on :3170 (play-turns.spec.ts)",
+   "verdict": "honest; passes"
+  },
+  {
+   "fr": "FR-029",
+   "milestone": "M2",
+   "how": "mutation M03 (depot 2000 -> 1500) and M04 (level 3 cost 5000 -> 4000)",
+   "verdict": "killed by tests/engine/rulesData.test.ts"
+  },
+  {
+   "fr": "FR-040",
+   "milestone": "M2",
+   "how": "mutation M35 (hungry order reversed) killed; M24 (feeding order reversed) survived",
+   "verdict": "honest; M24 is an equivalent mutant: FEEDING_ORDER is only summed (FR-TRUTH-12)"
+  },
+  {
+   "fr": "FR-042",
+   "milestone": "M2",
+   "how": "app: Capital dialog shows \"Recruit (1 Canned Food, 1 Clothing, 1 Furniture)\"",
+   "verdict": "matches row"
+  },
+  {
+   "fr": "FR-046",
+   "milestone": "M2",
+   "how": "test body read (capitalDialog.test.tsx:63) + app",
+   "verdict": "weak for the refinery: flag set by hand, unreachable in the game (FR-TRUTH-03)"
+  },
+  {
+   "fr": "FR-053",
+   "milestone": "M2",
+   "how": "e2e run on :3170",
+   "verdict": "honest; passes"
+  },
+  {
+   "fr": "FR-058",
+   "milestone": "M2",
+   "how": "mutation M39 (trained to expert $1,000 -> $500)",
+   "verdict": "killed by industry.test.ts"
+  },
+  {
+   "fr": "FR-061",
+   "milestone": "M3",
+   "how": "mutation M34 (limit-reached refusal removed)",
+   "verdict": "killed"
+  },
+  {
+   "fr": "FR-063",
+   "milestone": "M3",
+   "how": "mutation M20 (holds limit +1) + app Board of Trade \"Holds: 4 of 4 free\"",
+   "verdict": "killed; limit is permanent (FR-TRUTH-16)"
+  },
+  {
+   "fr": "FR-065",
+   "milestone": "M3",
+   "how": "mutation M05 (price drift 3% -> 6%)",
+   "verdict": "killed"
+  },
+  {
+   "fr": "FR-067",
+   "milestone": "M3",
+   "how": "mutations M01, M02 (score weights)",
+   "verdict": "killed; app HUD shows \"Score: 240\" at the start"
+  },
+  {
+   "fr": "FR-069",
+   "milestone": "M3",
+   "how": "mutation M19 (game over no longer refuses orders)",
+   "verdict": "killed by gameOver.test.ts"
+  },
+  {
+   "fr": "FR-075",
+   "milestone": "M3",
+   "how": "mutation M30 (HUD shows treasury part only) + app HUD",
+   "verdict": "killed"
+  },
+  {
+   "fr": "FR-076",
+   "milestone": "M3",
+   "how": "mutation M43 (game-over table label) ",
+   "verdict": "killed"
+  },
+  {
+   "fr": "FR-078",
+   "milestone": "M3",
+   "how": "e2e run (market-and-game-over)",
+   "verdict": "honest; passes"
+  },
+  {
+   "fr": "FR-088",
+   "milestone": "M3.5",
+   "how": "app measurement: 384 tiles, 42 x 42 px, row shift 21 px",
+   "verdict": "matches row"
+  },
+  {
+   "fr": "FR-089",
+   "milestone": "M3.5",
+   "how": "app: About text read",
+   "verdict": "matches (game-icons credit; legend of 3 lines)"
+  },
+  {
+   "fr": "FR-090",
+   "milestone": "M3.5",
+   "how": "e2e run on :3170 (look.spec.ts)",
+   "verdict": "passes"
+  },
+  {
+   "fr": "FR-095",
+   "milestone": "M3.5",
+   "how": "app: 0 of 384 tiles without an aria-label; samples \"Capital, owned by Testland\", \"Sea\"",
+   "verdict": "matches"
+  },
+  {
+   "fr": "FR-096",
+   "milestone": "M3.5",
+   "how": "app: page title is \"Imperialism\"",
+   "verdict": "matches"
+  },
+  {
+   "fr": "FR-106",
+   "milestone": "M3.5",
+   "how": "app HUD table \"1 Testland (you) 240 / 2 Valdoria 240\"; row says layout line is not covered by a test",
+   "verdict": "ok in the app; layout clause has no test"
+  },
+  {
+   "fr": "FR-109",
+   "milestone": "M3.5",
+   "how": "mutation M42 (confirm text) + e2e two-nations",
+   "verdict": "killed; passes"
+  },
+  {
+   "fr": "FR-110",
+   "milestone": "M3.5",
+   "how": "app: no interactive element under 24 px on the first screen (list empty)",
+   "verdict": "matches"
+  },
+  {
+   "fr": "FR-099",
+   "milestone": "M4",
+   "how": "test body read (engineBoundary.test.ts:57)",
+   "verdict": "honest"
+  },
+  {
+   "fr": "FR-104",
+   "milestone": "M4",
+   "how": "app score table lists both nations at start and ranks them later (turn 5: Valdoria 300, Testland 236)",
+   "verdict": "matches"
+  },
+  {
+   "fr": "FR-108",
+   "milestone": "M4",
+   "how": "e2e run (two-nations) + app Valdoria capital panel says \"you can watch it, not give orders here\"",
+   "verdict": "matches"
+  },
+  {
+   "fr": "FR-119",
+   "milestone": "M4.1",
+   "how": "app: each output shows \"0 of N\" with - and + buttons",
+   "verdict": "matches"
+  },
+  {
+   "fr": "FR-120",
+   "milestone": "M4.1",
+   "how": "test body read (productionPlan.test.ts:107, regression of the NR-020 bug)",
+   "verdict": "honest, asserts exact plan and labour numbers"
+  },
+  {
+   "fr": "FR-122",
+   "milestone": "M4.1",
+   "how": "e2e run (m4-1)",
+   "verdict": "passes"
+  },
+  {
+   "fr": "FR-125",
+   "milestone": "M4.2",
+   "how": "test body read (scriptedScore.test.ts:91)",
+   "verdict": "honest but relative: compares with a frozen older AI, not with a target of good play"
+  },
+  {
+   "fr": "FR-133",
+   "milestone": "M4.3",
+   "how": "e2e run (m4-3)",
+   "verdict": "passes"
+  },
+  {
+   "fr": "FR-139",
+   "milestone": "M4.3",
+   "how": "e2e run (m4-3 at 2x pixel density)",
+   "verdict": "passes"
+  },
+  {
+   "fr": "FR-142",
+   "milestone": "M4.4",
+   "how": "e2e run (m4-3)",
+   "verdict": "passes"
+  },
+  {
+   "fr": "NR-028",
+   "milestone": "M4.4",
+   "how": "grep engine/ai for recruitWorkers; row status read",
+   "verdict": "not built (FR-TRUTH-04)"
+  },
+  {
+   "fr": "FR-145",
+   "milestone": "M5",
+   "how": "e2e run (islands) + probe of provinces",
+   "verdict": "matches: 12 provinces, 4 minors"
+  },
+  {
+   "fr": "FR-149",
+   "milestone": "M5",
+   "how": "test bodies read (minorNations.test.ts:125, minorTiles.test.tsx:57)",
+   "verdict": "honest"
+  },
+  {
+   "fr": "FR-153",
+   "milestone": "M5",
+   "how": "e2e run (m5-world)",
+   "verdict": "passes"
+  },
+  {
+   "fr": "FR-156",
+   "milestone": "M5",
+   "how": "app: score table shows 2 Great Powers only",
+   "verdict": "matches"
+  },
+  {
+   "fr": "FR-235",
+   "milestone": "M5",
+   "how": "e2e run (m5-hud-scroll x2, m5-world)",
+   "verdict": "pass; Firefox and WebKit not run (row says so)"
+  },
+  {
+   "fr": "FR-161",
+   "milestone": "M6",
+   "how": "mutation M17 (consulate $500 -> $400)",
+   "verdict": "killed"
+  },
+  {
+   "fr": "FR-163",
+   "milestone": "M6",
+   "how": "app: consulate ordered, cash -$500 at once, news \"Consulate opened in Arvelia.\"",
+   "verdict": "matches"
+  },
+  {
+   "fr": "FR-164",
+   "milestone": "M6",
+   "how": "app: embassy, cash -$5,000, news \"Embassy opened in Arvelia.\"",
+   "verdict": "matches"
+  },
+  {
+   "fr": "FR-165",
+   "milestone": "M6",
+   "how": "app: pact after embassy, news \"Pact signed with Arvelia.\", relation yellow to beige",
+   "verdict": "matches"
+  },
+  {
+   "fr": "FR-166",
+   "milestone": "M6",
+   "how": "app: alliance with Valdoria refused at level 5",
+   "verdict": "works as written; hard to ever see accepted (FR-TRUTH-10)"
+  },
+  {
+   "fr": "FR-167",
+   "milestone": "M6",
+   "how": "row status read (\"not built in M6\" clause) + app war on Lorran",
+   "verdict": "works; status text admits one clause moved to M7 and M9"
+  },
+  {
+   "fr": "FR-168",
+   "milestone": "M6",
+   "how": "app: news \"Relations with Arvelia: yellow to orange (our war on Lorran).\"",
+   "verdict": "matches"
+  },
+  {
+   "fr": "FR-169",
+   "milestone": "M6",
+   "how": "app: peace with Lorran accepted, news \"Peace made with Lorran.\"",
+   "verdict": "matches"
+  },
+  {
+   "fr": "FR-170",
+   "milestone": "M6",
+   "how": "mutation M18 (grant points) + app grant $1,000 paid, news \"Grant of $1,000 paid to Arvelia.\"",
+   "verdict": "killed; matches"
+  },
+  {
+   "fr": "FR-171",
+   "milestone": "M6",
+   "how": "app: subsidy 5% set, shown as \"Subsidy 5%\"",
+   "verdict": "matches"
+  },
+  {
+   "fr": "FR-172",
+   "milestone": "M6",
+   "how": "mutation M16 (max points 89 -> 99)",
+   "verdict": "killed"
+  },
+  {
+   "fr": "FR-175",
+   "milestone": "M6",
+   "how": "test body read (diplomacyOrders.test.ts:183) + code reading of engine/ai/diplomacy.ts",
+   "verdict": "honest but unreachable in play (FR-TRUTH-10)"
+  },
+  {
+   "fr": "FR-177",
+   "milestone": "M6",
+   "how": "e2e run (m6-diplomacy) + app tabs and buttons with reasons",
+   "verdict": "matches"
+  },
+  {
+   "fr": "FR-236",
+   "milestone": "M6",
+   "how": "e2e run (m6-dialogs x4)",
+   "verdict": "pass"
+  },
+  {
+   "fr": "FR-185",
+   "milestone": "M7",
+   "how": "mutation M23 (trade without consulate)",
+   "verdict": "killed (49 failures)"
+  },
+  {
+   "fr": "FR-191",
+   "milestone": "M7",
+   "how": "mutation M38 (trade does not raise relations)",
+   "verdict": "killed"
+  },
+  {
+   "fr": "FR-194",
+   "milestone": "M7",
+   "how": "e2e run (m7-trade x2) + app Board of Trade text",
+   "verdict": "passes; text matches (\"no consulate\" notes)"
+  },
+  {
+   "fr": "FR-197",
+   "milestone": "M7",
+   "how": "e2e run (m7-trade)",
+   "verdict": "passes"
+  },
+  {
+   "fr": "FR-247",
+   "milestone": "M7",
+   "how": "probe: 42 games of 40 turns on seeds 5 to 36 on the partners continent",
+   "verdict": "no invariant violation, no refused order, treasury never negative"
+  },
+  {
+   "fr": "FR-199",
+   "milestone": "M8",
+   "how": "row read against src/app/definisions/regiments.ts",
+   "verdict": "code equals the row; 5 of 9 costs are derived/low-confidence guesses"
+  },
+  {
+   "fr": "FR-201",
+   "milestone": "M8",
+   "how": "mutation M25 (new regiments at health 50)",
+   "verdict": "killed"
+  },
+  {
+   "fr": "FR-202",
+   "milestone": "M8",
+   "how": "mutation M06 (upkeep $25 -> $30)",
+   "verdict": "killed (11 failures); app: upkeep $100 per turn seen"
+  },
+  {
+   "fr": "FR-203",
+   "milestone": "M8",
+   "how": "mutations M36 (militia 4 -> 3), M37 (capital fort level 1 -> 0)",
+   "verdict": "killed"
+  },
+  {
+   "fr": "FR-205",
+   "milestone": "M8",
+   "how": "mutation M22 (march without adjacency)",
+   "verdict": "killed"
+  },
+  {
+   "fr": "FR-208",
+   "milestone": "M8",
+   "how": "mutation M07 (healing 10 -> 5)",
+   "verdict": "killed"
+  },
+  {
+   "fr": "FR-211",
+   "milestone": "M8",
+   "how": "app: Army screen text and March to list",
+   "verdict": "matches"
+  },
+  {
+   "fr": "FR-212",
+   "milestone": "M8",
+   "how": "mutation M40 (Armoury always shown)",
+   "verdict": "killed"
+  },
+  {
+   "fr": "FR-214",
+   "milestone": "M8",
+   "how": "e2e run (m8-armies)",
+   "verdict": "passes"
+  },
+  {
+   "fr": "FR-269",
+   "milestone": "M8",
+   "how": "e2e run (m8-qa)",
+   "verdict": "passes"
+  },
+  {
+   "fr": "FR-216",
+   "milestone": "M9",
+   "how": "mutation M21 (attack without war)",
+   "verdict": "killed"
+  },
+  {
+   "fr": "FR-218",
+   "milestone": "M9",
+   "how": "mutation M11 (8 rounds -> 6)",
+   "verdict": "killed"
+  },
+  {
+   "fr": "FR-219",
+   "milestone": "M9",
+   "how": "mutations M08 (entrenchment 20% -> 10%), M09 (hit chance 0.7 -> 0.8)",
+   "verdict": "killed"
+  },
+  {
+   "fr": "FR-220",
+   "milestone": "M9",
+   "how": "mutation M10 (rout threshold 25 -> 15)",
+   "verdict": "killed"
+  },
+  {
+   "fr": "FR-223",
+   "milestone": "M9",
+   "how": "mutations M28 (capital never falls), M29 (no conquest winner)",
+   "verdict": "killed"
+  },
+  {
+   "fr": "FR-226",
+   "milestone": "M9",
+   "how": "mutation M26 (likely victory 1.5 -> 2)",
+   "verdict": "killed"
+  },
+  {
+   "fr": "FR-232",
+   "milestone": "M9",
+   "how": "mutation M33 (battle screens never queue)",
+   "verdict": "killed"
+  },
+  {
+   "fr": "FR-233",
+   "milestone": "M9",
+   "how": "e2e run (m9-war: war on Arvelia, attack, battle, colony)",
+   "verdict": "passes; only Arvelia can be attacked (FR-TRUTH-01)"
+  },
+  {
+   "fr": "FR-274",
+   "milestone": "M9",
+   "how": "mutation M27 (scripted war from turn 12)",
+   "verdict": "killed"
+  },
+  {
+   "fr": "FR-290",
+   "milestone": "M10",
+   "how": "mutation M14 (interval 10 -> 12)",
+   "verdict": "killed"
+  },
+  {
+   "fr": "FR-291",
+   "milestone": "M10",
+   "how": "mutation M15 (province weight 100 -> 50)",
+   "verdict": "killed"
+  },
+  {
+   "fr": "FR-293",
+   "milestone": "M10",
+   "how": "mutation M13 (minor votes at 40 points)",
+   "verdict": "killed"
+  },
+  {
+   "fr": "FR-294",
+   "milestone": "M10",
+   "how": "mutation M12 (needed = floor(2n/3))",
+   "verdict": "killed"
+  },
+  {
+   "fr": "FR-299",
+   "milestone": "M10",
+   "how": "mutation M32 (Council screen never opens)",
+   "verdict": "killed"
+  },
+  {
+   "fr": "FR-301",
+   "milestone": "M10",
+   "how": "mutation M31b (meeting-turn text) + app HUD line",
+   "verdict": "killed; matches"
+  },
+  {
+   "fr": "FR-302",
+   "milestone": "M10",
+   "how": "test bodies read (continentScore.test.ts:254, purity.test.ts:176)",
+   "verdict": "honest; the AI ignores the Council by design"
+  },
+  {
+   "fr": "FR-303",
+   "milestone": "M10",
+   "how": "e2e run (m10-council) + app: screen opens by itself after turn 10",
+   "verdict": "passes; matches"
+  },
+  {
+   "fr": "FR-305",
+   "milestone": "M10",
+   "how": "row + test output read (\"t10 nation-2:4/nation-1:4 ... none\")",
+   "verdict": "pins \"no winner\" in all 4 seeds (FR-TRUTH-02)"
+  },
+  {
+   "fr": "FR-307",
+   "milestone": "M10",
+   "how": "status read: CSS/layout check lives in e2e/m10-council.spec.ts, no it() title cites FR-307",
+   "verdict": "covered, but only inside an e2e whose title cites FR-303"
+  },
+  {
+   "fr": "FR-317",
+   "milestone": "M10",
+   "how": "status read: computed colour check in e2e/m10-council.spec.ts",
+   "verdict": "covered inside another title"
+  },
+  {
+   "fr": "FR-321",
+   "milestone": "M11",
+   "how": "e2e run (m11-map: 60 scroll frames median 16.7 ms)",
+   "verdict": "passes"
+  },
+  {
+   "fr": "FR-324",
+   "milestone": "M11",
+   "how": "row + status read",
+   "verdict": "replaced by FR-347 inside a \"tested\" status (FR-TRUTH-06)"
+  },
+  {
+   "fr": "FR-330",
+   "milestone": "M11",
+   "how": "e2e run + code reading",
+   "verdict": "one of five cursors unreachable (FR-TRUTH-08)"
+  },
+  {
+   "fr": "FR-333",
+   "milestone": "M11",
+   "how": "mutation M41 (Technology button enabled)",
+   "verdict": "killed"
+  },
+  {
+   "fr": "FR-336",
+   "milestone": "M11",
+   "how": "row read",
+   "verdict": "not a standing test: verified once by git diff (FR-TRUTH-06)"
+  },
+  {
+   "fr": "FR-337",
+   "milestone": "M11",
+   "how": "row + e2e output",
+   "verdict": "replaced by FR-339: \"first paint: 19 pack files, 1937255 bytes\" (limit 20 files, 2.05 MB)"
+  },
+  {
+   "fr": "FR-346",
+   "milestone": "M11",
+   "how": "e2e output \"capital 2-9: drawing 40.3 px across, 20% covered\"",
+   "verdict": "passes"
+  },
+  {
+   "fr": "FR-350",
+   "milestone": "M11",
+   "how": "e2e run (m11-map)",
+   "verdict": "passes"
+  },
+  {
+   "fr": "FR-351",
+   "milestone": "M11",
+   "how": "row read: no test names the id",
+   "verdict": "covered through FR-349 and FR-352 by the row's own words only"
+  },
+  {
+   "fr": "FR-355",
+   "milestone": "M11",
+   "how": "e2e run (m11-map)",
+   "verdict": "passes"
+  }
+ ],
+ "roadmap_goals": [
+  {
+   "milestone": "M0 Cleanup",
+   "stated": "npm test, lint and tsc green; 6 old branches kept",
+   "confirmed": "tsc, lint (0 errors), tests all green",
+   "not_confirmed": "its last task (6 old branches kept) is open in roadmap.json; \"1 fixme\" is still true (e2e cursor rail case)"
+  },
+  {
+   "milestone": "M1 Headless core",
+   "stated": "both tests green and the app plays as before through orders",
+   "confirmed": "e2e play-turns passes (3 turns, no console error)",
+   "not_confirmed": "the carried task \"order log + queued UI orders\" is open; NR-016 (orders at End Turn) is not met (FR-TRUTH-09)"
+  },
+  {
+   "milestone": "M2 Economic loop",
+   "stated": "grain to canned food in the warehouse, visible in the app",
+   "confirmed": "e2e FR-053 passes: order canned food, 12 in the warehouse",
+   "not_confirmed": "plan goal \"fix every CODE MISMATCH in rules 02 to 06\" not closed in the docs (FR-TRUTH-11)"
+  },
+  {
+   "milestone": "M3 Money and score",
+   "stated": "40-turn game ends with a score; app shows it",
+   "confirmed": "e2e FR-078/FR-104 passes: 40 turns, game-over screen with both scores",
+   "not_confirmed": "none"
+  },
+  {
+   "milestone": "M3.5 Small map and clean look",
+   "stated": "two islands, faint tiles, icons, rail line fix",
+   "confirmed": "e2e look/islands pass; map measured 42 px tiles; screenshot fr-truth-01",
+   "not_confirmed": "Game Icons were then replaced by the ink-and-wash pack in M11 (NR-008 replaced)"
+  },
+  {
+   "milestone": "M4 Second nation",
+   "stated": "the human can watch the other nation grow",
+   "confirmed": "score table ranks both nations; Valdoria tiles are read-only and its news lines show; Valdoria score 240 to 381 by turn 10",
+   "not_confirmed": "both M4 tasks are still done:false in roadmap.json; the computer never recruits workers (FR-TRUTH-04); the other nation's cash and stock are not visible"
+  },
+  {
+   "milestone": "M5 World",
+   "stated": "a new game shows 2 Great Powers and 4 minor nations with provinces",
+   "confirmed": "e2e m5-world passes; map shows 12 provinces, 4 minors",
+   "not_confirmed": "none"
+  },
+  {
+   "milestone": "M6 Diplomacy",
+   "stated": "consulate, embassy and a war show next turn; every overture covered headless",
+   "confirmed": "consulate, embassy, pact, grant, trade policy, war, peace all done in the app",
+   "not_confirmed": "alliance with the Great Power is refused at start and the Accept Offer dialog cannot be reached in play (FR-TRUTH-10)"
+  },
+  {
+   "milestone": "M7 Trade",
+   "stated": "a 40-turn game shows both nations trading with minors; the computer ends with a positive treasury",
+   "confirmed": "news shows Valdoria buying from and selling to Arvelia; human bid test passes; headless: treasury never negative on 42 games",
+   "not_confirmed": "the computer's treasury at turn 40 cannot be seen in the app; trade is capped at 4 units a turn (FR-TRUTH-16)"
+  },
+  {
+   "milestone": "M8 Armies",
+   "stated": "a regiment recruited in the app appears next turn in the capital province and can be moved",
+   "confirmed": "e2e m8-armies passes (armaments, Armoury, Army screen, march)",
+   "not_confirmed": "none"
+  },
+  {
+   "milestone": "M9 War",
+   "stated": "the human declares war on a minor, attacks, sees the battle and takes the province",
+   "confirmed": "e2e m9-war passes for Arvelia (battle screen, colony)",
+   "not_confirmed": "for Sundmark, Lorran and Pellis it is impossible (FR-TRUTH-01); a war on the other Great Power was not played"
+  },
+  {
+   "milestone": "M10 Council",
+   "stated": "meetings on turns 10, 20, 30, 40; one vote per province; more than two thirds wins; Council screen",
+   "confirmed": "screen opens by itself after turn 10 and 40; HUD countdown and projection; no winner on turn 10 as designed",
+   "not_confirmed": "\"more than two thirds wins\" never happens in any simulated game (FR-TRUTH-02)"
+  },
+  {
+   "milestone": "M11 Ink-and-wash restyle",
+   "stated": "the pack replaces Game Icons and emoji on the map, lists, dialogs and HUD",
+   "confirmed": "e2e m11-art, m11-lists, m11-map pass; screenshots fr-truth-01 and -02 show the pack everywhere; 7 dialogs fit at 5 window sizes",
+   "not_confirmed": "roadmap.json detail still says in-review with the Browser QA open (FR-TRUTH-05); one cursor is unreachable (FR-TRUTH-08); the Technology button shows a disabled picture"
+  }
+ ]
+}

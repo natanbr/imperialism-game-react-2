@@ -38,15 +38,6 @@ export function parseTileId(tileId: string): TileCoordinates | null {
 }
 
 /**
- * Validate that a string is a valid tile ID
- * @param tileId - String to validate
- * @returns true if valid tile ID format
- */
-export function isValidTileId(tileId: string): boolean {
-  return parseTileId(tileId) !== null;
-}
-
-/**
  * Parse tile ID into array [x, y] for destructuring
  * @param tileId - Tile ID in format "x-y"
  * @returns Tuple [x, y] or [NaN, NaN] if invalid

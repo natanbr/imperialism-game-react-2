@@ -5,7 +5,8 @@
 import { beforeAll, describe, it, expect } from 'vitest';
 import { newGame } from '@/engine/newGame';
 import { scriptedPlayer } from '@/engine/ai/scriptedPlayer';
-import { campaignTarget, capitalKeep } from '@/engine/ai/scriptedWar';
+import { campaignTarget, capitalKeep, workersKeptForCampaign } from '@/engine/ai/scriptedWar';
+import { cashReserve } from '@/engine/ai/economy';
 import { tryApplyOrder } from '@/engine/orders/apply';
 import type { Order } from '@/engine/orders/Order';
 import { resolveTurn } from '@/engine/turn/resolveTurn';
@@ -13,7 +14,7 @@ import { councilCell, type CouncilMetEvent } from '@/engine/council/council';
 import { transferProvince } from '@/engine/world/provinces';
 import { SCRIPTED_WAR } from '@/definisions/combatRules';
 import type { GameState } from '@/types/GameState';
-import { N1, N2, nationOf, setPair, setTreasury, setWarehouse } from './fixtures';
+import { N1, N2, nationOf, setIndustry, setPair, setTreasury, setWarehouse } from './fixtures';
 import { addRegiments, ARVELIA, ARVELIA_P, clearArmy, continent, NE2, NW2, patchRegiment, relocate, SE2, SW2 } from './armyFixtures';
 
 const atWar = (s: GameState, a: string, b: string, since = 1): GameState =>
@@ -153,6 +154,37 @@ describe('FR-274 scripted war on minors', () => {
     expect(warOrders(scriptedPlayer(v1, N2))).toEqual([]);
   });
 
+  describe('FR-458 the campaign keeps its recruits\' grade', () => {
+    /** The continent on `turn` (from turn 10 Arvelia is the target, no field army yet): 3 trained workers, 3 experts, paper to train them all. */
+    const campaign = (horses: number, turn = 10): GameState =>
+      setIndustry(setWarehouse({ ...continent('world'), turn }, N2, { paper: 20, horses, armaments: 1 }), N2, { workers: { untrained: 0, trained: 3, expert: 3 } });
+    const training = (s: GameState) => scriptedPlayer(s, N2).filter(o => o.kind === 'trainWorkers');
+    const trainTrained = (delta: number): Order => ({ kind: 'trainWorkers', nationId: N2, from: 'trained', delta });
+
+    it('FR-458 while the campaign is short, training leaves a trained worker for each Cuirassiers the horses in stock can raise', () => {
+      expect(workersKeptForCampaign(campaign(2), N2, 'trained')).toBe(2);
+      expect(workersKeptForCampaign(campaign(2), N2, 'untrained')).toBe(0);
+      // 2 horses: this turn's recruit takes a trained worker and a horse, the other horse keeps 1 more: 1 of the 3 trains
+      expect(warOrders(scriptedPlayer(campaign(2), N2))).toEqual([recruitOne]);
+      expect(training(campaign(2))).toEqual([trainTrained(1)]);
+      // 5 horses keep all 3
+      expect(training(campaign(5))).toEqual([]);
+    });
+
+    it('FR-458 with no horse, or before the campaign (turn 9), every trained worker may train', () => {
+      expect(workersKeptForCampaign(campaign(0), N2, 'trained')).toBe(0);
+      expect(training(campaign(0))).toEqual([trainTrained(3)]);
+      expect(workersKeptForCampaign(campaign(2, 9), N2, 'trained')).toBe(0);
+      expect(training(campaign(2, 9))).toEqual([trainTrained(3)]);
+    });
+
+    it('FR-460 a nation with an army trains below its reserve as before: with $1,500 and a reserve of $2,500 one worker trains', () => {
+      const s = setTreasury(campaign(0), N2, 1500);
+      expect(cashReserve(s, N2)).toBe(2500);
+      expect(training(s)).toEqual([trainTrained(1)]);
+    });
+  });
+
   describe('FR-274 acceptance: the continent, seeds 1 to 4, 40 turns, Testland idle', () => {
     const SEEDS = [1, 2, 3, 4];
     interface Run {
@@ -221,11 +253,12 @@ describe('FR-274 scripted war on minors', () => {
         SEEDS.map(seed => [seed, [[10, null], [20, null], [30, null], [40, null]], null])
       );
       const colonies = (r: Run) => r.councils.map(c => [c.turn, councilCell(c, N2, 'colonies')]);
-      // Seeds 1 to 3 colonise Arvelia on turn 22 (FR-274's acceptance); seed 4 declares no war
-      expect(runs.map(r => [r.seed, r.colonised ?? null, colonies(r)])).toEqual([
-        ...[1, 2, 3].map(seed => [seed, 22, [[10, []], [20, []], [30, [ARVELIA_P]], [40, [ARVELIA_P]]]]),
-        [4, null, [[10, []], [20, []], [30, []], [40, []]]],
-      ]);
+      // Every seed colonises Arvelia on turn 17 (FR-274's acceptance), so Valdoria votes for it from the turn-20 meeting.
+      // M12 strategy C re-record (FR-456, FR-457 depots gather more; FR-458 keeps the Cuirassiers' trained workers): seeds
+      // 1 to 3 colonised it on turn 22 and voted from turn 30, seed 4 declared no war.
+      expect(runs.map(r => [r.seed, r.colonised ?? null, colonies(r)])).toEqual(
+        [1, 2, 3, 4].map(seed => [seed, 17, [[10, []], [20, [ARVELIA_P]], [30, [ARVELIA_P]], [40, [ARVELIA_P]]]])
+      );
     });
   });
 });

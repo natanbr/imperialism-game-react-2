@@ -25,6 +25,7 @@ export {
 export { scoreOf, scoreTable } from "./score/score";
 export { isGameOver, turnLimitOf } from "./turn/gameOver";
 export { railLinksOf, type RailLink } from "./systems/railroadSystem";
+export { collectingHub, type CollectingHub } from "./systems/logisticsSystem";
 // M5 (FR-144 to FR-152): worlds, minor nations, provinces, diplomacy state, intents, random streams.
 export { WORLDS, DEFAULT_WORLD, type World } from "./world/worlds";
 export { countryName, countryOfTile, isGreatPower, isMinorNation, minorNationAt, minorNationById } from "./world/countries";
@@ -39,6 +40,7 @@ export type { Intent } from "@/types/Intent";
 // M6 (FR-161 to FR-176): diplomacy orders, the phase's view helpers, the scripted answers, the rule numbers.
 export {
   diplomacyIntentsOf,
+  hasLandRoute,
   intentCost,
   isOverture,
   militaryStrength,
@@ -49,7 +51,7 @@ export {
   warActive,
   warBetween,
 } from "./diplomacy/queries";
-export { acceptsAlliance, acceptsPeace, losingWar } from "./diplomacy/scriptedAnswers";
+export { acceptsAlliance, acceptsPeace, beatenInWar, losingWar } from "./diplomacy/scriptedAnswers";
 export { GRANT_AMOUNTS, GRANT_POINTS, OVERTURE_COST, SUBSIDY_PERCENTS } from "@/definisions/diplomacyRules";
 export type {
   GrantAmount,
@@ -93,6 +95,7 @@ export {
   type RecruitCost,
   type TreasuryChange,
 } from "./market/dealBook";
+export { dealPrice } from "./market/settlePartners";
 export { BOARD_ORDER, MINOR_DEMAND, MINOR_OFFER_CAP, TRADE_RELATION_POINTS } from "@/definisions/partnersMarket";
 export type { BarredCounterparty, OfferMissedReason, TradeMissCause } from "./turn/context";
 export type { MarketMode, TradeAmounts } from "@/types/Market";
@@ -127,7 +130,7 @@ export {
   type RegimentLocation,
   type RegimentStatus,
 } from "./army/armies";
-export { upkeepForecast, upkeepIn, type UpkeepForecast } from "./army/upkeepForecast";
+export { upkeepForecast, upkeepForecastWithGrant, upkeepIn, type UpkeepForecast } from "./army/upkeepForecast";
 export {
   entrenches,
   isMilitia,

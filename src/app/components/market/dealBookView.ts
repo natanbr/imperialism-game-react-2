@@ -19,9 +19,12 @@ export interface DealBookView {
    * 1 Coal (no free hold)", "Nobody sold us 2 Coal (no consulate with Lorran; bid money back)".
    */
   notTraded: string[];
-  /** Sold, Bought, Military upkeep, Trade net, in the Imp1 order. */
+  /** Sold, Bought and the Trade net, Sold less Bought (FR-396). */
   bottomLine: MoneyLine[];
-  /** With the turn's treasuries known (FR-256): Trade net, each diplomacy cost, each type recruited (FR-262), Other when not 0, Treasury change. */
+  /**
+   * With the turn's treasuries known (FR-256): the Trade net (only on a turn with deals, FR-396), Army upkeep when not 0
+   * (FR-396), each diplomacy cost, each type recruited (FR-262), Other when not 0, Treasury change.
+   */
   treasury?: MoneyLine[];
   /** "From $10,000 to $9,200": the treasury before and after the turn (FR-256). */
   cash?: string;
@@ -98,19 +101,23 @@ const DIPLOMACY_TEXT: Record<DiplomacyCost["kind"], string> = { consulate: "Cons
 export const OTHER_MONEY_LABEL = "Other (building, workers, gold, gems)";
 
 export function dealBookView(book: DealBook, nameOf: (countryId: string) => string): DealBookView {
-  const { sold, bought, militaryUpkeep, net } = book.bottomLine;
+  const { sold, bought, militaryUpkeep } = book.bottomLine;
   const line = (label: string, amount: number): MoneyLine => ({ label, amount, text: money(amount) });
-  const tradeNet = line("Trade net", net);
+  // FR-396 (audit ARMY-WAR-06): the trade only; the upkeep is its own Treasury line, so a turn without deals shows no
+  // "Trade net" for a charge that was not trade
+  const tradeNet = line("Trade net", sold - bought);
+  const empty = book.sold.length === 0 && book.bought.length === 0 && book.notTraded.length === 0;
   const treasury = book.treasury;
   return {
     sold: book.sold.map((entry) => dealLineText(entry, nameOf)),
     bought: book.bought.map((entry) => dealLineText(entry, nameOf)),
     notTraded: book.notTraded.map((entry) => dealLineText(entry, nameOf)),
-    bottomLine: [line("Sold", sold), line("Bought", bought), line("Military upkeep", militaryUpkeep), tradeNet],
+    bottomLine: [line("Sold", sold), line("Bought", bought), tradeNet],
     ...(treasury
       ? {
           treasury: [
-            tradeNet,
+            ...(empty ? [] : [tradeNet]),
+            ...(militaryUpkeep !== 0 ? [line("Army upkeep", -militaryUpkeep)] : []),
             ...book.diplomacy.map((d) => line(`${DIPLOMACY_TEXT[d.kind]} ${nameOf(d.targetId)}`, -d.amount)),
             ...book.recruits.map((r) => line(`${r.count} ${REGIMENTS[r.regiment].name} recruited`, -r.amount)),
             ...(treasury.other !== 0 ? [line(OTHER_MONEY_LABEL, treasury.other)] : []),
@@ -119,6 +126,6 @@ export function dealBookView(book: DealBook, nameOf: (countryId: string) => stri
           cash: `From ${money(treasury.start)} to ${money(treasury.end)}`,
         }
       : {}),
-    empty: book.sold.length === 0 && book.bought.length === 0 && book.notTraded.length === 0,
+    empty,
   };
 }

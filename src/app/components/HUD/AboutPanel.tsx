@@ -14,12 +14,13 @@ const LineSample: React.FC<{ stroke: string; className: string }> = ({ stroke, c
 );
 
 /**
- * Credits, with the CC BY 3.0 attribution the Game Icons licence asks for (FR-089), and the map legend
- * of the three border lines (FR-235). The Great Power sample is in the viewed nation's colour. A modal
+ * Credits, with the CC BY 3.0 attribution the Game Icons licence asks for (FR-089), a "How to play" button (FR-430),
+ * and the map legend of the three border lines (FR-235). The Great Power sample is in the viewed nation's colour. A modal
  * dialog over the whole page (FR-236), rendered into the body so the HUD's clipped panel does not hold it.
  */
 export const AboutPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const nation = useGameStore(selectActiveNation);
+  const openHowToPlay = useGameStore((s) => s.openHowToPlay);
   const titleId = useId();
   const legendId = useId();
   return (
@@ -33,6 +34,19 @@ export const AboutPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         </button>
       </div>
       <p>A web remake of Imperialism (1997).</p>
+      {/* FR-430: How to play at any time; About closes first, one dialog at a time */}
+      <p>
+        <button
+          type="button"
+          className="btn btn-plain btn-sm"
+          onClick={() => {
+            onClose();
+            openHowToPlay();
+          }}
+        >
+          How to play
+        </button>
+      </p>
       <p>
         Icons by{" "}
         <a href="https://game-icons.net" target="_blank" rel="noopener noreferrer">

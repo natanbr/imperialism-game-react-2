@@ -576,3 +576,67 @@ describe('FR-232 the war news lines', () => {
     ]);
   });
 });
+
+// FR-419 (ARMY-WAR-07): jsdom has no layout, so the browser's boxes are stubbed: the battlefield a 200 px window at y 100,
+// each side's tokens two to a row, 44 px high every 50 px, moved up by `scrolled`.
+describe('FR-419 every regiment on the battlefield can be reached', () => {
+  let scrolled = 0;
+  const box = (top: number, height: number) =>
+    ({ top, bottom: top + height, left: 0, right: 300, width: 300, height, x: 0, y: top, toJSON: () => ({}) }) as DOMRect;
+  function stubLayout() {
+    scrolled = 0;
+    return vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+      if (this.getAttribute('data-testid') === 'battle-field') return box(100, 200);
+      if (this.tagName === 'LI' && this.parentElement) return box(100 + Math.floor([...this.parentElement.children].indexOf(this) / 2) * 50 - scrolled, 44);
+      return box(0, 0);
+    });
+  }
+  afterEach(() => vi.restoreAllMocks());
+
+  /** TAKEN with ten attacking Regulars more: 12 attackers, 6 rows of the attackers' two columns. */
+  const crowded: BattleReport = {
+    ...TAKEN,
+    regiments: [
+      ...TAKEN.regiments.slice(0, 2),
+      ...Array.from({ length: 10 }, (_, i) => ({
+        id: `regiment-${901 + i}`,
+        ownerId: N1,
+        type: 'regulars' as const,
+        name: `Test Regulars ${901 + i}`,
+        side: 'attacker' as const,
+        startHealth: 100,
+        endHealth: 100,
+        fate: 'standing' as const,
+      })),
+      ...TAKEN.regiments.slice(2),
+    ],
+  };
+
+  it('FR-419 twelve attackers in a field that shows four rows: "4 more below" under the field; scrolling counts down', () => {
+    stubLayout();
+    replay(crowded);
+    expect(tokens('Attackers')).toHaveLength(12);
+    const more = within(dialog()).getByTestId('battle-more-below');
+    expect(text(more)).toBe('4 more below');
+    const field = within(dialog()).getByTestId('battle-field');
+    expect(field.compareDocumentPosition(more) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    scrolled = 50;
+    fireEvent.scroll(field);
+    expect(text(within(dialog()).getByTestId('battle-more-below'))).toBe('2 more below');
+    scrolled = 100;
+    fireEvent.scroll(field);
+    expect(within(dialog()).queryByTestId('battle-more-below')).toBeNull();
+  });
+
+  it('FR-419 a battle that fits has no line', () => {
+    stubLayout();
+    replay(TAKEN);
+    expect(within(dialog()).queryByTestId('battle-more-below')).toBeNull();
+  });
+
+  it('FR-419 the battlefield draws a visible scrollbar when it scrolls', () => {
+    const css = readFileSync(join(ROOT, 'src/app/components/army/War.module.css'), 'utf8');
+    expect(css).toMatch(/\.field::-webkit-scrollbar[,\s][^{]*\{[^}]*width: \d+px/);
+  });
+});

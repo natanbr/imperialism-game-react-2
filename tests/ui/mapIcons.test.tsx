@@ -12,7 +12,7 @@ import { join } from 'path';
 import { render, within } from '@testing-library/react';
 import { MapView } from '@/components/MapView';
 import tileStyles from '@/components/Tile/Tile.module.css';
-import { artFileOf, civilianArt, goodsArt, tileArt } from '@/components/art/inkArt';
+import { artFileOf, civilianArt, fortArt, goodsArt, tileArt } from '@/components/art/inkArt';
 import { useGameStore } from '@/store/rootStore';
 import { newGame } from '@/engine';
 import type { GameState } from '@/types/GameState';
@@ -294,5 +294,104 @@ describe('FR-325 civilians on the map', () => {
     expect(stack.classList.contains(tileStyles.workerButtonSelected)).toBe(true);
     expect(stack.querySelector('img')?.getAttribute('data-art')).toBe('workers/forester.png');
     unmount();
+  });
+});
+
+// M12 (NR-033), lane L2. FR-388 (ARMY-WAR-10, card Q88): a tile with a fort shows the pack's fort (`FortPicture`) as a
+// 16 px mark, "Fort level 1" in its title, in a free top corner: the top-right, unless a depot or a port stands there or a
+// stack's count reaches into it, then the top-left. The fort is the level the battle uses (`tile.fortLevel`, FR-203): on
+// turn 1 the two Great Powers' capitals. Its name: tests/ui/accessibleNames.test.tsx; Tile Info: tileOffers.test.tsx.
+describe('FR-388 forts can be seen', () => {
+  const px = (body: string, prop: string) => Number(new RegExp(`(?:^|[;\\s])${prop}:\\s*(-?[\\d.]+)(?:px)?(?![\\w.%])`).exec(body)?.[1]);
+  const marksOf = (container: HTMLElement) =>
+    [...container.querySelectorAll<HTMLElement>('[data-testid="fort-mark"]')].map((m) => ({
+      tile: m.closest('[data-testid="tile"]')!.getAttribute('data-tile-id'),
+      title: m.getAttribute('title'),
+      side: m.classList.contains(tileStyles.fortMarkLeft) ? 'left' : m.classList.contains(tileStyles.fortMarkRight) ? 'right' : '?',
+      art: m.querySelector('img')?.getAttribute('data-art'),
+      alt: m.querySelector('img')?.getAttribute('alt'),
+      size: [m.querySelector('img')?.getAttribute('width'), m.querySelector('img')?.getAttribute('height')],
+    }));
+
+  it('FR-388 on turn 1 the two capitals, and no other tile (no minor\'s capital), show the pack\'s fort at 16 px, alt "", titled "Fort level 1"', () => {
+    const game = newGame({ seed: 1, world: 'continent' });
+    show(game);
+    const { container, unmount } = render(<MapView />);
+    const fort = { title: 'Fort level 1', art: artFileOf(fortArt(1)!), alt: '', size: ['16', '16'] };
+    // Each capital holds its seven civilians: their stack's count reaches into the top-right, so the fort takes the top-left
+    expect(marksOf(container)).toEqual([
+      { tile: '2-9', side: 'left', ...fort },
+      { tile: '14-9', side: 'left', ...fort },
+    ]);
+    unmount();
+  });
+
+  it('FR-388 the top-right when free; the top-left beside a depot or under a count; level 2 titled "Fort level 2"', () => {
+    const start = newGame({ seed: 1, world: 'continent' });
+    const capital = tileOf(start, '2-9');
+    show(
+      withTiles(start, {
+        '2-9': { workers: capital.workers.slice(0, 1) },
+        '3-9': { fortLevel: 2, depot: true },
+        '4-8': { fortLevel: 1 },
+      })
+    );
+    const { container, unmount } = render(<MapView />);
+    expect(marksOf(container).map(({ tile, side, title, art }) => ({ tile, side, title, art }))).toEqual([
+      { tile: '4-8', side: 'right', title: 'Fort level 1', art: artFileOf(fortArt(1)!) },
+      { tile: '2-9', side: 'right', title: 'Fort level 1', art: artFileOf(fortArt(1)!) },
+      { tile: '3-9', side: 'left', title: 'Fort level 2', art: artFileOf(fortArt(2)!) },
+      { tile: '14-9', side: 'left', title: 'Fort level 1', art: artFileOf(fortArt(1)!) },
+    ]);
+    unmount();
+  });
+
+  // M12 review (L2-08): a fort in the top-left would lie over the level badge (top 1, left 1) and the job markers (top
+  // 12): they move below it, as under a depot and a port (FR-356's y 16 and y 27)
+  it('FR-388 FR-356 a fort in the top-left moves the level badge and the job markers below it', () => {
+    const start = newGame({ seed: 1, world: 'continent' });
+    const farm = tileOf(start, '3-9');
+    show(withTiles(start, { '3-9': { fortLevel: 1, depot: true, resource: { ...farm.resource!, level: 2, discovered: true } } }));
+    const { container, unmount } = render(<MapView />);
+    const tile = container.querySelector<HTMLElement>('[data-tile-id="3-9"]')!;
+    expect(tile.querySelector('[data-testid="fort-mark"]')!.classList.contains(tileStyles.fortMarkLeft)).toBe(true);
+    expect(tile.querySelector('[data-testid="level-badge"]')!.className).toBe(`${tileStyles.levelBadge} ${tileStyles.levelBadgeLow}`);
+    unmount();
+    // Without the fort (one depot) the badge stays at the top
+    show(withTiles(start, { '3-9': { depot: true, resource: { ...farm.resource!, level: 2, discovered: true } } }));
+    const again = render(<MapView />);
+    expect(again.container.querySelector('[data-tile-id="3-9"] [data-testid="level-badge"]')!.className).toBe(tileStyles.levelBadge);
+    again.unmount();
+  });
+
+  it('FR-388 the mark covers no other mark where it stands: 16 px on the top corner, clear of the low army chip, the count, a lone civilian and the capital picture\'s middle', () => {
+    type Box = { x0: number; y0: number; x1: number; y1: number };
+    const meet = (a: Box, b: Box) => Math.max(0, Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0)) * Math.max(0, Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0));
+    const mark = rule('fortMark');
+    expect(mark).toMatch(/position:\s*absolute/);
+    // M12 review (L2-07): the mark takes the pointer, so its title "Fort level 1" shows on hover (a click still reaches the
+    // tile: the mark is inside it); e2e/m12-map.spec.ts checks the hit in the browser
+    expect(mark).not.toMatch(/pointer-events/);
+    const size = px(mark, 'width');
+    expect([size, px(mark, 'height')]).toEqual([16, 16]);
+    const top = px(mark, 'top');
+    const left: Box = { x0: px(rule('fortMarkLeft'), 'left'), y0: top, x1: px(rule('fortMarkLeft'), 'left') + size, y1: top + size };
+    const right: Box = { x0: 40 - px(rule('fortMarkRight'), 'right') - size, y0: top, x1: 40 - px(rule('fortMarkRight'), 'right'), y1: top + size };
+    // The army chip ends 13 px into the tile; on a crowded capital it stands 16 px down (24 px chips)
+    expect(rule('armies')).toMatch(/right:\s*calc\(100% - 13px\)/);
+    const armyLow: Box = { x0: 13 - 24, y0: px(rule('armiesLow'), 'top'), x1: 13, y1: px(rule('armiesLow'), 'top') + 24 };
+    // The civilians' 24 px button in the corner, and 5 px in; the count 13 px high on its top-right, 5 px out
+    const corner: Box = { x0: 40 - px(rule('workersCorner'), 'right') - 24, y0: 40 - px(rule('workersCorner'), 'bottom') - 24, x1: 40 - px(rule('workersCorner'), 'right'), y1: 40 - px(rule('workersCorner'), 'bottom') };
+    const inset: Box = { x0: 40 - px(rule('workers'), 'right') - 24, y0: 40 - px(rule('workers'), 'bottom') - 24, x1: 40 - px(rule('workers'), 'right'), y1: 40 - px(rule('workers'), 'bottom') };
+    const countOf = (b: Box): Box => ({ x0: b.x1 - px(rule('count'), 'right') - 13, y0: b.y0 + px(rule('count'), 'top'), x1: b.x1 - px(rule('count'), 'right'), y1: b.y0 + px(rule('count'), 'top') + 13 });
+    // The top-left (a crowded capital with its stack): clear of the low chip and the count
+    expect([meet(left, armyLow), meet(left, countOf(corner)), meet(left, corner)]).toEqual([0, 0, 0]);
+    // The top-right: clear of a lone civilian in the corner or 5 px in; a count would reach into it, so it is not used then
+    expect([meet(right, corner), meet(right, inset)]).toEqual([0, 0]);
+    expect(meet(right, countOf(corner))).toBeGreaterThan(0);
+    expect(meet(right, countOf(inset))).toBeGreaterThan(0);
+    // FR-341, FR-346: the large capital picture's middle (x 20, y 6) stays the picture's
+    const middle: Box = { x0: 20, y0: 6, x1: 20.01, y1: 6.01 };
+    expect([meet(left, middle), meet(right, middle)]).toEqual([0, 0]);
   });
 });

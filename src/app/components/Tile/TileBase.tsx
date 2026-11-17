@@ -20,6 +20,8 @@ export interface TileBaseProps {
   onClick: () => void;
   /** The pointer comes onto the tile: loads what a click may show next (FR-342); absent on most tiles. */
   onPointerEnter?: () => void;
+  /** The map's one Tab stop (FR-369): the selected tile, the focused one, or the capital. */
+  tabbable?: boolean;
   children?: React.ReactNode;
 }
 
@@ -39,6 +41,7 @@ const TileBaseInner: React.FC<TileBaseProps> = ({
   hasJobCompleted,
   onClick,
   onPointerEnter,
+  tabbable = false,
   children,
 }) => {
   return (
@@ -51,6 +54,7 @@ const TileBaseInner: React.FC<TileBaseProps> = ({
       data-selected={isSelected ? 'true' : undefined}
       className={`${styles.tile} ${hasJobCompleted ? styles.tileJobCompleted : ''}`}
       style={{ border, cursor }}
+      tabIndex={tabbable ? 0 : undefined}
       onClick={onClick}
       onPointerEnter={onPointerEnter}
     >

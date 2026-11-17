@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo } from 'react';
 import { countryName, countryOfTile } from '@/engine';
 import { useGameStore } from '@/store/rootStore';
-import { selectSelectedWorkerAndTile, selectTilesCompletedLastTurn } from '@/store/selectors';
+import { selectClickCursors, selectSelectedWorkerAndTile, selectTilesCompletedLastTurn } from '@/store/selectors';
 import { Tile, TerrainType } from '@/types/Tile';
 import { TransportNetwork } from '@/types/Transport';
 import { useTileActions } from '@/hooks/useTileActions';
@@ -20,6 +20,7 @@ import {
   TileJobs,
   TileName,
   TileArmy,
+  TileFort,
 } from './Tile/index';
 import type { TrayPlacement } from './Tile/TileWorkers';
 import type { MarkerView } from './army/armyView';
@@ -31,6 +32,8 @@ interface TileProps {
   transportNetwork: TransportNetwork;
   /** On a province's seat: its army markers (FR-210); absent elsewhere. */
   armyMarkers?: readonly MarkerView[];
+  /** The map's one Tab stop (FR-369). */
+  tabbable?: boolean;
 }
 
 /**
@@ -47,7 +50,8 @@ const TileComponentInner: React.FC<TileProps> = ({
   selectedTileId,
   selectedWorkerId,
   transportNetwork,
-  armyMarkers
+  armyMarkers,
+  tabbable = false,
 }) => {
   // Store selectors (only for actions and map reference)
   const selectWorker = useGameStore((s) => s.selectWorker);
@@ -73,11 +77,13 @@ const TileComponentInner: React.FC<TileProps> = ({
   });
 
   const isSelected = selectedTileId === tile.id;
-  // A civilian of the player is selected elsewhere: a click on this tile's civilians is its order here (FR-115)
+  // A civilian of the player is selected elsewhere: a click on one of this tile's civilians selects that one (FR-385)
   const selectedElsewhere = selectedWorkerId && !tile.workers.some((w) => w.id === selectedWorkerId) ? selectedWorker?.type : undefined;
 
   const possibleAction = useTileActions(tile, selectedWorker, map);
-  const tileVisuals = useTileVisuals(possibleAction, isLandTerrain(tile.terrain));
+  // FR-379: the cursor follows what the click does first (a job, a construction, rail, a move), one table for the map
+  const cursorAction = useGameStore((s) => selectClickCursors(s).get(tile.id) ?? null);
+  const tileVisuals = useTileVisuals(cursorAction, isLandTerrain(tile.terrain));
   const handleTileClick = useTileClickHandler(tile, selectedWorker, possibleAction);
 
   // The stack button opens the tray: the tile selected, no worker (FR-110)
@@ -85,6 +91,15 @@ const TileComponentInner: React.FC<TileProps> = ({
     selectWorker(undefined);
     selectTile(tile.id);
   }, [selectWorker, selectTile, tile.id]);
+  // FR-453: picking a civilian here selects this tile too, so Tile Info shows it with its job offers; a deselect (its
+  // second click, FR-115) leaves the tile selected
+  const pickWorker = useCallback(
+    (workerId: string | undefined) => {
+      selectWorker(workerId);
+      if (workerId !== undefined) selectTile(tile.id);
+    },
+    [selectWorker, selectTile, tile.id]
+  );
   const trayPlacement = useMemo<TrayPlacement>(() => ({
     align: tile.x <= 1 ? 'start' : tile.x >= map.config.cols - 2 ? 'end' : 'center',
     above: tile.y >= map.config.rows - 3,
@@ -103,6 +118,13 @@ const TileComponentInner: React.FC<TileProps> = ({
   // side by side along the top, and the level badge and job markers below them (FR-356)
   const station = !!tile.depot || !!tile.port;
   const twoStations = !!tile.depot && !!tile.port;
+  // FR-388: the fort the battle counts (FR-203) takes the top-right, or the top-left when a station or a stack's count is
+  // there (more than one civilian: a count shows)
+  const fortLevel = tile.fortLevel ?? 0;
+  const fortRightTaken = station || tile.workers.length > 1;
+  // A fort in the top-left would lie over the level badge and the job markers: they move below it, as under two stations
+  // (M12 review L2-08). Not on a crowded capital, whose army chips stand low (FR-346); it has no level badge.
+  const marksLow = twoStations || (fortLevel > 0 && fortRightTaken && !crowded);
 
   // Compute infrastructure status
   const nationNetwork = tile.ownerNationId
@@ -138,11 +160,12 @@ const TileComponentInner: React.FC<TileProps> = ({
       hasJobCompleted={jobJustCompleted}
       onClick={handleTileClick}
       onPointerEnter={prefetchStack}
+      tabbable={tabbable}
     >
       <TileIcon src={tileArt(tile)} crowded={crowded} />
       {minorCapitalName !== undefined && <TileName name={minorCapitalName} />}
 
-      {tile.resource && <TileResource resource={tile.resource} low={twoStations} />}
+      {tile.resource && <TileResource resource={tile.resource} low={marksLow} />}
 
       <TileInfrastructure
         depot={tile.depot ?? false}
@@ -150,6 +173,8 @@ const TileComponentInner: React.FC<TileProps> = ({
         port={tile.port ?? false}
         portActive={portActive}
       />
+
+      {fortLevel > 0 && <TileFort level={fortLevel} rightTaken={fortRightTaken} />}
 
       <TileWorkers
         workers={tile.workers}
@@ -159,7 +184,7 @@ const TileComponentInner: React.FC<TileProps> = ({
         trayOpen={isSelected && !selectedWorkerId}
         trayPlacement={trayPlacement}
         selectedElsewhere={selectedElsewhere}
-        onWorkerSelect={selectWorker}
+        onWorkerSelect={pickWorker}
         onOpenTray={openTray}
         corner={crowded || station}
       />
@@ -168,7 +193,7 @@ const TileComponentInner: React.FC<TileProps> = ({
         prospecting={tile.prospecting}
         developmentJob={tile.developmentJob}
         constructionJob={tile.constructionJob}
-        low={twoStations}
+        low={marksLow}
       />
 
       {armyMarkers && armyMarkers.length > 0 && <TileArmy markers={armyMarkers} onOpen={openArmy} high={minorCapitalName !== undefined} low={crowded} />}

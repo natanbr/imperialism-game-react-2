@@ -1,6 +1,7 @@
 # Architecture
 
-How the code is built. Rewritten 2026-11-03 for M1 (headless core). Goals and milestones:
+How the code is built. Rewritten 2026-11-03 for M1 (headless core); each later milestone added its parts, M12
+("honest game") on 2026-11-16 (the sections "Saving and loading" and "M12: the screens tell the truth" below). Goals and milestones:
 `docs/REVIVAL_PLAN.md`. Rules of the original game: `docs/rules/README.md`. How work runs:
 `docs/FLOW.md`. Requirements: `docs/requirements.md`.
 
@@ -29,7 +30,8 @@ src/app/
     index.ts               public API: Order types, validateOrder, applyOrder, tryApplyOrder,
                            resolveTurn, newGame, scriptedPlayer, GameEvent, seasonOf, labourOf,
                            migrantCap, foodForecast, railLinksOf; since M5 WORLDS, the country and
-                           province queries, transferProvince, pairKey, relationLevel, intentOrder
+                           province queries, transferProvince, pairKey, relationLevel, intentOrder; since M12
+                           hasLandRoute, collectingHub, beatenInWar
     newGame.ts             the start state: Spring 1815 on a world of WORLDS (default "two-islands"),
                            START_TECHNOLOGIES, rail networks built, start diplomacy, no intents; on a
                            world with provinces the FR-203 start forces (army/startForces.ts)
@@ -40,8 +42,10 @@ src/app/
                            the edits orders and phases share (raiseRegiments, placeRegiments,
                            removeRegiments, mapRegiments, withRecruiting), which keep one army per country
                            per province
-    army/upkeepForecast.ts FR-261: the upkeep End Turn will charge and the cash it will find; upkeepIn, one
-                           province's share (FR-266)
+    army/upkeepForecast.ts FR-261: the upkeep End Turn will charge and the cash it will find (after the standing
+                           locked grants and what this turn's bids cost above their reserve, FR-392); `shortBy`
+                           and `regimentsLost` (the newest first, FR-393); `extraSpend` for money not yet
+                           ordered (FR-422); upkeepIn, one province's share (FR-266)
     army/startForces.ts    FR-203: field army, militia, capital forts, extra horses
     calendar.ts            seasons; the year advances after winter; yearOfTurn (the year of any turn)
     council/council.ts     M10 (FR-290 to FR-294): the Council of Governors as pure queries: isCouncilTurn,
@@ -54,11 +58,11 @@ src/app/
                            for the per-system streams (FR-150)
     diplomacy/relations.ts the diplomacy state (FR-151): pairKey, startDiplomacy, relationOf,
                            relationLevel, RELATION_SWATCHES
-    diplomacy/queries.ts   M6 reads: warBetween, warActive (for the M9 attack rule),
+    diplomacy/queries.ts   M6 reads: warBetween, warActive (for the M9 attack rule), hasLandRoute (M12, FR-406),
                            diplomacyIntentsOf (this turn's, with cost), proposalsOf,
                            pendingProposalsFor, proposalAnswer, militaryStrength (FR-174, FR-204:
                            `strength` of all the country's regiments)
-    diplomacy/scriptedAnswers.ts  FR-174: acceptsAlliance, acceptsPeace, losingWar
+    diplomacy/scriptedAnswers.ts  FR-174: acceptsAlliance, acceptsPeace, losingWar; M12 (FR-408): beatenInWar
     orders/                Order.ts (union + RejectReason), validate.ts, apply.ts,
                            industryOrders.ts (production, expansion, cars, training, migration),
                            diplomacyOrders.ts (the five diplomacy orders: validate and apply),
@@ -76,28 +80,42 @@ src/app/
                            provinces.ts (provinceOf, provincesOf, adjacentProvinces, transferProvince)
     turn/                  resolveTurn.ts, phases.ts (TURN_PHASES), context.ts (TurnContext, GameEvent),
                            intents.ts (intentOrder, byIntentOrder, addIntent, dropResolvedIntents)
-    systems/               one file per turn system, each (state, ctx) => state
+    systems/               one file per turn system, each (state, ctx) => state; logisticsSystem.ts also
+                           exports transportShipments and collectingHub (M12, Transport below)
     map/mapHelpers.ts      neighbours, adjacency, rail sites
-    ai/scriptedPlayer.ts   a Player is (state, nationId) => Order[]
-    ai/economy.ts          the scripted player's economy: transport, training, cars, expansion, run, trade
+    ai/scriptedPlayer.ts   a Player is (state, nationId) => Order[]; after the civilians' orders it calls
+                           planFinalTransport (a rail finished this turn joins a hub before logistics)
+    ai/economy.ts          the scripted player's economy: transport, training, cars, expansion, run, trade;
+                           M12: priorityPlan, collectedAtLogistics, planFinalTransport (the transport plan
+                           under exact amounts, FR-389, FR-405)
     ai/railPlan.ts         read-only rail and tile planning: depot sites, rail paths, tilesByReach
     ai/players.ts          PLAYERS (controller -> Player) and computerOrders(state) (FR-099)
     ai/diplomacy.ts        the scripted player's peace offers when losing a war (FR-174)
     ai/scriptedArmy.ts     M8 (FR-213): armyThreat, planGarrison (1 Regulars a turn under a threat)
     ai/scriptedPartners.ts M7 (FR-245): planConsulate, partnerSupply, partnerDemand (its bid and offer caps)
     market/                market.ts (the world market, nextPrices), partners.ts (M7 reads: marketModeOf,
-                           minorOffers, minorDemand, partnerRanking, favouritePartner, tradeBarrier,
+                           minorOffers, minorDemand, partnerTieOrder (M12), partnerRanking, favouritePartner, tradeBarrier,
                            settledTradeBarrier, diplomacyAfterThisTurn, boardOfTrade), settlePartners.ts
-                           (the "partners" deals), dealBook.ts (FR-244 data)
+                           (the "partners" deals; `dealPrice`, FR-189), dealBook.ts (FR-244 data)
   store/
     rootStore.ts           createGameStore(options) and the app's useGameStore
     gameSlice.ts           game, activeNationId, lastRejection, eventLog, orderLog, submitOrder,
-                           advanceTurn, startNewGame
-    controls/              UI slices: tile selection, camera, overlays, dialogs
-    selectors.ts           memoized selectors (reselect)
+                           advanceTurn, endTurn (the locked End Turn of the button and the key "n"),
+                           startNewGame, restoreGame, saveFailed; the type `GameSession` (what a save holds)
+    persistence.ts         M12 (FR-357 to FR-363): the one save slot in localStorage (readSave, writeSave,
+                           startAutosave, the How to play flag); only page.tsx uses it ("Saving and loading")
+    controls/              UI slices: tile selection, camera (and `zoom`), overlays, dialogs, the map's
+                           status line (`mapStatus`) and the spend question (`pendingSpend`)
+    selectors.ts           memoized selectors (reselect); selectClickCursors: the cursor of every tile for the
+                           selected civilian (M12)
   components/              React components; gameText.ts (display text: orders, refusals, news,
                            commodity names, the date, the food warning), railSegments.ts (map overlay),
-                           Modal.tsx (the one modal dialog every game dialog is built on, FR-236)
+                           Modal.tsx (the one modal dialog every game dialog is built on, FR-236);
+                           M12: SavedGameDialog.tsx and HowToPlay.tsx (mounted by page.tsx), ConfirmSpend.tsx
+                           and MapStatus.tsx (mounted by MapView), tileSiteText.ts (what Tile Info says about a
+                           site: price, reason, spend and cancel questions, the collection line; no React),
+                           Tile/TileFort.tsx (the fort mark), gameText.ts `tilePlaces` and `PlaceOf` (a news
+                           line's province)
     capital/               the capital dialog's parts: capitalView.ts (what it shows, no React),
                            ProductionCard, LabourPanel, FreightCars, Capital.module.css
     market/                the market dialog's view (marketView.ts, no React) and the CSS module
@@ -114,7 +132,9 @@ src/app/
                            March / Disband controls with their refusal text; no React), armouryView.ts
                            (the Armoury's cards, no React), Army.module.css (ArmyModal, ArmouryModal);
                            the markers themselves are Tile/TileArmy.tsx
-  hooks/                   React hooks; tileClickOrders.ts (what a tile click asks for, no React)
+  hooks/                   React hooks; tileClickOrders.ts (what a tile click asks for, its status text, its spend
+                           question and the cursor table `clickCursors`, no React); useMapKeyboard.ts (M12:
+                           "+", "-" and Escape on the map, and the zoom step `zoomBy`)
   workers/                 per worker type, the action it offers on a tile (map cursor and click)
   types/                   GameState, Tile, Worker, Nation, Industry, jobs, ...
   definisions/             rule tables: prices (workPrices), durations (workerDurations, the only
@@ -126,7 +146,8 @@ src/app/
   constants/, styles/, utils/
 tests/
   engine/                  orders, turn, systems, determinism, two nations (npm run test:engine)
-  store/                   the store: shape, submitOrder, advanceTurn, what reaches the engine
+  store/                   the store: shape, submitOrder, advanceTurn, what reaches the engine, the save slot
+                           (persistence.test.ts: the autosave, the Saved game dialog, How to play)
   ui/                      click policy, display text, the "UI only submits orders" scan, and
                            component tests (*.test.tsx, jsdom + Testing Library): capital dialog
                            order dispatch, warehouse dialog, HUD, market dialog, score and
@@ -134,14 +155,16 @@ tests/
   workers/                 the miner's possible actions and job starts
 e2e/                       Playwright smoke suite (cursor icons, three turns played, canned food
                            ordered in the capital, a sale on the market, 40 turns to game over;
-                           SCREENSHOT_DIR saves the M2 and M3 screenshots)
+                           SCREENSHOT_DIR saves the M2 and M3 screenshots); m12-save, m12-dialogs, m12-map and
+                           m12-money cover the M12 screens
 ```
 
 ## Game state and UI state
 
 `GameState` (`types/GameState.ts`) is the whole game as the engine sees it: turn, year, `seed`,
 `worldId`, the Great Powers (`nations`), the minor nations, provinces, diplomacy and intents (M5,
-below), map, transport network and allocations, technology, difficulty. It holds game data
+below), map, transport network and allocations, technology, and `difficulty` (set to "normal" by `newGame` and read
+nowhere: no rule depends on it yet, FR-441). It holds game data
 only (FR-018).
 
 ### Worlds, countries and the v2 seams (M5)
@@ -276,7 +299,7 @@ only (FR-018).
   player's column first (`playerFirst` in `gameText.ts`, FR-313); `CouncilModal.tsx`
   shows the store's `councilShown` and builds no order. End Turn sets it to the meeting just held; it waits while a
   Battle screen is to be seen, and `GameOverModal.tsx` waits for it, so the order after a turn is battles, Council, final
-  scores, one dialog at a time (Accept Offer does not wait: it opens over the Council screen). The meeting's news line,
+  scores, one dialog at a time (since M12 Accept Offer waits too, for any open dialog: FR-409, `isDialogOpen`). The meeting's news line,
   the first line of the news (FR-306), opens it again. The HUD's `TurnIndicator.tsx` names the next meeting
   (`nextCouncilTurn`) under the turn line (turn and date on one line, FR-307), and under it shows `councilVote(state)` as
   the projection (`councilProjectionText`, FR-314). The HUD has no height to spare at 1280x720 (FR-268): the projection's
@@ -302,6 +325,11 @@ The store (`store/rootStore.ts`) holds that state under `game`, and UI state bes
 | `armyProvinceId`, `armyTargetId`, `isArmouryOpen` | the Army screen's province (null: closed), the "March to" entry it reopens on when the Attack screen gives it back (FR-279), and the Armoury (FR-211, FR-212) | UI |
 | `armySelection`, `attackPlan`, `battleQueue` | the Army screen's ticks kept on the map, the open Attack screen, the battle reports still to replay (FR-230 to FR-232); End Turn and New game reset them | UI |
 | `councilShown` | the `council-met` event the Council screen shows, or null (FR-298, FR-299); End Turn sets the meeting just held, New game clears it | UI |
+| `zoom` | the map's zoom, 1, 1.5 or 2 (FR-368); `zoomTo(zoom, camera)` sets it with the camera; a new game keeps it | UI |
+| `mapStatus`, `pendingSpend` | the map's status line `{ text, id }` (FR-373) and the open spend question `{ question, price, order, selectTileId? }` (FR-383); a new or restored game clears both | UI |
+| `isHowToPlayOpen` | the How to play dialog (FR-430); counted by `isDialogOpen` (`controls/overlaySlice.ts`), which Accept Offer waits on (FR-409) | UI |
+| `endTurnLocked` | End Turn ignored for `END_TURN_LOCK_MS` (600) after a turn, so a double click ends one (FR-423) | UI |
+| `saveFailed` | the last autosave write was refused by the browser (FR-363); written by `store/persistence.ts` | session |
 
 Only `game` is ever passed to the engine (tested with spies in
 `tests/store/engineBoundary.test.ts`). Display text is derived, not stored: a worker's job text
@@ -315,12 +343,12 @@ A finished job leaves its tile in the resolution that finishes it (FR-032): jobs
 ## Order flow (a player action)
 
 Everything a player can do is an `Order` (`engine/orders/Order.ts`): a union discriminated on
-`kind`, each naming its `nationId` and the exact worker, tile or building. Seventeen kinds today:
-moveWorker, moveAndBuildRail, startProspecting, startDevelopment, startConstruction,
-moveAndStartProspecting, moveAndStartDevelopment, moveAndStartConstruction, cancelWorkerAction,
-setTransportAllocations, changeTransportCapacity (freight cars), setProduction, expandBuilding,
-trainWorkers, recruitWorkers, sellCommodity, buyCommodity (world market). After game over every
-order is refused with `game-over`.
+`kind`, each naming its `nationId` and the exact worker, tile or building. 27 kinds today (`ORDER_KINDS`;
+M12 added none): the 17 of v1 (moveWorker, moveAndBuildRail, startProspecting, startDevelopment,
+startConstruction, moveAndStartProspecting, moveAndStartDevelopment, moveAndStartConstruction,
+cancelWorkerAction, setTransportAllocations, changeTransportCapacity (freight cars), setProduction,
+expandBuilding, trainWorkers, recruitWorkers, sellCommodity, buyCommodity), the five of diplomacy (M6) and the
+five of armies (M8). After game over every order is refused with `game-over`.
 
 ```
 click / button / slider
@@ -340,7 +368,10 @@ click / button / slider
 - A tile click can try several orders (`hooks/tileClickOrders.ts`): a job on another tile is
   tried as move-and-start, then as a plain move; an engineer moving next to its rail network
   tries rail-on-move first. `submitFirstAccepted` stops at the first accepted order, or at
-  `insufficient-funds` (an unaffordable job never turns into a plain move).
+  `insufficient-funds` (an unaffordable job never turns into a plain move); since M12 it returns
+  `{ order, last, firstRefusal? }`, which `clickStatusText` words for the map's status line (FR-374).
+  `clickCursors` walks the same orders with `validateOrder`, so a tile's cursor is the picture of the
+  order the click would really send (FR-379).
 - No component or hook writes the store or calls the engine's apply or resolve functions
   (`tests/ui/uiWritesOnlyOrders.test.ts` scans the sources).
 
@@ -351,7 +382,8 @@ UI; the computer nations (controller not "human", FR-099) plan on that state and
 resolve with the turn:
 
 ```
-store.advanceTurn()
+(HUD Advance Turn, key "n") -> store.endTurn()           ignored for 600 ms after a turn (FR-423), else:
+store.advanceTurn()                                      (tests and headless runs call this one directly)
   -> computerOrders(game)                                engine/ai/players.ts (nation 2: scriptedPlayer)
   -> resolveTurn(game, computerOrders, game.seed)        engine/turn/resolveTurn.ts
        game over already?  return the same state; each given order -> order-rejected game-over
@@ -391,7 +423,7 @@ its own stream, `ctx.rngFor(name)` for a name of `RNG_STREAMS` ("diplomacy", "co
 `createTurnRng((seed ^ fnv1a32(name)) >>> 0, turn)`, one stream per name and turn, so its draws never
 shift the price or development draws. The same initial state and orders always give the same result
 (`tests/engine/determinism.test.ts`); two scripted nations play 20 turns headlessly in
-`tests/engine/twoNations.test.ts`. The seed shows in the HUD's debug box when a tile is selected.
+`tests/engine/twoNations.test.ts`. The seed shows in the HUD's Debug box only with `?debug` in the URL and a tile selected (FR-377).
 
 ## How to add an order kind
 
@@ -430,7 +462,13 @@ development and construction job, the owner, and infrastructure (`port`, `depot`
 Each nation has a per-turn transport capacity. `transportConnectivitySystem` builds the rail
 graph from the capital, depots and ports; `logisticsSystem` moves collected resources into the
 warehouse up to the capacity, following the player's allocation
-(`setTransportAllocations` order) and filling the rest greedily. Capacity is freight cars from
+(`setTransportAllocations` order). Since M12 (FR-389) an amount in the allocation is exact: a set commodity
+ships at most that amount (0 ships nothing), in the allocation's order, and only the commodities with no
+entry ("Auto") share the capacity left, in tile order. `transportShipments(capacity, collected, plan)` is that
+one rule, and the transport popup reads the same numbers (rows "Grain Auto: 4", an Auto button that drops the key,
+FR-390). `collectingHub(state, nationId, tileId)` names the hub that collects a tile (`{ tileId, kind }`: the
+tile's own hub, else the first hub next to it, in the order capital, active depots, active ports; the logistics
+phase's own rule, `hubOf`), and Tile Info's "Collected by ..." line reads it (FR-391). Capacity is freight cars from
 the railyard: 1 lumber + 1 steel each when ordered and 2 labour each in the production phase
 (`changeTransportCapacity` order); the production phase builds them and `promoteFreightCars` puts
 them in service after the phases, so they carry goods from the next turn (FR-101, NR-016).
@@ -445,6 +483,13 @@ pair linked: a map stores no sections.) The map's rail overlay draws exactly the
 then `components/railSegments.ts` for the pixels); the depot lights (`transportConnectivitySystem`),
 logistics and the scripted player's planning (`ai/railPlan.ts`, which orders missing sections, FR-138)
 read the same graph (FR-079).
+
+The scripted player's transport plan (FR-405): its wants, each raised to what the old top-up rule would ship, the
+rest automatic (`priorityPlan`, `ai/economy.ts`), so its shipments equal what they were before exact amounts. It
+plans twice: `planEconomy` on the state as it is, and `planFinalTransport` after its civilians' orders, because a
+rail ordered that turn finishes in the development phase and joins a hub before logistics, and the plan must see
+that collection (`collectedAtLogistics` runs the development and connectivity phases on the planned state). The
+planned trade (`planTrade`, `projectTurn`) runs no development phase and keeps the first plan's view.
 
 ## Industry, labour and food
 
@@ -499,7 +544,7 @@ training) and what the standing orders and this turn's cars commit.
   both modes; `tradeSystem` dispatches. "partners" (`engine/market/settlePartners.ts`, pure, no random
   draw): per commodity in `BOARD_ORDER` (`definisions/partnersMarket.ts`), (1) each minor's offer
   (`minorOffers`: a unit per tile, at most 6) to the Great Powers that bid, in the minor's
-  `partnerRanking` (points + subsidy / 2, ties in `intentOrder`), (2) each minor's demand
+  `partnerRanking` (points + subsidy / 2; ties in the minor's own `partnerTieOrder`, FR-401: the founding order rotated by a hash of the seed and the minor's id, the same on every turn), (2) each minor's demand
   (`minorDemand`: 2 of each good) from the Great Powers that offer, (3) Great Power to Great Power,
   in `intentOrder`; only where `settledTradeBarrier` (war, boycott, no consulate with a minor) allows:
   the diplomacy phase ran first, so the record is this turn's. Deal price floor(P x (1 ± s)); a bid's
@@ -518,15 +563,60 @@ training) and what the standing orders and this turn's cars commit.
   mills lack (timber, coal, iron ore, cotton) capped at what its partner minors offer; offers of
   clothing, furniture and hardware capped at what they want.
 - Score (`engine/score/score.ts`): `scoreOf(state, nationId)` = floor(treasury / 100) + 10 per
-  capacity point of the capped buildings + 10 per resource level on own tiles, with the parts;
-  `scoreTable(state)` ranks all nations. Weights: `definisions/scoreWeights.ts`.
+  capacity point of the capped buildings + development + work in progress, with the parts
+  (`points: { treasury, industry, development, workInProgress }`, and `jobsPaid`, the money in open jobs);
+  `scoreTable(state)` ranks all nations. Weights: `definisions/scoreWeights.ts`. Since M12: development is the sum
+  of `levelPoints` [10, 10, 50] up to each own tile's resource level (FR-403: a level is worth its price;
+  `pointsPerLevel` stays for the scripted player's FR-131 rule only); work in progress is floor(price / 100) of every
+  unfinished development or construction job whose worker belongs to the nation (FR-402; prospecting has no price),
+  so ordering a job does not lower the score.
 - Game over (`engine/turn/gameOver.ts`): `turnLimitOf(state)` (`newGame({ seed, turnLimit })`,
   default 40 = Winter 1824); resolving that turn sets `gameOver = { turn, year, scores }`; after it
   `validateOrder` refuses everything with `game-over` and `resolveTurn` is a no-op.
 
+## Saving and loading (M12)
+
+The browser keeps one game so a reload does not lose it (FR-357 to FR-363). The engine knows nothing of it (FR-018):
+a save is the store's session as JSON, and a restored game plays on to the same result (FR-361, tested for seeds 1 to 3
+at turns 1, 10 and 25).
+
+- **Slot** (`store/persistence.ts`): one localStorage key, `imperialism-remake.save` (`SAVE_KEY`). A `SavedGame` is the
+  `GameSession` (`game`, `activeNationId`, `eventLog`, `orderLog`, `ordersThisTurn`, `turnStartTreasuries`, declared in
+  `gameSlice.ts`) plus `version` (`SAVE_VERSION`, 1) and `savedAt`. No UI state is saved. A 40-turn save is under 2 MB
+  (a guard test; localStorage holds about 5 MB). `readSave()` never throws and returns `empty` (also when the browser
+  blocks storage), `usable`, or `unusable` (does not parse, another version, no game with turn, nations and map).
+  `writeSave` returns false when the browser refuses.
+- **Autosave** (`startAutosave(store)`): a change of `game` that comes with a new `eventLog` (End Turn, a new game, a
+  restore) is written at once; one without it (an accepted order) 500 ms after the first of a burst
+  (`SAVE_DELAY_MS`), one write per burst. Each write sets the store's `saveFailed`, which the HUD shows
+  ("Not saved: ...", `NationStats.tsx`) until a write succeeds. `beforeUnload()` writes a pending save and is true only
+  when the last write failed, so the page asks before leaving only then (FR-363).
+- **Only `page.tsx` loads a save.** The store never reads the slot and starts no autosave by itself, so no test or
+  component writes it. `useSavedGame` reads the slot once per page load (a ref: React's development double effects
+  would otherwise read the game the first run had just written):
+
+```
+empty slot   play the store's new game; start the autosave; open How to play if this browser has not closed it
+usable save  SavedGameDialog ("Saved game": nation, turn of the limit, date), no Escape and no backdrop close:
+               Continue (focused)  -> restoreGame(save), centre on the capital, start the autosave
+               New game            -> startNewGameOnCapital, open How to play if not seen, start the autosave
+unusable     the same dialog with the reason and New game only (FR-362)
+```
+
+  The autosave starts only after that choice, so a usable save is never overwritten while the dialog waits.
+  `restoreGame(session)` and `startNewGame` share one reset of the UI (`NO_SELECTION_NO_DIALOG` in `gameSlice.ts`:
+  refusal, selection, dialogs, map status, spend question, End Turn lock, `saveFailed`); a finished game continues on
+  its game-over screen.
+- **How to play** (`HowToPlay.tsx`, FR-430, FR-431): a Modal with the goal, how money is made and a first turn.
+  `howToPlayText(state)` reads its numbers from the game and the rule tables (turn limit, Council turns, `votesNeeded`,
+  `OVERTURE_COST`, `MINOR_DEMAND`); a world without provinces has no Council line. It opens on a browser's first new
+  game that `page.tsx` starts and from About's "How to play" button; closing it (Close or Escape) writes the flag
+  `imperialism-remake.howto-seen` (`HOW_TO_PLAY_SEEN_KEY`). New game in the HUD or on the game-over screen does not open
+  it. `playwright.config.ts` sets the flag for every spec (`storageState`); a spec about the dialog clears it.
+
 ## Components
 
-`page.tsx` renders `MapView`, `HUD` and the modals. The capital dialog (`CapitalModal.tsx`)
+`page.tsx` renders `MapView`, `HUD` and the modals (`HowToPlay` and `SavedGameDialog` included). The capital dialog (`CapitalModal.tsx`)
 renders views from `capital/capitalView.ts`: a production card per built building (inputs with
 stock, the standing order and the most `validateOrder` accepts, Expand), the labour panel (labour,
 grades, sick, trainees, Trade School, Capitol) and the freight cars; each button sends one order,
@@ -548,8 +638,9 @@ minor that sells the commodity and is open to the nation, an offer a buyer open 
 (at most the window's height less 16 px): the board scrolls under a sticky head, and on a new game all
 17 rows fit at 1280x720. The Deal Book (`DealBookModal.tsx`, FR-195, store flag `isDealBookOpen`, HUD
 button) reads only the last `eventLog` report: `dealBook` + `dealBookView`, Sold and Bought side by
-side, Not traded under them (each line with its `cause`, FR-255), the bottom line ending in the Trade
-net and the Treasury table from the report's `treasuries` (FR-256, with a line per type recruited, FR-262); it builds no order. Every dollar
+side, Not traded under them (each line with its `cause`, FR-255), the bottom line Sold, Bought, Trade net (sold less
+bought, so it adds up; the army upkeep is a Treasury line, FR-396) and the Treasury table from the report's `treasuries`
+(FR-256, with a line per type recruited, FR-262); it builds no order. Every dollar
 amount goes through `money` in `components/gameText.ts` (FR-258). The Diplomacy screen (`DiplomacyModal.tsx`,
 M6, store flag `isDiplomacyOpen`, opened from the HUD or the capital) renders
 `diplomacy/diplomacyView.ts` in two panes (FR-237): on the left a vertical tab list, one tab per other
@@ -561,8 +652,9 @@ control holds its order and, when `validateOrder` would refuse it, the refusal t
 disabled, and `reasonLines` gives each refusal once in a line under its group that is the button's
 description ("Stop grant" also carries a screen-only refusal while this turn's grant would be what
 its order takes back; "Declare war" at war says "we are already at war with them", FR-241). Accept Offer (`AcceptOfferModal.tsx`)
-opens for each `pendingProposalsFor` the player at the start of a turn; Accept/Reject (Enter/Escape)
-send `answerProposal`, and closing it adds the id to `dismissedProposalIds` (reset by New game). Every dialog renders its content in `Modal.tsx` (FR-236): `role="dialog"`, `aria-modal`, named by
+opens for each `pendingProposalsFor` the player at the start of a turn, once no other dialog is open (FR-409); Accept/Reject
+(Enter/Escape) send `answerProposal`, and closing it adds the id to `dismissedProposalIds` (reset by New game); a closed
+offer stays answerable in the proposer's Diplomacy panel (FR-410). Every dialog renders its content in `Modal.tsx` (FR-236): `role="dialog"`, `aria-modal`, named by
 its title (`aria-labelledby`); the focus moves to its first control on open (Accept Offer: the dialog
 itself, again for each next offer through `focusKey`) and back to the opener on close; Tab and
 Shift+Tab are trapped, and the dialog remembers (on `focusin`) the element that last took the focus
@@ -577,9 +669,9 @@ shows `state.gameOver.scores` whenever the game is over, unless the player close
 (`isGameOverHidden`, reopened by the HUD's "Final scores"). After game over the HUD's Advance
 Turn is disabled and the store's `advanceTurn` returns at once, so no empty turn is logged. The End Turn key "n"
 (`hooks/useKeyboardShortcuts.ts`, mounted by `page.tsx`) is ignored in a form field and while any `role="dialog"` is
-in the page (FR-178). A tile is `components/Tile.tsx` plus
+in the page (FR-178), and calls `endTurn`, the locked End Turn (FR-423). A tile is `components/Tile.tsx` plus
 sub-components in `components/Tile/` and three hooks: `useTileActions` (which action the
-selected worker offers, from `workers/*`), `useTileVisuals` (grid line and the cursor; since M11 a tile
+selected worker offers, from `workers/*`), `useTileVisuals` (grid line and the cursor, which is the tile's entry of `clickCursors`; since M11 a tile
 has no background colour of its own, FR-321) and `useTileClickHandler` (the click, as orders). The
 selection ring is an element of `TileBase` above the border overlay (FR-110), drawing the pack's corner
 brackets (FR-326). `TileWorkers` draws the player's civilians as 24 px
@@ -632,7 +724,9 @@ map; the store's `cameraX`/`cameraY` mirror it (written on each scroll event) an
 scrolls the container. The first view and the HUD's Center button centre the capital
 (`components/camera.ts`, `cameraOnCapital`); the map has right padding of `--hud-width` so its last
 column can scroll out from under the HUD. Edge scroll (`hooks/useEdgeScroll.ts`) scrolls the
-container near the window edges; over the HUD only the right edge scrolls. e2e specs wait for
+container near the map area's edges, only while the pointer is inside the map scroller and not inside
+`[data-edge-scroll]` (the HUD) or a dialog, and it stops when the pointer leaves the window; the right zone is the 20 px
+left of the HUD (`rightInset`, FR-366). e2e specs wait for
 `data-ready` on `map-scroll` (set after MapView's first view) before clicking: the server-rendered
 map shows before React handles clicks, and on 1280x720 the whole map fits, so the first view no
 longer scrolls.
@@ -663,6 +757,107 @@ InkPictures. The pack's look has its own tokens (FR-329): `--color-ground-water`
 halo and the rail on the grass. The per-terrain tints (`--terrain-<type>`, `TERRAIN_TINT`) and `--color-selected` were
 removed in M11's closing step (Q71): tiles lie on the ground and the selection is the pack's brackets.
 
+## M12: the screens tell the truth
+
+What M12 (audit of 2026-11-14, rows FR-357 to FR-443 in `docs/requirements.md`) added or changed in the UI, and the
+engine reads behind it. The save and load flow is in the section above. The rules stay as before: the UI builds
+Orders only, every dialog renders `Modal.tsx`, only `components/art/inkArt.ts` names art-pack files.
+
+**Map and Tile Info**
+
+- **Scroll, zoom, centring** (FR-364 to FR-368): MapView's container is `overflow: auto` with no drawn scrollbar and
+  `touch-action: pan-x pan-y`. The zoom steps are `ZOOM_STEPS` (1, 1.5, 2): CSS `zoom` on the viewport
+  (`data-testid="map-viewport"`, `data-zoom`) scales every layer and the clicks together; `cameraAfterZoom` keeps the middle of
+  the map area in place; the buttons at the map area's bottom left and the keys "+" and "-" (`useMapKeyboard`) call
+  `zoomBy`. A map smaller than the window is centred by `mapOffset`. The `camera.ts` functions take a zoom, and
+  `cameraOnTileId` centres any tile.
+- **Keyboard** (FR-369, FR-370): one tile is the map's Tab stop (the keyboard's tile, else the selected one, else the
+  capital); the arrow keys move to a neighbour (`neighbourTileId` in `MapView.tsx`), Enter or Space is a click, Escape
+  drops the civilian and then the tile (`useMapKeyboard`, not while a dialog is open), and Tile Info's heading has a
+  "Close tile info" button. The civilians' and armies' buttons keep their own Tab stops.
+- **Status line** (FR-373, FR-374): `MapStatus.tsx` (`role="status"`, the map area's bottom centre) shows the store's
+  `mapStatus` for 6 s (`MAP_STATUS_MS`) or until the next map click. `useTileClickHandler` and `submitAndSay` (Tile
+  Info's and Construction Options' buttons) write it from the refusal and the tile's facts.
+- **Offers** (FR-378, FR-381, FR-382, `tileSiteText.ts`): `jobOffers` lists each job of the selected civilian's type,
+  each checked by `validateOrder`; Tile Info shows a row per job with its price and turns (`costText`) and, when refused,
+  its reason (`offerRefusalText`, the engine's reason worded with the tile's facts); Construction Options does the same
+  (a refused button there is `aria-disabled`, so it stays in the Tab order). The engineer is offered a fort only where
+  `isFortSite` holds.
+- **Questions, not `window.confirm`** (FR-383, FR-386, FR-387): a job costing $1,000 or more (`ASK_BEFORE_SPENDING`,
+  `spendQuestion`) is held in `pendingSpend` and asked by `ConfirmSpend` ("Spend $X" or "Keep the money"); a map click
+  keeps the civilian selected until the answer. Tile Info's Cancel asks `cancelQuestion`, worded from the refund the
+  engine gives (this turn the price comes back, earlier it is lost); a job started in the same turn as its move is
+  undone by two `cancelWorkerAction` orders.
+- **Selection** (FR-384, FR-385, FR-433): an accepted plain move ends the civilian's selection; with a civilian selected,
+  a click on another tile's civilian selects that one ("Select <type>"), a stack opens its tray, and a move onto the tile
+  is a click outside the buttons. The tray shows each civilian's type under its figure.
+- **Cursors** (FR-379, FR-380): `selectClickCursors` (`store/selectors.ts`) computes, from `clickCursors`, the cursor of
+  every tile once per game and selection, not per scroll; `Tile.tsx` reads its own entry (`{ type: "move" }` is the
+  pointer, no entry is `auto`).
+- **Marks and lines on Tile Info** (FR-388, FR-391): `Tile/TileFort.tsx` draws the fort (`fort-mark`, titled "Fort level
+  N", 16 px, top right or, beside a depot, port or count, top left) where `tile.fortLevel >= 1`; Tile Info shows
+  "Fort: level N" and, on the player's own tile with a known resource, `collectionText` ("Collected by the capital: 2
+  grain a turn", "Not collected: ..."), read from `collectingHub`.
+- **News** (FR-375, FR-376, FR-414): `tilePlaces(game, nameOf)` gives a `PlaceOf`; `eventText` and `newsItems` take it as
+  their last argument and add " in <province>" to tile lines (resource found, development, construction and rail
+  finished) and `NewsItem.tileId`. `NewsPanel` shows an item with a `tileId` as a `news-place` button: it drops the
+  civilian selection, selects the tile and centres the camera (`cameraOnTileId`). The Council line sorts the nominees by
+  votes, most first; the event and the Council screen keep the standing order.
+
+**HUD**
+
+- Order (FR-371): header, TurnIndicator, NationStats, ScoreIndicator, TileInfoPanel, ScoreTable, FoodWarning,
+  UpkeepWarning, NewsPanel, Debug (only with `?debug`, FR-377). TurnIndicator also shows "At war with X (since turn N)"
+  (FR-412) and "N civilians without orders" (FR-432). Advance Turn is `aria-disabled` and `aria-busy` while locked, not
+  `disabled`, so it keeps the focus (FR-423).
+- ScoreIndicator takes focus; hovering or focusing it shows `score-parts` (treasury, industry, development, work in
+  progress, FR-404). UpkeepWarning words `upkeepWarningText(forecast)`: the shortfall and the regiments at risk (FR-393).
+- Under 500 px of height the action buttons are two columns and New game and About are icons (FR-424); under 700 px of
+  width MapView shows a dismissable "narrow window" line (FR-429).
+
+**Dialogs**
+
+- **Board of Trade** (FR-394, FR-397 to FR-400, FR-434): a buyer or seller we subsidise reads "pays $X with our N%
+  subsidy" or "charges $X with our N%" (`BoardBuyer.subsidy`, `BoardSeller.subsidy`, read after this turn's diplomacy);
+  the Offer "+" stops at what the minors we may trade with want; a new game shows the first-sale line; the duration line
+  says bids and offers last one turn; "Repeat" re-orders last turn's trades unit by unit through `submitOrder` from
+  `lastTurnTrades` and says refused units in one line (`moreRefusalText`).
+- **Diplomacy** (`diplomacyView.ts`, `CountryDetails.tsx`; FR-395, FR-407, FR-410, FR-411, FR-416 to FR-418, FR-422): a help line after
+  each overture, policy and grant (`overtureHelp`, `subsidyHelp`, `boycottHelp`, `grantHelp`), its numbers read from
+  `definisions/diplomacyRules.ts` and `council.ts`; a grant asks first and names the treasury after it (`grantAsk` uses
+  `upkeepForecast` with `extraSpend`, because components may not call `tryApplyOrder`, FR-022); Strength and Council vote
+  blocks (`compareStrength`, `voteOf`); war on a country no army can reach says so (`no-land-route`).
+- **Council and game over** (FR-413, FR-415, FR-425): rank marks read "1st by standing"; the screen says once how nominees
+  are chosen; when another nation wins, the Council heading reads "X wins. We lost." and `GameOverModal` begins "Defeat: ...
+  " (only when the game names a winner, so a turn-limit end has no defeat line); the Council dialog is a column whose body
+  alone scrolls.
+- **Capital, Diplomacy, Board at 800x600 and 390 px** (FR-426 to FR-428): a measured fade over the cut edge of a scrolling
+  Capital column (`useCutAtBottom`), narrow rules at `max-width: 599.98px` (columns stack, Board rows become blocks).
+- **Attack, Battle, Army, Armoury** (FR-419 to FR-421): "N more below" under a scrolling list (`useMoreBelow` in
+  `AttackModal.tsx`, also used by `BattleModal.tsx`); "Cancel attack on <province>" per planned attack (`attackCancels`);
+  Move and Range marked "(not used in battle yet)".
+
+**Engine reads behind them**
+
+- **War needs a land route** (FR-406): `validateOverture` refuses war with `no-land-route` when `hasLandRoute(state,
+  nationId, countryId)` is false (a search over `adjacentProvinces` from the nation's provinces; false on a world
+  without provinces); the diplomacy phase checks again and fails the intent with the same reason. On the continent the
+  islands Lorran, Pellis and Sundmark cannot be attacked until ships exist.
+- **Scripted peace offers** (FR-408): `combatSystem` records each battle of a war in `War.battles` (`WarBattle`:
+  `provinceId`, `turn`, `winnerId`, `loserId`); `beatenInWar(state, nationId, enemyId)` is true when the enemy took a
+  province or won a battle; `ai/diplomacy.ts` proposes peace only then, and again after `SCRIPTED_DIPLOMACY.offerAgainTurns`
+  (6) turns from its last offer. Its answer to an offer is still `losingWar` (FR-174).
+- Also changed, described in their own sections: exact transport amounts and `collectingHub` (Transport), the fixed
+  partner tie order (World market), the score parts (Score), `upkeepForecast` (Armies).
+
+**Removed in M12** (FR-442; each name had no importer, checked with grep before the delete): `types/Cursor.ts`,
+`types/Sea.ts`, `workers/DeveloperWorker.ts`, and the unused names `getDeveloperActions`, `mockMap5x5` (`testing/mockNation.ts`),
+`isValidTileId`, `FORT_LEVEL_COST`, `BuildingId`, `ResourceProductionLevel`. Behaviour replaced: `window.confirm` (now
+`Modal` questions), the engine's private `getAllocatedResources` (now `transportShipments`), the turn argument of
+`partnerRanking`, `SCRIPTED_DIPLOMACY.offerEveryTurns` (now `offerAgainTurns`), the Deal Book's "Military upkeep" bottom
+line, edge scroll under the HUD, the cursor taken from a tile's possible action (now `clickCursors`), and Accept Offer
+opening over another dialog.
+
 ## Testing
 
 ```bash
@@ -685,7 +880,8 @@ never imports `src/app/testing` (ESLint rule, FR-043, now FR-080).
   in M6, armies and marches in M8, attacks, battles and conquest in M9. Trade between countries is built in
   M7 on the continent; there is no Shipyard (holds do not grow, so a hold is never short at settlement
   unless the holds drop after ordering). Since M9 a capture is recorded in the war, so FR-174's peace
-  condition (a) fires.
+  condition (a) fires. Since M12 a war needs a land route (`hasLandRoute`, FR-406), so the island minors Lorran,
+  Pellis and Sundmark cannot be fought until armies can cross water (a later milestone).
 - The maps are fixed templates, `engine/world/twoIslands.ts` (FR-080) and the continent's minor land in
   `engine/world/continent.ts` (FR-145): the same for every seed, so
   e2e specs and M4 can name tiles. Island 2 is island 1 shifted 12 columns (a shift along a row

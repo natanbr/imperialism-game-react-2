@@ -20,6 +20,7 @@ import { isTradeCommodity, tradeCapacityOf, tradeOrdersOf } from "@/engine/marke
 import { mealNeeds } from "@/engine/systems/foodSystem";
 import { productionSystem } from "@/engine/systems/productionSystem";
 import { createTurnContext } from "@/engine/turn/context";
+import { collectedAtLogistics, priorityPlan } from "@/engine/ai/economy";
 
 /**
  * A player is any function from the game state to its orders for this turn. Scripted and,
@@ -54,15 +55,12 @@ export const m4ScriptedPlayer: Player = (state, nationId) => {
   const needs = mealNeeds(workers.untrained + workers.trained + workers.expert);
   const canning = cannedFoodBatchInputs();
   const grainInStock = (nation.warehouse as Record<string, number>)[ResourceType.Grain] ?? 0;
-  propose({
-    kind: "setTransportAllocations",
-    nationId,
-    allocations: {
-      [ResourceType.Fruit]: needs.fruit + canning.fruit,
-      [ResourceType.Livestock]: needs.meat + canning.meat,
-      [ResourceType.Grain]: Math.max(0, needs.grain + canning.grain - grainInStock),
-    },
-  });
+  const wants = {
+    [ResourceType.Fruit]: needs.fruit + canning.fruit,
+    [ResourceType.Livestock]: needs.meat + canning.meat,
+    [ResourceType.Grain]: Math.max(0, needs.grain + canning.grain - grainInStock),
+  };
+  propose({ kind: "setTransportAllocations", nationId, allocations: wants });
   propose({ kind: "changeTransportCapacity", nationId, delta: 1 });
 
   // Industry, planned afresh each turn (FR-070): standing orders kept from last turn would hold the
@@ -97,6 +95,14 @@ export const m4ScriptedPlayer: Player = (state, nationId) => {
       if (propose(order)) break;
     }
   }
+
+  // M12 FR-389 made a set amount exact (no top-up), so the same shipments as at 168f803 (the wants first, then the
+  // greedy fill) take the plan that rule gives on what the logistics phase collects, once the jobs are known (FR-405).
+  propose({
+    kind: "setTransportAllocations",
+    nationId,
+    allocations: priorityPlan(Math.max(0, nationById(view, nationId)!.transportCapacity ?? 0), collectedAtLogistics(view, nationId), Object.entries(wants)),
+  });
   return orders;
 };
 

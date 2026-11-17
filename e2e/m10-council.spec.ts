@@ -164,7 +164,7 @@ test('FR-303 the Council meets on turn 10: its screen opens by itself on turn 11
   await expect(heads.first()).toContainText('Testland');
   await expect(heads.last()).toContainText('Valdoria');
   const ranks = [await table.getByTestId('council-rank-nation-1').innerText(), await table.getByTestId('council-rank-nation-2').innerText()];
-  expect([...ranks].sort()).toEqual(['1st nominee', '2nd nominee']);
+  expect([...ranks].sort()).toEqual(['1st by standing', '2nd by standing']);
   // FR-312: no third Great Power, so the Other Great Powers row reads "—" and says why
   await expect(table.getByTestId('council-row-otherGreatPowers')).toContainText('(only two Great Powers in this world)');
   await unusedRowGreyed(council);

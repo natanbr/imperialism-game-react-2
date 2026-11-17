@@ -19,8 +19,10 @@ import { AcceptOfferModal } from '@/components/AcceptOfferModal';
 import { GameOverModal } from '@/components/GameOverModal';
 import { ConstructionOptionsModal } from '@/components/ConstructionOptionsModal';
 import TransportAllocationModal from '@/components/TransportAllocationModal';
+import { BattleModal } from '@/components/BattleModal';
+import { CouncilModal } from '@/components/CouncilModal';
 import { useGameStore } from '@/store/rootStore';
-import { newGame, proposalAnswer, type Order } from '@/engine';
+import { councilVote, newGame, proposalAnswer, type BattleReport, type CouncilMetEvent, type Order } from '@/engine';
 import type { GameState } from '@/types/GameState';
 import { failOnActWarnings } from './actWarnings';
 import { text } from './domText';
@@ -344,6 +346,68 @@ describe('FR-236 FR-175 Accept Offer', () => {
   });
 });
 
+describe('FR-409 one dialog at a time: the Battle screens, the Council screen, then each offer', () => {
+  const ARVELIA_P = 'province-minor-1';
+  /** A one-round battle the player fought at Arvelia, enough for the Battle screen. */
+  const battle: BattleReport = {
+    nationId: N1,
+    provinceId: ARVELIA_P,
+    attackerIds: [N1],
+    defenderId: 'minor-1',
+    fortLevel: 0,
+    regiments: [
+      { id: 'regiment-1', ownerId: N1, type: 'regulars', name: '1st Regulars', side: 'attacker', startHealth: 100, endHealth: 90, fate: 'standing' },
+      { id: 'regiment-39', ownerId: 'minor-1', type: 'minutemen', name: '1st Minutemen', side: 'defender', startHealth: 100, endHealth: 0, fate: 'destroyed' },
+    ],
+    rounds: [{ shots: [{ shooterId: 'regiment-1', targetId: 'regiment-39', hit: true, damage: 100 }] }],
+    result: 'attacker-won',
+    provinceTaken: true,
+  };
+  const offerTurn = (): GameState => ({ ...start(), turn: 2, proposals: [{ id: 'proposal-1-1', fromId: N2, toId: N1, kind: 'alliance', turn: 1 }] });
+  const meeting = (s: GameState): CouncilMetEvent => ({ type: 'council-met', turn: 10, year: 1817, ...councilVote(s)! });
+  const titles = () => screen.queryAllByRole('dialog').map((d) => d.getAttribute('aria-labelledby') && text(document.getElementById(d.getAttribute('aria-labelledby')!)!));
+
+  it('FR-409 a battle, a Council meeting and an offer queued: one dialog in the DOM at a time, in that order; Enter in the Battle and Council screens answers no offer', () => {
+    show(offerTurn(), { battleQueue: [battle], councilShown: meeting(start()) });
+    render(
+      <>
+        <CouncilModal />
+        <BattleModal />
+        <AcceptOfferModal />
+      </>
+    );
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    expect(titles()[0]).not.toBe('Accept Offer');
+    expect(titles()[0]).not.toBe('Council of Governors');
+    press('Enter');
+    expect(submitted).toEqual([]);
+
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }));
+    expect(titles()).toEqual(['Council of Governors']);
+    press('Enter');
+    expect(submitted).toEqual([]);
+
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }));
+    expect(titles()).toEqual(['Accept Offer']);
+    press('Enter');
+    expect(submitted).toEqual([{ kind: 'answerProposal', nationId: N1, proposalId: 'proposal-1-1', accept: true }]);
+    expect(screen.queryAllByRole('dialog')).toEqual([]);
+  });
+
+  it.each([
+    ['Capital — Testland', { isCapitalOpen: true }],
+    ['Diplomacy — Testland', { isDiplomacyOpen: true }],
+  ] as const)('FR-409 an offer waits while another dialog is open (%s) and opens once it is closed', (name, ui) => {
+    show(offerTurn(), ui);
+    render(<Dialogs />);
+    expect(titles()).toEqual([name]);
+
+    press('Escape');
+    expect(titles()).toEqual(['Accept Offer']);
+    expect(submitted).toEqual([]);
+  });
+});
+
 describe('FR-236 Game over has no close', () => {
   const finished = (): GameState => ({ ...start(), gameOver: { turn: 40, year: 1824, scores: [] } });
 
@@ -409,8 +473,52 @@ describe('FR-236 one shared component, not per-dialog copies', () => {
       // M10 (FR-298): the Council screen
       'CouncilModal.tsx',
       join('HUD', 'AboutPanel.tsx'),
+      // M12 (spec trap 1, review L3-05): Saved game, How to play, ConfirmSpend and the Cancel question (Tile Info)
+      'SavedGameDialog.tsx',
+      'HowToPlay.tsx',
+      'ConfirmSpend.tsx',
+      'TileInfoPanel.tsx',
+      // the army dialogs, which rendered Modal before the list named them
+      'ArmyModal.tsx',
+      'AttackModal.tsx',
+      'BattleModal.tsx',
+      'ArmouryModal.tsx',
     ];
     const withoutModal = dialogs.filter((f) => !/<Modal\b/.test(readFileSync(join(dir, f), 'utf8')));
     expect(withoutModal).toEqual([]);
+  });
+});
+
+// FR-425 (UIV-13) and FR-428 (MKT-15): the Board of Trade's layout at 800x600 and at 390x844. jsdom has no layout, so the
+// rules are read from the style sheet; e2e/m12-dialogs.spec.ts measures them in the browser.
+describe('FR-425 FR-428 the Board of Trade on smaller windows', () => {
+  const css = () => readFileSync(join(ROOT, 'src/app/components/market/Market.module.css'), 'utf8');
+  const block = (query: string) => {
+    const at = css().indexOf(`@media ${query} {`);
+    expect(at, `no @media ${query}`).toBeGreaterThanOrEqual(0);
+    return /\{([\s\S]*?)\n\}/.exec(css().slice(at))?.[1] ?? '';
+  };
+
+  it('FR-425 up to 1000 px the Minor nations column wraps its chips and the step lines narrow, so it needs no sideways scroll', () => {
+    const rules = block('(max-width: 1000px)');
+    expect(rules).toMatch(/\.partner \{[^}]*white-space: normal;/);
+    expect(rules).toMatch(/\.partners \{[^}]*flex-direction: column;/);
+    expect(rules).toMatch(/\.stepNote \{[^}]*width: \d+px;/);
+    expect(rules).toMatch(/\.boardTable th \{[^}]*white-space: normal;/);
+  });
+
+  it('FR-428 below 600 px each row is a block: the name, then price and stock, then Bid and Offer side by side, then the minors', () => {
+    const rules = block('(max-width: 599.98px)');
+    expect(rules).toMatch(/\.board \{[^}]*width: calc\(100vw - 16px\);/);
+    expect(rules).toMatch(/\.boardTable thead \{[^}]*position: absolute;/);
+    expect(rules).toMatch(/\.boardTable tr \{[^}]*display: grid;[^}]*grid-template-columns: minmax\(0, 1fr\) minmax\(0, 1fr\);/);
+    expect(rules).toMatch(/\.boardTable td:nth-child\(1\),\s*\.boardTable td:nth-child\(6\) \{[^}]*grid-column: 1 \/ -1;/);
+  });
+
+  it('FR-428 the Board keeps the columns its narrow rules count on: name, price, stock, Bid, Offer, minors', () => {
+    show(start(), { isMarketOpen: true });
+    render(<MarketModal />);
+    const head = within(screen.getByRole('dialog', { name: 'Board of Trade — Testland' })).getAllByRole('columnheader').map((th) => text(th));
+    expect(head).toEqual(['Commodity', 'Price', 'In warehouse', 'Bid', 'Offer', 'Minor nations']);
   });
 });

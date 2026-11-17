@@ -4,7 +4,7 @@
 > - One turn = one season (3 months), 4 turns per year, a random game starts in **Spring 1815** and ends by the last Council vote in **1915** at the latest (400 turns). All nations give orders at the same time; resolution always runs in the same fixed phase order (section 1).
 > - The game is won by a Council of Governors vote: 1 vote per province, >2/3 of all votes. First meeting 1825, then every 10 years; the tenth (1915) forces every governor to choose. Only the two top powers are nominated, from three strengths (interior, diplomatic, military).
 > - A score exists but its formula is unknown. v1 must define its own (see section 5); the project plan proposes treasury + industrial capacity + developed tiles.
-> - CODE MISMATCH: phase list and difficulty (list at the bottom). Start year RESOLVED in M2 (FR-027).
+> - CODE MISMATCH: the phase list and difficulty (list at the bottom; both still true on 2026-11-15). Start year RESOLVED in M2 (FR-027); "No Council in code" RESOLVED 2026-11-15 (M10: `engine/council/council.ts`).
 > - UPDATE 2026-11-12: section 4a adds five observed Council votes with the four-source breakdown (Controlled, Colonies, Other Great Powers, Other Minor Nations) and the score screen layout with one worked total. The first meeting drew 62 votes in the Let's Play against 20-23 in the wiki reports above (conflict F18).
 
 Source tags: `[M pN]` manual PDF page marker; `[W#]` web source (see Sources); `[?]` unverified or inferred.
@@ -125,9 +125,9 @@ Version: **Imp1**. The Let's Play (LP, Kangra, nation Visisik) is the 1997 game:
 ## CODE MISMATCH
 
 - RESOLVED in M2 (FR-027), was: `constants/gameConstants.ts` `TIME_CONFIG.STARTING_YEAR = 1900`; random worlds start Spring 1815. `TURNS_PER_YEAR = 4` is right.
-- `types/GameState.ts` `TurnOrderSummary` has six phases (diplomacy, trade, production, combat, interceptions, logistics), matching the manual. `systems/runTurnPhases.ts` runs 8 (development, diplomacy, trade, production, combat, interceptions, transport connectivity, logistics); the two extra phases are internal and acceptable, but the manual puts transport arrival last.
-- `GameState.difficulty` names match; no effect of difficulty exists in code.
-- No Council in code. Calendar seasons, cash start ($10,000) and start population: RESOLVED in M2 (FR-027, FR-043). Score: the project score of section 5 is in M3 (FR-067; weights are decision Q11), with game over after 40 turns, Winter 1824 (FR-068; decision Q12).
+- CODE MISMATCH (rewritten 2026-11-15; the old text named a `TurnOrderSummary` type and a `systems/runTurnPhases.ts`, neither of which exists now): `engine/turn/phases.ts` `TURN_PHASES` runs 13 systems (development, diplomacy, trade, disband, upkeep, production, combat, recruit, interceptions, transport connectivity, logistics, trade delivery, food) against the manual's six. The extra ones are internal and acceptable. The manual's phase 5 (intercepted trades cancelled) does not run: `systems/interceptionsSystem.ts` is a documented no-op stub (card Q37; the navy is M17). The manual's phase 6 (commodities and delivered trades to the warehouse) is `logisticsSystem` plus `tradeDeliverySystem`, and `foodSystem` runs after them.
+- CODE MISMATCH (checked 2026-11-15, still true): `GameState.difficulty` names match the five levels, but `engine/newGame.ts` sets it to "normal" and nothing reads it; there is no difficulty choice in the UI, so no effect of difficulty exists in code.
+- RESOLVED 2026-11-15, was "No Council in code": the Council of Governors exists since M10 (`engine/council/council.ts`, `definisions/council.ts`, `types/Council.ts`; `resolveTurn` holds the meeting). Calendar seasons, cash start ($10,000) and start population: RESOLVED in M2 (FR-027, FR-043). Score: the project score of section 5 is in M3 (FR-067; weights are decision Q11), with game over after 40 turns, Winter 1824 (FR-068; decision Q12).
 
 ## Sources
 

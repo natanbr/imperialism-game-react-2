@@ -439,6 +439,14 @@
   font-weight: 700;
 }
 
+/* FR-421: Move and Range, which combat does not use yet */
+.unusedStats {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  color: var(--color-text-muted);
+}
+
 .items {
   display: flex;
   align-items: baseline;

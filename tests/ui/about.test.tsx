@@ -8,7 +8,9 @@ import { HUD } from '@/components/HUD';
 import { MapView } from '@/components/MapView';
 import mapStyles from '@/components/MapView.module.css';
 import { useGameStore } from '@/store/rootStore';
-import { newGame } from '@/engine';
+import { COUNCIL, newGame, OVERTURE_COST, votesNeeded } from '@/engine';
+import { HowToPlay, howToPlayText } from '@/components/HowToPlay';
+import { money } from '@/components/gameText';
 import { NATION_COLORS, THEME } from '@/styles/theme';
 import { text } from './domText';
 
@@ -81,5 +83,62 @@ describe('FR-235 map legend in the About panel', () => {
       { stroke: THEME.provinceBorder, class: mapStyles.provinceBorder },
       halo,
     ]);
+  });
+});
+
+// FR-430, FR-431 (card Q98): "How to play" from About at any time, and what it says, its numbers from the game's rules
+describe('FR-430 FR-431 How to play', () => {
+  const continentGame = (patch: Partial<ReturnType<typeof newGame>> = {}) => ({ ...newGame({ seed: 1, world: 'continent' }), ...patch });
+
+  it('FR-430 About holds a "How to play" button: it closes About and opens How to play', () => {
+    useGameStore.setState({ ...useGameStore.getInitialState(), game: continentGame(), activeNationId: 'nation-1' });
+    render(<HUD />);
+    fireEvent.click(screen.getByRole('button', { name: /About/ }));
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'About' })).getByRole('button', { name: 'How to play' }));
+    expect(screen.queryByRole('dialog', { name: 'About' })).toBeNull();
+    expect(useGameStore.getState().isHowToPlayOpen).toBe(true);
+  });
+
+  it('FR-431 the goal, how money is made and a first turn, in that order, with the numbers of a 40-turn continent game', () => {
+    useGameStore.setState({ ...useGameStore.getInitialState(), game: continentGame(), activeNationId: 'nation-1' });
+    render(<HowToPlay onClose={() => {}} />);
+    const dialog = screen.getByRole('dialog', { name: 'How to play' });
+    expect(within(dialog).getAllByRole('heading', { level: 3 }).map((h) => text(h))).toEqual(['The goal', 'Making money', 'Your first turn']);
+    expect(text(within(dialog).getByTestId('howto-goal'))).toBe(
+      'Have the best score after 40 turns, or win 9 of the 12 votes at a Council of Governors meeting on turns 10, 20, 30 and 40.'
+    );
+    expect(text(within(dialog).getByTestId('howto-money'))).toBe(
+      'Open a consulate with a minor nation in Diplomacy ($500). Once it opens at End Turn, that minor buys clothing, furniture and hardware from you on the Board of Trade.'
+    );
+    expect(within(within(dialog).getByTestId('howto-first-turn')).getAllByRole('listitem').map((li) => text(li))).toEqual([
+      'Pick a civilian from the stack at your capital and click a tile to send it there or set it to work.',
+      'Open Capital and set what your mills and factories make.',
+      'End the turn with Advance Turn or the key "n".',
+    ]);
+  });
+
+  it('FR-431 the numbers come from the game: a 60-turn game says 60 turns and six Council meetings', () => {
+    const text60 = howToPlayText(continentGame({ turnLimit: 60 }));
+    expect(text60.goal).toBe('Have the best score after 60 turns, or win 9 of the 12 votes at a Council of Governors meeting on turns 10, 20, 30, 40, 50 and 60.');
+  });
+
+  it('FR-431 the votes and the consulate price are the rules\' (votesNeeded, OVERTURE_COST)', () => {
+    const t = howToPlayText(continentGame());
+    expect(t.goal).toContain(`win ${votesNeeded(12)} of the 12 votes`);
+    expect(t.money).toContain(`(${money(OVERTURE_COST.consulate)})`);
+    expect(t.goal).toContain(`turns ${COUNCIL.firstTurn}, ${COUNCIL.firstTurn + COUNCIL.interval}`);
+  });
+
+  it('FR-431 a world without provinces has no Council: the goal is the score alone', () => {
+    expect(howToPlayText(newGame({ seed: 1, world: 'two-islands' })).goal).toBe('Have the best score after 40 turns.');
+  });
+
+  it('FR-431 Close and Escape call onClose', () => {
+    useGameStore.setState({ ...useGameStore.getInitialState(), game: continentGame(), activeNationId: 'nation-1' });
+    let closed = 0;
+    render(<HowToPlay onClose={() => (closed += 1)} />);
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'How to play' })).getByRole('button', { name: 'Close' }));
+    fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
+    expect(closed).toBe(2);
   });
 });

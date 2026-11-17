@@ -2,8 +2,8 @@
 // and the engineer's rail-on-move (FR-006 to FR-008) moved here when the adapters went: they
 // now run through the same orders and the same stop rule the UI uses.
 import { describe, it, expect } from 'vitest';
-import { moveOrders, submitFirstAccepted, tileClickOrders } from '@/hooks/tileClickOrders';
-import { tryApplyOrder, type Order, type ValidationResult } from '@/engine';
+import { clickStatusText, moveOrders, submitFirstAccepted, tileClickOrders } from '@/hooks/tileClickOrders';
+import { tryApplyOrder, validateOrder, type Order, type ValidationResult } from '@/engine';
 import { GameState } from '@/types/GameState';
 import { WorkerStatus, WorkerType } from '@/types/Workers';
 import { CONSTRUCTION_COST, PROSPECT_COST, constructionCost } from '@/definisions/workPrices';
@@ -13,6 +13,7 @@ import { resolveTurn } from '@/engine/turn/resolveTurn';
 import { addDepot, addRailroad, isRailLinked } from '@/engine/systems/railroadSystem';
 import { getEngineerActions } from '@/workers/EngineerWorker';
 import { refusalText } from '@/components/gameText';
+import { isRailNode, railOnMoveStart } from '@/engine/orders/queries';
 import { game, locate, N1, N2, put, setTile, setTreasury, T, tileAt, treasury, workerId } from '../engine/fixtures';
 
 const W = {
@@ -113,7 +114,7 @@ describe('FR-023 submitFirstAccepted stops at the first accepted order or at ins
     const last = submitFirstAccepted((order) => {
       tried.push(order);
       return results[tried.length - 1];
-    }, [a, b]);
+    }, [a, b])?.last;
     return { tried, last };
   };
 
@@ -221,7 +222,7 @@ describe('FR-023 FR-137 a click between two rail nodes builds the section that j
       const { state: next, result } = tryApplyOrder(after, order);
       after = next;
       return result;
-    }, orders);
+    }, orders)?.last;
     expect(last).toEqual({ ok: false, reason: 'insufficient-funds' });
     expect(after).toBe(s);
     expect(refusalText({ order: orders[0], reason: 'insufficient-funds' })).toBe('Move and build refused: not enough money.');
@@ -314,5 +315,186 @@ describe('engineer rail-on-move from a click (moved from the part A adapter test
     const state = setTreasury(game(), N1, CONSTRUCTION_COST.rail - 1);
 
     expect(moveEngineer(state, T.farm1)).toBe(state);
+  });
+});
+
+// M12 (NR-033), lane L2. FR-374 (ECONOMY-24, ECONOMY-02, card Q86): a click whose job is refused and whose plain move is
+// accepted says both, in the map's status line (FR-373); submitFirstAccepted returns the first refusal as well as the
+// last result. FR-023's order list is kept.
+describe('FR-374 a fallback move is said', () => {
+  const ENGINEER_ID = 'worker-nation-1-7';
+  const rail: Order = { kind: 'moveAndBuildRail', nationId: N1, workerId: ENGINEER_ID, toTileId: '3-9' };
+  const move: Order = { kind: 'moveWorker', nationId: N1, workerId: ENGINEER_ID, toTileId: '3-9' };
+
+  it('FR-374 submitFirstAccepted returns the last order and its result and, when the first was refused, that refusal', () => {
+    expect(submitFirstAccepted(() => ({ ok: true }), [rail, move])).toEqual({ order: rail, last: { ok: true } });
+    const results: ValidationResult[] = [{ ok: false, reason: 'tile-has-job' }, { ok: true }];
+    let i = 0;
+    expect(submitFirstAccepted(() => results[i++], [rail, move])).toEqual({
+      order: move,
+      last: { ok: true },
+      firstRefusal: { order: rail, reason: 'tile-has-job' },
+    });
+  });
+
+  it('FR-374 the engineer\'s rail click onto a tile with a job: "Rail refused: ... The engineer moved there instead (Cancel brings it back)."', () => {
+    // The real new game: the engineer in the capital 2-9; a farmer's job on its neighbour 3-9
+    const s = setTile(newGame({ seed: 1 }), '3-9', {
+      developmentJob: { workerId: 'someone', workerType: WorkerType.Farmer, targetLevel: 1, startedOnTurn: 1, durationTurns: 3 },
+    });
+    const orders = moveOrders(s, N1, ENGINEER_ID, '3-9');
+    expect(orders.map((o) => o.kind)).toEqual(['moveAndBuildRail', 'moveWorker']);
+    let after = s;
+    const outcome = submitFirstAccepted((order) => {
+      const { state: next, result } = tryApplyOrder(after, order);
+      after = next;
+      return result;
+    }, orders);
+    expect(outcome?.firstRefusal).toEqual({ order: orders[0], reason: 'tile-has-job' });
+    expect(locate(after, ENGINEER_ID)?.tile.id).toBe('3-9');
+    expect(clickStatusText(s, outcome)).toBe(
+      'Rail refused: another civilian is already working that tile. The engineer moved there instead (Cancel brings it back).'
+    );
+  });
+
+  // M12 QA fix round (track A): turn 1 the engineer laid rail from the capital onto 3-9; turn 2 its click back onto the
+  // capital said "Rail refused: that tile is not a valid site. The capital is where your rail network starts. The engineer
+  // moved there instead (Cancel brings it back)." There is nothing to build between two tiles the rail already joins
+  it('FR-446 the engineer back onto the capital along the rail it laid only moves, and the map says nothing', () => {
+    let s = newGame({ seed: 1 });
+    s = click(s, moveOrders(s, N1, ENGINEER_ID, '3-9'));
+    s = resolveTurn(s, {}, s.seed).state;
+    expect(isRailLinked(s.transportNetwork.railroadNetworks![N1], { x: 2, y: 9 }, { x: 3, y: 9 })).toBe(true);
+    expect(locate(s, ENGINEER_ID)?.tile.id).toBe('3-9');
+
+    const orders = moveOrders(s, N1, ENGINEER_ID, '2-9');
+    expect(orders).toEqual([{ kind: 'moveWorker', nationId: N1, workerId: ENGINEER_ID, toTileId: '2-9' }]);
+    let after = s;
+    const outcome = submitFirstAccepted((order) => {
+      const { state: next, result } = tryApplyOrder(after, order);
+      after = next;
+      return result;
+    }, orders);
+    expect(locate(after, ENGINEER_ID)?.tile.id).toBe('2-9');
+    expect(clickStatusText(s, outcome)).toBeUndefined();
+  });
+
+  /** The click as useTileClickHandler sends it, through validate and apply: the orders, the state after, what the map says. */
+  function clickOn(s: GameState, tileId: string) {
+    const { worker } = locate(s, ENGINEER_ID)!;
+    const orders = tileClickOrders(s, N1, ENGINEER_ID, tileId, getEngineerActions(tileAt(s, tileId), s.map, worker));
+    let after = s;
+    const outcome = submitFirstAccepted((order) => {
+      const { state: next, result } = tryApplyOrder(after, order);
+      after = next;
+      return result;
+    }, orders);
+    return { orders, after, said: clickStatusText(s, outcome) };
+  }
+
+  // Closeout review 2: the FR-446 fix covered only an engineer standing on a rail node. From the plain tile 2-8 next to the
+  // capital, the click on the capital still tried rail-on-move first and said "Rail refused: that tile is not a valid site.
+  // The capital is where your rail network starts. The engineer moved there instead (Cancel brings it back)."
+  it('FR-461 the engineer from a plain tile next to the capital onto the capital only moves, and the map says nothing', () => {
+    let s = newGame({ seed: 1 });
+    s = click(s, moveOrders(s, N1, ENGINEER_ID, '3-9'));
+    s = resolveTurn(s, {}, s.seed).state;
+    expect(isRailLinked(s.transportNetwork.railroadNetworks![N1], { x: 2, y: 9 }, { x: 3, y: 9 })).toBe(true);
+    s = put(s, ENGINEER_ID, '2-8');
+    expect(tileAt(s, '2-8')).toMatchObject({ ownerNationId: N1, terrain: 'farm' });
+    expect(isRailNode(tileAt(s, '2-8'), N1)).toBe(false);
+
+    const { orders, after, said } = clickOn(s, '2-9');
+    expect(orders).toEqual([{ kind: 'moveWorker', nationId: N1, workerId: ENGINEER_ID, toTileId: '2-9' }]);
+    expect(locate(after, ENGINEER_ID)?.tile.id).toBe('2-9');
+    expect(said ?? '').not.toContain('Rail refused');
+    expect(said).toBeUndefined();
+  });
+
+  // The same mismatch on a depot the rail already reaches: the map's own check (canBuildRailAt) saw "no rail on the tile, rail
+  // next to it" and tried rail-on-move, which the engine refuses (railOnMoveStart finds no section: the depot is joined
+  // already), and the map said "Rail must join your network: build it next to your rail ..." beside the rail
+  it('FR-461 a click where the engine\'s railOnMoveStart finds no section is a plain move: onto a depot the rail already reaches', () => {
+    let s = newGame({ seed: 1 });
+    s = addDepot(setTile(s, '4-9', { depot: true }), N1, { x: 4, y: 9 });
+    s = addRailroad(s, N1, { x: 3, y: 9 }, { x: 4, y: 9 });
+    s = put(s, ENGINEER_ID, '5-9');
+    expect(isRailNode(tileAt(s, '5-9'), N1)).toBe(false);
+    expect(railOnMoveStart(s, N1, tileAt(s, '5-9'), tileAt(s, '4-9'))).toBeUndefined();
+
+    const { orders, after, said } = clickOn(s, '4-9');
+    expect(orders).toEqual([{ kind: 'moveWorker', nationId: N1, workerId: ENGINEER_ID, toTileId: '4-9' }]);
+    expect(locate(after, ENGINEER_ID)?.tile.id).toBe('4-9');
+    expect(said).toBeUndefined();
+  });
+
+  // Closeout review 3: the first FR-461 fix also kept rail-on-move off the capital altogether, which the two cases above do
+  // not need (railOnMoveStart alone finds no section there). That took away a click the engine accepts: from the plain
+  // tile 2-8, with 3-9 on the line from the depot at 4-9 and the capital not yet joined to it, rail-on-move onto the
+  // capital lays the section 3-9 to 2-9 (railOnMoveStart starts it from the capital's rail neighbour 3-9)
+  it('FR-461 FR-137 from a plain tile next to the capital not yet joined to the rail beside it, the click lays that section by rail-on-move', () => {
+    let s = newGame({ seed: 1 });
+    s = addDepot(setTile(s, '4-9', { depot: true }), N1, { x: 4, y: 9 });
+    s = addRailroad(s, N1, { x: 3, y: 9 }, { x: 4, y: 9 });
+    s = put(s, ENGINEER_ID, '2-8');
+    expect(isRailNode(tileAt(s, '2-8'), N1)).toBe(false);
+    expect(railOnMoveStart(s, N1, tileAt(s, '2-8'), tileAt(s, '2-9'))?.id).toBe('3-9');
+    const rail: Order = { kind: 'moveAndBuildRail', nationId: N1, workerId: ENGINEER_ID, toTileId: '2-9' };
+    expect(validateOrder(s, rail)).toEqual({ ok: true });
+
+    const before = treasury(s, N1);
+    const { orders, after, said } = clickOn(s, '2-9');
+    expect(orders).toEqual([rail, { kind: 'moveWorker', nationId: N1, workerId: ENGINEER_ID, toTileId: '2-9' }]);
+    expect(locate(after, ENGINEER_ID)?.tile.id).toBe('2-9');
+    expect(tileAt(after, '2-9').constructionJob).toMatchObject({ kind: 'rail', workerId: ENGINEER_ID, railFrom: '3-9' });
+    expect(treasury(after, N1)).toBe(before - constructionCost('rail', tileAt(s, '2-9').terrain));
+    expect(said).toBeUndefined();
+    const next = resolveTurn(after, {}, after.seed).state;
+    expect(isRailLinked(next.transportNetwork.railroadNetworks![N1], { x: 3, y: 9 }, { x: 2, y: 9 })).toBe(true);
+    expect(next.transportNetwork.railroadNetworks![N1].depots.find((d) => createTileId(d.x, d.y) === '4-9')!.isActive).toBe(true);
+  });
+
+  it('FR-373 a refused click says its last refusal; an accepted click without a fallback says nothing', () => {
+    const s = newGame({ seed: 1 });
+    expect(clickStatusText(s, { order: move, last: { ok: false, reason: 'invalid-target' }, firstRefusal: { order: rail, reason: 'invalid-target' } })).toBe(
+      'Move refused: not possible on that tile.'
+    );
+    expect(clickStatusText(s, { order: rail, last: { ok: true } })).toBeUndefined();
+    expect(clickStatusText(s, undefined)).toBeUndefined();
+  });
+});
+
+// M12 (NR-033), lane L2. FR-378 (ECONOMY-02): the engineer on 3-9, on the line from the depot at 4-9, clicks the capital
+// 2-9: the capital offers no fort any more, so the click reaches moveOrders and orders the rail section 3-9 to 2-9 ($100);
+// after End Turn the depot is connected.
+describe('FR-378 the last rail section into the capital by a click', () => {
+  const ENGINEER_ID = 'worker-nation-1-7';
+  const xy = (tileId: string) => {
+    const [x, y] = tileId.split('-').map(Number);
+    return { x, y };
+  };
+
+  it('FR-378 engineer on 3-9 on the line from the depot at 4-9, click 2-9: the rail section is ordered and the depot is connected after End Turn', () => {
+    let s = newGame({ seed: 1 });
+    s = addDepot(setTile(s, '4-9', { depot: true }), N1, xy('4-9'));
+    s = addRailroad(s, N1, xy('3-9'), xy('4-9'));
+    s = put(s, ENGINEER_ID, '3-9');
+    const { worker } = locate(s, ENGINEER_ID)!;
+    const action = getEngineerActions(tileAt(s, '2-9'), s.map, worker);
+    expect(action).toBeNull();
+    // As useTileClickHandler sends it: no action on the tile, so the click is moveOrders
+    const orders = moveOrders(s, N1, ENGINEER_ID, '2-9');
+    // A rail order first (rail-on-move: the new game's capital has no rail yet), then the plain move
+    expect(orders).toEqual([
+      { kind: 'moveAndBuildRail', nationId: N1, workerId: ENGINEER_ID, toTileId: '2-9' },
+      { kind: 'moveWorker', nationId: N1, workerId: ENGINEER_ID, toTileId: '2-9' },
+    ]);
+    const before = treasury(s, N1);
+    s = click(s, orders);
+    expect(treasury(s, N1)).toBe(before - constructionCost('rail', tileAt(s, '2-9').terrain));
+    s = resolveTurn(s, {}, s.seed).state;
+    expect(isRailLinked(s.transportNetwork.railroadNetworks![N1], xy('3-9'), xy('2-9'))).toBe(true);
+    const depot = s.transportNetwork.railroadNetworks![N1].depots.find((d) => createTileId(d.x, d.y) === '4-9')!;
+    expect(depot.isActive).toBe(true);
   });
 });

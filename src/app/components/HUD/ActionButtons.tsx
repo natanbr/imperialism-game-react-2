@@ -12,7 +12,8 @@ import { CAPITOL_ART, buildingArt } from "../art/inkArt";
  * (globals.css), whose margin is the gap before the label, so no space stands between them (FR-349, FR-354).
  */
 export const ActionButtons: React.FC = () => {
-  const advanceTurn = useGameStore((s) => s.advanceTurn);
+  const endTurn = useGameStore((s) => s.endTurn);
+  const locked = useGameStore((s) => s.endTurnLocked);
   const openWarehouse = useGameStore((s) => s.openWarehouse);
   const openCapital = useGameStore((s) => s.openCapital);
   const openMarket = useGameStore((s) => s.openMarket);
@@ -52,11 +53,14 @@ export const ActionButtons: React.FC = () => {
         <button onClick={centreOnCapital} title="Center Camera" className="btn btn-plain btn-sm flex-1">
           <GameIcon name={UI_ICONS.center} /> Center
         </button>
-        {/* The store ignores advanceTurn after the end too (FR-077); the button says so (FR-076). */}
+        {/* The store ignores advanceTurn after the end too (FR-077); the button says so (FR-076). FR-423: locked for
+            600 ms after each turn; aria-disabled, not disabled, so it keeps the focus (Playwright waits for it too). */}
         <button
-          onClick={advanceTurn}
+          onClick={endTurn}
           className="btn btn-primary flex-2"
           disabled={isOver}
+          aria-busy={locked || undefined}
+          aria-disabled={locked || undefined}
           title={isOver ? "The game is over" : undefined}
         >
           Advance Turn <GameIcon name={UI_ICONS.advanceTurn} />

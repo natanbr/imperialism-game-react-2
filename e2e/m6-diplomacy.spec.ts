@@ -1,8 +1,9 @@
 import { test, expect, Page } from '@playwright/test';
 
 // FR-180 (M6 done) in the running app, on a new game: open Diplomacy, order a consulate with Arvelia, end the turn and
-// see "Consulate" and a treasury $500 lower; order an embassy, end the turn and see "Embassy"; declare war on Lorran
-// (asked in place first, FR-178), end the turn and see "At war since turn 4" and the news line (FR-176). On the way:
+// see "Consulate" and a treasury $500 lower; order an embassy, end the turn and see "Embassy"; declare war on Arvelia
+// (asked in place first, FR-178; M12: Lorran is out of reach over land, FR-407), end the turn and see "At war since
+// turn 4" and the news line (FR-176). On the way:
 // the HUD button opens the dialog (FR-177), an ordered overture is listed with its cost and a Withdraw button, and a
 // refused control is disabled with its reason (FR-178). QA fix round: the countries are tabs of a list and the selected
 // one's details are its tab panel (FR-237); the news names the war that moved a relation (FR-239); at 1280x720 the
@@ -87,26 +88,31 @@ test('FR-180 FR-177 FR-178 a consulate, an embassy and a war ordered in Diplomac
   await openDiplomacy(page);
   await expect(treaties(page, 'Arvelia')).toHaveText(['Consulate', 'Embassy']);
 
-  // Turn 3: war on Lorran, asked in place first
+  // Turn 3: no army can reach Lorran over land (FR-407), so the war is on Arvelia, asked in place first
   await select(page, 'Lorran');
-  const lorran = country(page, 'Lorran');
-  await lorran.getByRole('button', { name: 'Declare war' }).click();
-  const ask = lorran.getByRole('group', { name: 'Confirm war on Lorran' });
-  await expect(ask.getByTestId('war-question')).toHaveText('Declare war on Lorran? The war starts next turn.');
+  await expect(country(page, 'Lorran').getByRole('button', { name: 'Declare war' })).toBeDisabled();
+  await expect(country(page, 'Lorran').getByRole('button', { name: 'Declare war' })).toHaveAccessibleDescription(
+    'No army can reach Lorran over land. War needs ships (a later milestone).'
+  );
+  await select(page, 'Arvelia');
+  const arvelia = country(page, 'Arvelia');
+  await arvelia.getByRole('button', { name: 'Declare war' }).click();
+  const ask = arvelia.getByRole('group', { name: 'Confirm war on Arvelia' });
+  await expect(ask.getByTestId('war-question')).toHaveText('Declare war on Arvelia? The war starts next turn.');
   await ask.getByRole('button', { name: 'Declare war' }).click();
-  await expect(lorran.getByTestId('ordered')).toHaveText([/^Declaration of war\s*free\s*Withdraw$/]);
+  await expect(arvelia.getByTestId('ordered')).toHaveText([/^Declaration of war\s*free\s*Withdraw$/]);
   await endTurn(page, 4);
-  await expect(page.getByTestId('news-panel')).toContainText('War declared on Lorran! The war starts next turn.');
+  await expect(page.getByTestId('news-panel')).toContainText('War declared on Arvelia! The war starts next turn.');
   await expect(page.getByTestId('news-panel')).not.toContainText('refused');
   // FR-239: the relation lines name the war that moved them
-  await expect(page.getByTestId('news-panel')).toContainText('Relations with Arvelia: yellow to orange (our war on Lorran).');
+  await expect(page.getByTestId('news-panel')).toContainText('Relations with Sundmark: yellow to orange (our war on Arvelia).');
 
   await openDiplomacy(page);
-  await expect(treaties(page, 'Lorran')).toHaveText(['At war since turn 4']);
-  await expect(tab(page, 'Lorran').getByTestId('relation')).toHaveText('Dark brown, level 1 of 9');
-  await select(page, 'Lorran');
-  await expect(country(page, 'Lorran').getByRole('button', { name: 'Propose peace' })).toBeEnabled();
-  await expect(treaties(page, 'Arvelia')).toHaveText(['Consulate', 'Embassy']);
+  // The war ends the pair's consulate and embassy (Imp1 manual p80)
+  await expect(treaties(page, 'Arvelia')).toHaveText(['At war since turn 4']);
+  await expect(tab(page, 'Arvelia').getByTestId('relation')).toHaveText('Dark brown, level 1 of 9');
+  await select(page, 'Arvelia');
+  await expect(country(page, 'Arvelia').getByRole('button', { name: 'Propose peace' })).toBeEnabled();
   if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/m6-diplomacy.png` });
 
   expect(errors).toEqual([]);
@@ -141,13 +147,14 @@ test('FR-237 at 1280x720 the Diplomacy dialog fits the window: neither the page 
     expect({ name, ...(await fit(page)) }).toEqual({ name, ...fits });
   }
 
-  // A fuller details pane: an ordered item with Withdraw, the refusal lines and the war question open
-  await select(page, 'Arvelia');
-  await country(page, 'Arvelia').getByRole('button', { name: 'Consulate ($500)' }).click();
+  // A fuller details pane: an ordered item with Withdraw, the refusal lines (Lorran's FR-407 line) and the war question open
   await select(page, 'Lorran');
   await country(page, 'Lorran').getByRole('button', { name: 'Consulate ($500)' }).click();
-  await country(page, 'Lorran').getByRole('button', { name: 'Declare war' }).click();
-  await expect(country(page, 'Lorran').getByRole('group', { name: 'Confirm war on Lorran' })).toBeVisible();
+  expect(await fit(page)).toEqual(fits);
+  await select(page, 'Arvelia');
+  await country(page, 'Arvelia').getByRole('button', { name: 'Consulate ($500)' }).click();
+  await country(page, 'Arvelia').getByRole('button', { name: 'Declare war' }).click();
+  await expect(country(page, 'Arvelia').getByRole('group', { name: 'Confirm war on Arvelia' })).toBeVisible();
   expect(await fit(page)).toEqual(fits);
 
   expect(errors).toEqual([]);

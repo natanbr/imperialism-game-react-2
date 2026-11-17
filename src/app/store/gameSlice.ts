@@ -48,17 +48,11 @@ export interface OrderLogEntry {
   orders: Order[];
 }
 
-/**
- * The game and the session around it. `game` is the only state the engine sees; everything else
- * here is UI state (FR-018). The UI changes `game` only through `submitOrder` and `advanceTurn`, and
- * replaces it with `startNewGame`.
- */
-export interface GameSlice {
+/** The game and what the store keeps of its session: what a save holds and a restore puts back (FR-357, FR-359). */
+export interface GameSession {
   game: GameState;
   /** The nation this client plays. Orders for any other nation are refused. */
   activeNationId: NationId;
-  /** The most recent refused order, until the next accepted one or the end of the turn. */
-  lastRejection: OrderRejection | null;
   /** Oldest first, at most EVENT_LOG_TURNS entries. */
   eventLog: TurnReport[];
   /** Every nation's orders of every resolved turn, oldest first (FR-100). */
@@ -67,6 +61,22 @@ export interface GameSlice {
   ordersThisTurn: Order[];
   /** The treasuries just before the first of `ordersThisTurn` was applied; null while there is none (FR-256). */
   turnStartTreasuries: Record<NationId, number> | null;
+}
+
+/** FR-423: how long Advance Turn (the button and the key "n") stays locked after it ended a turn. */
+export const END_TURN_LOCK_MS = 600;
+
+/**
+ * The game and the session around it. `game` is the only state the engine sees; everything else
+ * here is UI state (FR-018). The UI changes `game` only through `submitOrder` and `advanceTurn`, and
+ * replaces it with `startNewGame` or, from a save, `restoreGame`.
+ */
+export interface GameSlice extends GameSession {
+  /** The most recent refused order, until the next accepted one or the end of the turn. */
+  lastRejection: OrderRejection | null;
+  /** The last write of the autosave failed (FR-363: the HUD says so until one succeeds); written by store/persistence.ts. */
+  saveFailed: boolean;
+  setSaveFailed: (failed: boolean) => void;
 
   /** Validates the order against `game` and, if valid, applies it now (FR-020). */
   submitOrder: (order: Order) => ValidationResult;
@@ -75,11 +85,23 @@ export interface GameSlice {
    * every nation's orders (FR-100); nothing after game over (FR-077).
    */
   advanceTurn: () => void;
+  /** FR-423: Advance Turn is locked from the moment it ends a turn until END_TURN_LOCK_MS later (the button: aria-busy). */
+  endTurnLocked: boolean;
+  /**
+   * The HUD's Advance Turn and the key "n" (FR-423): `advanceTurn`, then nothing until END_TURN_LOCK_MS have passed, so a
+   * double click ends one turn. `advanceTurn` itself stays unguarded for tests and headless runs.
+   */
+  endTurn: () => void;
   /**
    * Replaces the game with a new one and clears what belonged to the old one (FR-105, FR-109); on the
    * continent unless `world` names another (FR-144).
    */
   startNewGame: (options?: { seed?: number; turnLimit?: number; world?: WorldId; market?: MarketMode }) => void;
+  /**
+   * Replaces the game and its session with a saved one (FR-359), with nothing selected and no dialog open, as a new game
+   * starts. Only page.tsx calls it, at the start: the store never loads a save by itself.
+   */
+  restoreGame: (session: GameSession) => void;
 }
 
 export interface GameSliceOptions {
@@ -166,39 +188,68 @@ export const createGameSlice =
         });
       },
 
+      endTurnLocked: false,
+      // The turn renders synchronously after advanceTurn (a click is a discrete update), so the timer cannot fire before
+      // the new turn is on screen: the lock lasts until both have happened (FR-423)
+      endTurn: () => {
+        if (get().endTurnLocked) return;
+        set({ endTurnLocked: true });
+        get().advanceTurn();
+        setTimeout(() => set({ endTurnLocked: false }), END_TURN_LOCK_MS);
+      },
+
       // Nothing of the old game's session survives: selection, dialogs, news, logs (FR-105, FR-109).
       startNewGame: ({ seed, turnLimit, world, market } = {}) => {
         const next = newGame({ seed: seed ?? randomSeed(), turnLimit, world: world ?? APP_WORLD, market });
         set({
+          ...NO_SELECTION_NO_DIALOG,
           game: next,
           activeNationId: next.nations[0]?.id ?? "nation-1",
-          lastRejection: null,
           eventLog: [],
           orderLog: [],
           ordersThisTurn: [],
           turnStartTreasuries: null,
-          isGameOverHidden: false,
-          selectedTileId: undefined,
-          hoveredTileId: undefined,
-          selectedWorkerId: undefined,
-          isCapitalOpen: false,
-          isMarketOpen: false,
-          isDealBookOpen: false,
-          isDiplomacyOpen: false,
-          dismissedProposalIds: [],
-          armyProvinceId: null,
-          armyTargetId: null,
-          armySelection: null,
-          attackPlan: null,
-          battleQueue: [],
-          councilShown: null,
-          isArmouryOpen: false,
-          isWarehouseOpen: false,
-          isTransportAllocationOpen: false,
-          isConstructionModalOpen: false,
-          constructionModalTileId: null,
-          constructionModalWorkerId: null,
         });
       },
+
+      saveFailed: false,
+      setSaveFailed: (failed) => set({ saveFailed: failed }),
+
+      // FR-359: the saved session, and of the UI only what a new game starts with; a finished game shows its final scores
+      restoreGame: ({ game: saved, activeNationId, eventLog, orderLog, ordersThisTurn, turnStartTreasuries }) =>
+        set({ ...NO_SELECTION_NO_DIALOG, game: saved, activeNationId, eventLog, orderLog, ordersThisTurn, turnStartTreasuries }),
     };
   };
+
+/** The UI of a game just started or restored: no refusal, nothing selected, no dialog open (FR-105, FR-109, FR-359). */
+const NO_SELECTION_NO_DIALOG: Partial<GameStore> = {
+  lastRejection: null,
+  isGameOverHidden: false,
+  selectedTileId: undefined,
+  hoveredTileId: undefined,
+  selectedWorkerId: undefined,
+  isCapitalOpen: false,
+  isMarketOpen: false,
+  isDealBookOpen: false,
+  isDiplomacyOpen: false,
+  dismissedProposalIds: [],
+  armyProvinceId: null,
+  armyTargetId: null,
+  armySelection: null,
+  attackPlan: null,
+  battleQueue: [],
+  councilShown: null,
+  isArmouryOpen: false,
+  isWarehouseOpen: false,
+  isTransportAllocationOpen: false,
+  isConstructionModalOpen: false,
+  constructionModalTileId: null,
+  constructionModalWorkerId: null,
+  isHowToPlayOpen: false,
+  // M12 lane L2: the map's status line (FR-373) and a spend still asked (FR-383) belong to the old game
+  mapStatus: null,
+  pendingSpend: null,
+  // FR-160: a new session starts unlocked; the autosave writes the new or restored game at once and sets saveFailed again
+  endTurnLocked: false,
+  saveFailed: false,
+};

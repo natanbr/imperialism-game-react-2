@@ -1,13 +1,14 @@
 import React, { useId } from "react";
 import { useGameStore } from "@/store/rootStore";
-import { dateText, newsItems, refusalText } from "../gameText";
+import { dateText, newsItems, refusalText, tilePlaces } from "../gameText";
+import { cameraOnTileId } from "../camera";
 
 /**
  * The last refused order and the news of the last resolved turn (FR-024): the player's lines first,
  * then each other nation's lines under its name (FR-107). The lines are their own scroll region (FR-268): it fills the
  * HUD's space left above the fade (FR-235) in whole lines, so no line is cut behind the fade, and Tab reaches it.
  * A battle's line is a button that opens its Battle screen (FR-232), a Council meeting's line one that opens its Council
- * screen (FR-297).
+ * screen (FR-297), a line about a tile (FR-375) one that selects the tile and scrolls it into view (FR-376).
  */
 export const NewsPanel: React.FC = () => {
   const lastRejection = useGameStore((s) => s.lastRejection);
@@ -16,14 +17,26 @@ export const NewsPanel: React.FC = () => {
   const nations = useGameStore((s) => s.game.nations);
   const minorNations = useGameStore((s) => s.game.minorNations);
   const provinces = useGameStore((s) => s.game.provinces);
+  const map = useGameStore((s) => s.game.map);
   const showBattle = useGameStore((s) => s.showBattle);
   const showCouncil = useGameStore((s) => s.showCouncil);
+  const selectWorker = useGameStore((s) => s.selectWorker);
+  const selectTile = useGameStore((s) => s.selectTile);
+  const moveCamera = useGameStore((s) => s.moveCamera);
   const headingId = useId();
 
   // Great Powers and minor nations: diplomacy lines name both (FR-176); a march names its provinces (FR-209).
   const nameOf = (id: string) =>
     nations.find((n) => n.id === id)?.name ?? minorNations.find((m) => m.id === id)?.name ?? provinces.find((p) => p.id === id)?.name ?? id;
-  const news = lastReport ? newsItems(lastReport.events, activeNationId, nameOf) : [];
+  // FR-375: a tile line names its province ("Rail finished at 3-9 in Testland North-West.")
+  const news = lastReport ? newsItems(lastReport.events, activeNationId, nameOf, tilePlaces({ map }, nameOf)) : [];
+  // FR-376: the tile selected, no civilian (Tile Info shows the tile), and centred as the map's edges allow
+  const showPlace = (tileId: string) => {
+    selectWorker(undefined);
+    selectTile(tileId);
+    const camera = cameraOnTileId(useGameStore.getState().game, tileId);
+    if (camera) moveCamera(camera.x, camera.y);
+  };
 
   return (
     <div className="news-panel" data-testid="news-panel">
@@ -43,7 +56,7 @@ export const NewsPanel: React.FC = () => {
               {/* A scroll region the keyboard can reach (Tab, then the arrow keys, Page Down, End) */}
               <ul className="news-list" tabIndex={0} aria-labelledby={headingId} data-testid="news-list">
                 {news.map((item, i) => {
-                  const { battle, council } = item;
+                  const { battle, council, tileId } = item;
                   return (
                     <li key={i}>
                       {battle ? (
@@ -52,6 +65,10 @@ export const NewsPanel: React.FC = () => {
                         </button>
                       ) : council ? (
                         <button type="button" className="news-battle" onClick={() => showCouncil(council)}>
+                          {item.text}
+                        </button>
+                      ) : tileId ? (
+                        <button type="button" className="news-place" onClick={() => showPlace(tileId)}>
                           {item.text}
                         </button>
                       ) : (

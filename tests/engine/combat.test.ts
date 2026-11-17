@@ -28,6 +28,7 @@ import {
 import { battleFrames, battleOutcome, battlesFoughtBy } from '@/engine/army/battleReport';
 import { COMBAT } from '@/definisions/combatRules';
 import { transferProvince } from '@/engine/world/provinces';
+import { pairKey } from '@/engine/diplomacy/relations';
 import type { BattleReport } from '@/types/Battle';
 import type { GameState } from '@/types/GameState';
 import type { AttackIntent } from '@/types/Intent';
@@ -486,6 +487,30 @@ describe('FR-221 FR-223 the same phase: home lost, crossing strikes, a fallen na
     expect(reportsIn(events).map(r => [r.provinceId, r.result])).toEqual([[ARVELIA_P, 'defender-held'], [NE1, 'attacker-won']]);
     expect(reportsIn(events)[0].regiments.find(r => r.id === R1)!.fate).toBe('surrendered');
     expect(after.armies.flatMap(a => a.regiments).some(r => r.id === R1)).toBe(false);
+  });
+
+  it('M12 FR-408 each war records its battles, oldest first: where, when, who won and who lost (a held province too)', () => {
+    const { ctx } = stubContext(1, 0.99);
+    const after = combatSystem(homeLost(), ctx);
+
+    // North-East: Valdoria took it; North-West: Valdoria held it against Testland
+    expect(after.diplomacy[pairKey(N1, N2)].war!.battles).toEqual([
+      { provinceId: NE1, turn: 1, winnerId: N2, loserId: N1 },
+      { provinceId: NW1, turn: 1, winnerId: N2, loserId: N1 },
+    ]);
+    // A war with no battle has no record
+    expect(homeLost().diplomacy[pairKey(N1, N2)].war!.battles).toBeUndefined();
+  });
+
+  it('M12 FR-408 a battle is recorded in the war of each attacker with the defender: Arvelia held against Valdoria', () => {
+    // Valdoria holds Testland North-East (hand-built) and attacks Arvelia from it; every shot misses
+    let s = relocate(clearArmy(transferProvince(continent('world'), NE1, N2), N1, NE1), [V_R1], NE1);
+    s = atWar(atWar(s, N1, N2), N2, ARVELIA);
+    s = ordered(s, attackOrder(N2, [V_R1], NE1, ARVELIA_P));
+    const after = combatSystem(s, stubContext(3, 0.99).ctx);
+
+    expect(after.diplomacy[pairKey(N2, ARVELIA)].war!.battles).toEqual([{ provinceId: ARVELIA_P, turn: 3, winnerId: ARVELIA, loserId: N2 }]);
+    expect(after.diplomacy[pairKey(N1, N2)].war!.battles).toBeUndefined();
   });
 
   /**

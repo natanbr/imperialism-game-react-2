@@ -8,6 +8,8 @@
 // QA fix round: what was not traded is a third list, "Not traded", each line with its cause (FR-255); the bottom line
 // ends in the Trade net and the Treasury table beside it adds the diplomacy costs and the rest up to the treasury's
 // change over the turn, from the store's turn report (FR-256).
+// M12 FR-396 (audit ARMY-WAR-06): the bottom line is Sold, Bought and the Trade net (Sold less Bought); the army upkeep
+// is its own Treasury line, and a turn without deals has no Trade net line.
 import { describe, it, expect } from 'vitest';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { DealBookModal } from '@/components/DealBookModal';
@@ -68,7 +70,7 @@ describe('FR-195 the Deal Book', () => {
     expect(lines('Sold')).toEqual(['Sold 1 Clothing to Arvelia @ $810']);
     expect(lines('Bought')).toEqual(['Bought 2 Coal from Arvelia @ $110']);
     expect(lines('Not traded')).toEqual(['1 Furniture not sold, back in the warehouse', 'Arvelia offered to sell us 1 Iron Ore (no free hold)']);
-    expect(bottomLine()).toEqual(['Sold $810', 'Bought $220', 'Military upkeep $0', 'Trade net $590']);
+    expect(bottomLine()).toEqual(['Sold $810', 'Bought $220', 'Trade net $590']);
     // A report made by hand has no treasuries: no Treasury table
     expect(within(dialog()).queryByRole('table', { name: 'Treasury' })).toBeNull();
     expect(text(within(dialog()).getByTestId('deal-book-turn'))).toBe('Turn 1, Spring 1815');
@@ -93,7 +95,7 @@ describe('FR-195 the Deal Book', () => {
     // Nothing sold: the Sold page says so instead of an empty list
     expect(within(dialog()).queryByRole('list', { name: 'Sold' })).toBeNull();
     expect(text(within(dialog()).getByTestId('sold-none'))).toBe('Nothing sold.');
-    expect(bottomLine()).toEqual(['Sold $0', 'Bought $1,369', 'Military upkeep $0', 'Trade net -$1,369']);
+    expect(bottomLine()).toEqual(['Sold $0', 'Bought $1,369', 'Trade net -$1,369']);
     // Everything traded: no Not traded list
     expect(within(dialog()).queryByRole('list', { name: 'Not traded' })).toBeNull();
     expect(text(within(dialog()).getByTestId('deal-book-turn'))).toBe('Turn 2, Summer 1815');
@@ -105,7 +107,7 @@ describe('FR-195 the Deal Book', () => {
     expect(lines('Not traded')).toEqual(['Nobody sold us 2 Coal (no consulate with Lorran; bid money back)']);
     expect(text(within(dialog()).getByTestId('bought-none'))).toBe('Nothing bought.');
     expect(within(dialog()).queryByTestId('deal-book-empty')).toBeNull();
-    expect(bottomLine()).toEqual(['Sold $0', 'Bought $0', 'Military upkeep $0', 'Trade net $0']);
+    expect(bottomLine()).toEqual(['Sold $0', 'Bought $0', 'Trade net $0']);
   });
 
   it('FR-195 a turn without a deal, and a game before its first End Turn, say "No deals last turn."', () => {
@@ -152,11 +154,11 @@ describe('FR-197 FR-195 in the store: a consulate and a bid on turn 1, then End 
 
     render(<DealBookModal />);
     expect(lines('Bought')).toEqual(['Bought 2 Coal from Arvelia @ $100']);
-    // FR-202: the start army's $100 upkeep is in the bottom line
-    expect(bottomLine()).toEqual(['Sold $0', 'Bought $200', 'Military upkeep $100', 'Trade net -$300']);
+    // M12 FR-396: the bottom line is the trade only; the start army's $100 upkeep (FR-202) is a Treasury line
+    expect(bottomLine()).toEqual(['Sold $0', 'Bought $200', 'Trade net -$200']);
     expect(text(within(dialog()).getByTestId('deal-book-turn'))).toBe('Turn 1, Spring 1815');
     // FR-256: the consulate's $500 and the trade net explain the whole change of the treasury, $10,000 to $9,200
-    expect(treasuryLines()).toEqual(['Trade net -$300', 'Consulate in Arvelia -$500', 'Treasury change -$800']);
+    expect(treasuryLines()).toEqual(['Trade net -$200', 'Army upkeep -$100', 'Consulate in Arvelia -$500', 'Treasury change -$800']);
     expect(text(within(dialog()).getByTestId('treasury'))).toMatch(/From \$10,000 to \$9,200$/);
     expect(useGameStore.getState().game.nations[0].treasury).toBe(9200);
   });
@@ -193,7 +195,8 @@ describe('FR-197 FR-195 in the store: a consulate and a bid on turn 1, then End 
 
     render(<DealBookModal />);
     // $10,000 - $500 (the recruit, paid when ordered) - $100 (the start army's upkeep)
-    expect(treasuryLines()).toEqual(['Trade net -$100', '1 Regulars recruited -$500', 'Treasury change -$600']);
+    // M12 FR-396: no deals, so no Trade net; the upkeep is named
+    expect(treasuryLines()).toEqual(['Army upkeep -$100', '1 Regulars recruited -$500', 'Treasury change -$600']);
     expect(text(within(dialog()).getByTestId('treasury'))).toMatch(/From \$10,000 to \$9,400$/);
   });
 
@@ -202,6 +205,7 @@ describe('FR-197 FR-195 in the store: a consulate and a bid on turn 1, then End 
     openDealBook([{ turn: 1, year: 1815, events, treasuries: { [N1]: { start: 10000, end: 9500 } } }]);
     expect(text(within(dialog()).getByTestId('deal-book-empty'))).toBe('No deals last turn.');
     expect(within(dialog()).queryByRole('table', { name: 'Bottom line' })).toBeNull();
-    expect(treasuryLines()).toEqual(['Trade net $0', 'Consulate in Arvelia -$500', 'Treasury change -$500']);
+    // M12 FR-396: no deals, no Trade net line
+    expect(treasuryLines()).toEqual(['Consulate in Arvelia -$500', 'Treasury change -$500']);
   });
 });

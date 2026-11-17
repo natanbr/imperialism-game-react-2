@@ -1,0 +1,9 @@
+{
+  // FR-462: the tsconfig of the e2e run's dev server, which builds into .next-e2e (next.config.ts). next dev adds its
+  // build folder's types to the tsconfig it reads; listed here, they stay out of tsconfig.json, so tsc and next build
+  // never check the types of the last e2e run. Keep include as tsconfig.json's, with .next-e2e in place of .next.
+  "extends": "./tsconfig.json",
+  // Without its own compilerOptions, next dev logs that it cannot add its TypeScript plugin (tsconfig.json has it)
+  "compilerOptions": {},
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next-e2e/types/**/*.ts"]
+}

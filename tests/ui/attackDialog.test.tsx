@@ -8,7 +8,9 @@
 // war starts next turn." (or "The war starts next turn." when declared this turn) and has no Attack button. The Army
 // screen reads an ordered attack as "Attacking Arvelia" with "Cancel attack" (`cancelArmyMove`). FR-272: the regiment
 // pictures beside the names are decorative (alt ""); a fort shows its picture.
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { ArmyModal } from '@/components/ArmyModal';
 import { AttackModal } from '@/components/AttackModal';
@@ -18,7 +20,7 @@ import { useGameStore } from '@/store/rootStore';
 import { applyOrder, battleEstimate, defendersOf, findRegiment, REGIMENTS, type Order, type Regiment } from '@/engine';
 import type { GameState } from '@/types/GameState';
 import { setPair, setTile } from '../engine/fixtures';
-import { ARVELIA, ARVELIA_P, clearArmy, continent, idOf, NE1, NW1, patchRegiment, relocate, SE1, SW1 } from '../engine/armyFixtures';
+import { addRegiments, ARVELIA, ARVELIA_P, clearArmy, continent, idOf, NE1, NW1, patchRegiment, relocate, SE1, SW1 } from '../engine/armyFixtures';
 import { failOnActWarnings } from './actWarnings';
 import { text } from './domText';
 
@@ -308,14 +310,15 @@ describe('FR-230 from the map: a click on a bordering enemy province with our re
     expect(submitted).toEqual([]);
   });
 
-  it('FR-230 a click on a province that does not border the selection opens nothing and drops the selection', () => {
+  // M12 FR-373 (lane L2) keeps the selection here and says why on the map; tests/ui/mapStatus.test.tsx checks the line
+  it('FR-230 FR-373 a click on a province that does not border the selection opens nothing and keeps the selection', () => {
     const { container } = mapWith(onTheBorder());
     act(() => useGameStore.getState().selectRegiments(NE1, FIELD));
     // Valdoria's capital tile: another country's, not bordering Testland North-East
     fireEvent.click(tileAt(container, '14-9'));
     expect(useGameStore.getState().attackPlan).toBeNull();
     expect(screen.queryByRole('dialog')).toBeNull();
-    expect(useGameStore.getState().armySelection).toBeNull();
+    expect(useGameStore.getState().armySelection).toEqual({ provinceId: NE1, regimentIds: FIELD });
   });
 
   it('FR-230 the plan from a selection keeps only the regiments still Available there, in the army\'s order', () => {
@@ -502,5 +505,64 @@ describe('FR-279 the Attack screen replaces the Army screen', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
     act(() => useGameStore.getState().openArmy(NE1));
     expect(armySelect().value).toBe(NW1);
+  });
+});
+
+// FR-419 (ARMY-WAR-07): jsdom has no layout, so the browser's boxes are stubbed: each list a 200 px window at y 100,
+// its rows 44 px high every 50 px, moved up by `scrolled`; "N more below" counts the rows whose bottom is below the window.
+describe('FR-419 every regiment in the Attack lists can be reached', () => {
+  let scrolled = 0;
+  const box = (top: number, height: number) =>
+    ({ top, bottom: top + height, left: 0, right: 300, width: 300, height, x: 0, y: top, toJSON: () => ({}) }) as DOMRect;
+  function stubLayout() {
+    scrolled = 0;
+    return vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+      if (this.tagName === 'UL') return box(100, 200);
+      if (this.tagName === 'LI' && this.parentElement) return box(100 + [...this.parentElement.children].indexOf(this) * 50 - scrolled, 44);
+      return box(0, 0);
+    });
+  }
+  afterEach(() => vi.restoreAllMocks());
+
+  /** Nine regiments of Testland on Arvelia's border: the field army and six test Regulars. */
+  const nine = () => addRegiments(onTheBorder(), N1, NE1, ['regulars', 'regulars', 'regulars', 'regulars', 'regulars', 'regulars']);
+  const nineIds = (s: GameState) => [
+    ...FIELD,
+    ...s.armies.filter((a) => a.ownerId === N1 && a.provinceId === NE1).flatMap((a) => a.regiments.map((r) => r.id)).filter((id) => Number(id.slice('regiment-'.length)) > 900),
+  ];
+  const ours = () => within(attackDialog()).getByRole('list', { name: 'Our regiments' });
+
+  it('FR-419 nine attacking regiments in a list that shows four: "5 more below" under it; scrolling counts down, the end has no line', () => {
+    stubLayout();
+    const s = nine();
+    const ids = nineIds(s);
+    expect(ids).toHaveLength(9);
+    openAttack(s, ids);
+    expect(within(ours()).getAllByRole('listitem')).toHaveLength(9);
+    const more = within(attackDialog()).getByTestId('ours-more-below');
+    expect(text(more)).toBe('5 more below');
+    // The line follows the list it counts
+    expect(ours().compareDocumentPosition(more) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    scrolled = 100;
+    fireEvent.scroll(ours());
+    expect(text(within(attackDialog()).getByTestId('ours-more-below'))).toBe('3 more below');
+
+    scrolled = 250;
+    fireEvent.scroll(ours());
+    expect(within(attackDialog()).queryByTestId('ours-more-below')).toBeNull();
+  });
+
+  it('FR-419 a list that shows all its regiments has no line', () => {
+    stubLayout();
+    openAttack(onTheBorder());
+    expect(within(attackDialog()).queryByTestId('ours-more-below')).toBeNull();
+    expect(within(attackDialog()).queryByTestId('defenders-more-below')).toBeNull();
+  });
+
+  it('FR-419 the lists draw a visible scrollbar when they scroll (not the overlay one that hides)', () => {
+    const css = readFileSync(join(__dirname, '..', '..', 'src/app/components/army/War.module.css'), 'utf8');
+    expect(css).toMatch(/\.list::-webkit-scrollbar[,\s][^{]*\{[^}]*width: \d+px/);
+    expect(css).toMatch(/\.list::-webkit-scrollbar-thumb[^{]*\{[^}]*background/);
   });
 });

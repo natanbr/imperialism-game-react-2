@@ -50,7 +50,7 @@ const CouncilReport: React.FC<{ event: CouncilMetEvent }> = ({ event }) => {
     <th scope="col" className={styles.nominee}>
       <NationSwatch slot={column.colorSlot} />
       {column.name}
-      {/* FR-313: the columns follow the player, so the standing shows as a mark */}
+      {/* FR-313, FR-413: the columns follow the player, so the standing shows as a mark: "1st by standing" */}
       <span className={styles.rank} data-testid={`council-rank-${column.nationId}`}>
         {column.rank}
       </span>
@@ -59,7 +59,7 @@ const CouncilReport: React.FC<{ event: CouncilMetEvent }> = ({ event }) => {
   const [first, second] = view.columns;
 
   return (
-    <Modal titleId={titleId} onClose={close} overlayClassName={styles.overlay} className={styles.dialog}>
+    <Modal titleId={titleId} onClose={close} initialFocus="last-control" overlayClassName={styles.overlay} className={styles.dialog}>
       <header className={styles.header}>
         <CapitolPicture size={96} className={styles.picture} />
         <div className={styles.titles}>
@@ -72,70 +72,80 @@ const CouncilReport: React.FC<{ event: CouncilMetEvent }> = ({ event }) => {
         </div>
       </header>
 
-      <table className={styles.table} aria-label="Votes">
-        <thead>
-          <tr>
-            {head(first)}
-            {/* The middle column holds the row names */}
-            <td />
-            {head(second)}
-          </tr>
-        </thead>
-        <tbody>
-          {COUNCIL_TABLE_ROWS.map((row) => (
-            <tr
-              key={row}
-              className={row === "total" ? styles.totalRow : unused(row) ? styles.unusedRow : undefined}
-              data-testid={`council-row-${row}`}
-              data-unused={unused(row) ? "true" : undefined}
-            >
-              {numberCell(first, 0, row)}
-              <th scope="row" className={styles.rowName}>
-                {COUNCIL_ROW_TEXT[row]}
-                {unused(row) && <span className={styles.rowNote}>{view.unusedRowNote}</span>}
-              </th>
-              {numberCell(second, 1, row)}
+      {/* FR-425: only the body scrolls, so on a short window the title, the picture and Close stay in view. It is a Tab stop
+          after Close (M12 review L3-04), so the arrow keys and Page Down can scroll it to the result line; Close keeps the
+          first focus (initialFocus) */}
+      <div className={styles.body} data-testid="council-body" tabIndex={0} role="region" aria-label="Votes and result">
+        <table className={styles.table} aria-label="Votes">
+          <thead>
+            <tr>
+              {head(first)}
+              {/* The middle column holds the row names */}
+              <td />
+              {head(second)}
             </tr>
-          ))}
-        </tbody>
-      </table>
-      {/* The provinces behind each number, as the cells' accessible descriptions (their titles show them on hover) */}
-      <div hidden>
-        {view.columns.flatMap((column, index) =>
-          COUNCIL_TABLE_ROWS.map((row) => (
-            <span key={`${index}-${row}`} id={describedBy(index, row)}>
-              {column.cells[row].provinces}
-            </span>
-          ))
+          </thead>
+          <tbody>
+            {COUNCIL_TABLE_ROWS.map((row) => (
+              <tr
+                key={row}
+                className={row === "total" ? styles.totalRow : unused(row) ? styles.unusedRow : undefined}
+                data-testid={`council-row-${row}`}
+                data-unused={unused(row) ? "true" : undefined}
+              >
+                {numberCell(first, 0, row)}
+                <th scope="row" className={styles.rowName}>
+                  {COUNCIL_ROW_TEXT[row]}
+                  {unused(row) && <span className={styles.rowNote}>{view.unusedRowNote}</span>}
+                </th>
+                {numberCell(second, 1, row)}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {/* The provinces behind each number, as the cells' accessible descriptions (their titles show them on hover) */}
+        <div hidden>
+          {view.columns.flatMap((column, index) =>
+            COUNCIL_TABLE_ROWS.map((row) => (
+              <span key={`${index}-${row}`} id={describedBy(index, row)}>
+                {column.cells[row].provinces}
+              </span>
+            ))
+          )}
+        </div>
+
+        {/* FR-413: the columns follow the standing, so the screen says how the nominees are chosen */}
+        <p className={styles.rule} data-testid="council-nominated">
+          {view.nominated}
+        </p>
+        {/* FR-311: who abstained and why, then how a minor votes */}
+        <p className={styles.note} id={abstainedId} data-testid="council-abstained">
+          {view.abstained}
+        </p>
+        {view.abstentions.length > 0 && (
+          <ul className={styles.reasons} aria-labelledby={abstainedId} data-testid="council-abstentions">
+            {view.abstentions.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        )}
+        <p className={styles.rule} data-testid="council-rule">
+          {view.rule}
+        </p>
+        <p className={styles.note} data-testid="council-needed">
+          {view.needed}
+        </p>
+        {won ? (
+          // FR-415: another nation's win reads as our loss, in the theme's bad colour
+          <h3 className={view.lost ? styles.lost : styles.winner} data-testid="council-result">
+            {view.result}
+          </h3>
+        ) : (
+          <p className={styles.result} data-testid="council-result">
+            {view.result}
+          </p>
         )}
       </div>
-
-      {/* FR-311: who abstained and why, then how a minor votes */}
-      <p className={styles.note} id={abstainedId} data-testid="council-abstained">
-        {view.abstained}
-      </p>
-      {view.abstentions.length > 0 && (
-        <ul className={styles.reasons} aria-labelledby={abstainedId} data-testid="council-abstentions">
-          {view.abstentions.map((line) => (
-            <li key={line}>{line}</li>
-          ))}
-        </ul>
-      )}
-      <p className={styles.rule} data-testid="council-rule">
-        {view.rule}
-      </p>
-      <p className={styles.note} data-testid="council-needed">
-        {view.needed}
-      </p>
-      {won ? (
-        <h3 className={styles.winner} data-testid="council-result">
-          {view.result}
-        </h3>
-      ) : (
-        <p className={styles.result} data-testid="council-result">
-          {view.result}
-        </p>
-      )}
 
       {/* The player does not vote (Imp1: the screen is a report), so its only control closes it */}
       <footer className={styles.footer}>

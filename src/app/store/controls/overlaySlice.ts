@@ -93,7 +93,32 @@ export interface OverlaySlice {
   isTransportAllocationOpen: boolean;
   openTransportAllocation: () => void;
   closeTransportAllocation: () => void;
+
+  // How to play (FR-430): page.tsx opens it on a browser's first new game, About at any time
+  isHowToPlayOpen: boolean;
+  openHowToPlay: () => void;
+  closeHowToPlay: () => void;
 }
+
+/**
+ * FR-409, one dialog at a time: a Battle screen, the Council screen or a screen the player opened is showing, so Accept
+ * Offer waits (the start of a turn: the Battle screens, the Council screen, then each offer). About is the HUD's own
+ * state and the page's Saved game dialog opens on a restored game before any offer.
+ */
+export const isDialogOpen = (s: GameStore): boolean =>
+  s.battleQueue.length > 0 ||
+  s.councilShown !== null ||
+  s.isWarehouseOpen ||
+  s.isCapitalOpen ||
+  s.isMarketOpen ||
+  s.isDealBookOpen ||
+  s.isDiplomacyOpen ||
+  s.armyProvinceId !== null ||
+  s.attackPlan !== null ||
+  s.isArmouryOpen ||
+  s.isTransportAllocationOpen ||
+  s.constructionModalTileId !== null ||
+  s.isHowToPlayOpen;
 
 export const createOverlaySlice: StateCreator<GameStore, [], [], OverlaySlice> = (set) => ({
   // Warehouse modal
@@ -168,4 +193,8 @@ export const createOverlaySlice: StateCreator<GameStore, [], [], OverlaySlice> =
   isTransportAllocationOpen: false,
   openTransportAllocation: () => set({ isTransportAllocationOpen: true }),
   closeTransportAllocation: () => set({ isTransportAllocationOpen: false }),
+
+  isHowToPlayOpen: false,
+  openHowToPlay: () => set({ isHowToPlayOpen: true }),
+  closeHowToPlay: () => set({ isHowToPlayOpen: false }),
 });

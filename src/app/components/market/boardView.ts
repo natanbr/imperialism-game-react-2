@@ -1,23 +1,33 @@
-// What the Board of Trade shows (FR-194, FR-248, FR-251 to FR-254, FR-257), derived from the engine's `boardOfTrade`.
+// What the Board of Trade shows (FR-194, FR-248, FR-251 to FR-254, FR-257; M12 FR-394, FR-397, FR-398, FR-400, FR-434),
+// derived from the engine's `boardOfTrade`.
 // No React, no store: the dialog renders this view and sends orders; the engine stays the judge of every order.
 import {
   boardOfTrade,
   buyersOf,
   countryName,
+  dealPrice,
+  OVERTURE_COST,
+  sellersOf,
   tradeBarrier,
   tradeCapacityOf,
+  tradeOrdersOf,
   validateOrder,
   type BoardBuyer,
+  type BoardRow,
   type BoardSeller,
+  type Order,
   type RejectReason,
   type TradeBarrier,
   type TradeCapacity,
+  type ValidationResult,
 } from "@/engine";
 import { MAX_BUY_BIDS } from "@/definisions/marketPrices";
+import { RECIPES } from "@/definisions/ResourceConversions";
+import type { Recipe } from "@/definisions/RecipeTypes";
 import type { GameState } from "@/types/GameState";
 import type { TradeCommodity } from "@/types/Market";
 import type { Nation } from "@/types/Nation";
-import { commodityName, REFUSAL_TEXT } from "../gameText";
+import { BUILDING_TEXT, commodityName, money, REFUSAL_TEXT } from "../gameText";
 import { namesText } from "./dealBookView";
 
 /** Why the player cannot trade with a minor this turn (FR-185), as the board marks it. */
@@ -53,6 +63,108 @@ export function barredText(barriers: readonly (TradeBarrier | undefined)[], side
   return `We may not trade with any ${side}`;
 }
 
+/**
+ * Why the engine refuses one more unit of a bid or an offer, in the Board's words (FR-248, FR-252, FR-253): the market's
+ * reason, the limit the header counts ("Holds", "Bids"), the warehouse, the money. Also what a repeated unit was refused
+ * for (FR-398). "limit-reached" is either limit, told apart by the free holds.
+ */
+export function moreRefusalText(state: GameState, nationId: string, commodity: TradeCommodity, reason: RejectReason): string {
+  switch (reason) {
+    case "no-seller":
+      return MORE_REFUSAL_TEXT.noSeller;
+    case "no-buyer":
+      return MORE_REFUSAL_TEXT.noBuyer;
+    case "sellers-barred":
+      return barredText(sellersOf(state, commodity).map((id) => tradeBarrier(state, nationId, id)), "seller");
+    case "buyers-barred":
+      return barredText(buyersOf(state, nationId, commodity).map((id) => tradeBarrier(state, nationId, id)), "buyer");
+    case "limit-reached":
+      return tradeCapacityOf(state, nationId).free === 0 ? MORE_REFUSAL_TEXT.holds : MORE_REFUSAL_TEXT.bids;
+    case "insufficient-resources":
+      return MORE_REFUSAL_TEXT.stock;
+    case "insufficient-funds":
+      return MORE_REFUSAL_TEXT.cash;
+    default:
+      return REFUSAL_TEXT[reason];
+  }
+}
+
+/** One of last turn's bids or offers (FR-397): the total the player left on that side of the commodity. */
+export interface RepeatTrade {
+  side: "bid" | "offer";
+  commodity: TradeCommodity;
+  amount: number;
+}
+
+/** A nation's orders of one turn, as the store's order log keeps them (FR-100). */
+export interface LoggedOrders {
+  turn: number;
+  nationId: string;
+  orders: readonly Order[];
+}
+
+/**
+ * FR-397: the bids and offers the nation left at the end of the turn before `turn` (the one just resolved), read from the
+ * order log: each order sets the turn's total, so the last one of a commodity's side counts; in the order first given;
+ * none at 0.
+ */
+export function lastTurnTrades(log: readonly LoggedOrders[], nationId: string, turn: number): RepeatTrade[] {
+  const entry = log.findLast((e) => e.turn === turn - 1 && e.nationId === nationId);
+  const totals = new Map<string, RepeatTrade>();
+  for (const order of entry?.orders ?? []) {
+    if (order.kind !== "buyCommodity" && order.kind !== "sellCommodity") continue;
+    const side = order.kind === "buyCommodity" ? "bid" : "offer";
+    totals.set(`${side}|${order.commodity}`, { side, commodity: order.commodity, amount: order.amount });
+  }
+  return [...totals.values()].filter((t) => t.amount > 0);
+}
+
+/** What "Repeat last turn's trades" did (FR-397, FR-398): the units in place of last turn's and the one line that says so. */
+export interface RepeatOutcome {
+  repeated: number;
+  total: number;
+  /** "Repeated 3 of 4 units. Coal bid: not enough money." */
+  text: string;
+}
+
+const lowerFirst = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
+
+/**
+ * FR-397, FR-398: orders `trades` again unit by unit through `submit` (the store's `submitOrder`; NR-018 kept: nothing
+ * stands in the engine), each unit one above this turn's total, so what is already ordered is kept. A unit the engine
+ * would refuse is not sent (so no alert); it stops its trade and the line names it with the Board's reason.
+ */
+export function repeatTrades(
+  trades: readonly RepeatTrade[],
+  nationId: string,
+  getState: () => GameState,
+  submit: (order: Order) => ValidationResult
+): RepeatOutcome {
+  let repeated = 0;
+  const refused: string[] = [];
+  for (const trade of trades) {
+    const kind = trade.side === "bid" ? "buyCommodity" : "sellCommodity";
+    const now = tradeOrdersOf(getState(), nationId);
+    let amount = Math.min(trade.amount, (trade.side === "bid" ? now.buy : now.sell)[trade.commodity] ?? 0);
+    repeated += amount;
+    while (amount < trade.amount) {
+      const order: Order = { kind, nationId, commodity: trade.commodity, amount: amount + 1 };
+      const state = getState();
+      const check = validateOrder(state, order);
+      const result = check.ok ? submit(order) : check;
+      if (!result.ok) {
+        const why = lowerFirst(moreRefusalText(state, nationId, trade.commodity, result.reason));
+        refused.push(`${commodityName(trade.commodity)} ${trade.side}: ${why}.`);
+        break;
+      }
+      amount += 1;
+      repeated += 1;
+    }
+  }
+  const total = trades.reduce((sum, t) => sum + t.amount, 0);
+  return { repeated, total, text: [`Repeated ${repeated} of ${total} ${total === 1 ? "unit" : "units"}.`, ...refused].join(" ") };
+}
+
 /** One minor on a row: a seller of the commodity or, for goods, a buyer. */
 export interface PartnerView {
   minorId: string;
@@ -76,6 +188,11 @@ export interface BoardRowView {
   name: string;
   /** The board price: last turn's world price, the base of every deal this turn (FR-189). */
   price: number;
+  /**
+   * FR-394: under the board price, the deal price with each minor on the row we may trade with and subsidise (sellers,
+   * then buyers): "Arvelia charges $114 with our 10%", "Sundmark pays $0 with our 100% subsidy". Absent when none.
+   */
+  dealPrices?: string[];
   /** In our warehouse now (offered units have already left it, FR-061): the "In warehouse" column (FR-251). */
   available: number;
   /** This turn's bid and offer in units; a row never has both (FR-062). */
@@ -103,6 +220,36 @@ export interface BoardView {
   bids: { used: number; max: number };
   /** "Arvelia favours Valdoria; Sundmark, Lorran and Pellis favour Testland." (FR-251), empty without a trading minor. */
   favouritesText: string;
+  /**
+   * FR-434: with nothing we may offer, how to make the first sale: "Minor nations buy Clothing, Furniture and Hardware.
+   * Make them in the Capital (Clothing factory, Furniture factory, Metal works) and open a consulate in Diplomacy
+   * ($500)."; the consulate step only while no minor that buys them may trade with us. Absent when something may be offered.
+   */
+  firstSaleText?: string;
+}
+
+/** The deal price lines of one row (FR-394): `dealPrice` with our subsidy, a seller's price up and a buyer's down (FR-189). */
+function dealPriceLines(row: BoardRow, nameOf: (countryId: string) => string): string[] {
+  const open = (p: BoardSeller | BoardBuyer): p is (BoardSeller | BoardBuyer) & { subsidy: number } => !p.barrier && (p.subsidy ?? 0) > 0;
+  return [
+    ...row.sellers.filter(open).map((s) => `${nameOf(s.minorId)} charges ${money(dealPrice(row.price, s.subsidy))} with our ${s.subsidy}%`),
+    ...row.buyers.filter(open).map((b) => `${nameOf(b.minorId)} pays ${money(dealPrice(row.price, -b.subsidy))} with our ${b.subsidy}% subsidy`),
+  ];
+}
+
+/** FR-434: the line for a player with nothing to offer, from the goods the minors want and the recipes that make them. */
+function firstSaleLine(board: readonly BoardRow[], rows: readonly BoardRowView[]): string | undefined {
+  if (rows.some((r) => r.offer > 0 || r.offerMoreRefusal === undefined)) return undefined;
+  const wanted = board.filter((r) => r.buyers.length > 0);
+  if (wanted.length === 0) return undefined;
+  const recipes = RECIPES as Readonly<Partial<Record<TradeCommodity, Recipe>>>;
+  const buildings = [...new Set(wanted.flatMap((r) => recipes[r.commodity]?.building ?? []))].map((b) => BUILDING_TEXT[b]);
+  const buyers = wanted.flatMap((r) => r.buyers);
+  const consulate = !buyers.some((b) => !b.barrier) && buyers.some((b) => b.barrier === "no-consulate");
+  return (
+    `Minor nations buy ${namesText(wanted.map((r) => commodityName(r.commodity)))}. Make them in the Capital (${buildings.join(", ")})` +
+    (consulate ? ` and open a consulate in Diplomacy (${money(OVERTURE_COST.consulate)}).` : ".")
+  );
 }
 
 /** "Arvelia: 3 units", "Sundmark: 1 unit" (FR-251). */
@@ -126,30 +273,10 @@ export function boardView(state: GameState, nation: Nation): BoardView {
   });
   const capacity = tradeCapacityOf(state, nation.id);
   const board = boardOfTrade(state, nation.id);
-  const reasonText = (reason: RejectReason, row: (typeof board)[number]): string => {
-    switch (reason) {
-      case "no-seller":
-        return MORE_REFUSAL_TEXT.noSeller;
-      case "no-buyer":
-        return MORE_REFUSAL_TEXT.noBuyer;
-      case "sellers-barred":
-        return barredText(row.sellers.map((s) => s.barrier), "seller");
-      case "buyers-barred":
-        return barredText(buyersOf(state, nation.id, row.commodity).map((id) => tradeBarrier(state, nation.id, id)), "buyer");
-      case "limit-reached":
-        return capacity.free === 0 ? MORE_REFUSAL_TEXT.holds : MORE_REFUSAL_TEXT.bids;
-      case "insufficient-resources":
-        return MORE_REFUSAL_TEXT.stock;
-      case "insufficient-funds":
-        return MORE_REFUSAL_TEXT.cash;
-      default:
-        return REFUSAL_TEXT[reason];
-    }
-  };
   /** The refusal of one more unit on that side, as validateOrder judges it now. */
   const moreRefusal = (kind: "buyCommodity" | "sellCommodity", row: (typeof board)[number], current: number): string | undefined => {
     const result = validateOrder(state, { kind, nationId: nation.id, commodity: row.commodity, amount: current + 1 });
-    return result.ok ? undefined : reasonText(result.reason, row);
+    return result.ok ? undefined : moreRefusalText(state, nation.id, row.commodity, result.reason);
   };
   /** "Arvelia favours Valdoria": the open counterparties that serve another Great Power first (FR-252). */
   const rivalFavourites = (partners: readonly (BoardSeller | BoardBuyer)[]): string | undefined => {
@@ -163,19 +290,27 @@ export function boardView(state: GameState, nation: Nation): BoardView {
 
   const rows = board.map((row): BoardRowView => {
     const bidMore = moreRefusal("buyCommodity", row, row.bid);
-    const offerMore = moreRefusal("sellCommodity", row, row.offer);
     // An offer no minor we may trade with wants is still allowed while another Great Power may bid for it (FR-253)
-    const openMinorBuyer = row.buyers.some((b) => !b.barrier);
-    const onlyPowers = openMinorBuyer
+    const openBuyers = row.buyers.filter((b) => !b.barrier);
+    const wanted = openBuyers.reduce((sum, b) => sum + b.units, 0);
+    // FR-400 (card Q104): "+" stops at what the minors we may trade with want; the engine still accepts more
+    const atDemand =
+      openBuyers.length > 0 && row.offer >= wanted
+        ? `${namesText(openBuyers.map((b) => nameOf(b.minorId)))} ${openBuyers.length > 1 ? "want" : "wants"} ${wanted}`
+        : undefined;
+    const offerMore = moreRefusal("sellCommodity", row, row.offer) ?? atDemand;
+    const onlyPowers = openBuyers.length > 0
       ? []
       : buyersOf(state, nation.id, row.commodity).filter((id) => !row.buyers.some((b) => b.minorId === id) && tradeBarrier(state, nation.id, id) === undefined);
     const bidNote = refusal(bidMore) ?? info(rivalFavourites(row.sellers));
     const offerNote =
       refusal(offerMore) ?? info(onlyPowers.length > 0 ? `Only ${namesText(onlyPowers.map(nameOf))} may buy this` : rivalFavourites(row.buyers));
+    const dealPrices = dealPriceLines(row, nameOf);
     return {
       commodity: row.commodity,
       name: commodityName(row.commodity),
       price: row.price,
+      ...(dealPrices.length > 0 ? { dealPrices } : {}),
       available: row.available,
       bid: row.bid,
       offer: row.offer,
@@ -192,6 +327,7 @@ export function boardView(state: GameState, nation: Nation): BoardView {
   const favouriteOf = new Map<string, string>();
   for (const p of board.flatMap((r) => [...r.sellers, ...r.buyers])) if (p.favouriteId && !favouriteOf.has(p.minorId)) favouriteOf.set(p.minorId, p.favouriteId);
   const favourites = [...favouriteOf].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([minorId, favouriteId]) => ({ minorId, favouriteId }));
+  const firstSaleText = firstSaleLine(board, rows);
   return {
     rows,
     treasury: nation.treasury,
@@ -199,5 +335,6 @@ export function boardView(state: GameState, nation: Nation): BoardView {
     holdsText: `Holds: ${capacity.free} of ${capacity.holds} free`,
     bids: { used: rows.filter((r) => r.bid > 0).length, max: MAX_BUY_BIDS },
     favouritesText: favourites.length > 0 ? `${favouritesSentence(favourites, nameOf)}.` : "",
+    ...(firstSaleText ? { firstSaleText } : {}),
   };
 }

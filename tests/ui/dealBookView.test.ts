@@ -3,6 +3,8 @@
 // QA fix round: what was not traded is its own list, each line with its cause (FR-255); the bottom line ends in the Trade
 // net and the Treasury lines add the diplomacy costs and the rest up to the treasury's change (FR-256); one money format
 // with a loss's minus sign in front (FR-258).
+// M12 FR-396 (audit ARMY-WAR-06): the Trade net is Sold less Bought only, the army upkeep is its own Treasury line
+// ("Army upkeep -$100"), and a turn without deals has no Trade net line.
 import { describe, it, expect } from 'vitest';
 import { dealBook, type GameEvent } from '@/engine';
 import { causeText, dealBookView, dealLineText, namesText } from '@/components/market/dealBookView';
@@ -32,7 +34,6 @@ describe('FR-244 FR-255 the Deal Book lines', () => {
       bottomLine: [
         { label: 'Sold', amount: 810, text: '$810' },
         { label: 'Bought', amount: 220, text: '$220' },
-        { label: 'Military upkeep', amount: 0, text: '$0' },
         { label: 'Trade net', amount: 590, text: '$590' },
       ],
       empty: false,
@@ -162,7 +163,9 @@ describe('FR-256 the Treasury lines: the trade net, the diplomacy costs and the 
 
     const lines = dealBookView(book, nameOf).treasury!;
     expect(lines).toEqual([
-      { label: 'Trade net', amount: -300, text: '-$300' },
+      // M12 FR-396: Sold less Bought only; the upkeep is its own line
+      { label: 'Trade net', amount: -200, text: '-$200' },
+      { label: 'Army upkeep', amount: -100, text: '-$100' },
       { label: 'Consulate in Arvelia', amount: -500, text: '-$500' },
       { label: 'Grant to Pellis', amount: -1000, text: '-$1,000' },
       { label: '2 Skirmishers recruited', amount: -400, text: '-$400' },
@@ -171,6 +174,37 @@ describe('FR-256 the Treasury lines: the trade net, the diplomacy costs and the 
     ]);
     expect(lines.some(l => l.label.startsWith('Other'))).toBe(false);
     expect(lines.slice(0, -1).reduce((sum, l) => sum + l.amount, 0)).toBe(lines.at(-1)!.amount);
+  });
+});
+
+describe('FR-396 the Deal Book names the army upkeep', () => {
+  const rows = (lines: { label: string; text: string }[] | undefined) => (lines ?? []).map((l) => `${l.label} ${l.text}`);
+
+  it('FR-396 no deals, upkeep $100, one Hussars recruited: "Army upkeep -$100", "1 Hussars recruited -$100", "Treasury change -$200", no Trade net', () => {
+    // The audit's turn (ARMY-WAR-06): the screen says "No deals last turn." and the Treasury table names both charges
+    const events: GameEvent[] = [
+      { type: 'army-upkeep', nationId: N1, amount: 100 },
+      { type: 'regiments-recruited', nationId: N1, regiment: 'hussars', count: 1 },
+      { type: 'turn-ended', turn: 2, year: 1815 },
+    ];
+    const view = dealBookView(dealBook(events, N1, { start: 9900, end: 9700 }), nameOf);
+    expect(view.empty).toBe(true);
+    expect(rows(view.treasury)).toEqual(['Army upkeep -$100', '1 Hussars recruited -$100', 'Treasury change -$200']);
+    expect(view.cash).toBe('From $9,900 to $9,700');
+  });
+
+  it('FR-396 with deals the Trade net is Sold less Bought, the upkeep follows it, and the lines still add up to the change', () => {
+    // 1 clothing sold at $810, 2 coal bought at $110, the $100 upkeep: $10,000 to $10,490
+    const events: GameEvent[] = [...EVENTS, { type: 'army-upkeep', nationId: N1, amount: 100 }];
+    const view = dealBookView(dealBook(events, N1, { start: 10000, end: 10490 }), nameOf);
+    expect(rows(view.bottomLine)).toEqual(['Sold $810', 'Bought $220', 'Trade net $590']);
+    expect(rows(view.treasury)).toEqual(['Trade net $590', 'Army upkeep -$100', 'Treasury change $490']);
+    expect(view.treasury!.slice(0, -1).reduce((sum, l) => sum + l.amount, 0)).toBe(view.treasury!.at(-1)!.amount);
+  });
+
+  it('FR-396 a turn without upkeep (militia only) has no Army upkeep line', () => {
+    const view = dealBookView(dealBook(EVENTS, N1, { start: 10000, end: 10590 }), nameOf);
+    expect(rows(view.treasury)).toEqual(['Trade net $590', 'Treasury change $590']);
   });
 });
 

@@ -1,5 +1,5 @@
 "use client";
-import React, { useId, useMemo } from "react";
+import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useGameStore } from "../store/rootStore";
 import { attackView, type AttackRegimentView, type AttackView, type DefenderView } from "./army/attackView";
 import styles from "./army/War.module.css";
@@ -13,6 +13,44 @@ const VERDICT_CLASS: Record<AttackView["estimate"]["verdict"], string> = {
   uncertain: styles.uncertain,
   "likely-defeat": styles.likelyDefeat,
 };
+
+/**
+ * FR-419: how many of the items (`li`) in a scrolling box lie, wholly or in part, below its visible bottom; measured after
+ * each render, on scroll and on resize. Returns the ref for the box and the count.
+ */
+export function useMoreBelow<T extends HTMLElement>(): [React.RefObject<T | null>, number] {
+  const ref = useRef<T>(null);
+  const [below, setBelow] = useState(0);
+  const measure = useCallback(() => {
+    const scroller = ref.current;
+    if (!scroller) return;
+    const bottom = scroller.getBoundingClientRect().bottom;
+    // 1 px of slack: a row that ends on the edge is shown
+    const count = [...scroller.querySelectorAll("li")].filter((item) => item.getBoundingClientRect().bottom > bottom + 1).length;
+    setBelow(count);
+  }, []);
+  // Every render: the rows or the window may have changed (a new round, a resized dialog); setBelow bails out when equal
+  useLayoutEffect(measure);
+  useEffect(() => {
+    const scroller = ref.current;
+    if (!scroller) return;
+    scroller.addEventListener("scroll", measure, { passive: true });
+    window.addEventListener("resize", measure);
+    return () => {
+      scroller.removeEventListener("scroll", measure);
+      window.removeEventListener("resize", measure);
+    };
+  }, [measure]);
+  return [ref, below];
+}
+
+/** "5 more below" under a list that scrolls (FR-419); nothing when every row shows. */
+export const MoreBelow: React.FC<{ count: number; testId: string }> = ({ count, testId }) =>
+  count > 0 ? (
+    <p className={styles.moreBelow} data-testid={testId}>
+      {`${count} more below`}
+    </p>
+  ) : null;
 
 /** A health bar and its number ("80%"), the number alone read out. */
 const Health: React.FC<{ value: number }> = ({ value }) => (
@@ -62,6 +100,8 @@ const AttackScreen: React.FC = () => {
   const estimateId = useId();
   const legendId = useId();
   const reasonId = useId();
+  const [oursList, oursBelow] = useMoreBelow<HTMLUListElement>();
+  const [defendersList, defendersBelow] = useMoreBelow<HTMLUListElement>();
 
   const view = useMemo(() => attackView(game, nationId, plan), [game, nationId, plan]);
 
@@ -93,11 +133,12 @@ const AttackScreen: React.FC = () => {
           <h3 id={oursId} className={styles.sideHeading}>
             Our regiments
           </h3>
-          <ul className={styles.list} aria-labelledby={oursId}>
+          <ul ref={oursList} className={styles.list} aria-labelledby={oursId}>
             {view.ours.map((r) => (
               <RegimentRow key={r.id} regiment={r} />
             ))}
           </ul>
+          <MoreBelow count={oursBelow} testId="ours-more-below" />
         </section>
         <section className={styles.side}>
           <h3 className={styles.sideHeading} data-testid="defenders-heading">
@@ -110,11 +151,14 @@ const AttackScreen: React.FC = () => {
             </p>
           )}
           {view.defenders.length > 0 ? (
-            <ul className={styles.list} aria-label="Defenders">
-              {view.defenders.map((d) => (
-                <RegimentRow key={d.id} regiment={d} defender legendId={legendId} />
-              ))}
-            </ul>
+            <>
+              <ul ref={defendersList} className={styles.list} aria-label="Defenders">
+                {view.defenders.map((d) => (
+                  <RegimentRow key={d.id} regiment={d} defender legendId={legendId} />
+                ))}
+              </ul>
+              <MoreBelow count={defendersBelow} testId="defenders-more-below" />
+            </>
           ) : (
             <p className={styles.empty} data-testid="no-defenders">
               {view.noDefenders}

@@ -16,13 +16,17 @@ interface CountryTabProps {
 /**
  * One country in the list (FR-237): named after the country, with its kind, the relation (a decorative swatch and the
  * words, FR-177, FR-179), the treaty chips ("since the start" for the Great Powers' start treaties, FR-240) and a
- * marker while orders toward it stand this turn. All but the name is the tab's description.
+ * marker while orders toward it stand this turn, and one while it has an offer to us unanswered (FR-410). All but the
+ * name is the tab's description.
  */
 const CountryTab: React.FC<CountryTabProps> = ({ row, selected, panelId, onSelect, tabRef }) => {
   const nameId = useId();
   const infoId = useId();
   const markId = useId();
+  const offerId = useId();
   const ordered = row.ordered.length;
+  const offered = row.offers.length > 0;
+  const describedBy = [infoId, ordered > 0 && markId, offered && offerId].filter(Boolean).join(" ");
   return (
     <button
       ref={tabRef}
@@ -31,7 +35,7 @@ const CountryTab: React.FC<CountryTabProps> = ({ row, selected, panelId, onSelec
       aria-selected={selected}
       aria-controls={selected ? panelId : undefined}
       aria-labelledby={nameId}
-      aria-describedby={ordered > 0 ? `${infoId} ${markId}` : infoId}
+      aria-describedby={describedBy}
       tabIndex={selected ? 0 : -1}
       className={`${styles.tab} ${selected ? styles.tabSelected : ""}`}
       onClick={onSelect}
@@ -44,6 +48,11 @@ const CountryTab: React.FC<CountryTabProps> = ({ row, selected, panelId, onSelec
         {ordered > 0 && (
           <span id={markId} className={styles.orderedMark} data-testid="ordered-mark" title="Orders toward this country this turn">
             {`${ordered} ordered`}
+          </span>
+        )}
+        {offered && (
+          <span id={offerId} className={styles.offerMark} data-testid="offer-mark" title="An offer to us, not answered yet: End Turn refuses it">
+            Offer
           </span>
         )}
       </span>

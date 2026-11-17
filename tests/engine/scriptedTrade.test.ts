@@ -82,7 +82,9 @@ describe('FR-245 (a) a consulate only where it will trade', () => {
   });
 
   it('FR-245 a minor where it holds a consulate, or is at war, is skipped', () => {
-    const held = setPair(continent(), N2, 'minor-1', { consulates: [N2] });
+    // Arvelia favours Testland by 1 point, so it does not cover Valdoria's holds (M12 FR-401: at equal points seed 1's
+    // Arvelia favours Valdoria and would cover them; until M12 turn 1's intentOrder put Testland first)
+    const held = setPair(setPair(continent(), N2, 'minor-1', { consulates: [N2] }), N1, 'minor-1', { points: 31 });
     expect(consulateTargets(scriptedPlayer(held, N2))).toEqual(['minor-2']);
     const war = setPair(continent(), N2, 'minor-1', { war: { aggressors: [N2], since: 1 } });
     expect(consulateTargets(scriptedPlayer(war, N2))).toEqual(['minor-2']);

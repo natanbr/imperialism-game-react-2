@@ -1,9 +1,10 @@
 // The scripted war (M9; rules remake, decision card Q35). FR-228, at war: (a) the capital province keeps its 4 arms
 // (FR-213), (b) the other regiments march one province a turn toward the nation's province that borders the strongest
 // enemy force, (c) they attack a bordering enemy province when the estimate (FR-226) is 1.5 or more, a province lost in
-// this war first, then the lowest id; (d) peace is FR-174's (diplomacy.ts). FR-274, at peace: from turn 10 it picks the
-// bordering minor with the lowest defence, recruits until its field army is twice that defence, declares war (one war
-// at a time, never on a Great Power) and marches. On a world without provinces it orders nothing.
+// this war first, then the lowest id; (d) peace: FR-174's answers, FR-408's offers (diplomacy.ts). FR-274, at peace:
+// from turn 10 it picks the bordering minor with the lowest defence, recruits until its field army is twice that
+// defence, declares war (one war at a time, never on a Great Power) and marches. On a world without provinces it orders
+// nothing.
 import type { CountryId, MinorNationId, NationId, ProvinceId, RegimentId } from "@/types/Common";
 import type { GameState } from "@/types/GameState";
 import type { Province } from "@/types/Province";
@@ -104,6 +105,25 @@ export function campaignTarget(state: GameState, nationId: NationId): MinorNatio
 /** FR-274: the field army twice the target's defence. */
 const campaignNeed = (state: GameState, nationId: NationId, minorId: MinorNationId): number => SCRIPTED_WAR.strengthFactor * targetDefence(state, nationId, minorId);
 
+/** FR-274: the campaign has a target and its field strength is below twice the target's defence. */
+function campaignShort(state: GameState, nationId: NationId): boolean {
+  const target = campaignTarget(state, nationId);
+  return target !== undefined && fieldStrength(state, nationId) < campaignNeed(state, nationId, target);
+}
+
+/**
+ * FR-458: the workers of `grade` training keeps for the campaign's recruits while it is short (`campaignShort`): one for
+ * each regiment the horses in stock can raise, when SCRIPTED_WAR.regiment draws a worker of that grade (Cuirassiers: a
+ * trained one). Without it, cash beyond the reserve trained the last trained workers to experts and no Cuirassiers
+ * could be raised (measured on the continent once depots gathered more: no war by turn 25 on seeds 1 to 4).
+ */
+export function workersKeptForCampaign(state: GameState, nationId: NationId, grade: "untrained" | "trained"): number {
+  const def = REGIMENTS[SCRIPTED_WAR.regiment];
+  if (def.worker !== grade || !campaignShort(state, nationId)) return 0;
+  const horses = (nationById(state, nationId)?.warehouse as Record<string, number> | undefined)?.[ResourceType.Horses] ?? 0;
+  return def.horses > 0 ? Math.floor(horses / def.horses) : Infinity;
+}
+
 /**
  * FR-274: the campaign wants one more regiment (SCRIPTED_WAR.regiment) this turn: its field strength is below twice the
  * target's defence, and the nation has what the regiment takes besides cash and armaments (a horse, a healthy worker of
@@ -111,8 +131,7 @@ const campaignNeed = (state: GameState, nationId: NationId, minorId: MinorNation
  * and its armaments are the garrison's (scriptedArmy.ts, economy.ts).
  */
 export function campaignRecruit(state: GameState, nationId: NationId): boolean {
-  const target = campaignTarget(state, nationId);
-  if (target === undefined || fieldStrength(state, nationId) >= campaignNeed(state, nationId, target)) return false;
+  if (!campaignShort(state, nationId)) return false;
   const nation = nationById(state, nationId)!;
   const def = REGIMENTS[SCRIPTED_WAR.regiment];
   const horses = (nation.warehouse as Record<string, number>)[ResourceType.Horses] ?? 0;

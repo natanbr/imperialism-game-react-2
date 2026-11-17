@@ -22,6 +22,16 @@ export function losingWar(state: GameState, nationId: CountryId, enemyId: Countr
   return tookProvince(war, enemyId, nationId) || militaryStrength(state, nationId) < militaryStrength(state, enemyId);
 }
 
+/**
+ * FR-408 (card Q92): the enemy took one of the nation's provinces or won a battle against it in this war (`War.battles`).
+ * What makes the scripted Great Power propose peace; its answers still read `losingWar` (FR-174). False at peace.
+ */
+export function beatenInWar(state: GameState, nationId: CountryId, enemyId: CountryId): boolean {
+  const war = warBetween(state, nationId, enemyId);
+  if (!war) return false;
+  return tookProvince(war, enemyId, nationId) || (war.battles ?? []).some((b) => b.winnerId === enemyId && b.loserId === nationId);
+}
+
 /** It accepts an alliance at level 6 (grey) or higher with the proposer, and never while at war with it. */
 export function acceptsAlliance(state: GameState, answererId: NationId, proposerId: NationId): boolean {
   if (warBetween(state, answererId, proposerId)) return false;

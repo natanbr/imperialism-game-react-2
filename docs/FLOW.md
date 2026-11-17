@@ -17,6 +17,8 @@ Every agent working in this repo reads this file once per session. It is short o
 | `docs/rules/` | rules of the original game, one topic per file | rules research only |
 | `docs/ARCHITECTURE.md` | how the code is built | whoever changes the structure |
 | `docs/report/roadmap.json` | data for the progress page | orchestrator at each checkpoint |
+| `docs/specs/hud.md` | the HUD redesign spec (M12b): layout, sizes, tasks, tests; rows FR-465 to FR-480 | HUD task lane |
+| `docs/specs/m13-m16.md` | the M13 to M16 spec: findings, rows FR-481 to FR-528, tasks, cards Q114 to Q135 | planning; the milestone lanes |
 
 Rules for these files:
 - Requirement ids are permanent. A changed requirement gets a new id; the old one is marked

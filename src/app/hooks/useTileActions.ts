@@ -12,9 +12,9 @@ import { getRancherActions } from '@/workers/RancherWorker';
 import { getDrillerActions } from '@/workers/DrillerWorker';
 
 /**
- * Determine what action a worker can perform on a tile
+ * Determine what action a worker can perform on a tile (also read by the click cursors, tileClickOrders.clickCursors)
  */
-function getPossibleAction(
+export function getPossibleAction(
   tile: Tile,
   selectedWorker: Worker | null,
   map: GameMap

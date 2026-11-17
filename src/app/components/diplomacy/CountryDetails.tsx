@@ -2,7 +2,21 @@
 import React, { useEffect, useId, useRef, useState } from "react";
 import type { GrantAmount, Order, SubsidyPercent, ValidationResult } from "@/engine";
 import type { GameState } from "@/types/GameState";
-import { GRANT_OPTIONS, grantControl, policyControl, reasonLines, SUBSIDY_OPTIONS, type ControlView, type CountryRowView } from "./diplomacyView";
+import {
+  boycottHelp,
+  GRANT_OPTIONS,
+  grantAsk,
+  grantControl,
+  grantHelp,
+  policyControl,
+  reasonLines,
+  SUBSIDY_OPTIONS,
+  subsidyHelp,
+  type ControlView,
+  type CountryRowView,
+  type GrantAsk,
+  type OfferView,
+} from "./diplomacyView";
 import { useEscapeFirst } from "../Modal";
 import styles from "./Diplomacy.module.css";
 
@@ -103,6 +117,52 @@ const ConfirmWar: React.FC<ConfirmWarProps> = ({ name, breaks, onMinor, onDeclar
   );
 };
 
+interface ConfirmGrantProps {
+  name: string;
+  ask: GrantAsk;
+  onGive: () => void;
+  onKeep: () => void;
+}
+
+/**
+ * FR-422: "Give $10,000 to Arvelia? The treasury will hold $40,000 after it." asked in place, like the war question, with
+ * FR-393's upkeep warning when the cash left would be short; Escape anywhere in the dialog keeps the money.
+ */
+const ConfirmGrant: React.FC<ConfirmGrantProps> = ({ name, ask, onGive, onKeep }) => {
+  const panel = useRef<HTMLDivElement>(null);
+  const questionId = useId();
+  const upkeepId = useId();
+  useEffect(() => {
+    panel.current?.focus();
+  }, []);
+  useEscapeFirst(onKeep);
+  return (
+    <div
+      ref={panel}
+      tabIndex={-1}
+      className={`${styles.confirm} ${styles.confirmGrant}`}
+      role="group"
+      aria-label={`Confirm grant to ${name}`}
+      aria-describedby={ask.upkeep ? `${questionId} ${upkeepId}` : questionId}
+    >
+      <p id={questionId} data-testid="grant-question">
+        {ask.question}
+      </p>
+      {ask.upkeep && (
+        <p id={upkeepId} className={styles.warCost} data-testid="grant-upkeep">
+          {ask.upkeep}
+        </p>
+      )}
+      <button className={`${styles.button} ${styles.offerAccept}`} onClick={onGive}>
+        {ask.confirm}
+      </button>
+      <button className={styles.button} onClick={onKeep}>
+        Keep the money
+      </button>
+    </div>
+  );
+};
+
 interface FormProps {
   row: CountryRowView;
   state: GameState;
@@ -117,7 +177,11 @@ const GrantForm: React.FC<FormProps> = ({ row, state, nationId, submitOrder }) =
   const titleId = useId();
   const amountId = useId();
   const oftenId = useId();
+  const [asking, setAsking] = useState(false);
+  const giveButton = useRef<HTMLButtonElement>(null);
   const give = grantControl(state, nationId, row.id, amount, locked);
+  // FR-422: a grant of $1,000 or more asks once; a refused one is disabled and never asks
+  const ask = give.refusal === undefined ? grantAsk(state, nationId, row.id, amount, locked) : undefined;
   const reasons = useReasons([give, row.stopGrant]);
   return (
     <div className={styles.block} role="group" aria-labelledby={titleId}>
@@ -142,10 +206,35 @@ const GrantForm: React.FC<FormProps> = ({ row, state, nationId, submitOrder }) =
           <option value="once">once</option>
           <option value="each-turn">each turn</option>
         </select>
-        <ControlButton control={give} submitOrder={submitOrder} reasonId={reasons.idOf(give)} />
+        <ControlButton
+          control={give}
+          submitOrder={submitOrder}
+          reasonId={reasons.idOf(give)}
+          onClick={ask ? () => setAsking((open) => !open) : undefined}
+          expanded={ask ? asking : undefined}
+          buttonRef={giveButton}
+        />
         {row.stopGrant && <ControlButton control={row.stopGrant} submitOrder={submitOrder} reasonId={reasons.idOf(row.stopGrant)} />}
       </div>
+      {/* FR-416: what the grant chosen adds */}
+      <p className={styles.help} data-testid="grant-help">
+        {grantHelp(amount, locked)}
+      </p>
       {reasons.list}
+      {asking && ask && (
+        <ConfirmGrant
+          name={row.name}
+          ask={ask}
+          onGive={() => {
+            submitOrder(give.order);
+            setAsking(false);
+          }}
+          onKeep={() => {
+            setAsking(false);
+            giveButton.current?.focus();
+          }}
+        />
+      )}
     </div>
   );
 };
@@ -181,6 +270,37 @@ const PolicyForm: React.FC<FormProps> = ({ row, state, nationId, submitOrder }) 
         </span>
         <ControlButton control={set} submitOrder={submitOrder} reasonId={reasons.idOf(set)} />
       </div>
+      {/* FR-395, FR-416: what the step chosen costs and what a boycott does */}
+      <p className={styles.help} data-testid="subsidy-help">
+        {subsidyHelp(state, row.id, subsidy)}
+      </p>
+      <p className={styles.help} data-testid="boycott-help">
+        {boycottHelp(state, row.id)}
+      </p>
+      {reasons.list}
+    </div>
+  );
+};
+
+/** An unanswered offer from the country (FR-410): its line, what accepting does (FR-411), Accept and Reject. */
+const OfferBlock: React.FC<{ offer: OfferView; submitOrder: Submit }> = ({ offer, submitOrder }) => {
+  const titleId = useId();
+  const reasons = useReasons([offer.accept, offer.reject]);
+  return (
+    <div className={`${styles.block} ${styles.offerBlock}`} role="group" aria-labelledby={titleId} data-testid="offer">
+      <span id={titleId} className={styles.blockTitle}>
+        Offer
+      </span>
+      <p className={styles.offerLine} data-testid="offer-line">
+        {offer.text}
+      </p>
+      <p className={styles.offerEffect} data-testid="offer-effect">
+        {offer.effect}
+      </p>
+      <div className={styles.overtures}>
+        <ControlButton control={offer.reject} submitOrder={submitOrder} reasonId={reasons.idOf(offer.reject)} className={styles.warButton} />
+        <ControlButton control={offer.accept} submitOrder={submitOrder} reasonId={reasons.idOf(offer.accept)} className={styles.offerAccept} />
+      </div>
       {reasons.list}
     </div>
   );
@@ -196,13 +316,17 @@ interface CountryDetailsProps {
 }
 
 /**
- * The selected country's details, the right pane of the Diplomacy screen (FR-237): this turn's ordered overtures with
- * Withdraw, then the overture, grant and trade policy controls (FR-177, FR-178). Every control sends one order
- * through submitOrder; a refused one is disabled and its refusal shows once, under its group.
+ * The selected country's details, the right pane of the Diplomacy screen (FR-237): its unanswered offers (FR-410), its
+ * strength (FR-418) and a minor's Council vote (FR-417), this turn's ordered overtures with Withdraw, then the overture,
+ * grant and trade policy controls (FR-177, FR-178), each with the line that says what it does (FR-416, FR-395). Every
+ * control sends one order through submitOrder; a refused one is disabled and its refusal shows once, under its group.
+ * A grant asks once first (FR-422).
  */
 export const CountryDetails: React.FC<CountryDetailsProps> = ({ row, state, nationId, submitOrder, panelId }) => {
   const nameId = useId();
   const overturesId = useId();
+  const strengthId = useId();
+  const voteId = useId();
   const [askingWar, setAskingWar] = useState(false);
   const warButton = useRef<HTMLButtonElement>(null);
   const overtures = useReasons(row.overtures);
@@ -216,6 +340,38 @@ export const CountryDetails: React.FC<CountryDetailsProps> = ({ row, state, nati
         </h3>
         <span className={styles.kind}>{row.kind}</span>
       </header>
+
+      {/* FR-410: an offer closed in Accept Offer stays answerable here until End Turn */}
+      {row.offers.map((offer) => (
+        <OfferBlock key={offer.id} offer={offer} submitOrder={submitOrder} />
+      ))}
+
+      {/* FR-418: what the country is: its provinces, its army against ours, a Great Power's industry */}
+      <div className={styles.block} role="group" aria-labelledby={strengthId}>
+        <span id={strengthId} className={styles.blockTitle}>
+          Strength
+        </span>
+        <dl className={styles.facts}>
+          {row.strength.map((fact) => (
+            <div key={fact.term} className={styles.fact} data-testid="fact">
+              <dt>{fact.term}</dt>
+              <dd>{fact.value}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+
+      {row.vote && (
+        // FR-417: the relation points the Council vote reads (FR-293)
+        <div className={styles.block} role="group" aria-labelledby={voteId}>
+          <span id={voteId} className={styles.blockTitle}>
+            Council vote
+          </span>
+          <p className={styles.help} data-testid="council-vote">
+            {row.vote}
+          </p>
+        </div>
+      )}
 
       {row.ordered.length > 0 && (
         <div className={styles.block}>
@@ -245,18 +401,23 @@ export const CountryDetails: React.FC<CountryDetailsProps> = ({ row, state, nati
         <span id={overturesId} className={styles.blockTitle}>
           Overtures
         </span>
-        <div className={styles.overtures}>
+        {/* FR-416: each overture beside the line that says what it costs and does */}
+        <div className={styles.overtureRows}>
           {row.overtures.map((control) => (
-            <ControlButton
-              key={control.label}
-              control={control}
-              submitOrder={submitOrder}
-              reasonId={overtures.idOf(control)}
-              className={isWar(control) ? styles.warButton : undefined}
-              onClick={isWar(control) ? () => setAskingWar((open) => !open) : undefined}
-              expanded={isWar(control) ? askingWar : undefined}
-              buttonRef={isWar(control) ? warButton : undefined}
-            />
+            <React.Fragment key={control.label}>
+              <ControlButton
+                control={control}
+                submitOrder={submitOrder}
+                reasonId={overtures.idOf(control)}
+                className={isWar(control) ? styles.warButton : undefined}
+                onClick={isWar(control) ? () => setAskingWar((open) => !open) : undefined}
+                expanded={isWar(control) ? askingWar : undefined}
+                buttonRef={isWar(control) ? warButton : undefined}
+              />
+              <span className={styles.help} data-testid="overture-help">
+                {control.help}
+              </span>
+            </React.Fragment>
           ))}
         </div>
         {overtures.list}

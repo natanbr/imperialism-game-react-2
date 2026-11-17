@@ -19,9 +19,6 @@ export const CONSTRUCTION_COST: Record<"rail" | "depot" | "port" | "fort", numbe
   fort: 5000,
 };
 
-/** Fort levels 2 and 3 need technology (Bessemer Converter, Large Artillery) that v1 lacks. */
-export const FORT_LEVEL_COST: Record<1 | 2 | 3, number> = { 1: 5000, 2: 7500, 3: 10000 };
-
 /**
  * Rail by the terrain of the tile it is built on: $100 on flat land, $150 on tundra and either
  * forest, $200 on hills, $300 on swamp. [NEEDS CLARIFICATION] gaps.md B3: mountains are not

@@ -1,18 +1,15 @@
 import { Tile } from "@/types/Tile";
-import React from "react";
+import React, { useEffect, useId, useRef, useState } from "react";
 import { useGameStore } from "../store/rootStore";
 import { Worker, WorkerStatus, WorkerType } from "@/types/Workers";
-import { PROSPECTABLE_TERRAIN_TYPES } from "../definisions/terrainDefinitions";
-import { DEVELOPMENT_WORKER_TYPES } from "../definisions/workerDefinitions";
-import { canBuildRailAt } from "@/engine/map/mapHelpers";
 import { countryName, countryOfTile, isMinorNation, provinceOf } from "@/engine";
-import { PROSPECT_COST, DEVELOPMENT_COST, CONSTRUCTION_COST } from "@/definisions/workPrices";
-import { parseTileIdToArray } from "@/utils/tileIdUtils";
-import { ConstructionKind } from "@/types/jobs/ConstructionJob";
-import { commodityName, money, TERRAIN_TEXT, workerJobLabel } from "./gameText";
+import { commodityName, TERRAIN_TEXT, workerJobLabel } from "./gameText";
 import { InkPicture } from "./art/ArtPicture";
 import { civilianArt, goodsArt } from "./art/inkArt";
 import { THEME } from "@/styles/theme";
+import { submitAndSay, submitOrAsk } from "@/hooks/tileClickOrders";
+import { cancelQuestion, collectionText, costText, jobNote, jobOffers, type JobOffer } from "./tileSiteText";
+import { Modal } from "./Modal";
 
 interface TileInfoPanelProps {
   selectedTile: Tile | undefined;
@@ -29,19 +26,72 @@ const WorkerStatusIndicator: React.FC<{ status: WorkerStatus }> = ({ status }) =
 };
 
 /**
+ * One job the selected civilian is offered (FR-381): its button, named as before and enabled only where the engine would
+ * accept the order; its price (and turns) beside it; a refused one's reason in a line under it, which the button points at.
+ * A job of $1,000 or more asks first (FR-383); an accepted one ends the civilian selection on the tile (FR-449).
+ */
+const JobOfferRow: React.FC<{ offer: JobOffer; tileId: string }> = ({ offer, tileId }) => {
+  const reasonId = useId();
+  return (
+    <div className="job-offer" data-testid="job-offer">
+      <button
+        type="button"
+        onClick={(e) => {
+          // Not to the civilian's row, whose click selects the civilian again
+          e.stopPropagation();
+          submitOrAsk(offer.order, tileId);
+        }}
+        disabled={offer.refusal !== undefined}
+        aria-describedby={offer.refusal !== undefined ? reasonId : undefined}
+        className="btn btn-action">
+        {offer.order.kind === "startProspecting" && <InkPicture src={civilianArt(WorkerType.Prospector)} alt="" inline />}
+        {offer.name}
+      </button>
+      {offer.cost && (
+        <span className="job-price" data-testid="job-price">
+          {costText(offer.cost)}
+        </span>
+      )}
+      {offer.refusal !== undefined && (
+        <div className="job-reason" data-testid="job-reason" id={reasonId}>
+          {offer.refusal}
+        </div>
+      )}
+    </div>
+  );
+};
+
+/**
  * The selected tile in the HUD. On the player's land it offers the selected civilian's jobs; another
  * country's tile, a Great Power's or a minor nation's, is shown read-only, with no control that builds
  * an order (FR-108, FR-155). On a world with provinces it names a Great Power tile's province (FR-155, FR-235).
  * A known resource shows its goods picture (FR-331), each civilian its figure and Prospect the prospector (FR-332).
+ * The player's known resource says who collects it (FR-391); a fort its level (FR-388).
  */
 export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) => {
   const selectedWorkerId = useGameStore((s) => s.selectedWorkerId);
   const setSelectedWorkerId = useGameStore((s) => s.setSelectedWorkerId);
-  const submitOrder = useGameStore((s) => s.submitOrder);
-  const map = useGameStore((s) => s.game.map);
+  const selectWorker = useGameStore((s) => s.selectWorker);
+  const selectTile = useGameStore((s) => s.selectTile);
   const activeNationId = useGameStore((s) => s.activeNationId);
-  const activeNation = useGameStore((s) => s.game.nations.find(n => n.id === s.activeNationId));
   const game = useGameStore((s) => s.game);
+  // FR-386: the civilian whose Cancel is being asked about (component state: the question is this panel's)
+  const [cancelling, setCancelling] = useState<string | null>(null);
+  const cancelTitleId = useId();
+  const cancelTextId = useId();
+  // FR-448: the selected civilian's first job offer (else its row) scrolled into the HUD's view, above its fade; only that
+  // far, so Tile Info's heading stays in sight at 1280x720 (the whole row of four offers would push it out). FR-463: from
+  // the HUD's top, as an earlier selection may have left it scrolled past the heading (the capital's seventh civilian
+  // row) with this offer already in view, where "nearest" alone does not scroll
+  const heading = useRef<HTMLHeadingElement>(null);
+  const selectedRow = useRef<HTMLLIElement>(null);
+  const selectedTileId = selectedTile?.id;
+  useEffect(() => {
+    const hud = heading.current?.closest<HTMLElement>(".hud-content");
+    if (hud) hud.scrollTop = 0;
+    const row = selectedRow.current;
+    (row?.querySelector('[data-testid="job-offer"]') ?? row)?.scrollIntoView?.({ block: "nearest" });
+  }, [selectedWorkerId, selectedTileId]);
 
   // FR-315: nothing without a selection; the HUD needs that height for the news (the Council line at game over)
   if (!selectedTile) return null;
@@ -60,91 +110,56 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
     : !known
       ? "Not yet prospected"
       : `${commodityName(resource.type)} (L${resource.level})`;
+  const collected = collectionText(game, activeNationId, selectedTile);
+  const fortLevel = selectedTile.fortLevel ?? 0;
 
-  const handleCancelAction = (workerId: string) => {
-    if (window.confirm("Are you sure you want to cancel this action?")) {
-      submitOrder({ kind: "cancelWorkerAction", nationId: activeNationId, workerId, tileId: selectedTile.id });
-    }
+  // FR-386, FR-387: Cancel asks what comes back; Yes sends the cancel (two for a move and a job of one click), each said
+  // on the map if refused, stopping at a refusal
+  const cancellingWorker = cancelling ? selectedTile.workers.find((w) => w.id === cancelling) : undefined;
+  const question = cancellingWorker ? cancelQuestion(game, activeNationId, cancellingWorker, selectedTile) : undefined;
+  const confirmCancel = () => {
+    setCancelling(null);
+    for (const order of question?.orders ?? []) if (!submitAndSay(order).ok) break;
   };
-  const startProspecting = (workerId: string) =>
-    submitOrder({ kind: "startProspecting", nationId: activeNationId, workerId, tileId: selectedTile.id });
-  const startDevelopment = (workerId: string) =>
-    submitOrder({ kind: "startDevelopment", nationId: activeNationId, workerId, tileId: selectedTile.id });
-  const startConstruction = (workerId: string, structure: ConstructionKind) =>
-    submitOrder({ kind: "startConstruction", nationId: activeNationId, workerId, tileId: selectedTile.id, structure });
-
+  // FR-381: every job of the civilian's type, each as the engine would take it; past level 3 a line instead (FR-383 asks)
   const renderWorkerActions = (worker: Worker) => {
     if (worker.status !== WorkerStatus.Available) return null;
-
-    if (worker.type === WorkerType.Prospector) {
-      const canProspect = !selectedTile.prospecting && (activeNation?.treasury ?? 0) >= PROSPECT_COST && PROSPECTABLE_TERRAIN_TYPES.includes(selectedTile.terrain);
-      if (canProspect) {
-        return (
-          <button onClick={() => startProspecting(worker.id)} title={`Cost: ${money(PROSPECT_COST)}`} className="btn btn-action">
-            <InkPicture src={civilianArt(WorkerType.Prospector)} alt="" inline />Prospect
-          </button>
-        );
-      }
-    }
-
-    if (DEVELOPMENT_WORKER_TYPES.includes(worker.type)) {
-      const treasury = activeNation?.treasury ?? 0;
-      const resource = selectedTile.resource;
-
-      // Check if resource exists and is discovered
-      const hasDiscoveredResource = resource && resource.discovered !== false;
-      const currentLevel = resource?.level ?? 0;
-      const nextLevel = (currentLevel + 1) as 1 | 2 | 3;
-
-      if (nextLevel > 3) return null;
-
-      const canAfford = treasury >= DEVELOPMENT_COST[nextLevel];
-      const isEnabled = hasDiscoveredResource && canAfford;
-      const jobLabel = `Develop ${worker.type} L${nextLevel}`;
-
-      // Determine the title message
-      let titleMessage = `${jobLabel} (${money(DEVELOPMENT_COST[nextLevel])})`;
-      if (!hasDiscoveredResource) {
-        titleMessage = "Resource not discovered - use Prospector first";
-      } else if (!canAfford) {
-        titleMessage = `Not enough funds (need ${money(DEVELOPMENT_COST[nextLevel])})`;
-      }
-
-      return (
-        <button
-            onClick={() => startDevelopment(worker.id)}
-            title={titleMessage}
-            disabled={!isEnabled}
-            className="btn btn-action">
-          {jobLabel}
-        </button>
-      );
-    }
-
-    if (worker.type === WorkerType.Engineer) {
-      const [tx, ty] = parseTileIdToArray(selectedTile.id);
-      const railAllowed = canBuildRailAt(map, tx, ty, activeNationId);
-
-      const canAfford = (kind: ConstructionKind) => (activeNation?.treasury ?? 0) >= CONSTRUCTION_COST[kind];
-
-      return (
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
-          {!selectedTile.depot && <button onClick={() => startConstruction(worker.id, "depot")} disabled={!canAfford('depot')} className="btn btn-action">Construct Depot</button>}
-          {!selectedTile.port && <button onClick={() => startConstruction(worker.id, "port")} disabled={!canAfford('port')} className="btn btn-action">Construct Port</button>}
-          {<button onClick={() => startConstruction(worker.id, "fort")} disabled={!canAfford('fort')} className="btn btn-action">Construct Fort</button>}
-          {!selectedTile.connected && <button onClick={() => startConstruction(worker.id, "rail")} disabled={!railAllowed || !canAfford('rail')} className="btn btn-action">Construct Rail</button>}
-        </div>
-      );
-    }
-
-    return null;
+    const offers = jobOffers(game, activeNationId, worker, selectedTile);
+    const note = jobNote(worker, selectedTile);
+    if (offers.length === 0 && !note) return null;
+    return (
+      <div className="job-offers">
+        {offers.map((offer) => (
+          <JobOfferRow key={offer.name} offer={offer} tileId={selectedTile.id} />
+        ))}
+        {note && <p className="tile-note">{note}</p>}
+      </div>
+    );
   };
 
   return (
     <div data-testid="tile-info" style={{ padding: "8px 0", borderTop: `1px solid ${THEME.line}` }}>
-      <h3>Tile Info</h3>
-      <p><strong>Terrain:</strong> {TERRAIN_TEXT[selectedTile.terrain] ?? selectedTile.terrain}</p>
-      <p><strong>River:</strong> {selectedTile.hasRiver ? "Yes" : "No"}</p>
+      {/* FR-370: the heading's button drops the selection (Escape does too, one step at a time) */}
+      <h3 ref={heading} className="tile-info-heading">
+        Tile Info
+        <button
+          type="button"
+          className="icon-button"
+          aria-label="Close tile info"
+          title="Close tile info"
+          onClick={() => {
+            selectWorker(undefined);
+            selectTile(undefined);
+          }}
+        >
+          ×
+        </button>
+      </h3>
+      {/* FR-371: the river on the terrain line, so the first civilian row fits the HUD at 1280x720 */}
+      <p data-testid="tile-terrain">
+        <strong>Terrain:</strong> {TERRAIN_TEXT[selectedTile.terrain] ?? selectedTile.terrain}
+        {selectedTile.hasRiver && ", river"}
+      </p>
       <p>
         <strong>Resource:</strong>{" "}
         {known && (
@@ -154,6 +169,8 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
         )}
         {resourceText}
       </p>
+      {/* FR-391: who collects the player's resource, by the logistics phase's rule */}
+      {collected && <p data-testid="tile-collected">{collected}</p>}
       <p data-testid="tile-owner">
         <strong>Owner:</strong> {ownerText}
       </p>
@@ -171,7 +188,7 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
         </p>
       )}
 
-      <div style={{ marginTop: 12 }}>
+      <div style={{ marginTop: 6 }}>
         <strong>Workers on Tile:</strong>
         {selectedTile.workers.length > 0 ? (
           <ul style={{ listStyle: "none", padding: 0, margin: 0, marginTop: 4 }}>
@@ -180,13 +197,14 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
               const own = w.nationId === activeNationId;
               return (
               <li key={w.id}
+                ref={own && selectedWorkerId === w.id ? selectedRow : undefined}
                 onClick={own ? () => setSelectedWorkerId(w.id) : undefined}
                 style={{ background: own && selectedWorkerId === w.id ? THEME.surfaceSunken : 'transparent', padding: '4px', borderRadius: '4px', cursor: own ? 'pointer' : 'default' }}>
                 <WorkerStatusIndicator status={w.status} />
                 <InkPicture src={civilianArt(w.type)} alt="" inline /><span>{w.type} - {workerJobLabel(selectedTile, w) ?? w.status}</span>
                 {own && (w.status === WorkerStatus.Moved || w.status === WorkerStatus.Working) && (
                   <button
-                    onClick={() => handleCancelAction(w.id)}
+                    onClick={() => setCancelling(w.id)}
                     className="btn btn-danger"
                     style={{ marginLeft: 8, padding: '4px 8px', fontSize: 11, width: 'auto' }}>
                     Cancel
@@ -201,6 +219,36 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
           <p>None</p>
         )}
       </div>
+      {/* FR-388: the fort the battle counts (FR-203); after the civilians, so the first civilian row stays put (FR-371) */}
+      {fortLevel > 0 && (
+        <p data-testid="tile-fort">
+          <strong>Fort:</strong> level {fortLevel}
+        </p>
+      )}
+      {question && (
+        <Modal
+          titleId={cancelTitleId}
+          describedBy={cancelTextId}
+          onClose={() => setCancelling(null)}
+          overlayClassName="question-overlay"
+          className="question-dialog"
+          portal>
+          <h2 id={cancelTitleId} className="question-title">
+            {question.title}
+          </h2>
+          <p id={cancelTextId} className="question-text">
+            {question.consequence}
+          </p>
+          <div className="question-answers">
+            <button type="button" className="btn btn-danger" onClick={confirmCancel}>
+              {question.confirm}
+            </button>
+            <button type="button" className="btn btn-plain" onClick={() => setCancelling(null)}>
+              {question.keep}
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 };

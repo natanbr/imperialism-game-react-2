@@ -50,7 +50,7 @@ const stationCover = (page: Page, id: string) =>
     const civilians = '[data-testid="worker-stack"], [data-testid="worker-stack"] > span, [data-testid="worker-button"], [data-testid="worker-marker"], [data-testid="worker-marker"] > span';
     const others =
       '[data-testid="army-marker"], [data-testid="army-disband"], [data-testid="minor-name"], [data-testid="level-badge"], [data-testid="resource-mark"], ' +
-      '[title$=" in progress"], [title="River"], [role="img"][aria-label^="Depot: "], [role="img"][aria-label^="Port: "], [role="img"][aria-label^="Depot: "] img, [role="img"][aria-label^="Port: "] img';
+      '[title$=" in progress"], [title="River"], [data-testid="fort-mark"], [role="img"][aria-label^="Depot: "], [role="img"][aria-label^="Port: "], [role="img"][aria-label^="Depot: "] img, [role="img"][aria-label^="Port: "] img';
     return [...tileEl.querySelectorAll('[role="img"][aria-label^="Depot: "], [role="img"][aria-label^="Port: "]')].map((station) => {
       const img = station.querySelector('img')!;
       const box = img.getBoundingClientRect();
@@ -175,6 +175,27 @@ test('FR-090 the whole map fits 1280x720 next to the HUD, with an icon on every 
     expect([armyBox.width, armyBox.height], id).toEqual([24, 24]);
     await expect(army, id).toHaveAccessibleName(/army|militia/);
   }
+  // FR-388 (M12): each Great Power's capital shows its fort, 16 px, titled "Fort level 1"; its box overlaps no other mark
+  // of any tile (civilians and their count, army chips, name tags, badges, marks, stations, job markers, the river)
+  for (const id of ['2-9', '14-9']) {
+    const fort = tile(page, id).getByTestId('fort-mark');
+    await expect(fort).toHaveAttribute('title', 'Fort level 1');
+    const fortBox = (await fort.boundingBox())!;
+    expect([fortBox.width, fortBox.height], id).toEqual([16, 16]);
+    const overlap = await fort.evaluate((mark) => {
+      const r = mark.getBoundingClientRect();
+      const others = [
+        ...document.querySelectorAll(
+          '[data-testid="worker-stack"], [data-testid="worker-stack"] > span, [data-testid="worker-button"], [data-testid="worker-marker"], ' +
+            '[data-testid="army-marker"], [data-testid="army-disband"], [data-testid="minor-name"], [data-testid="level-badge"], ' +
+            '[data-testid="resource-mark"], [role="img"][aria-label^="Depot: "], [role="img"][aria-label^="Port: "], [title$=" in progress"], [title="River"]'
+        ),
+      ].map((el) => el.getBoundingClientRect());
+      return others.reduce((sum, o) => sum + Math.max(0, Math.min(r.right, o.right) - Math.max(r.x, o.x)) * Math.max(0, Math.min(r.bottom, o.bottom) - Math.max(r.y, o.y)), 0);
+    });
+    expect(overlap, id).toBe(0);
+  }
+
   // The player's own buttons on its capital take the pointer at their place (Playwright's trial click checks that nothing
   // lies over them)
   const stackButton = tile(page, '2-9').getByTestId('worker-stack');
@@ -247,13 +268,16 @@ test.describe('rendered at three times the pixel density', () => {
       await tile(page, id).click();
       await expect(tile(page, id).getByTitle('Construction in progress')).toBeVisible();
       await endTurn(page, i + 2);
-      await expect(page.getByTestId('news-panel')).toContainText(`Rail finished at ${id}.`);
+      // M12 FR-375: the news line names the province of the tile
+      await expect(page.getByTestId('news-panel')).toContainText(`Rail finished at ${id} in Testland South-West.`);
     }
     await pickWorker(page, 'engineer');
     // The engineer's own tile, clicked in its free corner: the 24 px worker button covers the tile's
     // centre since FR-110, and a click on it only selects the worker again
     await tile(page, '2-7').click({ position: { x: 6, y: 6 } });
     await page.getByRole('button', { name: 'Build Depot' }).click();
+    // FR-383: $2,000 asks once
+    await page.getByRole('button', { name: 'Spend $2,000' }).click();
     await expect(tile(page, '2-7').getByTitle('Construction in progress')).toBeVisible();
     for (let turn = 4; turn <= 7 && !(await tile(page, '2-7').getByTitle(/^Depot: /).count()); turn++) await endTurn(page, turn);
 
@@ -300,6 +324,7 @@ test.describe('rendered at three times the pixel density', () => {
     await engineer.click();
     await expect(engineer).toHaveAttribute('aria-pressed', 'true');
     await page.getByTestId('tile-info').getByRole('button', { name: 'Construct Port' }).click();
+    await page.getByRole('button', { name: 'Spend $3,000' }).click();
     await expect(tile(page, '2-7').getByTitle('Construction in progress')).toBeVisible();
     // Three turns to build (workerDurations.ts)
     for (let i = 0; i < 5 && !(await tile(page, '2-7').getByTitle(/^Port: /).count()); i++) {

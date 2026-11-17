@@ -9,10 +9,18 @@ import type { PossibleAction } from "@/types/actions";
 export const CURSOR_PX = 32;
 const HOTSPOT = CURSOR_PX / 2;
 
+/**
+ * What a click on a tile would do, for its cursor (FR-379): a job or a construction (its picture), a plain move (`move`:
+ * the pointer, no picture), or nothing the engine would take (null: `auto`).
+ */
+export type CursorAction = PossibleAction | { type: "move" };
+
 /** The picture a tile's cursor is drawn from, by the action a click there would take (FR-330); none without one. */
-export function cursorArtOf(action: PossibleAction): string | undefined {
+export function cursorArtOf(action: CursorAction): string | undefined {
   if (!action) return undefined;
   switch (action.type) {
+    case "move":
+      return undefined;
     case "prospect":
       return CURSOR_ART.prospect;
     case "develop":
@@ -92,7 +100,7 @@ export function requestCursor(url: string): void {
  * The CSS cursor of a tile whose click would take `action`: `auto` without one; the picture's cursor once it is drawn;
  * until then, and where nothing can be drawn, `pointer`. It only reads: React calls it while rendering (FR-342).
  */
-export function cursorOf(action: PossibleAction): string {
+export function cursorOf(action: CursorAction): string {
   if (!action) return "auto";
   const url = cursorArtOf(action);
   const entry = url ? drawn.get(url) : undefined;
@@ -100,7 +108,7 @@ export function cursorOf(action: PossibleAction): string {
 }
 
 /** The cursor in a server render (and the first client render it hydrates): nothing is drawn there. */
-export const serverCursorOf = (action: PossibleAction): string => (action ? "pointer" : "auto");
+export const serverCursorOf = (action: CursorAction): string => (action ? "pointer" : "auto");
 
 /** Calls `listener` whenever a cursor becomes ready; returns the unsubscribe (for React's useSyncExternalStore). */
 export function subscribeCursors(listener: () => void): () => void {

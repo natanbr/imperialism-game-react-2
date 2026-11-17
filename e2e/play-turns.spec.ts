@@ -38,6 +38,9 @@ test('FR-025 move a worker, start a job and end the turn, three times', async ({
   // Turn 1: the farmer moves to the farm east of the capital and starts farming (level 2, $1,000).
   await pickWorker(page, 'farmer');
   await tile(page, '3-9').click();
+  // FR-383: $1,000 asks once, naming the job, the tile, the price and the turns
+  await expect(page.getByRole('dialog', { name: 'Spend $1,000?' })).toContainText('Develop farmer to level 2 at 3-9 for $1,000 (3 turns)?');
+  await page.getByRole('button', { name: 'Spend $1,000' }).click();
   await expect(tile(page, '3-9').locator('[data-worker-type="farmer"]')).toBeVisible();
   await expect(tile(page, '3-9').getByTitle('Development in progress')).toBeVisible();
   await expect(cash(page)).toContainText('Cash: $9,000');
@@ -52,7 +55,8 @@ test('FR-025 move a worker, start a job and end the turn, three times', async ({
   // $9,000 less the start army's $100 upkeep at End Turn (FR-202), less the rail's $100
   await expect(cash(page)).toContainText('Cash: $8,800');
   await endTurn(page, 3);
-  await expect(page.getByTestId('news-panel')).toContainText('Rail finished at 2-8.');
+  // M12 FR-375: the news line names the province of the tile
+  await expect(page.getByTestId('news-panel')).toContainText('Rail finished at 2-8 in Testland South-West.');
 
   // Turn 3: the prospector moves onto the hills in the north and prospects them ($100).
   await pickWorker(page, 'prospector');
@@ -62,7 +66,7 @@ test('FR-025 move a worker, start a job and end the turn, three times', async ({
   await expect(tile(page, '5-2').getByTitle('Prospecting in progress')).toBeVisible();
   await expect(cash(page)).toContainText('Cash: $8,600');
   await endTurn(page, 4);
-  await expect(page.getByTestId('news-panel')).toContainText('Prospectors found coal at 5-2.');
+  await expect(page.getByTestId('news-panel')).toContainText('Prospectors found coal at 5-2 in Testland North-West.');
 
   expect(errors).toEqual([]);
 });

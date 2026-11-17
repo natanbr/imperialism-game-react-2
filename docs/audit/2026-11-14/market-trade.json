@@ -1,0 +1,322 @@
+{
+  "track": "market-trade",
+  "coverage": "Played the served build (http://localhost:3170, continent world, Board of Trade) through the UI with Playwright in my own browser: game A = 40 real turns (consulates, embassy, $10,000 grant to drain cash, bids, offers, subsidies 5/10/100%, boycott, consulate withdrawn after a bid, sold out of stock, no-money bids, 4-hold limit, game over); game B = early-turn favourite checks; game C = 40 idle turns for the price series and the computer nation; game F = a 21-turn random-order fuzz (3-6 clicks a turn on the Board, random consulates, subsidies, boycotts) with an automatic check after every turn that HUD cash = state cash = Deal Book From/To, Deal Book totals and Treasury rows add up, news lines = Deal Book lines, deal price = floor(P x (1 +/- subsidy)), warehouse change = bought - sold + produced, relations +1 per commodity type, holds <= 4, no negative stock or cash: 0 mismatches in 21 turns (about 35 deal lines). Also read engine/market code and ran tests/engine/partnerMarket, partnerOrders, ui/boardOfTrade, ui/dealBook (130 tests pass). Checked Board at 1280x720, 1024x600, 1920x1080 and 390x844. Counted the computer nation's deals in 3 games. Scripts: .gate/audit/market-trade/ (h.cjs, turn.cjs, f1.cjs, chk.cjs, auto.cjs).",
+  "not_covered": "The v1 'World market' dialog and the two-islands world (FR-073/074/078): the app always starts the continent world, so they cannot be reached (see MKT-05). Declaring war on a minor with trades pending (the confirm step was not completed; covered by the diplomacy/war tracks). Colony trade as a human conqueror (M9, needs a won war). Game-over behaviour of the Board with open consulates (the idle game had none, so every + was disabled for other reasons). The no-cash path of a subsidised bid (cash below the extra cost) was not reproduced; read in settlePartners.ts only. No console error or page error was seen in any run.",
+  "findings": [
+    {
+      "id": "MKT-01",
+      "kind": "gap",
+      "severity": "major",
+      "title": "Trade is capped at 4 units a turn for the whole game: no merchant ships, no Shipyard, holds never grow",
+      "area": "trade",
+      "repro": [
+        "Open http://localhost:3170/, press Open Market: header reads 'Holds: 4 of 4 free'.",
+        "Open Capital: the eight buildings are steel mill, lumber mill, textile mill, food processing, metal works, furniture factory, clothing factory (and the labour, transport blocks); there is no Shipyard and no order that adds holds.",
+        "Play 40 turns: the Board still reads 'Holds: x of 4' on turn 40; state merchantMarine.holds is 4 for both nations on every turn (fuzz log turns 1-21, game A turn 40)."
+      ],
+      "expected": "Rules 06 section 3: holds grow with Indiamen/Clippers/Steamships (12 by 1816, 60 by 1843, 222 by 1875) and the Shipyard is a core building; trade volume should be able to grow.",
+      "actual": "Sales and bids together can never exceed 4 units a turn. Over the 40-turn game A the player traded 56 units sold and 82 bought in total; Valdoria sold 40 and bought 31. The 'at most 4 bids' limit (FR-062) and its message 'Already 4 bids this turn, the most' can never appear because every bid already uses a hold.",
+      "evidence": "market-trade-2-board-open.png: C:/Users/brnat/AppData/Local/Temp/claude/6d278f4c60cadc55/c11c618f-69f1-4659-b2b1-f3416944c4fb/scratchpad/audit/shots/market-trade-2-board-open.png (Holds: 4 of 4 free); capital dialog text dump has no Shipyard; .gate/audit/market-trade/fuzz.jsonl holds values seen = [4].",
+      "frs": ["FR-063", "FR-188"],
+      "suspect": "src/app/engine/world/startWorld.ts:131 merchantMarine: { holds: 4, avgSpeed: 10 }; no order or building changes it (grep 'holds' in engine/orders finds none); FR-063 text says 'v1 has no Shipyard' and M7 was closed without one.",
+      "fix_size": "L",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "MKT-02",
+      "kind": "gap",
+      "severity": "major",
+      "title": "Trade with the other Great Power (Valdoria) never happens; the Board invites offers that always come back unsold",
+      "area": "trade",
+      "repro": [
+        "New game. Order a consulate with Arvelia and Sundmark; from turn 3 hold some timber/coal/iron ore/cotton (start stock).",
+        "On the Board the raw rows say 'Only Valdoria may buy this' beside Offer '+'. Offer 1-3 units, press Advance Turn.",
+        "Open Deal Book: Not traded: '1 Coal not sold (no buyer), back in the warehouse' or '1 Timber not sold (the buyers wanted no more)'. Repeat for many turns."
+      ],
+      "expected": "FR-185/186 step 3 and rules 06 section 2: a Great Power may buy from another; the Board should let the player find and use such deals, and the other Great Power should sometimes sell to or buy from the player.",
+      "actual": "0 deals with Valdoria in all runs: game A 36 logged turns, fuzz game 21 turns (31 raw units offered, none sold). Valdoria never offers anything to the player, and the Board cannot show Valdoria's offers, so a bid on lumber, steel, fabric etc. is refused 'No minor nation sells this'. Valdoria's own raw bids are capped to what the minors offer and the minors are served first (step 1), so step 3 (Great Power to Great Power) has no unfilled bid left to serve. FR-247 'M7 done' only counts deals with minors.",
+      "evidence": "Deal Book texts in .gate/audit/market-trade/fuzz.jsonl (turns 2-21) and play.jsonl; turn 4 of game A: news 'Valdoria: Bought 4 Timber from Arvelia for $436.' while 'Not traded: 1 Timber not sold (the buyers wanted no more)'. Screenshot market-trade-22-board-t9-boycott.png shows 'Only Valdoria may buy this' on Cotton and Iron Ore.",
+      "frs": ["FR-185", "FR-186", "FR-196", "FR-247", "FR-253"],
+      "suspect": "src/app/engine/market/settlePartners.ts:164 step (3) runs after step (1); src/app/engine/ai/scriptedPartners.ts partnerSupply caps Valdoria's bids at the minors' supply (economy.ts:436); the scripted player only offers clothing/furniture/hardware to minors.",
+      "fix_size": "M",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "MKT-03",
+      "kind": "gap",
+      "severity": "major",
+      "title": "Trade profit is nearly worthless in the score and cash has no use: $24,621 earned, 246 points, while idle capacity gives the computer 720 points",
+      "area": "economy",
+      "repro": [
+        "Play game A style: sell 1-3 goods a turn to Arvelia for 40 turns.",
+        "At turn 40 the Game over screen shows: Valdoria treasury 45 / industry 720 / development 570 = 1335; Testland treasury 246 / industry 90 / development 50 = 386.",
+        "Look for something to spend the $24,621 on: Technology button in the Capital is disabled ('Coming in a later milestone'), no ships, no Shipyard; only consulates, embassies, grants and regiments."
+      ],
+      "expected": "Money earned by trade should matter for the result and have uses (ships, technology); rules 06: trade is the only cash source and the game is about trade.",
+      "actual": "Score counts 1 point per $100 but 10 points per capacity step, which costs only lumber and steel, no cash. The player ends with $24k idle and no way to turn it into score. The trade loop therefore has no payoff beyond the first few thousand dollars.",
+      "evidence": "Game over dialog text: 'Valdoria 45 720 570 1335 / Testland (you) 246 90 50 386'; screenshot C:/Users/brnat/AppData/Local/Temp/claude/6d278f4c60cadc55/c11c618f-69f1-4659-b2b1-f3416944c4fb/scratchpad/audit/shots/market-trade-26-game-over.png; t9.cjs output: Technology button 'disabled title=\"Coming in a later milestone\"'.",
+      "frs": ["FR-067", "FR-076"],
+      "suspect": "FR-067 weights (treasury / 100, industry 10 per capacity point); Capital Technology button disabled.",
+      "fix_size": "M",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "MKT-04",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "Trade orders are forgotten every turn, while production orders in the same Capital dialog persist",
+      "area": "market",
+      "repro": [
+        "Turn 1: Open Market, bid 2 coal. End turn.",
+        "Turn 2: Open Market: Bid 0 and Offer 0 on every row (state market.orders = {}). Open Capital: the Textile mill still shows '2 of 2' from turn 1."
+      ],
+      "expected": "Rules 06 section 2: 'Orders persist between turns; revisit the screen only to change them.'",
+      "actual": "Every bid and offer must be clicked again every turn (up to 4 clicks, one unit per click, no quantity field). Mill production orders persist, so the two order types behave differently.",
+      "evidence": "play.jsonl: sOrd.orders {nation-1:{buy:{coal:2}}} at turn 1 and orders {} at the start of turn 2 (a4/t1 output 'Before end turn: ... orders {...}', next turn 'orders {}').",
+      "frs": ["FR-064"],
+      "suspect": "src/app/engine/market/settlePartners.ts:245 market: { ...market, orders: {}, deliveries } (decision Q15 left open in FR-064).",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "MKT-05",
+      "kind": "doc-lie",
+      "severity": "minor",
+      "title": "The v1 'World market' dialog (FR-073, FR-074, FR-078) cannot be reached in the app; Open Market always opens the Board of Trade",
+      "area": "market",
+      "repro": [
+        "Open http://localhost:3170/, press Open Market: the dialog is 'Board of Trade - Testland' (partners mode).",
+        "Press New game: only a confirm 'Start a new game? This game will be lost.'; no choice of world or market."
+      ],
+      "expected": "FR-073/074/078 describe a 'World market' dialog with + and - steppers, a greyed - at 0 (Q47), world price and sell/buy; the roadmap marks M3 done.",
+      "actual": "The app starts only the 'continent' world with market mode 'partners' (APP_WORLD). The World market dialog and the two-islands world exist only in tests, so a player cannot use or check them.",
+      "evidence": "state.worldId = 'continent', state.market.mode = 'partners' in a4.cjs output; Board header 'Board of Trade - Testland' in market-trade-2-board-open.png.",
+      "frs": ["FR-073", "FR-074", "FR-078", "FR-242"],
+      "suspect": "src/app/store/gameSlice.ts:98 export const APP_WORLD: WorldId = \"continent\"; src/app/page.tsx:40 renders MarketModal (which then shows the Board).",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "MKT-06",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "The Board shows only the base price; a subsidy changes what a deal pays and the Board does not say so (100% subsidy sells for $0)",
+      "area": "market",
+      "repro": [
+        "Diplomacy > Arvelia > Subsidy 100% > Set policy (free).",
+        "Open Market: Furniture price column shows about $852; offer 1 furniture; End turn.",
+        "Deal Book: 'Sold 1 Furniture to Arvelia @ $0'; news 'Sold 1 Furniture to Arvelia for $0.'"
+      ],
+      "expected": "The Board (or a note) should show the price the favourite subsidy will give, as the original offer sheet does; bids reserve cash at the base price.",
+      "actual": "Price column, header cash and the reserve all use the base price. With 10% the sale paid $796 instead of $885 and a bid cost $114 instead of $104 (both correct per FR-189 but not visible before End Turn). A 100% subsidy gives away goods with no warning.",
+      "evidence": "Game A turn 8: 'Sold 1 Clothing to Arvelia @ $796', 'Bought 2 Coal from Arvelia @ $114' while the Board showed clothing $885 and coal $104; fuzz.jsonl turn 21: 'Sold 1 Furniture to Arvelia @ $0'.",
+      "frs": ["FR-189", "FR-194"],
+      "suspect": "src/app/components/market/boardView.ts: row.price = board price only.",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "MKT-07",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "Running out of money silently disbands regiments; no warning in Diplomacy or Board, and the rules' credit limit does not exist",
+      "area": "economy",
+      "repro": [
+        "Turn 5 of a game with consulates: Diplomacy > Arvelia > Grant, Amount $10,000, once, Give (cash $10,065 -> $65).",
+        "Open Market: every bid '+' is disabled 'Not enough money' (correct).",
+        "Advance Turn with the $100 start-army upkeep due."
+      ],
+      "expected": "A warning before End Turn that the cash cannot pay the upkeep, or credit as in rules 06 section 6 (limit grows, interest).",
+      "actual": "News: '1 regiment disbanded: no money for their upkeep.', 'Army upkeep: $50.' and cash $15. The only upkeep warning lives inside the Armoury and Army dialogs. Nation.creditLimit = 5000 exists in the state but is unused.",
+      "evidence": "turn.cjs output turn 5: 'NEWS(trade): Bought 2 Coal from Arvelia for $214. | 1 regiment disbanded: no money for their upkeep. | Army upkeep: $50.' Deal Book 'Military upkeep $50', 'Grant to Arvelia -$10,000', 'From $10,279 to $15'.",
+      "frs": ["FR-202", "FR-209", "FR-261"],
+      "suspect": "src/app/engine/systems/armySystem.ts:51 (v2 has no credit); src/app/engine/world/startWorld.ts:127-128 debt/creditLimit unused; ArmouryModal.tsx:175 is the only place upkeepWarning is shown.",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "MKT-08",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "When the computer conquers a trade partner the player's consulate, embassy and subsidy vanish with no news line and no refund",
+      "area": "diplomacy",
+      "repro": [
+        "Game F, turn 21: the player holds a consulate with Arvelia (the biggest seller: timber 4, coal 3, iron ore 2, cotton 2).",
+        "End turn: news shows only 'Valdoria: Battle at Arvelia: Province Taken!', 'Valdoria: Arvelia is now our colony.'",
+        "Turn 22: Diplomacy > Arvelia says 'it is a colony, ruled by its owner'; the Board lists Arvelia under Buyers as '(no trade)' and no longer as a seller; the 100% subsidy set that turn is gone."
+      ],
+      "expected": "A line such as 'Our consulate in Arvelia ended', and the loss of the main supplier should be visible as a trade event.",
+      "actual": "Silent loss of the $500 consulate (or $5,000 embassy); the player's supply of raw material drops by about half.",
+      "evidence": "fuzz.jsonl turn 21 news tail; g1.cjs output: 'Arvelia: 2 units (no trade)', 'Sellers: Sundmark: 1 unit Pellis: 2 units'; screenshot C:/Users/brnat/AppData/Local/Temp/claude/6d278f4c60cadc55/c11c618f-69f1-4659-b2b1-f3416944c4fb/scratchpad/audit/shots/market-trade-31-board-after-arvelia-colony.png.",
+      "frs": ["FR-224"],
+      "suspect": "src/app/engine/army/conquest.ts:130-152 makeColony clears consulates/embassies/subsidies and only emits grant-stopped events.",
+      "fix_size": "S",
+      "confidence": "seen-once"
+    },
+    {
+      "id": "MKT-09",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "Ten of the 17 Board rows can never trade, and minor supply and demand never change in 40 turns",
+      "area": "market",
+      "repro": [
+        "Open Market at turn 1 and at any later turn.",
+        "Armaments, Canned Food, Fabric, Lumber, Paper, Steel, Wool, Horses, Fuel and Oil read 'No minor nation sells this' and 'No one buys this' / 'No minor trades this'.",
+        "Compare sellers/buyers at turn 1 and turn 22: identical (Timber: Arvelia 4, Sundmark 1, Lorran 2, Pellis 1; every minor buys exactly 2 clothing, 2 furniture, 2 hardware)."
+      ],
+      "expected": "Rules 06 section 2: all materials, goods and horses can be traded; Great Powers buy armaments; offers and demand follow land, prices and development.",
+      "actual": "The player cannot buy lumber or steel (needed for every expansion and freight car) and cannot sell the 4 starting horses or any armaments; minors' numbers are fixed by tile count and a constant 2 per good.",
+      "evidence": "Board dump in a1.cjs output and market-trade-2-board-open.png; 'Timber ... Sellers: Sundmark: 1 unit Lorran: 2 units Pellis: 1 unit' at turn 22 (g1.cjs).",
+      "frs": ["FR-183", "FR-184", "FR-194"],
+      "suspect": "src/app/definisions/partnersMarket.ts MINOR_DEMAND (3 goods x 2) and engine/market/partners.ts minorOffers (tile count, cap 6).",
+      "fix_size": "M",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "MKT-10",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "Prices are a random walk with no history or trend; buying low and selling high is luck",
+      "area": "market",
+      "repro": [
+        "Start a game and press Advance Turn 40 times without trading; record state market.prices each turn.",
+        "Armaments ends at 1063 after a peak of 1101 (min 875), wool 100 -> 125, fuel 300 -> 321, oil 100 -> 87 although nobody trades them.",
+        "The Board shows only today's price; there is no previous price, arrow or history."
+      ],
+      "expected": "Rules 06 section 4: prices follow supply and demand; a player needs the last price or a trend to decide.",
+      "actual": "Per FR-243 each price moves by random +/-3% plus 0.5% per unit traded by the two powers (at most 4 units each), no pull back to the start price; the price signal is mostly noise. In game A clothing fell 900 -> about 680 over 40 turns mostly from the two nations' own sales.",
+      "evidence": "idle-series.json (41 turns of all 17 prices) in .gate/audit/market-trade/; max per-turn change seen 4.3%.",
+      "frs": ["FR-065", "FR-243"],
+      "suspect": "src/app/engine/market/market.ts nextPrices.",
+      "fix_size": "M",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "MKT-11",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "The favourite partner flips every turn on equal relations, against the fixed order in the rules",
+      "area": "trade",
+      "repro": [
+        "New game, order consulates; read the note under the Board title each turn.",
+        "Lorran and Pellis stay at 30 points with both powers. Turn 1 note: 'Arvelia, Sundmark, Lorran and Pellis favour Testland.' Turn 2: '... favour Valdoria' (game A) / 'Sundmark, Lorran and Pellis favour Valdoria' (game B). Turn 3: '... favour Testland.' Turn 4: 'Lorran and Pellis favour Valdoria.' The favourite of an untouched minor follows turn parity."
+      ],
+      "expected": "Rules 06 section 7.4: 'the bidder list always follows one fixed Great Power order' on ties.",
+      "actual": "Ties break by intentOrder, which rotates every turn, so who is served first alternates and the player cannot rely on a standing advantage; only points or a subsidy break the tie.",
+      "evidence": "turn.cjs output game A: favourites line at turns 2, 3, 4 ('favour Valdoria', 'favour Testland', 'Arvelia and Sundmark favour Testland; Lorran and Pellis favour Valdoria'); b1.cjs game B turn 2.",
+      "frs": ["FR-187"],
+      "suspect": "src/app/engine/market/partners.ts:49 partnerRanking sorts ties by intentOrder(state, turn).",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "MKT-12",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "No guidance for the first turns of trade: nothing to sell until turn 3, and the Board does not say what to do",
+      "area": "market",
+      "repro": [
+        "New game: warehouse has 0 clothing, furniture, hardware; every Offer '+' reads 'We need a consulate with a buyer' or 'None left in the warehouse'.",
+        "To earn the first money the player must (1) pay $500 for a consulate, (2) order fabric, furniture and hardware in the Capital, (3) end the turn, (4) order clothing from the fabric, (5) end the turn; the first sale is turn 3."
+      ],
+      "expected": "A hint on the Board or HUD about which goods the minors buy and how to make them.",
+      "actual": "The note says only that minors buy clothing, furniture and hardware; no pointer to the production step. First sale at turn 3 in game A.",
+      "evidence": "Board text at turn 1 (a1.cjs) and game A turns 1-3 (play log).",
+      "frs": ["FR-194"],
+      "suspect": "",
+      "fix_size": "S",
+      "confidence": "seen-once"
+    },
+    {
+      "id": "MKT-13",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "The computer nation trades about 1 unit a turn, builds capacity it cannot staff and scores 3.5 times the player",
+      "area": "ai",
+      "repro": [
+        "Play or idle 40 turns, read the news 'Valdoria: ...' lines each turn.",
+        "Valdoria sold 40 and bought 31 units in 36 logged turns, nearly all with Arvelia; in a 40-turn idle game it dealt only with Arvelia (consulate with Sundmark only at turn 32, none with Lorran or Pellis).",
+        "Final state of game A: Valdoria clothing, furniture and metal works capacity 16 each (total capacity 72), only 5 workers (all experts), warehouse timber 29, coal 16, iron ore 16, cotton 18, canned food 30 unused, lumber 0, steel 0."
+      ],
+      "expected": "A computer nation that uses its capacity and its trade.",
+      "actual": "It never goes bankrupt (cash stayed between $396 and $5,888 in game A, $1,035-$14,903 in the idle game) and does trade every turn, but its trade is tiny and its score comes from idle capacity: 1335 vs the player's 386.",
+      "evidence": "an2.cjs: valSold {Clothing:31, Furniture:9}, valBought {Timber:23, Cotton:6, Coal:2}, valTurnsActive 32 of 36; t21.cjs final industry JSON; Game over dialog.",
+      "frs": ["FR-245", "FR-247"],
+      "suspect": "src/app/engine/ai/economy.ts expansion and trade planning; FR-067 rewards capacity whether used or not.",
+      "fix_size": "M",
+      "confidence": "seen-once"
+    },
+    {
+      "id": "MKT-14",
+      "kind": "visual",
+      "severity": "minor",
+      "title": "HUD news panel shows 3 of about 19 lines in a 60 px box with free space below it, so the turn's Sold/Bought lines are hidden",
+      "area": "hud",
+      "repro": [
+        "Order two consulates and bid 2 coal and 2 timber, End Turn at 1280x720.",
+        "The 'News from last turn' block shows 'Consulate opened in Arvelia.', 'Consulate opened in Sundmark.', 'Bought 2 Timber from Arvelia for' (cut) and then empty space of about 45 px above the Open Warehouse button."
+      ],
+      "expected": "The news list uses the free space or at least shows a scroll cue; the trade news is what the player checks against the cash.",
+      "actual": "The inner list is 60 px high with 620 px of content (overflow auto); the rest (Sold, Bought, upkeep, production, all of Valdoria's lines) needs scrolling in a 3-line window.",
+      "evidence": "C:/Users/brnat/AppData/Local/Temp/claude/6d278f4c60cadc55/c11c618f-69f1-4659-b2b1-f3416944c4fb/scratchpad/audit/shots/market-trade-33-hud-news-t2.png; n2.cjs: list clientH 60, scrollH 620, items 19.",
+      "frs": ["FR-072"],
+      "suspect": "HUD news-panel CSS (list max-height about 60 px).",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "MKT-15",
+      "kind": "visual",
+      "severity": "nit",
+      "title": "Board of Trade is unusable on a narrow screen: at 390 px wide the Bid and Offer columns are 623 px off to the side",
+      "area": "dialogs",
+      "repro": [
+        "Resize the window to 390x844 (phone), press Open Market.",
+        "Only Commodity, Price and In warehouse are visible; Bid, Offer and Minor nations need sideways scrolling inside the board."
+      ],
+      "expected": "Controls reachable without sideways scrolling, or a stacked layout.",
+      "actual": "Pane overflow-x 623 px; at 1024x600 the board scrolls vertically (304 px) but works.",
+      "evidence": "C:/Users/brnat/AppData/Local/Temp/claude/6d278f4c60cadc55/c11c618f-69f1-4659-b2b1-f3416944c4fb/scratchpad/audit/shots/market-trade-v-mobile-board.png and market-trade-v-1024x600-board.png.",
+      "frs": ["FR-194", "FR-257"],
+      "suspect": "components/market/Market.module.css .boardTable (fixed 6 columns).",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "MKT-16",
+      "kind": "gap",
+      "severity": "nit",
+      "title": "Offered goods disappear from the Warehouse dialog at order time with no 'on offer' marker",
+      "area": "market",
+      "repro": [
+        "Hold 1 clothing. Open Market, Offer 1 clothing, close, Open Warehouse.",
+        "Clothing reads 0 (state after orders: clothing -1). If nobody buys it, the news next turn says '1 Clothing not sold; back in the warehouse.'"
+      ],
+      "expected": "A line such as 'Clothing 0 (1 on offer)' in the Warehouse, or the Board saying where the unit went.",
+      "actual": "The units are simply not counted until End Turn (FR-061 design), which looks like a loss until the news. The Board shows the same reduced number in 'In warehouse' beside an Offer value.",
+      "evidence": "turn.cjs 'after orders: ... wh delta {\"clothing\":-1,...}' in game A turns 3-6; Warehouse dialog dump has numbers only.",
+      "frs": ["FR-061"],
+      "suspect": "",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "MKT-17",
+      "kind": "gap",
+      "severity": "nit",
+      "title": "A $10,000 grant can be given with one click and no confirmation; the cash simply leaves the game",
+      "area": "diplomacy",
+      "repro": [
+        "Embassy with Arvelia, next turn Diplomacy > Arvelia > Grant: choose $10,000 in the select, press Give.",
+        "Cash falls to $65 at once (Withdraw is available until End Turn)."
+      ],
+      "expected": "A warning that this empties the treasury (see MKT-07).",
+      "actual": "Works as documented ('the money leaves our treasury and no country receives it'); relations Arvelia 41 -> 50 (+8 grant, +1 trade).",
+      "evidence": "t13.cjs output: 'after grant HUD { cash: 65 ...}', relations changed 41->50.",
+      "frs": ["FR-170"],
+      "suspect": "",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    }
+  ]
+}

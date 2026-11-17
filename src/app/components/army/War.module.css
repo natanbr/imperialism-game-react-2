@@ -170,6 +170,34 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* FR-419: a scrollbar that stays drawn while a list or the battlefield scrolls (an overlay scrollbar hides until used) */
+.list::-webkit-scrollbar,
+.field::-webkit-scrollbar {
+  width: 10px;
+}
+
+.list::-webkit-scrollbar-thumb,
+.field::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: 5px;
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  .list,
+  .field {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border-strong) transparent;
+  }
+}
+
+/* FR-419: "5 more below" under a list that scrolls */
+.moreBelow {
+  flex: none;
+  margin: 4px 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
 .row {
   display: grid;
   grid-template-columns: 36px minmax(0, 1fr) auto;
@@ -294,6 +322,14 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) 300px;
   gap: var(--spacing-lg);
+}
+
+/* The battlefield and its "N more below" line (FR-419), the first column of the body */
+.fieldColumn {
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 /* The small grid: the attackers' two columns, the wall when there is a fort, the defenders' two columns */

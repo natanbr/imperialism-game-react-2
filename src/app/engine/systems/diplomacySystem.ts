@@ -19,7 +19,7 @@ import type { RejectReason } from "../orders/Order";
 import type { GameEvent, TurnContext, TurnSystem, WarCause } from "../turn/context";
 import { byIntentOrder } from "../turn/intents";
 import { levelOfPoints as levelOf, MAX_RELATION_POINTS, pairKey } from "../diplomacy/relations";
-import { intentCost, isDiplomacyIntent, proposalsOf } from "../diplomacy/queries";
+import { hasLandRoute, intentCost, isDiplomacyIntent, proposalsOf } from "../diplomacy/queries";
 import { acceptsAlliance, acceptsPeace } from "../diplomacy/scriptedAnswers";
 
 const clampPoints = (points: number): number => Math.min(MAX_RELATION_POINTS, Math.max(0, points));
@@ -168,6 +168,11 @@ function resolveWars(w: Work, list: readonly OvertureIntent[]): void {
     const key = pairKey(i.nationId, i.targetId);
     if (start[key].war) {
       fail(w, i, "already-in-place");
+      continue;
+    }
+    // FR-406: checked again like every intent (provinces do not move in this phase)
+    if (!hasLandRoute(w.state, i.nationId, i.targetId)) {
+      fail(w, i, "no-land-route");
       continue;
     }
     const group = groups.get(key) ?? { a: i.nationId, b: i.targetId, declarers: [] };

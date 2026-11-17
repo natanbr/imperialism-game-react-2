@@ -169,13 +169,24 @@ describe('FR-212 the Armoury: one card per recruitable regiment', () => {
     expect(text(within(card('Regulars')).getByRole('heading', { level: 3 }))).toBe('Regulars');
   });
 
-  it('FR-212 FR-199 the stats: Firepower, Move, Range and "Entrench: yes" or "no"', () => {
+  it('FR-212 FR-199 FR-421 the stats: Firepower, Move and Range marked "(not used in battle yet)", and "Entrench: yes" or "no"', () => {
     openArmoury(continent());
-    expect(part('Regulars', 'stats')).toBe('Firepower 10 Move 4 Range 5 Entrench: yes');
-    expect(part('Skirmishers', 'stats')).toBe('Firepower 5 Move 6 Range 5 Entrench: yes');
-    expect(part('Hussars', 'stats')).toBe('Firepower 7 Move 11 Range 3 Entrench: no');
-    expect(part('Artillery', 'stats')).toBe('Firepower 16 Move 3 Range 11 Entrench: no');
-    expect(part('Light Artillery', 'stats')).toBe('Firepower 10 Move 5 Range 9 Entrench: no');
+    const NOT_USED = '(not used in battle yet)';
+    expect(part('Regulars', 'stats')).toBe(`Firepower 10 Move 4 Range 5 ${NOT_USED} Entrench: yes`);
+    expect(part('Skirmishers', 'stats')).toBe(`Firepower 5 Move 6 Range 5 ${NOT_USED} Entrench: yes`);
+    expect(part('Hussars', 'stats')).toBe(`Firepower 7 Move 11 Range 3 ${NOT_USED} Entrench: no`);
+    expect(part('Artillery', 'stats')).toBe(`Firepower 16 Move 3 Range 11 ${NOT_USED} Entrench: no`);
+    expect(part('Light Artillery', 'stats')).toBe(`Firepower 10 Move 5 Range 9 ${NOT_USED} Entrench: no`);
+  });
+
+  it('FR-421 every card marks Move and Range once, as one group with its note (combat ignores both, FR-219)', () => {
+    openArmoury(continent());
+    const cards = within(armoury()).getAllByRole('article');
+    for (const c of cards) {
+      const unused = within(c).getAllByTestId('unused-stats');
+      expect(unused).toHaveLength(1);
+      expect(text(unused[0])).toMatch(/^Move \d+ Range \d+ \(not used in battle yet\)$/);
+    }
   });
 
   it('FR-212 FR-264 the cost: the worker of its grade, the armaments, the horses when it needs any, the cash; "1 armament", "2 armaments"', () => {
@@ -217,10 +228,11 @@ describe('FR-212 the Armoury: one card per recruitable regiment', () => {
     expect(within(armoury()).queryByTestId('army-upkeep-warning')).toBeNull();
   });
 
-  it('FR-261 review F2: with less cash than the upkeep the Armoury warns that the newest regiments would be disbanded', () => {
+  // FR-393 (M12, lane L1) words the warning: how much is short and which regiments go
+  it('FR-261 FR-393 review F2: with less cash than the upkeep the Armoury warns how much is short and which regiment would be disbanded', () => {
     openArmoury(setTreasury(continent(), N1, 80));
     expect(text(within(armoury()).getByTestId('army-upkeep-warning'))).toBe(
-      "Cash is short of the army upkeep: $100 is due at End Turn and $80 will be left. Unless this turn's sales cover the rest, the newest regiments are disbanded."
+      "Army upkeep of $100 is due at End Turn and the treasury will hold $80: $20 short. Unless this turn's sales bring in $20, 1 regiment is disbanded (1st Artillery)."
     );
   });
 });

@@ -1,12 +1,17 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { TileInfoPanel } from "./TileInfoPanel";
 import { useGameStore } from '../store/rootStore';
 import { selectActiveNation } from "../store/selectors";
-import { TurnIndicator, NationStats, ActionButtons, NewsPanel, FoodWarning, UpkeepWarning, ScoreIndicator, ScoreTable } from "./HUD/index";
+import { TurnIndicator, NextCouncil, NationStats, ActionButtons, NewsPanel, FoodWarning, UpkeepWarning, ScoreIndicator, ScoreTable } from "./HUD/index";
 import { AboutPanel } from "./HUD/AboutPanel";
 import { UI_ICONS } from "./icons";
 import { GameIcon } from "./GameIcon";
 import { startNewGameOnCapital } from "@/hooks/mapActions";
+
+/** FR-377: the Debug box is for bug reports, shown only with `debug` in the URL's query (none in the server render). */
+const noSubscription = () => () => {};
+const useDebugQuery = (): boolean =>
+    useSyncExternalStore(noSubscription, () => new URLSearchParams(window.location.search).has("debug"), () => false);
 
 /**
  * New game throws the running game away, so the HUD asks first, in place (FR-109). The panel takes
@@ -48,7 +53,9 @@ export const HUD: React.FC = () => {
     // The credits panel and the New game question are view state only, so they live here (FR-089, FR-109)
     const [isAboutOpen, setAboutOpen] = useState(false);
     const [isConfirmingNewGame, setConfirmingNewGame] = useState(false);
+    const debug = useDebugQuery();
 
+    // FR-424: the labels are spans, so a window under 500 px high shows the icons only (globals.css); the names stay
     return (
         <div className="hud-container" data-edge-scroll="horizontal-only">
             <div className="hud-content">
@@ -62,10 +69,10 @@ export const HUD: React.FC = () => {
                             aria-expanded={isConfirmingNewGame}
                             aria-controls={isConfirmingNewGame ? "confirm-new-game" : undefined}
                         >
-                            <GameIcon name={UI_ICONS.newGame} /> New game
+                            <GameIcon name={UI_ICONS.newGame} /> <span className="hud-header-label">New game</span>
                         </button>
                         <button className="icon-button" onClick={() => setAboutOpen((open) => !open)} title="About and credits">
-                            <GameIcon name={UI_ICONS.about} /> About
+                            <GameIcon name={UI_ICONS.about} /> <span className="hud-header-label">About</span>
                         </button>
                     </div>
                 </div>
@@ -74,15 +81,17 @@ export const HUD: React.FC = () => {
                 <TurnIndicator />
                 <NationStats />
                 <ScoreIndicator />
+                {/* FR-371: the selected tile where the player looks, right under the turn, cash and score */}
+                <TileInfoPanel selectedTile={selectedTile} />
                 <ScoreTable />
+                {/* FR-371: the Council line and its projection after Tile Info (FR-301, FR-314) */}
+                <NextCouncil />
                 <FoodWarning />
                 <UpkeepWarning />
-
-                <TileInfoPanel selectedTile={selectedTile} />
                 <NewsPanel />
 
-                {/* Debug section, last: the tile's coordinates and the seed, for bug reports */}
-                {selectedTile && (
+                {/* Debug section, last: the tile's coordinates and the seed, for bug reports (FR-377: only with ?debug) */}
+                {debug && selectedTile && (
                     <div className="hud-debug-section">
                         <div className="hud-debug-title">Debug</div>
                         <div><strong>Tile:</strong> {selectedTile.x},{selectedTile.y} (id {selectedTile.id})</div>

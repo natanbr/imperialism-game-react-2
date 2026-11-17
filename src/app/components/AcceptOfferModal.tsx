@@ -2,7 +2,8 @@
 import React, { useCallback, useEffect, useId, useMemo } from "react";
 import { pendingProposalsFor } from "@/engine";
 import { useGameStore } from "../store/rootStore";
-import { proposalText } from "./diplomacy/diplomacyView";
+import { isDialogOpen } from "../store/controls/overlaySlice";
+import { offerEffectText, proposalText } from "./diplomacy/diplomacyView";
 import styles from "./diplomacy/Diplomacy.module.css";
 import { UI_ICONS } from "./icons";
 import { GameIcon } from "./GameIcon";
@@ -17,9 +18,11 @@ const ownsEnter = (target: EventTarget | null): boolean =>
 
 /**
  * Accept Offer (FR-175, the Imp1 screen): at the start of the player's turn each proposal made to them opens here,
- * oldest first. Accept and Reject build `answerProposal`; Escape rejects and Enter accepts (Imp1: Esc and Return).
- * Closing it (×, or a click on the backdrop, FR-236) leaves the proposal unanswered, so End Turn refuses it; its
- * dialog does not come back.
+ * oldest first, once no other dialog is open (FR-409: after the Battle and Council screens, so their Enter answers no
+ * offer). Under the Imp1 sentence, what accepting does (FR-411). Accept and Reject build `answerProposal`; Escape
+ * rejects and Enter accepts (Imp1: Esc and Return). Closing it (×, or a click on the backdrop, FR-236) leaves the
+ * proposal unanswered: its dialog does not come back, the proposer's panel in Diplomacy keeps it answerable (FR-410),
+ * and End Turn refuses it if it is still unanswered.
  */
 export const AcceptOfferModal: React.FC = () => {
   const game = useGameStore((s) => s.game);
@@ -27,12 +30,14 @@ export const AcceptOfferModal: React.FC = () => {
   const dismissed = useGameStore((s) => s.dismissedProposalIds);
   const dismiss = useGameStore((s) => s.dismissProposal);
   const submitOrder = useGameStore((s) => s.submitOrder);
+  const waiting = useGameStore(isDialogOpen);
   const titleId = useId();
   const textId = useId();
+  const effectId = useId();
 
   const proposal = useMemo(
-    () => (game.gameOver ? undefined : pendingProposalsFor(game, activeNationId).find((p) => !dismissed.includes(p.id))),
-    [game, activeNationId, dismissed]
+    () => (game.gameOver || waiting ? undefined : pendingProposalsFor(game, activeNationId).find((p) => !dismissed.includes(p.id))),
+    [game, activeNationId, dismissed, waiting]
   );
   const proposalId = proposal?.id;
 
@@ -60,7 +65,7 @@ export const AcceptOfferModal: React.FC = () => {
   return (
     <Modal
       titleId={titleId}
-      describedBy={textId}
+      describedBy={`${textId} ${effectId}`}
       initialFocus="dialog"
       focusKey={proposal.id}
       onClose={() => dismiss(proposal.id)}
@@ -78,6 +83,9 @@ export const AcceptOfferModal: React.FC = () => {
         </header>
         <p id={textId} className={styles.offerText} data-testid="offer-text">
           {proposalText(game, proposal)}
+        </p>
+        <p id={effectId} className={styles.offerEffect} data-testid="offer-effect">
+          {offerEffectText(game, proposal)}
         </p>
         <footer className={styles.offerFooter}>
           <button className={`${styles.button} ${styles.warButton}`} onClick={() => answer(false)}>

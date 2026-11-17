@@ -2,6 +2,8 @@
 // at peace it orders nothing new, so the v1 and M5 baselines hold. The strength test (FR-204) sums the regiments of
 // the M8 armies: on a new continent game both Great Powers have the start army's 36 (FR-203), so (b) fires only when
 // one of them has more.
+// M12 FR-408 (card Q92): it proposes peace only once the enemy took one of its provinces or won a battle against it in
+// this war (War.battles), and after an offer that did not end the war not again for 6 turns; its answers stay (FR-174).
 import { describe, it, expect } from 'vitest';
 import { newGame } from '@/engine/newGame';
 import { scriptedPlayer } from '@/engine/ai/scriptedPlayer';
@@ -12,7 +14,7 @@ import { pairKey } from '@/engine/diplomacy/relations';
 import { militaryStrength } from '@/engine/diplomacy/queries';
 import { acceptsAlliance, acceptsPeace, losingWar } from '@/engine/diplomacy/scriptedAnswers';
 import type { Army, Regiment } from '@/types/Army';
-import type { ProvinceCapture, War } from '@/types/Diplomacy';
+import type { ProvinceCapture, War, WarBattle } from '@/types/Diplomacy';
 import type { GameState } from '@/types/GameState';
 import type { RegimentType } from '@/types/Unit';
 import { N1, N2, setPair } from './fixtures';
@@ -35,6 +37,8 @@ const war = (s: GameState, since: number, captures: ProvinceCapture[] = [], extr
   setPair(s, N1, N2, { war: { aggressors: [N1], since, captures, ...extra }, consulates: [], embassies: [], points: 0 });
 /** A province of `fromId` taken by `toId` on `turn` (written by M9's conquest). */
 const capture = (fromId: string, toId: string, turn: number): ProvinceCapture => ({ provinceId: `province-${fromId}-nw`, fromId, toId, turn });
+/** A battle of the war on `turn`, won by `winnerId` (written by the combat phase, FR-408). */
+const battle = (winnerId: string, loserId: string, turn: number): WarBattle => ({ provinceId: 'province-nation-1-ne', turn, winnerId, loserId });
 const diplomacyOrders = (orders: Order[]) => orders.filter(o => DIPLOMACY_KINDS.includes(o.kind));
 
 describe('FR-174 FR-204 militaryStrength', () => {
@@ -126,10 +130,23 @@ describe('FR-174 a scripted Great Power proposes peace itself', () => {
     expect(diplomacyOrders(scriptedPlayer(s, N2))).toEqual([peace]);
   });
 
-  it('FR-174 when (b) it is the weaker', () => {
+  it('M12 FR-408 (replaces FR-174 (b) for proposing) the weaker side that lost nothing yet proposes nothing', () => {
     const s = withArmies(war(continent(5), 2), army(N1, [regiment('regulars', 100)]));
 
-    expect(diplomacyOrders(scriptedPlayer(s, N2))).toEqual([peace]);
+    expect(losingWar(s, N2, N1)).toBe(true);
+    expect(diplomacyOrders(scriptedPlayer(s, N2))).toEqual([]);
+  });
+
+  it('M12 FR-408 the example: war from turn 3, the first battle (lost) on turn 8: no offer before turn 9', () => {
+    for (const turn of [4, 5, 6, 7, 8]) expect(diplomacyOrders(scriptedPlayer(war(continent(turn), 3), N2))).toEqual([]);
+    // The battle of turn 8 is recorded in that End Turn's combat phase: the turn 9 orders see it
+    expect(diplomacyOrders(scriptedPlayer(war(continent(9), 3, [], { battles: [battle(N1, N2, 8)] }), N2))).toEqual([peace]);
+  });
+
+  it('M12 FR-408 a battle it won does not count, nor a battle lost in another war', () => {
+    expect(diplomacyOrders(scriptedPlayer(war(continent(9), 3, [], { battles: [battle(N2, N1, 8)] }), N2))).toEqual([]);
+    const elsewhere = setPair(war(continent(9), 3), N2, ARVELIA, { war: { aggressors: [N2], since: 3, battles: [battle(ARVELIA, N2, 8)] } });
+    expect(diplomacyOrders(scriptedPlayer(elsewhere, N2))).toEqual([]);
   });
 
   it('FR-174 not in a war it is not losing (equal start armies, no conquest), however long it lasts', () => {
@@ -138,10 +155,10 @@ describe('FR-174 a scripted Great Power proposes peace itself', () => {
   });
 
   it.each([
-    [2, []],
-    [3, [{ kind: 'proposeOverture', nationId: N2, overture: 'peace', targetId: N1 }]],
-  ])('FR-174 at most once every 3 turns: last offer %i turns ago -> %j', (ago, expected) => {
-    const s = war(continent(10), 2, [capture(N2, N1, 4)], { lastPeaceOffer: { [N2]: 10 - ago } });
+    [5, []],
+    [6, [{ kind: 'proposeOverture', nationId: N2, overture: 'peace', targetId: N1 }]],
+  ])('M12 FR-408 (was 3 turns in FR-174) after an offer that did not end the war, not again for 6 turns: last offer %i turns ago -> %j', (ago, expected) => {
+    const s = war(continent(12), 2, [capture(N2, N1, 4)], { lastPeaceOffer: { [N2]: 12 - ago } });
 
     expect(diplomacyOrders(scriptedPlayer(s, N2))).toEqual(expected);
   });

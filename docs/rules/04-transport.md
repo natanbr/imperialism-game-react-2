@@ -4,7 +4,7 @@
 > - Commodities reach the industry warehouse only through the network: each connected depot or port gathers its own tile + the 6 neighbours; the capital counts as a connected depot and port. Total units moved per turn are capped by transport capacity (freight cars, 1 unit per car); the player chooses what share each commodity gets.
 > - Capacity is bought in the Railyard: 1 lumber + 1 steel + 2 labour per car, no maintenance, available next turn. Standard game starts with about 15 cars [W1].
 > - Connected towns grow by themselves and ship free materials and goods (section 6). This is a large free income and is easy to forget.
-> - CODE MISMATCH: river ports, depot-on-port rule, gold/gems values (list at the bottom). Start capacity and freight-car costs RESOLVED in M2 (FR-039, FR-043).
+> - CODE MISMATCH: river ports, the depot-on-port rule, blockades and town development, and the shared cotton and wool slider with its demand lines (list at the bottom; all still true on 2026-11-15). Gold and gems values RESOLVED 2026-11-15 (`definisions/cashValues.ts`). Start capacity and freight-car costs RESOLVED in M2 (FR-039, FR-043).
 
 Source tags: `[M pN]` manual PDF page marker; `[W#]` web source (see Sources); `[?]` unverified or inferred.
 
@@ -113,14 +113,15 @@ Notes
 
 ## CODE MISMATCH
 
-- CODE MISMATCH: `systems/logisticsSystem.ts` pays gold $100 and gems $1000 per transported unit; canonical $200 and $500. [M p53]
-- CODE MISMATCH: `systems/transportConnectivitySystem.ts` treats every ocean-adjacent port as a BFS start and uses `isAdjacentToOcean`, so a **river port** can never be active; the manual allows river ports, connected as long as the downstream provinces are owned. [M p49]
-- CODE MISMATCH: the same system activates any depot reachable by rail from any port tile; the manual requires the port tile to hold a depot as well. [M p49]
-- CODE MISMATCH: no blockade logic (sea port cut by undisputed enemy fleet), no province-loss logic, no town development.
+- RESOLVED 2026-11-15, was: `systems/logisticsSystem.ts` paid gold $100 and gems $1000 per transported unit. Now it pays the $200 and $500 of `definisions/cashValues.ts` (test: `tests/engine/systems/logisticsSystem.test.ts`, "gold and gems cash value"). [M p53]
+- CODE MISMATCH: `systems/transportConnectivitySystem.ts` treats every ocean-adjacent port as a BFS start and uses `isAdjacentToOcean`, so a **river port** can never be active; the manual allows river ports, connected as long as the downstream provinces are owned. [M p49] Checked 2026-11-15, still true: `updateNetworkConnectivity` starts its search only from ports for which `isAdjacentToOcean` holds, and a port is active only if it is ocean-adjacent.
+- CODE MISMATCH: the same system activates any depot reachable by rail from any port tile; the manual requires the port tile to hold a depot as well. [M p49] Checked 2026-11-15, still true: `updateNetworkConnectivity` lights every depot that the search from the capital or from any ocean-adjacent port reaches; no depot is required on the port tile.
+- CODE MISMATCH (checked 2026-11-15, still true): no blockade logic (sea port cut by undisputed enemy fleet: `systems/interceptionsSystem.ts` is a stub) and no town development. Province loss RESOLVED 2026-11-15 (M9, FR-222): `engine/army/conquest.ts` `withoutNodes` removes a lost province's rail nodes, depots and ports from the old owner's network.
 - RESOLVED in M2 (FR-039, FR-043), was: no Railyard build costs (1 lumber + 1 steel + 2 labour per car). Nation `transportCapacity` starts at 8-10 in mocks/`worldInit.ts`; a standard game starts near 15. A new game now starts with 15 cars; the test fixtures keep 8-10.
 - `logisticsSystem.ts` collects from hub tile + 6 neighbours with odd-row offset hex adjacency: matches the manual. Capital is a hub: matches. Fish from sea/river tiles is not modelled.
 - RESOLVED in M2 (FR-039), was: `store/nationSlice.ts` `purchaseTransportCapacityIncrease` charges 1 coal + 1 iron per capacity point; the rule is 1 lumber + 1 steel + 2 labour per car. [W1] [W8]
 - RESOLVED in M2 (FR-029, FR-030), was: rail cost by terrain and technology gating (`High Pressure` etc.) are not in `workPrices.ts` (flat 100).
+- CODE MISMATCH (added 2026-11-15, audit ECONOMY-22): section 4 says wool and cotton share one slider and that the screen shows red and green demand lines. The app has one slider per commodity: `components/TransportAllocationModal.tsx` draws one slider row for every commodity in the groups that `transportKinds` (`components/commodityKinds.ts`) returns, which makes Cotton and Wool two rows (both are in the "Raw materials" group), and it shows no demand lines (nothing says what industry or workers still need). Not planned: M12 only documents the difference (FR-441).
 
 ## Sources
 

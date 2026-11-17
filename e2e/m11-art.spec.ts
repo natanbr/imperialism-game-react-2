@@ -149,12 +149,15 @@ test('FR-338 the map after a rail link and a depot built through the UI: every p
     await tile(page, id).click();
     await expect(tile(page, id).getByTitle('Construction in progress')).toBeVisible();
     await endTurn(page, i + 2);
-    await expect(page.getByTestId('news-panel')).toContainText(`Rail finished at ${id}.`);
+    // M12 FR-375: the news line names the province of the tile
+    await expect(page.getByTestId('news-panel')).toContainText(`Rail finished at ${id} in Testland South-West.`);
   }
   await pickWorker(page, 'engineer');
   // The engineer's own tile, clicked in its free corner: the 24 px worker button covers the tile's centre (FR-110)
   await tile(page, '2-7').click({ position: { x: 6, y: 6 } });
   await page.getByRole('button', { name: 'Build Depot' }).click();
+  // FR-383: $2,000 asks once
+  await page.getByRole('button', { name: 'Spend $2,000' }).click();
   await expect(tile(page, '2-7').getByTitle('Construction in progress')).toBeVisible();
   for (let turn = 4; turn <= 7 && !(await tile(page, '2-7').getByTitle(/^Depot: /).count()); turn++) await endTurn(page, turn);
 

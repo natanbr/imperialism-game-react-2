@@ -1,0 +1,503 @@
+{
+  "track": "economy",
+  "coverage": "Played one full 40-turn game as Testland in a real browser at 1280x720 (about 55 End Turns with three short extra games): civilians moved and ordered (prospect, develop levels 1-3, rail, depot, port, fort), capital orders (production, expansion and cancel, freight car and cancel, training to trained and expert and cancel, recruit), transport sliders, Warehouse, Market (sell, bid, consulate), Deal Book, Diplomacy consulate, news, score, Council and game-over screens, cursors for all 7 civilian types, cancel and undo, refusal texts, running out of money (a regiment was disbanded), viewports 1024x768 to 1920x1080. Cash, warehouse, production, sales, bids, upkeep, score parts and news agreed on every turn I checked (cash invariant checked on 20 turns). A headless fuzz (12 seeds x 40 turns, 914 accepted random capital orders) found no negative or NaN value and exact undo; the engine economy is sound, the problems are in the UI path and in missing features. No console error or warning in the whole session.",
+  "not_covered": "Food starvation in the app (food stock never ran low because everything is shipped, see ECONOMY-01; the engine is covered by tests and matches rules 05), sick workers display, mountains/swamp/oil/driller work, river ports, fish, second depot networks and branching rail beyond one line, Armoury/army/war, diplomacy beyond a consulate, Valdoria AI behaviour (only noted that it scored 1291 against my 686), keyboard accessibility, touch, a Council win.",
+  "findings": [
+    {
+      "id": "ECONOMY-01",
+      "kind": "bug",
+      "severity": "major",
+      "title": "Transport sliders do not limit anything: spare capacity is filled automatically, so \"Allocated 0 / Remaining 15\" still ships everything",
+      "area": "transport",
+      "repro": [
+        "New game as Testland, turn 1. Open \"Transportation of Commodities\". Move Grain, Fruit and Cotton all to 0 (dialog reads Allocated 0, Remaining 15).",
+        "Press Advance Turn. Open the Warehouse and compare with the turn before.",
+        "Later (depot at 5-8 finished, 20 units collected for capacity 15): leave the sliders at 0 and end the turn again."
+      ],
+      "expected": "Only what the sliders allocate is shipped (rules 04: \"a tile's output above what you allocate is wasted\"; the popup shows Allocated and Remaining). With all sliders at 0 nothing should arrive.",
+      "actual": "Everything still arrived. Turn 4 of my game, all sliders 0: grain +5 shipped (net +1 after 4 eaten), fruit +4 shipped (net +2 after 2 eaten), cotton +2 shipped, the same as with the sliders set. Turn 7 (20 units collected, capacity 15, sliders 0): cotton 0 shipped, so the textile mill ran on 1 fabric until I set Cotton 2 by hand. The unallocated capacity is handed out in tile-scan order, not by player choice, and the popup never says so.",
+      "evidence": "From my play log: \"T4 (alloc all zero) ... DIFF {grain:+1, livestock:-1, fruit:+2, cotton:-2, coal:-2, ironOre:-2...}\" with workers eating grain 4, fruit 2, livestock 1; \"T7 ... DIFF {grain:+5, livestock:+1, fruit:+2, cotton:-4 ...}\" (cotton -4 = 4 used, 0 shipped). Transport dialog at that time: \"Capacity 15 / Allocated 0 / Remaining 15 / Grain 0 / 9, Livestock 0 / 2, Fruit 0 / 7, Cotton 0 / 2\". Screenshot C:\\Users\\brnat\\AppData\\Local\\Temp\\claude\\6d278f4c60cadc55\\c11c618f-69f1-4659-b2b1-f3416944c4fb\\scratchpad\\audit\\shots\\economy-25-transport-t8.png",
+      "frs": [
+        "FR-022",
+        "FR-133"
+      ],
+      "suspect": "src/app/engine/systems/logisticsSystem.ts:33 getAllocatedResources: after the planned amounts it \"greedily fills from any unplanned resources\" up to capacity.",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "ECONOMY-02",
+      "kind": "bug",
+      "severity": "minor",
+      "title": "An engineer cannot lay the last rail section into the capital by clicking it: the click silently becomes a plain move and the turn is lost",
+      "area": "workers",
+      "repro": [
+        "New game. Turn 1: pick the engineer from the capital stack, click tile 4-9 (not next to the capital, so it is a plain move, $0).",
+        "Turn 2: click the engineer's own tile, choose Build Depot ($2,000). End turns until the news says \"Depot finished at 4-9\" (turn 4). The map shows \"Depot: not connected\".",
+        "Turn 5: select the engineer, click 3-9: rail section 4-9 to 3-9 is built ($100). End turn.",
+        "Turn 6: select the engineer on 3-9 and click the capital 2-9 (the tile next to it). Check cash, news and the depot after End Turn."
+      ],
+      "expected": "A rail section 3-9 to capital is ordered ($100), \"Rail finished\" appears and the depot turns \"connected\" (FR-137: a section may end on a rail node such as the capital; the engine accepts it).",
+      "actual": "The engineer just walks onto the capital, cash is unchanged, no refusal text, no news line, and the depot stays \"Depot: not connected\". Only after standing ON the capital and clicking 3-9 (turn 7, $100) did \"Rail finished at 3-9\" appear and the depot become \"connected\". A first-time player loses a turn without being told why.",
+      "evidence": "Play log: \"T6 engineer 3-9 -> capital Cash: $7,400 | refusal: -\" then the turn 6 news has only \"Army upkeep: $100.\" and the depot list [[\"4-9\",\"Depot: not connected\"]]; the map has a single Testland rail segment (3-9 to 4-9). Screenshot C:\\Users\\brnat\\AppData\\Local\\Temp\\claude\\6d278f4c60cadc55\\c11c618f-69f1-4659-b2b1-f3416944c4fb\\scratchpad\\audit\\shots\\economy-51-rail-gap.png. A headless run of the same orders through the engine (moveAndStartConstruction onto 2-9 with fromTileId 3-9) builds the link and connects the depot, so only the UI path is wrong (test file .gate/audit/economy/rail.test.ts).",
+      "frs": [
+        "FR-137",
+        "FR-139",
+        "FR-023"
+      ],
+      "suspect": "src/app/workers/EngineerWorker.ts:15-17 returns {type:\"construct\", kind:\"fort\"} for the capital, so src/app/hooks/tileClickOrders.ts:58 (case \"construct\") never reaches moveOrders() with its rail-section branch; the fort order is refused (invalid-site) and only the plain move succeeds.",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "ECONOMY-03",
+      "kind": "bug",
+      "severity": "minor",
+      "title": "With an engineer selected the capital shows the \"build fort\" cursor, but the click is refused (\"not a valid site\"); the engineer cursor also shows \"build\" on every own tile although a click only moves",
+      "area": "map",
+      "repro": [
+        "New game. Select the engineer in the capital stack. Hover tile 2-9: the cursor is the fort picture.",
+        "Click 2-9. Read the message in the HUD.",
+        "Hover any other own land tile: same \"construct\" cursor; click one: the engineer only moves (or lays rail next to rail)."
+      ],
+      "expected": "The cursor matches what the click does (FR-330 draws the cursor from the action a click would take). The capital already has a level 1 fort (engine fortLevelOf), and only level 1 can be built, so no fort cursor there.",
+      "actual": "Capital: fort cursor, then \"Build refused: that tile is not a valid site.\" and nothing built. Other own tiles: the \"open construct modal\" cursor appears over tiles where the click is a move (the modal only opens on the engineer's own tile).",
+      "evidence": "Play log (fresh game): \"cursor over capital w/ engineer selected: url(data:image/png;...\" then \"engineer clicks capital Cash: $10,000 | refusal: Build refused: that tile is not a valid site.\" Headless scan (.gate/audit/economy/scan.test.ts): \"engineer cursor=construct:fort -> click=NOTHING (refused: startConstruction->invalid-site) | tiles: 1 2-9\".",
+      "frs": [
+        "FR-330",
+        "FR-023"
+      ],
+      "suspect": "src/app/workers/EngineerWorker.ts:15 checks (tile.fortLevel ?? 0) < 3, ignoring the capital's implicit level 1 (queries.ts:185-188).",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "ECONOMY-04",
+      "kind": "bug",
+      "severity": "minor",
+      "title": "The tile panel builds a $5,000 fort on any tile with one click, shows no price or confirmation, and the finished fort is not visible anywhere",
+      "area": "workers",
+      "repro": [
+        "New game, turn 1: engineer clicks 3-8 (rail, $100). Turn 2: click tile 3-8, click the engineer row, press \"Construct Fort\".",
+        "Cash drops from $9,900 to $4,800 at once (fort $5,000, upkeep $100). End three turns.",
+        "Look at the news, the tile panel, the tile label and the map for 3-8."
+      ],
+      "expected": "Rules 03: forts are built by province for $5,000 / $7,500 / $10,000 and protect armies there; the button should say the price, and the result should be visible (icon, panel line, label). The engineer map click only offers a fort on the capital.",
+      "actual": "A fort on an orchard tile was accepted without a question. News turn 4: \"Fort finished at 3-8.\" After that the tile label still reads \"Orchard, fruit, level 1, owned by Testland\", the panel has no fort line, and the map shows no fort. The button label has no price (it is only greyed when cash is below $5,000).",
+      "evidence": "Play log: \"T2 Construct Fort on 3-8 Cash: $4,800\", news turn 4 \"Fort finished at 3-8. | Army upkeep: $100.\", \"label 3-8: Orchard, fruit, level 1, owned by Testland\". Screenshot C:\\Users\\brnat\\AppData\\Local\\Temp\\claude\\6d278f4c60cadc55\\c11c618f-69f1-4659-b2b1-f3416944c4fb\\scratchpad\\audit\\shots\\economy-50-fort-built.png.",
+      "frs": [
+        "FR-029",
+        "FR-030"
+      ],
+      "suspect": "src/app/components/TileInfoPanel.tsx:134 offers Construct Fort for every tile; queries.ts isFortSite only tests fortLevelOf(tile) === 0; no component draws tile.fortLevel.",
+      "fix_size": "M",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "ECONOMY-05",
+      "kind": "bug",
+      "severity": "minor",
+      "title": "The tile panel offers buttons that always fail: \"Develop farmer\" on a coal hill (enabled), \"Construct Port\" inland, \"Construct Depot\" beside a depot or the capital; the refusal gives no reason",
+      "area": "workers",
+      "repro": [
+        "Prospect a hill (found coal). Move the farmer onto it and wait one turn. Click the tile, click the farmer row: \"Develop farmer L1\" is enabled with the tooltip \"($100)\". Click it.",
+        "Engineer on an inland tile 5-3: the row shows \"Construct Port\"; click it.",
+        "Engineer on 3-8 (next to the capital): modal \"Build Depot\", click it."
+      ],
+      "expected": "Only offers that can work are enabled, or the refusal says why (inland, next to a depot, wrong terrain).",
+      "actual": "\"Develop refused: that tile is not a valid site.\" / \"Build refused: that tile is not a valid site.\" for all three; nothing says which rule was broken. The farmer button on a tile with no farmable resource also gets the tooltip \"Resource not discovered - use Prospector first\" (on the capital) which is untrue there.",
+      "evidence": "Play log: \"farmer on coal hills, buttons: Develop farmer L1 [ENABLED] title=Develop farmer L1 ($100)\" then \"refusal: Develop refused: that tile is not a valid site.\"; \"after Construct Port: ... Build refused: that tile is not a valid site.\" (engineer on depot tile 5-3); depot at 3-8 \"Build refused: that tile is not a valid site.\" Screenshot C:\\Users\\brnat\\AppData\\Local\\Temp\\claude\\6d278f4c60cadc55\\c11c618f-69f1-4659-b2b1-f3416944c4fb\\scratchpad\\audit\\shots\\economy-33-tile-info-engineer.png.",
+      "frs": [
+        "FR-022",
+        "FR-030"
+      ],
+      "suspect": "src/app/components/TileInfoPanel.tsx:84-136: the development button ignores the worker's terrain list; port and fort buttons ignore isPortSite/isFortSite; the refusal text has one generic invalid-site line.",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "ECONOMY-06",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "The Construction Options dialog shows no price, no duration and offers \"Build Depot\" where it is always refused",
+      "area": "dialogs",
+      "repro": [
+        "Select the engineer, click its own tile (a farm or orchard near the capital): dialog \"Construction Options\" with \"Build Depot\" (and \"Build Port\" on a coast tile).",
+        "Press Build Depot on a tile next to the capital."
+      ],
+      "expected": "The dialog tells the price ($2,000 depot, $3,000 port), the time (3 turns) and, for an invalid tile, why it cannot be built (a depot may not touch another depot or the capital).",
+      "actual": "Only two buttons and Cancel. On 3-8 the depot is refused with \"Build refused: that tile is not a valid site.\" The $2,000 is visible only after the order as a drop in Cash.",
+      "evidence": "Screenshot C:\\Users\\brnat\\AppData\\Local\\Temp\\claude\\6d278f4c60cadc55\\c11c618f-69f1-4659-b2b1-f3416944c4fb\\scratchpad\\audit\\shots\\economy-17-construction-modal.png; play log \"modal: Construction Options | Build Depot | Cancel\" then \"Build refused: that tile is not a valid site.\" and \"depot at 5-8 Cash: $5,200\" (from $7,200).",
+      "frs": [
+        "FR-030"
+      ],
+      "suspect": "src/app/components/ConstructionOptionsModal.tsx (buttons without cost or site check).",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "ECONOMY-07",
+      "kind": "bug",
+      "severity": "minor",
+      "title": "After a plain move the civilian stays selected, so every later click on another tile (just to look at it) shows \"Move refused: the worker already moved this turn.\"",
+      "area": "map",
+      "repro": [
+        "Select the prospector, click an open-range tile (a plain move, no job).",
+        "Click any other tile to read its tile info.",
+        "Look at the message above the news."
+      ],
+      "expected": "A move without a job ends the selection (as a job order does), or a click on another tile only selects it.",
+      "actual": "The prospector is still highlighted; the second click tries to move it again and the HUD shows the refusal. The text stays until an order is accepted, so it also sits there after you open other panels.",
+      "evidence": "Play log: \"after plain move: refusal = - | selected still? [[\\\"7-5\\\",[\\\"prospector*\\\"]]]\" then \"after clicking another tile to look: refusal = Move refused: the worker already moved this turn.\"",
+      "frs": [
+        "FR-023",
+        "FR-115"
+      ],
+      "suspect": "src/app/hooks/useTileClickHandler.ts: the branch \"else if (selectedWorkerId)\" calls selectTile but never selectWorker(undefined).",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "ECONOMY-08",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "Clicking another civilian while one is selected moves the selected one next to it instead of switching the selection; there is no other way to deselect",
+      "area": "map",
+      "repro": [
+        "Select the prospector (it stays highlighted).",
+        "Click the engineer's figure on another tile.",
+        "Press Escape or click the sea to deselect."
+      ],
+      "expected": "The engineer becomes selected, or a visible hint says what the click does.",
+      "actual": "The prospector is moved onto the engineer's tile (it spends its move; two civilians now stack). Only the figure's tooltip says \"Move prospector here\". Escape and a click on the sea do not deselect a civilian or a tile; the only way is to click the selected civilian again.",
+      "evidence": "Play log: after clicking the engineer button the tile row read \"prospector - Moved\" on 5-4 and the next click gave \"Move refused: the worker already moved this turn.\" Behaviour is specified in FR-115 but is easy to hit.",
+      "frs": [
+        "FR-115"
+      ],
+      "suspect": "src/app/components/Tile/TileWorkers.tsx:67-80 (selectedElsewhere makes the button a \"move here\" target).",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "ECONOMY-09",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "Cancel: the confirm box does not say if money comes back, a job cancelled on a later turn silently loses its price, and a move plus job needs two Cancel clicks",
+      "area": "workers",
+      "repro": [
+        "Order a miner job ($100): Cancel in the tile panel: browser confirm \"Are you sure you want to cancel this action?\"; cash returns (+$100) but the miner stays marked Moved; press Cancel again to send it back.",
+        "Order a job, end the turn, cancel it next turn."
+      ],
+      "expected": "The question says \"$100 will be refunded\" or \"the $100 spent is lost\"; one Cancel undoes the whole click.",
+      "actual": "Same-turn cancel refunds (FR-031, correct). Next-turn cancel refunds nothing, with the same wording and no warning; for a $5,000 job that is a $5,000 loss. The question is a native browser confirm() box, not a game dialog.",
+      "evidence": "Play log: \"miner->5-3 Cash: $5,866\", \"after same-turn cancel Cash: $5,966\", the second Cancel returns the miner to 6-2; next turn: \"start T28 Cash: $5,991\" and \"after cancel of previous-turn job Cash: $5,991\" (job ordered the turn before). Test-browser console: \"DIALOG confirm: Are you sure you want to cancel this action?\"",
+      "frs": [
+        "FR-031"
+      ],
+      "suspect": "src/app/components/TileInfoPanel.tsx:65 window.confirm; engine/orders/apply.ts cancel() keeps the Moved status after the job is cancelled.",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "ECONOMY-10",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "One click on a tile can spend $1,000 to $5,000 (develop level 2 or 3) with no price shown and no confirmation",
+      "area": "workers",
+      "repro": [
+        "Develop a forester to level 2, then select it and click its own tile again.",
+        "Watch Cash."
+      ],
+      "expected": "The cursor or a tooltip shows the price before the click (the panel button has one), or large spends ask first.",
+      "actual": "Cash fell from $5,866 to $866 at once (forester level 2 to 3, $5,000). The cursor is only a picture; prices appear only on the panel buttons that the click path skips.",
+      "evidence": "Play log: \"forester on own tile 10-9 click Cash: $866\" from \"start Cash: $5,866\"; farmer 3-9 level 3: cash $12,529 to $7,529. The order can be cancelled the same turn, which the player is not told.",
+      "frs": [
+        "FR-023"
+      ],
+      "suspect": "src/app/hooks/tileClickOrders.ts case \"develop\".",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "ECONOMY-11",
+      "kind": "gap",
+      "severity": "major",
+      "title": "A new player gets no hint what to do: no goal text, no tutorial, no first-step prompt, hidden \"n\" shortcut",
+      "area": "hud",
+      "repro": [
+        "Open the game. Read every line of the HUD and the About panel.",
+        "Try to find out what wins, how money is earned and what the first orders should be."
+      ],
+      "expected": "The first screen or the first turns say what the game is about (score after 40 turns, Council at turns 10/20/30/40), that income comes from selling clothing, furniture and hardware to minor nations after a $500 consulate (Diplomacy), and what a good first turn is.",
+      "actual": "The HUD shows \"Turn 1 of 40\", \"Next Council: turn 10\", \"If it met now: Testland 4, Valdoria 4, abstain 4 of 12; 9 needed\", Cash, Score and a score table. Nothing explains the score parts (they appear only as hover text), nothing mentions the consulate or selling (the Board of Trade dialog explains it only after you open it), production orders start at 0 so a passive player makes nothing, and the start warehouse of 10 lumber and 10 steel is easily spent on expansions, after which steel and lumber stop for about 8 turns until a depot reaches coal, iron and timber 7 tiles north. In my game my final score was 686 against Valdoria's 1291.",
+      "evidence": "Screenshot C:\\Users\\brnat\\AppData\\Local\\Temp\\claude\\6d278f4c60cadc55\\c11c618f-69f1-4659-b2b1-f3416944c4fb\\scratchpad\\audit\\shots\\economy-00-start.png (whole first screen); HUD text dump at turn 1; a search of src/app for tutorial, how to play, welcome, hint finds none; final screen C:\\Users\\brnat\\AppData\\Local\\Temp\\claude\\6d278f4c60cadc55\\c11c618f-69f1-4659-b2b1-f3416944c4fb\\scratchpad\\audit\\shots\\economy-48-game-over.png.",
+      "frs": [],
+      "suspect": "",
+      "fix_size": "M",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "ECONOMY-12",
+      "kind": "gap",
+      "severity": "major",
+      "title": "No save or load: reloading or closing the tab destroys the game",
+      "area": "hud",
+      "repro": [
+        "Play several turns (or finish a game). Press F5."
+      ],
+      "expected": "The 40-turn game survives a reload (the order log is already kept for replay), or the page warns before leaving.",
+      "actual": "The page came back at \"Turn: 1 of 40\", Cash $10,000, a new seed. docs/REVIVAL_PLAN.md line 35 lists \"No save/load\" as known tech debt, but the roadmap marks v1 and v2 done.",
+      "evidence": "Play log: \"before reload: {cash: Cash: $25,606, turn: Game over after turn 40 of 40 Winter 1824, score: Score: 686}\" and \"after reload: {cash: Cash: $10,000, turn: Turn: 1 of 40 Spring 1815, score: Score: 240}\".",
+      "frs": [],
+      "suspect": "src/app/store/gameSlice.ts keeps the game only in memory.",
+      "fix_size": "M",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "ECONOMY-13",
+      "kind": "gap",
+      "severity": "major",
+      "title": "Civilians can never be built (no University) and technology cannot be bought: the start seven civilians are all you ever have",
+      "area": "economy",
+      "repro": [
+        "Open Capital. Look for a University or civilian building and for what the Technology button does.",
+        "Count civilians at turn 1 and at turn 40."
+      ],
+      "expected": "Rules 03 and 05: the University builds civilians (expert worker + cash + 2 paper); technology is bought (rail on hills, rancher, forester and driller depend on it).",
+      "actual": "No University card. The Technology button is greyed out with the tooltip \"Coming in a later milestone\". There is one engineer for the whole game, so one rail line plus depot to the coal and iron hills took me turns 2 to 15, while the one prospector (all 9 hills known by turn 12) and the driller (no oil) are idle most of the game. This is by decision NR-029 / FR-114 but limits growth hard and the player is not told.",
+      "evidence": "Screenshot C:\\Users\\brnat\\AppData\\Local\\Temp\\claude\\6d278f4c60cadc55\\c11c618f-69f1-4659-b2b1-f3416944c4fb\\scratchpad\\audit\\shots\\economy-03-capital-t1.png (Technology greyed); play log \"tech disabled true title Coming in a later milestone\"; the same seven civilians from turn 1 to turn 40.",
+      "frs": [
+        "FR-114"
+      ],
+      "suspect": "",
+      "fix_size": "L",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "ECONOMY-14",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "Town development (free materials and goods from connected towns, \"a large free income\" in rules 04) does not exist",
+      "area": "economy",
+      "repro": [
+        "Connect a depot next to a village; play 20 turns; watch the warehouse for free steel, lumber or fabric."
+      ],
+      "expected": "Rules 04 section 6: a connected town produces free materials and goods from its province's resources.",
+      "actual": "Nothing is produced for free in any turn I played (every warehouse change matched shipments, production orders, meals, sales and bids exactly). rules 04 lists it as CODE MISMATCH \"no town development\"; no requirement id covers it.",
+      "evidence": "Per-turn warehouse differences in my log for 40 turns; docs/rules/04-transport.md \"CODE MISMATCH: ... no town development\".",
+      "frs": [],
+      "suspect": "",
+      "fix_size": "L",
+      "confidence": "code-reading-only"
+    },
+    {
+      "id": "ECONOMY-15",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "The player cannot see which tiles a depot collects: tile panel and transport popup show no network state, yield or coverage",
+      "area": "transport",
+      "repro": [
+        "Click a tile that a connected depot covers, and one it does not.",
+        "Open the transport popup."
+      ],
+      "expected": "The tile panel says \"collected by depot at 5-3: delivers 2 coal\" or \"not collected\", or the map marks covered tiles; the popup says what the mills need (rules 04: green and red demand lines).",
+      "actual": "Tile Info lists terrain, river, resource, owner, province and workers only. The popup shows only totals (\"Coal 0 / 6\"). Why coal did not arrive for 8 turns could only be found by building and watching. The depot and port icons carry the connected state only as a tooltip.",
+      "evidence": "Screenshot C:\\Users\\brnat\\AppData\\Local\\Temp\\claude\\6d278f4c60cadc55\\c11c618f-69f1-4659-b2b1-f3416944c4fb\\scratchpad\\audit\\shots\\economy-33-tile-info-engineer.png (tile panel of the depot tile 5-3 with no depot line); play log of the transport popup at turns 1, 8 and 16.",
+      "frs": [
+        "FR-093"
+      ],
+      "suspect": "",
+      "fix_size": "M",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "ECONOMY-16",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "Once a tile is selected the news shows 3 lines (6 at 1080p) of about 12-20, the HUD must be scrolled, and a tile cannot be deselected",
+      "area": "hud",
+      "repro": [
+        "Turn 2 onwards: click any tile. Look at \"News from last turn\".",
+        "Try Escape, a second click on the same tile, a click on the sea."
+      ],
+      "expected": "The player's own results (production, sales, bought goods) are readable; a tile can be deselected.",
+      "actual": "The news list box is 60 px high at 1280x720, 1366x768 and 1536x864 (3 of 12 lines; 6 lines at 1920x1080) and the HUD content scrolls (705 px of content in 418 px at 720p). The player's own lines come first, but \"Produced ...\" and \"Sold ...\" lines are mostly below the box. FR-268 sets \"at least 3 lines\" on purpose. Nothing deselects the tile; a sea tile can be selected and shows a Tile Info for \"Sea\".",
+      "evidence": "Measured: news-list clientHeight 60 and scrollHeight 600 at 1280x720; per viewport {1280x720: 3 of 12 lines, 1366x768: 3, 1536x864: 3, 1920x1080: 6}. Screenshot C:\\Users\\brnat\\AppData\\Local\\Temp\\claude\\6d278f4c60cadc55\\c11c618f-69f1-4659-b2b1-f3416944c4fb\\scratchpad\\audit\\shots\\economy-12-hud-scrolled-news.png.",
+      "frs": [
+        "FR-268",
+        "FR-315"
+      ],
+      "suspect": "src/app/globals.css:560-576 (.news-scroll / .news-list heights).",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "ECONOMY-17",
+      "kind": "visual",
+      "severity": "minor",
+      "title": "Capital dialog is cut off at 1280x720 and 1366x768: the Clothing factory card and the Transport footer need an inner scroll",
+      "area": "capital",
+      "repro": [
+        "Open Capital at 1280x720 (or 1366x768)."
+      ],
+      "expected": "All seven production cards, the labour panel and the freight car footer are visible, or a visible scrollbar shows there is more.",
+      "actual": "1280x720: the Clothing factory card sits half under the bottom edge and the Transport panel is cut after \"+ Freight car\"; 1366x768: the footer line \"1 Lumber, 1 Steel and 2 labour per car\" is cut. Both panes scroll (industry 773 of 622 px, side 681 of 622 px) but headless Chrome shows no scrollbar; at 1920x1080 everything fits.",
+      "evidence": "Screenshots C:\\Users\\brnat\\AppData\\Local\\Temp\\claude\\6d278f4c60cadc55\\c11c618f-69f1-4659-b2b1-f3416944c4fb\\scratchpad\\audit\\shots\\economy-03-capital-t1.png and C:\\Users\\brnat\\AppData\\Local\\Temp\\claude\\6d278f4c60cadc55\\c11c618f-69f1-4659-b2b1-f3416944c4fb\\scratchpad\\audit\\shots\\economy-capital-1366x768.png.",
+      "frs": [
+        "FR-046",
+        "FR-333"
+      ],
+      "suspect": "src/app/components/capital/Capital.module.css (dialog height).",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "ECONOMY-18",
+      "kind": "visual",
+      "severity": "nit",
+      "title": "A \"Debug\" box with tile coordinates and the game seed shows in the player HUD",
+      "area": "hud",
+      "repro": [
+        "Select any tile and look at the lower HUD."
+      ],
+      "expected": "Debug data hidden in a production build.",
+      "actual": "\"Debug  Tile: 5,3 (id 5-3)  Seed: 1121248218\" in a dashed box under the news.",
+      "evidence": "Screenshot C:\\Users\\brnat\\AppData\\Local\\Temp\\claude\\6d278f4c60cadc55\\c11c618f-69f1-4659-b2b1-f3416944c4fb\\scratchpad\\audit\\shots\\economy-33-tile-info-engineer.png.",
+      "frs": [],
+      "suspect": "src/app/components/HUD.tsx:84-87.",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "ECONOMY-19",
+      "kind": "visual",
+      "severity": "nit",
+      "title": "Warehouse lists Canned Food, Paper and Fuel under \"Materials\"; a job row in the tile panel wraps its text (\"Forestry to level\" / \"2\" / Cancel)",
+      "area": "dialogs",
+      "repro": [
+        "Open the Warehouse.",
+        "Select a tile where a forester works and read the panel row."
+      ],
+      "expected": "Groups match rules 04/05 (materials: steel, lumber, fabric; paper and canned food are not shipped materials); one-line job rows.",
+      "actual": "MATERIALS holds Canned Food, Fabric, Paper, Lumber, Steel, Fuel. The tile-panel row breaks \"Forestry to level 2\" after \"level\" and puts the number and Cancel on the next line.",
+      "evidence": "Screenshot C:\\Users\\brnat\\AppData\\Local\\Temp\\claude\\6d278f4c60cadc55\\c11c618f-69f1-4659-b2b1-f3416944c4fb\\scratchpad\\audit\\shots\\economy-30-warehouse-t15.png.",
+      "frs": [
+        "FR-056"
+      ],
+      "suspect": "",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "ECONOMY-20",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "The Board of Trade lets you offer more units than the minor buyers take; the surplus wastes a cargo hold",
+      "area": "market",
+      "repro": [
+        "With a consulate in Sundmark (buyers: 2 units of clothing) offer 3 Clothing."
+      ],
+      "expected": "The offer is limited to what buyers will take, or the row says how many are wanted.",
+      "actual": "The offer of 3 is accepted (all 4 holds used); the news says \"Sold 2 Clothing to Sundmark for $1,648. 1 Clothing not sold; back in the warehouse.\" The hold is gone for that turn.",
+      "evidence": "Play log turn 18: \"NEWS ... Sold 2 Clothing to Sundmark for $1,648. | 1 Clothing not sold; back in the warehouse. | Sold 1 Hardware to Sundmark for $793.\"",
+      "frs": [
+        "FR-194"
+      ],
+      "suspect": "",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "ECONOMY-21",
+      "kind": "visual",
+      "severity": "nit",
+      "title": "Upkeep warning wording contradicts itself: \"$50 is due ... and $16 will be left\"",
+      "area": "hud",
+      "repro": [
+        "Let cash fall to $16 with $50 upkeep due (the first regiment was disbanded for lack of money at $66)."
+      ],
+      "expected": "Say \"you have $16; $34 is missing; the newest regiment will be disbanded\".",
+      "actual": "\"Cash is short of the army upkeep: $50 is due at End Turn and $16 will be left. Unless this turn's sales cover the rest, the newest regiments are disbanded.\" $16 cannot be left after paying $50. (The disband itself and its news line work: \"1 regiment disbanded: no money for their upkeep. Army upkeep: $50.\")",
+      "evidence": "Play log turns 23-24 and the HUD text \"Cash is short of the army upkeep: $50 is due at End Turn and $16 will be left.\"",
+      "frs": [
+        "FR-261"
+      ],
+      "suspect": "src/app/components/gameText.ts:218-221 upkeepWarningText.",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "ECONOMY-22",
+      "kind": "doc-lie",
+      "severity": "nit",
+      "title": "Rules 04 says cotton and wool share one transport slider and the popup shows demand lines; the app has separate Cotton and Wool sliders and no demand display",
+      "area": "docs",
+      "repro": [
+        "Open the transport popup."
+      ],
+      "expected": "As docs/rules/04-transport.md section 4 describes (shared slider, red/green demand).",
+      "actual": "Two rows (Cotton, Wool); no indication what industry or workers still need.",
+      "evidence": "Transport popup text \"Cotton 2 / 2 | Wool 0 / 0\".",
+      "frs": [],
+      "suspect": "",
+      "fix_size": "M",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "ECONOMY-23",
+      "kind": "gap",
+      "severity": "minor",
+      "title": "The score formula punishes investment: ordering a job lowers the score at once, and level 3 development costs 50 points for +10",
+      "area": "economy",
+      "repro": [
+        "Note Score. Order a $1,000 develop job: the score falls 10 and the rival can pass you. Order level 3 ($5,000)."
+      ],
+      "expected": "The player can tell why the score fell and that investment pays back (FR-067 defines treasury/100 + 10 per capacity point + 10 per resource level).",
+      "actual": "Turn 1: score 240 to 230 after one $1,000 order (Valdoria ranked first). Level 2 (from level 1) is score-neutral ($1,000 = 10 points for +10), level 3 loses 40 points ($5,000 = 50 points for +10). The HUD hover text lists the three parts but nothing explains this, and a score-maximising player should never build level 3.",
+      "evidence": "Play log turn 1: \"Cash: $9,000, Score: 230\" right after the farmer order; hover text \"Treasury 145 + industry 150 + development 170\" matched the 17 resource levels counted on my tiles.",
+      "frs": [
+        "FR-067"
+      ],
+      "suspect": "src/app/engine/score/",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "ECONOMY-24",
+      "kind": "bug",
+      "severity": "minor",
+      "title": "A rail click onto a tile that already has a job silently becomes a plain move: no rail, no message, no cursor",
+      "area": "workers",
+      "repro": [
+        "Farmer starts a job on 3-8 (next to the capital). Select the engineer in the capital and click 3-8."
+      ],
+      "expected": "The refusal \"that tile already has a job\" (FR-113) or the move is not offered.",
+      "actual": "The engineer walks onto 3-8 marked Moved, cash unchanged, no text; the tile cursor was the default arrow. The same happened on turn 2 when the engineer clicked 3-9 where the farmer was working.",
+      "evidence": "Play log: \"farmer->3-8 (develop, $1,000) Cash: $5,800\", \"cursor 3-8: auto\", \"engineer->3-8 (tile has a job) Cash: $5,800 | refusal: -\", tile panel \"engineer - Moved\".",
+      "frs": [
+        "FR-113",
+        "FR-023"
+      ],
+      "suspect": "src/app/hooks/tileClickOrders.ts moveOrders(): the rail order is refused and only the fallback plain move succeeds, which submitFirstAccepted does not report.",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    },
+    {
+      "id": "ECONOMY-25",
+      "kind": "gap",
+      "severity": "nit",
+      "title": "Goods shipped this turn arrive after production, so they are used one turn later; nothing in the transport popup or capital says so",
+      "area": "transport",
+      "repro": [
+        "Ship 2 cotton while cotton stock is 2 and the textile order is 2 fabric."
+      ],
+      "expected": "A note \"arrives at End Turn, usable next turn\" (rules 01 puts transport arrival last).",
+      "actual": "Production used only the old stock: turn 9 \"Produced 1 Fabric\" although 4 cotton were in reach (2 in stock + 2 shipped). The capital card says \"Order 2: only 1 can be made (short of inputs)\", which is correct, but the transport popup does not say the shipment is not counted yet.",
+      "evidence": "Play log turn 9: DIFF cotton 0, \"Produced 1 Fabric.\"",
+      "frs": [],
+      "suspect": "",
+      "fix_size": "S",
+      "confidence": "reproduced"
+    }
+  ]
+}

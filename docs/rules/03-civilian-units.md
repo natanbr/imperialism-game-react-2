@@ -4,7 +4,7 @@
 > - Eight civilian types: Prospector, Engineer, Miner, Farmer, Rancher, Forester, Driller (built at the University) and Developer (a diplomatic reward, never built). Civilians have no combat value, no upkeep, no food need, and die if their province falls.
 > - Every build costs one **expert worker** (4 labour) + cash + 2 paper; every job costs cash when ordered. No civilian build exists in code yet; job prices are charged when ordered (RESOLVED in M2, FR-029).
 > - Job durations are known only partly: prospect 1 turn, rail 1 turn, depot/port/fort 3 turns, level-up probably 3 turns [?]. `workerDurations.ts` holds these numbers, 3 for every level-up (RESOLVED in M2, FR-028).
-> - CODE MISMATCH list at the bottom. Costs and durations RESOLVED in M2 (FR-028, FR-029).
+> - CODE MISMATCH list at the bottom (checked 2026-11-15, the ones that remain are still true). Costs and durations RESOLVED in M2 (FR-028, FR-029).
 
 Source tags: `[M pN]` manual PDF page marker; `[W#]` web source (see Sources); `[?]` inferred.
 
@@ -105,9 +105,9 @@ General rules
 - `PROSPECT_COST = 100` is undocumented (gaps.md A4 default).
 - RESOLVED in M2 (FR-028), was: `definisions/workerDurations.ts` (all marked TODO): Farmer/Rancher L1-3 = 2/3/4, Forester/Miner/Driller L1-3 = 3/4/5, depot 2, port 4, fort 4, rail 1. Sources: prospect 1, rail 1, depot/port/fort 3, level-up probably 3 for every level.
 - RESOLVED in M2 (FR-028), was: `constants/gameConstants.ts` `CONSTRUCTION_CONFIG` depot 4, port 6, fort 5, rail 3 and `DEVELOPMENT_CONFIG.DEVELOP_TURNS_BASE = 3`, `PROSPECT_TURNS = 2` (a second, conflicting set of durations).
-- CODE MISMATCH: `types/Workers.ts` `Worker.efficiency` (0-100) has no counterpart in the rules; remove or leave unused.
-- No University build cost (expert worker + cash + 2 paper) exists in code. `industrySlice.ts` was deleted in M2; training is the `trainWorkers` order (FR-058).
-- The Developer rules (embassy gate, 20x price, profit share) are not implemented.
+- CODE MISMATCH (checked 2026-11-15, still true): `types/Workers.ts` `Worker.efficiency` (0-100) has no counterpart in the rules; `engine/world/startWorld.ts` sets it to 100 and nothing reads it. Remove or leave unused.
+- No University build cost (expert worker + cash + 2 paper) exists in code (checked 2026-11-15, still true: no University building and no order that builds a civilian). `industrySlice.ts` was deleted in M2; training is the `trainWorkers` order (FR-058).
+- The Developer rules (embassy gate, 20x price, profit share) are not implemented (checked 2026-11-15, still true).
 
 ## Sources
 

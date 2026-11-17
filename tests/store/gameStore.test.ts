@@ -229,12 +229,13 @@ describe('FR-021 advanceTurn resolves the turn with the engine and keeps the eve
 
 describe('FR-022 only submitOrder and advanceTurn change the game', () => {
   // startNewGame (FR-105) replaces the game with a new one rather than changing it, so it is left out
-  // here and tested in tests/store/computerNations.test.ts.
+  // here and tested in tests/store/computerNations.test.ts; so does restoreGame, with a saved one (FR-359,
+  // tests/store/persistence.test.ts); endTurn is advanceTurn under the FR-423 lock (tests/ui/hudStatus.test.tsx).
   it('every other store action leaves game as it was', () => {
     const g = game();
     const store = createGameStore({ game: g });
     const actions = Object.entries(store.getState()).filter(
-      ([name, value]) => typeof value === 'function' && !['submitOrder', 'advanceTurn', 'startNewGame'].includes(name)
+      ([name, value]) => typeof value === 'function' && !['submitOrder', 'advanceTurn', 'endTurn', 'startNewGame', 'restoreGame'].includes(name)
     );
     expect(actions.length).toBeGreaterThan(10);
 

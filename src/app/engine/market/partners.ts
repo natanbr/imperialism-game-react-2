@@ -8,6 +8,7 @@ import { relationOf } from "../diplomacy/relations";
 import { diplomacySystem } from "../systems/diplomacySystem";
 import { createTurnContext } from "../turn/context";
 import { intentOrder } from "../turn/intents";
+import { fnv1a32 } from "../rng";
 import { isGreatPower, minorNationById } from "../world/countries";
 import { isTradeCommodity, marketOf, priceOf, tradeOrdersOf } from "./market";
 import { nationById } from "../orders/queries";
@@ -43,11 +44,30 @@ export function minorDemand(state: GameState, minorId: MinorNationId): TradeAmou
 }
 
 /**
- * The Great Powers in the order the minor deals with them (FR-187, Q28): highest relation points plus half
- * the subsidy percent that Great Power set toward it first; ties in `intentOrder` of the turn.
+ * FR-401 (card Q90): the order in which a minor breaks a tie between Great Powers, fixed for the whole game: the
+ * founding order rotated by a hash of the game's seed and the minor's id (FNV-1a, then MurmurHash3's finaliser so that
+ * close strings spread). No random stream is drawn (FR-019) and the turn plays no part.
  */
-export function partnerRanking(state: GameState, minorId: MinorNationId, turn: number = state.turn): NationId[] {
-  const order = intentOrder(state, turn);
+export function partnerTieOrder(state: GameState, minorId: MinorNationId): NationId[] {
+  const founding = intentOrder(state, 1);
+  if (founding.length === 0) return [];
+  let h = fnv1a32(`${state.seed}:${minorId}`);
+  h ^= h >>> 16;
+  h = Math.imul(h, 0x85ebca6b);
+  h ^= h >>> 13;
+  h = Math.imul(h, 0xc2b2ae35);
+  h ^= h >>> 16;
+  const start = (h >>> 0) % founding.length;
+  return [...founding.slice(start), ...founding.slice(0, start)];
+}
+
+/**
+ * The Great Powers in the order the minor deals with them (FR-187, Q28): highest relation points plus half
+ * the subsidy percent that Great Power set toward it first; ties in the minor's `partnerTieOrder` (FR-401; until M12 the
+ * turn's `intentOrder`, so an untouched minor changed its favourite every turn).
+ */
+export function partnerRanking(state: GameState, minorId: MinorNationId): NationId[] {
+  const order = partnerTieOrder(state, minorId);
   const weight = (nationId: NationId): number => {
     const entry = relationOf(state, nationId, minorId);
     return entry ? entry.points + (entry.subsidies[nationId] ?? 0) / 2 : -Infinity;
@@ -156,6 +176,11 @@ export interface BoardSeller {
   favouriteId?: NationId;
   /** Why the nation the board is for may not buy from it; absent when it may. */
   barrier?: TradeBarrier;
+  /**
+   * FR-394: the subsidy percent the nation sets toward the minor as the trade phase will find it (FR-162, FR-246); a
+   * deal with it is at `dealPrice` (FR-189). Absent when none, and for a colony (its own price, FR-224).
+   */
+  subsidy?: number;
 }
 
 export interface BoardBuyer {
@@ -163,6 +188,8 @@ export interface BoardBuyer {
   units: number;
   favouriteId?: NationId;
   barrier?: TradeBarrier;
+  /** FR-394: as `BoardSeller.subsidy`. */
+  subsidy?: number;
 }
 
 export interface BoardRow {
@@ -183,9 +210,9 @@ export interface BoardRow {
 /**
  * The Board of Trade for one Great Power (FR-194): a row per tradeable commodity in BOARD_ORDER with the
  * board price, its stock, its bid and offer, and the minors that offer or want the commodity, each with
- * its favourite and, when the nation may not trade with it, why; the barriers and favourites as the trade
- * phase of this End Turn will find them (FR-246). Works in either mode; the screen shows the minors' columns
- * in "partners" only.
+ * its favourite, our subsidy toward it (FR-394) and, when the nation may not trade with it, why; the barriers,
+ * subsidies and favourites as the trade phase of this End Turn will find them (FR-246). Works in either mode; the
+ * screen shows the minors' columns in "partners" only.
  */
 export function boardOfTrade(state: GameState, nationId: NationId): BoardRow[] {
   const market = marketOf(state);
@@ -194,12 +221,14 @@ export function boardOfTrade(state: GameState, nationId: NationId): BoardRow[] {
   const after = diplomacyAfterThisTurn(state);
   const minors = [...state.minorNations].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)).map((minor) => {
     const barrier = settledTradeBarrier(after, nationId, minor.id);
+    const subsidy = minor.colonyOf === undefined ? (relationOf(after, nationId, minor.id)?.subsidies[nationId] ?? 0) : 0;
     return {
       minorId: minor.id,
       offers: minorOffers(state, minor.id),
       demand: minorDemand(state, minor.id),
       favouriteId: favouritePartner(after, minor.id),
       ...(barrier ? { barrier } : {}),
+      ...(subsidy > 0 ? { subsidy } : {}),
     };
   });
   const entry = (m: (typeof minors)[number], units: number) => ({
@@ -207,6 +236,7 @@ export function boardOfTrade(state: GameState, nationId: NationId): BoardRow[] {
     units,
     ...(m.favouriteId ? { favouriteId: m.favouriteId } : {}),
     ...(m.barrier ? { barrier: m.barrier } : {}),
+    ...(m.subsidy ? { subsidy: m.subsidy } : {}),
   });
   return BOARD_ORDER.map((commodity): BoardRow => ({
     commodity,

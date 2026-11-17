@@ -4,15 +4,17 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&family=Playfair+Display:wght@600;700&display=swap">
 <style>
-  /* Layout: one centred column, overview first, detail behind a tab. Data comes from roadmap.json beside this file.
-     Palette: map-paper neutrals with an imperial green accent and a brass highlight. */
+  /* Layout: one long page for a product owner, in reading order: verdict, what exists, what was found, plan, decisions, history, all findings.
+     Palette: map-paper neutrals, imperial green accent, brass highlight (unchanged from the earlier page); rust for severity, status colours kept apart. */
   :root {
     --bg: #f5f4ef; --surface: #ffffff; --hover: #ecebe4; --line: #e0ded4; --control-line: #8a887c;
     --ink: #1f2420; --muted: #5d6259;
     --accent: #1f5c46; --accent-hover: #174636; --accent-soft: #e6f0eb; --on-accent: #ffffff;
-    --brass: #8a6416;
+    --brass: #8a6416; --brass-soft: #f4ead2;
     --ok: #0e6242; --ok-soft: #e5f3eb; --warn: #6f4a00; --warn-soft: #fbf2de;
     --bad: #a8231b; --bad-soft: #fbeae8; --hi: #963a0c; --hi-soft: #fceee5;
+    --part: #1f4f8a; --part-soft: #e6eef9;
+    --sev1: #963a0c; --sev2: #d3946a; --sev3: #ecd0b8;
     --font: "Source Sans 3", system-ui, -apple-system, "Segoe UI", sans-serif;
     --heading: "Playfair Display", Georgia, "Times New Roman", serif;
     --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -23,9 +25,11 @@
       --bg: #121612; --surface: #1a201b; --hover: #222a23; --line: #333d34; --control-line: #8d978c;
       --ink: #e9ece6; --muted: #aeb6ab;
       --accent: #7fc7a6; --accent-hover: #9dd8bc; --accent-soft: #1d3329; --on-accent: #121612;
-      --brass: #e0b35a;
+      --brass: #e0b35a; --brass-soft: #3a3014;
       --ok: #6ccb9a; --ok-soft: #153327; --warn: #e3b45a; --warn-soft: #3a2e14;
       --bad: #f27c74; --bad-soft: #3f1a1b; --hi: #f0956a; --hi-soft: #3d2115;
+      --part: #8fb8ee; --part-soft: #172a45;
+      --sev1: #f0956a; --sev2: #b2673f; --sev3: #6b3f27;
       color-scheme: dark;
     }
   }
@@ -33,176 +37,408 @@
     --bg: #121612; --surface: #1a201b; --hover: #222a23; --line: #333d34; --control-line: #8d978c;
     --ink: #e9ece6; --muted: #aeb6ab;
     --accent: #7fc7a6; --accent-hover: #9dd8bc; --accent-soft: #1d3329; --on-accent: #121612;
-    --brass: #e0b35a;
+    --brass: #e0b35a; --brass-soft: #3a3014;
     --ok: #6ccb9a; --ok-soft: #153327; --warn: #e3b45a; --warn-soft: #3a2e14;
     --bad: #f27c74; --bad-soft: #3f1a1b; --hi: #f0956a; --hi-soft: #3d2115;
+    --part: #8fb8ee; --part-soft: #172a45;
+    --sev1: #f0956a; --sev2: #b2673f; --sev3: #6b3f27;
     color-scheme: dark;
   }
   * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
   body { background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 15px; line-height: 1.55;
-    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0 56px; }
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0 64px; }
+  body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--bg); }
   .wrap { max-width: 1040px; margin: 0 auto; }
   h1, h2, h3 { font-family: var(--heading); font-weight: 700; text-wrap: balance; margin: 0; }
   h1 { font-size: 28px; line-height: 1.2; }
-  h2 { font-size: 19px; margin-block: 28px 10px; }
-  h3 { font-size: 16px; font-family: var(--font); font-weight: 700; }
+  h2 { font-size: 22px; line-height: 1.25; }
+  h3 { font-size: 16px; font-family: var(--font); font-weight: 700; line-height: 1.35; }
   p { margin: 0; }
   a { color: var(--accent); } a:hover { color: var(--accent-hover); }
   .mono { font-family: var(--mono); font-size: 12px; }
   .muted { color: var(--muted); } .small { font-size: 13px; }
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
-  header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; padding-block: 28px 16px; border-bottom: 2px solid var(--brass); }
   .eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--brass); font-weight: 700; }
-  .meta { display: flex; flex-wrap: wrap; gap: 8px 20px; color: var(--muted); font-size: 13px; }
+  header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; padding-block: 28px 16px; border-bottom: 2px solid var(--brass); }
+  .meta { display: flex; flex-wrap: wrap; gap: 4px 20px; color: var(--muted); font-size: 13px; }
   .meta strong { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
-  .tabs { display: flex; gap: 6px; margin-block: 16px 8px; border-bottom: 1px solid var(--line); }
-  .tab { appearance: none; background: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; padding: 8px 12px; font: inherit; font-weight: 600; color: var(--muted); cursor: pointer; }
-  .tab:hover { color: var(--ink); background: var(--hover); border-radius: 6px 6px 0 0; }
-  .tab[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
-  .lead { max-width: 72ch; font-size: 16px; margin-block: 14px 4px; }
-  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: var(--pill); font-size: 12px; font-weight: 600; white-space: nowrap; }
-  .pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
-  .s-done { background: var(--ok-soft); color: var(--ok); } .s-progress { background: var(--warn-soft); color: var(--warn); }
-  .s-blocked { background: var(--bad-soft); color: var(--bad); } .s-todo { background: var(--hover); color: var(--muted); }
-  .s-deferred { background: var(--accent-soft); color: var(--accent); } .s-review { background: var(--hi-soft); color: var(--hi); }
-  .strip { display: flex; flex-wrap: wrap; gap: 8px; margin-block: 14px 4px; }
-  .milestones { display: grid; gap: 10px; margin-top: 10px; }
-  .ms { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 16px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
-  .ms .top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-width: 0; }
-  .ms .date { color: var(--muted); font-size: 13px; white-space: nowrap; }
-  .ms .note { grid-column: 1 / -1; color: var(--muted); max-width: 80ch; }
-  .bar { grid-column: 1 / -1; height: 6px; border-radius: var(--pill); background: var(--hover); overflow: hidden; }
-  .bar > span { display: block; height: 100%; background: var(--accent); border-radius: var(--pill); }
-  .bar.done > span { background: var(--ok); } .bar.blocked > span { background: var(--bad); }
-  .two { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
-  .plain-list { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 6px; }
-  .plain-list b { font-weight: 600; }
-  .tier { margin-top: 26px; }
-  .tier-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; margin-bottom: 10px; }
-  .items { display: grid; gap: 8px; }
-  details.item { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); scroll-margin-top: 16px; }
-  details.item > summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px 12px; padding: 12px 14px; }
-  details.item > summary::-webkit-details-marker { display: none; }
-  details.item > summary:hover { background: var(--hover); border-radius: var(--radius); }
-  details.item[open] > summary { border-bottom: 1px solid var(--line); border-radius: var(--radius) var(--radius) 0 0; }
-  .item-id { color: var(--muted); } .item-title { font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
-  .item-right { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 6px 10px; color: var(--muted); font-size: 12px; }
-  .item-body { padding: 12px 14px 14px; display: grid; gap: 12px; }
-  .tasks { margin: 0; padding: 0; list-style: none; display: grid; gap: 5px; }
-  .tasks li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 10px; align-items: start; }
-  .box { width: 16px; height: 16px; margin-top: 3px; border: 1.5px solid var(--control-line); border-radius: 4px; display: inline-grid; place-items: center; font-size: 11px; line-height: 1; }
-  .box.on { background: var(--ok); border-color: var(--ok); color: var(--on-accent); } .box.on::after { content: "\2713"; }
-  .tasks li.done { color: var(--muted); }
-  .kv { display: grid; grid-template-columns: 7.5em minmax(0, 1fr); gap: 4px 14px; font-size: 13px; }
-  .kv dt { color: var(--muted); } .kv dd { margin: 0; overflow-wrap: anywhere; }
-  .pill.sm { font-size: 11px; padding: 0 8px; gap: 4px; } .pill.sm::before { width: 6px; height: 6px; }
-  .dq { display: grid; gap: 4px; padding: 10px 12px; border: 1px solid var(--line); border-left: 3px solid var(--brass); border-radius: 8px; background: var(--hover); font-size: 13px; }
-  .dq.done { border-left-color: var(--ok); background: var(--bg); }
-  .dq b { font-weight: 600; } .dq-count { color: var(--brass); font-weight: 700; }
-  .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
-  tr:last-child td { border-bottom: 0; } td:first-child { white-space: nowrap; font-weight: 600; }
-  .q { display: grid; gap: 8px; }
-  .q .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 4px; scroll-margin-top: 16px; }
-  .flash { outline: 2px solid var(--accent); outline-offset: 2px; }
+  nav.toc { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--bg); border-bottom: 1px solid var(--line); margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px))) calc(-1 * max(16px, env(safe-area-inset-right, 0px)));
+    padding-inline: max(16px, env(safe-area-inset-left, 0px)) max(16px, env(safe-area-inset-right, 0px)); }
+  nav.toc .navrow { max-width: 1040px; margin: 0 auto; display: flex; gap: 2px; overflow-x: auto; scrollbar-width: thin; }
+  nav.toc a { flex: none; padding: 10px 11px; font-weight: 600; font-size: 13px; color: var(--muted); text-decoration: none; border-bottom: 2px solid transparent; white-space: nowrap; }
+  nav.toc a:hover { color: var(--ink); background: var(--hover); }
+  nav.toc a[aria-current="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+  section.block { padding-top: 40px; scroll-margin-top: 48px; }
+  .sec-head { display: grid; gap: 4px; margin-bottom: 16px; }
+  .sec-head p { color: var(--muted); max-width: 72ch; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: var(--pill); font-size: 12px; font-weight: 600; white-space: nowrap; line-height: 1.5; }
+  .pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: none; }
+  .st-works { background: var(--ok-soft); color: var(--ok); } .st-works::before { content: "\2713"; background: none; width: auto; height: auto; font-size: 11px; }
+  .st-buggy { background: var(--warn-soft); color: var(--warn); } .st-buggy::before { content: "!"; background: none; width: auto; height: auto; font-size: 11px; font-weight: 700; }
+  .st-partial { background: var(--part-soft); color: var(--part); } .st-partial::before { background: linear-gradient(90deg, currentColor 50%, transparent 50%); box-shadow: inset 0 0 0 1.5px currentColor; }
+  .st-missing { background: var(--bad-soft); color: var(--bad); } .st-missing::before { content: "\2715"; background: none; width: auto; height: auto; font-size: 11px; }
+  .au-ok { background: var(--ok-soft); color: var(--ok); } .au-gaps { background: var(--warn-soft); color: var(--warn); } .au-over { background: var(--bad-soft); color: var(--bad); }
+  .ms-tonight { background: var(--brass-soft); color: var(--brass); } .ms-planned { background: var(--hover); color: var(--muted); } .ms-built { background: var(--ok-soft); color: var(--ok); }
+  .c-new { background: var(--brass-soft); color: var(--brass); } .c-default { background: var(--accent-soft); color: var(--accent); } .c-done { background: var(--ok-soft); color: var(--ok); }
+  .sev-major { background: var(--hi-soft); color: var(--hi); } .sev-minor { background: var(--hover); color: var(--ink); } .sev-nit { background: var(--hover); color: var(--muted); }
+  a.fid { font-family: var(--mono); font-size: 12px; white-space: nowrap; }
+
+  /* reality */
+  .verdict { font-family: var(--heading); font-weight: 600; font-size: 22px; line-height: 1.4; max-width: 62ch; text-wrap: pretty; }
+  .reality { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px 32px; margin-top: 24px; align-items: start; }
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; min-width: 0; }
+  .panel h3 { margin-bottom: 10px; }
+  .total { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; }
+  .total .n { font-family: var(--heading); font-size: 44px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+  .bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
+  .bars li { display: grid; grid-template-columns: minmax(7.5em, 12em) minmax(0, 1fr) 2.2em; align-items: center; gap: 10px; font-size: 13px; }
+  .bars .lab { min-width: 0; overflow-wrap: anywhere; }
+  .bars .lab span { color: var(--muted); }
+  .track { height: 9px; background: var(--hover); border-radius: var(--pill); overflow: hidden; }
+  .track > i { display: block; height: 100%; background: var(--accent); border-radius: 0 var(--pill) var(--pill) 0; }
+  .bars .val { text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .bars.sev .track > i { background: var(--sev1); } .bars.sev li:nth-child(2) .track > i { background: var(--sev2); } .bars.sev li:nth-child(3) .track > i { background: var(--sev3); }
+  .groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px 32px; }
+  .groups h4 { margin: 0 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
+  .area-bars { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); column-gap: 32px; }
+  .held { display: grid; gap: 12px; }
+  .held .it { display: grid; grid-template-columns: 5.6em minmax(0, 1fr); gap: 2px 14px; align-items: baseline; }
+  .held .v { font-family: var(--heading); font-weight: 700; font-size: 22px; font-variant-numeric: tabular-nums; color: var(--ok); line-height: 1.2; }
+  .held b { font-weight: 600; } .held p { color: var(--muted); font-size: 13px; grid-column: 2; }
+  .notes { display: grid; gap: 4px; margin-top: 14px; font-size: 13px; color: var(--muted); }
+  .notes b { color: var(--ink); font-weight: 600; }
+
+  /* what the game has */
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-bottom: 14px; font-size: 13px; color: var(--muted); }
+  .legend span.i { display: inline-flex; align-items: center; gap: 8px; }
+  .rows { display: grid; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); overflow: hidden; }
+  .row { display: grid; grid-template-columns: 12em 10.5em minmax(0, 1fr) minmax(0, 14em); gap: 4px 16px; padding: 12px 16px; border-bottom: 1px solid var(--line); align-items: start; }
+  .row:last-child { border-bottom: 0; }
+  .row.head { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; padding-block: 9px; background: var(--hover); }
+  .row .nm { font-weight: 600; } .row .ev { min-width: 0; } .row .ids { display: flex; flex-wrap: wrap; gap: 2px 8px; min-width: 0; }
+  .seg { display: flex; gap: 2px; height: 14px; margin-top: 8px; }
+  .seg i { display: block; border-radius: 3px; }
+  .seg-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 8px; font-size: 13px; color: var(--muted); }
+  .seg-legend b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .seg-legend .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+
+  /* themes */
+  .themes { display: grid; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); gap: 14px; }
+  .theme { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; display: grid; gap: 10px; align-content: start; min-width: 0; scroll-margin-top: 60px; }
+  .theme .top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 12px; }
+  .theme .tid { color: var(--muted); margin-right: 6px; }
+  .theme .cnt { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .stack { display: flex; gap: 2px; height: 8px; }
+  .stack i { display: block; border-radius: 2px; min-width: 3px; }
+  .theme .sub { font-size: 12px; color: var(--muted); }
+  .theme ul { margin: 0; padding-left: 18px; display: grid; gap: 7px; font-size: 14px; }
+  .theme .fix { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 13px; color: var(--muted); }
+  .fix a.chip { text-decoration: none; }
+  .chip { display: inline-block; padding: 1px 9px; border-radius: var(--pill); font-size: 12px; font-weight: 600; }
+
+  /* plan */
+  .order { max-width: 74ch; margin-bottom: 18px; }
+  .plan { display: grid; gap: 12px; }
+  .ms { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; display: grid; gap: 12px; scroll-margin-top: 60px; }
+  .ms.tonight { border-color: var(--brass); }
+  .ms.built { border-color: var(--ok); }
+  .ms .top { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+  .ms .top h3 { font-size: 18px; font-family: var(--heading); }
+  .ms .goal { max-width: 74ch; }
+  .ms .cols { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 14px 28px; }
+  .ms h4, .card h4 { margin: 0 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
+  .ms ul, .card ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+  .kv { display: grid; grid-template-columns: 6.5em minmax(0, 1fr); gap: 6px 12px; font-size: 14px; }
+  .kv dt { color: var(--muted); font-size: 13px; } .kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+  .sizebar { display: inline-flex; gap: 2px; vertical-align: middle; margin-right: 8px; }
+  .sizebar i { display: block; width: 14px; height: 8px; border-radius: 2px; background: var(--hover); }
+  .sizebar i.on { background: var(--accent); }
+
+  /* decisions */
+  .cards { display: grid; gap: 10px; }
+  .group-title { margin: 22px 0 8px; font-size: 13px; font-weight: 700; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+  .group-title span { font-weight: 400; color: var(--muted); }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; display: grid; gap: 10px; scroll-margin-top: 60px; min-width: 0; }
+  .card.new { border-color: var(--brass); }
+  .card .top { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+  .card .q { font-weight: 700; font-size: 16px; line-height: 1.4; }
+  .card .opts { display: grid; gap: 6px; }
+  .card .opt { display: grid; gap: 0; padding: 8px 10px; border-radius: 8px; background: var(--hover); font-size: 14px; }
+  .card .opt b { font-weight: 600; }
+  .card .sug, .card .obj, .card .aud, .card .ruled, .card .need { font-size: 14px; }
+  .card .need { padding: 8px 10px; border-radius: 8px; background: var(--brass-soft); }
+  .card .obj { color: var(--muted); }
+  .card .aud { padding: 8px 10px; border-radius: 8px; background: var(--brass-soft); }
+  details.more { margin-top: 18px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+  details.more > summary { cursor: pointer; padding: 12px 16px; font-weight: 600; }
+  details.more > summary:hover { background: var(--hover); border-radius: var(--radius); }
+  details.more[open] > summary { border-bottom: 1px solid var(--line); border-radius: var(--radius) var(--radius) 0 0; }
+  details.more .cards { padding: 12px; }
+  .card.compact { padding: 10px 14px; gap: 6px; }
+
+  /* history */
+  .hrow { display: grid; grid-template-columns: 5.5em minmax(0, 0.9fr) minmax(0, 1.9fr); gap: 4px 16px; padding: 12px 16px; border-bottom: 1px solid var(--line); align-items: start; }
+  .hrow:last-child { border-bottom: 0; }
+  .hrow.head { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; padding-block: 9px; background: var(--hover); }
+  .hrow .id { font-weight: 700; } .hrow .ttl { font-weight: 600; min-width: 0; } .hrow .says { min-width: 0; display: grid; gap: 6px; }
+  .hrow .says .ids { display: flex; flex-wrap: wrap; gap: 2px 8px; }
+  .hrow .claim { color: var(--muted); font-size: 13px; font-weight: 400; }
+
+  /* findings list */
+  details.all { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+  details.all > summary { cursor: pointer; padding: 12px 16px; font-weight: 600; }
+  details.all > summary:hover { background: var(--hover); border-radius: var(--radius); }
+  .filters { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; padding: 12px 16px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .filters label { font-size: 13px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+  .filters select, .filters input { font: inherit; font-size: 14px; color: var(--ink); background: var(--bg); border: 1px solid var(--control-line); border-radius: 6px; padding: 5px 8px; min-width: 0; }
+  .filters input { flex: 1 1 14em; }
+  .filters label { min-width: 0; max-width: 100%; } .filters select { min-width: 0; max-width: 100%; text-overflow: ellipsis; }
+  .frow { display: grid; grid-template-columns: 11.5em 5em 4.5em minmax(0, 1fr) auto; gap: 4px 12px; padding: 9px 16px; border-bottom: 1px solid var(--line); align-items: start; font-size: 14px; scroll-margin-top: 60px; }
+  .frow:last-child { border-bottom: 0; }
+  .frow .t { min-width: 0; overflow-wrap: anywhere; } .frow .th { white-space: nowrap; font-size: 12px; color: var(--muted); }
+  .count-line { padding: 8px 16px; font-size: 13px; color: var(--muted); }
+  .flash { outline: 2px solid var(--accent); outline-offset: -2px; background: var(--accent-soft); }
   .notice { margin-top: 16px; padding: 12px 14px; border-radius: var(--radius); background: var(--hi-soft); color: var(--hi); }
   footer { margin-top: 36px; color: var(--muted); font-size: 12px; }
-  @media (max-width: 560px) { .ms { grid-template-columns: 1fr; } details.item > summary { grid-template-columns: auto minmax(0, 1fr); } .item-right { grid-column: 1 / -1; justify-content: flex-start; } }
-  @media (prefers-reduced-motion: no-preference) { .bar > span { transition: width 400ms ease; } }
+
+  @media (max-width: 820px) {
+    .reality { grid-template-columns: 1fr; }
+    .ms .cols { grid-template-columns: 1fr; }
+    .row { grid-template-columns: 1fr; gap: 4px; }
+    .row.head, .hrow.head, .frow.head { display: none; }
+    .row .nm { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+    .hrow { grid-template-columns: 1fr; }
+    .frow { grid-template-columns: auto auto 1fr; }
+    .frow .t { grid-column: 1 / -1; }
+    .frow .th { grid-column: 1 / -1; }
+  }
+  @media (max-width: 520px) {
+    h1 { font-size: 24px; } h2 { font-size: 20px; } .verdict { font-size: 19px; }
+    .bars li { grid-template-columns: minmax(6.5em, 9em) minmax(0, 1fr) 2em; gap: 8px; }
+    .held .it { grid-template-columns: 1fr; } .held p { grid-column: 1; }
+    .kv { grid-template-columns: 1fr; gap: 0; } .kv dd { margin-bottom: 8px; }
+  }
 </style>
 <div class="wrap">
   <header>
-    <div><div class="eyebrow">Side project roadmap</div><h1 id="title">Imperialism Revival</h1></div>
-    <div class="meta"><span>Updated <strong id="updated">…</strong></span><span>Target <strong id="target">…</strong></span><span>Now <strong id="now">…</strong></span></div>
+    <div><div class="eyebrow">Progress after the audit of 14 November 2026</div><h1 id="title">Imperialism Revival</h1></div>
+    <div class="meta"><span>Updated <strong id="updated">&hellip;</strong></span><span>Audit <strong id="auditdate">&hellip;</strong></span><span id="branchmeta"></span></div>
   </header>
-  <div class="tabs" role="tablist" aria-label="Views">
-    <button class="tab" role="tab" id="tab-overview" aria-controls="overview" aria-selected="true" data-view="overview">Overview</button>
-    <button class="tab" role="tab" id="tab-detail" aria-controls="detail" aria-selected="false" data-view="detail">Detail</button>
-  </div>
-  <section id="overview" class="view" role="tabpanel" aria-labelledby="tab-overview">
-    <p class="lead" id="headline"></p>
-    <div class="strip" id="strip"></div>
-    <h2>Milestones</h2><div class="milestones" id="milestones"></div>
-    <div class="two"><div><h2>Blockers and risks</h2><ul class="plain-list" id="risks"></ul></div><div><h2>Next up</h2><ul class="plain-list" id="next"></ul></div></div>
+  <nav class="toc" aria-label="Sections"><div class="navrow" id="toc">
+    <a href="#reality">Reality check</a><a href="#has">What the game has</a><a href="#found">What I found</a><a href="#plan">Plan</a><a href="#decisions">Decisions for you</a><a href="#history">History M0 to M11</a><a href="#findings">All findings</a>
+  </div></nav>
+
+  <section class="block" id="reality" aria-labelledby="h-reality">
+    <div class="sec-head"><h2 id="h-reality">Reality check</h2></div>
+    <p class="verdict" id="verdict"></p>
+    <div class="reality">
+      <div class="panel">
+        <div class="total"><span class="n" id="total">160</span><span class="muted">findings from 8 reviewers who played the running game and the engine</span></div>
+        <div class="groups">
+          <div><h4>By severity</h4><ul class="bars sev" id="b-sev"></ul></div>
+          <div><h4>By kind</h4><ul class="bars" id="b-kind"></ul></div>
+        </div>
+        <h4 class="muted" style="margin:18px 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:600">By area of the game</h4>
+        <ul class="bars area-bars" id="b-area"></ul>
+      </div>
+      <div class="panel">
+        <h3>What held up</h3>
+        <div class="held" id="held"></div>
+        <div class="notes" id="notes"></div>
+      </div>
+    </div>
   </section>
-  <section id="detail" class="view" role="tabpanel" aria-labelledby="tab-detail" hidden>
-    <p class="lead muted">Work items in milestone order. Open one for its tasks, what it waits on, decisions it needs and the files it touches.</p>
-    <div id="tiers"></div>
-    <h2>What Nathan does, and when</h2>
-    <div class="table-wrap"><table><thead><tr><th>When</th><th>What</th><th>Why</th><th>Item</th></tr></thead><tbody id="needs"></tbody></table></div>
-    <h2>Decisions</h2><div class="q" id="decisions"></div>
+
+  <section class="block" id="has" aria-labelledby="h-has">
+    <div class="sec-head"><h2 id="h-has">What the game really has</h2><p>Sixteen feature areas, judged by what the audit saw in the running game, not by the old statuses.</p></div>
+    <div class="legend" id="legend"></div>
+    <div class="rows" id="areas" role="table" aria-label="Feature areas">
+      <div class="row head" role="row"><span role="columnheader">Area</span><span role="columnheader">Status</span><span role="columnheader">Evidence</span><span role="columnheader">Findings</span></div>
+    </div>
+    <h3 style="margin-top:22px">The same question by rule topic of the original game</h3>
+    <div class="seg" id="seg" role="img" aria-label="Rule topics by status"></div>
+    <div class="seg-legend" id="seg-legend"></div>
   </section>
+
+  <section class="block" id="found" aria-labelledby="h-found">
+    <div class="sec-head"><h2 id="h-found">What I found</h2><p>The 160 findings grouped into 16 themes. Each theme shows its three worst examples in plain words and the milestone that fixes it. A bar shows the mix of severity (dark is major).</p></div>
+    <div class="themes" id="themes"></div>
+    <p class="small muted" id="filednote" style="margin-top:12px"></p>
+  </section>
+
+  <section class="block" id="plan" aria-labelledby="h-plan">
+    <div class="sec-head"><h2 id="h-plan">Plan</h2></div>
+    <p class="order" id="ordernote"></p>
+    <div class="plan" id="ms"></div>
+    <p class="small muted" style="margin-top:12px">Size sums the audit's own per-finding estimates: small fix 1 point, medium 3, large 8. Under 20 points is small, under 50 medium, under 100 large, above that very large. It is a rough guide, not a time promise.</p>
+  </section>
+
+  <section class="block" id="decisions" aria-labelledby="h-dec">
+    <div class="sec-head"><h2 id="h-dec">Decisions for you</h2><p>Every card has a default that is already in force. A card marked "Needed before" decides work that cannot be finished without your answer; the others wait on nothing. Change a default before its milestone starts and it costs the least.</p></div>
+    <div id="cards"></div>
+  </section>
+
+  <section class="block" id="history" aria-labelledby="h-hist">
+    <div class="sec-head"><h2 id="h-hist">History of M0 to M11</h2><p>Old milestones, no longer marked 100%. The right column says what the audit found about each one.</p></div>
+    <div class="rows" id="hist" role="table" aria-label="Milestone history">
+      <div class="hrow head" role="row"><span role="columnheader">Milestone</span><span role="columnheader">What it claimed</span><span role="columnheader">What the audit says about it</span></div>
+    </div>
+  </section>
+
+  <section class="block" id="findings" aria-labelledby="h-find">
+    <div class="sec-head"><h2 id="h-find">All findings</h2><p>Every finding id on this page opens here. Each has steps to repeat it in the audit file named in its row.</p></div>
+    <details class="all" id="allbox"><summary id="allsum">All 160 findings</summary>
+      <div class="filters">
+        <label for="f-sev">Severity <select id="f-sev"><option value="">All</option><option value="major">Major</option><option value="minor">Minor</option><option value="nit">Nit</option></select></label>
+        <label for="f-kind">Kind <select id="f-kind"><option value="">All</option><option value="bug">Bug</option><option value="gap">Gap</option><option value="visual">Visual</option><option value="doc-lie">Doc-lie</option></select></label>
+        <label for="f-theme">Theme <select id="f-theme"><option value="">All</option></select></label>
+        <input id="f-q" type="search" placeholder="Search id or words" aria-label="Search findings">
+      </div>
+      <div class="count-line" id="f-count" aria-live="polite"></div>
+      <div id="flist"></div>
+    </details>
+  </section>
+
   <div class="notice" id="error" hidden></div>
   <footer id="footer"></footer>
 </div>
 <script>
-  const STATUS = { 'done': { label: 'Done', cls: 's-done' }, 'in-progress': { label: 'In progress', cls: 's-progress' }, 'in-review': { label: 'In review', cls: 's-review' }, 'blocked': { label: 'Blocked', cls: 's-blocked' }, 'not-started': { label: 'Not started', cls: 's-todo' }, 'deferred': { label: 'After v1', cls: 's-deferred' }, 'open': { label: 'Open', cls: 's-progress' } };
-  const VIEWS = ['overview', 'detail'];
   const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
   const h = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ESC[c]);
-  const pill = (s, size) => { const x = STATUS[s] || { label: s, cls: 's-todo' }; return `<span class="pill ${x.cls}${size ? ' ' + size : ''}">${h(x.label)}</span>`; };
-  function showView(name) { const view = VIEWS.includes(name) ? name : 'overview'; for (const v of VIEWS) { document.getElementById(v).hidden = v !== view; document.getElementById('tab-' + v).setAttribute('aria-selected', String(v === view)); } }
-  for (const tab of document.querySelectorAll('.tab')) tab.addEventListener('click', () => { const v = tab.dataset.view; if (location.hash !== '#' + v) location.hash = v; else showView(v); });
-  const isAnchor = (n) => /^(item|q)-/.test(n) && document.getElementById(n) !== null;
-  function goTo(id) {
-    const t = document.getElementById(id); if (!t) return;
-    if (location.hash !== '#detail') location.hash = 'detail';
-    showView('detail'); if (t.tagName === 'DETAILS') t.open = true;
-    t.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: no-preference)').matches ? 'smooth' : 'auto', block: 'start' });
-    t.classList.add('flash'); setTimeout(() => t.classList.remove('flash'), 1600);
+  const $ = (id) => document.getElementById(id);
+  const ST = { works: 'Works', buggy: 'Works but buggy', partial: 'Partial', missing: 'Missing' };
+  const AU = { ok: ['Held up', 'au-ok'], gaps: ['Held up with gaps', 'au-gaps'], over: ['Overstated', 'au-over'] };
+  const SEV = { major: 'Major', minor: 'Minor', nit: 'Nit' };
+  let FIND = new Map(), CARDS = new Set(), THEMES = new Map();
+  const ID_RE = /\b(?:UIV|ECONOMY|RULES-GAP|AISIM|ARMY-WAR|MKT|FR-TRUTH|diplomacy-council)-\d\d\b|\bQ\d{1,3}\b/g;
+  // Escape first, then turn known finding ids and card ids into links.
+  const rich = (t) => h(t).replace(ID_RE, (m) => FIND.has(m) ? `<a class="fid" href="#f-${m}" data-f="${m}" title="${h(FIND.get(m).title)}">${m}</a>` : CARDS.has(m) ? `<a class="fid" href="#q-${m}" data-q="${m}">${m}</a>` : m);
+  const idLinks = (ids) => ids.map((i) => rich(i)).join(' ');
+  const pill = (cls, text) => `<span class="pill ${cls}">${h(text)}</span>`;
+
+  function renderReality(d) {
+    const r = d.reality;
+    $('verdict').textContent = r.verdict; $('total').textContent = r.total;
+    const max = (arr) => Math.max(...arr.map((x) => x.count));
+    const bars = (arr, withHelp) => { const m = max(arr); return arr.map((x) => `<li><span class="lab">${h(x.label)}${withHelp && x.help ? ` <span>${h(x.help)}</span>` : ''}</span><span class="track" aria-hidden="true"><i style="width:${(x.count / m * 100).toFixed(1)}%"></i></span><span class="val">${x.count}</span></li>`).join(''); };
+    $('b-sev').innerHTML = r.severity.map((x) => `<li><span class="lab">${h(x.label)} <span>${h(r.severityHelp[x.key])}</span></span><span class="track" aria-hidden="true"><i style="width:${(x.count / max(r.severity) * 100).toFixed(1)}%"></i></span><span class="val">${x.count}</span></li>`).join('');
+    $('b-kind').innerHTML = bars(r.kind, true);
+    $('b-area').innerHTML = bars(r.area, false);
+    $('held').innerHTML = r.heldUp.map((x) => `<div class="it"><span class="v">${h(x.value)}</span><b>${h(x.label)}</b><p>${h(x.text)}</p></div>`).join('');
+    $('notes').innerHTML = `<p><b>Not fixed yet.</b> ${h(r.notFixed)}</p><p><b>Not checked.</b> ${h(r.notChecked.replace(/^Not checked by the audit: /, ''))}</p>`;
   }
-  document.getElementById('detail').addEventListener('click', (e) => { const a = e.target.closest('a[data-goto]'); if (!a) return; e.preventDefault(); goTo(a.dataset.goto); });
-  addEventListener('hashchange', () => { const n = location.hash.slice(1); if (isAnchor(n)) goTo(n); else showView(n); });
-  const gotoLink = (t, l) => `<a class="mono" href="#${h(t)}" data-goto="${h(t)}">${h(l)}</a>`;
-  function renderOverview(o) {
-    document.getElementById('headline').textContent = o.headline;
-    const counts = {}; for (const m of o.milestones) counts[m.status] = (counts[m.status] || 0) + 1;
-    document.getElementById('strip').innerHTML = Object.keys(STATUS).filter((k) => counts[k]).map((k) => `<span class="pill ${STATUS[k].cls}">${counts[k]} ${h(STATUS[k].label.toLowerCase())}</span>`).join('');
-    document.getElementById('milestones').innerHTML = o.milestones.map((m) => {
-      const p = Math.max(0, Math.min(100, Number(m.progress) || 0));
-      const barCls = m.status === 'done' ? 'done' : m.status === 'blocked' ? 'blocked' : '';
-      return `<article class="ms"><div class="top">${pill(m.status)}<h3>${h(m.title)}</h3></div><div class="date">${h(m.date)}</div>
-        <div class="bar ${barCls}" role="progressbar" aria-valuenow="${p}" aria-valuemin="0" aria-valuemax="100" aria-label="${h(m.title)} progress"><span style="width:${p}%"></span></div><p class="note">${h(m.note)}</p></article>`;
+  function renderAreas(d) {
+    const counts = {}; d.areas.forEach((a) => counts[a.status] = (counts[a.status] || 0) + 1);
+    $('legend').innerHTML = d.statusLegend.map((s) => `<span class="i"><span class="pill st-${s.key}">${h(s.label)} &middot; ${counts[s.key] || 0}</span>${h(s.text)}</span>`).join('');
+    $('areas').insertAdjacentHTML('beforeend', d.areas.map((a) => `<div class="row" role="row"><span class="nm" role="cell">${h(a.name)}</span><span role="cell"><span class="pill st-${a.status}">${h(ST[a.status])}</span></span><span class="ev" role="cell">${h(a.evidence)}</span><span class="ids" role="cell">${idLinks(a.ids)}</span></div>`).join(''));
+    const c = d.reality.coverage;
+    const segs = [['built', 'Built', c.built, 'var(--ok)'], ['partial', 'Partial', c.partial, 'var(--part)'], ['wrong', 'Wrong', c.wrong, 'var(--warn)'], ['dead', 'Dead code', c.dead, 'var(--muted)'], ['missing', 'Missing', c.missing, 'var(--bad)']];
+    $('seg').innerHTML = segs.map((s) => `<i style="flex:${s[2]} 1 0;background:${s[3]}"></i>`).join('');
+    $('seg-legend').innerHTML = segs.map((s) => `<span><span class="sw" style="background:${s[3]}"></span>${h(s[1])} <b>${s[2]}</b></span>`).join('') + `<span>of ${c.total} topics</span>`;
+  }
+  const sevStack = (sv, scale) => { const t = sv.major + sv.minor + sv.nit; return `<div class="stack" style="width:${Math.max(18, t / scale * 100).toFixed(1)}%" role="img" aria-label="${sv.major} major, ${sv.minor} minor, ${sv.nit} nit">${[['major', 'var(--sev1)'], ['minor', 'var(--sev2)'], ['nit', 'var(--sev3)']].filter((x) => sv[x[0]]).map((x) => `<i style="flex:${sv[x[0]]} 1 0;background:${x[1]}"></i>`).join('')}</div>`; };
+  function renderThemes(d) {
+    const scale = Math.max(...d.themes.map((t) => t.count));
+    const msStatus = new Map(d.plan.milestones.map((m) => [m.id, m.status]));
+    $('themes').innerHTML = d.themes.map((t) => `<article class="theme" id="t-${t.id}"><div class="top"><h3><span class="tid mono">${t.id}</span>${h(t.title)}</h3><span class="cnt">${t.count} findings</span></div>
+      ${sevStack(t.severity, scale)}<div class="sub">${t.severity.major} major &middot; ${t.severity.minor} minor &middot; ${t.severity.nit} nit${t.filedIds.length ? ` &middot; ${t.filedIds.length} filed by me` : ''}</div>
+      <p>${h(t.plain)}</p><ul>${t.worst.map((w) => `<li>${h(w.text)} ${idLinks(w.ids)}</li>`).join('')}</ul>
+      <div class="fix"><span>Fixed in</span><a class="chip ms-${msStatus.get(t.milestone) || 'planned'}" href="#ms-${t.milestone}" data-ms="${t.milestone}">${t.milestone}</a></div></article>`).join('');
+    $('filednote').textContent = d.reality.filedNote;
+  }
+  const sizeWord = (s) => { const p = s.S + 3 * s.M + 8 * s.L; return p < 20 ? 'Small' : p < 50 ? 'Medium' : p < 100 ? 'Large' : 'Very large'; };
+  function renderPlan(d) {
+    $('ordernote').textContent = d.plan.orderNote;
+    $('ms').innerHTML = d.plan.milestones.map((m) => {
+      const w = sizeWord(m.size), n = { Small: 1, Medium: 2, Large: 3, 'Very large': 4 }[w];
+      return `<article class="ms ${m.status}" id="ms-${m.id}"><div class="top"><h3>${m.id} ${h(m.title)}</h3>${pill('ms-' + m.status, m.statusLabel)}</div>
+      <p class="goal">${h(m.goal)}</p>
+      <div class="cols"><div><h4>What you will be able to check in the app</h4><ul>${m.check.map((c) => `<li>${rich(c)}</li>`).join('')}</ul></div>
+      <dl class="kv"><dt>Size</dt><dd>${m.sizeText ? h(m.sizeText) : `<span class="sizebar" aria-hidden="true">${[1, 2, 3, 4].map((i) => `<i class="${i <= n ? 'on' : ''}"></i>`).join('')}</span><b>${w}</b>: ${m.findings} findings (${m.size.S} small, ${m.size.M} medium, ${m.size.L} large fixes)`}</dd>
+      <dt>Depends on</dt><dd>${rich(m.depends)}</dd>
+      <dt>Fixes</dt><dd>${m.themes.length ? m.themes.map((t) => `<a class="fid" href="#t-${t}" data-t="${t}">${t}</a>`).join(' ') : h(m.fixesText || 'No audit theme')}</dd>
+      ${m.spec ? `<dt>Spec</dt><dd>${h(m.spec)}</dd>` : ''}
+      <dt>Status</dt><dd>${h(m.statusText || (m.status === 'tonight' ? 'Nothing built yet. Planned for tonight.' : 'Nothing built yet. Planned.'))}</dd></dl></div></article>`;
     }).join('');
-    document.getElementById('risks').innerHTML = o.risks.map((r) => `<li><b>${h(r.title)}.</b> ${h(r.text)}</li>`).join('');
-    document.getElementById('next').innerHTML = o.next.map((n) => `<li>${h(n)}</li>`).join('');
   }
-  function renderDetail(d) {
-    const items = new Map(d.tiers.flatMap((t) => t.items).map((i) => [i.id, i]));
-    const qs = new Map(d.decisions.map((q) => [q.id, q]));
-    const isDone = (q) => q.status === 'done';
-    const decisionsFor = (id) => d.decisions.filter((q) => (q.items || []).includes(id)).sort((a, b) => Number(isDone(a)) - Number(isDone(b)));
-    const refHtml = (r) => { const it = items.get(r), q = qs.get(r); if (!it && !q) return h(r); return `<span style="white-space:nowrap">${gotoLink((it ? 'item-' : 'q-') + r, r)} ${pill((it || q).status, 'sm')}</span>`; };
-    const dq = (q) => `<div class="dq${isDone(q) ? ' done' : ''}"><div><span class="eyebrow">Decision for you · ${h(q.id)}</span> ${pill(q.status, 'sm')}</div><b>${h(q.title)}</b>${q.context ? `<p>${h(q.context)}</p>` : ''}${q.suggestion ? `<p class="muted">Suggestion: ${h(q.suggestion)}</p>` : ''}${isDone(q) && q.ruling ? `<p><b>Ruled:</b> ${h(q.ruling)}</p>` : ''}</div>`;
-    document.getElementById('tiers').innerHTML = d.tiers.map((t) => `<section class="tier"><div class="tier-head"><h2 style="margin:0">${h(t.title)}</h2><span class="muted small">${h(t.subtitle || '')}</span></div><div class="items">${t.items.map((it) => {
-      const tasks = it.tasks || []; const done = tasks.filter((x) => x.done).length; const ds = decisionsFor(it.id); const open = ds.filter((q) => !isDone(q)).length;
-      const taskList = tasks.length ? `<ul class="tasks">${tasks.map((x) => `<li class="${x.done ? 'done' : ''}"><span class="box ${x.done ? 'on' : ''}" aria-hidden="true"></span><span>${h(x.title)}</span></li>`).join('')}</ul>` : '';
-      const waits = it.blockedBy && it.blockedBy.length ? `<dl class="kv"><dt>Waits on</dt><dd>${it.blockedBy.map(refHtml).join(', ')}</dd></dl>` : '';
-      return `<details class="item" id="item-${h(it.id)}"><summary><span class="item-id mono">${h(it.id)}</span><span class="item-title">${h(it.title)}</span><span class="item-right">${open ? `<span class="dq-count">${open} open decision${open > 1 ? 's' : ''}</span>` : ''}${tasks.length ? `<span>${done}/${tasks.length} tasks</span>` : ''}${it.session ? `<span>${h(it.session)}</span>` : ''}${pill(it.status)}</span></summary>
-        <div class="item-body">${taskList}${waits}${ds.map(dq).join('')}
-        <dl class="kv"><dt>Done when</dt><dd>${h(it.doneWhen || '—')}</dd><dt>Evidence</dt><dd>${h(it.evidence || '—')}</dd><dt>Files touched</dt><dd class="mono">${h(it.hot || '—')}</dd></dl></div></details>`;
-    }).join('')}</div></section>`).join('');
-    document.getElementById('needs').innerHTML = d.needs.map((n) => `<tr><td>${h(n.when)}</td><td>${h(n.what)}</td><td class="muted">${h(n.why)}</td><td class="mono">${h(n.item)}</td></tr>`).join('');
-    document.getElementById('decisions').innerHTML = d.decisions.map((q) => `<div class="card" id="q-${h(q.id)}" tabindex="-1"><div><span class="mono muted">${h(q.id)}</span> &nbsp; ${pill(q.status)}</div><b>${h(q.title)}</b>${q.context ? `<span>${h(q.context)}</span>` : ''}${q.suggestion ? `<span class="muted">Suggestion: ${h(q.suggestion)}</span>` : ''}${isDone(q) && q.ruling ? `<span><b>Ruled:</b> ${h(q.ruling)}</span>` : ''}${(q.items || []).length ? `<span class="small muted">Items: ${q.items.map((i) => gotoLink('item-' + i, i)).join(', ')}</span>` : ''}</div>`).join('');
+  const cardHtml = (q, compact) => {
+    const label = q.group === 'new' ? ['c-new', 'New, default proposed'] : (q.status === 'done' || q.status === 'settled') ? ['c-done', q.status === 'done' ? 'Answered' : 'Settled'] : ['c-default', 'Default in force'];
+    return `<article class="card ${q.group === 'new' ? 'new' : ''} ${compact ? 'compact' : ''}" id="q-${h(q.id)}"><div class="top"><span class="mono muted">${h(q.id)}</span>${pill(label[0], label[1])}</div>
+      <div class="q">${h(q.title)}</div>
+      ${q.context ? `<p><b>What happened.</b> ${rich(q.context)}</p>` : ''}
+      ${q.options ? `<div class="opts">${q.options.map((o) => `<div class="opt"><b>${h(o.label)}</b><span>${rich(o.means)}</span></div>`).join('')}</div>` : ''}
+      ${q.suggestion ? `<p class="sug"><b>${q.options ? 'Suggestion' : 'Default'}.</b> ${rich(q.suggestion)}</p>` : ''}
+      ${q.objection ? `<p class="obj"><b>Objection.</b> ${h(q.objection)}</p>` : ''}
+      ${q.audit ? `<p class="aud"><b>What the audit adds.</b> ${rich(q.audit)}</p>` : ''}
+      ${q.needed ? `<p class="need"><b>Needed before.</b> ${rich(q.needed)}</p>` : ''}
+      ${q.ruling ? `<p class="ruled"><b>Ruled.</b> ${h(q.ruling)}</p>` : ''}</article>`;
+  };
+  function renderCards(d) {
+    const by = (g) => d.decisions.filter((q) => q.group === g);
+    const nw = by('new'), pr = by('priority'), df = by('default'), an = by('answered'), dc = by('decided');
+    $('cards').innerHTML = `
+      ${dc.length ? `<div class="group-title">Answered by you on ${h(d.updated)} <span>${dc.map((q) => q.id).join(', ')}. Each card keeps the question and your answer.</span></div><div class="cards">${dc.map((q) => cardHtml(q, true)).join('')}</div>` : ''}
+      <div class="group-title">New cards, each with its default <span>${nw.map((q) => q.id).join(', ')}. The spec file docs/requirements.md carries the same cards.</span></div><div class="cards">${nw.map((q) => cardHtml(q)).join('')}</div>
+      <div class="group-title">Older cards that matter most now <span>${pr.map((q) => q.id).join(', ')}</span></div><div class="cards">${pr.map((q) => cardHtml(q)).join('')}</div>
+      <details class="more"><summary>${df.length} more cards with defaults in force (${df[0].id} to ${df[df.length - 1].id})</summary><div class="cards">${df.map((q) => cardHtml(q, true)).join('')}</div></details>
+      <details class="more"><summary>${an.length} cards answered or settled earlier (${an[0].id} to ${an[an.length - 1].id})</summary><div class="cards">${an.map((q) => cardHtml(q, true)).join('')}</div></details>`;
+  }
+  function renderHistory(d) {
+    $('hist').insertAdjacentHTML('beforeend', d.history.map((x) => { const a = AU[x.audit]; return `<div class="hrow" role="row"><span class="id" role="cell">${h(x.id)}</span><span class="ttl" role="cell">${h(x.title)}<br><span class="claim">Old status: ${h(x.claimed)}</span></span><span class="says" role="cell"><span>${pill(a[1], a[0])}</span><span>${h(x.says)}</span><span class="ids">${idLinks(x.ids)}</span></span></div>`; }).join(''));
+  }
+  function renderFindings(d) {
+    $('allsum').textContent = `All ${d.findings.length} findings (open to search and filter)`;
+    $('f-theme').insertAdjacentHTML('beforeend', d.themes.map((t) => `<option value="${t.id}">${t.id} ${h(t.title)}</option>`).join(''));
+    $('flist').innerHTML = `<div class="frow head" style="display:none"></div>` + d.findings.map((f) => `<div class="frow" id="f-${h(f.id)}" data-sev="${f.sev}" data-kind="${f.kind}" data-themes="${f.themes.join(' ')}" data-text="${h((f.id + ' ' + f.title).toLowerCase())}"><span class="mono"><b>${h(f.id)}</b></span><span>${pill('sev-' + f.sev, SEV[f.sev])}</span><span class="mono muted">${h(f.kind)}</span><span class="t">${h(f.title)}</span><span class="th">${f.themes.join(', ')}${f.filed ? ' (filed)' : ''} &middot; fix ${f.size}</span></div>`).join('');
+    applyFilter();
+  }
+  function applyFilter() {
+    const sev = $('f-sev').value, kind = $('f-kind').value, th = $('f-theme').value, q = $('f-q').value.trim().toLowerCase();
+    let n = 0, total = 0;
+    for (const r of document.querySelectorAll('#flist .frow[data-sev]')) {
+      total++;
+      const ok = (!sev || r.dataset.sev === sev) && (!kind || r.dataset.kind === kind) && (!th || r.dataset.themes.split(' ').includes(th)) && (!q || r.dataset.text.includes(q));
+      r.hidden = !ok; if (ok) n++;
+    }
+    $('f-count').textContent = `Showing ${n} of ${total}`;
+  }
+  const flash = (el) => { el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1800); };
+  function goTo(hash) {
+    const name = hash.replace(/^#/, ''); if (!name) return;
+    let el = null;
+    if (name.startsWith('f-')) {
+      for (const s of ['f-sev', 'f-kind', 'f-theme', 'f-q']) $(s).value = ''; applyFilter();
+      $('allbox').open = true; el = $(name);
+    } else if (name.startsWith('q-')) {
+      el = $(name); const det = el && el.closest('details'); if (det) det.open = true;
+    } else el = $(name);
+    if (el) { el.scrollIntoView({ block: 'start' }); if (/^(f|q|t|ms)-/.test(name)) flash(el); }
+  }
+  document.addEventListener('click', (e) => { const a = e.target.closest('a[href^="#"]'); if (!a) return; e.preventDefault(); const hash = a.getAttribute('href'); if (location.hash !== hash) history.replaceState(null, '', hash); goTo(hash); });
+  addEventListener('hashchange', () => goTo(location.hash));
+  for (const s of ['f-sev', 'f-kind', 'f-theme']) $(s).addEventListener('change', applyFilter);
+  $('f-q').addEventListener('input', applyFilter);
+  function spy() {
+    const links = [...document.querySelectorAll('#toc a')], secs = links.map((a) => $(a.getAttribute('href').slice(1)));
+    const io = new IntersectionObserver((es) => { for (const e of es) if (e.isIntersecting) { const i = secs.indexOf(e.target); links.forEach((l, j) => l.setAttribute('aria-current', String(j === i))); } }, { rootMargin: '-20% 0px -70% 0px' });
+    secs.forEach((s) => io.observe(s));
   }
   async function load() {
     try {
       const res = await fetch('roadmap.json', { cache: 'no-store' });
       if (!res.ok) throw new Error('HTTP ' + res.status);
-      const data = await res.json();
-      document.getElementById('title').textContent = data.project;
-      document.getElementById('updated').textContent = data.updated;
-      document.getElementById('target').textContent = data.target;
-      document.getElementById('now').textContent = data.now;
-      renderOverview(data.overview); renderDetail(data.detail);
-      document.getElementById('footer').textContent = `Source of truth: ${data.source}. Sessions edit roadmap.json and republish this page.`;
-      if (isAnchor(location.hash.slice(1))) goTo(location.hash.slice(1));
+      const d = await res.json();
+      FIND = new Map(d.findings.map((f) => [f.id, f])); CARDS = new Set(d.decisions.map((q) => q.id));
+      $('title').textContent = d.project; $('updated').textContent = d.updated; $('auditdate').textContent = `${d.audit.date}, ${d.audit.reviewers} reviewers`;
+      $('branchmeta').innerHTML = `Branch <strong class="mono">${h(d.audit.branch)}</strong>`;
+      renderReality(d); renderAreas(d); renderThemes(d); renderPlan(d); renderCards(d); renderHistory(d); renderFindings(d);
+      $('footer').textContent = `Source of truth: ${d.source}. Sessions edit roadmap.json and republish this page.`;
+      spy(); if (location.hash.length > 1) goTo(location.hash);
     } catch (err) {
-      const b = document.getElementById('error'); b.hidden = false;
-      b.textContent = 'The roadmap data (roadmap.json) could not be loaded: ' + err.message + '.';
+      const b = $('error'); b.hidden = false; b.textContent = 'The roadmap data (roadmap.json) could not be loaded: ' + err.message + '.';
     }
   }
-  showView(location.hash.slice(1)); load();
+  load();
 </script>
