@@ -2,7 +2,7 @@
 // Pure reads shared by the trade phase, the scripted player and the Board of Trade screen.
 import type { CountryId, MinorNationId, NationId } from "@/types/Common";
 import type { GameState } from "@/types/GameState";
-import type { MarketMode, TradeAmounts, TradeCommodity } from "@/types/Market";
+import type { MarketMode, TradeAmounts, TradeCommodity, TradeOrders } from "@/types/Market";
 import { BOARD_ORDER, MINOR_DEMAND, MINOR_OFFER_CAP } from "@/definisions/partnersMarket";
 import { relationOf } from "../diplomacy/relations";
 import { diplomacySystem } from "../systems/diplomacySystem";
@@ -103,51 +103,90 @@ export function settledTradeBarrier(state: GameState, nationId: NationId, countr
   return entry.consulates.includes(nationId) ? undefined : "no-consulate";
 }
 
-/** By state (states are never changed): the state after this turn's diplomacy phase, events dropped. */
-const afterDiplomacy = new WeakMap<GameState, GameState>();
+/** By state (states are never changed), then by the nation whose intents were resolved: the state after this turn's diplomacy phase. */
+const afterDiplomacy = new WeakMap<GameState, Map<NationId, GameState>>();
 
 /**
- * The state as the trade phase of this End Turn will find it (FR-246): this turn's diplomacy intents resolved
- * by the diplomacy phase itself (a consulate, a war, a peace, a boycott set or lifted, and any of them failing),
- * events dropped. A peace or an alliance a human Great Power still has to answer is not made until it answers.
+ * The state as the trade phase of this End Turn will find it as far as `viewerId` knows (FR-246): its own diplomacy
+ * intents of this turn resolved by the diplomacy phase itself (a consulate, a war, a peace, a boycott set or lifted, and
+ * any of them failing), events dropped. Another nation's intents of this turn are left out (FR-497, M13): the scripted
+ * Great Power plans after the person's orders are in the state and must not read them; the person never sees the
+ * computer's, which come at End Turn. A peace or an alliance a human Great Power still has to answer is not made until
+ * it answers.
  */
-export function diplomacyAfterThisTurn(state: GameState): GameState {
-  let next = afterDiplomacy.get(state);
+export function diplomacyAfterThisTurn(state: GameState, viewerId: NationId): GameState {
+  let byViewer = afterDiplomacy.get(state);
+  if (!byViewer) {
+    byViewer = new Map();
+    afterDiplomacy.set(state, byViewer);
+  }
+  let next = byViewer.get(viewerId);
   if (!next) {
-    next = diplomacySystem(state, createTurnContext({ turn: state.turn, seed: state.seed }));
-    afterDiplomacy.set(state, next);
+    const own = state.intents.every((i) => i.nationId === viewerId) ? state : { ...state, intents: state.intents.filter((i) => i.nationId === viewerId) };
+    next = diplomacySystem(own, createTurnContext({ turn: state.turn, seed: state.seed }));
+    byViewer.set(viewerId, next);
   }
   return next;
 }
 
 /**
  * Why `nationId` may not trade with `countryId` in this End Turn's trade phase, or undefined when it may
- * (FR-185, FR-246): `settledTradeBarrier` on the record after this turn's diplomacy phase, so the Board of Trade
- * and the scripted player see what the trade phase will (a consulate ordered this turn counts; a war declared
- * this turn already stops trade; a boycott set or lifted this turn already counts).
+ * (FR-185, FR-246): `settledTradeBarrier` on the record after this turn's diplomacy phase as `viewerId` (by default
+ * `nationId`) knows it (`diplomacyAfterThisTurn`), so the Board of Trade and the scripted player see what the trade phase
+ * will (a consulate ordered this turn counts; a war declared this turn already stops trade; a boycott set or lifted this
+ * turn already counts), and never another nation's orders of this turn (FR-497).
  */
-export const tradeBarrier = (state: GameState, nationId: NationId, countryId: CountryId): TradeBarrier | undefined =>
-  settledTradeBarrier(diplomacyAfterThisTurn(state), nationId, countryId);
+export const tradeBarrier = (state: GameState, nationId: NationId, countryId: CountryId, viewerId: NationId = nationId): TradeBarrier | undefined =>
+  settledTradeBarrier(diplomacyAfterThisTurn(state, viewerId), nationId, countryId);
 
 const sortedMinorIds = (state: GameState): MinorNationId[] => state.minorNations.map((m) => m.id).sort();
+
+/** The other Great Powers, in id order. */
+const otherPowersOf = (state: GameState, nationId: NationId): NationId[] =>
+  state.nations
+    .map((n) => n.id)
+    .filter((id) => id !== nationId)
+    .sort();
+
+/**
+ * FR-491: the nation's public trade orders of last turn (`market.lastOrders`), as copies; empty when it had none, in
+ * "world", and in a game saved before M13 (no field). What the other Great Power's rules and the Board of Trade may read
+ * of another nation's trade (FR-497): never this turn's `market.orders`.
+ */
+export function lastTradeOrdersOf(state: GameState, nationId: NationId): TradeOrders {
+  const last = state.market?.lastOrders?.[nationId];
+  return { sell: { ...(last?.sell ?? {}) }, buy: { ...(last?.buy ?? {}) } };
+}
 
 /** The minors that offer the commodity this turn (FR-183), in id order. */
 export const sellersOf = (state: GameState, commodity: TradeCommodity): MinorNationId[] =>
   sortedMinorIds(state).filter((m) => (minorOffers(state, m)[commodity] ?? 0) > 0);
 
 /**
- * Who could buy one more unit of the nation's offer this turn (FR-253), in id order: the minors that want the
- * commodity (FR-184), then the other Great Powers that may bid for it, that is, those that already bid for it or
- * that a minor offering it may trade with (FR-252 is their bid's test). The nation's own barriers are not applied.
+ * Who could sell the nation one more unit of a bid this turn (FR-252, FR-492), in id order: the minors that offer the
+ * commodity; where none does, the other Great Powers (card Q118 (a): a bid toward the rival is allowed, refunded if it
+ * does not sell). The nation's own barriers are not applied.
+ */
+export function bidSellersOf(state: GameState, nationId: NationId, commodity: TradeCommodity): CountryId[] {
+  const minors = sellersOf(state, commodity);
+  return minors.length > 0 ? minors : otherPowersOf(state, nationId);
+}
+
+/**
+ * Who could buy one more unit of the nation's offer this turn (FR-253, FR-492), in id order: the minors that want the
+ * commodity (FR-184), then the other Great Powers that may bid for it: those that already bid for it, that a minor
+ * offering it may trade with (FR-253's test), or that bid for it last turn (FR-492, `lastTradeOrdersOf`). The nation's
+ * own barriers are not applied.
  */
 export function buyersOf(state: GameState, nationId: NationId, commodity: TradeCommodity): CountryId[] {
   const minors = sortedMinorIds(state).filter((m) => (minorDemand(state, m)[commodity] ?? 0) > 0);
   const sellers = sellersOf(state, commodity);
-  const powers = state.nations
-    .map((n) => n.id)
-    .filter((id) => id !== nationId)
-    .filter((id) => (tradeOrdersOf(state, id).buy[commodity] ?? 0) > 0 || sellers.some((m) => tradeBarrier(state, id, m) === undefined))
-    .sort();
+  const powers = otherPowersOf(state, nationId).filter(
+    (id) =>
+      (tradeOrdersOf(state, id).buy[commodity] ?? 0) > 0 ||
+      (lastTradeOrdersOf(state, id).buy[commodity] ?? 0) > 0 ||
+      sellers.some((m) => tradeBarrier(state, id, m, nationId) === undefined)
+  );
   return [...minors, ...powers];
 }
 
@@ -155,15 +194,17 @@ export function buyersOf(state: GameState, nationId: NationId, commodity: TradeC
 export type PartnerRefusal = "no-seller" | "sellers-barred" | "no-buyer" | "buyers-barred";
 
 /**
- * FR-252, FR-253: in "partners", why one more unit of the nation's bid ("buy") or offer ("sell") of the commodity
- * would find no counterparty this turn, or undefined when one may trade it. A bid needs a minor that offers the
- * commodity and that the nation may trade with (FR-246's `tradeBarrier`); another Great Power's offer is not counted.
- * An offer needs a buyer of `buyersOf` that the nation may trade with. A counterparty that favours another Great Power
- * still counts: the rival may be served first, but the order stands. Always undefined in "world".
+ * FR-252, FR-253, FR-492: in "partners", why one more unit of the nation's bid ("buy") or offer ("sell") of the
+ * commodity would find no counterparty this turn, or undefined when one may trade it. A bid needs a seller of
+ * `bidSellersOf` that the nation may trade with (FR-246's `tradeBarrier`): a minor that offers the commodity, or, where no
+ * minor does, another Great Power (so "no-seller" only without one). An offer needs a buyer of `buyersOf` that the
+ * nation may trade with. A counterparty that favours another Great Power still counts: the rival may be served first,
+ * but the order stands. The settlement is unchanged (FR-186): an unfilled bid is refunded, an unsold offer comes back.
+ * Always undefined in "world".
  */
 export function partnerRefusal(state: GameState, nationId: NationId, side: "buy" | "sell", commodity: TradeCommodity): PartnerRefusal | undefined {
   if (marketModeOf(state) !== "partners") return undefined;
-  const counterparties = side === "buy" ? sellersOf(state, commodity) : buyersOf(state, nationId, commodity);
+  const counterparties = side === "buy" ? bidSellersOf(state, nationId, commodity) : buyersOf(state, nationId, commodity);
   if (counterparties.length === 0) return side === "buy" ? "no-seller" : "no-buyer";
   if (counterparties.some((id) => tradeBarrier(state, nationId, id) === undefined)) return undefined;
   return side === "buy" ? "sellers-barred" : "buyers-barred";
@@ -218,7 +259,7 @@ export function boardOfTrade(state: GameState, nationId: NationId): BoardRow[] {
   const market = marketOf(state);
   const { sell, buy } = tradeOrdersOf(state, nationId);
   const stock = (nationById(state, nationId)?.warehouse ?? {}) as Record<string, number>;
-  const after = diplomacyAfterThisTurn(state);
+  const after = diplomacyAfterThisTurn(state, nationId);
   const minors = [...state.minorNations].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)).map((minor) => {
     const barrier = settledTradeBarrier(after, nationId, minor.id);
     const subsidy = minor.colonyOf === undefined ? (relationOf(after, nationId, minor.id)?.subsidies[nationId] ?? 0) : 0;

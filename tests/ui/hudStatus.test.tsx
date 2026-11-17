@@ -10,11 +10,13 @@ import { HUD } from '@/components/HUD';
 import { useGameStore } from '@/store/rootStore';
 import { END_TURN_LOCK_MS } from '@/store/gameSlice';
 import { HOW_TO_PLAY_SEEN_KEY } from '@/store/persistence';
-import { newGame } from '@/engine';
+import { adjacentProvinces, defenceOf, newGame, strengthIn, warBetween } from '@/engine';
+import { borderThreat, borderThreatText } from '@/components/HUD/hudView';
 import Home from '@/page';
 import { WorkerStatus } from '@/types/Workers';
 import type { GameState } from '@/types/GameState';
 import { emptyWarehouse, N1, N2, setPair, setTreasury } from '../engine/fixtures';
+import { addRegiments, ARVELIA, ARVELIA_P, clearArmy, NE1, SE1 } from '../engine/armyFixtures';
 import { text } from './domText';
 import { failOnActWarnings } from './actWarnings';
 
@@ -178,6 +180,91 @@ describe('FR-412 the HUD says we are at war', () => {
     show(setPair(continent(), N2, 'minor-1', { war: { aggressors: [N2], since: 1 } }));
     render(<HUD />);
     expect(screen.queryByTestId('at-war')).toBeNull();
+  });
+});
+
+// M13 FR-495 (Imp1's Defense Minister, "Strengthen the Army" when a rival army is more than twice ours [08:W26]): another
+// Great Power's regiments in a province bordering one of ours, with a strength (FR-204) above twice that province's
+// defence (FR-226), make one line in the alerts (where M12b put the lines under the turn line), also at peace.
+describe('FR-495 the Defense Minister warns', () => {
+  /** Valdoria's army in Arvelia, which borders Testland North-East: 3 Cuirassiers and Regulars at `health`, 52 at 70. */
+  const threat = (s: GameState = continent(), health = 70): GameState =>
+    addRegiments(addRegiments(s, N2, ARVELIA_P, ['cuirassiers', 'cuirassiers', 'cuirassiers']), N2, ARVELIA_P, ['regulars'], health);
+  const LINE = "Valdoria's army at our border: Testland North-East (52 against our 25)";
+  const borderLines = () => screen.queryAllByTestId('border-threat').map(text);
+
+  it('FR-495 the example: Valdoria 52 in Arvelia against our 25 in Testland North-East, at peace, is one line in the alerts, under Tile Info and above the news', () => {
+    const g = threat();
+    // The setup's numbers, so a change of the start garrison shows here first
+    expect(strengthIn(g, N2, ARVELIA_P)).toBe(52);
+    expect(defenceOf(g, NE1)).toBe(25);
+    expect(adjacentProvinces(g, NE1).map((p) => p.id)).toContain(ARVELIA_P);
+    expect(warBetween(g, N1, N2)).toBeUndefined();
+    show(g);
+    render(<HUD />);
+    expect(within(alerts()).getAllByTestId('border-threat').map(text)).toEqual([LINE]);
+    const line = screen.getByTestId('border-threat');
+    expect(line.closest('[data-testid="hud-groups"]')).toBeNull();
+    expect(screen.getByTestId('tile-info-none').compareDocumentPosition(line) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(line.compareDocumentPosition(screen.getByTestId('news-panel')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('FR-495 exactly twice is not more than twice: 50 against 25 is no line', () => {
+    const g = threat(continent(), 50);
+    expect(strengthIn(g, N2, ARVELIA_P)).toBe(50);
+    show(g);
+    render(<HUD />);
+    expect(borderLines()).toEqual([]);
+  });
+
+  it('FR-495 one line, for the strongest such border: Valdoria 60 in Testland South-East (hand-built, its province) over 52 in Arvelia', () => {
+    let g = threat();
+    g = { ...g, provinces: g.provinces.map((p) => (p.id === SE1 ? { ...p, ownerId: N2 } : p)) };
+    g = addRegiments(clearArmy(g, N1, SE1), N2, SE1, ['cuirassiers', 'cuirassiers', 'cuirassiers', 'cuirassiers']);
+    expect(strengthIn(g, N2, SE1)).toBe(60);
+    show(g);
+    render(<HUD />);
+    expect(borderLines()).toEqual(["Valdoria's army at our border: Testland North-East (60 against our 25)"]);
+  });
+
+  it("FR-495 only a Great Power's army counts: Arvelia's own of 60, or ours there, is no line; nor is a weaker one", () => {
+    show(addRegiments(continent(), ARVELIA, ARVELIA_P, ['cuirassiers', 'cuirassiers', 'cuirassiers', 'cuirassiers']));
+    const { rerender } = render(<HUD />);
+    expect(borderLines()).toEqual([]);
+    act(() => show(addRegiments(continent(), N1, ARVELIA_P, ['cuirassiers', 'cuirassiers', 'cuirassiers', 'cuirassiers'])));
+    rerender(<HUD />);
+    expect(borderLines()).toEqual([]);
+    act(() => show(addRegiments(continent(), N2, ARVELIA_P, ['cuirassiers'])));
+    rerender(<HUD />);
+    expect(borderLines()).toEqual([]);
+  });
+
+  it('FR-495 at war too, beside the war line; none after game over; none on two-islands (no provinces)', () => {
+    show(setPair(threat(), N1, N2, { war: { aggressors: [N2], since: 3 } }));
+    const { rerender } = render(<HUD />);
+    expect(borderLines()).toEqual([LINE]);
+    expect(screen.getAllByTestId('at-war').map(text)).toEqual(['At war with Valdoria (since turn 3)']);
+    act(() => show({ ...threat(), gameOver: { turn: 40, year: 1824, scores: [] } }));
+    rerender(<HUD />);
+    expect(borderLines()).toEqual([]);
+    act(() => show(newGame({ seed: 1 })));
+    rerender(<HUD />);
+    expect(borderLines()).toEqual([]);
+  });
+
+  it('FR-495 FR-471 with only this line the alerts block shows, holding it', () => {
+    show(withStatus(threat(), WorkerStatus.Working, 7));
+    render(<HUD />);
+    expect(within(alerts()).getAllByTestId('border-threat').map(text)).toEqual([LINE]);
+    expect(screen.queryByTestId('idle-civilians')).toBeNull();
+  });
+
+  it('FR-495 borderThreat reads the strongest border as data; the numbers keep one decimal', () => {
+    expect(borderThreat(threat(), N1)).toEqual({ nationId: N2, name: 'Valdoria', provinceId: NE1, provinceName: 'Testland North-East', strength: 52, defence: 25 });
+    expect(borderThreat(continent(), N1)).toBeUndefined();
+    expect(borderThreatText({ name: 'Valdoria', provinceName: 'Testland North-East', strength: 52.25, defence: 18.75 })).toBe(
+      "Valdoria's army at our border: Testland North-East (52.3 against our 18.8)"
+    );
   });
 });
 

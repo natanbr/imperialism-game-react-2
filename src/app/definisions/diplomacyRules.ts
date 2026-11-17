@@ -55,3 +55,24 @@ export const SCRIPTED_DIPLOMACY = {
    */
   offerAgainTurns: 6,
 } as const;
+
+/**
+ * FR-490 (M13, card Q117 (a); rules 10 section 2, design, not original): the scripted Great Power's grants before each
+ * Council meeting. A grant needs an embassy (FR-162) and no Great Power holds one in a minor at the start (FR-151), so the
+ * rule also orders that embassy, once, ahead of the grant turns.
+ */
+export const SCRIPTED_INFLUENCE = {
+  /** One grant of this size a turn (2 points, GRANT_POINTS). */
+  grant: 1000 as GrantAmount,
+  /** On this many turns before each meeting (turns 26 to 29 for the turn-30 meeting). */
+  grantTurns: 4,
+  /** To a minor with these relation points with it: 4 grants and a little trade reach COUNCIL.minRelationPoints (50). */
+  fromPoints: 40,
+  toPoints: 49,
+  /**
+   * The embassy those grants need, from this many points (to `toPoints`): measured on the idle continent games without
+   * M13's migrants and war on the player, Sundmark reaches 35 on turns 20 to 23 and 40 only on turns 23 to 26, too late
+   * for an embassy before the turn-26 grant.
+   */
+  embassyFromPoints: 35,
+} as const;

@@ -100,9 +100,12 @@ function closeProposals(w: Work, kind: ProposalKind, handled: Set<string>, still
 
 // --- peace (FR-169) ------------------------------------------------------------------------------
 
-/** The war ends; relations stay, nothing is restored; the attacks between the two this turn are dropped. */
+/**
+ * The war ends; relations stay, nothing is restored; the attacks between the two this turn are dropped. The pair keeps
+ * the turn of the peace (FR-488).
+ */
 function makePeace(w: Work, proposerId: NationId, targetId: CountryId): void {
-  const rest = { ...entry(w, proposerId, targetId) };
+  const rest = { ...entry(w, proposerId, targetId), peaceTurn: w.ctx.turn };
   delete rest.war;
   setEntry(w, proposerId, targetId, rest);
   done(w, "peace", proposerId, targetId);

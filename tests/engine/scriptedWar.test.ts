@@ -1,7 +1,8 @@
 // M9 scripted war (FR-228, FR-274): at war the scripted Great Power keeps its capital's 4 arms, marches its other
 // regiments toward the province that borders the strongest enemy force and attacks when the estimate (FR-226) is 1.5 or
 // more; at peace, from turn 10, it picks the weakest bordering minor, recruits until its field army is twice that minor's
-// defence, declares war and takes it. Valdoria (nation-2) is the scripted player throughout.
+// defence, declares war and takes it. M13: from turn 20, with no minor left, the other Great Power (FR-488); in that war
+// one province, then peace offers (FR-489). Valdoria (nation-2) is the scripted player throughout.
 import { beforeAll, describe, it, expect } from 'vitest';
 import { newGame } from '@/engine/newGame';
 import { scriptedPlayer } from '@/engine/ai/scriptedPlayer';
@@ -13,9 +14,14 @@ import { resolveTurn } from '@/engine/turn/resolveTurn';
 import { councilCell, type CouncilMetEvent } from '@/engine/council/council';
 import { transferProvince } from '@/engine/world/provinces';
 import { SCRIPTED_WAR } from '@/definisions/combatRules';
+import { defenceOf } from '@/engine/army/combat';
+import { upkeepOf } from '@/engine/army/armies';
+import { fallCapital, takeProvince } from '@/engine/army/conquest';
 import type { GameState } from '@/types/GameState';
+import type { ProvinceCapture } from '@/types/Diplomacy';
+import type { RegimentType } from '@/types/Unit';
 import { N1, N2, nationOf, setIndustry, setPair, setTreasury, setWarehouse } from './fixtures';
-import { addRegiments, ARVELIA, ARVELIA_P, clearArmy, continent, NE2, NW2, patchRegiment, relocate, SE2, SW2 } from './armyFixtures';
+import { addRegiments, ARVELIA, ARVELIA_P, armyIn, clearArmy, continent, NE1, NE2, NW1, NW2, patchRegiment, relocate, SE1, SE2, SW1, SW2 } from './armyFixtures';
 
 const atWar = (s: GameState, a: string, b: string, since = 1): GameState =>
   setPair(s, a, b, { war: { aggressors: [a], since }, consulates: [], embassies: [], pact: false, alliance: false });
@@ -25,8 +31,9 @@ const warOrders = (orders: Order[]): Order[] =>
   orders.filter(o => o.kind === 'setRecruitment' || o.kind === 'moveArmy' || (o.kind === 'proposeOverture' && (o.overture === 'war' || o.overture === 'peace')));
 
 const march = (fromProvinceId: string, regimentIds: string[], toProvinceId: string): Order => ({ kind: 'moveArmy', nationId: N2, fromProvinceId, regimentIds, toProvinceId });
-// FR-274 tuned (M9 decision card): the campaign raises Cuirassiers (a trained worker and a horse), not Regulars
-const recruitOne: Order = { kind: 'setRecruitment', nationId: N2, regiment: SCRIPTED_WAR.regiment, count: 1 };
+// FR-274 tuned (M9 decision card): the campaign raises Cuirassiers (a trained worker and a horse), not Regulars; since
+// M13 the first of FR-482's campaign list (SCRIPTED_WAR.regiment was replaced by the lists)
+const recruitOne: Order = { kind: 'setRecruitment', nationId: N2, regiment: 'cuirassiers', count: 1 };
 const warOn = (targetId: string): Order => ({ kind: 'proposeOverture', nationId: N2, overture: 'war', targetId });
 
 // Valdoria's start army in its capital province (FR-203): 1st and 2nd Regulars and 1st Artillery, 4 arms.
@@ -84,6 +91,20 @@ describe('FR-228 scripted defence and counter-attack', () => {
     expect(warOrders(scriptedPlayer(s, N2)).filter(o => o.kind === 'moveArmy')).toEqual([march(SW2, ['regiment-901'], NW2)]);
   });
 
+  it('FR-484 under a threat the recruit of turn t is a field regiment: on turn t+1 it marches toward the province facing the strongest enemy', () => {
+    // The audit's invasion (AISIM-02): Testland's start army in Arvelia, next to Valdoria North-West; Valdoria has no
+    // untrained worker, 4 trained, 4 horses, $3,118 and an armament, so FR-482 raises Cuirassiers.
+    let s = testlandInArvelia(continent('world'), ['regiment-1', 'regiment-2', 'regiment-3']);
+    s = setTreasury(setWarehouse(setIndustry(s, N2, { workers: { untrained: 0, trained: 4, expert: 1 } }), N2, { horses: 4, armaments: 1 }), N2, 3118);
+    const first = scriptedPlayer(s, N2);
+    expect(warOrders(first).filter(o => o.kind === 'setRecruitment')).toEqual([{ kind: 'setRecruitment', nationId: N2, regiment: 'cuirassiers', count: 1 }]);
+
+    const next = resolveTurn(s, { [N2]: first }, s.seed).state;
+    const raised = next.armies.find(a => a.ownerId === N2 && a.provinceId === SW2)!.regiments.filter(r => !KEEP.includes(r.id) && r.type === 'cuirassiers');
+    expect(raised).toHaveLength(1);
+    expect(warOrders(scriptedPlayer(next, N2)).filter(o => o.kind === 'moveArmy')).toContainEqual(march(SW2, [raised[0].id], NW2));
+  });
+
   it('FR-228 (d) FR-174 a province taken in this war makes it propose peace the next turn', () => {
     let s = transferProvince(continent('world'), ARVELIA_P, N1);
     s = atWar(relocate(clearArmy(clearArmy(s, ARVELIA, ARVELIA_P), N2, NW2), ['regiment-1'], ARVELIA_P), N1, N2);
@@ -92,6 +113,77 @@ describe('FR-228 scripted defence and counter-attack', () => {
     const after = resolveTurn(next, {}, next.seed).state;
     expect(after.provinces.find(p => p.id === NW2)!.ownerId).toBe(N1);
     expect(warOrders(scriptedPlayer(after, N2))).toContainEqual({ kind: 'proposeOverture', nationId: N2, overture: 'peace', targetId: N1 });
+  });
+});
+
+const noop = (): void => undefined;
+/** Valdoria took Arvelia on turn 17 (FR-274): its province is Valdoria's, Arvelia its colony; an armament in stock. */
+const colonised = (turn: number, s: GameState = continent('world')): GameState => {
+  const taken = fallCapital(takeProvince(clearArmy(s, ARVELIA, ARVELIA_P), ARVELIA_P, N2, 17, noop), ARVELIA, N2, 17, noop);
+  return setWarehouse({ ...taken, turn }, N2, { armaments: 1 });
+};
+const REGULARS_5: RegimentType[] = ['regulars', 'regulars', 'regulars', 'regulars', 'regulars'];
+
+describe('FR-488 war on the other Great Power (card Q114 (b); from turn 20 it replaces Q35\'s "never with a Great Power")', () => {
+  it('FR-488 turn 19: no target; turn 20 with Arvelia colonised: Testland; turn 20 with Arvelia free: Arvelia first', () => {
+    expect(SCRIPTED_WAR.greatPowerFromTurn).toBe(20);
+    expect(campaignTarget(colonised(19), N2)).toBeUndefined();
+    expect(campaignTarget(colonised(20), N2)).toBe(N1);
+    expect(campaignTarget({ ...continent('world'), turn: 20 }, N2)).toBe(ARVELIA);
+  });
+
+  it('FR-488 a field strength of 2 x the defence of Testland North-East (25) declares war: 5 Regulars (50) declare, 4 (40) recruit one more as in a campaign', () => {
+    expect(defenceOf(colonised(20), NE1)).toBe(25);
+    expect(warOrders(scriptedPlayer(addRegiments(colonised(20), N2, ARVELIA_P, REGULARS_5), N2))).toEqual([warOn(N1)]);
+    expect(warOrders(scriptedPlayer(addRegiments(colonised(20), N2, ARVELIA_P, REGULARS_5.slice(1)), N2))).toEqual([recruitOne]);
+  });
+
+  it('FR-488 not with an alliance, nor within 10 turns of a peace with it: peace on turn 11 -> no target on turn 20, Testland on turn 21', () => {
+    expect(campaignTarget(setPair(colonised(20), N1, N2, { alliance: true }), N2)).toBeUndefined();
+    expect(campaignTarget(setPair(colonised(20), N1, N2, { peaceTurn: 11 }), N2)).toBeUndefined();
+    expect(campaignTarget(setPair(colonised(21), N1, N2, { peaceTurn: 11 }), N2)).toBe(N1);
+  });
+
+  it('FR-488 FR-489 never for the capital: Testland\'s capital province is left out of the measure, even with no defender in it (40 does not declare, 50 does)', () => {
+    // Valdoria holds Testland North-East (hand-built, at peace), which borders Testland North-West and South-East (25 each) and the capital
+    const s = clearArmy(clearArmy(transferProvince(colonised(20), NE1, N2), N1, NE1), N1, SW1);
+    expect(defenceOf(s, SW1)).toBe(0);
+    const declares = (regiments: RegimentType[]) => warOrders(scriptedPlayer(addRegiments(s, N2, NE1, regiments), N2)).some(o => o.kind === 'proposeOverture');
+    expect([declares(REGULARS_5.slice(1)), declares(REGULARS_5)]).toEqual([false, true]);
+  });
+});
+
+describe('FR-489 one province, then peace (card Q115 (a))', () => {
+  /** Turn 23: Valdoria declared war on Testland (since turn 21) and took Testland North-East on turn 22; 5 Regulars hold it. */
+  const tookOne = (aggressor = N2): GameState => {
+    const s = addRegiments(clearArmy(transferProvince(colonised(23), NE1, N2), N1, NE1), N2, NE1, REGULARS_5);
+    return atWarWith(s, aggressor, [{ provinceId: NE1, fromId: N1, toId: N2, turn: 22 }]);
+  };
+  const atWarWith = (s: GameState, aggressor: string, captures: ProvinceCapture[]): GameState =>
+    setPair(s, N1, N2, { war: { aggressors: [aggressor], since: 21, captures }, consulates: [], embassies: [] });
+  const attacks = (s: GameState): Order[] =>
+    warOrders(scriptedPlayer(s, N2)).filter(o => o.kind === 'moveArmy' && s.provinces.find(p => p.id === o.toProvinceId)!.ownerId !== N2);
+  const ids = (s: GameState, provinceId: string) => armyIn(s, N2, provinceId)!.regiments.map(r => r.id);
+
+  it('FR-489 holding a province it took from the Great Power it declared war on, it attacks no further province of it (FR-228 alone attacks Testland North-West at 2.0)', () => {
+    expect(attacks(tookOne())).toEqual([]);
+    expect(attacks(tookOne(N1))).toEqual([march(NE1, ids(tookOne(N1), NE1), NW1)]);
+  });
+
+  it('FR-489 it still retakes its own provinces lost in this war (FR-228 (c))', () => {
+    let s = clearArmy(transferProvince(tookOne(), NW2, N1), N2, NW2);
+    s = addRegiments(addRegiments(s, N1, NW2, ['regulars'], 30), N2, NE2, ['regulars', 'regulars']);
+    s = atWarWith(s, N2, [{ provinceId: NE1, fromId: N1, toId: N2, turn: 22 }, { provinceId: NW2, fromId: N2, toId: N1, turn: 22 }]);
+    // the two Regulars added in Valdoria North-East attack; its 4 start Minutemen there are militia, never in the field army
+    expect(attacks(s)).toEqual([march(NE2, ['regiment-907', 'regiment-908'], NW2)]);
+  });
+
+  it('FR-489 in a war it declared on a Great Power it never attacks that country\'s capital province, however weak', () => {
+    // Valdoria holds Testland North-East (hand-built, nothing taken in this war yet); North-West and South-East are strong, the capital empty
+    let s = clearArmy(clearArmy(transferProvince(colonised(23), NE1, N2), N1, NE1), N1, SW1);
+    s = addRegiments(addRegiments(addRegiments(s, N2, NE1, REGULARS_5), N1, NW1, ['regulars', 'regulars', 'regulars', 'regulars']), N1, SE1, ['regulars', 'regulars', 'regulars', 'regulars']);
+    expect(attacks(atWarWith(s, N2, []))).toEqual([]);
+    expect(attacks(atWarWith(s, N1, []))).toEqual([march(NE1, ids(s, NE1), SW1)]);
   });
 });
 
@@ -106,16 +198,21 @@ describe('FR-274 scripted war on minors', () => {
   });
 
   it('FR-274 from turn 10, at war with no one, it picks the bordering minor with the lowest defence and recruits 1 regiment a turn (Cuirassiers, tuned)', () => {
-    expect(SCRIPTED_WAR.regiment).toBe('cuirassiers');
+    expect(SCRIPTED_WAR.campaignRegiments[0]).toBe('cuirassiers');
     expect(campaignTarget(onTurn(10), N2)).toBe(ARVELIA);
     expect(warOrders(scriptedPlayer(onTurn(10), N2))).toEqual([recruitOne]);
   });
 
-  it('FR-274 recruiting keeps the FR-213 limits: not below $2,500 after the order', () => {
-    expect(warOrders(scriptedPlayer(setTreasury(onTurn(10), N2, 2999), N2))).toEqual([]);
-    expect(warOrders(scriptedPlayer(setTreasury(onTurn(10), N2, 3000), N2))).toEqual([recruitOne]);
-    // a horse is part of the cost (FR-200): none in the warehouse, no recruit
-    expect(warOrders(scriptedPlayer(setWarehouse(onTurn(10), N2, { horses: 0 }), N2))).toEqual([]);
+  // Re-recorded in M13 by FR-482 (card Q119 (a)): was "$2,999 -> nothing" and "no horse -> no recruit"; the campaign now
+  // raises the next of its list it can pay for: below Cuirassiers' $500 above the floor the $100 Hussars, with no horse
+  // the Grenadiers (a trained worker, no horse). The $2,500 floor at peace is unchanged.
+  it('FR-274 FR-482 recruiting keeps the FR-213 floor: not below $2,500 after the order ($3,000 Cuirassiers, $2,999 and $2,600 Hussars, $2,599 nothing)', () => {
+    const ordered = (cash: number) => warOrders(scriptedPlayer(setTreasury(onTurn(10), N2, cash), N2));
+    expect(ordered(3000)).toEqual([recruitOne]);
+    expect([ordered(2999), ordered(2600)]).toEqual([[{ ...recruitOne, regiment: 'hussars' }], [{ ...recruitOne, regiment: 'hussars' }]]);
+    expect(ordered(2599)).toEqual([]);
+    // a horse is part of the cost (FR-200): none in the warehouse, so the Grenadiers
+    expect(warOrders(scriptedPlayer(setWarehouse(onTurn(10), N2, { horses: 0 }), N2))).toEqual([{ ...recruitOne, regiment: 'grenadiers' }]);
   });
 
   it('FR-274 with its field army at twice the minor\'s defence it declares war and marches the field army to the bordering province', () => {
@@ -130,6 +227,17 @@ describe('FR-274 scripted war on minors', () => {
     expect(warOrders(scriptedPlayer(cavalry, N2))[0]).toEqual(warOn(ARVELIA));
   });
 
+  it('FR-274 FR-497 (M13 T-15) a war on a minor waits for SCRIPTED_WAR.minorWarUpkeepTurns (4) turns of the army\'s upkeep in the treasury', () => {
+    // Measured in the both-scripted games (FR-247, seed 3): Valdoria declared on Arvelia, its only trade partner, with $336
+    // and lost 6 regiments for want of pay on the next two turns
+    const ready = addRegiments(onTurn(10), N2, SW2, ['regulars', 'regulars', 'regulars', 'regulars']);
+    const need = SCRIPTED_WAR.minorWarUpkeepTurns * upkeepOf(ready, N2);
+    expect(need).toBeGreaterThan(0);
+    const declares = (cash: number) => warOrders(scriptedPlayer(setTreasury(ready, N2, cash), N2)).some(o => o.kind === 'proposeOverture' && o.overture === 'war');
+    expect(declares(need)).toBe(true);
+    expect(declares(need - 1)).toBe(false);
+  });
+
   it('FR-274 at war with the minor it attacks on a turn the estimate is 1.5 or more (FR-228)', () => {
     let s = atWar(onTurn(12), N2, ARVELIA);
     s = addRegiments(s, N2, NW2, ['regulars', 'regulars', 'regulars', 'regulars']);
@@ -138,7 +246,7 @@ describe('FR-274 scripted war on minors', () => {
     ]);
   });
 
-  it('FR-274 one war at a time, never on a Great Power, never on a colony', () => {
+  it('FR-274 one war at a time, never on a Great Power before turn 20 (FR-488), never on a colony', () => {
     const ready = addRegiments(onTurn(10), N2, SW2, ['regulars', 'regulars', 'regulars', 'regulars']);
     const atWarWithTestland = atWar(ready, N1, N2);
     expect(warOrders(scriptedPlayer(atWarWithTestland, N2)).filter(o => o.kind === 'proposeOverture')).toEqual([]);
@@ -171,9 +279,12 @@ describe('FR-274 scripted war on minors', () => {
       expect(training(campaign(5))).toEqual([]);
     });
 
-    it('FR-458 with no horse, or before the campaign (turn 9), every trained worker may train', () => {
+    // Re-recorded in M13 by FR-482 (card Q119 (a)): was "with no horse every trained worker may train" -> trainTrained(3);
+    // with no horse the campaign now raises Grenadiers, which takes 1 of the 3 trained workers, so the other 2 train.
+    it('FR-458 FR-482 with no horse none is kept for Cuirassiers: the Grenadiers recruit takes 1 trained worker and the other 2 train; before the campaign (turn 9) all 3 train', () => {
       expect(workersKeptForCampaign(campaign(0), N2, 'trained')).toBe(0);
-      expect(training(campaign(0))).toEqual([trainTrained(3)]);
+      expect(warOrders(scriptedPlayer(campaign(0), N2))).toEqual([{ ...recruitOne, regiment: 'grenadiers' }]);
+      expect(training(campaign(0))).toEqual([trainTrained(2)]);
       expect(workersKeptForCampaign(campaign(2, 9), N2, 'trained')).toBe(0);
       expect(training(campaign(2, 9))).toEqual([trainTrained(3)]);
     });
@@ -233,9 +344,11 @@ describe('FR-274 scripted war on minors', () => {
       );
     }, 300_000);
 
-    it('FR-274 no order is refused, the treasury never goes below 0 and no war is declared on a Great Power', () => {
+    // Re-recorded in M13 by FR-488 (card Q114 (b), which replaced Q35's "never with a Great Power"): wars on a Great
+    // Power per seed 0 -> 1; Valdoria declares war on Testland on turn 22 or 23 and takes Testland North-East (FR-489).
+    it('FR-274 FR-488 no order is refused, the treasury never goes below 0, and from turn 20 one war on Testland per seed', () => {
       expect(runs.map(r => ({ seed: r.seed, refused: r.refused, broke: r.lowestTreasury < 0, warsOnGreatPowers: r.warsOnGreatPowers }))).toEqual(
-        SEEDS.map(seed => ({ seed, refused: 0, broke: false, warsOnGreatPowers: 0 }))
+        SEEDS.map(seed => ({ seed, refused: 0, broke: false, warsOnGreatPowers: 1 }))
       );
     });
 
@@ -253,11 +366,14 @@ describe('FR-274 scripted war on minors', () => {
         SEEDS.map(seed => [seed, [[10, null], [20, null], [30, null], [40, null]], null])
       );
       const colonies = (r: Run) => r.councils.map(c => [c.turn, councilCell(c, N2, 'colonies')]);
-      // Every seed colonises Arvelia on turn 17 (FR-274's acceptance), so Valdoria votes for it from the turn-20 meeting.
+      // Every seed colonises Arvelia on turn 19 (FR-274's acceptance), so Valdoria votes for it from the turn-20 meeting.
       // M12 strategy C re-record (FR-456, FR-457 depots gather more; FR-458 keeps the Cuirassiers' trained workers): seeds
       // 1 to 3 colonised it on turn 22 and voted from turn 30, seed 4 declared no war.
+      // M13 re-record by FR-485 and FR-486 (lane B's migrants, card Q116 (b)): turn 17 -> 19 on every seed. The goods
+      // and cash its migrants take delay the campaign 2 turns; with only the migrant planner cut out of economy.ts it is
+      // turn 16, with economy.ts as before M13 turn 17 (lane A probes, .gate/m13/laneA/accept-*.txt).
       expect(runs.map(r => [r.seed, r.colonised ?? null, colonies(r)])).toEqual(
-        [1, 2, 3, 4].map(seed => [seed, 17, [[10, []], [20, [ARVELIA_P]], [30, [ARVELIA_P]], [40, [ARVELIA_P]]]])
+        [1, 2, 3, 4].map(seed => [seed, 19, [[10, []], [20, [ARVELIA_P]], [30, [ARVELIA_P]], [40, [ARVELIA_P]]]])
       );
     });
   });

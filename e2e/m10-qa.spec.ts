@@ -1,5 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 import { councilLineSeen } from './councilNews';
+import { closeWarScreens } from './idleWar';
 
 // M10 QA fix round at 1280x720, with the scrollbars drawn as a desktop browser draws them (Playwright's Chromium hides
 // them: --hide-scrollbars; the HUD's column is then 8 px narrower and its lines wrap sooner).
@@ -33,12 +34,15 @@ test('FR-315 FR-306 FR-316 after the turn-40 meeting and Back to the map, the Co
   for (let turn = 1; turn <= 40; turn++) {
     await advance.click();
     if (turn < 40) await expect(page.getByTestId('turn-indicator')).toContainText(`Turn: ${turn + 1} of 40`);
+    // M13 (FR-488, FR-489): the computer's war on an idle player opens Battle screens and peace offers; closed unanswered
+    await closeWarScreens(page);
     if (turn % 10 === 0) {
       await expect(council).toBeVisible();
       // FR-316 on every meeting; soft, so the game-over check below runs whatever this reads
       await expect.soft(council.getByTestId('council-date')).toHaveText(`Met at the end of turn ${turn} (${MEETING_DATES[turn / 10 - 1]})`);
       await council.getByRole('button', { name: 'Close' }).click();
       await expect(council).toHaveCount(0);
+      await closeWarScreens(page);
     }
   }
   const over = page.getByRole('dialog', { name: 'Game over' });

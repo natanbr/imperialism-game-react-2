@@ -7,7 +7,6 @@ import {
   countryName,
   dealPrice,
   OVERTURE_COST,
-  sellersOf,
   tradeBarrier,
   tradeCapacityOf,
   tradeOrdersOf,
@@ -21,6 +20,7 @@ import {
   type TradeCapacity,
   type ValidationResult,
 } from "@/engine";
+import { bidSellersOf, lastTradeOrdersOf } from "@/engine/market/partners";
 import { MAX_BUY_BIDS } from "@/definisions/marketPrices";
 import { RECIPES } from "@/definisions/ResourceConversions";
 import type { Recipe } from "@/definisions/RecipeTypes";
@@ -52,6 +52,15 @@ export const MORE_REFUSAL_TEXT = {
   cash: "Not enough money",
 } as const;
 
+/**
+ * FR-494 (card Q118 (a)): the line beside an enabled Bid "+" of a row no minor sells, where the bid goes to the other Great
+ * Powers we may trade with (FR-492): "A bid is refunded if Valdoria does not sell." The FR's full line ("No minor nation
+ * sells this; a bid is ...") takes 3 lines in the 104 px note and, on the 13 such rows of a new game, made the board
+ * scroll by 109 px at 1280x720 (FR-257, e2e/m7-trade.spec.ts); the row's minors column already shows no seller.
+ */
+export const rivalSellerText = (names: readonly string[]): string =>
+  `A bid is refunded if ${namesText(names)} ${names.length > 1 ? "do" : "does"} not sell.`;
+
 /** "We need a consulate with a seller" (FR-252, FR-253): the barriers of every seller (or buyer), the consulate first. */
 export function barredText(barriers: readonly (TradeBarrier | undefined)[], side: "seller" | "buyer"): string {
   if (barriers.includes("no-consulate")) return `We need a consulate with a ${side}`;
@@ -75,7 +84,8 @@ export function moreRefusalText(state: GameState, nationId: string, commodity: T
     case "no-buyer":
       return MORE_REFUSAL_TEXT.noBuyer;
     case "sellers-barred":
-      return barredText(sellersOf(state, commodity).map((id) => tradeBarrier(state, nationId, id)), "seller");
+      // The minors that sell it, else the other Great Powers a bid would go to (FR-492)
+      return barredText(bidSellersOf(state, nationId, commodity).map((id) => tradeBarrier(state, nationId, id)), "seller");
     case "buyers-barred":
       return barredText(buyersOf(state, nationId, commodity).map((id) => tradeBarrier(state, nationId, id)), "buyer");
     case "limit-reached":
@@ -208,6 +218,11 @@ export interface BoardRowView {
   buyers: PartnerView[];
   /** "No minor trades this": no minor sells or buys the commodity (FR-254). */
   noMinorText?: string;
+  /**
+   * FR-494: "Valdoria bid for 2 last turn", "Valdoria offered 1 last turn": what each other Great Power we may trade with
+   * bid or offered for it in the last trade phase (FR-491); absent when none did.
+   */
+  rivalLastTurn?: string;
 }
 
 export interface BoardView {
@@ -250,6 +265,24 @@ function firstSaleLine(board: readonly BoardRow[], rows: readonly BoardRowView[]
     `Minor nations buy ${namesText(wanted.map((r) => commodityName(r.commodity)))}. Make them in the Capital (${buildings.join(", ")})` +
     (consulate ? ` and open a consulate in Diplomacy (${money(OVERTURE_COST.consulate)}).` : ".")
   );
+}
+
+/**
+ * FR-494 (FR-491): the other Great Powers' bids and offers of the last trade phase for the commodity, each one we may trade
+ * with (FR-185, as this turn's diplomacy will leave it, like the minors' marks, FR-246), in id order; one line.
+ */
+function rivalLastTurnText(state: GameState, nationId: string, commodity: TradeCommodity, nameOf: (id: string) => string): string | undefined {
+  const lines = state.nations
+    .map((n) => n.id)
+    .filter((id) => id !== nationId && tradeBarrier(state, nationId, id) === undefined)
+    .sort()
+    .flatMap((id) => {
+      const last = lastTradeOrdersOf(state, id);
+      const bid = last.buy[commodity] ?? 0;
+      const offer = last.sell[commodity] ?? 0;
+      return [...(bid > 0 ? [`${nameOf(id)} bid for ${bid} last turn`] : []), ...(offer > 0 ? [`${nameOf(id)} offered ${offer} last turn`] : [])];
+    });
+  return lines.length > 0 ? lines.join("; ") : undefined;
 }
 
 /** "Arvelia: 3 units", "Sundmark: 1 unit" (FR-251). */
@@ -302,7 +335,11 @@ export function boardView(state: GameState, nation: Nation): BoardView {
     const onlyPowers = openBuyers.length > 0
       ? []
       : buyersOf(state, nation.id, row.commodity).filter((id) => !row.buyers.some((b) => b.minorId === id) && tradeBarrier(state, nation.id, id) === undefined);
-    const bidNote = refusal(bidMore) ?? info(rivalFavourites(row.sellers));
+    // FR-494: no minor sells it, so a bid goes to the other Great Powers we may trade with (FR-492), refunded if unfilled
+    const rivalSellers =
+      row.sellers.length > 0 ? [] : bidSellersOf(state, nation.id, row.commodity).filter((id) => tradeBarrier(state, nation.id, id) === undefined);
+    const bidNote = refusal(bidMore) ?? info(rivalSellers.length > 0 ? rivalSellerText(rivalSellers.map(nameOf)) : rivalFavourites(row.sellers));
+    const rivalLastTurn = rivalLastTurnText(state, nation.id, row.commodity, nameOf);
     const offerNote =
       refusal(offerMore) ?? info(onlyPowers.length > 0 ? `Only ${namesText(onlyPowers.map(nameOf))} may buy this` : rivalFavourites(row.buyers));
     const dealPrices = dealPriceLines(row, nameOf);
@@ -321,6 +358,7 @@ export function boardView(state: GameState, nation: Nation): BoardView {
       sellers: row.sellers.map(partner),
       buyers: row.buyers.map(partner),
       ...(row.sellers.length === 0 && row.buyers.length === 0 ? { noMinorText: "No minor trades this" } : {}),
+      ...(rivalLastTurn ? { rivalLastTurn } : {}),
     };
   });
   // Each minor that trades this turn, with its favourite as the rows give it (this turn's diplomacy forecast, FR-246)

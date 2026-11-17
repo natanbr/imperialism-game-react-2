@@ -400,6 +400,20 @@ describe('FR-169 peace', () => {
       { type: 'overture-done', nationId: N1, overture: 'peace', targetId: N2 },
     ]);
   });
+
+  it('FR-488 every peace records its turn on the pair (peaceTurn), whichever way it is made; a war alone writes none', () => {
+    // M13 T-15: the read side is scriptedWar.ts `greatPowerCandidate` (no war on a Great Power within 10 turns of a peace)
+    const atWar = setPair({ ...continent(), turn: 11 }, N1, N2, { war: { aggressors: [N1], since: 5 }, consulates: [], embassies: [] });
+    expect(pair(atWar, N1, N2).peaceTurn).toBeUndefined();
+    // FR-174: the scripted Valdoria accepts on turn 11
+    expect(pair(endTurn(order(atWar, propose(N1, 'peace', N2))).state, N1, N2).peaceTurn).toBe(11);
+    // a minor always accepts
+    expect(pair(endTurn(order(warWith({ ...continent(), turn: 7 }, ARVELIA), propose(N1, 'peace', ARVELIA))).state, N1, ARVELIA).peaceTurn).toBe(7);
+    // the human's answer to Valdoria's offer, one turn later
+    const offered = endTurn(warWith({ ...continent(), turn: 4 }, N2), { [N2]: [propose(N2, 'peace', N1)] }).state;
+    expect(pair(offered, N1, N2).peaceTurn).toBeUndefined();
+    expect(pair(endTurn(order(offered, answer('proposal-4-1', true))).state, N1, N2).peaceTurn).toBe(5);
+  });
 });
 
 describe('FR-170 grants', () => {

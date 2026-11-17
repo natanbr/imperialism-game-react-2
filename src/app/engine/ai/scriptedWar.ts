@@ -3,17 +3,22 @@
 // enemy force, (c) they attack a bordering enemy province when the estimate (FR-226) is 1.5 or more, a province lost in
 // this war first, then the lowest id; (d) peace: FR-174's answers, FR-408's offers (diplomacy.ts). FR-274, at peace:
 // from turn 10 it picks the bordering minor with the lowest defence, recruits until its field army is twice that
-// defence, declares war (one war at a time, never on a Great Power) and marches. On a world without provinces it orders
-// nothing.
-import type { CountryId, MinorNationId, NationId, ProvinceId, RegimentId } from "@/types/Common";
+// defence, declares war (one war at a time) and marches. M13: from turn 20, with no minor left to take, the other Great
+// Power (FR-488, card Q114 (b)), for one province and never its capital (FR-489, card Q115 (a)). On a world without
+// provinces it orders nothing.
+import type { CountryId, NationId, ProvinceId, RegimentId } from "@/types/Common";
 import type { GameState } from "@/types/GameState";
+import type { Nation } from "@/types/Nation";
 import type { Province } from "@/types/Province";
 import type { Regiment } from "@/types/Army";
+import type { RegimentType } from "@/types/Unit";
 import { isMilitia, REGIMENTS, SCRIPTED_GARRISON } from "@/definisions/regiments";
 import { SCRIPTED_WAR } from "@/definisions/combatRules";
-import { armiesOf, armyAt, capitalProvinceOf, holds, strength, strengthIn } from "../army/armies";
+import { armiesOf, armyAt, capitalProvinceOf, holds, strength, strengthIn, upkeepOf } from "../army/armies";
 import { battleEstimate, defenceOf } from "../army/combat";
 import { warActive, warBetween } from "../diplomacy/queries";
+import { pairKey } from "../diplomacy/relations";
+import { warAimHeld, warOfChoice } from "../diplomacy/scriptedAnswers";
 import { nationById } from "../orders/queries";
 import { healthyWorkers } from "../industry/labour";
 import { ResourceType } from "@/types/Resource";
@@ -72,38 +77,64 @@ const declaredOn = (state: GameState, nationId: NationId): CountryId[] =>
   state.intents.filter((i) => i.kind === "war" && i.nationId === nationId && i.targetId !== undefined).map((i) => i.targetId!);
 
 const isMinorTarget = (state: GameState, id: CountryId): boolean => state.minorNations.some((m) => m.id === id && m.colonyOf === undefined);
-
-/** The minor's provinces that border one of the nation's. */
-const borderProvinces = (state: GameState, nationId: NationId, countryId: CountryId): Province[] =>
-  provincesOf(state, countryId).filter((p) => adjacentProvinces(state, p.id).some((q) => q.ownerId === nationId));
-
-/** The defence (FR-226) of the weakest of the minor's provinces that border the nation; Infinity with none. */
-const targetDefence = (state: GameState, nationId: NationId, minorId: MinorNationId): number =>
-  Math.min(...borderProvinces(state, nationId, minorId).map((p) => defenceOf(state, p.id)));
+const isGreatPower = (state: GameState, id: CountryId): boolean => state.nations.some((n) => n.id === id);
 
 /**
- * FR-274: the minor the nation's campaign is against: the minor (not a colony) it is at war with, while it is at war
- * with minors only; else, from turn 10 and at war with no one, the minor with a province bordering one of its own and
- * the lowest defence (FR-226; ties: lowest id). Undefined on a world without provinces, before turn 10 at peace, at war
- * with a Great Power, or with no such minor.
+ * The country's provinces that border one of the nation's: what its campaign measures and attacks. A Great Power's
+ * capital province is left out (FR-489: the war on it is for one province, never the capital, whose fall ends its game).
  */
-export function campaignTarget(state: GameState, nationId: NationId): MinorNationId | undefined {
+function borderProvinces(state: GameState, nationId: NationId, countryId: CountryId): Province[] {
+  const capital = isGreatPower(state, countryId) ? capitalProvinceOf(state, countryId)?.id : undefined;
+  return provincesOf(state, countryId).filter((p) => p.id !== capital && adjacentProvinces(state, p.id).some((q) => q.ownerId === nationId));
+}
+
+/** The defence (FR-226) of the weakest of the country's provinces that border the nation; Infinity with none. */
+const targetDefence = (state: GameState, nationId: NationId, countryId: CountryId): number =>
+  Math.min(...borderProvinces(state, nationId, countryId).map((p) => defenceOf(state, p.id)));
+
+/** The bordering country with the lowest defence (ties: lowest id), among the candidates. */
+function weakest(state: GameState, nationId: NationId, candidates: readonly CountryId[]): CountryId | undefined {
+  return candidates
+    .filter((id) => borderProvinces(state, nationId, id).length > 0)
+    .map((id) => ({ id, defence: targetDefence(state, nationId, id) }))
+    .sort((a, b) => a.defence - b.defence || compareIds(a.id, b.id))[0]?.id;
+}
+
+/**
+ * FR-488 (card Q114 (b)): a Great Power the nation may start a campaign on: from `SCRIPTED_WAR.greatPowerFromTurn`, with
+ * no alliance or pact between the two and no peace between them in the last `greatPowerPeaceTurns` turns.
+ */
+function greatPowerCandidate(state: GameState, nationId: NationId, otherId: NationId): boolean {
+  if (otherId === nationId || state.turn < SCRIPTED_WAR.greatPowerFromTurn) return false;
+  const pair = state.diplomacy[pairKey(nationId, otherId)];
+  if (!pair || pair.alliance || pair.pact) return false;
+  return pair.peaceTurn === undefined || state.turn - pair.peaceTurn >= SCRIPTED_WAR.greatPowerPeaceTurns;
+}
+
+/**
+ * FR-274, FR-488: the country the nation's campaign is against. At war: the minor (not a colony) it is at war with, while
+ * it is at war with minors only; or the Great Power it declared war on, alone, until it holds a province it took from it
+ * (FR-489). At war with no one, from turn 10: the bordering minor (not a colony) with the lowest defence (FR-226; ties:
+ * lowest id); with none, from turn 20, the bordering Great Power it may go to war with (`greatPowerCandidate`) with the
+ * lowest defence, its capital province left out. Undefined on a world without provinces, before turn 10 at peace, in any
+ * other war, or with no such country.
+ */
+export function campaignTarget(state: GameState, nationId: NationId): CountryId | undefined {
   if (state.provinces.length === 0 || !nationById(state, nationId)) return undefined;
   const enemies = enemiesOf(state, nationId);
   if (enemies.length > 0) {
-    if (!enemies.every((id) => state.minorNations.some((m) => m.id === id))) return undefined;
-    return enemies.filter((id) => isMinorTarget(state, id)).sort(compareIds)[0];
+    if (enemies.every((id) => state.minorNations.some((m) => m.id === id))) return enemies.filter((id) => isMinorTarget(state, id)).sort(compareIds)[0];
+    const [only] = enemies;
+    return enemies.length === 1 && warOfChoice(state, nationId, only) && !warAimHeld(state, nationId, only) ? only : undefined;
   }
   if (state.turn < SCRIPTED_WAR.fromTurn) return undefined;
-  const candidates = state.minorNations
-    .filter((m) => m.colonyOf === undefined && borderProvinces(state, nationId, m.id).length > 0)
-    .map((m) => ({ id: m.id, defence: targetDefence(state, nationId, m.id) }))
-    .sort((a, b) => a.defence - b.defence || compareIds(a.id, b.id));
-  return candidates[0]?.id;
+  const minor = weakest(state, nationId, state.minorNations.filter((m) => m.colonyOf === undefined).map((m) => m.id));
+  if (minor !== undefined) return minor;
+  return weakest(state, nationId, state.nations.filter((n) => greatPowerCandidate(state, nationId, n.id)).map((n) => n.id));
 }
 
 /** FR-274: the field army twice the target's defence. */
-const campaignNeed = (state: GameState, nationId: NationId, minorId: MinorNationId): number => SCRIPTED_WAR.strengthFactor * targetDefence(state, nationId, minorId);
+const campaignNeed = (state: GameState, nationId: NationId, targetId: CountryId): number => SCRIPTED_WAR.strengthFactor * targetDefence(state, nationId, targetId);
 
 /** FR-274: the campaign has a target and its field strength is below twice the target's defence. */
 function campaignShort(state: GameState, nationId: NationId): boolean {
@@ -113,29 +144,34 @@ function campaignShort(state: GameState, nationId: NationId): boolean {
 
 /**
  * FR-458: the workers of `grade` training keeps for the campaign's recruits while it is short (`campaignShort`): one for
- * each regiment the horses in stock can raise, when SCRIPTED_WAR.regiment draws a worker of that grade (Cuirassiers: a
- * trained one). Without it, cash beyond the reserve trained the last trained workers to experts and no Cuirassiers
- * could be raised (measured on the continent once depots gathered more: no war by turn 25 on seeds 1 to 4).
+ * each regiment the horses in stock can raise, when the campaign list's first regiment (Cuirassiers, FR-482) draws a
+ * worker of that grade (a trained one). Without it, cash beyond the reserve trained the last trained workers to experts
+ * and no Cuirassiers could be raised (measured on the continent once depots gathered more: no war by turn 25 on seeds 1 to 4).
  */
 export function workersKeptForCampaign(state: GameState, nationId: NationId, grade: "untrained" | "trained"): number {
-  const def = REGIMENTS[SCRIPTED_WAR.regiment];
+  const def = REGIMENTS[SCRIPTED_WAR.campaignRegiments[0]];
   if (def.worker !== grade || !campaignShort(state, nationId)) return 0;
   const horses = (nationById(state, nationId)?.warehouse as Record<string, number> | undefined)?.[ResourceType.Horses] ?? 0;
   return def.horses > 0 ? Math.floor(horses / def.horses) : Infinity;
 }
 
+/** FR-482: the nation has what one regiment of the type takes besides cash and armaments: a healthy worker of its grade and its horses. */
+export function hasRecruitFor(nation: Nation, regiment: RegimentType): boolean {
+  const def = REGIMENTS[regiment];
+  const horses = (nation.warehouse as Record<string, number>)[ResourceType.Horses] ?? 0;
+  return def.worker !== undefined && healthyWorkers(nation.industry, def.worker) > 0 && horses >= def.horses;
+}
+
 /**
- * FR-274: the campaign wants one more regiment (SCRIPTED_WAR.regiment) this turn: its field strength is below twice the
- * target's defence, and the nation has what the regiment takes besides cash and armaments (a horse, a healthy worker of
- * its grade), so its run never makes armaments for a recruit it cannot raise. The recruit itself, its limits (FR-213)
- * and its armaments are the garrison's (scriptedArmy.ts, economy.ts).
+ * FR-274, FR-482: the campaign wants one more regiment this turn: its field strength is below twice the target's
+ * defence, and the nation has what one regiment of its list takes besides cash and armaments (`hasRecruitFor`), so its
+ * run never makes armaments for a recruit it cannot raise. The recruit itself, its limits (FR-213) and its armaments are
+ * the garrison's (scriptedArmy.ts, economy.ts).
  */
 export function campaignRecruit(state: GameState, nationId: NationId): boolean {
   if (!campaignShort(state, nationId)) return false;
   const nation = nationById(state, nationId)!;
-  const def = REGIMENTS[SCRIPTED_WAR.regiment];
-  const horses = (nation.warehouse as Record<string, number>)[ResourceType.Horses] ?? 0;
-  return horses >= def.horses && def.worker !== undefined && healthyWorkers(nation.industry, def.worker) > 0;
+  return SCRIPTED_WAR.campaignRegiments.some((regiment) => hasRecruitFor(nation, regiment));
 }
 
 /**
@@ -149,6 +185,10 @@ export function planWarDeclaration(view: () => GameState, nationId: NationId, pr
   if (target === undefined) return;
   const field = fieldRegiments(state, nationId);
   if (field.length === 0 || strength(field.map((f) => f.regiment)) < campaignNeed(state, nationId, target)) return;
+  // M13 T-15 (FR-497, FR-247): a war on a minor waits for SCRIPTED_WAR.minorWarUpkeepTurns of upkeep in the treasury. A
+  // war on a Great Power keeps its own reserve instead (`upkeepReserve`, FR-488).
+  const cash = nationById(state, nationId)?.treasury ?? 0;
+  if (!isGreatPower(state, target) && cash < SCRIPTED_WAR.minorWarUpkeepTurns * upkeepOf(state, nationId)) return;
   propose({ kind: "proposeOverture", nationId, overture: "war", targetId: target });
 }
 
@@ -189,7 +229,10 @@ function stagingProvince(state: GameState, nationId: NationId, enemies: readonly
 
 /**
  * FR-228 (c) and (b), and FR-274's march: at war, or declaring war this turn, the attacks the estimate allows, then the
- * marches of the regiments left toward the staging province. Planned after the economy and the civilians.
+ * marches of the regiments left toward the staging province. Planned after the economy and the civilians. FR-489: in
+ * its war of choice on a Great Power it attacks only that country's provinces bordering its own other than the capital
+ * province (`borderProvinces`), and none once it holds one it took (`warAimHeld`); its own provinces lost in that war
+ * it still retakes.
  */
 export function planWarMoves(view: () => GameState, nationId: NationId, propose: Propose): void {
   const state = view();
@@ -202,9 +245,16 @@ export function planWarMoves(view: () => GameState, nationId: NationId, propose:
   // (c) a province lost in this war first, then the lowest id
   const lost = (p: Province) =>
     (warBetween(state, nationId, p.ownerId)?.captures ?? []).some((c) => c.provinceId === p.id && c.fromId === nationId && c.toId === p.ownerId);
+  // FR-489: the provinces its war of choice on a Great Power may attack; every other enemy's are all open (FR-228)
+  const aims = new Map<CountryId, Set<ProvinceId>>();
+  for (const id of enemies.filter((e) => warOfChoice(state, nationId, e))) {
+    aims.set(id, new Set(warAimHeld(state, nationId, id) ? [] : borderProvinces(state, nationId, id).map((p) => p.id)));
+  }
+  const allowed = (p: Province) => lost(p) || (aims.get(p.ownerId)?.has(p.id) ?? true);
   const targets = state.provinces
     .filter((p) => enemies.includes(p.ownerId) && warActive(state, nationId, p.ownerId))
     .filter((p) => adjacentProvinces(state, p.id).some((q) => q.ownerId === nationId))
+    .filter(allowed)
     .sort((a, b) => Number(lost(b)) - Number(lost(a)) || compareIds(a.id, b.id));
   for (const target of targets) {
     const sources = adjacentProvinces(state, target.id).filter((p) => p.ownerId === nationId).map((p) => p.id);

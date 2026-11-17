@@ -112,12 +112,26 @@ function play(seed: number): Game {
  * (noPay [0, 0] on every seed), and the scripted nation's turn-40 score on the continent rose on every seed (FR-260,
  * nation 1 idle).
  * FR-459 (no civilian works a tile the engineer's rail still needs) moves nothing here.
+ * Measured again in M13 T-15 (FR-499; moved by FR-482 to FR-493: both nations play every M13 rule). The numbers before
+ * were: deals [73, 70], [72, 68], [73, 69], [66, 74]; purchases [40, 39], [36, 37], [39, 39], [35, 41]; treasuries
+ * [3880, 4138], [5730, 2324], [4103, 3949], [2563, 3168]; capital arms [4, 4], [7, 4], [4, 4], [4, 7]. Now each campaign
+ * raises the regiments it can (FR-482: 22 to 28 regiments a nation at turn 40 in the harness's both-scripted games),
+ * both race for Arvelia (turns 17 to 19) and on seeds 2 and 3 Valdoria then goes to war with Testland (FR-488, turns 22
+ * and 30; seed 3 takes one province, FR-489); migrants spend canned food, clothing and furniture (FR-485, FR-486) and the
+ * bids toward the other Great Power (FR-493) spend cash. Numbers that went down, and why they are accepted: deals
+ * 70 -> 52 (seed 1 nation 2), 72 -> 71 (seed 2 nation 1), 73 -> 72 (seed 3 nation 1); purchases 39 -> 24 (seed 1
+ * nation 2), 39 -> 38 (seed 3 nation 1), 35 -> 34 (seed 4 nation 1); treasuries 4138 -> 1622 (seed 1 nation 2),
+ * 5730 -> 2068 (seed 2 nation 1), 4103 -> 442 and 3949 -> 854 (seed 3), 2563 -> 1803 and 3168 -> 2815 (seed 4), the
+ * lowest 442 (was 2324); capital arms 7 -> 4 (seed 2 nation 1, the keep's floor). FR-247 is a measured baseline, not a
+ * target: its bounds hold (no regiment disbanded
+ * for want of pay, nation 2's treasury at 0 or more every turn and above 0 at turn 40, at least 4 arms in each capital
+ * province), and the acceptance sims (m13Acceptance) hold FR-497's no-pay bound over 24 seeds.
  */
 const BASELINE = [
-  { seed: 1, minorDeals: [73, 70], minorPurchases: [40, 39], minorsDealt: [4, 4], treasury: [3880, 4138], noPay: [0, 0], capitalArms: [4, 4] },
-  { seed: 2, minorDeals: [72, 68], minorPurchases: [36, 37], minorsDealt: [4, 4], treasury: [5730, 2324], noPay: [0, 0], capitalArms: [7, 4] },
-  { seed: 3, minorDeals: [73, 69], minorPurchases: [39, 39], minorsDealt: [4, 4], treasury: [4103, 3949], noPay: [0, 0], capitalArms: [4, 4] },
-  { seed: 4, minorDeals: [66, 74], minorPurchases: [35, 41], minorsDealt: [4, 4], treasury: [2563, 3168], noPay: [0, 0], capitalArms: [4, 7] },
+  { seed: 1, minorDeals: [78, 52], minorPurchases: [43, 24], minorsDealt: [4, 4], treasury: [6922, 1622], noPay: [0, 0], capitalArms: [10, 7] },
+  { seed: 2, minorDeals: [71, 69], minorPurchases: [41, 37], minorsDealt: [4, 4], treasury: [2068, 3339], noPay: [0, 0], capitalArms: [4, 4] },
+  { seed: 3, minorDeals: [72, 71], minorPurchases: [38, 38], minorsDealt: [4, 4], treasury: [442, 854], noPay: [0, 0], capitalArms: [4, 4] },
+  { seed: 4, minorDeals: [66, 75], minorPurchases: [34, 43], minorsDealt: [4, 4], treasury: [1803, 2815], noPay: [0, 0], capitalArms: [7, 5] },
 ];
 
 /** The force size (FR-204) of the nation's army in its capital province at turn 40. */

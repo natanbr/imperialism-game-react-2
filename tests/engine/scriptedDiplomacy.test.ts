@@ -4,6 +4,8 @@
 // one of them has more.
 // M12 FR-408 (card Q92): it proposes peace only once the enemy took one of its provinces or won a battle against it in
 // this war (War.battles), and after an offer that did not end the war not again for 6 turns; its answers stay (FR-174).
+// M13 FR-489 (card Q115 (a)): in a war it declared on a Great Power, once it holds a province it took from that country
+// it proposes peace too (same 6-turn rule) and accepts that country's peace offer.
 import { describe, it, expect } from 'vitest';
 import { newGame } from '@/engine/newGame';
 import { scriptedPlayer } from '@/engine/ai/scriptedPlayer';
@@ -12,6 +14,7 @@ import type { Order } from '@/engine/orders/Order';
 import { resolveTurn } from '@/engine/turn/resolveTurn';
 import { pairKey } from '@/engine/diplomacy/relations';
 import { militaryStrength } from '@/engine/diplomacy/queries';
+import { transferProvince } from '@/engine/world/provinces';
 import { acceptsAlliance, acceptsPeace, losingWar } from '@/engine/diplomacy/scriptedAnswers';
 import type { Army, Regiment } from '@/types/Army';
 import type { ProvinceCapture, War, WarBattle } from '@/types/Diplomacy';
@@ -177,6 +180,56 @@ describe('FR-174 a scripted Great Power proposes peace itself', () => {
     const s = setPair(continent(5), N2, ARVELIA, { war: { aggressors: [N2], since: 2, captures: [capture(N2, ARVELIA, 4)] } });
 
     expect(diplomacyOrders(scriptedPlayer(s, N2))).toEqual([]);
+  });
+});
+
+describe('FR-489 one province, then peace (card Q115 (a))', () => {
+  const NE1 = 'province-nation-1-ne';
+  const peace: Order = { kind: 'proposeOverture', nationId: N2, overture: 'peace', targetId: N1 };
+  /** Its peace offers only (FR-490's grants of turns 26 to 29 are lane B's rows). */
+  const peaceOrders = (orders: Order[]) => orders.filter(o => o.kind === 'proposeOverture' && o.overture === 'peace');
+  /**
+   * Turn `turn`: the war of `aggressor` (since turn 21) in which Valdoria took Testland North-East on turn 22 and holds it
+   * (hand-built: the province passed, Testland's militia there gone).
+   */
+  const tookOne = (turn: number, aggressor = N2, extra: Partial<War> = {}): GameState => {
+    const s = transferProvince(continent(turn), NE1, N2);
+    return setPair({ ...s, armies: s.armies.filter(a => !(a.ownerId === N1 && a.provinceId === NE1)) }, N1, N2, {
+      war: { aggressors: [aggressor], since: 21, captures: [{ provinceId: NE1, fromId: N1, toId: N2, turn: 22 }], ...extra },
+      consulates: [],
+      embassies: [],
+    });
+  };
+
+  it('FR-489 holding a province it took from the Great Power it declared war on, it proposes peace on that turn (23) and again every 6 turns (offer on 25: none on 30, one on 31)', () => {
+    expect(peaceOrders(scriptedPlayer(tookOne(23), N2))).toEqual([peace]);
+    expect(peaceOrders(scriptedPlayer(tookOne(30, N2, { lastPeaceOffer: { [N2]: 25 } }), N2))).toEqual([]);
+    expect(peaceOrders(scriptedPlayer(tookOne(31, N2, { lastPeaceOffer: { [N2]: 25 } }), N2))).toEqual([peace]);
+  });
+
+  it('FR-489 FR-408 (M13 T-15) an offer made before the province was taken (a battle lost, FR-408) does not hold back the war aim\'s offer: offer on 21, taken on 22, an offer on 23; an offer on 22 holds it to 28', () => {
+    // Measured before the fix: idle seed 12, a battle lost on turn 22 brought an FR-408 offer on 23, the province fell on
+    // 26 and the next offer came on 29 (m13Acceptance FR-489 (peace) 23 of 24)
+    expect(peaceOrders(scriptedPlayer(tookOne(23, N2, { lastPeaceOffer: { [N2]: 21 } }), N2))).toEqual([peace]);
+    expect(peaceOrders(scriptedPlayer(tookOne(23, N2, { lastPeaceOffer: { [N2]: 22 } }), N2))).toEqual([]);
+    expect(peaceOrders(scriptedPlayer(tookOne(28, N2, { lastPeaceOffer: { [N2]: 22 } }), N2))).toEqual([peace]);
+  });
+
+  it('FR-489 not in a war Testland declared (FR-408 alone: nothing lost, no battle lost)', () => {
+    expect(peaceOrders(scriptedPlayer(tookOne(23, N1), N2))).toEqual([]);
+  });
+
+  it('FR-489 its FR-174 answer to Testland\'s peace offer is accept; in a war Testland declared FR-174 as before (2 turns of war: refused)', () => {
+    expect(acceptsPeace(tookOne(23), N2, N1, 23)).toBe(true);
+    expect(acceptsPeace(tookOne(23, N1), N2, N1, 23)).toBe(false);
+  });
+
+  it('FR-489 FR-169 through End Turn: Testland proposes peace and Valdoria accepts at once', () => {
+    const s = tookOne(23);
+    const { state, result } = tryApplyOrder(s, { kind: 'proposeOverture', nationId: N1, overture: 'peace', targetId: N2 });
+    expect(result).toEqual({ ok: true });
+
+    expect(resolveTurn(state, {}, state.seed).state.diplomacy[pairKey(N1, N2)].war).toBeUndefined();
   });
 });
 

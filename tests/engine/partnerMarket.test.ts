@@ -19,8 +19,10 @@ import { tradeSystem } from '@/engine/systems/tradeSystem';
 import { tradeDeliverySystem } from '@/engine/systems/tradeDeliverySystem';
 import { marketOf, nextPrices } from '@/engine/market/market';
 import {
-  boardOfTrade, favouritePartner, marketModeOf, minorDemand, minorOffers, partnerRanking, settledTradeBarrier, tradeBarrier,
+  boardOfTrade, buyersOf, favouritePartner, lastTradeOrdersOf, marketModeOf, minorDemand, minorOffers, partnerRanking, partnerRefusal,
+  settledTradeBarrier, tradeBarrier,
 } from '@/engine/market/partners';
+import { readSave, saveOf, SAVE_KEY, SAVE_VERSION, writeSave } from '@/store/persistence';
 import { dealBook } from '@/engine/market/dealBook';
 import { pairKey } from '@/engine/diplomacy/relations';
 import { START_PRICES, TRADE_COMMODITIES } from '@/definisions/marketPrices';
@@ -824,5 +826,138 @@ describe('FR-194 the Board of Trade rows (engine data for the screen)', () => {
       expect(typeof (engine as Record<string, unknown>)[name]).not.toBe('undefined');
     }
     expect(nationOf(continent(), N1).merchantMarine.holds).toBe(4);
+  });
+});
+
+// M13 lane C (card Q118 (a)). FR-491: the trade phase keeps each Great Power's bids and offers of the turn, public on the
+// next turn as Imp1's Trade Book lists the bidding and offering nations (rules 06 section 7.4). FR-492: a bid is allowed
+// while another Great Power may sell (no minor sells the commodity), an offer while another Great Power bid for it last
+// turn; the settlement is unchanged.
+/** A saved M12 game: the market as M12 wrote it, without `lastOrders`. */
+const withoutLastOrders = (s: GameState): GameState => {
+  const market = { ...marketOf(s) };
+  delete market.lastOrders;
+  return { ...s, market };
+};
+/** Test setup: the Great Powers' public orders of last turn (FR-491), as the trade phase would have left them. */
+const lastTurn = (s: GameState, lastOrders: Record<string, { sell: TradeAmounts; buy: TradeAmounts }>): GameState =>
+  ({ ...s, market: { ...marketOf(s), lastOrders } }) as GameState;
+
+describe('FR-491 last turn\'s trade orders are public', () => {
+  it('FR-491 the trade phase records each Great Power\'s bids and offers of the turn by commodity in market.lastOrders, then clears the orders', () => {
+    const s = placed(continent(), buy(N1, ResourceType.Coal, 2), sell(N1, GoodsType.Clothing, 1), buy(N2, MaterialType.Steel, 2));
+    const { state } = trade(s);
+    expect(marketOf(state).orders).toEqual({});
+    expect(marketOf(state).lastOrders).toEqual({
+      [N1]: { sell: { clothing: 1 }, buy: { coal: 2 } },
+      [N2]: { sell: {}, buy: { steel: 2 } },
+    });
+    expect(lastTradeOrdersOf(state, N2)).toEqual({ sell: {}, buy: { steel: 2 } });
+  });
+
+  it('FR-491 the units as ordered, whatever was dealt: a bid nobody filled and an offer nobody bought are recorded too; a side at 0 is not', () => {
+    // Steel: no minor sells it and Valdoria offers none, so Testland's 2 come back; Valdoria's lumber offer finds no buyer
+    const s = placed(continent(), buy(N1, MaterialType.Steel, 2), buy(N1, ResourceType.Coal, 0), sell(N2, MaterialType.Lumber, 1));
+    const { state, events } = trade(s);
+    expect(ofType(events, 'bid-unfilled').map(e => [e.nationId, e.commodity, e.amount])).toEqual([[N1, MaterialType.Steel, 2]]);
+    expect(lastTradeOrdersOf(state, N1)).toEqual({ sell: {}, buy: { steel: 2 } });
+    expect(lastTradeOrdersOf(state, N2)).toEqual({ sell: { lumber: 1 }, buy: {} });
+  });
+
+  it('FR-491 each trade phase replaces the record: a Great Power with no order this turn has none from last turn', () => {
+    const first = trade(placed(continent(), buy(N2, MaterialType.Steel, 2))).state;
+    expect(lastTradeOrdersOf(first, N2).buy).toEqual({ steel: 2 });
+    const second = trade(placed(first, sell(N1, MaterialType.Lumber, 1))).state;
+    expect(marketOf(second).lastOrders).toEqual({ [N1]: { sell: { lumber: 1 }, buy: {} } });
+    expect(lastTradeOrdersOf(second, N2)).toEqual({ sell: {}, buy: {} });
+  });
+
+  it('FR-491 a state or save without the field reads as empty: a new game, an M12 save (SAVE_VERSION stays 1), an unknown nation', () => {
+    expect(Object.hasOwn(continent().market!, 'lastOrders')).toBe(false);
+    expect(lastTradeOrdersOf(continent(), N1)).toEqual({ sell: {}, buy: {} });
+    expect(lastTradeOrdersOf(lastTurn(continent(), { [N2]: { sell: {}, buy: { steel: 2 } } }), 'nation-9')).toEqual({ sell: {}, buy: {} });
+    // A continent game saved by M12 after a turn: the JSON has no lastOrders; it loads and plays on
+    const played = resolveTurn(continent(), {}, 1).state;
+    const m12 = withoutLastOrders(played);
+    const slot = new Map<string, string>();
+    const storage = { getItem: (k: string) => slot.get(k) ?? null, setItem: (k: string, v: string) => void slot.set(k, v), removeItem: (k: string) => void slot.delete(k) } as unknown as Storage;
+    expect(SAVE_VERSION).toBe(1);
+    writeSave(saveOf({ game: m12, activeNationId: N1, eventLog: [], orderLog: [], ordersThisTurn: [], turnStartTreasuries: null }), storage);
+    expect(slot.get(SAVE_KEY)).not.toContain('lastOrders');
+    const read = readSave(storage);
+    expect(read.kind).toBe('usable');
+    const loaded = (read as Extract<typeof read, { kind: 'usable' }>).save.game;
+    expect(lastTradeOrdersOf(loaded, N2)).toEqual({ sell: {}, buy: {} });
+    expect(validateOrder(loaded, sell(N1, MaterialType.Steel, 1))).toEqual({ ok: false, reason: 'no-buyer' });
+    const next = resolveTurn(ordered(loaded, buy(N1, MaterialType.Steel, 1)), {}, loaded.seed);
+    expect(ofType(next.events, 'order-rejected')).toEqual([]);
+    expect(lastTradeOrdersOf(next.state, N1)).toEqual({ sell: {}, buy: { steel: 1 } });
+  });
+
+  it('FR-491 FR-498 in "world" nothing is recorded: the v1 market keeps its shape', () => {
+    const v1 = ordered(newGame({ seed: 1, world: 'two-islands' }), sell(N1, MaterialType.Lumber, 1));
+    const { state } = trade(v1);
+    expect(Object.hasOwn(marketOf(state), 'lastOrders')).toBe(false);
+    expect(lastTradeOrdersOf(state, N1)).toEqual({ sell: {}, buy: {} });
+  });
+});
+
+describe('FR-492 trade with the other Great Power is allowed (replaces FR-252\'s "another Great Power\'s offer is not counted" for bids)', () => {
+  it('FR-492 a steel bid (no minor sells steel) with Valdoria at peace: accepted; at war or under a boycott: "sellers-barred"', () => {
+    expect(partnerRefusal(continent(), N1, 'buy', MaterialType.Steel)).toBeUndefined();
+    expect(validateOrder(continent(), buy(N1, MaterialType.Steel, 1))).toEqual({ ok: true });
+    for (const patch of [{ war: { aggressors: [N2], since: 1 } }, { boycotts: [N1] }]) {
+      expect(validateOrder(setPair(continent(), N1, N2, patch), buy(N1, MaterialType.Steel, 1))).toEqual({ ok: false, reason: 'sellers-barred' });
+    }
+    // A war declared this turn already bars Valdoria (FR-246)
+    const war = ordered(continent(), { kind: 'proposeOverture', nationId: N1, overture: 'war', targetId: N2 });
+    expect(validateOrder(war, buy(N1, MaterialType.Steel, 1))).toEqual({ ok: false, reason: 'sellers-barred' });
+  });
+
+  it("FR-497 FR-246 the forecast reads only the asking nation's own intents of this turn: Testland's war on Valdoria bars Testland, not Valdoria's view", () => {
+    // M13 T-15: the scripted Valdoria plans after the person's orders are in the state; it must not read them (FR-497)
+    const war = ordered(continent(), { kind: 'proposeOverture', nationId: N1, overture: 'war', targetId: N2 });
+    expect(tradeBarrier(war, N1, N2)).toBe('at-war');
+    expect(tradeBarrier(war, N2, N1)).toBeUndefined();
+    expect(validateOrder(war, buy(N2, MaterialType.Steel, 1))).toEqual({ ok: true });
+    // at End Turn the war is made before the trade phase: Valdoria's bid finds no seller and is refunded (FR-186)
+    const both = ordered(war, buy(N2, MaterialType.Steel, 1));
+    const { state, events } = resolveTurn(both, {}, both.seed);
+    expect(deals(events)).toEqual([]);
+    expect(treasury(state, N2)).toBe(treasury(continent(), N2) - 100);
+  });
+
+  it('FR-492 FR-252 kept where minors sell: a coal bid with every minor seller barred stays "sellers-barred" (the consulate is what helps)', () => {
+    expect(validateOrder(continent(), buy(N1, ResourceType.Coal, 1))).toEqual({ ok: false, reason: 'sellers-barred' });
+  });
+
+  it('FR-492 a steel offer: "no-buyer" until Valdoria bid for steel last turn (market.lastOrders); then accepted; at war "buyers-barred"', () => {
+    const s = setWarehouse(continent(), N1, { steel: 5 });
+    expect(validateOrder(s, sell(N1, MaterialType.Steel, 1))).toEqual({ ok: false, reason: 'no-buyer' });
+    const bidLastTurn = lastTurn(s, { [N2]: { sell: {}, buy: { steel: 2 } } });
+    expect(buyersOf(bidLastTurn, N1, MaterialType.Steel)).toEqual([N2]);
+    expect(validateOrder(bidLastTurn, sell(N1, MaterialType.Steel, 1))).toEqual({ ok: true });
+    expect(validateOrder(setPair(bidLastTurn, N1, N2, { war: { aggressors: [N1], since: 1 } }), sell(N1, MaterialType.Steel, 1))).toEqual({ ok: false, reason: 'buyers-barred' });
+    // Valdoria offering steel last turn, or bidding for lumber, does not make a steel buyer
+    const notSteel = lastTurn(s, { [N2]: { sell: { steel: 2 }, buy: { lumber: 2 } } });
+    expect(validateOrder(notSteel, sell(N1, MaterialType.Steel, 1))).toEqual({ ok: false, reason: 'no-buyer' });
+    // Our own bid of last turn is not a buyer of our offer
+    expect(validateOrder(lastTurn(s, { [N1]: { sell: {}, buy: { steel: 2 } } }), sell(N1, MaterialType.Steel, 1))).toEqual({ ok: false, reason: 'no-buyer' });
+  });
+
+  it('FR-492 the settlement is unchanged: an allowed steel bid nobody sells is refunded (bid-unfilled), an allowed steel offer nobody bids for comes back', () => {
+    const s = ordered(lastTurn(setWarehouse(continent(), N1, { steel: 5 }), { [N2]: { sell: {}, buy: { steel: 2 } } }), sell(N1, MaterialType.Steel, 1));
+    const { state, events } = trade(ordered(s, buy(N2, MaterialType.Lumber, 1)));
+    expect(deals(events)).toEqual([]);
+    expect(ofType(events, 'offer-unsold').map(e => [e.nationId, e.commodity, e.amount])).toEqual([[N1, MaterialType.Steel, 1]]);
+    expect(ofType(events, 'bid-unfilled').map(e => [e.nationId, e.commodity, e.amount])).toEqual([[N2, MaterialType.Lumber, 1]]);
+    expect(stockOf(state, N1, MaterialType.Steel)).toBe(5);
+    expect(treasury(state, N2)).toBe(treasury(continent(), N2));
+  });
+
+  it('FR-492 FR-186 step 3: Valdoria bid steel last turn, Testland offers 1 and Valdoria bids 2 this turn: the unit is sold to Valdoria', () => {
+    const s = ordered(lastTurn(setWarehouse(continent(), N1, { steel: 5 }), { [N2]: { sell: {}, buy: { steel: 2 } } }), sell(N1, MaterialType.Steel, 1), buy(N2, MaterialType.Steel, 2));
+    const { events } = trade(s);
+    expect(deals(events)).toEqual([['sold', N1, N2, MaterialType.Steel, 1, 300], ['bought', N2, N1, MaterialType.Steel, 1, 300]]);
   });
 });

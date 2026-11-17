@@ -57,9 +57,12 @@ const ofType = <T extends GameEvent['type']>(events: GameEvent[], type: T) =>
   events.filter((e): e is Extract<GameEvent, { type: T }> => e.type === type);
 
 describe('FR-252 a bid needs a minor that sells the commodity and that the nation may trade with', () => {
-  it('FR-252 a commodity no minor nation offers this turn: "no-seller", for goods and materials alike', () => {
+  // Re-recorded by M13 FR-492 (card Q118 (a)): was refused('no-seller') for all five; another Great Power the nation may
+  // trade with is now a seller of what no minor sells, so the bid is allowed at peace and "sellers-barred" at war.
+  it('FR-252 FR-492 a commodity no minor nation offers this turn: allowed while Valdoria may sell it (was "no-seller"); at war with Valdoria "sellers-barred"', () => {
     for (const commodity of [MaterialType.Lumber, MaterialType.Steel, GoodsType.Clothing, ResourceType.Wool, ResourceType.Horses]) {
-      expect(validateOrder(consulates(continent(), N1, ARVELIA), buy(N1, commodity, 1))).toEqual(refused('no-seller'));
+      expect(validateOrder(consulates(continent(), N1, ARVELIA), buy(N1, commodity, 1))).toEqual(OK);
+      expect(validateOrder(setPair(consulates(continent(), N1, ARVELIA), N1, N2, { war: { aggressors: [N2], since: 1 } }), buy(N1, commodity, 1))).toEqual(refused('sellers-barred'));
     }
     expect(sellersOf(continent(), ResourceType.Coal)).toEqual([ARVELIA, SUNDMARK, PELLIS]);
     expect(sellersOf(continent(), MaterialType.Lumber)).toEqual([]);
@@ -93,10 +96,13 @@ describe('FR-252 a bid needs a minor that sells the commodity and that the natio
     expect(validateOrder(s, buy(N1, ResourceType.Coal, 0))).toEqual(OK);
   });
 
-  it('FR-252 the market\'s reason comes before the nation\'s own limits: with every hold taken a lumber bid is "no-seller"', () => {
+  // Re-recorded by M13 FR-492: the lumber bid was refused('no-seller'); Valdoria may sell lumber now, so the market has a
+  // seller and the nation's own limit speaks ("limit-reached"). At war with Valdoria the market's reason still comes first.
+  it('FR-252 FR-492 the market\'s reason comes before the nation\'s own limits: with every hold taken a lumber bid is "limit-reached" (was "no-seller"), at war with Valdoria "sellers-barred"', () => {
     const s = ordered(consulates(continent(), N1, ARVELIA), buy(N1, ResourceType.Coal, 2), buy(N1, ResourceType.Timber, 2));
     expect(validateOrder(s, buy(N1, ResourceType.IronOre, 1))).toEqual(refused('limit-reached'));
-    expect(validateOrder(s, buy(N1, MaterialType.Lumber, 1))).toEqual(refused('no-seller'));
+    expect(validateOrder(s, buy(N1, MaterialType.Lumber, 1))).toEqual(refused('limit-reached'));
+    expect(validateOrder(setPair(s, N1, N2, { war: { aggressors: [N2], since: 1 } }), buy(N1, MaterialType.Lumber, 1))).toEqual(refused('sellers-barred'));
   });
 
   it('FR-252 FR-253 in "world" nothing changes: the world sells and buys everything', () => {

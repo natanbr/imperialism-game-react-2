@@ -60,7 +60,7 @@ function bidExtraOf(state: GameState, nationId: NationId): number {
   if (!Object.values(tradeOrdersOf(state, nationId).buy).some((n) => (n ?? 0) > 0)) return 0;
   const market = marketOf(state);
   let extra = 0;
-  settlePartnerTrade(diplomacyAfterThisTurn(state), state.turn, (event) => {
+  settlePartnerTrade(diplomacyAfterThisTurn(state, nationId), state.turn, (event) => {
     if (event.type !== "goods-bought" || event.nationId !== nationId) return;
     extra += Math.max(0, event.cost - event.amount * priceOf(market, event.commodity));
   });

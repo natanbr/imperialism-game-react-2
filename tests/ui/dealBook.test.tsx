@@ -166,8 +166,10 @@ describe('FR-197 FR-195 in the store: a consulate and a bid on turn 1, then End 
   it('FR-256 the store\'s turn report holds each nation\'s treasury at the turn\'s start (before the first order) and after it', () => {
     useGameStore.setState({ ...useGameStore.getInitialState(), game: start(), activeNationId: N1 });
     expect(useGameStore.getState().submitOrder({ kind: 'proposeOverture', nationId: N1, overture: 'consulate', targetId: ARVELIA })).toEqual({ ok: true });
-    // A refused order changes nothing
-    expect(useGameStore.getState().submitOrder({ kind: 'buyCommodity', nationId: N1, commodity: ResourceType.Wool, amount: 1 }).ok).toBe(false);
+    // A refused order changes nothing. Re-recorded by M13 T-15 (FR-492): was a bid for 1 wool, refused "no-seller"; a
+    // bid is now accepted while Valdoria may trade with us, so the refused order is an offer of 1 wool, which no minor
+    // and no Great Power bid for last turn ("no-buyer")
+    expect(useGameStore.getState().submitOrder({ kind: 'sellCommodity', nationId: N1, commodity: ResourceType.Wool, amount: 1 }).ok).toBe(false);
     const before = useGameStore.getState().game;
     useGameStore.getState().advanceTurn();
     const report = useGameStore.getState().eventLog.at(-1)!;

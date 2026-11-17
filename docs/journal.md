@@ -1,16 +1,20 @@
 # Journal
 
 ## Resuming here
-- 2026-11-17: M12 Honest game is merged (pull request 34, main 91d7edc). M12b Better HUD (FR-465 to FR-480, cards Q108 to Q113),
-  its review fix round (15 findings) and its by-eye QA fix round (FR-529 to FR-537) are built and committed on `claude/m12b-hud`
-  (three commits, the last "M12b: QA fixes and final gate"), not pushed, no pull request yet. Gate 2 on the final tree: 2525 unit
-  tests, lint 0 errors, tsc and build clean, Playwright 125 passed (first run 124 and 1 red, fixed, see the entry). FR-372 is closed; FR-357 to FR-443: 78 tested, 9 partial. Labels beside
-  the icons from 1800 px, not 1600.
-- Next (NR-034, in this order): push `claude/m12b-hud` and open its pull request, then M13 to M16 (FR-481 to FR-528,
-  `docs/specs/m13-m16.md`, cards Q114 to Q135; planned, nothing built). Merged so far: M0 to M12 (main 91d7edc).
-- Answered by Nathan 2026-11-16: Q79 to Q83 as suggested, Q102 "keep the debug", Q113 one static Advance Turn. Needed from him: Q114
-  and Q115 (before M13's military lane is finished), Q121 (before M14 builds FR-503), Q130 (before M16 starts). The other open cards
-  have defaults in force: Q22 to Q78, Q84 to Q135 (progress page).
+- 2026-11-17: M12b Better HUD is merged (pull request 35, main 74f595c); M12 before it (pull request 34). M13 Computer nations
+  that play (FR-481 to FR-500, cards Q114 to Q119 built as their defaults) is built and committed on `claude/m13-nations`, one
+  commit "M13: computer nations that play (FR-481..500)", not pushed, no pull request yet. ONE ROW IS BLOCKED: FR-490 (grants
+  before a Council) measures 0 of 24 games against 18 required, and its test stays red in the suite (not skipped). It needs
+  Nathan's answer on card Q117 (its `needed` note on the progress page gives the numbers and the choices).
+- Gate 1 on the final tree: unit `Tests  1 failed | 2686 passed (2687)` (FR-490 only), lint 0 errors, tsc and build clean,
+  Playwright `129 passed (8.4m)`. FR-481 to FR-489 and FR-491 to FR-499 tested, FR-500 partial, FR-490 partial (blocked).
+- Next (NR-034, in this order): Nathan's answer on Q117 and on FR-494's shortened Bid line, then push `claude/m13-nations` and
+  open its pull request; then M14 to M16 (FR-501 to FR-528, `docs/specs/m13-m16.md`, cards Q120 to Q135). Merged so far: M0 to
+  M12b (main 74f595c).
+- Answered by Nathan 2026-11-16: Q79 to Q83 as suggested, Q102 "keep the debug", Q113 one static Advance Turn. Needed from him:
+  Q117 (FR-490, now), Q121 (before M14 builds FR-503), Q130 (before M16 starts). Q114 and Q115 were built as suggested (the
+  computer may take one province from you and offers peace); he can still change them. The other open cards have defaults in
+  force: Q22 to Q78, Q84 to Q135 (progress page).
 - Progress page (republish after a change): https://claude.ai/artifact/JHRFaWQRPk3AYGssSchPBU, data in `docs/report/roadmap.json`.
 - Ideas from the M12b QA, not built: a fade that shows the 390 px bar strip scrolls; a build id in Details for bug reports (the
   app has none yet). Not changed by design, with reasons: `docs/requirements.md`, section "M12b by-eye QA fix round".
@@ -305,3 +309,60 @@ re-pinned: m5-hud-scroll FR-235 (1), the news end 1 px out of view at the scroll
 Seen by eye (`.gate/hud/final/fix-*.png`): How to play at 640x360 with Close in view; the score's parts inside the window at 390x844;
 Center Camera whole when focused at 390x844; the narrow-window line beside the pane with "Close tile info" free; the Details group
 with the Window line at 1280x720 on turn 2. Not verified: Firefox and WebKit.
+
+## 2026-11-17 M13 Computer nations that play (FR-481 to FR-500, cards Q114 to Q119)
+
+Size: L. Branch `claude/m13-nations`, one commit "M13: computer nations that play (FR-481..500)", not pushed. Tasks and models:
+T-01 contract (Opus 5.5), T-02 sim harness, lane A military T-03 to T-06 (Opus 5.5), lane B workers and grants T-07 to T-09,
+lane C trade between the Great Powers and its screens T-10 to T-13 (Opus 5.5), lane D acceptance file T-14 (Sonnet 5.5 xhigh),
+T-15 integration and gate (Opus 5.5 xhigh, sole writer, no subagent). No task called the advisor. Notes per task:
+`.gate/m13/T*-notes.md`; T-15's are `.gate/m13/T15-notes.md` (git-ignored). Decisions in force, built as their suggestions:
+Q114 (b), Q115 (a), Q116 (b), Q117 (a), Q118 (a), Q119 (a).
+
+What the computer does now (measured on random seeds by `tests/engine/sim/m13Acceptance.test.ts`): it recruits the first
+regiment it can raise (FR-482) within an upkeep floor (FR-483); invaded, it recruits and attacks back (FR-484); it keeps and grows
+its workforce (FR-485, FR-486); it takes Arvelia (FR-487); from turn 20 it may declare war on the player (FR-488), takes one
+province and offers peace (FR-489); it trades steel, lumber and goods with the other Great Power (FR-491 to FR-493), shown on the
+Board of Trade (FR-494), the border warning (FR-495) and the news (FR-496). It reads only what its own nation can see (FR-497).
+
+BLOCKED: FR-490 (grants before a Council). The grant rule is built and its 20 unit tests pass, but Valdoria wins a minor's vote at
+the turn-30 meeting in 0 of 24 games (required 18). A free minor votes from 50 points; the best one stands at 36 to 43 on turns 26
+to 29 (median 41); 4 grants add 8 at most, and none was given (an embassy comes first, FR-162). The spec measured 43 to 47 before
+M13; M13's recruits and migrants spend the cash and its war on Arvelia costs every minor 5 points. The test stays red (not loosened,
+not skipped). Needs Nathan on card Q117: option (b), a lower band, or earlier consulates.
+
+T-15 fixes, each red before green (`.gate/m13/t15/red-*.txt`, `green-*.txt`): the FR-246 forecast reads only the asking nation's
+own intents (FR-497); every peace writes `peaceTurn` (FR-488); a bid toward the Great Power that offered last turn goes first
+(FR-493); a war on a minor waits for 4 turns of upkeep (FR-274, FR-497: a both-scripted Valdoria declared with $336 and lost 6
+regiments for want of pay); a stranded nation opens a consulate below $3,000 (FR-245); a migrant never takes the meal's can
+(FR-485, FR-040: a sick worker in FR-260's seed 2); an offer after a lost battle no longer delays the war aim's offer (FR-489,
+seed 12). e2e: `e2e/idleWar.ts` closes the computer's Battle screens and peace offers in the two 40-turn specs.
+
+Pins moved (old -> new, each reason in the test; FR-499): continentScore FR-260 1507, 1546, 1548, 1685 -> 1454, 1352, 1477, 1430
+(-53, -194, -71, -255), its upkeep $100 every turn -> pinned per seed and turn, capital arms 4 -> 4, 7, 4, 7, FR-305 4 to 4 -> 6 to
+3 (seed 1) and 5 to 4 (seed 3) from turn 30; v2Trade40 FR-247's baseline (each number in the test's comment); harness FR-481's
+before-table, the scripted race by turn 17 -> 19; dealBook FR-256 a refused wool bid -> a refused wool offer (FR-492); purity
+FR-302 narrowed by FR-490; lane A's FR-213, FR-274 and FR-302 pins and lane C's partnerOrders, boardOfTrade and m7-trade pins.
+FR-498: scriptedScore, scriptedRail, twoNations and twoIslandsGolden did not move (0 diff lines, green).
+
+For Nathan besides Q117: FR-494's Bid line is shortened to "A bid is refunded if Valdoria does not sell." (the full line broke
+FR-257's fit by 109 px). Seen in FR-260's "world" games, not fixed (no row): on seeds 2 and 4 the campaign raises regiments that
+never march (no horses; field 29 against 37.5 needed) and pay upkeep, which costs 194 and 255 score points.
+
+| Claim | Command | Quoted result |
+|---|---|---|
+| The acceptance file was red before the AI rows | `npx vitest run tests/engine/sim/m13Acceptance.test.ts` (T14-red-run3.clean.txt) | `Tests  9 failed \| 22 passed (31)` |
+| Every acceptance row passes but FR-490 | the same file on the final tree (t15/accept-3.txt) | `meets  FR-484 (i) aggressor 12 of 12 (required 12) min 3, median 4, max 5`; `meets  FR-485 idle 24 of 24 (required 20) min 7`; `meets  FR-486 idle 24 of 24 (required 16) min 24, median 26, max 28`; `meets  FR-487 (war) idle 24 of 24 (required 22) min 17`; `meets  FR-488 idle 24 of 24 (required 18) min 21, median 21, max 23`; `meets  FR-489 (capital) idle 24 of 24 (required 24)`; `meets  FR-493 trader 24 of 24 (required 18) min 5, median 6, max 7`; `Tests  1 failed \| 30 passed (31)` |
+| FR-490 is red | the same | `MISSES FR-490 idle 0 of 24 (required 18) min 0, median 0, max 0` |
+| The computer breaks no rule and is fast | the same | `rejected orders of Valdoria 0 (required 0), invariant breaks 0 (required 0), no-pay disbands in idle games 0 (required 0), computerOrders p95 13.6 ms and max 47.3 ms over 2400 turns of 60 games` |
+| The T-15 fixes were red | t15/red-*.txt | `expected 'at-war' to be undefined`; `expected undefined to be 11`; `expected [] to deeply equal [ 'steel' ]`; `expected [] to deeply equal [ 'minor-2' ]`; `Tests  1 failed \| 17 passed (18)` (meal); `Tests  1 failed \| 28 passed (29)` (war aim) |
+| The narrowed FR-302 scan still catches a council import | mutant in `ai/diplomacy.ts` (t15/mutant-FR302.txt), reverted | `Tests  1 failed \| 9 passed (10)` |
+| Unit tests: all but FR-490 pass | `npm test` (gate1-unit.txt) | `Test Files  1 failed \| 125 passed (126)`, `Tests  1 failed \| 2686 passed (2687)`, `exit 1` |
+| v1 did not move (FR-498) | the same; `git diff HEAD` on the four files | `scriptedScore.test.ts (48 tests)`, `scriptedRail.test.ts (17 tests)`, `twoNations.test.ts (12 tests)`, `twoIslandsGolden.test.ts (2 tests)` green; 0 diff lines |
+| Lint has no error | `npm run lint` (gate1-lint.txt) | `✖ 2 problems (0 errors, 2 warnings)`, `exit 0`; the same two old warnings |
+| Types are clean | `npx tsc --noEmit` (gate1-tsc.txt) | no output, `exit 0` |
+| The build works | `npm run build` (gate1-build.txt) | `✓ Compiled successfully in 3.6s`, `✓ Generating static pages (4/4)`, `exit 0` |
+| The browser suite | `PORT=3199 npx playwright test --workers=1` (gate1-e2e.txt) | `Running 129 tests using 1 worker`, `129 passed (8.4m)`, `exit 0`; none failed, flaky or skipped; the two 40-turn specs with the computer's war: `FR-078 FR-104 FR-109 end 40 turns ... (42.7s)`, `FR-315 FR-306 FR-316 ... (41.8s)` |
+| The documents agree with themselves | `node .gate/m12/L4-check-req.cjs`, `L4-check-roadmap.cjs` | `PASS` each |
+
+Not verified: Firefox and WebKit; a game played by eye against the new computer (the e2e specs run 40 turns idle only).

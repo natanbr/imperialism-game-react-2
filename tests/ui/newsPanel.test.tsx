@@ -72,6 +72,40 @@ describe('FR-268 the HUD news list', () => {
   });
 });
 
+// M13 FR-496: the computer's moves in the list, one line each, ours first (FR-107): Valdoria's peace offer and the peace
+// made are our lines (the peace once, though the engine tells both Great Powers); its war, grant, recruits and battle
+// follow under its name, the battle a button that opens its report (FR-232).
+describe('FR-496 the news names the computer\'s moves', () => {
+  const battle = {
+    type: 'battle-resolved', nationId: N2, provinceId: 'province-minor-1', attackerIds: [N2], defenderId: 'minor-1',
+    fortLevel: 0, regiments: [], rounds: [], result: 'attacker-won', provinceTaken: true,
+  };
+  const MOVES = [
+    { type: 'war-declared', nationId: N2, targetId: 'minor-1', startsTurn: 4 },
+    { type: 'grant-paid', nationId: N2, targetId: 'minor-2', amount: 1000 },
+    { type: 'proposal-received', nationId: N1, fromId: N2, proposalId: 'proposal-3-1', kind: 'peace' },
+    { type: 'overture-done', nationId: N2, overture: 'peace', targetId: N1 },
+    { type: 'overture-done', nationId: N1, overture: 'peace', targetId: N2 },
+    { type: 'regiments-recruited', nationId: N2, regiment: 'cuirassiers', count: 2 },
+    battle,
+  ] as unknown as GameEvent[];
+
+  it('FR-496 FR-107 the list: our lines first, then Valdoria\'s war, grant, recruits and battle under its name; the peace made once', () => {
+    showNews(MOVES);
+    const list = screen.getByTestId('news-list');
+    expect(within(list).getAllByRole('listitem').map(text)).toEqual([
+      'Valdoria asks for an end to our war.',
+      'Peace made with Valdoria.',
+      'Valdoria: War declared on Arvelia! The war starts next turn.',
+      'Valdoria: Grant of $1,000 paid to Sundmark.',
+      'Valdoria: 2 Cuirassiers recruited.',
+      'Valdoria: Battle at Arvelia: Province Taken!',
+    ]);
+    fireEvent.click(within(list).getByRole('button', { name: 'Valdoria: Battle at Arvelia: Province Taken!' }));
+    expect(useGameStore.getState().battleQueue).toEqual([battle]);
+  });
+});
+
 // M9 QA fix round, item 5. FR-280: the news are those of the turn just resolved, so their heading says so, with that
 // turn's number and date: on turn 3 of 40 (Fall 1815) it reads "News from last turn (turn 2, Summer 1815)", not "News,
 // turn 2 (1815)", which read as a mismatch with the HUD's turn.

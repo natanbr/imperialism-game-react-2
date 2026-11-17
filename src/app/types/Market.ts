@@ -42,4 +42,11 @@ export interface WorldMarket {
   orders: Record<NationId, TradeOrders>;
   /** Units bought this turn, on their way to the warehouse (delivered after transport, FR-064). */
   deliveries: Record<NationId, TradeAmounts>;
+  /**
+   * FR-491 (M13, card Q118 (a)): in "partners", each Great Power's bids and offers of the last trade phase, the units as
+   * ordered (positive amounts only; a nation with none has no entry), public on the next turn as Imp1's Trade Book lists
+   * the bidding and offering nations. Optional: a "world" market and a game saved before M13 have none, which reads as
+   * empty (`lastTradeOrdersOf`), so those saves still load. Written by the trade phase only.
+   */
+  lastOrders?: Record<NationId, TradeOrders>;
 }
