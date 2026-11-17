@@ -6,6 +6,8 @@ import { describe, it, expect } from 'vitest';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { MapView } from '@/components/MapView';
 import { TileInfoPanel } from '@/components/TileInfoPanel';
+import { HUD } from '@/components/HUD';
+import { put } from '../engine/fixtures';
 import { useGameStore } from '@/store/rootStore';
 import { newGame, type Order } from '@/engine';
 import { findWorker } from '@/engine/orders/queries';
@@ -135,6 +137,22 @@ describe('FR-115 stacks on any tile', () => {
     fireEvent.click(button());
     expect(useGameStore.getState().selectedWorkerId).toBeUndefined();
     expect(button().getAttribute('aria-pressed')).toBe('false');
+  });
+
+  // M12 QA fix round (track C): a click on a lone civilian's own button selected the civilian only; with no tile selected
+  // the HUD kept the news, so its job offers ("Develop rancher L2, $1,000, 3 turns") showed only after a click on the tile
+  it("FR-453 a click on a lone civilian's button selects its tile too, so Tile Info shows the civilian and its offers", () => {
+    show(put(newGame({ seed: 1 }), FORESTER, '4-2'));
+    const { container } = render(<><MapView /><HUD /></>);
+    fireEvent.click(within(tileEl(container, '4-2')).getByTestId('worker-button'));
+    expect(useGameStore.getState().selectedWorkerId).toBe(FORESTER);
+    expect(useGameStore.getState().selectedTileId).toBe('4-2');
+    const info = screen.getByTestId('tile-info');
+    expect(within(info).getAllByTestId('job-offer').map((o) => within(o).getByRole('button').textContent)).toContain('Develop forester L1');
+    // Its second click deselects the civilian (FR-115); the tile stays selected
+    fireEvent.click(within(tileEl(container, '4-2')).getByTestId('worker-button'));
+    expect(useGameStore.getState().selectedWorkerId).toBeUndefined();
+    expect(useGameStore.getState().selectedTileId).toBe('4-2');
   });
 });
 

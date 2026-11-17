@@ -356,6 +356,28 @@ describe('FR-374 a fallback move is said', () => {
     );
   });
 
+  // M12 QA fix round (track A): turn 1 the engineer laid rail from the capital onto 3-9; turn 2 its click back onto the
+  // capital said "Rail refused: that tile is not a valid site. The capital is where your rail network starts. The engineer
+  // moved there instead (Cancel brings it back)." There is nothing to build between two tiles the rail already joins
+  it('FR-446 the engineer back onto the capital along the rail it laid only moves, and the map says nothing', () => {
+    let s = newGame({ seed: 1 });
+    s = click(s, moveOrders(s, N1, ENGINEER_ID, '3-9'));
+    s = resolveTurn(s, {}, s.seed).state;
+    expect(isRailLinked(s.transportNetwork.railroadNetworks![N1], { x: 2, y: 9 }, { x: 3, y: 9 })).toBe(true);
+    expect(locate(s, ENGINEER_ID)?.tile.id).toBe('3-9');
+
+    const orders = moveOrders(s, N1, ENGINEER_ID, '2-9');
+    expect(orders).toEqual([{ kind: 'moveWorker', nationId: N1, workerId: ENGINEER_ID, toTileId: '2-9' }]);
+    let after = s;
+    const outcome = submitFirstAccepted((order) => {
+      const { state: next, result } = tryApplyOrder(after, order);
+      after = next;
+      return result;
+    }, orders);
+    expect(locate(after, ENGINEER_ID)?.tile.id).toBe('2-9');
+    expect(clickStatusText(s, outcome)).toBeUndefined();
+  });
+
   it('FR-373 a refused click says its last refusal; an accepted click without a fallback says nothing', () => {
     const s = newGame({ seed: 1 });
     expect(clickStatusText(s, { order: move, last: { ok: false, reason: 'invalid-target' }, firstRefusal: { order: rail, reason: 'invalid-target' } })).toBe(

@@ -201,13 +201,16 @@
    port stands there or a stack's count reaches into it (from y 10); then the top-left (x -1 to 15), clear of a crowded
    capital's low army chips (from y 16) and its picture's middle (x 20), and the level badge and job markers move below it
    (Tile.tsx `marksLow`). Under the civilians and the army chips. It takes the pointer, so its title "Fort level 1" shows
-   on hover; a click on it reaches the tile it is in. */
+   on hover; a click on it reaches the tile it is in. FR-452: on the level badge's plate, so the palisade does not melt
+   into the capital's houses at 1x. */
 .fortMark {
   position: absolute;
   top: -1px;
   width: 16px;
   height: 16px;
   z-index: 2;
+  border-radius: 2px;
+  background: var(--color-surface-raised);
 }
 
 .fortMarkLeft {

@@ -27,7 +27,8 @@ import { getPossibleAction } from "./useTileActions";
  * The orders a plain move tries, best first. An engineer stepping onto a neighbour builds rail on
  * the way: onto a tile without rail by rail-on-move; from a rail node onto a rail node not yet
  * linked to it, the section between the two (FR-137), else two networks that meet head on could
- * never be joined by a click. Otherwise, and as the fallback, it just moves.
+ * never be joined by a click. Otherwise, and as the fallback, it just moves; so does a step between two tiles the rail
+ * already joins (FR-446: the capital is no tile with rail of its own, and rail-on-move onto it was tried and refused).
  */
 export function moveOrders(state: GameState, nationId: string, workerId: string, toTileId: string): Order[] {
   const from = findWorker(state, workerId);
@@ -37,6 +38,8 @@ export function moveOrders(state: GameState, nationId: string, workerId: string,
   const engineerStep =
     from.worker.type === WorkerType.Engineer && areTilesAdjacent(state.map, from.tile.x, from.tile.y, to.x, to.y);
   if (!engineerStep) return [move];
+  // Two neighbouring rail nodes with no section to start between them are already joined
+  if (isRailNode(from.tile, nationId) && isRailNode(to, nationId) && !railSectionStart(state, nationId, to, from.tile)) return [move];
   if (canBuildRailAt(state.map, to.x, to.y, nationId)) return [{ kind: "moveAndBuildRail", nationId, workerId, toTileId }, move];
   if (isRailNode(to, nationId) && railSectionStart(state, nationId, to, from.tile)) {
     return [{ kind: "moveAndStartConstruction", nationId, workerId, toTileId, structure: "rail", fromTileId: from.tile.id }, move];
@@ -245,11 +248,16 @@ export function spendAskOf(state: GameState, orders: readonly Order[], selectTil
 
 /**
  * Sends one order from Tile Info or Construction Options (submitAndSay), or, for one of $1,000 or more the engine would
- * accept, asks first: the ConfirmSpend dialog sends it on Spend (FR-383).
+ * accept, asks first: the ConfirmSpend dialog sends it on Spend (FR-383). `selectTileId`: Tile Info's tile, where an
+ * accepted job (or Spend) ends the civilian selection, as after a job ordered by a click (FR-384, FR-449).
  */
-export function submitOrAsk(order: Order): void {
+export function submitOrAsk(order: Order, selectTileId?: string): void {
   const { game, askSpend } = useGameStore.getState();
-  const ask = spendAskOf(game, [order]);
+  const ask = spendAskOf(game, [order], selectTileId);
   if (ask) askSpend(ask);
-  else submitAndSay(order);
+  else if (submitAndSay(order).ok && selectTileId !== undefined) {
+    const { selectWorker, selectTile } = useGameStore.getState();
+    selectWorker(undefined);
+    selectTile(selectTileId);
+  }
 }

@@ -129,6 +129,32 @@ describe('FR-370 deselecting', () => {
     expect(useGameStore.getState().selectedTileId).toBeUndefined();
   });
 
+  // M12 QA fix round (track A): Escape cleared the selection, the tab stop went back to the capital and the focused tile lost
+  // its tabindex, so Chrome dropped the focus to the page; the arrows then did nothing
+  it('FR-445 Escape drops the selection, not the focus: the tile keeps its Tab stop and the arrows go on from it', () => {
+    render(<MapView />);
+    tile('2-9').focus();
+    press('ArrowRight');
+    press('ArrowRight');
+    press('Enter');
+    expect(useGameStore.getState().selectedTileId).toBe('4-9');
+    press('Escape');
+    expect(useGameStore.getState().selectedTileId).toBeUndefined();
+    expect(tabStops()).toEqual(['4-9']);
+    expect(focusedTile()).toBe('4-9');
+    press('ArrowRight');
+    expect(focusedTile()).toBe('5-9');
+    expect(tabStops()).toEqual(['5-9']);
+  });
+
+  it('FR-445 a deselection while the focus is off the map leaves the Tab stop to the capital (FR-369)', () => {
+    render(<MapView />);
+    fireEvent.click(tile('4-9'));
+    expect(tabStops()).toEqual(['4-9']);
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(tabStops()).toEqual(['2-9']);
+  });
+
   it('FR-370 Escape while a dialog is open is the dialog\'s: the selection stays', () => {
     render(<MapView />);
     fireEvent.click(tile('2-9'));

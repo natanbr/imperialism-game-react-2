@@ -76,6 +76,47 @@ describe('FR-383 ask before a large spend', () => {
     expect(cash()).toBe(8000);
   });
 
+  // M12 QA fix round (track B): the question opened with the focus on "Spend $2,000", so Enter (or a held key) spent at once
+  it('FR-450 the question opens with the focus on "Keep the money", so Enter does not spend', () => {
+    const start = newGame({ seed: 1 });
+    const engineer = civilian(start, WorkerType.Engineer);
+    show(put(start, engineer, '7-8'), { selectedTileId: '7-8', selectedWorkerId: engineer });
+    render(<><HUD /><ConfirmSpend /></>);
+    fireEvent.click(within(screen.getByTestId('tile-info')).getByRole('button', { name: 'Construct Depot' }));
+    expect(document.activeElement).toBe(within(question()!).getByRole('button', { name: 'Keep the money' }));
+    expect(answers(question()!)).toEqual(['Spend $2,000', 'Keep the money']);
+  });
+
+  // M12 QA fix round (track B): a job ordered with a Tile Info button left the civilian selected, so the next map click
+  // said "Move refused: the worker is busy with a job." FR-384: the selection ends as after a job ordered by a click
+  it('FR-449 a job ordered in Tile Info ends the civilian selection; the tile stays selected', () => {
+    const start = newGame({ seed: 1 });
+    const miner = civilian(start, WorkerType.Miner);
+    const found = setTile(put(start, miner, '5-2'), '5-2', { resource: { ...tileAt(start, '5-2').resource!, discovered: true } });
+    show(found, { selectedTileId: '5-2', selectedWorkerId: miner });
+    render(<><HUD /><ConfirmSpend /></>);
+    fireEvent.click(within(screen.getByTestId('tile-info')).getByRole('button', { name: 'Develop miner L1' }));
+    expect(submitted.map((o) => o.kind)).toEqual(['startDevelopment']);
+    expect(useGameStore.getState().selectedWorkerId).toBeUndefined();
+    expect(useGameStore.getState().selectedTileId).toBe('5-2');
+  });
+
+  it('FR-449 a costly job from Tile Info: Spend ends the civilian selection; Keep the money keeps it', () => {
+    const start = newGame({ seed: 1 });
+    const engineer = civilian(start, WorkerType.Engineer);
+    show(put(start, engineer, '7-8'), { selectedTileId: '7-8', selectedWorkerId: engineer });
+    render(<><HUD /><ConfirmSpend /></>);
+    const build = () => within(screen.getByTestId('tile-info')).getByRole('button', { name: 'Construct Depot' });
+    fireEvent.click(build());
+    fireEvent.click(within(question()!).getByRole('button', { name: 'Keep the money' }));
+    expect(useGameStore.getState().selectedWorkerId).toBe(engineer);
+    fireEvent.click(build());
+    fireEvent.click(within(question()!).getByRole('button', { name: 'Spend $2,000' }));
+    expect(submitted.map((o) => o.kind)).toEqual(['startConstruction']);
+    expect(useGameStore.getState().selectedWorkerId).toBeUndefined();
+    expect(useGameStore.getState().selectedTileId).toBe('7-8');
+  });
+
   it('FR-383 Escape is "Keep the money"', () => {
     const start = newGame({ seed: 1 });
     const engineer = civilian(start, WorkerType.Engineer);

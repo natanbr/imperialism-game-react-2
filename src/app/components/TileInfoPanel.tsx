@@ -1,5 +1,5 @@
 import { Tile } from "@/types/Tile";
-import React, { useId, useState } from "react";
+import React, { useEffect, useId, useRef, useState } from "react";
 import { useGameStore } from "../store/rootStore";
 import { Worker, WorkerStatus, WorkerType } from "@/types/Workers";
 import { countryName, countryOfTile, isMinorNation, provinceOf } from "@/engine";
@@ -28,15 +28,19 @@ const WorkerStatusIndicator: React.FC<{ status: WorkerStatus }> = ({ status }) =
 /**
  * One job the selected civilian is offered (FR-381): its button, named as before and enabled only where the engine would
  * accept the order; its price (and turns) beside it; a refused one's reason in a line under it, which the button points at.
- * A job of $1,000 or more asks first (FR-383).
+ * A job of $1,000 or more asks first (FR-383); an accepted one ends the civilian selection on the tile (FR-449).
  */
-const JobOfferRow: React.FC<{ offer: JobOffer }> = ({ offer }) => {
+const JobOfferRow: React.FC<{ offer: JobOffer; tileId: string }> = ({ offer, tileId }) => {
   const reasonId = useId();
   return (
     <div className="job-offer" data-testid="job-offer">
       <button
         type="button"
-        onClick={() => submitOrAsk(offer.order)}
+        onClick={(e) => {
+          // Not to the civilian's row, whose click selects the civilian again
+          e.stopPropagation();
+          submitOrAsk(offer.order, tileId);
+        }}
         disabled={offer.refusal !== undefined}
         aria-describedby={offer.refusal !== undefined ? reasonId : undefined}
         className="btn btn-action">
@@ -75,6 +79,14 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
   const [cancelling, setCancelling] = useState<string | null>(null);
   const cancelTitleId = useId();
   const cancelTextId = useId();
+  // FR-448: the selected civilian's first job offer (else its row) scrolled into the HUD's view, above its fade; only that
+  // far, so Tile Info's heading stays in sight at 1280x720 (the whole row of four offers would push it out)
+  const selectedRow = useRef<HTMLLIElement>(null);
+  const selectedTileId = selectedTile?.id;
+  useEffect(() => {
+    const row = selectedRow.current;
+    (row?.querySelector('[data-testid="job-offer"]') ?? row)?.scrollIntoView?.({ block: "nearest" });
+  }, [selectedWorkerId, selectedTileId]);
 
   // FR-315: nothing without a selection; the HUD needs that height for the news (the Council line at game over)
   if (!selectedTile) return null;
@@ -113,7 +125,7 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
     return (
       <div className="job-offers">
         {offers.map((offer) => (
-          <JobOfferRow key={offer.name} offer={offer} />
+          <JobOfferRow key={offer.name} offer={offer} tileId={selectedTile.id} />
         ))}
         {note && <p className="tile-note">{note}</p>}
       </div>
@@ -180,6 +192,7 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
               const own = w.nationId === activeNationId;
               return (
               <li key={w.id}
+                ref={own && selectedWorkerId === w.id ? selectedRow : undefined}
                 onClick={own ? () => setSelectedWorkerId(w.id) : undefined}
                 style={{ background: own && selectedWorkerId === w.id ? THEME.surfaceSunken : 'transparent', padding: '4px', borderRadius: '4px', cursor: own ? 'pointer' : 'default' }}>
                 <WorkerStatusIndicator status={w.status} />

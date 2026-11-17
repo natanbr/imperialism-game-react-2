@@ -378,3 +378,18 @@ Carried:
 How to see it: in a new game, the engineer lays rail north from the capital and builds a depot on 2-7, staying there: the
 depot shows whole above the engineer's button in the corner; a port built there too stands left of the depot along the top
 (`docs/journal/m11-qarv-stations.png`, at three times the pixel density).
+
+## 2026-11-16 M12 QA fix round (FR-444 to FR-453)
+
+Size M. The by-eye QA of the built app (tracks A to C, `.gate/m12/qa/`) reported 20 items; each was checked in the code or
+reproduced red first (unit tests, `e2e/m12-qa.spec.ts`; logs in `.gate/audit/m12-qa-fix/`). Fixed: FR-444 (the e2e dev
+server builds into `.next-e2e`, so `next start` serves the gate's build), FR-445 (Escape keeps the tile's focus), FR-446
+(no "Rail refused" for a step along laid rail), FR-447 (opaque Saved game backdrop), FR-448 (the selected civilian's first
+offer scrolled above the HUD's fade), FR-449 (a Tile Info job ends the civilian selection), FR-450 (the spend question
+starts on Keep the money), FR-451 (the close button stays in the title row at 390 px), FR-452 (the fort mark on a plate),
+FR-453 (a civilian's button selects its tile). Not changed, each waiting for a decision or as specified: FR-372's eight
+news lines (and a war line under the fade), the army buttons as the map's first Tab stops (FR-369), no verdict at a
+turn-limit end (FR-300 against FR-431), the rival's news lines (FR-107), "In warehouse" after an offer (FR-061), the
+640x360 notice and cut labels (FR-429, FR-424). FR-125's four tests stay red (review round 2, card Q103).
+Objection: FR-448 shows only the first offer whole; the other offers of a busy tile stay under the fade, as showing them
+all pushed Tile Info's heading out of sight.

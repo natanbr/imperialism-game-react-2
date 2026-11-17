@@ -550,6 +550,13 @@
     flex-wrap: wrap;
   }
 
+  /* FR-451: the cash line takes a row of its own under the title, so the close button stays at the title's right (it
+     wrapped alone onto the second row, left aligned) */
+  .cash {
+    order: 1;
+    flex-basis: 100%;
+  }
+
   .panes {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(0, 2fr) minmax(0, 3fr);

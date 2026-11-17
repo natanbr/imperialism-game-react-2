@@ -21,13 +21,14 @@ export const UNUSABLE_SAVE_TEXT = "The saved game could not be loaded (it was ma
 /**
  * The start of the page with a save in the slot (FR-359, FR-362): Continue (focused) restores it, New game throws it away.
  * An unusable save says why and offers New game only. No close: the player picks one, so Escape and the backdrop do
- * nothing. page.tsx mounts it and does what the buttons ask.
+ * nothing. page.tsx mounts it and does what the buttons ask. Its backdrop is opaque: the page holds a new game until the
+ * player chooses, and it is not the saved one (FR-447).
  */
 export const SavedGameDialog: React.FC<{ save?: SavedGame; onContinue: () => void; onNewGame: () => void }> = ({ save, onContinue, onNewGame }) => {
   const titleId = useId();
   const textId = useId();
   return (
-    <Modal titleId={titleId} describedBy={textId} overlayClassName="about-overlay" className="about-panel">
+    <Modal titleId={titleId} describedBy={textId} overlayClassName="about-overlay saved-game-overlay" className="about-panel">
       <div className="about-header">
         <h2 id={titleId} className="about-title">
           Saved game

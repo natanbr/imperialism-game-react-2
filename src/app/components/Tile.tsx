@@ -91,6 +91,15 @@ const TileComponentInner: React.FC<TileProps> = ({
     selectWorker(undefined);
     selectTile(tile.id);
   }, [selectWorker, selectTile, tile.id]);
+  // FR-453: picking a civilian here selects this tile too, so Tile Info shows it with its job offers; a deselect (its
+  // second click, FR-115) leaves the tile selected
+  const pickWorker = useCallback(
+    (workerId: string | undefined) => {
+      selectWorker(workerId);
+      if (workerId !== undefined) selectTile(tile.id);
+    },
+    [selectWorker, selectTile, tile.id]
+  );
   const trayPlacement = useMemo<TrayPlacement>(() => ({
     align: tile.x <= 1 ? 'start' : tile.x >= map.config.cols - 2 ? 'end' : 'center',
     above: tile.y >= map.config.rows - 3,
@@ -175,7 +184,7 @@ const TileComponentInner: React.FC<TileProps> = ({
         trayOpen={isSelected && !selectedWorkerId}
         trayPlacement={trayPlacement}
         selectedElsewhere={selectedElsewhere}
-        onWorkerSelect={selectWorker}
+        onWorkerSelect={pickWorker}
         onOpenTray={openTray}
         corner={crowded || station}
       />

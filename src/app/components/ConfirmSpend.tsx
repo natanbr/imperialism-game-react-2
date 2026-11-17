@@ -8,7 +8,8 @@ import { money } from "./gameText";
 /**
  * The question before an order of $1,000 or more (FR-383, card Q82): the job, the tile, the price, the turns and the cancel
  * rule, then "Spend $5,000" and "Keep the money". Only Spend sends the order; Keep, Escape and the backdrop send nothing.
- * After a map click's Spend the civilian selection ends on the clicked tile, as after any job ordered by a click.
+ * After Spend from a map click or Tile Info the civilian selection ends on the tile, as after any job ordered by a click.
+ * FR-450: the focus starts on "Keep the money", so Enter or a held key does not spend.
  */
 export const ConfirmSpend: React.FC = () => {
   const spend = useGameStore((s) => s.pendingSpend);
@@ -29,7 +30,14 @@ export const ConfirmSpend: React.FC = () => {
   };
 
   return (
-    <Modal titleId={titleId} describedBy={questionId} onClose={closeSpend} overlayClassName="question-overlay" className="question-dialog" portal>
+    <Modal
+      titleId={titleId}
+      describedBy={questionId}
+      onClose={closeSpend}
+      initialFocus="last-control"
+      overlayClassName="question-overlay"
+      className="question-dialog"
+      portal>
       <h2 id={titleId} className="question-title">
         Spend {money(spend.price)}?
       </h2>

@@ -896,6 +896,32 @@ score: M14 with the ranking), ARMY-WAR-12 (medals and generals: M18), RULES-GAP-
 prospecting luck, empty goods rows, the Trade School's message: rule changes or cosmetic, M15 and M18), FR-TRUTH-14
 (three lint warnings: no player effect).
 
+### M12 QA fix round (2026-11-16)
+
+The by-eye QA of the built app (tracks A to C, `.gate/m12/qa/`) found these; each was reproduced first (a unit test or
+e2e/m12-qa.spec.ts red before the change). Names and test ids stay; no engine, store or type file changes.
+
+| Id | Requirement | Status |
+|---|---|---|
+| FR-444 | The built app survives the e2e run (QA, all tracks): Playwright's dev server SHALL build into `.next-e2e` (`NEXT_DIST_DIR`, read by next.config.ts), so the production build `npm run build` leaves in `.next` is still served by `next start` after the gate's e2e run (its dev manifests overwrote it: "routesManifest.dataRoutes is not iterable"); git, ESLint and tsconfig treat `.next-e2e` as `.next`. Tests: tests/tooling/buildFolders.test.ts; `next start` after the gate. | tested (red before: `next start` EXIT 1 on the gate's `.next`) |
+| FR-445 | Escape keeps the keyboard focus (QA track A; adds to FR-369 and FR-370): WHEN Escape drops the tile selection while a tile has the focus THEN that tile SHALL stay the map's Tab stop, so the focus stays on it and the arrows go on from it; with the focus off the map the Tab stop goes back to the capital. Tests: tests/ui/mapKeyboard.test.tsx, e2e/m12-qa.spec.ts. | tested (red before: the Tab stop went to 2-9 and Chrome dropped the focus to the page) |
+| FR-446 | No refusal for a step along the rail (QA track A; narrows FR-374): an engineer's click on a neighbour its tile is already joined to by rail (the capital it laid rail from) SHALL be a plain move, with nothing said on the map; it read "Rail refused: that tile is not a valid site. The capital is where your rail network starts. The engineer moved there instead (Cancel brings it back)." Tests: tests/ui/tileClickOrders.test.ts. | tested (red before: `moveAndBuildRail` tried first) |
+| FR-447 | The Saved game dialog hides the new game (QA track A): its backdrop SHALL be opaque (`--color-surface-sunken`), as the page holds a new turn-1 game until the player chooses. Tests: e2e/m12-qa.spec.ts. | tested (red before: alpha 0.45) |
+| FR-448 | The selected civilian's offers come into view (QA track B): WHEN a civilian is selected (on the map or in Tile Info) THEN its first job offer, else its row, SHALL be scrolled into the HUD's view above the fade (`.hud-content` keeps 24 px of bottom scroll padding), only that far, so Tile Info's heading stays in sight at 1280x720. Tests: tests/ui/tileOffers.test.tsx, e2e/m12-qa.spec.ts (the engineer on the farm 7-8 on turn 2). | tested (red before: "Construct Depot" from y 398 to 470 against a visible bottom of 430) |
+| FR-449 | A job from Tile Info ends the selection (QA track B; completes FR-384): an accepted Tile Info job, or its Spend, SHALL end the civilian selection with the tile still selected, as after a job ordered by a click; Keep the money keeps it. Tests: tests/ui/confirmSpend.test.tsx. | tested (red before: the civilian stayed selected, and the job button's click also reached its row, which selected it again) |
+| FR-450 | The spend question starts on Keep (QA track B; adds to FR-383): the focus SHALL start on "Keep the money" (the buttons keep their order), so Enter or a held key does not spend. Tests: tests/ui/confirmSpend.test.tsx. | tested (red before: the focus on "Spend $2,000") |
+| FR-451 | The close button stays in the title row at 390 px (QA tracks B and C; adds to FR-427 and FR-428): below 600 px the Diplomacy cash line and the Board of Trade's Cash, Holds and Bids SHALL take a row of their own under the title, so the close button stays at the title's right. Tests: e2e/m12-qa.spec.ts. | tested (red before: the close button alone on the next row, left) |
+| FR-452 | The fort mark on a plate (QA track B; adds to FR-388): the 16 px fort mark SHALL lie on the level badge's plate (`--color-surface-raised`, 2 px corners), so the palisade does not melt into the capital's houses at 1x; its box is unchanged. Tests: e2e/m12-qa.spec.ts; by eye. | tested; by eye to confirm |
+| FR-453 | A civilian's button selects its tile too (QA track C): a click that selects one of the player's civilians by its button on the map (or in the tray) SHALL also select that tile, so Tile Info shows the civilian with its offers; its second click deselects the civilian and leaves the tile selected (FR-115). Tests: tests/ui/stacking.test.tsx, e2e/m12-qa.spec.ts. | tested (red before: the tile stayed unselected and the HUD kept the news) |
+
+Not changed by this round, each with its reason: FR-372's eight news lines and a war line's 16 px under the fade (Nathan's
+decision on FR-372's options); the first Tab stops on the map are army buttons before the tile stop (FR-369 keeps the
+buttons' own Tab stops: a decision); a turn-limit end names no winner (FR-300 keeps it "as before" while FR-431 calls
+the best score the goal: a decision); the news lists the other nations' lines after the player's (FR-107, as specified);
+the Board's "In warehouse" drops by an offer (FR-061: offered units leave the warehouse when ordered); at 640x360 the
+narrow-window line covers the HUD's header until dismissed and two action labels end in an ellipsis (the FR-429 and
+FR-424 decisions, with their objections in L2's notes).
+
 ### M12 decision cards
 
 Defaults taken by the spec; each goes on the progress page (FR-437). Each card: the question, the default taken, the

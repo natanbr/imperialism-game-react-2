@@ -126,17 +126,20 @@ export const MapView: React.FC = () => {
       : { ...SEA_PAST_THE_MAP, backgroundSize: `${GROUND_ART_PX * zoom}px ${GROUND_ART_PX * zoom}px`, backgroundPosition: `${offset.x}px ${offset.y}px` };
 
   // FR-369: the map is one Tab stop, the tile the keyboard moved to, else the selected tile, else the capital. A new
-  // selection (a click, Enter) or the focus leaving the map forgets the keyboard's tile.
+  // selection (a click, Enter) or the focus leaving the map forgets the keyboard's tile. FR-445: a deselection (Escape)
+  // keeps the focused tile the Tab stop, so it keeps its tabindex and the focus stays on it.
   const capitalCityId = useGameStore((s) => s.game.nations.find((n) => n.id === s.activeNationId)?.cities[0]);
   const capitalTileId = useMemo(
     () => (capitalCityId ? map.tiles.flat().find((t) => t.cityId === capitalCityId)?.id : undefined),
     [map, capitalCityId]
   );
   const [keyboardTileId, setKeyboardTileId] = useState<string | undefined>(undefined);
+  // The tile that has the focus, kept by the focus events: a ref, as moving the focus draws nothing by itself
+  const focusedTileId = useRef<string | undefined>(undefined);
   const [selectionSeen, setSelectionSeen] = useState(selectedTileId);
   if (selectionSeen !== selectedTileId) {
     setSelectionSeen(selectedTileId);
-    setKeyboardTileId(undefined);
+    setKeyboardTileId(selectedTileId === undefined ? focusedTileId.current : undefined);
   }
   const tabStopId = keyboardTileId ?? selectedTileId ?? capitalTileId;
   const [isNarrowNoteDismissed, setNarrowNoteDismissed] = useState(false);
@@ -160,8 +163,14 @@ export const MapView: React.FC = () => {
     },
     [map.config]
   );
+  const onMapFocus = useCallback((e: React.FocusEvent<HTMLDivElement>) => {
+    const el = e.target as HTMLElement;
+    focusedTileId.current = el.getAttribute("data-testid") === "tile" ? (el.getAttribute("data-tile-id") ?? undefined) : undefined;
+  }, []);
   const onMapBlur = useCallback((e: React.FocusEvent<HTMLDivElement>) => {
-    if (!(e.relatedTarget instanceof Node && e.currentTarget.contains(e.relatedTarget))) setKeyboardTileId(undefined);
+    if (e.relatedTarget instanceof Node && e.currentTarget.contains(e.relatedTarget)) return;
+    focusedTileId.current = undefined;
+    setKeyboardTileId(undefined);
   }, []);
 
   // The ground is drawn from the land and water pattern only: a string, so MapGround's memo holds across turns (FR-321)
@@ -211,6 +220,7 @@ export const MapView: React.FC = () => {
           data-testid="map-viewport"
           data-zoom={zoom}
           onKeyDown={onMapKeyDown}
+          onFocus={onMapFocus}
           onBlur={onMapBlur}
         >
           <MapGround signature={ground} />

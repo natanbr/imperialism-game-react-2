@@ -17,6 +17,8 @@ import type { GameState } from '@/types/GameState';
 import { WorkerType } from '@/types/Workers';
 import { ResourceType } from '@/types/Resource';
 import { put, setTile, setTreasury, tileAt } from '../engine/fixtures';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { text } from './domText';
 import { failOnActWarnings } from './actWarnings';
 
@@ -358,5 +360,54 @@ describe('FR-388 Tile Info shows the fort', () => {
   it('FR-388 a fort of level 2 on the farm 3-9: "Fort: level 2"', () => {
     showTile(setTile(newGame({ seed: 1 }), '3-9', { fortLevel: 2 }), '3-9');
     expect(text(fortLine()!)).toBe('Fort: level 2');
+  });
+});
+
+// M12 QA fix round (track B): at 1280x720 the engineer selected on the farm 7-8 had its first offer, "Construct Depot" and
+// "$2,000, 3 turns", half under the HUD's fade (y 398 to 470 against a visible bottom of 430), and the other three below
+// it: the player had to find the wheel. Selecting a civilian scrolls its first offer (else its row) into the HUD's view,
+// above the fade (`.hud-content` keeps the fade's 24 px as scroll padding); only that far, so Tile Info's heading stays in
+// sight (the whole row with four offers pushed it out: e2e/m12-qa.spec.ts).
+describe('FR-448 the selected civilian\'s offers come into view', () => {
+  const scrolled: { el: Element; options: unknown }[] = [];
+  const original = Element.prototype.scrollIntoView;
+  beforeEach(() => {
+    scrolled.length = 0;
+    Element.prototype.scrollIntoView = function (this: Element, options?: unknown) {
+      scrolled.push({ el: this, options });
+    };
+  });
+  afterEach(() => {
+    Element.prototype.scrollIntoView = original;
+  });
+
+  it('FR-448 the engineer selected on 7-8: the first of its four offers is scrolled into view ("nearest")', () => {
+    showOffers(newGame({ seed: 1 }), WorkerType.Engineer, '7-8');
+    const first = offerOf(within(tileInfo()).getByRole('button', { name: 'Construct Depot' }));
+    expect(within(first.closest('li')!).getAllByTestId('job-offer')).toHaveLength(4);
+    expect(within(first.closest('li')!).getAllByTestId('job-offer')[0]).toBe(first);
+    expect(scrolled).toContainEqual({ el: first, options: { block: 'nearest' } });
+  });
+
+  it('FR-448 another civilian picked in Tile Info is scrolled into view too: its first offer, else its row', () => {
+    showOffers(newGame({ seed: 1 }), WorkerType.Engineer, CAPITAL);
+    scrolled.length = 0;
+    const rowOf = (type: string) => within(tileInfo()).getAllByRole('listitem').find((li) => text(li).includes(`${type} - `))!;
+    for (const type of ['farmer', 'prospector']) {
+      fireEvent.click(rowOf(type));
+      const row = rowOf(type);
+      expect(scrolled.map((s) => s.el)).toContain(row.querySelector('[data-testid="job-offer"]') ?? row);
+    }
+  });
+
+  it('FR-448 the HUD keeps the fade\'s height as its bottom scroll padding, so a row scrolled into view ends above the fade', () => {
+    const css = readFileSync(join(__dirname, '..', '..', 'src/app/globals.css'), 'utf8');
+    const rule = (selector: string) => {
+      const at = css.indexOf(`${selector} {`);
+      return at < 0 ? '' : css.slice(at, css.indexOf('}', at));
+    };
+    const fade = rule('.hud-content::after').match(/height:\s*(\d+px)/)?.[1];
+    expect(fade).toBe('24px');
+    expect(rule('.hud-content')).toMatch(new RegExp(String.raw`scroll-padding-bottom:\s*${fade};`));
   });
 });
