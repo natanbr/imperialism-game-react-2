@@ -5,7 +5,19 @@
 import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'fs';
 import { join, relative } from 'path';
-import { HUD_PX, NATION_COLORS, RELATION_COLORS, THEME, TILE_PX, relationColor, themeVariables } from '@/styles/theme';
+import {
+  HUD_PX,
+  NATION_COLORS,
+  RELATION_COLORS,
+  THEME,
+  TILE_PX,
+  TOPBAR_BREAKPOINT,
+  TOPBAR_NARROW_PX,
+  TOPBAR_PX,
+  relationColor,
+  themeVariables,
+  topBarPx,
+} from '@/styles/theme';
 import { mapAreaOf, mapSizePx } from '@/components/camera';
 
 const ROOT = join(__dirname, '..', '..');
@@ -516,11 +528,27 @@ describe('FR-088 tile size: the whole map fits 1280x720 next to the HUD', () => 
     expect(defined.get('--hud-width')).toBe(`${HUD_PX}px`);
   });
 
-  it('FR-088 the 24x16 map is 1,029 x 672 px and fits the 1030 x 720 map area of a 1280x720 screen', () => {
+  // M12b T1 (FR-465): the area is 1030 x 680 now (was 1030 x 720), under the 40 px top bar; the map still fits
+  it('FR-088 the 24x16 map is 1,029 x 672 px and fits the 1030 x 680 map area of a 1280x720 screen', () => {
     const map = mapSizePx({ cols: 24, rows: 16 });
     expect(map).toEqual({ width: 1029, height: 672 });
     const area = mapAreaOf({ innerWidth: 1280, innerHeight: 720 });
+    expect(area).toEqual({ width: 1030, height: 680 });
     expect(map.width).toBeLessThanOrEqual(area.width);
     expect(map.height).toBeLessThanOrEqual(area.height);
+  });
+
+  // FR-465 (risk in docs/specs/hud.md section 8): the CSS breakpoint and topBarPx must agree, or the camera centres wrongly
+  it('FR-465 --topbar-height is TOPBAR_PX on :root and TOPBAR_NARROW_PX under max-width 1023.98px, as topBarPx says', () => {
+    const rootAt = TOKENS.indexOf(':root {');
+    const root = TOKENS.slice(rootAt, TOKENS.indexOf('\n}', rootAt));
+    expect(/--topbar-height:\s*([^;]+);/.exec(root)?.[1]).toBe(`${TOPBAR_PX}px`);
+    const query = '@media (max-width: 1023.98px) {';
+    const at = TOKENS.indexOf(query);
+    expect(at, query).toBeGreaterThanOrEqual(0);
+    const narrow = TOKENS.slice(at, TOKENS.indexOf('\n}', at));
+    expect(narrow).toMatch(new RegExp(`:root \\{\\s*--topbar-height:\\s*${TOPBAR_NARROW_PX}px;\\s*\\}`));
+    expect(TOPBAR_BREAKPOINT).toBe(1024);
+    expect([topBarPx(TOPBAR_BREAKPOINT), topBarPx(TOPBAR_BREAKPOINT - 1)]).toEqual([TOPBAR_PX, TOPBAR_NARROW_PX]);
   });
 });

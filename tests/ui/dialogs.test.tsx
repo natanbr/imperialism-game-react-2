@@ -10,6 +10,7 @@ import { readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { HUD } from '@/components/HUD';
+import { TopBar } from '@/components/HUD/TopBar';
 import { WarehouseModal } from '@/components/WarehouseModal';
 import { CapitalModal } from '@/components/CapitalModal';
 import { MarketModal } from '@/components/MarketModal';
@@ -47,12 +48,16 @@ function show(state: GameState, ui: Partial<ReturnType<typeof useGameStore.getSt
   });
 }
 
-/** The page's HUD and dialogs as page.tsx mounts them, without the map. */
+/**
+ * The page's top bar, HUD and dialogs as page.tsx mounts them, without the map. M12b (FR-466): the dialog openers and
+ * About moved from the right pane to the top bar, so the bar is mounted too (was the HUD alone).
+ */
 const Dialogs: React.FC = () => {
   const isTransportOpen = useGameStore((s) => s.isTransportAllocationOpen);
   const closeTransport = useGameStore((s) => s.closeTransportAllocation);
   return (
     <>
+      <TopBar />
       <HUD />
       <WarehouseModal />
       <CapitalModal />

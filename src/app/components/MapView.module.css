@@ -5,9 +5,9 @@
   position: relative;
 }
 
-/* FR-368: the zoom buttons side by side at the map area's bottom left (at 1280x720 below the map's last row, which ends at
-   672 px), over the map elsewhere (above the tiles' marks and the army markers,
-   below the HUD at 10 and the dialogs) */
+/* FR-368: the zoom buttons side by side at the map area's bottom left, over the map (above the tiles' marks and the army
+   markers, below the HUD at 10 and the dialogs). M12b: at 1280x720 the map now ends at 712 px (under the 40 px top bar,
+   FR-465), so the buttons lie over the last row's two water tiles 0-15 and 1-15 instead of below the map. */
 .zoomControls {
   position: absolute;
   left: 12px;
@@ -76,12 +76,13 @@
   pointer-events: auto;
 }
 
-/* FR-429 (UIV-12, card Q96): the line for a narrow window, across the top of the screen (over the HUD at 10, under the
-   dialogs), shown below 700 px of width only; Dismiss removes it until the page is loaded again */
+/* FR-429 (UIV-12, card Q96): the line for a narrow window, across the screen right under the top bar (FR-479: never over
+   the bar's turn, cash and score; over the HUD at 10, under the dialogs), shown below 700 px of width only; Dismiss
+   removes it until the page is loaded again */
 .narrowWindow {
   display: none;
   position: absolute;
-  top: 0;
+  top: var(--topbar-height);
   left: 0;
   right: 0;
   z-index: 20;
@@ -128,10 +129,13 @@
    from the art table), repeating from the map's origin and scrolling with it (local), so it continues the ground's own
    water pattern without an edge; the flat ground-water colour under it while it loads.
    FR-364, FR-365 (UIV-02): the camera is this scroll position (FR-083), so the wheel, Shift and the wheel, a trackpad and
-   a finger scroll it natively; no scrollbar is drawn over the map (edge scrolling, useEdgeScroll, still works too). */
+   a finger scroll it natively; no scrollbar is drawn over the map (edge scrolling, useEdgeScroll, still works too).
+   FR-465: the scroller starts under the top bar, so its box is the map area's top and bottom (camera.ts mapAreaOf), and
+   useEdgeScroll's top zone and scrollIntoView ("nearest") both work from the bar's bottom with no padding. */
 .container {
   width: 100vw;
-  height: 100vh;
+  margin-top: var(--topbar-height);
+  height: calc(100vh - var(--topbar-height));
   overflow: auto;
   scrollbar-width: none;
   touch-action: pan-x pan-y;

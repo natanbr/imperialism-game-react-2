@@ -60,9 +60,18 @@ test('FR-268 the news list: whole lines above the HUD fade, its own scroll reach
   test.setTimeout(90000);
   const errors = collectErrors(page);
   await open(page);
-  // A few turns of the continent's news: more lines than the list shows at once
+  // A few turns of the continent's news: more lines than the list shows at once. M12b (FR-472): with no tile selected the
+  // list now takes the pane's free height (about 20 lines at 1280x720), which turns 2 to 4 may not fill, so the capital
+  // 2-9 is selected first: its Tile Info shrinks the list to its 3-line minimum (measured in the running app: 60 px, the
+  // pane not scrolling); then the same checks (was: no tile selected, the list 3 lines under the old pane's header and
+  // buttons)
   for (let turn = 2; turn <= 4; turn++) {
     await endTurn(page, turn);
+    if ((await page.getByTestId('tile-info').count()) === 0) {
+      await page.locator('[data-tile-id="2-9"]').click({ position: { x: 6, y: 6 } });
+      await expect(page.getByTestId('tile-info')).toBeVisible();
+      await page.mouse.move(400, 300);
+    }
     const { maxScroll } = await newsLayout(page);
     if (maxScroll > 0) break;
   }

@@ -1,13 +1,12 @@
 # Journal
 
 ## Resuming here
-- 2026-11-16 night: M12 Honest game is built on `claude/m12-honest-game`; its pull request is being opened, not merged (FR-357 to FR-464, cards
-  Q79 to Q107). Gate 5 on the close-out (FR-461 to FR-464 tested): 2446 unit tests, lint 0 errors, tsc and build clean, Playwright 92
-  passed and 1 skipped. Gate 6 on the final tree (after close-out 3, the click onto the capital, FR-461), 2026-11-17: 2447 unit
-  tests, lint 0 errors, tsc and build clean, Playwright 92 passed and 1 skipped. FR-357 to FR-443 now read their real status in requirements.md, each with its test files: 77 tested, 9 partial, 1 parked
-  (FR-372, closed by M12b); the partial rows are listed in the M12 entry below.
-- Next (NR-034, in this order): M12b HUD (FR-465 to FR-480, `docs/specs/hud.md`, cards Q108 to Q113), then M13 to M16 (FR-481 to
-  FR-528, `docs/specs/m13-m16.md`, cards Q114 to Q135). All rows are planned, nothing is built. Merged so far: M0 to M11 (main a690759).
+- 2026-11-17: M12 Honest game is merged (pull request 34, main 91d7edc). M12b Better HUD (FR-465 to FR-480, cards Q108 to Q113) is
+  built and committed on `claude/m12b-hud`, not pushed, no pull request yet. Gate 1: 2503 unit tests, lint 0 errors, tsc and build
+  clean, Playwright 105 passed. FR-372 is closed (20 whole news lines at 1280x720); FR-357 to FR-443: 78 tested, 9 partial (M12 entry).
+  Decision taken in the build: labels beside the icons from 1800 px, not 1600 (M12b entry below).
+- Next (NR-034, in this order): push `claude/m12b-hud` and open its pull request, then M13 to M16 (FR-481 to FR-528,
+  `docs/specs/m13-m16.md`, cards Q114 to Q135; planned, nothing built). Merged so far: M0 to M12 (main 91d7edc).
 - Answered by Nathan 2026-11-16: Q79 to Q83 as suggested, Q102 "keep the debug", Q113 one static Advance Turn. Needed from him: Q114
   and Q115 (before M13's military lane is finished), Q121 (before M14 builds FR-503), Q130 (before M16 starts). The other open cards
   have defaults in force: Q22 to Q78, Q84 to Q135 (progress page).
@@ -15,7 +14,7 @@
 - Not verified: Firefox and WebKit, a winning Council vote on screen. Open for Nathan: the five `backup/v1-wip/*` branches no longer
   exist (their commits are unreferenced; `git gc` can prune them).
 - Everything older (status lines M0 to M11, the carried-forward review notes of M4.1 to M4.4, deferred items, housekeeping):
-  `docs/journal/archive-resuming-before-M12.md`. M12's entry is below. Rules of the game: `docs/rules/`. Flow: `docs/FLOW.md`.
+  `docs/journal/archive-resuming-before-M12.md`. The M12 and M12b entries are below. Rules of the game: `docs/rules/`. Flow: `docs/FLOW.md`.
 
 ## 2026-11-02 Revival setup
 
@@ -311,5 +310,56 @@ tile while a civilian is selected, so every spec that selects one runs the chang
 | The first full browser run had one flaky failure | gate4-e2e.txt, rerun in gate4-e2e-rerun.txt | `1 failed` (m6-dialogs FR-236 keyboard on Diplomacy: `data-ready` stayed `null` for 15 s), `91 passed (26.2m)`; the rerun of that file: `4 passed (33.6s)`; the second full run is the line above |
 | FR-125's margin held at strategy C (gate 2) | `npm test` (gate2-unit-final.txt) | `Tests  1 failed | 2421 passed (2422)`; the one red was the dead-end check (Q106); gate 3 (gate3-unit.txt): `Tests  2433 passed (2433)` |
 
-Parked after M12: FR-372 (eight whole news lines at 1280x720: the HUD redesign decides it, FR-472), the QA fix round's list above,
+Parked after M12: FR-372 (eight whole news lines at 1280x720: the HUD redesign decides it, FR-472; closed by M12b, below), the QA fix round's list above,
 the FR-125 margin's thin points (seed 3 at turn 25 passes by 58.5 points, about 6%; 4.5 before FR-460; any later AI change may flip it), cards Q103 to Q107.
+
+## 2026-11-17 M12b Better HUD (NR-034; FR-465 to FR-480, cards Q108 to Q113)
+
+Size: L, UI only (engine, store and types untouched; no selector was missing). Branch `claude/m12b-hud` from main 91d7edc (M12 merged
+as pull request 34), one commit, not pushed. Spec `docs/specs/hud.md`. One workflow, red tests first, four tasks, each Opus 5.5 with no
+advisor call; notes and logs in `.gate/hud/` (git-ignored):
+- T1, the frame (FR-465, FR-479): `--topbar-height` 40 px (80 px below 1024 px), `mapAreaOf` is the window less the bar and the pane, the
+  map and the narrow-window line start under the bar, the bar stops edge scrolling.
+- T2, the top bar (FR-466 to FR-469, FR-477, FR-480): `HUD/TopBar.tsx`: the nation, the turn block with the next Council line, cash with
+  last turn's change, score with its rank and parts, the dialog buttons as 32 x 32 icons (the name kept as a hidden label) and the one
+  Advance Turn (card Q113); New game's question is a panel under the bar.
+- T3, the right pane (FR-470 to FR-477): Tile Info or "No tile selected", the alerts (`HUD/Alerts.tsx`), the news in the pane's free
+  height, three closed groups (`HUD/HudGroups.tsx`, `HUD/hudView.ts`): Nation, Work in progress (N), Details for bug reports, shown
+  without `?debug` (card Q102). The pane's interim Advance Turn is gone.
+- T4, the gate (Opus 5.5, this entry): the old-layout pins retargeted, the e2e suite moved to the new layout, `e2e/m13-hud.spec.ts`
+  written, FR-372's `test.fixme` made a test, the rows flipped and the 16 older rows amended (`replaced by FR-4xx in part`).
+
+Decision taken (T2): labels beside the icons from 1800 px of window width, not the spec's 1600 (FR-468, spec amended). At 1600 px with
+labels the row needs 1746 px: the nation name was squeezed to 0 px and the score ran 6 px into the buttons. Objection: from 1024 to
+1799 px a player sees the icons only (the name is the tooltip and the accessible name).
+
+Pins moved (old -> new; each reason is written in the test):
+- Unit, 46 red in 5 files after T1 to T3 (all pins of the old layout, no defect in src): dialogs (37) and about (4) render
+  `<TopBar />` (the dialog buttons left the pane); watchNation (3) opens the Nation group for the score table and renders `<TopBar />`
+  for New game; persistence (1) renders `Alerts` for Not-saved; camera FR-366 (1) stubs the pane with a group button (the bar now
+  renders Advance Turn).
+- E2E: at 1920x1080 the map lies at 320.5, 224 (was 184; the bar takes 40 px) in m12-map FR-367 and m11-map FR-340; islands at 800x450
+  scroll to 0, 214 (map area 550 x 370); look FR-090 needs every tile at y >= 40; the score table and the Council projection are read
+  after opening the Nation group (m5-world, two-nations, market-and-game-over, m10-council); m5-hud-scroll opens Nation and Details
+  so the pane overflows; councilNews checks below the bar and above the groups; m11-lists FR-334 and FR-349 measure 32 x 32 buttons,
+  20 x 20 icons and labels from 1800 px; m12-map FR-424 checks the bar at 640x360, FR-429 the line's top >= 80, FR-377 the group
+  without `?debug`; m8-qa FR-268 selects tile 2-9 when no tile is selected (Tile Info is no longer always shown).
+- Measured: FR-372 (eight whole news lines at 1280x720 on turn 2) now shows 20.
+
+| Claim | Command | Quoted result |
+|---|---|---|
+| The old-layout pins were red after T1 to T3 | `npm test` (T4-unit-0.txt) | `Tests  46 failed \| 2456 passed (2502)`, in 5 files |
+| The retargeted files pass | `npx vitest run` on the 5 files (T4-fix-neighbours.txt) | `Tests  154 passed (154)` |
+| The new FR-477 page test can fail | mutation: the next-Council line removed (T4-red-fr477-page.txt), restored (T4-fr477-page.txt) | `Unable to find an element by: [data-testid="next-council"]`, `Tests  1 failed`; restored `Tests  1 passed` |
+| The one-Advance-Turn e2e check can fail | mutation: a second Advance Turn (T4-red-e2e-two-advance.txt) | `Expected: 1`, `Received: 2` |
+| Every unit test passes | `npm test` (gate1-unit.txt) | `Test Files  121 passed (121)`, `Tests  2503 passed (2503)`, `EXIT 0` |
+| Lint has no error | `npm run lint` (gate1-lint.txt) | `✖ 2 problems (0 errors, 2 warnings)`, `EXIT 0`; the same two warnings as M12's gates |
+| Types are clean | `npx tsc --noEmit` (gate1-tsc.txt) | no output, `EXIT 0` |
+| The build works | `npm run build` (gate1-build.txt) | `✓ Compiled successfully in 3.6s`, `✓ Generating static pages (4/4)`, `EXIT 0` |
+| The browser suite passes | `npx playwright test --workers=1` (gate1-e2e.txt) | `105 passed (7.4m)`, `EXIT 0`, first run; none skipped (FR-372's `test.fixme` is a test now) |
+| FR-372 is closed | the same run | `FR-372 news list 400 px, 20 lines of 20 px` |
+| The documents agree with themselves | `node .gate/m12/L4-check-req.cjs`, `L4-check-roadmap.cjs` | `PASS` each; `FR-357..443 status words: {"tested":78,"partial":9,"parked":0}` |
+
+Not verified: Firefox and WebKit; game over at 1800 px wide (Final scores adds about 116 px; T2 estimated 1752 px needed). Seen in the
+gate's screenshots (`.gate/hud/shots/m13-hud-*.png`): at 390x844 the narrow-window line still covers the pane's first line until it is
+closed (FR-429 as before), and the nation's name gives way first in the narrow bar (spec section 8).

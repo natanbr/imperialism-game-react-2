@@ -1,0 +1,84 @@
+/* The top bar (FR-465, docs/specs/hud.md section 2a). Task T2 owns this file; .gate/hud/ownership.md.
+   Frame rules task T1 set, which tests/ui/camera.test.tsx reads and the camera depends on (camera.ts mapAreaOf): the bar
+   spans the window's top at --topbar-height (40 px from 1024 px of width, never more than 48 px there; 80 px, two rows,
+   below), border included (border-box), under the dialogs (60 and up) and the FR-429 line (20).
+   Not overflow: hidden: the score's parts hang below the bar (globals.css .topbar-popover). Its bottom line is a shadow, not
+   a border, so below 1024 px the two 40 px rows fill the 80 px exactly (FR-467). Text: 13 px on 16 px lines, two lines in
+   each status block. */
+.bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--topbar-height);
+  box-sizing: border-box;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 8px;
+  background-color: var(--color-surface);
+  color: var(--color-ink);
+  box-shadow: inset 0 -1px 0 var(--color-border), var(--shadow-panel);
+  font-size: 13px;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+/* Left: nation, turn, cash and score blocks */
+.status {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Short of room the nation's name gives way first (an ellipsis), then the Council line (FR-467, spec section 8) */
+.nation {
+  flex: 0 1000 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+/* Two lines: the main value, then what it means (next Council, last turn's change, rank) */
+.block {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+}
+
+/* A one-column grid, so the block shrinks only to its turn line (line 1 stays whole, the date right-aligned): the Council
+   line, min-width 0 (globals.css .next-council), adds nothing to that minimum and ends in an ellipsis instead */
+.turn {
+  flex: 0 1 auto;
+  display: grid;
+}
+
+/* Right: the buttons, Advance Turn last (globals.css .topbar-buttons) */
+.actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+}
+
+/* Below 1024 px of width: row 1 the status blocks, row 2 the buttons, 40 px each; row 2's strip scrolls sideways
+   (globals.css), Advance Turn stays at its right */
+@media (max-width: 1023.98px) {
+  .bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+  }
+
+  .status,
+  .actions {
+    height: 40px;
+  }
+
+  .actions {
+    min-width: 0;
+  }
+}

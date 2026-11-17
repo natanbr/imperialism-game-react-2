@@ -1,106 +1,39 @@
-import React, { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import React, { useCallback, useState } from "react";
 import { TileInfoPanel } from "./TileInfoPanel";
-import { useGameStore } from '../store/rootStore';
-import { selectActiveNation } from "../store/selectors";
-import { TurnIndicator, NextCouncil, NationStats, ActionButtons, NewsPanel, FoodWarning, UpkeepWarning, ScoreIndicator, ScoreTable } from "./HUD/index";
-import { AboutPanel } from "./HUD/AboutPanel";
-import { UI_ICONS } from "./icons";
-import { GameIcon } from "./GameIcon";
-import { startNewGameOnCapital } from "@/hooks/mapActions";
-
-/** FR-377: the Debug box is for bug reports, shown only with `debug` in the URL's query (none in the server render). */
-const noSubscription = () => () => {};
-const useDebugQuery = (): boolean =>
-    useSyncExternalStore(noSubscription, () => new URLSearchParams(window.location.search).has("debug"), () => false);
+import { useGameStore } from "../store/rootStore";
+import { NewsPanel } from "./HUD/index";
+import { Alerts } from "./HUD/Alerts";
+import { ALL_GROUPS_CLOSED, HudGroups, type GroupId, type GroupsOpen } from "./HUD/HudGroups";
 
 /**
- * New game throws the running game away, so the HUD asks first, in place (FR-109). The panel takes
- * the focus when it opens (FR-111), so a keyboard or screen reader user lands on the question; it
- * is the panel and not Start new game, so a stray Enter does not throw the game away.
+ * The right pane (M12b, docs/specs/hud.md section 2b), under the top bar: Tile Info first (FR-470; with no tile a
+ * placeholder line, card Q112), the alerts (FR-471), the news in the free height (FR-472) and the closed groups at the
+ * bottom (FR-473). No command: Advance Turn and the dialog buttons are the top bar's (card Q113, one Advance Turn on the
+ * page). `.hud-content` is the one scroll area with its fade (FR-235). The groups' open state is this
+ * component's: the HUD stays mounted for the page's life, so End Turn and New game keep it, a reload closes them, and it
+ * is never saved.
  */
-const ConfirmNewGame: React.FC<{ onDone: () => void }> = ({ onDone }) => {
-    const panel = useRef<HTMLDivElement>(null);
-    useEffect(() => {
-        panel.current?.focus();
-    }, []);
-    return (
-        <div ref={panel} tabIndex={-1} id="confirm-new-game" className="confirm-panel" role="group" aria-label="Confirm new game">
-            <p>Start a new game? This game will be lost.</p>
-            <div className="confirm-actions">
-                <button
-                    className="btn btn-primary btn-sm"
-                    onClick={() => {
-                        startNewGameOnCapital();
-                        onDone();
-                    }}
-                >
-                    Start new game
-                </button>
-                <button className="btn btn-plain btn-sm" onClick={onDone}>
-                    Keep playing
-                </button>
-            </div>
-        </div>
-    );
-};
-
 export const HUD: React.FC = () => {
     const selectedTileId = useGameStore((s) => s.selectedTileId);
     const map = useGameStore((s) => s.game.map);
-    const seed = useGameStore((s) => s.game.seed);
-    const nation = useGameStore(selectActiveNation);
-    const selectedTile = map.tiles.flat().find(tile => tile.id === selectedTileId);
-    // The credits panel and the New game question are view state only, so they live here (FR-089, FR-109)
-    const [isAboutOpen, setAboutOpen] = useState(false);
-    const [isConfirmingNewGame, setConfirmingNewGame] = useState(false);
-    const debug = useDebugQuery();
+    const selectedTile = selectedTileId ? map.tiles.flat().find((tile) => tile.id === selectedTileId) : undefined;
+    const [open, setOpen] = useState<GroupsOpen>(ALL_GROUPS_CLOSED);
+    const toggle = useCallback((id: GroupId) => setOpen((groups) => ({ ...groups, [id]: !groups[id] })), []);
 
-    // FR-424: the labels are spans, so a window under 500 px high shows the icons only (globals.css); the names stay
     return (
         <div className="hud-container" data-edge-scroll="horizontal-only">
             <div className="hud-content">
-                <div className="hud-header">
-                    <h2 className="hud-title">{nation?.name ?? "HUD"}</h2>
-                    <div className="hud-header-actions">
-                        <button
-                            className="icon-button"
-                            onClick={() => setConfirmingNewGame((open) => !open)}
-                            title="Start a new game"
-                            aria-expanded={isConfirmingNewGame}
-                            aria-controls={isConfirmingNewGame ? "confirm-new-game" : undefined}
-                        >
-                            <GameIcon name={UI_ICONS.newGame} /> <span className="hud-header-label">New game</span>
-                        </button>
-                        <button className="icon-button" onClick={() => setAboutOpen((open) => !open)} title="About and credits">
-                            <GameIcon name={UI_ICONS.about} /> <span className="hud-header-label">About</span>
-                        </button>
-                    </div>
-                </div>
-                {isConfirmingNewGame && <ConfirmNewGame onDone={() => setConfirmingNewGame(false)} />}
-                {isAboutOpen && <AboutPanel onClose={() => setAboutOpen(false)} />}
-                <TurnIndicator />
-                <NationStats />
-                <ScoreIndicator />
-                {/* FR-371: the selected tile where the player looks, right under the turn, cash and score */}
-                <TileInfoPanel selectedTile={selectedTile} />
-                <ScoreTable />
-                {/* FR-371: the Council line and its projection after Tile Info (FR-301, FR-314) */}
-                <NextCouncil />
-                <FoodWarning />
-                <UpkeepWarning />
-                <NewsPanel />
-
-                {/* Debug section, last: the tile's coordinates and the seed, for bug reports (FR-377: only with ?debug) */}
-                {debug && selectedTile && (
-                    <div className="hud-debug-section">
-                        <div className="hud-debug-title">Debug</div>
-                        <div><strong>Tile:</strong> {selectedTile.x},{selectedTile.y} (id {selectedTile.id})</div>
-                        <div><strong>Seed:</strong> {seed}</div>
-                    </div>
+                {selectedTile ? (
+                    <TileInfoPanel selectedTile={selectedTile} />
+                ) : (
+                    <p className="hud-tile-none" data-testid="tile-info-none">
+                        No tile selected: click a tile on the map.
+                    </p>
                 )}
+                <Alerts />
+                <NewsPanel />
+                <HudGroups open={open} onToggle={toggle} />
             </div>
-
-            <ActionButtons />
         </div>
     );
 };

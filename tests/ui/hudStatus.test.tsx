@@ -2,9 +2,11 @@
 // M12 T7 to T9 (card Q95): the HUD says what the player should know. FR-423 Advance Turn cannot run twice by accident (a
 // 600 ms lock after each End Turn, the button and the key "n" alike, the button aria-busy meanwhile); FR-432 the civilians
 // without orders are counted under the turn line; FR-412 one "At war with ..." line per enemy under the turn line.
+// M12b FR-471: those lines and the warnings are the right pane's alerts block now.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { act, fireEvent, render, screen } from '@testing-library/react';
-import { ActionButtons, TurnIndicator } from '@/components/HUD/index';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { ActionButtons, NOT_SAVED_TEXT } from '@/components/HUD/index';
+import { HUD } from '@/components/HUD';
 import { useGameStore } from '@/store/rootStore';
 import { END_TURN_LOCK_MS } from '@/store/gameSlice';
 import { HOW_TO_PLAY_SEEN_KEY } from '@/store/persistence';
@@ -12,7 +14,7 @@ import { newGame } from '@/engine';
 import Home from '@/page';
 import { WorkerStatus } from '@/types/Workers';
 import type { GameState } from '@/types/GameState';
-import { N1, N2, setPair } from '../engine/fixtures';
+import { emptyWarehouse, N1, N2, setPair, setTreasury } from '../engine/fixtures';
 import { text } from './domText';
 import { failOnActWarnings } from './actWarnings';
 
@@ -107,30 +109,34 @@ describe('FR-423 Advance Turn cannot run twice by accident', () => {
   });
 });
 
+// M12b FR-471: the war and idle lines left the turn line for the right pane's alerts block (under Tile Info, above the
+// news, never in a group), so these cases render the HUD, not TurnIndicator; their texts are unchanged.
+const alerts = () => screen.getByTestId('hud-alerts');
+
 describe('FR-432 idle civilians are counted', () => {
-  it('FR-432 a new game: "7 civilians without orders" under the turn line', () => {
+  it('FR-432 FR-471 a new game: "7 civilians without orders" in the alerts', () => {
     show(continent());
-    render(<TurnIndicator />);
-    expect(text(screen.getByTestId('idle-civilians'))).toBe('7 civilians without orders');
+    render(<HUD />);
+    expect(text(within(alerts()).getByTestId('idle-civilians'))).toBe('7 civilians without orders');
   });
 
   it('FR-432 a civilian that moved or works is not counted; one left says "1 civilian"; none left, no line', () => {
     show(withStatus(continent(), WorkerStatus.Moved, 4));
-    const { rerender } = render(<TurnIndicator />);
+    const { rerender } = render(<HUD />);
     expect(text(screen.getByTestId('idle-civilians'))).toBe('3 civilians without orders');
 
     act(() => show(withStatus(continent(), WorkerStatus.Working, 6)));
-    rerender(<TurnIndicator />);
+    rerender(<HUD />);
     expect(text(screen.getByTestId('idle-civilians'))).toBe('1 civilian without orders');
 
     act(() => show(withStatus(continent(), WorkerStatus.Working, 7)));
-    rerender(<TurnIndicator />);
+    rerender(<HUD />);
     expect(screen.queryByTestId('idle-civilians')).toBeNull();
   });
 
   it('FR-432 an order given counts at once: a move leaves 6', () => {
     show(continent());
-    render(<TurnIndicator />);
+    render(<HUD />);
     const capital = useGameStore.getState().game.map.tiles.flat().find((t) => t.workers.some((w) => w.nationId === N1))!;
     const farmer = capital.workers.find((w) => w.type === 'farmer')!;
     act(() => void useGameStore.getState().submitOrder({ kind: 'moveWorker', nationId: N1, workerId: farmer.id, toTileId: '3-9' }));
@@ -138,37 +144,84 @@ describe('FR-432 idle civilians are counted', () => {
     expect(text(screen.getByTestId('idle-civilians'))).toBe('6 civilians without orders');
   });
 
-  it('FR-432 none after game over', () => {
-    show({ ...continent(), gameOver: { turn: 40, year: 1824, scores: [] } });
-    render(<TurnIndicator />);
+  it('FR-432 none after game over (nor a war line)', () => {
+    show(setPair({ ...continent(), gameOver: { turn: 40, year: 1824, scores: [] } }, N1, N2, { war: { aggressors: [N2], since: 3 } }));
+    render(<HUD />);
     expect(screen.queryByTestId('idle-civilians')).toBeNull();
+    expect(screen.queryByTestId('at-war')).toBeNull();
   });
 });
 
 describe('FR-412 the HUD says we are at war', () => {
-  it('FR-412 one line per enemy under the turn line, "At war with Valdoria (since turn 3)", the Great Power first', () => {
+  it('FR-412 FR-471 one line per enemy in the alerts, "At war with Valdoria (since turn 3)", the Great Power first; under Tile Info, above the news', () => {
     let g = { ...continent(), turn: 5 };
     g = setPair(g, N1, 'minor-2', { war: { aggressors: [N1], since: 4 } });
     g = setPair(g, N1, N2, { war: { aggressors: [N2], since: 3 } });
     show(g);
-    render(<TurnIndicator />);
+    render(<HUD />);
 
-    const lines = screen.getAllByTestId('at-war').map(text);
+    const lines = within(alerts()).getAllByTestId('at-war').map(text);
     expect(lines).toEqual(['At war with Valdoria (since turn 3)', 'At war with Sundmark (since turn 4)']);
-    // Under the turn line, in page order
-    const turnLine = screen.getByTestId('turn-indicator');
-    expect(turnLine.compareDocumentPosition(screen.getAllByTestId('at-war')[0]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // In page order: the Tile Info placeholder, the war lines, the news (M12 had them under the turn line)
+    const war = screen.getAllByTestId('at-war')[0];
+    expect(screen.getByTestId('tile-info-none').compareDocumentPosition(war) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(war.compareDocumentPosition(screen.getByTestId('news-panel')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('FR-412 at peace with everyone: no war line', () => {
     show(continent());
-    render(<TurnIndicator />);
+    render(<HUD />);
     expect(screen.queryByTestId('at-war')).toBeNull();
   });
 
   it('FR-412 a war between two other countries is not ours', () => {
     show(setPair(continent(), N2, 'minor-1', { war: { aggressors: [N2], since: 1 } }));
-    render(<TurnIndicator />);
+    render(<HUD />);
     expect(screen.queryByTestId('at-war')).toBeNull();
+  });
+});
+
+describe('FR-471 the alerts stay in sight', () => {
+  it('FR-471 Not saved, the food and upkeep warnings, the wars and the idle civilians are all in the alerts block, none in a group; texts and roles unchanged', () => {
+    let g = setTreasury({ ...continent(), turn: 5 }, N1, 0);
+    g = setPair(g, N1, N2, { war: { aggressors: [N2], since: 3 } });
+    // A short meal: no food in the warehouse
+    g = emptyWarehouse(g, N1);
+    show(g);
+    useGameStore.setState({ saveFailed: true });
+    render(<HUD />);
+    const block = alerts();
+    for (const id of ['not-saved', 'food-warning', 'upkeep-warning', 'at-war', 'idle-civilians']) {
+      const line = within(block).getByTestId(id);
+      expect(line.closest('[data-testid="hud-groups"]'), id).toBeNull();
+    }
+    expect(text(within(block).getByTestId('not-saved'))).toBe(NOT_SAVED_TEXT);
+    for (const id of ['not-saved', 'food-warning', 'upkeep-warning']) expect(within(block).getByTestId(id).getAttribute('role'), id).toBe('status');
+    expect(text(within(block).getByTestId('food-warning'))).toMatch(/^Food is short: at the end of this turn /);
+    expect(text(within(block).getByTestId('upkeep-warning'))).toMatch(/^Army upkeep of \$100 is due at End Turn and the treasury will hold \$0: \$100 short\./);
+    // One of each on the page
+    for (const id of ['not-saved', 'food-warning', 'upkeep-warning', 'idle-civilians']) expect(screen.getAllByTestId(id), id).toHaveLength(1);
+  });
+
+  it('FR-471 FR-466 on the whole page (Home) one Not saved line, in the alerts; the pane holds no Advance Turn (card Q113: the top bar\'s is the only one)', () => {
+    show(continent());
+    // The page's autosave writes at once; a browser that refuses every write (storage full) makes it say Not saved
+    const refuse = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('quota', 'QuotaExceededError');
+    });
+    render(<Home />);
+    refuse.mockRestore();
+    expect(useGameStore.getState().saveFailed).toBe(true);
+    const notSaved = screen.getAllByTestId('not-saved');
+    expect(notSaved).toHaveLength(1);
+    expect(alerts().contains(notSaved[0])).toBe(true);
+    expect(within(document.querySelector('.hud-container') as HTMLElement).queryByRole('button', { name: /Advance Turn/ })).toBeNull();
+    expect(screen.getAllByRole('button', { name: /Advance Turn/ })).toHaveLength(1);
+  });
+
+  it('FR-471 with none of them the alerts block is absent', () => {
+    show(withStatus(continent(), WorkerStatus.Working, 7));
+    render(<HUD />);
+    expect(screen.queryByTestId('hud-alerts')).toBeNull();
   });
 });

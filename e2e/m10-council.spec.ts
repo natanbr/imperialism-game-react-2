@@ -78,26 +78,37 @@ async function turnLineLayout(page: Page) {
 }
 
 /**
- * FR-314, FR-317: the projected vote is shown under the Council line, inside the HUD's column, and is the line's accessible
- * description; both lines are in the HUD's body text colour (the light grey was missed, QA item 7).
+ * FR-314, FR-317: the projected vote is the Council line's accessible description, and both lines are in the HUD's body
+ * text colour (the light grey was missed, QA item 7). M12b (FR-474): the Council line is in the top bar's turn block, the
+ * projection in the right pane's Nation group, closed by default; so the group is opened, the projection must lie inside
+ * the group's panel box (was: under the Council line, inside the turn indicator's column), and the group is closed again
+ * so the rest of the test sees the pane as the player first does. The description and colour checks are unchanged.
  */
 async function projectionShown(page: Page) {
   const line = page.getByTestId('next-council');
   const projection = page.getByTestId('council-projection');
+  const nation = page.getByRole('button', { name: 'Nation', exact: true });
+  // The line names it as its description even while the group is closed (aria-describedby reads hidden text)
+  await expect(line).toHaveAccessibleDescription(/^If it met now: Testland \d+, Valdoria \d+, abstain \d+ of 12; 9 needed$/);
+  await nation.click();
+  await expect(nation).toHaveAttribute('aria-expanded', 'true');
   await expect(projection).toBeVisible();
   await expect(projection).toHaveText(/^If it met now: Testland \d+, Valdoria \d+, abstain \d+ of 12; 9 needed$/);
   await expect(line).toHaveAccessibleDescription((await projection.innerText()).trim());
   await expect(line).not.toHaveAttribute('title');
-  const lineBox = (await line.boundingBox())!;
   const box = (await projection.boundingBox())!;
-  const column = (await page.getByTestId('turn-indicator').boundingBox())!;
-  expect(box.y).toBeGreaterThanOrEqual(lineBox.y + lineBox.height - 0.5);
-  expect(box.x + box.width).toBeLessThanOrEqual(column.x + column.width + 0.5);
+  const panel = (await page.getByRole('region', { name: 'Nation' }).boundingBox())!;
+  expect(box.y).toBeGreaterThanOrEqual(panel.y - 0.5);
+  expect(box.x).toBeGreaterThanOrEqual(panel.x - 0.5);
+  expect(box.x + box.width).toBeLessThanOrEqual(panel.x + panel.width + 0.5);
+  expect(box.y + box.height).toBeLessThanOrEqual(panel.y + panel.height + 0.5);
   const colours = await page.evaluate(() => {
     const colour = (selector: string) => getComputedStyle(document.querySelector(selector)!).color;
     return { body: colour('.hud-container'), line: colour('[data-testid="next-council"]'), projection: colour('[data-testid="council-projection"]') };
   });
   expect(colours).toEqual({ body: colours.body, line: colours.body, projection: colours.body });
+  await nation.click();
+  await expect(nation).toHaveAttribute('aria-expanded', 'false');
 }
 
 /**

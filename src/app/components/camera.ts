@@ -1,19 +1,19 @@
 // The map camera (FR-083): the camera is the map's scroll position in pixels, and the map area is
-// the window left of the HUD, which lies over the map's right edge. The map is drawn at a zoom step (FR-368):
-// every size here is in screen pixels at that step.
+// the window under the top bar and left of the HUD, which lies over the map's right edge (FR-465). The map is drawn at a
+// zoom step (FR-368): every size here is in screen pixels at that step.
 import type { MapConfig } from "@/types/Map";
 import type { GameState } from "@/types/GameState";
 import type { Tile } from "@/types/Tile";
-import { HUD_PX, TILE_PX } from "@/styles/theme";
+import { HUD_PX, TILE_PX, topBarPx } from "@/styles/theme";
 import { useGameStore } from "@/store/rootStore";
 
 // The grid as MapView draws it (FR-088): odd rows are shifted half a tile.
-export { HUD_PX, TILE_PX };
+export { HUD_PX, TILE_PX, topBarPx };
 
 /** The map's zoom steps (FR-368): 100% (today's 42 px tiles, the start), 150% and 200%. */
 export const ZOOM_STEPS = [1, 1.5, 2] as const;
 
-/** A map smaller than the map area by more than this on an axis is centred on it (FR-367); 1280x720 spares 1 and 48 px. */
+/** A map smaller than the map area by more than this on an axis is centred on it (FR-367); 1280x720 spares 1 and 8 px. */
 export const CENTRE_SPARE_PX = 64;
 
 export interface Camera {
@@ -33,9 +33,10 @@ export const mapSizePx = ({ cols, rows }: MapSize, zoom = 1): MapArea => ({
   height: rows * TILE_PX * zoom,
 });
 
+/** The window less the right pane and the top bar (FR-465): 1030 x 680 at 1280x720, 550 x 370 at 800x450 (two-row bar). */
 export const mapAreaOf = ({ innerWidth, innerHeight }: { innerWidth: number; innerHeight: number }): MapArea => ({
   width: Math.max(0, innerWidth - HUD_PX),
-  height: innerHeight,
+  height: Math.max(0, innerHeight - topBarPx(innerWidth)),
 });
 
 /** Where the map is drawn in the map area (FR-367): half the spare space on an axis with more than 64 px spare, else 0. */

@@ -1,13 +1,13 @@
 {
  "project": "Imperialism Revival",
  "schema": 3,
- "updated": "2026-11-16",
+ "updated": "2026-11-17",
  "audit": {
   "date": "2026-11-14",
   "reviewers": 8,
   "folder": "docs/audit/2026-11-14",
   "branch": "claude/m12-honest-game",
-  "main": "a690759"
+  "main": "91d7edc"
  },
  "source": "docs/report/roadmap.json, docs/audit/2026-11-14/*.json and docs/requirements.md in the imperialism-game-react-2 repo",
  "reality": {
@@ -180,7 +180,7 @@
    "text": "Of 24 rule topics of the original game: 3 built, 14 partial, 1 wrong, 1 dead code, 5 missing."
   },
   "notChecked": "Not checked by the audit: Firefox and Safari, real touch on a phone, screen readers, and a human game played all the way to a Council win.",
-  "notFixed": "M12 (themes T1 to T10, FR-357 to FR-464) is built on the branch claude/m12-honest-game and its pull request is being opened, not merged: main is still a690759 (after M11 and three housekeeping merges), so the findings are fixed on the branch only. Themes T11 to T16 are not fixed: M12b and M13 to M16 are planned, M17 and M18 later.",
+  "notFixed": "M12 (themes T1 to T10, FR-357 to FR-464) is merged into main 91d7edc (pull request 34), so its findings are fixed on main. M12b (the HUD you asked for, FR-465 to FR-480) is built and committed on the branch claude/m12b-hud, not yet pushed or merged. Themes T11 to T16 are not fixed: M13 to M16 are planned, M17 and M18 later.",
   "filedNote": "The plan named 122 of the 160 findings in its themes. I filed the other 38 under the nearest theme; they are marked \"filed\" and can be moved."
  },
  "statusLegend": [
@@ -1250,7 +1250,7 @@
   }
  ],
  "plan": {
-  "orderNote": "The order follows player impact first, then dependency. M12 is built and waits for review. M12b (the HUD, which you asked for) and M13 are planned for tonight; M14 to M16 follow, as far as the quota goes. M16 needs M15's University, and M17 needs M15's Shipyard. Cards marked \"Needed before\" decide work that cannot be finished without your answer.",
+  "orderNote": "The order follows player impact first, then dependency. M12 is merged. M12b (the HUD, which you asked for) is built and waits for review; M13 is planned for tonight; M14 to M16 follow, as far as the quota goes. M16 needs M15's University, and M17 needs M15's Shipyard. Cards marked \"Needed before\" decide work that cannot be finished without your answer.",
   "milestones": [
    {
     "id": "M12",
@@ -1291,14 +1291,14 @@
      "M": 15,
      "L": 2
     },
-    "statusText": "Built on the branch claude/m12-honest-game, pull request being opened, not merged. Gate 4 on b384b99 (FR-357 to FR-460): 2438 unit tests, lint 0 errors, tsc and build clean, Playwright 92 passed and 1 skipped. The close-out rows FR-461 to FR-464 are tested; gate 5 on the close-out: 2446 unit tests, lint 0 errors, tsc and build clean, Playwright 92 passed and 1 skipped. Parked: FR-372 (eight whole news lines at 1280x720; the new HUD, M12b, decides it). Status of FR-357 to FR-443 (2026-11-16): 77 tested, 9 partial, 1 parked. Partial: FR-365 (touch panning is checked only as a style rule, no test drags a finger), FR-388 (the four minor nations' capitals show no fort mark) and FR-435 to FR-441 (document rows, checked by a script and by reading, not by a test of the suite). Gate 6 on the final tree (2026-11-17, after the last close-out change, a click onto the capital, FR-461): 2447 unit tests, lint 0 errors, tsc and build clean, Playwright 92 passed and 1 skipped.",
+    "statusText": "Merged into main 91d7edc (pull request 34, 2026-11-17). Built on the branch claude/m12-honest-game. Gate 4 on b384b99 (FR-357 to FR-460): 2438 unit tests, lint 0 errors, tsc and build clean, Playwright 92 passed and 1 skipped. The close-out rows FR-461 to FR-464 are tested; gate 5 on the close-out: 2446 unit tests, lint 0 errors, tsc and build clean, Playwright 92 passed and 1 skipped. Parked: FR-372 (eight whole news lines at 1280x720; closed by the new HUD, M12b: FR-472, 20 whole lines). Status of FR-357 to FR-443 (2026-11-16): 77 tested, 9 partial, 1 parked; after M12b (2026-11-17): 78 tested, 9 partial. Partial: FR-365 (touch panning is checked only as a style rule, no test drags a finger), FR-388 (the four minor nations' capitals show no fort mark) and FR-435 to FR-441 (document rows, checked by a script and by reading, not by a test of the suite). Gate 6 on the final tree (2026-11-17, after the last close-out change, a click onto the capital, FR-461): 2447 unit tests, lint 0 errors, tsc and build clean, Playwright 92 passed and 1 skipped.",
     "spec": "docs/requirements.md, section M12"
    },
    {
     "id": "M12b",
     "title": "A better HUD",
-    "status": "tonight",
-    "statusLabel": "Planned for tonight",
+    "status": "built",
+    "statusLabel": "Built, pull request being opened",
     "themes": [],
     "goal": "The right pane stops being one long scroll. A top bar holds your nation, the turn and the Council countdown, cash, score and rank, the dialog buttons as icons, and the one Advance Turn button; the right pane keeps Tile Info, alerts and the news, and moves the rest into closed groups. You asked for this (NR-034); it follows the original game's layout.",
     "check": [
@@ -1319,7 +1319,7 @@
      "M": 0,
      "L": 0
     },
-    "statusText": "Rows FR-465 to FR-480 are written (docs/specs/hud.md) and the build is under way tonight. Nothing is merged.",
+    "statusText": "Built and committed on the branch claude/m12b-hud (not pushed, no pull request yet). FR-465 to FR-480 are tested: a top bar across the window with the nation, turn and date with the next Council line, cash with last turn's change, score with its rank, the dialog buttons as icons and the one Advance Turn at the right end (card Q113); the right pane holds Tile Info, the alerts, the news (20 whole lines at 1280x720 on turn 2, so FR-372 is closed) and three closed groups: Nation, Work in progress and Details for bug reports, shown without ?debug (card Q102). Gate 1 (2026-11-17): 2503 unit tests, lint 0 errors, tsc and build clean, Playwright 105 passed. Labels beside the icons from 1800 px of width, not 1600 (measured; FR-468).",
     "sizeText": "Medium: 16 rows (FR-465 to FR-480), one lane. It has no audit findings of its own.",
     "fixesText": "None of the 16 themes (it answers NR-034)",
     "spec": "docs/specs/hud.md"

@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 // FR-048 to FR-050: the warehouse dialog and the HUD show display names, the date and the food warning.
 import { describe, it, expect } from 'vitest';
-import { act, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { WarehouseModal } from '@/components/WarehouseModal';
-import { FoodWarning, NewsPanel, NextCouncil, TurnIndicator, UpkeepWarning } from '@/components/HUD/index';
+import { CouncilProjection, FoodWarning, NewsPanel, NextCouncil, TurnIndicator, UpkeepWarning } from '@/components/HUD/index';
 import { useGameStore } from '@/store/rootStore';
 import { councilVote, resolveTurn } from '@/engine';
 import type { GameState } from '@/types/GameState';
@@ -18,7 +18,9 @@ import { failOnActWarnings } from './actWarnings';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { HUD } from '@/components/HUD';
+import { TopBar } from '@/components/HUD/TopBar';
 import { TERRAIN_TEXT } from '@/components/gameText';
+import { WorkerStatus } from '@/types/Workers';
 
 // FR-110 (f): every test here fails on a React act() warning
 failOnActWarnings();
@@ -154,10 +156,18 @@ describe('FR-301 the next Council in the HUD', () => {
       .map((id) => document.getElementById(id)?.textContent ?? '')
       .join(' ');
   const PROJECTION = 'If it met now: Testland 4, Valdoria 4, abstain 4 of 12; 9 needed';
+  // M12b T2 (docs/specs/hud.md section 2b): the line goes to the top bar's turn block and the projection to the pane's Nation
+  // group, so they are two components now; these tests render both (was <NextCouncil /> alone), assertions unchanged
+  const Council = () => (
+    <>
+      <NextCouncil />
+      <CouncilProjection />
+    </>
+  );
 
   it('FR-301 FR-314 a new continent game: "Next Council: turn 10 (Summer 1817)"; under it the projected vote, shown, which is also its description', () => {
     show(continent());
-    render(<><TurnIndicator /><NextCouncil /></>);
+    render(<><TurnIndicator /><Council /></>);
     const line = screen.getByTestId('next-council');
     expect(text(line)).toBe('Next Council: turn 10 (Summer 1817)');
     const projection = screen.getByTestId('council-projection');
@@ -191,7 +201,7 @@ describe('FR-301 the next Council in the HUD', () => {
 
   it("FR-301 FR-313 the projection follows the game, the player's nation first: Valdoria, the 1st nominee holding Testland North-East, reads second", () => {
     show(transferProvince(continent(), NE1, N2));
-    render(<NextCouncil />);
+    render(<Council />);
     const line = screen.getByTestId('next-council');
     expect(text(screen.getByTestId('council-projection'))).toBe('If it met now: Testland 3, Valdoria 5, abstain 4 of 12; 9 needed');
     expect(description(line)).toBe(text(screen.getByTestId('council-projection')));
@@ -202,7 +212,7 @@ describe('FR-301 the next Council in the HUD', () => {
     const s = transferProvince(threePowers(continent()), NE1, N2);
     expect(councilVote(s)!.nominees.map((n) => n.nationId)).toEqual([N2, N1]);
     show(s, { activeNationId: N3 });
-    render(<NextCouncil />);
+    render(<Council />);
     const projection = screen.getByTestId('council-projection');
     expect(text(projection)).toBe('If it met now: Valdoria 4, Testland 3, abstain 5 of 12; 9 needed');
     expect(description(screen.getByTestId('next-council'))).toBe(text(projection));
@@ -210,7 +220,7 @@ describe('FR-301 the next Council in the HUD', () => {
 
   it('FR-313 FR-314 the projection counts the abstentions: Sundmark at 52 with Testland votes, 3 abstain', () => {
     show(setPair(continent(), SUNDMARK, N1, { points: 52 }));
-    render(<NextCouncil />);
+    render(<Council />);
     expect(text(screen.getByTestId('council-projection'))).toBe('If it met now: Testland 5, Valdoria 4, abstain 3 of 12; 9 needed');
   });
 
@@ -221,7 +231,7 @@ describe('FR-301 the next Council in the HUD', () => {
       continent()
     );
     show(alone);
-    const { container } = render(<NextCouncil />);
+    const { container } = render(<Council />);
     const line = screen.getByTestId('next-council');
     expect(text(line)).toBe('Next Council: turn 10 (Summer 1817)');
     expect(line.hasAttribute('title')).toBe(false);
@@ -287,23 +297,36 @@ describe('FR-371 FR-377 FR-424 the HUD column', () => {
   const parts = (container: HTMLElement) =>
     [...container.querySelector('.hud-content')!.children].map((el) => el.getAttribute('data-testid') ?? el.className);
 
-  it('FR-371 Tile Info is drawn right after the score line, before the score table, the warnings and the news', () => {
+  // M12b FR-470 (replaces the FR-371 order test, whose "right after the score line" order was
+  // [turn, cash, score, tile-info, score-table, next-council, council-projection, warnings, news]: the turn, cash and
+  // score went to the top bar, the score table and the projection to the Nation group, so Tile Info comes first)
+  it('FR-470 the pane holds, in order, Tile Info, the alerts, the news and the groups', () => {
     // No cash: the upkeep warning shows too
     const state = setTreasury(continent(), N1, 0);
     show(state, { selectedTileId: capitalTile(state).id });
     const { container } = render(<HUD />);
-    const order = parts(container);
-    const at = (id: string) => order.indexOf(id);
-    expect(at('upkeep-warning'), order.join(', ')).toBeGreaterThan(-1);
-    expect(at('tile-info'), order.join(', ')).toBe(at('hud-score') + 1);
-    expect(at('score-table')).toBeGreaterThan(at('tile-info'));
-    expect(at('upkeep-warning')).toBeGreaterThan(at('tile-info'));
-    expect(at('news-panel')).toBeGreaterThan(at('upkeep-warning'));
-    // M12 review (L2-05): the Council projection (under its Next Council line, FR-314) comes after Tile Info too, in the
-    // row's order: score table, Council projection, warnings, news
-    expect(at('next-council'), order.join(', ')).toBeGreaterThan(at('score-table'));
-    expect(at('council-projection'), order.join(', ')).toBe(at('next-council') + 1);
-    expect(at('upkeep-warning')).toBeGreaterThan(at('council-projection'));
+    expect(parts(container)).toEqual(['tile-info', 'hud-alerts', 'news-panel', 'hud-groups']);
+    expect(screen.getByTestId('upkeep-warning').closest('[data-testid="hud-alerts"]')).not.toBeNull();
+    expect(screen.queryByTestId('tile-info-none')).toBeNull();
+  });
+
+  it('FR-470 with no tile selected a placeholder line stands first (TileInfoPanel itself still draws nothing, FR-315); no alert, no alerts block', () => {
+    // Every civilian of the player at work, no army (two-islands), the meal covered: nothing to alert
+    const state = game();
+    const busy = {
+      ...state,
+      map: {
+        ...state.map,
+        tiles: state.map.tiles.map((row) =>
+          row.map((t) => ({ ...t, workers: t.workers.map((w) => (w.nationId === N1 ? { ...w, status: WorkerStatus.Working } : w)) }))
+        ),
+      },
+    };
+    show(busy);
+    const { container } = render(<HUD />);
+    expect(parts(container)).toEqual(['tile-info-none', 'news-panel', 'hud-groups']);
+    expect(text(screen.getByTestId('tile-info-none'))).toBe('No tile selected: click a tile on the map.');
+    expect(screen.queryByTestId('tile-info')).toBeNull();
   });
 
   it('FR-371 the river is on the terrain line, not a line of its own: "Terrain: <terrain>, river"', () => {
@@ -320,43 +343,55 @@ describe('FR-371 FR-377 FR-424 the HUD column', () => {
     expect(text(screen.getByTestId('tile-terrain'))).toBe(`Terrain: ${TERRAIN_TEXT[tile.terrain]}`);
   });
 
-  it('FR-377 no Debug box for the player; with ?debug in the URL it shows the tile and the seed', () => {
+  // M12b FR-476 (replaces FR-377's test, "no Debug box without ?debug; with it 'Debug Tile: x,y (id …) Seed: N'"):
+  // Nathan kept the details for everyone (card Q102), in the closed group "Details for bug reports", with more lines
+  it('FR-476 with or without ?debug the Details for bug reports group holds the tile and the seed, closed until opened', () => {
     const state = continent();
     const capital = capitalTile(state);
     show(state, { selectedTileId: capital.id });
-    const first = render(<HUD />);
-    expect(first.container.querySelector('.hud-debug-section')).toBeNull();
-    first.unmount();
-
-    window.history.replaceState(null, '', '/?debug');
-    try {
-      const { container } = render(<HUD />);
-      const debug = container.querySelector('.hud-debug-section');
-      expect(debug).not.toBeNull();
-      expect(text(debug as HTMLElement)).toBe(`Debug Tile: ${capital.x},${capital.y} (id ${capital.id}) Seed: ${state.seed}`);
-    } finally {
-      window.history.replaceState(null, '', '/');
+    for (const path of ['/', '/?debug']) {
+      window.history.replaceState(null, '', path);
+      try {
+        const { container, unmount } = render(<HUD />);
+        const debug = container.querySelector('.hud-debug-section') as HTMLElement;
+        expect(debug, path).not.toBeNull();
+        expect(debug.hidden, path).toBe(true);
+        fireEvent.click(screen.getByRole('button', { name: 'Details for bug reports' }));
+        expect(debug.hidden, path).toBe(false);
+        const lines = [...debug.querySelectorAll('[data-testid="hud-debug-line"]')].map((el) => text(el));
+        expect(lines.slice(0, 2), path).toEqual([`Tile: ${capital.x},${capital.y} (id ${capital.id})`, `Seed: ${state.seed}`]);
+        unmount();
+      } finally {
+        window.history.replaceState(null, '', '/');
+      }
     }
   });
 
-  it('FR-424 below 500 px of window height the action buttons are a two-column grid (Center and Advance Turn a row of their own) and the header is one row', () => {
+  // M12b T2 re-recorded (FR-467, FR-468; docs/specs/hud.md section 5). Old: under max-height 499.98px the action buttons
+  // were a 1fr 1fr grid with the Center/Advance Turn row across, the header one row and .hud-header-label clipped. New: the
+  // header and the buttons left the pane for the top bar, which keeps the turn, date, cash and score in sight at 640x360
+  // (two 40 px rows, e2e/m13-hud.spec.ts), so no window-height rule is left for them; the labels are .topbar-label spans,
+  // hidden from sight (clip-path, still the name) below 1800 px of width (measured: the row with labels needs 1746 px).
+  it('FR-424 FR-468 no window-height rule is left for the old header and button grid; the bar\'s labels are hidden from sight only, below 1800 px of width', () => {
     const css = readFileSync(join(__dirname, '..', '..', 'src/app/globals.css'), 'utf8');
-    const at = css.indexOf('@media (max-height: 499.98px) {');
+    const blocks: string[] = [];
+    for (let at = css.indexOf('@media (max-height: 499.98px) {'); at >= 0; at = css.indexOf('@media (max-height: 499.98px) {', at + 1))
+      blocks.push(css.slice(at, css.indexOf('\n}', at)));
+    for (const block of blocks) expect(block).not.toMatch(/action-buttons-container|hud-header|btn-group/);
+    const at = css.indexOf('@media (max-width: 1799.98px) {');
     expect(at).toBeGreaterThanOrEqual(0);
-    const block = css.slice(at, css.indexOf('\n}', at));
-    expect(block).toMatch(/\.action-buttons-container \{[^}]*grid-template-columns: 1fr 1fr;/);
-    expect(block).toMatch(/\.action-buttons-container > \.btn-group \{[^}]*grid-column: 1 \/ -1;/);
-    expect(block).toMatch(/\.hud-header \{[^}]*flex-wrap: nowrap;/);
     // The label is hidden from sight only: it still names the button
-    expect(block).toMatch(/\.hud-header-label \{[^}]*clip-path: inset\(50%\);/);
+    expect(css.slice(at, css.indexOf('\n}', at))).toMatch(/\.topbar-label \{[^}]*clip-path: inset\(50%\);/);
   });
 
-  it('FR-424 New game and About keep their names (the label is a span the compact header hides from sight only)', () => {
+  // M12b T2 re-recorded: New game and About are in the top bar (was the pane's header): rendered from <TopBar />, their
+  // label span is .topbar-label (was .hud-header-label); the names are unchanged
+  it('FR-424 New game and About keep their names (the label is a span the bar hides from sight only)', () => {
     show(continent());
-    render(<HUD />);
+    render(<TopBar />);
     for (const name of ['New game', 'About']) {
       const button = screen.getByRole('button', { name });
-      expect(text(button.querySelector('.hud-header-label') as HTMLElement)).toBe(name);
+      expect(text(button.querySelector('.topbar-label') as HTMLElement)).toBe(name);
     }
   });
 });
