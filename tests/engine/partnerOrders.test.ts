@@ -45,6 +45,9 @@ const placed = (state: GameState, ...orders: Order[]): GameState =>
 /** Test setup: the nation holds a consulate in each minor given (FR-163). */
 const consulates = (state: GameState, nationId: string, ...minors: string[]): GameState =>
   minors.reduce((s, m) => setPair(s, nationId, m, { consulates: [...s.diplomacy[pairKey(nationId, m)].consulates, nationId].sort() }), state);
+/** Test setup: the Great Powers' public bids and offers of last turn (FR-491). */
+const lastOrders = (s: GameState, orders: Record<string, { sell: Record<string, number>; buy: Record<string, number> }>): GameState =>
+  ({ ...s, market: { ...s.market!, lastOrders: orders } }) as GameState;
 const refused = (reason: string) => ({ ok: false, reason });
 const OK = { ok: true };
 
@@ -57,9 +60,12 @@ const ofType = <T extends GameEvent['type']>(events: GameEvent[], type: T) =>
   events.filter((e): e is Extract<GameEvent, { type: T }> => e.type === type);
 
 describe('FR-252 a bid needs a minor that sells the commodity and that the nation may trade with', () => {
-  it('FR-252 a commodity no minor nation offers this turn: "no-seller", for goods and materials alike', () => {
+  // Re-recorded by M13 FR-492 (card Q118 (a)): was refused('no-seller') for all five; another Great Power the nation may
+  // trade with is now a seller of what no minor sells, so the bid is allowed at peace and "sellers-barred" at war.
+  it('FR-252 FR-492 a commodity no minor nation offers this turn: allowed while Valdoria may sell it (was "no-seller"); at war with Valdoria "sellers-barred"', () => {
     for (const commodity of [MaterialType.Lumber, MaterialType.Steel, GoodsType.Clothing, ResourceType.Wool, ResourceType.Horses]) {
-      expect(validateOrder(consulates(continent(), N1, ARVELIA), buy(N1, commodity, 1))).toEqual(refused('no-seller'));
+      expect(validateOrder(consulates(continent(), N1, ARVELIA), buy(N1, commodity, 1))).toEqual(OK);
+      expect(validateOrder(setPair(consulates(continent(), N1, ARVELIA), N1, N2, { war: { aggressors: [N2], since: 1 } }), buy(N1, commodity, 1))).toEqual(refused('sellers-barred'));
     }
     expect(sellersOf(continent(), ResourceType.Coal)).toEqual([ARVELIA, SUNDMARK, PELLIS]);
     expect(sellersOf(continent(), MaterialType.Lumber)).toEqual([]);
@@ -93,10 +99,13 @@ describe('FR-252 a bid needs a minor that sells the commodity and that the natio
     expect(validateOrder(s, buy(N1, ResourceType.Coal, 0))).toEqual(OK);
   });
 
-  it('FR-252 the market\'s reason comes before the nation\'s own limits: with every hold taken a lumber bid is "no-seller"', () => {
+  // Re-recorded by M13 FR-492: the lumber bid was refused('no-seller'); Valdoria may sell lumber now, so the market has a
+  // seller and the nation's own limit speaks ("limit-reached"). At war with Valdoria the market's reason still comes first.
+  it('FR-252 FR-492 the market\'s reason comes before the nation\'s own limits: with every hold taken a lumber bid is "limit-reached" (was "no-seller"), at war with Valdoria "sellers-barred"', () => {
     const s = ordered(consulates(continent(), N1, ARVELIA), buy(N1, ResourceType.Coal, 2), buy(N1, ResourceType.Timber, 2));
     expect(validateOrder(s, buy(N1, ResourceType.IronOre, 1))).toEqual(refused('limit-reached'));
-    expect(validateOrder(s, buy(N1, MaterialType.Lumber, 1))).toEqual(refused('no-seller'));
+    expect(validateOrder(s, buy(N1, MaterialType.Lumber, 1))).toEqual(refused('limit-reached'));
+    expect(validateOrder(setPair(s, N1, N2, { war: { aggressors: [N2], since: 1 } }), buy(N1, MaterialType.Lumber, 1))).toEqual(refused('sellers-barred'));
   });
 
   it('FR-252 FR-253 in "world" nothing changes: the world sells and buys everything', () => {
@@ -121,20 +130,50 @@ describe('FR-253 an offer needs a buyer the nation may trade with: a minor that 
     expect(validateOrder(ordered(s, consulate(N1, PELLIS)), sell(N1, GoodsType.Clothing, 2))).toEqual(OK);
   });
 
-  it('FR-253 raw a rival may bid for is allowed: Valdoria with a consulate in Arvelia (which sells timber) may buy Testland\'s timber', () => {
+  // Re-recorded by the M13 review fix round, FR-540 (UTH-1; card Q118 (a), which replaces FR-253's Great Power buyers): a
+  // Great Power with a consulate in a minor that sells the commodity was a buyer (old: [N2] and OK for timber and iron
+  // ore), so the Board invited offers that always came back unsold (audit MKT-02). It is a buyer only once it bid for the
+  // commodity last turn (FR-491, `market.lastOrders`).
+  it('FR-253 FR-540 raw a rival may buy from minors is "no-buyer" (was allowed) until it bid for it last turn: Valdoria with a consulate in Arvelia (which sells timber)', () => {
     const s = consulates(continent(), N2, ARVELIA);
-    expect(buyersOf(s, N1, ResourceType.Timber)).toEqual([N2]);
-    expect(validateOrder(s, sell(N1, ResourceType.Timber, 2))).toEqual(OK);
-    // Arvelia sells iron ore too, so Valdoria may bid for Testland's iron ore as well
-    expect(validateOrder(s, sell(N1, ResourceType.IronOre, 1))).toEqual(OK);
+    expect(buyersOf(s, N1, ResourceType.Timber)).toEqual([]);
+    expect(validateOrder(s, sell(N1, ResourceType.Timber, 2))).toEqual(refused('no-buyer'));
+    expect(validateOrder(s, sell(N1, ResourceType.IronOre, 1))).toEqual(refused('no-buyer'));
+    // Valdoria bid for timber last turn: it is a buyer of timber (not of iron ore)
+    const bidLastTurn = lastOrders(s, { [N2]: { sell: {}, buy: { timber: 2 } } });
+    expect(buyersOf(bidLastTurn, N1, ResourceType.Timber)).toEqual([N2]);
+    expect(validateOrder(bidLastTurn, sell(N1, ResourceType.Timber, 2))).toEqual(OK);
+    expect(validateOrder(bidLastTurn, sell(N1, ResourceType.IronOre, 1))).toEqual(refused('no-buyer'));
     // At war with Valdoria, the one buyer is barred
-    expect(validateOrder(setPair(s, N1, N2, { war: { aggressors: [N2], since: 1 } }), sell(N1, ResourceType.Timber, 1))).toEqual(refused('buyers-barred'));
+    expect(validateOrder(setPair(bidLastTurn, N1, N2, { war: { aggressors: [N2], since: 1 } }), sell(N1, ResourceType.Timber, 1))).toEqual(refused('buyers-barred'));
   });
 
-  it('FR-253 a Great Power that already bids for the commodity is a buyer', () => {
+  // Re-recorded by the M13 review fix round, FR-540 and FR-497 (EFD-2): a Great Power's bid of THIS turn made it a buyer
+  // (old: [N2] and OK). That is another nation's order of this turn: the computer, which plans after the person, read the
+  // person's unpublished bid when it validated its own offers. Only last turn's public bid counts now.
+  it('FR-253 FR-540 FR-497 a Great Power\'s bid of this turn does not make it a buyer (was: it did); its bid of last turn does', () => {
     const s = placed(continent(), buy(N2, MaterialType.Steel, 1));
-    expect(buyersOf(s, N1, MaterialType.Steel)).toEqual([N2]);
-    expect(validateOrder(s, sell(N1, MaterialType.Steel, 1))).toEqual(OK);
+    expect(buyersOf(s, N1, MaterialType.Steel)).toEqual([]);
+    expect(validateOrder(s, sell(N1, MaterialType.Steel, 1))).toEqual(refused('no-buyer'));
+    // the computer's side: Testland's bid of this turn is no buyer for Valdoria's hardware either
+    const hardware = setWarehouse(placed(continent(), buy(N1, GoodsType.Hardware, 2)), N2, { hardware: 2 });
+    expect(buyersOf(hardware, N2, GoodsType.Hardware)).toEqual(['minor-1', 'minor-2', 'minor-3', 'minor-4']);
+    expect(buyersOf(hardware, N2, GoodsType.Hardware)).not.toContain(N1);
+    const last = lastOrders(continent(), { [N2]: { sell: {}, buy: { steel: 1 } } });
+    expect(buyersOf(last, N1, MaterialType.Steel)).toEqual([N2]);
+    expect(validateOrder(last, sell(N1, MaterialType.Steel, 1))).toEqual(OK);
+  });
+
+  it('FR-540 (M13 review UTH-1) cotton, coal and iron ore (minors sell them, none buys): with Valdoria in every minor and no bid of it last turn, an offer is "no-buyer"', () => {
+    let s = continent();
+    for (const m of [ARVELIA, SUNDMARK, LORRAN, PELLIS]) s = consulates(s, N2, m);
+    s = setWarehouse(s, N1, { cotton: 3, coal: 3, ironOre: 3 });
+    for (const commodity of [ResourceType.Cotton, ResourceType.Coal, ResourceType.IronOre] as TradeCommodity[]) {
+      expect(sellersOf(s, commodity).length).toBeGreaterThan(0);
+      expect(buyersOf(s, N1, commodity)).toEqual([]);
+      expect(validateOrder(s, sell(N1, commodity, 1))).toEqual(refused('no-buyer'));
+      expect(validateOrder(lastOrders(s, { [N2]: { sell: {}, buy: { [commodity]: 1 } } }), sell(N1, commodity, 1))).toEqual(OK);
+    }
   });
 
   it('FR-252 FR-253 the scripted player\'s orders pass the check: 6 turns of both nations scripted, no order refused', () => {

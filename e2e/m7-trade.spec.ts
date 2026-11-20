@@ -153,7 +153,9 @@ test('FR-194 FR-257 at 1280x720 the Board of Trade fits the window with the reas
   const boardOverflow = () => board(page).evaluate((el) => { const pane = el.querySelector('table')!.parentElement!; return pane.scrollHeight - pane.clientHeight; });
   expect(await boardOverflow()).toBeLessThanOrEqual(1);
   await expect(row(page, 'oil')).toBeInViewport({ ratio: 1 });
-  await expect(row(page, 'oil').getByTestId('bid-note')).toHaveText('No minor nation sells this');
+  // Re-recorded by M13 FR-494: old 'No minor nation sells this' (a refusal), new 'A bid is refunded if Valdoria does not
+  // sell.' beside an enabled "+" (a bid where no minor sells goes to Valdoria, FR-492)
+  await expect(row(page, 'oil').getByTestId('bid-note')).toHaveText('A bid is refunded if Valdoria does not sell.');
   await expect(row(page, 'oil').getByTestId('offer-note')).toHaveText('No one buys this');
   await expect(row(page, 'oil').getByTestId('no-minor')).toHaveText('No minor trades this');
   // FR-251: our own stock is "In warehouse" (in capitals on the screen, by CSS)
@@ -162,8 +164,9 @@ test('FR-194 FR-257 at 1280x720 the Board of Trade fits the window with the reas
   await closeBoard(page);
 
   // Four bids, after a consulate with Arvelia, take every hold: each "+" open to trade is disabled and says why beside it
-  // (FR-248, FR-257), wool still says no minor sells it (FR-252), and the frame still fits; the last row is reachable by
-  // scrolling the board alone
+  // (FR-248, FR-257), wool too (re-recorded by M13 FR-494: old 'No minor nation sells this', new 'No free hold this turn';
+  // wool may be bid toward Valdoria, FR-492, so only the holds refuse it), and the frame still fits; the last row is
+  // reachable by scrolling the board alone
   await consulateWithArvelia(page);
   await openBoard(page);
   for (const c of ['Coal', 'Timber', 'Iron Ore', 'Cotton']) {
@@ -174,7 +177,7 @@ test('FR-194 FR-257 at 1280x720 the Board of Trade fits the window with the reas
   await expect(coal).toHaveAttribute('title', 'No free hold this turn');
   await expect(coal).toHaveAccessibleDescription('No free hold this turn');
   await expect(row(page, 'coal').getByTestId('bid-note')).toHaveText('No free hold this turn');
-  await expect(row(page, 'wool').getByTestId('bid-note')).toHaveText('No minor nation sells this');
+  await expect(row(page, 'wool').getByTestId('bid-note')).toHaveText('No free hold this turn');
   await expect(board(page).getByTestId('market-holds')).toHaveText('Holds: 0 of 4 free');
   expect(await fit(page)).toEqual(fits);
   const oil = row(page, 'oil');

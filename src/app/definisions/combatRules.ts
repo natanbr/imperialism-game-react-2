@@ -34,15 +34,32 @@ export const ESTIMATE = {
 
 /**
  * The scripted war (FR-228, FR-274 replacing FR-229; Imp1: the AI picks off minor nations, thresholds unknown, gaps E2). From `fromTurn`,
- * at war with no one, it recruits one `regiment` a turn (FR-213's limits) until its field army is `strengthFactor` times
+ * at war with no one, it recruits one regiment a turn (FR-213's limits) until its field army is `strengthFactor` times
  * the weakest bordering minor's defence, then declares war; at war it attacks when the estimate is `attackRatio` or more.
- * `regiment` is Cuirassiers, not FR-229's Regulars (M9 decision card, measured in the journal): the economy trains every
- * untrained worker by turn 4 (FR-130), so from turn 10 a Regulars (untrained worker) can never be raised; a Cuirassiers
- * takes a trained worker and one of the 4 start horses (FR-203), and 3 of them (45) are twice Arvelia's 18.75.
+ * From `greatPowerFromTurn`, with no minor left to take, the other Great Power is the target (FR-488).
  */
 export const SCRIPTED_WAR = {
   fromTurn: 10,
-  regiment: "cuirassiers" as RegimentType,
   strengthFactor: 2,
   attackRatio: 1.5,
+  /**
+   * FR-482 (card Q119 (a), remake): it recruits the first regiment of the list it can raise this turn (a healthy worker of
+   * the grade, the horses, the armaments in stock, the cash within the floor). Under a threat (FR-213) Regulars come
+   * first; a campaign (FR-274, FR-488) starts with Cuirassiers, FR-274's tuned regiment (M9 decision card): the economy
+   * trains every untrained worker by turn 4 (FR-130), and a Cuirassiers takes a trained worker and one of the 4 start
+   * horses (FR-203); 3 of them (45) are twice Arvelia's 18.75. Every type here takes 1 or 2 armaments, so the 2 the
+   * garrison's run keeps (SCRIPTED_GARRISON.armaments) cover any of them.
+   */
+  threatRegiments: ["regulars", "cuirassiers", "grenadiers", "artillery", "hussars", "skirmishers", "lightArtillery"] as readonly RegimentType[],
+  campaignRegiments: ["cuirassiers", "grenadiers", "hussars", "regulars", "lightArtillery", "artillery", "skirmishers"] as readonly RegimentType[],
+  /** FR-488 (card Q114 (b)): the first turn the other Great Power can be the campaign's target. */
+  greatPowerFromTurn: 20,
+  /** FR-488: no campaign on a Great Power within this many turns of a peace with it (a peace on turn 11 allows one from turn 21). */
+  greatPowerPeaceTurns: 10,
+  /**
+   * M13 T-15 (FR-497, FR-247): a war on a minor is declared only while the treasury holds this many turns of the army's
+   * upkeep: the minor's trade stops with the war (FR-185), and a minor falls 2 or 3 turns after it (measured). Without it a
+   * both-scripted Valdoria declared on Arvelia, its only trade partner, with $336 and lost 6 regiments for want of pay.
+   */
+  minorWarUpkeepTurns: 4,
 } as const;

@@ -461,13 +461,26 @@ export interface NewsItem {
  * A battle the player fought, attacking or defending, is its own line, from its side ("Battle at Testland North-East:
  * Province Lost!", FR-232); another nation's battle reads from its attacker's side.
  * FR-375: a line about a tile names its province through `placeOf` (`tilePlaces`) and carries its `tileId`.
+ * FR-496: a peace or alliance the player made with another Great Power is one line, the player's own. M13 review UTH-3:
+ * so is a change of their relations, and another nation's offer the player did not accept reads from the player's side
+ * ("We did not accept Valdoria's peace offer."), not in that nation's words ("Valdoria: Testland refused our peace offer.").
  */
 export function newsItems(events: readonly GameEvent[], playerId: string, nameOf: (countryId: string) => string, placeOf?: PlaceOf): NewsItem[] {
   const council: NewsItem[] = [];
   const own: NewsItem[] = [];
   const others: NewsItem[] = [];
   const general: NewsItem[] = [];
+  // FR-496: a peace or alliance between two Great Powers is emitted for each of them (diplomacySystem `done`); the player
+  // reads it once, as its own line, so the other side's copy is dropped. The same for their relations (UTH-3).
+  const ownDone = new Set(events.flatMap((e) => (e.type === "overture-done" && e.nationId === playerId ? [`${e.overture}|${e.targetId}`] : [])));
+  const ownRelations = new Set(events.flatMap((e) => (e.type === "relation-changed" && e.nationId === playerId ? [e.otherId] : [])));
   for (const event of events) {
+    if (event.type === "overture-done" && event.targetId === playerId && ownDone.has(`${event.overture}|${event.nationId}`)) continue;
+    if (event.type === "relation-changed" && event.otherId === playerId && ownRelations.has(event.nationId)) continue;
+    if (event.type === "overture-refused" && event.targetId === playerId && event.nationId !== playerId) {
+      own.push({ text: `We did not accept ${nameOf(event.nationId)}'s ${event.overture === "alliance" ? "alliance" : "peace offer"}.` });
+      continue;
+    }
     // The screen a line opens: its battle's (FR-232) or its meeting's (FR-297); the tile it leads to (FR-375)
     const tileId = tileOf(event);
     const opens = event.type === "battle-resolved" ? { battle: event } : event.type === "council-met" ? { council: event } : tileId ? { tileId } : {};

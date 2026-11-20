@@ -1,4 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
+import { closeWarScreens } from './idleWar';
 
 // FR-078: the market and the end of the game in the running app. A new game starts with $10,000 and 4 holds, and lasts
 // 40 turns (FR-068). Since M7 the app's continent trades with partners (FR-242): nobody buys lumber any more and a minor
@@ -97,6 +98,8 @@ test('FR-078 FR-104 FR-109 end 40 turns, see the game-over screen with both nati
   for (let turn = 1; turn <= 40; turn++) {
     await advance(page).click();
     if (turn < 40) await expect(page.getByTestId('turn-indicator')).toContainText(`Turn: ${turn + 1} of 40`);
+    // M13 (FR-488, FR-489): the computer's war on an idle player opens Battle screens and peace offers; closed unanswered
+    await closeWarScreens(page);
     // FR-304: the Council meets on turns 10, 20, 30 and 40 and its screen opens by itself; the last one comes before the
     // game-over screen (FR-299), and an idle player cannot reach 9 votes
     if (turn % 10 === 0) {
@@ -107,6 +110,8 @@ test('FR-078 FR-104 FR-109 end 40 turns, see the game-over screen with both nati
       }
       await council.getByRole('button', { name: 'Close' }).click();
       await expect(council).toHaveCount(0);
+      // a peace offer waits for the Council screen (FR-409)
+      await closeWarScreens(page);
     }
   }
 

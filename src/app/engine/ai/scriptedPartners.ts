@@ -47,7 +47,7 @@ const entries = (amounts: TradeAmounts) => Object.entries(amounts) as [TradeComm
  */
 export function planConsulate(view: () => GameState, nationId: NationId, reserve: number, wants: TradeWants, propose: Propose): void {
   const state = view();
-  const after = diplomacyAfterThisTurn(state);
+  const after = diplomacyAfterThisTurn(state, nationId);
   const favoured = (minorId: string) => favouritePartner(after, minorId) === nationId;
   const supply = sumOverPartners(state, nationId, (m) => (favoured(m) ? minorOffers(state, m) : {}));
   const demand = sumOverPartners(state, nationId, (m) => (favoured(m) ? minorDemand(state, m) : {}));
@@ -56,9 +56,15 @@ export function planConsulate(view: () => GameState, nationId: NationId, reserve
     entries(wants.sell).reduce((sum, [c, n]) => sum + Math.min(n, demand[c] ?? 0), 0);
   if (covered >= tradeCapacityOf(state, nationId).holds) return;
   const short = (want: TradeAmounts, cover: TradeAmounts, has: TradeAmounts) => entries(want).some(([c, n]) => n > (cover[c] ?? 0) && (has[c] ?? 0) > 0);
+  // M13 T-15 (FR-497, FR-247): stranded = no minor left to trade with after it lost one (taken as another's colony, or at
+  // war). Under `reserve` waiting for cash would never end: no sale comes in. It opens one anyway; `propose` keeps the
+  // upkeep reserve (FR-213 (a)). Before any partner was lost (no consulate yet) FR-245's $2,500 floor holds as before.
+  const barriers = minorIds(state).map((m) => tradeBarrier(state, nationId, m));
+  const stranded = barriers.every((b) => b !== undefined) && barriers.some((b) => b === "at-war" || b === "not-a-partner");
+  const floor = stranded ? 0 : reserve;
   for (const minorId of minorIds(state)) {
     const now = view();
-    if ((nationById(now, nationId)?.treasury ?? 0) - OVERTURE_COST.consulate < reserve) return;
+    if ((nationById(now, nationId)?.treasury ?? 0) - OVERTURE_COST.consulate < floor) return;
     if (tradeBarrier(now, nationId, minorId) !== "no-consulate") continue;
     if (!short(wants.buy, supply, minorOffers(now, minorId)) && !short(wants.sell, demand, minorDemand(now, minorId))) continue;
     if (propose({ kind: "proposeOverture", nationId, overture: "consulate", targetId: minorId })) return;

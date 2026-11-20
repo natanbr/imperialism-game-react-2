@@ -1,24 +1,44 @@
 # Journal
 
 ## Resuming here
-- 2026-11-17: M12 Honest game is merged (pull request 34, main 91d7edc). M12b Better HUD (FR-465 to FR-480, cards Q108 to Q113),
-  its review fix round (15 findings) and its by-eye QA fix round (FR-529 to FR-537) are built and committed on `claude/m12b-hud`
-  (three commits, the last "M12b: QA fixes and final gate"), not pushed, no pull request yet. Gate 2 on the final tree: 2525 unit
-  tests, lint 0 errors, tsc and build clean, Playwright 125 passed (first run 124 and 1 red, fixed, see the entry). FR-372 is closed; FR-357 to FR-443: 78 tested, 9 partial. Labels beside
-  the icons from 1800 px, not 1600.
-- Next (NR-034, in this order): push `claude/m12b-hud` and open its pull request, then M13 to M16 (FR-481 to FR-528,
-  `docs/specs/m13-m16.md`, cards Q114 to Q135; planned, nothing built). Merged so far: M0 to M12 (main 91d7edc).
-- Answered by Nathan 2026-11-16: Q79 to Q83 as suggested, Q102 "keep the debug", Q113 one static Advance Turn. Needed from him: Q114
-  and Q115 (before M13's military lane is finished), Q121 (before M14 builds FR-503), Q130 (before M16 starts). The other open cards
-  have defaults in force: Q22 to Q78, Q84 to Q135 (progress page).
-- Progress page (republish after a change): https://claude.ai/artifact/JHRFaWQRPk3AYGssSchPBU, data in `docs/report/roadmap.json`.
-- Ideas from the M12b QA, not built: a fade that shows the 390 px bar strip scrolls; a build id in Details for bug reports (the
-  app has none yet). Not changed by design, with reasons: `docs/requirements.md`, section "M12b by-eye QA fix round".
-- Not verified: Firefox and WebKit, a winning Council vote on screen. Open for Nathan: the five `backup/v1-wip/*` branches no longer
-  exist (their commits are unreferenced; `git gc` can prune them).
-- Everything older (status lines M0 to M11, the carried-forward review notes of M4.1 to M4.4, deferred items, housekeeping):
-  `docs/journal/archive-resuming-before-M12.md`. The M12 entry is archived in `docs/journal/archive-M12.md` (a summary stays below);
-  the M12b entries are below. Rules of the game: `docs/rules/`. Flow: `docs/FLOW.md`.
+
+- 2026-11-20. All eight PR 36 review findings reproduced on `fdbe870`. The fixes are in the `claude/m13-nations` worktree. Task 03 is awaiting a passing full gate and local commit. Evidence is in `.gate/codex/03/`.
+- FR-539 met both targets in 24/24 games. FR-542 replaces FR-490's vote target. Of 24 idle games, 21 had an embassy and pact by turn 29, 18 won a minor vote at turn 40, and 0 won one at turn 30.
+- Task 03: the M13 acceptance suite, protected pins, lint and types passed. The fallback Node 24 unit run failed FR-330; the build could not fetch the Google fonts, and the browser gate could not start. The earlier 2731-unit / 129-Chromium pass in `.gate/codex/01/` was on fdbe870.
+- Next owner review before merge: Q139 (turn-30 versus turn-40 votes) and FR-494's short Bid text. The close-out ends with the local commit.
+- NR-035 records the owner's temporary war defaults. See `docs/specs/war-and-difficulty-notes.md` and `docs/verify-and-tune.md`.
+- Next milestones: Q121 before M14's FR-503 and Q130 before M16. The plan is in `docs/specs/m13-m16.md`.
+- Local progress data: `docs/report/roadmap.json`. Earlier M13 evidence: `docs/journal/archive-M13.md`.
+
+## 2026-11-20 M13 review fixes (PR 36, starting at fdbe870)
+
+Size: M. Reproduce the eight findings in `.gate/codex/02/review.md` before changing the affected planner or test.
+The consumers are the scripted Great Power, the Board's diplomacy forecast and the 24-seed simulation report.
+Test rows cover FR-497 forecast and pre-order comparison, FR-489 conquest and recapture, FR-482 upkeep, FR-486 sales, FR-493 pair bidding and FR-500 report traceability.
+Verify each reproduction separately, then run Vitest, ESLint, TypeScript, the production build and single-worker Chromium. Evidence goes in `.gate/codex/03/`.
+Objection: a local improvement can change later simulated turns. Check the exact continent pins and the two-islands and FR-125 guards before committing.
+
+Findings 1–2: the forecast now projects the viewer's current orders and cash only. It cannot infer payment of another nation's standing grant from that nation's private balance. Real End Turn settlement still uses both nations' orders. The fair-play probe uses the original state before applying a human order and the resulting state after all accepted orders.
+
+Findings 3 and 7: separate armies can target one foreign conquest in a war of choice. They can recover home territory and retake that same objective. Retaking it starts a fresh peace-offer interval. Findings 4–6: campaign recruitment retries with the cheapest eligible regiment that leaves upkeep, optional migrants use surplus after planning trade with a new consulate, and the final hold buys the material missing from a pair. Finding 8: the 24-seed report identifies FR-500 in its Vitest title.
+
+| Claim | Command | Result quoted |
+|---|---|---|
+| Rival cash changed the Board and planner | `vitest run tests/engine/partnerMarket.test.ts -t "private steel bid"` | `expected 'nation-2' to be 'nation-1'` (1-red.txt) |
+| The old probe missed cash reserved by a bid | `vitest run tests/engine/sim/m13Acceptance.test.ts -t "cash reserved"` | `expected false to be true` (2-red.txt) |
+| Two armies took two provinces; cross-turn and home-recovery controls also failed | `vitest run tests/engine/scriptedWar.test.ts -t "separate field armies\|losing its conquered\|reclaiming home"` | `Tests  3 failed \| 33 skipped (36)` (3-red.txt) |
+| No affordable fallback recruit; optional migrant cost $1,800 of sales; last hold bought lumber | `vitest run` on scriptedArmy, scriptedWorkers and scriptedTrade, individually | `Tests  1 failed` in each of 4-red.txt, 5-red.txt and 6-red.txt. After fixes: `Tests  94 passed (94)` |
+| New peace offer missing after recapture | `vitest run tests/engine/scriptedDiplomacy.test.ts -t "retaking the war aim"` | `Tests  1 failed \| 29 skipped (30)` (7-red.txt). War and diplomacy after fixes: `Tests  66 passed (66)` |
+| Report title omitted its FR | `vitest run tests/engine/sim/m13Acceptance.test.ts -t "scripted report names"` | `to contain 'FR-500'` (8-red.txt and 8-runtime-red.txt) |
+| M13 acceptance and pre-order probe | `vitest run --configLoader runner` | `m13Acceptance.test.ts (43 tests)`; `320 turns checked, 320 with orders of Testland in the state, 0 turns where Valdoria's plan changed without them` |
+| FR-125 and two-islands pins on the integrated tree | Same full Vitest run | `t25 903/563 (1.60)` (lowest); `twoIslandsGolden.test.ts (2 tests)` |
+| Unit suite on bundled Node v24.22.1 | `vitest run --configLoader runner` | `Tests  1 failed \| 2741 passed (2742)`. FR-330: `expected [ '★' ] to deeply equal []`. Node's Unicode 17 classifies the star differently. |
+| Lint | `eslint` | `2 problems (0 errors, 2 warnings)`, `eslint exit 0` |
+| Types | `tsc --noEmit` | `tsc --noEmit exit 0` |
+| Production build | `next build --turbopack` | “Failed to fetch `Geist Mono` from Google Fonts.” Geist also failed. |
+| Chromium | `PLAYWRIGHT_HTML_OPEN=never playwright test --workers=1` | `Process from config.webServer was not able to start. Exit code: 1`. The server requires npm. A separate launch of the configured browser returned `browserType.launch: spawn EPERM`. |
+
+All eight numbered red logs are in `.gate/codex/03/`. The final focused probe/title run in `2-8-green.txt` reported `Tests  3 passed | 40 skipped (43)`. After reconnecting, Windows denied execution of the installed Node 22/npm toolchain. All five literal npm/npx invocations exited 1 before starting their tools (npm-*.txt and npx-*.txt). The unit, lint, type, build and browser commands above used the checked-in package configuration and installed CLI entry points with the bundled Node runtime. The default Vitest loader could not enumerate a parent directory, so the full run used its runner loader. No threshold, timeout or expected pin changed. Resume with the requested five commands in a session with access to Node 22/npm, the pinned Chromium and the build's Google Fonts. Commit locally only after all five pass.
 
 ## 2026-11-02 Revival setup
 
@@ -164,144 +184,45 @@ T16, milestones M12 to M18), the four lanes, the integration, two review rounds,
 (FR-454 to FR-460, cards Q105 to Q107), the close-out (FR-461 to FR-464) and gates 4 to 6 (gate 6: 2447 unit tests, Playwright 92 passed).
 Parked after M12: the FR-125 margin's thin points (seed 3 at turn 25 passes by 58.5 points), cards Q103 to Q107; FR-372 was closed by M12b.
 
-## 2026-11-17 M12b Better HUD (NR-034; FR-465 to FR-480, cards Q108 to Q113)
+## 2026-11-17 M12b Better HUD (NR-034; FR-465 to FR-480, FR-529 to FR-537, cards Q108 to Q113; archived)
 
-Size: L, UI only (engine, store and types untouched; no selector was missing). Branch `claude/m12b-hud` from main 91d7edc (M12 merged
-as pull request 34), one commit, not pushed. Spec `docs/specs/hud.md`. One workflow, red tests first, four tasks, each Opus 5.5 with no
-advisor call; notes and logs in `.gate/hud/` (git-ignored):
-- T1, the frame (FR-465, FR-479): `--topbar-height` 40 px (80 px below 1024 px), `mapAreaOf` is the window less the bar and the pane, the
-  map and the narrow-window line start under the bar, the bar stops edge scrolling.
-- T2, the top bar (FR-466 to FR-469, FR-477, FR-480): `HUD/TopBar.tsx`: the nation, the turn block with the next Council line, cash with
-  last turn's change, score with its rank and parts, the dialog buttons as 32 x 32 icons (the name kept as a hidden label) and the one
-  Advance Turn (card Q113); New game's question is a panel under the bar.
-- T3, the right pane (FR-470 to FR-477): Tile Info or "No tile selected", the alerts (`HUD/Alerts.tsx`), the news in the pane's free
-  height, three closed groups (`HUD/HudGroups.tsx`, `HUD/hudView.ts`): Nation, Work in progress (N), Details for bug reports, shown
-  without `?debug` (card Q102). The pane's interim Advance Turn is gone.
-- T4, the gate (Opus 5.5, this entry): the old-layout pins retargeted, the e2e suite moved to the new layout, `e2e/m13-hud.spec.ts`
-  written, FR-372's `test.fixme` made a test, the rows flipped and the 16 older rows amended (`replaced by FR-4xx in part`).
+Size: L, UI only. Merged as pull request 35 (main 74f595c). Everything is in `docs/journal/archive-M12b.md`: the four tasks (the frame,
+the top bar, the right pane, the gate), the review fix round (15 findings) and the by-eye QA fix round with the final gate (FR-529 to
+FR-537; gate 2: 2525 unit tests, Playwright 125 passed). Not verified: Firefox and WebKit.
 
-Decision taken (T2): labels beside the icons from 1800 px of window width, not the spec's 1600 (FR-468, spec amended). At 1600 px with
-labels the row needs 1746 px: the nation name was squeezed to 0 px and the score ran 6 px into the buttons. Objection: from 1024 to
-1799 px a player sees the icons only (the name is the tooltip and the accessible name).
+## 2026-11-17 M13 Computer nations that play (archived)
 
-Pins moved (old -> new; each reason is written in the test):
-- Unit, 46 red in 5 files after T1 to T3 (all pins of the old layout, no defect in src): dialogs (37) and about (4) render
-  `<TopBar />` (the dialog buttons left the pane); watchNation (3) opens the Nation group for the score table and renders `<TopBar />`
-  for New game; persistence (1) renders `Alerts` for Not-saved; camera FR-366 (1) stubs the pane with a group button (the bar now
-  renders Advance Turn).
-- E2E: at 1920x1080 the map lies at 320.5, 224 (was 184; the bar takes 40 px) in m12-map FR-367 and m11-map FR-340; islands at 800x450
-  scroll to 0, 214 (map area 550 x 370); look FR-090 needs every tile at y >= 40; the score table and the Council projection are read
-  after opening the Nation group (m5-world, two-nations, market-and-game-over, m10-council); m5-hud-scroll opens Nation and Details
-  so the pane overflows; councilNews checks below the bar and above the groups; m11-lists FR-334 and FR-349 measure 32 x 32 buttons,
-  20 x 20 icons and labels from 1800 px; m12-map FR-424 checks the bar at 640x360, FR-429 the line's top >= 80, FR-377 the group
-  without `?debug`; m8-qa FR-268 selects tile 2-9 when no tile is selected (Tile Info is no longer always shown).
-- Measured: FR-372 (eight whole news lines at 1280x720 on turn 2) now shows 20.
+The implementation, review and by-eye QA entries are in [archive-M13.md](journal/archive-M13.md).
+They record the original failures to buy steel and win a minor vote, and the FR-541 lumber fix.
+The close-out below records the replacement vote requirement and the final gate.
 
-| Claim | Command | Quoted result |
+## 2026-11-20 M13 close-out (FR-539, FR-542, NR-035)
+
+Size: L (milestone gate and review). FR-539 places the standing steel bid from turn 7. FR-541 continues to handle lumber. FR-542 keeps the grants and replaces the turn-30 vote target. Both replacement thresholds require 18 of 24 games. Q139 remains open before merge.
+
+Review found that a pre-existing embassy could trigger an ineligible pact, including before the first Council. The planner now checks the meeting, relation band and rival score before proposing it. The acceptance measure now excludes Great Powers and colonised minors, and the vote spread uses the requested Council turn for every game. The simulator yields to Vitest between seeds so its worker can report progress during long runs. The games still run in seed order and the yield is outside the per-turn timing measurement.
+
+The old and new continent pins and their reasons are recorded with FR-247, FR-481 and FR-499. The four FR-498 guard files match the starting commit. The changed planners read their own orders, public trade history, diplomacy and map state. The full suite includes the separate FR-497 test that removes the opponent's current orders and compares the plans.
+
+Gate logs are in `.gate/codex/01/`. The first unit run timed out during ESLint startup. The passing run used `VITEST_MAX_FORKS=3` and `VITEST_MIN_FORKS=1`. The first Chromium run timed out reopening Details for bug reports on a busy machine. The full rerun used one worker after the other gates finished. Both original 30-second timeouts remained in force. The Chromium app checks started fresh games and used the normal controls to advance turns. The grant and Council check fixed the initial seeds to 11 and 1 respectively.
+
+| Claim | Command | Result quoted |
 |---|---|---|
-| The old-layout pins were red after T1 to T3 | `npm test` (T4-unit-0.txt) | `Tests  46 failed \| 2456 passed (2502)`, in 5 files |
-| The retargeted files pass | `npx vitest run` on the 5 files (T4-fix-neighbours.txt) | `Tests  154 passed (154)` |
-| The new FR-477 page test can fail | mutation: the next-Council line removed (T4-red-fr477-page.txt), restored (T4-fr477-page.txt) | `Unable to find an element by: [data-testid="next-council"]`, `Tests  1 failed`; restored `Tests  1 passed` |
-| The one-Advance-Turn e2e check can fail | mutation: a second Advance Turn (T4-red-e2e-two-advance.txt) | `Expected: 1`, `Received: 2` |
-| Every unit test passes | `npm test` (gate1-unit.txt) | `Test Files  121 passed (121)`, `Tests  2503 passed (2503)`, `EXIT 0` |
-| Lint has no error | `npm run lint` (gate1-lint.txt) | `✖ 2 problems (0 errors, 2 warnings)`, `EXIT 0`; the same two warnings as M12's gates |
-| Types are clean | `npx tsc --noEmit` (gate1-tsc.txt) | no output, `EXIT 0` |
-| The build works | `npm run build` (gate1-build.txt) | `✓ Compiled successfully in 3.6s`, `✓ Generating static pages (4/4)`, `EXIT 0` |
-| The browser suite passes | `npx playwright test --workers=1` (gate1-e2e.txt) | `105 passed (7.4m)`, `EXIT 0`, first run; none skipped (FR-372's `test.fixme` is a test now) |
-| FR-372 is closed | the same run | `FR-372 news list 400 px, 20 lines of 20 px` |
-| The documents agree with themselves | `node .gate/m12/L4-check-req.cjs`, `L4-check-roadmap.cjs` | `PASS` each; `FR-357..443 status words: {"tested":78,"partial":9,"parked":0}` |
-
-Not verified: Firefox and WebKit; game over at 1800 px wide (Final scores adds about 116 px; T2 estimated 1752 px needed). Seen in the
-gate's screenshots (`.gate/hud/shots/m13-hud-*.png`): at 390x844 the narrow-window line still covers the pane's first line until it is
-closed (FR-429 as before), and the nation's name gives way first in the narrow bar (spec section 8).
-
-## 2026-11-17 M12b review fix round (15 findings: ST-1 to ST-4, LP-1 to LP-4, A11Y-1 to A11Y-5, NL-2, NL-3)
-
-Size: M, UI only (engine, store and types untouched). Same branch, one commit "M12b: review fixes", not pushed. One task, Opus 5.5
-xhigh, no advisor call; red before green for every row; logs `.gate/hud/R-*.txt`.
-- What hangs from the bar (score parts, New game's question, the focus label) is drawn in the bar's stacking context, so the bar now
-  lies above the pane: `.bar` z-index 10 -> 30 (pane 10, FR-429 line 20, dialogs 60 and up) (LP-1, NL-2).
-- New game's question renders right after New game in the bar, no portal: Tab order New game, question, About; its left edge under
-  the button, kept 8 px inside the window; Escape closes it and gives the focus back (A11Y-1 major, LP-3).
-- Keyboard: an inset focus ring on the bar buttons (A11Y-2, LP-2); from 1024 to 1799 px a focus shows the button's name under it
-  (A11Y-4); the nation name and the Council line carry their full text as a title (A11Y-5); a news place line or a Work row moves
-  the focus to Tile Info's heading (A11Y-3), both through one `HUD/showTile.ts`; the score parts come from one `scoreParts` (NL-3).
-- Tests and docs: FR-473's Enter/Space unit test presses the keys (ST-3); the bar's fit is measured at its widest states (turn 2,
-  turn 39 with $1,234,567, game over with Final scores) at seven sizes, and the sideways check reads the frame that holds the bar,
-  not the document (ST-4, LP-4); NR-034, Q102, FR-466, FR-480 and the spec's section 4 statuses corrected (ST-1, ST-2).
-
-Pins moved (old -> new; each reason is written in the test): camera FR-465 bar z 10 -> 30; topBar FR-468 CSS one `.topbar-label {`
-rule -> two (still one clip-path); FR-480 panel "rendered into the body" -> "right after New game, inside the bar"; FR-480 CSS
-"right: 8px, own z 30 in the body" -> "left set by the component, the bar's z between 20 and 60"; warehouseAndHud FR-301 (2) "no
-title" -> "title = the line's own text"; m13-hud `document.documentElement.scrollWidth` (could not fail) -> the frame's scroll width.
-
-| Claim | Command | Quoted result |
-|---|---|---|
-| The new tests were red | `npx vitest run` on 4 files; `npx playwright test e2e/m13-hud.spec.ts` (R-red-unit.txt, R-red-e2e-m13.clean.txt) | `Tests  12 failed \| 74 passed (86)`; `7 failed`, `16 passed (56.9s)` |
-| The old Enter/Space test could not fail | a key handler added to HudGroup (R-red-st3-mutation.txt) | old check passed; new: `Nation after Enter: expected 'true' to be 'false'` |
-| The widest-states e2e can fail; the old sideways check could not | a longer cash line (R-red-e2e-mutation-lp4.txt, R-red-e2e-mutation-lp4a.txt) | `the score block ends at 842.59375, past the buttons' start at 680.59375`; `docScrollWidth":1024,"appScrollWidth":1120`, old check `true`, new `false` |
-| The affected unit files pass | `npx vitest run` on 31 files (R-green-unit-affected-2.txt) | `Test Files  31 passed (31)`, `Tests  592 passed (592)` |
-| m13-hud passes | `npx playwright test e2e/m13-hud.spec.ts` (R-green-e2e-m13-2.txt) | `23 passed (52.7s)` |
-| The neighbour specs pass | m12-map, two-nations, m5-hud-scroll, look (R-green-e2e-neighbours.txt) | `27 passed (1.3m)`, `exit 0` |
-| Types and lint | `npx tsc --noEmit`, `npm run lint` (R-tsc.txt, R-lint.txt) | `tsc exit 0`; `✖ 2 problems (0 errors, 2 warnings)` (the gate 1 two) |
-
-Not run: the whole unit suite, the build, the whole Playwright suite (the next gate's). Not fixed: below 1024 px a focused button's
-name is not shown (the strip clips it; it would need a label placed by script); a title reaches a mouse only, so a keyboard user
-still cannot read a cut Council line; `useCouncil` computes `councilVote` twice (one function, no drift risk; speed only).
-
-## 2026-11-17 M12b by-eye QA fix round and final gate (FR-529 to FR-537)
-
-Size: M, UI only (engine, store and types untouched). Same branch, one commit "M12b: QA fixes and final gate", not pushed. One task,
-Opus 5.5 xhigh, no advisor call; every finding reproduced on the running app first (`.gate/hud/final/repro.mjs`,
-`repro-before.txt`), red before green for every row; logs `.gate/hud/final/F-*.txt` and `.gate/hud/gate2-*.txt` (git-ignored).
-Plan-lite: the change, one small UI fix per real finding, at its cause (CSS, placement, focus, page order), no engine or store
-file; who consumes it: the player at every window size, and keyboard users; the test rows: FR-529 to FR-537 (each row names its
-tests); verify: `npx vitest run tests/ui/hudQa.test.tsx`, `npx playwright test e2e/m12b-qa.spec.ts`, then the whole gate.
-Objection: FR-535 puts the bar before the map in the page, so a screen reader reads the bar first too, and a test that counted
-Tab stops from the map would break; only the page-order pin did (moved, below).
-The QA failed three checks and listed 15 extras (tracks A and B, `.gate/hud/qa/`). Outcome per finding:
-- B12b How to play at 640x360 (419 px high, Close out of view): fixed, FR-529. The dialog is at most the window less 32 px, only the
-  text between the title and Close scrolls (a region "How to play text", a Tab stop), Close keeps the focus; About's panel scrolls too.
-- B15 the score's parts at 390 px (ran to x 592): fixed, FR-530. One `leftInWindow` helper in `HUD/hudView.ts` places the list and
-  New game's question (FR-480's `confirmPanelLeft` became it, same values).
-- B16 a focused strip button clipped (Center Camera at 390 px; Diplomacy and New game at 320 px): fixed, FR-531. The strip scrolls the
-  focused button into view by the least amount (`scrollIntoView` with `nearest`).
-- E3 the narrow-window line over "Close tile info": fixed, FR-532. The line ends at the pane's left edge (`right: var(--hud-width)`).
-- The news text touching its scrollbar: fixed, FR-533 (4 px gutter). War and idle lines that read as body text: fixed, FR-534 (a
-  3 px warn-colour rule at the left). Tab order map, bar, pane: fixed, FR-535 (`page.tsx` renders the bar first). E7 window size in
-  Copy details: fixed, FR-536 ("Window: W x H"; the group's lines now on the pane's 16 px rhythm).
-- Not changed, each with its reason in `docs/requirements.md` (section "M12b by-eye QA fix round"): icon-only buttons from 1024 to
-  1799 px (the 1800 px breakpoint, FR-468); the pane scrolling with a civilian selected and the 800x600 overflow, E5 (by design,
-  FR-472 and FR-235); the chevron mid-turn (a 0.3 s transition); the parts over Advance Turn at 800x600, E1 (WCAG 1.4.13, hoverable);
-  "-$1,100 last turn" (not reproduced: with no order the bar reads "-$100 last turn", `.gate/hud/final/a7.txt`); tile 11-4 (not
-  reproduced: "11-4 clicked", Tile Info shown); E4's scroll-hint fade and the Council ellipsis at 390 px (not built, an idea); E7's
-  build id (not built: no build-time id exists); E6 the stale `.next` (a process point: the gate rebuilds, e2e runs on `.next-e2e`).
-
-Pins moved (old -> new; each reason is written in the test): camera FR-465 "the top bar after the map, before the HUD" -> "the top
-bar before the map, the map before the HUD" (FR-535); camera FR-429 name "over the HUD" -> "over the map beside the HUD" (FR-532);
-hudGroups FR-476 eleven Details lines -> twelve (`Window: 1024 x 768`, FR-536), the Copy test passes the window size; topBar FR-480
-`confirmPanelLeft` -> `leftInWindow` (same inputs, same values); m10-council FR-314 "the Council line has no title" -> "its title is
-the line's own text, never the projection" (FR-537, which changes FR-314 in part; found by gate 2's first run: the review fix
-round's A11Y-5 gave the line a title and did not run the whole suite; the M10 pin guarded against the projection living only in a
-tooltip, which still holds). One neighbour went red on the way and was fixed at the cause, not
-re-pinned: m5-hud-scroll FR-235 (1), the news end 1 px out of view at the scroll's end, because the twelfth Details line was 18 px
-(`.hud-group-panel` sets 18 px after `.hud-debug-section`); the group's lines are 16 px now (measured `newsOverBy -25`).
-
-| Claim | Command | Quoted result |
-|---|---|---|
-| The new unit tests were red | `npx vitest run tests/ui/hudQa.test.tsx` (F-red-unit.txt) | `Tests  11 failed \| 2 passed (13)` |
-| The new e2e checks were red | `npx playwright test e2e/m12b-qa.spec.ts` (F-red-e2e.txt) | `9 failed`, `EXIT 1`; `the dialog {"x":140,"y":-29.25,"width":360,"height":418.5} inside the window`; `hover: {"x":302.3125,"y":24,"width":290.15625,"height":94} inside the window`; `Center Camera at 228 to 260, the strip 8 to 251`; `Diplomacy at 152 to 184, the strip 8 to 181`; `the line ends at 390, the pane starts at 140`; `the widest line ends 0 px before the scrollbar`; FR-535 `toBeFocused() failed` |
-| The affected unit files pass | `npx vitest run` on 11 files, then 2 (F-green-unit-2.txt, F-green-unit-3.txt) | `Tests  216 passed (216)`; `Tests  30 passed (30)` |
-| The QA spec and the neighbour that went red pass | `npx playwright test e2e/m12b-qa.spec.ts e2e/m5-hud-scroll.spec.ts` (F-green-e2e-3.txt) | `11 passed (24.8s)`, `EXIT 0` (before: F-green-e2e-2.txt `1 failed`, `61 passed (4.0m)`, m5-hud-scroll FR-235 (1)) |
-| Gate 2's first full run found one red, from the review fix round | the whole gate (gate2-run1-*.txt) | unit, lint, tsc, build `EXIT 0`; e2e `1 failed`, `124 passed (8.5m)`, `EXIT 1`: m10-council FR-303, `expect(locator).not.toHaveAttribute() failed`, `Received: have attribute` (the Council line's A11Y-5 title) |
-| The re-recorded FR-537 pin can fail | mutation: the projection as the line's title (F-red-fr537-mutation.txt), then reverted | `Expected: "Next Council: turn 10 (Summer 1817)"`, `Received: "If it met now: Testland 4, Valdoria 4, abstain 4 of 12; 9 needed"`, `1 failed`, `EXIT 1` |
-| Every unit test passes | `npm test` (gate2-unit.txt) | `Test Files  122 passed (122)`, `Tests  2525 passed (2525)`, `EXIT 0` |
-| Lint has no error | `npm run lint` (gate2-lint.txt) | `✖ 2 problems (0 errors, 2 warnings)`, `EXIT 0`; the same two warnings as gate 1 |
-| Types are clean | `npx tsc --noEmit` (gate2-tsc.txt) | no output, `EXIT 0` |
-| The build works | `npm run build` (gate2-build.txt) | `✓ Compiled successfully in 3.7s`, `✓ Generating static pages (4/4)`, `EXIT 0` |
-| The browser suite passes | `PORT=3199 npx playwright test --workers=1` (gate2-e2e.txt), the rerun on the final tree | `125 passed (8.8m)`, `EXIT 0`; none failed, none flaky, none skipped; `FR-372 news list 400 px, 20 lines of 20 px` |
-| The documents agree with themselves | `node .gate/m12/L4-check-req.cjs`, `L4-check-roadmap.cjs` | `PASS` each; `rows 563 \| replaced-by pairs checked 67`; `FR-357..443 status words: {"tested":78,"partial":9,"parked":0}` |
-
-Seen by eye (`.gate/hud/final/fix-*.png`): How to play at 640x360 with Close in view; the score's parts inside the window at 390x844;
-Center Camera whole when focused at 390x844; the narrow-window line beside the pane with "Close tile info" free; the Details group
-with the Window line at 1280x720 on turn 2. Not verified: Firefox and WebKit.
+| Regressions before the fix | `npx.cmd vitest run tests/engine/scriptedInfluence.test.ts tests/engine/sim/m13Acceptance.test.ts -t 'an existing embassy cannot\|a pact requires an eligible\|reads the turn of Valdoria'` | `Tests  3 failed \| 72 skipped (75)` |
+| Initial focused run hit a Vitest worker timeout | `npx vitest run tests/engine/scriptedInfluence.test.ts tests/engine/sim/m13Acceptance.test.ts` | `Error: [vitest-worker]: Timeout calling "onTaskUpdate"` |
+| First full unit run | `npm test` | `Tests  1 failed \| 2730 passed (2731)` |
+| Unit suite | `VITEST_MAX_FORKS=3 VITEST_MIN_FORKS=1 npm test` | `Tests  2731 passed (2731)` |
+| First browser run | `PLAYWRIGHT_HTML_OPEN=never npx playwright test --workers=1` | `128 passed (24.9m)` |
+| FR-539 (Board) | `npm test` | `meets FR-539 (Board) idle 24 of 24 (required 18) min 10, median 12, max 12` |
+| FR-539 (sold) | `npm test` | `meets FR-539 (sold) trader 24 of 24 (required 18) min 7, median 10, max 10` |
+| FR-542 (i) | `npm test` | `meets FR-542 (i) idle 21 of 24 (required 18) min 23, median 24, max 26` |
+| FR-542 (ii) | `npm test` | `meets FR-542 (ii) idle 18 of 24 (required 18) min 0, median 1, max 1` |
+| FR-490 (replaced by FR-542) | `npm test` | `MISSES FR-490 (replaced by FR-542) idle 0 of 24 (required 18) min 0, median 0, max 0` |
+| Fair play and planning time | `npm test` | `FR-497 rejected orders of Valdoria 0 (required 0), invariant breaks 0 (required 0), no-pay disbands in idle games 0 (required 0), computerOrders p95 35.3 ms and max 97.8 ms over 3360 turns of 84 games (p95 required <= 100)` |
+| Lint | `npm run lint` | `✖ 2 problems (0 errors, 2 warnings)` |
+| Types | `npx tsc --noEmit` | `npx tsc --noEmit exit 0` |
+| Production build | `npm run build` | `✓ Compiled successfully in 21.1s` |
+| Browser suite | `PLAYWRIGHT_HTML_OPEN=never npx playwright test --workers=1` | `129 passed (11.8m)` |
+| Steel sale from the Board | `node .gate/codex/01/fr539-app.mjs` | `PASS FR-539: 10 turns, 3 offers, 3 steel sold to Valdoria, 0 browser errors` |
+| Grant in the news and vote on the Council screen | `node .gate/codex/01/fr542-app.mjs` | `PASS FR-542: grant on seed 11 turn 27 and a Valdoria Other Minor Nations vote on seed 1 turn 40, zero browser errors` |
+| Roadmap consistency | `node .gate/m12/L4-check-roadmap.cjs` | `PASS` |

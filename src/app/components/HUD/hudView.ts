@@ -1,10 +1,21 @@
 // The right pane's alerts and groups (FR-471 to FR-476) as plain data: pure reads of the game and the session, no React.
-import { countryName, provinceOf, warBetween, type Score, type UpkeepForecast } from "@/engine";
+import {
+  adjacentProvinces,
+  countryName,
+  defenceOf,
+  provinceOf,
+  provincesOf,
+  strengthIn,
+  warBetween,
+  type Score,
+  type UpkeepForecast,
+} from "@/engine";
 import { TRAINED_TO } from "@/definisions/ResourceConversions";
 import type { GameState } from "@/types/GameState";
 import type { WorkerGrade } from "@/types/Industry";
 import type { Tile } from "@/types/Tile";
 import { WorkerStatus } from "@/types/Workers";
+import { strengthText } from "../army/attackView";
 import { commodityName, dateText, money, TERRAIN_TEXT } from "../gameText";
 
 /** FR-412: each country at war with the player, the other Great Powers first, then the minors, in id order. */
@@ -15,6 +26,45 @@ export function playerWars(game: GameState, playerId: string): { id: string; nam
     return war ? [{ id, name: countryName(game, id) ?? id, since: war.since }] : [];
   });
 }
+
+/** FR-495: another Great Power's army in a province bordering one of ours, and that province of ours. */
+export interface BorderThreat {
+  nationId: string;
+  name: string;
+  /** Our province it borders. */
+  provinceId: string;
+  provinceName: string;
+  /** Its strength there (FR-204) and our province's defence (FR-226). */
+  strength: number;
+  defence: number;
+}
+
+/**
+ * FR-495 (Imp1's Defense Minister: "Strengthen the Army" when a rival army is more than twice ours [08:W26]): the
+ * strongest army of another Great Power in a province bordering one of the player's, with a strength above twice that
+ * province's defence; at peace too. At equal strength the weaker province of ours, then the first in state order. None
+ * on a world without provinces.
+ */
+export function borderThreat(game: GameState, playerId: string): BorderThreat | undefined {
+  const rivals = game.nations.map((n) => n.id).filter((id) => id !== playerId);
+  let strongest: BorderThreat | undefined;
+  for (const own of provincesOf(game, playerId)) {
+    const defence = defenceOf(game, own.id);
+    for (const near of adjacentProvinces(game, own.id)) {
+      for (const rival of rivals) {
+        const strength = strengthIn(game, rival, near.id);
+        if (strength <= 2 * defence) continue;
+        if (strongest && (strength < strongest.strength || (strength === strongest.strength && defence >= strongest.defence))) continue;
+        strongest = { nationId: rival, name: countryName(game, rival) ?? rival, provinceId: own.id, provinceName: own.name, strength, defence };
+      }
+    }
+  }
+  return strongest;
+}
+
+/** FR-495: "Valdoria's army at our border: Testland North-East (52 against our 25)", one decimal as the Attack screen. */
+export const borderThreatText = ({ name, provinceName, strength, defence }: Pick<BorderThreat, "name" | "provinceName" | "strength" | "defence">): string =>
+  `${name}'s army at our border: ${provinceName} (${strengthText(strength)} against our ${strengthText(defence)})`;
 
 /**
  * The score's four parts (FR-402), in the order and words the bar's popover (FR-404) and the Nation group (FR-474) both

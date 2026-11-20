@@ -52,7 +52,7 @@ export const upkeepIn = (state: GameState, nationId: NationId, provinceId: Provi
  * FR-392 (audit AISIM-06): what this turn's bids will cost above the reserve they took when ordered (amount x P), which
  * the trade phase takes from the treasury before the upkeep step: a deal with a seller we subsidise costs
  * floor(P x (1 + s)) a unit (FR-189). Read by settling this turn's trade as the phase will (after this turn's diplomacy,
- * `diplomacyAfterThisTurn`) with the orders given so far; only the extra counts, not this turn's sales nor a refund.
+ * `diplomacyAfterThisTurn`) with this nation's orders so far; only the extra counts, not this turn's sales nor a refund.
  * Nothing in "world" (bids pay the world price when ordered) or without a bid.
  */
 function bidExtraOf(state: GameState, nationId: NationId): number {
@@ -60,7 +60,7 @@ function bidExtraOf(state: GameState, nationId: NationId): number {
   if (!Object.values(tradeOrdersOf(state, nationId).buy).some((n) => (n ?? 0) > 0)) return 0;
   const market = marketOf(state);
   let extra = 0;
-  settlePartnerTrade(diplomacyAfterThisTurn(state), state.turn, (event) => {
+  settlePartnerTrade(diplomacyAfterThisTurn(state, nationId), state.turn, (event) => {
     if (event.type !== "goods-bought" || event.nationId !== nationId) return;
     extra += Math.max(0, event.cost - event.amount * priceOf(market, event.commodity));
   });

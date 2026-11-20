@@ -16,15 +16,17 @@ import { GoodsType, MaterialType, ResourceType } from "@/types/Resource";
 import type { Order } from "../orders/Order";
 import { nationById } from "../orders/queries";
 import { BUILDING_ORDER, BUILDINGS, nextCapacity } from "@/definisions/industryBuildings";
-import { FREIGHT_CAR_COST, RECIPES, TRAINING_COST } from "@/definisions/ResourceConversions";
+import { FREIGHT_CAR_COST, MIGRANT_COST, RECIPES, TRAINING_COST } from "@/definisions/ResourceConversions";
 import { TRADE_COMMODITIES } from "@/definisions/marketPrices";
 import { SCORE_WEIGHTS } from "@/definisions/scoreWeights";
 import { CONSTRUCTION_COST, DEVELOPMENT_COST } from "@/definisions/workPrices";
-import { buildingOf } from "../industry/industryState";
-import { healthyWorkers, labourTotal } from "../industry/labour";
+import { buildingOf, START_WORKERS } from "../industry/industryState";
+import { GRADES, healthyWorkers, labourTotal } from "../industry/labour";
 import { marketOf, priceOf, tradeCapacityOf, tradeOrdersOf } from "../market/market";
 import { marketModeOf } from "../market/partners";
 import { partnerDemand, partnerSupply, planConsulate } from "./scriptedPartners";
+import { embassySaving, planInfluence } from "./scriptedInfluence";
+import { greatPowerTradeCaps } from "./scriptedGreatPowerTrade";
 import { mealNeeds } from "../systems/foodSystem";
 import { productionSystem } from "../systems/productionSystem";
 import { computeLogisticsTransport, logisticsSystem } from "../systems/logisticsSystem";
@@ -33,7 +35,7 @@ import { developmentSystem } from "../systems/developmentSystem";
 import { createTurnContext } from "../turn/context";
 import { turnLimitOf } from "../turn/gameOver";
 import { SCRIPTED_GARRISON } from "@/definisions/regiments";
-import { armsWanted, planGarrison } from "./scriptedArmy";
+import { armsWanted, planGarrison, upkeepReserve } from "./scriptedArmy";
 import { workersKeptForCampaign } from "./scriptedWar";
 import { capitalComponent } from "./railPlan";
 import { upkeepOf } from "../army/armies";
@@ -104,7 +106,11 @@ export function planEconomy(view: () => GameState, nationId: string, propose: Pr
   planFreightCars(view, nationId, propose);
   planExpansion(view, nationId, propose);
   proposeRun(view, nationId, propose);
+  const workforce = view();
+  const replaceWorker = migrantsWanted(workforce, nationId) > 0;
+  if (replaceWorker) planMigrant(workforce, nationId, propose);
   planTrade(view, nationId, propose);
+  if (!replaceWorker) planOptionalMigrant(workforce, view(), nationId, propose);
 }
 
 // --- transport (FR-127) ---------------------------------------------------------------------
@@ -229,10 +235,11 @@ function clearStandingOrders(state: GameState, nationId: string, propose: Propos
  * reserve (`cashReserve`, FR-454) for them: before FR-460 a training to expert ($1,000) left the engineer $116 for a
  * rail section (two-islands seed 7, turn 25), and the depot joined a turn late. A nation with an army trains as before
  * (FR-455, FR-458: its regiments draw trained workers): keeping a reserve there too lowered FR-260's start-army scores
- * (by up to 55 points), so its engineer can still wait a turn for a section (card Q107).
+ * (by up to 55 points), so its engineer can still wait a turn for a section (card Q107). FR-542: either way it leaves the
+ * embassy's $5,000 while one is wanted (`embassySaving`).
  */
 const trainingCash = (state: GameState, nation: Nation): number =>
-  nation.treasury - (upkeepOf(state, nation.id) > 0 ? 0 : cashReserve(state, nation.id));
+  nation.treasury - (upkeepOf(state, nation.id) > 0 ? 0 : cashReserve(state, nation.id)) - embassySaving(state, nation.id);
 
 /**
  * Training (FR-130), only on a turn whose run would use all the labour (less than 2 left, so more
@@ -279,10 +286,12 @@ const pairsLabourAllows = (nation: Nation): number =>
 function planExpansion(view: () => GameState, nationId: string, propose: Propose): void {
   const capped = BUILDING_ORDER.filter((b) => !BUILDINGS[b].unlimited && !BUILDINGS[b].needsOilDrilling);
   const reserved = garrisonSteel(view(), nationId);
+  // FR-485: the lumber of the next migrant's furniture stays out too (the run makes it first)
+  const keptLumber = nextMigrantWanted(view(), nationId) ? RECIPES[GoodsType.Furniture].inputs[0].amount : 0;
   for (let guard = 0; guard < 64; guard++) {
     const nation = nationOf(view(), nationId);
     const stock = nation.warehouse as Stock;
-    const pairs = Math.min(stock[MaterialType.Lumber] ?? 0, (stock[MaterialType.Steel] ?? 0) - reserved);
+    const pairs = Math.min((stock[MaterialType.Lumber] ?? 0) - keptLumber, (stock[MaterialType.Steel] ?? 0) - reserved);
     const target = pairsLabourAllows(nation);
     const steps = capped
       .map((building) => {
@@ -367,19 +376,21 @@ function paperWanted(state: GameState, nation: Nation): number {
 /**
  * This turn's run on the current plan (FR-129; nothing is ordered), by priority: under an army threat
  * the armaments the garrison recruits with, up to 2 in stock (FR-213); canned food while
- * the cans are fewer than the workers; paper for next turn's training; then the pairs and the goods,
+ * the cans are fewer than the workers; while a migrant is wanted next turn (FR-485) a clothing and a furniture for him
+ * and the fabric of the clothing after; paper for next turn's training; then the pairs and the goods,
  * the goods first while the treasury is below the reserve (`cashReserve`, FR-454); last, canned food from raw food above a
  * meal. Pairs: lumber + steel, the scarcer one first, so the pairs stay even. Goods for the holds
  * from stock the pairs do not need: clothing, furniture from unpaired lumber, and fabric and spare
  * lumber for next turn's goods. On the last turn nothing is made: it would be neither used nor sold.
+ * `labour` replaces the workers' labour (FR-486's measure runs it with unlimited labour).
  */
-export function planRun(state: GameState, nationId: string): Run {
+export function planRun(state: GameState, nationId: string, labour = labourTotal(nationOf(state, nationId).industry)): Run {
   const nation = nationOf(state, nationId);
   const stock = { ...(nation.warehouse as Stock) };
   const room: Run["room"] = {};
   for (const building of BUILDING_ORDER) room[building] = buildingOf(nation, building).capacity;
   const cars = Math.max(0, Math.floor(nation.transportCapacityPendingIncrease ?? 0));
-  const run: Run = { labour: labourTotal(nation.industry) - cars * FREIGHT_CAR_COST.labour, stock, room, made: {} };
+  const run: Run = { labour: labour - cars * FREIGHT_CAR_COST.labour, stock, room, made: {} };
   const left = turnsAfter(state);
   if (left === 0) return run;
 
@@ -395,6 +406,12 @@ export function planRun(state: GameState, nationId: string): Run {
   // FR-213: under a threat the run first makes the garrison's armaments, up to 2 in stock
   make(run, GoodsType.Armaments, garrisonArmaments(state, nationId));
   while (have(MaterialType.CannedFood) < mouths && aboveMeal() && make(run, MaterialType.CannedFood, 2) > 0);
+  if (nextMigrantWanted(state, nationId)) {
+    // FR-485: made this turn, in the warehouse for next turn's migrant (goods made this turn are not offered)
+    make(run, GoodsType.Clothing, 1);
+    make(run, GoodsType.Furniture, 1);
+    make(run, MaterialType.Fabric, RECIPES[GoodsType.Clothing].inputs[0].amount - (stock[MaterialType.Fabric] ?? 0) - (run.made[MaterialType.Fabric] ?? 0));
+  }
   make(run, MaterialType.Paper, paperWanted(state, nation));
 
   const pairs = () => {
@@ -435,6 +452,81 @@ function proposeRun(view: () => GameState, nationId: string, propose: Propose): 
       for (let n = amount; n > 0; n -= batch) if (propose({ kind: "setProduction", nationId, building, output, amount: n })) break;
     }
   }
+}
+
+// --- workforce (FR-485, FR-486; card Q116 (b)) ---------------------------------------------------
+
+/** A migrant only while at least this many turns follow: he joins after this turn's meal and works from next turn on. */
+export const MIGRANT_MIN_TURNS = 3;
+
+/** FR-486: the capacity points this turn's run leaves idle for want of labour that call for a migrant. */
+export const MIGRANT_IDLE_CAPACITY = 4;
+
+/** A new game's workforce (START_WORKERS: 7), what FR-485 keeps. */
+const START_WORKFORCE = GRADES.reduce((n, grade) => n + START_WORKERS[grade], 0);
+
+/** Healthy workers (not sick; a worker in training is back next turn) and the migrants ordered this turn. */
+const workforceOf = (nation: Nation): number =>
+  GRADES.reduce((n, grade) => n + nation.industry.workers[grade] - nation.industry.sick[grade], 0) + nation.industry.recruits;
+
+const hasMigrantGoods = (nation: Nation): boolean =>
+  Object.entries(MIGRANT_COST).every(([commodity, each]) => ((nation.warehouse as Stock)[commodity] ?? 0) >= (each ?? 0));
+
+/**
+ * FR-485: the workers it is short of a new game's workforce (its regiments took them, FR-455), on a world with provinces;
+ * always 0 on a world without (FR-498: two-islands play does not move).
+ */
+export function migrantsWanted(state: GameState, nationId: string): number {
+  if (state.provinces.length === 0) return 0;
+  return Math.max(0, START_WORKFORCE - workforceOf(nationOf(state, nationId)));
+}
+
+/** FR-485: one more migrant is wanted after this turn's (if its goods are in stock now), with the turns to use him. */
+function nextMigrantWanted(state: GameState, nationId: string): boolean {
+  if (turnsAfter(state) < MIGRANT_MIN_TURNS + 1) return false;
+  const now = hasMigrantGoods(nationOf(state, nationId)) ? 1 : 0;
+  return migrantsWanted(state, nationId) - now > 0;
+}
+
+/**
+ * M13 T-15 (FR-485, FR-040): a migrant leaves the cans this turn's meal needs: the meal slots that the raw food in the
+ * warehouse at meal time (after this turn's run and shipment, `projectTurn`) does not cover take a can each. Measured
+ * before it: FR-260 seed 2, turn 18, the migrant took the one can and a worker fell sick.
+ */
+function migrantLeavesTheMeal(state: GameState, nationId: string): boolean {
+  const atMeal = projectTurn(state, nationId).next;
+  const needs = mealNeeds(mouthsOf(nationOf(state, nationId)));
+  const short = (need: number, ...types: ResourceType[]) => Math.max(0, need - types.reduce((n, t) => n + (atMeal[t] ?? 0), 0));
+  const cans = short(needs.grain, ResourceType.Grain) + short(needs.fruit, ResourceType.Fruit) + short(needs.meat, ResourceType.Livestock, ResourceType.Fish);
+  return (atMeal[MaterialType.CannedFood] ?? 0) - (MIGRANT_COST[MaterialType.CannedFood] ?? 0) >= cans;
+}
+
+const cappedRoom = (run: Run): number => BUILDING_ORDER.filter((b) => !BUILDINGS[b].unlimited).reduce((n, b) => n + (run.room[b] ?? 0), 0);
+
+/**
+ * FR-486: the capacity points this turn's run (`planRun`) leaves idle for want of labour: the room of the capped
+ * buildings it would fill from its stock with unlimited labour, less what it fills with the labour it has.
+ */
+export const idleForWantOfLabour = (state: GameState, nationId: string): number =>
+  cappedRoom(planRun(state, nationId)) - cappedRoom(planRun(state, nationId, Infinity));
+
+/**
+ * FR-485, FR-486: the migrant must leave the meal's cans and have at least MIGRANT_MIN_TURNS to work.
+ * FR-485 replacement workers get their goods before this turn's offers.
+ */
+function planMigrant(state: GameState, nationId: string, propose: Propose): void {
+  if (turnsAfter(state) >= MIGRANT_MIN_TURNS && migrantLeavesTheMeal(state, nationId)) propose({ kind: "recruitWorkers", nationId, delta: 1 });
+}
+
+/** FR-486: a worker to staff idle mills gets only goods surplus to this turn's partners, including a new consulate. */
+function planOptionalMigrant(beforeTrade: GameState, afterTrade: GameState, nationId: string, propose: Propose): void {
+  if (beforeTrade.provinces.length === 0 || marketModeOf(beforeTrade) !== "partners" || turnsAfter(beforeTrade) < MIGRANT_MIN_TURNS) return;
+  const nation = nationOf(beforeTrade, nationId);
+  if (nation.industry.recruits > 0 || idleForWantOfLabour(beforeTrade, nationId) < MIGRANT_IDLE_CAPACITY) return;
+  const stock = nation.warehouse as Stock;
+  const demand = partnerDemand(afterTrade, nationId);
+  const spare = Object.entries(MIGRANT_COST).every(([c, each]) => (stock[c] ?? 0) - (demand[c as TradeCommodity] ?? 0) >= (each ?? 0));
+  if (spare) planMigrant(afterTrade, nationId, propose);
 }
 
 // --- world market (FR-128) ------------------------------------------------------------------
@@ -526,7 +618,10 @@ function rawWants(state: GameState, nationId: string, next: Stock): TradeAmounts
  * In a "partners" market (FR-245; scriptedPartners.ts) nobody sells lumber or steel: a consulate first, only
  * with a minor whose offer or demand it will use; step (2) bids for the raw inputs of its mills instead
  * (`rawWants`), each bid capped at what the minors it may trade with offer; offers are goods only, each capped
- * at what those minors want. In "world" nothing changes.
+ * at what those minors want. In "world" nothing changes. M13: the grants (`planInfluence`, FR-490) come right after
+ * the consulate, and in "partners" the trade with another Great Power (`greatPowerTradeCaps`, FR-493) raises those caps
+ * and adds its bids after the mills' inputs; from turn 7 a standing bid of 1 steel toward a Great Power a person plays
+ * goes before them (FR-539).
  */
 function planTrade(view: () => GameState, nationId: string, propose: Propose): void {
   const partners = marketModeOf(view()) === "partners";
@@ -540,8 +635,12 @@ function planTrade(view: () => GameState, nationId: string, propose: Propose): v
     const sell = Object.fromEntries(MINOR_GOODS.map((c) => [c, Math.max(0, sellable(c))]).filter(([, n]) => (n as number) > 0));
     planConsulate(view, nationId, cashReserve(start, nationId), { buy: raw, sell }, propose);
   }
+  // FR-490, FR-542 (M13): the embassy, the pact and the grants before a Council meeting (scriptedInfluence.ts)
+  planInfluence(view, nationId, cashReserve(start, nationId), propose);
   const supply = partners ? partnerSupply(view(), nationId) : undefined;
   const demand = partners ? partnerDemand(view(), nationId) : undefined;
+  // FR-493 (M13): trade with another Great Power, on top of the minors' supply and demand (scriptedGreatPowerTrade.ts)
+  const rival = partners ? greatPowerTradeCaps(view(), nationId, next) : undefined;
   const market = marketOf(start);
   const ranked = [...TRADE_COMMODITIES].sort((a, b) => priceOf(market, b) - priceOf(market, a));
   const pairPrice = priceOf(market, MaterialType.Lumber) + priceOf(market, MaterialType.Steel);
@@ -554,15 +653,15 @@ function planTrade(view: () => GameState, nationId: string, propose: Propose): v
       const free = tradeCapacityOf(view(), nationId).free;
       if (free <= 0) return;
       const offered = tradeOrdersOf(view(), nationId).sell[commodity] ?? 0;
-      const wanted = demand ? (demand[commodity] ?? 0) : Infinity;
+      const wanted = demand ? (demand[commodity] ?? 0) + (rival?.sell[commodity] ?? 0) : Infinity;
       const more = Math.min(free, Math.min(sellable(commodity), wanted) - offered);
       for (let n = more; n > 0; n--) if (propose({ kind: "sellCommodity", nationId, commodity, amount: offered + n })) break;
     }
   };
-  const bid = (commodity: TradeCommodity, units: number): number => {
+  const bid = (commodity: TradeCommodity, units: number, floor = cashReserve(start, nationId)): number => {
     const current = tradeOrdersOf(view(), nationId).buy[commodity] ?? 0;
-    const cash = nationOf(view(), nationId).treasury - cashReserve(start, nationId);
-    const offered = supply ? (supply[commodity] ?? 0) - current : Infinity;
+    const cash = nationOf(view(), nationId).treasury - floor;
+    const offered = supply ? (supply[commodity] ?? 0) + (rival?.buy[commodity] ?? 0) - current : Infinity;
     const most = Math.min(units, tradeCapacityOf(view(), nationId).free, Math.floor(cash / priceOf(market, commodity)), offered);
     for (let n = most; n > 0; n--) if (propose({ kind: "buyCommodity", nationId, commodity, amount: current + n })) return n;
     return 0;
@@ -570,7 +669,21 @@ function planTrade(view: () => GameState, nationId: string, propose: Propose): v
 
   offer(buyGainPerHold);
   if (partners) {
+    // FR-493 (a): a bid toward another Great Power that offered the commodity last turn goes before the mills' inputs
+    const rivalBids = Object.entries(rival?.buy ?? {}) as [TradeCommodity, number][];
+    // A single hold can complete a pair: bid for the material scarcer in next turn's warehouse first.
+    rivalBids.sort(([a], [b]) => (next[a] ?? 0) - (next[b] ?? 0));
+    for (const [commodity, units] of rivalBids) if (rival?.offeredLastTurn.includes(commodity)) bid(commodity, units);
+    // FR-539: the standing steel bid toward a person, before the mills' inputs, so they cannot fill the 4 holds first (QA
+    // check 4 saw them full; placed after them it also met FR-539's sim rows, so this is for robustness). Its
+    // floor is the upkeep reserve, not cashReserve: unanswered, it is refunded in this turn's trade phase, and during the
+    // campaign on a minor the treasury stays below cashReserve (measured: the Steel row on 6 of turns 3 to 20, required 9).
+    for (const [commodity, units] of Object.entries(rival?.standing ?? {}) as [TradeCommodity, number][]) {
+      const current = tradeOrdersOf(view(), nationId).buy[commodity] ?? 0;
+      if (units > current) bid(commodity, units - current, upkeepReserve(start, nationId));
+    }
     for (const [commodity, units] of Object.entries(raw) as [TradeCommodity, number][]) bid(commodity, units);
+    for (const [commodity, units] of rivalBids) if (!rival?.offeredLastTurn.includes(commodity)) bid(commodity, units);
   } else if (buying) {
     const lumber = next[MaterialType.Lumber] ?? 0;
     const steel = next[MaterialType.Steel] ?? 0;

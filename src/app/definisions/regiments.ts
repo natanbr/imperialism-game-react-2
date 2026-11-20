@@ -109,14 +109,13 @@ export const START_FORCES = {
 } as const;
 
 /**
- * The scripted garrison (FR-213; Imp1 Defense Minister, rule remake): under a threat it recruits 1 Regulars a turn while
- * its treasury after the order stays at `treasuryFloor` or more; its run first makes armaments up to `armaments` in
- * stock; its orders keep `upkeepTurns` turns of its upkeep, and in the last `endgameTurns` turns the upkeep of every
- * turn left; it never moves or disbands, so its capital province keeps the start army's `capitalArms` (asserted by the
- * FR-213, FR-247 and FR-260 tests).
+ * The scripted garrison (FR-213; Imp1 Defense Minister, rule remake): it recruits 1 regiment a turn (FR-482's lists,
+ * combatRules.ts) while its treasury after the order stays at `treasuryFloor` or more, under a threat at its upkeep
+ * reserve instead (FR-483); its run first makes armaments up to `armaments` in stock; its orders keep `upkeepTurns`
+ * turns of its upkeep, and in the last `endgameTurns` turns the upkeep of every turn left; its capital province keeps
+ * the start army's `capitalArms` (asserted by the FR-213, FR-247 and FR-260 tests).
  */
 export const SCRIPTED_GARRISON = {
-  regiment: "regulars" as RegimentType,
   treasuryFloor: 2500,
   armaments: 2,
   upkeepTurns: 2,

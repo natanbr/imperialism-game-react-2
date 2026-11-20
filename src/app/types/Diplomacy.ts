@@ -89,6 +89,11 @@ export interface PairDiplomacy {
    * two ends them and this mark (FR-167), so a consulate or embassy opened later is never taken for a start one.
    */
   startTreaties?: boolean;
+  /**
+   * FR-488 (M13): the turn the pair's last war ended in peace (FR-169). Absent when it never did, and on saves from before
+   * M13 (optional, so they still load). The scripted Great Power starts no war on a Great Power within 10 turns of it.
+   */
+  peaceTurn?: number;
 }
 
 /** By `pairKey(a, b)`: the two country ids in string order joined by a bar ("minor-1|nation-1"). */

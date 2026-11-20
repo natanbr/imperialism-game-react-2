@@ -210,6 +210,12 @@ export const BoardOfTrade: React.FC = () => {
                         {row.noMinorText}
                       </span>
                     )}
+                    {/* FR-494: the other Great Power's bid or offer of last turn (FR-491), a line of its own under the minors */}
+                    {row.rivalLastTurn && (
+                      <div className={styles.noMinor} data-testid="rival-last-turn">
+                        {row.rivalLastTurn}
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))}

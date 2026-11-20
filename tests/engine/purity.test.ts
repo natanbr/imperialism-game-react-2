@@ -141,7 +141,7 @@ describe('M10 the Council code is headless, draws nothing and is not read by the
    * The engine files a file loads at run time, followed through every `import ... from` and `export ... from` that is
    * not `import type` / `export type` (types are erased), for the paths inside src/app (`@/...` and relative ones).
    */
-  function runtimeImports(entry: string): Set<string> {
+  function runtimeImports(entry: string, stopAt: string[] = []): Set<string> {
     const seen = new Set<string>();
     const resolveFile = (from: string, spec: string): string | undefined => {
       const base = spec.startsWith('@/') ? join(app, spec.slice(2)) : spec.startsWith('.') ? join(from, '..', spec) : undefined;
@@ -158,6 +158,7 @@ describe('M10 the Council code is headless, draws nothing and is not read by the
     const visit = (file: string) => {
       if (seen.has(file)) return;
       seen.add(file);
+      if (file !== entry && stopAt.includes(file)) return;
       const src = code(readFileSync(file, 'utf8'));
       // the clause: `X`, `{ a, type B }`, `* as N`, `*`, `X, { a }`
       const statement = /(?:^|[\n;])\s*(import|export)\s+(type\s+)?(\{[^}]*\}|\*(?:\s+as\s+\w+)?|\w+(?:\s*,\s*(?:\{[^}]*\}|\*\s+as\s+\w+))?)\s*from\s+["']([^"']+)["']/g;
@@ -171,12 +172,22 @@ describe('M10 the Council code is headless, draws nothing and is not read by the
     return seen;
   }
   const rel = (path: string) => relative(app, path).split(sep).join('/');
-  const reachesCouncil = (entry: string) => [...runtimeImports(join(app, entry))].map(rel).filter(f => f === 'engine/council/council.ts' || f === 'definisions/council.ts');
+  const reachesCouncil = (entry: string, stopAt: string[] = []) =>
+    [...runtimeImports(join(app, entry), stopAt.map(f => join(app, f)))].map(rel).filter(f => f === 'engine/council/council.ts' || f === 'definisions/council.ts');
+  /** FR-490 (M13) narrows FR-302: the grants before a Council read when the next meeting is and who is nominated. */
+  const INFLUENCE = 'engine/ai/scriptedInfluence.ts';
 
-  it('FR-302 no file of engine/ai loads the council code, directly or through another file', () => {
+  // Re-recorded by M13 T-15 (FR-490 narrows FR-302): was "no file of engine/ai loads the council code". FR-490's grants
+  // (scriptedInfluence.ts) read `nextCouncilTurn` and `councilNominees`, as a human reads the HUD's Council line and the
+  // Council screen. Every other path from engine/ai to the council code is still refused: the scan stops at that file only.
+  it('FR-302 FR-490 no file of engine/ai loads the council code except through scriptedInfluence.ts (FR-490\'s grants)', () => {
     const aiFiles = readdirSync(join(app, 'engine/ai')).filter(f => f.endsWith('.ts')).map(f => `engine/ai/${f}`);
     expect(aiFiles.length).toBeGreaterThanOrEqual(8);
-    expect(aiFiles.map(f => [f, reachesCouncil(f)])).toEqual(aiFiles.map(f => [f, []]));
+    expect(aiFiles).toContain(INFLUENCE);
+    const others = aiFiles.filter(f => f !== INFLUENCE);
+    expect(others.map(f => [f, reachesCouncil(f, [INFLUENCE])])).toEqual(others.map(f => [f, []]));
+    // the scan still sees the council code from that file, so stopping there hides nothing else
+    expect(reachesCouncil(INFLUENCE)).toContain('engine/council/council.ts');
   });
 
   it('FR-302 the scan sees the council code where it is loaded: resolveTurn and the public API reach it', () => {

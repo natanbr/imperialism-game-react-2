@@ -90,13 +90,22 @@ src/app/
                            under exact amounts, FR-389, FR-405)
     ai/railPlan.ts         read-only rail and tile planning: depot sites, rail paths, tilesByReach
     ai/players.ts          PLAYERS (controller -> Player) and computerOrders(state) (FR-099)
-    ai/diplomacy.ts        the scripted player's peace offers when losing a war (FR-174)
-    ai/scriptedArmy.ts     M8 (FR-213): armyThreat, planGarrison (1 Regulars a turn under a threat)
+    ai/diplomacy.ts        the scripted player's peace offers when losing a war (FR-174, FR-408) and, M13, once
+                           it holds the province its war on a Great Power was for (FR-489)
+    ai/scriptedArmy.ts     M8 (FR-213): armyThreat, planGarrison; M13: wantedRegiment (FR-482, FR-483) and
+                           upkeepReserve (moved from scriptedPlayer.ts, which re-exports it)
+    ai/scriptedWar.ts      M9 (FR-228, FR-274): the campaign; M13: campaignRecruit, a Great Power target from
+                           turn 20 (FR-488), one province then no further attack (FR-489)
     ai/scriptedPartners.ts M7 (FR-245): planConsulate, partnerSupply, partnerDemand (its bid and offer caps)
+    ai/scriptedInfluence.ts M13 (FR-490, FR-542): embassy saving, pacts and grants before a Council. The
+                           one engine/ai file that reads the council code (FR-302 narrowed)
+    ai/scriptedGreatPowerTrade.ts M13 (FR-493): greatPowerTradeCaps, the bids and offers toward the other
+                           Great Power from last turn's public orders (FR-491)
     market/                market.ts (the world market, nextPrices), partners.ts (M7 reads: marketModeOf,
                            minorOffers, minorDemand, partnerTieOrder (M12), partnerRanking, favouritePartner, tradeBarrier,
-                           settledTradeBarrier, diplomacyAfterThisTurn, boardOfTrade), settlePartners.ts
-                           (the "partners" deals; `dealPrice`, FR-189), dealBook.ts (FR-244 data)
+                           settledTradeBarrier, diplomacyAfterThisTurn, boardOfTrade; M13: lastTradeOrdersOf,
+                           bidSellersOf), settlePartners.ts (the "partners" deals; `dealPrice`, FR-189), dealBook.ts
+                           (FR-244 data)
   store/
     rootStore.ts           createGameStore(options) and the app's useGameStore
     gameSlice.ts           game, activeNationId, lastRejection, eventLog, orderLog, submitOrder,
@@ -877,6 +886,46 @@ Orders only, every dialog renders `Modal.tsx`, only `components/art/inkArt.ts` n
 `partnerRanking`, `SCRIPTED_DIPLOMACY.offerEveryTurns` (now `offerAgainTurns`), the Deal Book's "Military upkeep" bottom
 line, edge scroll under the HUD, the cursor taken from a tile's possible action (now `clickCursors`), and Accept Offer
 opening over another dialog.
+
+## M13: computer nations that play
+
+Rows FR-481 to FR-500 (`docs/specs/m13-m16.md`). Every rule is the scripted player's, acts only through Orders, and acts
+only on a world with provinces (FR-482 to FR-490) or in "partners" (FR-491 to FR-494), so the two-islands games do not
+move (FR-498). New state fields are optional, so M12 saves load and `SAVE_VERSION` stays 1.
+
+- **Army** (`ai/scriptedArmy.ts`, `ai/scriptedWar.ts`, `definisions/combatRules.ts`): `wantedRegiment` orders the first
+  regiment of `SCRIPTED_WAR.threatRegiments` (under a threat) or `campaignRegiments` (a campaign) that it can raise this
+  turn (FR-482); under a threat the cash floor is `upkeepReserve` counted with the recruit (FR-483). From turn 20, with
+  no minor left, `campaignTarget` may name the other Great Power (FR-488) unless a peace with it is under 10 turns old
+  (`PairDiplomacy.peaceTurn`, written by `makePeace` in `systems/diplomacySystem.ts`). Once it holds a province it took
+  from that country, `warAimHeld` / `warAimHeldSince` (`diplomacy/scriptedAnswers.ts`) stop its attacks there and bring
+  a peace offer (FR-489), also within 6 turns of an earlier offer made before the capture. A war on a minor waits for
+  `SCRIPTED_WAR.minorWarUpkeepTurns` (4) turns of upkeep in the treasury (M13 T-15).
+- **Workforce** (`ai/economy.ts`, `planMigrants`): one migrant a turn while it has fewer healthy workers than a new
+  game (FR-485) or its run leaves capacity idle for want of labour (FR-486); never with the can its meal needs this turn
+  (`migrantLeavesTheMeal`, read from the warehouse after this turn's run and shipment, M13 T-15).
+- **Votes** (`ai/scriptedInfluence.ts`, FR-490, FR-542). Campaign recruitment and training reserve the embassy price.
+  Valdoria seeks an embassy in an eligible free minor, proposes a pact, and can pay grants in the four turns before a Council. It reads
+  `nextCouncilTurn` and `councilNominees`, as a human reads the HUD's Council line; `tests/engine/purity.test.ts` lets
+  this file, and no other in `engine/ai`, reach the council code.
+- **Trade between Great Powers** (FR-491 to FR-494): the "partners" trade phase records each Great Power's bids and
+  offers in `market.lastOrders` before it clears the orders; `lastTradeOrdersOf` reads it. `partnerRefusal` lets a bid
+  through while another Great Power we may trade with exists (`bidSellersOf`) and an offer once that power bid for it
+  last turn. `ai/scriptedGreatPowerTrade.ts` caps the scripted player's lumber and steel bids and its goods offers toward
+  the other power (`greatPowerTradeCaps`); a bid that power answered last turn goes before the mills' inputs
+  (`offeredLastTurn`, M13 T-15), and so does a bid it placed last turn in answer to an offer of the turn before (FR-541:
+  the trade phase moves `lastOrders` to `market.ordersTwoTurnsAgo`, read by `tradeOrdersTwoTurnsAgoOf`; without it the
+  computer's answer and the person's offer stayed one turn apart). The Board of Trade shows last turn's line ("Valdoria
+  bid for 2 last turn"). From turn 7, FR-539 gives one steel bid priority over mill inputs when an eligible human
+  rival can trade and the expansion plan needs steel. The bid preserves the upkeep reserve.
+- **Fair play** (FR-497): `diplomacyAfterThisTurn(state, viewerId)` is the FR-246 forecast as one nation sees it: only
+  that nation's intents of this turn run through `diplomacySystem`, so neither the Board nor the scripted player sees
+  another nation's war, boycott or consulate before it resolves. `tradeBarrier`'s fourth argument names the viewer.
+- **HUD and news** (FR-495, FR-496): `borderThreat` in `components/HUD/hudView.ts` (one line for the strongest rival
+  army at our border); the news drops the other side's copy of a peace or alliance the player made.
+- **Sim harness** (FR-481, FR-500): `tests/engine/sim/harness.ts` plays a 40-turn continent game as the store does with
+  one human policy of `tests/engine/sim/humans.ts` (idle, scripted, aggressor, trader) and records every turn;
+  `tests/engine/sim/m13Acceptance.test.ts` holds the sim thresholds over seeds 1 to 24.
 
 ## Testing
 

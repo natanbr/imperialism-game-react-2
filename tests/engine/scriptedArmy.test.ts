@@ -1,12 +1,13 @@
 // FR-213: the scripted garrison (Imp1 Defense Minister: "Strengthen the Army" when a rival army is far stronger; rule
-// remake). It never moves or disbands; under a threat it recruits 1 Regulars a turn and makes armaments for it first.
+// remake). It never moves or disbands; under a threat it recruits 1 regiment a turn, the first of FR-482's threat list it
+// can raise down to its upkeep reserve (FR-483), and makes armaments for it first.
 import { describe, it, expect } from 'vitest';
 import { newGame } from '@/engine/newGame';
 import { scriptedPlayer } from '@/engine/ai/scriptedPlayer';
 import { computerOrders } from '@/engine/ai/players';
 import { upkeepReserve } from '@/engine/ai/scriptedPlayer';
-import { SCRIPTED_GARRISON } from '@/definisions/regiments';
-import { armyThreat } from '@/engine/ai/scriptedArmy';
+import { REGIMENTS, SCRIPTED_GARRISON } from '@/definisions/regiments';
+import { armyThreat, wantedRegiment } from '@/engine/ai/scriptedArmy';
 import { forceSize, upkeepOf } from '@/engine/army/armies';
 import { resolveTurn } from '@/engine/turn/resolveTurn';
 import type { Order } from '@/engine/orders/Order';
@@ -57,19 +58,27 @@ describe('FR-213 recruiting under a threat', () => {
     expect(armyOrders(scriptedPlayer(ready(), N2))).toEqual([REGULARS_1]);
   });
 
-  it('FR-213 only while its treasury after the order stays at $2,500 or more: at $3,000 yes, at $2,999 no', () => {
-    expect(armyOrders(scriptedPlayer(setTreasury(ready(), N2, 3000), N2))).toEqual([REGULARS_1]);
-    expect(armyOrders(scriptedPlayer(setTreasury(ready(), N2, 2999), N2))).toEqual([]);
+  // Re-recorded in M13 by FR-483 (card Q119 (a)): was "only while its treasury after the order stays at $2,500 or more:
+  // at $3,000 yes, at $2,999 no"; under a threat the floor is now the upkeep reserve counted with the new regiment
+  // (2 x ($100 + $25) = $250), and below Regulars' $500 the next of FR-482's list it can pay for is raised.
+  it('FR-213 FR-483 only while its treasury after the order stays at its upkeep reserve with the new regiment ($250): $750 Regulars, $749 the $100 Hussars, $349 nothing', () => {
+    const ordered = (cash: number) => armyOrders(scriptedPlayer(setTreasury(ready(), N2, cash), N2));
+    expect(ordered(750)).toEqual([REGULARS_1]);
+    expect(ordered(749)).toEqual([{ ...REGULARS_1, regiment: 'hussars' }]);
+    expect(ordered(349)).toEqual([]);
   });
 
-  it('FR-213 not without an armament, nor without an untrained worker', () => {
+  // Re-recorded in M13 by FR-482 (card Q119 (a)): was "nor without an untrained worker" -> []; without one, a trained
+  // worker and a horse raise Cuirassiers, the next of the threat list.
+  it('FR-213 FR-482 not without an armament; without an untrained worker a trained one raises Cuirassiers', () => {
     expect(armyOrders(scriptedPlayer(threatened(), N2))).toEqual([]);
-    expect(armyOrders(scriptedPlayer(setIndustry(ready(), N2, { workers: { untrained: 0, trained: 2, expert: 1 } }), N2))).toEqual([]);
+    expect(armyOrders(scriptedPlayer(setIndustry(ready(), N2, { workers: { untrained: 0, trained: 2, expert: 1 } }), N2))).toEqual([{ ...REGULARS_1, regiment: 'cuirassiers' }]);
   });
 
   it('FR-213 FR-129 its production run first makes up to 2 armaments while it has fewer than 2', () => {
-    // a metal works of 3 so the run is not capped below 2; $2,000 so no recruit takes an armament first
-    const base = setTreasury(setBuilding(threatened(), N2, 'metalWorks', { capacity: 3 }), N2, 2000);
+    // a metal works of 3 so the run is not capped below 2; $300 so no recruit takes an armament first (re-recorded in M13
+    // by FR-483: was $2,000, which now pays a recruit above the $250 reserve; $300 is below the cheapest, Hussars' $350)
+    const base = setTreasury(setBuilding(threatened(), N2, 'metalWorks', { capacity: 3 }), N2, 300);
     const made = (s: GameState) => armamentOrders(scriptedPlayer(s, N2)).map(o => (o as { amount: number }).amount);
 
     expect(made(base)).toEqual([2]);
@@ -88,6 +97,87 @@ describe('FR-213 recruiting under a threat', () => {
     const offered = (orders: Order[]) => orders.filter(o => o.kind === 'sellCommodity' && o.commodity === GoodsType.Armaments);
 
     expect(offered(scriptedPlayer(s, N2))).toEqual([]);
+  });
+});
+
+describe('FR-482 FR-483 recruit what can be raised (card Q119 (a))', () => {
+  const recruit = (regiment: RegimentType): Order => ({ kind: 'setRecruitment', nationId: N2, regiment, count: 1 });
+  /** Valdoria with these workers, horses, armaments and cash. */
+  const equip = (s: GameState, workers: { untrained: number; trained: number; expert: number }, horses: number, armaments: number, cash: number): GameState =>
+    setTreasury(setWarehouse(setIndustry(s, N2, { workers }), N2, { horses, armaments }), N2, cash);
+  /** The audit's invasion on seed 1, turn 9 (AISIM-02): no untrained worker, 4 trained, 4 horses, $3,118, an armament in stock. */
+  const invaded = (cash = 3118, s: GameState = threatened()): GameState => equip(s, { untrained: 0, trained: 4, expert: 1 }, 4, 1, cash);
+  /** A campaign on Arvelia at peace (turn 10, FR-274): no threat, so the $2,500 floor. */
+  const campaign = (cash = 10000): GameState => invaded(cash, { ...continent(), turn: 10 });
+
+  it('FR-482 campaign recruitment falls back to the cheapest regiment that leaves its upkeep reserve', () => {
+    const base = { ...continent('world'), turn: 33 };
+    const field = addRegiments(base, N2, SW2, Array<RegimentType>(8).fill('regulars'), 1);
+    const state = equip(field, { untrained: 1, trained: 1, expert: 0 }, 4, 1, 3050);
+    expect(upkeepReserve(applyOrder(state, recruit('cuirassiers')), N2)).toBe(2600);
+    expect(treasury(applyOrder(state, recruit('hussars')), N2)).toBe(2950);
+    const raised = (s: GameState) => scriptedPlayer(s, N2).filter(order => order.kind === 'setRecruitment');
+    expect(raised(state)).toEqual([recruit('hussars')]);
+    expect(wantedRegiment(state, N2)).toBe('hussars');
+    // Without horses, Grenadiers would leave $2,550. Regulars and Skirmishers pass; Skirmishers cost less.
+    const noHorses = equip(field, { untrained: 1, trained: 1, expert: 0 }, 0, 1, 3550);
+    expect(raised(noHorses)).toEqual([recruit('skirmishers')]);
+  });
+
+  it('FR-482 the lists are data: under a threat Regulars, Cuirassiers, Grenadiers, Artillery, Hussars, Skirmishers, Light Artillery; for a campaign Cuirassiers, Grenadiers, Hussars, Regulars, Light Artillery, Artillery, Skirmishers', () => {
+    expect(SCRIPTED_WAR.threatRegiments).toEqual(['regulars', 'cuirassiers', 'grenadiers', 'artillery', 'hussars', 'skirmishers', 'lightArtillery']);
+    expect(SCRIPTED_WAR.campaignRegiments).toEqual(['cuirassiers', 'grenadiers', 'hussars', 'regulars', 'lightArtillery', 'artillery', 'skirmishers']);
+  });
+
+  it('FR-482 the audit\'s invasion on turn 9 (0 untrained, 4 trained, 4 horses, $3,118): Cuirassiers is ordered, where a refused Regulars was the only try', () => {
+    expect(armyThreat(invaded(), N2)).toBe(true);
+    expect(wantedRegiment(invaded(), N2)).toBe('cuirassiers');
+    expect(armyOrders(scriptedPlayer(invaded(), N2))).toEqual([recruit('cuirassiers')]);
+  });
+
+  it('FR-483 the audit\'s turn 10 ($1,635): Cuirassiers is ordered under a threat ($1,135 left, above the $250 reserve); in a campaign at peace the $2,500 floor stays, so nothing', () => {
+    expect(armyOrders(scriptedPlayer(invaded(1635), N2))).toEqual([recruit('cuirassiers')]);
+    expect(armyThreat(campaign(1635), N2)).toBe(false);
+    expect(wantedRegiment(campaign(1635), N2)).toBeUndefined();
+    expect(wantedRegiment(campaign(3000), N2)).toBe('cuirassiers');
+  });
+
+  it('FR-483 under a threat the floor is the upkeep reserve counted with the new regiment: 2 turns of $100 + $25 = $250, so $750 orders Cuirassiers and $749 nothing; in the last 8 turns every turn left (turn 36: 5 x $125 = $625)', () => {
+    expect([750, 749].map(cash => wantedRegiment(invaded(cash), N2))).toEqual(['cuirassiers', undefined]);
+    const at36 = (cash: number) => invaded(cash, { ...threatened(), turn: 36 });
+    expect([1125, 1124].map(cash => wantedRegiment(at36(cash), N2))).toEqual(['cuirassiers', undefined]);
+  });
+
+  it('FR-483 the recruit stays counted for the rest of the turn: once a Cuirassiers is ordered the reserve is 2 x $125, so later orders cannot spend below it', () => {
+    expect(upkeepReserve(invaded(), N2)).toBe(200);
+    expect(upkeepReserve(applyOrder(invaded(), recruit('cuirassiers')), N2)).toBe(250);
+  });
+
+  it('FR-482 the 2 armaments the run keeps (SCRIPTED_GARRISON.armaments) cover any regiment of both lists', () => {
+    const arms = [...SCRIPTED_WAR.threatRegiments, ...SCRIPTED_WAR.campaignRegiments].map(r => REGIMENTS[r].stats.armamentsCost);
+    expect(Math.max(...arms)).toBeLessThanOrEqual(SCRIPTED_GARRISON.armaments);
+  });
+
+  // (no dollar sign in these titles: vitest reads "$name" in a test name as a placeholder)
+  it.each([
+    ['an untrained worker', 'regulars', { untrained: 1, trained: 0, expert: 1 }, 4, 1, 3000],
+    ['no untrained worker', 'cuirassiers', { untrained: 0, trained: 1, expert: 1 }, 4, 1, 3000],
+    ['no untrained worker, no horse', 'grenadiers', { untrained: 0, trained: 1, expert: 1 }, 0, 1, 3000],
+    ['an untrained worker, 600 dollars (Regulars would leave 100, below the 250 reserve)', 'hussars', { untrained: 1, trained: 0, expert: 1 }, 4, 1, 600],
+    ['an untrained worker, no horse, 700 dollars', 'skirmishers', { untrained: 1, trained: 0, expert: 1 }, 0, 1, 700],
+    ['experts only', undefined, { untrained: 0, trained: 0, expert: 3 }, 4, 1, 3000],
+    ['no armament', undefined, { untrained: 1, trained: 1, expert: 1 }, 4, 0, 3000],
+  ] as const)('FR-482 under a threat, the first of its list it can raise: with %s -> %s', (_, expected, workers, horses, armaments, cash) => {
+    expect(wantedRegiment(equip(threatened(), { ...workers }, horses, armaments, cash), N2)).toBe(expected);
+  });
+
+  it.each([
+    ['a trained worker and a horse', 'cuirassiers', { untrained: 1, trained: 1, expert: 1 }, 4],
+    ['a trained worker, no horse', 'grenadiers', { untrained: 1, trained: 1, expert: 1 }, 0],
+    ['an untrained worker and a horse', 'hussars', { untrained: 1, trained: 0, expert: 1 }, 4],
+    ['an untrained worker, no horse', 'regulars', { untrained: 1, trained: 0, expert: 1 }, 0],
+  ] as const)('FR-482 in a campaign (turn 10, 10,000 dollars), the first of its list it can raise: with %s -> %s', (_, expected, workers, horses) => {
+    expect(wantedRegiment(equip({ ...continent(), turn: 10 }, { ...workers }, horses, 1, 10000), N2)).toBe(expected);
   });
 });
 
@@ -130,6 +220,26 @@ describe('FR-275 with a field army the reserve rises one turn of upkeep a turn i
   });
 });
 
+describe('FR-488 FR-497 in a war it declared on a Great Power the reserve is the upkeep of every turn left', () => {
+  // The other Great Power may never accept its peace (FR-489; an idle player answers nothing), so the war and its field
+  // army can last to turn 40; without this, 3 of the 24 idle sim games lost regiments for want of pay (seeds 4, 5, 6).
+  const onTurn = (s: GameState, turn: number): GameState => ({ ...s, turn });
+  const atWarWithTestland = (s: GameState, aggressor: string): GameState =>
+    setPair(s, N1, N2, { war: { aggressors: [aggressor], since: 21 }, consulates: [], embassies: [] });
+  const after = (s: GameState) => scriptedPlayer(s, N2).reduce(applyOrder, s);
+
+  it('FR-488 FR-497 turn 23 with the start army ($100 a turn): 18 turns ($1,800) in its war on Testland; 2 turns ($200) when Testland declared the war, or at peace', () => {
+    const s = onTurn(continent('world'), 23);
+    expect([upkeepReserve(atWarWithTestland(s, N2), N2), upkeepReserve(atWarWithTestland(s, N1), N2), upkeepReserve(s, N2)]).toEqual([1800, 200, 200]);
+  });
+
+  it('FR-488 FR-497 with $1,500 on turn 23 its orders spend nothing in its war on Testland, and spend below $1,500 at peace', () => {
+    const s = setTreasury(onTurn(continent('world'), 23), N2, 1500);
+    expect(treasury(after(atWarWithTestland(s, N2)), N2)).toBe(1500);
+    expect(treasury(after(s), N2)).toBeLessThan(1500);
+  });
+});
+
 describe('FR-213 (b) the steel of the garrison\'s armaments', () => {
   it('FR-213 (b) under a threat the steel of the 2 armaments the run makes first (4 steel) stays out of expansion; without a threat it does not', () => {
     // a metal works of 3 so the run makes 2 armaments; $2,000 so no recruit is ordered; 5 lumber + 5 steel in stock
@@ -144,7 +254,7 @@ describe('FR-213 (b) the steel of the garrison\'s armaments', () => {
 });
 
 describe('FR-213 the garrison over ten turns at war', () => {
-  it('FR-213 no move, cancel or disband order; at most 1 Regulars a turn; the capital province never below 4 arms; no order refused', () => {
+  it('FR-213 no move, cancel or disband order; at most 1 recruit a turn; the capital province never below 4 arms; no order refused', () => {
     let s = threatened();
     const recruits: number[] = [];
     const other: Order[] = [];

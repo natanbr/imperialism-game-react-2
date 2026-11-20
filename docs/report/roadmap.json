@@ -1,13 +1,13 @@
 {
  "project": "Imperialism Revival",
  "schema": 3,
- "updated": "2026-11-17",
+ "updated": "2026-11-20",
  "audit": {
   "date": "2026-11-14",
   "reviewers": 8,
   "folder": "docs/audit/2026-11-14",
   "branch": "claude/m12-honest-game",
-  "main": "91d7edc"
+  "main": "74f595c"
  },
  "source": "docs/report/roadmap.json, docs/audit/2026-11-14/*.json and docs/requirements.md in the imperialism-game-react-2 repo",
  "reality": {
@@ -180,7 +180,7 @@
    "text": "Of 24 rule topics of the original game: 3 built, 14 partial, 1 wrong, 1 dead code, 5 missing."
   },
   "notChecked": "Not checked by the audit: Firefox and Safari, real touch on a phone, screen readers, and a human game played all the way to a Council win.",
-  "notFixed": "M12 (themes T1 to T10, FR-357 to FR-464) is merged into main 91d7edc (pull request 34), so its findings are fixed on main. M12b (the HUD you asked for, FR-465 to FR-480, and its by-eye QA fixes FR-529 to FR-537) is built and committed on the branch claude/m12b-hud, not yet pushed or merged. Themes T11 to T16 are not fixed: M13 to M16 are planned, M17 and M18 later.",
+  "notFixed": "M12 (themes T1 to T10, FR-357 to FR-464) is merged into main 91d7edc (pull request 34), so its findings are fixed on main. M12b (the HUD you asked for, FR-465 to FR-480, and its by-eye QA fixes FR-529 to FR-537) is merged into main 74f595c (pull request 35, 2026-11-17). Themes T11 to T16 are not fixed on main: M13 (theme T11) is built on the branch claude/m13-nations, not merged, with FR-490's turn-30 vote replaced by FR-542 (card Q139); M14 to M16 are planned, M17 and M18 later.",
   "filedNote": "The plan named 122 of the 160 findings in its themes. I filed the other 38 under the nearest theme; they are marked \"filed\" and can be moved."
  },
  "statusLegend": [
@@ -1250,7 +1250,7 @@
   }
  ],
  "plan": {
-  "orderNote": "The order follows player impact first, then dependency. M12 is merged. M12b (the HUD, which you asked for) is built, reviewed and QA-fixed, and waits for its pull request; M13 is planned for tonight; M14 to M16 follow, as far as the quota goes. M16 needs M15's University, and M17 needs M15's Shipyard. Cards marked \"Needed before\" decide work that cannot be finished without your answer.",
+  "orderNote": "The order follows player impact first, then dependency. M12 is merged. M12b (the HUD, which you asked for) is merged. M13 is built on its branch (FR-490's turn-30 vote replaced by FR-542, card Q139) and waits for its pull request; M14 to M16 follow, as far as the quota goes. M16 needs M15's University, and M17 needs M15's Shipyard. Cards marked \"Needed before\" decide work that cannot be finished without your answer.",
   "milestones": [
    {
     "id": "M12",
@@ -1319,7 +1319,7 @@
      "M": 0,
      "L": 0
     },
-    "statusText": "Built and committed on the branch claude/m12b-hud (not pushed, no pull request yet). FR-465 to FR-480 are tested: a top bar across the window with the nation, turn and date with the next Council line, cash with last turn's change, score with its rank, the dialog buttons as icons and the one Advance Turn at the right end (card Q113); the right pane holds Tile Info, the alerts, the news (20 whole lines at 1280x720 on turn 2, so FR-372 is closed) and three closed groups: Nation, Work in progress and Details for bug reports, shown without ?debug (card Q102). Gate 1 (2026-11-17): 2503 unit tests, lint 0 errors, tsc and build clean, Playwright 105 passed. Labels beside the icons from 1800 px of width, not 1600 (measured; FR-468). Then a review fix round (15 findings) and a by-eye QA fix round, FR-529 to FR-537, all tested: How to play fits a 640x360 window, the score's parts stay inside a 320 to 390 px window, a focused button of the bar's strip is shown whole, the narrow-window line no longer covers Close tile info, a gutter before the news scrollbar, war and idle lines marked as alerts, Tab runs the bar, the map, then the pane, the window size in Details for bug reports, and the Council line's own text as its title. Gate 2 on the final tree (2026-11-17): 2525 unit tests, lint 0 errors, tsc and build clean, Playwright 125 passed (its first run found one red pin from the review round, recorded as FR-537 and re-run).",
+    "statusText": "Merged into main 74f595c (pull request 35, 2026-11-17). Final gate on 71bcfa5: 2525 unit tests, lint 0 errors, tsc and build clean, Playwright 125 passed. FR-465 to FR-480 are tested: a top bar across the window with the nation, turn and date with the next Council line, cash with last turn's change, score with its rank, the dialog buttons as icons and the one Advance Turn at the right end (card Q113); the right pane holds Tile Info, the alerts, the news (20 whole lines at 1280x720 on turn 2, so FR-372 is closed) and three closed groups: Nation, Work in progress and Details for bug reports, shown without ?debug (card Q102). Gate 1 (2026-11-17): 2503 unit tests, lint 0 errors, tsc and build clean, Playwright 105 passed. Labels beside the icons from 1800 px of width, not 1600 (measured; FR-468). Then a review fix round (15 findings) and a by-eye QA fix round, FR-529 to FR-537, all tested: How to play fits a 640x360 window, the score's parts stay inside a 320 to 390 px window, a focused button of the bar's strip is shown whole, the narrow-window line no longer covers Close tile info, a gutter before the news scrollbar, war and idle lines marked as alerts, Tab runs the bar, the map, then the pane, the window size in Details for bug reports, and the Council line's own text as its title. Gate 2 on the final tree (2026-11-17): 2525 unit tests, lint 0 errors, tsc and build clean, Playwright 125 passed (its first run found one red pin from the review round, recorded as FR-537 and re-run).",
     "sizeText": "Medium: 16 rows (FR-465 to FR-480) and 9 QA fix rows (FR-529 to FR-537), one lane. It has no audit findings of its own.",
     "fixesText": "None of the 16 themes (it answers NR-034)",
     "spec": "docs/specs/hud.md"
@@ -1327,8 +1327,8 @@
    {
     "id": "M13",
     "title": "Computer nations that play",
-    "status": "tonight",
-    "statusLabel": "Planned for tonight",
+    "status": "built",
+    "statusLabel": "Built, pull request being opened",
     "themes": [
      "T11"
     ],
@@ -1340,7 +1340,7 @@
      "Its workforce no longer shrinks from 7 to 4 or 5.",
      "After Arvelia falls it may declare war on you, take one province and offer peace (cards Q114 and Q115)."
     ],
-    "depends": "M12 merged (honest screens to watch it with, and the peace rule of FR-408). Your answers to Q114 and Q115 before its military lane is finished.",
+    "depends": "M12 supplies the diplomacy and peace rules. The M13 war defaults in Q114 and Q115 stand for the 40-turn game under NR-035.",
     "findings": 11,
     "severity": {
      "major": 8,
@@ -1352,7 +1352,7 @@
      "M": 9,
      "L": 0
     },
-    "statusText": "Rows FR-481 to FR-500 are written (docs/specs/m13-m16.md), not built. Cards Q114 and Q115 (war on you) need your answer before the military lane is finished.",
+    "statusText": "Closed locally on claude/m13-nations on 2026-11-20. FR-539 met both steel targets in 24 of 24 games. Valdoria keeps a standing bid for one steel from turn 7 toward a human trading partner. Lumber continues to use the FR-541 response to public offers. FR-542 replaces FR-490's turn-30 vote target. In 24 idle games Valdoria made an embassy and a pact with the same free minor by turn 29 in 21, and received a minor vote at turn 40 in 18. The original turn-30 vote result was 0 of 24. Q139 is open for review before merge. The final gate passed 2731 unit tests and 129 Chromium tests. ESLint reported 0 errors and 2 warnings. TypeScript and the production build exited 0. FR-497 recorded 0 rejected computer orders, 0 invariant violations and 0 idle no-pay disbands across its acceptance runs, with a 35.3 ms p95 planning time. FR-494's shortened Bid text remains an owner review item. The temporary war rules and tuning decisions are recorded under NR-035.",
     "spec": "docs/specs/m13-m16.md"
    },
    {
@@ -2326,7 +2326,7 @@
     "diplomacy-council-03"
    ],
    "group": "new",
-   "needed": "Before the M13 military lane (FR-488 and FR-489) is finished and merged: it decides whether the computer may go to war with the player at all, and it changes every idle continent game and many pins. If nobody has answered by then, the night shift builds the suggestion and records it."
+   "needed": "Nathan accepted option (b) for the current 40-turn game on 2026-11-17. NR-035 calls for separate war-start rules for each future difficulty level. See docs/specs/war-and-difficulty-notes.md."
   },
   {
    "id": "Q115",
@@ -2353,7 +2353,7 @@
     "ARMY-WAR-03"
    ],
    "group": "new",
-   "needed": "Before the M13 military lane (FR-489) is finished and merged, together with Q114. Same default rule."
+   "needed": "Nathan accepted option (a) for M13 on 2026-11-17. The one-province aim and peace offers every six turns are temporary. NR-035 calls for war-stop rules per difficulty level."
   },
   {
    "id": "Q116",
@@ -2386,23 +2386,23 @@
    "id": "Q117",
    "title": "How does the computer compete for minors' votes?",
    "status": "open",
-   "context": "Decides FR-490 (Grants before a Council).",
+   "context": "Decides FR-490 (Grants before a Council) and FR-542. Before: option (a) was built and gave Valdoria a minor's vote at the turn-30 Council in 0 of 24 idle games (required 18): no embassy, so no grant, in any game. Nobody had answered, so the M13 close round (2026-11-17, branch claude/m13-nations, not merged) built option (b) as FR-542: the embassy from 25 relation points (the start's 30 qualifies), with the minor that has the most points and does not border Valdoria (the campaign's next target), not for the first meeting, kept only above the upkeep reserve, while the recruits and the training keep its $5,000; the pact the turn after; the campaign spares a pact partner. Measured (24 idle games): embassy and pact before the turn-30 meeting in 21, a minor's vote at the turn-30 meeting in 0, at the turn-40 meeting in 18. Not checked by eye in the app.",
    "options": [
     {
-     "label": "Option (a), suggested",
-     "means": "$1,000 grants in the 4 turns before each Council, to the minor where it is between 40 and 49 points and not behind the player."
+     "label": "Option (a)",
+     "means": "$1,000 grants in the 4 turns before each Council, to the minor where it is between 40 and 49 points and not behind you, with the embassy the grants need from 35 points. Built before the close round: no embassy and no grant in any idle game, 0 of 24 votes."
     },
     {
-     "label": "Option (b)",
-     "means": "Also an embassy ($5,000) and a pact (+10 points)."
+     "label": "Option (b), built",
+     "means": "Also an embassy ($5,000) and a pact (+10 points), as FR-542. A minor at 37 to 48 points with Valdoria at turn 30 (a vote needs 50); 1 vote at turn 40 in 18 of 24 games."
     },
     {
      "label": "Option (c)",
      "means": "None."
     }
    ],
-   "suggestion": "Option (a).",
-   "objection": "Grants cost its treasury, about 30 to 80 score points a game. The player may see this as buying votes, although Imp1 allows the same.",
+   "suggestion": "Option (b) as built (it was option (a) before the close round; (a) alone gave no embassy and no grant in any game).",
+   "objection": "Valdoria pays $5,000 for the embassy and up to $4,000 in grants, about 70 points of its turn-40 score; you may see the pact and the grants as buying votes (Imp1 allows the same); and FR-490's turn-30 promise is still not kept (card Q139).",
    "ids": [
     "diplomacy-council-03",
     "AISIM-04"
@@ -3468,6 +3468,116 @@
    "context": "M7 UI decision 4 kept the v1 way (press, then read \"Purchase refused: over the limit.\"). The review asked for the M6 way: the \"+\" is disabled and its title says why: \"No free hold this turn\", \"Already 4 bids this turn, the most\", \"None left in the warehouse\", \"Not enough money\" (FR-248).",
    "suggestion": "Done in the review fix round (FR-248).",
    "group": "answered"
+  },
+  {
+   "id": "Q136",
+   "title": "Should the computer place a standing steel and lumber bid toward you?",
+   "status": "open",
+   "context": "Decides FR-539 (the Steel row of the Board of Trade in a real game; M13 review ST-02 and by-eye QA check 4). Before: Valdoria never bid for steel toward you in a real game (0 of 24 sim games, and every QA game), so the Steel row never invited an offer. Nobody had answered, so the M13 close round (2026-11-17, branch claude/m13-nations, not merged) built option (b), narrowed: from turn 7 Valdoria bids for 1 steel a turn toward a Great Power a person plays, before the bids for its mills' inputs, and keeps only the upkeep reserve as its cash floor (an unanswered bid is refunded the same turn). Measured: the Steel row says \"Valdoria bid for 1 last turn\" on 10 to 12 of turns 3 to 20 in 24 of 24 idle games (was 0), and a player who answers sells it 7 to 10 steel in 24 of 24 games (was 1); every other M13 row still holds and the v1 tests did not move. Not checked by eye in the app.",
+   "options": [
+    {
+     "label": "Option (a)",
+     "means": "A standing bid of 1 steel and 1 lumber from turn 1. The review fix round's version met FR-539 in 24 of 24 games; the close round's variant from turn 1 met the Steel row in only 11 of 24 and had 2 regiments disbanded for want of pay. It changes one M12 continent test in tests/engine/scriptedScore.test.ts (seed 1, turn 6), which M13 may not re-record without your answer (FR-498)."
+    },
+    {
+     "label": "Option (b), built",
+     "means": "The standing bid from turn 7, after that test's turns. As built: steel only (with lumber too, Valdoria went to war with Testland in 21 of 24 both-computer games instead of 10), and only toward a nation a person plays. The Lumber row already lights once you answer Valdoria's lumber bid (FR-541)."
+    },
+    {
+     "label": "Option (c)",
+     "means": "No standing bid: the Steel row lights only when Valdoria has a free hold, which in a real game is almost never (0 of 24 games, and every QA game). FR-539 would open again."
+    }
+   ],
+   "suggestion": "Option (b) as built (it was option (a) before the close round; (b) meets FR-539 without changing the M12 test).",
+   "objection": "Valdoria spends 1 of its 4 holds a turn from turn 7 on a bid only a trading player answers (refunded otherwise). The race for Arvelia moves in the games where the computer plays both nations: Valdoria takes it first in 14 of 24 (was 6), Testland declares war on Valdoria in 7 of 24 (was 1), and Testland's lowest final score falls from 1117 to 854 (one game). Three continent test files were re-recorded with old and new numbers (FR-499).",
+   "ids": [
+    "AISIM-04"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q137",
+   "title": "Should a Great Power's bid be served before the minors' demand?",
+   "status": "open",
+   "context": "Decides how the trade phase shares Valdoria's goods (FR-186, FR-492, FR-493 (b)). In the QA games none of 69 bids of the player for Valdoria's clothing or furniture filled: the minors' demand takes Valdoria's 1 to 2 a turn first (settlement step 2). For the same reason a timber offer to Valdoria never sells (the minors fill its timber bid first, step 1).",
+   "options": [
+    {
+     "label": "Option (a), suggested",
+     "means": "Keep the order until M14; the Board already says a bid is refunded."
+    },
+    {
+     "label": "Option (b)",
+     "means": "Serve a Great Power's bid for goods in step 2, together with the minors, in id order. Moves every \"partners\" pin."
+    },
+    {
+     "label": "Option (c)",
+     "means": "The computer keeps a share of its goods for the other Great Power's bid of last turn."
+    }
+   ],
+   "suggestion": "Option (a) until M14.",
+   "objection": "The Board invites bids that never pay.",
+   "ids": [
+    "MKT-02"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q138",
+   "title": "After you accept the computer's peace, may it declare war on you again?",
+   "status": "open",
+   "context": "Decides FR-488's 10-turn pause after a peace (by-eye QA track A). An idle player who accepts the first peace (turn 27) is attacked again on turn 37 and loses a second province by turn 40. The spec's QA check 8 asks only for 10 quiet turns.",
+   "options": [
+    {
+     "label": "Option (a)",
+     "means": "As built: a new war 10 turns after any peace."
+    },
+    {
+     "label": "Option (b)",
+     "means": "No new war on a player who accepted its peace."
+    },
+    {
+     "label": "Option (c), suggested",
+     "means": "A longer pause after an accepted peace, for example 20 turns."
+    }
+   ],
+   "suggestion": "Option (c).",
+   "objection": "With (a) a player who accepts peace is punished like one who refuses it; with (b) the computer has nothing to do after its first war.",
+   "ids": [
+    "ARMY-WAR-03"
+   ],
+   "group": "new"
+  },
+  {
+   "id": "Q139",
+   "title": "What should change so a minor can vote for the computer at the turn-30 Council?",
+   "status": "open",
+   "context": "Decides FR-542, which replaces FR-490's turn-30 threshold (M13 close round, 2026-11-17). FR-490 asked for a minor's vote for Valdoria at the turn-30 meeting in 18 of 24 idle games. With the embassy, the pact and the grants it gets 0 of 24 at turn 30 and 18 of 24 at turn 40: the best free minor stands at 37 to 48 points at turn 30 and a vote needs 50. Valdoria can afford the $5,000 embassy from about turn 23, the turn it goes to war with you, and that war keeps its cash at the upkeep of every turn left, so it pays almost no grant before turn 30. 36 rule sets were measured (.gate/m13/close/grants-notes.md).",
+   "options": [
+    {
+     "label": "Option (a), suggested",
+     "means": "Keep FR-542 as built: the computer's minor votes come at the turn-40 meeting (18 of 24), not at turn 30 (0 of 24)."
+    },
+    {
+     "label": "Option (b)",
+     "means": "A minor votes for a nominee from 40 relation points instead of 50 (a remake number, card Q52): 23 of 24 at turn 30 and 24 of 24 at turn 40 with FR-542 (5 of 24 at turn 30 without it). Your votes change too, and every Council test moves."
+    },
+    {
+     "label": "Option (c)",
+     "means": "The computer waits with its war on you until after the turn-30 meeting: with a wait of 8 turns, 0 of 24 at turn 30 and 39 to 101 regiments disbanded for want of pay, so it needs a new cash rule first."
+    },
+    {
+     "label": "Option (d)",
+     "means": "A cheaper embassy, for example $2,000 (the game keeps Imp1's $5,000): not measured."
+    }
+   ],
+   "suggestion": "Option (a) for M13; option (b) if the turn-30 vote matters, as a Council rule for both sides.",
+   "objection": "With (a) you see no minor vote for the computer at turn 30, as in the by-eye QA, and the M13 spec moves its promise to turn 40; with (b) a minor is easier to win for you too, and the Council can end the game earlier.",
+   "needed": "Before the M13 pull request is merged: FR-490's turn-30 threshold was the spec's, and FR-542 replaces it with the measured ceiling.",
+   "ids": [
+    "diplomacy-council-03",
+    "AISIM-04"
+   ],
+   "group": "new"
   }
  ],
  "history": [
