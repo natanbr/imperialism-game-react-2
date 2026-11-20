@@ -1,7 +1,8 @@
 import { test, expect, Page, Locator } from '@playwright/test';
 import { councilLineSeen } from './councilNews';
+import { startSeededGame } from './seededGame';
 
-// FR-303 (M10 done) in the running app, on a new game (any seed) at 1280x720: on turn 1 the HUD reads "Next Council: turn 10
+// FR-303 (M10 done) in the running app, on a new seed-1 game at 1280x720: on turn 1 the HUD reads "Next Council: turn 10
 // (Summer 1817)" (FR-301); after 10 End Turns, on turn 11, the Council screen opens by itself (FR-299) with both nominees,
 // Testland and Valdoria: Controlled 4 and 4, Colonies 0 and 0, Other Great Powers 0 and 0 (no province can change hands by
 // then: the player is idle and Valdoria's first war on a minor, FR-274, begins on turn 11 at the earliest), each Total the
@@ -153,13 +154,13 @@ async function unusedRowGreyed(council: Locator) {
 test('FR-303 the Council meets on turn 10: its screen opens by itself on turn 11, closes, and reopens from the news', async ({ page }, testInfo) => {
   test.setTimeout(240000);
   const errors = collectErrors(page);
-  await page.goto('/');
+  await startSeededGame(page);
   await expect(page.getByTestId('map-scroll')).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
   await expect(page.getByTestId('turn-indicator')).toContainText('Turn: 1 of 40');
 
   // FR-301: the next meeting; FR-314: the vote it would give now, shown under it, the player's nation first (FR-313)
   const next = page.getByTestId('next-council');
-  await expect(next).toHaveText('7 of 12 votes wins · Council: turn 10 (Summer 1817). This threshold applies at any meeting. At the last meeting (turn 40) every governor must choose, and the nominee with more votes wins (equal votes: higher standing).');
+  await expect(next).toHaveText('7 of 12 votes wins · Council: turn 10 (Summer 1817). This threshold applies at any meeting. At the last meeting (turn 40) a free minor votes unless it is at war with both nominees, and the nominee with more votes wins (equal votes: higher standing).');
   await projectionShown(page);
   await turnLineLayout(page);
 
@@ -168,7 +169,7 @@ test('FR-303 the Council meets on turn 10: its screen opens by itself on turn 11
     await endTurn(page, turn + 1);
     await expect(council).toHaveCount(0);
   }
-  await expect(next).toHaveText('7 of 12 votes wins · Council: this turn. This threshold applies at any meeting. At the last meeting (turn 40) every governor must choose, and the nominee with more votes wins (equal votes: higher standing).');
+  await expect(next).toHaveText('7 of 12 votes wins · Council: this turn. This threshold applies at any meeting. At the last meeting (turn 40) a free minor votes unless it is at war with both nominees, and the nominee with more votes wins (equal votes: higher standing).');
 
   // Turn 10 resolves: the Council meets and its screen opens by itself on turn 11 (FR-299)
   await endTurn(page, 11);
@@ -210,7 +211,7 @@ test('FR-303 the Council meets on turn 10: its screen opens by itself on turn 11
   await expect(council.getByTestId('council-rule')).toHaveText(
     'A free minor nation votes for the Great Power it has at least 50 relation points with and is not at war with; a colony votes with its owner.'
   );
-  await expect(council.getByTestId('council-needed')).toHaveText('7 of 12 votes wins at any meeting. At the last meeting (turn 40) every governor must choose, and the nominee with more votes wins (equal votes: higher standing).');
+  await expect(council.getByTestId('council-needed')).toHaveText('7 of 12 votes wins at any meeting. At the last meeting (turn 40) a free minor votes unless it is at war with both nominees, and the nominee with more votes wins (equal votes: higher standing).');
   await expect(council.getByTestId('council-result')).toHaveText('No winner. The Council meets again on turn 20.');
 
   // The capitol picture has loaded and stays at most 96 px high; the dialog fits the window
@@ -228,7 +229,7 @@ test('FR-303 the Council meets on turn 10: its screen opens by itself on turn 11
   await council.getByRole('button', { name: 'Close' }).click();
   await expect(council).toHaveCount(0);
   await expect(advance(page)).toBeFocused();
-  await expect(next).toHaveText('7 of 12 votes wins · Council: turn 20 (Winter 1819). This threshold applies at any meeting. At the last meeting (turn 40) every governor must choose, and the nominee with more votes wins (equal votes: higher standing).');
+  await expect(next).toHaveText('7 of 12 votes wins · Council: turn 20 (Winter 1819). This threshold applies at any meeting. At the last meeting (turn 40) a free minor votes unless it is at war with both nominees, and the nominee with more votes wins (equal votes: higher standing).');
   await projectionShown(page);
 
   await turnLineLayout(page);
@@ -249,6 +250,6 @@ test('FR-303 the Council meets on turn 10: its screen opens by itself on turn 11
   // Turn 11 holds no meeting: nothing opens
   await endTurn(page, 12);
   await expect(council).toHaveCount(0);
-  await expect(next).toHaveText('7 of 12 votes wins · Council: turn 20 (Winter 1819). This threshold applies at any meeting. At the last meeting (turn 40) every governor must choose, and the nominee with more votes wins (equal votes: higher standing).');
+  await expect(next).toHaveText('7 of 12 votes wins · Council: turn 20 (Winter 1819). This threshold applies at any meeting. At the last meeting (turn 40) a free minor votes unless it is at war with both nominees, and the nominee with more votes wins (equal votes: higher standing).');
   expect(errors).toEqual([]);
 });

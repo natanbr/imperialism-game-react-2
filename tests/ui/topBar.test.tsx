@@ -94,7 +94,7 @@ describe('FR-466 the top bar: nation, turn, cash, score, then the buttons, Advan
     show(s);
     render(<TopBar />);
     expect(text(screen.getByTestId('turn-indicator'))).toBe('Turn: 1 of 40 Spring 1815');
-    expect(text(screen.getByTestId('next-council'))).toBe('7 of 12 votes wins · Council: turn 10 (Summer 1817). This threshold applies at any meeting. At the last meeting (turn 40) every governor must choose, and the nominee with more votes wins (equal votes: higher standing).');
+    expect(text(screen.getByTestId('next-council'))).toBe('7 of 12 votes wins · Council: turn 10 (Summer 1817). This threshold applies at any meeting. At the last meeting (turn 40) a free minor votes unless it is at war with both nominees, and the nominee with more votes wins (equal votes: higher standing).');
     expect(text(screen.getByTestId('topbar-cash').querySelector('.nation-stats')!)).toBe('Cash: $10,000');
     expect(screen.queryByTestId('cash-change')).toBeNull();
     const table = scoreTable(s);
@@ -444,7 +444,7 @@ describe('M12b review: what hangs from the bar, and keyboard use (A11Y-2, A11Y-4
     show(continent());
     render(<TopBar />);
     const council = screen.getByTestId('next-council');
-    expect(council.getAttribute('title')).toBe('7 of 12 votes wins · Council: turn 10 (Summer 1817). This threshold applies at any meeting. At the last meeting (turn 40) every governor must choose, and the nominee with more votes wins (equal votes: higher standing).');
+    expect(council.getAttribute('title')).toBe('7 of 12 votes wins · Council: turn 10 (Summer 1817). This threshold applies at any meeting. At the last meeting (turn 40) a free minor votes unless it is at war with both nominees, and the nominee with more votes wins (equal votes: higher standing).');
     expect(council.getAttribute('title')).toBe(text(council));
     const title = document.querySelector('.hud-title')!;
     expect(title.getAttribute('title')).toBe('Testland');

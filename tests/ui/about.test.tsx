@@ -107,7 +107,7 @@ describe('FR-430 FR-431 How to play', () => {
     const dialog = screen.getByRole('dialog', { name: 'How to play' });
     expect(within(dialog).getAllByRole('heading', { level: 3 }).map((h) => text(h))).toEqual(['The goal', 'Making money', 'Your first turn']);
     expect(text(within(dialog).getByTestId('howto-goal'))).toBe(
-      'The Council of Governors meets on turns 10, 20, 30 and 40. 7 of 12 votes wins at any meeting. At the last meeting (turn 40) every governor must choose, and the nominee with more votes wins (equal votes: higher standing).'
+      'The Council of Governors meets on turns 10, 20, 30 and 40. 7 of 12 votes wins at any meeting. At the last meeting (turn 40) a free minor votes unless it is at war with both nominees, and the nominee with more votes wins (equal votes: higher standing).'
     );
     expect(text(within(dialog).getByTestId('howto-money'))).toBe(
       'Open a consulate with a minor nation in Diplomacy ($500). Once it opens at End Turn, that minor buys clothing, furniture and hardware from you on the Board of Trade.'
@@ -121,7 +121,7 @@ describe('FR-430 FR-431 How to play', () => {
 
   it('FR-431 the numbers come from the game: a 60-turn game says 60 turns and six Council meetings', () => {
     const text60 = howToPlayText(continentGame({ turnLimit: 60 }));
-    expect(text60.goal).toBe('The Council of Governors meets on turns 10, 20, 30, 40, 50 and 60. 7 of 12 votes wins at any meeting. At the last meeting (turn 60) every governor must choose, and the nominee with more votes wins (equal votes: higher standing).');
+    expect(text60.goal).toBe('The Council of Governors meets on turns 10, 20, 30, 40, 50 and 60. 7 of 12 votes wins at any meeting. At the last meeting (turn 60) a free minor votes unless it is at war with both nominees, and the nominee with more votes wins (equal votes: higher standing).');
   });
 
   it('FR-431 the votes and the consulate price are the rules\' (votesNeeded, OVERTURE_COST)', () => {

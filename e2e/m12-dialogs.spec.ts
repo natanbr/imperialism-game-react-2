@@ -1,4 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
+import { startSeededGame } from './seededGame';
 
 // M12 lane L3 in the running app: the dialogs say what they do and fit the window.
 // FR-175 FR-410 FR-411: the first browser test of Accept Offer. The scripted Great Power proposes nothing on turn 1, so the
@@ -164,7 +165,8 @@ test.describe('at 800x600', () => {
   test('FR-425 the Council screen shows its title and picture while Close has the focus; Tab and End scroll its body to the result', async ({ page }) => {
     test.setTimeout(120000);
     const errors = collectErrors(page);
-    await open(page);
+    await startSeededGame(page);
+    await expect(page.getByTestId('map-scroll')).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
     const council = page.getByRole('dialog', { name: 'Council of Governors' });
     for (let turn = 1; turn <= 10; turn++) await endTurn(page, turn + 1);
     await expect(council).toBeVisible();

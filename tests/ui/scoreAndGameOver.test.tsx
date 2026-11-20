@@ -3,7 +3,8 @@
 // ranked scores and the Advance Turn button is disabled after the end.
 import { describe, it, expect, vi } from 'vitest';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
-import { ActionButtons, FoodWarning, ScoreIndicator, TurnIndicator } from '@/components/HUD/index';
+import { ActionButtons, FoodWarning, ScoreIndicator, ScoreRank, TurnIndicator } from '@/components/HUD/index';
+import { HUD } from '@/components/HUD';
 import { GameOverModal } from '@/components/GameOverModal';
 import { useGameStore } from '@/store/rootStore';
 import { councilVote, militaryStrength, resolveTurn, scoreOf, scoreTable } from '@/engine';
@@ -269,13 +270,27 @@ describe('FR-076 game-over screen', () => {
     expect(screen.queryByTestId('game-over-council')).toBeNull();
   });
 
-  it('FR-076 shows the recorded final scores, not a fresh score of the state', () => {
+  it('FR-076 FR-544 shows the recorded scores in Final Scores, the HUD and the Nation panel after game over', () => {
     const over = finished();
     const recorded = over.gameOver!.scores.find(s => s.nationId === N1)!;
-    // A later change of cash (none can happen in play, FR-069) must not change the final table.
-    show(setTreasury(over, N1, 999999));
-    render(<GameOverModal />);
+    // Model a save whose scores were recorded under different rules. Recalculating would put us first.
+    const state = setTreasury(over, N1, 999999);
+    expect(scoreTable(state)[0].nationId).toBe(N1);
+    show(state);
+    render(<><GameOverModal /><ScoreIndicator /><ScoreRank /><HUD /></>);
     expect(text(within(screen.getByTestId(`final-score-${N1}`)).getByTestId('total'))).toBe(String(recorded.total));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back to the map' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Nation' }));
+    for (const score of over.gameOver!.scores) {
+      expect.soft(text(within(screen.getByTestId(`score-row-${score.nationId}`)).getByTestId('total'))).toBe(String(score.total));
+    }
+    expect.soft(text(screen.getByTestId('score-rank'))).toBe('2nd of 2');
+    expect.soft(text(screen.getByTestId('hud-score'))).toBe(`Score: ${recorded.total}`);
+    const treasuryPoints = `Treasury ${recorded.points.treasury}`;
+    expect.soft(text(screen.getByTestId('nation-score-parts'))).toContain(treasuryPoints);
+    fireEvent.focus(screen.getByTestId('hud-score'));
+    expect(text(screen.getByRole('tooltip'))).toContain(treasuryPoints);
   });
 
   it('FR-076 can be closed to see the map and reopened from the HUD', () => {

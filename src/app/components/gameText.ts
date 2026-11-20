@@ -421,7 +421,7 @@ export const councilCountText = (vote: { nominees: readonly CouncilVote["nominee
 /** FR-506: the threshold and last scheduled meeting for this world. */
 export function councilEndRule(needed: number, votes: number, last: number, meeting?: string): string {
   const schedule = meeting ? ` · ${meeting}. This threshold applies` : "";
-  return `${needed} of ${votes} votes wins${schedule} at any meeting. At the last meeting (turn ${last}) every governor must choose, and the nominee with more votes wins (equal votes: higher standing).`;
+  return `${needed} of ${votes} votes wins${schedule} at any meeting. At the last meeting (turn ${last}) a free minor votes unless it is at war with both nominees, and the nominee with more votes wins (equal votes: higher standing).`;
 }
 
 /** FR-313: the two nominees with the player's nation first when it is one of them, else in standing order. */
@@ -435,7 +435,24 @@ export const playerFirst = <T extends { nationId: string }>(nominees: readonly [
 export function councilProjectionText(vote: CouncilVote, playerId: string, nameOf: (countryId: string) => string): string {
   const abstain = vote.totalVotes - vote.nominees[0].total - vote.nominees[1].total;
   const counts = playerFirst(vote.nominees, playerId).map((n) => `${nameOf(n.nationId)} ${n.total}`);
-  return `If it met now: ${counts.join(", ")}, abstain ${abstain} of ${vote.totalVotes}; ${vote.needed} needed`;
+  let outcome = `${vote.needed} needed`;
+  if (vote.winnerId !== undefined) {
+    const winner = nameOf(vote.winnerId);
+    switch (vote.decidedBy) {
+      case "threshold":
+        outcome = `${winner} reaches the ${vote.needed}-vote threshold`;
+        break;
+      case "more-votes":
+        outcome = `${winner} wins on votes`;
+        break;
+      case "standing":
+        outcome = vote.nominees[0].standing === vote.nominees[1].standing
+          ? `${winner} wins by turn order`
+          : `${winner} wins on standing`;
+        break;
+    }
+  }
+  return `If it met now: ${counts.join(", ")}, abstain ${abstain} of ${vote.totalVotes}; ${outcome}`;
 }
 
 const regiments = (n: number) => `${n} regiment${n === 1 ? "" : "s"}`;

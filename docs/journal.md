@@ -2,9 +2,28 @@
 
 ## Resuming here
 
-- Task 04 is on `claude/m14-endgame`, from `1d58b74` (M13 merged). Local commits only. Evidence lives in `.gate/codex/04/`.
-- M14 is built and reviewed locally. All ten requirements passed. The final gate passed 2,771 unit tests and 132 browser tests.
+- Task 06 fixed all three review findings on `claude/m14-endgame`, starting at `a1f3e74`. The local gate passed 2,774 unit tests and 132 browser tests. Evidence and screenshots are in `.gate/codex/06/`.
 - The five Q120 to Q124 choices remain open for tuning. The next milestone is M15. See the M14 evidence and screenshot below.
+
+## 2026-11-20 M14 review fixes (Task 06)
+
+Size: M. Reproduce the three findings against `a1f3e74`, then correct the turn-40 test setup, Council forecast and finished-game scores.
+The affected screens are the Council forecast and voting rules, Nation and Final Scores.
+Test FR-507's turn-40 path with a fixed seed, FR-543 with a below-threshold election, and FR-544 with a finished save whose score differs under M14.
+Verify each red and green result, then run Vitest, ESLint, TypeScript, the production build and single-worker Chromium on port 3123.
+Objection: fixing the seed could hide an early election. Preserve the turn-40 assertions and the separate early-election coverage.
+
+| Claim | Command or evidence in `.gate/codex/06/` | Quoted result |
+|---|---|---|
+| Random games could finish early. Six scenarios now use seed 1. | Playwright on the two turn-40 cases with seed 63174040, then all six fixed-seed cases. Commands in `e2e-seed-audit.md`. | `2 failed` expecting `Turn: 31 of 40` after `Game over after turn 30 of 40` → `6 passed (3.5m)` |
+| The forecast used the ordinary threshold after the engine had elected a winner. It now reads the vote result. | Focused Vitest, `council-red.txt` and `council-green.txt` | `4 failed` → `197 passed`. The final 5–4 forecast now says `Testland wins on votes`. |
+| Nation and the HUD recalculated finished scores. Both now use the recorded score table. | Finished M13 seed 1 in `3-m13-red.txt` and `3-m13-green.txt`. UI regression in `3-red.txt` and focused suite in `3-green.txt`. | `Nation: 1363` → `Nation: 1443`, matching Final Scores. `1 failed` → `104 passed`. |
+| Unit suite and balance | `npm test` and baseline blob comparison in `balance.txt` | `Tests  2774 passed (2774)`. Lowest FR-125 ratio `t25 903/563 (1.60)`. Both original two-islands test blobs match `a1f3e74`. |
+| Lint, types and production build | `npm run lint`, `npx tsc --noEmit`, `npm run build` | `2 problems (0 errors, 2 warnings)`, types `Exit code 0`, build `Compiled successfully in 8.7s`, `Generating static pages (4/4)`. |
+| Full browser gate | `PORT=3123 PLAYWRIGHT_HTML_OPEN=never npx playwright test --workers=1` | `132 passed (9.6m)`, `Exit code 0`. |
+| Production browser check | `npx playwright test --config=.gate/codex/06/app-check.config.ts --workers=1` | `Final Scores — Valdoria 1443`, `Nation — Valdoria 1443`, `Testland 5, Valdoria 4, abstain 3 of 12; Testland wins on votes`. `2 passed (8.3s)`. |
+
+The independent delta review found no blocking issues (`review.md`). The workspace sandbox denied Node execution. All gate commands ran on the approved installed Node v22.22.0.
 
 ## 2026-11-20 M14 A game that can end well
 

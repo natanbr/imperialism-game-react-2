@@ -1,5 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 import { closeWarScreens } from './idleWar';
+import { startSeededGame } from './seededGame';
 
 // FR-078: the market and the end of the game in the running app. A new game starts with $10,000 and 4 holds, and lasts
 // 40 turns (FR-068). Since M7 the app's continent trades with partners (FR-242): nobody buys lumber any more and a minor
@@ -8,8 +9,7 @@ import { closeWarScreens } from './idleWar';
 // Trade (FR-194) on turn 2. Pellis because the scripted Valdoria opens a consulate only with a minor whose offer or demand
 // it will use, the first such in id order (FR-245): Arvelia on turn 1 and not Pellis by turn 2, so Pellis buys our furniture.
 // FR-106, FR-109: the game-over screen names both nations beside their colours and starts a new game.
-// FR-304 (M10): the Council's screen opens by itself after turns 10, 20, 30 and 40 and is closed; the turn-40 one reads
-// "No winner. This was the last Council; the game ends on points." before the game-over screen.
+// FR-304, FR-502: on seed 1 the Council opens after turns 10, 20, 30 and 40, then elects Valdoria.
 // Set SCREENSHOT_DIR to also save m3-market.png and m4-game-over.png there.
 
 const cash = (page: Page) => page.locator('.nation-stats');
@@ -24,8 +24,7 @@ function collectErrors(page: Page): string[] {
   return errors;
 }
 
-async function start(page: Page) {
-  await page.goto('/');
+async function expectStart(page: Page) {
   // In view once the page is live and the first view has scrolled to the capital (FR-083)
   await expect(page.getByTestId('map-scroll')).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
   await expect(page.locator('[data-tile-id="2-9"]')).toBeInViewport({ timeout: 15000 });
@@ -38,7 +37,8 @@ const cashOf = async (page: Page) => Number((await cash(page).innerText()).repla
 test('FR-078 open the market, offer one furniture for sale, end the turn, see the sale and the cash', async ({ page }) => {
   test.setTimeout(90000);
   const errors = collectErrors(page);
-  await start(page);
+  await page.goto('/');
+  await expectStart(page);
   await expect(cash(page)).toContainText('Cash: $10,000');
   await expect(page.getByTestId('hud-score')).toContainText(/Score: \d+/);
 
@@ -92,7 +92,8 @@ test('FR-078 open the market, offer one furniture for sale, end the turn, see th
 test('FR-078 FR-104 FR-109 end 40 turns, see the game-over screen with both nations\' final scores; Advance Turn is disabled; New game starts again', async ({ page }) => {
   test.setTimeout(240000);
   const errors = collectErrors(page);
-  await start(page);
+  await startSeededGame(page);
+  await expectStart(page);
 
   const council = page.getByRole('dialog', { name: 'Council of Governors' });
   for (let turn = 1; turn <= 40; turn++) {

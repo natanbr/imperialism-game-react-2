@@ -98,7 +98,7 @@ test.describe('FR-430 a browser that has not seen How to play', () => {
     await expect(howTo.getByRole('button', { name: 'Close' })).toBeFocused();
     // FR-503/506: the old score-or-nine-votes goal became a seven-vote threshold and a forced last vote.
     await expect(howTo.getByTestId('howto-goal')).toHaveText(
-      'The Council of Governors meets on turns 10, 20, 30 and 40. 7 of 12 votes wins at any meeting. At the last meeting (turn 40) every governor must choose, and the nominee with more votes wins (equal votes: higher standing).'
+      'The Council of Governors meets on turns 10, 20, 30 and 40. 7 of 12 votes wins at any meeting. At the last meeting (turn 40) a free minor votes unless it is at war with both nominees, and the nominee with more votes wins (equal votes: higher standing).'
     );
     await expect(howTo.getByTestId('howto-money')).toContainText('Open a consulate with a minor nation in Diplomacy ($500).');
     await expect(howTo.getByTestId('howto-first-turn').getByRole('listitem')).toHaveCount(3);

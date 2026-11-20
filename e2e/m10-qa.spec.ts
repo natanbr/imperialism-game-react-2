@@ -1,6 +1,7 @@
 import { test, expect, Page } from '@playwright/test';
 import { councilLineSeen } from './councilNews';
 import { closeWarScreens } from './idleWar';
+import { startSeededGame } from './seededGame';
 
 // M10 QA fix round at 1280x720, with the scrollbars drawn as a desktop browser draws them (Playwright's Chromium hides
 // them: --hide-scrollbars; the HUD's column is then 8 px narrower and its lines wrap sooner).
@@ -25,7 +26,7 @@ const MEETING_DATES = ['Summer 1817', 'Winter 1819', 'Summer 1822', 'Winter 1824
 test('FR-315 FR-306 FR-316 after the turn-40 meeting and Back to the map, the Council line is whole above the Final scores button', async ({ page }, testInfo) => {
   test.setTimeout(240000);
   const errors = collectErrors(page);
-  await page.goto('/');
+  await startSeededGame(page);
   await expect(page.getByTestId('map-scroll')).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
   await expect(page.getByTestId('turn-indicator')).toContainText('Turn: 1 of 40');
 

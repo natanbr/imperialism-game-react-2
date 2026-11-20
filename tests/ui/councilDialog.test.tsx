@@ -197,7 +197,7 @@ describe('FR-298 the Council screen: what it shows', () => {
     expect(within(dialog()).getByRole('list', { name: 'Abstained: 2' })).toBeTruthy();
     expect(reasons()).toEqual(['Arvelia: relation 30 of the 50 needed', 'Pellis: relation 30 of the 50 needed']);
     expect(text(within(dialog()).getByTestId('council-rule'))).toBe(RULE);
-    expect(text(within(dialog()).getByTestId('council-needed'))).toBe('7 of 12 votes wins at any meeting. At the last meeting (turn 40) every governor must choose, and the nominee with more votes wins (equal votes: higher standing).');
+    expect(text(within(dialog()).getByTestId('council-needed'))).toBe('7 of 12 votes wins at any meeting. At the last meeting (turn 40) a free minor votes unless it is at war with both nominees, and the nominee with more votes wins (equal votes: higher standing).');
   });
 
   it.each([
