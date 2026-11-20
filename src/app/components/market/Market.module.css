@@ -113,6 +113,17 @@
   font-variant-numeric: tabular-nums;
 }
 
+.finalScoresScroll {
+  overflow-x: auto;
+}
+
+.finalScoresScroll th[scope="row"] {
+  color: inherit;
+  text-transform: none;
+  letter-spacing: normal;
+  white-space: nowrap;
+}
+
 .table th {
   text-align: left;
   font-size: var(--font-size-sm);

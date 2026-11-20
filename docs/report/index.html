@@ -353,7 +353,7 @@
     $('ordernote').textContent = d.plan.orderNote;
     $('ms').innerHTML = d.plan.milestones.map((m) => {
       const w = sizeWord(m.size), n = { Small: 1, Medium: 2, Large: 3, 'Very large': 4 }[w];
-      return `<article class="ms ${m.status}" id="ms-${m.id}"><div class="top"><h3>${m.id} ${h(m.title)}</h3>${pill('ms-' + m.status, m.statusLabel)}</div>
+      return `<article class="ms ${m.status}" id="ms-${m.id}"><div class="top"><h3>${m.id} ${h(m.title)}</h3>${pill('ms-' + m.status, m.localBuild ? 'Built locally' : m.statusLabel)}</div>
       <p class="goal">${h(m.goal)}</p>
       <div class="cols"><div><h4>What you will be able to check in the app</h4><ul>${m.check.map((c) => `<li>${rich(c)}</li>`).join('')}</ul></div>
       <dl class="kv"><dt>Size</dt><dd>${m.sizeText ? h(m.sizeText) : `<span class="sizebar" aria-hidden="true">${[1, 2, 3, 4].map((i) => `<i class="${i <= n ? 'on' : ''}"></i>`).join('')}</span><b>${w}</b>: ${m.findings} findings (${m.size.S} small, ${m.size.M} medium, ${m.size.L} large fixes)`}</dd>

@@ -37,6 +37,16 @@ export function adjacentProvinces(state: GameState, provinceId: ProvinceId): Pro
   return state.provinces.filter((p) => around.has(p.id));
 }
 
+/** Version-1 continent saves predate startOwnerId. Their province IDs come from continentWorld. */
+function startOwnerOf(province: Province): CountryId {
+  if (province.startOwnerId !== undefined) return province.startOwnerId;
+  return /^province-(nation-\d+)-(?:nw|ne|sw|se)$/.exec(province.id)?.[1]
+    ?? /^province-(minor-\d+)$/.exec(province.id)?.[1]
+    ?? province.ownerId;
+}
+
+export const isConqueredProvince = (province: Province): boolean => province.ownerId !== startOwnerOf(province);
+
 /** The tile owned by `nationId`, or by no Great Power when it is undefined. */
 function withOwner(tile: Tile, nationId: string | undefined): Tile {
   if (nationId) return { ...tile, ownerNationId: nationId };
@@ -63,7 +73,7 @@ export function transferProvince(state: GameState, provinceId: ProvinceId, newOw
   );
   return {
     ...state,
-    provinces: state.provinces.map((p) => (p.id === provinceId ? { ...p, ownerId: newOwnerId } : p)),
+    provinces: state.provinces.map((p) => (p.id === provinceId ? { ...p, ownerId: newOwnerId, startOwnerId: startOwnerOf(p) } : p)),
     map: { ...state.map, tiles },
   };
 }

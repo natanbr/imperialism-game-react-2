@@ -100,13 +100,14 @@ describe('FR-430 FR-431 How to play', () => {
     expect(useGameStore.getState().isHowToPlayOpen).toBe(true);
   });
 
-  it('FR-431 the goal, how money is made and a first turn, in that order, with the numbers of a 40-turn continent game', () => {
+  // FR-506 replaces the old score-or-nine-votes goal. The last Council now elects a winner, even below seven votes.
+  it('FR-506 FR-431 the goal, how money is made and a first turn, in that order, with the numbers of a 40-turn continent game', () => {
     useGameStore.setState({ ...useGameStore.getInitialState(), game: continentGame(), activeNationId: 'nation-1' });
     render(<HowToPlay onClose={() => {}} />);
     const dialog = screen.getByRole('dialog', { name: 'How to play' });
     expect(within(dialog).getAllByRole('heading', { level: 3 }).map((h) => text(h))).toEqual(['The goal', 'Making money', 'Your first turn']);
     expect(text(within(dialog).getByTestId('howto-goal'))).toBe(
-      'Have the best score after 40 turns, or win 9 of the 12 votes at a Council of Governors meeting on turns 10, 20, 30 and 40.'
+      'The Council of Governors meets on turns 10, 20, 30 and 40. 7 of 12 votes wins at any meeting. At the last meeting (turn 40) every governor must choose, and the nominee with more votes wins (equal votes: higher standing).'
     );
     expect(text(within(dialog).getByTestId('howto-money'))).toBe(
       'Open a consulate with a minor nation in Diplomacy ($500). Once it opens at End Turn, that minor buys clothing, furniture and hardware from you on the Board of Trade.'
@@ -120,12 +121,12 @@ describe('FR-430 FR-431 How to play', () => {
 
   it('FR-431 the numbers come from the game: a 60-turn game says 60 turns and six Council meetings', () => {
     const text60 = howToPlayText(continentGame({ turnLimit: 60 }));
-    expect(text60.goal).toBe('Have the best score after 60 turns, or win 9 of the 12 votes at a Council of Governors meeting on turns 10, 20, 30, 40, 50 and 60.');
+    expect(text60.goal).toBe('The Council of Governors meets on turns 10, 20, 30, 40, 50 and 60. 7 of 12 votes wins at any meeting. At the last meeting (turn 60) every governor must choose, and the nominee with more votes wins (equal votes: higher standing).');
   });
 
   it('FR-431 the votes and the consulate price are the rules\' (votesNeeded, OVERTURE_COST)', () => {
     const t = howToPlayText(continentGame());
-    expect(t.goal).toContain(`win ${votesNeeded(12)} of the 12 votes`);
+    expect(t.goal).toContain(`${votesNeeded(12, 2)} of 12 votes`);
     expect(t.money).toContain(`(${money(OVERTURE_COST.consulate)})`);
     expect(t.goal).toContain(`turns ${COUNCIL.firstTurn}, ${COUNCIL.firstTurn + COUNCIL.interval}`);
   });

@@ -31,13 +31,14 @@ export type Player = (state: GameState, nationId: string) => Order[];
  * tiles first (FR-123) and the developers start the cheapest level that pays first (FR-131); neither starts a job on
  * a tile the engineer's rail still needs (FR-459).
  */
-export const scriptedPlayer: Player = (state, nationId) => {
+export const scriptedPlayer = (state: GameState, nationId: string, allowOrder?: (order: Order, before: GameState, after: GameState) => boolean): Order[] => {
   const orders: Order[] = [];
   let view = state;
   const propose = (order: Order): boolean => {
     if (!validateOrder(view, order).ok) return false;
     const next = applyOrder(view, order);
-    if (spendsTheUpkeep(view, next, nationId)) return false;
+    // A policy sharing this planner (the FR-509 diplomat) must decline an order before later decisions see its effects.
+    if (spendsTheUpkeep(view, next, nationId) || (allowOrder && !allowOrder(order, view, next))) return false;
     view = next;
     orders.push(order);
     return true;

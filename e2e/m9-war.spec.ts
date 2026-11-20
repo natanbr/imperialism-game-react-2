@@ -217,7 +217,7 @@ async function attackArvelia(page: Page, attempt: number) {
   }
 }
 
-test('FR-233 FR-230 FR-231 FR-232 FR-273 declare war on Arvelia, attack it, see the battle and take it as a colony', async ({ page }, testInfo) => {
+test('FR-233 FR-230 FR-231 FR-232 FR-273 FR-505 declare war on Arvelia, attack it, see the battle and take it as a colony', async ({ page }, testInfo) => {
   test.setTimeout(180000);
   const errors = collectErrors(page);
   await page.goto('/');
@@ -258,6 +258,12 @@ test('FR-233 FR-230 FR-231 FR-232 FR-273 declare war on Arvelia, attack it, see 
   await expect(march).toBeVisible();
   await expect(march.getByTestId('march-line')).toHaveAttribute('stroke', 'var(--color-army-move)');
   await endTurn(page, 2);
+
+  // FR-505: compare the same player's development before and after the real conquest.
+  const score = page.getByTestId('hud-score');
+  await score.focus();
+  const development = await page.getByTestId('score-parts').getByText(/^Development \d+$/).innerText();
+  await score.press('Escape');
 
   // Turn 2 on: attack Arvelia from North-East; the Battle screen opens by itself the next turn
   let taken = false;
@@ -325,6 +331,13 @@ test('FR-233 FR-230 FR-231 FR-232 FR-273 declare war on Arvelia, attack it, see 
   const after = await outlineAround(page, 'nation-1', '11-4');
   expect({ stroke: after.stroke, eastOfIt: after.east > after.centre }).toEqual({ stroke: 'var(--color-nation-1)', eastOfIt: true });
   await shot(page, 'm9-colony.png');
+
+  await score.focus();
+  await expect(page.getByTestId('score-parts')).toContainText('Conquered land not collected: 11 levels, 0 points');
+  await expect(page.getByTestId('score-parts').getByText(/^Development \d+$/)).toHaveText(development);
+  await score.press('Escape');
+  await page.locator('[data-tile-id="10-3"]').click();
+  await expect(page.getByTestId('tile-collected')).toContainText('Not collected: 0 points');
 
   // "Colony" for Arvelia in Diplomacy
   await page.getByRole('button', { name: 'Diplomacy', exact: true }).click();

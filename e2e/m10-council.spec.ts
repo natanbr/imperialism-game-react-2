@@ -8,7 +8,7 @@ import { councilLineSeen } from './councilNews';
 // sum of its four rows, "Abstained:" 12 minus both Totals, the votes needed and "No winner. The Council meets again on turn
 // 20." (FR-298); the capitol picture loaded; the dialog inside the window, neither it nor the page scrolling. Then Close
 // (the focus goes back to Advance Turn), "Next Council: turn 20 (Winter 1819)", the news line "Council of Governors: ...
-// no winner (9 needed)." reopens the screen (FR-297), and turn 11 ends to turn 12 with no Council screen. Review fix round:
+// no winner (7 needed)." reopens the screen (FR-297), and turn 11 ends to turn 12 with no Council screen. Review fix round:
 // that line is the news list's first line, seen without scrolling (FR-306); the turn and the date share one line with the
 // Council line under it, on turns 1 and 11 (FR-307).
 // QA fix round: the HUD shows the projected vote under the Council line, the player's nation first, as the line's
@@ -57,6 +57,7 @@ async function fitsTheWindow(page: Page, dialog: Locator) {
   expect(page_.width).toBeLessThanOrEqual(page_.innerWidth);
 }
 
+// M14: nine votes -> seven on the two-power continent (FR-503). FR-506 puts the threshold before the date so both fit at 1280 px.
 const ROWS = ['controlled', 'colonies', 'otherGreatPowers', 'otherMinorNations'] as const;
 
 /**
@@ -89,11 +90,11 @@ async function projectionShown(page: Page) {
   const projection = page.getByTestId('council-projection');
   const nation = page.getByRole('button', { name: 'Nation', exact: true });
   // The line names it as its description even while the group is closed (aria-describedby reads hidden text)
-  await expect(line).toHaveAccessibleDescription(/^If it met now: Testland \d+, Valdoria \d+, abstain \d+ of 12; 9 needed$/);
+  await expect(line).toHaveAccessibleDescription(/^If it met now: Testland \d+, Valdoria \d+, abstain \d+ of 12; 7 needed$/);
   await nation.click();
   await expect(nation).toHaveAttribute('aria-expanded', 'true');
   await expect(projection).toBeVisible();
-  await expect(projection).toHaveText(/^If it met now: Testland \d+, Valdoria \d+, abstain \d+ of 12; 9 needed$/);
+  await expect(projection).toHaveText(/^If it met now: Testland \d+, Valdoria \d+, abstain \d+ of 12; 7 needed$/);
   await expect(line).toHaveAccessibleDescription((await projection.innerText()).trim());
   // Pin moved (M12b final gate, FR-537, old -> new): "no title" -> "the title is the line's own text, never the projection". The
   // M10 pin guarded against the projection living only in a tooltip (it was the title before FR-314's QA fix, 8607fe9).
@@ -158,7 +159,7 @@ test('FR-303 the Council meets on turn 10: its screen opens by itself on turn 11
 
   // FR-301: the next meeting; FR-314: the vote it would give now, shown under it, the player's nation first (FR-313)
   const next = page.getByTestId('next-council');
-  await expect(next).toHaveText('Next Council: turn 10 (Summer 1817)');
+  await expect(next).toHaveText('7 of 12 votes wins · Council: turn 10 (Summer 1817). This threshold applies at any meeting. At the last meeting (turn 40) every governor must choose, and the nominee with more votes wins (equal votes: higher standing).');
   await projectionShown(page);
   await turnLineLayout(page);
 
@@ -167,7 +168,7 @@ test('FR-303 the Council meets on turn 10: its screen opens by itself on turn 11
     await endTurn(page, turn + 1);
     await expect(council).toHaveCount(0);
   }
-  await expect(next).toHaveText('Council: this turn');
+  await expect(next).toHaveText('7 of 12 votes wins · Council: this turn. This threshold applies at any meeting. At the last meeting (turn 40) every governor must choose, and the nominee with more votes wins (equal votes: higher standing).');
 
   // Turn 10 resolves: the Council meets and its screen opens by itself on turn 11 (FR-299)
   await endTurn(page, 11);
@@ -209,7 +210,7 @@ test('FR-303 the Council meets on turn 10: its screen opens by itself on turn 11
   await expect(council.getByTestId('council-rule')).toHaveText(
     'A free minor nation votes for the Great Power it has at least 50 relation points with and is not at war with; a colony votes with its owner.'
   );
-  await expect(council.getByTestId('council-needed')).toHaveText('A winner needs more than two thirds of the 12 votes: 9.');
+  await expect(council.getByTestId('council-needed')).toHaveText('7 of 12 votes wins at any meeting. At the last meeting (turn 40) every governor must choose, and the nominee with more votes wins (equal votes: higher standing).');
   await expect(council.getByTestId('council-result')).toHaveText('No winner. The Council meets again on turn 20.');
 
   // The capitol picture has loaded and stays at most 96 px high; the dialog fits the window
@@ -227,7 +228,7 @@ test('FR-303 the Council meets on turn 10: its screen opens by itself on turn 11
   await council.getByRole('button', { name: 'Close' }).click();
   await expect(council).toHaveCount(0);
   await expect(advance(page)).toBeFocused();
-  await expect(next).toHaveText('Next Council: turn 20 (Winter 1819)');
+  await expect(next).toHaveText('7 of 12 votes wins · Council: turn 20 (Winter 1819). This threshold applies at any meeting. At the last meeting (turn 40) every governor must choose, and the nominee with more votes wins (equal votes: higher standing).');
   await projectionShown(page);
 
   await turnLineLayout(page);
@@ -235,7 +236,7 @@ test('FR-303 the Council meets on turn 10: its screen opens by itself on turn 11
   // FR-297: the meeting's news line opens its screen again. FR-306 (review R1): it is the list's first line, so the player
   // sees it without scrolling: the list and the HUD are at the top, and the line lies inside the list's visible box
   const newsList = page.getByTestId('news-list');
-  const line = newsList.getByRole('button', { name: /^Council of Governors: (Testland|Valdoria) \d+, (Testland|Valdoria) \d+ of 12 votes; no winner \(9 needed\)\.$/ });
+  const line = newsList.getByRole('button', { name: /^Council of Governors: (Testland|Valdoria) \d+, (Testland|Valdoria) \d+ of 12 votes; no winner \(7 needed\)\.$/ });
   await expect(line).toHaveCount(1);
   await councilLineSeen(page);
   await line.click();
@@ -248,6 +249,6 @@ test('FR-303 the Council meets on turn 10: its screen opens by itself on turn 11
   // Turn 11 holds no meeting: nothing opens
   await endTurn(page, 12);
   await expect(council).toHaveCount(0);
-  await expect(next).toHaveText('Next Council: turn 20 (Winter 1819)');
+  await expect(next).toHaveText('7 of 12 votes wins · Council: turn 20 (Winter 1819). This threshold applies at any meeting. At the last meeting (turn 40) every governor must choose, and the nominee with more votes wins (equal votes: higher standing).');
   expect(errors).toEqual([]);
 });

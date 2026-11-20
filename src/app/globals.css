@@ -807,6 +807,7 @@ img[data-art-anchor="bottom-center"] {
    bar (task T2) and the projection to the pane's Nation group (task T3); .gate/hud/ownership.md */
 .next-council {
   min-width: 0;
+  max-width: 240px;
   font-size: 13px;
   line-height: 16px;
   overflow: hidden;

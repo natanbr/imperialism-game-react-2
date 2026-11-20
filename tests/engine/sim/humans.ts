@@ -7,9 +7,14 @@
 import type { GameState } from '@/types/GameState';
 import type { Order } from '@/engine/orders/Order';
 import type { TradeCommodity, TradeOrders } from '@/types/Market';
-import { scriptedPlayer } from '@/engine/ai/scriptedPlayer';
+import { scriptedPlayer, upkeepReserve } from '@/engine/ai/scriptedPlayer';
+import { relationOf } from '@/engine/diplomacy/relations';
+import { COUNCIL } from '@/definisions/council';
+import { OVERTURE_COST } from '@/definisions/diplomacyRules';
 import { validateOrder } from '@/engine/orders/validate';
 import { applyOrder } from '@/engine/orders/apply';
+import { treasuryOf } from '@/engine/orders/queries';
+import { adjacentProvinces, provincesOf } from '@/engine/world/provinces';
 import { capitalProvinceOf, raiseRegiments } from '@/engine/army/armies';
 import { fallCapital, takeProvince } from '@/engine/army/conquest';
 import { marketOf, priceOf } from '@/engine/market/market';
@@ -47,6 +52,62 @@ export const idle: HumanPolicy = { name: 'idle', orders: () => [] };
 
 /** `scripted`: the scripted player plays nation 1 too, so both Great Powers race for Arvelia. */
 export const scripted: HumanPolicy = { name: 'scripted', orders: state => scriptedPlayer(state, HUMAN_ID) };
+
+/** FR-509: seek minor votes while retaining the scripted economy, garrison and marches on home soil. */
+export const diplomat: HumanPolicy = {
+  name: 'diplomat',
+  orders: state => {
+    let view = state;
+    const orders: Order[] = [];
+    const propose = (order: Order): boolean => {
+      if (!validateOrder(view, order).ok) return false;
+      view = applyOrder(view, order);
+      orders.push(order);
+      return true;
+    };
+    const partners = state.minorNations.flatMap(minor => {
+      const pair = relationOf(state, HUMAN_ID, minor.id);
+      if (!pair || pair.war || minor.colonyOf !== undefined) return [];
+      // A frontier consulate can be lost to conquest. The public map gives the same tie-break to every seed.
+      const frontier = provincesOf(state, minor.id).some(p => adjacentProvinces(state, p.id).some(n => n.ownerId === COMPUTER_ID));
+      const lead = pair.points - (relationOf(state, COMPUTER_ID, minor.id)?.points ?? 0);
+      return [{ id: minor.id, pair, frontier, lead }];
+    }).sort((a, b) => Number(a.frontier) - Number(b.frontier) || a.lead - b.lead);
+    const consulate = partners.find(p => !p.pair.consulates.includes(HUMAN_ID));
+    if (state.turn <= 4 && consulate) {
+      propose({ kind: 'proposeOverture', nationId: HUMAN_ID, targetId: consulate.id, overture: 'consulate' });
+    }
+
+    // Equal relations favour secure partners, then those where the rival has the larger lead. FR-162 requires an embassy.
+    const below = partners.filter(p => p.pair.points < COUNCIL.minRelationPoints).sort((a, b) => b.pair.points - a.pair.points);
+    const grant = below.find(p => p.pair.embassies.includes(HUMAN_ID));
+    if (grant && treasuryOf(view, HUMAN_ID) - 1000 >= 3000) {
+      propose({ kind: 'giveGrant', nationId: HUMAN_ID, targetId: grant.id, amount: 1000, locked: false });
+    }
+    const remainingConsulates = Math.max(0, 4 - state.turn) * OVERTURE_COST.consulate;
+    // The regular script opens its first embassy and pact. Once that partner reaches 50 it never plans another
+    // embassy; a diplomat needs one to make a lawful grant to the next minor.
+    const hasEmbassy = partners.some(p => p.pair.embassies.includes(HUMAN_ID));
+    const contested = below.find(p => !p.frontier && p.lead <= 0 && p.pair.consulates.includes(HUMAN_ID) && !p.pair.embassies.includes(HUMAN_ID));
+    const nextEmbassy = hasEmbassy && !grant ? contested : undefined;
+    if (nextEmbassy && treasuryOf(view, HUMAN_ID) - OVERTURE_COST.embassy >= Math.max(4000, upkeepReserve(view, HUMAN_ID))) {
+      propose({ kind: 'proposeOverture', nationId: HUMAN_ID, targetId: nextEmbassy.id, overture: 'embassy' });
+    }
+    // Preserve trade and civilian investment, and defer optional training if a contested minor needs another embassy.
+    const economy = scriptedPlayer(view, HUMAN_ID, (order, before, after) => {
+      if (order.kind === 'proposeOverture') return order.overture !== 'war' && order.overture !== 'consulate';
+      if (order.kind === 'moveArmy') return view.provinces.some(p => p.id === order.toProvinceId && p.ownerId === HUMAN_ID);
+      if (order.kind === 'giveGrant') return false;
+      const left = treasuryOf(after, HUMAN_ID);
+      if (nextEmbassy && order.kind === 'trainWorkers' && left < OVERTURE_COST.embassy + 4000) return false;
+      return left >= treasuryOf(before, HUMAN_ID) || left >= remainingConsulates;
+    });
+    // Buy the first embassy at the ordinary time and price. Prefer a minor the rival still leads over one already
+    // voting for us. An embassy takes effect on End Turn, and has the same cost for either consular partner.
+    return [...orders, ...economy.map(order => order.kind === 'proposeOverture' && order.overture === 'embassy' && contested
+      ? { ...order, targetId: contested.id } : order)];
+  },
+};
 
 /** The turn the aggressor's test setup runs and the turn it declares war on the computer (the audit's war human). */
 export const AGGRESSOR_SETUP_TURN = 4;
@@ -129,5 +190,5 @@ export const trader: HumanPolicy = {
   },
 };
 
-export const HUMANS = { idle, scripted, aggressor, trader } as const;
+export const HUMANS = { idle, scripted, aggressor, trader, diplomat } as const;
 export type HumanName = keyof typeof HUMANS;

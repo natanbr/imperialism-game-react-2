@@ -14,6 +14,7 @@ import { scriptedPlayer, upkeepReserve } from '@/engine/ai/scriptedPlayer';
 import { embassySaving, planInfluence } from '@/engine/ai/scriptedInfluence';
 import { wantedRegiment } from '@/engine/ai/scriptedArmy';
 import { computerOrders } from '@/engine/ai/players';
+import { councilCell, councilVote } from '@/engine/council/council';
 import { resolveTurn } from '@/engine/turn/resolveTurn';
 import { cashReserve } from '@/engine/ai/economy';
 import { campaignTarget } from '@/engine/ai/scriptedWar';
@@ -327,7 +328,7 @@ function idleGame(seed: number, turns: number) {
     }
     s = state;
   }
-  return { startEmbassies, done, votes, points: (minor: string) => s.diplomacy[pairKey(N2, minor)]?.points };
+  return { state: s, startEmbassies, done, votes, points: (minor: string) => s.diplomacy[pairKey(N2, minor)]?.points };
 }
 
 describe('FR-490 FR-542 real games from the start, no embassy preset (the row\'s example)', () => {
@@ -339,10 +340,12 @@ describe('FR-490 FR-542 real games from the start, no embassy preset (the row\'s
     expect(g.points(SUNDMARK)).toBe(48);
   }, 60_000);
 
-  it('FR-542 seed 1: embassy turn 23, pact 24, grants on 36 and 37: 1 Other Minor Nations vote for Valdoria at the turn-40 meeting', () => {
+  it('FR-542 FR-510 seed 1: the embassy, pact and two grants earn Sundmark; the forced final ballot adds a second minor', () => {
     const g = idleGame(1, 40);
     expect(g.startEmbassies).toBe(0);
     expect(g.done).toEqual([`embassy ${SUNDMARK} 23`, `pact ${SUNDMARK} 24`, `grant ${SUNDMARK} $1000 36`, `grant ${SUNDMARK} $1000 37`]);
-    expect(g.votes).toEqual({ 10: 0, 20: 0, 30: 0, 40: 1 });
+    // FR-501: 1 -> 2 final minor votes. Only Sundmark meets the ordinary 50-point rule after the grants.
+    expect(g.votes).toEqual({ 10: 0, 20: 0, 30: 0, 40: 2 });
+    expect(councilCell(councilVote(g.state, COUNCIL.firstTurn)!, N2, 'otherMinorNations')).toEqual(['province-minor-2']);
   }, 60_000);
 });

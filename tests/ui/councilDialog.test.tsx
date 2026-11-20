@@ -190,13 +190,35 @@ describe('FR-298 the Council screen: what it shows', () => {
     for (const c of cells) expect([c.getAttribute('title'), description(c)]).toEqual([c.getAttribute('title'), c.getAttribute('title')]);
   });
 
-  it('FR-298 FR-311 under the table "Abstained: 2", one line per abstaining minor with its reason, the rule, and "A winner needs more than two thirds of the 12 votes: 9."', () => {
+  // FR-503/506: nine votes under the original two-thirds rule became seven here, followed by the final-meeting rule.
+  it('FR-506 FR-298 FR-311 under the table: abstentions, their reasons, the vote threshold and the last-meeting rule', () => {
     open(meeting(twoIslands()));
     expect(text(within(dialog()).getByTestId('council-abstained'))).toBe('Abstained: 2');
     expect(within(dialog()).getByRole('list', { name: 'Abstained: 2' })).toBeTruthy();
     expect(reasons()).toEqual(['Arvelia: relation 30 of the 50 needed', 'Pellis: relation 30 of the 50 needed']);
     expect(text(within(dialog()).getByTestId('council-rule'))).toBe(RULE);
-    expect(text(within(dialog()).getByTestId('council-needed'))).toBe('A winner needs more than two thirds of the 12 votes: 9.');
+    expect(text(within(dialog()).getByTestId('council-needed'))).toBe('7 of 12 votes wins at any meeting. At the last meeting (turn 40) every governor must choose, and the nominee with more votes wins (equal votes: higher standing).');
+  });
+
+  it.each([
+    ['standing', 6, 6, '6 to 6: Valdoria wins on standing (2,120 against 1,410).'],
+    ['threshold', 7, 5, 'Valdoria has more votes (7 to 5).'],
+    ['more-votes', 6, 5, 'Valdoria has more votes (6 to 5).'],
+  ] as const)('FR-507 a last meeting decided by %s explains the recorded result', (decidedBy, votes, otherVotes, why) => {
+    const event = meeting(losing(), 40, 1824);
+    const nominees = event.nominees.map(n => ({
+      ...n, total: n.nationId === N2 ? votes : otherVotes, standing: n.nationId === N2 ? 2120 : 1410,
+    })) as CouncilMetEvent['nominees'];
+    const ballots = event.ballots.slice();
+    if (decidedBy === 'more-votes') ballots[0] = { provinceId: ballots[0].provinceId };
+    open({ ...event, nominees, ballots, decidedBy, winnerId: N2 });
+    expect(within(dialog()).getByText(why)).toBeTruthy();
+    if (decidedBy === 'more-votes') {
+      expect(within(dialog()).queryByText('Last meeting: every governor chose.')).toBeNull();
+    } else {
+      expect(within(dialog()).getByText('Last meeting: every governor chose.')).toBeTruthy();
+    }
+    expect(text(within(dialog()).getByTestId('council-rule'))).not.toContain('at least 50');
   });
 
   it('FR-298 FR-311 the start of a game: 4 and 4, "Abstained: 4" with the 4 minors at 30 of the 50 needed, no winner, the next meeting on turn 20', () => {
@@ -234,10 +256,12 @@ describe('FR-298 the Council screen: what it shows', () => {
     expect(reasons()[1]).toBe('Sundmark: relation 30 of the 50 needed');
   });
 
-  it('FR-298 FR-316 on turn 40 (the last meeting of a 40-turn game): "No winner. This was the last Council; the game ends on points."', () => {
-    open(meeting(continent('world'), 40, 1824), onTurn(40, 1824));
+  it('FR-507 FR-298 FR-316 an old save reopening its undecided last meeting preserves its nine-vote rule and original result', () => {
+    open({ ...meeting(continent('world'), 40, 1824), needed: 9 }, onTurn(40, 1824));
     expect(text(within(dialog()).getByTestId('council-date'))).toBe('Met at the end of turn 40 (Winter 1824)');
     expect(text(within(dialog()).getByTestId('council-result'))).toBe('No winner. This was the last Council; the game ends on points.');
+    expect(text(within(dialog()).getByTestId('council-needed'))).toBe('This meeting required 9 of 12 votes to win.');
+    expect(within(dialog()).queryByText('Last meeting: every governor chose.')).toBeNull();
   });
 
   it('FR-298 with a longer game the turn-40 meeting is not the last: "The Council meets again on turn 50."', () => {

@@ -2,7 +2,7 @@
 // wording for Tile Info, Construction Options, the map's status line and the spend question; and who collects a tile
 // (FR-391). Whether a job can start is the engine's validateOrder; this file only words its reason with the tile's facts.
 // It reads state, never builds it.
-import { collectingHub, validateOrder, type Order, type RejectReason } from "@/engine";
+import { collectingHub, isConqueredProvince, provinceOf, validateOrder, type Order, type RejectReason } from "@/engine";
 import {
   DEVELOPMENT_WORKER_TYPES,
   TECH,
@@ -322,7 +322,11 @@ export function collectionText(state: GameState, nationId: string, tile: Tile): 
   const resource = tile.resource;
   if (tile.ownerNationId !== nationId || !resource || resource.discovered === false) return undefined;
   const hub = collectingHub(state, nationId, tile.id);
-  if (!hub) return "Not collected: no connected depot, port or capital next to it";
+  if (!hub) {
+    const province = provinceOf(state, tile.id);
+    if (province && isConqueredProvince(province)) return "Not collected: 0 points until a depot, port or capital collects it.";
+    return "Not collected: no connected depot, port or capital next to it";
+  }
   const by = hub.kind === "capital" ? "the capital" : `the ${hub.kind} at ${hub.tileId}`;
   const units = ResourceDevelopmentTable[resource.type]?.[resource.level] ?? 0;
   const goods = commodityName(resource.type).toLowerCase();

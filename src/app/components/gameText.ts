@@ -100,7 +100,9 @@ const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
  * Dollars with thousands separators and a loss's minus sign in front: "$1,800", "-$1,369". The one money format of the
  * HUD, the market dialogs, the Deal Book, Diplomacy and the capital (FR-258).
  */
-export const money = (n: number) => (n < 0 ? `-$${(-n).toLocaleString("en-US")}` : `$${n.toLocaleString("en-US")}`);
+export const money = (n: number) => (n < 0 ? `-$${groupedNumber(-n)}` : `$${groupedNumber(n)}`);
+
+export const groupedNumber = (n: number): string => n.toLocaleString("en-US");
 
 export const BUILDING_TEXT: Record<BuildingType, string> = {
   textileMill: "Textile mill",
@@ -416,13 +418,19 @@ export function eventText(event: GameEvent, nameOf: (countryId: string) => strin
 export const councilCountText = (vote: { nominees: readonly CouncilVote["nominees"][number][]; totalVotes: number }, nameOf: (countryId: string) => string): string =>
   `${vote.nominees.map((n) => `${nameOf(n.nationId)} ${n.total}`).join(", ")} of ${vote.totalVotes} votes`;
 
+/** FR-506: the threshold and last scheduled meeting for this world. */
+export function councilEndRule(needed: number, votes: number, last: number, meeting?: string): string {
+  const schedule = meeting ? ` · ${meeting}. This threshold applies` : "";
+  return `${needed} of ${votes} votes wins${schedule} at any meeting. At the last meeting (turn ${last}) every governor must choose, and the nominee with more votes wins (equal votes: higher standing).`;
+}
+
 /** FR-313: the two nominees with the player's nation first when it is one of them, else in standing order. */
 export const playerFirst = <T extends { nationId: string }>(nominees: readonly [T, T], playerId: string): [T, T] =>
   nominees[1].nationId === playerId ? [nominees[1], nominees[0]] : [nominees[0], nominees[1]];
 
 /**
  * FR-314 (FR-313: the player's nation first): the HUD's projection, the vote the Council would give now, shown under its
- * "Next Council" line: "If it met now: Testland 4, Valdoria 4, abstain 4 of 12; 9 needed".
+ * "Next Council" line: "If it met now: Testland 4, Valdoria 4, abstain 4 of 12; 7 needed".
  */
 export function councilProjectionText(vote: CouncilVote, playerId: string, nameOf: (countryId: string) => string): string {
   const abstain = vote.totalVotes - vote.nominees[0].total - vote.nominees[1].total;

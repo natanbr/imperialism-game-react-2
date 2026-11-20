@@ -40,7 +40,8 @@ test('FR-315 FR-306 FR-316 after the turn-40 meeting and Back to the map, the Co
       await expect(council).toBeVisible();
       // FR-316 on every meeting; soft, so the game-over check below runs whatever this reads
       await expect.soft(council.getByTestId('council-date')).toHaveText(`Met at the end of turn ${turn} (${MEETING_DATES[turn / 10 - 1]})`);
-      await council.getByRole('button', { name: 'Close' }).click();
+      // FR-502/507: the forced last meeting now elects a winner, so its Close becomes See the final scores.
+      await council.getByRole('button', { name: turn === 40 ? 'See the final scores' : 'Close' }).click();
       await expect(council).toHaveCount(0);
       await closeWarScreens(page);
     }

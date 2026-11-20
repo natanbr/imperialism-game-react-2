@@ -1206,6 +1206,23 @@ describe('FR-407 FR-395 FR-416 FR-417 FR-418 FR-422 Diplomacy says what each cho
     expect(diplomacyRows(s, N1).map((r) => r.vote)).toEqual(diplomacyRows(s, N1).map(() => undefined));
   });
 
+  it('FR-501 FR-506 Diplomacy explains a free minor’s vote when the last meeting is next', () => {
+    openDiplomacy({ ...start(), turn: 31 });
+    const vote = text(within(country('Arvelia')).getByTestId('council-vote'));
+    expect(vote).toContain('more relation points');
+    expect(vote).toContain('equal points');
+    expect(vote).not.toContain('needs 50');
+  });
+
+  it.each([
+    { turn: 1, turnLimit: 9 },
+    { turn: 31, turnLimit: 35 },
+    { turn: 40, turnLimit: 40, gameOver: { turn: 40, year: 1824, scores: [] } },
+  ])('FR-417 FR-506 Diplomacy keeps both relation scores without forecasting a vote when no meeting remains: %o', end => {
+    const state = setPair({ ...start(), ...end }, N2, ARVELIA, { points: 46 });
+    expect(diplomacyRows(state, N1).find(r => r.id === ARVELIA)?.vote).toBe('Arvelia: 30 with us, 46 with Valdoria. No further Council meeting is scheduled.');
+  });
+
   it('FR-418 a Great Power shows its provinces, its regiments without the militia, its strength against ours and its industry capacity', () => {
     const s = start();
     openDiplomacy(s);

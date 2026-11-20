@@ -101,14 +101,14 @@ test('FR-078 FR-104 FR-109 end 40 turns, see the game-over screen with both nati
     // M13 (FR-488, FR-489): the computer's war on an idle player opens Battle screens and peace offers; closed unanswered
     await closeWarScreens(page);
     // FR-304: the Council meets on turns 10, 20, 30 and 40 and its screen opens by itself; the last one comes before the
-    // game-over screen (FR-299), and an idle player cannot reach 9 votes
+    // game-over screen (FR-299). FR-501/502: the former undecided last meeting now elects a winner.
     if (turn % 10 === 0) {
       await expect(council).toBeVisible();
       if (turn === 40) {
-        await expect(council.getByTestId('council-result')).toHaveText('No winner. This was the last Council; the game ends on points.');
+        await expect(council.getByTestId('council-result')).toHaveText('Valdoria wins. We lost.');
         await expect(page.getByRole('dialog', { name: 'Game over' })).toHaveCount(0);
       }
-      await council.getByRole('button', { name: 'Close' }).click();
+      await council.getByRole('button', { name: turn === 40 ? 'See the final scores' : 'Close' }).click();
       await expect(council).toHaveCount(0);
       // a peace offer waits for the Council screen (FR-409)
       await closeWarScreens(page);

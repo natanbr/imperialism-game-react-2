@@ -1,8 +1,8 @@
 // M5 acceptance on the continent: FR-260 (replaces FR-157 from M8) the continent plays 40 turns with the current
 // scripted player, with the start army's scores pinned; FR-215 (replaces FR-158 from M8): the start army's upkeep
 // changes the treasury, so the frozen M4 player's turn-1 orders are the same on both worlds, and without the FR-203
-// start forces it does turn by turn the same on both. M10: FR-305 the FR-260 games hold the 4 Council meetings without a
-// winner; FR-302 the scripted player gives the same orders as in the game without the Council.
+// start forces it does turn by turn the same on both. FR-305/510: the fourth Council elects a winner.
+// FR-302: the scripted player gives the same orders as in the game without the Council.
 import { beforeAll, describe, it, expect } from 'vitest';
 import { newGame } from '@/engine/newGame';
 import { forceSize } from '@/engine/army/armies';
@@ -222,7 +222,7 @@ describe('FR-260 (replaces FR-157) the continent plays: 40 turns, nation 2 scrip
   /** Nation 2's turn-40 score of each seed in one game kind. */
   const scores = (kind: 'first' | 'bare' | 'twoIslands') => SEEDS.map(seed => games.get(seed)![kind].turns[N2][TURNS - 1].score.total);
 
-  it('FR-260 with the start army nation 2\'s turn-40 score is the pinned 1443, 1352, 1477, 1430 (seeds 1 to 4)', () => {
+  it('FR-260 FR-510 with the start army nation 2 scores 1363, 1352, 1367, 1430 on turn 40 (seeds 1 to 4)', () => {
     // Review R1: the start army's $100 upkeep (FR-202) moves the score from the two-islands one; these are the numbers a
     // change must move on purpose, as FR-159's v1 baselines.
     // M12 strategy C re-record (FR-456, FR-457 depot sites; FR-458 the campaign keeps its trained workers): 1419, 1451,
@@ -237,7 +237,9 @@ describe('FR-260 (replaces FR-157) the continent plays: 40 turns, nation 2 scrip
     // declares only at more than twice the defence there, so the warning shows first): seed 1 1454 -> 1443 (-11; the war
     // on Testland turn 28 -> 30 and Testland North-East taken turn 29 -> 31, 2 turns less of its output); seeds 2 to 4
     // unchanged (no war on a Great Power)
-    expect(scores('first')).toEqual([1443, 1352, 1477, 1430]);
+    // FR-505: seed 1 1443 -> 1363, seed 3 1477 -> 1367. Uncollected developments in their conquered
+    // provinces now earn zero. Seeds 2 and 4 conquered no land and their scores stay the same.
+    expect(scores('first')).toEqual([1363, 1352, 1367, 1430]);
   });
 
   it('FR-260 FR-215 without the start forces nation 2\'s turn-40 score on the continent is the same seed\'s score on two-islands: 1643, 1546, 1530, 1637', () => {
@@ -257,10 +259,12 @@ describe('FR-260 (replaces FR-157) the continent plays: 40 turns, nation 2 scrip
     console.log('FR-260 nation 2 score at turn 40, continent with the start army / without / two-islands:', JSON.stringify(SEEDS.map((seed, i) => [seed, scores('first')[i], scores('bare')[i], scores('twoIslands')[i]])));
   });
 
-  it('FR-305 each FR-260 game holds 4 meetings (turns 10, 20, 30 and 40, dated Summer 1817 to Winter 1824), none with a winner, and ends by the turn limit', () => {
+  it('FR-305 FR-510 each FR-260 game holds four meetings and elects its winner in Winter 1824', () => {
     const meetings = (game: Game) => game.councils.map(c => [c.turn, c.year, c.winnerId ?? null]);
-    expect(SEEDS.map(seed => meetings(games.get(seed)!.first))).toEqual(SEEDS.map(() => [[10, 1817, null], [20, 1819, null], [30, 1822, null], [40, 1824, null]]));
-    expect(SEEDS.map(seed => games.get(seed)!.first.final.gameOver!.reason)).toEqual(SEEDS.map(() => undefined));
+    // FR-501/502: four turn-limit endings -> four Council winners. The three earlier ballots still have no winner.
+    const winners = [N2, N2, N1, N2];
+    expect(SEEDS.map(seed => meetings(games.get(seed)!.first))).toEqual(winners.map(id => [[10, 1817, null], [20, 1819, null], [30, 1822, null], [40, 1824, id]]));
+    expect(SEEDS.map(seed => games.get(seed)!.first.final.gameOver!.reason)).toEqual(['council', 'council', 'council', 'council']);
     expect(SEEDS.map(seed => games.get(seed)!.twoIslands.councils)).toEqual(SEEDS.map(() => []));
     const counts = SEEDS.map(seed => [seed, games.get(seed)!.first.councils.map(c => `t${c.turn} ${c.nominees.map(n => `${n.nationId}:${n.total}`).join('/')}`)]);
     console.log('FR-305 Council per seed (meeting turn, the votes of each nominee, of 12):', JSON.stringify(counts));
@@ -273,8 +277,7 @@ describe('FR-260 (replaces FR-157) the continent plays: 40 turns, nation 2 scrip
   // Re-recorded by the M13 review fix round (FR-538, review ST-01): seed 1 takes Testland North-East on turn 31 (war turn
   // 30; was 29 and 28), after the turn-30 meeting, so that meeting is Testland 4 to Valdoria 5 (Controlled 4, Colonies 1;
   // was 3 to 6); the turn-40 meeting is unchanged (3 to 6). Seeds 2 to 4 unchanged.
-  it('FR-305 the meetings of those games: 4 to 4 while no province changes hands (seeds 2 and 4 to the end), the 4 minors abstaining (review R1); then the colony and the province taken count', () => {
-    // On the world market no trade moves a relation, so only a province taken moves a vote
+  it('FR-305 FR-510 each meeting counts each source of votes, including every free minor at turn 40', () => {
     const columns = (game: Game) =>
       game.councils.map(c => ({
         turn: c.turn,
@@ -289,29 +292,40 @@ describe('FR-260 (replaces FR-157) the continent plays: 40 turns, nation 2 scrip
       ],
       abstained: ['province-minor-1', 'province-minor-2', 'province-minor-3', 'province-minor-4'],
     });
-    const afterTurn20 = (turn: number, testland: number[], valdoria: number[]) => ({
+    const count = (turn: number, testland: number[], valdoria: number[], abstained: string[]) => ({
       turn,
       nominees: [
         [N1, ...testland],
         [N2, ...valdoria],
       ],
-      abstained: ['province-minor-2', 'province-minor-3', 'province-minor-4'],
+      abstained,
     });
+    const afterColony = count(30, [4, 0, 0, 0, 4], [4, 1, 0, 0, 5], ['province-minor-2', 'province-minor-3', 'province-minor-4']);
+    const fourToEight = count(40, [4, 0, 0, 0, 4], [4, 0, 0, 4, 8], []);
+    // FR-501: the final Testland–Valdoria counts change by seed: 3–6 -> 6–6, 4–4 -> 4–8, 4–5 -> 7–5,
+    // 4–4 -> 4–8. After conquest on seeds 1 and 3 the three free minors favor Testland; the four tied
+    // minors on seeds 2 and 4 vote for Valdoria on standing.
     expect(SEEDS.map(seed => columns(games.get(seed)!.first))).toEqual([
-      [fourToFour(10), fourToFour(20), afterTurn20(30, [4, 0, 0, 0, 4], [4, 1, 0, 0, 5]), afterTurn20(40, [3, 0, 0, 0, 3], [5, 1, 0, 0, 6])],
-      [10, 20, 30, 40].map(fourToFour),
-      [fourToFour(10), fourToFour(20), afterTurn20(30, [4, 0, 0, 0, 4], [4, 1, 0, 0, 5]), afterTurn20(40, [4, 0, 0, 0, 4], [4, 1, 0, 0, 5])],
-      [10, 20, 30, 40].map(fourToFour),
+      [fourToFour(10), fourToFour(20), afterColony, count(40, [3, 0, 0, 3, 6], [5, 1, 0, 0, 6], [])],
+      [fourToFour(10), fourToFour(20), fourToFour(30), fourToEight],
+      [fourToFour(10), fourToFour(20), afterColony, count(40, [4, 0, 0, 3, 7], [4, 1, 0, 0, 5], [])],
+      [fourToFour(10), fourToFour(20), fourToFour(30), fourToEight],
     ]);
   });
 
-  it('FR-302 the scripted player gives the same orders on every turn as in the game without the Council, and the games end the same', () => {
+  it('FR-302 FR-510 the scripted player gives the same orders through the final Council and only the recorded outcome differs', () => {
     for (const seed of SEEDS) {
       const { first, noCouncil } = games.get(seed)!;
       expect(first.orders).toHaveLength(TURNS);
       for (let i = 0; i < TURNS; i++) expect(first.orders[i], `seed ${seed} turn ${i + 1}`).toEqual(noCouncil.orders[i]);
       expect(noCouncil.councils).toEqual([]);
-      expect(first.final).toEqual(noCouncil.final);
+      // Equal turn-limit endings -> the same state plus the elected winner and its final ballot (FR-502).
+      const { type, turn, year, ...vote } = first.councils[3];
+      expect(type).toBe('council-met');
+      expect(first.final).toEqual({
+        ...noCouncil.final,
+        gameOver: { ...noCouncil.final.gameOver, turn, year, reason: 'council', winnerId: vote.winnerId, decidedBy: vote.decidedBy, council: vote },
+      });
     }
   });
 });

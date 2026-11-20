@@ -106,7 +106,7 @@ export function resolveTurn(state: GameState, ordersByNation: OrdersByNation, se
   const end = conqueror !== undefined
     ? { reason: "conquest" as const, winnerId: conqueror }
     : council?.winnerId !== undefined
-      ? { reason: "council" as const, winnerId: council.winnerId, council }
+      ? { reason: "council" as const, winnerId: council.winnerId, decidedBy: council.decidedBy, council }
       : undefined;
   if (end || ordered.turn >= turnLimitOf(ordered)) {
     const gameOver: GameOver = { turn: ordered.turn, year: ordered.year, scores: scoreTable(s), ...end };

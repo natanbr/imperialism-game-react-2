@@ -6,6 +6,7 @@ import type { CountryId, NationId, ProvinceId } from "@/types/Common";
 import type { CouncilBallot, CouncilNominee, CouncilRelation, CouncilRow, CouncilVote } from "@/types/Council";
 import type { GameState } from "@/types/GameState";
 import type { Province } from "@/types/Province";
+import type { GameOver, Score } from "@/types/Score";
 import type { GameEvent } from "../turn/context";
 import { militaryStrength, warBetween } from "../diplomacy/queries";
 import { relationOf } from "../diplomacy/relations";
@@ -34,14 +35,42 @@ export function nextCouncilTurn(state: GameState): number | undefined {
   return turn <= turnLimitOf(state) ? turn : undefined;
 }
 
-/** FR-294: more than two thirds of all votes, abstentions included (12 gives 9, 120 gives 81). */
-export const votesNeeded = (totalVotes: number): number => Math.floor((2 * totalVotes) / 3) + 1;
+/** FR-501: the final scheduled meeting may be earlier than the turn limit. */
+export function lastCouncilTurn(state: GameState): number | undefined {
+  const limit = turnLimitOf(state);
+  if (state.provinces.length === 0 || limit < COUNCIL.firstTurn) return undefined;
+  return COUNCIL.firstTurn + Math.floor((limit - COUNCIL.firstTurn) / COUNCIL.interval) * COUNCIL.interval;
+}
+
+export const isLastMeeting = (state: GameState, turn: number): boolean => lastCouncilTurn(state) === turn;
+
+/** FR-294/503: a strict majority with two powers; more than two thirds with three or more. */
+export function votesNeeded(totalVotes: number, greatPowerCount: number): number {
+  const share = greatPowerCount < 3 ? COUNCIL.twoPowerVoteShare : COUNCIL.standardVoteShare;
+  return Math.floor(totalVotes * share.numerator / share.denominator) + 1;
+}
+
+function standingWith(state: GameState, score: Score) {
+  const provinces = provincesOf(state, score.nationId).length;
+  const military = militaryStrength(state, score.nationId);
+  // Strength is a sum of hundredths: without the margin 10 x 36.7 could floor to 366.
+  const militaryPoints = Math.floor(COUNCIL.militaryWeight * military + 1e-9);
+  return { score, provinces, military, standing: score.total + COUNCIL.provinceWeight * provinces + militaryPoints };
+}
 
 /** FR-291 (Q54): score (FR-067) + 100 x the provinces held + floor(10 x military strength (FR-174)). */
 export function councilStanding(state: GameState, nationId: NationId): number {
-  // Strength is a sum of hundredths: without the margin 10 x 36.7 could floor to 366
-  const military = Math.floor(COUNCIL.militaryWeight * militaryStrength(state, nationId) + 1e-9);
-  return scoreOf(state, nationId).total + COUNCIL.provinceWeight * provincesOf(state, nationId).length + military;
+  return standingWith(state, scoreOf(state, nationId)).standing;
+}
+
+/** FR-504: use the scores recorded at game end, including those from an older save. */
+export function finalStandings(state: GameState, over: GameOver) {
+  const rows = over.scores.map(score => standingWith(state, score));
+  // A points finish, including in a version-1 save, already records its ranking in scores.
+  if (over.winnerId === undefined) return rows;
+  return rows.sort((a, b) =>
+    Number(b.score.nationId === over.winnerId) - Number(a.score.nationId === over.winnerId) || b.standing - a.standing
+  );
 }
 
 /**
@@ -77,19 +106,18 @@ const minorRelations = (state: GameState, minorId: CountryId, nominees: readonly
   }));
 
 /**
- * FR-293 (Q52): a free minor votes for the nominee with the most relation points with it among those it is not at war
- * with that have at least `minRelationPoints`; none, or a tie, and it abstains.
+ * Nominee order already resolves exact ties by standing and intent order (FR-309).
  */
-function minorChoice(relations: readonly CouncilRelation[]): NationId | undefined {
-  const eligible = relations.filter((r) => !r.atWar && r.points >= COUNCIL.minRelationPoints);
+function minorChoice(relations: readonly CouncilRelation[], final: boolean): NationId | undefined {
+  const eligible = relations.filter((r) => !r.atWar && (final || r.points >= COUNCIL.minRelationPoints));
   if (eligible.length === 0) return undefined;
   const best = Math.max(...eligible.map((r) => r.points));
   const top = eligible.filter((r) => r.points === best);
-  return top.length === 1 ? top[0].nationId : undefined;
+  return final || top.length === 1 ? top[0].nationId : undefined;
 }
 
 /** FR-292: the province's one vote, and the row it counts in; an abstention says why (FR-310). */
-function ballotOf(state: GameState, province: Province, nominees: readonly NationId[], colonies: ReadonlySet<ProvinceId>): CouncilBallot {
+function ballotOf(state: GameState, province: Province, nominees: readonly NationId[], colonies: ReadonlySet<ProvinceId>, final: boolean): CouncilBallot {
   const provinceId = province.id;
   const ownerId = province.ownerId;
   if (nominees.includes(ownerId)) return { provinceId, forId: ownerId, row: colonies.has(provinceId) ? "colonies" : "controlled" };
@@ -104,7 +132,7 @@ function ballotOf(state: GameState, province: Province, nominees: readonly Natio
   // A colonised minor owns no province once its capital fell (FR-224); a hand-built one that still does abstains
   if (minor.colonyOf !== undefined) return { provinceId, abstention: { reason: "colony", ownerId } };
   const relations = minorRelations(state, ownerId, nominees);
-  const forId = minorChoice(relations);
+  const forId = minorChoice(relations, final);
   return forId ? { provinceId, forId, row: "otherMinorNations" } : { provinceId, abstention: { reason: "relations", nominees: relations } };
 }
 
@@ -113,13 +141,14 @@ function ballotOf(state: GameState, province: Province, nominees: readonly Natio
  * nominees' columns, the votes needed and the winner if any; undefined when fewer than two Great Powers hold a province
  * (no meeting is held). Pure: it changes nothing and draws nothing, so the screens may ask it at any time (FR-301).
  */
-export function councilVote(state: GameState): CouncilVote | undefined {
+export function councilVote(state: GameState, meetingTurn = state.gameOver?.turn ?? nextCouncilTurn(state)): CouncilVote | undefined {
   const ids = councilNominees(state);
   if (ids.length < 2) return undefined;
   const colonies = colonyProvinceIds(state);
-  const ballots = state.provinces.map((p) => ballotOf(state, p, ids, colonies));
+  const final = meetingTurn !== undefined && isLastMeeting(state, meetingTurn);
+  const ballots = state.provinces.map((p) => ballotOf(state, p, ids, colonies, final));
   const totalVotes = ballots.length;
-  const needed = votesNeeded(totalVotes);
+  const needed = votesNeeded(totalVotes, state.nations.length);
   const column = (nationId: NationId): CouncilNominee => {
     const count = (row: CouncilRow) => ballots.filter((b) => b.forId === nationId && b.row === row).length;
     const [controlled, colonial, otherGreatPowers, otherMinorNations] = COUNCIL_ROWS.map(count);
@@ -134,13 +163,18 @@ export function councilVote(state: GameState): CouncilVote | undefined {
     };
   };
   const nominees: [CouncilNominee, CouncilNominee] = [column(ids[0]), column(ids[1])];
+  const vote = { totalVotes, needed, nominees, ballots };
   const winner = nominees.find((n) => n.total >= needed);
-  return { totalVotes, needed, nominees, ballots, ...(winner ? { winnerId: winner.nationId } : {}) };
+  if (winner) return { ...vote, winnerId: winner.nationId, decidedBy: "threshold" };
+  if (!final) return vote;
+  const [first, second] = nominees;
+  if (first.total === second.total) return { ...vote, winnerId: first.nationId, decidedBy: "standing" };
+  return { ...vote, winnerId: first.total > second.total ? first.nationId : second.nationId, decidedBy: "more-votes" };
 }
 
 /** FR-290: the vote of the meeting held when turn `turn` resolves, counted on `state` (the state after its clock); undefined when none is held. */
 export const councilMeeting = (state: GameState, turn: number): CouncilVote | undefined =>
-  isCouncilTurn(state, turn) ? councilVote(state) : undefined;
+  isCouncilTurn(state, turn) ? councilVote(state, turn) : undefined;
 
 /** FR-298: the provinces behind one number of the vote screen (a nominee's row), in state order. */
 export const councilCell = (vote: Pick<CouncilVote, "ballots">, nationId: NationId, row: CouncilRow): ProvinceId[] =>

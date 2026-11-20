@@ -6,7 +6,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { ActionButtons, FoodWarning, ScoreIndicator, TurnIndicator } from '@/components/HUD/index';
 import { GameOverModal } from '@/components/GameOverModal';
 import { useGameStore } from '@/store/rootStore';
-import { resolveTurn, scoreOf } from '@/engine';
+import { councilVote, militaryStrength, resolveTurn, scoreOf, scoreTable } from '@/engine';
 import type { GameState } from '@/types/GameState';
 import { emptyWarehouse, game, N1, N2, setIndustry, setPair, setTile, setTreasury, T } from '../engine/fixtures';
 import { ARVELIA_P, clearArmy, continent, NE1, NE2, NW2, relocate, SW2 } from '../engine/armyFixtures';
@@ -77,6 +77,48 @@ describe('FR-075 food warning after the end', () => {
 });
 
 describe('FR-076 game-over screen', () => {
+  it.each(['council', 'conquest'] as const)('FR-504 the %s winner ranks first even when its score and standing are lower', reason => {
+    const state = setTreasury(continent('world'), N2, 999999);
+    const scores = scoreTable(state);
+    expect(scores[0].nationId).toBe(N2);
+    show({ ...state, gameOver: { reason, winnerId: N1, scores, turn: 10, year: 1817 } });
+    render(<GameOverModal />);
+    const table = within(screen.getByRole('table', { name: 'Final scores' }));
+    expect(table.getAllByRole('columnheader').map(text)).toEqual(expect.arrayContaining(['Score', 'Provinces', 'Military', 'Standing']));
+    const rows = table.getAllByTestId(/^final-score-/);
+    expect(rows.map(row => row.dataset.testid)).toEqual([`final-score-${N1}`, `final-score-${N2}`]);
+    const strength = militaryStrength(state, N1);
+    expect(text(within(rows[0]).getByTestId('provinces'))).toBe('4');
+    expect(text(within(rows[0]).getByTestId('military'))).toBe(String(strength));
+    expect(text(within(rows[0]).getByTestId('standing'))).toBe(String(scoreOf(state, N1).total + 400 + Math.floor(10 * strength)));
+  });
+
+  it('FR-508 a world without provinces names the highest recorded score, with thousands separated', () => {
+    const state = finished();
+    const [first, second] = state.gameOver!.scores;
+    show({ ...state, gameOver: { ...state.gameOver!, scores: [{ ...first, total: 1551 }, second] } });
+    render(<GameOverModal />);
+    expect(screen.getByText(`Best score: ${state.nations.find(n => n.id === first.nationId)!.name} (1,551)`)).toBeTruthy();
+  });
+
+  it.each([8, 40])('FR-508 a short continent game or an old turn-limit save names its recorded best score (turn %i)', limit => {
+    const state = setTreasury(continent('world'), N2, 125000);
+    const scores = scoreTable(state);
+    show({ ...state, turnLimit: limit, gameOver: { turn: limit, year: 1817, scores } });
+    render(<GameOverModal />);
+    expect(screen.getByText(`Best score: Valdoria (${scores[0].total.toLocaleString('en-US')})`)).toBeTruthy();
+  });
+
+  it('FR-507 the first game-over line names who won the last meeting, their vote and the standing decision', () => {
+    const state = continent('world');
+    const vote = councilVote(state)!;
+    const council = { ...vote, nominees: vote.nominees.map(n => ({ ...n, total: 6, standing: n.nationId === N2 ? 2120 : 1410 })) as typeof vote.nominees, winnerId: N2, decidedBy: 'standing' as const };
+    show({ ...state, gameOver: { reason: 'council', winnerId: N2, decidedBy: 'standing', council, scores: scoreTable(state), turn: 40, year: 1824 } });
+    render(<GameOverModal />);
+    const first = screen.getByRole('dialog').querySelector('p');
+    expect(first).toBe(screen.getByTestId('game-over-council'));
+    expect(text(first!)).toBe('Defeat: The Council of Governors chose Valdoria at the last meeting: 6 of 12 votes, on standing.');
+  });
   it('FR-076 is not shown while the game goes on', () => {
     show(game());
     render(<GameOverModal />);
@@ -130,12 +172,12 @@ describe('FR-076 game-over screen', () => {
     expect(text(within(rows[0]).getByTestId('work-in-progress'))).toBe('10');
   });
 
-  it('FR-403 the Development column says what a level is worth now: 10, 10 more, 50 more (not "10 points per resource level")', () => {
+  it('FR-505 FR-403 the Development column explains which discovered levels count and what they earn', () => {
     show(finished());
     render(<GameOverModal />);
     const dialog = screen.getByRole('dialog', { name: 'Game over' });
     expect(within(dialog).getByRole('columnheader', { name: 'Development' }).getAttribute('title')).toBe(
-      'Resource levels on own tiles: 10 points for level 1, 10 more for level 2, 50 more for level 3'
+      'Discovered resources on owned tiles earn 10 points for level 1, 10 more for level 2 and 50 more for level 3. On conquered land, only resources collected by the owner earn points.'
     );
   });
 
@@ -215,12 +257,13 @@ describe('FR-076 game-over screen', () => {
     expect(screen.queryByTestId('game-over-outcome')).toBeNull();
   });
 
+  // FR-502: the default continent now ends at its final Council. Use a recorded conquest to exercise the other outcome.
   it('FR-300 a turn-limit end and a conquest have no Council line', () => {
     show(finished());
     const { unmount } = render(<GameOverModal />);
     expect(screen.queryByTestId('game-over-council')).toBeNull();
     unmount();
-    show(resolveTurn({ ...continent('world'), turn: 40, year: 1824 }, {}, 1).state);
+    show({ ...continent('world'), gameOver: { turn: 40, year: 1824, scores: [], reason: 'conquest', winnerId: N1 } });
     render(<GameOverModal />);
     expect(text(screen.getByTestId('game-over-date'))).toBe('The game ended after Winter 1824 (turn 40).');
     expect(screen.queryByTestId('game-over-council')).toBeNull();

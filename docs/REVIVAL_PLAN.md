@@ -299,7 +299,7 @@ diplomacy-council-02 and -03, MKT-02, MKT-13.
 
 **M14, A game that can end well (M; T12).** Every continent game ends with a result that follows the rules: the last
 Council is a forced vote, the final table counts provinces and army, and a conquered province counts only when collected.
-With two Great Powers, 7 of 12 votes win (card Q121, needs Nathan before FR-503 is built): the old goal "a peaceful path
+With two Great Powers, 7 of 12 votes win (Q121 default taken on 2026-11-20 before FR-503): the old goal "a peaceful path
 to 9 votes" cannot be met on this map (the best peaceful total is 8), so it is replaced. Rows FR-501 to FR-510. Done when:
 headless games end by Council in a measured share and a peaceful path to 7 votes exists in a test. Depends on: M13 (a rival
 that plays). Findings: RULES-GAP-11, FR-TRUTH-02, AISIM-05, diplomacy-council-01 and -14, ARMY-WAR-18.

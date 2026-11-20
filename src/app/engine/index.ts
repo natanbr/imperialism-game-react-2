@@ -29,7 +29,7 @@ export { collectingHub, type CollectingHub } from "./systems/logisticsSystem";
 // M5 (FR-144 to FR-152): worlds, minor nations, provinces, diplomacy state, intents, random streams.
 export { WORLDS, DEFAULT_WORLD, type World } from "./world/worlds";
 export { countryName, countryOfTile, isGreatPower, isMinorNation, minorNationAt, minorNationById } from "./world/countries";
-export { adjacentProvinces, provinceById, provinceOf, provincesOf, transferProvince } from "./world/provinces";
+export { adjacentProvinces, isConqueredProvince, provinceById, provinceOf, provincesOf, transferProvince } from "./world/provinces";
 export { pairKey, RELATION_SWATCHES, relationLevel, relationOf, type RelationSwatch } from "./diplomacy/relations";
 export { addIntent, byIntentOrder, intentOrder } from "./turn/intents";
 export { RNG_STREAMS, type RngStream } from "./rng";
@@ -181,10 +181,13 @@ export {
   councilVote,
   COUNCIL_ROWS,
   type CouncilMetEvent,
+  finalStandings,
   isCouncilTurn,
+  isLastMeeting,
+  lastCouncilTurn,
   nextCouncilTurn,
   votesNeeded,
 } from "./council/council";
 export { yearOfTurn } from "./calendar";
 export { COUNCIL } from "@/definisions/council";
-export type { CouncilAbstention, CouncilBallot, CouncilNominee, CouncilRelation, CouncilRow, CouncilVote } from "@/types/Council";
+export type { CouncilAbstention, CouncilBallot, CouncilDecision, CouncilNominee, CouncilRelation, CouncilRow, CouncilVote } from "@/types/Council";

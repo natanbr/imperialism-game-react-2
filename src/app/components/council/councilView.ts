@@ -6,13 +6,14 @@ import {
   COUNCIL,
   COUNCIL_ROWS,
   councilCell,
-  isCouncilTurn,
+  lastCouncilTurn,
+  votesNeeded,
   type CouncilAbstention,
   type CouncilMetEvent,
   type CouncilRow,
 } from "@/engine";
 import type { GameState } from "@/types/GameState";
-import { dateText, playerFirst } from "../gameText";
+import { councilEndRule, dateText, playerFirst, groupedNumber } from "../gameText";
 
 /** The table's rows in the vote screen's order (rules 11 section 8.1), then the total. */
 export type CouncilTableRow = CouncilRow | "total";
@@ -63,8 +64,10 @@ export interface CouncilView {
   nominated: string;
   /** FR-311: how a minor and a colony vote */
   rule: string;
-  /** "A winner needs more than two thirds of the 12 votes: 9." */
+  /** Winning rules that applied to this meeting. */
   needed: string;
+  lastMeeting?: string;
+  decision?: string;
   /** The winner's name when the meeting elected one. */
   winnerName?: string;
   /** FR-415: the meeting elected another nation than the player's */
@@ -142,7 +145,22 @@ export function councilView(event: CouncilMetEvent, game: GameState, playerId: s
   const winnerName = event.winnerId === undefined ? undefined : countryName(event.winnerId);
   const lost = event.winnerId !== undefined && event.winnerId !== playerId;
   const next = event.turn + COUNCIL.interval;
-  const last = !isCouncilTurn(game, next);
+  const finalTurn = lastCouncilTurn(game);
+  const last = event.turn === finalTurn;
+  const decidedLast = last && event.decidedBy !== undefined;
+  const winner = event.nominees.find(n => n.nationId === event.winnerId);
+  const other = event.nominees.find(n => n.nationId !== event.winnerId);
+  const historic = (last && !event.decidedBy) || event.needed !== votesNeeded(event.totalVotes, game.nations.length);
+  let decision: string | undefined;
+  if (decidedLast && winner && other) {
+    if (event.decidedBy !== "standing") {
+      decision = `${winnerName} has more votes (${winner.total} to ${other.total}).`;
+    } else if (winner.standing === other.standing) {
+      decision = `${winner.total} to ${other.total}: standing is tied at ${groupedNumber(winner.standing)}. ${winnerName} wins by turn order.`;
+    } else {
+      decision = `${winner.total} to ${other.total}: ${winnerName} wins on standing (${groupedNumber(winner.standing)} against ${groupedNumber(other.standing)}).`;
+    }
+  }
   return {
     date: `Met at the end of turn ${event.turn} (${dateText(event.turn, event.year)})`,
     columns,
@@ -150,8 +168,12 @@ export function councilView(event: CouncilMetEvent, game: GameState, playerId: s
     abstained: abstained.length > 0 ? `Abstained: ${abstained.length}` : "Abstained: none",
     abstentions,
     nominated: NOMINATED_TEXT,
-    rule: `A free minor nation votes for the Great Power it has at least ${COUNCIL.minRelationPoints} relation points with and is not at war with; a colony votes with its owner.`,
-    needed: `A winner needs more than two thirds of the ${event.totalVotes} votes: ${event.needed}.`,
+    rule: decidedLast
+      ? "A free minor votes for the nominee at peace with it with the most relation points. Equal points go to the nominee ranked first by standing. A minor at war with both abstains. A colony votes with its owner."
+      : `A free minor nation votes for the Great Power it has at least ${COUNCIL.minRelationPoints} relation points with and is not at war with; a colony votes with its owner.`,
+    needed: historic || finalTurn === undefined ? `This meeting required ${event.needed} of ${event.totalVotes} votes to win.` : councilEndRule(event.needed, event.totalVotes, finalTurn),
+    lastMeeting: decidedLast ? (abstained.length ? "Last meeting: some governors abstained." : "Last meeting: every governor chose.") : undefined,
+    decision,
     winnerName,
     lost,
     result: winnerName

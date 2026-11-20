@@ -7,7 +7,7 @@
   "reviewers": 8,
   "folder": "docs/audit/2026-11-14",
   "branch": "claude/m12-honest-game",
-  "main": "74f595c"
+  "main": "1d58b74"
  },
  "source": "docs/report/roadmap.json, docs/audit/2026-11-14/*.json and docs/requirements.md in the imperialism-game-react-2 repo",
  "reality": {
@@ -180,7 +180,7 @@
    "text": "Of 24 rule topics of the original game: 3 built, 14 partial, 1 wrong, 1 dead code, 5 missing."
   },
   "notChecked": "Not checked by the audit: Firefox and Safari, real touch on a phone, screen readers, and a human game played all the way to a Council win.",
-  "notFixed": "M12 (themes T1 to T10, FR-357 to FR-464) is merged into main 91d7edc (pull request 34), so its findings are fixed on main. M12b (the HUD you asked for, FR-465 to FR-480, and its by-eye QA fixes FR-529 to FR-537) is merged into main 74f595c (pull request 35, 2026-11-17). Themes T11 to T16 are not fixed on main: M13 (theme T11) is built on the branch claude/m13-nations, not merged, with FR-490's turn-30 vote replaced by FR-542 (card Q139); M14 to M16 are planned, M17 and M18 later.",
+  "notFixed": "M12 (themes T1 to T10, FR-357 to FR-464) is merged into main 91d7edc (pull request 34), so its findings are fixed on main. M12b (the HUD you asked for, FR-465 to FR-480, and its by-eye QA fixes FR-529 to FR-537) is merged into main 74f595c (pull request 35, 2026-11-17). M13 (theme T11) is merged on the checked origin/main, 1d58b74. M14 (theme T12) is built on the local branch claude/m14-endgame. M15 through M18 remain planned.",
   "filedNote": "The plan named 122 of the 160 findings in its themes. I filed the other 38 under the nearest theme; they are marked \"filed\" and can be moved."
  },
  "statusLegend": [
@@ -1358,8 +1358,8 @@
    {
     "id": "M14",
     "title": "A game that can end well",
-    "status": "planned",
-    "statusLabel": "Planned",
+    "status": "built",
+    "statusLabel": "Built, pull request being opened",
     "themes": [
      "T12"
     ],
@@ -1370,7 +1370,7 @@
      "The final ranking shows and counts provinces and army, and a conquered province counts only when it is collected.",
      "Headless games end by Council in a measured share, and a peaceful path to 7 votes exists in a test."
     ],
-    "depends": "M13 (a rival that plays), and your answers to Q121 (votes needed), Q120 and Q122 (forced last vote) and Q34 (what a fallen capital gives).",
+    "depends": "M13, merged at 1d58b74. Defaults for Q120, Q121 and Q122 are recorded in the journal.",
     "findings": 7,
     "severity": {
      "major": 4,
@@ -1382,8 +1382,9 @@
      "M": 4,
      "L": 0
     },
-    "statusText": "Rows FR-501 to FR-510 are written, not built. Card Q121 (7 of 12 votes with two Great Powers) needs your answer before FR-503.",
-    "spec": "docs/specs/m13-m16.md"
+    "statusText": "Built locally on claude/m14-endgame, FR-501 to FR-510. The final Council elected Valdoria in 24/24 idle games and Testland in 24/24 peaceful diplomat games. All diplomat wins came on turn 40 with seven votes. A paid grant also won the seventh vote at turn 10 in a crafted browser save. The frozen two-islands minimum remains 1.60. Independent review complete. Full gate: 2,771 unit tests and 132 Chromium tests passed; lint reported two warnings and zero errors, and TypeScript and the production build exited 0. Evidence and screenshot are in .gate/codex/04/.",
+    "spec": "docs/specs/m13-m16.md",
+    "localBuild": true
    },
    {
     "id": "M15",
@@ -2478,7 +2479,7 @@
      "means": "No, as today: most turn-40 meetings end with no winner."
     }
    ],
-   "suggestion": "Option (a).",
+   "suggestion": "Option (a), default taken for M14. At the final Council each free minor votes by relations with no 50-point floor. War with both nominees forces an abstention.",
    "objection": "Nearly every game gets a \"winner\" at turn 40 even when both nations are weak, so the score matters less.",
    "ids": [
     "diplomacy-council-14"
@@ -2504,7 +2505,7 @@
      "means": "Count each minor as 4 votes (its Imp1 size), so 24 votes and 17 needed."
     }
    ],
-   "suggestion": "Option (a).",
+   "suggestion": "Option (a), default taken for M14. With fewer than three Great Powers a strict majority elects a nominee (7 of 12). Three or more retain the two-thirds rule.",
    "objection": "It departs from the manual. With Arvelia (from turn 17) and two minors, the computer can win at turn 30.",
    "ids": [
     "AISIM-05",
@@ -2512,7 +2513,7 @@
     "diplomacy-council-01"
    ],
    "group": "new",
-   "needed": "Before M14 builds FR-503. REVIVAL_PLAN's old M14 goal \"a peaceful path to 9 votes\" cannot be met on this map with two Great Powers (best peaceful total 8 of 12), so it needs rewording whichever way this goes."
+   "needed": "Default taken before implementing FR-503 on 2026-11-20. The peaceful election target is 7 of the 12 votes."
   },
   {
    "id": "Q122",
@@ -2533,7 +2534,7 @@
      "means": "Nobody: the game ends on points."
     }
    ],
-   "suggestion": "Option (a), because standing already orders the nominees.",
+   "suggestion": "Option (a), default taken for M14. A tied final vote uses standing, then intent order.",
    "objection": "Standing adds 100 per province, so conquest also decides ties.",
    "ids": [
     "FR-TRUTH-02"
@@ -2559,7 +2560,7 @@
      "means": "No change."
     }
    ],
-   "suggestion": "Option (a).",
+   "suggestion": "Option (a), default taken for M14. Conquered development counts only where the owner can collect the tile.",
    "objection": "A conqueror who builds a depot gets the points back, and standing still rewards the province itself.",
    "ids": [
     "ARMY-WAR-18"
@@ -2581,7 +2582,7 @@
      "means": "Nothing, as FR-300 says today."
     }
    ],
-   "suggestion": "Option (a).",
+   "suggestion": "Option (a), default taken for M14. On a world without provinces the turn limit names the nation with the best score.",
    "objection": "How to play calls the best score the goal, but it is the only result on the test world only.",
    "ids": [
     "FR-TRUTH-02"

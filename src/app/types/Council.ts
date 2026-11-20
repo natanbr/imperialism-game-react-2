@@ -43,15 +43,19 @@ export interface CouncilNominee {
   total: number;
 }
 
+export type CouncilDecision = "threshold" | "more-votes" | "standing";
+
 export interface CouncilVote {
-  /** One per province, abstentions included (a winner needs more than two thirds of all votes, not of those cast). */
+  /** One vote per province, abstentions included. */
   totalVotes: number;
-  /** floor(2 x totalVotes / 3) + 1. */
+  /** Votes required for an outright win, based on the number of Great Powers (FR-503). */
   needed: number;
   /** The two nominees, the higher standing first (the left column of the screen). */
   nominees: [CouncilNominee, CouncilNominee];
   /** One per province, in `state.provinces` order. */
   ballots: CouncilBallot[];
-  /** The nominee with at least `needed` votes; absent when there is none. */
+  /** The elected nominee, if any. The last scheduled meeting always elects one. */
   winnerId?: NationId;
+  /** FR-502: how the winner was elected. Older saved votes omit this field. */
+  decidedBy?: CouncilDecision;
 }
