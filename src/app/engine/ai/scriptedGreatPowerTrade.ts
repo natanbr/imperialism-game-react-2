@@ -1,6 +1,7 @@
 // The scripted Great Power's trade with the other Great Power in a "partners" market (M13, FR-493, card Q118 (a)).
 // economy.ts `planTrade` adds these amounts to the caps it takes from the minors (scriptedPartners.ts) and bids for the
-// `buy` amounts after the bids for its mills' inputs. It reads only what a human of the nation could see (FR-497):
+// `buy` amounts after the bids for its mills' inputs (the `standing` steel bid, FR-539, before them). It reads only what a
+// human of the nation could see (FR-497):
 // its own state, the diplomacy record (the Diplomacy screen) and the other Great Powers' public orders of last turn
 // (FR-491), never another nation's orders of this turn.
 import type { NationId } from "@/types/Common";
@@ -25,10 +26,29 @@ export interface GreatPowerTradeCaps {
    * other one sees on its Board now and may be answering.
    */
   offeredLastTurn: TradeCommodity[];
+  /**
+   * FR-539 (card Q136 (b)): the standing bid, `RIVAL_STANDING_BID` steel toward a Great Power a person plays, from turn
+   * `RIVAL_STANDING_FROM_TURN`, while `buy` has steel. `planTrade` places it before its mills' inputs, so the person's
+   * Board shows "Valdoria bid for 1 last turn" on the Steel row and may offer steel (FR-494, FR-540).
+   */
+  standing: TradeAmounts;
 }
 
 /** FR-493 (a): at most this many lumber and this many steel a turn (two pairs: the 4 holds of FR-063). */
 export const RIVAL_PAIR_BID = 2;
+
+/**
+ * FR-539: the steel of the standing bid. Steel only: the standing lumber bid of card Q136 was measured too and moved the
+ * both-scripted games more (Valdoria's wars on Testland 10 -> 21 of 24, against 10 -> 11 with steel only), and the Lumber
+ * row already works for a person who answers the Board (FR-541).
+ */
+export const RIVAL_STANDING_BID = 1;
+
+/**
+ * FR-539, card Q136 (b): the first turn of the standing bid. Turns 1 to 6 stay as they were, so M12's continent pin
+ * (tests/engine/scriptedScore.test.ts "M12 FR-389 ... (continent, seed 1, turn 6)") does not move.
+ */
+export const RIVAL_STANDING_FROM_TURN = 7;
 
 /** The goods it offers in "partners" (FR-245 (c)); FR-493 (b) raises only their caps. */
 const GOODS: readonly TradeCommodity[] = [GoodsType.Clothing, GoodsType.Furniture, GoodsType.Hardware];
@@ -46,13 +66,19 @@ const PAIR_VALUE = SCORE_WEIGHTS.pointsPerCapacity * SCORE_WEIGHTS.dollarsPerPoi
  * are not read (FR-497).
  */
 export function greatPowerTradeCaps(state: GameState, nationId: NationId, next: Readonly<Record<string, number>>): GreatPowerTradeCaps {
-  if (marketModeOf(state) !== "partners") return { buy: {}, sell: {}, offeredLastTurn: [] };
+  if (marketModeOf(state) !== "partners") return { buy: {}, sell: {}, offeredLastTurn: [], standing: {} };
   const rivals = state.nations
     .map((n) => n.id)
     .filter((id) => id !== nationId && tradeBarrier(state, nationId, id) === undefined)
     .sort();
-  if (rivals.length === 0) return { buy: {}, sell: {}, offeredLastTurn: [] };
+  if (rivals.length === 0) return { buy: {}, sell: {}, offeredLastTurn: [], standing: {} };
   const buy = pairBids(state, next);
+  // FR-539: only toward a person, who reads the Board; a computer Great Power offers goods only (FR-245 (c)), so a
+  // standing bid toward it would only take a hold. Who plays a nation is public, as the Diplomacy screen's answers use it.
+  const toPerson = rivals.some((id) => state.nations.find((n) => n.id === id)?.controller === "human");
+  const steel = buy[MaterialType.Steel] ?? 0;
+  const standing: TradeAmounts =
+    toPerson && state.turn >= RIVAL_STANDING_FROM_TURN && steel > 0 ? { [MaterialType.Steel]: Math.min(RIVAL_STANDING_BID, steel) } : {};
   const own = lastTradeOrdersOf(state, nationId);
   const offeredLastTurn = (Object.keys(buy) as TradeCommodity[]).filter((c) =>
     rivals.some((id) => {
@@ -65,7 +91,7 @@ export function greatPowerTradeCaps(state: GameState, nationId: NationId, next: 
       return (own.buy[c] ?? 0) > 0 && traded && (theirs.buy[c] ?? 0) === 0;
     })
   );
-  return { buy, sell: rivalBids(state, rivals), offeredLastTurn };
+  return { buy, sell: rivalBids(state, rivals), offeredLastTurn, standing };
 }
 
 /**

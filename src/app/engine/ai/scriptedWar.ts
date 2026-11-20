@@ -114,7 +114,7 @@ function greatPowerCandidate(state: GameState, nationId: NationId, otherId: Nati
 /**
  * FR-274, FR-488: the country the nation's campaign is against. At war: the minor (not a colony) it is at war with, while
  * it is at war with minors only; or the Great Power it declared war on, alone, until it holds a province it took from it
- * (FR-489). At war with no one, from turn 10: the bordering minor (not a colony) with the lowest defence (FR-226; ties:
+ * (FR-489). At war with no one, from turn 10: the bordering minor (not a colony, no pact with it, FR-542) with the lowest defence (FR-226; ties:
  * lowest id); with none, from turn 20, the bordering Great Power it may go to war with (`greatPowerCandidate`) with the
  * lowest defence, its capital province left out. Undefined on a world without provinces, before turn 10 at peace, in any
  * other war, or with no such country.
@@ -128,7 +128,8 @@ export function campaignTarget(state: GameState, nationId: NationId): CountryId 
     return enemies.length === 1 && warOfChoice(state, nationId, only) && !warAimHeld(state, nationId, only) ? only : undefined;
   }
   if (state.turn < SCRIPTED_WAR.fromTurn) return undefined;
-  const minor = weakest(state, nationId, state.minorNations.filter((m) => m.colonyOf === undefined).map((m) => m.id));
+  // FR-542: not a minor it holds a pact with (scriptedInfluence.ts courts none on its border, but borders move)
+  const minor = weakest(state, nationId, state.minorNations.filter((m) => m.colonyOf === undefined && !state.diplomacy[pairKey(nationId, m.id)]?.pact).map((m) => m.id));
   if (minor !== undefined) return minor;
   return weakest(state, nationId, state.nations.filter((n) => greatPowerCandidate(state, nationId, n.id)).map((n) => n.id));
 }

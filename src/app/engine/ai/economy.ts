@@ -25,7 +25,7 @@ import { GRADES, healthyWorkers, labourTotal } from "../industry/labour";
 import { marketOf, priceOf, tradeCapacityOf, tradeOrdersOf } from "../market/market";
 import { marketModeOf } from "../market/partners";
 import { partnerDemand, partnerSupply, planConsulate } from "./scriptedPartners";
-import { planInfluence } from "./scriptedInfluence";
+import { embassySaving, planInfluence } from "./scriptedInfluence";
 import { greatPowerTradeCaps } from "./scriptedGreatPowerTrade";
 import { mealNeeds } from "../systems/foodSystem";
 import { productionSystem } from "../systems/productionSystem";
@@ -35,7 +35,7 @@ import { developmentSystem } from "../systems/developmentSystem";
 import { createTurnContext } from "../turn/context";
 import { turnLimitOf } from "../turn/gameOver";
 import { SCRIPTED_GARRISON } from "@/definisions/regiments";
-import { armsWanted, planGarrison } from "./scriptedArmy";
+import { armsWanted, planGarrison, upkeepReserve } from "./scriptedArmy";
 import { workersKeptForCampaign } from "./scriptedWar";
 import { capitalComponent } from "./railPlan";
 import { upkeepOf } from "../army/armies";
@@ -232,10 +232,11 @@ function clearStandingOrders(state: GameState, nationId: string, propose: Propos
  * reserve (`cashReserve`, FR-454) for them: before FR-460 a training to expert ($1,000) left the engineer $116 for a
  * rail section (two-islands seed 7, turn 25), and the depot joined a turn late. A nation with an army trains as before
  * (FR-455, FR-458: its regiments draw trained workers): keeping a reserve there too lowered FR-260's start-army scores
- * (by up to 55 points), so its engineer can still wait a turn for a section (card Q107).
+ * (by up to 55 points), so its engineer can still wait a turn for a section (card Q107). FR-542: either way it leaves the
+ * embassy's $5,000 while one is wanted (`embassySaving`).
  */
 const trainingCash = (state: GameState, nation: Nation): number =>
-  nation.treasury - (upkeepOf(state, nation.id) > 0 ? 0 : cashReserve(state, nation.id));
+  nation.treasury - (upkeepOf(state, nation.id) > 0 ? 0 : cashReserve(state, nation.id)) - embassySaving(state, nation.id);
 
 /**
  * Training (FR-130), only on a turn whose run would use all the labour (less than 2 left, so more
@@ -620,7 +621,8 @@ function rawWants(state: GameState, nationId: string, next: Stock): TradeAmounts
  * (`rawWants`), each bid capped at what the minors it may trade with offer; offers are goods only, each capped
  * at what those minors want. In "world" nothing changes. M13: the grants (`planInfluence`, FR-490) come right after
  * the consulate, and in "partners" the trade with another Great Power (`greatPowerTradeCaps`, FR-493) raises those caps
- * and adds its bids after the mills' inputs.
+ * and adds its bids after the mills' inputs; from turn 7 a standing bid of 1 steel toward a Great Power a person plays
+ * goes before them (FR-539).
  */
 function planTrade(view: () => GameState, nationId: string, propose: Propose): void {
   const partners = marketModeOf(view()) === "partners";
@@ -634,7 +636,7 @@ function planTrade(view: () => GameState, nationId: string, propose: Propose): v
     const sell = Object.fromEntries(MINOR_GOODS.map((c) => [c, Math.max(0, sellable(c))]).filter(([, n]) => (n as number) > 0));
     planConsulate(view, nationId, cashReserve(start, nationId), { buy: raw, sell }, propose);
   }
-  // FR-490 (M13): grants before a Council meeting (scriptedInfluence.ts)
+  // FR-490, FR-542 (M13): the embassy, the pact and the grants before a Council meeting (scriptedInfluence.ts)
   planInfluence(view, nationId, cashReserve(start, nationId), propose);
   const supply = partners ? partnerSupply(view(), nationId) : undefined;
   const demand = partners ? partnerDemand(view(), nationId) : undefined;
@@ -657,9 +659,9 @@ function planTrade(view: () => GameState, nationId: string, propose: Propose): v
       for (let n = more; n > 0; n--) if (propose({ kind: "sellCommodity", nationId, commodity, amount: offered + n })) break;
     }
   };
-  const bid = (commodity: TradeCommodity, units: number): number => {
+  const bid = (commodity: TradeCommodity, units: number, floor = cashReserve(start, nationId)): number => {
     const current = tradeOrdersOf(view(), nationId).buy[commodity] ?? 0;
-    const cash = nationOf(view(), nationId).treasury - cashReserve(start, nationId);
+    const cash = nationOf(view(), nationId).treasury - floor;
     const offered = supply ? (supply[commodity] ?? 0) + (rival?.buy[commodity] ?? 0) - current : Infinity;
     const most = Math.min(units, tradeCapacityOf(view(), nationId).free, Math.floor(cash / priceOf(market, commodity)), offered);
     for (let n = most; n > 0; n--) if (propose({ kind: "buyCommodity", nationId, commodity, amount: current + n })) return n;
@@ -671,6 +673,14 @@ function planTrade(view: () => GameState, nationId: string, propose: Propose): v
     // FR-493 (a): a bid toward another Great Power that offered the commodity last turn goes before the mills' inputs
     const rivalBids = Object.entries(rival?.buy ?? {}) as [TradeCommodity, number][];
     for (const [commodity, units] of rivalBids) if (rival?.offeredLastTurn.includes(commodity)) bid(commodity, units);
+    // FR-539: the standing steel bid toward a person, before the mills' inputs, so they cannot fill the 4 holds first (QA
+    // check 4 saw them full; placed after them it also met FR-539's sim rows, so this is for robustness). Its
+    // floor is the upkeep reserve, not cashReserve: unanswered, it is refunded in this turn's trade phase, and during the
+    // campaign on a minor the treasury stays below cashReserve (measured: the Steel row on 6 of turns 3 to 20, required 9).
+    for (const [commodity, units] of Object.entries(rival?.standing ?? {}) as [TradeCommodity, number][]) {
+      const current = tradeOrdersOf(view(), nationId).buy[commodity] ?? 0;
+      if (units > current) bid(commodity, units - current, upkeepReserve(start, nationId));
+    }
     for (const [commodity, units] of Object.entries(raw) as [TradeCommodity, number][]) bid(commodity, units);
     for (const [commodity, units] of rivalBids) if (!rival?.offeredLastTurn.includes(commodity)) bid(commodity, units);
   } else if (buying) {

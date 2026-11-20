@@ -140,12 +140,54 @@ function play(seed: number): Game {
  * colony, and spends on new regiments on turns 28 and 35), deals 71 -> 70, purchases 38 -> 37 and treasury 854 -> 798
  * (seed 3 nation 2: the war a turn later). Both still deal with 4 minors, no regiment is disbanded for want of pay, and
  * the lowest treasury rose from 442 to 798.
+ * Measured again in the M13 close round (FR-539, card Q136 (b); FR-499): from turn 7 Valdoria (nation 2) keeps a standing
+ * bid of 1 steel toward Testland, whose controller is a person in this setup (newGame), placed before the bids for its
+ * mills' inputs. Testland's scripted player offers goods only (FR-245 (c)), so the bid is never answered: it is refunded in
+ * the same trade phase, and its effect is the hold it takes from a timber purchase from the minors and the cash Valdoria
+ * keeps. That moves the race for Arvelia (measured with `standing` forced empty and on, .gate/m13/close/attrib-off.txt and
+ * attrib-on.txt). Seed 1: Testland took Arvelia on turn 19 -> Valdoria takes it on turn 18. Seed 2: Valdoria took it on
+ * turn 18, declared on Testland on turn 24, Testland retook it on turn 26, no peace -> Valdoria takes it on turn 20,
+ * declares on turn 25, Testland retakes it on turn 27, peace on turn 29. Seed 3: Testland took it on turn 19, Valdoria's
+ * war on turn 31 took it back on turn 32, peace on turn 33 -> Valdoria takes it on turn 18 and no war between the Great
+ * Powers. Seed 4: Testland took it on turn 19, no war -> Testland takes it on turn 19, then declares war on Valdoria on
+ * turn 25 (FR-488); Valdoria takes Arvelia on turn 27, Testland North-East on turn 28 and South-East on turn 30, Testland
+ * retakes South-East on turn 32, peace on turn 33. The numbers before were: deals [78, 52], [73, 64], [72, 70], [66, 75];
+ * purchases [43, 24], [41, 28], [38, 37], [34, 43]; treasuries [6922, 1622], [4417, 5756], [1680, 798], [1803, 2815];
+ * capital arms [10, 7], [4, 4], [4, 4], [7, 5]; minors and no-pay as now. Numbers that went down, and why they are
+ * accepted: deals 64 -> 54 (seed 2 nation 2), 72 -> 64 and 70 -> 66 (seed 3), 66 -> 62 and 75 -> 74 (seed 4); purchases
+ * 43 -> 40 (seed 1 nation 1), 28 -> 24 (seed 2 nation 2), 38 -> 31 and 37 -> 31 (seed 3), 34 -> 27 and 43 -> 37
+ * (seed 4); treasuries 6922 -> 4299 (seed 1 nation 1), 4417 -> 2024 and 5756 -> 2003 (seed 2); capital arms 10 -> 8
+ * (seed 1 nation 1) and 7 -> 6 (seed 4 nation 1), both above the keep's floor of 4. Valdoria's purchases go down where the
+ * standing bid takes a timber hold (seeds 2 to 4); Testland's go down where it holds no colony (seeds 1 and 3) or fights
+ * the turn-25 war (seed 4); the seed 2 treasuries pay the regiments of the war and the peace. FR-247 is a measured
+ * baseline, not a target: its bounds hold (no regiment disbanded for want of pay, nation 2's treasury at 0 or more every
+ * turn and above 0 at turn 40, at least 4 arms in each capital province, 4 minors each), and the lowest turn-40 treasury
+ * rose from 798 to 2003.
+ * Measured again in the M13 close round (FR-542, card Q117 (b); FR-499): both nations play FR-542, an embassy ($5,000)
+ * and a pact (+10 points) with the minor that favours them most and does not border them, from turn 11 (no embassy for
+ * the first meeting). Seed 1: Testland's embassy turn 16, pact 17, and Valdoria declares war on Testland on turn 23 (was
+ * no war between the Great Powers). Seed 2: Testland's embassy 17 and pact 18, Valdoria's war on turn 25 as before,
+ * Valdoria's embassy 38 and pact 39. Seed 3: Testland's embassy 16 and pact 17, Valdoria's war on turn 23 (was none).
+ * Seed 4: Valdoria's embassy 17 and pact 18, Testland's war on turn 25 as before. The numbers before were: deals
+ * [80, 65], [92, 54], [64, 66], [62, 74]; purchases [40, 32], [59, 24], [31, 31], [27, 37]; treasuries [4299, 5049],
+ * [2024, 2003], [2114, 3951], [4686, 3871]; capital arms [8, 9], [4, 4], [6, 7], [6, 5]; minors and no-pay as now.
+ * Numbers that went down, and why they are accepted: deals 65 -> 64 (seed 1 nation 2), 92 -> 66 (seed 2 nation 1),
+ * 66 -> 59 (seed 3 nation 2), 74 -> 70 (seed 4 nation 2); purchases 59 -> 33 (seed 2 nation 1), 31 -> 24 (seed 3
+ * nation 2), 37 -> 34 (seed 4 nation 2): the pact's 10 points move a minor's trade to the nation that holds it (FR-187),
+ * and the nation at war trades less; treasuries 5049 -> 972 (seed 1 nation 2, the war from turn 23) and 3871 -> 2367
+ * (seed 4 nation 2, its embassy); capital arms 8 -> 4 and 9 -> 4 (seed 1), 6 -> 4 and 7 -> 4 (seed 3), 6 -> 4 and
+ * 5 -> 4 (seed 4): the campaign Cuirassiers that stayed in the capital go to the war or are not raised; 4 is the keep's
+ * floor. With the embassy from turn 1 (measured, not built) Testland bought it on turn 7 with half its start treasury and
+ * seed 3 nation 2 lost 7 regiments for want of pay (capital arms 0); over seeds 1 to 24 of this game 3 games lost
+ * regiments that way (14 regiments), and 4 games (26) before FR-542; with the rule as built, none
+ * (.gate/m13/close/grants/v2wide-*.txt). FR-247 is a measured baseline, not a target: its bounds hold; the lowest
+ * turn-40 treasury falls from 2003 to 972.
  */
 const BASELINE = [
-  { seed: 1, minorDeals: [78, 52], minorPurchases: [43, 24], minorsDealt: [4, 4], treasury: [6922, 1622], noPay: [0, 0], capitalArms: [10, 7] },
-  { seed: 2, minorDeals: [73, 64], minorPurchases: [41, 28], minorsDealt: [4, 4], treasury: [4417, 5756], noPay: [0, 0], capitalArms: [4, 4] },
-  { seed: 3, minorDeals: [72, 70], minorPurchases: [38, 37], minorsDealt: [4, 4], treasury: [1680, 798], noPay: [0, 0], capitalArms: [4, 4] },
-  { seed: 4, minorDeals: [66, 75], minorPurchases: [34, 43], minorsDealt: [4, 4], treasury: [1803, 2815], noPay: [0, 0], capitalArms: [7, 5] },
+  { seed: 1, minorDeals: [81, 64], minorPurchases: [43, 34], minorsDealt: [4, 4], treasury: [5006, 972], noPay: [0, 0], capitalArms: [4, 4] },
+  { seed: 2, minorDeals: [66, 75], minorPurchases: [33, 41], minorsDealt: [4, 4], treasury: [2972, 2744], noPay: [0, 0], capitalArms: [5, 4] },
+  { seed: 3, minorDeals: [70, 59], minorPurchases: [34, 24], minorsDealt: [4, 4], treasury: [2726, 6095], noPay: [0, 0], capitalArms: [4, 4] },
+  { seed: 4, minorDeals: [71, 70], minorPurchases: [36, 34], minorsDealt: [4, 4], treasury: [5773, 2367], noPay: [0, 0], capitalArms: [4, 4] },
 ];
 
 /** The force size (FR-204) of the nation's army in its capital province at turn 40. */

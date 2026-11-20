@@ -11,13 +11,14 @@ import type { Order } from '@/engine/orders/Order';
 import { resolveTurn } from '@/engine/turn/resolveTurn';
 import { pairKey } from '@/engine/diplomacy/relations';
 import { minorOffers } from '@/engine/market/partners';
-import { marketOf, tradeOrdersOf } from '@/engine/market/market';
+import { marketOf, priceOf, tradeOrdersOf } from '@/engine/market/market';
 import { tryApplyOrder } from '@/engine/orders/apply';
 import { greatPowerTradeCaps } from '@/engine/ai/scriptedGreatPowerTrade';
 import { cashReserve } from '@/engine/ai/economy';
+import { upkeepReserve } from '@/engine/ai/scriptedArmy';
 import { turnLimitOf } from '@/engine/turn/gameOver';
 import type { GameState } from '@/types/GameState';
-import { GoodsType } from '@/types/Resource';
+import { GoodsType, MaterialType } from '@/types/Resource';
 import { emptyWarehouse, N1, N2, setPair, setTreasury, setWarehouse, treasury } from './fixtures';
 import { withoutStartForces } from './armyFixtures';
 
@@ -249,8 +250,9 @@ describe('FR-493 (a) the computer bids for lumber and steel toward the other Gre
     expect(greatPowerTradeCaps({ ...holdsFree(), turn: turnLimitOf(continent()) - 1 }, N2, next).buy).toEqual({ lumber: 2, steel: 2 });
     expect(greatPowerTradeCaps(withPrices(holdsFree(), { lumber: 500, steel: 500 }), N2, next).buy).toEqual({});
     expect(greatPowerTradeCaps(withPrices(holdsFree(), { lumber: 500, steel: 499 }), N2, next).buy).toEqual({ lumber: 2, steel: 2 });
-    // Re-recorded by M13 T-15 (FR-493 (a)): was `{ buy: {}, sell: {} }`; the caps now also carry `offeredLastTurn`
-    expect(greatPowerTradeCaps(newGame({ seed: 1, world: 'continent', market: 'world' }), N2, next)).toEqual({ buy: {}, sell: {}, offeredLastTurn: [] });
+    // Re-recorded by M13 T-15 (FR-493 (a)): was `{ buy: {}, sell: {} }`; the caps now also carry `offeredLastTurn`; and by the
+    // M13 close round (FR-539): they also carry `standing`, empty here
+    expect(greatPowerTradeCaps(newGame({ seed: 1, world: 'continent', market: 'world' }), N2, next)).toEqual({ buy: {}, sell: {}, offeredLastTurn: [], standing: {} });
   });
 
   // M13 T-15: measured in the `trader` sims, the bids above came after the mills' inputs and found the 4 holds taken on most
@@ -358,6 +360,83 @@ describe('FR-493 (a) the computer bids for lumber and steel toward the other Gre
   });
 });
 
+// M13 close round (2026-11-17), FR-539 (review ST-02, by-eye QA check 4; card Q136 decided with its option (b)): in a real
+// game the 4 holds were full of offers and raw-input bids before the FR-493 (a) bids, so Valdoria never bid for steel toward
+// the person and the Board's Steel row never invited an offer (0 of 24 idle games). From turn 7 (after the turns of M12's
+// continent pin FR-389) it places a standing bid of 1 steel toward a Great Power a person plays, before its mills' inputs,
+// while its expansion plan lacks steel; its cash floor is the upkeep reserve, because an unanswered bid is refunded in the
+// same turn's trade phase.
+describe('FR-539 the standing steel bid toward a Great Power a person plays', () => {
+  const atTurn = (s: GameState, turn: number): GameState => ({ ...s, turn });
+  /** Valdoria with no stock its run or holds could use but the raw inputs of its mills: no training, no expansion, no offer, no raw bid. */
+  const bare = (s: GameState = continent()) => emptyWarehouse(s, N2, { timber: 99, coal: 99, ironOre: 99, cotton: 99, wool: 99 });
+  const scriptedRival = (s: GameState): GameState => ({ ...s, nations: s.nations.map(n => (n.id === N1 ? { ...n, controller: 'scripted' as const } : n)) });
+
+  it('FR-539 greatPowerTradeCaps.standing: 1 steel from turn 7 while the pairs lack steel; none on turn 6, at war, under a boycott, while a pair costs PAIR_VALUE or more, with steel 2 above lumber next turn, in "world", or toward a computer Great Power', () => {
+    const next = { lumber: 1, steel: 1 };
+    const s7 = atTurn(holdsFree(), 7);
+    expect(greatPowerTradeCaps(s7, N2, next).standing).toEqual({ steel: 1 });
+    expect(greatPowerTradeCaps(atTurn(holdsFree(), turnLimitOf(continent()) - 1), N2, next).standing).toEqual({ steel: 1 });
+    // on the last turn no pair is bought (FR-493 (a)), so no standing bid either
+    expect(greatPowerTradeCaps(atTurn(holdsFree(), turnLimitOf(continent())), N2, next).standing).toEqual({});
+    expect(greatPowerTradeCaps(atTurn(holdsFree(), 6), N2, next).standing).toEqual({});
+    expect(greatPowerTradeCaps(atWar(s7), N2, next).standing).toEqual({});
+    expect(greatPowerTradeCaps(setPair(s7, N1, N2, { boycotts: [N1] }), N2, next).standing).toEqual({});
+    expect(greatPowerTradeCaps(withPrices(s7, { lumber: 500, steel: 500 }), N2, next).standing).toEqual({});
+    // its expansion plan lacks no steel: the FR-493 (a) pairs bid for lumber only
+    expect(greatPowerTradeCaps(s7, N2, { lumber: 0, steel: 3 }).buy).toEqual({ lumber: 2 });
+    expect(greatPowerTradeCaps(s7, N2, { lumber: 0, steel: 3 }).standing).toEqual({});
+    expect(greatPowerTradeCaps(atTurn(newGame({ seed: 1, world: 'continent', market: 'world' }), 7), N2, next).standing).toEqual({});
+    // both Great Powers played by the computer: no person reads a Board, and the scripted player offers goods only (FR-245 (c))
+    expect(greatPowerTradeCaps(scriptedRival(s7), N2, next).standing).toEqual({});
+  });
+
+  it('FR-539 with 2 holds left the standing steel bid comes before the raw input (timber) from turn 7; on turn 6 the raw input takes them', () => {
+    const busy = (): GameState => {
+      let s = continent();
+      for (const m of MINORS) s = setPair(s, N2, m, { consulates: [N2] });
+      return setWarehouse(setTreasury(s, N2, 9000), N2, { clothing: 2 });
+    };
+    const bidOrder = (s: GameState) => bids(scriptedPlayer(s, N2)).map(([c]) => c).filter((c, i, all) => all.indexOf(c) === i);
+    expect(bidOrder(atTurn(busy(), 7))).toEqual(['steel', 'timber']);
+    expect(finalBids(scriptedPlayer(atTurn(busy(), 7), N2)).steel).toBe(1);
+    expect(bidOrder(atTurn(busy(), 6))).toEqual(['timber']);
+  });
+
+  it('FR-539 the standing bid keeps the upkeep reserve only: placed with its price above upkeepReserve, not $1 less; the other bids keep cashReserve', () => {
+    const s = atTurn(bare(), 7);
+    const price = priceOf(marketOf(s), MaterialType.Steel);
+    const floor = upkeepReserve(s, N2);
+    expect(floor).toBeGreaterThan(0);
+    expect(floor + price).toBeLessThan(cashReserve(s, N2));
+    expect(finalBids(scriptedPlayer(setTreasury(s, N2, floor + price), N2))).toEqual({ steel: 1 });
+    expect(finalBids(scriptedPlayer(setTreasury(s, N2, floor + price - 1), N2))).toEqual({});
+    // below cashReserve the FR-493 (a) bids are not placed, only the standing one
+    expect(finalBids(scriptedPlayer(setTreasury(s, N2, cashReserve(s, N2) - 1), N2))).toEqual({ steel: 1 });
+    // toward a computer Great Power, none
+    expect(finalBids(scriptedPlayer(scriptedRival(setTreasury(s, N2, cashReserve(s, N2) - 1)), N2))).toEqual({});
+  });
+
+  it('FR-539 End Turn, continent seed 1, the person idle: Valdoria\'s public orders show a steel bid from turn 7 (the Board\'s Steel row from turn 8); a steel offer on turn 8 sells to Valdoria (was: refused, "no-buyer")', () => {
+    let s = continent();
+    const steelBids: number[] = [];
+    for (let turn = 1; turn <= 9; turn++) {
+      const { state, events } = resolveTurn(s, { [N2]: scriptedPlayer(s, N2) }, s.seed);
+      expect(events.filter(e => e.type === 'order-rejected')).toEqual([]);
+      s = state;
+      steelBids.push(marketOf(s).lastOrders?.[N2]?.buy.steel ?? 0);
+      if (turn === 7) {
+        const offered = tryApplyOrder(s, { kind: 'sellCommodity', nationId: N1, commodity: 'steel', amount: 1 } as Order);
+        expect(offered.result).toEqual({ ok: true });
+        const turn8 = resolveTurn(offered.state, { [N2]: scriptedPlayer(offered.state, N2) }, offered.state.seed);
+        const sold = turn8.events.filter(e => e.type === 'goods-sold' && e.nationId === N1).map(e => e.type === 'goods-sold' && [e.commodity, e.amount, e.counterpartyId]);
+        expect(sold).toEqual([['steel', 1, N2]]);
+      }
+    }
+    expect(steelBids).toEqual([0, 0, 0, 0, 0, 0, 1, 1, 1]);
+  });
+});
+
 describe('FR-493 (b) its offers of goods count the other Great Power\'s bid of last turn', () => {
   /** Valdoria with a consulate in Arvelia (demand 2 of each good), 9 clothing, and no cash for another consulate. */
   const seller = () => setWarehouse(setTreasury(setPair(continent(), N2, 'minor-1', { consulates: [N2] }), N2, 2999), N2, { clothing: 9 });
@@ -384,7 +463,8 @@ describe('FR-493 (b) its offers of goods count the other Great Power\'s bid of l
     expect(greatPowerTradeCaps(declared.state, N2, {}).sell).toEqual({});
     const boycott = tryApplyOrder(bidLastTurn, { kind: 'setTradePolicy', nationId: N2, targetId: N1, subsidyPercent: 0, boycott: true } as Order);
     expect(boycott.result).toEqual({ ok: true });
-    expect(greatPowerTradeCaps(boycott.state, N2, {})).toEqual({ buy: {}, sell: {}, offeredLastTurn: [] });
+    // M13 close round (FR-539): the caps also carry `standing`, empty under the boycott (was `{ buy: {}, sell: {}, offeredLastTurn: [] }`)
+    expect(greatPowerTradeCaps(boycott.state, N2, {})).toEqual({ buy: {}, sell: {}, offeredLastTurn: [], standing: {} });
     // Testland's own boycott of Valdoria ordered this turn is Testland's order: it is not read (FR-497)
     const theirs = tryApplyOrder(bidLastTurn, { kind: 'setTradePolicy', nationId: N1, targetId: N2, subsidyPercent: 0, boycott: true } as Order);
     expect(theirs.result).toEqual({ ok: true });

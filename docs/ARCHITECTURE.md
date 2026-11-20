@@ -97,7 +97,7 @@ src/app/
     ai/scriptedWar.ts      M9 (FR-228, FR-274): the campaign; M13: campaignRecruit, a Great Power target from
                            turn 20 (FR-488), one province then no further attack (FR-489)
     ai/scriptedPartners.ts M7 (FR-245): planConsulate, partnerSupply, partnerDemand (its bid and offer caps)
-    ai/scriptedInfluence.ts M13 (FR-490): planInfluence, grants and the embassy they need before a Council; the
+    ai/scriptedInfluence.ts M13 (FR-490, FR-542): embassy saving, pacts and grants before a Council. The
                            one engine/ai file that reads the council code (FR-302 narrowed)
     ai/scriptedGreatPowerTrade.ts M13 (FR-493): greatPowerTradeCaps, the bids and offers toward the other
                            Great Power from last turn's public orders (FR-491)
@@ -904,7 +904,8 @@ move (FR-498). New state fields are optional, so M12 saves load and `SAVE_VERSIO
 - **Workforce** (`ai/economy.ts`, `planMigrants`): one migrant a turn while it has fewer healthy workers than a new
   game (FR-485) or its run leaves capacity idle for want of labour (FR-486); never with the can its meal needs this turn
   (`migrantLeavesTheMeal`, read from the warehouse after this turn's run and shipment, M13 T-15).
-- **Votes** (`ai/scriptedInfluence.ts`, FR-490): an embassy, then grants on the 4 turns before a meeting. It reads
+- **Votes** (`ai/scriptedInfluence.ts`, FR-490, FR-542). Campaign recruitment and training reserve the embassy price.
+  Valdoria seeks an embassy in an eligible free minor, proposes a pact, and can pay grants in the four turns before a Council. It reads
   `nextCouncilTurn` and `councilNominees`, as a human reads the HUD's Council line; `tests/engine/purity.test.ts` lets
   this file, and no other in `engine/ai`, reach the council code.
 - **Trade between Great Powers** (FR-491 to FR-494): the "partners" trade phase records each Great Power's bids and
@@ -915,7 +916,8 @@ move (FR-498). New state fields are optional, so M12 saves load and `SAVE_VERSIO
   (`offeredLastTurn`, M13 T-15), and so does a bid it placed last turn in answer to an offer of the turn before (FR-541:
   the trade phase moves `lastOrders` to `market.ordersTwoTurnsAgo`, read by `tradeOrdersTwoTurnsAgoOf`; without it the
   computer's answer and the person's offer stayed one turn apart). The Board of Trade shows last turn's line ("Valdoria
-  bid for 2 last turn").
+  bid for 2 last turn"). From turn 7, FR-539 gives one steel bid priority over mill inputs when an eligible human
+  rival can trade and the expansion plan needs steel. The bid preserves the upkeep reserve.
 - **Fair play** (FR-497): `diplomacyAfterThisTurn(state, viewerId)` is the FR-246 forecast as one nation sees it: only
   that nation's intents of this turn run through `diplomacySystem`, so neither the Board nor the scripted player sees
   another nation's war, boycott or consulate before it resolves. `tradeBarrier`'s fourth argument names the viewer.

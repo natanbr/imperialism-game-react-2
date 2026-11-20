@@ -407,14 +407,19 @@ describe('FR-274 scripted war on minors', () => {
         SEEDS.map(seed => [seed, [[10, null], [20, null], [30, null], [40, null]], null])
       );
       const colonies = (r: Run) => r.councils.map(c => [c.turn, councilCell(c, N2, 'colonies')]);
-      // Every seed colonises Arvelia on turn 19 (FR-274's acceptance), so Valdoria votes for it from the turn-20 meeting.
+      // Every seed colonises Arvelia on turn 18 (FR-274's acceptance), so Valdoria votes for it from the turn-20 meeting.
       // M12 strategy C re-record (FR-456, FR-457 depots gather more; FR-458 keeps the Cuirassiers' trained workers): seeds
       // 1 to 3 colonised it on turn 22 and voted from turn 30, seed 4 declared no war.
       // M13 re-record by FR-485 and FR-486 (lane B's migrants, card Q116 (b)): turn 17 -> 19 on every seed. The goods
       // and cash its migrants take delay the campaign 2 turns; with only the migrant planner cut out of economy.ts it is
       // turn 16, with economy.ts as before M13 turn 17 (lane A probes, .gate/m13/laneA/accept-*.txt).
+      // M13 close round re-record by FR-539 (FR-499): turn 19 -> 18 on every seed (declared 18 -> 17; lowest treasury
+      // 231/154/189/214 -> 778/495/746/832; no-pay disbands still 0). From turn 7 Valdoria's standing steel bid toward
+      // Testland takes a hold its timber purchase from the minors used and is refunded unanswered (Testland is idle), so
+      // Valdoria keeps that cash and its campaign is one turn sooner. The meeting cells do not move: turn 18 is still
+      // before the turn-20 meeting.
       expect(runs.map(r => [r.seed, r.colonised ?? null, colonies(r)])).toEqual(
-        [1, 2, 3, 4].map(seed => [seed, 19, [[10, []], [20, [ARVELIA_P]], [30, [ARVELIA_P]], [40, [ARVELIA_P]]]])
+        [1, 2, 3, 4].map(seed => [seed, 18, [[10, []], [20, [ARVELIA_P]], [30, [ARVELIA_P]], [40, [ARVELIA_P]]]])
       );
     });
   });

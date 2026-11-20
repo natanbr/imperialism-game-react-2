@@ -18,6 +18,7 @@ import { turnLimitOf } from "../turn/gameOver";
 import { adjacentProvinces, provincesOf } from "../world/provinces";
 import type { Order } from "../orders/Order";
 import { campaignRecruit, hasFieldArmy, hasRecruitFor } from "./scriptedWar";
+import { embassySaving } from "./scriptedInfluence";
 
 /**
  * A country at war with the nation has a strength (FR-204) in a province bordering one of the nation's provinces above
@@ -79,7 +80,8 @@ export const upkeepReserve = (state: GameState, nationId: string, extraUpkeep = 
  * healthy worker of the grade and the horses (`hasRecruitFor`), the armaments in stock, and the cash: the treasury after
  * the order stays at SCRIPTED_GARRISON.treasuryFloor ($2,500) or more, under a threat at `upkeepReserve` counted with the
  * new regiment instead (FR-483). Example: invaded with no untrained worker, 4 trained, 4 horses, $3,118 and an armament:
- * Cuirassiers (Regulars need an untrained worker).
+ * Cuirassiers (Regulars need an untrained worker). FR-542: a campaign recruit also leaves the embassy's $5,000 while one
+ * is wanted (`embassySaving`); under a threat it does not wait.
  */
 export function wantedRegiment(state: GameState, nationId: NationId): RegimentType | undefined {
   const nation = nationById(state, nationId);
@@ -88,10 +90,11 @@ export function wantedRegiment(state: GameState, nationId: NationId): RegimentTy
   if (!threat && !campaignRecruit(state, nationId)) return undefined;
   const armaments = (nation.warehouse as Record<string, number>)[GoodsType.Armaments] ?? 0;
   const list = threat ? SCRIPTED_WAR.threatRegiments : SCRIPTED_WAR.campaignRegiments;
+  const saving = threat ? 0 : embassySaving(state, nationId);
   return list.find((regiment) => {
     const def = REGIMENTS[regiment];
     const arms = def.stats.armamentsCost;
-    const floor = threat ? upkeepReserve(state, nationId, arms * UPKEEP_PER_ARMS) : SCRIPTED_GARRISON.treasuryFloor;
+    const floor = threat ? upkeepReserve(state, nationId, arms * UPKEEP_PER_ARMS) : SCRIPTED_GARRISON.treasuryFloor + saving;
     return hasRecruitFor(nation, regiment) && armaments >= arms && nation.treasury - def.cash >= floor;
   });
 }

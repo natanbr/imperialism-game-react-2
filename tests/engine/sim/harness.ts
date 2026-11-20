@@ -40,6 +40,8 @@ export interface Recruited { nationId: string; regiment: RegimentType; count: nu
 export interface ProvinceTaken { byId: string; provinceId: string; fromId: string }
 export interface ProposalReceived { toId: string; fromId: string; kind: string }
 export interface GrantPaid { fromId: string; toId: string; amount: number }
+/** FR-542: an embassy or a pact made this turn (`overture-done`); peace is recorded in `peaceMade`. */
+export interface OvertureMade { byId: string; toId: string; overture: 'embassy' | 'pact' }
 export interface Disbanded { nationId: string; reason: 'order' | 'no-pay'; count: number }
 export interface RejectedOrder { nationId: string; kind: Order['kind']; reason: RejectReason }
 export interface RefusedHumanOrder { kind: Order['kind']; reason: RejectReason }
@@ -60,6 +62,8 @@ export interface TurnRecord {
   minorsColonised: { nationId: string; minorId: string }[];
   regimentsRecruited: Recruited[];
   grants: GrantPaid[];
+  /** FR-542: the embassies and pacts made this turn. */
+  overtures: OvertureMade[];
   disbands: Disbanded[];
   /** Provinces held after the turn. */
   provincesHeld: ByNation<number>;
@@ -206,6 +210,7 @@ function recordTurn(input: {
     minorsColonised: [],
     regimentsRecruited: [],
     grants: [],
+    overtures: [],
     disbands: [],
     provincesHeld: mapNations(next, id => next.provinces.filter(p => p.ownerId === id).length),
     capitalHeld: mapNations(next, id => holdsProvince(next, id)),
@@ -238,6 +243,7 @@ function recordTurn(input: {
         record.warsDeclared.push({ byId: e.nationId, onId: e.targetId, turn });
         break;
       case 'overture-done': {
+        if (e.overture === 'embassy' || e.overture === 'pact') record.overtures.push({ byId: e.nationId, toId: e.targetId, overture: e.overture });
         if (e.overture !== 'peace') break;
         const pair = [e.nationId, e.targetId].sort();
         if (peacePairs.has(pair.join('|'))) break;

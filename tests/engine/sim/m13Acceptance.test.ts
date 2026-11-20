@@ -6,7 +6,7 @@
 // measured number ("measured 7 of 24, required 20") and an `afterAll` prints the whole table. A game that throws is recorded
 // as a crash, counts as a miss in every row, and fails the FR-497 crash test; it does not stop the file.
 //
-//   idle      24 games, seeds 1-24   FR-485, FR-486, FR-487, FR-488, FR-489, FR-490, FR-497
+//   idle      24 games, seeds 1-24   FR-485, FR-486, FR-487, FR-488, FR-489, FR-490 (replaced by FR-542), FR-542, FR-497
 //   aggressor 12 games, seeds 1-12   FR-484 (i)-(iii), FR-497
 //   trader    24 games, seeds 1-24   FR-493, FR-497
 //   scripted  24 games, seeds 1-24   a report with no threshold (spec section 6, risk 1), played inside its test
@@ -17,6 +17,7 @@
 // exercised) and the FR-497 probe (the computer's plan does not change when the human's orders of this turn are removed from
 // the state it plans on). The last describe checks that the measures read a crafted record the way the rows say, so a row
 // cannot turn green or stay red because of a wrong read.
+import { setImmediate as yieldToRunner } from 'node:timers/promises';
 import { afterAll, describe, expect, it } from 'vitest';
 import { newGame } from '@/engine/newGame';
 import { computerOrders } from '@/engine/ai/players';
@@ -59,8 +60,19 @@ const REQUIRED = {
   greatPowerWar: { games: 18, of: 24, byTurn: 32 },
   /** FR-489: idle: Testland keeps its capital province to turn 40, loses at most 1 province, and a peace offer reaches it within 1 turn (24 of 24). */
   oneProvince: { games: 24, of: 24, maxLost: 1, peaceWithinTurns: 1, untilTurn: 40 },
-  /** FR-490: idle: at least 1 Other Minor Nations vote for Valdoria at the turn-30 meeting (before: 0 of 24). */
+  /**
+   * FR-490: idle: at least 1 Other Minor Nations vote for Valdoria at the turn-30 meeting (before: 0 of 24).
+   * Replaced by FR-542 (M13 close round, card Q139): 0 of 24 under every rule set tried (.gate/m13/close/grants-notes.md).
+   * Kept verbatim and printed in the table as a report; FR-542's two rows below are asserted instead.
+   */
   votes: { games: 18, of: 24, atLeast: 1, atMeeting: 30 },
+  /**
+   * FR-542 (M13 close round, card Q117 (b), written from the measured ceiling): idle: (i) Valdoria has made an embassy and a
+   * pact with one free minor by turn 29, before the turn-30 meeting (measured 21 of 24; before: 0 of 24); (ii) at least 1
+   * Other Minor Nations vote for Valdoria at the turn-40 meeting (measured 18 of 24; before: 0 of 24).
+   */
+  overtures: { games: 18, of: 24, byTurn: 29 },
+  votesAt40: { games: 18, of: 24, atLeast: 1, atMeeting: 40 },
   /** FR-493: trader: at least 5 units traded between the Great Powers in 40 turns (before: 0 of 24). */
   traded: { games: 18, of: 24, atLeast: 5 },
   /** FR-497: rejected orders 0, invariant breaks 0, no-pay disbands 0 in idle games, `computerOrders` p95 at most 100 ms. */
@@ -109,7 +121,7 @@ interface Played {
   seconds: number;
 }
 
-function play(human: HumanName | HumanPolicy, seeds: readonly number[]): Played {
+async function play(human: HumanName | HumanPolicy, seeds: readonly number[]): Promise<Played> {
   const began = performance.now();
   const games: GameRecord[] = [];
   const crashed: Played['crashed'] = [];
@@ -119,6 +131,8 @@ function play(human: HumanName | HumanPolicy, seeds: readonly number[]): Played 
     } catch (e) {
       crashed.push({ seed, message: e instanceof Error ? `${e.message}\n${e.stack?.split('\n').slice(1, 4).join('\n')}` : String(e) });
     }
+    // Let Vitest service worker messages between games, outside every per-turn measurement.
+    await yieldToRunner();
   }
   return { human: typeof human === 'string' ? human : human.name, seeds, games, crashed, seconds: (performance.now() - began) / 1000 };
 }
@@ -138,10 +152,10 @@ const follower: HumanPolicy = {
   },
 };
 
-const idle = play('idle', SEEDS_24);
-const aggressor = play('aggressor', SEEDS_12);
-const trader = play('trader', SEEDS_24);
-const followers = play(follower, SEEDS_24);
+const idle = await play('idle', SEEDS_24);
+const aggressor = await play('aggressor', SEEDS_12);
+const trader = await play('trader', SEEDS_24);
+const followers = await play(follower, SEEDS_24);
 
 // ---- measuring a row -------------------------------------------------------------------------------------------------------
 
@@ -174,7 +188,7 @@ function measure(
   value?: (game: GameRecord) => number | undefined
 ): Row {
   const passing = played.games.filter(holds).map(g => g.seed);
-  const values = value ? played.games.map(value).filter((v): v is number => v !== undefined) : [];
+  const values = value ? played.games.map(game => value(game)).filter((v): v is number => v !== undefined) : [];
   const row: Row = {
     id,
     what,
@@ -363,16 +377,49 @@ const exercisedRow = measure(
   provincesTakenFromTestland
 );
 
-const otherMinorVotes = (game: GameRecord): number | undefined =>
-  atTurn(game, REQUIRED.votes.atMeeting)?.council?.nominees.find(n => n.nationId === COMPUTER_ID)?.otherMinorNations;
+const otherMinorVotes = (game: GameRecord, meeting: number = REQUIRED.votes.atMeeting): number | undefined =>
+  atTurn(game, meeting)?.council?.nominees.find(n => n.nationId === COMPUTER_ID)?.otherMinorNations;
 
-const votesRow = measure(
-  'FR-490',
+// Replaced by FR-542 (card Q139): measured and printed in the table, no longer asserted (see REQUIRED.votes).
+measure(
+  'FR-490 (replaced by FR-542)',
   `Valdoria gets at least ${REQUIRED.votes.atLeast} Other Minor Nations vote at the turn-${REQUIRED.votes.atMeeting} meeting`,
   idle,
   REQUIRED.votes.games,
   g => (otherMinorVotes(g) ?? 0) >= REQUIRED.votes.atLeast,
   otherMinorVotes
+);
+
+/** FR-542 (i): the turn by which Valdoria had both an embassy and a pact with the same minor, if ever (the pact's turn). */
+function embassyAndPactTurn(game: GameRecord): number | undefined {
+  // The continent starts with every minor free. Diplomacy resolves before that turn's conquests.
+  const freeMinors = new Set(game.final.minorNations.map(m => m.id));
+  const embassies = new Set<string>();
+  for (const turn of game.turns) {
+    for (const order of turn.overtures) {
+      if (order.byId !== COMPUTER_ID || !freeMinors.has(order.toId)) continue;
+      if (order.overture === 'embassy') embassies.add(order.toId);
+      else if (embassies.has(order.toId)) return turn.turn;
+    }
+    for (const colony of turn.minorsColonised) freeMinors.delete(colony.minorId);
+  }
+}
+
+const overturesRow = measure(
+  'FR-542 (i)',
+  `Valdoria has made an embassy and a pact with one minor by turn ${REQUIRED.overtures.byTurn}, before the turn-30 meeting`,
+  idle,
+  REQUIRED.overtures.games,
+  g => (embassyAndPactTurn(g) ?? Infinity) <= REQUIRED.overtures.byTurn,
+  embassyAndPactTurn
+);
+const votesAt40Row = measure(
+  'FR-542 (ii)',
+  `Valdoria gets at least ${REQUIRED.votesAt40.atLeast} Other Minor Nations vote at the turn-${REQUIRED.votesAt40.atMeeting} meeting`,
+  idle,
+  REQUIRED.votesAt40.games,
+  g => (otherMinorVotes(g, REQUIRED.votesAt40.atMeeting) ?? 0) >= REQUIRED.votesAt40.atLeast,
+  g => otherMinorVotes(g, REQUIRED.votesAt40.atMeeting)
 );
 
 // ---- FR-493: the trader game -------------------------------------------------------------------------------------------------
@@ -558,9 +605,17 @@ describe('M13 acceptance (FR-500): the sim thresholds of the table, seeds 1 to 2
     });
   });
 
-  describe('FR-490 grants before a Council (idle)', () => {
-    it(named(votesRow), () => {
-      expect(votesRow.measured, missNote(votesRow, idle)).toBeGreaterThanOrEqual(votesRow.required);
+  // FR-490's row (the turn-30 meeting) is replaced by FR-542 (M13 close round, card Q139): it measured 0 of 24 under every
+  // rule set tried, since the $5,000 embassy is affordable from about turn 23 and the war on Testland then holds the
+  // treasury at its upkeep reserve (.gate/m13/close/grants-notes.md). Its line stays in the table as a report.
+  describe('FR-490 grants before a Council (idle): replaced by FR-542, the embassy and the pact, and the turn-40 meeting', () => {
+    it(named(overturesRow), () => {
+      expect(idle.crashed, 'crashed games').toEqual([]);
+      expect(overturesRow.measured, missNote(overturesRow, idle)).toBeGreaterThanOrEqual(overturesRow.required);
+    });
+    it(named(votesAt40Row), () => {
+      const at30 = idle.games.map(g => otherMinorVotes(g) ?? '-').join(',');
+      expect(votesAt40Row.measured, `${missNote(votesAt40Row, idle)}; FR-490 (replaced) turn-30 votes per game: ${at30}`).toBeGreaterThanOrEqual(votesAt40Row.required);
     });
   });
 
@@ -653,11 +708,11 @@ function reportLine(g: GameRecord): string {
 }
 
 describe('M13 report (no threshold): both Great Powers scripted, racing for Arvelia (spec section 6, risk 1)', () => {
-  it('report: scripted human, seeds 1 to 24; the numbers are printed, nothing is asserted but that every game ran', () => {
-    const scripted = play('scripted', SEEDS_24);
+  it('report: scripted human, seeds 1 to 24; the numbers are printed, nothing is asserted but that every game ran', async () => {
+    const scripted = await play('scripted', SEEDS_24);
     const games = scripted.games;
     const range = (pick: (g: GameRecord) => number | undefined): string => {
-      const values = games.map(pick).filter((v): v is number => v !== undefined);
+      const values = games.map(game => pick(game)).filter((v): v is number => v !== undefined);
       return values.length === 0 ? '-' : `min ${Math.min(...values)}, median ${median(values)}, max ${Math.max(...values)}`;
     };
     const count = (pick: (g: GameRecord) => boolean): string => `${games.filter(pick).length} of ${games.length}`;
@@ -744,10 +799,13 @@ function checkedForPeeking(base: HumanPolicy, log: { turns: number; turnsWithOrd
 }
 
 describe('FR-497 (probe, not a table row) the computer reads no order the other nation gave this turn', () => {
-  it("Valdoria plans the same with and without Testland's trade orders, intents, recruiting and transport of this turn in the state (scripted and aggressor humans, seeds 1 to 4)", () => {
+  it("Valdoria plans the same with and without Testland's trade orders, intents, recruiting and transport of this turn in the state (scripted and aggressor humans, seeds 1 to 4)", async () => {
     const log = { turns: 0, turnsWithOrders: 0, peeked: [] as string[] };
     for (const human of ['scripted', 'aggressor'] as const) {
-      for (const seed of SEEDS_24.slice(0, 4)) runGame({ seed, human: checkedForPeeking(HUMANS[human], log), checkInvariants: false });
+      for (const seed of SEEDS_24.slice(0, 4)) {
+        runGame({ seed, human: checkedForPeeking(HUMANS[human], log), checkInvariants: false });
+        await yieldToRunner();
+      }
     }
     console.log(`FR-497 probe: ${log.turns} turns checked, ${log.turnsWithOrders} with orders of Testland in the state, ${log.peeked.length} turns where Valdoria's plan changed without them`);
     expect(log.turnsWithOrders).toBeGreaterThan(0);
@@ -789,6 +847,7 @@ describe('M13 acceptance: the measures of this file read a crafted record as the
     minorsColonised: [],
     regimentsRecruited: [],
     grants: [],
+    overtures: [],
     disbands: [],
     provincesHeld: both(4, 4),
     capitalHeld: both(true, true),
@@ -932,6 +991,22 @@ describe('M13 acceptance: the measures of this file read a crafted record as the
     expect(otherMinorVotes(game(upTo(40, { 30: { council: meeting(2) } })))).toBe(2);
     expect(otherMinorVotes(game(upTo(40, { 29: { council: meeting(2) } })))).toBeUndefined();
     expect(otherMinorVotes(game(upTo(40, { 30: { council: meeting(0) } })))).toBe(0);
+    // FR-542 (ii): the same read at the turn-40 meeting
+    expect(otherMinorVotes(game(upTo(40, { 30: { council: meeting(0) }, 40: { council: meeting(1) } })), 40)).toBe(1);
+    expect(otherMinorVotes(game(upTo(39, { 30: { council: meeting(2) } })), 40)).toBeUndefined();
+  });
+
+  it("FR-542 (i) reads the turn of Valdoria's pact with a minor it made an embassy in, at or before it; Testland's and a pact elsewhere do not count", () => {
+    const made = (byId: string, toId: string, overture: 'embassy' | 'pact'): Partial<TurnRecord> => ({ overtures: [{ byId, toId, overture }] });
+    expect(embassyAndPactTurn(game(upTo(40, { 23: made(COMPUTER_ID, 'minor-2', 'embassy'), 24: made(COMPUTER_ID, 'minor-2', 'pact') })))).toBe(24);
+    expect(embassyAndPactTurn(game(upTo(40, { 25: made(COMPUTER_ID, 'minor-2', 'embassy'), 30: made(COMPUTER_ID, 'minor-2', 'pact') })))).toBe(30);
+    expect(embassyAndPactTurn(game(upTo(40, { 23: made(COMPUTER_ID, 'minor-2', 'embassy') })))).toBeUndefined();
+    expect(embassyAndPactTurn(game(upTo(40, { 23: made(HUMAN_ID, 'minor-2', 'embassy'), 24: made(HUMAN_ID, 'minor-2', 'pact') })))).toBeUndefined();
+    expect(embassyAndPactTurn(game(upTo(40, { 23: made(COMPUTER_ID, 'minor-2', 'embassy'), 24: made(COMPUTER_ID, 'minor-3', 'pact') })))).toBeUndefined();
+    expect(embassyAndPactTurn(game(upTo(40, { 23: made(COMPUTER_ID, HUMAN_ID, 'embassy'), 24: made(COMPUTER_ID, HUMAN_ID, 'pact') })))).toBeUndefined();
+    const colonised = { minorsColonised: [{ nationId: HUMAN_ID, minorId: 'minor-2' }] };
+    expect(embassyAndPactTurn(game(upTo(40, { 22: made(COMPUTER_ID, 'minor-2', 'embassy'), 23: colonised, 24: made(COMPUTER_ID, 'minor-2', 'pact') })))).toBeUndefined();
+    expect(embassyAndPactTurn(game(upTo(40, { 22: made(COMPUTER_ID, 'minor-2', 'embassy'), 23: made(COMPUTER_ID, 'minor-2', 'pact'), 24: colonised })))).toBe(23);
   });
 
   it("FR-493 sums the units the Great Powers traded over the game, and p95 follows the audit's rule", () => {

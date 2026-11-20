@@ -129,7 +129,11 @@ describe('FR-481 the human policies', () => {
     // attribution: without `planMigrants` the campaign takes Arvelia on turn 16)
     // M13 review fix round (review ST-04): "by turn 17" -> "by turn 19" loosened a bound, which FR-499 forbids; it is now
     // the exact measured turn, so it cannot drift again unseen (FR-538 does not move it: the race is on a minor)
-    expect(firstProvinceTakenTurn(game)).toBe(19);
+    // Re-recorded by the M13 close round (FR-539, FR-499): 19 -> 18. Valdoria's standing steel bid toward the person (from
+    // turn 7) takes a hold its timber purchase from the minors used and is refunded unanswered, so Valdoria keeps that cash,
+    // declares on Arvelia on turn 17 (was 18) and takes it on turn 18, before Testland (measured with `standing` forced
+    // empty: 19, as before; .gate/m13/close/attrib-off.txt and attrib-on.txt)
+    expect(firstProvinceTakenTurn(game)).toBe(18);
     expect(game.turns.flatMap(t => t.invariantViolations)).toEqual([]);
   });
 
@@ -259,7 +263,7 @@ describe('FR-481 the idle game on seed 1, before M13 (2026-11-16, docs/specs/m13
   //   lane A measured turn 16 without `planMigrants`); kept by FR-487 (the campaign on a
   //   minor stays steady). Then FR-488 war on Testland (turn 21) and FR-489 one province, Testland North-East (turn 23).
   // - the vote 5 to 4 at turn 30 -> 6 to 3: the province taken by FR-488 and FR-489. FR-490's grants give no vote (0 other
-  //   minor nations: FR-490 is blocked, see docs/requirements.md).
+  //   minor nations at turn 30: FR-490's turn-30 row is replaced by FR-542, see docs/requirements.md).
   // - 0 units traded: stays 0 for an idle human, which never bids or offers; FR-493 moves the `trader` human's total only.
   // - 4 healthy workers at turn 40 (4 experts, labour 16) -> 7 (1 trained, 6 experts, labour 26): FR-485's migrants.
   // - the trader's 0 units (bids refused "no-seller") -> 6 units, bids refused "sellers-barred" only while at war (FR-492,
@@ -269,17 +273,22 @@ describe('FR-481 the idle game on seed 1, before M13 (2026-11-16, docs/specs/m13
   // North-East taken on turn 23 -> 24; at turn 40 1 trained and 6 experts, labour 26 -> 2 trained and 5 experts, labour
   // 24 (the sixth regiment it raises takes a trained worker, the war comes 2 turns later); the trader's refused bids
   // 7 -> 6 (the same war, 2 turns later, bars Valdoria's steel 1 turn less).
+  // Re-recorded by the M13 close round (FR-539, FR-499; measured with `standing` forced empty and on,
+  // .gate/m13/close/attrib-off.txt and attrib-on.txt): from turn 7 Valdoria's standing steel bid toward Testland takes the
+  // hold of a timber purchase from the minors and is refunded unanswered, so Valdoria keeps that cash: the war on Arvelia
+  // turn 18 -> 17 and Arvelia taken turn 19 -> 18 (the war on Testland, its province and the turn-30 vote do not move); at
+  // turn 40 2 trained and 5 experts, labour 24 -> 1 untrained and 6 experts, labour 25 (still 7 healthy workers).
   const idle = runGame({ seed: 1, human: 'idle' });
 
-  it('FR-481 FR-487 FR-488 FR-489 FR-538 Arvelia is taken on turn 19 (war turn 18; was 17 and 16), then Testland North-East on turn 24 (war turn 23; was 23 and 21)', () => {
-    expect(firstProvinceTakenTurn(idle)).toBe(19);
+  it('FR-481 FR-487 FR-488 FR-489 FR-538 FR-539 Arvelia is taken on turn 18 (war turn 17; was 19, 17 and 16), then Testland North-East on turn 24 (war turn 23; was 23 and 21)', () => {
+    expect(firstProvinceTakenTurn(idle)).toBe(18);
     expect(idle.turns.flatMap(t => t.warsDeclared)).toEqual([
-      { byId: COMPUTER_ID, onId: 'minor-1', turn: 18 },
+      { byId: COMPUTER_ID, onId: 'minor-1', turn: 17 },
       { byId: COMPUTER_ID, onId: HUMAN_ID, turn: 23 },
     ]);
-    expect(atTurn(idle, 19)!.minorsColonised).toEqual([{ nationId: COMPUTER_ID, minorId: 'minor-1' }]);
-    expect(atTurn(idle, 19)!.provincesTaken).toEqual([{ byId: COMPUTER_ID, provinceId: 'province-minor-1', fromId: 'minor-1' }]);
-    expect(atTurn(idle, 19)!.provincesHeld).toEqual({ [HUMAN_ID]: 4, [COMPUTER_ID]: 5 });
+    expect(atTurn(idle, 18)!.minorsColonised).toEqual([{ nationId: COMPUTER_ID, minorId: 'minor-1' }]);
+    expect(atTurn(idle, 18)!.provincesTaken).toEqual([{ byId: COMPUTER_ID, provinceId: 'province-minor-1', fromId: 'minor-1' }]);
+    expect(atTurn(idle, 18)!.provincesHeld).toEqual({ [HUMAN_ID]: 4, [COMPUTER_ID]: 5 });
     expect(atTurn(idle, 24)!.provincesTaken).toEqual([{ byId: COMPUTER_ID, provinceId: 'province-nation-1-ne', fromId: HUMAN_ID }]);
     expect(atTurn(idle, 40)!.provincesHeld).toEqual({ [HUMAN_ID]: 3, [COMPUTER_ID]: 6 });
   });
@@ -296,11 +305,16 @@ describe('FR-481 the idle game on seed 1, before M13 (2026-11-16, docs/specs/m13
     expect(unitsTradedBetweenGreatPowers(idle)).toBe(0);
   });
 
-  it('FR-481 FR-485 FR-538 Valdoria has 7 healthy workers at turn 40 (was 4; 7 at the start), labour 24 (was 16, then 26)', () => {
+  // Re-recorded by the M13 close round (FR-542, card Q117 (b); FR-499): at turn 40 1 untrained and 6 experts, labour 25 ->
+  // 1 trained and 6 experts, labour 26 (still 7 healthy workers). Valdoria now buys an embassy in Sundmark on turn 23
+  // ($5,000; its training keeps that price while the embassy is wanted), makes a pact on turn 24 and gives grants on turns
+  // 36 and 37 ($1,000 each); the wars, provinces and the turn-30 vote above do not move, and at the turn-40 meeting Sundmark
+  // votes for Valdoria (the scriptedInfluence.test.ts real game of seed 1).
+  it('FR-481 FR-485 FR-538 FR-539 FR-542 Valdoria has 7 healthy workers at turn 40 (was 4; 7 at the start), labour 26 (was 16, 26, 24, then 25)', () => {
     expect(healthyWorkersAt(idle, 1, COMPUTER_ID)).toBeLessThanOrEqual(7);
     expect(healthyWorkersAt(idle, 40, COMPUTER_ID)).toBe(7);
-    expect(atTurn(idle, 40)!.workers[COMPUTER_ID]).toEqual({ untrained: 0, trained: 2, expert: 5 });
-    expect(atTurn(idle, 40)!.labour[COMPUTER_ID]).toBe(24);
+    expect(atTurn(idle, 40)!.workers[COMPUTER_ID]).toEqual({ untrained: 0, trained: 1, expert: 6 });
+    expect(atTurn(idle, 40)!.labour[COMPUTER_ID]).toBe(26);
   });
 
   // Re-recorded by the M13 final round (FR-541, FR-499): units 6 -> 9 and refused bids 6 -> 8. Valdoria now keeps its lumber
@@ -309,9 +323,15 @@ describe('FR-481 the idle game on seed 1, before M13 (2026-11-16, docs/specs/m13
   // taken 24 -> 27, no peace: the trader never answers), so the trader's clothing bids meet the war on turns 28 and 34 to 40
   // (was 25, 35 and 37 to 40), still all "sellers-barred". Measured with the FR-541 clause switched off and on:
   // .gate/m13/final/trader2-before.txt and trader2-after.txt.
-  it('FR-481 FR-492 FR-493 FR-538 FR-541 the trader human trades 9 units with Valdoria (was 0, then 6); its bids are refused only while at war ("sellers-barred"; was "no-seller"), 8 times (was 7, then 6)', () => {
+  // Re-recorded by the M13 close round (FR-539, FR-499): units 9 -> 19. From turn 7 Valdoria's standing steel bid is on the
+  // Board while they are at peace, so the trader also sells it steel; Valdoria keeps the cash of the timber the bid's hold
+  // replaces, so its war on Arvelia moves 20 -> 18 (taken 21 -> 19) and on Testland 26 -> 24 (Testland North-East taken
+  // 27 -> 25), and the 8 refused clothing bids (still all "sellers-barred") fall on turns 25, 32 to 34 and 36 to 39 (were
+  // 28 and 34 to 40). Measured with `standing` forced empty: 9 units and the old turns
+  // (.gate/m13/close/attrib-off.txt and attrib-on.txt).
+  it('FR-481 FR-492 FR-493 FR-538 FR-539 FR-541 the trader human trades 19 units with Valdoria (was 0, 6, then 9); its bids are refused only while at war ("sellers-barred"; was "no-seller"), 8 times (was 7, then 6)', () => {
     const game = runGame({ seed: 1, human: 'trader' });
-    expect(unitsTradedBetweenGreatPowers(game)).toBe(9);
+    expect(unitsTradedBetweenGreatPowers(game)).toBe(19);
     const refused = game.turns.flatMap(t => t.humanRefused);
     expect(refused).toHaveLength(8);
     expect(new Set(refused.map(r => `${r.kind}:${r.reason}`))).toEqual(new Set(['buyCommodity:sellers-barred']));

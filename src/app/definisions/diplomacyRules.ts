@@ -70,9 +70,9 @@ export const SCRIPTED_INFLUENCE = {
   fromPoints: 40,
   toPoints: 49,
   /**
-   * The embassy those grants need, from this many points (to `toPoints`): measured on the idle continent games without
-   * M13's migrants and war on the player, Sundmark reaches 35 on turns 20 to 23 and 40 only on turns 23 to 26, too late
-   * for an embassy before the turn-26 grant.
+   * The embassy those grants need (and the pact it allows, FR-542), from this many points (to `toPoints`). FR-542 (card
+   * Q117 (b)): was 35, reached on the 24 idle continent games only from turn 26, with the war on the player under way;
+   * from 25 (the start's 30 qualifies) the embassy comes on turns 22 to 25 in 21 of 24 games.
    */
-  embassyFromPoints: 35,
+  embassyFromPoints: 25,
 } as const;
