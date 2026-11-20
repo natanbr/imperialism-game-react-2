@@ -106,8 +106,11 @@ export function planEconomy(view: () => GameState, nationId: string, propose: Pr
   planFreightCars(view, nationId, propose);
   planExpansion(view, nationId, propose);
   proposeRun(view, nationId, propose);
-  planMigrants(view, nationId, propose);
+  const workforce = view();
+  const replaceWorker = migrantsWanted(workforce, nationId) > 0;
+  if (replaceWorker) planMigrant(workforce, nationId, propose);
   planTrade(view, nationId, propose);
+  if (!replaceWorker) planOptionalMigrant(workforce, view(), nationId, propose);
 }
 
 // --- transport (FR-127) ---------------------------------------------------------------------
@@ -508,26 +511,22 @@ export const idleForWantOfLabour = (state: GameState, nationId: string): number 
   cappedRoom(planRun(state, nationId)) - cappedRoom(planRun(state, nationId, Infinity));
 
 /**
- * FR-485, FR-486: at most one migrant a turn (`recruitWorkers`, FR-042), ordered before the offers (`planTrade`) so they
- * do not count its goods, on a world with provinces while at least MIGRANT_MIN_TURNS follow.
- * FR-485: while it has fewer healthy workers than a new game (`migrantsWanted`), whenever the goods are in the warehouse.
- * FR-486: otherwise, while the run leaves at least MIGRANT_IDLE_CAPACITY points idle for want of labour, only from the
- * clothing, furniture and canned food the minors it may trade with cannot take this turn (`partnerDemand`), so no sale is
- * given up; in "world" every good sells, so there it orders none.
- * Either way only while the meal keeps its cans (`migrantLeavesTheMeal`).
+ * FR-485, FR-486: the migrant must leave the meal's cans and have at least MIGRANT_MIN_TURNS to work.
+ * FR-485 replacement workers get their goods before this turn's offers.
  */
-function planMigrants(view: () => GameState, nationId: string, propose: Propose): void {
-  const state = view();
-  if (state.provinces.length === 0 || turnsAfter(state) < MIGRANT_MIN_TURNS) return;
-  if (migrantsWanted(state, nationId) === 0) {
-    if (marketModeOf(state) !== "partners" || nationOf(state, nationId).industry.recruits > 0) return;
-    if (idleForWantOfLabour(state, nationId) < MIGRANT_IDLE_CAPACITY) return;
-    const stock = nationOf(state, nationId).warehouse as Stock;
-    const demand = partnerDemand(state, nationId);
-    const spare = Object.entries(MIGRANT_COST).every(([c, each]) => (stock[c] ?? 0) - (demand[c as TradeCommodity] ?? 0) >= (each ?? 0));
-    if (!spare) return;
-  }
-  if (migrantLeavesTheMeal(state, nationId)) propose({ kind: "recruitWorkers", nationId, delta: 1 });
+function planMigrant(state: GameState, nationId: string, propose: Propose): void {
+  if (turnsAfter(state) >= MIGRANT_MIN_TURNS && migrantLeavesTheMeal(state, nationId)) propose({ kind: "recruitWorkers", nationId, delta: 1 });
+}
+
+/** FR-486: a worker to staff idle mills gets only goods surplus to this turn's partners, including a new consulate. */
+function planOptionalMigrant(beforeTrade: GameState, afterTrade: GameState, nationId: string, propose: Propose): void {
+  if (beforeTrade.provinces.length === 0 || marketModeOf(beforeTrade) !== "partners" || turnsAfter(beforeTrade) < MIGRANT_MIN_TURNS) return;
+  const nation = nationOf(beforeTrade, nationId);
+  if (nation.industry.recruits > 0 || idleForWantOfLabour(beforeTrade, nationId) < MIGRANT_IDLE_CAPACITY) return;
+  const stock = nation.warehouse as Stock;
+  const demand = partnerDemand(afterTrade, nationId);
+  const spare = Object.entries(MIGRANT_COST).every(([c, each]) => (stock[c] ?? 0) - (demand[c as TradeCommodity] ?? 0) >= (each ?? 0));
+  if (spare) planMigrant(afterTrade, nationId, propose);
 }
 
 // --- world market (FR-128) ------------------------------------------------------------------
@@ -672,6 +671,8 @@ function planTrade(view: () => GameState, nationId: string, propose: Propose): v
   if (partners) {
     // FR-493 (a): a bid toward another Great Power that offered the commodity last turn goes before the mills' inputs
     const rivalBids = Object.entries(rival?.buy ?? {}) as [TradeCommodity, number][];
+    // A single hold can complete a pair: bid for the material scarcer in next turn's warehouse first.
+    rivalBids.sort(([a], [b]) => (next[a] ?? 0) - (next[b] ?? 0));
     for (const [commodity, units] of rivalBids) if (rival?.offeredLastTurn.includes(commodity)) bid(commodity, units);
     // FR-539: the standing steel bid toward a person, before the mills' inputs, so they cannot fill the 4 holds first (QA
     // check 4 saw them full; placed after them it also met FR-539's sim rows, so this is for robustness). Its

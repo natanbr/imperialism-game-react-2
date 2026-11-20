@@ -219,6 +219,20 @@ describe('FR-489 one province, then peace (card Q115 (a))', () => {
     expect(peaceOrders(scriptedPlayer(tookOne(23, N1), N2))).toEqual([]);
   });
 
+  it('FR-489 retaking the war aim starts a fresh peace offer and its six-turn interval', () => {
+    const recaptured: ProvinceCapture[] = [
+      { provinceId: NE1, fromId: N1, toId: N2, turn: 22 },
+      { provinceId: NE1, fromId: N2, toId: N1, turn: 24 },
+      { provinceId: NE1, fromId: N1, toId: N2, turn: 26 },
+    ];
+    const offers = (turn: number, last: number) => peaceOrders(scriptedPlayer(
+      tookOne(turn, N2, { captures: recaptured, lastPeaceOffer: { [N2]: last } }), N2,
+    ));
+    expect(offers(27, 23)).toEqual([peace]);
+    expect(offers(32, 27)).toEqual([]);
+    expect(offers(33, 27)).toEqual([peace]);
+  });
+
   it('FR-489 its FR-174 answer to Testland\'s peace offer is accept; in a war Testland declared FR-174 as before (2 turns of war: refused)', () => {
     expect(acceptsPeace(tookOne(23), N2, N1, 23)).toBe(true);
     expect(acceptsPeace(tookOne(23, N1), N2, N1, 23)).toBe(false);

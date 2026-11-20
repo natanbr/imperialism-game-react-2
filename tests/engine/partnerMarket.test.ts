@@ -8,6 +8,7 @@
 import { describe, it, expect } from 'vitest';
 import * as engine from '@/engine';
 import { newGame } from '@/engine/newGame';
+import { computerOrders } from '@/engine/ai/players';
 import { tryApplyOrder } from '@/engine/orders/apply';
 import { applyBuyCommodity, applySellCommodity } from '@/engine/orders/tradeOrders';
 import { validateOrder } from '@/engine/orders/validate';
@@ -88,6 +89,24 @@ const deals = (events: GameEvent[]) =>
 const ofType = <T extends GameEvent['type']>(events: GameEvent[], type: T) =>
   events.filter((e): e is Extract<GameEvent, { type: T }> => e.type === type);
 const deliveries = (s: GameState, nationId: string) => marketOf(s).deliveries[nationId] ?? {};
+
+it('FR-497 a private steel bid cannot reveal whether a rival can still fund its standing grant', () => {
+  let before = setTreasury(continent(), N1, 1000);
+  before = setPair(before, N1, ARVELIA, { consulates: [N1], embassies: [N1], points: 30, lockedGrants: { [N1]: 1000 } });
+  before = setPair(before, N2, ARVELIA, { consulates: [N2], points: 31 });
+  before = setHolds(setWarehouse(before, N2, { clothing: 8 }), N2, 1);
+  const after = ordered(before, buy(N1, MaterialType.Steel, 1));
+  expect([treasury(before, N1), treasury(after, N1)]).toEqual([1000, 700]);
+
+  const favouriteOnBoard = (state: GameState, viewer: string) =>
+    boardOfTrade(state, viewer).find(row => row.commodity === GoodsType.Clothing)!.buyers.find(buyer => buyer.minorId === ARVELIA)!.favouriteId;
+  expect([favouriteOnBoard(before, N1), favouriteOnBoard(after, N1)]).toEqual([N1, N2]);
+  expect.soft(favouriteOnBoard(after, N2)).toBe(favouriteOnBoard(before, N2));
+  expect(computerOrders(after)[N2]).toEqual(computerOrders(before)[N2]);
+  expect(favouriteOnBoard(before, N2)).toBe(N2);
+  const grantPaid = (state: GameState) => resolveTurn(state, {}, state.seed).events.some(e => e.type === 'grant-paid' && e.nationId === N1 && e.targetId === ARVELIA);
+  expect([grantPaid(before), grantPaid(after)]).toEqual([true, false]);
+});
 
 describe('FR-242 the market mode (replaces FR-182)', () => {
   it('FR-242 two-islands builds "world" (the v1 market, no mode key, read through marketModeOf), the continent "partners"', () => {

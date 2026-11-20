@@ -91,12 +91,21 @@ export function wantedRegiment(state: GameState, nationId: NationId): RegimentTy
   const armaments = (nation.warehouse as Record<string, number>)[GoodsType.Armaments] ?? 0;
   const list = threat ? SCRIPTED_WAR.threatRegiments : SCRIPTED_WAR.campaignRegiments;
   const saving = threat ? 0 : embassySaving(state, nationId);
-  return list.find((regiment) => {
+  const canRaise = (regiment: RegimentType): boolean => {
     const def = REGIMENTS[regiment];
-    const arms = def.stats.armamentsCost;
-    const floor = threat ? upkeepReserve(state, nationId, arms * UPKEEP_PER_ARMS) : SCRIPTED_GARRISON.treasuryFloor + saving;
-    return hasRecruitFor(nation, regiment) && armaments >= arms && nation.treasury - def.cash >= floor;
-  });
+    return hasRecruitFor(nation, regiment) && armaments >= def.stats.armamentsCost &&
+      (threat || nation.treasury - def.cash >= SCRIPTED_GARRISON.treasuryFloor + saving);
+  };
+  const leavesUpkeep = (regiment: RegimentType): boolean => {
+    const def = REGIMENTS[regiment];
+    return nation.treasury - def.cash >= upkeepReserve(state, nationId, def.stats.armamentsCost * UPKEEP_PER_ARMS);
+  };
+  const candidates = list.filter(canRaise);
+  if (threat) return candidates.find(leavesUpkeep);
+  const preferred = candidates[0];
+  if (preferred === undefined || leavesUpkeep(preferred)) return preferred;
+  // The campaign's preferred recruit would spend its upkeep. Keep the cheaper force it can pay for.
+  return candidates.sort((a, b) => REGIMENTS[a].cash - REGIMENTS[b].cash).find(leavesUpkeep);
 }
 
 /**

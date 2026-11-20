@@ -206,6 +206,47 @@ describe('FR-489 one province, then peace (card Q115 (a))', () => {
     warOrders(scriptedPlayer(s, N2)).filter(o => o.kind === 'moveArmy' && s.provinces.find(p => p.id === o.toProvinceId)!.ownerId !== N2);
   const ids = (s: GameState, provinceId: string) => armyIn(s, N2, provinceId)!.regiments.map(r => r.id);
 
+  // Before the war, Testland holds Arvelia and Valdoria holds Testland North-West.
+  // Each side of the channel has a separate Valdorian force facing an undefended province.
+  const twoFronts = (): GameState => {
+    let s = clearArmy(continent('world'), ARVELIA, ARVELIA_P);
+    s = fallCapital(takeProvince(s, ARVELIA_P, N1, 17, noop), ARVELIA, N1, 17, noop);
+    s = clearArmy(clearArmy(transferProvince(s, NW1, N2), N1, NW1), N1, NE1);
+    s = addRegiments(addRegiments(s, N2, NW1, ['regulars']), N2, NW2, ['regulars']);
+    return atWarWith({ ...s, turn: 23 }, N2, []);
+  };
+
+  it('FR-489 separate field armies facing two undefended provinces take only one through End Turn', () => {
+    const s = twoFronts();
+    const first = resolveTurn(s, { [N2]: scriptedPlayer(s, N2) });
+    const captures = first.events.filter(e => e.type === 'province-taken');
+    expect(captures).toEqual([{ type: 'province-taken', nationId: N2, fromId: N1, provinceId: ARVELIA_P }]);
+    expect(attacks(first.state)).toEqual([]);
+  });
+
+  it('FR-489 losing its conquered province does not open a different war aim on a later turn', () => {
+    const s = clearArmy(twoFronts(), N2, NW1);
+    expect(attacks(s)).toHaveLength(1);
+    const lostAim = atWarWith({ ...s, turn: 25 }, N2, [
+      { provinceId: NE1, fromId: N1, toId: N2, turn: 22 },
+      { provinceId: NE1, fromId: N2, toId: N1, turn: 24 },
+    ]);
+    expect(attacks(lostAim)).toEqual([]);
+    const reinforced = addRegiments(lostAim, N2, NW1, ['regulars']);
+    expect(attacks(reinforced)).toEqual([march(NW1, ids(reinforced, NW1), NE1)]);
+  });
+
+  it('FR-489 reclaiming home territory leaves the one foreign province available', () => {
+    const s = atWarWith(twoFronts(), N2, [
+      { provinceId: NE2, fromId: N2, toId: N1, turn: 21 },
+      { provinceId: NE2, fromId: N1, toId: N2, turn: 22 },
+    ]);
+    const result = resolveTurn(s, { [N2]: scriptedPlayer(s, N2) });
+    expect(result.events.filter(e => e.type === 'province-taken')).toEqual([
+      { type: 'province-taken', nationId: N2, fromId: N1, provinceId: ARVELIA_P },
+    ]);
+  });
+
   it('FR-489 holding a province it took from the Great Power it declared war on, it attacks no further province of it (FR-228 alone attacks Testland North-West at 2.0)', () => {
     expect(attacks(tookOne())).toEqual([]);
     expect(attacks(tookOne(N1))).toEqual([march(NE1, ids(tookOne(N1), NE1), NW1)]);

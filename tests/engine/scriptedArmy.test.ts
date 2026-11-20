@@ -110,6 +110,20 @@ describe('FR-482 FR-483 recruit what can be raised (card Q119 (a))', () => {
   /** A campaign on Arvelia at peace (turn 10, FR-274): no threat, so the $2,500 floor. */
   const campaign = (cash = 10000): GameState => invaded(cash, { ...continent(), turn: 10 });
 
+  it('FR-482 campaign recruitment falls back to the cheapest regiment that leaves its upkeep reserve', () => {
+    const base = { ...continent('world'), turn: 33 };
+    const field = addRegiments(base, N2, SW2, Array<RegimentType>(8).fill('regulars'), 1);
+    const state = equip(field, { untrained: 1, trained: 1, expert: 0 }, 4, 1, 3050);
+    expect(upkeepReserve(applyOrder(state, recruit('cuirassiers')), N2)).toBe(2600);
+    expect(treasury(applyOrder(state, recruit('hussars')), N2)).toBe(2950);
+    const raised = (s: GameState) => scriptedPlayer(s, N2).filter(order => order.kind === 'setRecruitment');
+    expect(raised(state)).toEqual([recruit('hussars')]);
+    expect(wantedRegiment(state, N2)).toBe('hussars');
+    // Without horses, Grenadiers would leave $2,550. Regulars and Skirmishers pass; Skirmishers cost less.
+    const noHorses = equip(field, { untrained: 1, trained: 1, expert: 0 }, 0, 1, 3550);
+    expect(raised(noHorses)).toEqual([recruit('skirmishers')]);
+  });
+
   it('FR-482 the lists are data: under a threat Regulars, Cuirassiers, Grenadiers, Artillery, Hussars, Skirmishers, Light Artillery; for a campaign Cuirassiers, Grenadiers, Hussars, Regulars, Light Artillery, Artillery, Skirmishers', () => {
     expect(SCRIPTED_WAR.threatRegiments).toEqual(['regulars', 'cuirassiers', 'grenadiers', 'artillery', 'hussars', 'skirmishers', 'lightArtillery']);
     expect(SCRIPTED_WAR.campaignRegiments).toEqual(['cuirassiers', 'grenadiers', 'hussars', 'regulars', 'lightArtillery', 'artillery', 'skirmishers']);

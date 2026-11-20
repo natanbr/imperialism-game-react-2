@@ -202,6 +202,15 @@ describe('FR-392 the forecast counts what this turn\'s bids cost above their res
     expect(upkeepForecast(subsidised(10), N1)).toMatchObject({ cash: 140, short: false });
   });
 
+  it('FR-392 FR-497 a competing private bid cannot reveal who will pay the subsidy in the upkeep forecast', () => {
+    const before = setPair(subsidised(100), N2, SUNDMARK, { points: 89, consulates: [N2] });
+    const after = ordered(before, { ...buyTimber, nationId: N2 });
+    expect(upkeepForecast(before, N1).cash).toBe(49);
+    expect(upkeepForecast(after, N1).cash).toBe(49);
+    const bought = ofType(endTurn(after).events, 'goods-bought').filter(e => e.counterpartyId === SUNDMARK && e.commodity === ResourceType.Timber);
+    expect(bought.map(e => e.nationId)).toEqual([N2]);
+  });
+
   it('FR-392 no subsidy: the bid costs its reserve, nothing more', () => {
     expect(upkeepForecast(subsidised(0), N1)).toMatchObject({ cash: 150, short: false });
   });

@@ -18,7 +18,7 @@ import { armiesOf, armyAt, capitalProvinceOf, holds, strength, strengthIn, upkee
 import { battleEstimate, defenceOf } from "../army/combat";
 import { warActive, warBetween } from "../diplomacy/queries";
 import { pairKey } from "../diplomacy/relations";
-import { warAimHeld, warOfChoice } from "../diplomacy/scriptedAnswers";
+import { warAimHeld, warAimProvince, warOfChoice } from "../diplomacy/scriptedAnswers";
 import { nationById } from "../orders/queries";
 import { healthyWorkers } from "../industry/labour";
 import { ResourceType } from "@/types/Resource";
@@ -294,20 +294,22 @@ export function planWarMoves(view: () => GameState, nationId: NationId, propose:
   }
 
   // (c) a province lost in this war first, then the lowest id
-  const lost = (p: Province) =>
-    (warBetween(state, nationId, p.ownerId)?.captures ?? []).some((c) => c.provinceId === p.id && c.fromId === nationId && c.toId === p.ownerId);
-  // FR-489: the provinces its war of choice on a Great Power may attack; every other enemy's are all open (FR-228)
+  const captures = (p: Province) => warBetween(state, nationId, p.ownerId)?.captures ?? [];
+  const lost = (p: Province) => captures(p).some((c) => c.provinceId === p.id && c.fromId === nationId && c.toId === p.ownerId);
+  // FR-489: the first enemy province taken remains the aim even if it changes hands again.
   const aims = new Map<CountryId, Set<ProvinceId>>();
   for (const id of enemies.filter((e) => warOfChoice(state, nationId, e))) {
-    aims.set(id, new Set(warAimHeld(state, nationId, id) ? [] : borderProvinces(state, nationId, id).map((p) => p.id)));
+    const aim = warAimProvince(warBetween(state, nationId, id)!, nationId);
+    aims.set(id, new Set(aim === undefined ? borderProvinces(state, nationId, id).map((p) => p.id) : [aim]));
   }
-  const allowed = (p: Province) => lost(p) || (aims.get(p.ownerId)?.has(p.id) ?? true);
   const targets = state.provinces
     .filter((p) => enemies.includes(p.ownerId) && warActive(state, nationId, p.ownerId))
     .filter((p) => adjacentProvinces(state, p.id).some((q) => q.ownerId === nationId))
-    .filter(allowed)
     .sort((a, b) => Number(lost(b)) - Number(lost(a)) || compareIds(a.id, b.id));
   for (const target of targets) {
+    const openAims = aims.get(target.ownerId);
+    const reclaimingHome = captures(target).find((c) => c.provinceId === target.id)?.fromId === nationId;
+    if (openAims && !reclaimingHome && !openAims.has(target.id)) continue;
     const sources = adjacentProvinces(state, target.id).filter((p) => p.ownerId === nationId).map((p) => p.id);
     const force = field.filter((f) => !used.has(f.regiment.id) && sources.includes(f.provinceId));
     if (force.length === 0) continue;
@@ -316,6 +318,7 @@ export function planWarMoves(view: () => GameState, nationId: NationId, propose:
       const ids = force.filter((f) => f.provinceId === from).map((f) => f.regiment.id);
       if (ids.length > 0 && propose({ kind: "moveArmy", nationId, fromProvinceId: from, regimentIds: ids, toProvinceId: target.id })) {
         ids.forEach((id) => used.add(id));
+        if (!reclaimingHome) openAims?.clear();
       }
     }
   }

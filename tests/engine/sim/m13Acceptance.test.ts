@@ -22,6 +22,8 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { newGame } from '@/engine/newGame';
 import { computerOrders } from '@/engine/ai/players';
 import { tryApplyOrder } from '@/engine/orders/apply';
+import { setTreasury, treasury } from '../fixtures';
+import { MaterialType } from '@/types/Resource';
 import type { Order } from '@/engine/orders/Order';
 import type { GameState } from '@/types/GameState';
 import {
@@ -707,8 +709,13 @@ function reportLine(g: GameRecord): string {
   ].join(' | ');
 }
 
-describe('M13 report (no threshold): both Great Powers scripted, racing for Arvelia (spec section 6, risk 1)', () => {
-  it('report: scripted human, seeds 1 to 24; the numbers are printed, nothing is asserted but that every game ran', async () => {
+describe('FR-500 M13 report (no threshold): both Great Powers scripted, racing for Arvelia (spec section 6, risk 1)', () => {
+  it('FR-500 the scripted report names its requirement in test results', ({ task }) => {
+    const report = task.suite?.tasks.find(test => test.name.includes('scripted human, seeds 1 to 24'));
+    expect(report?.name).toContain('FR-500');
+  });
+
+  it('FR-500 report: scripted human, seeds 1 to 24; the numbers are printed, nothing is asserted but that every game ran', async () => {
     const scripted = await play('scripted', SEEDS_24);
     const games = scripted.games;
     const range = (pick: (g: GameRecord) => number | undefined): string => {
@@ -745,37 +752,10 @@ describe('M13 report (no threshold): both Great Powers scripted, racing for Arve
 
 // ---- FR-497, not a table row: the computer's plan does not read the human's orders of this turn ------------------------------
 
-/** What Testland has registered this turn that the computer must not read: trade orders, standing intents, recruiting, transport allocation. */
-function ordersRegisteredBy(state: GameState, nationId: string): number {
-  const trade = state.market?.orders[nationId];
-  const units = (m: Record<string, number | undefined> | undefined): number => Object.values(m ?? {}).reduce<number>((sum, n) => sum + (n ?? 0), 0);
-  const recruiting = state.nations.find(n => n.id === nationId)?.recruiting;
-  return (
-    state.intents.filter(i => i.nationId === nationId).length +
-    units(trade?.sell) +
-    units(trade?.buy) +
-    units(recruiting) +
-    Object.keys(state.transportAllocationsByNation?.[nationId] ?? {}).length
-  );
-}
-
-/** The state as the computer would plan on it if `nationId` had given no order this turn. */
-function withoutOrdersOf(state: GameState, nationId: string): GameState {
-  const allocations = state.transportAllocationsByNation;
-  const otherAllocations = allocations && Object.fromEntries(Object.entries(allocations).filter(([id]) => id !== nationId));
-  return {
-    ...state,
-    intents: state.intents.filter(i => i.nationId !== nationId),
-    market: state.market ? { ...state.market, orders: { ...state.market.orders, [nationId]: { sell: {}, buy: {} } } } : state.market,
-    nations: state.nations.map(n => (n.id === nationId && n.recruiting ? { ...n, recruiting: {} } : n)),
-    transportAllocationsByNation: otherAllocations,
-  };
-}
-
 type Planner = (state: GameState) => unknown;
-/** True when the planner gives a different result for the state without `nationId`'s orders: it read them. */
-const readsOrdersOf = (plan: Planner, state: GameState, nationId: string): boolean =>
-  JSON.stringify(plan(state)) !== JSON.stringify(plan(withoutOrdersOf(state, nationId)));
+/** Compare plans across the actual order boundary, including cash, stock and other immediate effects. */
+const readsOrdersOf = (plan: Planner, before: GameState, after: GameState): boolean =>
+  JSON.stringify(plan(before)) !== JSON.stringify(plan(after));
 
 /** A policy that plays as `base` does and, on each turn, checks the computer's plan on the state after the human's orders. */
 function checkedForPeeking(base: HumanPolicy, log: { turns: number; turnsWithOrders: number; peeked: string[] }): HumanPolicy {
@@ -789,9 +769,9 @@ function checkedForPeeking(base: HumanPolicy, log: { turns: number; turnsWithOrd
         if (tried.result.ok) view = tried.state;
       }
       log.turns++;
-      if (ordersRegisteredBy(view, HUMAN_ID) > 0) {
+      if (view !== state) {
         log.turnsWithOrders++;
-        if (readsOrdersOf(computerOrders, view, HUMAN_ID)) log.peeked.push(`${base.name} seed ${state.seed} turn ${context.turn}`);
+        if (readsOrdersOf(computerOrders, state, view)) log.peeked.push(`${base.name} seed ${state.seed} turn ${context.turn}`);
       }
       return orders;
     },
@@ -799,6 +779,14 @@ function checkedForPeeking(base: HumanPolicy, log: { turns: number; turnsWithOrd
 }
 
 describe('FR-497 (probe, not a table row) the computer reads no order the other nation gave this turn', () => {
+  it('FR-497 the probe detects a planner reading cash reserved by a real private bid', () => {
+    const before = setTreasury(newGame({ seed: 1, world: 'continent' }), HUMAN_ID, 1000);
+    const bid = tryApplyOrder(before, { kind: 'buyCommodity', nationId: HUMAN_ID, commodity: MaterialType.Steel, amount: 1 });
+    expect(bid.result.ok).toBe(true);
+    expect([treasury(before, HUMAN_ID), treasury(bid.state, HUMAN_ID)]).toEqual([1000, 700]);
+    expect(readsOrdersOf(s => treasury(s, HUMAN_ID), before, bid.state)).toBe(true);
+  });
+
   it("Valdoria plans the same with and without Testland's trade orders, intents, recruiting and transport of this turn in the state (scripted and aggressor humans, seeds 1 to 4)", async () => {
     const log = { turns: 0, turnsWithOrders: 0, peeked: [] as string[] };
     for (const human of ['scripted', 'aggressor'] as const) {
@@ -820,13 +808,11 @@ describe('FR-497 (probe, not a table row) the computer reads no order the other 
       market: { ...base.market!, orders: { ...base.market!.orders, [HUMAN_ID]: { sell: { steel: 1 }, buy: { lumber: 2 } } } },
       nations: base.nations.map(n => (n.id === HUMAN_ID ? { ...n, recruiting: { regulars: 1 } } : n)),
     };
-    expect(ordersRegisteredBy(withOrders, HUMAN_ID)).toBe(5);
-    expect(ordersRegisteredBy(withOrders, COMPUTER_ID)).toBe(0);
-    expect(readsOrdersOf(s => s.market?.orders[HUMAN_ID], withOrders, HUMAN_ID)).toBe(true);
-    expect(readsOrdersOf(s => s.intents.length, withOrders, HUMAN_ID)).toBe(true);
-    expect(readsOrdersOf(s => s.nations.find(n => n.id === HUMAN_ID)?.recruiting, withOrders, HUMAN_ID)).toBe(true);
-    expect(readsOrdersOf(s => s.turn, withOrders, HUMAN_ID)).toBe(false);
-    expect(readsOrdersOf(computerOrders, withOrders, HUMAN_ID)).toBe(false);
+    expect(readsOrdersOf(s => s.market?.orders[HUMAN_ID], base, withOrders)).toBe(true);
+    expect(readsOrdersOf(s => s.intents.length, base, withOrders)).toBe(true);
+    expect(readsOrdersOf(s => s.nations.find(n => n.id === HUMAN_ID)?.recruiting, base, withOrders)).toBe(true);
+    expect(readsOrdersOf(s => s.turn, base, withOrders)).toBe(false);
+    expect(readsOrdersOf(computerOrders, base, withOrders)).toBe(false);
   });
 });
 

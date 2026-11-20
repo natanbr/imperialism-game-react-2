@@ -131,6 +131,18 @@ describe('FR-486 the mills it builds are staffed', () => {
   /** Valdoria with a consulate in Arvelia: the minors it may trade with take 2 clothing and 2 furniture this turn. */
   const trading = (s: GameState) => setPair(s, N2, 'minor-1', { consulates: [N2] });
 
+  it('FR-486 a consulate opened this turn keeps all three sales ahead of an optional migrant', () => {
+    const state = setWarehouse(withWorkers(builtUp(continent()), SEVEN), N2, { ...RAW, cannedFood: 10, clothing: 2, furniture: 1 });
+    expect(partnerDemand(state, N2)).toEqual({});
+    expect(idleForWantOfLabour(state, N2)).toBeGreaterThanOrEqual(MIGRANT_IDLE_CAPACITY);
+    const orders = scriptedPlayer(state, N2);
+    expect(orders).toContainEqual({ kind: 'proposeOverture', nationId: N2, overture: 'consulate', targetId: 'minor-1' });
+    const sales = resolveTurn(state, { [N2]: orders }, state.seed).events.flatMap(event =>
+      event.type === 'goods-sold' && event.nationId === N2 && event.counterpartyId === 'minor-1' ? [event.income] : []);
+    expect(sales.reduce((sum, income) => sum + income, 0)).toBe(2700);
+    expect(migrants(orders)).toEqual([]);
+  });
+
   it(`FR-486 the idle capacity is the room the run's stock could fill with more labour: at least ${4} with 12 labour, raw stock and built-up mills, 0 with no stock or 240 labour`, () => {
     expect(MIGRANT_IDLE_CAPACITY).toBe(4);
     expect(idleForWantOfLabour(setWarehouse(withWorkers(builtUp(continent()), SEVEN), N2, RAW), N2)).toBeGreaterThanOrEqual(4);

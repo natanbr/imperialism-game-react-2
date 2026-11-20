@@ -2,13 +2,43 @@
 
 ## Resuming here
 
-- 2026-11-20. M13 close-out is local on `claude/m13-nations`. The branch has the FR-539 steel bid and FR-542 embassy, pact and grant rules.
+- 2026-11-20. All eight PR 36 review findings reproduced on `fdbe870`. The fixes are in the `claude/m13-nations` worktree. Task 03 is awaiting a passing full gate and local commit. Evidence is in `.gate/codex/03/`.
 - FR-539 met both targets in 24/24 games. FR-542 replaces FR-490's vote target. Of 24 idle games, 21 had an embassy and pact by turn 29, 18 won a minor vote at turn 40, and 0 won one at turn 30.
-- Gate: 2731 unit and 129 Chromium tests passed. Lint reported 0 errors and 2 warnings. TypeScript, production build and roadmap check passed. Logs are in `.gate/codex/01/`.
+- Task 03: the M13 acceptance suite, protected pins, lint and types passed. The fallback Node 24 unit run failed FR-330; the build could not fetch the Google fonts, and the browser gate could not start. The earlier 2731-unit / 129-Chromium pass in `.gate/codex/01/` was on fdbe870.
 - Next owner review before merge: Q139 (turn-30 versus turn-40 votes) and FR-494's short Bid text. The close-out ends with the local commit.
 - NR-035 records the owner's temporary war defaults. See `docs/specs/war-and-difficulty-notes.md` and `docs/verify-and-tune.md`.
 - Next milestones: Q121 before M14's FR-503 and Q130 before M16. The plan is in `docs/specs/m13-m16.md`.
 - Local progress data: `docs/report/roadmap.json`. Earlier M13 evidence: `docs/journal/archive-M13.md`.
+
+## 2026-11-20 M13 review fixes (PR 36, starting at fdbe870)
+
+Size: M. Reproduce the eight findings in `.gate/codex/02/review.md` before changing the affected planner or test.
+The consumers are the scripted Great Power, the Board's diplomacy forecast and the 24-seed simulation report.
+Test rows cover FR-497 forecast and pre-order comparison, FR-489 conquest and recapture, FR-482 upkeep, FR-486 sales, FR-493 pair bidding and FR-500 report traceability.
+Verify each reproduction separately, then run Vitest, ESLint, TypeScript, the production build and single-worker Chromium. Evidence goes in `.gate/codex/03/`.
+Objection: a local improvement can change later simulated turns. Check the exact continent pins and the two-islands and FR-125 guards before committing.
+
+Findings 1–2: the forecast now projects the viewer's current orders and cash only. It cannot infer payment of another nation's standing grant from that nation's private balance. Real End Turn settlement still uses both nations' orders. The fair-play probe uses the original state before applying a human order and the resulting state after all accepted orders.
+
+Findings 3 and 7: separate armies can target one foreign conquest in a war of choice. They can recover home territory and retake that same objective. Retaking it starts a fresh peace-offer interval. Findings 4–6: campaign recruitment retries with the cheapest eligible regiment that leaves upkeep, optional migrants use surplus after planning trade with a new consulate, and the final hold buys the material missing from a pair. Finding 8: the 24-seed report identifies FR-500 in its Vitest title.
+
+| Claim | Command | Result quoted |
+|---|---|---|
+| Rival cash changed the Board and planner | `vitest run tests/engine/partnerMarket.test.ts -t "private steel bid"` | `expected 'nation-2' to be 'nation-1'` (1-red.txt) |
+| The old probe missed cash reserved by a bid | `vitest run tests/engine/sim/m13Acceptance.test.ts -t "cash reserved"` | `expected false to be true` (2-red.txt) |
+| Two armies took two provinces; cross-turn and home-recovery controls also failed | `vitest run tests/engine/scriptedWar.test.ts -t "separate field armies\|losing its conquered\|reclaiming home"` | `Tests  3 failed \| 33 skipped (36)` (3-red.txt) |
+| No affordable fallback recruit; optional migrant cost $1,800 of sales; last hold bought lumber | `vitest run` on scriptedArmy, scriptedWorkers and scriptedTrade, individually | `Tests  1 failed` in each of 4-red.txt, 5-red.txt and 6-red.txt. After fixes: `Tests  94 passed (94)` |
+| New peace offer missing after recapture | `vitest run tests/engine/scriptedDiplomacy.test.ts -t "retaking the war aim"` | `Tests  1 failed \| 29 skipped (30)` (7-red.txt). War and diplomacy after fixes: `Tests  66 passed (66)` |
+| Report title omitted its FR | `vitest run tests/engine/sim/m13Acceptance.test.ts -t "scripted report names"` | `to contain 'FR-500'` (8-red.txt and 8-runtime-red.txt) |
+| M13 acceptance and pre-order probe | `vitest run --configLoader runner` | `m13Acceptance.test.ts (43 tests)`; `320 turns checked, 320 with orders of Testland in the state, 0 turns where Valdoria's plan changed without them` |
+| FR-125 and two-islands pins on the integrated tree | Same full Vitest run | `t25 903/563 (1.60)` (lowest); `twoIslandsGolden.test.ts (2 tests)` |
+| Unit suite on bundled Node v24.22.1 | `vitest run --configLoader runner` | `Tests  1 failed \| 2741 passed (2742)`. FR-330: `expected [ '★' ] to deeply equal []`. Node's Unicode 17 classifies the star differently. |
+| Lint | `eslint` | `2 problems (0 errors, 2 warnings)`, `eslint exit 0` |
+| Types | `tsc --noEmit` | `tsc --noEmit exit 0` |
+| Production build | `next build --turbopack` | “Failed to fetch `Geist Mono` from Google Fonts.” Geist also failed. |
+| Chromium | `PLAYWRIGHT_HTML_OPEN=never playwright test --workers=1` | `Process from config.webServer was not able to start. Exit code: 1`. The server requires npm. A separate launch of the configured browser returned `browserType.launch: spawn EPERM`. |
+
+All eight numbered red logs are in `.gate/codex/03/`. The final focused probe/title run in `2-8-green.txt` reported `Tests  3 passed | 40 skipped (43)`. After reconnecting, Windows denied execution of the installed Node 22/npm toolchain. All five literal npm/npx invocations exited 1 before starting their tools (npm-*.txt and npx-*.txt). The unit, lint, type, build and browser commands above used the checked-in package configuration and installed CLI entry points with the bundled Node runtime. The default Vitest loader could not enumerate a parent directory, so the full run used its runner loader. No threshold, timeout or expected pin changed. Resume with the requested five commands in a session with access to Node 22/npm, the pinned Chromium and the build's Google Fonts. Commit locally only after all five pass.
 
 ## 2026-11-02 Revival setup
 

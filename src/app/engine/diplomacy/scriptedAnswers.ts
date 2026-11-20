@@ -2,7 +2,7 @@
 // visible, rules 07 section 7.2, gaps E2; remake rule Q29). Pure reads of the state. M13 (FR-489, card Q115 (a);
 // rules 10 sections 1 and 4: the AI makes peace once it got what it wanted): its own war on a Great Power is for one
 // province.
-import type { CountryId, NationId } from "@/types/Common";
+import type { CountryId, NationId, ProvinceId } from "@/types/Common";
 import type { War } from "@/types/Diplomacy";
 import type { GameState } from "@/types/GameState";
 import { SCRIPTED_DIPLOMACY } from "@/definisions/diplomacyRules";
@@ -26,12 +26,23 @@ export function warOfChoice(state: GameState, nationId: CountryId, enemyId: Coun
  */
 export const warAimHeld = (state: GameState, nationId: CountryId, enemyId: CountryId): boolean => warAimHeldSince(state, nationId, enemyId) !== undefined;
 
-/** FR-489: the turn of the oldest capture that makes `warAimHeld` true (the province still held), or undefined. */
+/** FR-489: the first enemy province taken in this war, excluding the recovery of land the nation held before the war. */
+export function warAimProvince(war: War, nationId: CountryId): ProvinceId | undefined {
+  const lost = new Set<ProvinceId>();
+  for (const capture of war.captures ?? []) {
+    if (capture.fromId === nationId) lost.add(capture.provinceId);
+    else if (capture.toId === nationId && !lost.has(capture.provinceId)) return capture.provinceId;
+  }
+  return undefined;
+}
+
+/** FR-489: the turn the nation most recently took its war aim, if it still holds it. */
 export function warAimHeldSince(state: GameState, nationId: CountryId, enemyId: CountryId): number | undefined {
   if (!warOfChoice(state, nationId, enemyId)) return undefined;
-  return (warBetween(state, nationId, enemyId)!.captures ?? []).find(
-    (c) => c.toId === nationId && c.fromId === enemyId && provinceById(state, c.provinceId)?.ownerId === nationId
-  )?.turn;
+  const war = warBetween(state, nationId, enemyId)!;
+  const aim = warAimProvince(war, nationId);
+  if (aim === undefined || provinceById(state, aim)?.ownerId !== nationId) return undefined;
+  return war.captures?.findLast((c) => c.provinceId === aim && c.toId === nationId)?.turn;
 }
 
 /**

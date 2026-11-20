@@ -109,10 +109,9 @@ const afterDiplomacy = new WeakMap<GameState, Map<NationId, GameState>>();
 /**
  * The state as the trade phase of this End Turn will find it as far as `viewerId` knows (FR-246): its own diplomacy
  * intents of this turn resolved by the diplomacy phase itself (a consulate, a war, a peace, a boycott set or lifted, and
- * any of them failing), events dropped. Another nation's intents of this turn are left out (FR-497, M13): the scripted
- * Great Power plans after the person's orders are in the state and must not read them; the person never sees the
- * computer's, which come at End Turn. A peace or an alliance a human Great Power still has to answer is not made until
- * it answers.
+ * any of them failing), events dropped. Only the viewer's intents and market orders enter the forecast (FR-497).
+ * Only its own cash is available for payments: a rival's balance would reveal money its private orders reserved.
+ * A peace or an alliance a human Great Power still has to answer is not made until it answers.
  */
 export function diplomacyAfterThisTurn(state: GameState, viewerId: NationId): GameState {
   let byViewer = afterDiplomacy.get(state);
@@ -122,7 +121,12 @@ export function diplomacyAfterThisTurn(state: GameState, viewerId: NationId): Ga
   }
   let next = byViewer.get(viewerId);
   if (!next) {
-    const own = state.intents.every((i) => i.nationId === viewerId) ? state : { ...state, intents: state.intents.filter((i) => i.nationId === viewerId) };
+    const own: GameState = {
+      ...state,
+      intents: state.intents.filter((i) => i.nationId === viewerId),
+      nations: state.nations.map((nation) => nation.id === viewerId ? nation : { ...nation, treasury: 0 }),
+      ...(state.market && { market: { ...state.market, orders: { [viewerId]: tradeOrdersOf(state, viewerId) } } }),
+    };
     next = diplomacySystem(own, createTurnContext({ turn: state.turn, seed: state.seed }));
     byViewer.set(viewerId, next);
   }

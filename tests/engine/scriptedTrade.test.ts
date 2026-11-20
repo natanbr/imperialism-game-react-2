@@ -233,6 +233,15 @@ const atWar = (s: GameState) => setPair(s, N1, N2, { war: { aggressors: [N1], si
 const withPrices = (s: GameState, prices: Record<string, number>): GameState => ({ ...s, market: { ...marketOf(s), prices: { ...marketOf(s).prices, ...prices } } });
 
 describe('FR-493 (a) the computer bids for lumber and steel toward the other Great Power', () => {
+  it('FR-493 with one hold and both materials offered last turn it bids for the steel that completes its pair', () => {
+    const seller = setPair(continent(), N2, 'minor-1', { consulates: [N2] });
+    const stock = emptyWarehouse(seller, N2, { lumber: 1, clothing: 2, furniture: 1 });
+    const state = lastTurn(stock, { [N1]: { sell: { lumber: 1, steel: 1 }, buy: {} } });
+    const orders = scriptedPlayer(state, N2);
+    expect(sales(orders)).toEqual([[GoodsType.Clothing, 2], [GoodsType.Furniture, 1]]);
+    expect(finalBids(orders)).toEqual({ steel: 1 });
+  });
+
   it('FR-493 greatPowerTradeCaps: the FR-128 pairs, at most 2 of each, from next turn\'s stock: the short side first, then whole pairs', () => {
     const s = holdsFree();
     expect(greatPowerTradeCaps(s, N2, { lumber: 1, steel: 1 }).buy).toEqual({ lumber: 2, steel: 2 });
