@@ -15,6 +15,8 @@ import {
   councilVote,
   COUNCIL_ROWS,
   isCouncilTurn,
+  isLastMeeting,
+  lastCouncilTurn,
   nextCouncilTurn,
   votesNeeded,
 } from '@/engine/council/council';
@@ -106,7 +108,9 @@ const voteOf = (e: Extract<GameEvent, { type: 'council-met' }>): CouncilVote => 
 
 describe('FR-290 Council meetings', () => {
   it('FR-290 definisions/council.ts holds the numbers', () => {
-    expect(COUNCIL).toEqual({ firstTurn: 10, interval: 10, minRelationPoints: 50, provinceWeight: 100, militaryWeight: 10 });
+    // FR-503 adds the vote shares to the existing Council rule data.
+    expect(COUNCIL).toEqual({ firstTurn: 10, interval: 10, minRelationPoints: 50, provinceWeight: 100, militaryWeight: 10,
+      twoPowerVoteShare: { numerator: 1, denominator: 2 }, standardVoteShare: { numerator: 2, denominator: 3 } });
   });
 
   it('FR-290 the Council meets on turns 10, 20, 30 and 40 of a 40-turn continent game, on no other turn', () => {
@@ -374,9 +378,14 @@ describe('FR-293 a free minor\'s vote', () => {
 });
 
 describe('FR-294 the count and the winner', () => {
-  it('FR-294 needed = floor(2 x totalVotes / 3) + 1: 12 gives 9, 120 gives 81 (more than two thirds of all votes)', () => {
-    expect([3, 6, 9, 12, 13, 120].map(votesNeeded)).toEqual([3, 5, 7, 9, 9, 81]);
-    expect(vote(continent('world')).needed).toBe(9);
+  it('FR-503 two Great Powers need a strict majority, three or more still need more than two thirds', () => {
+    // FR-294: 9 -> 7 on the two-power continent (Q121); keep the original threshold at three powers.
+    expect(vote(continent('world')).needed).toBe(7);
+    expect([3, 6, 9, 12, 13, 120].map(n => votesNeeded(n, 3))).toEqual([3, 5, 7, 9, 9, 81]);
+    expect(vote(threePowers()).needed).toBe(9);
+    expect(vote(islandsWithTestland(continent('world'), 60))).toMatchObject({ needed: 7, winnerId: N1, decidedBy: 'threshold' });
+    const six = setPair(setPair(continent('world'), SUNDMARK, N1, { points: 60 }), PELLIS, N1, { points: 60 });
+    expect(vote(six).winnerId).toBeUndefined();
   });
 
   it('FR-294 Controlled 5 + Colonies 1 + Other Minor Nations 3 = 9 wins', () => {
@@ -385,8 +394,9 @@ describe('FR-294 the count and the winner', () => {
     expect(v.winnerId).toBe(N1);
   });
 
-  it('FR-294 Controlled 4 + Colonies 1 + Other Minor Nations 3 = 8 (exactly two thirds) does not win', () => {
-    const v = vote(islandsWithTestland(arveliaTo(continent('world'), N1, true), 60));
+  it('FR-294 Controlled 4 + Colonies 1 + Other Minor Nations 3 = 8 (exactly two thirds) does not win with three powers', () => {
+    // Two powers -> three powers to retain the exact two-thirds boundary after FR-503.
+    const v = vote(islandsWithTestland(arveliaTo(threePowers(), N1, true), 60));
     expect(rows(v, N1)).toEqual([4, 1, 0, 3, 8]);
     expect(v.winnerId).toBeUndefined();
     expect('winnerId' in v).toBe(false);
@@ -394,7 +404,8 @@ describe('FR-294 the count and the winner', () => {
 
   it('FR-294 the start state: 4 and 4, no winner, 4 abstentions, which count in the total', () => {
     const v = vote(continent('world'));
-    expect([v.totalVotes, v.needed, v.nominees.map(n => n.total), v.winnerId]).toEqual([12, 9, [4, 4], undefined]);
+    // 9 -> 7 of all 12 provinces under FR-503, including abstentions.
+    expect([v.totalVotes, v.needed, v.nominees.map(n => n.total), v.winnerId]).toEqual([12, 7, [4, 4], undefined]);
     expect(abstainedProvinces(v)).toEqual([ARVELIA_P, SUNDMARK_P, LORRAN_P, PELLIS_P]);
   });
 
@@ -404,7 +415,8 @@ describe('FR-294 the count and the winner', () => {
     expect(v.nominees.reduce((sum, n) => sum + n.total, 0) + abstainedProvinces(v).length).toBe(v.totalVotes);
     for (const b of v.ballots.filter(x => x.forId === undefined)) expect(Object.keys(b)).toEqual(['provinceId', 'abstention']);
     expect(Object.keys(v).sort()).toEqual(['ballots', 'needed', 'nominees', 'totalVotes']);
-    expect(Object.keys(vote(winning())).sort()).toEqual(['ballots', 'needed', 'nominees', 'totalVotes', 'winnerId']);
+    // Winner alone -> winner and its deciding rule (FR-502).
+    expect(Object.keys(vote(winning())).sort()).toEqual(['ballots', 'decidedBy', 'needed', 'nominees', 'totalVotes', 'winnerId']);
   });
 
   it('FR-294 councilCell lists the provinces behind a number; COUNCIL_ROWS are the four rows in the screen\'s order', () => {
@@ -446,7 +458,8 @@ describe('FR-295 the Council ends the game', () => {
 
     const [met] = councils(events);
     expect(met.winnerId).toBe(N1);
-    expect(state.gameOver).toEqual({ turn: 10, year: 1817, scores: scoreTable(state), reason: 'council', winnerId: N1, council: voteOf(met) });
+    // FR-502 records the deciding rule alongside the previously recorded winner and ballots.
+    expect(state.gameOver).toEqual({ turn: 10, year: 1817, scores: scoreTable(state), reason: 'council', winnerId: N1, decidedBy: 'threshold', council: voteOf(met) });
     expect(voteOf(met)).toEqual(councilVote(state));
     expect(events.slice(-3).map(e => e.type)).toEqual(['turn-ended', 'council-met', 'game-over']);
     expect(events.at(-1)).toEqual({ type: 'game-over', ...state.gameOver });
@@ -467,22 +480,61 @@ describe('FR-295 the Council ends the game', () => {
     expect(events.some(e => e.type === 'game-over')).toBe(false);
   });
 
-  it('FR-295 FR-068 turn 40 without a winner ends by the turn limit exactly as before: no reason, no council', () => {
+  it('FR-502 the elected winner and deciding rule are retained in the turn-40 game-over event', () => {
     const { state, events } = resolve(onTurn(40, 1824));
-    expect(state.gameOver).toEqual({ turn: 40, year: 1824, scores: scoreTable(state) });
+    // No winner at the turn limit -> an elected winner on the final ballot (FR-501/502).
+    const [meeting] = councils(events);
+    expect(state.gameOver).toEqual({ turn: 40, year: 1824, scores: scoreTable(state), reason: 'council', winnerId: meeting.nominees[0].nationId, decidedBy: 'threshold', council: voteOf(meeting) });
     expect(events.slice(-3).map(e => e.type)).toEqual(['turn-ended', 'council-met', 'game-over']);
-    expect(events.at(-1)).toEqual({ type: 'game-over', turn: 40, year: 1824, scores: scoreTable(state) });
+    expect(events.at(-1)).toEqual({ type: 'game-over', ...state.gameOver });
   });
 
-  it('FR-308 (Q53) the turn-40 meeting, the last, keeps the rules: the 4 minors at their start points abstain, a minor at 49 still abstains, and no winner (review R3)', () => {
-    const [last] = councils(resolve(onTurn(40, 1824)).events);
+  it('FR-501 only the final scheduled ballot ignores the floor, and it excludes enemies even there', () => {
+    const s = { ...sundmark(continent('world'), 20, 49), turnLimit: 25 };
+    const war = atWar(s, N2, SUNDMARK);
+    expect(ballotOf(councilMeeting(war, 10)!, SUNDMARK_P).forId).toBeUndefined();
+    expect(ballotOf(councilMeeting(war, 20)!, SUNDMARK_P).forId).toBe(N1);
+    expect(ballotOf(councilMeeting(atWar(war, N1, SUNDMARK), 20)!, SUNDMARK_P).abstention?.reason).toBe('relations');
+    expect(ballotOf(vote({ ...s, turn: 19 }), SUNDMARK_P).forId).toBe(N2);
+    expect(lastCouncilTurn(s)).toBe(20);
+    expect([10, 19, 20, 25].map(t => isLastMeeting(s, t))).toEqual([false, false, true, false]);
+    expect(lastCouncilTurn({ ...s, turnLimit: 9 })).toBeUndefined();
+    expect(lastCouncilTurn(newGame({ seed: 1, world: 'two-islands' }))).toBeUndefined();
+  });
+
+  it('FR-502 the plurality at the final meeting beats standing when neither nominee reaches the threshold', () => {
+    let s = setTreasury(sundmark(continent('world'), 45, 30), N2, 100_000);
+    for (const minor of [ARVELIA, LORRAN, PELLIS]) s = atWar(atWar(s, N1, minor), N2, minor);
+    const v = councilMeeting(s, 40)!;
+    expect(v.nominees.map(n => [n.nationId, n.total])).toEqual([[N2, 4], [N1, 5]]);
+    expect(v).toMatchObject({ winnerId: N1, needed: 7, decidedBy: 'more-votes' });
+    expect(councilMeeting(s, 30)!.winnerId).toBeUndefined();
+  });
+
+  it('FR-502 a tied final vote follows standing, then the existing intent order for exactly equal standings', () => {
+    const split = [ARVELIA, SUNDMARK, LORRAN, PELLIS].reduce(
+      (s, minor, i) => setPair(s, minor, i < 2 ? N1 : N2, { points: 40 }), continent('world'),
+    );
+    const rich = setTreasury(split, N2, 100_000);
+    expect(councilMeeting(rich, 40)).toMatchObject({ nominees: [{ total: 6 }, { total: 6 }], winnerId: N2, decidedBy: 'standing' });
+    for (const turn of [40, 41]) {
+      const counted = { ...split, turn, nations: [...split.nations].reverse() };
+      expect(councilStanding(counted, N1)).toBe(councilStanding(counted, N2));
+      expect(councilMeeting(counted, 40)).toMatchObject({ winnerId: turn === 40 ? N2 : N1, decidedBy: 'standing' });
+    }
+  });
+
+  it('FR-510 FR-501 the turn-40 meeting counts all four minor ballots at their start points', () => {
+    // FR-308: four abstentions and a 4–4 draw -> four votes for the higher standing and an 8–4 winner (Q120).
+    const s = setTreasury(continent('world'), N2, 100_000);
+    const [last] = councils(resolve(onTurn(40, 1824, s)).events);
     expect([last.turn, isCouncilTurn(onTurn(41, 1825), 50)]).toEqual([40, false]);
-    expect(abstainedProvinces(last)).toEqual([ARVELIA_P, SUNDMARK_P, LORRAN_P, PELLIS_P]);
-    expect([last.nominees.map(n => n.total), last.winnerId]).toEqual([[4, 4], undefined]);
-    // Sundmark at 49 with Testland and 30 with Valdoria: below 50 with both, so it does not have to choose
-    const [close] = councils(resolve(onTurn(40, 1824, sundmark(continent('world'), 49, 30))).events);
-    expect(ballotOf(close, SUNDMARK_P)).toEqual(weighed(SUNDMARK_P, [N1, 49], [N2, 30]));
-    expect(abstainedProvinces(close)).toHaveLength(4);
+    expect(abstainedProvinces(last)).toEqual([]);
+    expect([last.nominees.map(n => n.total), last.winnerId, last.decidedBy]).toEqual([[8, 4], N2, 'threshold']);
+    // Below 50: abstain -> Sundmark chooses its better relation, even against the higher standing.
+    const [close] = councils(resolve(onTurn(40, 1824, sundmark(s, 49, 30))).events);
+    expect(ballotOf(close, SUNDMARK_P)).toEqual({ provinceId: SUNDMARK_P, forId: N1, row: 'otherMinorNations' });
+    expect(abstainedProvinces(close)).toEqual([]);
   });
 
   it('FR-295 turn 40 with a winner ends by the Council', () => {

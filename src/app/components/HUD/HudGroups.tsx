@@ -5,7 +5,7 @@ import { SAVE_VERSION } from "@/store/persistence";
 import { ScoreTable } from "./ScoreTable";
 import { CouncilProjection } from "./TurnIndicator";
 import { showTile } from "./showTile";
-import { detailLines, lastTurnTreasuryText, scoreParts, spentThisTurnText, upkeepForecastText, workInProgressRows } from "./hudView";
+import { detailLines, lastTurnTreasuryText, scoreParts, uncollectedScoreText, spentThisTurnText, upkeepForecastText, workInProgressRows } from "./hudView";
 
 export type GroupId = "nation" | "work" | "details";
 export type GroupsOpen = Record<GroupId, boolean>;
@@ -50,6 +50,7 @@ const HudGroup: React.FC<{
 const NationGroupContent: React.FC = () => {
   const nation = useGameStore(selectActiveNation);
   const score = useGameStore(selectActiveScore);
+  const excluded = uncollectedScoreText(score);
   const upkeep = useGameStore(selectUpkeepForecast);
   const playerId = useGameStore((s) => s.activeNationId);
   const start = useGameStore((s) => s.turnStartTreasuries?.[playerId]);
@@ -65,6 +66,7 @@ const NationGroupContent: React.FC = () => {
             {name} {points}
           </li>
         ))}
+        {excluded && <li>{excluded}</li>}
       </ul>
       <ScoreTable />
       <p data-testid="upkeep-forecast">{upkeepForecastText(upkeep)}</p>

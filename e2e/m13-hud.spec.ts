@@ -366,7 +366,8 @@ test('FR-467 the bar fits its widest states at every size: turn 2, a late turn w
   await page.reload();
   await page.getByRole('dialog', { name: 'Saved game' }).getByRole('button', { name: 'Continue' }).click();
   await expect(page.getByTestId('turn-indicator')).toContainText('Turn: 39 of 40');
-  await expect(page.getByTestId('next-council')).toHaveText('Next Council: turn 40 (Winter 1824)');
+  // FR-506 preserves the date and leads with the winning threshold. FR-502 elects a winner at turn 40.
+  await expect(page.getByTestId('next-council')).toHaveText('7 of 12 votes wins · Council: turn 40 (Winter 1824). This threshold applies at any meeting. At the last meeting (turn 40) a free minor votes unless it is at war with both nominees, and the nominee with more votes wins (equal votes: higher standing).');
   await expect(page.locator('.nation-stats')).toHaveText('Cash: $1,234,567');
   await expect(page.getByTestId('cash-change')).toContainText('last turn');
   for (const viewport of ALL_SIZES) {
@@ -379,7 +380,7 @@ test('FR-467 the bar fits its widest states at every size: turn 2, a late turn w
   await advance(page).click();
   const council = page.getByRole('dialog', { name: 'Council of Governors' });
   await expect(council).toBeVisible();
-  await council.getByRole('button', { name: 'Close' }).click();
+  await council.getByRole('button', { name: 'See the final scores' }).click();
   const over = page.getByRole('dialog', { name: 'Game over' });
   await expect(over).toBeVisible();
   await over.getByRole('button', { name: 'Back to the map' }).click();

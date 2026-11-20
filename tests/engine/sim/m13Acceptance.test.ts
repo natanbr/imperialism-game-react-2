@@ -382,6 +382,9 @@ const exercisedRow = measure(
 const otherMinorVotes = (game: GameRecord, meeting: number = REQUIRED.votes.atMeeting): number | undefined =>
   atTurn(game, meeting)?.council?.nominees.find(n => n.nationId === COMPUTER_ID)?.otherMinorNations;
 
+// FR-501 makes the final ballot compulsory. FR-542 still requires the votes earned at 50 points under ordinary rules.
+const earnedAt40 = (game: GameRecord) => atTurn(game, REQUIRED.votesAt40.atMeeting)?.council?.earnedMinorVotes[COMPUTER_ID];
+
 // Replaced by FR-542 (card Q139): measured and printed in the table, no longer asserted (see REQUIRED.votes).
 measure(
   'FR-490 (replaced by FR-542)',
@@ -417,11 +420,11 @@ const overturesRow = measure(
 );
 const votesAt40Row = measure(
   'FR-542 (ii)',
-  `Valdoria gets at least ${REQUIRED.votesAt40.atLeast} Other Minor Nations vote at the turn-${REQUIRED.votesAt40.atMeeting} meeting`,
+  `Valdoria earns at least ${REQUIRED.votesAt40.atLeast} voluntary Other Minor Nations vote at the turn-${REQUIRED.votesAt40.atMeeting} meeting`,
   idle,
   REQUIRED.votesAt40.games,
-  g => (otherMinorVotes(g, REQUIRED.votesAt40.atMeeting) ?? 0) >= REQUIRED.votesAt40.atLeast,
-  g => otherMinorVotes(g, REQUIRED.votesAt40.atMeeting)
+  g => (earnedAt40(g) ?? 0) >= REQUIRED.votesAt40.atLeast,
+  earnedAt40
 );
 
 // ---- FR-493: the trader game -------------------------------------------------------------------------------------------------
@@ -966,9 +969,10 @@ describe('M13 acceptance: the measures of this file read a crafted record as the
   });
 
   it("FR-490 reads Valdoria's Other Minor Nations votes from the meeting of turn 30", () => {
-    const meeting = (valdoria: number): TurnRecord['council'] => ({
+    const meeting = (valdoria: number, earned = valdoria): TurnRecord['council'] => ({
       totalVotes: 12,
-      needed: 9,
+      needed: 7, // FR-503: the two-power continent changed from nine to seven.
+      earnedMinorVotes: both(0, earned),
       nominees: [
         { nationId: COMPUTER_ID, standing: 0, controlled: 4, colonies: 1, otherGreatPowers: 0, otherMinorNations: valdoria, total: 5 + valdoria },
         { nationId: HUMAN_ID, standing: 0, controlled: 4, colonies: 0, otherGreatPowers: 0, otherMinorNations: 7, total: 11 },
@@ -977,9 +981,12 @@ describe('M13 acceptance: the measures of this file read a crafted record as the
     expect(otherMinorVotes(game(upTo(40, { 30: { council: meeting(2) } })))).toBe(2);
     expect(otherMinorVotes(game(upTo(40, { 29: { council: meeting(2) } })))).toBeUndefined();
     expect(otherMinorVotes(game(upTo(40, { 30: { council: meeting(0) } })))).toBe(0);
-    // FR-542 (ii): the same read at the turn-40 meeting
-    expect(otherMinorVotes(game(upTo(40, { 30: { council: meeting(0) }, 40: { council: meeting(1) } })), 40)).toBe(1);
-    expect(otherMinorVotes(game(upTo(39, { 30: { council: meeting(2) } })), 40)).toBeUndefined();
+    // FR-542 (ii): two forced votes alone cannot meet the historical influence target.
+    const last = (earned: number) => game(upTo(40, { 30: { council: meeting(0) }, 40: { council: meeting(2, earned) } }));
+    expect(otherMinorVotes(last(0), 40)).toBe(2);
+    expect(earnedAt40(last(0))).toBe(0);
+    expect(earnedAt40(last(1))).toBe(1);
+    expect(earnedAt40(game(upTo(39, { 30: { council: meeting(2) } })))).toBeUndefined();
   });
 
   it("FR-542 (i) reads the turn of Valdoria's pact with a minor it made an embassy in, at or before it; Testland's and a pact elsewhere do not count", () => {

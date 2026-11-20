@@ -4,7 +4,7 @@ import { COUNCIL, OVERTURE_COST, turnLimitOf, votesNeeded } from "@/engine";
 import { MINOR_DEMAND } from "@/definisions/partnersMarket";
 import type { GameState } from "@/types/GameState";
 import { useGameStore } from "@/store/rootStore";
-import { commodityName, money } from "./gameText";
+import { commodityName, councilEndRule, money } from "./gameText";
 import { Modal } from "./Modal";
 
 /** "a", "a and b", "a, b and c". */
@@ -30,7 +30,7 @@ export function howToPlayText(state: GameState): HowToPlayText {
   const goal =
     councilTurns.length === 0
       ? `Have the best score after ${limit} turns.`
-      : `Have the best score after ${limit} turns, or win ${votesNeeded(votes)} of the ${votes} votes at a Council of Governors meeting on ${councilTurns.length === 1 ? "turn" : "turns"} ${andList(councilTurns.map(String))}.`;
+      : `The Council of Governors meets on ${councilTurns.length === 1 ? "turn" : "turns"} ${andList(councilTurns.map(String))}. ${councilEndRule(votesNeeded(votes, state.nations.length), votes, councilTurns[councilTurns.length - 1])}`;
   const goods = andList(Object.keys(MINOR_DEMAND).map((key) => commodityName(key).toLowerCase()));
   return {
     goal,

@@ -13,6 +13,7 @@ import { applyTurnOrders, resolveTurn } from '@/engine/turn/resolveTurn';
 import { tryApplyOrder } from '@/engine/orders/apply';
 import { scoreOf } from '@/engine/score/score';
 import { councilVote } from '@/engine/council/council';
+import { COUNCIL } from '@/definisions/council';
 import { capitalProvinceOf, regimentsOf } from '@/engine/army/armies';
 import { GRADES, healthyWorkers, labourTotal } from '@/engine/industry/labour';
 import { tradeCapacityOf, tradeOrdersOf } from '@/engine/market/market';
@@ -45,7 +46,14 @@ export interface OvertureMade { byId: string; toId: string; overture: 'embassy' 
 export interface Disbanded { nationId: string; reason: 'order' | 'no-pay'; count: number }
 export interface RejectedOrder { nationId: string; kind: Order['kind']; reason: RejectReason }
 export interface RefusedHumanOrder { kind: Order['kind']; reason: RejectReason }
-export interface CouncilMeeting { totalVotes: number; needed: number; winnerId?: string; nominees: CouncilNominee[] }
+export interface CouncilMeeting {
+  totalVotes: number;
+  needed: number;
+  winnerId?: string;
+  nominees: CouncilNominee[];
+  /** FR-542: voluntary votes at this meeting's relations, excluding support awarded by the final compulsory ballot. */
+  earnedMinorVotes: ByNation<number>;
+}
 
 export interface TurnRecord {
   /** The turn that was resolved. */
@@ -275,9 +283,14 @@ function recordTurn(input: {
       case 'regiments-disbanded':
         record.disbands.push({ nationId: e.nationId, reason: e.reason, count: e.count });
         break;
-      case 'council-met':
-        record.council = { totalVotes: e.totalVotes, needed: e.needed, winnerId: e.winnerId, nominees: e.nominees.map(n => ({ ...n })) };
+      case 'council-met': {
+        const ordinary = councilVote(next, COUNCIL.firstTurn);
+        record.council = {
+          totalVotes: e.totalVotes, needed: e.needed, winnerId: e.winnerId, nominees: e.nominees,
+          earnedMinorVotes: Object.fromEntries((ordinary?.nominees ?? []).map(n => [n.nationId, n.otherMinorNations])),
+        };
         break;
+      }
       case 'goods-sold':
         if (e.counterpartyId !== undefined && isGreatPower(next, e.counterpartyId)) {
           record.unitsTradedBetweenGreatPowers += e.amount;

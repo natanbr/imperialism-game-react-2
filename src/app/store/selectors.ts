@@ -37,10 +37,16 @@ export const selectFoodForecast = createSelector(
   (game, activeNationId) => foodForecast(game, activeNationId)
 );
 
-/** The active nation's score now (FR-075). */
+/** Recorded scores after game over, live scores during play. Both tables are already ranked (FR-106, FR-544). */
+export const selectScoreTable = createSelector(
+  [(state: GameStore) => state.game],
+  (game) => game.gameOver?.scores ?? scoreTable(game)
+);
+
+/** The active nation's row in the same ranking shown in the Nation panel (FR-075). */
 export const selectActiveScore = createSelector(
-  [(state: GameStore) => state.game, selectActiveNationId],
-  (game, activeNationId) => scoreOf(game, activeNationId)
+  [selectScoreTable, selectActiveNationId, (state: GameStore) => state.game],
+  (scores, activeNationId, game) => scores.find(score => score.nationId === activeNationId) ?? scoreOf(game, activeNationId)
 );
 
 /** The active nation's army upkeep at End Turn and the cash it will find (FR-261). */
@@ -64,9 +70,6 @@ export const selectMarchArrows = createSelector([(state: GameStore) => state.gam
 export const selectAttackArrows = createSelector([(state: GameStore) => state.game, selectActiveNationId], (game, activeNationId) =>
   attackArrows(game, activeNationId)
 );
-
-/** Every nation's score now, highest first, ties in founding order (FR-106). */
-export const selectScoreTable = createSelector([(state: GameStore) => state.game], (game) => scoreTable(game));
 
 export const selectActiveNationCapacity = createSelector(
     [selectActiveNation],

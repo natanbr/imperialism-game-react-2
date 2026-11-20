@@ -6,6 +6,8 @@ import type { Score } from "@/types/Score";
 import { BUILDINGS } from "@/definisions/industryBuildings";
 import { SCORE_WEIGHTS } from "@/definisions/scoreWeights";
 import { constructionCost, DEVELOPMENT_COST } from "@/definisions/workPrices";
+import { isConqueredProvince } from "../world/provinces";
+import { collectingHub } from "../systems/logisticsSystem";
 import { nationById } from "../orders/queries";
 
 /** Capacity of the capped buildings; food processing has none, this turn's expansions count next turn. */
@@ -23,16 +25,22 @@ const levelWorth = (level: number): number =>
   SCORE_WEIGHTS.levelPoints.slice(0, Math.max(0, Math.floor(level))).reduce((sum, points) => sum + points, 0);
 
 /** Resource levels on the nation's tiles and their points; an undiscovered resource gives nothing. */
-function developmentOf(state: GameState, nationId: string): { levels: number; points: number } {
+function developmentOf(state: GameState, nationId: string) {
+  const conquered = new Set(state.provinces.filter(p => p.ownerId === nationId && isConqueredProvince(p)).map(p => p.id));
+  let uncollectedLevels = 0;
   let levels = 0;
   let points = 0;
   for (const tile of state.map.tiles.flat()) {
     if (tile.ownerNationId !== nationId || !tile.resource || tile.resource.discovered === false) continue;
     const level = Math.max(0, tile.resource.level ?? 0);
+    if (level > 0 && tile.provinceId && conquered.has(tile.provinceId) && !collectingHub(state, nationId, tile.id)) {
+      uncollectedLevels += level;
+      continue;
+    }
     levels += level;
     points += levelWorth(level);
   }
-  return { levels, points };
+  return { levels, points, uncollectedLevels };
 }
 
 /**
@@ -58,7 +66,7 @@ export function scoreOf(state: GameState, nationId: string): Score {
   const nation = nationById(state, nationId);
   const treasury = nation?.treasury ?? 0;
   const capacity = nation ? capacityOf(nation) : 0;
-  const development = nation ? developmentOf(state, nationId) : { levels: 0, points: 0 };
+  const development = nation ? developmentOf(state, nationId) : { levels: 0, points: 0, uncollectedLevels: 0 };
   const jobs = nation ? jobsOf(state, nationId) : { paid: 0, points: 0 };
   const points = {
     treasury: Math.max(0, Math.floor(treasury / SCORE_WEIGHTS.dollarsPerPoint)),
@@ -71,6 +79,7 @@ export function scoreOf(state: GameState, nationId: string): Score {
     treasury,
     capacity,
     developedLevels: development.levels,
+    ...(development.uncollectedLevels && { uncollectedConqueredLevels: development.uncollectedLevels }),
     jobsPaid: jobs.paid,
     points,
     total: points.treasury + points.industry + points.development + points.workInProgress,

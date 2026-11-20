@@ -56,9 +56,9 @@ describe('FR-481 the sim harness plays a continent game and records every turn',
     for (const t of idle.turns) expect(Object.keys(t.votes).sort()).toEqual([HUMAN_ID, COMPUTER_ID]);
     const meeting = atTurn(idle, 30)!.council!;
     expect(meeting.totalVotes).toBe(12);
-    expect(meeting.needed).toBe(9);
-    // the meeting counts the state after the turn, as the projection of that state does
-    expect(Object.fromEntries(meeting.nominees.map(n => [n.nationId, n.total]))).toEqual(atTurn(idle, 30)!.votes);
+    // FR-503: 9 -> 7 with two Great Powers. After turn 30 the HUD projects the compulsory last meeting (FR-501).
+    expect(meeting.needed).toBe(7);
+    expect(atTurn(idle, 30)!.votes).toEqual({ [COMPUTER_ID]: 7, [HUMAN_ID]: 5 }); // Previously 6 to 3 projected with three abstentions.
   });
 
   it('FR-497 the idle game has 0 rejected orders, 0 invariant violations on every turn and 0 no-pay disbands, and the audit\'s checks catch a fault', () => {
@@ -293,12 +293,12 @@ describe('FR-481 the idle game on seed 1, before M13 (2026-11-16, docs/specs/m13
     expect(atTurn(idle, 40)!.provincesHeld).toEqual({ [HUMAN_ID]: 3, [COMPUTER_ID]: 6 });
   });
 
-  it('FR-481 FR-489 the Council of turn 30 counts Valdoria 6 votes to Testland 3 of 12 (was 5 to 4), 9 needed, and no winner', () => {
+  it('FR-481 FR-489 FR-503 the Council of turn 30 counts Valdoria 6 votes to Testland 3 of 12 (was 5 to 4), 7 needed, and no winner', () => {
     const meeting = atTurn(idle, 30)!.council!;
     expect(meeting.nominees.map(n => [n.nationId, n.total])).toEqual([[COMPUTER_ID, 6], [HUMAN_ID, 3]]);
     expect(meeting.nominees.map(n => n.otherMinorNations)).toEqual([0, 0]);
     expect(meeting.winnerId).toBeUndefined();
-    expect(atTurn(idle, 30)!.votes).toEqual({ [COMPUTER_ID]: 6, [HUMAN_ID]: 3 });
+    expect(meeting.needed).toBe(7);
   });
 
   it('FR-481 no unit is traded between the Great Powers in 40 turns', () => {

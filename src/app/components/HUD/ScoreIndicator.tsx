@@ -2,7 +2,7 @@ import React, { useId, useLayoutEffect, useRef, useState } from "react";
 import { ordinal } from "@/engine";
 import { useGameStore } from "@/store/rootStore";
 import { selectActiveScore, selectScoreTable } from "@/store/selectors";
-import { leftInWindow, scoreParts } from "./hudView";
+import { leftInWindow, scoreParts, uncollectedScoreText } from "./hudView";
 
 /**
  * The active nation's score total (FR-075). Hover or focus shows its parts as visible text (FR-404), work in progress
@@ -15,6 +15,7 @@ export const ScoreIndicator: React.FC = () => {
   const score = useGameStore(selectActiveScore);
   const { treasury, industry, development, workInProgress } = score.points;
   const [open, setOpen] = useState(false);
+  const excluded = uncollectedScoreText(score);
   const partsId = useId();
   const host = useRef<HTMLDivElement>(null);
   const parts = useRef<HTMLDivElement>(null);
@@ -53,6 +54,7 @@ export const ScoreIndicator: React.FC = () => {
               {name} {points}
             </div>
           ))}
+          {excluded && <div>{excluded}</div>}
           <div>Investments count at their price until they are done.</div>
         </div>
       )}

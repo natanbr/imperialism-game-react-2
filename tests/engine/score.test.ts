@@ -1,6 +1,7 @@
 // FR-067: the score, a pure query over the state.
 import { describe, it, expect } from 'vitest';
 import { scoreOf, scoreTable } from '@/engine/score/score';
+import { transferProvince } from '@/engine/world/provinces';
 import { newGame } from '@/engine/newGame';
 import { applyOrder } from '@/engine/orders/apply';
 import { resolveTurn } from '@/engine/turn/resolveTurn';
@@ -150,5 +151,40 @@ describe('M12 FR-402 ordering a job does not lower the score (work in progress)'
     };
     expect(rail(TerrainType.Tundra)).toBe(1);
     expect(rail(TerrainType.Swamp)).toBe(3);
+  });
+});
+
+
+describe('FR-505 development in conquered provinces', () => {
+  const start = newGame({ seed: 1, world: 'continent' });
+  const taken = transferProvince(start, 'province-minor-1', N1);
+  const home = scoreOf(start, N1);
+
+  it('FR-505 Arvelia adds no development until its new owner collects it, including after loading a version-1 province', () => {
+    const legacy = { ...taken, provinces: taken.provinces.map(({ id, name, seatTileId, ownerId, tileIds }) =>
+      ({ id, name, seatTileId, ownerId, tileIds })) };
+    expect(scoreOf(deepFreeze(legacy), N1)).toMatchObject({
+      developedLevels: home.developedLevels, points: { development: home.points.development }, uncollectedConqueredLevels: 11,
+    });
+  });
+
+  it('FR-505 a collecting depot or port restores only the levels it reaches, and only while active', () => {
+    for (const kind of ['depots', 'ports'] as const) {
+      for (const isActive of [true, false]) {
+        const network = { graph: {}, depots: [], ports: [], [kind]: [{ x: 11, y: 4, isActive }] };
+        const connected = { ...taken, transportNetwork: { ...taken.transportNetwork, railroadNetworks: { [N1]: network } } };
+        expect(scoreOf(connected, N1)).toMatchObject({
+          developedLevels: home.developedLevels + (isActive ? 6 : 0),
+          points: { development: home.points.development + (isActive ? 60 : 0) },
+          uncollectedConqueredLevels: isActive ? 5 : 11,
+        });
+      }
+    }
+  });
+
+  it('FR-505 recapturing home land restores its original score even without a collector', () => {
+    const lost = transferProvince(start, 'province-nation-1-ne', N2);
+    const restored = transferProvince(lost, 'province-nation-1-ne', N1);
+    expect(scoreOf(restored, N1)).toEqual(home);
   });
 });

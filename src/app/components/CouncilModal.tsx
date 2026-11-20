@@ -135,6 +135,8 @@ const CouncilReport: React.FC<{ event: CouncilMetEvent }> = ({ event }) => {
         <p className={styles.note} data-testid="council-needed">
           {view.needed}
         </p>
+        {view.lastMeeting && <p className={styles.note}>{view.lastMeeting}</p>}
+        {view.decision && <p className={styles.note}>{view.decision}</p>}
         {won ? (
           // FR-415: another nation's win reads as our loss, in the theme's bad colour
           <h3 className={view.lost ? styles.lost : styles.winner} data-testid="council-result">

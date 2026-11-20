@@ -1,6 +1,6 @@
 // The score (FR-067) and the end of the game (FR-068).
 import type { NationId } from "./Common";
-import type { CouncilVote } from "./Council";
+import type { CouncilDecision, CouncilVote } from "./Council";
 
 export interface Score {
   nationId: NationId;
@@ -10,6 +10,8 @@ export interface Score {
   capacity: number;
   /** Resource levels on the nation's own tiles (a level-2 farm counts 2). */
   developedLevels: number;
+  /** Known levels in conquered provinces outside the owner's collection network (FR-505). */
+  uncollectedConqueredLevels?: number;
   /** FR-402: the cash paid for the nation's development and construction jobs not yet finished. */
   jobsPaid: number;
   /**
@@ -36,4 +38,6 @@ export interface GameOver {
   winnerId?: NationId;
   /** FR-295: the vote that elected `winnerId`, with `reason` "council". */
   council?: CouncilVote;
+  /** FR-502: the deciding rule of a Council win, when recorded. */
+  decidedBy?: CouncilDecision;
 }

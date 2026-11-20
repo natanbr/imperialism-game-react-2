@@ -5,7 +5,10 @@ export const COUNCIL = {
   /** FR-290 (Q50): the first meeting turn (Summer 1817), then one every `interval` turns up to the turn limit. */
   firstTurn: 10,
   interval: 10,
-  /** FR-293 (Q52): a free minor votes only for a nominee with at least these relation points (level 5, "level 6 of 9"). */
+  /** FR-503 (Q121): a winner must exceed the share, with abstaining governors included in the denominator. */
+  twoPowerVoteShare: { numerator: 1, denominator: 2 },
+  standardVoteShare: { numerator: 2, denominator: 3 },
+  /** FR-293 (Q52): the relation floor at meetings before the forced final vote. */
   minRelationPoints: 50,
   /** FR-291 (Q54): standing = score + provinceWeight x provinces + floor(militaryWeight x military strength). */
   provinceWeight: 100,

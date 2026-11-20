@@ -77,6 +77,12 @@ export const scoreParts = ({ treasury, industry, development, workInProgress }: 
   ["Work in progress", workInProgress],
 ];
 
+/** FR-505: show why known resource levels on conquered land are missing from Development. */
+export const uncollectedScoreText = (score: Score): string | undefined => {
+  const levels = score.uncollectedConqueredLevels;
+  return levels ? `Conquered land not collected: ${levels} ${levels === 1 ? "level" : "levels"}, 0 points` : undefined;
+};
+
 /**
  * What hangs from the top bar (New game's question FR-480, the score's parts FR-530): its left edge at its anchor's,
  * moved left as far as the window's right edge needs, and never closer than `margin` px to either edge.

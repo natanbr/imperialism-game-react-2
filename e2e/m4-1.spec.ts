@@ -1,4 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
+import { startSeededGame } from './seededGame';
 
 // M4.1 in the running app. FR-122 after 15 End Turns Valdoria (island 2, capital 14-9) has a depot joined
 // to its capital by a few rail lines; FR-121 the market and the capital show commodity pictures (M11 FR-331: the art
@@ -17,8 +18,7 @@ function collectErrors(page: Page): string[] {
   return errors;
 }
 
-async function start(page: Page) {
-  await page.goto('/');
+async function expectStart(page: Page) {
   await expect(page.getByTestId('map-scroll')).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
   await expect(tile(page, '2-9')).toBeInViewport({ timeout: 15000 });
 }
@@ -26,7 +26,8 @@ async function start(page: Page) {
 test('FR-122 after 15 End Turns Valdoria has a connected depot and a few rail lines, no mesh', async ({ page }) => {
   test.setTimeout(150000);
   const errors = collectErrors(page);
-  await start(page);
+  await startSeededGame(page);
+  await expectStart(page);
   for (let turn = 2; turn <= 16; turn++) {
     await page.getByRole('button', { name: /Advance Turn/ }).click();
     await expect(page.getByTestId('turn-indicator')).toContainText(`Turn: ${turn} of`);
@@ -57,7 +58,8 @@ test('FR-122 after 15 End Turns Valdoria has a connected depot and a few rail li
 test('FR-121 FR-119 the market and the capital show commodity icons; a card shows what will be made', async ({ page }) => {
   test.setTimeout(90000);
   const errors = collectErrors(page);
-  await start(page);
+  await page.goto('/');
+  await expectStart(page);
 
   // FR-194: the continent's market is "partners", so the market dialog is the Board of Trade
   await page.getByRole('button', { name: /Open Market/ }).click();

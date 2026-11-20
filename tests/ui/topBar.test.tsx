@@ -87,13 +87,14 @@ describe('FR-466 the top bar: nation, turn, cash, score, then the buttons, Advan
     for (const name of BUTTONS) expect(screen.getByRole('button', { name }), name).toBeTruthy();
   });
 
+  // FR-506: date alone -> threshold first, so the winning count stays visible when the bar truncates a long date.
   it('FR-466 turn 1: "Turn: 1 of 40 Spring 1815", "Next Council: turn 10 (Summer 1817)", "Cash: $10,000" with no change line, the score and its rank', () => {
     const s = continent();
     expect(s.nations.find((n) => n.id === N1)!.treasury).toBe(10000);
     show(s);
     render(<TopBar />);
     expect(text(screen.getByTestId('turn-indicator'))).toBe('Turn: 1 of 40 Spring 1815');
-    expect(text(screen.getByTestId('next-council'))).toBe('Next Council: turn 10 (Summer 1817)');
+    expect(text(screen.getByTestId('next-council'))).toBe('7 of 12 votes wins · Council: turn 10 (Summer 1817). This threshold applies at any meeting. At the last meeting (turn 40) a free minor votes unless it is at war with both nominees, and the nominee with more votes wins (equal votes: higher standing).');
     expect(text(screen.getByTestId('topbar-cash').querySelector('.nation-stats')!)).toBe('Cash: $10,000');
     expect(screen.queryByTestId('cash-change')).toBeNull();
     const table = scoreTable(s);
@@ -443,7 +444,7 @@ describe('M12b review: what hangs from the bar, and keyboard use (A11Y-2, A11Y-4
     show(continent());
     render(<TopBar />);
     const council = screen.getByTestId('next-council');
-    expect(council.getAttribute('title')).toBe('Next Council: turn 10 (Summer 1817)');
+    expect(council.getAttribute('title')).toBe('7 of 12 votes wins · Council: turn 10 (Summer 1817). This threshold applies at any meeting. At the last meeting (turn 40) a free minor votes unless it is at war with both nominees, and the nominee with more votes wins (equal votes: higher standing).');
     expect(council.getAttribute('title')).toBe(text(council));
     const title = document.querySelector('.hud-title')!;
     expect(title.getAttribute('title')).toBe('Testland');

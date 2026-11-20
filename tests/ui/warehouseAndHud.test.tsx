@@ -148,6 +148,7 @@ describe('FR-048 FR-049 HUD', () => {
 // the turn-40 meeting and after game over. QA fix round: the projection shown (FR-314), the player's nation first, a player
 // that is not a nominee the standing order (FR-313).
 describe('FR-301 the next Council in the HUD', () => {
+  // FR-503/506: on two-power worlds nine votes became seven. Show that threshold before the date; preserve both in the title.
   /** The text of the elements an element's aria-describedby names: its accessible description. */
   const description = (el: HTMLElement): string =>
     (el.getAttribute('aria-describedby') ?? '')
@@ -155,7 +156,7 @@ describe('FR-301 the next Council in the HUD', () => {
       .filter(Boolean)
       .map((id) => document.getElementById(id)?.textContent ?? '')
       .join(' ');
-  const PROJECTION = 'If it met now: Testland 4, Valdoria 4, abstain 4 of 12; 9 needed';
+  const PROJECTION = 'If it met now: Testland 4, Valdoria 4, abstain 4 of 12; 7 needed';
   // M12b T2 (docs/specs/hud.md section 2b): the line goes to the top bar's turn block and the projection to the pane's Nation
   // group, so they are two components now; these tests render both (was <NextCouncil /> alone), assertions unchanged
   const Council = () => (
@@ -169,13 +170,13 @@ describe('FR-301 the next Council in the HUD', () => {
     show(continent());
     render(<><TurnIndicator /><Council /></>);
     const line = screen.getByTestId('next-council');
-    expect(text(line)).toBe('Next Council: turn 10 (Summer 1817)');
+    expect(text(line)).toBe('7 of 12 votes wins · Council: turn 10 (Summer 1817). This threshold applies at any meeting. At the last meeting (turn 40) a free minor votes unless it is at war with both nominees, and the nominee with more votes wins (equal votes: higher standing).');
     const projection = screen.getByTestId('council-projection');
     expect(text(projection)).toBe(PROJECTION);
     // Shown, not only a hover title (QA item 4): not in a title, not hidden, the line's accessible description. Pin moved
     // (M12b review A11Y-5, old -> new): "the line has no title" -> "its title is its own text, never the projection": in a
     // narrow top bar the line ends in an ellipsis, and the title gives the cut text back
-    expect(line.getAttribute('title')).toBe('Next Council: turn 10 (Summer 1817)');
+    expect(line.getAttribute('title')).toBe('7 of 12 votes wins · Council: turn 10 (Summer 1817). This threshold applies at any meeting. At the last meeting (turn 40) a free minor votes unless it is at war with both nominees, and the nominee with more votes wins (equal votes: higher standing).');
     expect(line.getAttribute('title')).not.toContain('If it met now');
     expect(projection.closest('[hidden]')).toBeNull();
     expect(description(line)).toBe(PROJECTION);
@@ -187,26 +188,26 @@ describe('FR-301 the next Council in the HUD', () => {
   it('FR-301 on turn 11 "Next Council: turn 20 (Winter 1819)"; on a meeting turn "Council: this turn"', () => {
     show({ ...continent(), turn: 11, year: 1817 });
     const { rerender } = render(<NextCouncil />);
-    expect(text(screen.getByTestId('next-council'))).toBe('Next Council: turn 20 (Winter 1819)');
+    expect(text(screen.getByTestId('next-council'))).toBe('7 of 12 votes wins · Council: turn 20 (Winter 1819). This threshold applies at any meeting. At the last meeting (turn 40) a free minor votes unless it is at war with both nominees, and the nominee with more votes wins (equal votes: higher standing).');
 
     act(() => show({ ...continent(), turn: 10, year: 1817 }));
     rerender(<NextCouncil />);
-    expect(text(screen.getByTestId('next-council'))).toBe('Council: this turn');
+    expect(text(screen.getByTestId('next-council'))).toBe('7 of 12 votes wins · Council: this turn. This threshold applies at any meeting. At the last meeting (turn 40) a free minor votes unless it is at war with both nominees, and the nominee with more votes wins (equal votes: higher standing).');
 
     act(() => show({ ...continent(), turn: 40, year: 1824 }));
     rerender(<NextCouncil />);
-    expect(text(screen.getByTestId('next-council'))).toBe('Council: this turn');
+    expect(text(screen.getByTestId('next-council'))).toBe('7 of 12 votes wins · Council: this turn. This threshold applies at any meeting. At the last meeting (turn 40) a free minor votes unless it is at war with both nominees, and the nominee with more votes wins (equal votes: higher standing).');
 
     act(() => show({ ...continent(), turn: 31, year: 1822 }));
     rerender(<NextCouncil />);
-    expect(text(screen.getByTestId('next-council'))).toBe('Next Council: turn 40 (Winter 1824)');
+    expect(text(screen.getByTestId('next-council'))).toBe('7 of 12 votes wins · Council: turn 40 (Winter 1824). This threshold applies at any meeting. At the last meeting (turn 40) a free minor votes unless it is at war with both nominees, and the nominee with more votes wins (equal votes: higher standing).');
   });
 
   it("FR-301 FR-313 the projection follows the game, the player's nation first: Valdoria, the 1st nominee holding Testland North-East, reads second", () => {
     show(transferProvince(continent(), NE1, N2));
     render(<Council />);
     const line = screen.getByTestId('next-council');
-    expect(text(screen.getByTestId('council-projection'))).toBe('If it met now: Testland 3, Valdoria 5, abstain 4 of 12; 9 needed');
+    expect(text(screen.getByTestId('council-projection'))).toBe('If it met now: Testland 3, Valdoria 5, abstain 4 of 12; 7 needed');
     expect(description(line)).toBe(text(screen.getByTestId('council-projection')));
   });
 
@@ -224,7 +225,51 @@ describe('FR-301 the next Council in the HUD', () => {
   it('FR-313 FR-314 the projection counts the abstentions: Sundmark at 52 with Testland votes, 3 abstain', () => {
     show(setPair(continent(), SUNDMARK, N1, { points: 52 }));
     render(<Council />);
-    expect(text(screen.getByTestId('council-projection'))).toBe('If it met now: Testland 5, Valdoria 4, abstain 3 of 12; 9 needed');
+    expect(text(screen.getByTestId('council-projection'))).toBe('If it met now: Testland 5, Valdoria 4, abstain 3 of 12; 7 needed');
+  });
+
+  it('FR-501 FR-502 FR-543 the final forecast explains a 5–4 win with three abstentions below the seven-vote threshold', () => {
+    let state = setPair(continent(), SUNDMARK, N1, { points: 52 });
+    for (const minor of state.minorNations.filter(m => m.id !== SUNDMARK)) {
+      for (const nominee of [N1, N2]) {
+        state = setPair(state, minor.id, nominee, { war: { aggressors: [nominee], since: 1 } });
+      }
+    }
+    show({ ...state, turn: 30 });
+    render(<Council />);
+    const projection = screen.getByTestId('council-projection');
+    expect(text(projection)).toBe('If it met now: Testland 5, Valdoria 4, abstain 3 of 12; 7 needed');
+
+    act(() => show({ ...state, turn: 31 }));
+    expect(text(projection)).toBe('If it met now: Testland 5, Valdoria 4, abstain 3 of 12; Testland wins on votes');
+    expect(description(screen.getByTestId('next-council'))).toBe(text(projection));
+  });
+
+  it('FR-502 FR-543 a tied final forecast names the winner by standing or turn order', () => {
+    let state = continent();
+    for (const [index, minor] of state.minorNations.entries()) {
+      state = setPair(state, minor.id, index < 2 ? N1 : N2, { points: 40 });
+    }
+    show({ ...setTreasury(state, N2, 100_000), turn: 40 });
+    render(<Council />);
+    const projection = screen.getByTestId('council-projection');
+    expect(text(projection)).toBe('If it met now: Testland 6, Valdoria 6, abstain 0 of 12; Valdoria wins on standing');
+
+    act(() => show({ ...state, turn: 40 }));
+    expect(text(projection)).toBe('If it met now: Testland 6, Valdoria 6, abstain 0 of 12; Valdoria wins by turn order');
+  });
+
+  it('FR-503 FR-543 an outright win names the nominee who reaches the threshold at either meeting', () => {
+    let state = continent();
+    for (const minor of state.minorNations.slice(0, 3)) {
+      state = setPair(state, minor.id, N1, { points: 55 });
+    }
+    show({ ...state, turn: 30 });
+    render(<Council />);
+    const projection = screen.getByTestId('council-projection');
+    expect(text(projection)).toMatch(/Testland reaches the 7-vote threshold$/);
+    act(() => show({ ...state, turn: 31 }));
+    expect(text(projection)).toMatch(/Testland reaches the 7-vote threshold$/);
   });
 
   it('FR-301 when councilVote gives no vote (fewer than two Great Powers holding a province) the line shows without a tooltip or a description (review R7)', () => {

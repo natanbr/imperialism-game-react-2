@@ -7,6 +7,7 @@ import { Order } from '@/engine/orders/Order';
 import { validateOrder } from '@/engine/orders/validate';
 import { scoreTable } from '@/engine/score/score';
 import { turnLimitOf } from '@/engine/turn/gameOver';
+import { finalStandings } from '@/engine/council/council';
 import { resolveTurn } from '@/engine/turn/resolveTurn';
 import { seasonOf } from '@/engine/calendar';
 import { GameState } from '@/types/GameState';
@@ -127,9 +128,39 @@ describe('FR-295 the Council of Governors can end the game (M10)', () => {
     return ['minor-2', 'minor-3', 'minor-4'].reduce((acc, minorId) => setPair(acc, minorId, N1, { points: 60 }), s);
   }
 
-  it('FR-295 FR-068 a continent game whose turn-40 Council has no winner ends by the turn limit, the record as FR-068', () => {
-    const { state } = resolve(continentOn(40, 1824, false));
-    expect(state.gameOver).toEqual({ turn: 40, year: 1824, scores: scoreTable(state) });
+  it('FR-502 an even final vote records the winning nation and the standing decision', () => {
+    const split = ['minor-1', 'minor-2', 'minor-3', 'minor-4'].reduce(
+      (s, minor, i) => setPair(s, minor, i < 2 ? N1 : N2, { points: 40 }), continentOn(40, 1824, false),
+    );
+    const { state } = resolve(split);
+    // Turn-limit result -> a Council decision on standing even at six votes each (Q122).
+    const over = state.gameOver!;
+    expect(over).toMatchObject({ turn: 40, year: 1824, reason: 'council', decidedBy: 'standing', scores: scoreTable(state) });
+    expect(over.winnerId).toBe(over.council!.nominees[0].nationId);
+    expect(over.council).toMatchObject({ winnerId: over.winnerId, decidedBy: 'standing', nominees: [{ total: 6 }, { total: 6 }] });
+  });
+
+  it('FR-504 FR-508 a legacy points finish keeps the score leader first even if another power has higher standing', () => {
+    const state = transferProvince(continentOn(40, 1824, false), 'province-nation-1-ne', N2);
+    const scores = [N1, N2].map((id, index) => ({ ...scoreTable(state).find(s => s.nationId === id)!, total: 500 - index }));
+    const standings = finalStandings(state, { turn: 40, year: 1824, scores });
+    expect(standings.map(row => row.score.nationId)).toEqual([N1, N2]);
+    expect(standings[1].standing).toBeGreaterThan(standings[0].standing);
+  });
+
+  it('FR-504 final standings put the winner first and rank all remaining powers by standing using the saved score', () => {
+    const base = continentOn(40, 1824, false);
+    const third = { ...base.nations[1], id: 'nation-3', colorSlot: 3 };
+    const state = { ...base, nations: [...base.nations, third] };
+    const scores = scoreTable(state).map(score => ({ ...score, total: score.nationId === third.id ? 300 : 240 }));
+    // The third nation has the highest saved score, but holds no provinces and has no army.
+    for (const reason of ['council', 'conquest'] as const) {
+      const over = { turn: 40, year: 1824, winnerId: N2, reason, scores };
+      const standings = finalStandings(state, over);
+      expect(standings.map(n => [n.score.nationId, n.score.total, n.provinces, n.military, n.standing])).toEqual([
+        [N2, 240, 4, 36, 1000], [N1, 240, 4, 36, 1000], [third.id, 300, 0, 0, 300],
+      ]);
+    }
   });
 
   it('FR-295 a Council winner ends the game on a meeting turn before the last: reason council, the winner, the vote', () => {

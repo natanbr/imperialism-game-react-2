@@ -149,7 +149,8 @@ describe('FR-473 the right pane groups', () => {
 });
 
 describe('FR-474 the Nation group', () => {
-  const PROJECTION = 'If it met now: Testland 4, Valdoria 4, abstain 4 of 12; 9 needed';
+  // FR-503: the two-power threshold is seven rather than the old nine. The projected ballots stay 4-4.
+  const PROJECTION = 'If it met now: Testland 4, Valdoria 4, abstain 4 of 12; 7 needed';
 
   it('FR-474 the Council projection (the next-council line describes it by id), the score parts, the score table and the army upkeep', () => {
     const state = continent();

@@ -1,8 +1,7 @@
 import React, { useMemo } from "react";
-import { councilVote, nextCouncilTurn, turnLimitOf, yearOfTurn } from "@/engine";
+import { councilVote, lastCouncilTurn, nextCouncilTurn, turnLimitOf, yearOfTurn } from "@/engine";
 import { useGameStore } from "@/store/rootStore";
-import type { GameState } from "@/types/GameState";
-import { councilProjectionText, dateText } from "../gameText";
+import { councilEndRule, councilProjectionText, dateText } from "../gameText";
 
 /**
  * The id of the Council projection, the next-council line's accessible description. The line sits in the top bar and the
@@ -12,17 +11,24 @@ import { councilProjectionText, dateText } from "../gameText";
 export const COUNCIL_PROJECTION_ID = "council-projection-text";
 
 /** The next meeting's turn and the vote the Council would give now, the player's nation first; undefined when none. */
-function useCouncil(): { next: number | undefined; projection: string | undefined; game: GameState } {
+function useCouncil() {
   const game = useGameStore((s) => s.game);
   const playerId = useGameStore((s) => s.activeNationId);
-  const projection = useMemo(() => {
+  return useMemo(() => {
+    const next = nextCouncilTurn(game);
+    if (next === undefined) return undefined;
+    const thisTurn = next === game.turn;
+    const meeting = thisTurn ? "Council: this turn" : `Council: turn ${next} (${dateText(next, yearOfTurn(game, next))})`;
     const vote = councilVote(game);
-    if (!vote) return undefined;
+    const last = lastCouncilTurn(game);
+    if (!vote || last === undefined) return { line: thisTurn ? meeting : `Next ${meeting}` };
     const nameOf = (id: string) => game.nations.find((n) => n.id === id)?.name ?? id;
-    return councilProjectionText(vote, playerId, nameOf);
+    return {
+      line: councilEndRule(vote.needed, vote.totalVotes, last, meeting),
+      projection: councilProjectionText(vote, playerId, nameOf),
+      rule: councilEndRule(vote.needed, vote.totalVotes, last),
+    };
   }, [game, playerId]);
-  // No meeting is shown after game over
-  return { next: game.gameOver ? undefined : nextCouncilTurn(game), projection, game };
 }
 
 /**
@@ -31,13 +37,12 @@ function useCouncil(): { next: number | undefined; projection: string | undefine
  * vote. Nothing on a world without provinces (two-islands), after the last meeting and after game over.
  */
 export const NextCouncil: React.FC = () => {
-  const { next, projection, game } = useCouncil();
-  if (next === undefined) return null;
-  const text = next === game.turn ? "Council: this turn" : `Next Council: turn ${next} (${dateText(next, yearOfTurn(game, next))})`;
+  const council = useCouncil();
+  if (!council) return null;
   // The title: in a narrow bar the line ends in an ellipsis, and the meeting's turn is shown nowhere else (M12b review A11Y-5)
   return (
-    <div className="next-council" data-testid="next-council" title={text} aria-describedby={projection ? COUNCIL_PROJECTION_ID : undefined}>
-      {text}
+    <div className="next-council" data-testid="next-council" title={council.line} aria-describedby={council.projection ? COUNCIL_PROJECTION_ID : undefined}>
+      {council.line}
     </div>
   );
 };
@@ -48,12 +53,16 @@ export const NextCouncil: React.FC = () => {
  * the Council would vote.
  */
 export const CouncilProjection: React.FC = () => {
-  const { next, projection } = useCouncil();
-  if (next === undefined || !projection) return null;
+  const council = useCouncil();
+  if (!council?.projection) return null;
   return (
-    <div id={COUNCIL_PROJECTION_ID} className="council-projection" data-testid="council-projection">
-      {projection}
-    </div>
+    <>
+      <div id={COUNCIL_PROJECTION_ID} className="council-projection" data-testid="council-projection">{council.projection}</div>
+      <details className="council-projection">
+        <summary>Council voting rules</summary>
+        {council.rule}
+      </details>
+    </>
   );
 };
 

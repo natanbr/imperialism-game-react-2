@@ -407,7 +407,7 @@ store.advanceTurn()                                      (tests and headless run
        advanceClock        turn + 1, year + 1 after winter (turn 1 = Spring 1815)
        conquest?           one Great Power left: gameOver reason "conquest" (M9), no Council
        Council?            turn 10, 20, 30, 40 with provinces: council-met on the state after the clock;
-                           a winner (9 of 12): gameOver reason "council" with the vote (M10)
+                           a winner (7 of 12 with two powers): gameOver reason "council" with the vote and decidedBy (M14)
        last turn?          turn == turnLimit (40): gameOver = { turn, year, scores }, game-over event
   <- { state, events }
   -> game = state; eventLog += { turn, year, events }; orderLog += one entry per nation
@@ -533,6 +533,12 @@ training) and what the standing orders and this turn's cars commit.
   reach hills, swamp and mountains. The technology state is shared by all nations in v1. The test
   fixtures start with no technology, so the FR-030 site rules keep their tests.
 
+The last scheduled Council forces each free minor to choose between the nominees it is at peace with,
+by relation points, then standing. The vote threshold is a strict majority for a two-power world and
+more than two thirds for three or more. A final Council below threshold decides by vote count, standing,
+then intent order. Its vote, event and game-over record carry the optional decision reason. Version-1
+saves without the reason retain their historic result.
+
 ## World market, score and game over
 
 - One market per game (`GameState.market`, `types/Market.ts`), shared by every nation:
@@ -582,6 +588,9 @@ training) and what the standing orders and this turn's cars commit.
   `pointsPerLevel` stays for the scripted player's FR-131 rule only); work in progress is floor(price / 100) of every
   unfinished development or construction job whose worker belongs to the nation (FR-402; prospecting has no price),
   so ordering a job does not lower the score.
+  M14 counts conquered development only in reach of the current owner's collecting hubs (FR-391).
+  A province records its founding owner. A version-1 continent save without that field retains the
+  founding country in its province ID. Home provinces regain ordinary scoring when recaptured.
 - Game over (`engine/turn/gameOver.ts`): `turnLimitOf(state)` (`newGame({ seed, turnLimit })`,
   default 40 = Winter 1824); resolving that turn sets `gameOver = { turn, year, scores }`; after it
   `validateOrder` refuses everything with `game-over` and `resolveTurn` is a no-op.
@@ -677,7 +686,7 @@ open dialog answer the keys (Diplomacy over Capital, the transport plan inside C
 shown inside a dialog can take Escape first with `useEscapeFirst` (a context of the dialog: the war
 question keeps the peace wherever the focus is). About
 renders into `document.body` (`portal`), since the HUD clips it. The game-over screen (`GameOverModal.tsx`)
-shows `state.gameOver.scores` whenever the game is over, unless the player closed it
+shows the recorded scores with provinces, military strength and standing (Council or conquest winner first; score order at a points finish) whenever the game is over, unless the player closed it
 (`isGameOverHidden`, reopened by the HUD's "Final scores"). After game over the HUD's Advance
 Turn is disabled and the store's `advanceTurn` returns at once, so no empty turn is logged. The End Turn key "n"
 (`hooks/useKeyboardShortcuts.ts`, mounted by `page.tsx`) is ignored in a form field and while any `role="dialog"` is

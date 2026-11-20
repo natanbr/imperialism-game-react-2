@@ -443,9 +443,10 @@ describe('FR-274 scripted war on minors', () => {
       expect(met.length, JSON.stringify(runs.map(r => [r.seed, r.declared, r.colonised]))).toBeGreaterThanOrEqual(3);
     });
 
-    it('FR-302 FR-305 on the default (partners) market the Council meets 4 times with no winner; the colony Valdoria won by FR-274 votes for it as Colonies at the turn-30 and turn-40 meetings (M10 review E1)', () => {
+    it('FR-302 FR-305 FR-510 the fourth partners-market Council elects Valdoria; conquered Arvelia votes as its colony', () => {
+      // FR-501/502: no winners and four turn-limit endings -> four final Council wins for Valdoria.
       expect(runs.map(r => [r.seed, r.councils.map(c => [c.turn, c.winnerId ?? null]), r.endReason ?? null])).toEqual(
-        SEEDS.map(seed => [seed, [[10, null], [20, null], [30, null], [40, null]], null])
+        SEEDS.map(seed => [seed, [[10, null], [20, null], [30, null], [40, N2]], 'council'])
       );
       const colonies = (r: Run) => r.councils.map(c => [c.turn, councilCell(c, N2, 'colonies')]);
       // Every seed colonises Arvelia on turn 18 (FR-274's acceptance), so Valdoria votes for it from the turn-20 meeting.

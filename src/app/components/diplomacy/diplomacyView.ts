@@ -8,8 +8,10 @@ import {
   GRANT_AMOUNTS,
   GRANT_POINTS,
   isMilitia,
+  isLastMeeting,
   marketModeOf,
   militaryStrength,
+  nextCouncilTurn,
   OVERTURE_COST,
   OVERTURES,
   pendingProposalsFor,
@@ -411,7 +413,13 @@ function voteOf(state: GameState, nationId: NationId, id: CountryId, kind: Count
   const points = (gp: NationId) => relationOf(state, gp, id)?.points ?? 0;
   const rivals = state.nations.filter((n) => n.id !== nationId);
   const withEach = [`${points(nationId)} with us`, ...rivals.map((n) => `${points(n.id)} with ${n.name}`)].join(", ");
-  return `${countryName(state, id) ?? id}: ${withEach}; a vote needs ${COUNCIL.minRelationPoints} and more than the rival${rivals.length > 1 ? "s" : ""}`;
+  const relations = `${countryName(state, id) ?? id}: ${withEach}`;
+  const next = nextCouncilTurn(state);
+  if (next === undefined) return `${relations}. No further Council meeting is scheduled.`;
+  if (isLastMeeting(state, next)) {
+    return `${relations}. At the last meeting the nominee at peace with this minor with more relation points gets its vote. With equal points, the higher-ranked nominee gets it. At war with both, the minor abstains.`;
+  }
+  return `${relations}; a vote needs ${COUNCIL.minRelationPoints} and more than the rival${rivals.length > 1 ? "s" : ""}`;
 }
 
 function rowOf(state: GameState, nationId: NationId, id: CountryId, kind: CountryKind): CountryRowView {

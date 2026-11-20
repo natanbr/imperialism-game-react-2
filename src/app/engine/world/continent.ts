@@ -82,6 +82,7 @@ function greatPowerProvinces(map: GameMap, nation: Nation): Province[] {
       id: `province-${nation.id}-${suffix}`,
       name: `${nation.name} ${name}`,
       ownerId: nation.id,
+      startOwnerId: nation.id,
       seatTileId: seat,
       tileIds: own.filter((t) => quarterOf(t) === suffix).map((t) => t.id),
     };
@@ -93,6 +94,7 @@ const minorProvince = ({ id, name, capitalTileId, land }: MinorFounding): Provin
   id: `province-${id}`,
   name,
   ownerId: id,
+  startOwnerId: id,
   seatTileId: capitalTileId,
   tileIds: Object.keys(land),
 });
