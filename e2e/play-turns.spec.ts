@@ -1,4 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page } from './seededGame';
 
 // FR-025: three turns played through the UI on the order API, with no console errors.
 // Start of the two-island game (FR-080, FR-081): capital 2-9 on island 1's west shore with all seven

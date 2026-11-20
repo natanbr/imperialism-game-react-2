@@ -1,6 +1,5 @@
-import { test, expect, Page, Locator } from '@playwright/test';
+import { test, expect, Page, Locator, startSeededGame } from './seededGame';
 import { councilLineSeen } from './councilNews';
-import { startSeededGame } from './seededGame';
 
 // FR-303 (M10 done) in the running app, on a new seed-1 game at 1280x720: on turn 1 the HUD reads "Next Council: turn 10
 // (Summer 1817)" (FR-301); after 10 End Turns, on turn 11, the Council screen opens by itself (FR-299) with both nominees,

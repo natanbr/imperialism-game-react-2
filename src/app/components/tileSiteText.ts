@@ -328,6 +328,7 @@ export function collectionText(state: GameState, nationId: string, tile: Tile): 
     return "Not collected: no connected depot, port or capital next to it";
   }
   const by = hub.kind === "capital" ? "the capital" : `the ${hub.kind} at ${hub.tileId}`;
+  if (tile.terrain === TerrainType.HorseRanch) return `Collected by ${by}, 1 horse a turn`;
   const units = ResourceDevelopmentTable[resource.type]?.[resource.level] ?? 0;
   const goods = commodityName(resource.type).toLowerCase();
   return `Collected by ${by}: ${units > 0 ? `${units} ${goods} a turn` : `no ${goods} until it is developed`}`;

@@ -55,6 +55,40 @@ function offer(name: string, root: HTMLElement = tileInfo()) {
 }
 const isOff = (button: HTMLElement) => (button as HTMLButtonElement).disabled || button.getAttribute('aria-disabled') === 'true';
 
+it('FR-513 a foreign civilian keeps its public status and indicator when its owner orders it disbanded', () => {
+  const game = newGame({ seed: 1, world: 'continent' });
+  const capital = tileAt(game, '14-9');
+  const farmer = capital.workers.find(w => w.type === WorkerType.Farmer)!;
+  useGameStore.setState({ ...useGameStore.getInitialState(), game, activeNationId: N1, selectedTileId: capital.id });
+  render(<HUD />);
+  const row = within(tileInfo()).getByText('farmer - available').closest('li')!;
+  const before = row.innerHTML;
+  act(() => useGameStore.setState({ game: setTile(game, capital.id, {
+    workers: capital.workers.map(w => w.id === farmer.id ? { ...w, pendingDisband: true } : w),
+  }) }));
+  expect(row.innerHTML).toBe(before);
+  expect(within(row).queryByRole('button')).toBeNull();
+});
+
+it('FR-513 Disband asks about the lost fee and paper, and allows a confirmed order to be undone', () => {
+  const { id } = showOffers(newGame({ seed: 1 }), WorkerType.Farmer, CAPITAL);
+  const row = within(tileInfo()).getByText('farmer - available').closest('li')!;
+  const disband = within(row).getByRole('button', { name: 'Disband' });
+  fireEvent.click(disband);
+  const question = screen.getByRole('dialog', { name: 'Disband farmer?' });
+  expect(text(question)).toContain('The farmer becomes an expert worker next turn. The money and paper spent on it are not returned.');
+  fireEvent.click(within(question).getByRole('button', { name: 'Keep farmer' }));
+  expect(submitted).toEqual([]);
+  fireEvent.click(disband);
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Disband farmer' }));
+  expect(text(row)).toContain('Disbanding next turn');
+  expect(within(row).queryByTestId('job-offer')).toBeNull();
+  expect(text(screen.getByTestId('idle-civilians'))).toBe('6 civilians without orders');
+  fireEvent.click(within(row).getByRole('button', { name: 'Undo disband' }));
+  expect(text(screen.getByTestId('idle-civilians'))).toBe('7 civilians without orders');
+  expect(submitted).toEqual([{ kind: 'disbandCivilian', nationId: N1, workerId: id }, { kind: 'cancelDisbandCivilian', nationId: N1, workerId: id }]);
+});
+
 describe('FR-381 Tile Info offers only what can work, with its price', () => {
   beforeEach(() => useGameStore.setState(useGameStore.getInitialState()));
 

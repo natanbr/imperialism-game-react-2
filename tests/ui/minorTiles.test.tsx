@@ -27,6 +27,21 @@ const panel = () => screen.getByTestId('tile-info');
 // FR-370 (M12): every Tile Info holds its 'Close tile info' button, which builds no order; the other buttons are order controls
 const orderControls = (el: HTMLElement) => within(el).queryAllByRole('button').filter((b) => b.getAttribute('aria-label') !== 'Close tile info');
 
+it('FR-513 a selected civilian waiting to disband lets a land click inspect the tile without sending a move', () => {
+  const game = continent();
+  const farmer = game.map.tiles[9][2].workers.find(w => w.type === WorkerType.Farmer)!;
+  show(game, { selectedWorkerId: farmer.id, selectedTileId: '2-9' });
+  const store = useGameStore.getState();
+  expect(store.submitOrder({ kind: 'disbandCivilian', nationId: N1, workerId: farmer.id })).toEqual({ ok: true });
+  const submitted: Order[] = [];
+  useGameStore.setState({ submitOrder: order => (submitted.push(order), store.submitOrder(order)) });
+  const { container } = render(<Home />);
+  fireEvent.click(tileEl(container, '3-9'));
+  expect(submitted).toEqual([]);
+  expect(useGameStore.getState().selectedTileId).toBe('3-9');
+  expect(useGameStore.getState().selectedWorkerId).toBeUndefined();
+});
+
 describe('FR-155 a minor nation\'s tile in the tile panel', () => {
   it('FR-155 FR-235 a click on Arvelia\'s forest selects it read-only: the minor, terrain, resource and level, no province line, no button', () => {
     show(continent());

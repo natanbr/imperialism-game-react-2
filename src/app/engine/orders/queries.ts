@@ -66,7 +66,7 @@ export function holdsJob(tile: Tile, workerId: string): boolean {
 export const hasJob = (tile: Tile): boolean => !!(tile.prospecting || tile.developmentJob || tile.constructionJob);
 
 export const isWorkerBusy = (tile: Tile, worker: Worker): boolean =>
-  worker.status === WorkerStatus.Working || holdsJob(tile, worker.id);
+  !!worker.pendingDisband || worker.status === WorkerStatus.Working || holdsJob(tile, worker.id);
 
 export const hasMovedThisTurn = (worker: Worker): boolean =>
   worker.justMoved || worker.status === WorkerStatus.Moved;

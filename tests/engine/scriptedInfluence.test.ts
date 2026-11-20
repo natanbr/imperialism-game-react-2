@@ -11,7 +11,7 @@
 import { describe, it, expect } from 'vitest';
 import { newGame } from '@/engine/newGame';
 import { scriptedPlayer, upkeepReserve } from '@/engine/ai/scriptedPlayer';
-import { embassySaving, planInfluence } from '@/engine/ai/scriptedInfluence';
+import { councilTradeInputs, embassySaving, planInfluence } from '@/engine/ai/scriptedInfluence';
 import { wantedRegiment } from '@/engine/ai/scriptedArmy';
 import { computerOrders } from '@/engine/ai/players';
 import { councilCell, councilVote } from '@/engine/council/council';
@@ -49,6 +49,27 @@ function before(turn: number, points: number, rival: number, embassy = true): Ga
   s = setPair(s, N2, SUNDMARK, { points, consulates: [N2], embassies: embassy ? [N2] : [] });
   return setPair(s, N1, SUNDMARK, { points: rival });
 }
+
+it('FR-516 FR-542 spare fleet holds can support an embassy with scarce industrial inputs before the final Council', () => {
+  const start = before(31, 45, 30);
+  const expanded = { ...start, nations: start.nations.map(n => n.id === N2
+    ? { ...n, merchantMarine: { ...n.merchantMarine, ships: { indiaman: 2 }, holds: 8 } } : n) };
+  const stocks = { cotton: 0, coal: 2, ironOre: 3, timber: 20 };
+  expect(councilTradeInputs(expanded, N2, stocks)).toEqual(['cotton', 'coal', 'ironOre']);
+  expect(councilTradeInputs(start, N2, stocks)).toEqual([]);
+  expect(councilTradeInputs({ ...expanded, turn: 30 }, N2, stocks)).toEqual([]);
+  expect(councilTradeInputs(setPair(expanded, N2, SUNDMARK, { points: 50 }), N2, stocks)).toEqual([]);
+  expect(councilTradeInputs(setPair(expanded, N2, SUNDMARK, { boycotts: [N2] }), N2, stocks)).toEqual([]);
+});
+
+it('FR-516 FR-542 a second embassy can trade when the first already supports the nation or is barred', () => {
+  const start = before(31, 55, 30);
+  const expanded = { ...start, nations: start.nations.map(n => n.id === N2
+    ? { ...n, merchantMarine: { ...n.merchantMarine, ships: { indiaman: 2 }, holds: 8 } } : n) };
+  const both = setPair(expanded, N2, LORRAN, { points: 48, consulates: [N2], embassies: [N2] });
+  expect(councilTradeInputs(both, N2, {})).toEqual(['timber', 'ironOre']);
+  expect(councilTradeInputs(setPair(both, N2, SUNDMARK, { points: 45, boycotts: [N2] }), N2, {})).toEqual(['timber', 'ironOre']);
+});
 
 /** FR-542: `before` with no embassy, the other three minors at 20 points with Valdoria (below the embassy's 25). */
 function courting(turn: number, points: number, rival: number): GameState {
@@ -332,20 +353,23 @@ function idleGame(seed: number, turns: number) {
 }
 
 describe('FR-490 FR-542 real games from the start, no embassy preset (the row\'s example)', () => {
-  it('FR-542 seed 11: embassy in Sundmark on turn 25, pact on 26, a $1,000 grant on 27, before the turn-30 meeting', () => {
-    const g = idleGame(11, 30);
+  // FR-516/517: funding the ship and collecting horses changes available cash and the campaign.
+  // The pre-meeting grant example moves seed 11 -> 13: embassy 25 -> 17, pact 26 -> 18, grant 27 -> 28, points 48 -> 45.
+  it('FR-542 seed 13: a funded grant to Sundmark before the turn-30 meeting still leaves it below the vote threshold', () => {
+    const g = idleGame(13, 30);
     expect(g.startEmbassies).toBe(0);
-    expect(g.done).toEqual([`embassy ${SUNDMARK} 25`, `pact ${SUNDMARK} 26`, `grant ${SUNDMARK} $1000 27`]);
+    expect(g.done).toEqual([`embassy ${SUNDMARK} 17`, `pact ${SUNDMARK} 18`, `grant ${SUNDMARK} $1000 28`]);
     expect(g.votes[30]).toBe(0);
-    expect(g.points(SUNDMARK)).toBe(48);
+    expect(g.points(SUNDMARK)).toBe(45);
   }, 60_000);
 
-  it('FR-542 FR-510 seed 1: the embassy, pact and two grants earn Sundmark; the forced final ballot adds a second minor', () => {
+  // FR-516/517: spare cargo supports the embassy; embassy 23 -> 17, pact 24 -> 18, grants [36,37] -> [29].
+  it('FR-542 FR-510 seed 1: commerce and a funded grant earn Sundmark; the forced final ballot adds a second minor', () => {
     const g = idleGame(1, 40);
     expect(g.startEmbassies).toBe(0);
-    expect(g.done).toEqual([`embassy ${SUNDMARK} 23`, `pact ${SUNDMARK} 24`, `grant ${SUNDMARK} $1000 36`, `grant ${SUNDMARK} $1000 37`]);
-    // FR-501: 1 -> 2 final minor votes. Only Sundmark meets the ordinary 50-point rule after the grants.
-    expect(g.votes).toEqual({ 10: 0, 20: 0, 30: 0, 40: 2 });
+    expect(g.done).toEqual([`embassy ${SUNDMARK} 17`, `pact ${SUNDMARK} 18`, `grant ${SUNDMARK} $1000 29`]);
+    // FR-516/517: the earlier pact gives a turn-20 vote, 0 -> 1. The final ballot still adds a second minor (FR-501).
+    expect(g.votes).toEqual({ 10: 0, 20: 1, 30: 0, 40: 2 });
     expect(councilCell(councilVote(g.state, COUNCIL.firstTurn)!, N2, 'otherMinorNations')).toEqual(['province-minor-2']);
   }, 60_000);
 });

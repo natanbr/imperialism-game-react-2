@@ -92,7 +92,7 @@ export const leftInWindow = (anchorLeft: number, width: number, windowWidth: num
 
 /** FR-432: the player's civilians with no move or job this turn. */
 export const idleCivilianCount = (game: GameState, playerId: string): number =>
-  game.map.tiles.flat().reduce((n, tile) => n + tile.workers.filter((w) => w.nationId === playerId && w.status === WorkerStatus.Available).length, 0);
+  game.map.tiles.flat().reduce((n, tile) => n + tile.workers.filter((w) => w.nationId === playerId && w.status === WorkerStatus.Available && !w.pendingDisband).length, 0);
 
 export type WorkKind = "development" | "rail" | "depot" | "port" | "fort" | "prospecting" | "training";
 

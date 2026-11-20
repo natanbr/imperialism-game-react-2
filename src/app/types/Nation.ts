@@ -3,6 +3,8 @@ import { CityId, NationId, FleetId } from "./Common";
 import { IndustryState } from './Industry';
 import { WarehouseCommodities } from './Resource';
 import type { RegimentType } from "./Unit";
+import type { ShipCounts } from "@/definisions/ships";
+import type { UniversityCivilian } from "@/definisions/universityFees";
 
 /** Who gives a nation its orders (FR-099): the person at this client, or a scripted player. */
 export type NationController = "human" | "scripted";
@@ -29,6 +31,10 @@ export interface Nation {
   merchantMarine: {
     holds: number;       // total cargo holds
     avgSpeed: number;    // affects interception odds
+    ships?: ShipCounts;
+    pendingShips?: ShipCounts;
+    tradeHistory?: { used: number; holds: number }[];
+    lastShipOrderTurn?: number;
   };
 
   /** Freight cars in service: units of goods shipped to the warehouse per turn. */
@@ -47,4 +53,6 @@ export interface Nation {
    * capital province at End Turn (FR-201). Absent or empty when none.
    */
   recruiting?: Partial<Record<RegimentType, number>>;
+  /** Civilians paid for this turn. An older save has no pending University orders. */
+  university?: Partial<Record<UniversityCivilian, number>>;
 }

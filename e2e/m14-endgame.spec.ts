@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './seededGame';
 import { continueCouncilSave } from './councilSave';
 
 test('FR-506 the entire winning threshold is visible in the 1280px HUD before opening Nation', async ({ page }) => {

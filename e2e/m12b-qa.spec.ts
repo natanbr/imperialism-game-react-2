@@ -1,4 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page } from './seededGame';
 
 // M12b by-eye QA fix round (2026-11-17, docs/requirements.md FR-529 to FR-536), in the running app. Each test is the QA
 // finding's own repro: the window size and the steps it names. A new game; nation 1 (Testland) has its capital at 2-9.

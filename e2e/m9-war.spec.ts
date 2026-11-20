@@ -1,5 +1,4 @@
-import { test, expect, Page, Locator } from '@playwright/test';
-import { startSeededGame } from './seededGame';
+import { test, expect, Page, Locator, startSeededGame } from './seededGame';
 
 // FR-233 (M9 done) in the running app, on a new game: on turn 1 declare war on Arvelia and march the capital army from
 // Testland South-West to Testland North-East (which borders Arvelia); on turn 2 open the Attack screen for Arvelia ("Attack
@@ -334,7 +333,8 @@ test('FR-233 FR-230 FR-231 FR-232 FR-273 FR-505 declare war on Arvelia, attack i
   await shot(page, 'm9-colony.png');
 
   await score.focus();
-  await expect(page.getByTestId('score-parts')).toContainText('Conquered land not collected: 11 levels, 0 points');
+  // FR-517: Arvelia's ranch supplies horses at level zero, replacing one developed plantation.
+  await expect(page.getByTestId('score-parts')).toContainText('Conquered land not collected: 10 levels, 0 points');
   await expect(page.getByTestId('score-parts').getByText(/^Development \d+$/)).toHaveText(development);
   await score.press('Escape');
   await page.locator('[data-tile-id="10-3"]').click();

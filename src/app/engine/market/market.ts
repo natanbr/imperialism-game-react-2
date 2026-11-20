@@ -1,6 +1,8 @@
 // The world market (FR-060 to FR-065): the lookups the trade orders, the trade phase and the UI
 // share, and the price step. One market per game; every nation trades on it.
 import type { GameState } from "@/types/GameState";
+import type { Nation } from "@/types/Nation";
+import { cargoHolds } from "@/definisions/ships";
 import type { MarketMode, TradeAmounts, TradeCommodity, TradeOrders, WorldMarket } from "@/types/Market";
 import {
   PRICE_CEILING,
@@ -45,6 +47,13 @@ export function tradeOrdersOf(state: GameState, nationId: string): TradeOrders {
 export const unitsOf = (amounts: TradeAmounts): number =>
   Object.values(amounts).reduce<number>((sum, n) => sum + (n ?? 0), 0);
 
+/** Keep each phase's actual consumption and the capacity available when it settled, before new ships join. */
+export function recordHolds(nation: Nation, used: number): Nation {
+  const marine = nation.merchantMarine;
+  const tradeHistory = [...(marine.tradeHistory ?? []).slice(-3), { holds: cargoHolds(marine), used }];
+  return { ...nation, merchantMarine: { ...marine, tradeHistory } };
+}
+
 export interface TradeCapacity {
   /** Cargo holds: units the nation may trade this turn, sales and purchases together (FR-063). */
   holds: number;
@@ -54,7 +63,7 @@ export interface TradeCapacity {
 }
 
 export function tradeCapacityOf(state: GameState, nationId: string): TradeCapacity {
-  const holds = Math.max(0, Math.floor(nationById(state, nationId)?.merchantMarine?.holds ?? 0));
+  const holds = cargoHolds(nationById(state, nationId)?.merchantMarine);
   const { sell, buy } = tradeOrdersOf(state, nationId);
   const used = unitsOf(sell) + unitsOf(buy);
   return { holds, used, free: Math.max(0, holds - used) };

@@ -26,4 +26,6 @@ export interface Worker {
   status: WorkerStatus;
   justMoved: boolean;
   previousTileId?: string;
+  /** Reserved for return to industry at End Turn (FR-512). */
+  pendingDisband?: boolean;
 }

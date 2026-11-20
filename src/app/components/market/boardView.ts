@@ -23,6 +23,7 @@ import {
 import { bidSellersOf, lastTradeOrdersOf } from "@/engine/market/partners";
 import { MAX_BUY_BIDS } from "@/definisions/marketPrices";
 import { RECIPES } from "@/definisions/ResourceConversions";
+import { SHIPS, SHIP_TYPES, shipsOf } from "@/definisions/ships";
 import type { Recipe } from "@/definisions/RecipeTypes";
 import type { GameState } from "@/types/GameState";
 import type { TradeCommodity } from "@/types/Market";
@@ -235,6 +236,7 @@ export interface BoardView {
   capacity: TradeCapacity;
   /** "Holds: 3 of 4 free" */
   holdsText: string;
+  fleetText: string;
   /** Commodities bid on this turn, of the most the engine accepts (FR-062). */
   bids: { used: number; max: number };
   /** "Arvelia favours Valdoria; Sundmark, Lorran and Pellis favour Testland." (FR-251), empty without a trading minor. */
@@ -309,6 +311,11 @@ export function boardView(state: GameState, nation: Nation): BoardView {
     ...(p.barrier ? { barrier: BARRIER_TEXT[p.barrier] } : {}),
   });
   const capacity = tradeCapacityOf(state, nation.id);
+  const ships = shipsOf(nation.merchantMarine);
+  const fleet = SHIP_TYPES.flatMap(type => {
+    const count = ships[type] ?? 0;
+    return count ? [`${count} ${count === 1 ? SHIPS[type].name : SHIPS[type].plural}`] : [];
+  });
   const board = boardOfTrade(state, nation.id);
   /** The refusal of one more unit on that side, as validateOrder judges it now. */
   const moreRefusal = (kind: "buyCommodity" | "sellCommodity", row: (typeof board)[number], current: number): string | undefined => {
@@ -376,6 +383,7 @@ export function boardView(state: GameState, nation: Nation): BoardView {
     treasury: nation.treasury,
     capacity,
     holdsText: `Holds: ${capacity.free} of ${capacity.holds} free`,
+    fleetText: `Holds: ${capacity.holds} (${fleet.join(", ") || "no ships"})`,
     bids: { used: rows.filter((r) => r.bid > 0).length, max: MAX_BUY_BIDS },
     favouritesText: favourites.length > 0 ? `${favouritesSentence(favourites, nameOf)}.` : "",
     ...(firstSaleText ? { firstSaleText } : {}),

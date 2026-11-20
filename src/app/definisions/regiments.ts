@@ -119,6 +119,7 @@ export const SCRIPTED_GARRISON = {
   treasuryFloor: 2500,
   armaments: 2,
   upkeepTurns: 2,
+  disruptedTradeUpkeepTurns: 6,
   endgameTurns: 8,
   capitalArms: 4,
 } as const;

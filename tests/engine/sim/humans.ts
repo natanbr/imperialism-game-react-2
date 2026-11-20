@@ -5,12 +5,14 @@
 // A policy reads only the state it is given and last turn's public trade orders (FR-491, FR-497): never an order the
 // computer gives this turn. `setup` is a test injection before the turn's orders (it is not a player action).
 import type { GameState } from '@/types/GameState';
+import type { MinorNationId } from '@/types/Common';
+import type { PairDiplomacy } from '@/types/Diplomacy';
 import type { Order } from '@/engine/orders/Order';
 import type { TradeCommodity, TradeOrders } from '@/types/Market';
 import { scriptedPlayer, upkeepReserve } from '@/engine/ai/scriptedPlayer';
 import { relationOf } from '@/engine/diplomacy/relations';
 import { COUNCIL } from '@/definisions/council';
-import { OVERTURE_COST } from '@/definisions/diplomacyRules';
+import { GRANT_POINTS, OVERTURE_COST } from '@/definisions/diplomacyRules';
 import { validateOrder } from '@/engine/orders/validate';
 import { applyOrder } from '@/engine/orders/apply';
 import { treasuryOf } from '@/engine/orders/queries';
@@ -53,6 +55,28 @@ export const idle: HumanPolicy = { name: 'idle', orders: () => [] };
 /** `scripted`: the scripted player plays nation 1 too, so both Great Powers race for Arvelia. */
 export const scripted: HumanPolicy = { name: 'scripted', orders: state => scriptedPlayer(state, HUMAN_ID) };
 
+interface DiplomaticPartner {
+  id: MinorNationId;
+  pair: PairDiplomacy;
+  frontier: boolean;
+  lead: number;
+}
+
+/** Direct finite cargo toward independent island votes. Reopen established routes once the other islands are competitive. */
+function diplomaticTradePolicies(partners: readonly DiplomaticPartner[]): Order[] {
+  const needsTrade = partners.some(p => !p.frontier && p.lead < 5);
+  const orders: Order[] = [];
+  for (const p of partners) {
+    if (!p.pair.consulates.includes(HUMAN_ID)) continue;
+    // A lead as large as the largest grant can spare its cargo while another island leads by fewer than five.
+    const boycott = p.frontier || (needsTrade && p.lead >= GRANT_POINTS[10000]);
+    if (p.pair.boycotts.includes(HUMAN_ID) !== boycott) {
+      orders.push({ kind: 'setTradePolicy', nationId: HUMAN_ID, targetId: p.id, subsidyPercent: 0, boycott });
+    }
+  }
+  return orders;
+}
+
 /** FR-509: seek minor votes while retaining the scripted economy, garrison and marches on home soil. */
 export const diplomat: HumanPolicy = {
   name: 'diplomat',
@@ -85,27 +109,22 @@ export const diplomat: HumanPolicy = {
       propose({ kind: 'giveGrant', nationId: HUMAN_ID, targetId: grant.id, amount: 1000, locked: false });
     }
     const remainingConsulates = Math.max(0, 4 - state.turn) * OVERTURE_COST.consulate;
-    // The regular script opens its first embassy and pact. Once that partner reaches 50 it never plans another
-    // embassy; a diplomat needs one to make a lawful grant to the next minor.
-    const hasEmbassy = partners.some(p => p.pair.embassies.includes(HUMAN_ID));
-    const contested = below.find(p => !p.frontier && p.lead <= 0 && p.pair.consulates.includes(HUMAN_ID) && !p.pair.embassies.includes(HUMAN_ID));
-    const nextEmbassy = hasEmbassy && !grant ? contested : undefined;
-    if (nextEmbassy && treasuryOf(view, HUMAN_ID) - OVERTURE_COST.embassy >= Math.max(4000, upkeepReserve(view, HUMAN_ID))) {
+    for (const policy of diplomaticTradePolicies(partners)) propose(policy);
+    // Fund the diplomatic office before optional domestic investment. The next consulates and army pay still come due.
+    const consularPartners = below.filter(p => !p.frontier && p.pair.consulates.includes(HUMAN_ID) && !p.pair.embassies.includes(HUMAN_ID));
+    const nextEmbassy = grant ? undefined : consularPartners.find(p => p.lead <= 0) ?? consularPartners[0];
+    if (nextEmbassy && treasuryOf(view, HUMAN_ID) - OVERTURE_COST.embassy >= remainingConsulates + upkeepReserve(view, HUMAN_ID)) {
       propose({ kind: 'proposeOverture', nationId: HUMAN_ID, targetId: nextEmbassy.id, overture: 'embassy' });
     }
-    // Preserve trade and civilian investment, and defer optional training if a contested minor needs another embassy.
     const economy = scriptedPlayer(view, HUMAN_ID, (order, before, after) => {
-      if (order.kind === 'proposeOverture') return order.overture !== 'war' && order.overture !== 'consulate';
+      if (order.kind === 'proposeOverture') return order.overture !== 'war' && order.overture !== 'consulate' && order.overture !== 'embassy';
       if (order.kind === 'moveArmy') return view.provinces.some(p => p.id === order.toProvinceId && p.ownerId === HUMAN_ID);
       if (order.kind === 'giveGrant') return false;
       const left = treasuryOf(after, HUMAN_ID);
-      if (nextEmbassy && order.kind === 'trainWorkers' && left < OVERTURE_COST.embassy + 4000) return false;
+      if (nextEmbassy && (order.kind === 'trainWorkers' || order.kind === 'moveAndStartConstruction') && left < OVERTURE_COST.embassy + 3000) return false;
       return left >= treasuryOf(before, HUMAN_ID) || left >= remainingConsulates;
     });
-    // Buy the first embassy at the ordinary time and price. Prefer a minor the rival still leads over one already
-    // voting for us. An embassy takes effect on End Turn, and has the same cost for either consular partner.
-    return [...orders, ...economy.map(order => order.kind === 'proposeOverture' && order.overture === 'embassy' && contested
-      ? { ...order, targetId: contested.id } : order)];
+    return [...orders, ...economy];
   },
 };
 

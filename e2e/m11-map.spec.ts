@@ -1,4 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page, startFreshSeededGame } from './seededGame';
 import { statSync } from 'fs';
 import { join } from 'path';
 
@@ -30,7 +30,7 @@ function collectPackRequests(page: Page): string[] {
   const requests: string[] = [];
   page.on('request', (r) => {
     const path = new URL(r.url()).pathname;
-    if (path.startsWith(PACK)) requests.push(path);
+    if (path.startsWith('/assets/')) requests.push(path);
   });
   return requests;
 }
@@ -43,7 +43,7 @@ const mapFiles = (page: Page) =>
       ...[...el.querySelectorAll('image')].map((image) => new URL(image.getAttribute('href') ?? '', location.href).href),
     ];
     return [...new Set(urls.map((u) => new URL(u).pathname).filter((p) => p.startsWith(pack)))].sort();
-  }, PACK);
+  }, '/assets/');
 
 /** Waits until every picture on the map has loaded (complete, natural width above 0). */
 const picturesLoaded = (page: Page) =>
@@ -64,7 +64,7 @@ test('FR-339 FR-321 the first paint requests at most 20 pack files, each once, w
   test.setTimeout(90000);
   const errors = collectErrors(page);
   const requests = collectPackRequests(page);
-  await page.goto('/');
+  await startFreshSeededGame(page);
   await expect(page.getByTestId('map-scroll')).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
   expect(page.viewportSize()).toEqual({ width: 1280, height: 720 });
   await picturesLoaded(page);
@@ -83,6 +83,19 @@ test('FR-339 FR-321 the first paint requests at most 20 pack files, each once, w
   const files = await mapFiles(page);
   expect(files.length).toBeGreaterThan(10);
   expect(files.filter((f) => !distinct.includes(f))).toEqual([]);
+  // The M15 map packs the two capital farm pictures into one measured request. Both have the original square crop.
+  const atlas = '/assets/map-atlases/capital-farmland.webp';
+  expect(distinct).toContain(atlas);
+  const frames = await page.locator('[data-tile-id="2-10"] [data-testid="tile-icon"], [data-tile-id="3-8"] [data-testid="tile-icon"]').evaluateAll(images =>
+    images.map(el => {
+      const img = el as HTMLImageElement;
+      return [img.dataset.art, new URL(img.currentSrc).pathname, img.naturalWidth, img.naturalHeight, getComputedStyle(img).objectFit, getComputedStyle(img).objectPosition];
+    })
+  );
+  expect(frames).toEqual([
+    ['improvements/orchard-2.png', atlas, 512, 256, 'cover', '100% 50%'],
+    ['terrain/horse-ranch.png', atlas, 512, 256, 'cover', '0% 50%'],
+  ]);
   expect(distinct).toEqual(expect.arrayContaining(['warehouse', 'capitol', 'railyard'].map((b) => `${PACK}buildings/${b}.png`)));
   if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/m11-map.png` });
 

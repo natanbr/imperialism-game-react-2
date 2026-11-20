@@ -1,4 +1,4 @@
-import { test, expect, Page, Locator } from '@playwright/test';
+import { test, expect, Page, Locator, startSeededGame } from './seededGame';
 
 // M11 (NR-032) lane 3 in the running app, a new continent game at 1280x720: the art pack's pictures in the lists, dialogs
 // and HUD load, and fit.
@@ -108,7 +108,7 @@ test('FR-333 FR-331 FR-332 the Capital dialog: card heads at most 24 px with the
 // the Labour line on one line and "+ Freight car" wholly inside its column
 test('FR-352 the Capital dialog: headings drawn large, one-line names and labour line, + Freight car inside its column', async ({ page }) => {
   const errors = collectErrors(page);
-  await open(page);
+  await startSeededGame(page);
   await page.getByRole('button', { name: /Open Capital/ }).click();
   const capital = page.getByRole('dialog', { name: /Capital/ });
   await expect(capital).toBeVisible();
@@ -124,7 +124,8 @@ test('FR-352 the Capital dialog: headings drawn large, one-line names and labour
         text: parseFloat(getComputedStyle(el).lineHeight),
       }))
   );
-  expect(headings.map((h) => h.name)).toEqual(['Trade School', 'Capitol', 'Transport']);
+  // FR-513/515 add two illustrated headings, held to the same height and picture limits as the first three.
+  expect(headings.map((h) => h.name)).toEqual(['Trade School', 'Capitol', 'Transport', 'University', 'Shipyard']);
   for (const h of headings) {
     expect(h.picture, h.name).toBeGreaterThanOrEqual(28);
     expect(h.line, h.name).toBeLessThanOrEqual(h.text + 0.5);

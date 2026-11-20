@@ -1,4 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page } from './seededGame';
 
 // FR-180 (M6 done) in the running app, on a new game: open Diplomacy, order a consulate with Arvelia, end the turn and
 // see "Consulate" and a treasury $500 lower; order an embassy, end the turn and see "Embassy"; declare war on Arvelia

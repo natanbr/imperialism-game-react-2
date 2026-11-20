@@ -1,9 +1,9 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page, startSeededGame } from './seededGame';
 
 // M4.3 in the running app. FR-133 FR-135: on the default 1280x720 screen the Transportation of Commodities
 // popup shows the commodities with their pictures (M11 FR-331), grouped by kind in columns, without scrolling; on a
 // narrow screen the groups stack in one column. FR-142 (M4.4): groups that are all 0 / 0 are hidden, so the
-// start shows two groups. FR-139: the engineer builds rail from the capital 2-9 to 3-9, walks back, and
+// continent starts with three groups, including the ranch's horses. FR-139: the engineer builds rail from the capital 2-9 to 3-9, walks back, and
 // builds from the capital to 3-8; the three tiles are neighbours, yet the map draws two lines, not a
 // triangle. Set SCREENSHOT_DIR to also save m4-3-transport.png (or TRANSPORT_SHOT) and m4-3-rail.png there.
 
@@ -42,7 +42,7 @@ function collectErrors(page: Page): string[] {
 }
 
 async function start(page: Page) {
-  await page.goto('/');
+  await startSeededGame(page);
   await expect(page.getByTestId('map-scroll')).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
   await expect(tile(page, '2-9')).toBeInViewport({ timeout: 15000 });
 }
@@ -64,12 +64,12 @@ test('FR-133 FR-135 FR-142 the transport popup shows what can be shipped with it
   await page.getByRole('button', { name: /Transportation of Commodities/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Transportation of Commodities' });
   await expect(dialog).toBeVisible();
-  // FR-142: at the start only Food and Raw materials have something to ship (grain, fruit, cotton);
-  // Other resources, Materials and Goods are all 0 / 0 and hidden (M4.3 showed 5 groups and 23 rows)
-  await expect(dialog.getByRole('region')).toHaveCount(2);
+  // FR-517: the ranch adds Other resources to the starting two groups, and three visible rows.
+  await expect(dialog.getByRole('region')).toHaveCount(3);
   await expect(dialog.getByRole('region').nth(0)).toHaveAttribute('aria-label', 'Food');
   await expect(dialog.getByRole('region').nth(1)).toHaveAttribute('aria-label', 'Raw materials');
-  await expect(dialog.locator('[data-testid^="transport-row-"]')).toHaveCount(10);
+  await expect(dialog.getByRole('region').nth(2)).toHaveAttribute('aria-label', 'Other resources');
+  await expect(dialog.locator('[data-testid^="transport-row-"]')).toHaveCount(13);
   await expect(dialog.getByTestId('transport-row-cannedFood')).toHaveCount(0);
   await expect(dialog.getByTestId('transport-row-ironOre').getByTestId('name')).toHaveText(/Iron Ore/);
   // M11 FR-331: the art pack's goods picture (FR-133's Game Icon replaced), loaded
@@ -82,8 +82,7 @@ test('FR-133 FR-135 FR-142 the transport popup shows what can be shipped with it
   const box = await dialog.evaluate((el) => ({ scroll: el.scrollHeight, client: el.clientHeight }));
   expect(box.scroll).toBeLessThanOrEqual(box.client);
   for (const row of await dialog.locator('[data-testid^="transport-row-"]').all()) await expect(row).toBeInViewport({ ratio: 1 });
-  // Two groups, side by side: fewer columns than the three of M4.3
-  expect(await columnsOf(page)).toHaveLength(2);
+  expect(await columnsOf(page)).toHaveLength(3);
   if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/${process.env.TRANSPORT_SHOT ?? 'm4-3-transport.png'}` });
 
   // A slider still sends the plan: one grain

@@ -12,6 +12,7 @@ import type { GameState } from "@/types/GameState";
 import type { Nation } from "@/types/Nation";
 import type { BuildingType, ProductionOutput } from "@/types/Industry";
 import type { TradeAmounts, TradeCommodity } from "@/types/Market";
+import { SHIPS } from "@/definisions/ships";
 import { GoodsType, MaterialType, ResourceType } from "@/types/Resource";
 import type { Order } from "../orders/Order";
 import { nationById } from "../orders/queries";
@@ -25,7 +26,7 @@ import { GRADES, healthyWorkers, labourTotal } from "../industry/labour";
 import { marketOf, priceOf, tradeCapacityOf, tradeOrdersOf } from "../market/market";
 import { marketModeOf } from "../market/partners";
 import { partnerDemand, partnerSupply, planConsulate } from "./scriptedPartners";
-import { embassySaving, planInfluence } from "./scriptedInfluence";
+import { councilTradeInputs, embassySaving, planInfluence } from "./scriptedInfluence";
 import { greatPowerTradeCaps } from "./scriptedGreatPowerTrade";
 import { mealNeeds } from "../systems/foodSystem";
 import { productionSystem } from "../systems/productionSystem";
@@ -85,6 +86,18 @@ export const CAR_MIN_TURNS = 8;
 export const PAIR_VALUE = SCORE_WEIGHTS.pointsPerCapacity * SCORE_WEIGHTS.dollarsPerPoint;
 
 const nationOf = (state: GameState, nationId: string): Nation => nationById(state, nationId)!;
+/** Start putting materials aside when a phase fills the fleet. Three full phases justify the order itself. */
+function fullTradePhases(state: GameState, nationId: string): number {
+  if (!state.provinces.length) return 0;
+  const marine = nationOf(state, nationId).merchantMarine;
+  if (marine.pendingShips?.indiaman || (marine.lastShipOrderTurn !== undefined && state.turn - marine.lastShipOrderTurn < 4)) return 0;
+  return (marine.tradeHistory ?? []).filter(phase => phase.holds > 0 && phase.used === phase.holds).length;
+}
+function saveShipMaterials(state: GameState, nationId: string): boolean {
+  // Unmatched partner bids can leave a small fleet idle again before its mills finish the hull.
+  // World-market orders always settle, so the existing cargo history is enough there.
+  return fullTradePhases(state, nationId) >= (marketModeOf(state) === "partners" ? 1 : 3);
+}
 const mouthsOf = (nation: Nation): number => {
   const { untrained, trained, expert } = nation.industry.workers;
   return untrained + trained + expert;
@@ -103,7 +116,10 @@ export function planEconomy(view: () => GameState, nationId: string, propose: Pr
   clearStandingOrders(view(), nationId, propose);
   planGarrison(view, nationId, propose);
   planTraining(view, nationId, propose);
-  planFreightCars(view, nationId, propose);
+  if (fullTradePhases(view(), nationId) >= 3) {
+    propose({ kind: "setShipyard", nationId, ship: "indiaman", count: 1 });
+  }
+  if (!saveShipMaterials(view(), nationId)) planFreightCars(view, nationId, propose);
   planExpansion(view, nationId, propose);
   proposeRun(view, nationId, propose);
   const workforce = view();
@@ -287,7 +303,8 @@ function planExpansion(view: () => GameState, nationId: string, propose: Propose
   const capped = BUILDING_ORDER.filter((b) => !BUILDINGS[b].unlimited && !BUILDINGS[b].needsOilDrilling);
   const reserved = garrisonSteel(view(), nationId);
   // FR-485: the lumber of the next migrant's furniture stays out too (the run makes it first)
-  const keptLumber = nextMigrantWanted(view(), nationId) ? RECIPES[GoodsType.Furniture].inputs[0].amount : 0;
+  const migrantLumber = nextMigrantWanted(view(), nationId) ? RECIPES[GoodsType.Furniture].inputs[0].amount : 0;
+  const keptLumber = migrantLumber + (saveShipMaterials(view(), nationId) ? SHIPS.indiaman.lumber : 0);
   for (let guard = 0; guard < 64; guard++) {
     const nation = nationOf(view(), nationId);
     const stock = nation.warehouse as Stock;
@@ -405,6 +422,15 @@ export function planRun(state: GameState, nationId: string, labour = labourTotal
 
   // FR-213: under a threat the run first makes the garrison's armaments, up to 2 in stock
   make(run, GoodsType.Armaments, garrisonArmaments(state, nationId));
+  if (saveShipMaterials(state, nationId)) {
+    // A full fleet competes with expansion for lumber and with the clothing factory for fabric.
+    // Reserve this hull's stock and run the mills for its shortfall before those uses.
+    for (const material of [MaterialType.Lumber, MaterialType.Fabric] as const) {
+      const target = SHIPS.indiaman[material];
+      make(run, material, Math.max(0, target - (stock[material] ?? 0)));
+      stock[material] = Math.max(0, (stock[material] ?? 0) - target);
+    }
+  }
   while (have(MaterialType.CannedFood) < mouths && aboveMeal() && make(run, MaterialType.CannedFood, 2) > 0);
   if (nextMigrantWanted(state, nationId)) {
     // FR-485: made this turn, in the warehouse for next turn's migrant (goods made this turn are not offered)
@@ -640,7 +666,8 @@ function planTrade(view: () => GameState, nationId: string, propose: Propose): v
   const supply = partners ? partnerSupply(view(), nationId) : undefined;
   const demand = partners ? partnerDemand(view(), nationId) : undefined;
   // FR-493 (M13): trade with another Great Power, on top of the minors' supply and demand (scriptedGreatPowerTrade.ts)
-  const rival = partners ? greatPowerTradeCaps(view(), nationId, next) : undefined;
+  const shipLumber = saveShipMaterials(view(), nationId) ? SHIPS.indiaman.lumber : 0;
+  const rival = partners ? greatPowerTradeCaps(view(), nationId, next, shipLumber) : undefined;
   const market = marketOf(start);
   const ranked = [...TRADE_COMMODITIES].sort((a, b) => priceOf(market, b) - priceOf(market, a));
   const pairPrice = priceOf(market, MaterialType.Lumber) + priceOf(market, MaterialType.Steel);
@@ -696,4 +723,9 @@ function planTrade(view: () => GameState, nationId: string, propose: Propose): v
     }
   }
   offer(-Infinity);
+  if (partners) {
+    for (const input of councilTradeInputs(view(), nationId, next)) {
+      if (bid(input, 1, upkeepReserve(view(), nationId))) break;
+    }
+  }
 }

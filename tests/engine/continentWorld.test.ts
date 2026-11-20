@@ -7,12 +7,13 @@ import type { GameMap } from '@/types/Map';
 import { ResourceType } from '@/types/Resource';
 import { TerrainType, type Tile } from '@/types/Tile';
 
-type Letter = 'T' | 'c' | 'i' | 'P' | 'cap';
+type Letter = 'T' | 'c' | 'i' | 'P' | 'H' | 'cap';
 const LETTER: Record<Letter, { terrain: TerrainType; resource?: ResourceType }> = {
   T: { terrain: TerrainType.HardwoodForest, resource: ResourceType.Timber },
   c: { terrain: TerrainType.BarrenHills, resource: ResourceType.Coal },
   i: { terrain: TerrainType.BarrenHills, resource: ResourceType.IronOre },
   P: { terrain: TerrainType.Plantation, resource: ResourceType.Cotton },
+  H: { terrain: TerrainType.HorseRanch, resource: ResourceType.Horses },
   cap: { terrain: TerrainType.Capital },
 };
 
@@ -21,7 +22,7 @@ const MINOR_LAND: Record<string, Record<string, Letter>> = {
   Arvelia: {
     '10-3': 'T', '11-3': 'T', '12-3': 'c', '13-3': 'T',
     '10-4': 'c', '11-4': 'cap', '12-4': 'i', '13-4': 'T',
-    '10-5': 'P', '11-5': 'i', '12-5': 'c', '13-5': 'P',
+    '10-5': 'H', '11-5': 'i', '12-5': 'c', '13-5': 'P',
   },
   Sundmark: { '12-7': 'T', '12-8': 'P', '12-9': 'cap', '12-10': 'c', '12-11': 'i' },
   Lorran: { '10-1': 'T', '11-1': 'cap', '12-1': 'T', '13-1': 'i' },
@@ -89,10 +90,18 @@ describe('FR-145 the continent map', () => {
     ]);
   });
 
-  it('FR-145 every tile outside the minor land is the two-islands tile (terrain, resource, level, discovered flag, owner, workers, id)', () => {
+  it('FR-145 FR-517 every tile outside the minor land matches two-islands except for the two horse ranches', () => {
     const outside = tiles(continent.map).filter(t => !minorOf.has(t.id));
     expect(outside).toHaveLength(24 * 16 - minorOf.size);
-    expect(outside.map(withoutProvince)).toEqual(outside.map(t => at(twoIslands.map, t.id)));
+    expect(outside.map(withoutProvince)).toEqual(outside.map(t => {
+      const original = at(twoIslands.map, t.id);
+      // FR-517: orchard -> undeveloped ranch at the same site on both islands.
+      // Fruit level 1 -> 2 at the remaining orchard to feed the same starting workforce.
+      if (['3-8', '15-8'].includes(t.id)) return { ...original, resource: { type: ResourceType.Fruit, level: 2 } };
+      return ['2-10', '14-10'].includes(t.id)
+        ? { ...original, terrain: TerrainType.HorseRanch, resource: { type: ResourceType.Horses, level: 0 } }
+        : original;
+    }));
   });
 
   it('FR-145 FR-203 the forts: two-islands has none; the continent only the level-1 fort on each Great Power capital tile', () => {
@@ -111,7 +120,7 @@ describe('FR-145 the continent map', () => {
     });
     const expected = Object.values(MINOR_LAND).flatMap(land => Object.entries(land)).map(([id, letter]) => {
       const { terrain, resource } = LETTER[letter];
-      return { id, terrain, resource: resource ? { type: resource, level: 1, discovered: true } : undefined, owner: undefined, workers: 0 };
+      return { id, terrain, resource: resource ? { type: resource, level: letter === 'H' ? 0 : 1, discovered: true } : undefined, owner: undefined, workers: 0 };
     });
     expect(minorTiles).toEqual(expected);
   });
@@ -121,9 +130,9 @@ describe('FR-145 the continent map', () => {
     expect(edge.filter(isLand).map(t => t.id)).toEqual([]);
   });
 
-  it('FR-145 the terrain set is the two-islands set', () => {
+  it('FR-145 FR-517 the terrain set adds Horse Ranch to the two-islands set', () => {
     const set = (map: GameMap) => [...new Set(tiles(map).map(t => t.terrain))].sort();
-    expect(set(continent.map)).toEqual(set(twoIslands.map));
+    expect(set(continent.map)).toEqual([...set(twoIslands.map), TerrainType.HorseRanch].sort());
   });
 
   it('FR-145 Arvelia is the one land bridge: 10-4 touches island 1 at 9-4, 13-4 touches island 2 at 14-4, and without Arvelia the islands are apart', () => {

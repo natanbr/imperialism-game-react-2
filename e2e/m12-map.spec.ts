@@ -1,4 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page } from './seededGame';
 
 // M12 (NR-033) "Honest game", lane L2: the map and the HUD in the running app. A new game; nation 1 (Testland) has its
 // capital at 2-9 with its seven civilians. Written by the lane, run by the integration step (the lane runs no browser).

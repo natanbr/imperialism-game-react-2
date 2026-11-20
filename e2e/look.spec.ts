@@ -1,4 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page } from './seededGame';
 
 // FR-090 (M3.5 part B, NR-008, NR-009): on the default 1280x720 screen the whole 24x16 map shows left
 // of the 250 px HUD at 42 px tiles (FR-088), every land tile shows a picture and the sea none (FR-085;

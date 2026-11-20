@@ -17,6 +17,7 @@ import type { GameState } from "@/types/GameState";
 import type { WorldId } from "@/types/World";
 import type { MarketMode } from "@/types/Market";
 import type { GameStore } from "./rootStore";
+import { isPlayersWorker } from "./controls/playersWorker";
 
 /** How many resolved turns the event log keeps. */
 export const EVENT_LOG_TURNS = 20;
@@ -155,7 +156,7 @@ export const createGameSlice =
       // The human's orders were applied when submitted; the computer nations plan on that state and
       // their orders resolve with the turn (FR-099, ARCHITECTURE.md turn flow).
       advanceTurn: () => {
-        const { game: current, eventLog, orderLog, ordersThisTurn, activeNationId, turnStartTreasuries } = get();
+        const { game: current, eventLog, orderLog, ordersThisTurn, activeNationId, selectedWorkerId, turnStartTreasuries } = get();
         // After the end resolveTurn is a no-op that would still log an empty turn (FR-077).
         if (isGameOver(current)) return;
         const computer = computerOrders(current);
@@ -173,6 +174,7 @@ export const createGameSlice =
         }));
         set({
           game: state,
+          selectedWorkerId: selectedWorkerId && isPlayersWorker({ game: state, activeNationId }, selectedWorkerId) ? selectedWorkerId : undefined,
           eventLog: [...eventLog, report].slice(-EVENT_LOG_TURNS),
           orderLog: [...orderLog, ...logged],
           ordersThisTurn: [],

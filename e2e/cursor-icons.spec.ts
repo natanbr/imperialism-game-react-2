@@ -1,4 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page } from './seededGame';
 
 // FR-330 (M11, NR-032): the map's cursors are drawn from the art pack's pictures (the prospector, the developing civilian,
 // the fort, the rail piece, the engineer) into a 32 px canvas and used as a PNG data URL with its hotspot in the middle;

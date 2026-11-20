@@ -1,4 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page } from './seededGame';
 
 // M12 lane L3: the scrollbars the dialogs draw (moved here from e2e/m12-dialogs.spec.ts at integration). Playwright starts
 // Chromium with --hide-scrollbars, so no scrollbar takes width there; this file draws them as a desktop browser does, as

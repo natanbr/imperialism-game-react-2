@@ -7,7 +7,12 @@ import type { PairDiplomacy } from "@/types/Diplomacy";
 import type { Order } from "../orders/Order";
 import { OVERTURE_COST, SCRIPTED_INFLUENCE } from "@/definisions/diplomacyRules";
 import { COUNCIL } from "@/definisions/council";
-import { councilNominees, nextCouncilTurn } from "../council/council";
+import { SHIPS } from "@/definisions/ships";
+import { ResourceType } from "@/types/Resource";
+import type { TradeCommodity } from "@/types/Market";
+import { councilNominees, isLastMeeting, nextCouncilTurn } from "../council/council";
+import { tradeCapacityOf, tradeOrdersOf } from "../market/market";
+import { minorOffers, tradeBarrier } from "../market/partners";
 import { warBetween } from "../diplomacy/queries";
 import { relationOf } from "../diplomacy/relations";
 import { nationById } from "../orders/queries";
@@ -15,6 +20,24 @@ import { adjacentProvinces, provincesOf } from "../world/provinces";
 import { campaignTarget } from "./scriptedWar";
 
 type Propose = (order: Order) => boolean;
+
+/** Buy one scarce input with spare shipping before the final vote. Trade can earn support for an existing embassy. */
+export function councilTradeInputs(state: GameState, nationId: NationId, stock: Readonly<Record<string, number>>): TradeCommodity[] {
+  const { holds, free } = tradeCapacityOf(state, nationId);
+  const meeting = nextCouncilTurn(state);
+  if (!free || holds <= SHIPS.indiaman.holds || meeting === undefined || !isLastMeeting(state, meeting)) return [];
+  const partner = state.minorNations.find(m => {
+    const pair = relationOf(state, nationId, m.id);
+    return !m.colonyOf && pair?.embassies.includes(nationId) && pair.points < COUNCIL.minRelationPoints
+      && !tradeBarrier(state, nationId, m.id);
+  });
+  if (!partner) return [];
+  const offers = minorOffers(state, partner.id);
+  const bids = tradeOrdersOf(state, nationId).buy;
+  return ([ResourceType.Timber, ResourceType.Coal, ResourceType.IronOre, ResourceType.Cotton] as const)
+    .filter(c => offers[c] && !bids[c] && (stock[c] ?? 0) < 2 * holds)
+    .sort((a, b) => (stock[a] ?? 0) - (stock[b] ?? 0));
+}
 
 interface Candidate {
   id: MinorNationId;

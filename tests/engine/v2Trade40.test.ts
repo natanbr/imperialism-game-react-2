@@ -183,11 +183,17 @@ function play(seed: number): Game {
  * (.gate/m13/close/grants/v2wide-*.txt). FR-247 is a measured baseline, not a target: its bounds hold; the lowest
  * turn-40 treasury falls from 2003 to 972.
  */
+// FR-514/516/517: both fleets invest lumber and fabric, carry larger cargoes, and receive a horse each turn.
+// War and training reserve pay when trade slows. Minor deals and final balances move; four capital arms and zero unpaid losses still hold.
+// Seed 1 (nation 1, nation 2): minorDeals [81, 64] -> [60, 110], minorPurchases [43, 34] -> [29, 70], treasury [5006, 972] -> [4772, 9108].
+// Seed 2 (nation 1, nation 2): minorDeals [66, 75] -> [59, 105], minorPurchases [33, 41] -> [29, 67], treasury [2972, 2744] -> [1501, 3086], capitalArms [5, 4] -> [5, 6].
+// Seed 3 (nation 1, nation 2): minorDeals [70, 59] -> [63, 126], minorPurchases [34, 24] -> [36, 89], treasury [2726, 6095] -> [415, 1548].
+// Seed 4 (nation 1, nation 2): minorDeals [71, 70] -> [109, 58], minorPurchases [36, 34] -> [71, 26], treasury [5773, 2367] -> [4671, 301].
 const BASELINE = [
-  { seed: 1, minorDeals: [81, 64], minorPurchases: [43, 34], minorsDealt: [4, 4], treasury: [5006, 972], noPay: [0, 0], capitalArms: [4, 4] },
-  { seed: 2, minorDeals: [66, 75], minorPurchases: [33, 41], minorsDealt: [4, 4], treasury: [2972, 2744], noPay: [0, 0], capitalArms: [5, 4] },
-  { seed: 3, minorDeals: [70, 59], minorPurchases: [34, 24], minorsDealt: [4, 4], treasury: [2726, 6095], noPay: [0, 0], capitalArms: [4, 4] },
-  { seed: 4, minorDeals: [71, 70], minorPurchases: [36, 34], minorsDealt: [4, 4], treasury: [5773, 2367], noPay: [0, 0], capitalArms: [4, 4] },
+  { seed: 1, minorDeals: [60, 110], minorPurchases: [29, 70], minorsDealt: [4, 4], treasury: [4772, 9108], noPay: [0, 0], capitalArms: [4, 4] },
+  { seed: 2, minorDeals: [59, 105], minorPurchases: [29, 67], minorsDealt: [4, 4], treasury: [1501, 3086], noPay: [0, 0], capitalArms: [5, 6] },
+  { seed: 3, minorDeals: [63, 126], minorPurchases: [36, 89], minorsDealt: [4, 4], treasury: [415, 1548], noPay: [0, 0], capitalArms: [4, 4] },
+  { seed: 4, minorDeals: [109, 58], minorPurchases: [71, 26], minorsDealt: [4, 4], treasury: [4671, 301], noPay: [0, 0], capitalArms: [4, 4] },
 ];
 
 /** The force size (FR-204) of the nation's army in its capital province at turn 40. */

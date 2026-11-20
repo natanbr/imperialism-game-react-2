@@ -63,12 +63,14 @@ describe('FR-252 a bid needs a minor that sells the commodity and that the natio
   // Re-recorded by M13 FR-492 (card Q118 (a)): was refused('no-seller') for all five; another Great Power the nation may
   // trade with is now a seller of what no minor sells, so the bid is allowed at peace and "sellers-barred" at war.
   it('FR-252 FR-492 a commodity no minor nation offers this turn: allowed while Valdoria may sell it (was "no-seller"); at war with Valdoria "sellers-barred"', () => {
-    for (const commodity of [MaterialType.Lumber, MaterialType.Steel, GoodsType.Clothing, ResourceType.Wool, ResourceType.Horses]) {
+    // FR-517: horses have 0 -> 1 minor seller. Oil still exercises the Great-Power-only case.
+    for (const commodity of [MaterialType.Lumber, MaterialType.Steel, GoodsType.Clothing, ResourceType.Wool, ResourceType.Oil]) {
       expect(validateOrder(consulates(continent(), N1, ARVELIA), buy(N1, commodity, 1))).toEqual(OK);
       expect(validateOrder(setPair(consulates(continent(), N1, ARVELIA), N1, N2, { war: { aggressors: [N2], since: 1 } }), buy(N1, commodity, 1))).toEqual(refused('sellers-barred'));
     }
     expect(sellersOf(continent(), ResourceType.Coal)).toEqual([ARVELIA, SUNDMARK, PELLIS]);
     expect(sellersOf(continent(), MaterialType.Lumber)).toEqual([]);
+    expect(sellersOf(continent(), ResourceType.Horses)).toEqual([ARVELIA]);
   });
 
   it('FR-252 every seller barred: "sellers-barred" without a consulate, at war, under a boycott; a consulate ordered this turn opens it', () => {
@@ -249,7 +251,7 @@ describe('FR-255 the cause of units not traded', () => {
 
   it('FR-255 unknown when an open Great Power still bids: it could not take the units (its own offer-missed says why)', () => {
     let s = placed(continent(), sell(N2, MaterialType.Steel, 2), buy(N1, MaterialType.Steel, 2));
-    s = { ...s, nations: s.nations.map(n => (n.id === N1 ? { ...n, merchantMarine: { ...n.merchantMarine, holds: 1 } } : n)) };
+    s = { ...s, nations: s.nations.map(n => (n.id === N1 ? { ...n, merchantMarine: { ...n.merchantMarine, ships: undefined, holds: 1 } } : n)) };
     const events = trade(s);
     expect(ofType(events, 'offer-unsold')).toEqual([{ type: 'offer-unsold', nationId: N2, commodity: MaterialType.Steel, amount: 1 }]);
     expect(ofType(events, 'offer-missed').map(e => [e.nationId, e.reason])).toEqual([[N1, 'no-hold']]);

@@ -2,6 +2,7 @@
 // writes the store's session to one localStorage slot and reads it back for page.tsx, the only place that loads a save
 // (the store never does by itself). Its writes are the autosave page.tsx starts once the game in play is decided.
 import type { StoreApi } from "zustand";
+import { cargoHolds, shipsOf } from "@/definisions/ships";
 import type { GameSession } from "./gameSlice";
 import type { GameStore } from "./rootStore";
 
@@ -58,7 +59,7 @@ function isUsable(value: unknown): value is SavedGame {
 }
 
 /** The slot, never throwing: a blocked storage reads as empty, a slot that fails to parse or to pass the check as unusable. */
-export function readSave(storage: Storage | undefined = browserStorage()): SaveSlot {
+export function readSave(storage: Pick<Storage, "getItem"> | undefined = browserStorage()): SaveSlot {
   let raw: string | null;
   try {
     raw = storage?.getItem(SAVE_KEY) ?? null;
@@ -68,7 +69,15 @@ export function readSave(storage: Storage | undefined = browserStorage()): SaveS
   if (raw === null) return { kind: "empty" };
   try {
     const parsed: unknown = JSON.parse(raw);
-    return isUsable(parsed) ? { kind: "usable", save: parsed } : { kind: "unusable" };
+    if (!isUsable(parsed)) return { kind: "unusable" };
+    for (const nation of parsed.game.nations) {
+      const marine = nation.merchantMarine;
+      if (marine) {
+        marine.ships = shipsOf(marine);
+        marine.holds = cargoHolds(marine);
+      }
+    }
+    return { kind: "usable", save: parsed };
   } catch {
     return { kind: "unusable" };
   }

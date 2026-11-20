@@ -164,7 +164,8 @@ describe('FR-505 development in conquered provinces', () => {
     const legacy = { ...taken, provinces: taken.provinces.map(({ id, name, seatTileId, ownerId, tileIds }) =>
       ({ id, name, seatTileId, ownerId, tileIds })) };
     expect(scoreOf(deepFreeze(legacy), N1)).toMatchObject({
-      developedLevels: home.developedLevels, points: { development: home.points.development }, uncollectedConqueredLevels: 11,
+      // FR-517: 11 -> 10 uncollected levels. Arvelia's cotton at 10-5 became an undeveloped ranch.
+      developedLevels: home.developedLevels, points: { development: home.points.development }, uncollectedConqueredLevels: 10,
     });
   });
 
@@ -174,9 +175,10 @@ describe('FR-505 development in conquered provinces', () => {
         const network = { graph: {}, depots: [], ports: [], [kind]: [{ x: 11, y: 4, isActive }] };
         const connected = { ...taken, transportNetwork: { ...taken.transportNetwork, railroadNetworks: { [N1]: network } } };
         expect(scoreOf(connected, N1)).toMatchObject({
-          developedLevels: home.developedLevels + (isActive ? 6 : 0),
-          points: { development: home.points.development + (isActive ? 60 : 0) },
-          uncollectedConqueredLevels: isActive ? 5 : 11,
+          // FR-517: 6 -> 5 levels (60 -> 50 points) next to this hub; 11 -> 10 when disconnected.
+          developedLevels: home.developedLevels + (isActive ? 5 : 0),
+          points: { development: home.points.development + (isActive ? 50 : 0) },
+          uncollectedConqueredLevels: isActive ? 5 : 10,
         });
       }
     }

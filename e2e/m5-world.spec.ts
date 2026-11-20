@@ -1,4 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page } from './seededGame';
 
 // M5 in the running app (FR-160): a new game is the continent. The map shows the 4 minor nations' names
 // on their capitals (FR-153 d), the dotted province lines and the dashed minor borders (FR-153 b, c); the

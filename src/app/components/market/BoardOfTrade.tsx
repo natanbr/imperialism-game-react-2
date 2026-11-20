@@ -87,6 +87,7 @@ export const BoardOfTrade: React.FC = () => {
             <span data-testid="market-cash">
               Cash: <strong>{money(view.treasury)}</strong>
             </span>
+            <span>{view.fleetText}</span>
             <span data-testid="market-holds" title="Every unit traded takes one hold this turn">
               {view.holdsText}
             </span>

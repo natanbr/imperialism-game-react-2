@@ -8,6 +8,8 @@ import { labourView, productionCards } from "./capital/capitalView";
 import { ProductionCard } from "./capital/ProductionCard";
 import { LabourPanel } from "./capital/LabourPanel";
 import { FreightCars } from "./capital/FreightCars";
+import { UniversityPanel } from "./capital/UniversityPanel";
+import { ShipyardPanel } from "./capital/ShipyardPanel";
 import styles from "./capital/Capital.module.css";
 import { UI_ICONS } from "./icons";
 import { GameIcon } from "./GameIcon";
@@ -127,6 +129,8 @@ export const CapitalModal: React.FC = () => {
                   submitOrder={submitOrder}
                   onOpenAllocations={() => setAllocOpen(true)}
                 />
+                <UniversityPanel game={game} nation={nation} submitOrder={submitOrder} />
+                <ShipyardPanel game={game} nation={nation} submitOrder={submitOrder} />
               </aside>
               {sideCut && <div className={styles.fade} aria-hidden="true" data-testid="side-fade" />}
             </div>

@@ -1,8 +1,7 @@
 // The v2 world, "continent" (FR-145 to FR-147; plan "The v2 world"; decision Q22 option b, taken
 // 2026-11-13): the two-island start with four minor nations added in the channel. Arvelia joins the
 // two islands as the one land bridge; Sundmark, Lorran and Pellis are islands, reachable only by sea.
-// The Great Powers are founded on the two-island map first, so their islands, start levels and
-// civilians are exactly the v1 ones (settling floods an island over land, and Arvelia would join them).
+// Found the Great Powers before adding Arvelia: settling floods an island over land.
 import type { MinorNationId, TileId } from "@/types/Common";
 import type { GameMap } from "@/types/Map";
 import type { MinorNation } from "@/types/MinorNation";
@@ -15,13 +14,14 @@ import { startWorld } from "./startWorld";
 import { HALF_WIDTH } from "./twoIslands";
 
 /** The minor land's letters, as in twoIslands.ts; "cap" is the minor's capital (the Capital terrain). */
-type MinorLetter = "T" | "c" | "i" | "P" | "cap";
+type MinorLetter = "T" | "c" | "i" | "P" | "H" | "cap";
 
 const MINOR_LEGEND: Record<MinorLetter, { terrain: TerrainType; resource?: ResourceType }> = {
   T: { terrain: TerrainType.HardwoodForest, resource: ResourceType.Timber },
   c: { terrain: TerrainType.BarrenHills, resource: ResourceType.Coal },
   i: { terrain: TerrainType.BarrenHills, resource: ResourceType.IronOre },
   P: { terrain: TerrainType.Plantation, resource: ResourceType.Cotton },
+  H: { terrain: TerrainType.HorseRanch, resource: ResourceType.Horses },
   cap: { terrain: TerrainType.Capital },
 };
 
@@ -43,7 +43,7 @@ export const MINOR_FOUNDINGS: readonly MinorFounding[] = [
     land: {
       "10-3": "T", "11-3": "T", "12-3": "c", "13-3": "T",
       "10-4": "c", "11-4": "cap", "12-4": "i", "13-4": "T",
-      "10-5": "P", "11-5": "i", "12-5": "c", "13-5": "P",
+      "10-5": "H", "11-5": "i", "12-5": "c", "13-5": "P",
     },
   },
   { id: "minor-2", name: "Sundmark", capitalTileId: "12-9", land: { "12-7": "T", "12-8": "P", "12-9": "cap", "12-10": "c", "12-11": "i" } },
@@ -99,7 +99,7 @@ const minorProvince = ({ id, name, capitalTileId, land }: MinorFounding): Provin
   tileIds: Object.keys(land),
 });
 
-/** A minor's land tile: no owner (FR-149), its resource discovered at level 1 (FR-145). */
+/** Minor land has no Great Power owner. Horses produce at level 0; the other resources start at 1. */
 function minorTile(tileId: TileId, letter: MinorLetter): Tile {
   const [x, y] = parseTileIdToArray(tileId);
   const { terrain, resource } = MINOR_LEGEND[letter];
@@ -108,11 +108,22 @@ function minorTile(tileId: TileId, letter: MinorLetter): Tile {
     x,
     y,
     terrain,
-    resource: resource ? { type: resource, level: 1, discovered: true } : undefined,
+    resource: resource ? { type: resource, level: resource === ResourceType.Horses ? 0 : 1, discovered: true } : undefined,
     workers: [],
     explored: true,
     visible: true,
   };
+}
+
+function capitalFarmland(tile: Tile): Tile {
+  const column = tile.x % HALF_WIDTH;
+  if (column === 2 && tile.y === 10) {
+    return { ...tile, terrain: TerrainType.HorseRanch, resource: { type: ResourceType.Horses, level: 0 } };
+  }
+  // Both capital rings lack open range. Keep the two original levels of orchard development
+  // on the remaining fruit tile so the ranch does not cause starting workers to go sick.
+  if (column === 3 && tile.y === 8) return { ...tile, resource: { type: ResourceType.Fruit, level: 2 } };
+  return tile;
 }
 
 /** The continent: the map, the 2 Great Powers, the 4 minor nations and the 12 provinces. */
@@ -126,9 +137,9 @@ export function continentWorld(): { map: GameMap; nations: Nation[]; minorNation
   const tiles = settled.tiles.map((row) =>
     row.map((t) => {
       const letter = minorLand.get(t.id);
-      const tile = letter ? minorTile(t.id, letter) : t;
+      const site = letter ? minorTile(t.id, letter) : capitalFarmland(t);
       const provinceId = provinceOfTile.get(t.id);
-      return provinceId ? { ...tile, provinceId } : tile;
+      return provinceId ? { ...site, provinceId } : site;
     })
   );
   return { map: { ...settled, tiles }, nations, minorNations, provinces };

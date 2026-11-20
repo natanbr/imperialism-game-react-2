@@ -85,6 +85,14 @@ const plus = (commodity: string, name: string) => {
   return { disabled: b.disabled, title: b.title, note: note ? text(note) : null, description: description(b) };
 };
 const now = () => useGameStore.getState().game;
+
+it('FR-515 names the merchant fleet in the header and preserves the live free-hold count', () => {
+  const state = start();
+  const nations = state.nations.map(n => n.id === N1 ? { ...n, merchantMarine: { ...n.merchantMarine, holds: 8, ships: { indiaman: 2 } } } : n);
+  openBoard({ ...state, nations });
+  expect(within(dialog()).getByText('Holds: 8 (2 Indiamen)').closest('header')).toBeTruthy();
+  expect(text(within(dialog()).getByTestId('market-holds'))).toBe('Holds: 8 of 8 free');
+});
 /** Test setup: the nation holds a consulate in the minor (FR-163). */
 const withConsulate = (s: GameState, nationId: string, minorId: string): GameState =>
   setPair(s, nationId, minorId, { consulates: [...s.diplomacy[pairKey(nationId, minorId)].consulates, nationId].sort() });
@@ -334,7 +342,8 @@ describe('FR-252 FR-253 FR-257 the reasons beside the controls', () => {
     const disabled = all.filter((b) => (b as HTMLButtonElement).disabled);
     // Re-recorded by M13 FR-494: old 34, new 21. The Bid "+" of the 13 rows no minor sells is open toward Valdoria now
     // (FR-492), with its line beside it.
-    expect(disabled).toHaveLength(21);
+    // FR-517: Arvelia now sells horses, so this bid requires a consulate as well (21 → 22).
+    expect(disabled).toHaveLength(22);
     for (const b of disabled) {
       expect(description(b)).not.toBe('');
       expect(description(b)).toBe(b.title);
@@ -429,7 +438,7 @@ describe('FR-194 the Board of Trade: orders', () => {
   it('FR-248 at most 4 bids: with holds to spare a fifth commodity\'s Bid "+" is disabled with "Already 4 bids this turn, the most"; a row already bid on is not', () => {
     // A fifth commodity a minor sells: wool on one of Arvelia's tiles; Sundmark also sells the other four
     let s = setTile(withConsulate(open(), N1, SUNDMARK), '10-4', { resource: { type: ResourceType.Wool, level: 1, discovered: true } });
-    s = { ...s, nations: s.nations.map((n) => (n.id === N1 ? { ...n, merchantMarine: { ...n.merchantMarine, holds: 6 } } : n)) };
+    s = { ...s, nations: s.nations.map((n) => (n.id === N1 ? { ...n, merchantMarine: { ...n.merchantMarine, ships: undefined, holds: 6 } } : n)) };
     openBoard(s);
     for (const c of ['coal', 'timber', 'ironOre', 'cotton']) fireEvent.click(button(c, `Bid one more ${cell(c, 'name')}`));
     expect(text(within(dialog()).getByTestId('market-holds'))).toBe('Holds: 2 of 6 free');
@@ -466,7 +475,7 @@ describe('M12 FR-394 FR-400 FR-434 the deal price, the offer cap and the first s
   };
   const withHolds = (s: GameState, holds: number): GameState => ({
     ...s,
-    nations: s.nations.map((n) => (n.id === N1 ? { ...n, merchantMarine: { ...n.merchantMarine, holds } } : n)),
+    nations: s.nations.map((n) => (n.id === N1 ? { ...n, merchantMarine: { ...n.merchantMarine, ships: undefined, holds } } : n)),
   });
   const dealPrices = (commodity: string) => within(row(commodity)).queryAllByTestId('deal-price').map((el) => text(el));
   const firstSale = () => within(dialog()).queryByTestId('first-sale');

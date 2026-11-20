@@ -11,11 +11,12 @@ import type { TradeAmounts, TradeCommodity } from "@/types/Market";
 import type { Nation } from "@/types/Nation";
 import { BOARD_ORDER, TRADE_RELATION_POINTS } from "@/definisions/partnersMarket";
 import { START_PRICES } from "@/definisions/marketPrices";
+import { cargoHolds } from "@/definisions/ships";
 import { levelOfPoints, MAX_RELATION_POINTS, pairKey, relationOf } from "../diplomacy/relations";
 import type { GameEvent, OfferMissedReason, TradeMissCause } from "../turn/context";
 import { intentOrder } from "../turn/intents";
 import { isGreatPower } from "../world/countries";
-import { marketOf, priceOf, tradeOrdersOf } from "./market";
+import { marketOf, priceOf, recordHolds, tradeOrdersOf } from "./market";
 import { minorDemand, minorOffers, partnerRanking, settledTradeBarrier } from "./partners";
 
 export interface PartnerSettlement {
@@ -67,7 +68,7 @@ export function settlePartnerTrade(state: GameState, turn: number, emit: (event:
     order.map((id) => {
       const nation = state.nations.find((n) => n.id === id)!;
       const { sell, buy } = tradeOrdersOf(state, id);
-      return [id, { treasury: nation.treasury ?? 0, holds: Math.max(0, Math.floor(nation.merchantMarine?.holds ?? 0)), bid: { ...buy }, offer: { ...sell } }];
+      return [id, { treasury: nation.treasury ?? 0, holds: cargoHolds(nation.merchantMarine), bid: { ...buy }, offer: { ...sell } }];
     })
   );
   const deliveries: Record<NationId, TradeAmounts> = { ...market.deliveries };
@@ -239,10 +240,12 @@ export function settlePartnerTrade(state: GameState, turn: number, emit: (event:
   const nations = state.nations.map((nation): Nation => {
     const account = accounts.get(nation.id);
     const home = returned.get(nation.id);
-    if (!account || (account.treasury === (nation.treasury ?? 0) && !home)) return nation;
+    if (!account) return nation;
+    const settled = state.provinces?.length ? recordHolds(nation, cargoHolds(nation.merchantMarine) - account.holds) : nation;
+    if (account.treasury === (nation.treasury ?? 0) && !home) return settled;
     const warehouse = { ...nation.warehouse } as Record<string, number>;
     for (const [commodity, n] of Object.entries(home ?? {})) warehouse[commodity] = (warehouse[commodity] ?? 0) + (n ?? 0);
-    return { ...nation, treasury: account.treasury, warehouse: warehouse as Nation["warehouse"] };
+    return { ...settled, treasury: account.treasury, warehouse: warehouse as Nation["warehouse"] };
   });
 
   return {

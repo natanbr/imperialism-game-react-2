@@ -5,6 +5,8 @@ import { CAPITOL_ART, artFileOf, artInfoOf, fortArt, regimentArt } from "./inkAr
 export interface InkPictureProps {
   /** A URL from the table (`components/art/inkArt.ts`). */
   src: string;
+  /** A map sprite sheet containing this source picture. data-art still names the original artwork. */
+  sheet?: string;
   /** "" beside text that names the thing (decorative); the thing's name when the picture stands alone (FR-272). */
   alt: string;
   /** A square box in px; the pictures keep their proportions inside it. */
@@ -26,10 +28,10 @@ export interface InkPictureProps {
  * manifest file, as `data-icon` names a Game Icon; `data-art-anchor` lets globals.css draw full-body figures from the
  * bottom centre.
  */
-export const InkPicture: React.FC<InkPictureProps> = ({ src, alt, size, width = size, height = size, inline = false, className, testId, title }) => (
+export const InkPicture: React.FC<InkPictureProps> = ({ src, sheet, alt, size, width = size, height = size, inline = false, className, testId, title }) => (
   // eslint-disable-next-line @next/next/no-img-element
   <img
-    src={src}
+    src={sheet ?? src}
     alt={alt}
     width={width}
     height={height}

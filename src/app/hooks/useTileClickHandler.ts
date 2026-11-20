@@ -62,6 +62,12 @@ export function useTileClickHandler(
       clearArmySelection();
     }
 
+    if (selectedWorker?.pendingDisband) {
+      selectWorker(undefined);
+      selectTile(tile.id);
+      return;
+    }
+
     // Another country's tile, a Great Power's or a minor nation's, is only viewed (FR-108, FR-155):
     // no order, so no refusal in the news
     const country = countryOfTile(game, tile);

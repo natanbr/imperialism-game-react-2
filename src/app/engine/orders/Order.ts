@@ -4,6 +4,8 @@ import type { ConstructionKind } from "@/types/jobs/ConstructionJob";
 import type { BuildingType, ProductionOutput, WorkerGrade } from "@/types/Industry";
 import type { TradeCommodity } from "@/types/Market";
 import type { RegimentType } from "@/types/Unit";
+import type { MerchantShipType } from "@/definisions/ships";
+import type { UniversityCivilian } from "@/definisions/universityFees";
 
 /**
  * Everything a player (human UI or AI) can do is an Order. Each order names its nation and the
@@ -239,7 +241,33 @@ export interface CancelDisbandOrder extends OrderBase {
   regimentIds: RegimentId[];
 }
 
+export interface SetUniversityOrder extends OrderBase {
+  kind: "setUniversity";
+  civilianType: UniversityCivilian;
+  count: number;
+}
+
+export interface DisbandCivilianOrder extends OrderBase {
+  kind: "disbandCivilian";
+  workerId: string;
+}
+
+export interface CancelDisbandCivilianOrder extends OrderBase {
+  kind: "cancelDisbandCivilian";
+  workerId: string;
+}
+
+export interface SetShipyardOrder extends OrderBase {
+  kind: "setShipyard";
+  ship: MerchantShipType;
+  count: number;
+}
+
+export type CivilianOrder = SetUniversityOrder | DisbandCivilianOrder | CancelDisbandCivilianOrder;
+
 export type Order =
+  | CivilianOrder
+  | SetShipyardOrder
   | MoveWorkerOrder
   | MoveAndBuildRailOrder
   | StartProspectingOrder
@@ -304,6 +332,10 @@ export const ORDER_KINDS = [
   "cancelArmyMove",
   "disbandRegiments",
   "cancelDisband",
+  "setUniversity",
+  "disbandCivilian",
+  "cancelDisbandCivilian",
+  "setShipyard",
 ] as const satisfies readonly OrderKind[];
 
 /** Why an order was refused. A fixed list so UIs and AI players can switch on it (FR-004). */
@@ -321,6 +353,7 @@ export type RejectReason =
   | "insufficient-funds"
   | "insufficient-resources"
   | "insufficient-labour"
+  | "no-expert"
   | "limit-reached"
   | "invalid-amount"
   /** The last turn has resolved; nothing more can be ordered (FR-069). */

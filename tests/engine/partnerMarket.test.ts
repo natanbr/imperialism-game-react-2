@@ -68,7 +68,7 @@ const consulates = (state: GameState, nationId: string, ...minors: string[]): Ga
   minors.reduce((s, m) => setPair(s, nationId, m, { consulates: [...s.diplomacy[pairKey(nationId, m)].consulates, nationId].sort() }), state);
 const setHolds = (state: GameState, nationId: string, holds: number): GameState => ({
   ...state,
-  nations: state.nations.map(n => (n.id === nationId ? { ...n, merchantMarine: { ...n.merchantMarine, holds } } : n)),
+  nations: state.nations.map(n => (n.id === nationId ? { ...n, merchantMarine: { ...n.merchantMarine, ships: undefined, holds } } : n)),
 });
 const points = (s: GameState, a: string, b: string) => s.diplomacy[pairKey(a, b)].points;
 
@@ -165,7 +165,7 @@ describe('FR-242 the market mode (replaces FR-182)', () => {
 describe('FR-183 what minors offer', () => {
   it('FR-183 continent start: one unit per tile holding a tradeable resource, exactly the FR-183 list', () => {
     expect(MINORS.map(m => minorOffers(continent(), m))).toEqual([
-      { timber: 4, coal: 3, ironOre: 2, cotton: 2 },
+      { timber: 4, coal: 3, ironOre: 2, cotton: 1, horses: 1 }, // FR-517: 2 cotton -> 1 cotton + 1 horse at Arvelia.
       { cotton: 1, timber: 1, coal: 1, ironOre: 1 },
       { timber: 2, ironOre: 1 },
       { cotton: 2, coal: 1, timber: 1 },

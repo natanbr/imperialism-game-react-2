@@ -15,6 +15,19 @@ const W = {
 const prospect: Order = { kind: 'moveAndStartProspecting', nationId: N1, workerId: W.prospector, toTileId: T.mountains1 };
 const moveFarmer: Order = { kind: 'moveWorker', nationId: N1, workerId: W.farmer, toTileId: T.farm1 };
 
+describe('FR-512 End Turn keeps only a surviving civilian selection', () => {
+  it.each([W.farmer, W.prospector])('retains the tile when %s was selected and the farmer disbands', selected => {
+    const store = createGameStore({ game: game() });
+    const s = store.getState();
+    s.selectTile(T.capital1);
+    s.selectWorker(selected);
+    expect(s.submitOrder({ kind: 'disbandCivilian', nationId: N1, workerId: W.farmer })).toEqual({ ok: true });
+    s.advanceTurn();
+    expect(store.getState().selectedWorkerId).toBe(selected === W.farmer ? undefined : W.prospector);
+    expect(store.getState().selectedTileId).toBe(T.capital1);
+  });
+});
+
 const UI_KEYS = ['activeNationId', 'lastRejection', 'eventLog', 'orderLog', 'ordersThisTurn', 'cameraX', 'cameraY', 'selectedTileId', 'selectedWorkerId',
   'isWarehouseOpen', 'isCapitalOpen', 'isMarketOpen', 'isGameOverHidden', 'isTransportAllocationOpen', 'isConstructionModalOpen'];
 

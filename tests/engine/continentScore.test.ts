@@ -21,7 +21,7 @@ import type { WorldId } from '@/types/World';
 import type { MarketMode } from '@/types/Market';
 import { m4ScriptedPlayer } from './m4ScriptedPlayer';
 import { invariantViolations, N1, N2, nationOf, worldViolations } from './fixtures';
-import { withoutStartForces } from './armyFixtures';
+import { beforeRanches, historicalContinent, withoutStartForces } from './armyFixtures';
 import { withoutCouncil } from './withoutCouncil';
 
 const SEEDS = [1, 2, 3, 4];
@@ -126,6 +126,7 @@ const frozenM4 = (s: GameState) => ({ [N2]: m4ScriptedPlayer(s, N2) });
 /** R3: both nations played by the frozen M4 player, so nation 1's land next to Arvelia is worked too. */
 const frozenM4Both = (s: GameState) => ({ [N1]: m4ScriptedPlayer(s, N1), [N2]: m4ScriptedPlayer(s, N2) });
 
+
 describe('FR-260 (replaces FR-157) the continent plays: 40 turns, nation 2 scripted, nation 1 idle, seeds 1 to 4', () => {
   /** `bare`: the continent without its FR-203 start forces (FR-215); `noCouncil`: the engine without the Council (FR-302). */
   const games = new Map<number, { first: Game; again: Game; twoIslands: Game; bare: Game; noCouncil: Game }>();
@@ -175,6 +176,13 @@ describe('FR-260 (replaces FR-157) the continent plays: 40 turns, nation 2 scrip
     expect(SEEDS.map(seed => games.get(seed)!.first.refused)).toEqual(SEEDS.map(() => 0));
   });
 
+  it('FR-518 the scripted nation trains no University civilian in any of its 40 turns', () => {
+    for (const seed of SEEDS) {
+      const orders = games.get(seed)!.first.orders.flatMap(turn => turn[N2] ?? []);
+      expect(orders.filter(o => o.kind === 'setUniversity' && o.count > 0)).toEqual([]);
+    }
+  });
+
   it('FR-260 nation 2 is fed every turn, no worker sick or starved, and the invariants and world invariants hold after every turn', () => {
     expect(SEEDS.map(seed => ({ seed, ...games.get(seed)!.first.health }))).toEqual(
       SEEDS.map(seed => ({ seed, meals: TURNS, sick: 0, starved: 0, violations: [] }))
@@ -209,20 +217,21 @@ describe('FR-260 (replaces FR-157) the continent plays: 40 turns, nation 2 scrip
   const UPKEEP = (steps: [number, number][]) => steps.flatMap(([amount, turns]) => Array(turns).fill(amount));
   it('FR-260 FR-215 with the start army (FR-203) nation 2 pays the upkeep of the regiments it raises every turn, has nothing disbanded for want of money and keeps at least 4 arms in its capital province', () => {
     expect(SEEDS.map(seed => ({ seed, upkeep: games.get(seed)!.first.upkeep, noPay: games.get(seed)!.first.noPay }))).toEqual([
-      { seed: 1, upkeep: UPKEEP([[100, 11], [125, 5], [150, 3], [175, 1], [200, 4], [225, 16]]), noPay: 0 },
-      { seed: 2, upkeep: UPKEEP([[100, 11], [125, 6], [150, 7], [175, 16]]), noPay: 0 },
-      { seed: 3, upkeep: UPKEEP([[100, 11], [125, 8], [150, 1], [175, 6], [200, 14]]), noPay: 0 },
-      { seed: 4, upkeep: UPKEEP([[100, 11], [125, 3], [150, 1], [175, 25]]), noPay: 0 },
+      { seed: 1, upkeep: UPKEEP([[100, 11], [125, 1], [150, 8], [175, 5], [200, 7], [225, 3], [250, 5]]), noPay: 0 },
+      { seed: 2, upkeep: UPKEEP([[100, 11], [125, 1], [150, 8], [175, 4], [200, 16]]), noPay: 0 },
+      { seed: 3, upkeep: UPKEEP([[100, 11], [125, 1], [150, 8], [175, 4], [200, 11], [225, 5]]), noPay: 0 },
+      { seed: 4, upkeep: UPKEEP([[100, 11], [125, 1], [150, 14], [175, 13], [200, 1]]), noPay: 0 },
     ]);
     const capitalArms = (s: GameState) => forceSize(s.armies.find(a => a.ownerId === N2 && a.provinceId === 'province-nation-2-sw') ?? { regiments: [] });
     expect(SCRIPTED_GARRISON.capitalArms).toBe(4);
-    expect(SEEDS.map(seed => capitalArms(games.get(seed)!.first.final))).toEqual([4, 7, 4, 7]);
+    // FR-518: different recruiting and campaign dates change the old capital counts [4,7,4,7].
+    expect(SEEDS.map(seed => capitalArms(games.get(seed)!.first.final))).toEqual([4, 4, 4, 4]);
   });
 
   /** Nation 2's turn-40 score of each seed in one game kind. */
   const scores = (kind: 'first' | 'bare' | 'twoIslands') => SEEDS.map(seed => games.get(seed)![kind].turns[N2][TURNS - 1].score.total);
 
-  it('FR-260 FR-510 with the start army nation 2 scores 1363, 1352, 1367, 1430 on turn 40 (seeds 1 to 4)', () => {
+  it('FR-260 FR-510 FR-518 pins the continent turn-40 scores with the start army', () => {
     // Review R1: the start army's $100 upkeep (FR-202) moves the score from the two-islands one; these are the numbers a
     // change must move on purpose, as FR-159's v1 baselines.
     // M12 strategy C re-record (FR-456, FR-457 depot sites; FR-458 the campaign keeps its trained workers): 1419, 1451,
@@ -239,13 +248,22 @@ describe('FR-260 (replaces FR-157) the continent plays: 40 turns, nation 2 scrip
     // unchanged (no war on a Great Power)
     // FR-505: seed 1 1443 -> 1363, seed 3 1477 -> 1367. Uncollected developments in their conquered
     // provinces now earn zero. Seeds 2 and 4 conquered no land and their scores stay the same.
-    expect(scores('first')).toEqual([1363, 1352, 1367, 1430]);
+    // FR-518: [1363,1352,1367,1430] before ranches and fleets. All four buy an Indiaman on turn 12.
+    // Ship materials compete with factory expansion, changing production and the campaign's timing.
+    expect(scores('first')).toEqual([1159, 1225, 1207, 1222]);
   });
 
-  it('FR-260 FR-215 without the start forces nation 2\'s turn-40 score on the continent is the same seed\'s score on two-islands: 1643, 1546, 1530, 1637', () => {
-    // The seams of M5 to M8 change nothing else: only the start army (its upkeep) and the 4 horses move the continent game.
-    const at40 = (game: Game) => game.turns[N2][TURNS - 1].score;
-    expect(SEEDS.map(seed => at40(games.get(seed)!.bare))).toEqual(SEEDS.map(seed => at40(games.get(seed)!.twoIslands)));
+  it('FR-260 FR-215 FR-518 pins the army-less continent and protected two-islands turn-40 scores', () => {
+    // Even without its army, the M15 continent has ranches and builds two ships; two-islands has neither.
+    const bareScore = (treasury: number, capacity: number, developedLevels: number, total: number): Score => ({
+      nationId: N2, treasury, capacity, developedLevels, jobsPaid: 0,
+      points: { treasury: Math.floor(treasury / 100), industry: capacity * 10, development: developedLevels * 10, workInProgress: 0 },
+      total,
+    });
+    expect(SEEDS.map(seed => games.get(seed)!.bare.turns[N2][TURNS - 1].score)).toEqual([
+      bareScore(10012, 80, 53, 1430), bareScore(9787, 76, 57, 1427),
+      bareScore(11835, 80, 56, 1478), bareScore(10716, 80, 55, 1457),
+    ]);
     // M12 strategy C re-record (FR-454 to FR-457, the FR-125 margin): 1493, 1496, 1490, 1476 -> 1551, 1591, 1592, 1522
     // M12 FR-459 re-record: 1551, 1591, 1592, 1522 -> 1590, 1546, 1524, 1655 (FR-125's turn-40 numbers). Every seed first
     // differs on turn 10 (the rancher works 17-5, not 16-5 on the depot 17-4's rail path, which is joined a turn earlier
@@ -262,7 +280,7 @@ describe('FR-260 (replaces FR-157) the continent plays: 40 turns, nation 2 scrip
   it('FR-305 FR-510 each FR-260 game holds four meetings and elects its winner in Winter 1824', () => {
     const meetings = (game: Game) => game.councils.map(c => [c.turn, c.year, c.winnerId ?? null]);
     // FR-501/502: four turn-limit endings -> four Council winners. The three earlier ballots still have no winner.
-    const winners = [N2, N2, N1, N2];
+    const winners = [N2, N1, N2, N1];
     expect(SEEDS.map(seed => meetings(games.get(seed)!.first))).toEqual(winners.map(id => [[10, 1817, null], [20, 1819, null], [30, 1822, null], [40, 1824, id]]));
     expect(SEEDS.map(seed => games.get(seed)!.first.final.gameOver!.reason)).toEqual(['council', 'council', 'council', 'council']);
     expect(SEEDS.map(seed => games.get(seed)!.twoIslands.councils)).toEqual(SEEDS.map(() => []));
@@ -300,16 +318,18 @@ describe('FR-260 (replaces FR-157) the continent plays: 40 turns, nation 2 scrip
       ],
       abstained,
     });
-    const afterColony = count(30, [4, 0, 0, 0, 4], [4, 1, 0, 0, 5], ['province-minor-2', 'province-minor-3', 'province-minor-4']);
-    const fourToEight = count(40, [4, 0, 0, 0, 4], [4, 0, 0, 4, 8], []);
     // FR-501: the final Testland–Valdoria counts change by seed: 3–6 -> 6–6, 4–4 -> 4–8, 4–5 -> 7–5,
     // 4–4 -> 4–8. After conquest on seeds 1 and 3 the three free minors favor Testland; the four tied
     // minors on seeds 2 and 4 vote for Valdoria on standing.
+    // FR-518: Arvelia falls on turns 27,26,26 for seeds 1–3. Seeds 1 and 3 also take Testland
+    // North-East on turn 39. Seed 4 takes neither; standing gives Testland the four free minors.
+    const afterColony = count(30, [4, 0, 0, 0, 4], [4, 1, 0, 0, 5], ['province-minor-2', 'province-minor-3', 'province-minor-4']);
+    const lateConquest = count(40, [3, 0, 0, 3, 6], [5, 1, 0, 0, 6], []);
     expect(SEEDS.map(seed => columns(games.get(seed)!.first))).toEqual([
-      [fourToFour(10), fourToFour(20), afterColony, count(40, [3, 0, 0, 3, 6], [5, 1, 0, 0, 6], [])],
-      [fourToFour(10), fourToFour(20), fourToFour(30), fourToEight],
+      [fourToFour(10), fourToFour(20), afterColony, lateConquest],
       [fourToFour(10), fourToFour(20), afterColony, count(40, [4, 0, 0, 3, 7], [4, 1, 0, 0, 5], [])],
-      [fourToFour(10), fourToFour(20), fourToFour(30), fourToEight],
+      [fourToFour(10), fourToFour(20), afterColony, lateConquest],
+      [fourToFour(10), fourToFour(20), fourToFour(30), count(40, [4, 0, 0, 4, 8], [4, 0, 0, 0, 4], [])],
     ]);
   });
 
@@ -336,19 +356,26 @@ describe('FR-215 the seams with the start army: the frozen M4 player on both wor
   beforeAll(() => {
     for (const seed of SEEDS) {
       games.set(seed, {
-        n2: { 'two-islands': play('two-islands', frozenM4, seed), continent: play('continent', frozenM4, seed, 'world', withoutStartForces) },
-        both: { 'two-islands': play('two-islands', frozenM4Both, seed), continent: play('continent', frozenM4Both, seed, 'world', withoutStartForces) },
+        n2: { 'two-islands': play('two-islands', frozenM4, seed), continent: play('continent', frozenM4, seed, 'world', historicalContinent) },
+        both: { 'two-islands': play('two-islands', frozenM4Both, seed), continent: play('continent', frozenM4Both, seed, 'world', historicalContinent) },
       });
     }
   }, 180_000);
 
-  it.each(SEEDS)('FR-215 seed %i: the frozen M4 player\'s turn-1 orders on the continent (start army, world market) equal its two-islands turn-1 orders', seed => {
+  it.each(SEEDS)('FR-215 FR-518 seed %i: only the M15 orchard changes the frozen M4 player\'s turn-1 orders on the continent', seed => {
     const continent = newGame({ seed, world: 'continent', market: 'world' });
     const v1 = newGame({ seed, world: 'two-islands' });
 
-    expect(m4ScriptedPlayer(continent, N2)).toEqual(m4ScriptedPlayer(v1, N2));
-    // R3: nation 1's too, whose land borders Arvelia
-    expect(m4ScriptedPlayer(continent, N1)).toEqual(m4ScriptedPlayer(v1, N1));
+    for (const nationId of [N1, N2]) {
+      const islandOrders = m4ScriptedPlayer(v1, nationId);
+      expect(m4ScriptedPlayer(beforeRanches(continent), nationId)).toEqual(islandOrders);
+      // Two level-1 orchards yielded four fruit; today's one level-2 orchard yields three.
+      const transport = { kind: 'setTransportAllocations', nationId };
+      expect(islandOrders.at(-1)).toEqual({ ...transport, allocations: { fruit: 4, livestock: 2 } });
+      expect(m4ScriptedPlayer(continent, nationId)).toEqual([
+        ...islandOrders.slice(0, -1), { ...transport, allocations: { fruit: 3, livestock: 2 } },
+      ]);
+    }
     expect(continent.armies.length).toBeGreaterThan(0);
   });
 

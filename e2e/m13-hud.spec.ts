@@ -1,4 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page } from './seededGame';
 
 // M12b (NR-034) "better HUD" in the running app (docs/specs/hud.md; the file keeps the name the spec gave it although the
 // milestone is M12b). A new game; nation 1 (Testland) has its capital at 2-9.
