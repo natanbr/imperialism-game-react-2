@@ -87,7 +87,9 @@ export const TECH = {
 } as const;
 
 export const owns = (state: GameState, nationId: string | undefined, techId: string): boolean =>
-  state.nations.find(n => n.id === nationId)?.technologies?.includes(techId) ?? false;
+  state.technologyState
+    ? state.technologyState.technologies.some(t => t.purchased && t.id === techId)
+    : state.nations.find(n => n.id === nationId)?.technologies?.includes(techId) ?? false;
 
 const HILLS: readonly TerrainType[] = [TerrainType.BarrenHills, TerrainType.FertileHills];
 const isHills = (tile: Tile): boolean => HILLS.includes(tile.terrain);

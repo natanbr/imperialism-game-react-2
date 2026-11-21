@@ -26,6 +26,8 @@ DOM globals, `Math.random` or `Date.now`. An ESLint rule enforces this for `src/
 
 The catalogue in `definisions/technologies.ts` records the manual's first year, prerequisite IDs, price and effect. The clock in `engine/technology.ts` scales the historical years to the saved game's turn limit. `TIME_CONFIG.TURN_LIMIT` remains the single default for future game lengths.
 Each Great Power owns its `Nation.technologies`. The two order kinds reserve or refund the price immediately. The technology phase grants the pending IDs at End Turn, and the invention news lists public releases. Rail, civilian recruitment, refinery and ship construction check the acting nation's holdings. The version-1 loader copies the old shared purchases into independent lists, including any legacy oil permission.
+Version-1 saves retain the original order log and record the turn and count of applied orders when the rules change. `store/sessionReplay.ts` rebuilds the game from its seeded start, validates the historical orders under their original rules, and switches to current rules at that exact point, including partway through a turn.
+The loader fills historical news reports from the same invention calendar as the turn engine, so Continue shows the releases for the turn being opened.
 The Capital Technology dialog lists releases, ownership and prerequisites and submits orders through the store. Development permissions and computer technology purchasing are parked pending balance decisions.
 
 ## M15 people and ships

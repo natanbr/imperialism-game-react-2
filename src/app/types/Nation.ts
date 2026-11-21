@@ -19,6 +19,8 @@ export interface Nation {
   treasury: number;
   /** Purchased technologies (FR-520). Orders paid this turn take effect after End Turn. */
   technologies?: string[];
+  /** Set only during replay of the old rules that allowed imported oil to feed a refinery. */
+  legacyOilSupply?: true;
   pendingTechnologies?: string[];
   debt?: number;
   creditLimit?: number;

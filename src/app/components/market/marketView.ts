@@ -2,6 +2,7 @@
 // renders this view and sends orders; the engine stays the judge of every order.
 import { marketOf, priceOf, tradeCapacityOf, tradeOrdersOf, type TradeCapacity } from "@/engine";
 import { MAX_BUY_BIDS, TRADE_COMMODITIES } from "@/definisions/marketPrices";
+import { worldMarketSupplies } from "@/engine/market/market";
 import type { GameState } from "@/types/GameState";
 import type { TradeCommodity } from "@/types/Market";
 import type { Nation } from "@/types/Nation";
@@ -17,6 +18,7 @@ export interface MarketRowView {
   /** This turn's offer and bid in units. */
   sell: number;
   buy: number;
+  buyRefusal?: string;
 }
 
 export interface MarketView {
@@ -38,6 +40,7 @@ export function marketView(state: GameState, nation: Nation): MarketView {
     stock: stock[commodity] ?? 0,
     sell: sell[commodity] ?? 0,
     buy: buy[commodity] ?? 0,
+    buyRefusal: worldMarketSupplies(nation, commodity) ? undefined : "No oil supplier",
   }));
   return {
     rows,

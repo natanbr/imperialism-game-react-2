@@ -1,7 +1,7 @@
 // What the production phase will make (FR-116): the one computation the phase, the labour count,
 // the order validation and the capital dialog share, so none of them can show or allow more than the
 // nation really makes. Pure: the nation is only read.
-import type { ProductionOutput } from "@/types/Industry";
+import type { BuildingType, ProductionOutput } from "@/types/Industry";
 import type { Nation } from "@/types/Nation";
 import { MaterialType } from "@/types/Resource";
 import { BUILDING_ORDER, BUILDINGS } from "@/definisions/industryBuildings";
@@ -10,6 +10,10 @@ import type { Recipe } from "@/definisions/RecipeTypes";
 import { labourTotal } from "./labour";
 
 type Stock = Record<string, number>;
+
+/** FR-525: the refinery cannot use warehouse oil until an oil supply is introduced. */
+export const acceptsProductionInputs = (nation: Nation, building: BuildingType): boolean =>
+  building !== "refinery" || nation.legacyOilSupply === true;
 
 export interface Labour {
   /** Labour of the healthy workers not in training. */
@@ -71,7 +75,7 @@ export function planProduction(nation: Nation, { labour: labourGiven }: { labour
   const made: Partial<Record<ProductionOutput, number>> = {};
   for (const name of BUILDING_ORDER) {
     const building = industry.buildings[name];
-    if (!building) continue;
+    if (!building || !acceptsProductionInputs(nation, name)) continue;
     const def = BUILDINGS[name];
     let room = def.unlimited ? Infinity : building.capacity;
     for (const output of def.outputs) {

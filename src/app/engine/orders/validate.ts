@@ -66,8 +66,10 @@ export function validateOrder(state: GameState, order: Order): ValidationResult 
   switch (order.kind) {
     case "buyTechnology":
     case "withdrawTechnology":
+      if (state.technologyState) return reject("invalid-target");
       return validateTechnologyOrder(state, order);
     case "setShipyard":
+      if (state.technologyState && order.ship === "clipper") return reject("invalid-target");
       return validateShipyard(state, order);
     case "setUniversity":
     case "disbandCivilian":

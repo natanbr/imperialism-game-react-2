@@ -129,7 +129,7 @@ export function validateExpandBuilding(state: GameState, nation: Nation, order: 
   if (!Object.hasOwn(BUILDINGS, order.building)) return reject("invalid-target");
   const def = BUILDINGS[order.building];
   if (def.unlimited) return reject("invalid-target");
-  if (def.needsOilDrilling && !owns(state, nation.id, "oilDrilling")) return reject("invalid-target");
+  if (def.needsOilDrilling && !(state.technologyState?.oilDrillingTechUnlocked ?? owns(state, nation.id, "oilDrilling"))) return reject("invalid-target");
   const steps = expansionSteps(order);
   if (!isWholeNumber(steps) || steps === 0) return reject("invalid-amount");
   if (steps < 0) return expansionPoints(nation, order) === undefined ? reject("invalid-amount") : OK;

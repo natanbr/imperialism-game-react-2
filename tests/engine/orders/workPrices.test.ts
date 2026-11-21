@@ -96,7 +96,7 @@ describe('work prices - immediate treasury deduction on job start', () => {
   });
 });
 
-describe('work prices - every worker type that costs money', () => {
+describe('FR-029 work prices - every worker type that costs money', () => {
   const developmentCases: { type: WorkerType; terrain: TerrainType; resource: ResourceType }[] = [
     { type: WorkerType.Farmer, terrain: TerrainType.Farm, resource: ResourceType.Grain },
     { type: WorkerType.Rancher, terrain: TerrainType.OpenRange, resource: ResourceType.Livestock },

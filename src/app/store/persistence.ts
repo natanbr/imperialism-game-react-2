@@ -2,7 +2,9 @@
 // writes the store's session to one localStorage slot and reads it back for page.tsx, the only place that loads a save
 // (the store never does by itself). Its writes are the autosave page.tsx starts once the game in play is decided.
 import type { StoreApi } from "zustand";
-import { cargoHolds, shipsOf } from "@/definisions/ships";
+import { inventionNews } from "@/engine/technology";
+import { turnLimitOf } from "@/engine/turn/gameOver";
+import { withCurrentRules } from "./sessionReplay";
 import type { GameSession } from "./gameSlice";
 import type { GameStore } from "./rootStore";
 
@@ -36,8 +38,9 @@ export function browserStorage(): Storage | undefined {
 
 /** The save of a store's session (FR-357). */
 export function saveOf(session: GameSession, now: Date = new Date()): SavedGame {
-  const { game, activeNationId, eventLog, orderLog, ordersThisTurn, turnStartTreasuries } = session;
-  return { version: SAVE_VERSION, savedAt: now.toISOString(), game, activeNationId, eventLog, orderLog, ordersThisTurn, turnStartTreasuries };
+  const { game, activeNationId, eventLog, orderLog, ordersThisTurn, turnStartTreasuries, replayBoundary } = session;
+  return { version: SAVE_VERSION, savedAt: now.toISOString(), game, activeNationId, eventLog, orderLog, ordersThisTurn, turnStartTreasuries,
+    ...(replayBoundary && { replayBoundary }) };
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
@@ -71,17 +74,17 @@ export function readSave(storage: Pick<Storage, "getItem"> | undefined = browser
     const parsed: unknown = JSON.parse(raw);
     if (!isUsable(parsed)) return { kind: "unusable" };
     const shared = parsed.game.technologyState;
-    const inherited = new Set(shared?.technologies.filter(t => t.purchased).map(t => t.id));
-    if (shared?.oilDrillingTechUnlocked) inherited.add("oilDrilling");
-    for (const nation of parsed.game.nations) {
-      nation.technologies ??= [...inherited];
-      const marine = nation.merchantMarine;
-      if (marine) {
-        marine.ships = shipsOf(marine);
-        marine.holds = cargoHolds(marine);
+    if (shared || !parsed.game.rulesRevision) {
+      parsed.replayBoundary ??= { turn: parsed.game.turn, appliedOrders: parsed.ordersThisTurn.length,
+        ...(shared && { sharedTechnology: shared }) };
+      for (const report of parsed.eventLog) {
+        if (report.turn >= turnLimitOf(parsed.game) || report.events.some(e => e.type === "new-invention")) continue;
+        const released = inventionNews(parsed.game, report.turn + 1);
+        const end = report.events.findIndex(e => e.type === "turn-ended");
+        report.events.splice(end < 0 ? report.events.length : end, 0, ...released);
       }
     }
-    delete parsed.game.technologyState;
+    parsed.game = withCurrentRules(parsed.game);
     return { kind: "usable", save: parsed };
   } catch {
     return { kind: "unusable" };

@@ -3,6 +3,7 @@
 import { labourOf, largestOrder, migrantCap, planProduction, type Labour, type ProductionPlan } from "@/engine";
 import { BUILDING_ORDER, BUILDINGS, nextCapacity } from "@/definisions/industryBuildings";
 import { owns } from "@/engine/orders/queries";
+import { acceptsProductionInputs } from "@/engine/industry/productionPlan";
 import { EXPANSION_COST_PER_POINT, RECIPES } from "@/definisions/ResourceConversions";
 import type { GameState } from "@/types/GameState";
 import type { BuildingType, ProductionOutput, WorkerGrade, Workers } from "@/types/Industry";
@@ -26,6 +27,7 @@ export interface InputView {
 export interface OutputView {
   output: ProductionOutput;
   name: string;
+  acceptsInputs: boolean;
   /** Units per step of the amount control (2 for canned food). */
   batch: number;
   /** The standing order. */
@@ -65,6 +67,7 @@ interface Plans {
 
 function outputView(nation: Nation, plans: Plans, building: BuildingType, output: ProductionOutput): OutputView {
   const recipe = RECIPES[output];
+  const acceptsInputs = acceptsProductionInputs(nation, building);
   const stock = nation.warehouse as Stock;
   const order = nation.industry.buildings[building]?.orders[output] ?? 0;
   const planned = plans.real.made[output] ?? 0;
@@ -77,12 +80,13 @@ function outputView(nation: Nation, plans: Plans, building: BuildingType, output
       types: input.types as readonly WarehouseCommodities[],
       label: `${input.amount} ${input.types.map(commodityName).join(" or ")}`,
       stock: inStock,
-      missing: inStock < input.amount,
+      missing: !acceptsInputs || inStock < input.amount,
     };
   });
   return {
     output,
     name: commodityName(output),
+    acceptsInputs,
     batch: recipe.batch,
     order,
     planned,

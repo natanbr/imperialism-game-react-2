@@ -4,6 +4,7 @@ import { turnLimitOf } from "../turn/gameOver";
 
 /** Last phase: purchases become usable for the coming turn, after all current-turn work. */
 export const technologySystem: TurnSystem = (state, ctx) => {
+  if (state.technologyState) return state;
   if (state.turn < turnLimitOf(state)) {
     for (const event of inventionNews(state, state.turn + 1)) ctx.emit(event);
   }

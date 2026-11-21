@@ -11,7 +11,7 @@ export function universityCapital(state: GameState, nation: Nation) {
   return cityId ? state.map.tiles.flat().find(tile => tile.cityId === cityId && tile.ownerNationId === nation.id) : undefined;
 }
 
-export function validateCivilianOrder(state: GameState, nation: Nation, order: CivilianOrder): ValidationResult {
+export function validateCivilianOrder(state: GameState, nation: Nation, order: CivilianOrder, requireTechnology = !state.technologyState): ValidationResult {
   if (order.kind === "setUniversity") {
     const { civilianType, count } = order;
     if (!Object.hasOwn(UNIVERSITY_FEES, civilianType)) return { ok: false, reason: "invalid-target" };
@@ -20,7 +20,7 @@ export function validateCivilianOrder(state: GameState, nation: Nation, order: C
     if (increase <= 0) return { ok: true };
     if (!universityCapital(state, nation)) return { ok: false, reason: "invalid-target" };
     const techId = UNIVERSITY_TECHNOLOGY[civilianType];
-    if (techId && !owns(state, nation.id, techId)) return { ok: false, reason: "missing-technology", techId };
+    if (requireTechnology && techId && !owns(state, nation.id, techId)) return { ok: false, reason: "missing-technology", techId };
     if (freeWorkersOf(nation, "expert") < increase) return { ok: false, reason: "no-expert" };
     if ((nation.warehouse[MaterialType.Paper] ?? 0) < increase * UNIVERSITY_PAPER_COST) return { ok: false, reason: "insufficient-resources" };
     if (nation.treasury < increase * UNIVERSITY_FEES[civilianType]) return { ok: false, reason: "insufficient-funds" };

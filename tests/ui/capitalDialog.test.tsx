@@ -7,9 +7,10 @@ import { join } from 'path';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { CapitalModal } from '@/components/CapitalModal';
 import { useGameStore } from '@/store/rootStore';
+import { readSave } from '@/store/persistence';
 import type { Order } from '@/engine';
 import type { GameState } from '@/types/GameState';
-import { emptyWarehouse, game, industryOf, N1, nationOf, setIndustry, stockOf } from '../engine/fixtures';
+import { emptyWarehouse, game, industryOf, N1, nationOf, setBuilding, setIndustry, setTechnologies, stockOf } from '../engine/fixtures';
 import { text } from './domText';
 
 const ROOT = join(__dirname, '..', '..');
@@ -146,6 +147,21 @@ describe('FR-046 capital dialog: production cards', () => {
     nationOf(s, N1).technologies = ['oilDrilling'];
     openCapital(s);
     expect(card('refinery')).toBeTruthy();
+  });
+
+  it('FR-525 distinguishes migrated oil in storage from oil available to the refinery', () => {
+    const raw = readFileSync(join(ROOT, 'tests/store/fixtures/pre-m16-turn-3.json'), 'utf8');
+    const slot = readSave({ getItem: () => raw });
+    if (slot.kind !== 'usable') throw new Error('Expected the captured save to load');
+    const owner = setTechnologies(slot.save.game, N1, 'oilDrilling');
+    openCapital(setBuilding(owner, N1, 'refinery', { capacity: 2, orders: { fuel: 1 } }));
+
+    const refinery = within(card('refinery'));
+    const oil = refinery.getByTestId('input-oil');
+    expect(text(oil)).toContain('2 Oil (2 in warehouse, 0 available for production)');
+    expect(oil.getAttribute('data-missing')).toBe('true');
+    expect(text(refinery.getByTestId('short-fuel'))).toBe('Order 1: waiting for an oil supply');
+    expect((refinery.getByRole('button', { name: 'More Fuel' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('FR-046 a card lists the recipe inputs with their stock and marks a missing input', () => {

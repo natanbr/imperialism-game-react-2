@@ -339,19 +339,23 @@
     $('seg-legend').innerHTML = segs.map((s) => `<span><span class="sw" style="background:${s[3]}"></span>${h(s[1])} <b>${s[2]}</b></span>`).join('') + `<span>of ${c.total} topics</span>`;
   }
   const sevStack = (sv, scale) => { const t = sv.major + sv.minor + sv.nit; return `<div class="stack" style="width:${Math.max(18, t / scale * 100).toFixed(1)}%" role="img" aria-label="${sv.major} major, ${sv.minor} minor, ${sv.nit} nit">${[['major', 'var(--sev1)'], ['minor', 'var(--sev2)'], ['nit', 'var(--sev3)']].filter((x) => sv[x[0]]).map((x) => `<i style="flex:${sv[x[0]]} 1 0;background:${x[1]}"></i>`).join('')}</div>`; };
+  const planMilestones = (d) => d.plan.milestones.flatMap(m => [m, ...(m.followUps || [])]);
   function renderThemes(d) {
     const scale = Math.max(...d.themes.map((t) => t.count));
-    const msStatus = new Map(d.plan.milestones.map((m) => [m.id, m.status]));
-    $('themes').innerHTML = d.themes.map((t) => `<article class="theme" id="t-${t.id}"><div class="top"><h3><span class="tid mono">${t.id}</span>${h(t.title)}</h3><span class="cnt">${t.count} findings</span></div>
+    const milestones = planMilestones(d);
+    $('themes').innerHTML = d.themes.map((t) => {
+      const parts = milestones.filter(m => m.themes.includes(t.id));
+      return `<article class="theme" id="t-${t.id}"><div class="top"><h3><span class="tid mono">${t.id}</span>${h(t.title)}</h3><span class="cnt">${t.count} findings</span></div>
       ${sevStack(t.severity, scale)}<div class="sub">${t.severity.major} major &middot; ${t.severity.minor} minor &middot; ${t.severity.nit} nit${t.filedIds.length ? ` &middot; ${t.filedIds.length} filed by me` : ''}</div>
       <p>${h(t.plain)}</p><ul>${t.worst.map((w) => `<li>${h(w.text)} ${idLinks(w.ids)}</li>`).join('')}</ul>
-      <div class="fix"><span>Fixed in</span><a class="chip ms-${msStatus.get(t.milestone) || 'planned'}" href="#ms-${t.milestone}" data-ms="${t.milestone}">${t.milestone}</a></div></article>`).join('');
+      <div class="fix"><span>${parts.length > 1 ? 'Tracked in' : 'Fixed in'}</span>${parts.map(m => `<a class="chip ms-${m.status}" href="#ms-${m.id}" data-ms="${m.id}">${m.id}</a>`).join(' ')}</div></article>`;
+    }).join('');
     $('filednote').textContent = d.reality.filedNote;
   }
   const sizeWord = (s) => { const p = s.S + 3 * s.M + 8 * s.L; return p < 20 ? 'Small' : p < 50 ? 'Medium' : p < 100 ? 'Large' : 'Very large'; };
   function renderPlan(d) {
     $('ordernote').textContent = d.plan.orderNote;
-    $('ms').innerHTML = d.plan.milestones.map((m) => {
+    $('ms').innerHTML = planMilestones(d).map((m) => {
       const w = sizeWord(m.size), n = { Small: 1, Medium: 2, Large: 3, 'Very large': 4 }[w];
       return `<article class="ms ${m.status}" id="ms-${m.id}"><div class="top"><h3>${m.id} ${h(m.title)}</h3>${pill('ms-' + m.status, m.localBuild ? 'Built locally' : m.statusLabel)}</div>
       <p class="goal">${h(m.goal)}</p>

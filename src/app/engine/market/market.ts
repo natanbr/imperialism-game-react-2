@@ -2,6 +2,7 @@
 // share, and the price step. One market per game; every nation trades on it.
 import type { GameState } from "@/types/GameState";
 import type { Nation } from "@/types/Nation";
+import { ResourceType } from "@/types/Resource";
 import { cargoHolds } from "@/definisions/ships";
 import type { MarketMode, TradeAmounts, TradeCommodity, TradeOrders, WorldMarket } from "@/types/Market";
 import {
@@ -19,6 +20,10 @@ import { nationById } from "../orders/queries";
 /** A tradeable commodity, checked against own keys only (FR-026: names come from untrusted orders). */
 export const isTradeCommodity = (key: unknown): key is TradeCommodity =>
   typeof key === "string" && Object.hasOwn(START_PRICES, key);
+
+/** FR-525: the world market has no oil supplier until oil production is introduced. */
+export const worldMarketSupplies = (nation: Nation, commodity: TradeCommodity): boolean =>
+  commodity !== ResourceType.Oil || nation.legacyOilSupply === true;
 
 /**
  * The market of a new game: start prices, no orders, nothing on its way. A new object each call. A "world"

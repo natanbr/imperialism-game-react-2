@@ -37,6 +37,7 @@ export function newGame(options: number | NewGameOptions): GameState {
   const { map, nations, minorNations, provinces } = buildWorld(world);
   return withStartForces({
     turn: TIME_CONFIG.STARTING_TURN,
+    rulesRevision: "m16.1",
     year: TIME_CONFIG.STARTING_YEAR,
     seed,
     worldId: world,
