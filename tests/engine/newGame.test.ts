@@ -6,10 +6,10 @@ import { labourOf } from '@/engine/industry/productionPlan';
 import { WorkerType } from '@/types/Workers';
 import { TerrainType } from '@/types/Tile';
 import { ResourceType } from '@/types/Resource';
-import { hasTechnology, isDepotSite, railTerrainAllowed } from '@/engine/orders/queries';
+import { owns, isDepotSite, railTerrainAllowed } from '@/engine/orders/queries';
 import { getAdjacentTiles } from '@/engine/map/mapHelpers';
 import { resolveTurn } from '@/engine/turn/resolveTurn';
-import { START_TECHNOLOGIES } from '@/engine/world/startWorld';
+import { START_TECHNOLOGIES, technologyById } from '@/definisions/technologies';
 import { createTwoNationGame } from '@/testing/mockNation';
 
 const ENGINE_DIR = join(__dirname, '../../src/app/engine');
@@ -65,9 +65,9 @@ describe('FR-059 start technologies: the rules\' own two and the decision Q8 def
 
   it('FR-059 a new game holds High Pressure Steam Engine and Seed Drill (rules 01), and Compound Steam Engine, Iron Railroad Bridge and Dynamite (Q8), as purchased', () => {
     const g = newGame({ seed: 7 });
-    for (const id of ALL_START) expect({ id, has: hasTechnology(g, id) }).toEqual({ id, has: true });
-    expect(g.technologyState.technologies.map(t => t.id).sort()).toEqual([...ALL_START].sort());
-    const names = Object.fromEntries(g.technologyState.technologies.map(t => [t.id, t.name]));
+    for (const id of ALL_START) expect({ id, has: owns(g, g.nations[0].id, id) }).toEqual({ id, has: true });
+    expect([...g.nations[0].technologies!].sort()).toEqual([...ALL_START].sort());
+    const names = Object.fromEntries(g.nations[0].technologies!.map(id => [id, technologyById(id)?.name]));
     expect(names).toMatchObject({ highPressureSteamEngine: 'High Pressure Steam Engine', seedDrill: 'Seed Drill' });
   });
 
@@ -85,10 +85,10 @@ describe('FR-059 start technologies: the rules\' own two and the decision Q8 def
     expect(isDepotSite(g, hills)).toBe(true);
   });
 
-  it('FR-059 the list is start-state data: START_TECHNOLOGIES, and the test fixtures start with none', () => {
-    expect(START_TECHNOLOGIES.map(t => t.id).sort()).toEqual([...ALL_START].sort());
-    expect(START_TECHNOLOGIES.every(t => t.purchased)).toBe(true);
-    expect(createTwoNationGame(1).technologyState.technologies).toEqual([]);
+  it('FR-059 the list is start-state data: START_TECHNOLOGIES, and the small test world starts without the rough-terrain gifts', () => {
+    expect([...START_TECHNOLOGIES].sort()).toEqual([...ALL_START].sort());
+    const fixture = createTwoNationGame(1);
+    expect(ROUGH.filter(id => owns(fixture, fixture.nations[0].id, id))).toEqual([]);
   });
 });
 

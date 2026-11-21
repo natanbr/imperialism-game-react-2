@@ -71,8 +71,10 @@ export interface GameState {
   /** Set when the last turn has resolved; no order or turn changes the state after it (FR-069). */
   gameOver?: GameOver;
 
-  // industry is now per-nation, see Nation.industry
-  technologyState: TechnologyState;
+  /** Shared ownership in pre-M16 version-1 saves. readSave migrates it to the individual nations. */
+  technologyState?: TechnologyState;
+  /** Identifies current play in v1 saves; older saves need a historical replay boundary. */
+  rulesRevision?: "m16.1";
 
   difficulty: "introductory" | "easy" | "normal" | "hard" | "nighOnImpossible";
 }

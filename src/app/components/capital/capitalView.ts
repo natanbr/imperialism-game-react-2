@@ -2,6 +2,8 @@
 // dialog's components render these views and send orders; the engine stays the judge of every order.
 import { labourOf, largestOrder, migrantCap, planProduction, type Labour, type ProductionPlan } from "@/engine";
 import { BUILDING_ORDER, BUILDINGS, nextCapacity } from "@/definisions/industryBuildings";
+import { owns } from "@/engine/orders/queries";
+import { acceptsProductionInputs } from "@/engine/industry/productionPlan";
 import { EXPANSION_COST_PER_POINT, RECIPES } from "@/definisions/ResourceConversions";
 import type { GameState } from "@/types/GameState";
 import type { BuildingType, ProductionOutput, WorkerGrade, Workers } from "@/types/Industry";
@@ -25,6 +27,7 @@ export interface InputView {
 export interface OutputView {
   output: ProductionOutput;
   name: string;
+  acceptsInputs: boolean;
   /** Units per step of the amount control (2 for canned food). */
   batch: number;
   /** The standing order. */
@@ -64,6 +67,7 @@ interface Plans {
 
 function outputView(nation: Nation, plans: Plans, building: BuildingType, output: ProductionOutput): OutputView {
   const recipe = RECIPES[output];
+  const acceptsInputs = acceptsProductionInputs(nation, building);
   const stock = nation.warehouse as Stock;
   const order = nation.industry.buildings[building]?.orders[output] ?? 0;
   const planned = plans.real.made[output] ?? 0;
@@ -76,12 +80,13 @@ function outputView(nation: Nation, plans: Plans, building: BuildingType, output
       types: input.types as readonly WarehouseCommodities[],
       label: `${input.amount} ${input.types.map(commodityName).join(" or ")}`,
       stock: inStock,
-      missing: inStock < input.amount,
+      missing: !acceptsInputs || inStock < input.amount,
     };
   });
   return {
     output,
     name: commodityName(output),
+    acceptsInputs,
     batch: recipe.batch,
     order,
     planned,
@@ -91,19 +96,18 @@ function outputView(nation: Nation, plans: Plans, building: BuildingType, output
   };
 }
 
-function expansionView(state: GameState, building: BuildingType, capacity: number, pending: number): ExpansionView | null {
+function expansionView(building: BuildingType, capacity: number, pending: number): ExpansionView | null {
   const def = BUILDINGS[building];
   if (def.unlimited) return null;
-  if (def.needsOilDrilling && !state.technologyState.oilDrillingTechUnlocked) return null;
   const from = capacity + pending;
   const to = nextCapacity(def.kind, from);
   const points = to - from;
   return { to, lumber: points * EXPANSION_COST_PER_POINT.lumber, steel: points * EXPANSION_COST_PER_POINT.steel };
 }
 
-const isShown = (state: GameState, building: BuildingType, size: number): boolean => {
+const isShown = (state: GameState, nationId: string, building: BuildingType, size: number): boolean => {
   const def = BUILDINGS[building];
-  if (def.needsOilDrilling) return state.technologyState.oilDrillingTechUnlocked;
+  if (def.needsOilDrilling) return owns(state, nationId, "oilDrilling");
   return def.unlimited || size > 0;
 };
 
@@ -112,7 +116,7 @@ export function productionCards(state: GameState, nation: Nation): BuildingCardV
   const plans: Plans = { real: planProduction(nation), stockOnly: planProduction(nation, { labour: Infinity }) };
   return BUILDING_ORDER.flatMap((building) => {
     const { capacity = 0, pendingCapacity = 0 } = nation.industry.buildings[building] ?? {};
-    if (!isShown(state, building, capacity + pendingCapacity)) return [];
+    if (!isShown(state, nation.id, building, capacity + pendingCapacity)) return [];
     const def = BUILDINGS[building];
     return [{
       building,
@@ -120,7 +124,7 @@ export function productionCards(state: GameState, nation: Nation): BuildingCardV
       capacity,
       pendingCapacity,
       outputs: def.outputs.map((output) => outputView(nation, plans, building, output)),
-      expansion: expansionView(state, building, capacity, pendingCapacity),
+      expansion: expansionView(building, capacity, pendingCapacity),
     }];
   });
 }

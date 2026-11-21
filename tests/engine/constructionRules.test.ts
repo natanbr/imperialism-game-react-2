@@ -9,7 +9,7 @@ import { ResourceType } from '@/types/Resource';
 import { TerrainType } from '@/types/Tile';
 import { WorkerStatus, WorkerType } from '@/types/Workers';
 import { createTileId } from '@/utils/tileIdUtils';
-import { deepFreeze, game, locate, N1, put, setTile, T, tileAt, treasury, workerId } from './fixtures';
+import { deepFreeze, game, locate, N1, put, setTechnologies, setTile, T, tileAt, treasury, workerId } from './fixtures';
 
 const ENGINEER = workerId(N1, WorkerType.Engineer);
 const FARMER = workerId(N1, WorkerType.Farmer);
@@ -25,16 +25,7 @@ const swamp = createTileId(1, 3);
 const coastHills = createTileId(2, 4); // barren hills next to the water row
 
 function withTech(state: GameState, id: string): GameState {
-  return {
-    ...state,
-    technologyState: {
-      ...state.technologyState,
-      technologies: [
-        ...state.technologyState.technologies,
-        { id, name: id, approximateArrival: [1815, 1815], prerequisites: [], benefits: [], purchased: true, cost: 0 },
-      ],
-    },
-  };
+  return setTechnologies(state, N1, ...state.nations[0].technologies ?? [], id);
 }
 
 const build = (tileId: string, structure: 'rail' | 'depot' | 'port' | 'fort'): Order =>
@@ -61,7 +52,7 @@ const siteCases: SiteCase[] = [
   { name: 'FR-030 rail onto mountains with Dynamite', setup: s => withTech(s, 'dynamite'), order: railTo(T.mountains1), expected: 'ok' },
   { name: 'FR-030 rail onto swamp before Iron Railroad Bridge', setup: s => put(setTile(s, T.dryPlains1, { connected: true }), ENGINEER, T.dryPlains1), order: railTo(swamp), expected: 'invalid-site' },
   { name: 'FR-030 rail onto swamp with Iron Railroad Bridge', setup: s => withTech(put(setTile(s, T.dryPlains1, { connected: true }), ENGINEER, T.dryPlains1), 'ironRailroadBridge'), order: railTo(swamp), expected: 'ok' },
-  { name: 'FR-030 a technology that is listed but not purchased does not count', setup: s => ({ ...s, technologyState: { ...s.technologyState, technologies: [{ id: 'dynamite', name: 'Dynamite', approximateArrival: [1871, 1887], prerequisites: [], benefits: [], purchased: false, cost: 0 }] } }), order: railTo(T.mountains1), expected: 'invalid-site' },
+  { name: 'FR-030 a paid technology still pending does not count', setup: s => ({ ...s, nations: s.nations.map(n => n.id === N1 ? { ...n, pendingTechnologies: ['dynamite'] } : n) }), order: railTo(T.mountains1), expected: 'invalid-site' },
 
   // depot
   { name: 'FR-030 a depot two tiles from the capital is ok', setup: at(T.orchard1), order: build(T.orchard1, 'depot'), expected: 'ok' },

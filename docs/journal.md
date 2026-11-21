@@ -2,35 +2,46 @@
 
 ## Resuming here
 
-- On `claude/m15-people-ships`, Nathan accepted FR-545 (15/24 peaceful diplomat wins) and FR-546 (13/24 idle games with an earned turn-40 minor vote) for M15. Task 10 passed the full local gate after WIP `6453f83`. Revisit both balance results with the original game. Evidence is in the entry below and `.gate/codex/10/`.
-- Open Capital for University and Shipyard, Tile Info for Disband and the ranch, and Board of Trade for fleet and completed purchases. Screenshots and logs are in `.gate/codex/07/`.
-- Q125 to Q129 use their defaults and remain open for tuning. Living minors follow M16 as M15b. The branch is local with no published build or pull request.
+- M16 part 1 is reviewed and gated on the local `claude/m16-technology` branch, one fix commit after `b75d196`. All 2,872 unit tests and 135 Chromium tests passed. Reproductions, screenshots and gate logs are in `.gate/codex/13/`.
+- M16b is planned for FR-523, FR-527, FR-528 and the cotton development path of FR-526. The full candidate stays parked at `f8470ba`. Its measured balance results are in `.gate/codex/11/balance.md`.
+- To see part 1, open Capital, buy Streamlined Hulls on turn 3 and order a Clipper with 6 lumber and 2 fabric on turn 4.
 
-## 2026-11-21 M15 owner decision on the two measured rows (Task 10)
+## 2026-11-21 Task 13 — M16 part 1 checkpoint review
 
-Size S. Nathan chose “Accept measured rows.” Both former thresholds were 18 of 24. The original diplomat won 24/24 on M14 before the FR-516 computer fleet. On M15 it wins 15/24 (FR-545, replacing FR-509's diplomat threshold). With FR-245 enforced, Valdoria earns a free minor's vote at the turn-40 Council in 13/24 idle games (FR-546, replacing only FR-542 (ii)). Only the final-turn purchasing bypass yielded 21/24. FR-542 (i) still requires an embassy and pact by turn 29 in 18/24 idle games.
+Size M. Fix the four findings recorded in `.gate/codex/12/review.md`.
+- Change and consumers — preserve historical orders across the save migration, align invention news and close the world market's oil supply.
+- Coverage — FR-100/520 full-state replay, FR-521 fresh and loaded news, FR-525 seed-1 fuel path, FR-029 discovery of all six worker cases.
+- Verify — red and green per finding, full Vitest, lint, TypeScript, production build, single-worker Chromium on port 3123 and the roadmap checker.
+- Objection — historical permissions must survive replay without granting a new game or a resumed turn the same permissions.
 
-Q140 records computer-only advance ship preparation. Q141 records the lawful purchase window and vote threshold. Q142 records the diplomat threshold. All three are marked “confirmed for M15, tune” in `docs/verify-and-tune.md` for comparison with the original game.
-
-| Claim | Command or evidence | Quoted result |
+| Claim | Command or evidence in `.gate/codex/13/` | Result quoted |
 |---|---|---|
-| Before the decision, same policies and seeds | `.gate/codex/09/owner-unit-final.txt`, `q140-results.md`, `q141-results.md` | `2 failed \| 2828 passed (2830)`. The diplomat won 15 and the computer earned the minor vote in 13. |
-| Roadmap, Q140–Q142 | `node .gate/m12/L4-check-roadmap.cjs` (`roadmap.log`) | `PASS` |
-| Unit and engine suites | `npm test` and `npm test -- --reporter=verbose` (`unit.log`, `unit-final.log`) | Both runs: `Test Files  131 passed (131)`, `Tests  2830 passed (2830)`, `EXIT 0` |
-| Original diplomat, seeds 1–24 | `npm test -- --reporter=verbose` (`unit-final.log`) | `Testland wins by Council by turn 40 in 15/24 games`, `10 with a paid grant and 0 before the last meeting` |
-| Turn-40 minor vote and turn-29 embassy and pact | `npm test -- --reporter=verbose` (`unit-final.log`, idle seeds 1–24) | FR-546 `13 of 24  (required 13)`. FR-542 (i) `23 of 24  (required 18)`. |
-| Peaceful policy | `git hash-object tests/engine/sim/humans.ts` compared with M14 and Task 09 (`scope.log`) | All three Git blobs are `809151ebbb9fdc4c2ec65a25f338d6177bf4752f`. |
-| Lint | `npm run lint` (`lint-final.log`) | `2 problems (0 errors, 2 warnings)`, `EXIT 0` |
-| Types | `npx tsc --noEmit` (`types-final.log`) | `EXIT 0` |
-| Production build | `npm run build` (`build-final.log`) | `Compiled successfully in 4.2s`, `Generating static pages (4/4)`, `EXIT 0` |
-| Chromium | `PORT=3123 PLAYWRIGHT_HTML_OPEN=never npx playwright test --workers=1` (`playwright.log`) | `Running 134 tests using 1 worker`, `134 passed (10.7m)`, `EXIT 0` |
+| FR-100/520, legacy replay | Vitest `legacyTechnology.test.tsx`, `red-legacy.txt`, `red-checkpoint-resave.txt`, `green-legacy.txt` | Red `to have a length of 2 but got 1`. Green `5 passed (5)` files and `76 passed (76)` tests, including full-state replay of both the pre-M16 save and its checkpoint resave. |
+| FR-525, seed 1 | Vitest `refinerySupply.test.ts`, `fr-525-red.txt` and `fr-525-green.txt` | Red `"oilDelivered": 2`, `"fuel": 1`. Green `Tests  168 passed (168)` across industry, trade and UI, including zero oil delivered and zero fuel produced on the same orders. |
+| FR-521, fresh and loaded HUD | Vitest `legacyTechnology.test.tsx`, `red-legacy.txt` and `green-legacy.txt` | Red `expected [] to deeply equal [ …(4) ]`. Green `legacyTechnology.test.tsx (5 tests)` includes all four lines exactly once after Continue and a second save. |
+| FR-029, six worker cases | `vitest list tests/engine/orders/workPrices.test.ts -t FR-029`, then a filtered run, `fr-029-{red,green}.txt` | Red `Found 0`. Green `PASS: FR-029 discovers all 6 level 1 worker cases.` Filtered run `9 passed`. |
+| Independent historical oil replay | `checkpoint-replay/generate.cjs` on `b75d196`, then `checkpoint-replay/verify.cjs` on the fix | `PASS: Loaded and replayed b75d196 turn 21 exactly.` After Continue, the standing refinery order `left 2 oil and 1 fuel on turn 22`. |
+| Capital explains the carried stock | Vitest `capitalDialog.test.tsx`, `fr-525-capital-{red,green}.txt` and independent `review.md` | Red showed `2 Oil (2)`. Green shows `2 Oil (2 in warehouse, 0 available for production)`. The four focused suites reported `Tests  40 passed (40)`. |
 
-Task 10 logs are under `.gate/codex/10/`. The default sandbox could not access the installed Node toolchain. The gate uses Node 22.22.0 and npm 10.9.4. The unit run used `VITEST_MIN_FORKS=1` and `VITEST_MAX_FORKS=3`. The two ESLint warnings also appeared on M14.
+| Gate | Command or file in `.gate/codex/13/` | Result quoted |
+|---|---|---|
+| Units and simulations | `npm test` (`unit.txt`, `margin.txt`) | `Test Files  136 passed (136)`, `Tests  2872 passed (2872)`. FR-125 minimum `903/563 = 1.603908x at seed 3, turn 25` across all 12 comparisons. |
+| Protected inputs and replay | `git hash-object` vs. `git rev-parse b75d196:<path>` (`scope.txt`) | `PASS identical to b75d196` for the human policies, frozen player, golden replay test, balance tests and timeout configurations. |
+| Lint | `npm run lint` (`lint.txt`) | `2 problems (0 errors, 2 warnings)`, `EXIT 0`. Both warnings also appear in the checkpoint lint log. |
+| Types | `npx tsc --noEmit` (`types.txt`) | `EXIT 0` after using the typed Rancher enum in the new regression. |
+| Production build | `npm run build` (`build.txt`) | `Compiled successfully in 19.3s`, `Generating static pages (4/4)`, `EXIT 0`. |
+| Chromium | `PORT=3123 PLAYWRIGHT_HTML_OPEN=never npx playwright test --workers=1` (`playwright.txt`) | `135 passed (18.9m)`, `EXIT 0`, including the seeded Clipper unlock. |
+| Roadmap | `node .gate/m12/L4-check-roadmap.cjs` (`roadmap.txt`) | `PASS`, `EXIT 0`. The Technology milestone includes M16b as a planned follow-up. |
+| Browser spot checks | `node .gate/codex/13/browser-news.cjs` (`browser-news.txt`, `turn-3-continue.png`, `carried-oil.png`) | Fresh and continued games both showed Streamlined Hulls, Square-Set Timbering, Iron Railroad Bridge and Feed Grasses. `PASS: checkpoint refinery shows 2 in warehouse, 0 available, a waiting standing order, and disabled More Fuel.` M16 part 1 and M16b each have a visible roadmap card. |
+
+## 2026-11-21 Task 11 — M16 Technology (archived)
+
+The [M16 part 1 journal archive](journal/archive-M16-part-1.md) records the original checkpoint, ten red tests, the seeded Clipper unlock and the full candidate's measurements.
 
 ## 2026-11-20 M15 implementation and review (archived)
 
 [The M15 journal archive](journal/archive-M15.md) preserves Task 07's implementation, review and browser checks
-and Task 09's original diplomat and Council replays, including both failures at the former 18/24 thresholds.
+and Task 09's original diplomat and Council replays. Task 10 records the owner's accepted 15/24 peaceful wins and 13/24 earned minor votes, each measured with the unchanged human policies.
 
 ## 2026-11-20 M14 review fixes (Task 06)
 

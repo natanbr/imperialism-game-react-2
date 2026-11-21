@@ -47,13 +47,13 @@ export const ProductionCard: React.FC<ProductionCardProps> = ({ card, nationId, 
                 className={input.missing ? styles.inputMissing : styles.input}
                 data-testid={`input-${input.key}`}
                 data-missing={input.missing ? "true" : undefined}
-                title={input.missing ? "Not enough in the warehouse for one batch" : undefined}
+                title={out.acceptsInputs && input.missing ? "Not enough in the warehouse for one batch" : undefined}
               >
                 {input.missing && <span aria-hidden="true">✗ </span>}
                 {input.types.map((type) => (
                   <InkPicture key={type} src={goodsArt(type)} alt="" inline />
                 ))}
-                {`${input.label} (${input.stock})`}
+                {out.acceptsInputs ? `${input.label} (${input.stock})` : `${input.label} (${input.stock} in warehouse, 0 available for production)`}
               </li>
             ))}
           </ul>
@@ -80,7 +80,9 @@ export const ProductionCard: React.FC<ProductionCardProps> = ({ card, nationId, 
           </div>
           {out.short && (
             <p className={styles.shortNote} data-testid={`short-${out.output}`}>
-              {`Order ${out.order}: only ${out.planned} can be made (short of ${out.short})`}
+              {out.acceptsInputs
+                ? `Order ${out.order}: only ${out.planned} can be made (short of ${out.short})`
+                : `Order ${out.order}: waiting for an oil supply`}
             </p>
           )}
         </div>

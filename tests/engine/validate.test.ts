@@ -59,6 +59,8 @@ const ARMY = (() => {
 const marchOrder = (regimentIds: string[], fromProvinceId = SW1, toProvinceId = NW1): Order => ({ kind: 'moveArmy', nationId: N1, fromProvinceId, regimentIds, toProvinceId });
 
 const cases: Case[] = [
+  { name: 'FR-522 buy the available Cotton Gin', order: { kind: 'buyTechnology', nationId: N1, techId: 'cottonGin' }, expected: 'ok' },
+  { name: 'FR-522 withdraw the pending Cotton Gin purchase', setup: s => applyOrder(s, { kind: 'buyTechnology', nationId: N1, techId: 'cottonGin' }), order: { kind: 'withdrawTechnology', nationId: N1, techId: 'cottonGin' }, expected: 'ok' },
   { name: 'FR-511 order an Engineer with a free expert and paper', setup: s => setIndustry(setWarehouse(s, N1, { paper: 2 }), N1, { workers: { untrained: 0, trained: 0, expert: 1 } }), order: { kind: 'setUniversity', nationId: N1, civilianType: WorkerType.Engineer, count: 1 }, expected: 'ok' },
   { name: 'FR-512 disband an available farmer', order: { kind: 'disbandCivilian', nationId: N1, workerId: W.farmer }, expected: 'ok' },
   { name: 'FR-512 withdraw the same civilian disband', setup: s => applyOrder(s, { kind: 'disbandCivilian', nationId: N1, workerId: W.farmer }), order: { kind: 'cancelDisbandCivilian', nationId: N1, workerId: W.farmer }, expected: 'ok' },

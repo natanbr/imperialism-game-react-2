@@ -7,7 +7,7 @@ import {
   DEVELOPMENT_WORKER_TYPES,
   TECH,
   findWorker,
-  hasTechnology,
+  owns,
   isLand,
   nextResourceLevel,
   railTerrainAllowed,
@@ -121,7 +121,7 @@ function constructionSiteText(state: GameState, tile: Tile, structure: Construct
     case "depot":
       if (tile.depot) return "This tile already has a depot.";
       if (capital) return "The capital already gathers goods like a depot.";
-      if (HILLS.includes(tile.terrain) && !hasTechnology(state, TECH.compoundSteamEngine)) {
+      if (HILLS.includes(tile.terrain) && !owns(state, tile.ownerNationId, TECH.compoundSteamEngine)) {
         return "A depot on hills needs the Compound Steam Engine.";
       }
       return "Too close to the capital or another depot.";

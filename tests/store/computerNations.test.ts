@@ -2,6 +2,7 @@
 // log (FR-100) and can start a new game (FR-105). Real newGame(): nation 1 human, nation 2 scripted.
 import { describe, it, expect } from 'vitest';
 import { createGameStore } from '@/store/rootStore';
+import { replaySession } from '@/store/sessionReplay';
 import { computerOrders, newGame, resolveTurn, scriptedPlayer, type Order } from '@/engine';
 import type { GameState } from '@/types/GameState';
 import { ResourceType } from '@/types/Resource';
@@ -99,6 +100,7 @@ describe('FR-100 the order log', () => {
     }
 
     expect(replayed).toEqual(store.getState().game);
+    expect(replaySession(store.getState())).toEqual(replayed);
     expect(JSON.parse(JSON.stringify(log))).toEqual(log);
   });
 

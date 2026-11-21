@@ -7,7 +7,7 @@ import { MaterialType } from "@/types/Resource";
 import { WorkerStatus, WorkerType } from "@/types/Workers";
 import {
   deepFreeze, game, industryOf, locate, N1, N2, nationOf, put, setBuilding, setIndustry,
-  setTile, setTreasury, setWarehouse, stockOf, T, tileAt, treasury, workerId,
+  setTechnologies, setTile, setTreasury, setWarehouse, stockOf, T, tileAt, treasury, workerId,
 } from "./fixtures";
 
 function university(civilianType: SetUniversityOrder["civilianType"], count = 1): SetUniversityOrder {
@@ -24,12 +24,28 @@ const disband = { kind: "disbandCivilian", nationId: N1, workerId: engineer } as
 const cancel = { ...disband, kind: "cancelDisbandCivilian" } as const;
 const move = { kind: "moveWorker", nationId: N1, workerId: engineer, toTileId: T.farm1 } as const;
 
+describe("FR-524 University technology", () => {
+  it.each([
+    [WorkerType.Rancher, "feedGrasses"],
+    [WorkerType.Forester, "ironRailroadBridge"],
+    [WorkerType.Driller, "oilDrilling"],
+  ] as const)("requires the nation's own technology to train a %s and preserves its starting unit", (type, techId) => {
+    const state = setTechnologies(setTechnologies(start(), N1), N2, techId);
+    const order = university(type);
+    const attempt = tryApplyOrder(state, order);
+    expect(attempt.result).toEqual({ ok: false, reason: "missing-technology", techId });
+    expect(attempt.state).toBe(state);
+    expect(locate(state, workerId(N1, type))).toBeDefined();
+    expect(tryApplyOrder(setTechnologies(state, N1, techId), order).result).toEqual({ ok: true });
+  });
+});
+
 describe("FR-511 University", () => {
   it.each([
     [WorkerType.Prospector, 500], [WorkerType.Miner, 1500], [WorkerType.Engineer, 1000],
     [WorkerType.Rancher, 1000], [WorkerType.Farmer, 1000], [WorkerType.Forester, 1000], [WorkerType.Driller, 1000],
   ] as const)("charges the %s fee of %i, two paper and one healthy expert immediately", (type, fee) => {
-    const initial = deepFreeze(start());
+    const initial = deepFreeze(setTechnologies(start(), N1, "feedGrasses", "ironRailroadBridge", "oilDrilling"));
     const { result, state } = tryApplyOrder(initial, university(type));
     expect(result).toEqual({ ok: true });
     expect(treasury(state, N1)).toBe(3000 - fee);

@@ -17,6 +17,7 @@ import type { GameState } from "@/types/GameState";
 import type { WorldId } from "@/types/World";
 import type { MarketMode } from "@/types/Market";
 import type { GameStore } from "./rootStore";
+import type { ReplayBoundary } from "./sessionReplay";
 import { isPlayersWorker } from "./controls/playersWorker";
 
 /** How many resolved turns the event log keeps. */
@@ -52,6 +53,8 @@ export interface OrderLogEntry {
 /** The game and what the store keeps of its session: what a save holds and a restore puts back (FR-357, FR-359). */
 export interface GameSession {
   game: GameState;
+  /** The point at which this game was first opened under the current rules. */
+  replayBoundary?: ReplayBoundary;
   /** The nation this client plays. Orders for any other nation are refused. */
   activeNationId: NationId;
   /** Oldest first, at most EVENT_LOG_TURNS entries. */
@@ -206,6 +209,7 @@ export const createGameSlice =
         set({
           ...NO_SELECTION_NO_DIALOG,
           game: next,
+          replayBoundary: undefined,
           activeNationId: next.nations[0]?.id ?? "nation-1",
           eventLog: [],
           orderLog: [],
@@ -218,8 +222,8 @@ export const createGameSlice =
       setSaveFailed: (failed) => set({ saveFailed: failed }),
 
       // FR-359: the saved session, and of the UI only what a new game starts with; a finished game shows its final scores
-      restoreGame: ({ game: saved, activeNationId, eventLog, orderLog, ordersThisTurn, turnStartTreasuries }) =>
-        set({ ...NO_SELECTION_NO_DIALOG, game: saved, activeNationId, eventLog, orderLog, ordersThisTurn, turnStartTreasuries }),
+      restoreGame: ({ game: saved, replayBoundary, activeNationId, eventLog, orderLog, ordersThisTurn, turnStartTreasuries }) =>
+        set({ ...NO_SELECTION_NO_DIALOG, game: saved, replayBoundary, activeNationId, eventLog, orderLog, ordersThisTurn, turnStartTreasuries }),
     };
   };
 

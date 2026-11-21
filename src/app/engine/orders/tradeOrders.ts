@@ -5,12 +5,12 @@ import type { GameState } from "@/types/GameState";
 import type { Nation } from "@/types/Nation";
 import type { TradeCommodity, TradeOrders } from "@/types/Market";
 import { MAX_BUY_BIDS } from "@/definisions/marketPrices";
-import { isTradeCommodity, marketOf, priceOf, tradeCapacityOf, tradeOrdersOf } from "../market/market";
-import { partnerRefusal } from "../market/partners";
-import type { BuyCommodityOrder, RejectReason, SellCommodityOrder, ValidationResult } from "./Order";
+import { isTradeCommodity, marketOf, priceOf, tradeCapacityOf, tradeOrdersOf, worldMarketSupplies } from "../market/market";
+import { marketModeOf, partnerRefusal } from "../market/partners";
+import type { BuyCommodityOrder, OrdinaryRejectReason, SellCommodityOrder, ValidationResult } from "./Order";
 
 const OK: ValidationResult = { ok: true };
-const reject = (reason: RejectReason): ValidationResult => ({ ok: false, reason });
+const reject = (reason: OrdinaryRejectReason): ValidationResult => ({ ok: false, reason });
 
 type Side = keyof TradeOrders;
 type TradeOrder = SellCommodityOrder | BuyCommodityOrder;
@@ -29,6 +29,7 @@ export function validateTradeOrder(state: GameState, nation: Nation, order: Trad
   const orders = tradeOrdersOf(state, nation.id);
   const current = orders[side][commodity] ?? 0;
   if (amount <= current) return OK; // lowering an offer or a bid is always allowed
+  if (side === "buy" && marketModeOf(state) === "world" && !worldMarketSupplies(nation, commodity)) return reject("no-seller");
 
   // Rules 06 section 2: no offer and bid on the same commodity, at most 4 bids a turn.
   const otherSide = side === "sell" ? orders.buy : orders.sell;

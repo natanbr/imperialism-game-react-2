@@ -10,6 +10,7 @@ import { LabourPanel } from "./capital/LabourPanel";
 import { FreightCars } from "./capital/FreightCars";
 import { UniversityPanel } from "./capital/UniversityPanel";
 import { ShipyardPanel } from "./capital/ShipyardPanel";
+import { TechnologyButton } from "./TechnologyModal";
 import styles from "./capital/Capital.module.css";
 import { UI_ICONS } from "./icons";
 import { GameIcon } from "./GameIcon";
@@ -91,9 +92,7 @@ export const CapitalModal: React.FC = () => {
                 <InkPicture src={buildingArt("armoury")} alt="" inline />Armoury
               </button>
             )}
-            <button className={styles.secondaryButton} disabled title="Coming in a later milestone">
-              <InkPicture src={buildingArt("university")} alt="" inline />Technology
-            </button>
+            <TechnologyButton />
           </nav>
           <button className={styles.closeButton} onClick={close} aria-label="Close capital">
             <span aria-hidden="true">×</span>

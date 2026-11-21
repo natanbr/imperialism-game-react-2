@@ -10,7 +10,7 @@ import { useGameStore } from '@/store/rootStore';
 import { marketOf, tradeOrdersOf, type Order } from '@/engine';
 import { MAX_BUY_BIDS, START_PRICES, TRADE_COMMODITIES } from '@/definisions/marketPrices';
 import type { GameState } from '@/types/GameState';
-import { emptyWarehouse, game, N1, stockOf, treasury } from '../engine/fixtures';
+import { emptyWarehouse, game, N1, setWarehouse, stockOf, treasury } from '../engine/fixtures';
 import { text } from './domText';
 
 let submitted: Order[] = [];
@@ -133,6 +133,16 @@ describe('FR-074 market dialog: orders', () => {
     expect(submitted.at(-1)).toEqual({ kind: 'buyCommodity', nationId: N1, commodity: 'coal', amount: 0 });
     expect(treasury(now(), N1)).toBe(10000);
     expect(cell('coal', 'buy')).toBe('0');
+  });
+
+  it('FR-525 explains why the world market cannot supply oil and leaves its stock available to sell', () => {
+    openMarket(setWarehouse(stocked(), N1, { oil: 2 }));
+    const oil = within(row('oil'));
+    const buy = oil.getByRole('button', { name: 'Buy one more Oil' }) as HTMLButtonElement;
+    expect(buy.disabled).toBe(true);
+    expect(oil.getByText('No oil supplier')).toHaveProperty('id', buy.getAttribute('aria-describedby'));
+    fireEvent.click(oil.getByRole('button', { name: 'Sell one more Oil' }));
+    expect(cell('oil', 'sell')).toBe('1');
   });
 
   it('FR-074 the − buttons are disabled at 0', () => {

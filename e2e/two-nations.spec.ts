@@ -84,7 +84,8 @@ test('FR-109 New game in the HUD asks first; Start new game goes back to turn 1 
   await confirm.getByRole('button', { name: 'Start new game' }).click();
   await expectFreshGameSeed(page);
   await expect(page.getByTestId('turn-indicator')).toContainText('Turn: 1 of 40');
-  await expect(page.getByTestId('news-panel')).not.toContainText('News');
+  await expect(page.getByTestId('news-panel').getByRole('heading')).toHaveText('News for turn 1');
+  await expect(page.getByTestId('news-list').getByRole('listitem')).toHaveText(['New Invention: Cotton Gin']);
   await expect(page.getByTestId('tile-info')).toHaveCount(0);
   await expect(tile(page, '3-9')).not.toHaveAttribute('data-selected', 'true');
 

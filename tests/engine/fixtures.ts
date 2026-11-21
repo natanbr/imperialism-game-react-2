@@ -83,6 +83,9 @@ export function emptyWarehouse(state: GameState, nationId: string, patch: Record
 }
 
 export const nationOf = (state: GameState, nationId: string): Nation => state.nations.find(n => n.id === nationId)!;
+export function setTechnologies(state: GameState, nationId: string, ...technologies: string[]): GameState {
+  return { ...state, nations: state.nations.map(n => n.id === nationId ? { ...n, technologies } : n) };
+}
 export const industryOf = (state: GameState, nationId: string): IndustryState => nationOf(state, nationId).industry;
 export const stockOf = (state: GameState, nationId: string, key: string): number =>
   (nationOf(state, nationId).warehouse as Record<string, number>)[key] ?? 0;

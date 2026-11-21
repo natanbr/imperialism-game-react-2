@@ -1,5 +1,6 @@
 import { SHIPS, SHIP_TYPES } from "@/definisions/ships";
 import { validateOrder, type Order } from "@/engine";
+import { owns } from "@/engine/orders/queries";
 import type { GameState } from "@/types/GameState";
 import type { Nation } from "@/types/Nation";
 import { MaterialType } from "@/types/Resource";
@@ -25,6 +26,7 @@ export function ShipyardPanel({ game, nation, submitOrder }: Props) {
       <ul className={styles.orderRows}>
         {SHIP_TYPES.map(ship => {
           const def = SHIPS[ship];
+          if (def.requiredTechnology && !owns(game, nation.id, def.requiredTechnology)) return null;
           const count = nation.merchantMarine.pendingShips?.[ship] ?? 0;
           const order = (n: number) => ({ kind: "setShipyard", nationId: nation.id, ship, count: n } as const);
           const result = validateOrder(game, order(count + 1));

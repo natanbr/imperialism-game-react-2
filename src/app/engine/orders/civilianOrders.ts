@@ -1,17 +1,17 @@
-import { UNIVERSITY_FEES, UNIVERSITY_PAPER_COST, type UniversityCivilian } from "@/definisions/universityFees";
+import { UNIVERSITY_FEES, UNIVERSITY_PAPER_COST, UNIVERSITY_TECHNOLOGY, type UniversityCivilian } from "@/definisions/universityFees";
 import type { GameState } from "@/types/GameState";
 import type { Nation } from "@/types/Nation";
 import { MaterialType } from "@/types/Resource";
 import { freeWorkersOf } from "../army/armies";
 import type { CivilianOrder, ValidationResult } from "./Order";
-import { findWorker, hasMovedThisTurn, isWorkerBusy } from "./queries";
+import { findWorker, hasMovedThisTurn, isWorkerBusy, owns } from "./queries";
 
 export function universityCapital(state: GameState, nation: Nation) {
   const cityId = nation.cities[0];
   return cityId ? state.map.tiles.flat().find(tile => tile.cityId === cityId && tile.ownerNationId === nation.id) : undefined;
 }
 
-export function validateCivilianOrder(state: GameState, nation: Nation, order: CivilianOrder): ValidationResult {
+export function validateCivilianOrder(state: GameState, nation: Nation, order: CivilianOrder, requireTechnology = !state.technologyState): ValidationResult {
   if (order.kind === "setUniversity") {
     const { civilianType, count } = order;
     if (!Object.hasOwn(UNIVERSITY_FEES, civilianType)) return { ok: false, reason: "invalid-target" };
@@ -19,6 +19,8 @@ export function validateCivilianOrder(state: GameState, nation: Nation, order: C
     const increase = count - (nation.university?.[civilianType] ?? 0);
     if (increase <= 0) return { ok: true };
     if (!universityCapital(state, nation)) return { ok: false, reason: "invalid-target" };
+    const techId = UNIVERSITY_TECHNOLOGY[civilianType];
+    if (requireTechnology && techId && !owns(state, nation.id, techId)) return { ok: false, reason: "missing-technology", techId };
     if (freeWorkersOf(nation, "expert") < increase) return { ok: false, reason: "no-expert" };
     if ((nation.warehouse[MaterialType.Paper] ?? 0) < increase * UNIVERSITY_PAPER_COST) return { ok: false, reason: "insufficient-resources" };
     if (nation.treasury < increase * UNIVERSITY_FEES[civilianType]) return { ok: false, reason: "insufficient-funds" };

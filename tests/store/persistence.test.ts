@@ -494,3 +494,31 @@ describe('FR-430 How to play on the first new game', () => {
     expect(config).toContain(HOW_TO_PLAY_SEEN_KEY);
   });
 });
+
+it('FR-520 migrates legacy v1 purchases and oil permissions, preserving independent current ownership and pending orders', () => {
+  const saved = saveOf(createGameStore({ seed: 1 }).getState());
+  const legacy = {
+    ...saved,
+    game: {
+      ...saved.game,
+      nations: saved.game.nations.map(n => ({ ...n, technologies: undefined })),
+      technologyState: {
+        oilDrillingTechUnlocked: true,
+        technologies: [{ id: 'seedDrill', purchased: true }, { id: 'cottonGin', purchased: false }],
+      },
+    },
+  };
+  const load = (value: unknown) => {
+    const slot = readSave({ getItem: () => JSON.stringify(value) });
+    if (slot.kind !== 'usable') throw new Error('Expected usable v1 save');
+    return slot.save;
+  };
+  const migrated = load(legacy);
+  expect(migrated.version).toBe(1);
+  for (const nation of migrated.game.nations) expect(nation.technologies).toEqual(['seedDrill', 'oilDrilling']);
+  const [a, b] = migrated.game.nations;
+  expect(a.technologies).not.toBe(b.technologies);
+  a.technologies = [];
+  a.pendingTechnologies = ['cottonGin'];
+  expect(load(migrated).game.nations).toEqual([a, b]);
+});

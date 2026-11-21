@@ -97,7 +97,11 @@ const WorldMarket: React.FC = () => {
                     <Stepper label="Sell" name={row.name} value={row.sell} testId="sell" onChange={send("sellCommodity", row.commodity)} />
                   </td>
                   <td>
-                    <Stepper label="Buy" name={row.name} value={row.buy} testId="buy" onChange={send("buyCommodity", row.commodity)} />
+                    <Stepper
+                      label="Buy" name={row.name} value={row.buy} testId="buy" onChange={send("buyCommodity", row.commodity)}
+                      moreRefusal={row.buyRefusal}
+                      note={row.buyRefusal ? { text: row.buyRefusal, tone: "refusal" } : undefined}
+                    />
                   </td>
                 </tr>
               ))}

@@ -15,6 +15,7 @@ import { createStreamRng, createTurnRng, RNG_STREAMS, type Rng, type RngStream }
 
 /** What happened during a turn, for news, UI feedback and AI players. */
 export type GameEvent =
+  | { type: "new-invention"; techId: string }
   | { type: "order-rejected"; nationId: NationId; order: Order; reason: RejectReason }
   | { type: "resource-discovered"; tileId: TileId; nationId?: NationId; resource?: ResourceType }
   | { type: "development-completed"; tileId: TileId; nationId?: NationId; level: number }

@@ -8,7 +8,7 @@ import { RECIPES } from '@/definisions/ResourceConversions';
 import { GameState } from '@/types/GameState';
 import { BuildingType, ProductionOutput } from '@/types/Industry';
 import {
-  deepFreeze, emptyWarehouse, game, industryOf, N1, nationOf, setBuilding, setIndustry, setTreasury, setWarehouse, stockOf, treasury,
+  deepFreeze, emptyWarehouse, game, industryOf, N1, nationOf, setBuilding, setIndustry, setTechnologies, setTreasury, setWarehouse, stockOf, treasury,
 } from './fixtures';
 
 // The two-nation fixture: nation-1 has 4 untrained, 2 trained and 1 expert worker (12 labour),
@@ -72,7 +72,7 @@ const cases: Case[] = [
   { name: 'FR-038 expanding without enough steel', setup: () => base({ lumber: 2, steel: 1 }), order: { kind: 'expandBuilding', nationId: N1, building: 'steelMill' }, expected: 'insufficient-resources' },
   { name: 'FR-038 food processing has no capacity to expand', setup: () => base({ lumber: 9, steel: 9 }), order: { kind: 'expandBuilding', nationId: N1, building: 'foodProcessing' }, expected: 'invalid-target' },
   { name: 'FR-038 the refinery before Oil Drilling', setup: () => base({ lumber: 9, steel: 9 }), order: { kind: 'expandBuilding', nationId: N1, building: 'refinery' }, expected: 'invalid-target' },
-  { name: 'FR-038 building the refinery after Oil Drilling is ok', setup: () => ({ ...base({ lumber: 2, steel: 2 }), technologyState: { technologies: [], oilDrillingTechUnlocked: true } }), order: { kind: 'expandBuilding', nationId: N1, building: 'refinery' }, expected: 'ok' },
+  { name: 'FR-038 building the refinery after Oil Drilling is ok', setup: () => setTechnologies(base({ lumber: 2, steel: 2 }), N1, 'oilDrilling'), order: { kind: 'expandBuilding', nationId: N1, building: 'refinery' }, expected: 'ok' },
   { name: 'FR-026 FR-038 an inherited name as building (__proto__)', setup: () => base({ lumber: 9, steel: 9 }), order: { kind: 'expandBuilding', nationId: N1, building: '__proto__' as BuildingType }, expected: 'invalid-target' },
 
   // FR-057 expandBuilding with a delta: cancel this turn's steps, or order several at once

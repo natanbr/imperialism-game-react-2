@@ -1,7 +1,7 @@
 import { SHIPS } from "@/definisions/ships";
 import type { GameState } from "@/types/GameState";
 import type { Order, ValidationResult } from "./Order";
-import { nationById } from "./queries";
+import { nationById, owns } from "./queries";
 
 type ShipyardOrder = Extract<Order, { kind: "setShipyard" }>;
 
@@ -11,6 +11,9 @@ export function validateShipyard(state: GameState, { nationId, ship, count }: Sh
   const nation = nationById(state, nationId)!;
   const delta = count - (nation.merchantMarine.pendingShips?.[ship] ?? 0);
   const cost = SHIPS[ship];
+  if (delta > 0 && cost.requiredTechnology && !owns(state, nationId, cost.requiredTechnology)) {
+    return { ok: false, reason: "missing-technology", techId: cost.requiredTechnology };
+  }
   if ((nation.warehouse.lumber ?? 0) < delta * cost.lumber || (nation.warehouse.fabric ?? 0) < delta * cost.fabric) {
     return { ok: false, reason: "insufficient-resources" };
   }

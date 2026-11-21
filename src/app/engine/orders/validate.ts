@@ -15,14 +15,15 @@ import { validateTradeOrder } from "./tradeOrders";
 import { validateDiplomacyOrder } from "./diplomacyOrders";
 import { validateArmyOrder } from "./armyOrders";
 import { validateCivilianOrder } from "./civilianOrders";
+import { validateTechnologyOrder } from "./technologyOrders";
 import { validateShipyard } from "./shipyardOrders";
 import { isGameOver } from "../turn/gameOver";
 import { areTilesAdjacent } from "../map/mapHelpers";
 import type {
+  OrdinaryRejectReason,
   CancelWorkerActionOrder,
   MoveAndBuildRailOrder,
   Order,
-  RejectReason,
   SetTransportAllocationsOrder,
   ValidationResult,
 } from "./Order";
@@ -48,9 +49,9 @@ import {
 export type { RejectReason, ValidationResult } from "./Order";
 
 const OK: ValidationResult = { ok: true };
-const reject = (reason: RejectReason): ValidationResult => ({ ok: false, reason });
+const reject = (reason: OrdinaryRejectReason): ValidationResult => ({ ok: false, reason });
 
-type Checked<T> = { ok: true; value: T } | { ok: false; reason: RejectReason };
+type Checked<T> = { ok: true; value: T } | { ok: false; reason: OrdinaryRejectReason };
 
 /**
  * Says whether `order` may be applied to `state` now, and if not, why (FR-004). Pure: the
@@ -63,7 +64,12 @@ export function validateOrder(state: GameState, order: Order): ValidationResult 
   if (!nation) return reject("unknown-nation");
 
   switch (order.kind) {
+    case "buyTechnology":
+    case "withdrawTechnology":
+      if (state.technologyState) return reject("invalid-target");
+      return validateTechnologyOrder(state, order);
     case "setShipyard":
+      if (state.technologyState && order.ship === "clipper") return reject("invalid-target");
       return validateShipyard(state, order);
     case "setUniversity":
     case "disbandCivilian":

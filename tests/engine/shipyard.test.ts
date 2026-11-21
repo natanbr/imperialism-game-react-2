@@ -4,11 +4,28 @@ import { tryApplyOrder } from '@/engine/orders/apply';
 import { resolveTurn } from '@/engine/turn/resolveTurn';
 import { tradeCapacityOf } from '@/engine/market/market';
 import { readSave } from '@/store/persistence';
-import { deepFreeze, N1, nationOf, setWarehouse } from './fixtures';
+import { deepFreeze, N1, N2, nationOf, setTechnologies, setWarehouse } from './fixtures';
 
 const start = () => setWarehouse(newGame({ seed: 1 }), N1, { lumber: 14, fabric: 6 });
-const ship = (type: 'trader' | 'indiaman', count: number) =>
+const ship = (type: 'trader' | 'indiaman' | 'clipper', count: number) =>
   ({ kind: 'setShipyard', nationId: N1, ship: type, count }) as const;
+
+it('FR-525 only the owner of Streamlined Hulls can order a Clipper for six lumber and two fabric, gaining four holds on delivery', () => {
+  const state = setTechnologies(setTechnologies(start(), N1), N2, 'streamlinedHulls');
+  const blocked = tryApplyOrder(state, ship('clipper', 1));
+  expect(blocked.result).toEqual({ ok: false, reason: 'missing-technology', techId: 'streamlinedHulls' });
+  expect(blocked.state).toBe(state);
+  const unlocked = setTechnologies(state, N1, 'streamlinedHulls');
+  const queued = tryApplyOrder(unlocked, ship('clipper', 1));
+  expect(queued.result).toEqual({ ok: true });
+  expect(nationOf(queued.state, N1).warehouse).toMatchObject({ lumber: 8, fabric: 4 });
+  expect(tradeCapacityOf(queued.state, N1).holds).toBe(4);
+  const cancelled = tryApplyOrder(queued.state, ship('clipper', 0));
+  expect(nationOf(cancelled.state, N1).warehouse).toEqual(nationOf(unlocked, N1).warehouse);
+  const delivered = resolveTurn(queued.state, {}).state;
+  expect(nationOf(delivered, N1).merchantMarine.ships).toMatchObject({ clipper: 1 });
+  expect(tradeCapacityOf(delivered, N1).holds).toBe(8);
+});
 
 describe('FR-514 the Shipyard', () => {
   it('starts with one Indiaman and four holds', () => {

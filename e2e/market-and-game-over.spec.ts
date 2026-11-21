@@ -148,7 +148,8 @@ test('FR-078 FR-104 FR-109 end 40 turns, see the game-over screen with both nati
   await expect(over).toHaveCount(0);
   await expect(page.getByTestId('turn-indicator')).toContainText('Turn: 1 of 40');
   await expect(advance(page)).toBeEnabled();
-  await expect(page.getByTestId('news-panel')).not.toContainText('News');
+  await expect(page.getByTestId('news-panel').getByRole('heading')).toHaveText('News for turn 1');
+  await expect(page.getByTestId('news-list').getByRole('listitem')).toHaveText(['New Invention: Cotton Gin']);
   // M12b (FR-474): the score table is in the right pane's Nation group, closed by default (was always shown)
   await page.getByRole('button', { name: 'Nation', exact: true }).click();
   await expect(page.getByRole('table', { name: 'Scores' }).getByTestId(/^score-row-/)).toHaveCount(2);

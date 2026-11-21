@@ -18,6 +18,7 @@ export const mockNations: Nation[] = [
     name: "Britannia",
     colorSlot: 1,
     controller: "human",
+    technologies: ["seedDrill"],
     treasury: 10000,
     debt: 0,
     creditLimit: 5000,
@@ -39,6 +40,7 @@ export const mockNations: Nation[] = [
     name: "Germania",
     colorSlot: 2,
     controller: "human",
+    technologies: ["seedDrill"],
     treasury: 8000,
     debt: 0,
     creditLimit: 4000,
@@ -60,6 +62,7 @@ export const mockNations: Nation[] = [
     name: "Francia",
     colorSlot: 3,
     controller: "human",
+    technologies: ["seedDrill"],
     treasury: 900,
     debt: 0,
     creditLimit: 4500,
@@ -205,7 +208,6 @@ export function createTwoNationGame(seed = 1): GameState {
     transportNetwork: { shippingLanes: [], capacity: 0, railroadNetworks: initializeRailroadNetworks(map, nations) },
     tradeRoutes: [],
     market: startMarket(),
-    technologyState: { technologies: [], oilDrillingTechUnlocked: false },
     difficulty: "normal",
   };
 }

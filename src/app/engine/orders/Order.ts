@@ -265,7 +265,20 @@ export interface SetShipyardOrder extends OrderBase {
 
 export type CivilianOrder = SetUniversityOrder | DisbandCivilianOrder | CancelDisbandCivilianOrder;
 
+export interface BuyTechnologyOrder extends OrderBase {
+  kind: "buyTechnology";
+  techId: string;
+}
+
+export interface WithdrawTechnologyOrder extends OrderBase {
+  kind: "withdrawTechnology";
+  techId: string;
+}
+
+export type TechnologyOrder = BuyTechnologyOrder | WithdrawTechnologyOrder;
+
 export type Order =
+  | TechnologyOrder
   | CivilianOrder
   | SetShipyardOrder
   | MoveWorkerOrder
@@ -336,10 +349,16 @@ export const ORDER_KINDS = [
   "disbandCivilian",
   "cancelDisbandCivilian",
   "setShipyard",
+  "buyTechnology",
+  "withdrawTechnology",
 ] as const satisfies readonly OrderKind[];
 
 /** Why an order was refused. A fixed list so UIs and AI players can switch on it (FR-004). */
 export type RejectReason =
+  | "missing-technology"
+  | "not-available"
+  | "missing-prerequisite"
+  | "already-owned"
   | "unknown-nation"
   | "unknown-worker"
   | "not-owner"
@@ -383,4 +402,8 @@ export type RejectReason =
   /** Diplomacy (FR-406): war on a country no chain of land-adjacent provinces joins to ours (that needs ships). */
   | "no-land-route";
 
-export type ValidationResult = { ok: true } | { ok: false; reason: RejectReason };
+export type OrdinaryRejectReason = Exclude<RejectReason, "missing-technology">;
+export type ValidationResult =
+  | { ok: true }
+  | { ok: false; reason: OrdinaryRejectReason }
+  | { ok: false; reason: "missing-technology"; techId: string };
