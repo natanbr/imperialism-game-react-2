@@ -135,7 +135,13 @@ describe('FR-481 the human policies', () => {
     // turn 7) takes a hold its timber purchase from the minors used and is refunded unanswered, so Valdoria keeps that cash,
     // declares on Arvelia on turn 17 (was 18) and takes it on turn 18, before Testland (measured with `standing` forced
     // empty: 19, as before; .gate/m13/close/attrib-off.txt and attrib-on.txt)
-    expect(firstProvinceTakenTurn(game)).toBe(18);
+    // FR-516 Q140: without advance hull preparation Testland makes paper and clothing on turn 4.
+    // Valdoria recruits its third Cuirassiers on turn 14, declares on Arvelia on 15 and takes it on 16.
+    // Replaying this seed with the previous preparation rule gives the turn-18 capture above.
+    expect(firstProvinceTakenTurn(game)).toBe(16);
+    expect(game.turns[15].provincesTaken).toContainEqual({
+      byId: COMPUTER_ID, provinceId: 'province-minor-1', fromId: 'minor-1',
+    });
     expect(game.turns.flatMap(t => t.invariantViolations)).toEqual([]);
   });
 

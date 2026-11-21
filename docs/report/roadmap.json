@@ -180,7 +180,7 @@
    "text": "Of 24 rule topics of the original game: 3 built, 14 partial, 1 wrong, 1 dead code, 5 missing."
   },
   "notChecked": "Not checked by the audit: Firefox and Safari, real touch on a phone, screen readers, and a human game played all the way to a Council win.",
-  "notFixed": "M12 (themes T1 to T10, FR-357 to FR-464) is merged into main 91d7edc (pull request 34), so its findings are fixed on main. M12b (the HUD you asked for, FR-465 to FR-480, and its by-eye QA fixes FR-529 to FR-537) is merged into main 74f595c (pull request 35, 2026-11-17). M13 (theme T11) is merged on the checked origin/main, 1d58b74. M14 (theme T12) merged at 79a94b2. M15 was built and verified locally on claude/m15-people-ships. M16 through M18 remain planned.",
+  "notFixed": "M12 (themes T1 to T10, FR-357 to FR-464) is merged into main 91d7edc (pull request 34), so its findings are fixed on main. M12b (the HUD you asked for, FR-465 to FR-480, and its by-eye QA fixes FR-529 to FR-537) is merged into main 74f595c (pull request 35, 2026-11-17). M13 (theme T11) is merged on the checked origin/main, 1d58b74. M14 (theme T12) merged at 79a94b2. M15 is built locally on claude/m15-people-ships and blocked on FR-509 and FR-542(ii). M16 through M18 remain planned.",
   "filedNote": "The plan named 122 of the 160 findings in its themes. I filed the other 38 under the nearest theme; they are marked \"filed\" and can be moved."
  },
  "statusLegend": [
@@ -1413,7 +1413,7 @@
      "M": 6,
      "L": 3
     },
-    "statusText": "Built and verified locally on claude/m15-people-ships. FR-511 to FR-518 passed. All 24 idle fleets reached eight holds by turn 25, and a human seed-1 game settled eight units in a single trade phase. The frozen two-islands margin remains 1.60. FR-497 planning p95 was 26.1 ms in isolation. The local gate passed 2,824 unit tests and 133 Chromium tests with zero lint errors and two existing warnings. TypeScript and production build exited 0. Independent review approved. Evidence and screenshots are in .gate/codex/07/.",
+    "statusText": "Task 09 is blocked on FR-509 and FR-542(ii). FR-511 to FR-518 are built locally on claude/m15-people-ships. Computer-only advance preparation (Q140) gives the original diplomat 15/24 peaceful wins (18 required) and 24/24 qualifying idle fleets. Starting lawful purchases one turn earlier (Q141) gives 13/24 earned votes versus 21/24 with the bypass. The existing vote row is active pending a unique replacement ID. Evidence is in .gate/codex/09/.",
     "spec": "docs/specs/m13-m16.md",
     "localBuild": true
    },
@@ -3580,6 +3580,26 @@
     "AISIM-04"
    ],
    "group": "new"
+  },
+  {
+   "id": "Q140",
+   "title": "Ship preparation only for computer nations",
+   "status": "done",
+   "group": "decided",
+   "context": "Advance hull preparation reserves lumber and fabric that could fund other investment. The M14 diplomat uses the shared economic planner for a human-controlled nation.",
+   "ruling": "Nathan, 2026-11-20. Only a computer-controlled nation prepares future hull materials. The normal ship order remains available when either controller has the materials and meets the fleet-use conditions.",
+   "objection": "With identical stocks the human invested in industry and the computer reserved the hull. The original diplomat won 15/24, three short of FR-509. The idle fleet qualified in 24/24 for FR-516.",
+   "ids": ["Q126"]
+  },
+  {
+   "id": "Q141",
+   "title": "When can a lawful Council purchase earn a minor vote?",
+   "status": "done",
+   "group": "decided",
+   "context": "Valdoria earned a voluntary turn-40 vote in 21/24 idle games with the spending bypass and 13/24 after the supplier, cash reserve and mill demand checks.",
+   "ruling": "Nathan, 2026-11-20. Try one extra eligible turn before the final Council window while keeping ordinary FR-245 buying limits. If fewer than 18/24 earn a vote, record the measured result in a new requirement. Preserve FR-542(i).",
+   "objection": "Seven of 24 seeds used the extra turn. The qualifying seeds stayed the same at 13/24. The requested replacement ID FR-543 already denotes the final-winner HUD.",
+   "ids": ["Q139"]
   }
  ],
  "history": [

@@ -18,17 +18,14 @@ const advance = async (page: Page, turn: number) => {
   await expect(page.getByTestId('turn-indicator')).toContainText(`Turn: ${turn} of 40`);
 };
 
-test('FR-513 FR-515 FR-517 build an Engineer and ships, collect horses and return a Prospector to industry', async ({ page }) => {
-  test.setTimeout(150000);
+test('FR-513 train an Engineer and return a Prospector to industry after continuing the save', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', err => errors.push(err.message));
   await startSeededGame(page, game => {
-    // Supply the materials up front so the check is independent of mill output and market matching.
-    Object.assign(game.nations[0].warehouse, { paper: 2, lumber: 11, fabric: 5 });
+    game.nations[0].warehouse.paper = 2;
   });
   const capital = await openCapital(page);
   const university = capital.getByRole('region', { name: 'University' });
-  const yard = capital.getByRole('region', { name: 'Shipyard' });
   const cash = page.getByTestId('topbar-cash');
   await expect(cash).toContainText('$10,000');
   await university.scrollIntoViewIfNeeded();
@@ -47,6 +44,44 @@ test('FR-513 FR-515 FR-517 build an Engineer and ships, collect horses and retur
     side.scrollTop += el.getBoundingClientRect().top - side.getBoundingClientRect().top - 2;
   });
   await screenshot(page, 'university');
+  await capital.getByRole('button', { name: 'Close capital' }).click();
+  await advance(page, 2);
+  const home = page.locator('[data-tile-id="2-9"]');
+  await home.getByTestId('worker-stack').click();
+  const tray = home.getByRole('group', { name: 'Civilians on this tile' });
+  await expect(tray.getByText('Engineer', { exact: true })).toHaveCount(2);
+  await tray.getByText('Prospector', { exact: true }).click();
+  const info = page.getByTestId('tile-info');
+  const prospector = info.getByRole('listitem').filter({ hasText: /^●prospector -/ });
+  await prospector.getByRole('button', { name: 'Disband', exact: true }).click();
+  const question = page.getByRole('dialog', { name: 'Disband prospector?' });
+  await expect(question).toHaveAccessibleDescription('The prospector becomes an expert worker next turn. The money and paper spent on it are not returned.');
+  await screenshot(page, 'disband');
+  await question.getByRole('button', { name: 'Disband prospector' }).click();
+  await expect(prospector.getByRole('button', { name: 'Undo disband' })).toBeVisible();
+
+  await page.reload();
+  const save = page.getByRole('dialog', { name: 'Saved game' });
+  await expect(save.getByTestId('saved-game-text')).toContainText('turn 2 of 40');
+  await save.getByRole('button', { name: 'Continue' }).click();
+  await openCapital(page);
+  await expect(capital.getByTestId('grade-expert')).toContainText(/Expert\s*0/);
+  await capital.getByRole('button', { name: 'Close capital' }).click();
+  await advance(page, 3);
+  await openCapital(page);
+  await expect(capital.getByTestId('grade-expert')).toContainText(/Expert\s*1/);
+  expect(errors).toEqual([]);
+});
+
+test('FR-515 FR-517 build ships, fill eight holds with purchases and collect horses', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', err => errors.push(err.message));
+  await startSeededGame(page, game => {
+    // Supply the materials up front so shipbuilding is independent of mill output and market matching.
+    Object.assign(game.nations[0].warehouse, { lumber: 11, fabric: 5 });
+  });
+  const capital = await openCapital(page);
+  const yard = capital.getByRole('region', { name: 'Shipyard' });
   await yard.getByRole('button', { name: 'Build one more Trader' }).click();
   await expect(yard.getByTestId('shipyard-stock')).toContainText('7 lumber, 3 fabric');
   await yard.getByRole('button', { name: 'Build one less Trader' }).click();
@@ -66,19 +101,6 @@ test('FR-513 FR-515 FR-517 build an Engineer and ships, collect horses and retur
   await expect(page.getByTestId('tile-collected')).toHaveText('Collected by the capital, 1 horse a turn');
   await screenshot(page, 'ranch');
   await advance(page, 2);
-  const home = page.locator('[data-tile-id="2-9"]');
-  await home.getByTestId('worker-stack').click();
-  const tray = home.getByRole('group', { name: 'Civilians on this tile' });
-  await expect(tray.getByText('Engineer', { exact: true })).toHaveCount(2);
-  await tray.getByText('Prospector', { exact: true }).click();
-  const info = page.getByTestId('tile-info');
-  const prospector = info.getByRole('listitem').filter({ hasText: /^●prospector -/ });
-  await prospector.getByRole('button', { name: 'Disband', exact: true }).click();
-  const question = page.getByRole('dialog', { name: 'Disband prospector?' });
-  await expect(question).toHaveAccessibleDescription('The prospector becomes an expert worker next turn. The money and paper spent on it are not returned.');
-  await screenshot(page, 'disband');
-  await question.getByRole('button', { name: 'Disband prospector' }).click();
-  await expect(prospector.getByRole('button', { name: 'Undo disband' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Diplomacy', exact: true }).click();
   const diplomacy = page.getByRole('dialog', { name: 'Diplomacy' });
@@ -99,7 +121,6 @@ test('FR-513 FR-515 FR-517 build an Engineer and ships, collect horses and retur
   await expect(board.getByTestId('market-holds')).toHaveText('Holds: 0 of 8 free');
   await page.keyboard.press('Escape');
   await openCapital(page);
-  await expect(capital.getByTestId('grade-expert')).toContainText(/Expert\s*0/);
   await yard.getByRole('button', { name: 'Build one more Trader' }).click();
   await capital.getByRole('button', { name: 'Close capital' }).click();
   await advance(page, 3);
@@ -110,7 +131,6 @@ test('FR-513 FR-515 FR-517 build an Engineer and ships, collect horses and retur
   await screenshot(page, 'eight-purchases');
   await page.keyboard.press('Escape');
   await openCapital(page);
-  await expect(capital.getByTestId('grade-expert')).toContainText(/Expert\s*1/);
   await capital.getByRole('button', { name: 'Armoury' }).click();
   await expect(hussars).toContainText('Horses: 6 in warehouse, +1 a turn');
   await page.keyboard.press('Escape');

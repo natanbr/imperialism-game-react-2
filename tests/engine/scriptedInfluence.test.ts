@@ -24,10 +24,11 @@ import { REGIMENTS, SCRIPTED_GARRISON } from '@/definisions/regiments';
 import { validateOrder } from '@/engine/orders/validate';
 import { applyOrder } from '@/engine/orders/apply';
 import { pairKey } from '@/engine/diplomacy/relations';
+import { settlePartnerTrade } from '@/engine/market/settlePartners';
 import type { GameEvent } from '@/engine/turn/context';
 import type { Order } from '@/engine/orders/Order';
 import type { GameState } from '@/types/GameState';
-import { N1, N2, setIndustry, setPair, setTreasury, setWarehouse } from './fixtures';
+import { N1, N2, setIndustry, setPair, setTile, setTreasury, setWarehouse, tileAt } from './fixtures';
 import { addRegiments, NE2, SUNDMARK } from './armyFixtures';
 
 const ARVELIA = 'minor-1';
@@ -50,22 +51,118 @@ function before(turn: number, points: number, rival: number, embassy = true): Ga
   return setPair(s, N1, SUNDMARK, { points: rival });
 }
 
+const withSecondIndiaman = (s: GameState): GameState => ({
+  ...s, nations: s.nations.map(n => n.id === N2
+    ? { ...n, merchantMarine: { ...n.merchantMarine, ships: { indiaman: 2 }, holds: 8 } } : n),
+});
+
+it.each([39, 40])('FR-245 Council support cannot add a raw bid on turn %i with an expanded fleet', turn => {
+  const s = withSecondIndiaman(before(turn, 45, 30));
+  const orders = scriptedPlayer(s, N2);
+  const raws = ['timber', 'coal', 'ironOre', 'cotton'];
+  expect(orders.filter(o => o.kind === 'buyCommodity' && o.amount > 0 && raws.includes(o.commodity))).toEqual([]);
+});
+
+it('FR-245 Council raw bids leave the ordinary cash reserve after earlier orders', () => {
+  let s = withSecondIndiaman({ ...continent(), turn: 31 });
+  s = setPair(s, N2, SUNDMARK, { points: 45, consulates: [N2], embassies: [N2], pact: true });
+  s = setPair(s, N1, SUNDMARK, { points: 30 });
+  for (const minor of [ARVELIA, LORRAN, PELLIS]) s = setPair(s, N2, minor, { boycotts: [N2] });
+  const rawBalances = (cash: number) => {
+    let view = setTreasury(s, N2, cash);
+    const balances: number[] = [];
+    for (const order of scriptedPlayer(view, N2)) {
+      view = applyOrder(view, order);
+      if (order.kind === 'buyCommodity' && order.amount && ['timber', 'coal', 'ironOre', 'cotton'].includes(order.commodity)) {
+        balances.push(view.nations.find(n => n.id === N2)!.treasury);
+      }
+    }
+    return balances;
+  };
+  expect(cashReserve(s, N2)).toBe(2500);
+  expect(rawBalances(2800)).toEqual([]);
+  expect(rawBalances(2899)).toEqual([]);
+  expect(rawBalances(2900)).toEqual([2500]);
+  expect(rawBalances(3000)).toEqual([2600]); // The remaining $100 has no additional qualifying mill input.
+});
+
+it('FR-245 Council raw bids require productive prices and a mill shortfall', () => {
+  let s = withSecondIndiaman(setTreasury({ ...continent(), turn: 31 }, N2, 6000));
+  s = setPair(s, N2, SUNDMARK, { points: 45, consulates: [N2], embassies: [N2], pact: true });
+  for (const minor of [ARVELIA, LORRAN, PELLIS]) s = setPair(s, N2, minor, { boycotts: [N2] });
+  const rawOrders = (start: GameState) => scriptedPlayer(start, N2).filter(o =>
+    o.kind === 'buyCommodity' && o.amount > 0 && ['timber', 'coal', 'ironOre', 'cotton'].includes(o.commodity));
+  const prices = { ...s.market!.prices, coal: 250, timber: 250, ironOre: 250, cotton: 250, clothing: 450 };
+  expect.soft(rawOrders({ ...s, market: { ...s.market!, prices } })).toEqual([]);
+  expect.soft(rawOrders(setWarehouse(s, N2, { coal: 15, timber: 15, ironOre: 15, cotton: 15 }))).toEqual([]);
+});
+
+it('FR-497 FR-542 Council support skips shared supply and buys from Sundmark when it alone can sell coal', () => {
+  let s = withSecondIndiaman(before(31, 49, 30));
+  for (const minor of [LORRAN, PELLIS]) s = setPair(s, N2, minor, { consulates: [] });
+  const stocks = { cotton: 0, coal: 1, ironOre: 2, timber: 20 };
+  expect(councilTradeInputs(s, N2, stocks)).toEqual([]);
+  for (const province of s.provinces.filter(p => p.ownerId === ARVELIA)) {
+    for (const id of province.tileIds) {
+      if (tileAt(s, id).resource?.type === 'coal') s = setTile(s, id, { resource: undefined });
+    }
+  }
+  const [commodity] = councilTradeInputs(s, N2, stocks);
+  expect(commodity).toBe('coal');
+  const order: Order = { kind: 'buyCommodity', nationId: N2, commodity, amount: 1 };
+  expect(validateOrder(s, order).ok).toBe(true);
+  const events: GameEvent[] = [];
+  const { state } = settlePartnerTrade(applyOrder(s, order), s.turn, e => events.push(e));
+  expect(events.filter(e => e.type === 'goods-bought')).toMatchObject([{ counterpartyId: SUNDMARK }]);
+  expect(state.diplomacy[pairKey(N2, SUNDMARK)].points).toBe(50);
+
+  // Both timber and coal are productive here, and the cash above reserve covers one unit.
+  // With only Sundmark offering coal, the actual scripted plan gives its bid to Sundmark.
+  let limited = setTreasury(setWarehouse(s, N2, { coal: 0, timber: 0 }), N2, 2900);
+  limited = setPair(limited, N2, SUNDMARK, { points: 45, pact: true });
+  for (const minor of [LORRAN, PELLIS]) limited = setPair(limited, N2, minor, { boycotts: [N2] });
+  const rawBuys = (start: GameState) => scriptedPlayer(start, N2).filter(o =>
+    o.kind === 'buyCommodity' && o.amount > 0 && ['timber', 'coal', 'ironOre', 'cotton'].includes(o.commodity));
+  expect(rawBuys(limited)).toEqual([{ kind: 'buyCommodity', nationId: N2, commodity: 'coal', amount: 1 }]);
+  expect(rawBuys(setPair(limited, N2, SUNDMARK, { embassies: [], pact: false }))).toEqual([
+    { kind: 'buyCommodity', nationId: N2, commodity: 'timber', amount: 1 },
+  ]);
+
+  const preferredRival = setPair(s, N1, SUNDMARK, { points: 60 });
+  expect(councilTradeInputs(preferredRival, N2, stocks)).toEqual(['coal']);
+  const openRival = setPair(preferredRival, N1, SUNDMARK, { consulates: [N1] });
+  const privateOrder: Order = { ...order, nationId: N1 };
+  expect(validateOrder(openRival, privateOrder).ok).toBe(true);
+  expect(councilTradeInputs(openRival, N2, stocks)).toEqual([]);
+  expect(councilTradeInputs(applyOrder(openRival, privateOrder), N2, stocks)).toEqual([]);
+});
+
 it('FR-516 FR-542 spare fleet holds can support an embassy with scarce industrial inputs before the final Council', () => {
-  const start = before(31, 45, 30);
-  const expanded = { ...start, nations: start.nations.map(n => n.id === N2
-    ? { ...n, merchantMarine: { ...n.merchantMarine, ships: { indiaman: 2 }, holds: 8 } } : n) };
+  const start = setPair(before(31, 45, 30), N2, ARVELIA, { consulates: [] });
+  const expanded = withSecondIndiaman(start);
   const stocks = { cotton: 0, coal: 2, ironOre: 3, timber: 20 };
   expect(councilTradeInputs(expanded, N2, stocks)).toEqual(['cotton', 'coal', 'ironOre']);
   expect(councilTradeInputs(start, N2, stocks)).toEqual([]);
-  expect(councilTradeInputs({ ...expanded, turn: 30 }, N2, stocks)).toEqual([]);
+  // Q141 moves the opening from the turn after the preceding meeting to that meeting itself.
+  for (const [turnLimit, opening] of [[40, 30], [37, 20]]) {
+    expect(councilTradeInputs({ ...expanded, turnLimit, turn: opening - 1 }, N2, stocks)).toEqual([]);
+    expect(councilTradeInputs({ ...expanded, turnLimit, turn: opening }, N2, stocks)).toEqual(['cotton', 'coal', 'ironOre']);
+  }
+  expect(councilTradeInputs({ ...expanded, turnLimit: 37, turn: 31 }, N2, stocks)).toEqual([]); // final meeting already held
   expect(councilTradeInputs(setPair(expanded, N2, SUNDMARK, { points: 50 }), N2, stocks)).toEqual([]);
   expect(councilTradeInputs(setPair(expanded, N2, SUNDMARK, { boycotts: [N2] }), N2, stocks)).toEqual([]);
 });
 
 it('FR-516 FR-542 a second embassy can trade when the first already supports the nation or is barred', () => {
-  const start = before(31, 55, 30);
-  const expanded = { ...start, nations: start.nations.map(n => n.id === N2
-    ? { ...n, merchantMarine: { ...n.merchantMarine, ships: { indiaman: 2 }, holds: 8 } } : n) };
+  // Lorran alone supplies these two inputs. Its other embassy may be open and supportive or barred.
+  const start = setPair(before(31, 55, 30), N2, ARVELIA, { consulates: [] });
+  let expanded = withSecondIndiaman(start);
+  for (const province of start.provinces.filter(p => p.ownerId === SUNDMARK)) {
+    for (const id of province.tileIds) {
+      const resource = tileAt(start, id).resource?.type;
+      if (resource === 'timber' || resource === 'ironOre') expanded = setTile(expanded, id, { resource: undefined });
+    }
+  }
   const both = setPair(expanded, N2, LORRAN, { points: 48, consulates: [N2], embassies: [N2] });
   expect(councilTradeInputs(both, N2, {})).toEqual(['timber', 'ironOre']);
   expect(councilTradeInputs(setPair(both, N2, SUNDMARK, { points: 45, boycotts: [N2] }), N2, {})).toEqual(['timber', 'ironOre']);
@@ -364,10 +461,12 @@ describe('FR-490 FR-542 real games from the start, no embassy preset (the row\'s
   }, 60_000);
 
   // FR-516/517: spare cargo supports the embassy; embassy 23 -> 17, pact 24 -> 18, grants [36,37] -> [29].
+  // FR-245 review: buying only productive inputs changes Sundmark's trade on turns 33-35.
+  // It enters turn 36 at 49 points instead of 52, so Valdoria pays a second grant: [29] -> [29,36].
   it('FR-542 FR-510 seed 1: commerce and a funded grant earn Sundmark; the forced final ballot adds a second minor', () => {
     const g = idleGame(1, 40);
     expect(g.startEmbassies).toBe(0);
-    expect(g.done).toEqual([`embassy ${SUNDMARK} 17`, `pact ${SUNDMARK} 18`, `grant ${SUNDMARK} $1000 29`]);
+    expect(g.done).toEqual([`embassy ${SUNDMARK} 17`, `pact ${SUNDMARK} 18`, `grant ${SUNDMARK} $1000 29`, `grant ${SUNDMARK} $1000 36`]);
     // FR-516/517: the earlier pact gives a turn-20 vote, 0 -> 1. The final ballot still adds a second minor (FR-501).
     expect(g.votes).toEqual({ 10: 0, 20: 1, 30: 0, 40: 2 });
     expect(councilCell(councilVote(g.state, COUNCIL.firstTurn)!, N2, 'otherMinorNations')).toEqual(['province-minor-2']);

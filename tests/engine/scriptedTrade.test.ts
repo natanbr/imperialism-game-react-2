@@ -49,6 +49,20 @@ describe('FR-516 the scripted fleet', () => {
     expect(ships(setWarehouse(fixture([4, 4, 4, 4]), N2, { fabric: 2 }))).toEqual([]);
     expect(ships(fixture([4, 4, 4, 4], undefined, newGame({ seed: 1, world: 'two-islands' })))).toEqual([]);
   });
+  it('FR-509 FR-516 Q140 only the computer reserves hull materials, and either controller can buy a stocked hull', () => {
+    const withHumanController = (s: GameState): GameState => ({
+      ...s, nations: s.nations.map(n => n.id === N2 ? { ...n, controller: 'human' } : n),
+    });
+    const preparing = setWarehouse(fixture([0, 4, 0, 0]), N2, { lumber: 7, fabric: 0, steel: 6 });
+    const expands = (s: GameState) => scriptedPlayer(s, N2).some(o => o.kind === 'expandBuilding');
+    expect(expands(preparing)).toBe(false);
+    expect(expands(withHumanController(preparing))).toBe(true);
+
+    const stocked = fixture([4, 4, 1, 4]);
+    const purchase = [{ kind: 'setShipyard', nationId: N2, ship: 'indiaman', count: 1 }];
+    expect(ships(stocked)).toEqual(purchase);
+    expect(ships(withHumanController(stocked))).toEqual(purchase);
+  });
   it('FR-497 keeps six turns of field-army pay at half cargo usage across four phases', () => {
     const reserve = (used: number[]) => upkeepReserve(addRegiments(fixture(used), N2, SW2, ['regulars']), N2);
     expect(reserve([2, 2, 2, 2])).toBe(750); // $125 per turn for five arms.

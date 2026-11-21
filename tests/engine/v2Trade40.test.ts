@@ -189,11 +189,26 @@ function play(seed: number): Game {
 // Seed 2 (nation 1, nation 2): minorDeals [66, 75] -> [59, 105], minorPurchases [33, 41] -> [29, 67], treasury [2972, 2744] -> [1501, 3086], capitalArms [5, 4] -> [5, 6].
 // Seed 3 (nation 1, nation 2): minorDeals [70, 59] -> [63, 126], minorPurchases [34, 24] -> [36, 89], treasury [2726, 6095] -> [415, 1548].
 // Seed 4 (nation 1, nation 2): minorDeals [71, 70] -> [109, 58], minorPurchases [36, 34] -> [71, 26], treasury [5773, 2367] -> [4671, 301].
+// FR-518 review, Council trade (FR-497/542). On seed 2, Sundmark filled Valdoria's turn-35 timber bid for Pellis ($151).
+// Skipping that bid shifts a timber purchase to turn 36, avoids two cotton deals ($321) and adds a turn-40 clothing sale ($662).
+// Valdoria: 105 -> 104 deals, 67 -> 65 purchases, $3,086 -> $4,069.
+// On seed 4, Sundmark filled Testland's iron bids on turns 32 and 33 and its timber bid on turn 36, all meant for Lorran.
+// Skipping them saves $364, changes later timber prices, brings forward a clothing sale and funds one more development.
+// Testland: 109 -> 106 deals, 71 -> 68 purchases, $4,671 -> $4,961. Seeds 1 and 3 matched after every turn.
+// Q140: both nations use the planner here, but Testland retains its human controller. Its ordinary
+// economy now keeps its lumber and fabric available for domestic use ahead of a ship order.
+// Testland's production first changes on turn 4 in seeds 1-3 and turn 3 in seed 4. In seed 1,
+// the turn-5 sale of two clothing to Arvelia replaces timber purchases from Sundmark and Lorran. Q141's earlier
+// Council window had no effect on any state in these four games. Each pair is [Testland, Valdoria].
+// Seed 1: deals [60,110] -> [81,109], purchases [29,70] -> [44,71], treasury [4772,9108] -> [1555,7909].
+// Seed 2: deals [59,104] -> [78,118], purchases [29,65] -> [43,78], treasury [1501,4069] -> [4894,1959], capital arms [5,6] -> [5,4].
+// Seed 3: deals [63,126] -> [91,104], purchases [36,89] -> [49,65], treasury [415,1548] -> [9641,12437].
+// Seed 4: deals [106,58] -> [69,76], purchases [68,26] -> [41,44], treasury [4961,301] -> [1742,2184], capital arms [4,4] -> [4,5].
 const BASELINE = [
-  { seed: 1, minorDeals: [60, 110], minorPurchases: [29, 70], minorsDealt: [4, 4], treasury: [4772, 9108], noPay: [0, 0], capitalArms: [4, 4] },
-  { seed: 2, minorDeals: [59, 105], minorPurchases: [29, 67], minorsDealt: [4, 4], treasury: [1501, 3086], noPay: [0, 0], capitalArms: [5, 6] },
-  { seed: 3, minorDeals: [63, 126], minorPurchases: [36, 89], minorsDealt: [4, 4], treasury: [415, 1548], noPay: [0, 0], capitalArms: [4, 4] },
-  { seed: 4, minorDeals: [109, 58], minorPurchases: [71, 26], minorsDealt: [4, 4], treasury: [4671, 301], noPay: [0, 0], capitalArms: [4, 4] },
+  { seed: 1, minorDeals: [81, 109], minorPurchases: [44, 71], minorsDealt: [4, 4], treasury: [1555, 7909], noPay: [0, 0], capitalArms: [4, 4] },
+  { seed: 2, minorDeals: [78, 118], minorPurchases: [43, 78], minorsDealt: [4, 4], treasury: [4894, 1959], noPay: [0, 0], capitalArms: [5, 4] },
+  { seed: 3, minorDeals: [91, 104], minorPurchases: [49, 65], minorsDealt: [4, 4], treasury: [9641, 12437], noPay: [0, 0], capitalArms: [4, 4] },
+  { seed: 4, minorDeals: [69, 76], minorPurchases: [41, 44], minorsDealt: [4, 4], treasury: [1742, 2184], noPay: [0, 0], capitalArms: [4, 5] },
 ];
 
 /** The force size (FR-204) of the nation's army in its capital province at turn 40. */

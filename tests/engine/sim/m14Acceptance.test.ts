@@ -81,21 +81,6 @@ describe('FR-509 a diplomat can win peacefully using normal orders', () => {
     expect(grants(4000)).toEqual([{ kind: 'giveGrant', nationId: HUMAN_ID, targetId: closest, amount: 1000, locked: false }]);
     expect(grants(3999)).toEqual([]);
   });
-
-  it('directs trade from a secure lead to the contested islands and reopens the route when they catch up', () => {
-    let state = { ...newGame({ seed: 1, world: 'continent' }), turn: 8 };
-    const [, secure, contested, other] = state.minorNations.map(m => m.id);
-    for (const [minor, points] of [[secure, 42], [contested, 31], [other, 38]] as const) {
-      state = setPair(state, HUMAN_ID, minor, { points, consulates: [HUMAN_ID] });
-      state = setPair(state, COMPUTER_ID, minor, { points: 30 });
-    }
-    const policies = () => diplomat.orders(state, { turn: 8, lastTrade: {} }).filter(o => o.kind === 'setTradePolicy');
-    expect(policies()).toContainEqual({ kind: 'setTradePolicy', nationId: HUMAN_ID, targetId: secure, boycott: true, subsidyPercent: 0 });
-    expect(policies().some(o => o.targetId === contested && o.boycott)).toBe(false);
-    state = setPair(state, HUMAN_ID, secure, { boycotts: [HUMAN_ID] });
-    state = setPair(state, HUMAN_ID, contested, { points: 36 });
-    expect(policies()).toContainEqual({ kind: 'setTradePolicy', nationId: HUMAN_ID, targetId: secure, boycott: false, subsidyPercent: 0 });
-  });
 });
 
 describe('FR-509 conquest takes precedence in aggressor games', () => {

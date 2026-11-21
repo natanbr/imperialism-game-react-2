@@ -94,6 +94,7 @@ function fullTradePhases(state: GameState, nationId: string): number {
   return (marine.tradeHistory ?? []).filter(phase => phase.holds > 0 && phase.used === phase.holds).length;
 }
 function saveShipMaterials(state: GameState, nationId: string): boolean {
+  if (nationOf(state, nationId).controller !== "scripted") return false;
   // Unmatched partner bids can leave a small fleet idle again before its mills finish the hull.
   // World-market orders always settle, so the existing cargo history is enough there.
   return fullTradePhases(state, nationId) >= (marketModeOf(state) === "partners" ? 1 : 3);
@@ -709,7 +710,12 @@ function planTrade(view: () => GameState, nationId: string, propose: Propose): v
       const current = tradeOrdersOf(view(), nationId).buy[commodity] ?? 0;
       if (units > current) bid(commodity, units - current, upkeepReserve(start, nationId));
     }
-    for (const [commodity, units] of Object.entries(raw) as [TradeCommodity, number][]) bid(commodity, units);
+    // Use one of the mills' wanted units for Council support first. Its price, reserve,
+    // remaining turns and quantity are subject to the same limits as every raw bid.
+    const supported = councilTradeInputs(view(), nationId, next).find(input => (raw[input] ?? 0) > 0 && bid(input, 1) > 0);
+    for (const [commodity, units] of Object.entries(raw) as [TradeCommodity, number][]) {
+      bid(commodity, commodity === supported ? units - 1 : units);
+    }
     for (const [commodity, units] of rivalBids) if (!rival?.offeredLastTurn.includes(commodity)) bid(commodity, units);
   } else if (buying) {
     const lumber = next[MaterialType.Lumber] ?? 0;
@@ -723,9 +729,4 @@ function planTrade(view: () => GameState, nationId: string, propose: Propose): v
     }
   }
   offer(-Infinity);
-  if (partners) {
-    for (const input of councilTradeInputs(view(), nationId, next)) {
-      if (bid(input, 1, upkeepReserve(view(), nationId))) break;
-    }
-  }
 }

@@ -216,6 +216,11 @@ describe('FR-260 (replaces FR-157) the continent plays: 40 turns, nation 2 scrip
   // disbanded for want of money.
   const UPKEEP = (steps: [number, number][]) => steps.flatMap(([amount, turns]) => Array(turns).fill(amount));
   it('FR-260 FR-215 with the start army (FR-203) nation 2 pays the upkeep of the regiments it raises every turn, has nothing disbanded for want of money and keeps at least 4 arms in its capital province', () => {
+    // FR-518: relocating the orchards and reserving 7 lumber and 3 fabric for ships change when Valdoria
+    // can afford its recruits. Restoring the old tiles and disabling ship planning reproduces all four old schedules.
+    // Each recruit adds $25 from the following turn. Old -> new turn-40 upkeep and new recruiting turns:
+    // seed 1: 225 -> 250 (11,12,20,25,32,35); seed 2: 175 -> 200 (11,12,20,24);
+    // seed 3: 200 -> 225 (11,12,20,24,35); seed 4: 175 -> 200 (11,12,26,39).
     expect(SEEDS.map(seed => ({ seed, upkeep: games.get(seed)!.first.upkeep, noPay: games.get(seed)!.first.noPay }))).toEqual([
       { seed: 1, upkeep: UPKEEP([[100, 11], [125, 1], [150, 8], [175, 5], [200, 7], [225, 3], [250, 5]]), noPay: 0 },
       { seed: 2, upkeep: UPKEEP([[100, 11], [125, 1], [150, 8], [175, 4], [200, 16]]), noPay: 0 },

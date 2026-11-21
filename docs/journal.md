@@ -2,9 +2,29 @@
 
 ## Resuming here
 
-- M15 is built and independently reviewed on `claude/m15-people-ships` from `79a94b2`. Implementation commit `22eb973` passed the local gate.
+- M15 review fixes and owner decisions Q140–Q141 are local on `claude/m15-people-ships` at `36b335e`. The original diplomat wins 15/24 (18 required), and the idle fleet qualifies 24/24. The earlier lawful Council purchase earns votes in 13/24.
 - Open Capital for University and Shipyard, Tile Info for Disband and the ranch, and Board of Trade for fleet and completed purchases. Screenshots and logs are in `.gate/codex/07/`.
 - Q125 to Q129 use their defaults and remain open for tuning. Living minors follow M16 as M15b. The branch is local with no published build or pull request.
+
+## 2026-11-20 M15 review fixes (Task 09)
+
+Size M. Restore the FR-509 opponent, trace the economy and fix Council purchases, horse income, upkeep notes and the browser timeout.
+Q140, Nathan, 2026-11-20. Only a computer-controlled nation sets aside stock for future ships. An already-funded order still follows the common fleet-use rule.
+Objection: the opposing computer still grows its fleet. The original diplomat improved from 7 to 15 wins, three short of 18.
+Q141, Nathan, 2026-11-20. Open lawful Council priority on the previous meeting (turn 30 instead of 31), with the seller, price, productive demand, cash reserve and final-two-turn limits intact. Replace only the voluntary-vote threshold with the measured result if it misses 18.
+Objection: seven seeds used the extra turn but it changed no qualifying vote. The requested FR-543 already names the final-winner HUD, and FR-544 already names the final-score rule.
+
+| Claim | Command or evidence under `.gate/codex/09/` | Quoted result |
+|---|---|---|
+| FR-509/516 | `fr509-red.log`, `q140-replay-red.log`, `q140-replay-acceptance.log`, `q140-results.md` | Peaceful wins M14 24/24 → M15 8/24 → corrected bids 7/24 → Q140 15/24 (10 funded). Idle fleets qualified in 24/24. Removing both nations' preparation restored all 24 wins and gave 0/24 fleets. |
+| FR-245/497, FR-517 | `council-red.txt`, `council-floor-red.txt`, `council-productive-red.txt`, `council-final-green.txt`; `armoury-red.txt`, `armoury-green.txt` | Council bids are capped by mill shortfall, price, available cash and supply. Final Council/trade tests 92 passed. Armoury 1 failed → 25 passed. |
+| FR-518 upkeep, FR-515 timeout | `upkeep-red.txt`, `upkeep-trace.txt`, `e2e-timeout-policy-red.txt`, `e2e-timeout-green.txt` | Old tiles plus disabled ship planning reproduced all four original schedules. Browser limit 150000 → 30000 ms, 4 passed with screenshots. |
+| FR-247 and FR-481 | `q140-trace-summary.txt`, `q141-focused-green.txt`, `q140-fr481-green.log` | Human production first differs on turn 3 or 4 by seed. Valdoria takes Arvelia on turn 16 instead of 18 on seed 1. The old/new Council windows had identical FR-247 states across all 160 turns. |
+| FR-542(ii) | `fr542-matrix.txt`, `q141-idle.txt`, paired Q141 replays | Turn-40 voluntary vote: 21/24 with the bypass, 13/24 in each lawful window. No threshold changed while the replacement ID was unresolved. |
+| Before the owner decisions | `unit-gate.txt`, `build-final.txt`, `playwright-final.txt` | 2,827 unit tests passed and two acceptance rows failed. TypeScript and production build passed; ESLint reported two warnings and Chromium passed 134 tests. |
+| Owner unit gate and protected rows | `owner-unit-final.txt`, Vitest with the runner config loader | `2 failed \| 2828 passed (2830)`. FR-509 15/24; FR-542(ii) 13/24. FR-125 minimum 1.60; FR-497 p95 24.8 ms, zero rejected orders or invariant breaks. The FR-330 scan now explicitly includes the black star its existing assertion bans on Node 22 and 24. |
+| Owner lint, types and build | `owner-lint-final.txt`, `owner-types-final.txt`, `owner-build-offline.txt`, `owner-font-verification.txt` | `0 errors, 2 warnings`; `tsc --noEmit EXIT 0`. Direct font download blocked. Cached production fonts: `Compiled successfully in 5.8s`, exit 0; all six emitted files matched SHA-256. |
+| Owner browser gate, port 3123, one worker | `owner-headless-playwright.txt`, `owner-headless-runtime.txt`, `owner-browser-trace-summary.txt` | Pinned Chromium 141 was inaccessible. Chrome Headless Shell 131 reported `134 passed (11.8m)`. System Chrome 157 reported `14 failed` and `120 passed (12.2m)` on a console 404. The FR-529 trace identified `/favicon.ico`. |
 
 ## 2026-11-20 M15 People and ships (Task 07)
 

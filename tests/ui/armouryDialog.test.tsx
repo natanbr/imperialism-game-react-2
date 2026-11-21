@@ -10,7 +10,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { ArmouryModal } from '@/components/ArmouryModal';
 import { CapitalModal } from '@/components/CapitalModal';
 import { useGameStore } from '@/store/rootStore';
-import { newGame, type Order } from '@/engine';
+import { applyOrder, newGame, resolveTurn, type Order } from '@/engine';
 import type { GameState } from '@/types/GameState';
 import { setIndustry, setTreasury, setWarehouse, industryOf, stockOf, treasury } from '../engine/fixtures';
 import { continent } from '../engine/armyFixtures';
@@ -63,6 +63,14 @@ const armed = (armaments = 2) => setWarehouse(continent(), N1, { armaments });
 it('FR-517 shows the horses in stock and the supply from collected ranches', () => {
   openArmoury(armed());
   expect(items('Hussars', 'At hand')).toContain('Horses: 4 in warehouse, +1 a turn');
+});
+
+it('FR-517 shows zero horse income when freight leaves the ranch output unshipped', () => {
+  const state = applyOrder(armed(), { kind: 'setTransportAllocations', nationId: N1, allocations: { horses: 0 } });
+  openArmoury(state);
+  const after = resolveTurn(state, {}).state;
+  expect(stockOf(after, N1, 'horses')).toBe(4);
+  expect(items('Hussars', 'At hand')).toContain('Horses: 4 in warehouse, +0 a turn');
 });
 
 describe('FR-212 the Armoury: how it opens', () => {
