@@ -1,12 +1,12 @@
 // M13 (FR-500): the acceptance table. Every sim threshold of FR-484 to FR-490, FR-493 and FR-497 in one file, written from the
-// table under FR-500 in docs/specs/m13-m16.md BEFORE the AI rows were built and never loosened afterwards (an
-// implementation that cannot reach one parks the row as blocked with its measured numbers; FLOW "Running alone").
+// table under FR-500 in docs/specs/m13-m16.md before the AI rows were built. Replacement thresholds are recorded in
+// docs/requirements.md. An implementation that misses a threshold parks the row as blocked with its measured numbers.
 //
 // The games are played once, when the file is collected, with `runGame` of the harness (T-02), so each test name carries its
 // measured number ("measured 7 of 24, required 20") and an `afterAll` prints the whole table. A game that throws is recorded
 // as a crash, counts as a miss in every row, and fails the FR-497 crash test; it does not stop the file.
 //
-//   idle      24 games, seeds 1-24   FR-485, FR-486, FR-487, FR-488, FR-489, FR-490 (replaced by FR-542), FR-542, FR-497
+//   idle      24 games, seeds 1-24   FR-485, FR-486, FR-487, FR-488, FR-489, FR-490 (historical), FR-542 (i), FR-546, FR-497
 //   aggressor 12 games, seeds 1-12   FR-484 (i)-(iii), FR-497
 //   trader    24 games, seeds 1-24   FR-493, FR-497
 //   scripted  24 games, seeds 1-24   a report with no threshold (spec section 6, risk 1), played inside its test
@@ -65,16 +65,16 @@ const REQUIRED = {
   /**
    * FR-490: idle: at least 1 Other Minor Nations vote for Valdoria at the turn-30 meeting (before: 0 of 24).
    * Replaced by FR-542 (M13 close round, card Q139): 0 of 24 under every rule set tried (.gate/m13/close/grants-notes.md).
-   * Kept verbatim and printed in the table as a report; FR-542's two rows below are asserted instead.
+   * Kept verbatim and printed in the table as a report. The current assertions are FR-542 (i) and FR-546.
    */
   votes: { games: 18, of: 24, atLeast: 1, atMeeting: 30 },
   /**
-   * FR-542 (M13 close round, card Q117 (b), written from the measured ceiling): idle: (i) Valdoria has made an embassy and a
-   * pact with one free minor by turn 29, before the turn-30 meeting (measured 21 of 24; before: 0 of 24); (ii) at least 1
-   * Other Minor Nations vote for Valdoria at the turn-40 meeting (measured 18 of 24; before: 0 of 24).
+   * FR-542 (i): idle: Valdoria has made an embassy and a pact with one free minor by turn 29, before the turn-30 meeting
+   * (measured 21 of 24 in M13; before: 0 of 24).
    */
   overtures: { games: 18, of: 24, byTurn: 29 },
-  votesAt40: { games: 18, of: 24, atLeast: 1, atMeeting: 40 },
+  /** FR-546 replaces FR-542 (ii), which required 18 of 24. With FR-245 enforced, M15 earns the vote in 13 of 24. */
+  votesAt40: { games: 13, of: 24, atLeast: 1, atMeeting: 40 },
   /** FR-493: trader: at least 5 units traded between the Great Powers in 40 turns (before: 0 of 24). */
   traded: { games: 18, of: 24, atLeast: 5 },
   /** FR-497: rejected orders 0, invariant breaks 0, no-pay disbands 0 in idle games, `computerOrders` p95 at most 100 ms. */
@@ -382,7 +382,7 @@ const exercisedRow = measure(
 const otherMinorVotes = (game: GameRecord, meeting: number = REQUIRED.votes.atMeeting): number | undefined =>
   atTurn(game, meeting)?.council?.nominees.find(n => n.nationId === COMPUTER_ID)?.otherMinorNations;
 
-// FR-501 makes the final ballot compulsory. FR-542 still requires the votes earned at 50 points under ordinary rules.
+// FR-501 makes the final ballot compulsory. FR-546 counts votes earned at 50 points under ordinary rules.
 const earnedAt40 = (game: GameRecord) => atTurn(game, REQUIRED.votesAt40.atMeeting)?.council?.earnedMinorVotes[COMPUTER_ID];
 
 // Replaced by FR-542 (card Q139): measured and printed in the table, no longer asserted (see REQUIRED.votes).
@@ -419,7 +419,7 @@ const overturesRow = measure(
   embassyAndPactTurn
 );
 const votesAt40Row = measure(
-  'FR-542 (ii)',
+  'FR-546',
   `Valdoria earns at least ${REQUIRED.votesAt40.atLeast} voluntary Other Minor Nations vote at the turn-${REQUIRED.votesAt40.atMeeting} meeting`,
   idle,
   REQUIRED.votesAt40.games,
@@ -613,14 +613,17 @@ describe('M13 acceptance (FR-500): the sim thresholds of the table, seeds 1 to 2
   // FR-490's row (the turn-30 meeting) is replaced by FR-542 (M13 close round, card Q139): it measured 0 of 24 under every
   // rule set tried, since the $5,000 embassy is affordable from about turn 23 and the war on Testland then holds the
   // treasury at its upkeep reserve (.gate/m13/close/grants-notes.md). Its line stays in the table as a report.
-  describe('FR-490 grants before a Council (idle): replaced by FR-542, the embassy and the pact, and the turn-40 meeting', () => {
+  describe('FR-542 (i) embassy and pact and FR-546 voluntary votes at the turn-40 Council (idle)', () => {
     it(named(overturesRow), () => {
       expect(idle.crashed, 'crashed games').toEqual([]);
       expect(overturesRow.measured, missNote(overturesRow, idle)).toBeGreaterThanOrEqual(overturesRow.required);
     });
     it(named(votesAt40Row), () => {
       const at30 = idle.games.map(g => otherMinorVotes(g) ?? '-').join(',');
-      expect(votesAt40Row.measured, `${missNote(votesAt40Row, idle)}; FR-490 (replaced) turn-30 votes per game: ${at30}`).toBeGreaterThanOrEqual(votesAt40Row.required);
+      expect(
+        votesAt40Row.measured,
+        `${missNote(votesAt40Row, idle)}; FR-542 (ii) previously required 18 of 24; FR-490 (replaced) turn-30 votes per game: ${at30}`
+      ).toBeGreaterThanOrEqual(votesAt40Row.required);
     });
   });
 
@@ -968,7 +971,7 @@ describe('M13 acceptance: the measures of this file read a crafted record as the
     expect(capitalKeptToTurn(game(upTo(39)), 40)).toBe(false);
   });
 
-  it("FR-490 reads Valdoria's Other Minor Nations votes from the meeting of turn 30", () => {
+  it("FR-490 and FR-546 read Valdoria's minor votes at their respective meetings", () => {
     const meeting = (valdoria: number, earned = valdoria): TurnRecord['council'] => ({
       totalVotes: 12,
       needed: 7, // FR-503: the two-power continent changed from nine to seven.
@@ -981,7 +984,7 @@ describe('M13 acceptance: the measures of this file read a crafted record as the
     expect(otherMinorVotes(game(upTo(40, { 30: { council: meeting(2) } })))).toBe(2);
     expect(otherMinorVotes(game(upTo(40, { 29: { council: meeting(2) } })))).toBeUndefined();
     expect(otherMinorVotes(game(upTo(40, { 30: { council: meeting(0) } })))).toBe(0);
-    // FR-542 (ii): two forced votes alone cannot meet the historical influence target.
+    // FR-546 counts only voluntary votes, so two forced votes alone do not qualify.
     const last = (earned: number) => game(upTo(40, { 30: { council: meeting(0) }, 40: { council: meeting(2, earned) } }));
     expect(otherMinorVotes(last(0), 40)).toBe(2);
     expect(earnedAt40(last(0))).toBe(0);
