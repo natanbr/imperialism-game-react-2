@@ -70,13 +70,18 @@ export function readSave(storage: Pick<Storage, "getItem"> | undefined = browser
   try {
     const parsed: unknown = JSON.parse(raw);
     if (!isUsable(parsed)) return { kind: "unusable" };
+    const shared = parsed.game.technologyState;
+    const inherited = new Set(shared?.technologies.filter(t => t.purchased).map(t => t.id));
+    if (shared?.oilDrillingTechUnlocked) inherited.add("oilDrilling");
     for (const nation of parsed.game.nations) {
+      nation.technologies ??= [...inherited];
       const marine = nation.merchantMarine;
       if (marine) {
         marine.ships = shipsOf(marine);
         marine.holds = cargoHolds(marine);
       }
     }
+    delete parsed.game.technologyState;
     return { kind: "usable", save: parsed };
   } catch {
     return { kind: "unusable" };

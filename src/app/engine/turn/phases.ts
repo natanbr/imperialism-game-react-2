@@ -13,6 +13,7 @@ import { tradeDeliverySystem } from "../systems/tradeDeliverySystem";
 import { foodSystem } from "../systems/foodSystem";
 import { universitySystem } from "../systems/universitySystem";
 import { shipyardSystem } from "../systems/shipyardSystem";
+import { technologySystem } from "../systems/technologySystem";
 
 /**
  * The turn phases in manual order: jobs first, then diplomacy, trade (the world-market deals and
@@ -39,6 +40,7 @@ export const TURN_PHASES: readonly TurnSystem[] = [
   foodSystem,
   // Disbanded civilians join the workforce healthy for the following turn, after this turn's meal.
   universitySystem,
+  technologySystem,
 ];
 
 export const runTurnPhases = (state: GameState, ctx: TurnContext): GameState =>

@@ -5,7 +5,6 @@ import { TIME_CONFIG } from "@/constants/gameConstants";
 import { initializeRailroadNetworks } from "./systems/railroadSystem";
 import { startMarket } from "./market/market";
 import { startDiplomacy } from "./diplomacy/relations";
-import { START_TECHNOLOGIES } from "./world/startWorld";
 import { buildWorld, DEFAULT_WORLD, WORLD_MARKET } from "./world/worlds";
 import { withStartForces } from "./army/startForces";
 
@@ -56,8 +55,6 @@ export function newGame(options: number | NewGameOptions): GameState {
     transportAllocationsByNation: {},
     tradeRoutes: [],
     market: startMarket(market ?? WORLD_MARKET[world]),
-    // The technology state is shared by all nations in v1, so the start list covers every nation.
-    technologyState: { oilDrillingTechUnlocked: false, technologies: START_TECHNOLOGIES.map((t) => ({ ...t })) },
     difficulty: "normal",
   });
 }

@@ -2,6 +2,8 @@ import React, { useId } from "react";
 import { useGameStore } from "@/store/rootStore";
 import { dateText, newsItems, refusalText, tilePlaces } from "../gameText";
 import { showTile } from "./showTile";
+import { TIME_CONFIG } from "@/constants/gameConstants";
+import { inventionNews } from "@/engine/technology";
 
 /**
  * The last refused order and the news of the last resolved turn (FR-024): the player's lines first,
@@ -19,6 +21,8 @@ export const NewsPanel: React.FC = () => {
   const minorNations = useGameStore((s) => s.game.minorNations);
   const provinces = useGameStore((s) => s.game.provinces);
   const map = useGameStore((s) => s.game.map);
+  const turn = useGameStore((s) => s.game.turn);
+  const turnLimit = useGameStore((s) => s.game.turnLimit);
   const showBattle = useGameStore((s) => s.showBattle);
   const showCouncil = useGameStore((s) => s.showCouncil);
   const headingId = useId();
@@ -27,7 +31,8 @@ export const NewsPanel: React.FC = () => {
   const nameOf = (id: string) =>
     nations.find((n) => n.id === id)?.name ?? minorNations.find((m) => m.id === id)?.name ?? provinces.find((p) => p.id === id)?.name ?? id;
   // FR-375: a tile line names its province ("Rail finished at 3-9 in Testland North-West.")
-  const news = lastReport ? newsItems(lastReport.events, activeNationId, nameOf, tilePlaces({ map }, nameOf)) : [];
+  const events = lastReport?.events ?? (turn === TIME_CONFIG.STARTING_TURN ? inventionNews({ turnLimit }, turn) : []);
+  const news = newsItems(events, activeNationId, nameOf, tilePlaces({ map }, nameOf));
 
   return (
     <div className="news-panel" data-testid="news-panel">
@@ -36,11 +41,13 @@ export const NewsPanel: React.FC = () => {
           {refusalText(lastRejection)}
         </div>
       )}
-      {lastReport && (
+      {(lastReport || news.length > 0) && (
         <>
           {/* FR-280: the news are the last resolved turn's, so the heading names it beside the HUD's current turn */}
           <h3 id={headingId} className="news-heading">
-            News from last turn (turn {lastReport.turn}, {dateText(lastReport.turn, lastReport.year)})
+            {lastReport
+              ? `News from last turn (turn ${lastReport.turn}, ${dateText(lastReport.turn, lastReport.year)})`
+              : `News for turn ${turn}`}
           </h3>
           {news.length > 0 ? (
             <div className="news-scroll">

@@ -17,6 +17,7 @@ import { applyBuyCommodity, applySellCommodity } from "./tradeOrders";
 import { applyDiplomacyOrder } from "./diplomacyOrders";
 import { applyArmyOrder } from "./armyOrders";
 import { applyCivilianOrder } from "./civilianOrders";
+import { applyTechnologyOrder } from "./technologyOrders";
 import { applyShipyard } from "./shipyardOrders";
 import {
   findWorker,
@@ -44,6 +45,9 @@ export function applyOrder(state: GameState, order: Order): GameState {
 
 function applyValidOrder(state: GameState, order: Order): GameState {
   switch (order.kind) {
+    case "buyTechnology":
+    case "withdrawTechnology":
+      return applyTechnologyOrder(state, order);
     case "setShipyard":
       return applyShipyard(state, order);
     case "setUniversity":

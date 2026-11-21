@@ -244,3 +244,9 @@ describe('FR-376 a news line leads to its place', () => {
     expect(useGameStore.getState().selectedTileId).toBe('3-9');
   });
 });
+
+it('FR-521 shows Cotton Gin in the newspaper when the first turn opens', () => {
+  useGameStore.setState({ ...useGameStore.getInitialState(), game: continent(), eventLog: [] });
+  render(<NewsPanel />);
+  expect(screen.getByText('New Invention: Cotton Gin')).toBeTruthy();
+});

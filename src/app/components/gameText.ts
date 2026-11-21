@@ -19,6 +19,7 @@ import {
   type WithdrawableOverture,
 } from "@/engine";
 import type { GameState } from "@/types/GameState";
+import { technologyById } from "@/definisions/technologies";
 import { TerrainType, type Tile } from "@/types/Tile";
 import { REGIMENTS, UPKEEP_PER_ARMS } from "@/definisions/regiments";
 import type { BuildingType } from "@/types/Industry";
@@ -57,6 +58,8 @@ const ORDER_TEXT: Record<OrderKind, string> = {
   disbandCivilian: "Disband civilian",
   cancelDisbandCivilian: "Cancel civilian disband",
   setShipyard: "Shipyard",
+  buyTechnology: "Buy technology",
+  withdrawTechnology: "Cancel technology purchase",
 };
 
 export const REFUSAL_TEXT: Record<RejectReason, string> = {
@@ -70,6 +73,10 @@ export const REFUSAL_TEXT: Record<RejectReason, string> = {
   "tile-has-job": "another civilian is already working that tile",
   "invalid-site": "that tile is not a valid site",
   "insufficient-funds": "not enough money",
+  "not-available": "that technology is unavailable for this order",
+  "missing-prerequisite": "a prerequisite technology is missing",
+  "already-owned": "that technology is already owned or ordered",
+  "missing-technology": "the required technology is missing",
   "insufficient-resources": "not enough goods in the warehouse",
   "insufficient-labour": "not enough free labour",
   "no-expert": "No expert worker free",
@@ -334,6 +341,7 @@ const tileOf = (event: GameEvent): string | undefined =>
  * stand in. `placeOf` (FR-375) adds a tile's province after its id ("coal at 5-2 in Testland North-West").
  */
 export function eventText(event: GameEvent, nameOf: (countryId: string) => string = (id) => id, placeOf?: PlaceOf): string | null {
+  if (event.type === "new-invention") return `New Invention: ${technologyById(event.techId)?.name ?? event.techId}`;
   const at = (tileId: string) => {
     const place = placeOf?.(tileId);
     return place ? `${tileId} in ${place}` : tileId;

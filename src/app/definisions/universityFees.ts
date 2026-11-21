@@ -14,3 +14,9 @@ export const UNIVERSITY_FEES = {
 } as const satisfies Record<UniversityCivilian, number>;
 
 export const UNIVERSITY_PAPER_COST = 2;
+
+export const UNIVERSITY_TECHNOLOGY: Partial<Record<UniversityCivilian, string>> = {
+  [WorkerType.Rancher]: "feedGrasses",
+  [WorkerType.Forester]: "ironRailroadBridge",
+  [WorkerType.Driller]: "oilDrilling",
+};

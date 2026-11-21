@@ -52,7 +52,8 @@ const allDecorative = (el: Element) => [...el.querySelectorAll('img')].every((im
 describe('FR-333 the capital\'s buildings', () => {
   it("FR-333 each production card's head shows its building's picture before the name, decorative", () => {
     const s = continent();
-    show({ ...s, technologyState: { ...s.technologyState, oilDrillingTechUnlocked: true } }, { isCapitalOpen: true });
+    s.nations[0].technologies = ['oilDrilling'];
+    show(s, { isCapitalOpen: true });
     render(<CapitalModal />);
     const cards = screen.getAllByTestId(/^building-/);
     expect(cards.length).toBe(8);
@@ -97,8 +98,8 @@ describe('FR-333 the capital\'s buildings', () => {
     expect([art(button('Warehouse')), icons(button('Warehouse'))]).toEqual([['buildings/warehouse.png'], []]);
     expect([art(button('Armoury')), icons(button('Armoury'))]).toEqual([['buildings/armory.png'], []]);
     expect([art(button('Technology')), icons(button('Technology'))]).toEqual([['buildings/university.png'], []]);
-    expect((button('Technology') as HTMLButtonElement).disabled).toBe(true);
-    expect(button('Technology').getAttribute('title')).toBe('Coming in a later milestone');
+    expect((button('Technology') as HTMLButtonElement).disabled).toBe(false);
+    expect(button('Technology').getAttribute('aria-haspopup')).toBe('dialog');
     expect([art(button('Trade')), icons(button('Trade'))]).toEqual([[], ['GiScales']]);
     expect([art(button('Diplomacy')), icons(button('Diplomacy'))]).toEqual([[], ['GiScrollUnfurled']]);
     expect(allDecorative(dialog)).toBe(true);

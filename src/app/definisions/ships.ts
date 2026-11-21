@@ -1,8 +1,9 @@
 import type { Nation } from "@/types/Nation";
 
 export const SHIPS = {
-  trader: { name: "Trader", plural: "Traders", lumber: 4, fabric: 2, holds: 2 },
-  indiaman: { name: "Indiaman", plural: "Indiamen", lumber: 7, fabric: 3, holds: 4 },
+  trader: { name: "Trader", plural: "Traders", lumber: 4, fabric: 2, holds: 2, requiredTechnology: null },
+  indiaman: { name: "Indiaman", plural: "Indiamen", lumber: 7, fabric: 3, holds: 4, requiredTechnology: null },
+  clipper: { name: "Clipper", plural: "Clippers", lumber: 6, fabric: 2, holds: 4, requiredTechnology: "streamlinedHulls" },
 } as const;
 
 export type MerchantShipType = keyof typeof SHIPS;

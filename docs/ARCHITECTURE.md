@@ -22,7 +22,13 @@ The engine never imports React, Zustand, Next, the store, components or hooks, a
 DOM globals, `Math.random` or `Date.now`. An ESLint rule enforces this for `src/app/engine/**`
 (`eslint.config.mjs`, tested by `tests/engine/lintGuard.test.ts`).
 
-### M15 people and ships
+### M16 technology
+
+The catalogue in `definisions/technologies.ts` records the manual's first year, prerequisite IDs, price and effect. The clock in `engine/technology.ts` scales the historical years to the saved game's turn limit. `TIME_CONFIG.TURN_LIMIT` remains the single default for future game lengths.
+Each Great Power owns its `Nation.technologies`. The two order kinds reserve or refund the price immediately. The technology phase grants the pending IDs at End Turn, and the invention news lists public releases. Rail, civilian recruitment, refinery and ship construction check the acting nation's holdings. The version-1 loader copies the old shared purchases into independent lists, including any legacy oil permission.
+The Capital Technology dialog lists releases, ownership and prerequisites and submits orders through the store. Development permissions and computer technology purchasing are parked pending balance decisions.
+
+## M15 people and ships
 
 The Capital submits `setUniversity` and `setShipyard` with the total requested for each type this turn.
 The order handlers reserve costs immediately and return the difference when a count falls. A pending
@@ -541,10 +547,7 @@ training) and what the standing orders and this turn's cars commit.
 - `foodForecast(state, nationId)` (FR-049) runs the turn's phases on the current state with no
   further orders and reads the meal: `{ mouths, fed, sick, starved, short }`. The HUD's food
   warning reads it through `selectFoodForecast` (memoized on `game`).
-- Start technologies (FR-051, decision Q8 default): a new game holds Compound Steam Engine, Iron
-  Railroad Bridge and Dynamite (`START_TECHNOLOGIES` in `world/startWorld.ts`), so rail and depots
-  reach hills, swamp and mountains. The technology state is shared by all nations in v1. The test
-  fixtures start with no technology, so the FR-030 site rules keep their tests.
+- Start technologies (FR-520, Q131): each Great Power owns the two historical technologies and the three NR-015 rail gifts listed in `definisions/technologies.ts`. Rail and depot sites check the tile owner's holdings.
 
 The last scheduled Council forces each free minor to choose between the nominees it is at peace with,
 by relation points, then standing. The vote threshold is a strict majority for a two-power world and

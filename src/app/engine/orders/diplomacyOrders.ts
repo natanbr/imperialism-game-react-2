@@ -12,18 +12,18 @@ import { relationOf } from "../diplomacy/relations";
 import { hasLandRoute, intentCost, isAnswerable, isDiplomacyIntent, isOverture, proposalsOf } from "../diplomacy/queries";
 import { isGreatPower, isMinorNation } from "../world/countries";
 import type {
+  OrdinaryRejectReason,
   AnswerProposalOrder,
   DiplomacyOrder,
   GiveGrantOrder,
   ProposeOvertureOrder,
-  RejectReason,
   SetTradePolicyOrder,
   ValidationResult,
   WithdrawOvertureOrder,
 } from "./Order";
 
 const OK: ValidationResult = { ok: true };
-const reject = (reason: RejectReason): ValidationResult => ({ ok: false, reason });
+const reject = (reason: OrdinaryRejectReason): ValidationResult => ({ ok: false, reason });
 
 /** The other country's diplomacy entry with the nation; undefined for an unknown id or the nation itself. */
 function pairWith(state: GameState, nationId: NationId, targetId: unknown): PairDiplomacy | undefined {

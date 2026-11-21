@@ -735,3 +735,7 @@ describe('M12 FR-375 the news names the place', () => {
     expect(newsItems([found], N1, nameOf, () => undefined)).toEqual([{ text: 'Tile 2-1 developed to level 1.', tileId: '2-1' }]);
   });
 });
+
+it('FR-521 formats a public invention without attributing it to a buyer', () => {
+  expect(newsLines([{ type: 'new-invention', techId: 'cottonGin' }], N1, id => id)).toEqual(['New Invention: Cotton Gin']);
+});

@@ -3,7 +3,7 @@
 import type { CityId, NationId } from "@/types/Common";
 import type { GameMap } from "@/types/Map";
 import type { Nation, NationController } from "@/types/Nation";
-import type { Technology } from "@/types/Technology";
+import { START_TECHNOLOGIES } from "@/definisions/technologies";
 import { GoodsType, MaterialType, ResourceType, type WarehouseCommodities } from "@/types/Resource";
 import { TerrainType } from "@/types/Tile";
 import { WorkerStatus, WorkerType, type Worker } from "@/types/Workers";
@@ -35,60 +35,6 @@ const START_STOCK: Partial<Record<WarehouseCommodities, number>> = {
   [MaterialType.Steel]: 10,
   [MaterialType.CannedFood]: 10,
 };
-
-/**
- * Technologies every nation holds at the start (FR-059). The first two are the rules' own start
- * technologies (rules 01 section 3, rules 09). [NEEDS CLARIFICATION] decision Q8: the rules sell
- * the other three (rules 04 section 2), but v1 has no technology purchase, so without them rail
- * would stop at the first hill. When a purchase exists, those three leave this list.
- */
-export const START_TECHNOLOGIES: readonly Technology[] = [
-  {
-    id: "highPressureSteamEngine",
-    name: "High Pressure Steam Engine",
-    approximateArrival: [1814, 1814],
-    prerequisites: [],
-    benefits: ["rail through farms, plains, deserts, forests and tundra"],
-    purchased: true,
-    cost: 0,
-  },
-  {
-    id: "seedDrill",
-    name: "Seed Drill",
-    approximateArrival: [1814, 1814],
-    prerequisites: [],
-    benefits: ["farmers raise grain farms and orchards to level 1"],
-    purchased: true,
-    cost: 0,
-  },
-  {
-    id: "compoundSteamEngine",
-    name: "Compound Steam Engine",
-    approximateArrival: [1815, 1815],
-    prerequisites: [],
-    benefits: ["rail and depots on hills"],
-    purchased: true,
-    cost: 0,
-  },
-  {
-    id: "ironRailroadBridge",
-    name: "Iron Railroad Bridge",
-    approximateArrival: [1815, 1815],
-    prerequisites: [],
-    benefits: ["rail on swamp"],
-    purchased: true,
-    cost: 0,
-  },
-  {
-    id: "dynamite",
-    name: "Dynamite",
-    approximateArrival: [1815, 1815],
-    prerequisites: [],
-    benefits: ["rail on mountains"],
-    purchased: true,
-    cost: 0,
-  },
-];
 
 /** Every warehouse commodity at 0, then the given amounts. */
 export function warehouseWith(stock: Partial<Record<WarehouseCommodities, number>> = {}): Record<WarehouseCommodities, number> {
@@ -124,6 +70,7 @@ function startNation({ id, name, capitalId, colorSlot, controller }: NationFound
     colorSlot,
     controller,
     treasury: START_TREASURY,
+    technologies: [...START_TECHNOLOGIES],
     debt: 0,
     creditLimit: 5000,
     cities: [capitalId],

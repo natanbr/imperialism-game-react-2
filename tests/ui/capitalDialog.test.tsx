@@ -40,6 +40,37 @@ const stocked = () =>
 const card = (building: string) => screen.getByTestId(`building-${building}`);
 const now = () => useGameStore.getState().game;
 
+it('FR-524 University explains each missing technology beside the affected civilian', () => {
+  const s = stocked();
+  nationOf(s, N1).technologies = [];
+  openCapital(s);
+  for (const [worker, tech] of [['Rancher', 'Feed Grasses'], ['Forester', 'Iron Railroad Bridge'], ['Driller', 'Oil Drilling']]) {
+    const button = screen.getByRole('button', { name: `Train one more ${worker}` }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    expect(document.getElementById(button.getAttribute('aria-describedby')!)?.textContent).toBe(`Needs ${tech}`);
+  }
+});
+
+it('FR-525 the Clipper and refinery follow the active nation’s inventions', () => {
+  const s = stocked();
+  const owner = nationOf(s, N1);
+  owner.technologies = ['streamlinedHulls', 'oilDrilling'];
+  openCapital(s);
+  const more = screen.getByRole('button', { name: 'Build one more Clipper' });
+  expect(text(more.closest('li')!)).toMatch(/4 holds.*6 lumber.*2 fabric/);
+  fireEvent.click(more);
+  expect(text(screen.getByTestId('shipyard-stock'))).toBe('In warehouse: 4 lumber, 2 fabric');
+  expect(card('refinery')).toBeTruthy();
+});
+
+it('FR-525 a rival owning Streamlined Hulls and Oil Drilling reveals neither option in our Capital', () => {
+  const s = stocked();
+  nationOf(s, 'nation-2').technologies = ['streamlinedHulls', 'oilDrilling'];
+  openCapital(s);
+  expect(screen.queryByRole('button', { name: 'Build one more Clipper' })).toBeNull();
+  expect(screen.queryByTestId('building-refinery')).toBeNull();
+});
+
 describe('FR-513 University orders in the Capital', () => {
   it('FR-513 shows seven fees and requirements, orders an Engineer and refunds it', () => {
     openCapital(stocked());
@@ -112,7 +143,8 @@ describe('FR-046 capital dialog: production cards', () => {
 
   it('FR-046 the refinery shows once Oil Drilling is known', () => {
     const s = stocked();
-    openCapital({ ...s, technologyState: { ...s.technologyState, oilDrillingTechUnlocked: true } });
+    nationOf(s, N1).technologies = ['oilDrilling'];
+    openCapital(s);
     expect(card('refinery')).toBeTruthy();
   });
 

@@ -123,3 +123,38 @@ describe('FR-029 job costs', () => {
     expect(treasury(s, N1)).toBe(10000 - 2000);
   });
 });
+
+it('FR-519 every catalogue entry matches the first manual year, price and prerequisites in rules 09', async () => {
+  const { TECHNOLOGIES } = await import('@/definisions/technologies');
+  expect(TECHNOLOGIES.map(t => [t.id, t.name, t.cost, t.firstYear, t.prerequisites])).toEqual([
+    ['highPressureSteamEngine', 'High Pressure Steam Engine', 0, 1814, []],
+    ['seedDrill', 'Seed Drill', 0, 1814, []],
+    ['cottonGin', 'Cotton Gin', 1000, 1816, []],
+    ['streamlinedHulls', 'Streamlined Hulls', 1500, 1821, []],
+    ['squareSetTimbering', 'Square-Set Timbering', 1500, 1821, ['highPressureSteamEngine']],
+    ['ironRailroadBridge', 'Iron Railroad Bridge', 1500, 1821, ['highPressureSteamEngine']],
+    ['feedGrasses', 'Feed Grasses', 1500, 1821, []],
+    ['spinningJenny', 'Spinning Jenny', 3000, 1826, ['feedGrasses', 'cottonGin']],
+    ['paddlewheels', 'Paddlewheels', 3000, 1826, []],
+    ['steelAndIronPlows', 'Steel and Iron Plows', 3000, 1831, ['seedDrill']],
+    ['bessemerConverter', 'Bessemer Converter', 6000, 1836, []],
+    ['compoundSteamEngine', 'Compound Steam Engine', 7000, 1836, ['ironRailroadBridge']],
+    ['rifledArtillery', 'Rifled Artillery', 10000, 1841, []],
+    ['breechLoadingRifles', 'Breech-Loading Rifles', 12000, 1841, ['bessemerConverter']],
+    ['advancedIronWorking', 'Advanced Iron Working', 12000, 1846, []],
+    ['powerLoom', 'Power Loom', 12000, 1846, ['spinningJenny']],
+    ['mechanicalReaper', 'Mechanical Reaper', 12000, 1851, ['steelAndIronPlows']],
+    ['commercialFertiliser', 'Commercial Fertiliser', 12000, 1856, ['steelAndIronPlows']],
+    ['oilDrilling', 'Oil Drilling', 25000, 1856, []],
+    ['barbedWire', 'Barbed Wire', 20000, 1861, ['feedGrasses']],
+    ['steelArmourPlate', 'Steel Armour Plate', 40000, 1866, ['advancedIronWorking']],
+    ['largeArtillery', 'Large Artillery', 40000, 1871, ['rifledArtillery']],
+    ['dynamite', 'Dynamite', 40000, 1871, ['compoundSteamEngine', 'squareSetTimbering']],
+    ['marineEngineering', 'Marine Engineering', 40000, 1871, ['steelArmourPlate']],
+    ['machineGuns', 'Machine Guns', 100000, 1876, ['breechLoadingRifles']],
+    ['chemistry', 'Chemistry', 120000, 1876, ['oilDrilling', 'barbedWire']],
+    ['improvedRangeFinding', 'Improved Range-Finding', 150000, 1881, ['marineEngineering']],
+    ['internalCombustion', 'Internal Combustion', 150000, 1881, ['chemistry']],
+  ]);
+  expect(TECHNOLOGIES.every(t => t.effect.trim().length > 0)).toBe(true);
+});

@@ -7,10 +7,10 @@ import type { TradeCommodity, TradeOrders } from "@/types/Market";
 import { MAX_BUY_BIDS } from "@/definisions/marketPrices";
 import { isTradeCommodity, marketOf, priceOf, tradeCapacityOf, tradeOrdersOf } from "../market/market";
 import { partnerRefusal } from "../market/partners";
-import type { BuyCommodityOrder, RejectReason, SellCommodityOrder, ValidationResult } from "./Order";
+import type { BuyCommodityOrder, OrdinaryRejectReason, SellCommodityOrder, ValidationResult } from "./Order";
 
 const OK: ValidationResult = { ok: true };
-const reject = (reason: RejectReason): ValidationResult => ({ ok: false, reason });
+const reject = (reason: OrdinaryRejectReason): ValidationResult => ({ ok: false, reason });
 
 type Side = keyof TradeOrders;
 type TradeOrder = SellCommodityOrder | BuyCommodityOrder;

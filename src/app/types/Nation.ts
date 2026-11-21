@@ -17,6 +17,9 @@ export interface Nation {
   /** At End Turn the store asks the player of every non-human nation for its orders (FR-099). */
   controller: NationController;
   treasury: number;
+  /** Purchased technologies (FR-520). Orders paid this turn take effect after End Turn. */
+  technologies?: string[];
+  pendingTechnologies?: string[];
   debt?: number;
   creditLimit?: number;
 

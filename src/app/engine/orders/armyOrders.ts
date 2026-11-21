@@ -13,18 +13,18 @@ import { warActive } from "../diplomacy/queries";
 import { adjacentProvinces, provinceById } from "../world/provinces";
 import { addIntent } from "../turn/intents";
 import type {
+  OrdinaryRejectReason,
   ArmyOrder,
   CancelArmyMoveOrder,
   CancelDisbandOrder,
   DisbandRegimentsOrder,
   MoveArmyOrder,
-  RejectReason,
   SetRecruitmentOrder,
   ValidationResult,
 } from "./Order";
 
 const OK: ValidationResult = { ok: true };
-const reject = (reason: RejectReason): ValidationResult => ({ ok: false, reason });
+const reject = (reason: OrdinaryRejectReason): ValidationResult => ({ ok: false, reason });
 const isWholeNumber = (n: unknown): n is number => typeof n === "number" && Number.isInteger(n);
 type Stock = Record<string, number>;
 

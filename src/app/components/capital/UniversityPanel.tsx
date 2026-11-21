@@ -1,4 +1,5 @@
 import { UNIVERSITY_FEES, UNIVERSITY_PAPER_COST, type UniversityCivilian } from "@/definisions/universityFees";
+import { technologyById } from "@/definisions/technologies";
 import { freeWorkersOf, validateOrder, type Order } from "@/engine";
 import type { GameState } from "@/types/GameState";
 import type { Nation } from "@/types/Nation";
@@ -33,6 +34,7 @@ export function UniversityPanel({ game, nation, submitOrder }: Props) {
           if (!result.ok) {
             if (result.reason === "insufficient-resources") reason = `Needs ${UNIVERSITY_PAPER_COST} paper (${paper})`;
             else if (result.reason === "insufficient-funds") reason = `Needs ${money(fee)} (${money(nation.treasury)})`;
+            else if (result.reason === "missing-technology") reason = `Needs ${technologyById(result.techId)!.name}`;
             else reason = REFUSAL_TEXT[result.reason];
           }
           return (

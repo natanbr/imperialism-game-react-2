@@ -15,6 +15,8 @@ import { parseTileIdToArray } from "@/utils/tileIdUtils";
 import { areTilesAdjacent, canBuildRailAt, getAdjacentTiles, isAdjacentToOcean } from "../map/mapHelpers";
 import { hasRailLink, isRailLinked } from "../systems/railroadSystem";
 
+export { availableTechnologies } from "../technology";
+
 export interface WorkerLocation {
   worker: Worker;
   tile: Tile;
@@ -84,8 +86,8 @@ export const TECH = {
   dynamite: "dynamite",
 } as const;
 
-export const hasTechnology = (state: GameState, id: string): boolean =>
-  state.technologyState.technologies.some((t) => t.id === id && t.purchased);
+export const owns = (state: GameState, nationId: string | undefined, techId: string): boolean =>
+  state.nations.find(n => n.id === nationId)?.technologies?.includes(techId) ?? false;
 
 const HILLS: readonly TerrainType[] = [TerrainType.BarrenHills, TerrainType.FertileHills];
 const isHills = (tile: Tile): boolean => HILLS.includes(tile.terrain);
@@ -101,9 +103,9 @@ export const isGreatPowerCapital = (state: GameState, tile: Tile): boolean =>
 
 /** Hills need Compound Steam Engine, swamp Iron Railroad Bridge, mountains Dynamite. */
 export function railTerrainAllowed(state: GameState, tile: Tile): boolean {
-  if (isHills(tile)) return hasTechnology(state, TECH.compoundSteamEngine);
-  if (tile.terrain === TerrainType.Swamp) return hasTechnology(state, TECH.ironRailroadBridge);
-  if (tile.terrain === TerrainType.Mountains) return hasTechnology(state, TECH.dynamite);
+  if (isHills(tile)) return owns(state, tile.ownerNationId, TECH.compoundSteamEngine);
+  if (tile.terrain === TerrainType.Swamp) return owns(state, tile.ownerNationId, TECH.ironRailroadBridge);
+  if (tile.terrain === TerrainType.Mountains) return owns(state, tile.ownerNationId, TECH.dynamite);
   return true;
 }
 
@@ -168,7 +170,7 @@ export const isDepotSite = (state: GameState, tile: Tile): boolean =>
   !tile.depot &&
   !isCapital(tile) &&
   !getAdjacentTiles(state.map, tile.x, tile.y).some((n) => n.ownerNationId === tile.ownerNationId && gathers(state, n)) &&
-  (!isHills(tile) || hasTechnology(state, TECH.compoundSteamEngine));
+  (!isHills(tile) || owns(state, tile.ownerNationId, TECH.compoundSteamEngine));
 
 /**
  * A port needs a river on the tile or an ocean (coast or water) tile next to it, no port yet (the
