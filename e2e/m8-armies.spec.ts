@@ -1,4 +1,4 @@
-import { test, expect, Page, Locator } from '@playwright/test';
+import { test, expect, Page, Locator } from './seededGame';
 
 // FR-214 (M8 done) in the running app, on a new game: order 1 armaments in the capital dialog and end the turn; open the
 // Armoury, recruit 1 Regulars and end the turn; see the capital province marker at force size 5 and "3rd Regulars" in the

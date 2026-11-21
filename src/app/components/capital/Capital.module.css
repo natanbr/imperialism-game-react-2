@@ -156,6 +156,38 @@
   margin: 0;
 }
 
+.orderRows {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.orderRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 102px;
+  align-items: center;
+  gap: 3px;
+  padding: 6px 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.orderRow > .note {
+  grid-column: 1;
+}
+
+.fee {
+  font-size: var(--font-size-sm);
+  font-weight: normal;
+}
+
+.orderRow > span:last-child {
+  grid-area: 1 / 2 / span 2;
+  flex-wrap: wrap;
+  justify-content: center;
+  row-gap: 3px;
+  text-align: center;
+}
+
 /* A building's picture before a card's or a section's name (FR-352, QA): 30 px, where the building is recognisable (on the
    text line, 19 px, the seven factories, the Trade School, the Capitol and the railyard were murky silhouettes). Its
    negative margins keep the line as high as the text's, so the card heads stay at most 24 px (FR-333): the picture reaches

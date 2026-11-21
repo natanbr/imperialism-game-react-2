@@ -1,4 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page } from './seededGame';
 
 // M12 lane L1 in the running app, on a new continent game (seed of the default game).
 // FR-397 (card Q89; NR-018 kept): turn 1, a consulate with Arvelia and a bid of 2 coal; End Turn; on turn 2 the Board of

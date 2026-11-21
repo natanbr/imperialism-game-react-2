@@ -1,7 +1,6 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page, startSeededGame } from './seededGame';
 import { councilLineSeen } from './councilNews';
 import { closeWarScreens } from './idleWar';
-import { startSeededGame } from './seededGame';
 
 // M10 QA fix round at 1280x720, with the scrollbars drawn as a desktop browser draws them (Playwright's Chromium hides
 // them: --hide-scrollbars; the HUD's column is then 8 px narrower and its lines wrap sooner).

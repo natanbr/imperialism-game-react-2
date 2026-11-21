@@ -7,7 +7,13 @@ import type { PairDiplomacy } from "@/types/Diplomacy";
 import type { Order } from "../orders/Order";
 import { OVERTURE_COST, SCRIPTED_INFLUENCE } from "@/definisions/diplomacyRules";
 import { COUNCIL } from "@/definisions/council";
-import { councilNominees, nextCouncilTurn } from "../council/council";
+import { SHIPS } from "@/definisions/ships";
+import { ResourceType } from "@/types/Resource";
+import type { TradeCommodity } from "@/types/Market";
+import { councilNominees, lastCouncilTurn, nextCouncilTurn } from "../council/council";
+import { tradeCapacityOf, tradeOrdersOf } from "../market/market";
+import { diplomacyAfterThisTurn, partnerRanking, sellersOf, settledTradeBarrier } from "../market/partners";
+import { turnLimitOf } from "../turn/gameOver";
 import { warBetween } from "../diplomacy/queries";
 import { relationOf } from "../diplomacy/relations";
 import { nationById } from "../orders/queries";
@@ -15,6 +21,30 @@ import { adjacentProvinces, provincesOf } from "../world/provinces";
 import { campaignTarget } from "./scriptedWar";
 
 type Propose = (order: Order) => boolean;
+
+/** Buy one scarce input with spare shipping before the final vote. Trade can earn support for an existing embassy. */
+export function councilTradeInputs(state: GameState, nationId: NationId, stock: Readonly<Record<string, number>>): TradeCommodity[] {
+  if (turnLimitOf(state) - state.turn < 2) return []; // FR-245: raw inputs need two more turns.
+  const { holds, free } = tradeCapacityOf(state, nationId);
+  const meeting = lastCouncilTurn(state);
+  if (!free || holds <= SHIPS.indiaman.holds || state.gameOver || meeting === undefined) return [];
+  // Q141: start on the preceding meeting itself (turn 30 for a turn-40 final Council).
+  if (state.turn < meeting - COUNCIL.interval || state.turn > meeting) return [];
+  const after = diplomacyAfterThisTurn(state, nationId);
+  const bids = tradeOrdersOf(state, nationId).buy;
+  return ([ResourceType.Timber, ResourceType.Coal, ResourceType.IronOre, ResourceType.Cotton] as const)
+    .filter(c => {
+      if (bids[c] || (stock[c] ?? 0) >= 2 * holds) return false;
+      // One unit goes to the first open seller in settlement order. A higher-ranked buyer
+      // could take its supply first; its current bids are private (FR-497).
+      const seller = sellersOf(after, c).find(id => !settledTradeBarrier(after, nationId, id));
+      if (!seller) return false;
+      const pair = relationOf(after, nationId, seller);
+      return pair?.embassies.includes(nationId) && pair.points < COUNCIL.minRelationPoints
+        && partnerRanking(after, seller).find(id => !settledTradeBarrier(after, id, seller)) === nationId;
+    })
+    .sort((a, b) => (stock[a] ?? 0) - (stock[b] ?? 0));
+}
 
 interface Candidate {
   id: MinorNationId;

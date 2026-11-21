@@ -1,8 +1,8 @@
-import { Tile } from "@/types/Tile";
+import { TerrainType, type Tile } from "@/types/Tile";
 import React, { useEffect, useId, useRef, useState } from "react";
 import { useGameStore } from "../store/rootStore";
 import { Worker, WorkerStatus, WorkerType } from "@/types/Workers";
-import { countryName, countryOfTile, isMinorNation, provinceOf } from "@/engine";
+import { countryName, countryOfTile, isMinorNation, provinceOf, validateOrder } from "@/engine";
 import { commodityName, TERRAIN_TEXT, workerJobLabel } from "./gameText";
 import { InkPicture } from "./art/ArtPicture";
 import { civilianArt, goodsArt } from "./art/inkArt";
@@ -77,6 +77,7 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
   const game = useGameStore((s) => s.game);
   // FR-386: the civilian whose Cancel is being asked about (component state: the question is this panel's)
   const [cancelling, setCancelling] = useState<string | null>(null);
+  const [disbanding, setDisbanding] = useState<string | null>(null);
   const cancelTitleId = useId();
   const cancelTextId = useId();
   // FR-448: the selected civilian's first job offer (else its row) scrolled into the HUD's view, above its fade; only that
@@ -109,21 +110,32 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
     ? "None"
     : !known
       ? "Not yet prospected"
-      : `${commodityName(resource.type)} (L${resource.level})`;
+      : selectedTile.terrain === TerrainType.HorseRanch ? commodityName(resource.type) : `${commodityName(resource.type)} (L${resource.level})`;
   const collected = collectionText(game, activeNationId, selectedTile);
   const fortLevel = selectedTile.fortLevel ?? 0;
 
   // FR-386, FR-387: Cancel asks what comes back; Yes sends the cancel (two for a move and a job of one click), each said
   // on the map if refused, stopping at a refusal
   const cancellingWorker = cancelling ? selectedTile.workers.find((w) => w.id === cancelling) : undefined;
-  const question = cancellingWorker ? cancelQuestion(game, activeNationId, cancellingWorker, selectedTile) : undefined;
-  const confirmCancel = () => {
+  const disbandingWorker = selectedTile.workers.find(w => w.id === disbanding && w.nationId === activeNationId);
+  const question = disbandingWorker ? {
+    title: `Disband ${disbandingWorker.type}?`,
+    consequence: `The ${disbandingWorker.type} becomes an expert worker next turn. The money and paper spent on it are not returned.`,
+    confirm: `Disband ${disbandingWorker.type}`,
+    keep: `Keep ${disbandingWorker.type}`,
+    orders: [{ kind: "disbandCivilian" as const, nationId: activeNationId, workerId: disbandingWorker.id }],
+  } : cancellingWorker ? cancelQuestion(game, activeNationId, cancellingWorker, selectedTile) : undefined;
+  const closeQuestion = () => {
     setCancelling(null);
+    setDisbanding(null);
+  };
+  const confirmQuestion = () => {
+    closeQuestion();
     for (const order of question?.orders ?? []) if (!submitAndSay(order).ok) break;
   };
   // FR-381: every job of the civilian's type, each as the engine would take it; past level 3 a line instead (FR-383 asks)
   const renderWorkerActions = (worker: Worker) => {
-    if (worker.status !== WorkerStatus.Available) return null;
+    if (worker.status !== WorkerStatus.Available || worker.pendingDisband) return null;
     const offers = jobOffers(game, activeNationId, worker, selectedTile);
     const note = jobNote(worker, selectedTile);
     if (offers.length === 0 && !note) return null;
@@ -196,13 +208,14 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
             {selectedTile.workers.map(w => {
               // Only the player's civilians can be picked and given orders (FR-108)
               const own = w.nationId === activeNationId;
+              const showDisband = own && w.pendingDisband;
               return (
               <li key={w.id}
                 ref={own && selectedWorkerId === w.id ? selectedRow : undefined}
                 onClick={own ? () => setSelectedWorkerId(w.id) : undefined}
                 style={{ background: own && selectedWorkerId === w.id ? THEME.surfaceSunken : 'transparent', padding: '4px', borderRadius: '4px', cursor: own ? 'pointer' : 'default' }}>
-                <WorkerStatusIndicator status={w.status} />
-                <InkPicture src={civilianArt(w.type)} alt="" inline /><span>{w.type} - {workerJobLabel(selectedTile, w) ?? w.status}</span>
+                <WorkerStatusIndicator status={showDisband ? WorkerStatus.Moved : w.status} />
+                <InkPicture src={civilianArt(w.type)} alt="" inline /><span>{w.type} - {showDisband ? "Disbanding next turn" : workerJobLabel(selectedTile, w) ?? w.status}</span>
                 {own && (w.status === WorkerStatus.Moved || w.status === WorkerStatus.Working) && (
                   <button
                     onClick={() => setCancelling(w.id)}
@@ -212,6 +225,17 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
                   </button>
                 )}
                 {own && selectedWorkerId === w.id && renderWorkerActions(w)}
+                {own && selectedWorkerId === w.id && (w.pendingDisband ? (
+                  <button type="button" className="btn btn-plain" onClick={e => {
+                    e.stopPropagation();
+                    submitAndSay({ kind: "cancelDisbandCivilian", nationId: activeNationId, workerId: w.id });
+                  }}>Undo disband</button>
+                ) : validateOrder(game, { kind: "disbandCivilian", nationId: activeNationId, workerId: w.id }).ok && (
+                  <button type="button" className="btn btn-plain" onClick={e => {
+                    e.stopPropagation();
+                    setDisbanding(w.id);
+                  }}>Disband</button>
+                ))}
               </li>
               );
             })}
@@ -230,7 +254,8 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
         <Modal
           titleId={cancelTitleId}
           describedBy={cancelTextId}
-          onClose={() => setCancelling(null)}
+          onClose={closeQuestion}
+          initialFocus={disbandingWorker ? "last-control" : "first-control"}
           overlayClassName="question-overlay"
           className="question-dialog"
           portal>
@@ -241,10 +266,10 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
             {question.consequence}
           </p>
           <div className="question-answers">
-            <button type="button" className="btn btn-danger" onClick={confirmCancel}>
+            <button type="button" className="btn btn-danger" onClick={confirmQuestion}>
               {question.confirm}
             </button>
-            <button type="button" className="btn btn-plain" onClick={() => setCancelling(null)}>
+            <button type="button" className="btn btn-plain" onClick={closeQuestion}>
               {question.keep}
             </button>
           </div>

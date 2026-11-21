@@ -10,7 +10,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { ArmouryModal } from '@/components/ArmouryModal';
 import { CapitalModal } from '@/components/CapitalModal';
 import { useGameStore } from '@/store/rootStore';
-import { newGame, type Order } from '@/engine';
+import { applyOrder, newGame, resolveTurn, type Order } from '@/engine';
 import type { GameState } from '@/types/GameState';
 import { setIndustry, setTreasury, setWarehouse, industryOf, stockOf, treasury } from '../engine/fixtures';
 import { continent } from '../engine/armyFixtures';
@@ -59,6 +59,19 @@ const description = (el: HTMLElement): string =>
 const now = () => useGameStore.getState().game;
 /** A new continent game with armaments in the warehouse. */
 const armed = (armaments = 2) => setWarehouse(continent(), N1, { armaments });
+
+it('FR-517 shows the horses in stock and the supply from collected ranches', () => {
+  openArmoury(armed());
+  expect(items('Hussars', 'At hand')).toContain('Horses: 4 in warehouse, +1 a turn');
+});
+
+it('FR-517 shows zero horse income when freight leaves the ranch output unshipped', () => {
+  const state = applyOrder(armed(), { kind: 'setTransportAllocations', nationId: N1, allocations: { horses: 0 } });
+  openArmoury(state);
+  const after = resolveTurn(state, {}).state;
+  expect(stockOf(after, N1, 'horses')).toBe(4);
+  expect(items('Hussars', 'At hand')).toContain('Horses: 4 in warehouse, +0 a turn');
+});
 
 describe('FR-212 the Armoury: how it opens', () => {
   it('FR-212 on the continent the capital dialog has an "Armoury" button; it opens the dialog named "Armoury" over the capital', () => {
@@ -201,7 +214,7 @@ describe('FR-212 the Armoury: one card per recruitable regiment', () => {
     openArmoury(continent());
     // A new game: 4 untrained and 2 trained workers free, no armaments, 4 horses (FR-203), $10,000
     expect(items('Regulars', 'At hand')).toEqual(['Untrained workers: 4 free', 'Armaments: 0 in warehouse (short)', 'Cash: $10,000']);
-    expect(items('Hussars', 'At hand')).toEqual(['Untrained workers: 4 free', 'Armaments: 0 in warehouse (short)', 'Horses: 4 in warehouse', 'Cash: $10,000']);
+    expect(items('Hussars', 'At hand')).toEqual(['Untrained workers: 4 free', 'Armaments: 0 in warehouse (short)', 'Horses: 4 in warehouse, +1 a turn', 'Cash: $10,000']);
     expect(items('Artillery', 'At hand')).toEqual(['Trained workers: 2 free', 'Armaments: 0 in warehouse (short)', 'Cash: $10,000']);
     // In colour as well: the short item carries its mark
     const short = within(within(card('Regulars')).getByRole('list', { name: 'At hand' })).getAllByRole('listitem');
@@ -212,8 +225,8 @@ describe('FR-212 the Armoury: one card per recruitable regiment', () => {
     let s = setWarehouse(continent(), N1, { armaments: 5, horses: 0 });
     s = setIndustry(setTreasury(s, N1, 300), N1, { workers: { ...industryOf(s, N1).workers, trained: 0 } });
     openArmoury(s);
-    expect(items('Cuirassiers', 'At hand')).toEqual(['Trained workers: 0 free (short)', 'Armaments: 5 in warehouse', 'Horses: 0 in warehouse (short)', 'Cash: $300 (short)']);
-    expect(items('Hussars', 'At hand')).toEqual(['Untrained workers: 4 free', 'Armaments: 5 in warehouse', 'Horses: 0 in warehouse (short)', 'Cash: $300']);
+    expect(items('Cuirassiers', 'At hand')).toEqual(['Trained workers: 0 free (short)', 'Armaments: 5 in warehouse', 'Horses: 0 in warehouse, +1 a turn (short)', 'Cash: $300 (short)']);
+    expect(items('Hussars', 'At hand')).toEqual(['Untrained workers: 4 free', 'Armaments: 5 in warehouse', 'Horses: 0 in warehouse, +1 a turn (short)', 'Cash: $300']);
   });
 
   it('FR-212 the note: "New regiments join the army in the capital next turn."', () => {
@@ -354,7 +367,7 @@ describe('FR-264 the Armoury: what this turn\'s recruits reserve', () => {
     expect(items('Hussars', 'At hand')).toEqual([
       'Untrained workers: 4 free, 3 reserved by other recruits',
       'Armaments: 3 in warehouse, 3 reserved by other recruits (short)',
-      'Horses: 4 in warehouse',
+      'Horses: 4 in warehouse, +1 a turn',
       'Cash: $10,000, $900 reserved by other recruits',
     ]);
   });

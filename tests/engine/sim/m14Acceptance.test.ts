@@ -57,6 +57,8 @@ describe('FR-509 a passive Testland loses to the rival on the continent', () => 
 });
 
 describe('FR-509 a diplomat can win peacefully using normal orders', () => {
+  const requiredPeacefulWins = 15;
+  const peacefulWinTarget = `FR-545 requires ${requiredPeacefulWins}/24; FR-509 (ii) required 18/24 and measured 24/24 on M14 before the FR-516 computer fleet`;
   const wars = diplomaticGames.flatMap(g => g.turns.flatMap(t => t.warsDeclared.filter(w => w.byId === HUMAN_ID)));
   const winners = diplomaticGames.filter(g => councilBy40(g) && g.final.gameOver?.winnerId === HUMAN_ID);
   const fundedWins = winners.filter(g => g.turns.some(t => t.grants.some(p => p.fromId === HUMAN_ID && p.amount === 1000))).length;
@@ -67,8 +69,8 @@ describe('FR-509 a diplomat can win peacefully using normal orders', () => {
     expect(wars).toEqual([]);
     expect(diplomaticGames.flatMap(g => g.turns.flatMap(t => t.humanRefused))).toEqual([]);
   });
-  it(`Testland wins by Council by turn 40 in ${winners.length}/24 games (required 18), ${fundedWins} with a paid grant and ${earlyWins} before the last meeting`, () => {
-    expect(winners.length).toBeGreaterThanOrEqual(18);
+  it(`Testland wins by Council by turn 40 in ${winners.length}/24 games (${peacefulWinTarget}), ${fundedWins} with a paid grant and ${earlyWins} before the last meeting`, () => {
+    expect(winners.length, peacefulWinTarget).toBeGreaterThanOrEqual(requiredPeacefulWins);
     expect(fundedWins).toBeGreaterThan(0);
   });
   it('gives one $1,000 grant to the free eligible minor closest below 50 when $3,000 will remain', () => {

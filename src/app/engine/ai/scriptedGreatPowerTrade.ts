@@ -65,14 +65,19 @@ const PAIR_VALUE = SCORE_WEIGHTS.pointsPerCapacity * SCORE_WEIGHTS.dollarsPerPoi
  * was declaring war on, because the minors that want the good are buyers too. The other nation's orders of this turn
  * are not read (FR-497).
  */
-export function greatPowerTradeCaps(state: GameState, nationId: NationId, next: Readonly<Record<string, number>>): GreatPowerTradeCaps {
+export function greatPowerTradeCaps(state: GameState, nationId: NationId, next: Readonly<Record<string, number>>, shipLumber = 0): GreatPowerTradeCaps {
   if (marketModeOf(state) !== "partners") return { buy: {}, sell: {}, offeredLastTurn: [], standing: {} };
   const rivals = state.nations
     .map((n) => n.id)
     .filter((id) => id !== nationId && tradeBarrier(state, nationId, id) === undefined)
     .sort();
   if (rivals.length === 0) return { buy: {}, sell: {}, offeredLastTurn: [], standing: {} };
-  const buy = pairBids(state, next);
+  // A partner can answer our published bid one turn later. Lumber earmarked for a hull cannot
+  // also expand a mill, so include that need while a recent public offer identifies a supplier.
+  const supplier = shipLumber > 0 && rivals.some(id =>
+    (lastTradeOrdersOf(state, id).sell.lumber ?? 0) > 0 || (tradeOrdersTwoTurnsAgoOf(state, id).sell.lumber ?? 0) > 0);
+  const available = supplier ? { ...next, lumber: Math.max(0, (next.lumber ?? 0) - shipLumber) } : next;
+  const buy = pairBids(state, available);
   // FR-539: only toward a person, who reads the Board; a computer Great Power offers goods only (FR-245 (c)), so a
   // standing bid toward it would only take a hold. Who plays a nation is public, as the Diplomacy screen's answers use it.
   const toPerson = rivals.some((id) => state.nations.find((n) => n.id === id)?.controller === "human");

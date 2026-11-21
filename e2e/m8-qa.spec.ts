@@ -1,4 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page } from './seededGame';
 
 // M8 QA fix round at 1280x720, the QA screenshots' size, with the scrollbars drawn as a desktop browser draws them
 // (Playwright's Chromium hides them: --hide-scrollbars).

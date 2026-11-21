@@ -17,6 +17,7 @@ import type { WorkerGrade } from "@/types/Industry";
 import type { Nation } from "@/types/Nation";
 import { GoodsType, ResourceType } from "@/types/Resource";
 import { money, REFUSAL_TEXT, upkeepDueText, upkeepWarningText } from "../gameText";
+import { computeLogisticsTransport, transportShipments } from "@/engine/systems/logisticsSystem";
 import { CATEGORY_TEXT } from "./armyView";
 
 /** One thing a regiment costs, or the nation has at hand: a worker of its grade, armaments, horses, cash. */
@@ -121,6 +122,9 @@ function moreRefusalText(reason: RejectReason, nation: Nation, type: RegimentTyp
 }
 
 export function armouryView(state: GameState, nation: Nation): ArmouryView {
+  const collected = computeLogisticsTransport(state.map, nation.id, state.transportNetwork.railroadNetworks?.[nation.id]);
+  const shipped = transportShipments(nation.transportCapacity ?? 0, collected, state.transportAllocationsByNation?.[nation.id]);
+  const horseSupply = shipped[ResourceType.Horses] ?? 0;
   const stock = (key: GoodsType | ResourceType) => nation.warehouse[key] ?? 0;
   // FR-264: "in warehouse" is before this turn's recruit orders; each card names what its own order and the others hold
   const before = beforeRecruiting(nation);
@@ -153,7 +157,7 @@ export function armouryView(state: GameState, nation: Nation): ArmouryView {
       { ...atHandItem("worker", `${capitalized(grade)} workers`, `${freeWorkersOf(before, grade)} free`, own.worker, others.worker, plain, none && free < 1), grade },
       atHandItem("armaments", "Armaments", `${stockBefore(GoodsType.Armaments)} in warehouse`, own.armaments, others.armaments, plain, none && stock(GoodsType.Armaments) < arms),
       ...(def.horses > 0
-        ? [atHandItem("horses", "Horses", `${stockBefore(ResourceType.Horses)} in warehouse`, own.horses, others.horses, plain, none && stock(ResourceType.Horses) < def.horses)]
+        ? [atHandItem("horses", "Horses", `${stockBefore(ResourceType.Horses)} in warehouse, +${horseSupply} a turn`, own.horses, others.horses, plain, none && stock(ResourceType.Horses) < def.horses)]
         : []),
       atHandItem("cash", "Cash", money(before.treasury), own.cash, others.cash, money, none && nation.treasury < def.cash),
     ];

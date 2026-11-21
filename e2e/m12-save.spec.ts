@@ -1,4 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page, expectFreshGameSeed } from './seededGame';
 
 // M12 lane L3 in the running app: the game is saved in the browser and offered back (FR-357 to FR-363), and How to play
 // opens on a browser's first new game (FR-430, FR-431).
@@ -42,6 +42,7 @@ test('FR-357 FR-359 FR-360 End Turn saves; a reload offers the saved game; Conti
   await ready(page);
   await expect(savedGame(page)).toHaveCount(0);
   await expect.poll(() => savedTurn(page)).toBe(1);
+  await expectFreshGameSeed(page);
 
   await page.getByRole('button', { name: /Advance Turn/ }).click();
   await expect(turnLine(page)).toContainText('Turn: 2 of 40');
@@ -59,6 +60,7 @@ test('FR-357 FR-359 FR-360 End Turn saves; a reload offers the saved game; Conti
   await page.reload();
   await savedGame(page).getByRole('button', { name: 'New game' }).click();
   await expect(savedGame(page)).toHaveCount(0);
+  await expectFreshGameSeed(page);
   await expect(turnLine(page)).toContainText('Turn: 1 of 40');
   await expect.poll(() => savedTurn(page)).toBe(1);
   expect(errors).toEqual([]);
@@ -81,6 +83,7 @@ test('FR-362 a slot the game cannot load says why and offers New game only; New 
   await expect(savedGame(page).getByRole('button', { name: 'New game' })).toBeFocused();
   await savedGame(page).getByRole('button', { name: 'New game' }).click();
   await expect.poll(() => savedTurn(page)).toBe(1);
+  await expectFreshGameSeed(page);
   expect(errors).toEqual([]);
 });
 

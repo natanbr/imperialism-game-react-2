@@ -59,6 +59,10 @@ const ARMY = (() => {
 const marchOrder = (regimentIds: string[], fromProvinceId = SW1, toProvinceId = NW1): Order => ({ kind: 'moveArmy', nationId: N1, fromProvinceId, regimentIds, toProvinceId });
 
 const cases: Case[] = [
+  { name: 'FR-511 order an Engineer with a free expert and paper', setup: s => setIndustry(setWarehouse(s, N1, { paper: 2 }), N1, { workers: { untrained: 0, trained: 0, expert: 1 } }), order: { kind: 'setUniversity', nationId: N1, civilianType: WorkerType.Engineer, count: 1 }, expected: 'ok' },
+  { name: 'FR-512 disband an available farmer', order: { kind: 'disbandCivilian', nationId: N1, workerId: W.farmer }, expected: 'ok' },
+  { name: 'FR-512 withdraw the same civilian disband', setup: s => applyOrder(s, { kind: 'disbandCivilian', nationId: N1, workerId: W.farmer }), order: { kind: 'cancelDisbandCivilian', nationId: N1, workerId: W.farmer }, expected: 'ok' },
+  { name: 'FR-514 order a Trader with its materials in stock', setup: s => setWarehouse(s, N1, { lumber: 4, fabric: 2 }), order: { kind: 'setShipyard', nationId: N1, ship: 'trader', count: 1 }, expected: 'ok' },
   // moveWorker
   { name: 'FR-004 moveWorker to an owned land tile is ok', order: { kind: 'moveWorker', nationId: N1, workerId: W.farmer, toTileId: T.farm1 }, expected: 'ok' },
   { name: 'FR-004 unknown nation', order: { kind: 'moveWorker', nationId: 'nation-9', workerId: W.farmer, toTileId: T.farm1 }, expected: 'unknown-nation' },
@@ -208,7 +212,10 @@ describe('validateOrder', () => {
       expect(order.nationId).toEqual(expect.any(String));
       if ('workerId' in order) {
         expect(order.workerId).toEqual(expect.any(String));
-        expect('tileId' in order || 'toTileId' in order).toBe(true);
+        // FR-512 targets a civilian by ID at its current location, including after a saved game is restored.
+        if (order.kind !== 'disbandCivilian' && order.kind !== 'cancelDisbandCivilian') {
+          expect('tileId' in order || 'toTileId' in order).toBe(true);
+        }
       }
     }
   });

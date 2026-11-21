@@ -19,7 +19,7 @@ export function getPossibleAction(
   selectedWorker: Worker | null,
   map: GameMap
 ): PossibleAction {
-  if (!selectedWorker) return null;
+  if (!selectedWorker || selectedWorker.pendingDisband) return null;
 
   switch (selectedWorker.type) {
     case WorkerType.Prospector:

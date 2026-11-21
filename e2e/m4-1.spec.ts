@@ -1,5 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
-import { startSeededGame } from './seededGame';
+import { test, expect, Page, startSeededGame } from './seededGame';
 
 // M4.1 in the running app. FR-122 after 15 End Turns Valdoria (island 2, capital 14-9) has a depot joined
 // to its capital by a few rail lines; FR-121 the market and the capital show commodity pictures (M11 FR-331: the art

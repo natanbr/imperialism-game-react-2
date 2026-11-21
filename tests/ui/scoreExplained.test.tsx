@@ -70,7 +70,8 @@ it('FR-505 the score hover and Tile Info explain why Arvelia adds no development
   const game = transferProvince(newGame({ seed: 1, world: 'continent' }), 'province-minor-1', N1);
   const score = show(game);
   fireEvent.mouseEnter(score);
-  expect(text(screen.getByRole('tooltip'))).toContain('Conquered land not collected: 11 levels, 0 points');
+  // FR-517: Arvelia's level-one plantation became a level-zero ranch, so ten levels remain.
+  expect(text(screen.getByRole('tooltip'))).toContain('Conquered land not collected: 10 levels, 0 points');
   render(<TileInfoPanel selectedTile={game.map.tiles[3][10]} />);
   expect(text(screen.getByTestId('tile-collected'))).toMatch(/^Not collected: 0 points/);
 });

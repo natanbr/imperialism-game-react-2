@@ -53,6 +53,10 @@ const ORDER_TEXT: Record<OrderKind, string> = {
   cancelArmyMove: "Cancel march",
   disbandRegiments: "Disband",
   cancelDisband: "Cancel disband",
+  setUniversity: "University",
+  disbandCivilian: "Disband civilian",
+  cancelDisbandCivilian: "Cancel civilian disband",
+  setShipyard: "Shipyard",
 };
 
 export const REFUSAL_TEXT: Record<RejectReason, string> = {
@@ -68,6 +72,7 @@ export const REFUSAL_TEXT: Record<RejectReason, string> = {
   "insufficient-funds": "not enough money",
   "insufficient-resources": "not enough goods in the warehouse",
   "insufficient-labour": "not enough free labour",
+  "no-expert": "No expert worker free",
   "limit-reached": "over the limit",
   "invalid-amount": "invalid amount",
   "game-over": "the game is over",
@@ -146,7 +151,7 @@ export const COMMODITY_TEXT: Record<WarehouseCommodities, string> = {
 export const TERRAIN_TEXT: Record<TerrainType, string> = {
   [TerrainType.DryPlains]: "Dry plains",
   [TerrainType.OpenRange]: "Open range",
-  [TerrainType.HorseRanch]: "Horse ranch",
+  [TerrainType.HorseRanch]: "Horse Ranch",
   [TerrainType.Plantation]: "Plantation",
   [TerrainType.Farm]: "Farm",
   [TerrainType.Orchard]: "Orchard",
@@ -175,7 +180,10 @@ export function tileLabel(tile: Pick<Tile, "terrain" | "resource" | "ownerNation
   if (tile.terrain === TerrainType.Water) return TERRAIN_TEXT[TerrainType.Water];
   const parts = [TERRAIN_TEXT[tile.terrain]];
   const { resource } = tile;
-  if (resource && resource.discovered !== false) parts.push(commodityName(resource.type).toLowerCase(), `level ${resource.level}`);
+  if (resource && resource.discovered !== false) {
+    parts.push(commodityName(resource.type).toLowerCase());
+    if (tile.terrain !== TerrainType.HorseRanch) parts.push(`level ${resource.level}`);
+  }
   const owner = ownerName ?? tile.ownerNationId;
   parts.push(owner ? `owned by ${owner}` : "not owned");
   return parts.join(", ");

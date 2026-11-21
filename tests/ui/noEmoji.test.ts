@@ -5,7 +5,8 @@ import { readdirSync, readFileSync, statSync } from 'fs';
 import { join, relative } from 'path';
 
 const ROOT = join(__dirname, '..', '..');
-const EMOJI = /\p{Extended_Pictographic}/u;
+// FR-330 also bans the former star icon even on runtimes that exclude it from Extended_Pictographic.
+const EMOJI = /[\p{Extended_Pictographic}\u2605]/u;
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {

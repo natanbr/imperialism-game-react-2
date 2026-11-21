@@ -1,4 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page } from './seededGame';
 
 // FR-236 (M6 QA fix round, item 1) in the running app: every game dialog is a modal dialog built on one shared
 // component. Opened from its HUD button it is aria-modal and takes the focus; Tab and Shift+Tab keep the focus inside;

@@ -9,6 +9,9 @@ import type { MarketMode } from '@/types/Market';
 import { newGame } from '@/engine/newGame';
 import { transferProvince } from '@/engine/world/provinces';
 import { REGIMENTS, START_FORCES } from '@/definisions/regiments';
+import { TerrainType } from '@/types/Tile';
+import { ResourceType } from '@/types/Resource';
+import { startWorld } from '@/engine/world/startWorld';
 import { N2 } from './fixtures';
 
 export const SW1 = 'province-nation-1-sw';
@@ -117,6 +120,25 @@ export function withoutStartForces(s: GameState): GameState {
   delete bare.regimentsRaised;
   return bare;
 }
+
+/** Restore the five pre-M15 tile yields for the historical cross-world comparisons. */
+export function beforeRanches(state: GameState): GameState {
+  const settled = startWorld().map;
+  // FR-215/245 compare the old identical Great Power economies. M15 changed two home tiles per
+  // nation and one Arvelian plantation; the rest of the continent and its provinces stay live.
+  const homeTiles = new Set(['2-10', '14-10', '3-8', '15-8']);
+  const tiles = state.map.tiles.map(row => row.map(tile => {
+    if (homeTiles.has(tile.id)) {
+      const { terrain, resource } = settled.tiles[tile.y][tile.x];
+      return { ...tile, terrain, resource };
+    }
+    if (tile.id === '10-5') return { ...tile, terrain: TerrainType.Plantation, resource: { type: ResourceType.Cotton, level: 1, discovered: true } };
+    return tile;
+  }));
+  return { ...state, map: { ...state.map, tiles } };
+}
+
+export const historicalContinent = (state: GameState) => beforeRanches(withoutStartForces(state));
 
 /** Hand-built: every regiment of the owner in the province removed (its army with it). */
 export const clearArmy = (s: GameState, ownerId: CountryId, provinceId: ProvinceId): GameState => ({

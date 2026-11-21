@@ -128,7 +128,7 @@ function startNation({ id, name, capitalId, colorSlot, controller }: NationFound
     creditLimit: 5000,
     cities: [capitalId],
     fleets: [],
-    merchantMarine: { holds: 4, avgSpeed: 10 },
+    merchantMarine: { ships: { indiaman: 1 }, holds: 4, avgSpeed: 10 },
     transportCapacity: START_FREIGHT_CARS,
     transportCapacityPendingIncrease: 0,
     warehouse: warehouseWith(START_STOCK),

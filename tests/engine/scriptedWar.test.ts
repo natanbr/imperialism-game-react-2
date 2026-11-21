@@ -461,7 +461,9 @@ describe('FR-274 scripted war on minors', () => {
       // Valdoria keeps that cash and its campaign is one turn sooner. The meeting cells do not move: turn 18 is still
       // before the turn-20 meeting.
       expect(runs.map(r => [r.seed, r.colonised ?? null, colonies(r)])).toEqual(
-        [1, 2, 3, 4].map(seed => [seed, 18, [[10, []], [20, [ARVELIA_P]], [30, [ARVELIA_P]], [40, [ARVELIA_P]]]])
+        // FR-518: fleet spending and its upkeep reserve shift the capture from turn 18 to 25–26.
+        // Arvelia first votes as a colony at the third Council (formerly the second).
+        [26, 26, 26, 25].map((turn, index) => [SEEDS[index], turn, [[10, []], [20, []], [30, [ARVELIA_P]], [40, [ARVELIA_P]]]])
       );
     });
   });

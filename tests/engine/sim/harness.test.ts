@@ -58,7 +58,9 @@ describe('FR-481 the sim harness plays a continent game and records every turn',
     expect(meeting.totalVotes).toBe(12);
     // FR-503: 9 -> 7 with two Great Powers. After turn 30 the HUD projects the compulsory last meeting (FR-501).
     expect(meeting.needed).toBe(7);
-    expect(atTurn(idle, 30)!.votes).toEqual({ [COMPUTER_ID]: 7, [HUMAN_ID]: 5 }); // Previously 6 to 3 projected with three abstentions.
+    // FR-518: the fleet delays the capture of Testland North-East until after this meeting.
+    // One fewer controlled province changes the compulsory projection from 7–5 to 6–6.
+    expect(atTurn(idle, 30)!.votes).toEqual({ [COMPUTER_ID]: 6, [HUMAN_ID]: 6 });
   });
 
   it('FR-497 the idle game has 0 rejected orders, 0 invariant violations on every turn and 0 no-pay disbands, and the audit\'s checks catch a fault', () => {
@@ -133,7 +135,13 @@ describe('FR-481 the human policies', () => {
     // turn 7) takes a hold its timber purchase from the minors used and is refunded unanswered, so Valdoria keeps that cash,
     // declares on Arvelia on turn 17 (was 18) and takes it on turn 18, before Testland (measured with `standing` forced
     // empty: 19, as before; .gate/m13/close/attrib-off.txt and attrib-on.txt)
-    expect(firstProvinceTakenTurn(game)).toBe(18);
+    // FR-516 Q140: without advance hull preparation Testland makes paper and clothing on turn 4.
+    // Valdoria recruits its third Cuirassiers on turn 14, declares on Arvelia on 15 and takes it on 16.
+    // Replaying this seed with the previous preparation rule gives the turn-18 capture above.
+    expect(firstProvinceTakenTurn(game)).toBe(16);
+    expect(game.turns[15].provincesTaken).toContainEqual({
+      byId: COMPUTER_ID, provinceId: 'province-minor-1', fromId: 'minor-1',
+    });
     expect(game.turns.flatMap(t => t.invariantViolations)).toEqual([]);
   });
 
@@ -280,22 +288,24 @@ describe('FR-481 the idle game on seed 1, before M13 (2026-11-16, docs/specs/m13
   // turn 40 2 trained and 5 experts, labour 24 -> 1 untrained and 6 experts, labour 25 (still 7 healthy workers).
   const idle = runGame({ seed: 1, human: 'idle' });
 
-  it('FR-481 FR-487 FR-488 FR-489 FR-538 FR-539 Arvelia is taken on turn 18 (war turn 17; was 19, 17 and 16), then Testland North-East on turn 24 (war turn 23; was 23 and 21)', () => {
-    expect(firstProvinceTakenTurn(idle)).toBe(18);
+  // FR-518: Valdoria now buys a hull and supplies its mills. Its two declarations and captures
+  // move from 17/18 and 23/24 to 25/26 and 32/33; it still takes both provinces.
+  it('FR-481 FR-487 FR-488 FR-489 FR-538 FR-539 FR-518 Arvelia falls on turn 26, then Testland North-East on turn 33', () => {
+    expect(firstProvinceTakenTurn(idle)).toBe(26);
     expect(idle.turns.flatMap(t => t.warsDeclared)).toEqual([
-      { byId: COMPUTER_ID, onId: 'minor-1', turn: 17 },
-      { byId: COMPUTER_ID, onId: HUMAN_ID, turn: 23 },
+      { byId: COMPUTER_ID, onId: 'minor-1', turn: 25 },
+      { byId: COMPUTER_ID, onId: HUMAN_ID, turn: 32 },
     ]);
-    expect(atTurn(idle, 18)!.minorsColonised).toEqual([{ nationId: COMPUTER_ID, minorId: 'minor-1' }]);
-    expect(atTurn(idle, 18)!.provincesTaken).toEqual([{ byId: COMPUTER_ID, provinceId: 'province-minor-1', fromId: 'minor-1' }]);
-    expect(atTurn(idle, 18)!.provincesHeld).toEqual({ [HUMAN_ID]: 4, [COMPUTER_ID]: 5 });
-    expect(atTurn(idle, 24)!.provincesTaken).toEqual([{ byId: COMPUTER_ID, provinceId: 'province-nation-1-ne', fromId: HUMAN_ID }]);
+    expect(atTurn(idle, 26)!.minorsColonised).toEqual([{ nationId: COMPUTER_ID, minorId: 'minor-1' }]);
+    expect(atTurn(idle, 26)!.provincesTaken).toEqual([{ byId: COMPUTER_ID, provinceId: 'province-minor-1', fromId: 'minor-1' }]);
+    expect(atTurn(idle, 26)!.provincesHeld).toEqual({ [HUMAN_ID]: 4, [COMPUTER_ID]: 5 });
+    expect(atTurn(idle, 33)!.provincesTaken).toEqual([{ byId: COMPUTER_ID, provinceId: 'province-nation-1-ne', fromId: HUMAN_ID }]);
     expect(atTurn(idle, 40)!.provincesHeld).toEqual({ [HUMAN_ID]: 3, [COMPUTER_ID]: 6 });
   });
 
-  it('FR-481 FR-489 FR-503 the Council of turn 30 counts Valdoria 6 votes to Testland 3 of 12 (was 5 to 4), 7 needed, and no winner', () => {
+  it('FR-481 FR-489 FR-503 FR-518 the Council of turn 30 counts Valdoria 5 votes to Testland 4 of 12, 7 needed, and no winner', () => {
     const meeting = atTurn(idle, 30)!.council!;
-    expect(meeting.nominees.map(n => [n.nationId, n.total])).toEqual([[COMPUTER_ID, 6], [HUMAN_ID, 3]]);
+    expect(meeting.nominees.map(n => [n.nationId, n.total])).toEqual([[COMPUTER_ID, 5], [HUMAN_ID, 4]]);
     expect(meeting.nominees.map(n => n.otherMinorNations)).toEqual([0, 0]);
     expect(meeting.winnerId).toBeUndefined();
     expect(meeting.needed).toBe(7);
@@ -310,11 +320,12 @@ describe('FR-481 the idle game on seed 1, before M13 (2026-11-16, docs/specs/m13
   // ($5,000; its training keeps that price while the embassy is wanted), makes a pact on turn 24 and gives grants on turns
   // 36 and 37 ($1,000 each); the wars, provinces and the turn-30 vote above do not move, and at the turn-40 meeting Sundmark
   // votes for Valdoria (the scriptedInfluence.test.ts real game of seed 1).
-  it('FR-481 FR-485 FR-538 FR-539 FR-542 Valdoria has 7 healthy workers at turn 40 (was 4; 7 at the start), labour 26 (was 16, 26, 24, then 25)', () => {
+  // FR-518: at turn 40 one fewer worker has finished expert training; the workforce remains seven.
+  it('FR-481 FR-485 FR-538 FR-539 FR-542 FR-518 Valdoria has 7 healthy workers and 24 labour at turn 40', () => {
     expect(healthyWorkersAt(idle, 1, COMPUTER_ID)).toBeLessThanOrEqual(7);
     expect(healthyWorkersAt(idle, 40, COMPUTER_ID)).toBe(7);
-    expect(atTurn(idle, 40)!.workers[COMPUTER_ID]).toEqual({ untrained: 0, trained: 1, expert: 6 });
-    expect(atTurn(idle, 40)!.labour[COMPUTER_ID]).toBe(26);
+    expect(atTurn(idle, 40)!.workers[COMPUTER_ID]).toEqual({ untrained: 0, trained: 2, expert: 5 });
+    expect(atTurn(idle, 40)!.labour[COMPUTER_ID]).toBe(24);
   });
 
   // Re-recorded by the M13 final round (FR-541, FR-499): units 6 -> 9 and refused bids 6 -> 8. Valdoria now keeps its lumber
@@ -329,11 +340,16 @@ describe('FR-481 the idle game on seed 1, before M13 (2026-11-16, docs/specs/m13
   // 27 -> 25), and the 8 refused clothing bids (still all "sellers-barred") fall on turns 25, 32 to 34 and 36 to 39 (were
   // 28 and 34 to 40). Measured with `standing` forced empty: 9 units and the old turns
   // (.gate/m13/close/attrib-off.txt and attrib-on.txt).
-  it('FR-481 FR-492 FR-493 FR-538 FR-539 FR-541 the trader human trades 19 units with Valdoria (was 0, 6, then 9); its bids are refused only while at war ("sellers-barred"; was "no-seller"), 8 times (was 7, then 6)', () => {
+  // FR-518: reserving materials for the fleet changes Valdoria's public bids and offers.
+  // The trader fills 14 units (was 19); it submits two blocked clothing bids (was eight).
+  it('FR-481 FR-492 FR-493 FR-538 FR-539 FR-541 FR-518 the trader human trades 14 units with Valdoria; its only two refusals are blocked wartime bids', () => {
     const game = runGame({ seed: 1, human: 'trader' });
-    expect(unitsTradedBetweenGreatPowers(game)).toBe(19);
-    const refused = game.turns.flatMap(t => t.humanRefused);
-    expect(refused).toHaveLength(8);
-    expect(new Set(refused.map(r => `${r.kind}:${r.reason}`))).toEqual(new Set(['buyCommodity:sellers-barred']));
+    expect(unitsTradedBetweenGreatPowers(game)).toBe(14);
+    const blocked = game.turns.filter(t => t.humanRefused.length);
+    expect(blocked.flatMap(t => t.humanRefused)).toEqual([
+      { kind: 'buyCommodity', reason: 'sellers-barred' },
+      { kind: 'buyCommodity', reason: 'sellers-barred' },
+    ]);
+    expect(blocked.every(t => t.turn > 26)).toBe(true);
   });
 });

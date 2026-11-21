@@ -1,4 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page } from './seededGame';
 
 // FR-235 (M5 QA fix round, items 1 and 2) at 1280x720, the QA screenshots' size. The HUD's content area
 // (`.hud-content`) scrolls while the action buttons stay pinned. M12b: the buttons are the top bar's now (FR-466), the

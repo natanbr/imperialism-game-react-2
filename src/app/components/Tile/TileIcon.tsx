@@ -1,5 +1,6 @@
 import React from 'react';
 import { InkPicture } from '../art/ArtPicture';
+import { FARMLAND_ATLAS, farmlandFrame } from '../art/inkArt';
 import styles from './Tile.module.css';
 
 /** The tile's 40 x 40 content box: the picture fills it, as the art pack's demo draws its map objects. */
@@ -23,16 +24,21 @@ export interface TileIconProps {
  * the tile below the border and rail overlay and never shrinks or moves for the marks on it, except on a crowded capital
  * or town, the tiles a player looks for (FR-346).
  */
-const TileIconInner: React.FC<TileIconProps> = ({ src, crowded = false }) =>
-  src ? (
+const TileIconInner: React.FC<TileIconProps> = ({ src, crowded = false }) => {
+  if (!src) return null;
+  const frame = farmlandFrame(src);
+  const pictureClass = crowded ? `${styles.icon} ${styles.iconCrowded}` : styles.icon;
+  return (
     <InkPicture
       src={src}
+      sheet={frame && FARMLAND_ATLAS}
       alt=""
       size={crowded ? CROWDED_PX : PICTURE_PX}
-      className={crowded ? `${styles.icon} ${styles.iconCrowded}` : styles.icon}
+      className={frame ? `${pictureClass} ${frame === 'left' ? styles.leftFrame : styles.rightFrame}` : pictureClass}
       testId="tile-icon"
     />
-  ) : null;
+  );
+};
 
 export const TileIcon = React.memo(TileIconInner);
 TileIcon.displayName = 'TileIcon';

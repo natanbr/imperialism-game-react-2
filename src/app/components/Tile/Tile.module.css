@@ -85,6 +85,20 @@
   max-width: none;
 }
 
+/* Each half of the 2:1 atlas is a complete square, clipped to the same tile box as its source PNG. */
+.icon.leftFrame,
+.icon.rightFrame {
+  object-fit: cover;
+}
+
+.icon.leftFrame {
+  object-position: left;
+}
+
+.icon.rightFrame {
+  object-position: right;
+}
+
 /* A minor nation's name on its capital (FR-153 d): a small tag at the bottom of the picture. It may be wider than the
    tile, so it sits above the neighbouring tiles' pictures and civilians, below the civilians' tray. */
 .minorName {

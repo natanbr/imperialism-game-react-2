@@ -22,6 +22,19 @@ The engine never imports React, Zustand, Next, the store, components or hooks, a
 DOM globals, `Math.random` or `Date.now`. An ESLint rule enforces this for `src/app/engine/**`
 (`eslint.config.mjs`, tested by `tests/engine/lintGuard.test.ts`).
 
+### M15 people and ships
+
+The Capital submits `setUniversity` and `setShipyard` with the total requested for each type this turn.
+The order handlers reserve costs immediately and return the difference when a count falls. A pending
+civilian disband reserves that worker on the map. The Shipyard phase commissions ships after recruiting
+and after market settlement. The University phase places graduates and returns surviving disbanded
+civilians to industry after the meal, ready for next turn. Both queues and the disband flag survive save/load.
+
+Merchant fleets retain their hold count for version-1 saves. The ships table specifies the cargo and
+materials per type. A nation tracks its own settled cargo use over the last four trade phases. The
+continent planner uses that history when ordering a ship. The map and ordinary collection and market
+systems supply horses from a level-zero ranch owned by each Great Power and a third ranch in Arvelia.
+
 ## Folders
 
 ```

@@ -28,7 +28,7 @@ const buy = (commodity: string, amount: number, nationId = N1): Order =>
 
 const setHolds = (state: GameState, nationId: string, holds: number): GameState => ({
   ...state,
-  nations: state.nations.map(n => (n.id === nationId ? { ...n, merchantMarine: { ...n.merchantMarine, holds } } : n)),
+  nations: state.nations.map(n => (n.id === nationId ? { ...n, merchantMarine: { ...n.merchantMarine, ships: undefined, holds } } : n)),
 });
 
 const setPrice = (state: GameState, commodity: TradeCommodity, price: number): GameState => {
@@ -48,6 +48,17 @@ const ordered = (state: GameState, ...orders: Order[]): GameState =>
 const stocked = () => emptyWarehouse(game(), N1, { furniture: 3, steel: 2, grain: 5, gold: 2 });
 
 const resolve = (state: GameState) => resolveTurn(state, {}, state.seed);
+
+it('FR-514 FR-063 a second Indiaman carries eight actual units from the next trade phase', () => {
+  const base = setWarehouse(engineNewGame({ seed: 4, world: 'two-islands' }), N1, { lumber: 7, fabric: 3 });
+  const queued = ordered(base, { kind: 'setShipyard', nationId: N1, ship: 'indiaman', count: 1 });
+  expect(validateOrder(queued, buy('coal', 5)).ok).toBe(false);
+  const next = resolve(queued).state;
+  const orders = ordered(setTreasury(next, N1, 10000), buy('coal', 8));
+  expect(tradeCapacityOf(orders, N1)).toEqual({ holds: 8, used: 8, free: 0 });
+  const delivered = resolve(orders);
+  expect(delivered.events).toContainEqual(expect.objectContaining({ type: 'goods-bought', nationId: N1, commodity: 'coal', amount: 8 }));
+});
 
 describe('FR-060 the world market', () => {
   it('FR-060 trades every warehouse commodity except raw food, gold and gems, in a fixed order', () => {

@@ -7,7 +7,7 @@ import type { GameState } from "@/types/GameState";
 import type { NationId } from "@/types/Common";
 import type { TradeAmounts, TradeOrders } from "@/types/Market";
 import { TRADE_COMMODITIES } from "@/definisions/marketPrices";
-import { marketOf, nextPrices, priceOf } from "../market/market";
+import { marketOf, nextPrices, priceOf, recordHolds, unitsOf } from "../market/market";
 import { marketModeOf } from "../market/partners";
 import { settlePartnerTrade } from "../market/settlePartners";
 import type { TurnContext, TurnSystem } from "../turn/context";
@@ -51,7 +51,7 @@ function worldTrade(state: GameState, ctx: TurnContext): GameState {
   const deliveries: Record<NationId, TradeAmounts> = { ...market.deliveries };
 
   const nations = state.nations.map((nation) => {
-    if (!Object.hasOwn(market.orders, nation.id)) return nation;
+    if (!Object.hasOwn(market.orders, nation.id)) return state.provinces?.length ? recordHolds(nation, 0) : nation;
     const { sell, buy } = market.orders[nation.id];
 
     let income = 0;
@@ -75,7 +75,8 @@ function worldTrade(state: GameState, ctx: TurnContext): GameState {
     }
     if (Object.keys(arriving).length > 0) deliveries[nation.id] = arriving;
 
-    return income > 0 ? { ...nation, treasury: (nation.treasury ?? 0) + income } : nation;
+    const settled = state.provinces?.length ? recordHolds(nation, unitsOf(sell) + unitsOf(buy)) : nation;
+    return income > 0 ? { ...settled, treasury: (nation.treasury ?? 0) + income } : settled;
   });
 
   return {

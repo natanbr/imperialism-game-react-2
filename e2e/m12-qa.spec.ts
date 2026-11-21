@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './seededGame';
 
 // M12 QA fix round (2026-11-16): the by-eye QA of the built app (.gate/m12/qa/, tracks A to C) found these in the browser.
 // FR-445: Escape drops the selection, not the keyboard focus. FR-447: the Saved game dialog hides the new game behind it.

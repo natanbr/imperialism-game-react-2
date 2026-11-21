@@ -70,8 +70,20 @@ export const upkeepReserve = (state: GameState, nationId: string, extraUpkeep = 
   const upkeep = upkeepOf(state, nationId) + recruitsUpkeep(state, nationId) + extraUpkeep;
   const { upkeepTurns, endgameTurns } = SCRIPTED_GARRISON;
   if (left <= endgameTurns || inWarOfChoiceWithGreatPower(state, nationId)) return upkeep * left;
-  const ramp = hasFieldArmy(state, nationId) ? 2 * endgameTurns - left : 0;
-  return upkeep * Math.max(upkeepTurns, ramp);
+  const field = hasFieldArmy(state, nationId);
+  const ramp = field ? 2 * endgameTurns - left : 0;
+  const history = nationById(state, nationId)?.merchantMarine.tradeHistory;
+  let reserveTurns = Math.max(upkeepTurns, ramp);
+  if (state.market?.mode === "partners" && history?.length) {
+    const declaringWar = state.intents.some(intent => intent.nationId === nationId && intent.kind === "war");
+    const totalHolds = history.reduce((sum, phase) => sum + phase.holds, 0);
+    const usedHolds = history.reduce((sum, phase) => sum + phase.used, 0);
+    const halfEmpty = field && history.length === 4 && usedHolds * 2 <= totalHolds;
+    // Declaring war can close the nation's market before its bills fall due. A field army
+    // also needs a longer reserve while four settled phases show weak demand for the fleet.
+    if (declaringWar || halfEmpty) reserveTurns = Math.max(reserveTurns, SCRIPTED_GARRISON.disruptedTradeUpkeepTurns);
+  }
+  return upkeep * Math.min(left, reserveTurns);
 };
 
 /**

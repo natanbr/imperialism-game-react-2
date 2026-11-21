@@ -1,4 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page } from './seededGame';
 
 // M13 FR-494 in the running app (card Q118 (a)): the Great Powers' bids and offers of last turn are public (FR-491). A
 // saved game, crafted in the slot `imperialism-remake.save`, where Valdoria bid for 2 steel last turn (`market.lastOrders`)

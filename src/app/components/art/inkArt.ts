@@ -181,6 +181,11 @@ const IMPROVEMENT_ART = Object.fromEntries(
 export const improvementArt = (type: ResourceType, level: number): string | undefined =>
   Number.isInteger(level) && level >= 1 && level <= 3 ? IMPROVEMENT_ART[type]?.[level - 1] : undefined;
 
+/** The two M15 capital farm pictures share a lossless map sprite sheet (scripts/build-capital-farmland-atlas.mjs). */
+export const FARMLAND_ATLAS = "/assets/map-atlases/capital-farmland.webp";
+export const farmlandFrame = (src: string) =>
+  src === TERRAIN_ART[TerrainType.HorseRanch] ? "left" : src === IMPROVEMENT_ART[ResourceType.Fruit]?.[1] ? "right" : undefined;
+
 /**
  * The one picture a map tile shows (FR-322): a capital or town its terrain's; else a resource at level 1 to 3 with an
  * improvement that level's improvement; else the terrain's (a hidden coal hill and an opened one at level 0 both show

@@ -1,17 +1,17 @@
 {
  "project": "Imperialism Revival",
  "schema": 3,
- "updated": "2026-11-20",
+ "updated": "2026-11-21",
  "audit": {
   "date": "2026-11-14",
   "reviewers": 8,
   "folder": "docs/audit/2026-11-14",
   "branch": "claude/m12-honest-game",
-  "main": "1d58b74"
+  "main": "79a94b2"
  },
  "source": "docs/report/roadmap.json, docs/audit/2026-11-14/*.json and docs/requirements.md in the imperialism-game-react-2 repo",
  "reality": {
-  "verdict": "The engine and the tests are sound, but the game is not finished: the audit found 160 problems (34 major), the computer nations barely play, and large parts of the 1997 game (technology, University, ships, saving) do not exist, so the old \"100% done\" only meant that a small scope passed its own tests.",
+  "verdict": "The November 14 audit found 160 issues, including 34 major issues. At that checkpoint the game lacked the University and shipbuilding. The milestone table below records subsequent builds, the remaining planned work and its verification.",
   "total": 160,
   "severity": [
    {
@@ -180,7 +180,7 @@
    "text": "Of 24 rule topics of the original game: 3 built, 14 partial, 1 wrong, 1 dead code, 5 missing."
   },
   "notChecked": "Not checked by the audit: Firefox and Safari, real touch on a phone, screen readers, and a human game played all the way to a Council win.",
-  "notFixed": "M12 (themes T1 to T10, FR-357 to FR-464) is merged into main 91d7edc (pull request 34), so its findings are fixed on main. M12b (the HUD you asked for, FR-465 to FR-480, and its by-eye QA fixes FR-529 to FR-537) is merged into main 74f595c (pull request 35, 2026-11-17). M13 (theme T11) is merged on the checked origin/main, 1d58b74. M14 (theme T12) is built on the local branch claude/m14-endgame. M15 through M18 remain planned.",
+  "notFixed": "M12 (themes T1 to T10, FR-357 to FR-464) is merged into main 91d7edc (pull request 34), so its findings are fixed on main. M12b (the HUD you asked for, FR-465 to FR-480, and its by-eye QA fixes FR-529 to FR-537) is merged into main 74f595c (pull request 35, 2026-11-17). M13 (theme T11) is merged on the checked origin/main, 1d58b74. M14 (theme T12) merged at 79a94b2. M15 is built locally on claude/m15-people-ships. You accepted the measured diplomat and Council results for M15 (FR-545 and FR-546). M16 through M18 remain planned.",
   "filedNote": "The plan named 122 of the 160 findings in its themes. I filed the other 38 under the nearest theme; they are marked \"filed\" and can be moved."
  },
  "statusLegend": [
@@ -1389,8 +1389,8 @@
    {
     "id": "M15",
     "title": "People and ships",
-    "status": "planned",
-    "statusLabel": "Planned",
+    "status": "built",
+    "statusLabel": "Built, pull request being opened",
     "themes": [
      "T13"
     ],
@@ -1401,7 +1401,7 @@
      "Order a ship at the Shipyard: your trade limit rises above 4 units a turn.",
      "Horses can be bought or produced again."
     ],
-    "depends": "M12 merged; planned after it so costs and money are honest first. Card Q128 decides whether living minors belong here.",
+    "depends": "M14 merged at 79a94b2. Q128 schedules living minors for M15b after M16.",
     "findings": 10,
     "severity": {
      "major": 5,
@@ -1413,8 +1413,9 @@
      "M": 6,
      "L": 3
     },
-    "statusText": "Rows FR-511 to FR-518 are written, not built.",
-    "spec": "docs/specs/m13-m16.md"
+    "statusText": "FR-511 to FR-518 are built locally on claude/m15-people-ships. On 2026-11-21 you accepted two measured thresholds for M15. With computer-only ship preparation (Q140), the peaceful diplomat wins 15/24 games (FR-545, Q142). With FR-245 buying limits, a free minor votes voluntarily for the computer at the turn-40 Council in 13/24 idle games (FR-546, Q141). Both results are recorded for tuning against the original game. Task 10 gate evidence is in .gate/codex/10/.",
+    "spec": "docs/specs/m13-m16.md",
+    "localBuild": true
    },
    {
     "id": "M16",
@@ -2608,7 +2609,7 @@
      "means": "All $500."
     }
    ],
-   "suggestion": "Option (a).",
+   "suggestion": "Option (a), default taken for M15. Prospector $500, Miner $1,500, the others $1,000.",
    "objection": "A guessed price; an Engineer is the most valuable civilian here and may be too cheap.",
    "ids": [
     "RULES-GAP-03",
@@ -2635,7 +2636,7 @@
      "means": "The computer builds no ships."
     }
    ],
-   "suggestion": "Option (a).",
+   "suggestion": "Option (a), default taken for M15. The 4 start holds become one Indiaman; the computer builds Indiamen when its holds are full on 3 of 4 turns.",
    "objection": "The computer's rule acts only on the continent (to keep FR-125), and lumber spent on ships is lumber not spent on mills.",
    "ids": [
     "RULES-GAP-04",
@@ -2663,7 +2664,7 @@
      "means": "None: horses only by trade."
     }
    ],
-   "suggestion": "Option (a).",
+   "suggestion": "Option (a), default taken for M15. One open-range tile per Great Power within reach of the capital, and one in Arvelia.",
    "objection": "It changes the hand-drawn map, so every continent tile-count pin moves.",
    "ids": [
     "ARMY-WAR-09",
@@ -2690,7 +2691,7 @@
      "means": "In M18."
     }
    ],
-   "suggestion": "Option (a).",
+   "suggestion": "Option (a), default taken for M15. A separate M15b after M16.",
    "objection": "Trade stays narrow (3 goods with buyers) for one more milestone.",
    "ids": [
     "MKT-09",
@@ -2714,7 +2715,7 @@
      "means": "A second Engineer when it has an expert and $1,000 beyond its reserve."
     }
    ],
-   "suggestion": "Option (a).",
+   "suggestion": "Option (a), default taken for M15. No, measure it first (it has one Engineer for all its rail).",
    "objection": "The player gets a tool the computer does not use, which is an advantage for the player.",
    "ids": [
     "ECONOMY-13",
@@ -3579,6 +3580,36 @@
     "AISIM-04"
    ],
    "group": "new"
+  },
+  {
+   "id": "Q140",
+   "title": "Ship preparation only for computer nations",
+   "status": "done",
+   "group": "decided",
+   "context": "Advance hull preparation reserves lumber and fabric that could fund other investment. The M14 diplomat uses the shared economic planner for a human-controlled nation.",
+   "ruling": "Nathan, 2026-11-20. Only a computer-controlled nation prepares future hull materials. The normal ship order remains available when either controller has the materials and meets the fleet-use conditions.",
+   "objection": "With identical stocks the human invested in industry and the computer reserved the hull. The original diplomat won 15/24 under FR-545 (Q142). The idle fleet qualified in 24/24 for FR-516.",
+   "ids": ["Q126"]
+  },
+  {
+   "id": "Q141",
+   "title": "When can a lawful Council purchase earn a minor vote?",
+   "status": "done",
+   "group": "decided",
+   "context": "Valdoria earned a voluntary turn-40 vote in 21/24 idle games with the spending bypass and 13/24 after the supplier, cash reserve and mill demand checks.",
+   "ruling": "Nathan, 2026-11-20, allowed one extra eligible turn before the final Council window under FR-245. On 2026-11-21 you accepted FR-546 in place of FR-542 (ii): at least one free minor must vote voluntarily for the computer at the turn-40 Council in at least 13 of 24 idle games. FR-542 (i) still requires the embassy and pact in at least 18 of 24.",
+   "objection": "Seven seeds used the extra turn. Both lawful windows earned the vote in the same 13 games, below the previous 18/24 target. Compare the computer's final purchases and earned votes with the original game.",
+   "ids": ["Q139"]
+  },
+  {
+   "id": "Q142",
+   "title": "How often must the peaceful diplomat win with the M15 computer fleet?",
+   "status": "done",
+   "group": "decided",
+   "context": "Before FR-516 added the computer fleet, the M14 diplomat won all 24 games. With computer-only advance ship preparation, the same diplomat wins 15. FR-509 required 18.",
+   "ruling": "Nathan, 2026-11-21. You accepted FR-545 in place of FR-509's diplomat threshold. The diplomat must win a Council by turn 40 without declaring war in at least 15 of 24 games.",
+   "objection": "Nine previously winning games now end in defeat. Compare a peaceful player's ability to win the Council against a growing computer fleet in the original game.",
+   "ids": ["Q140"]
   }
  ],
  "history": [

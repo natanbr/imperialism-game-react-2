@@ -1,5 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
-import { startSeededGame } from './seededGame';
+import { test, expect, Page, startSeededGame } from './seededGame';
 
 // M12 lane L3 in the running app: the dialogs say what they do and fit the window.
 // FR-175 FR-410 FR-411: the first browser test of Accept Offer. The scripted Great Power proposes nothing on turn 1, so the

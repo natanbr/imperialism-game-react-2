@@ -207,8 +207,9 @@ describe('M12 FR-389 FR-405 the scripted transport plan under exact amounts ship
     // livestock 4 and grain 6 more; the old rule shipped livestock 3, the first plan's 1 would have shipped the fruit instead)
     expect(orders).toContainEqual(expect.objectContaining({ kind: 'moveAndStartConstruction', structure: 'rail', toTileId: '16-12' }));
     const view = applyTurnOrders(s, { [N2]: orders }, () => {}).state;
-    expect(collectedAtLogistics(s, N2)).toEqual({ grain: 4, fruit: 4, cotton: 2 });
-    expect(collectedAtLogistics(view, N2)).toEqual({ grain: 5, fruit: 7, cotton: 5, timber: 2 });
+    // FR-517: 4 -> 3 fruit before the rail, 7 -> 6 afterwards; the ranch adds 0 -> 1 horse to both.
+    expect(collectedAtLogistics(s, N2)).toEqual({ grain: 4, fruit: 3, cotton: 2, horses: 1 });
+    expect(collectedAtLogistics(view, N2)).toEqual({ grain: 5, fruit: 6, cotton: 5, timber: 2, horses: 1 });
     // the first plan, made before the civilians, sees only the 2 cotton of the capital; the final plan ships 1 more
     expect(ofKind(orders, 'setTransportAllocations')[0].allocations).toEqual({ livestock: 1, cotton: 2 });
     const final: Order[] = [];

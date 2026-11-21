@@ -1,4 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page, expectFreshGameSeed } from './seededGame';
 
 // M4 part B in the running app: the player watches Valdoria (nation 2, scripted, island 2, capital 14-9)
 // grow. FR-106 the HUD ranks both nations, FR-107 the news names Valdoria, FR-108 Valdoria's capital is
@@ -82,6 +82,7 @@ test('FR-109 New game in the HUD asks first; Start new game goes back to turn 1 
 
   await page.getByRole('button', { name: /New game/ }).click();
   await confirm.getByRole('button', { name: 'Start new game' }).click();
+  await expectFreshGameSeed(page);
   await expect(page.getByTestId('turn-indicator')).toContainText('Turn: 1 of 40');
   await expect(page.getByTestId('news-panel')).not.toContainText('News');
   await expect(page.getByTestId('tile-info')).toHaveCount(0);

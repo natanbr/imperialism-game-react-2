@@ -1,4 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page } from './seededGame';
 
 // FR-197 (M7 done) in the running app, on a new game: order a consulate with Arvelia in Diplomacy, bid 2 coal on the
 // Board of Trade, end the turn and see "Bought 2 Coal from Arvelia" in the Deal Book. On turn 1 both Great Powers have

@@ -2,8 +2,35 @@
 
 ## Resuming here
 
-- Task 06 fixed all three review findings on `claude/m14-endgame`, starting at `a1f3e74`. The local gate passed 2,774 unit tests and 132 browser tests. Evidence and screenshots are in `.gate/codex/06/`.
-- The five Q120 to Q124 choices remain open for tuning. The next milestone is M15. See the M14 evidence and screenshot below.
+- On `claude/m15-people-ships`, Nathan accepted FR-545 (15/24 peaceful diplomat wins) and FR-546 (13/24 idle games with an earned turn-40 minor vote) for M15. Task 10 passed the full local gate after WIP `6453f83`. Revisit both balance results with the original game. Evidence is in the entry below and `.gate/codex/10/`.
+- Open Capital for University and Shipyard, Tile Info for Disband and the ranch, and Board of Trade for fleet and completed purchases. Screenshots and logs are in `.gate/codex/07/`.
+- Q125 to Q129 use their defaults and remain open for tuning. Living minors follow M16 as M15b. The branch is local with no published build or pull request.
+
+## 2026-11-21 M15 owner decision on the two measured rows (Task 10)
+
+Size S. Nathan chose “Accept measured rows.” Both former thresholds were 18 of 24. The original diplomat won 24/24 on M14 before the FR-516 computer fleet. On M15 it wins 15/24 (FR-545, replacing FR-509's diplomat threshold). With FR-245 enforced, Valdoria earns a free minor's vote at the turn-40 Council in 13/24 idle games (FR-546, replacing only FR-542 (ii)). Only the final-turn purchasing bypass yielded 21/24. FR-542 (i) still requires an embassy and pact by turn 29 in 18/24 idle games.
+
+Q140 records computer-only advance ship preparation. Q141 records the lawful purchase window and vote threshold. Q142 records the diplomat threshold. All three are marked “confirmed for M15, tune” in `docs/verify-and-tune.md` for comparison with the original game.
+
+| Claim | Command or evidence | Quoted result |
+|---|---|---|
+| Before the decision, same policies and seeds | `.gate/codex/09/owner-unit-final.txt`, `q140-results.md`, `q141-results.md` | `2 failed \| 2828 passed (2830)`. The diplomat won 15 and the computer earned the minor vote in 13. |
+| Roadmap, Q140–Q142 | `node .gate/m12/L4-check-roadmap.cjs` (`roadmap.log`) | `PASS` |
+| Unit and engine suites | `npm test` and `npm test -- --reporter=verbose` (`unit.log`, `unit-final.log`) | Both runs: `Test Files  131 passed (131)`, `Tests  2830 passed (2830)`, `EXIT 0` |
+| Original diplomat, seeds 1–24 | `npm test -- --reporter=verbose` (`unit-final.log`) | `Testland wins by Council by turn 40 in 15/24 games`, `10 with a paid grant and 0 before the last meeting` |
+| Turn-40 minor vote and turn-29 embassy and pact | `npm test -- --reporter=verbose` (`unit-final.log`, idle seeds 1–24) | FR-546 `13 of 24  (required 13)`. FR-542 (i) `23 of 24  (required 18)`. |
+| Peaceful policy | `git hash-object tests/engine/sim/humans.ts` compared with M14 and Task 09 (`scope.log`) | All three Git blobs are `809151ebbb9fdc4c2ec65a25f338d6177bf4752f`. |
+| Lint | `npm run lint` (`lint-final.log`) | `2 problems (0 errors, 2 warnings)`, `EXIT 0` |
+| Types | `npx tsc --noEmit` (`types-final.log`) | `EXIT 0` |
+| Production build | `npm run build` (`build-final.log`) | `Compiled successfully in 4.2s`, `Generating static pages (4/4)`, `EXIT 0` |
+| Chromium | `PORT=3123 PLAYWRIGHT_HTML_OPEN=never npx playwright test --workers=1` (`playwright.log`) | `Running 134 tests using 1 worker`, `134 passed (10.7m)`, `EXIT 0` |
+
+Task 10 logs are under `.gate/codex/10/`. The default sandbox could not access the installed Node toolchain. The gate uses Node 22.22.0 and npm 10.9.4. The unit run used `VITEST_MIN_FORKS=1` and `VITEST_MAX_FORKS=3`. The two ESLint warnings also appeared on M14.
+
+## 2026-11-20 M15 implementation and review (archived)
+
+[The M15 journal archive](journal/archive-M15.md) preserves Task 07's implementation, review and browser checks
+and Task 09's original diplomat and Council replays, including both failures at the former 18/24 thresholds.
 
 ## 2026-11-20 M14 review fixes (Task 06)
 

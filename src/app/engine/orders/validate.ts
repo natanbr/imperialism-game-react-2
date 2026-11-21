@@ -1,5 +1,5 @@
 import type { GameState } from "@/types/GameState";
-import type { Tile } from "@/types/Tile";
+import { TerrainType, type Tile } from "@/types/Tile";
 import { WorkerStatus, WorkerType, type Worker } from "@/types/Workers";
 import type { ConstructionKind } from "@/types/jobs/ConstructionJob";
 import { PROSPECTABLE_TERRAIN_TYPES } from "@/definisions/terrainDefinitions";
@@ -14,6 +14,8 @@ import {
 import { validateTradeOrder } from "./tradeOrders";
 import { validateDiplomacyOrder } from "./diplomacyOrders";
 import { validateArmyOrder } from "./armyOrders";
+import { validateCivilianOrder } from "./civilianOrders";
+import { validateShipyard } from "./shipyardOrders";
 import { isGameOver } from "../turn/gameOver";
 import { areTilesAdjacent } from "../map/mapHelpers";
 import type {
@@ -61,6 +63,12 @@ export function validateOrder(state: GameState, order: Order): ValidationResult 
   if (!nation) return reject("unknown-nation");
 
   switch (order.kind) {
+    case "setShipyard":
+      return validateShipyard(state, order);
+    case "setUniversity":
+    case "disbandCivilian":
+    case "cancelDisbandCivilian":
+      return validateCivilianOrder(state, nation, order);
     case "moveWorker":
       return validateMove(state, order.nationId, order.workerId, order.toTileId);
     case "moveAndBuildRail":
@@ -191,7 +199,7 @@ const checkDevelopment: JobCheck = (state, worker, tile) => {
   if (!DEVELOPMENT_WORKER_TYPES.includes(worker.type)) return reject("wrong-worker-type");
   if (tile.ownerNationId !== worker.nationId) return reject("not-owner");
   const terrains = DEVELOPMENT_TERRAINS[worker.type];
-  if (terrains && !terrains.includes(tile.terrain)) return reject("invalid-site");
+  if (tile.terrain === TerrainType.HorseRanch || (terrains && !terrains.includes(tile.terrain))) return reject("invalid-site");
   if (!tile.resource || tile.resource.discovered === false) return reject("invalid-target");
   const level = nextResourceLevel(tile);
   if (level > 3) return reject("invalid-target");

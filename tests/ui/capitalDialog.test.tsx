@@ -40,6 +40,56 @@ const stocked = () =>
 const card = (building: string) => screen.getByTestId(`building-${building}`);
 const now = () => useGameStore.getState().game;
 
+describe('FR-513 University orders in the Capital', () => {
+  it('FR-513 shows seven fees and requirements, orders an Engineer and refunds it', () => {
+    openCapital(stocked());
+    const university = within(screen.getByRole('region', { name: 'University' }));
+    const costs = { Prospector: '$500', Miner: '$1,500', Engineer: '$1,000', Farmer: '$1,000', Rancher: '$1,000', Forester: '$1,000', Driller: '$1,000' };
+    const rows = university.getAllByRole('listitem');
+    expect(rows).toHaveLength(7);
+    for (const [name, fee] of Object.entries(costs)) {
+      const row = university.getByRole('button', { name: `Train one more ${name}` }).closest('li')!;
+      expect(text(row)).toContain(fee);
+      expect(text(row)).toContain('2 paper');
+      expect(text(row)).toContain('1 expert worker');
+    }
+    const previousCash = nationOf(now(), N1).treasury;
+    const plus = university.getByRole('button', { name: 'Train one more Engineer' }) as HTMLButtonElement;
+    fireEvent.click(plus);
+    expect(nationOf(now(), N1).treasury).toBe(previousCash - 1000);
+    expect(stockOf(now(), N1, 'paper')).toBe(3);
+    expect(plus.disabled).toBe(true);
+    expect(document.getElementById(plus.getAttribute('aria-describedby')!)?.textContent).toBe('No expert worker free');
+    fireEvent.click(university.getByRole('button', { name: 'Train one less Engineer' }));
+    expect(nationOf(now(), N1).treasury).toBe(previousCash);
+    expect(stockOf(now(), N1, 'paper')).toBe(5);
+    expect(plus.disabled).toBe(false);
+  });
+
+  it('FR-513 explains a missing paper supply beside the disabled control', () => {
+    openCapital(emptyWarehouse(game(), N1, {}));
+    const more = screen.getByRole('button', { name: 'Train one more Prospector' }) as HTMLButtonElement;
+    expect(more.disabled).toBe(true);
+    expect(document.getElementById(more.getAttribute('aria-describedby')!)?.textContent).toBe('Needs 2 paper (0)');
+  });
+});
+
+it('FR-515 shows both ship costs, holds and current stocks, and lets either order be refunded', () => {
+  openCapital(stocked());
+  const yard = within(screen.getByRole('region', { name: 'Shipyard' }));
+  for (const [ship, lumber, fabric, holds] of [['Trader', 4, 2, 2], ['Indiaman', 7, 3, 4]] as const) {
+    const more = yard.getByRole('button', { name: `Build one more ${ship}` });
+    const row = more.closest('li')!;
+    expect(text(row)).toContain(`${lumber} lumber`);
+    expect(text(row)).toContain(`${fabric} fabric`);
+    expect(text(row)).toContain(`${holds} holds`);
+    fireEvent.click(more);
+    expect(text(yard.getByTestId('shipyard-stock'))).toBe(`In warehouse: ${10 - lumber} lumber, ${4 - fabric} fabric`);
+    fireEvent.click(yard.getByRole('button', { name: `Build one less ${ship}` }));
+    expect(text(yard.getByTestId('shipyard-stock'))).toBe('In warehouse: 10 lumber, 4 fabric');
+  }
+});
+
 beforeEach(() => {
   submitted = [];
 });

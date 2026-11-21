@@ -1,4 +1,4 @@
-import { test, expect, Page, Locator } from '@playwright/test';
+import { test, expect, Page, Locator } from './seededGame';
 
 // FR-338 (M11 done, NR-032; FR-090's role for the ink-and-wash look): on a new continent game at 1280x720 there is no
 // console error and every pack picture (`img[data-art]`) is loaded (complete, natural width above 0) on the map, in the

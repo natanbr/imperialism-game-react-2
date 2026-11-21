@@ -1,6 +1,5 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page, startSeededGame, expectFreshGameSeed } from './seededGame';
 import { closeWarScreens } from './idleWar';
-import { startSeededGame } from './seededGame';
 
 // FR-078: the market and the end of the game in the running app. A new game starts with $10,000 and 4 holds, and lasts
 // 40 turns (FR-068). Since M7 the app's continent trades with partners (FR-242): nobody buys lumber any more and a minor
@@ -145,6 +144,7 @@ test('FR-078 FR-104 FR-109 end 40 turns, see the game-over screen with both nati
 
   // FR-109: New game on the game-over screen starts the next game at once
   await over.getByRole('button', { name: /New game/ }).click();
+  await expectFreshGameSeed(page);
   await expect(over).toHaveCount(0);
   await expect(page.getByTestId('turn-indicator')).toContainText('Turn: 1 of 40');
   await expect(advance(page)).toBeEnabled();

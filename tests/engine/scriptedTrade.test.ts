@@ -20,12 +20,69 @@ import { turnLimitOf } from '@/engine/turn/gameOver';
 import type { GameState } from '@/types/GameState';
 import { GoodsType, MaterialType } from '@/types/Resource';
 import { emptyWarehouse, N1, N2, setPair, setTreasury, setWarehouse, treasury } from './fixtures';
-import { withoutStartForces } from './armyFixtures';
+import { addRegiments, historicalContinent, SW2 } from './armyFixtures';
 
 const MINORS = ['minor-1', 'minor-2', 'minor-3', 'minor-4'];
 const GOODS: string[] = [GoodsType.Clothing, GoodsType.Furniture, GoodsType.Hardware];
 const RAW = ['timber', 'coal', 'ironOre', 'cotton'];
 const continent = (): GameState => newGame({ seed: 1, world: 'continent' });
+
+describe('FR-516 the scripted fleet', () => {
+  const fixture = (used: number[], lastShipOrderTurn?: number, state = continent()) => {
+    const s = setWarehouse(state, N2, { lumber: 8, fabric: 3, steel: 6 });
+    return { ...s, turn: 9, nations: s.nations.map(n => n.id === N2 ? {
+      ...n, merchantMarine: { ...n.merchantMarine, lastShipOrderTurn, tradeHistory: used.map(v => ({ holds: 4, used: v })) },
+    } : n) };
+  };
+  const ships = (s: GameState) => scriptedPlayer(s, N2).filter(o => o.kind === 'setShipyard');
+
+  it('orders exactly one before expanding on three full phases, including the fourth turn after its last order', () => {
+    const state = setWarehouse(fixture([4, 4, 1, 4], 5), N2, { lumber: 30, steel: 30 });
+    const orders = scriptedPlayer(state, N2);
+    expect(orders.filter(o => o.kind === 'setShipyard')).toEqual([{ kind: 'setShipyard', nationId: N2, ship: 'indiaman', count: 1 }]);
+    const expansion = orders.findIndex(o => o.kind === 'expandBuilding');
+    expect(expansion).toBeGreaterThan(orders.findIndex(o => o.kind === 'setShipyard'));
+  });
+  it('requires full phases, a four-turn interval, stock and provinces', () => {
+    expect(ships(fixture([1, 4, 1, 4]))).toEqual([]);
+    expect(ships(fixture([4, 4, 4, 4], 6))).toEqual([]);
+    expect(ships(setWarehouse(fixture([4, 4, 4, 4]), N2, { fabric: 2 }))).toEqual([]);
+    expect(ships(fixture([4, 4, 4, 4], undefined, newGame({ seed: 1, world: 'two-islands' })))).toEqual([]);
+  });
+  it('FR-509 FR-516 Q140 only the computer reserves hull materials, and either controller can buy a stocked hull', () => {
+    const withHumanController = (s: GameState): GameState => ({
+      ...s, nations: s.nations.map(n => n.id === N2 ? { ...n, controller: 'human' } : n),
+    });
+    const preparing = setWarehouse(fixture([0, 4, 0, 0]), N2, { lumber: 7, fabric: 0, steel: 6 });
+    const expands = (s: GameState) => scriptedPlayer(s, N2).some(o => o.kind === 'expandBuilding');
+    expect(expands(preparing)).toBe(false);
+    expect(expands(withHumanController(preparing))).toBe(true);
+
+    const stocked = fixture([4, 4, 1, 4]);
+    const purchase = [{ kind: 'setShipyard', nationId: N2, ship: 'indiaman', count: 1 }];
+    expect(ships(stocked)).toEqual(purchase);
+    expect(ships(withHumanController(stocked))).toEqual(purchase);
+  });
+  it('FR-497 keeps six turns of field-army pay at half cargo usage across four phases', () => {
+    const reserve = (used: number[]) => upkeepReserve(addRegiments(fixture(used), N2, SW2, ['regulars']), N2);
+    expect(reserve([2, 2, 2, 2])).toBe(750); // $125 per turn for five arms.
+    expect(reserve([3, 2, 2, 2])).toBe(250);
+    expect(reserve([0, 0, 0])).toBe(250);
+    expect(upkeepReserve(fixture([0, 0, 0, 0]), N2)).toBe(200);
+  });
+  it('records holds consumed by settlement, so an unsold offer does not fill the fleet', () => {
+    const s = setWarehouse(continent(), N2, { steel: 4 });
+    const turn = resolveTurn(s, { [N2]: [{ kind: 'sellCommodity', nationId: N2, commodity: MaterialType.Steel, amount: 4 }] }, 1);
+    expect(turn.state.nations.find(n => n.id === N2)?.merchantMarine.tradeHistory).toEqual([{ used: 0, holds: 4 }]);
+  });
+  it('FR-247 FR-497 protects six turns of upkeep when its own declaration may disrupt trade, using only its own intent', () => {
+    const state = fixture([4, 4, 4, 4]);
+    const declaration = { id: 'war-order', kind: 'war', nationId: N2, targetId: 'minor-1', turn: state.turn };
+    expect(upkeepReserve(state, N2)).toBe(200);
+    expect(upkeepReserve({ ...state, intents: [declaration] }, N2)).toBe(600);
+    expect(upkeepReserve({ ...state, intents: [{ ...declaration, nationId: N1, targetId: N2 }] }, N2)).toBe(200);
+  });
+});
 
 const consulateTargets = (orders: Order[]) =>
   orders.flatMap(o => (o.kind === 'proposeOverture' && o.overture === 'consulate' ? [o.targetId] : []));
@@ -39,11 +96,11 @@ const sellsGoodsOnly = (s: GameState) =>
   setWarehouse(s, N2, { clothing: 2, furniture: 2, timber: 99, coal: 99, ironOre: 99, cotton: 99, wool: 99 });
 
 /** Turns of the scripted player for the nations given (the others idle), with each turn's orders, events and start state. */
-function play(start: GameState, turns: number, nations: string[] = [N2]) {
+function play(start: GameState, turns: number, nations: string[] = [N2], planner = scriptedPlayer) {
   const log: { state: GameState; orders: Record<string, Order[]>; refused: number; events: ReturnType<typeof resolveTurn>['events'] }[] = [];
   let s = start;
   for (let i = 0; i < turns; i++) {
-    const orders = Object.fromEntries(nations.map(id => [id, scriptedPlayer(s, id)]));
+    const orders = Object.fromEntries(nations.map(id => [id, planner(s, id)]));
     const result = resolveTurn(s, orders, s.seed);
     log.push({ state: s, orders, refused: result.events.filter(e => e.type === 'order-rejected').length, events: result.events });
     s = result.state;
@@ -212,9 +269,13 @@ describe('FR-245 valid, deterministic, and unchanged in "world"', () => {
     expect(b.map(t => t.orders)).toEqual(a.map(t => t.orders));
   });
 
-  it('FR-245 in "world" its orders are unchanged: the continent with the world market plays as two-islands, turn by turn', () => {
-    // FR-215: without the FR-203 start forces, whose 4 horses it sells and whose upkeep it pays (tests/engine/continentScore.test.ts)
-    const world = play(withoutStartForces(newGame({ seed: 1, world: 'continent', market: 'world' })), 6);
+  it('FR-245 the world-market planner on the historical continent matches two-islands, turn by turn', () => {
+    // FR-215/517 isolate the equivalent starting economies. With no history of full holds,
+    // FR-516 never competes for materials, so this checks the original world-market policy.
+    const start = historicalContinent(newGame({ seed: 1, world: 'continent', market: 'world' }));
+    const world = play(start, 6, [N2], (s, id) => scriptedPlayer({
+      ...s, nations: s.nations.map(n => ({ ...n, merchantMarine: { ...n.merchantMarine, tradeHistory: [] } })),
+    }, id));
     const v1 = play(newGame({ seed: 1, world: 'two-islands' }), 6);
     expect(world.map(t => t.orders)).toEqual(v1.map(t => t.orders));
   });
@@ -321,10 +382,10 @@ describe('FR-493 (a) the computer bids for lumber and steel toward the other Gre
       expect(bidOrder(lastTwoTurns(busy(), answered, {}))).toEqual(['timber']);
     });
 
-    it('FR-541 End Turn, continent seed 1: a person who offers 1 lumber on each turn after Valdoria bid for it sells from its second offer on (was: never)', () => {
+    it('FR-541 FR-516 End Turn, continent seed 1: answering the published lumber bid supplies the shipbuilding economy', () => {
       let s = continent();
       const log: string[] = [];
-      for (let turn = 1; turn <= 8; turn++) {
+      for (let turn = 1; turn <= 10; turn++) {
         const bidLast = (marketOf(s).lastOrders?.[N2]?.buy.lumber ?? 0) > 0;
         if (bidLast) s = tryApplyOrder(s, { kind: 'sellCommodity', nationId: N1, commodity: 'lumber', amount: 1 } as Order).state;
         const { state, events } = resolveTurn(s, { [N2]: scriptedPlayer(s, N2) }, s.seed);
@@ -333,9 +394,8 @@ describe('FR-493 (a) the computer bids for lumber and steel toward the other Gre
         log.push(`t${turn}${bidLast ? ' offered' : ''}${sold ? ' sold' : ''}`);
         s = state;
       }
-      // Valdoria bids on turn 1 (free holds); the offer of turn 2 finds no bid; Valdoria answers it on turn 3, keeps the bid
-      // on turn 4, where the person answers turn 3's bid, and so on
-      expect(log).toEqual(['t1', 't2 offered', 't3', 't4 offered sold', 't5 offered sold', 't6 offered sold', 't7 offered sold', 't8 offered sold']);
+      expect(log).toEqual(['t1', 't2 offered', 't3', 't4 offered sold', 't5 offered sold', 't6 offered sold',
+        't7 offered sold', 't8 offered', 't9', 't10 offered sold']);
     });
   });
 
@@ -426,23 +486,24 @@ describe('FR-539 the standing steel bid toward a Great Power a person plays', ()
     expect(finalBids(scriptedPlayer(scriptedRival(setTreasury(s, N2, cashReserve(s, N2) - 1)), N2))).toEqual({});
   });
 
-  it('FR-539 End Turn, continent seed 1, the person idle: Valdoria\'s public orders show a steel bid from turn 7 (the Board\'s Steel row from turn 8); a steel offer on turn 8 sells to Valdoria (was: refused, "no-buyer")', () => {
+  it('FR-539 FR-516 End Turn, continent seed 1: Valdoria buys the steel offered in response to its first public steel bid after building an Indiaman', () => {
     let s = continent();
     const steelBids: number[] = [];
-    for (let turn = 1; turn <= 9; turn++) {
+    for (let turn = 1; turn <= 12; turn++) {
       const { state, events } = resolveTurn(s, { [N2]: scriptedPlayer(s, N2) }, s.seed);
       expect(events.filter(e => e.type === 'order-rejected')).toEqual([]);
       s = state;
       steelBids.push(marketOf(s).lastOrders?.[N2]?.buy.steel ?? 0);
-      if (turn === 7) {
+      if (turn === 10) {
         const offered = tryApplyOrder(s, { kind: 'sellCommodity', nationId: N1, commodity: 'steel', amount: 1 } as Order);
         expect(offered.result).toEqual({ ok: true });
-        const turn8 = resolveTurn(offered.state, { [N2]: scriptedPlayer(offered.state, N2) }, offered.state.seed);
-        const sold = turn8.events.filter(e => e.type === 'goods-sold' && e.nationId === N1).map(e => e.type === 'goods-sold' && [e.commodity, e.amount, e.counterpartyId]);
+        const next = resolveTurn(offered.state, { [N2]: scriptedPlayer(offered.state, N2) }, offered.state.seed);
+        const sold = next.events.filter(e => e.type === 'goods-sold' && e.nationId === N1).map(e => e.type === 'goods-sold' && [e.commodity, e.amount, e.counterpartyId]);
         expect(sold).toEqual([['steel', 1, N2]]);
       }
     }
-    expect(steelBids).toEqual([0, 0, 0, 0, 0, 0, 1, 1, 1]);
+    // The turn-7 Indiaman uses the lumber that previously paired with steel on that turn.
+    expect(steelBids).toEqual([0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1]);
   });
 });
 

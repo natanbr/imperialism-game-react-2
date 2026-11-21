@@ -1,4 +1,4 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page } from './seededGame';
 
 // FR-080 and FR-083: a new game opens on the 24x16 map (since M5 the continent: the two islands and the
 // minor nations' land between them, FR-144, FR-145) with the camera on the capital 2-9
