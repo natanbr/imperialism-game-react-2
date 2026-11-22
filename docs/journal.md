@@ -2,11 +2,25 @@
 
 ## Resuming here
 
+- M17 is specified on `claude/m17-spec` from `df047ac`. Start the next implementation run from [the M17 spec](specs/m17.md). Q144–Q146 are open, with suggested defaults. The branch contains planning documents only.
 - M16 part 1 merged in `9bd5a91`. The human can buy technology. The computer makes no purchases on main.
 - M16b is parked. On `claude/m16b-technology` (`95634c6`), FR-523 resource gates plus the buyer brought FR-125 down to 1.286× (minimum 1.5×). On `claude/m16b-buyer` (`49406e9`), the buyer alone bought Streamlined Hulls on turn 3 and ordered a Clipper on turn 6 in all 24 idle games. The spending weakened the computer. FR-546 earned a minor vote in 10/24 (13 required) and FR-489 captured a player province in 15/24 (18 required).
 - FR-547 (Q143) is the buyer branch's proposed value rule. Measure technology availability, purchase timing and the value of the first unlocked action in the original game before tuning. See `docs/verify-and-tune.md`.
 - Task 19 passed the load trials and full gate on `claude/perf-tests`. Finish future gates with `npm run test:perf` alone. The measured results and six functional logs are indexed in `.gate/codex/19/summary.md`.
 - To see part 1, open Capital, buy Streamlined Hulls on turn 3 and order a Clipper with 6 lumber and 2 fabric on turn 4.
+
+## 2026-11-22 Task 20 — Plan sea war and reach (T15)
+
+Size L. FLOW stages 1–2. Plan a normal-game landing on Sundmark, relief of a threatened port and rail deployment under the existing score, Council, war and replay guards. Allocate NR-036, FR-548–559 and Q144–146.
+- Suggested defaults for owner review — Q144 one sail to a reachable coast (Objection: distances collapse). Q145 greater firepower drives the other fleet home (Objection: ignores range and losses). Q146 defend a visible port threat (Objection: an island campaign can go unchallenged). Each card names an original-game play-test.
+- Handoff — on `claude/m17-spec` in worktree `imperialism-game-revival-fee36d`. The spec, requirements and local roadmap are ready for review. The next run starts with T-01. The running game is still the baseline.
+
+| Claim | Command or evidence in `.gate/codex/20/` | Quoted result |
+|---|---|---|
+| Commercial fleets and campaigns on `df047ac` | Vitest fleet/war and trade/UI commands in `baseline.md` | `266 passed (266)` and `295 passed (295)`. Fleet 24/24 at eight holds, FR-489 capture 21/24. |
+| Island route and peaceful Council | Vitest `landRoute.test.ts` and `m14Acceptance.test.ts`; see the M17 baseline table | `war on minor-2: no-land-route`, likewise Lorran and Pellis. Diplomat `15/24 games`. `26 passed (26)`. |
+| Frozen guards | `m13-guard-run.txt` and score/golden repeat in `baseline.md` | FR-542 (i) `23 of 24`, FR-546 `13 of 24`, FR-125 minimum 903/563. Four golden logs matched. |
+| Roadmap and spec | `node .gate/m12/L4-check-roadmap.cjs`, `roadmap-check.txt` | `cards 143 ... findings 160 ... main df047ac`, `PASS`. All 12 FRs remain planned. |
 
 ## 2026-11-22 Task 19 — Separate the timing checks
 

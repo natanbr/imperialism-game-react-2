@@ -19,6 +19,7 @@ Every agent working in this repo reads this file once per session. It is short o
 | `docs/report/roadmap.json` | data for the progress page | orchestrator at each checkpoint |
 | `docs/specs/hud.md` | the HUD redesign spec (M12b): layout, sizes, tasks, tests; rows FR-465 to FR-480 | HUD task lane |
 | `docs/specs/m13-m16.md` | the M13 to M16 spec: findings, rows FR-481 to FR-528, tasks, cards Q114 to Q135 | planning; the milestone lanes |
+| `docs/specs/m17.md` | M17 sea war and reach (T15), measured baseline, FR-548 to FR-559, tasks and cards Q144 to Q146 | orchestrator at spec time, then the milestone lanes |
 
 Rules for these files:
 - Requirement ids are permanent. A changed requirement gets a new id; the old one is marked
