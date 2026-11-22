@@ -1,161 +1,180 @@
 import { expect, it } from 'vitest';
-import { computerOrders } from '@/engine/ai/players';
-import { cashReserve } from '@/engine/ai/economy';
+import { takeProvince } from '@/engine/army/conquest';
+import { cashReserve, planEconomy } from '@/engine/ai/economy';
 import { scriptedPlayer } from '@/engine/ai/scriptedPlayer';
-import { resolveTurn } from '@/engine/turn/resolveTurn';
 import { upkeepReserve } from '@/engine/ai/scriptedArmy';
 import { collectingHub } from '@/engine/systems/logisticsSystem';
-import type { GameState } from '@/types/GameState';
-import { WorkerStatus, WorkerType } from '@/types/Workers';
+import { resolveTurn } from '@/engine/turn/resolveTurn';
 import { planTechnology } from '@/engine/ai/scriptedTechnology';
-import { TerrainType } from '@/types/Tile';
 import { ResourceType } from '@/types/Resource';
-import { emptyWarehouse, game, N1, put, setTile, setTreasury, T, tileAt, workerId } from './fixtures';
+import { TerrainType } from '@/types/Tile';
+import { WorkerType } from '@/types/Workers';
+import type { GameState } from '@/types/GameState';
 import { addRegiments, continent, SW1 } from './armyFixtures';
+import { emptyWarehouse, game, N1, nationOf, setBuilding, setIndustry, setTechnologies, setTile, setTreasury, setWarehouse, T } from './fixtures';
 
-it('FR-527 the planner buys only the cheapest eligible unlock for a collected development site', () => {
-  let state = setTreasury(game(), N1, 25000);
-  state = { ...state, turn: 7, nations: state.nations.map(n => ({ ...n, controller: 'scripted', technologies: ['seedDrill', 'highPressureSteamEngine'] })) };
-  state = setTile(state, T.farm1, { terrain: TerrainType.Plantation, resource: { type: ResourceType.Cotton, level: 0 } });
-  const planned = scriptedPlayer(state, N1).filter(o => o.kind === 'buyTechnology');
-  expect(planned).toEqual([{ kind: 'buyTechnology', nationId: N1, techId: 'cottonGin' }]);
-});
-
-function cottonSite() {
-  return setTile(game(), T.farm1, { terrain: TerrainType.Plantation, resource: { type: ResourceType.Cotton, level: 0 } });
+function scripted(s: GameState): GameState {
+  return { ...s, turn: 7, nations: s.nations.map(n => n.id === N1 ? { ...n, controller: 'scripted' } : n) };
 }
 
-it('FR-527 funds one level-2 project per developer before discretionary research, including work outside collection', () => {
-  const base = cottonSite();
-  const cotton = { ...base, map: { ...base.map, tiles: base.map.tiles.map(row => row.map(tile =>
-    tile.ownerNationId === N1 && tile.id !== T.farm1 ? { ...tile, resource: undefined } : tile)) } };
-  const buys = (s: GameState, cash: number) => scriptedPlayer(setTreasury(s, N1, cash), N1)
-    .filter(o => o.kind === 'buyTechnology').map(o => o.techId);
-  const reserve = cashReserve(cotton, N1);
-  expect(buys(cotton, reserve + 1000)).toEqual(['cottonGin']);
-  const orchard = { terrain: TerrainType.Orchard, resource: { type: ResourceType.Fruit, level: 1 } };
-  const one = setTile(cotton, T.orchard1, orchard);
-  expect(buys(one, reserve + 1000 + 899)).toEqual([]);
-  const two = setTile(one, T.homeOrchard1, orchard);
-  expect(buys(two, reserve + 1000 + 900)).toEqual(['cottonGin']);
-});
-
-function purchases(state: GameState, reserve = 2500) {
+function purchases(s: GameState) {
   const ids: string[] = [];
-  planTechnology(state, N1, reserve, order => {
+  planTechnology(s, N1, Math.max(cashReserve(s, N1), upkeepReserve(s, N1)), order => {
     if (order.kind === 'buyTechnology') ids.push(order.techId);
     return true;
-  });
+  }, planEconomy);
   return ids;
 }
 
-it('FR-527 preserves the reserve exactly and refuses a second purchase on this turn', () => {
-  const s = cottonSite();
-  expect(purchases(setTreasury(s, N1, 3499))).toEqual([]);
-  expect(purchases(setTreasury(s, N1, 3500))).toEqual(['cottonGin']);
-  expect(purchases({ ...s, nations: s.nations.map(n => ({ ...n, pendingTechnologies: ['feedGrasses'] })) })).toEqual([]);
-});
-
-it('FR-527 excludes an uncollected site, an undiscovered resource, and a job that cannot finish after unlocking', () => {
-  const s = cottonSite();
-  const uncollected = setTile(setTile(s, T.farm1, { resource: undefined }), T.orchard1,
-    { terrain: TerrainType.Plantation, resource: { type: ResourceType.Cotton, level: 0 } });
-  expect(purchases(uncollected)).toEqual([]);
-  expect(purchases(setTile(s, T.farm1, { resource: { type: ResourceType.Cotton, level: 0, discovered: false } }))).toEqual([]);
-  expect(purchases({ ...s, turnLimit: 3 })).toEqual([]);
-  expect(purchases({ ...s, turnLimit: 4 })).toEqual(['cottonGin']);
-});
-
-it('FR-527 counts a farmer whose current job finishes before the new technology can be used', () => {
-  const id = workerId(N1, WorkerType.Farmer);
-  let s = put(cottonSite(), id, T.homeOrchard1, { status: WorkerStatus.Working });
-  s = setTile({ ...s, turn: 3 }, T.homeOrchard1, {
-    developmentJob: { workerId: id, workerType: WorkerType.Farmer, targetLevel: 2, startedOnTurn: 1, durationTurns: 3 },
-  });
-  expect(purchases(s)).toEqual(['cottonGin']);
-});
-
-function competingFarms() {
-  let state = setTreasury(game(), N1, 25000);
-  state = { ...state, turn: 7, map: { ...state.map, tiles: state.map.tiles.map(row =>
-    row.map(tile => tile.ownerNationId === N1 ? { ...tile, resource: undefined } : tile)) } };
-  state = setTile(state, T.farm1, { terrain: TerrainType.Farm, resource: { type: ResourceType.Grain, level: 1 } });
-  state = setTile(state, T.homeOrchard1, { terrain: TerrainType.Orchard, resource: { type: ResourceType.Fruit, level: 0 } });
-  return state;
+function missingRancher() {
+  let s = scripted(game());
+  s = { ...s, map: { ...s.map, tiles: s.map.tiles.map(row => row.map(t => ({
+    ...t, workers: t.workers.filter(w => w.nationId !== N1 || w.type !== WorkerType.Rancher),
+  }))) } };
+  s = setIndustry(s, N1, { workers: { untrained: 0, trained: 0, expert: 8 } });
+  return setTreasury(emptyWarehouse(s, N1, { paper: 4, cannedFood: 100 }), N1, 50000);
 }
 
-it('FR-527 can invest in a collected level-2 unlock while a cheaper level-1 job is available to the same farmer', () => {
-  const state = competingFarms();
-  expect(purchases(state)).toEqual(['steelAndIronPlows']);
-  expect(purchases(setTile(state, T.homeOrchard1, { resource: { type: ResourceType.Fruit, level: 3 } }))).toEqual(['steelAndIronPlows']);
-});
-
-it.each([false, true])('FR-131 FR-527 avoids a level-2 investment when the sole farmer must spend its remaining time on a cheaper job (already busy: %s)', busy => {
-  let state: GameState = { ...competingFarms(), turn: 37, turnLimit: 40 };
-  if (busy) {
-    const id = workerId(N1, WorkerType.Farmer);
-    state = setTile(put(state, id, T.orchard1, { status: WorkerStatus.Working }), T.orchard1, {
-      resource: { type: ResourceType.Fruit, level: 1 },
-      developmentJob: { workerId: id, workerType: WorkerType.Farmer, targetLevel: 2, startedOnTurn: 35, durationTurns: 3 },
-    });
-  }
-  const result = finishGame(state);
-  expect(tileAt(result.state, T.homeOrchard1).resource?.level).toBe(1);
-  expect(tileAt(result.state, T.farm1).resource?.level).toBe(1);
-  expect(result.purchases).not.toContain('steelAndIronPlows');
-});
-
-function finishGame(state: GameState) {
-  const purchases: string[] = [];
-  while (!state.gameOver) {
-    const orders = scriptedPlayer(state, N1);
-    for (const order of orders) if (order.kind === 'buyTechnology') purchases.push(order.techId);
-    state = resolveTurn(state, { [N1]: orders }).state;
-  }
-  return { state, purchases };
+function fleet() {
+  let s = setTreasury(emptyWarehouse(scripted(continent()), N1, { lumber: 6, fabric: 2 }), N1, 50000);
+  s = { ...s, nations: s.nations.map(n => n.id === N1 ? { ...n,
+    merchantMarine: { ...n.merchantMarine, tradeHistory: Array.from({ length: 3 }, () => ({ used: 4, holds: 4 })) },
+  } : n) };
+  return s;
 }
 
-it('FR-123 FR-527 respects the stable site order when two equally priced jobs compete for the last farmer slot', () => {
-  let state = setTile(competingFarms(), T.farm1, { resource: { type: ResourceType.Grain, level: 0 } });
-  state = setTile(state, T.homeOrchard1, { terrain: TerrainType.Plantation, resource: { type: ResourceType.Cotton, level: 0 } });
-  const result = finishGame({ ...state, turn: 37, turnLimit: 40 });
-  expect(tileAt(result.state, T.farm1).resource?.level).toBe(1);
-  expect(tileAt(result.state, T.homeOrchard1).resource?.level).toBe(0);
-  expect(result.purchases).not.toContain('cottonGin');
+const actions = (s: GameState) => scriptedPlayer(s, N1);
+
+it('FR-547 an ungated collected cotton project proceeds without research', () => {
+  const s = setTile(scripted(game()), T.farm1, { terrain: TerrainType.Plantation, resource: { type: ResourceType.Cotton, level: 0 } });
+  expect(purchases(s)).toEqual([]);
+  expect(actions(s).some(o => o.kind === 'moveAndStartDevelopment' && o.toTileId === T.farm1)).toBe(true);
 });
 
-it('FR-213 FR-527 the associated development order must fit above protected army upkeep after research', () => {
-  let state = continent();
-  const farm = state.map.tiles.flat().find(t => t.ownerNationId === N1 && t.resource?.type === ResourceType.Grain
-    && collectingHub(state, N1, t.id))!;
-  state = { ...state, turn: 37, turnLimit: 40, map: { ...state.map, tiles: state.map.tiles.map(row =>
-    row.map(tile => tile.ownerNationId === N1 ? { ...tile, resource: undefined } : tile)) } };
-  state = setTile(state, farm.id, { terrain: TerrainType.Farm, resource: { type: ResourceType.Grain, level: 1 } });
-  state = emptyWarehouse(addRegiments(state, N1, SW1, Array(40).fill('regulars')), N1, {});
-  const floor = upkeepReserve(state, N1);
-  expect(floor).toBe(4400);
-  state = setTreasury(state, N1, floor + 3000);
-  expect(purchases(state, floor)).not.toContain('steelAndIronPlows');
-  const result = finishGame(state);
-  expect(result.purchases).not.toContain('steelAndIronPlows');
+it('FR-547 buys the missing University permission, hires the specialist next turn and orders its collected project', () => {
+  let s = missingRancher();
+  const first = actions(s);
+  expect(first.filter(o => o.kind === 'buyTechnology')).toEqual([{ kind: 'buyTechnology', nationId: N1, techId: 'feedGrasses' }]);
+  s = resolveTurn(s, { [N1]: first }).state;
+  const second = actions(s);
+  expect(second).toContainEqual({ kind: 'setUniversity', nationId: N1, civilianType: WorkerType.Rancher, count: 1 });
+  s = resolveTurn(s, { [N1]: second }).state;
+  const rancher = s.map.tiles.flat().flatMap(t => t.workers).find(w => w.nationId === N1 && w.type === WorkerType.Rancher)!;
+  expect(actions(s)).toContainEqual({ kind: 'moveAndStartDevelopment', nationId: N1, workerId: rancher.id, toTileId: T.range1 });
 });
 
-it('FR-527 uses the scheduled finish of a busy farmer and the remaining time for the collected job', () => {
-  const id = workerId(N1, WorkerType.Farmer);
-  const occupied = put(cottonSite(), id, T.homeOrchard1, { status: WorkerStatus.Working });
-  const s = setTile({ ...occupied, turn: 3 }, T.homeOrchard1, {
-    developmentJob: { workerId: id, workerType: WorkerType.Farmer, targetLevel: 2, startedOnTurn: 3, durationTurns: 3 },
-  });
-  expect(purchases({ ...s, turnLimit: 7 })).toEqual(['feedGrasses']);
-  expect(purchases({ ...s, turnLimit: 8 })).toEqual(['cottonGin']);
+it('FR-547 declines a replacement with an existing hire, missing inputs, no collected work or insufficient time', () => {
+  const s = missingRancher();
+  const queued = { ...s, nations: s.nations.map(n => n.id === N1 ? { ...n, university: { rancher: 1 } } : n) };
+  for (const state of [queued, setWarehouse(s, N1, { paper: 1 }), setIndustry(s, N1, { workers: { untrained: 6, trained: 0, expert: 0 } }),
+    setTile(s, T.range1, { resource: undefined }), { ...s, turnLimit: s.turn + 3 }]) {
+    expect(purchases(state)).toEqual([]);
+  }
 });
 
-it('FR-099 FR-527 the registry leaves the human seat alone and an explicitly scripted turn can buy its real unlock', () => {
-  const initial = cottonSite();
-  const s: GameState = { ...initial, nations: initial.nations.map(n =>
-    n.id === N1 ? { ...n, controller: 'human' } : n) };
-  expect(computerOrders(s)).not.toHaveProperty(N1);
-  expect(scriptedPlayer(s, N1).filter(o => o.kind === 'buyTechnology')).toEqual([
-    { kind: 'buyTechnology', nationId: N1, techId: 'cottonGin' },
-  ]);
+it('FR-547 immediately buys Streamlined Hulls for a materially blocked full fleet and uses it next turn', () => {
+  let s = fleet();
+  expect(actions(s)).toContainEqual({ kind: 'buyTechnology', nationId: N1, techId: 'streamlinedHulls' });
+  s = resolveTurn(s, { [N1]: actions(s) }).state;
+  expect(actions(s)).toContainEqual({ kind: 'setShipyard', nationId: N1, ship: 'clipper', count: 1 });
+});
+
+it('FR-516 FR-547 keeps the legal Indiaman first and declines a Clipper without demand, materials, or a remaining season', () => {
+  const s = fleet();
+  const ready = setWarehouse(s, N1, { lumber: 7, fabric: 3 });
+  expect(actions(ready)).toContainEqual({ kind: 'setShipyard', nationId: N1, ship: 'indiaman', count: 1 });
+  const tooEarly = { ...s, nations: s.nations.map(n => ({ ...n, merchantMarine: { ...n.merchantMarine, tradeHistory: [] } })) };
+  for (const state of [ready, tooEarly, setWarehouse(s, N1, { lumber: 5 }), { ...s, turnLimit: s.turn }]) {
+    expect(purchases(state)).toEqual([]);
+  }
+});
+
+it('FR-547 protects the larger of the cash and army reserves and permits at most one buy on a turn', () => {
+  const s = addRegiments(fleet(), N1, SW1, Array(50).fill('regulars'));
+  const reserve = Math.max(cashReserve(s, N1), upkeepReserve(s, N1));
+  expect(purchases(setTreasury(s, N1, reserve + 1499))).toEqual([]);
+  expect(purchases(setTreasury(s, N1, reserve + 1500))).toEqual(['streamlinedHulls']);
+  const pending = { ...s, nations: s.nations.map(n => n.id === N1 ? { ...n, pendingTechnologies: ['feedGrasses'] } : n) };
+  expect(purchases(pending)).toEqual([]);
+});
+
+it('FR-547 an already unlocked specialist is hired directly and a full starting roster buys no civilian permissions', () => {
+  const owned = setTechnologies(missingRancher(), N1, 'seedDrill', 'feedGrasses');
+  expect(actions(owned)).toContainEqual({ kind: 'setUniversity', nationId: N1, civilianType: WorkerType.Rancher, count: 1 });
+  expect(purchases(scripted(game()))).toEqual([]);
+  expect(nationOf(owned, N1).university?.rancher).toBeFalsy();
+});
+
+it('FR-547 skips research when committed mill output finishes the Indiaman or current demand will expire', () => {
+  const s = fleet();
+  const ready = setWarehouse(s, N1, { lumber: 7, cotton: 2 });
+  const mills = setBuilding(ready, N1, 'textileMill', { capacity: 1, pendingCapacity: 0, orders: { fabric: 1 } });
+  expect(purchases(s)).toEqual(['streamlinedHulls']);
+  expect(purchases(ready)).toEqual([]);
+  let next = ready;
+  const shipped: number[] = [];
+  for (let season = 0; season <= 3; season++) {
+    const orders = actions(next);
+    if (orders.some(o => o.kind === 'setShipyard' && o.ship === 'indiaman')) shipped.push(season);
+    next = resolveTurn(next, { [N1]: orders }).state;
+  }
+  expect(shipped.length).toBeGreaterThan(0);
+  expect(purchases(mills)).toEqual([]);
+  const expiring = { ...s, nations: s.nations.map(n => n.id === N1 ? { ...n, merchantMarine: {
+    ...n.merchantMarine, tradeHistory: [4, 4, 3, 4].map(used => ({ holds: 4, used })),
+  } } : n) };
+  expect(purchases(expiring)).toEqual([]);
+});
+
+it('FR-547 buys when an initially unaffordable need becomes affordable on a later turn', () => {
+  const s = fleet();
+  const reserve = Math.max(cashReserve(s, N1), upkeepReserve(s, N1));
+  expect(purchases(setTreasury(s, N1, reserve + 1499))).toEqual([]);
+  const next = setTreasury({ ...s, turn: s.turn + 1 }, N1, reserve + 1500);
+  expect(purchases(next)).toEqual(['streamlinedHulls']);
+});
+
+it('FR-547 buys once when a Clipper and a Rancher both need research, then serves the second need', () => {
+  let s = fleet();
+  const pasture = s.map.tiles.flat().find(t => t.ownerNationId === N1 && !t.cityId && collectingHub(s, N1, t.id))!;
+  s = setTile(s, pasture.id, { terrain: TerrainType.OpenRange, resource: { type: ResourceType.Livestock, level: 0 } });
+  s = setIndustry(setWarehouse(s, N1, { paper: 8, cannedFood: 100 }), N1, { workers: { untrained: 0, trained: 0, expert: 8 } });
+  s = { ...s, map: { ...s.map, tiles: s.map.tiles.map(row => row.map(tile => ({
+    ...tile, workers: tile.workers.filter(w => w.nationId !== N1 || w.type !== WorkerType.Rancher),
+  }))) } };
+  const first = actions(s);
+  expect(first.filter(o => o.kind === 'buyTechnology').map(o => o.techId)).toEqual(['streamlinedHulls']);
+  s = resolveTurn(s, { [N1]: first }).state;
+  const second = actions(s);
+  expect(second).toContainEqual({ kind: 'setShipyard', nationId: N1, ship: 'clipper', count: 1 });
+  expect(second.filter(o => o.kind === 'buyTechnology').map(o => o.techId)).toEqual(['feedGrasses']);
+  s = resolveTurn(s, { [N1]: second }).state;
+  expect(actions(s)).toContainEqual({ kind: 'setUniversity', nationId: N1, civilianType: WorkerType.Rancher, count: 1 });
+});
+
+it.each([undefined, 36])('FR-547 forecasts the final world sale and next-season cooldown (previous ship turn %s)', lastShipOrderTurn => {
+  let s = setTreasury(emptyWarehouse(scripted(continent('world')), N1, { lumber: lastShipOrderTurn ? 8 : 6, fabric: lastShipOrderTurn ? 4 : 2, clothing: 8, furniture: 8 }), N1, 50000);
+  s = { ...s, turn: 39, nations: s.nations.map(n => n.id === N1 ? { ...n, merchantMarine: {
+    ...n.merchantMarine, lastShipOrderTurn, tradeHistory: [4, 4, 0, 4].map(used => ({ holds: 4, used })),
+  } } : n) };
+  const orders = actions(s);
+  expect(orders).toContainEqual({ kind: 'buyTechnology', nationId: N1, techId: 'streamlinedHulls' });
+  const next = resolveTurn(s, { [N1]: orders }).state;
+  expect(actions(next)).toContainEqual({ kind: 'setShipyard', nationId: N1, ship: 'clipper', count: 1 });
+});
+
+it('FR-547 spends nothing on the turn a public controlling bloc will win the Council', () => {
+  let s = fleet();
+  for (const id of ['minor-1', 'minor-2', 'minor-3']) s = takeProvince(s, 'province-' + id, N1, 9, () => {});
+  s = { ...s, turn: 10 };
+  expect(purchases(s)).toEqual([]);
+  expect(resolveTurn(s, { [N1]: actions(s) }).state.gameOver?.reason).toBe('council');
+});
+
+it('FR-547 skips the University permission when its only expert will be sick after the meal', () => {
+  let s = missingRancher();
+  s = { ...s, map: { ...s.map, tiles: s.map.tiles.map(row => row.map(t => t.ownerNationId === N1
+    && t.id !== T.range1 ? { ...t, resource: undefined } : t)) } };
+  s = setIndustry(emptyWarehouse(s, N1, { paper: 6 }), N1, { workers: { untrained: 0, trained: 0, expert: 1 } });
+  expect(purchases(s)).toEqual([]);
 });

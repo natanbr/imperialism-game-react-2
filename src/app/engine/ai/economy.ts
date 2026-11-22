@@ -15,8 +15,7 @@ import type { TradeAmounts, TradeCommodity } from "@/types/Market";
 import { SHIPS } from "@/definisions/ships";
 import { GoodsType, MaterialType, ResourceType } from "@/types/Resource";
 import type { Order } from "../orders/Order";
-import { nationById, workersOf } from "../orders/queries";
-import { checkDevelopment } from "../orders/validate";
+import { nationById } from "../orders/queries";
 import { BUILDING_ORDER, BUILDINGS, nextCapacity } from "@/definisions/industryBuildings";
 import { FREIGHT_CAR_COST, MIGRANT_COST, RECIPES, TRAINING_COST } from "@/definisions/ResourceConversions";
 import { TRADE_COMMODITIES } from "@/definisions/marketPrices";
@@ -33,16 +32,16 @@ import { mealNeeds } from "../systems/foodSystem";
 import { productionSystem } from "../systems/productionSystem";
 import { computeLogisticsTransport, logisticsSystem } from "../systems/logisticsSystem";
 import { transportConnectivitySystem } from "../systems/transportConnectivitySystem";
-import { completeScheduledJobs, developmentSystem } from "../systems/developmentSystem";
+import { developmentSystem } from "../systems/developmentSystem";
 import { createTurnContext } from "../turn/context";
 import { turnLimitOf } from "../turn/gameOver";
 import { SCRIPTED_GARRISON } from "@/definisions/regiments";
 import { armsWanted, planGarrison, upkeepReserve } from "./scriptedArmy";
 import { workersKeptForCampaign } from "./scriptedWar";
-import { capitalComponent, pendingRailTiles } from "./railPlan";
+import { capitalComponent } from "./railPlan";
 import { upkeepOf } from "../army/armies";
 import { WorkerType } from "@/types/Workers";
-import { developmentLevel, freeFrom, planTechnology } from "./scriptedTechnology";
+import { fullTradePhases, planMerchantShip, planReplacement } from "./scriptedTechnology";
 
 export type Propose = (order: Order) => boolean;
 type Stock = Record<string, number>;
@@ -77,32 +76,9 @@ export function cashReserve(state: GameState, nationId: string): number {
   return developers * DEVELOPMENT_COST[1] + (depotWork ? RAIL_RESERVE : CONSTRUCTION_COST.depot);
 }
 
-/** FR-527: cashReserve already funds one $100 job per developer. Before spending on research,
- * budget the $900 difference for each specialist with a distinct, payable $1,000 project. */
-function researchReserve(state: GameState, nationId: string): number {
-  let reserve = Math.max(cashReserve(state, nationId), upkeepReserve(state, nationId));
-  if (nationOf(state, nationId).treasury <= reserve) return reserve;
-  const rail = pendingRailTiles(state, nationId);
-  const sites = state.map.tiles.flat()
-    .filter(tile => tile.ownerNationId === nationId && tile.resource && tile.resource.discovered !== false && !rail.has(tile.id))
-    .map(tile => {
-      const ready = freeFrom(tile, state.turn + 1);
-      return { tile: completeScheduledJobs(tile, ready), ready };
-    })
-    .filter(({ tile }) => tile.resource?.level === 1);
-  for (const { tile, worker } of workersOf(state, nationId)) {
-    if (worker.pendingDisband || !DEVELOPERS.includes(worker.type)) continue;
-    const workerReady = freeFrom(tile, state.turn + 1, worker.id);
-    const project = sites.findIndex(site =>
-      developmentLevel(state, site.tile, worker, Math.max(site.ready, workerReady)) === 2
-      && checkDevelopment(state, worker, site.tile).ok);
-    if (project >= 0) {
-      reserve += DEVELOPMENT_COST[2] - DEVELOPMENT_COST[1];
-      sites.splice(project, 1);
-    }
-  }
-  return reserve;
-}
+/** Preserve the civilian, army and wanted embassy budgets before discretionary research or hiring. */
+export const researchReserve = (state: GameState, nationId: string): number =>
+  Math.max(cashReserve(state, nationId), upkeepReserve(state, nationId)) + embassySaving(state, nationId);
 
 /** Untrained to trained gives 1 more labour a turn from next turn on; trained to expert 2 more (FR-130). */
 export const TRAIN_MIN_TURNS = 3;
@@ -115,18 +91,11 @@ export const CAR_MIN_TURNS = 8;
 export const PAIR_VALUE = SCORE_WEIGHTS.pointsPerCapacity * SCORE_WEIGHTS.dollarsPerPoint;
 
 const nationOf = (state: GameState, nationId: string): Nation => nationById(state, nationId)!;
-/** Start putting materials aside when a phase fills the fleet. Three full phases justify the order itself. */
-function fullTradePhases(state: GameState, nationId: string): number {
-  if (!state.provinces.length) return 0;
-  const marine = nationOf(state, nationId).merchantMarine;
-  if (marine.pendingShips?.indiaman || (marine.lastShipOrderTurn !== undefined && state.turn - marine.lastShipOrderTurn < 4)) return 0;
-  return (marine.tradeHistory ?? []).filter(phase => phase.holds > 0 && phase.used === phase.holds).length;
-}
 function saveShipMaterials(state: GameState, nationId: string): boolean {
   if (nationOf(state, nationId).controller !== "scripted") return false;
   // Unmatched partner bids can leave a small fleet idle again before its mills finish the hull.
   // World-market orders always settle, so the existing cargo history is enough there.
-  return fullTradePhases(state, nationId) >= (marketModeOf(state) === "partners" ? 1 : 3);
+  return fullTradePhases(state, nationOf(state, nationId)) >= (marketModeOf(state) === "partners" ? 1 : 3);
 }
 const mouthsOf = (nation: Nation): number => {
   const { untrained, trained, expert } = nation.industry.workers;
@@ -145,12 +114,9 @@ export function planEconomy(view: () => GameState, nationId: string, propose: Pr
   planTransport(view(), nationId, propose);
   clearStandingOrders(view(), nationId, propose);
   planGarrison(view, nationId, propose);
-  const research = view();
-  planTechnology(research, nationId, researchReserve(research, nationId), propose);
+  planReplacement(view(), nationId, researchReserve(view(), nationId), propose);
   planTraining(view, nationId, propose);
-  if (fullTradePhases(view(), nationId) >= 3) {
-    propose({ kind: "setShipyard", nationId, ship: "indiaman", count: 1 });
-  }
+  planMerchantShip(view(), nationId, propose);
   if (!saveShipMaterials(view(), nationId)) planFreightCars(view, nationId, propose);
   planExpansion(view, nationId, propose);
   proposeRun(view, nationId, propose);

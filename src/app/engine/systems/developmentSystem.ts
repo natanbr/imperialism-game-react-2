@@ -69,7 +69,7 @@ const runNationDevelopmentPhase = (state: GameState, ctx: TurnContext, finished:
 };
 
 /** Construction and development have fixed durations and public results, unlike prospecting. */
-export function completeScheduledJobs(tile: Tile, nextTurn: number): Tile {
+function completeScheduledJobs(tile: Tile, nextTurn: number): Tile {
   return resolveConstructionJobOnTile(resolveDevelopmentJobOnTile(tile, nextTurn), nextTurn);
 }
 

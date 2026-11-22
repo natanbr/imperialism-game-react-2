@@ -2,9 +2,23 @@
 
 ## Resuming here
 
-- M16 part 1 merged in PR #39 at `9bd5a91`. Task 15 leaves the buyer-only experiment as an uncommitted diff on `claude/m16b-buyer`. Recover it from `.gate/codex/15/candidate.patch`.
-- FR-527 is blocked at 0/24. All twelve score margins and four golden replays pass with the retained research budget. The gated resource rules and cotton UI stay parked at `95634c6`. Per-policy measurements and gate results are in `.gate/codex/15/balance.md`.
-- To see part 1, open Capital, buy Streamlined Hulls on turn 3 and order a Clipper with 6 lumber and 2 fabric on turn 4.
+- Local buyer branch `claude/m16b-buyer` started Task 16 at the parked commit `5cc6b57`. M16 part 1 is on main at `9bd5a91`.
+- Q143 replaces the FR-527 purchase count with FR-547. The resource gates and cotton UI remain parked at `95634c6`. The local buyer passed the gate. Read `.gate/codex/16/` for measurements and Q143 for the original-game play-test.
+
+## 2026-11-22 Task 16 — buy technology for a planned action
+
+Size M. Nathan authorized the FR-527 rewrite. Q143 selects K = 3 on the ungated branch.
+- Change / consumer — the computer buys a permission for a replacement specialist or a blocked freight plan. An Indiaman its own economy can order within K already fills that freight need.
+- Test plan — FR-547 price, reserves, single purchase, useful action and deadline, plus 24 idle games. Retain the original two-islands replay, score, campaign and timing checks.
+- Verify — run the full gate, the roadmap checker and controlled purchases. Objection: the old quota was a remake estimate. Re-measure purchase and first-use timing in the original game (Q143).
+
+| Claim | Command or evidence in `.gate/codex/16/` | Quoted result |
+|---|---|---|
+| Tests first and review | `red-buyer.txt`, `red-acceptance-final.txt`, `review.md`, `review-purity-buyer.txt` | “6 failed” buyer checks and “2 failed” simulation checks on the parked buyer. Review added turn-39, Council and expert-health cases. After the FR-302 import fix, “53 passed (53)”. |
+| FR-547 | `npm test`, `unit.txt`, `technology-sim.md` | “24/24 idle games (0 need observations)”; ownership min/median/max “5/5/5” at T20 and T40. Controlled T7 purchase → T8 Clipper and T39 → T40 launches. |
+| Campaign and replay | `unit.txt`, `measured.txt`, `protected.txt` | FR-125 12/12 (minimum 1.603908×); 4/4 golden histories. Embassy/pact 23/24, peaceful Council wins 15/24, earned minor votes 13/24, fleet 24/24. FR-489 capital, losses and peace 24/24 each. FR-497 “p95 49.3 ms”; zero refusals, invariant breaks, idle no-pay disbands and private-order effects. |
+| Ten parked failures | Three-way replay in `regressions.md`; `pins-final.txt`, `unit.txt`, `playwright.txt` | Disabling the parked buyer reproduced the pre-buyer records in nine games. Old research delayed depot 17-4, recruitment and conquests. “38 passed (38)” with the original continent and trade pins. The lint guard and FR-109 pass in the complete suites at their original timeouts. |
+| Full gate | `npm test`; `npm run lint`; `npx tsc --noEmit`; `npm run build`; `PORT=3123 PLAYWRIGHT_HTML_OPEN=never npx playwright test --workers=1`; roadmap checker | “2890 passed (2890)” in 138 passed (138) files; “2 problems (0 errors, 2 warnings)”; types “EXIT 0”; “Generating static pages (4/4)”; “135 passed (8.8m)”; roadmap “PASS”. |
 
 ## 2026-11-22 Task 15 — computer technology purchases without resource gates
 

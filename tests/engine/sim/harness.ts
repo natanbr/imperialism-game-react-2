@@ -9,7 +9,7 @@
 // `turns[29].council`. `holds` is read before the clearing: what the two Great Powers had registered at the trade phase.
 import { newGame } from '@/engine/newGame';
 import { computerOrders } from '@/engine/ai/players';
-import { applyTurnOrders, resolveTurn } from '@/engine/turn/resolveTurn';
+import { applyTurnOrders, resolveTurn, type OrdersByNation } from '@/engine/turn/resolveTurn';
 import { tryApplyOrder } from '@/engine/orders/apply';
 import { scoreOf } from '@/engine/score/score';
 import { councilVote } from '@/engine/council/council';
@@ -134,6 +134,8 @@ export interface RunOptions {
   turns?: number;
   /** Compute `invariantViolations` each turn (default true); false skips them for a faster game (the field is then empty). */
   checkInvariants?: boolean;
+  /** Inspect the real planning input, submitted orders and resolved outcome of each played turn. */
+  observeTurn?: (before: GameState, orders: OrdersByNation, after: GameState) => void;
 }
 
 const mapNations = <T>(state: GameState, f: (id: string) => T): ByNation<T> => Object.fromEntries(state.nations.map(n => [n.id, f(n.id)]));
@@ -143,7 +145,7 @@ const holdsProvince = (state: GameState, id: string): boolean => {
 };
 
 /** Plays one continent game with `human` as nation 1 and returns what each turn did. Deterministic apart from the timings. */
-export function runGame({ seed, human, turns = 40, checkInvariants = true }: RunOptions): GameRecord {
+export function runGame({ seed, human, turns = 40, checkInvariants = true, observeTurn }: RunOptions): GameRecord {
   const policy = typeof human === 'string' ? HUMANS[human] : human;
   const began = performance.now();
   const start = newGame({ seed, world: 'continent' });
@@ -180,6 +182,7 @@ export function runGame({ seed, human, turns = 40, checkInvariants = true }: Run
     const traded = mapNations(state, id => tradeOrdersOf(registered, id));
 
     const { state: next, events } = resolveTurn(state, computer, state.seed);
+    observeTurn?.(state, computer, next);
     lastTrade = traded;
     records.push(recordTurn({ turn, start, next, events, holds, humanRefused, humanOrders: accepted, computerOrdersMs, checkInvariants }));
     state = next;
