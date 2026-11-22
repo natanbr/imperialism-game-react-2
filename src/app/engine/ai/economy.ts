@@ -15,7 +15,8 @@ import type { TradeAmounts, TradeCommodity } from "@/types/Market";
 import { SHIPS } from "@/definisions/ships";
 import { GoodsType, MaterialType, ResourceType } from "@/types/Resource";
 import type { Order } from "../orders/Order";
-import { nationById } from "../orders/queries";
+import { nationById, workersOf } from "../orders/queries";
+import { checkDevelopment } from "../orders/validate";
 import { BUILDING_ORDER, BUILDINGS, nextCapacity } from "@/definisions/industryBuildings";
 import { FREIGHT_CAR_COST, MIGRANT_COST, RECIPES, TRAINING_COST } from "@/definisions/ResourceConversions";
 import { TRADE_COMMODITIES } from "@/definisions/marketPrices";
@@ -32,15 +33,16 @@ import { mealNeeds } from "../systems/foodSystem";
 import { productionSystem } from "../systems/productionSystem";
 import { computeLogisticsTransport, logisticsSystem } from "../systems/logisticsSystem";
 import { transportConnectivitySystem } from "../systems/transportConnectivitySystem";
-import { developmentSystem } from "../systems/developmentSystem";
+import { completeScheduledJobs, developmentSystem } from "../systems/developmentSystem";
 import { createTurnContext } from "../turn/context";
 import { turnLimitOf } from "../turn/gameOver";
 import { SCRIPTED_GARRISON } from "@/definisions/regiments";
 import { armsWanted, planGarrison, upkeepReserve } from "./scriptedArmy";
 import { workersKeptForCampaign } from "./scriptedWar";
-import { capitalComponent } from "./railPlan";
+import { capitalComponent, pendingRailTiles } from "./railPlan";
 import { upkeepOf } from "../army/armies";
 import { WorkerType } from "@/types/Workers";
+import { developmentLevel, freeFrom, planTechnology } from "./scriptedTechnology";
 
 export type Propose = (order: Order) => boolean;
 type Stock = Record<string, number>;
@@ -73,6 +75,33 @@ export function cashReserve(state: GameState, nationId: string): number {
   const component = capitalComponent(state, nationId);
   const depotWork = own.some((t) => t.constructionJob?.kind === "depot" || (!!t.depot && !component.has(`${t.x},${t.y}`)));
   return developers * DEVELOPMENT_COST[1] + (depotWork ? RAIL_RESERVE : CONSTRUCTION_COST.depot);
+}
+
+/** FR-527: cashReserve already funds one $100 job per developer. Before spending on research,
+ * budget the $900 difference for each specialist with a distinct, payable $1,000 project. */
+function researchReserve(state: GameState, nationId: string): number {
+  let reserve = Math.max(cashReserve(state, nationId), upkeepReserve(state, nationId));
+  if (nationOf(state, nationId).treasury <= reserve) return reserve;
+  const rail = pendingRailTiles(state, nationId);
+  const sites = state.map.tiles.flat()
+    .filter(tile => tile.ownerNationId === nationId && tile.resource && tile.resource.discovered !== false && !rail.has(tile.id))
+    .map(tile => {
+      const ready = freeFrom(tile, state.turn + 1);
+      return { tile: completeScheduledJobs(tile, ready), ready };
+    })
+    .filter(({ tile }) => tile.resource?.level === 1);
+  for (const { tile, worker } of workersOf(state, nationId)) {
+    if (worker.pendingDisband || !DEVELOPERS.includes(worker.type)) continue;
+    const workerReady = freeFrom(tile, state.turn + 1, worker.id);
+    const project = sites.findIndex(site =>
+      developmentLevel(state, site.tile, worker, Math.max(site.ready, workerReady)) === 2
+      && checkDevelopment(state, worker, site.tile).ok);
+    if (project >= 0) {
+      reserve += DEVELOPMENT_COST[2] - DEVELOPMENT_COST[1];
+      sites.splice(project, 1);
+    }
+  }
+  return reserve;
 }
 
 /** Untrained to trained gives 1 more labour a turn from next turn on; trained to expert 2 more (FR-130). */
@@ -116,6 +145,8 @@ export function planEconomy(view: () => GameState, nationId: string, propose: Pr
   planTransport(view(), nationId, propose);
   clearStandingOrders(view(), nationId, propose);
   planGarrison(view, nationId, propose);
+  const research = view();
+  planTechnology(research, nationId, researchReserve(research, nationId), propose);
   planTraining(view, nationId, propose);
   if (fullTradePhases(view(), nationId) >= 3) {
     propose({ kind: "setShipyard", nationId, ship: "indiaman", count: 1 });

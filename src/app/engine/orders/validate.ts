@@ -201,7 +201,7 @@ const checkProspecting: JobCheck = (state, worker, tile) => {
   return OK;
 };
 
-const checkDevelopment: JobCheck = (state, worker, tile) => {
+export const checkDevelopment: JobCheck = (state, worker, tile) => {
   if (!DEVELOPMENT_WORKER_TYPES.includes(worker.type)) return reject("wrong-worker-type");
   if (tile.ownerNationId !== worker.nationId) return reject("not-owner");
   const terrains = DEVELOPMENT_TERRAINS[worker.type];

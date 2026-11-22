@@ -2,9 +2,34 @@
 
 ## Resuming here
 
-- M16 part 1 is reviewed and gated on the local `claude/m16-technology` branch, one fix commit after `b75d196`. All 2,872 unit tests and 135 Chromium tests passed. Reproductions, screenshots and gate logs are in `.gate/codex/13/`.
-- M16b is planned for FR-523, FR-527, FR-528 and the cotton development path of FR-526. The full candidate stays parked at `f8470ba`. Its measured balance results are in `.gate/codex/11/balance.md`.
+- M16 part 1 merged in PR #39 at `9bd5a91`. Task 15 leaves the buyer-only experiment as an uncommitted diff on `claude/m16b-buyer`. Recover it from `.gate/codex/15/candidate.patch`.
+- FR-527 is blocked at 0/24. All twelve score margins and four golden replays pass with the retained research budget. The gated resource rules and cotton UI stay parked at `95634c6`. Per-policy measurements and gate results are in `.gate/codex/15/balance.md`.
 - To see part 1, open Capital, buy Streamlined Hulls on turn 3 and order a Clipper with 6 lumber and 2 fabric on turn 4.
+
+## 2026-11-22 Task 15 — computer technology purchases without resource gates
+
+Size M. Owner decision “Try buyer without gates”, branch `claude/m16b-buyer`, base `9bd5a91`.
+- Change and consumers — port the Q133 buyer to the scripted player. Development orders use the existing rules for both seats.
+- Tests first — FR-527 cheapest eligible collected job, purchase limit, reserves and 24 idle seeds. Keep the original FR-464 order hashes.
+- Balance — all twelve FR-125/528 comparisons, three purchases by turn 20 in every idle game, plus diplomacy, fleet and FR-497 under the existing human policies.
+- Verify — focused simulations, then the full gate for a qualifying candidate. Evidence lives in `.gate/codex/15/`.
+- Objection — the computer can finish a collected job before the corresponding invention goes on sale. Research also competes with the army and diplomacy for cash.
+
+| Claim | Command or evidence under `.gate/codex/15/` | Result |
+|---|---|---|
+| FR-527 tests first and independent review | `red-buyer.txt`, `red-mandatory-worker.txt`, `red-order-and-upkeep.txt`, `red-working-budget.txt`, `candidate-c-unit.txt`, `review.md` | Baseline “3 failed (3)”. Four worker scheduling and upkeep reproductions verified fixed. Retained buyer “12 passed (12)” focused tests. |
+| FR-125/528 margin and FR-464 replay | `npm test`, `unit.txt`, individual scores and hashes in `retained.txt` | 12/12; minimum 903/563 = 1.603908× at seed 3, turn 25. “twoIslandsGolden.test.ts (2 tests)”; all four complete order histories and final scores match. |
+| FR-527 ownership by turn 20 | `m16Acceptance.test.ts`, `retained.txt`, `sweeps.md` | “0/24 idle games”. Seeds 7, 8 and 16 bought one Cotton Gin each. Other seeds bought nothing. The early buyer reached 4/24, missed the original logs and could budget for unreachable work. |
+| FR-542(i), FR-545, FR-546, FR-516 | `unit.txt`, `retained.txt` | Embassy and pact 23/24, peaceful Council wins 15/24, voluntary votes 13/24 and eight holds 24/24 (maximum 8 used). |
+| FR-497 fairness and time | `npm test`, `unit.txt` | “rejected orders of Valdoria 0”, “invariant breaks 0”, “no-pay disbands in idle games 0”, p95 71.7 ms over 3,230 turns in 84 games. “280 turns checked” and zero decisions changed. |
+| Why work stopped | `order-boundary-all24.log`, `order-boundary-c-seed5.log`, `buyer-notes.md` | Even the more permissive eligibility model reached three on only 9/24 individually scheduled seeds. With the retained budget, seed 5 has zero qualifying purchase positions in 20 turns. These are bounds with other spending fixed. |
+| Full unit gate | `npm test`, `unit.txt` | “9 failed \| 2876 passed (2885)”. Alongside FR-527, the continent score/food/upkeep/Council and world-trade pins and the FR-489 capital guard failed. The 30-second lint guard timed out under full load. |
+| Standalone lint guard | `lintGuard-alone.txt` | Full run timed out at 30 seconds. Isolated run passed: “Tests  17 passed (17)”. |
+| Static checks and build | `lint.txt`, `types.txt`, `build.txt`, `roadmap.txt` | ESLint “0 errors, 2 warnings”, TypeScript “EXIT 0”, build “Generating static pages (4/4)”, roadmap “PASS”. |
+| Browser | `PORT=3123 PLAYWRIGHT_HTML_OPEN=never npx playwright test --workers=1`, `playwright.txt`, `playwright-rerun.txt` | “1 failed, 134 passed (26.0m)”. FR-109 New game timed out waiting for the turn-2 indicator. The isolated run at the original timeout reported “1 passed”. |
+| Scope | `protected.txt`, `ungated.txt` | Golden and human policies match their raw Git blobs; both seats started cotton and grain jobs with zero technologies. |
+
+The budget moved from the ordinary cash/upkeep floor to reserving another $900 per developer with a distinct eligible owned level-2 project. This funds the difference between $100 and $1,000 civilian jobs and can defer a purchase above the ordinary floor. The buyer also moved from checking projects independently to scheduling known work in the same level and reach order used by FR-131. See `.gate/codex/15/sweeps.md` for the other timing and spending changes.
 
 ## 2026-11-21 Task 13 — M16 part 1 checkpoint review
 

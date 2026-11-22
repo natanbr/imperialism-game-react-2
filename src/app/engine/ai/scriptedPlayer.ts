@@ -2,12 +2,11 @@ import type { GameState } from "@/types/GameState";
 import { WorkerStatus, WorkerType } from "@/types/Workers";
 import type { Order } from "../orders/Order";
 import { applyOrder } from "../orders/apply";
-import type { Tile } from "@/types/Tile";
-import type { Worker } from "@/types/Workers";
-import { CONSTRUCTION_COST, DEVELOPMENT_COST } from "@/definisions/workPrices";
+import { orderedDevelopmentSites } from "./scriptedTechnology";
+import { CONSTRUCTION_COST } from "@/definisions/workPrices";
 import { SCORE_WEIGHTS } from "@/definisions/scoreWeights";
-import { EngineerBuildDurationsTurns, WorkerLevelDurationsTurns } from "@/definisions/workerDurations";
-import { findWorker, nationById, nextResourceLevel, treasuryOf, workersOf, type WorkerLocation } from "../orders/queries";
+import { EngineerBuildDurationsTurns } from "@/definisions/workerDurations";
+import { findWorker, nationById, treasuryOf, workersOf, type WorkerLocation } from "../orders/queries";
 import { validateOrder } from "../orders/validate";
 import { bestDepotSite, nextRailSections, pendingRailTiles, tilesByReach, type DepotSite } from "./railPlan";
 import { planEconomy, planFinalTransport, turnsAfter } from "./economy";
@@ -103,19 +102,6 @@ function depotPaysBack(view: GameState, site: DepotSite): boolean {
 }
 
 /**
- * The level a development job on this tile would reach, when the job pays (FR-131): its 10 points
- * are at least its price in points (level 1 $100 and level 2 $1,000 do; level 3 at $5,000 = 50
- * points does not) and it finishes by the last turn.
- */
-function developmentLevel(view: GameState, tile: Tile, worker: Worker): number | undefined {
-  const level = nextResourceLevel(tile);
-  const price = DEVELOPMENT_COST[level as 1 | 2 | 3];
-  if (price === undefined || price / SCORE_WEIGHTS.dollarsPerPoint > SCORE_WEIGHTS.pointsPerLevel) return undefined;
-  const duration = WorkerLevelDurationsTurns[worker.type]?.[level as 1 | 2 | 3] ?? 1;
-  return turnsAfter(view) >= duration - 1 ? level : undefined;
-}
-
-/**
  * What this civilian could do, best first; validation picks the first one that is allowed. The prospector and the
  * developers leave `railTiles` (`pendingRailTiles`, FR-459) to the engineer.
  */
@@ -124,14 +110,7 @@ function candidateOrders(view: GameState, nationId: string, { worker, tile }: Wo
   if (worker.type === WorkerType.Engineer) return engineerOrders(view, nationId, workerId, tile.id);
   const prospecting = worker.type === WorkerType.Prospector;
   let tiles = tilesByReach(view, nationId).filter((t) => !railTiles.has(t.id));
-  if (!prospecting) {
-    // The cheapest level first; the sort is stable, so each level keeps the FR-123 order.
-    tiles = tiles
-      .map((t) => ({ t, level: developmentLevel(view, t, worker) }))
-      .filter((x): x is { t: Tile; level: number } => x.level !== undefined)
-      .sort((a, b) => a.level - b.level)
-      .map(({ t }) => t);
-  }
+  if (!prospecting) tiles = orderedDevelopmentSites(view, worker, tiles);
   return tiles.map((t): Order => {
     if (t.id === tile.id) {
       return prospecting ? { kind: "startProspecting", nationId, workerId, tileId: t.id } : { kind: "startDevelopment", nationId, workerId, tileId: t.id };

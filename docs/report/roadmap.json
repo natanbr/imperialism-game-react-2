@@ -1,13 +1,13 @@
 {
  "project": "Imperialism Revival",
  "schema": 3,
- "updated": "2026-11-21",
+ "updated": "2026-11-22",
  "audit": {
   "date": "2026-11-14",
   "reviewers": 8,
   "folder": "docs/audit/2026-11-14",
   "branch": "claude/m12-honest-game",
-  "main": "de20eca"
+  "main": "9bd5a91"
  },
  "source": "docs/report/roadmap.json, docs/audit/2026-11-14/*.json and docs/requirements.md in the imperialism-game-react-2 repo",
  "reality": {
@@ -180,7 +180,7 @@
    "text": "Of 24 rule topics of the original game: 3 built, 14 partial, 1 wrong, 1 dead code, 5 missing."
   },
   "notChecked": "Not checked by the audit: Firefox and Safari, real touch on a phone, screen readers, and a human game played all the way to a Council win.",
-  "notFixed": "M12 (themes T1 to T10, FR-357 to FR-464) is merged into main 91d7edc (pull request 34), so its findings are fixed on main. M12b (the HUD you asked for, FR-465 to FR-480, and its by-eye QA fixes FR-529 to FR-537) is merged into main 74f595c (pull request 35, 2026-11-17). M13 (theme T11) is merged on the checked origin/main, 1d58b74. M14 (theme T12) merged at 79a94b2. M15 is merged at the Task 11 origin/main baseline, de20eca. You accepted the measured diplomat and Council results for M15 (FR-545 and FR-546). M16 part 1 is a local checkpoint for national technology purchases and Capital unlocks. M16b is planned for technology-gated resource jobs, their cotton unlock test, computer purchases and the protected score margin. M17 and M18 remain planned.",
+  "notFixed": "M12 (themes T1 to T10, FR-357 to FR-464) is merged into main 91d7edc (pull request 34), so its findings are fixed on main. M12b (the HUD you asked for, FR-465 to FR-480, and its by-eye QA fixes FR-529 to FR-537) is merged into main 74f595c (pull request 35, 2026-11-17). M13 (theme T11) is merged on the checked origin/main, 1d58b74. M14 (theme T12) merged at 79a94b2. M15 is merged at the Task 11 origin/main baseline, de20eca. You accepted the measured diplomat and Council results for M15 (FR-545 and FR-546). M16 part 1 merged into main at 9bd5a91 (pull request 39). The ungated computer buyer stays uncommitted after Task 15. FR-523 and the cotton UI remain parked at 95634c6. M17 and M18 remain planned.",
   "filedNote": "The plan named 122 of the 160 findings in its themes. I filed the other 38 under the nearest theme; they are marked \"filed\" and can be moved."
  },
  "statusLegend": [
@@ -1250,7 +1250,7 @@
   }
  ],
  "plan": {
-  "orderNote": "M16 part 1 builds on M15's University and Shipyard. M16b is planned for technology-gated development and computer purchases. M17 also depends on the Shipyard. Cards marked \"Needed before\" identify decisions that affect the schedule.",
+  "orderNote": "M16 part 1 is on main. Task 15 measured computer research with ungated resource development. The three-purchase target is still open. M17 also depends on M15’s Shipyard.",
   "milestones": [
    {
     "id": "M12",
@@ -1422,7 +1422,7 @@
     "title": "part 1 — Technology",
     "status": "built",
     "statusLabel": "Built, pull request being opened",
-    "localBuild": true,
+    "localBuild": false,
     "themes": [
      "T14"
     ],
@@ -1445,7 +1445,7 @@
      "M": 2,
      "L": 2
     },
-    "statusText": "M16 part 1 covers FR-519 through FR-522, FR-524, FR-525 and the Technology dialog and seeded Clipper path of FR-526. Task 13 checks legacy replay, refinery supply, turn-3 news and FR-029 coverage in .gate/codex/13/.",
+    "statusText": "M16 part 1 covers FR-519 through FR-522, FR-524, FR-525 and the Technology dialog and seeded Clipper path of FR-526. Task 13 checks legacy replay, refinery supply, turn-3 news and FR-029 coverage in .gate/codex/13/. Merged in pull request 39 at 9bd5a91.",
     "spec": "docs/specs/m13-m16.md",
     "followUps": [
      {
@@ -1462,7 +1462,7 @@
       "depends": "M16 part 1, the protected two-islands replay and the existing balance requirements.",
       "size": { "S": 1, "M": 2, "L": 0 },
       "sizeText": "Two medium requirements and one small requirement, plus the cotton development path of FR-526.",
-      "statusText": "FR-523, FR-527, FR-528 and the remaining cotton development path of FR-526 are planned. Parked candidate f8470ba measured 1.286× against the 1.5× score minimum, 11/24 computer nations with three purchases by turn 20 (24/24 required), and 9/24 games with an embassy and pact by turn 29 (18/24 required). See .gate/codex/11/balance.md.",
+      "statusText": "FR-523 and the cotton UI remain parked at 95634c6. In the uncommitted Task 15 buyer without gates, FR-528 clears 12/12 score comparisons (minimum 1.603908×) and all four golden logs match. FR-527 misses: zero of 24 idle games owned three purchases by turn 20. See .gate/codex/15/balance.md.",
       "spec": "docs/specs/m13-m16.md"
      }
     ]
@@ -2835,7 +2835,7 @@
      "means": "None."
     }
    ],
-   "suggestion": "Option (a), default taken in the full candidate: buy the cheapest useful development technology while preserving reserves. Parked with FR-523 and FR-528 after simulation.",
+   "suggestion": "Option (a) was tried without resource gates. The retained buyer bought Cotton Gin in three of 24 idle games. None owned three purchases by turn 20. The buyer remains parked.",
    "objection": "It ignores ships and military technologies until those milestones exist.",
    "ids": [
     "RULES-GAP-01"
