@@ -7,7 +7,7 @@
   "reviewers": 8,
   "folder": "docs/audit/2026-11-14",
   "branch": "claude/m12-honest-game",
-  "main": "9bd5a91"
+  "main": "df047ac"
  },
  "source": "docs/report/roadmap.json, docs/audit/2026-11-14/*.json and docs/requirements.md in the imperialism-game-react-2 repo",
  "reality": {
@@ -180,7 +180,7 @@
    "text": "Of 24 rule topics of the original game: 3 built, 14 partial, 1 wrong, 1 dead code, 5 missing."
   },
   "notChecked": "Not checked by the audit: Firefox and Safari, real touch on a phone, screen readers, and a human game played all the way to a Council win.",
-  "notFixed": "M12 (themes T1 to T10, FR-357 to FR-464) is merged into main 91d7edc (pull request 34), so its findings are fixed on main. M12b (the HUD you asked for, FR-465 to FR-480, and its by-eye QA fixes FR-529 to FR-537) is merged into main 74f595c (pull request 35, 2026-11-17). M13 (theme T11) is merged on the checked origin/main, 1d58b74. M14 (theme T12) merged at 79a94b2. M15 is merged at the Task 11 origin/main baseline, de20eca. You accepted the measured diplomat and Council results for M15 (FR-545 and FR-546). M16 part 1 merged at 9bd5a91 (pull request 39). On main the player can buy technology and the computer buys none. Both M16b branches are parked pending an original-game play-test. M17 and M18 remain planned.",
+  "notFixed": "M12 (themes T1 to T10, FR-357 to FR-464) is merged into main 91d7edc (pull request 34), so its findings are fixed on main. M12b (the HUD you asked for, FR-465 to FR-480, and its by-eye QA fixes FR-529 to FR-537) is merged into main 74f595c (pull request 35, 2026-11-17). M13 (theme T11) is merged on the checked origin/main, 1d58b74. M14 (theme T12) merged at 79a94b2. M15 is merged at the Task 11 origin/main baseline, de20eca. You accepted the measured diplomat and Council results for M15 (FR-545 and FR-546). M16 part 1 merged at 9bd5a91 (pull request 39). On main the player can buy technology and the computer buys none. Both M16b branches are parked pending an original-game play-test. Task 19 merged at df047ac. M17 now has a spec and plan for the first playable sea campaign. M18 remains planned.",
   "filedNote": "The plan named 122 of the 160 findings in its themes. I filed the other 38 under the nearest theme; they are marked \"filed\" and can be moved."
  },
  "statusLegend": [
@@ -1140,7 +1140,7 @@
   {
    "id": "T15",
    "title": "Sea war and reach",
-   "plain": "Ships and sea transport do not exist, so most of the map cannot be reached.",
+   "plain": "Merchant ships carry trade. Armies still have no way to reach the three island minors.",
    "milestone": "M17",
    "count": 5,
    "severity": {
@@ -1475,12 +1475,15 @@
     "themes": [
      "T15"
     ],
-    "goal": "Add a navy, sea transport and seaborne attack, so the island minors can be attacked and armies can cross water.",
+    "goal": "Build a warship, establish a landing site and fight on Sundmark from a normal continent game. Defend ports at sea and redeploy home regiments by rail.",
     "check": [
-     "Build a fleet and ship an army to Sundmark, Lorran or Pellis.",
-     "War on an island minor becomes possible and a battle can be fought there (this lifts the block of card Q83)."
+     "Commission a Frigate or Ship-of-the-Line, establish a beachhead and fight on Sundmark. Verify routes to Lorran and Pellis.",
+     "See a stronger defending squadron turn back a landing and a blockade interrupt isolated port shipments. Restore the route and observe the next delivery.",
+     "Deploy by rail within the national ARMS allowance, continue a midturn save and run the existing score, Council, war and replay guards with their original policies."
     ],
-    "depends": "M15 (the Shipyard).",
+    "depends": "M15 merchant Shipyard and M13 army, diplomacy and battle systems. The M16b technology buyer is independent.",
+    "statusText": "Spec and plan only, FR-548 to FR-559 and NR-036. Open owner cards Q144 to Q146 cover sea travel, interceptions and computer spending. Merchant capture, later hulls and computer-led island invasions are later work.",
+    "spec": "docs/specs/m17.md",
     "findings": 5,
     "severity": {
      "major": 3,
@@ -3641,6 +3644,77 @@
    "suggestion": "Record the availability, affordability, purchase and first use of inventions in the original game before tuning the buyer.",
    "objection": "The branch bought Streamlined Hulls on turn 3 and ordered a Clipper on turn 6. Its spending weakened minor votes and province captures.",
    "ids": ["Q133"]
+  },
+  {
+   "id": "Q144",
+   "title": "How much water can a squadron cross in one turn?",
+   "status": "open",
+   "group": "new",
+   "context": "The small fixed map has ocean hexes and coastal provinces, but no historical sea-zone boundaries. Rail deployment also needs a land/sea boundary.",
+   "options": [
+    {
+     "label": "Use province approaches",
+     "means": "A reachable coast takes one sail Order, followed by a separate station turn. Domestic rail stays on the same landmass. A stationed fleet can also reinforce a friendly shore within its support limit."
+    },
+    {
+     "label": "Map several sea zones",
+     "means": "Ships travel by their printed speed across a new zone map. The crossing may take more turns."
+    }
+   ],
+   "suggestion": "Use province approaches for the first playable crossing.",
+   "objection": "Short and long voyages take the same time, and holding one approach can close several ports in that province. The original’s limit for follow-up reinforcements is uncertain.",
+   "ids": [
+    "ARMY-WAR-04",
+    "ARMY-WAR-11",
+    "Q37"
+   ]
+  },
+  {
+   "id": "Q145",
+   "title": "What happens when an enemy fleet intercepts a landing?",
+   "status": "open",
+   "group": "new",
+   "context": "The rules describe automatic interception and possible losses. They give ship stats but no engagement odds or drowning rate.",
+   "options": [
+    {
+     "label": "Resolve by total firepower",
+     "means": "The weaker squadron returns intact. Equal forces stay, block the landing and leave the port contested."
+    },
+    {
+     "label": "Hold every opposed landing",
+     "means": "Both sides stay until a fleet withdraws. Fleet strength has no effect on that engagement."
+    }
+   ],
+   "suggestion": "Use total firepower and report the strengths, retreat or tie.",
+   "objection": "A large fleet of weak ships can win on total guns alone, ignoring range and armour. No hull or troop can be lost at sea.",
+   "ids": [
+    "RULES-GAP-05",
+    "ARMY-WAR-04"
+   ]
+  },
+  {
+   "id": "Q146",
+   "title": "When should the computer spend on warships?",
+   "status": "open",
+   "group": "new",
+   "context": "M15 buys merchant holds from observed cargo use. Previous speculative spending weakened Council votes and the one-province campaign. The original naval budget and invasion timing are unknown.",
+   "options": [
+    {
+     "label": "Respond to a visible threat",
+     "means": "Use existing hulls or fund one Frigate after a hostile squadron is seen off one of the computer’s ports."
+    },
+    {
+     "label": "Prepare an offensive fleet",
+     "means": "Divert stocks before a threat to seek island wars. This also changes the opening army and diplomacy."
+    }
+   ],
+   "suggestion": "Respond to a visible threat. Measure offensive opportunities before choosing a purchase or invasion policy.",
+   "objection": "A quiet player can take an island minor without a rival naval race, and a reactive build may arrive too late to save a port.",
+   "ids": [
+    "AISIM-07",
+    "Q140",
+    "Q143"
+   ]
   }
  ],
  "history": [
