@@ -1,17 +1,21 @@
 import { expect, it } from 'vitest';
 import { takeProvince } from '@/engine/army/conquest';
-import { cashReserve, planEconomy } from '@/engine/ai/economy';
-import { scriptedPlayer } from '@/engine/ai/scriptedPlayer';
+import { cashReserve } from '@/engine/ai/economy';
+import { planOrdinaryTurn, scriptedOrdersWithoutResearch, scriptedPlayer } from '@/engine/ai/scriptedPlayer';
 import { upkeepReserve } from '@/engine/ai/scriptedArmy';
 import { collectingHub } from '@/engine/systems/logisticsSystem';
 import { resolveTurn } from '@/engine/turn/resolveTurn';
+import { transferProvince } from '@/engine/world/provinces';
+import { councilVote } from '@/engine/council/council';
 import { planTechnology } from '@/engine/ai/scriptedTechnology';
+import type { Order } from '@/engine/orders/Order';
+import { tryApplyOrder } from '@/engine/orders/apply';
 import { ResourceType } from '@/types/Resource';
 import { TerrainType } from '@/types/Tile';
 import { WorkerType } from '@/types/Workers';
 import type { GameState } from '@/types/GameState';
-import { addRegiments, continent, SW1 } from './armyFixtures';
-import { emptyWarehouse, game, N1, nationOf, setBuilding, setIndustry, setTechnologies, setTile, setTreasury, setWarehouse, T } from './fixtures';
+import { addRegiments, continent, NE1, NW1, SW1, threePowers } from './armyFixtures';
+import { emptyWarehouse, game, N1, N2, nationOf, setBuilding, setIndustry, setPair, setTechnologies, setTile, setTreasury, setWarehouse, T } from './fixtures';
 
 function scripted(s: GameState): GameState {
   return { ...s, turn: 7, nations: s.nations.map(n => n.id === N1 ? { ...n, controller: 'scripted' } : n) };
@@ -22,7 +26,7 @@ function purchases(s: GameState) {
   planTechnology(s, N1, Math.max(cashReserve(s, N1), upkeepReserve(s, N1)), order => {
     if (order.kind === 'buyTechnology') ids.push(order.techId);
     return true;
-  }, planEconomy);
+  }, planOrdinaryTurn);
   return ids;
 }
 
@@ -105,21 +109,26 @@ it('FR-547 an already unlocked specialist is hired directly and a full starting 
   expect(nationOf(owned, N1).university?.rancher).toBeFalsy();
 });
 
-it('FR-547 skips research when committed mill output finishes the Indiaman or current demand will expire', () => {
+it('FR-547 buys for an earlier Clipper and skips research when the committed mill finishes the ordinary hull on time', () => {
   const s = fleet();
   const ready = setWarehouse(s, N1, { lumber: 7, cotton: 2 });
   const mills = setBuilding(ready, N1, 'textileMill', { capacity: 1, pendingCapacity: 0, orders: { fabric: 1 } });
   expect(purchases(s)).toEqual(['streamlinedHulls']);
-  expect(purchases(ready)).toEqual([]);
-  let next = ready;
-  const shipped: number[] = [];
-  for (let season = 0; season <= 3; season++) {
-    const orders = actions(next);
-    if (orders.some(o => o.kind === 'setShipyard' && o.ship === 'indiaman')) shipped.push(season);
-    next = resolveTurn(next, { [N1]: orders }).state;
+  function firstLaunch(state: GameState, research: Order[]) {
+    let next = resolveTurn(state, { [N1]: research }).state;
+    while (next.turn <= state.turn + 3) {
+      const orders = scriptedOrdersWithoutResearch(next, N1);
+      const ship = orders.find(o => o.kind === 'setShipyard' && o.count > 0);
+      if (ship?.kind === 'setShipyard') return [next.turn, ship.ship];
+      next = resolveTurn(next, { [N1]: orders }).state;
+    }
   }
-  expect(shipped.length).toBeGreaterThan(0);
+  const buy: Order[] = [{ kind: 'buyTechnology', nationId: N1, techId: 'streamlinedHulls' }];
+  expect(purchases(ready)).toEqual(['streamlinedHulls']);
+  expect(firstLaunch(ready, buy)).toEqual([8, 'clipper']);
+  expect(firstLaunch(ready, [])).toEqual([9, 'indiaman']);
   expect(purchases(mills)).toEqual([]);
+  expect(firstLaunch(mills, [])).toEqual([8, 'indiaman']);
   const expiring = { ...s, nations: s.nations.map(n => n.id === N1 ? { ...n, merchantMarine: {
     ...n.merchantMarine, tradeHistory: [4, 4, 3, 4].map(used => ({ holds: 4, used })),
   } } : n) };
@@ -177,4 +186,54 @@ it('FR-547 skips the University permission when its only expert will be sick aft
     && t.id !== T.range1 ? { ...t, resource: undefined } : t)) } };
   s = setIndustry(emptyWarehouse(s, N1, { paper: 6 }), N1, { workers: { untrained: 0, trained: 0, expert: 1 } });
   expect(purchases(s)).toEqual([]);
+});
+
+it('FR-547 keeps the research money when minor votes decide this Council meeting', () => {
+  let state = { ...fleet(), turn: 10 };
+  expect(purchases(state)).toEqual(['streamlinedHulls']);
+  for (const minor of state.minorNations) state = setPair(state, N1, minor.id, { points: 80 });
+  const forecast = councilVote(state);
+  expect(forecast?.winnerId).toBe(N1);
+  expect(forecast?.nominees.find(n => n.nationId === N1)).toMatchObject({ controlled: 4, otherMinorNations: 4, total: 8 });
+  expect(forecast?.nominees.find(n => n.nationId !== N1)?.total).toBe(4);
+
+  const orders = actions(state);
+  const { gameOver } = resolveTurn(state, { [N1]: orders }).state;
+  expect(gameOver).toMatchObject({ reason: 'council', turn: 10, winnerId: N1 });
+  expect(gameOver?.council?.nominees.map(n => n.total)).toEqual(forecast?.nominees.map(n => n.total));
+  expect(orders.filter(order => order.kind === 'buyTechnology')).toEqual([]);
+});
+
+it('FR-547 accounts for its already-paid grant when this meeting resolves', () => {
+  let s = { ...fleet(), turn: 10 };
+  const [a, b, c] = s.minorNations;
+  for (const minor of [a, b, c]) {
+    s = setPair(s, N1, minor.id, { points: minor === c ? 49 : 80, consulates: [N1], embassies: [N1] });
+  }
+  expect(councilVote(s)?.nominees.find(n => n.nationId === N1)?.total).toBe(6);
+  const grant = tryApplyOrder(s, { kind: 'giveGrant', nationId: N1, targetId: c.id, amount: 1000, locked: false });
+  expect(grant.result.ok).toBe(true);
+  const settled = resolveTurn(grant.state, {}).state.gameOver;
+  expect(settled).toMatchObject({ reason: 'council', winnerId: N1 });
+  expect(settled?.council?.nominees.find(n => n.nationId === N1)?.total).toBe(7);
+  expect(purchases(grant.state)).toEqual([]);
+});
+
+it('FR-547 distinguishes a winning and an inconclusive meeting with three Great Powers', () => {
+  const base = emptyWarehouse(setTreasury(threePowers(), N2, 50000), N2, { lumber: 6, fabric: 2 });
+  let s = { ...base, turn: 10, nations: base.nations.map(n => n.id === N2 ? { ...n, merchantMarine: {
+    ...n.merchantMarine, tradeHistory: Array.from({ length: 3 }, () => ({ used: 4, holds: 4 })) } } : n) };
+  s = transferProvince(transferProvince(s, NE1, N2), NW1, N2);
+  expect(councilVote(s)?.winnerId).toBeUndefined();
+  const ordinaryMeeting = scriptedPlayer(s, N2);
+  expect(ordinaryMeeting).toContainEqual({ kind: 'buyTechnology', nationId: N2, techId: 'streamlinedHulls' });
+  expect(resolveTurn(s, { [N2]: ordinaryMeeting }).state.gameOver).toBeUndefined();
+
+  for (const minor of s.minorNations) s = setPair(s, N2, minor.id, { points: 80 });
+  const council = councilVote(s);
+  expect(council).toMatchObject({ needed: 9, winnerId: N2 });
+  expect(council?.nominees.map(n => n.total)).toEqual([9, 2]);
+  const orders = scriptedPlayer(s, N2);
+  expect(resolveTurn(s, { [N2]: orders }).state.gameOver).toMatchObject({ reason: 'council', turn: 10, winnerId: N2 });
+  expect(orders.filter(o => o.kind === 'buyTechnology')).toEqual([]);
 });

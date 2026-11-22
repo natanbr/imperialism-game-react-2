@@ -30,7 +30,9 @@ export type Player = (state: GameState, nationId: string) => Order[];
  * tiles first (FR-123) and the developers start the cheapest level that pays first (FR-131); neither starts a job on
  * a tile the engineer's rail still needs (FR-459).
  */
-export const scriptedPlayer = (state: GameState, nationId: string, allowOrder?: (order: Order, before: GameState, after: GameState) => boolean): Order[] => {
+type AllowOrder = (order: Order, before: GameState, after: GameState) => boolean;
+
+export function planOrdinaryTurn(state: GameState, nationId: string, allowOrder?: AllowOrder) {
   const orders: Order[] = [];
   let view = state;
   const propose = (order: Order): boolean => {
@@ -43,7 +45,7 @@ export const scriptedPlayer = (state: GameState, nationId: string, allowOrder?: 
     return true;
   };
 
-  if (!nationById(state, nationId)) return orders;
+  if (!nationById(state, nationId)) return { view, orders, propose };
 
   // FR-274, FR-488: a declaration of war first, so this turn's economy and trade see the war
   planWarDeclaration(() => view, nationId, propose);
@@ -73,9 +75,17 @@ export const scriptedPlayer = (state: GameState, nationId: string, allowOrder?: 
   // Last, and only at war: a peace offer when beaten (FR-408) or holding what it went to war for (FR-489). At peace
   // nothing is added (FR-181).
   for (const order of scriptedDiplomacyOrders(view, nationId)) propose(order);
-  planTechnology(view, nationId, researchReserve(view, nationId), propose, planEconomy);
+  return { view, orders, propose };
+}
+
+export const scriptedOrdersWithoutResearch: Player = (state, nationId) => planOrdinaryTurn(state, nationId).orders;
+
+export function scriptedPlayer(state: GameState, nationId: string, allowOrder?: AllowOrder): Order[] {
+  if (!nationById(state, nationId)) return [];
+  const { view, orders, propose } = planOrdinaryTurn(state, nationId, allowOrder);
+  planTechnology(view, nationId, researchReserve(view, nationId), propose, planOrdinaryTurn);
   return orders;
-};
+}
 
 /**
  * FR-213 (a): it keeps its garrison, so no order of its own takes the treasury below `upkeepReserve` (an order that

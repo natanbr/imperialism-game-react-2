@@ -568,7 +568,9 @@ function projectTurn(state: GameState, nationId: string): { leftNow: Stock; next
       if (e.type === "goods-produced" && e.nationId === nationId) made[e.output] = (made[e.output] ?? 0) + e.amount;
     },
   });
-  const produced = productionSystem(state, ctx);
+  // These quantities describe only our warehouse. Running the rival's mills here would
+  // inspect the production orders it filed this turn (FR-497).
+  const produced = productionSystem({ ...state, nations: [nationOf(state, nationId)] }, ctx);
   const after = nationOf(produced, nationId).warehouse as Stock;
   const leftNow = Object.fromEntries(Object.entries(after).map(([key, n]) => [key, n - (made[key] ?? 0)]));
   const shipped = logisticsSystem(transportConnectivitySystem(produced, ctx), ctx);

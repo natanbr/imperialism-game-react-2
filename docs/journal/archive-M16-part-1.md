@@ -56,3 +56,31 @@ Checkpoint and balance evidence is under `.gate/codex/11/`. Checkpoint commands 
 | Decision cards and roadmap | `node .gate/m12/L4-check-roadmap.cjs` (contract-gate/roadmap-final.txt) | `PASS`; all six M16 choices are recorded as defaults with status open. |
 | Checkpoint: complete seeded Chromium suite | `PORT=3123 PLAYWRIGHT_HTML_OPEN=never npx playwright test --workers=1` (contract-gate/expanded-playwright.txt) | `135 passed (12.4m)`, `EXIT 0`. Includes buying Streamlined Hulls and queuing the Clipper. |
 | Full candidate: isolated FR-497 timing | `npx vitest run tests/engine/sim/m13Acceptance.test.ts -t FR-497 --reporter=verbose` (fairness-quiet.txt) | `computerOrders p95 23.6 ms`, `EXIT 0`. The same probe measured 110.6 ms while the checkpoint gates were active. The threshold stays at 100 ms. |
+
+## 2026-11-21 Task 13 — M16 part 1 checkpoint review
+
+Size M. Fix the four findings recorded in `.gate/codex/12/review.md`.
+- Change and consumers — preserve historical orders across the save migration, align invention news and close the world market's oil supply.
+- Coverage — FR-100/520 full-state replay, FR-521 fresh and loaded news, FR-525 seed-1 fuel path, FR-029 discovery of all six worker cases.
+- Verify — red and green per finding, full Vitest, lint, TypeScript, production build, single-worker Chromium on port 3123 and the roadmap checker.
+- Objection — historical permissions must survive replay without granting a new game or a resumed turn the same permissions.
+
+| Claim | Command or evidence in `.gate/codex/13/` | Result quoted |
+|---|---|---|
+| FR-100/520, legacy replay | Vitest `legacyTechnology.test.tsx`, `red-legacy.txt`, `red-checkpoint-resave.txt`, `green-legacy.txt` | Red `to have a length of 2 but got 1`. Green `5 passed (5)` files and `76 passed (76)` tests, including full-state replay of both the pre-M16 save and its checkpoint resave. |
+| FR-525, seed 1 | Vitest `refinerySupply.test.ts`, `fr-525-red.txt` and `fr-525-green.txt` | Red `"oilDelivered": 2`, `"fuel": 1`. Green `Tests  168 passed (168)` across industry, trade and UI, including zero oil delivered and zero fuel produced on the same orders. |
+| FR-521, fresh and loaded HUD | Vitest `legacyTechnology.test.tsx`, `red-legacy.txt` and `green-legacy.txt` | Red `expected [] to deeply equal [ …(4) ]`. Green `legacyTechnology.test.tsx (5 tests)` includes all four lines exactly once after Continue and a second save. |
+| FR-029, six worker cases | `vitest list tests/engine/orders/workPrices.test.ts -t FR-029`, then a filtered run, `fr-029-{red,green}.txt` | Red `Found 0`. Green `PASS: FR-029 discovers all 6 level 1 worker cases.` Filtered run `9 passed`. |
+| Independent historical oil replay | `checkpoint-replay/generate.cjs` on `b75d196`, then `checkpoint-replay/verify.cjs` on the fix | `PASS: Loaded and replayed b75d196 turn 21 exactly.` After Continue, the standing refinery order `left 2 oil and 1 fuel on turn 22`. |
+| Capital explains the carried stock | Vitest `capitalDialog.test.tsx`, `fr-525-capital-{red,green}.txt` and independent `review.md` | Red showed `2 Oil (2)`. Green shows `2 Oil (2 in warehouse, 0 available for production)`. The four focused suites reported `Tests  40 passed (40)`. |
+
+| Gate | Command or file in `.gate/codex/13/` | Result quoted |
+|---|---|---|
+| Units and simulations | `npm test` (`unit.txt`, `margin.txt`) | `Test Files  136 passed (136)`, `Tests  2872 passed (2872)`. FR-125 minimum `903/563 = 1.603908x at seed 3, turn 25` across all 12 comparisons. |
+| Protected inputs and replay | `git hash-object` vs. `git rev-parse b75d196:<path>` (`scope.txt`) | `PASS identical to b75d196` for the human policies, frozen player, golden replay test, balance tests and timeout configurations. |
+| Lint | `npm run lint` (`lint.txt`) | `2 problems (0 errors, 2 warnings)`, `EXIT 0`. Both warnings also appear in the checkpoint lint log. |
+| Types | `npx tsc --noEmit` (`types.txt`) | `EXIT 0` after using the typed Rancher enum in the new regression. |
+| Production build | `npm run build` (`build.txt`) | `Compiled successfully in 19.3s`, `Generating static pages (4/4)`, `EXIT 0`. |
+| Chromium | `PORT=3123 PLAYWRIGHT_HTML_OPEN=never npx playwright test --workers=1` (`playwright.txt`) | `135 passed (18.9m)`, `EXIT 0`, including the seeded Clipper unlock. |
+| Roadmap | `node .gate/m12/L4-check-roadmap.cjs` (`roadmap.txt`) | `PASS`, `EXIT 0`. The Technology milestone includes M16b as a planned follow-up. |
+| Browser spot checks | `node .gate/codex/13/browser-news.cjs` (`browser-news.txt`, `turn-3-continue.png`, `carried-oil.png`) | Fresh and continued games both showed Streamlined Hulls, Square-Set Timbering, Iron Railroad Bridge and Feed Grasses. `PASS: checkpoint refinery shows 2 in warehouse, 0 available, a waiting standing order, and disabled More Fuel.` M16 part 1 and M16b each have a visible roadmap card. |

@@ -10,7 +10,7 @@ import { COUNCIL } from "@/definisions/council";
 import { SHIPS } from "@/definisions/ships";
 import { ResourceType } from "@/types/Resource";
 import type { TradeCommodity } from "@/types/Market";
-import { councilNominees, isCouncilTurn, isLastMeeting, lastCouncilTurn, nextCouncilTurn, votesNeeded } from "../council/council";
+import { councilNominees, councilVote, isCouncilTurn, isLastMeeting, lastCouncilTurn, nextCouncilTurn } from "../council/council";
 import { tradeCapacityOf, tradeOrdersOf } from "../market/market";
 import { diplomacyAfterThisTurn, partnerRanking, sellersOf, settledTradeBarrier } from "../market/partners";
 import { turnLimitOf } from "../turn/gameOver";
@@ -22,14 +22,12 @@ import { campaignTarget } from "./scriptedWar";
 
 type Propose = (order: Order) => boolean;
 
-/** FR-547: research first takes effect next season. The public calendar and ownership
- * can already settle this season's result when the two remaining powers are the nominees. */
-export function hasAnotherPlanningSeason(state: GameState): boolean {
-  if (state.gameOver || state.turn >= turnLimitOf(state)) return false;
-  if (!isCouncilTurn(state, state.turn)) return true;
-  if (isLastMeeting(state, state.turn)) return false;
-  const holdings = state.nations.map(n => provincesOf(state, n.id).length).filter(count => count > 0);
-  return holdings.length !== 2 || Math.max(...holdings) < votesNeeded(state.provinces.length, state.nations.length);
+/** FR-547: research takes effect next season. Use the Council screen's public vote forecast on meeting turns. */
+export function hasAnotherPlanningSeason(state: GameState, meetingTurn = state.turn): boolean {
+  if (state.gameOver || meetingTurn >= turnLimitOf(state)) return false;
+  if (!isCouncilTurn(state, meetingTurn)) return true;
+  if (isLastMeeting(state, meetingTurn)) return false;
+  return councilVote(state, meetingTurn)?.winnerId === undefined;
 }
 
 /** Buy one scarce input with spare shipping before the final vote. Trade can earn support for an existing embassy. */

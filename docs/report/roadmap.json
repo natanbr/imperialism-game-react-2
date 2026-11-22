@@ -1452,7 +1452,7 @@
       "id": "M16b",
       "title": "Development and computer technology purchases",
       "status": "planned",
-      "statusLabel": "Buyer built locally; resource gates parked",
+      "statusLabel": "Buyer blocked on campaign balance",
       "themes": ["T14"],
       "goal": "Gate resource development by technology and let the computer buy the technologies it needs while meeting the protected score and campaign thresholds.",
       "check": [
@@ -1462,7 +1462,7 @@
       "depends": "M16 part 1, the protected two-islands replay and the existing balance requirements.",
       "size": { "S": 1, "M": 2, "L": 0 },
       "sizeText": "Two medium requirements and one small requirement, plus the cotton development path of FR-526.",
-      "statusText": "FR-523 and the cotton UI remain parked at 95634c6. FR-547 is built and gated on the local buyer branch. All 24 idle games kept five technologies through turns 20 and 40. Controlled games bought and used real unlocks. The score margin passed 12/12, the four original replays matched, and every protected campaign row passed. See .gate/codex/16/.",
+      "statusText": "FR-523 and the cotton UI remain parked at 95634c6. Task 18 remains uncommitted. FR-547 passed 24/24 with an independent legal-purchase replay. Valdoria bought Streamlined Hulls on turn 3 and ordered a Clipper on turn 6. FR-546 earned 10/24 minor votes, FR-489 saw 15/24 actual province captures and only 23/24 timely peace offers, and FR-497 recorded two idle no-pay disband events. Three Clipper budgeting variants also missed the joint gate. See .gate/codex/18/report.md.",
       "spec": "docs/specs/m13-m16.md"
      }
     ]

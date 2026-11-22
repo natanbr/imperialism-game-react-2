@@ -2,8 +2,33 @@
 
 ## Resuming here
 
-- Local buyer branch `claude/m16b-buyer` started Task 16 at the parked commit `5cc6b57`. M16 part 1 is on main at `9bd5a91`.
-- Q143 replaces the FR-527 purchase count with FR-547. The resource gates and cotton UI remain parked at `95634c6`. The local buyer passed the gate. Read `.gate/codex/16/` for measurements and Q143 for the original-game play-test.
+- Local branch `claude/m16b-buyer` remains at `5b2877a`. Task 18 fixes are in the worktree. M16 part 1 is on main at `9bd5a91`.
+- The corrected buyer met FR-547 in all 24 idle games and missed three protected rows: FR-546, FR-489 and FR-497. The commit is blocked. See `.gate/codex/18/report.md`. The resource gates and cotton UI remain parked at `95634c6`.
+
+## 2026-11-22 Task 18 — technology buyer review fixes
+
+Size M. Branch `claude/m16b-buyer`, starting at `5b2877a`. Task 17 recorded five findings.
+- Change — forecast the whole three-turn window from the computer's visible state, including upkeep and returning experts. Use the public Council tally.
+- Consumers — the computer's Shipyard, University and cash budget. The independent acceptance observer replays legal purchases and tracks accepted orders through turn +3.
+- Verify — five red/green regressions, the 24-seed oracle and all protected campaign rows, then the full local gate. Evidence in `.gate/codex/18/`.
+- Objection — a real early purchase can divert money from armies and embassies. The owner requires every original threshold on the same candidate before committing.
+
+| Claim | Command or evidence in `.gate/codex/18/` | Quoted result |
+|---|---|---|
+| Tests first on 5b2877a | `red-forecast.txt`, `red-council.txt`, `red-acceptance-witness.txt` | Four buyer regressions failed, plus the 8-4 minor-vote case. Oracle: "0/24 idle games met every need (48 need observations, 330 affordable purchases replayed)". |
+| Buyer and Council delta review | `review.md`, `green-forecast.txt`, `unit.txt` | Original five regressions pass. The review also exercised a legally escrowed bid, a funded grant that changes 6-4 to a decisive 7-4, and a three-power Council. |
+| FR-547 and ownership | `npm test`, `unit.txt` | "24/24 idle games met every need (24 need observations, 201 affordable purchases replayed)". T3 purchase, T6 Clipper. Both checkpoints: "24/24 reached; min/median/max 6/6/6". |
+| Score, fleet and diplomacy | `measure.cjs`, `measured.txt`, `unit.txt` | FR-125 "903/563" (minimum 1.603908x, 12/12), FR-464 four matching hashes, FR-516 24/24 (8 used), FR-542(i) 20/24, FR-545 21/24. FR-546 "10 of 24 (required 13)". |
+| Campaign and fair play | `unit.txt`, `ship-finance.md` | FR-489 capital/loss/peace/actual captures 24/24/23/15 of 24. FR-497 "no-pay disbands in idle games 2 (required 0)", p95 91.3 ms, zero rejected orders, invariant violations or changed plans in 280 private-order comparisons. |
+| Best alternative with research | `ship-finance.md` | Reserving Clipper materials restored earned votes to 16/24 and timely peace to 24/24, with 16/24 captures and three no-pay events. No qualifying candidate. No continent pin moved. |
+| Unit | `npm test` | `Tests  27 failed \| 2895 passed (2922); Test Files  6 failed \| 133 passed (139)` |
+| Lint | `npm run lint` | `2 problems (0 errors, 2 warnings)` |
+| Types | `npx tsc --noEmit` | `EXIT 0` |
+| Build | `npm run build` | `Generating static pages (4/4), EXIT 0` |
+| Playwright | `PORT=3123 PLAYWRIGHT_HTML_OPEN=never npx playwright test --workers=1` | `135 passed (8.8m)` |
+| Roadmap | `node .gate/m12/L4-check-roadmap.cjs` | `PASS` |
+
+Local changes remain uncommitted. Full findings, other campaign failures and per-seed traces are in `.gate/codex/18/report.md` and `ship-finance.md`.
 
 ## 2026-11-22 Task 16 — buy technology for a planned action
 
@@ -45,37 +70,9 @@ Size M. Owner decision “Try buyer without gates”, branch `claude/m16b-buyer`
 
 The budget moved from the ordinary cash/upkeep floor to reserving another $900 per developer with a distinct eligible owned level-2 project. This funds the difference between $100 and $1,000 civilian jobs and can defer a purchase above the ordinary floor. The buyer also moved from checking projects independently to scheduling known work in the same level and reach order used by FR-131. See `.gate/codex/15/sweeps.md` for the other timing and spending changes.
 
-## 2026-11-21 Task 13 — M16 part 1 checkpoint review
-
-Size M. Fix the four findings recorded in `.gate/codex/12/review.md`.
-- Change and consumers — preserve historical orders across the save migration, align invention news and close the world market's oil supply.
-- Coverage — FR-100/520 full-state replay, FR-521 fresh and loaded news, FR-525 seed-1 fuel path, FR-029 discovery of all six worker cases.
-- Verify — red and green per finding, full Vitest, lint, TypeScript, production build, single-worker Chromium on port 3123 and the roadmap checker.
-- Objection — historical permissions must survive replay without granting a new game or a resumed turn the same permissions.
-
-| Claim | Command or evidence in `.gate/codex/13/` | Result quoted |
-|---|---|---|
-| FR-100/520, legacy replay | Vitest `legacyTechnology.test.tsx`, `red-legacy.txt`, `red-checkpoint-resave.txt`, `green-legacy.txt` | Red `to have a length of 2 but got 1`. Green `5 passed (5)` files and `76 passed (76)` tests, including full-state replay of both the pre-M16 save and its checkpoint resave. |
-| FR-525, seed 1 | Vitest `refinerySupply.test.ts`, `fr-525-red.txt` and `fr-525-green.txt` | Red `"oilDelivered": 2`, `"fuel": 1`. Green `Tests  168 passed (168)` across industry, trade and UI, including zero oil delivered and zero fuel produced on the same orders. |
-| FR-521, fresh and loaded HUD | Vitest `legacyTechnology.test.tsx`, `red-legacy.txt` and `green-legacy.txt` | Red `expected [] to deeply equal [ …(4) ]`. Green `legacyTechnology.test.tsx (5 tests)` includes all four lines exactly once after Continue and a second save. |
-| FR-029, six worker cases | `vitest list tests/engine/orders/workPrices.test.ts -t FR-029`, then a filtered run, `fr-029-{red,green}.txt` | Red `Found 0`. Green `PASS: FR-029 discovers all 6 level 1 worker cases.` Filtered run `9 passed`. |
-| Independent historical oil replay | `checkpoint-replay/generate.cjs` on `b75d196`, then `checkpoint-replay/verify.cjs` on the fix | `PASS: Loaded and replayed b75d196 turn 21 exactly.` After Continue, the standing refinery order `left 2 oil and 1 fuel on turn 22`. |
-| Capital explains the carried stock | Vitest `capitalDialog.test.tsx`, `fr-525-capital-{red,green}.txt` and independent `review.md` | Red showed `2 Oil (2)`. Green shows `2 Oil (2 in warehouse, 0 available for production)`. The four focused suites reported `Tests  40 passed (40)`. |
-
-| Gate | Command or file in `.gate/codex/13/` | Result quoted |
-|---|---|---|
-| Units and simulations | `npm test` (`unit.txt`, `margin.txt`) | `Test Files  136 passed (136)`, `Tests  2872 passed (2872)`. FR-125 minimum `903/563 = 1.603908x at seed 3, turn 25` across all 12 comparisons. |
-| Protected inputs and replay | `git hash-object` vs. `git rev-parse b75d196:<path>` (`scope.txt`) | `PASS identical to b75d196` for the human policies, frozen player, golden replay test, balance tests and timeout configurations. |
-| Lint | `npm run lint` (`lint.txt`) | `2 problems (0 errors, 2 warnings)`, `EXIT 0`. Both warnings also appear in the checkpoint lint log. |
-| Types | `npx tsc --noEmit` (`types.txt`) | `EXIT 0` after using the typed Rancher enum in the new regression. |
-| Production build | `npm run build` (`build.txt`) | `Compiled successfully in 19.3s`, `Generating static pages (4/4)`, `EXIT 0`. |
-| Chromium | `PORT=3123 PLAYWRIGHT_HTML_OPEN=never npx playwright test --workers=1` (`playwright.txt`) | `135 passed (18.9m)`, `EXIT 0`, including the seeded Clipper unlock. |
-| Roadmap | `node .gate/m12/L4-check-roadmap.cjs` (`roadmap.txt`) | `PASS`, `EXIT 0`. The Technology milestone includes M16b as a planned follow-up. |
-| Browser spot checks | `node .gate/codex/13/browser-news.cjs` (`browser-news.txt`, `turn-3-continue.png`, `carried-oil.png`) | Fresh and continued games both showed Streamlined Hulls, Square-Set Timbering, Iron Railroad Bridge and Feed Grasses. `PASS: checkpoint refinery shows 2 in warehouse, 0 available, a waiting standing order, and disabled More Fuel.` M16 part 1 and M16b each have a visible roadmap card. |
-
 ## 2026-11-21 Task 11 — M16 Technology (archived)
 
-The [M16 part 1 journal archive](journal/archive-M16-part-1.md) records the original checkpoint, ten red tests, the seeded Clipper unlock and the full candidate's measurements.
+The [M16 part 1 journal archive](journal/archive-M16-part-1.md) records Tasks 11 and 13, the original checkpoint, the Clipper unlock, the save and oil fixes, and both full gates.
 
 ## 2026-11-20 M15 implementation and review (archived)
 
