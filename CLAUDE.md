@@ -15,12 +15,13 @@ Zustand, Vitest, Playwright. Side project, run mostly by agents. Path alias `@/*
 
 ```bash
 npm run dev                 # dev server (Turbopack)
-npm test                    # all unit tests once
+npm test                    # functional unit tests
 npx vitest run <file>       # one test file
 npm run lint
 npx tsc --noEmit
 npm run build
 npx playwright test         # e2e smoke suite
+npm run test:perf           # wall-clock limits, one worker; run alone after all other checks
 ```
 
 ## Rules that matter most

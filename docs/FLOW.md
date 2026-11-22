@@ -56,8 +56,9 @@ or "none").
 4. **Implement.** Smallest change that turns the tests green. No refactor outside the files
    the task needs; any refactor started is finished in the same task.
 5. **Gate** (scripts, no model tokens): `npm test`, `npm run lint`, `npx tsc --noEmit`,
-   `npm run build`, and from M1 on the two-nation headless test. All must pass before a
-   commit. Never skip hooks or tests to get green.
+   `npm run build`, and from M1 on the two-nation headless test. After these and the
+   Playwright smoke suite, run `npm run test:perf` alone. It checks wall-clock limits with
+   one worker. All must pass before a commit. Never skip hooks or tests to get green.
 6. **Review** (once per L task or milestone, not per task). One reviewer agent reads the
    diff against `docs/requirements.md`: every FR has a test, every test cites an FR, no
    behaviour without an FR, plus a correctness pass. Findings get one fix round; the

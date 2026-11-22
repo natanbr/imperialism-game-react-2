@@ -1,6 +1,6 @@
 import { expect, test as base, type Page } from '@playwright/test';
 import { createGameStore } from '../src/app/store/rootStore';
-import { SAVE_KEY, saveOf } from '../src/app/store/persistence';
+import { SAVE_KEY, saveOf, type SavedGame } from '../src/app/store/persistence';
 import type { GameState } from '../src/app/types/GameState';
 
 export { expect, type Locator, type Page } from '@playwright/test';
@@ -33,6 +33,10 @@ export async function startFreshSeededGame(page: Page) {
 export async function startSeededGame(page: Page, prepare?: (game: GameState) => void) {
   const save = saveOf(createGameStore({ seed: 1 }).getState());
   prepare?.(save.game);
+  await continueSavedGame(page, save);
+}
+
+export async function continueSavedGame(page: Page, save: SavedGame) {
   await page.addInitScript(({ key, value }) => {
     if (localStorage.getItem(key) === null) localStorage.setItem(key, value);
   }, { key: SAVE_KEY, value: JSON.stringify(save) });

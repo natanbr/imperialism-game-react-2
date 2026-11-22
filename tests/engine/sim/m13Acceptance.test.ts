@@ -1,5 +1,5 @@
-// M13 (FR-500): the acceptance table. Every sim threshold of FR-484 to FR-490, FR-493 and FR-497 in one file, written from the
-// table under FR-500 in docs/specs/m13-m16.md before the AI rows were built. Replacement thresholds are recorded in
+// M13 (FR-500): the gameplay thresholds of FR-484 to FR-490, FR-493 and FR-497, written from the table under FR-500 in
+// docs/specs/m13-m16.md before the AI rows were built. FR-497 planning time runs in m13Acceptance.perf.ts. Replacement thresholds are recorded in
 // docs/requirements.md. An implementation that misses a threshold parks the row as blocked with its measured numbers.
 //
 // The games are played once, when the file is collected, with `runGame` of the harness (T-02), so each test name carries its
@@ -24,7 +24,6 @@ import { computerOrders } from '@/engine/ai/players';
 import { tryApplyOrder } from '@/engine/orders/apply';
 import { setTreasury, treasury } from '../fixtures';
 import { MaterialType } from '@/types/Resource';
-import type { Order } from '@/engine/orders/Order';
 import type { GameState } from '@/types/GameState';
 import {
   atTurn,
@@ -37,12 +36,10 @@ import {
   type GameRecord,
   type TurnRecord,
 } from './harness';
-import { COMPUTER_ID, HUMAN_ID, HUMANS, type HumanName, type HumanPolicy } from './humans';
+import { COMPUTER_ID, HUMAN_ID, HUMANS, type HumanPolicy } from './humans';
+import { M13_SCENARIOS, SEEDS_24, type M13Scenario } from './m13Scenarios';
 
 // ---- the thresholds, verbatim from the table under FR-500 ------------------------------------------------------------------
-
-const SEEDS_24: readonly number[] = Array.from({ length: 24 }, (_, i) => i + 1);
-const SEEDS_12: readonly number[] = SEEDS_24.slice(0, 12);
 
 const REQUIRED = {
   /** FR-484 (i): aggressor, seeds 1-12: Valdoria recruits at least 2 regiments in turns 6-15 (before: 0 of 12). */
@@ -77,8 +74,8 @@ const REQUIRED = {
   votesAt40: { games: 13, of: 24, atLeast: 1, atMeeting: 40 },
   /** FR-493: trader: at least 5 units traded between the Great Powers in 40 turns (before: 0 of 24). */
   traded: { games: 18, of: 24, atLeast: 5 },
-  /** FR-497: rejected orders 0, invariant breaks 0, no-pay disbands 0 in idle games, `computerOrders` p95 at most 100 ms. */
-  fair: { rejected: 0, invariantBreaks: 0, noPayDisbands: 0, p95Ms: 100 },
+  /** FR-497: rejected orders 0, invariant breaks 0, no-pay disbands 0 in idle games. */
+  fair: { rejected: 0, invariantBreaks: 0, noPayDisbands: 0 },
   /**
    * M13 review fix round, written before the fix (2026-11-17). FR-538 (ST-01; spec section 1, QA checks 6 and 7, card
    * Q114's objection): idle: the FR-495 border warning shows to Testland at peace before Valdoria's war on it is recorded,
@@ -123,7 +120,7 @@ interface Played {
   seconds: number;
 }
 
-async function play(human: HumanName | HumanPolicy, seeds: readonly number[]): Promise<Played> {
+async function play({ human, seeds }: M13Scenario): Promise<Played> {
   const began = performance.now();
   const games: GameRecord[] = [];
   const crashed: Played['crashed'] = [];
@@ -139,25 +136,10 @@ async function play(human: HumanName | HumanPolicy, seeds: readonly number[]): P
   return { human: typeof human === 'string' ? human : human.name, seeds, games, crashed, seconds: (performance.now() - began) / 1000 };
 }
 
-/**
- * FR-541 (M13 final round): the person as the by-eye QA played, answering the Board of Trade: each turn it offers 1 lumber
- * when the Board says Valdoria bid for lumber last turn (FR-494, the public orders of FR-491), while it has the lumber, and
- * gives no other order. Defined here, not in humans.ts: only this row uses it.
- */
-const follower: HumanPolicy = {
-  name: 'follower',
-  orders: (state, { lastTrade }) => {
-    const me = state.nations.find(n => n.id === HUMAN_ID);
-    const lumber = (me?.warehouse as Record<string, number> | undefined)?.lumber ?? 0;
-    if ((lastTrade[COMPUTER_ID]?.buy.lumber ?? 0) < 1 || lumber < 1) return [];
-    return [{ kind: 'sellCommodity', nationId: HUMAN_ID, commodity: 'lumber', amount: 1 } as Order];
-  },
-};
-
-const idle = await play('idle', SEEDS_24);
-const aggressor = await play('aggressor', SEEDS_12);
-const trader = await play('trader', SEEDS_24);
-const followers = await play(follower, SEEDS_24);
+const idle = await play(M13_SCENARIOS.idle);
+const aggressor = await play(M13_SCENARIOS.aggressor);
+const trader = await play(M13_SCENARIOS.trader);
+const followers = await play(M13_SCENARIOS.follower);
 
 // ---- measuring a row -------------------------------------------------------------------------------------------------------
 
@@ -531,8 +513,6 @@ const allGames = allSims.flatMap(p => p.games);
 const valdoriaRejected = allGames.flatMap(g => g.turns.flatMap(t => t.ordersRejected.filter(r => r.nationId === COMPUTER_ID).map(r => ({ seed: g.seed, human: g.human, turn: t.turn, ...r }))));
 const invariantBreaks = allGames.flatMap(g => g.turns.flatMap(t => t.invariantViolations.map(v => `${g.human} seed ${g.seed} turn ${t.turn}: ${v}`)));
 const noPayDisbands = idle.games.flatMap(g => g.turns.flatMap(t => t.disbands.filter(d => d.reason === 'no-pay').map(d => ({ seed: g.seed, turn: t.turn, ...d }))));
-const ordersP95 = percentile(computerOrdersTimes(allGames), 95);
-const ordersMax = Math.max(...computerOrdersTimes(allGames));
 const gamesPlayed = allGames.length;
 const turnsPlayed = allGames.reduce((n, g) => n + g.turns.length, 0);
 
@@ -550,7 +530,7 @@ describe('M13 acceptance (FR-500): the sim thresholds of the table, seeds 1 to 2
         'M13 acceptance table (docs/specs/m13-m16.md, under FR-500)',
         `  games: idle ${idle.games.length}/${idle.seeds.length} in ${idle.seconds.toFixed(1)} s, aggressor ${aggressor.games.length}/${aggressor.seeds.length} in ${aggressor.seconds.toFixed(1)} s, trader ${trader.games.length}/${trader.seeds.length} in ${trader.seconds.toFixed(1)} s, follower ${followers.games.length}/${followers.seeds.length} in ${followers.seconds.toFixed(1)} s`,
         ...lines,
-        `  FR-497 rejected orders of Valdoria ${valdoriaRejected.length} (required ${REQUIRED.fair.rejected}), invariant breaks ${invariantBreaks.length} (required ${REQUIRED.fair.invariantBreaks}), no-pay disbands in idle games ${noPayDisbands.length} (required ${REQUIRED.fair.noPayDisbands}), computerOrders p95 ${ordersP95.toFixed(1)} ms and max ${ordersMax.toFixed(1)} ms over ${turnsPlayed} turns of ${gamesPlayed} games (p95 required <= ${REQUIRED.fair.p95Ms})`,
+        `  FR-497 rejected orders of Valdoria ${valdoriaRejected.length} (required ${REQUIRED.fair.rejected}), invariant breaks ${invariantBreaks.length} (required ${REQUIRED.fair.invariantBreaks}), no-pay disbands in idle games ${noPayDisbands.length} (required ${REQUIRED.fair.noPayDisbands})`,
         `  other numbers, no threshold: aggressor games: Valdoria attacks anyone in ${aggressor.games.filter(g => attacksOnAnyone(g) > 0).length} of ${aggressor.games.length}; lost provinces by turn ${REQUIRED.provincesKept.byTurn} by the province count: ${aggressor.games.map(g => provincesLostNet(g, REQUIRED.provincesKept.byTurn) ?? '-').join(',')}; Valdoria's last turn: ${aggressor.games.map(g => g.turns.length).join(',')}`,
         '',
       ].join('\n')
@@ -677,9 +657,6 @@ describe('M13 acceptance (FR-500): the sim thresholds of the table, seeds 1 to 2
       expect(noPayDisbands.slice(0, 10)).toEqual([]);
       expect(noPayDisbands.length).toBe(REQUIRED.fair.noPayDisbands);
     });
-    it(`FR-497 computerOrders takes ${ordersP95.toFixed(1)} ms at the 95th percentile (max ${ordersMax.toFixed(1)} ms) over ${turnsPlayed} turns, required at most ${REQUIRED.fair.p95Ms}`, () => {
-      expect(ordersP95).toBeLessThanOrEqual(REQUIRED.fair.p95Ms);
-    });
   });
 });
 
@@ -722,7 +699,7 @@ describe('FR-500 M13 report (no threshold): both Great Powers scripted, racing f
   });
 
   it('FR-500 report: scripted human, seeds 1 to 24; the numbers are printed, nothing is asserted but that every game ran', async () => {
-    const scripted = await play('scripted', SEEDS_24);
+    const scripted = await play({ human: 'scripted', seeds: SEEDS_24 });
     const games = scripted.games;
     const range = (pick: (g: GameRecord) => number | undefined): string => {
       const values = games.map(game => pick(game)).filter((v): v is number => v !== undefined);
