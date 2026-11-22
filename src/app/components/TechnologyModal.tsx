@@ -43,7 +43,7 @@ export function TechnologyModal({ onClose }: { onClose: () => void }) {
       </header>
       <div className={styles.treasury}>Treasury <strong>{money(nation.treasury)}</strong></div>
       <div className={styles.scroll} tabIndex={0} role="region" aria-label="Technology catalogue">
-        <p>Resource improvements are already available in this build. Technology purchases unlock civilian training, the Clipper and the Oil Refinery.</p>
+        {game.rulesRevision !== "m16b" && <p>Resource improvements are already available in this saved game.</p>}
         <section aria-label="Available">
           <h3>Available</h3>
           {available.length === 0 && <p>No technologies available this turn.</p>}

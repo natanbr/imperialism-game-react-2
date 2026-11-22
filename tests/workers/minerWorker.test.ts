@@ -41,7 +41,7 @@ describe('Miner Worker Functionality', () => {
     map,
     transportNetwork: { shippingLanes: [], capacity: 0 },
     tradeRoutes: [],
-    technologyState: { oilDrillingTechUnlocked: false, technologies: [] },
+    rulesRevision: 'm16b',
     difficulty: 'normal',
   };
 
@@ -212,6 +212,7 @@ describe('Miner Worker Functionality', () => {
 
     it('should develop mine from level 1 to level 2', () => {
       const state = structuredClone(baseState);
+      state.nations[0].technologies = ['squareSetTimbering'];
 
       const mineralTile = state.map.tiles.flat().find(
         t => t.terrain === TerrainType.Mountains
@@ -246,7 +247,9 @@ describe('Miner Worker Functionality', () => {
 
     it('should develop mine from level 2 to level 3', () => {
       // Level 3 costs more than the default starting treasury
-      const state = { ...baseState, nations: baseState.nations.map(n => ({ ...n, treasury: 10000 })) };
+      const state = structuredClone(baseState);
+      state.nations[0].treasury = 10000;
+      state.nations[0].technologies = ['dynamite'];
 
       const mineralTile = state.map.tiles.flat().find(
         t => t.terrain === TerrainType.Mountains

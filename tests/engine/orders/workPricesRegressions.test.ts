@@ -24,7 +24,7 @@ function makeState(treasury: number): GameState {
     turn: 1,
     year: 1900,
     seed: 0,
-    nations: nations.map(n => ({ ...n, treasury })),
+    nations: nations.map(n => ({ ...n, treasury, technologies: ['seedDrill'] })),
     cities: [],
     armies: [],
     fleets: [],
@@ -35,7 +35,7 @@ function makeState(treasury: number): GameState {
     map: { ...map, tiles },
     transportNetwork: { shippingLanes: [], capacity: 0 },
     tradeRoutes: [],
-    technologyState: { technologies: [], oilDrillingTechUnlocked: false },
+    rulesRevision: 'm16b',
     difficulty: 'normal',
   } as GameState;
 }

@@ -61,13 +61,17 @@ const runNationDevelopmentPhase = (state: GameState, ctx: TurnContext, finished:
   const tiles: Tile[][] = state.map.tiles.map(row => row.map(tile => {
     let t: Tile = tile;
     t = resolveProspectingOnTile(t, nextTurn, rng);
-    t = resolveDevelopmentJobOnTile(t, nextTurn);
-    t = resolveConstructionJobOnTile(t, nextTurn);
+    t = completeScheduledJobs(t, nextTurn);
     reportCompletions(tile, t, ctx, finished);
     return t;
   }));
   return { ...state.map, tiles };
 };
+
+/** Construction and development have fixed durations and public results, unlike prospecting. */
+export function completeScheduledJobs(tile: Tile, nextTurn: number): Tile {
+  return resolveConstructionJobOnTile(resolveDevelopmentJobOnTile(tile, nextTurn), nextTurn);
+}
 
 /** A job that disappeared in this system has finished (cancelling is an order, not a system). */
 const reportCompletions = (before: Tile, after: Tile, ctx: TurnContext, finished: FinishedConstruction[]): void => {

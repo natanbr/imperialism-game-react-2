@@ -222,7 +222,9 @@ describe('FR-108 no orders for another nation', () => {
   });
 
   it("FR-108 every order the UI builds carries the player's nation id, also when the clicks are on Valdoria's land", () => {
-    show(newGame({ seed: 1 }));
+    const start = newGame({ seed: 1 });
+    start.nations[0].technologies!.push('steelAndIronPlows');
+    show(start);
     const submitted: Order[] = [];
     const real = useGameStore.getState().submitOrder;
     useGameStore.setState({

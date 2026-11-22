@@ -193,6 +193,7 @@ export function createTwoNationGame(seed = 1): GameState {
 
   return {
     turn: 1,
+    rulesRevision: "m16b",
     year: 1815,
     seed,
     turnLimit: TIME_CONFIG.TURN_LIMIT,

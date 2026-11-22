@@ -3,6 +3,7 @@
 import { beforeAll, describe, it, expect } from 'vitest';
 import { newGame } from '@/engine/newGame';
 import { applyTurnOrders, resolveTurn } from '@/engine/turn/resolveTurn';
+import { validateOrder } from '@/engine/orders/validate';
 import { applyOrder } from '@/engine/orders/apply';
 import { computerOrders } from '@/engine/ai/players';
 import { scriptedPlayer, type Player } from '@/engine/ai/scriptedPlayer';
@@ -16,7 +17,7 @@ import type { GameState } from '@/types/GameState';
 import { ResourceType } from '@/types/Resource';
 import { withoutStartForces } from './armyFixtures';
 import { m4ScriptedPlayer } from './m4ScriptedPlayer';
-import { emptyWarehouse, N2, nationOf, setBuilding, setIndustry, setTile, setTreasury, setWarehouse, tileAt } from './fixtures';
+import { emptyWarehouse, N2, nationOf, setTechnologies, setBuilding, setIndustry, setTile, setTreasury, setWarehouse, tileAt } from './fixtures';
 import { CHECKPOINTS, play, SEEDS, start, type Game } from './scriptedGame';
 
 const ENGINEER_2 = 'worker-nation-2-7';
@@ -41,6 +42,10 @@ const allAtLevel = (s: GameState, level: number): GameState => ({
   map: { ...s.map, tiles: s.map.tiles.map(row => row.map(t => (t.ownerNationId === N2 && t.resource ? { ...t, resource: { ...t.resource, level } } : t))) },
 });
 
+it('FR-125 FR-523 individual strategy scenarios start with the current resource gates', () => {
+  expect(start().rulesRevision).toBe('m16b');
+});
+
 describe('FR-125 score acceptance: 40 turns of nation 2 on seeds 1 to 4', () => {
   const now = new Map<number, Game>();
   const m4 = new Map<number, Game>();
@@ -48,8 +53,8 @@ describe('FR-125 score acceptance: 40 turns of nation 2 on seeds 1 to 4', () => 
   beforeAll(() => {
     for (const seed of SEEDS) {
       // Through the registry (FR-099), as the store plays it
-      now.set(seed, play(s => computerOrders(s)[N2], seed));
-      m4.set(seed, play(s => frozen(s, N2), seed));
+      now.set(seed, play(s => computerOrders(s)[N2], seed, 'm16b'));
+      m4.set(seed, play(s => frozen(s, N2), seed, 'm16b'));
     }
   }, 180_000);
 
@@ -60,6 +65,23 @@ describe('FR-125 score acceptance: 40 turns of nation 2 on seeds 1 to 4', () => 
       return { turn, atLeastM4: score >= m4Score, withMargin: score >= MARGIN * m4Score };
     });
     expect(rows).toEqual(CHECKPOINTS.map(turn => ({ turn, atLeastM4: true, withMargin: true })));
+  });
+
+  it('FR-528 both players face the grain level-2 gate and the scripted margin holds at all twelve checkpoints', () => {
+    const s = start();
+    for (const n of s.nations) {
+      const tile = s.map.tiles.flat().find(t => t.ownerNationId === n.id && t.resource?.type === ResourceType.Grain && t.resource.level === 1)!;
+      const farmer = s.map.tiles.flatMap(row => row.flatMap(t => t.workers)).find(w => w.nationId === n.id && w.type === 'farmer')!;
+      expect(validateOrder(s, { kind: 'moveAndStartDevelopment', nationId: n.id, workerId: farmer.id, toTileId: tile.id }))
+        .toEqual({ ok: false, reason: 'missing-technology', techId: 'steelAndIronPlows' });
+    }
+    for (const seed of SEEDS) {
+      for (const [i, turn] of CHECKPOINTS.entries()) {
+        const actual = now.get(seed)!.checkpoints[i].score;
+        const baseline = m4.get(seed)!.checkpoints[i].score;
+        expect.soft(actual, 'seed ' + seed + ', turn ' + turn + ': ' + actual + '/' + baseline).toBeGreaterThanOrEqual(MARGIN * baseline);
+      }
+    }
   });
 
   it('FR-125 no order of nation 2 is refused on any seed', () => {
@@ -100,7 +122,7 @@ describe('FR-125 score acceptance: 40 turns of nation 2 on seeds 1 to 4', () => 
   });
 
   it('FR-125 the same seed gives the same game', () => {
-    expect(play(s => computerOrders(s)[N2], 1).final).toEqual(now.get(1)!.final);
+    expect(play(s => computerOrders(s)[N2], 1, 'm16b').final).toEqual(now.get(1)!.final);
   });
 
   it('FR-125 the numbers, for the journal', () => {
@@ -448,7 +470,8 @@ describe('FR-130 training only when the labour is all used', () => {
 
 describe('FR-131 development: the cheapest level that pays first', () => {
   it('FR-131 on turn 1 every developer starts a level-1 job (level-1 tiles are open to each of them)', () => {
-    const s = start();
+    const initial = start();
+    const s = setTechnologies(initial, N2, ...nationOf(initial, N2).technologies!, 'feedGrasses', 'cottonGin');
     let view = s;
     const levels: number[] = [];
     for (const order of ordersOf(s)) {

@@ -1,4 +1,5 @@
-import { test, expect, Page } from './seededGame';
+import { test, expect, Page, startSeededGame } from './seededGame';
+import type { GameState } from '../src/app/types/GameState';
 
 // M12 (NR-033) "Honest game", lane L2: the map and the HUD in the running app. A new game; nation 1 (Testland) has its
 // capital at 2-9 with its seven civilians. Written by the lane, run by the integration step (the lane runs no browser).
@@ -20,8 +21,9 @@ function collectErrors(page: Page): string[] {
   return errors;
 }
 
-async function open(page: Page, path = '/') {
-  await page.goto(path);
+async function open(page: Page, prepare?: (game: GameState) => void) {
+  if (prepare) await startSeededGame(page, prepare);
+  else await page.goto('/');
   await expect(page.getByTestId('map-scroll')).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
   await expect(page.getByTestId('turn-indicator')).toContainText('Turn: 1 of 40');
 }
@@ -182,7 +184,7 @@ test('FR-373 a prospector sent onto the sea: "Move refused: not possible on that
 
 test('FR-374 the engineer clicks the farm where the farmer has just started: the line says the rail was refused and the engineer moved', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
-  await open(page);
+  await open(page, game => { game.nations[0].technologies!.push('steelAndIronPlows'); });
   await pickCivilian(page, '2-9', 'farmer');
   await tile(page, '3-9').click({ position: { x: 6, y: 6 } });
   await confirmSpendIfAsked(page);
@@ -383,7 +385,7 @@ test('FR-386 FR-387 Cancel asks in a game dialog what comes back; one Cancel und
     native.push(d.message());
     void d.dismiss();
   });
-  await open(page);
+  await open(page, game => { game.nations[0].technologies!.push('steelAndIronPlows'); });
   const cash = async () => Number((await page.locator('.nation-stats').innerText()).replace(/[^\d-]/g, ''));
   const before = await cash();
   await pickCivilian(page, '2-9', 'farmer');

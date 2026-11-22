@@ -41,6 +41,7 @@ import { workersKeptForCampaign } from "./scriptedWar";
 import { capitalComponent } from "./railPlan";
 import { upkeepOf } from "../army/armies";
 import { WorkerType } from "@/types/Workers";
+import { planTechnology } from "./scriptedTechnology";
 
 export type Propose = (order: Order) => boolean;
 type Stock = Record<string, number>;
@@ -116,6 +117,9 @@ export function planEconomy(view: () => GameState, nationId: string, propose: Pr
   planTransport(view(), nationId, propose);
   clearStandingOrders(view(), nationId, propose);
   planGarrison(view, nationId, propose);
+  if (view().rulesRevision === "m16b") {
+    planTechnology(view(), nationId, Math.max(cashReserve(view(), nationId), upkeepReserve(view(), nationId)), propose);
+  }
   planTraining(view, nationId, propose);
   if (fullTradePhases(view(), nationId) >= 3) {
     propose({ kind: "setShipyard", nationId, ship: "indiaman", count: 1 });

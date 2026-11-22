@@ -132,7 +132,7 @@ describe('FR-031 cancelling refunds a job ordered this turn', () => {
 
 describe('FR-032 a finished job leaves its tile', () => {
   it('FR-032 a finished development is gone at once, the worker is free and the tile takes a new job next turn', () => {
-    let s = applyOrder(put(game(), FARMER, T.farm1), { kind: 'startDevelopment', nationId: N1, workerId: FARMER, tileId: T.farm1 });
+    let s = applyOrder(put(withTech(game(), 'steelAndIronPlows'), FARMER, T.farm1), { kind: 'startDevelopment', nationId: N1, workerId: FARMER, tileId: T.farm1 });
     const events = [];
     for (let i = 0; i < 3; i++) {
       const r = resolveTurn(s, {}, 1);

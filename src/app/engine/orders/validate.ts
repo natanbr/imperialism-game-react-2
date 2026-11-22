@@ -3,6 +3,7 @@ import { TerrainType, type Tile } from "@/types/Tile";
 import { WorkerStatus, WorkerType, type Worker } from "@/types/Workers";
 import type { ConstructionKind } from "@/types/jobs/ConstructionJob";
 import { PROSPECTABLE_TERRAIN_TYPES } from "@/definisions/terrainDefinitions";
+import { developmentTechnology } from "@/definisions/developmentTechnology";
 import { CONSTRUCTION_COST, DEVELOPMENT_COST, PROSPECT_COST, constructionCost } from "@/definisions/workPrices";
 import {
   validateCapacityChange,
@@ -39,6 +40,7 @@ import {
   isWorkerBusy,
   nationById,
   nextResourceLevel,
+  owns,
   railConstructionStart,
   railOnMoveStart,
   tileById,
@@ -201,7 +203,7 @@ const checkProspecting: JobCheck = (state, worker, tile) => {
   return OK;
 };
 
-const checkDevelopment: JobCheck = (state, worker, tile) => {
+export const checkDevelopment: JobCheck = (state, worker, tile) => {
   if (!DEVELOPMENT_WORKER_TYPES.includes(worker.type)) return reject("wrong-worker-type");
   if (tile.ownerNationId !== worker.nationId) return reject("not-owner");
   const terrains = DEVELOPMENT_TERRAINS[worker.type];
@@ -210,6 +212,10 @@ const checkDevelopment: JobCheck = (state, worker, tile) => {
   const level = nextResourceLevel(tile);
   if (level > 3) return reject("invalid-target");
   if (hasJob(tile)) return reject("tile-has-job");
+  if (state.rulesRevision === "m16b") {
+    const techId = developmentTechnology(tile.resource.type, level);
+    if (techId && !owns(state, worker.nationId, techId)) return { ok: false, reason: "missing-technology", techId };
+  }
   if (treasuryOf(state, worker.nationId) < DEVELOPMENT_COST[level as 1 | 2 | 3]) return reject("insufficient-funds");
   return OK;
 };

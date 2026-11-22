@@ -28,7 +28,9 @@ The catalogue in `definisions/technologies.ts` records the manual's first year, 
 Each Great Power owns its `Nation.technologies`. The two order kinds reserve or refund the price immediately. The technology phase grants the pending IDs at End Turn, and the invention news lists public releases. Rail, civilian recruitment, refinery and ship construction check the acting nation's holdings. The version-1 loader copies the old shared purchases into independent lists, including any legacy oil permission.
 Version-1 saves retain the original order log and record the turn and count of applied orders when the rules change. `store/sessionReplay.ts` rebuilds the game from its seeded start, validates the historical orders under their original rules, and switches to current rules at that exact point, including partway through a turn.
 The loader fills historical news reports from the same invention calendar as the turn engine, so Continue shows the releases for the turn being opened.
-The Capital Technology dialog lists releases, ownership and prerequisites and submits orders through the store. Development permissions and computer technology purchasing are parked pending balance decisions.
+New games use `m16b`. Human and computer development orders both check the acting nation's technology for the target level. Capital submits purchases through the store.
+Older saves continue and replay under `m16.1`, preserving historical development permissions. The original FR-464 two-islands replay records that edition.
+A separate FR-523/FR-464 replay pins the M16b orders and scores on the same seeds. Its turn-one livestock job is unavailable because Feed Grasses goes on sale on turn three.
 
 ## M15 people and ships
 

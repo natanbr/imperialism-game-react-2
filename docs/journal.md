@@ -2,9 +2,48 @@
 
 ## Resuming here
 
-- M16 part 1 is reviewed and gated on the local `claude/m16-technology` branch, one fix commit after `b75d196`. All 2,872 unit tests and 135 Chromium tests passed. Reproductions, screenshots and gate logs are in `.gate/codex/13/`.
-- M16b is planned for FR-523, FR-527, FR-528 and the cotton development path of FR-526. The full candidate stays parked at `f8470ba`. Its measured balance results are in `.gate/codex/11/balance.md`.
-- To see part 1, open Capital, buy Streamlined Hulls on turn 3 and order a Clipper with 6 lumber and 2 fabric on turn 4.
+- M16 part 1 merged at `9bd5a91`. Task 14 is an uncommitted M16b candidate in `imperialism-game-revival-fee36d` on `claude/m16b-technology`. The resource and replay tests pass. The score, research and diplomacy requirements block the commit.
+- Compare `.gate/codex/14/balance.md` and `islands.md` with the parked `f8470ba` measurements in `.gate/codex/11/balance.md`. The owner decision concerns the computer's investment rules. Keep the protected thresholds and historical replays.
+- To try the cotton path locally, open Capital → Technology, buy Cotton Gin, and advance the turn. A farmer on undeveloped cotton can now start the level-1 job. Screenshots of both states are in `.gate/codex/14/`.
+
+## 2026-11-21 Task 14 — M16b development technology and computer spending
+
+Size L. Start from the merged M16 part 1 checkpoint, `9bd5a91`.
+- Change — use each nation's owned technology for development and let the computer purchase a technology through the ordinary order API.
+- Consumers — validator, Tile Info and Capital, scripted player, replay and save migration. Preserve the old four-seed replay alongside a separate gated replay.
+- Tests — FR-523/526 cover the job and cotton purchase, FR-527 the cheapest eligible purchase and its reserve, FR-528 the twelve score comparisons. Run FR-497/516/542(i)/545/546 on the same policy.
+- Verify — red tests, focused suites, review, full Vitest, ESLint, TypeScript, production build, single-worker Chromium on 3123 and roadmap checker. Evidence goes in `.gate/codex/14/`.
+- Objection: spending from the same treasury can delay rail, mills and diplomacy. Keep the existing thresholds and record any design decision that prevents the rows from passing together.
+
+| Card | Default used | Objection: |
+|---|---|---|
+| Q130 | Spread 100 invention years over the configured game length. | The season and invention year diverge, and the late prices can exceed a nation's cash. |
+| Q131 | Keep Compound Steam Engine, Iron Railroad Bridge and Dynamite at the start. | Dynamite predates its historical sale date in a new game. |
+| Q132 | Retain all seven starting civilians. Apply prerequisites to their work and recruitment. | The starting Rancher can have no job before Feed Grasses. |
+| Q133 | Buy at most one cheapest eligible collected-site unlock per turn and protect the civilian and army reserves. | This excludes ship and military technology from consideration. |
+| Q134 | Defer power plants, oil sites, later regiments, fort levels and warships. | The refinery has no domestic oil supply on these maps. |
+| Q135 | Migrate the shared version-1 holdings and keep the historical campaign rules for replay and Continue. | Both rules editions must remain executable for existing saves. |
+
+| Requirement | Evidence under `.gate/codex/14/` | Result |
+|---|---|---|
+| FR-523, FR-526 | `engine-red.txt`, `fr-523-526-ui-red.txt`, `fr-526-browser-{red,final}.txt` | The engine red run had 11 failures. Both browser sizes initially enabled the locked job. Final Chromium subset: `5 passed`, including the turn-2 unlock. Direct map refusals and move fallbacks now name the required invention. |
+| FR-100, FR-464 | `replay-red.txt`, `m16b-ready-golden-green.txt`, `review-resume-ready.txt` | Initial historical replay: `3 failed`. Both golden editions, purchase and restore/restart tests: `16 passed (16)`. All 139 saved sessions matched the independent part-1 executable. |
+| FR-125, FR-528 | `queued-real-score.log`, `islands.md`, `scripted-current-default-{red,all}.txt` | `t25 764/594` on seed 3. Five of twelve comparisons met 1.5. The turn-15 funding search on that seed topped out at 703 against 706.5. The current score fixture initially returned `m16.1`. After correction its individual scenarios and both golden editions passed. |
+| FR-527, FR-542 (i) | `economy-red.log`, `queued-real-continent.log`, `queued-real-m13.log`, `balance.md` | The protected purchase count is 13/24 (24 required), embassy and pact 6/24 (18 required). FR-527 can buy for an eligible collected site once its worker finishes public, already scheduled work. |
+| FR-545, FR-546, FR-516 | `queued-real-continent.log`, `queued-real-m13.log` | The peaceful diplomat won 22/24 (15 required), Valdoria earned a final minor vote in 18/24 (13 required), and 24/24 fleets reached eight holds (18 required). |
+| FR-497 | `queued-real-m13.log`, `review-visibility-ready.txt` | Zero rejected computer orders, invariant violations or idle no-pay disbands. Removing private human orders changed 0/280 plans. The independent hidden-input probe matched 160/160 decisions. |
+
+Computer spending changed from no research to one cheapest eligible purchase after garrison funding and before training. The parked one-turn worker/site lookahead now uses each public job's actual completion date. Numerical game and policy constants retain their existing values. The measured alternatives and their effects are in `balance.md` and `islands.md`.
+Keep the candidate parked under FR-528. An owner could authorize testing an expansion of Q133 to fund prerequisites towards a known collected upgrade. Under the current rule, every possible buy-or-defer schedule with other spending fixed reached three purchases on only 17/24 seeds. The proposed rule has no measured result.
+
+| Gate | Evidence in `.gate/codex/14/` | Result |
+|---|---|---|
+| `npm test` | `unit.txt`, `unit-before-score-fixture-audit.txt` | `Test Files  9 failed \| 131 passed (140)`, `Tests  37 failed \| 2867 passed (2904)`, `EXIT 1`. The earlier full run had 38 failures. Balance, workforce and campaign regressions remain. |
+| Two load-sensitive checks | `lintGuard-final-alone.txt`, `fr497-after-browser.txt`, `fr497-quiet-final.log`, full logs above | lintGuard previously timed out at 30 s, then passed 17/17 alone and in the final full suite. FR-497 p95 final full 100.2 ms, alone 24.6 ms. The previous pair measured 134.3 and 34.5 ms. Each covered 3,270 turns. |
+| `npm run lint`, `npx tsc --noEmit` | `lint.txt`, `types.txt` | Lint `2 problems (0 errors, 2 warnings)`. Both commands returned `EXIT 0`. |
+| `npm run build` | `build.txt` | `Compiled successfully in 7.8s`, `Generating static pages (4/4)`, `EXIT 0`. |
+| `PORT=3123 PLAYWRIGHT_HTML_OPEN=never npx playwright test --workers=1` | `playwright-during-tuning.txt`, `playwright.txt` | First full run `137 passed (21.5m)`. Frozen buyer `137 passed (17.4m)`, `EXIT 0`. |
+| Roadmap checker and browser card | `roadmap.txt`, `roadmap-ui.txt` | `PASS`, `EXIT 0`. The rendered M16b card reports the three failed requirements. |
 
 ## 2026-11-21 Task 13 — M16 part 1 checkpoint review
 

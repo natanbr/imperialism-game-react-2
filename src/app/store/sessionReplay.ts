@@ -28,7 +28,7 @@ export function withCurrentRules(state: GameState): GameState {
       ...(marine && { merchantMarine: { ...marine, ships: shipsOf(marine), holds: cargoHolds(marine) } }),
     };
   });
-  return { ...game, rulesRevision: "m16.1", nations };
+  return { ...game, rulesRevision: game.rulesRevision ?? "m16.1", nations };
 }
 
 function applyHumanOrders(state: GameState, orders: readonly Order[], historical = false): GameState {
@@ -47,7 +47,8 @@ function applyHumanOrders(state: GameState, orders: readonly Order[], historical
 /** Rebuild the complete game from its original settings, all recorded turns and the current turn's accepted orders. */
 export function replaySession(session: GameSession): GameState {
   const { game, activeNationId, replayBoundary } = session;
-  let state = newGame({ seed: game.seed, world: game.worldId, market: game.market?.mode ?? "world", turnLimit: game.turnLimit });
+  let state = newGame({ seed: game.seed, world: game.worldId, market: game.market?.mode ?? "world", turnLimit: game.turnLimit,
+    rulesRevision: game.rulesRevision ?? "m16.1" });
   if (replayBoundary) {
     const shared = replayBoundary.sharedTechnology;
     state = {

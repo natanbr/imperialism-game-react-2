@@ -53,7 +53,9 @@ describe('M12 FR-404 the score explains itself', () => {
   });
 
   it('FR-402 FR-404 a $1,000 development order on turn 1 shows as 10 points of work in progress; the total stays 240', () => {
-    const ordered = applyOrder(newGame({ seed: 1 }), { kind: 'moveAndStartDevelopment', nationId: N1, workerId: 'worker-nation-1-2', toTileId: '2-8' });
+    const start = newGame({ seed: 1 });
+    start.nations[0].technologies!.push('steelAndIronPlows');
+    const ordered = applyOrder(start, { kind: 'moveAndStartDevelopment', nationId: N1, workerId: 'worker-nation-1-2', toTileId: '2-8' });
     const score = show(ordered);
     expect(text(score)).toBe('Score: 240');
     expect(score.getAttribute('title')).toBe('Treasury 90 + industry 90 + development 50 + work in progress 10');

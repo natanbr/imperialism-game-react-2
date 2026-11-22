@@ -3,6 +3,7 @@ import { validateOrder } from '@/engine/orders/validate';
 import { ORDER_KINDS, Order, RejectReason } from '@/engine/orders/Order';
 import { GameState } from '@/types/GameState';
 import { ResourceType } from '@/types/Resource';
+import { TerrainType } from '@/types/Tile';
 import { WorkerStatus, WorkerType } from '@/types/Workers';
 import { CONSTRUCTION_COST, DEVELOPMENT_COST, PROSPECT_COST } from '@/definisions/workPrices';
 import type { ConstructionKind } from '@/types/jobs/ConstructionJob';
@@ -10,7 +11,7 @@ import { createTileId } from '@/utils/tileIdUtils';
 import { newGame } from '@/engine/newGame';
 import { applyOrder } from '@/engine/orders/apply';
 import { transferProvince } from '@/engine/world/provinces';
-import { deepFreeze, game, N1, N2, put, setIndustry, setPair, setTile, setTreasury, setWarehouse, T, workerId } from './fixtures';
+import { deepFreeze, game, N1, N2, put, setIndustry, setPair, setTechnologies, setTile, setTreasury, setWarehouse, T, workerId } from './fixtures';
 import { ARVELIA_P, continent as armyContinent, idOf, NE1, NW1, relocate, SW1, SW2 } from './armyFixtures';
 
 const W = {
@@ -22,6 +23,36 @@ const W = {
 };
 const barrenHills1 = createTileId(0, 2);
 const enemyBorder = createTileId(4, 1);
+
+describe('FR-523 development unlocks by resource and destination level', () => {
+  const resources = [
+    [ResourceType.Grain, TerrainType.Farm, WorkerType.Farmer, ['seedDrill', 'steelAndIronPlows', 'mechanicalReaper']],
+    [ResourceType.Fruit, TerrainType.Orchard, WorkerType.Farmer, ['seedDrill', 'steelAndIronPlows', 'commercialFertiliser']],
+    [ResourceType.Cotton, TerrainType.Plantation, WorkerType.Farmer, ['cottonGin', 'spinningJenny', 'powerLoom']],
+    [ResourceType.Livestock, TerrainType.OpenRange, WorkerType.Rancher, ['feedGrasses', 'barbedWire', 'chemistry']],
+    [ResourceType.Wool, TerrainType.FertileHills, WorkerType.Rancher, ['feedGrasses', 'spinningJenny', 'powerLoom']],
+    [ResourceType.Timber, TerrainType.HardwoodForest, WorkerType.Forester, ['ironRailroadBridge', 'compoundSteamEngine', 'dynamite']],
+    [ResourceType.Coal, TerrainType.BarrenHills, WorkerType.Miner, [null, 'squareSetTimbering', 'dynamite']],
+    [ResourceType.IronOre, TerrainType.Mountains, WorkerType.Miner, [null, 'squareSetTimbering', 'dynamite']],
+    [ResourceType.Gold, TerrainType.Mountains, WorkerType.Miner, [null, 'squareSetTimbering', 'dynamite']],
+    [ResourceType.Gems, TerrainType.Mountains, WorkerType.Miner, [null, 'squareSetTimbering', 'dynamite']],
+    [ResourceType.Oil, TerrainType.Swamp, WorkerType.Driller, ['oilDrilling', 'chemistry', 'internalCombustion']],
+  ] as const;
+
+  it.each(resources)('%s checks the acting nation for both start and move-and-start', (type, terrain, worker, levels) => {
+    for (const [level, techId] of levels.entries()) {
+      const before = setTile(setTechnologies(game(), N1), T.farm1, { terrain, resource: { type, level, discovered: true } });
+      const id = workerId(N1, worker);
+      const move = { kind: 'moveAndStartDevelopment', nationId: N1, workerId: id, toTileId: T.farm1 } as const;
+      const start = { kind: 'startDevelopment', nationId: N1, workerId: id, tileId: T.farm1 } as const;
+      const otherOwns = techId ? setTechnologies(before, N2, techId) : before;
+      const expected = techId ? { ok: false, reason: 'missing-technology', techId } : { ok: true };
+      expect(validateOrder(otherOwns, move)).toEqual(expected);
+      expect(validateOrder(put(otherOwns, id, T.farm1), start)).toEqual(expected);
+      if (techId) expect(validateOrder(setTechnologies(otherOwns, N1, techId), move)).toEqual({ ok: true });
+    }
+  });
+});
 
 const moved = { status: WorkerStatus.Moved, justMoved: true, previousTileId: T.capital1 };
 const working = { status: WorkerStatus.Working };
@@ -106,7 +137,7 @@ const cases: Case[] = [
   { name: 'FR-004 a farmer developing ranch land', setup: s => put(s, W.farmer, T.range1), order: { kind: 'startDevelopment', nationId: N1, workerId: W.farmer, tileId: T.range1 }, expected: 'invalid-site' },
   { name: 'FR-004 a miner developing an undiscovered mineral', setup: s => put(s, W.miner, T.mountains1), order: { kind: 'startDevelopment', nationId: N1, workerId: W.miner, tileId: T.mountains1 }, expected: 'invalid-target' },
   { name: 'FR-004 developing a resource already at level 3', setup: s => setTile(put(s, W.farmer, T.farm1), T.farm1, { resource: { type: ResourceType.Grain, level: 3 } }), order: { kind: 'startDevelopment', nationId: N1, workerId: W.farmer, tileId: T.farm1 }, expected: 'invalid-target' },
-  { name: 'FR-004 developing to level 2 without its price', setup: s => setTreasury(setTile(put(s, W.farmer, T.farm1), T.farm1, { resource: { type: ResourceType.Grain, level: 1 } }), N1, DEVELOPMENT_COST[2] - 1), order: { kind: 'startDevelopment', nationId: N1, workerId: W.farmer, tileId: T.farm1 }, expected: 'insufficient-funds' },
+  { name: 'FR-004 developing to level 2 without its price', setup: s => setTreasury(setTile(put(setTechnologies(s, N1, 'steelAndIronPlows'), W.farmer, T.farm1), T.farm1, { resource: { type: ResourceType.Grain, level: 1 } }), N1, DEVELOPMENT_COST[2] - 1), order: { kind: 'startDevelopment', nationId: N1, workerId: W.farmer, tileId: T.farm1 }, expected: 'insufficient-funds' },
   { name: 'FR-006 developing with a farmer that moved this turn', setup: s => put(s, W.farmer, T.farm1, moved), order: { kind: 'startDevelopment', nationId: N1, workerId: W.farmer, tileId: T.farm1 }, expected: 'worker-moved' },
 
   // startConstruction

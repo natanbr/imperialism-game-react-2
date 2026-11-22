@@ -55,6 +55,14 @@ function offer(name: string, root: HTMLElement = tileInfo()) {
 }
 const isOff = (button: HTMLElement) => (button as HTMLButtonElement).disabled || button.getAttribute('aria-disabled') === 'true';
 
+it('FR-523 the disabled level-2 grain job names the required invention, price and first turn', () => {
+  const game = setTile(newGame({ seed: 1 }), '3-9', { resource: { type: ResourceType.Grain, level: 1, discovered: true } });
+  showOffers(game, WorkerType.Farmer, '3-9');
+  const job = offer('Develop farmer L2');
+  expect([isOff(job.button), job.reason]).toEqual([true, 'Needs Steel and Iron Plows (Technology, $3,000, from turn 7)']);
+  expect(document.getElementById(job.button.getAttribute('aria-describedby')!)?.textContent).toBe(job.reason);
+});
+
 it('FR-513 a foreign civilian keeps its public status and indicator when its owner orders it disbanded', () => {
   const game = newGame({ seed: 1, world: 'continent' });
   const capital = tileAt(game, '14-9');
@@ -260,7 +268,9 @@ describe('FR-386 FR-387 Cancel says what comes back', () => {
 
   it('FR-386 a job ordered this turn: "Cancel the farmer\'s job? The $1,000 comes back." in a game dialog; confirmed, the money is back', () => {
     // The farmer already stands on 3-9 (no move this turn) and starts level 2 there
-    const confirm = showAfter([{ kind: 'startDevelopment', nationId: N1, workerId: FARMER, tileId: '3-9' }], 0, put(newGame({ seed: 1 }), FARMER, '3-9'));
+    const start = put(newGame({ seed: 1 }), FARMER, '3-9');
+    start.nations[0].technologies!.push('steelAndIronPlows');
+    const confirm = showAfter([{ kind: 'startDevelopment', nationId: N1, workerId: FARMER, tileId: '3-9' }], 0, start);
     expect(cash()).toBe(9000);
     fireEvent.click(cancelButton());
     const dialog = question()!;
@@ -275,7 +285,9 @@ describe('FR-386 FR-387 Cancel says what comes back', () => {
   });
 
   it('FR-386 a job ordered on an earlier turn: "Stop the farmer\'s job? The $1,000 paid is lost."; "Keep working" sends nothing', () => {
-    showAfter([{ kind: 'moveAndStartDevelopment', nationId: N1, workerId: FARMER, toTileId: '3-9' }], 1);
+    const start = newGame({ seed: 1 });
+    start.nations[0].technologies!.push('steelAndIronPlows');
+    showAfter([{ kind: 'moveAndStartDevelopment', nationId: N1, workerId: FARMER, toTileId: '3-9' }], 1, start);
     fireEvent.click(cancelButton());
     const dialog = question()!;
     expect(text(dialog)).toContain("Stop the farmer's job? The $1,000 paid is lost.");
@@ -289,7 +301,9 @@ describe('FR-386 FR-387 Cancel says what comes back', () => {
   });
 
   it('FR-387 moved and started with one click this turn: one confirmed Cancel undoes both, the job then the move; the farmer is back on 2-9 with his money', () => {
-    const confirm = showAfter([{ kind: 'moveAndStartDevelopment', nationId: N1, workerId: FARMER, toTileId: '3-9' }]);
+    const start = newGame({ seed: 1 });
+    start.nations[0].technologies!.push('steelAndIronPlows');
+    const confirm = showAfter([{ kind: 'moveAndStartDevelopment', nationId: N1, workerId: FARMER, toTileId: '3-9' }], 0, start);
     expect(cash()).toBe(9000);
     fireEvent.click(cancelButton());
     const dialog = question()!;

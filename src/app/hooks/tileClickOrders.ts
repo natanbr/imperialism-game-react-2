@@ -8,7 +8,6 @@ import {
   provinceById,
   validateOrder,
   type Order,
-  type RejectReason,
   type ValidationResult,
 } from "@/engine";
 import { areTilesAdjacent } from "@/engine/map/mapHelpers";
@@ -89,7 +88,7 @@ export function tileClickOrders(
 /** A refused order and why. */
 export interface OrderRefusal {
   order: Order;
-  reason: RejectReason;
+  result: Extract<ValidationResult, { ok: false }>;
 }
 
 /** What a click's orders came to (FR-374): the last order tried and its result, and the first order's refusal when a later one was tried. */
@@ -118,16 +117,20 @@ export function submitFirstAccepted(
   return outcome;
 }
 
-const refusalOf = ({ order, last }: SubmitOutcome): OrderRefusal | undefined => (last.ok ? undefined : { order, reason: last.reason });
-
-/** A refusal for the map's status line (FR-373): the engine's refusal, then the tile's own reason where it has one (FR-381). */
-function refusalLine(state: GameState, order: Order, reason: RejectReason): string {
-  const detail = refusalDetail(state, order, reason);
-  return detail ? `${refusalText({ order, reason })} ${detail}` : refusalText({ order, reason });
-}
+const refusalOf = ({ order, last }: SubmitOutcome): OrderRefusal | undefined => (last.ok ? undefined : { order, result: last });
 
 const isRailOrder = (order: Order): boolean =>
   order.kind === "moveAndBuildRail" || (order.kind === "moveAndStartConstruction" && order.structure === "rail");
+
+/** A refusal for the map's status line (FR-373): the engine's refusal, then the tile's own reason where it has one (FR-381). */
+function refusalLine(state: GameState, { order, result }: OrderRefusal, movedInstead = false): string {
+  const { reason } = result;
+  const summary = movedInstead && isRailOrder(order)
+    ? `Rail refused: ${REFUSAL_TEXT[reason]}.`
+    : refusalText({ order, reason });
+  const detail = refusalDetail(state, order, result);
+  return detail ? `${summary} ${detail}${detail.endsWith(".") ? "" : "."}` : summary;
+}
 
 /**
  * The map's status line for a click (FR-373, FR-374): the refusal that ended it; or, when its job was refused and the
@@ -138,12 +141,9 @@ const isRailOrder = (order: Order): boolean =>
 export function clickStatusText(state: GameState, outcome: SubmitOutcome | undefined): string | undefined {
   if (!outcome) return undefined;
   const { order, last, firstRefusal } = outcome;
-  if (!last.ok) return refusalLine(state, order, last.reason);
+  if (!last.ok) return refusalLine(state, { order, result: last });
   if (!firstRefusal || order.kind !== "moveWorker") return undefined;
-  const detail = refusalDetail(state, firstRefusal.order, firstRefusal.reason);
-  const refused = isRailOrder(firstRefusal.order)
-    ? `Rail refused: ${REFUSAL_TEXT[firstRefusal.reason]}.${detail ? ` ${detail}` : ""}`
-    : refusalLine(state, firstRefusal.order, firstRefusal.reason);
+  const refused = refusalLine(state, firstRefusal, true);
   const type = findWorker(state, order.workerId)?.worker.type ?? "civilian";
   return `${refused} The ${type} moved there instead (Cancel brings it back).`;
 }
@@ -231,7 +231,7 @@ export function clickCursors(state: GameState, nationId: string, workerId: strin
 export function submitAndSay(order: Order): ValidationResult {
   const { game, submitOrder, showMapStatus } = useGameStore.getState();
   const result = submitOrder(order);
-  if (!result.ok) showMapStatus(refusalLine(game, order, result.reason));
+  if (!result.ok) showMapStatus(refusalLine(game, { order, result }));
   return result;
 }
 

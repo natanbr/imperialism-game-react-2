@@ -8,7 +8,7 @@ import { countryName, newGame, resolveTurn, tryApplyOrder, upkeepForecast, type 
 import { GameState } from '@/types/GameState';
 import { GoodsType, MaterialType, ResourceType } from '@/types/Resource';
 import { WorkerType } from '@/types/Workers';
-import { game, locate, N1, N2, put, setPair, setTreasury, setWarehouse, T, workerId } from '../engine/fixtures';
+import { game, locate, N1, N2, put, setPair, setTechnologies, setTreasury, setWarehouse, T, workerId } from '../engine/fixtures';
 import { addRegiments, ARVELIA, ARVELIA_P, continent, NW2, SUNDMARK } from '../engine/armyFixtures';
 
 const ALL_REASONS: RejectReason[] = [
@@ -165,7 +165,7 @@ describe('FR-024 worker job label', () => {
     expect(label(order(game(), { kind: 'moveAndBuildRail', nationId: N1, workerId: W.engineer, toTileId: T.farm1 }), W.engineer)).toBe('Constructing rail');
     expect(label(order(put(game(), W.prospector, T.mountains1), { kind: 'startProspecting', nationId: N1, workerId: W.prospector, tileId: T.mountains1 }), W.prospector)).toBe('Prospecting');
     expect(label(order(put(game(), W.farmer, T.farm1), { kind: 'startDevelopment', nationId: N1, workerId: W.farmer, tileId: T.farm1 }), W.farmer)).toBe('Farming to level 1');
-    expect(label(order(game(), { kind: 'moveAndStartDevelopment', nationId: N1, workerId: W.rancher, toTileId: T.range1 }), W.rancher)).toBe('Ranching to level 1');
+    expect(label(order(setTechnologies(game(), N1, 'feedGrasses'), { kind: 'moveAndStartDevelopment', nationId: N1, workerId: W.rancher, toTileId: T.range1 }), W.rancher)).toBe('Ranching to level 1');
     expect(label(order(put(game(), W.engineer, T.orchard1), { kind: 'startConstruction', nationId: N1, workerId: W.engineer, tileId: T.orchard1, structure: 'fort' }), W.engineer)).toBe('Constructing fort');
     expect(label(order(put(game(), W.engineer, T.orchard1), { kind: 'startConstruction', nationId: N1, workerId: W.engineer, tileId: T.orchard1, structure: 'depot' }), W.engineer)).toBe('Constructing depot');
   });

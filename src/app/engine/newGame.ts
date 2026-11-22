@@ -16,6 +16,8 @@ export interface NewGameOptions {
   world?: WorldId;
   /** The market mode (FR-242); the world's own (`WORLD_MARKET`) when omitted. */
   market?: MarketMode;
+  /** Reconstruct historical games with the rules under which their orders were given. */
+  rulesRevision?: GameState["rulesRevision"];
 }
 
 /** A whole number of turns from 1 to MAX_TURN_LIMIT; anything that is not a finite number is the default (FR-105). */
@@ -33,11 +35,11 @@ export function clampTurnLimit(turnLimit: number | undefined): number {
  * draws one, tests pass 1); the map is the same for every seed. `newGame(seed)` is `newGame({ seed })`.
  */
 export function newGame(options: number | NewGameOptions): GameState {
-  const { seed, turnLimit, world = DEFAULT_WORLD, market }: NewGameOptions = typeof options === "number" ? { seed: options } : options;
+  const { seed, turnLimit, world = DEFAULT_WORLD, market, rulesRevision = "m16b" }: NewGameOptions = typeof options === "number" ? { seed: options } : options;
   const { map, nations, minorNations, provinces } = buildWorld(world);
   return withStartForces({
     turn: TIME_CONFIG.STARTING_TURN,
-    rulesRevision: "m16.1",
+    rulesRevision,
     year: TIME_CONFIG.STARTING_YEAR,
     seed,
     worldId: world,

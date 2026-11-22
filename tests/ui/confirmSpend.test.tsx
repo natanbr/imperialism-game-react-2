@@ -153,6 +153,7 @@ describe('FR-383 ask before a large spend', () => {
 
   it('FR-383 a map click: the farmer sent to 3-9 (level 2, $1,000) asks first and stays selected; Spend moves him there and starts the job, then the selection ends on 3-9', () => {
     const start = newGame({ seed: 1 });
+    start.nations[0].technologies!.push('steelAndIronPlows');
     const farmer = civilian(start, WorkerType.Farmer);
     show(start);
     render(<MapView />);
@@ -174,6 +175,7 @@ describe('FR-383 ask before a large spend', () => {
 
   it('FR-383 a map click answered "Keep the money": no order, the farmer stays where he is and stays selected', () => {
     const start = newGame({ seed: 1 });
+    start.nations[0].technologies!.push('steelAndIronPlows');
     const farmer = civilian(start, WorkerType.Farmer);
     show(start);
     render(<MapView />);
@@ -198,6 +200,7 @@ describe('FR-383 ask before a large spend', () => {
 
   it('FR-383 a job the engine would refuse asks nothing: without the money the click is refused and said on the map', () => {
     const start = setTreasury(newGame({ seed: 1 }), N1, 500);
+    start.nations[0].technologies!.push('steelAndIronPlows');
     const farmer = civilian(start, WorkerType.Farmer);
     show(start);
     render(<MapView />);

@@ -95,7 +95,9 @@ describe('FR-115 stacks on any tile', () => {
   });
 
   it("FR-385 with a civilian selected, a click on another tile's stack opens its tray (no order); the tile outside the button still takes the selected civilian's job", () => {
-    show(newGame({ seed: 1 }));
+    const start = newGame({ seed: 1 });
+    start.nations[0].technologies!.push('steelAndIronPlows');
+    show(start);
     const { container } = render(<MapView />);
     submit({ kind: 'moveWorker', nationId: N1, workerId: RANCHER, toTileId: FARM });
     submit({ kind: 'moveWorker', nationId: N1, workerId: FORESTER, toTileId: FARM });

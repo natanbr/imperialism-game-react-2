@@ -1,4 +1,4 @@
-import { test, expect, Page } from './seededGame';
+import { test, expect, Page, startSeededGame } from './seededGame';
 
 // FR-025: three turns played through the UI on the order API, with no console errors.
 // Start of the two-island game (FR-080, FR-081): capital 2-9 on island 1's west shore with all seven
@@ -29,7 +29,7 @@ test('FR-025 move a worker, start a job and end the turn, three times', async ({
   });
   page.on('pageerror', (err) => errors.push(err.message));
 
-  await page.goto('/');
+  await startSeededGame(page, game => { game.nations[0].technologies!.push('steelAndIronPlows'); });
   // In view once the page is live and the first view has scrolled to the capital (FR-083)
   await expect(page.getByTestId('map-scroll')).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
   await expect(tile(page, '2-9')).toBeInViewport({ timeout: 15000 });

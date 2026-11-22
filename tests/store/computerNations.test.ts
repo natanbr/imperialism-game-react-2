@@ -12,7 +12,11 @@ import { game as fixture } from '../engine/fixtures';
 const N1 = 'nation-1';
 const N2 = 'nation-2';
 const farmer = (nationId: string) => `worker-${nationId}-2`; // START_CIVILIANS: prospector, farmer, ...
-const farmerToFarm: Order = { kind: 'moveAndStartDevelopment', nationId: N1, workerId: farmer(N1), toTileId: '3-9' };
+// An undeveloped grain farm is a legal Seed Drill job on the opening turn.
+const farmerToFarm = (state: GameState): Extract<Order, { kind: 'moveAndStartDevelopment' }> => {
+  const farm = state.map.tiles.flat().find(t => t.ownerNationId === N1 && t.resource?.type === ResourceType.Grain && t.resource.level === 0)!;
+  return { kind: 'moveAndStartDevelopment', nationId: N1, workerId: farmer(N1), toTileId: farm.id };
+};
 const sell = (amount: number): Order => ({ kind: 'sellCommodity', nationId: N1, commodity: ResourceType.Timber, amount });
 
 describe('FR-099 End Turn asks the scripted player for nation 2\'s orders', () => {
@@ -35,8 +39,8 @@ describe('FR-099 End Turn asks the scripted player for nation 2\'s orders', () =
 
   it('FR-099 FR-020 the human\'s orders still apply when submitted, and an order for nation 2 is refused', () => {
     const store = createGameStore({ seed: 4 });
-    expect(store.getState().submitOrder(farmerToFarm)).toEqual({ ok: true });
-    const foreign: Order = { ...farmerToFarm, nationId: N2, workerId: farmer(N2), toTileId: '15-9' };
+    expect(store.getState().submitOrder(farmerToFarm(store.getState().game))).toEqual({ ok: true });
+    const foreign: Order = { ...farmerToFarm(store.getState().game), nationId: N2, workerId: farmer(N2), toTileId: '15-9' };
     expect(store.getState().submitOrder(foreign)).toEqual({ ok: false, reason: 'not-owner' });
     const applied = store.getState().game;
 
@@ -61,7 +65,7 @@ describe('FR-100 the order log', () => {
   function played() {
     const store = createGameStore({ seed: 9, market: 'world' });
     const initial = store.getState().game;
-    expect(store.getState().submitOrder(farmerToFarm).ok).toBe(true);
+    expect(store.getState().submitOrder(farmerToFarm(store.getState().game)).ok).toBe(true);
     expect(store.getState().submitOrder(sell(1)).ok).toBe(true);
     store.getState().advanceTurn();
     store.getState().advanceTurn();
@@ -72,11 +76,11 @@ describe('FR-100 the order log', () => {
   }
 
   it('FR-100 End Turn appends { turn, nationId, orders } for every nation in state order: the human\'s applied orders, nation 2\'s player orders', () => {
-    const { store } = played();
+    const { store, initial } = played();
     const log = store.getState().orderLog;
 
     expect(log.map(e => [e.turn, e.nationId])).toEqual([[1, N1], [1, N2], [2, N1], [2, N2], [3, N1], [3, N2]]);
-    expect(log[0].orders).toEqual([farmerToFarm, sell(1)]);
+    expect(log[0].orders).toEqual([farmerToFarm(initial), sell(1)]);
     expect(log[2].orders).toEqual([]);
     expect(log[4].orders).toEqual([sell(2), sell(1)]);
     for (const entry of log.filter(e => e.nationId === N2)) expect(entry.orders.length).toBeGreaterThan(0);
@@ -116,9 +120,9 @@ describe('FR-100 the order log', () => {
 describe('FR-105 startNewGame', () => {
   it('FR-105 FR-100 a new game resets the game, the order log, the event log, the last refusal and isGameOverHidden', () => {
     const store = createGameStore({ game: newGame({ seed: 1, turnLimit: 1 }) });
-    store.getState().submitOrder(farmerToFarm);
+    store.getState().submitOrder(farmerToFarm(store.getState().game));
     store.getState().advanceTurn();
-    store.getState().submitOrder(farmerToFarm); // refused: the game is over
+    store.getState().submitOrder(farmerToFarm(store.getState().game)); // refused: the game is over
     store.getState().hideGameOver();
     expect(store.getState()).toMatchObject({ isGameOverHidden: true });
     expect(store.getState().orderLog.length).toBeGreaterThan(0);

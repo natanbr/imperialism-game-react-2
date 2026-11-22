@@ -13,7 +13,7 @@ import { CONSTRUCTION_COST, DEVELOPMENT_COST, PROSPECT_COST, constructionCost } 
 import { ResourceType } from '@/types/Resource';
 import { TerrainType } from '@/types/Tile';
 import { WorkerType } from '@/types/Workers';
-import { game, N1, put, setTile, setTreasury, T, tileAt, treasury, workerId } from './fixtures';
+import { game, N1, put, setTechnologies, setTile, setTreasury, T, tileAt, treasury, workerId } from './fixtures';
 
 describe('FR-027 calendar', () => {
   it('FR-027 a new game starts on turn 1 in Spring 1815', () => {
@@ -64,7 +64,7 @@ describe('FR-028 job durations come from one table', () => {
   });
 
   it('FR-028 a farmer ordered on turn 1 to level 2 finishes when turn 4 begins', () => {
-    let s = setTile(game(), T.farm1, { resource: { type: ResourceType.Grain, level: 1 } });
+    let s = setTile(setTechnologies(game(), N1, 'steelAndIronPlows'), T.farm1, { resource: { type: ResourceType.Grain, level: 1 } });
     s = put(s, workerId(N1, WorkerType.Farmer), T.farm1);
     s = applyOrder(s, { kind: 'startDevelopment', nationId: N1, workerId: workerId(N1, WorkerType.Farmer), tileId: T.farm1 });
     expect(tileAt(s, T.farm1).developmentJob?.durationTurns).toBe(3);

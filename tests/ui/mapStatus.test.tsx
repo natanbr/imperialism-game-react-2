@@ -16,7 +16,7 @@ import type { GameState } from '@/types/GameState';
 import { TerrainType } from '@/types/Tile';
 import { WorkerType } from '@/types/Workers';
 import { continent } from '../engine/armyFixtures';
-import { put, setTile } from '../engine/fixtures';
+import { locate, put, setTile } from '../engine/fixtures';
 import { text } from './domText';
 import { failOnActWarnings } from './actWarnings';
 
@@ -96,6 +96,22 @@ describe('FR-373 the map status line', () => {
     render(<MapView />);
     act(() => void submitAndSay({ kind: 'startDevelopment', nationId: N1, workerId: farmer, tileId: '5-2' }));
     expect(text(status())).toBe('Develop refused: that tile is not a valid site. A farmer cannot work barren hills.');
+  });
+
+  it.each([
+    { startTile: '3-9', action: 'Develop', fallback: '' },
+    { startTile: '2-9', action: 'Move and develop', fallback: ' The farmer moved there instead (Cancel brings it back).' },
+  ])('FR-373 FR-374 FR-523 a farmer on $startTile clicking the locked farm sees its technology requirement', ({ startTile, action, fallback }) => {
+    const state = newGame({ seed: 1 });
+    const farmer = workerOf(state, WorkerType.Farmer);
+    show(startTile === '2-9' ? state : put(state, farmer, startTile));
+    render(<MapView />);
+    act(() => useGameStore.getState().selectWorker(farmer));
+    fireEvent.click(tile('3-9'));
+    expect(text(status())).toBe(
+      `${action} refused: the required technology is missing. Needs Steel and Iron Plows (Technology, $3,000, from turn 7).${fallback}`
+    );
+    expect(locate(useGameStore.getState().game, farmer)?.tile.id).toBe('3-9');
   });
 
   it('FR-373 the line sits at the bottom centre of the map area (left of the HUD), over the map and under the HUD', () => {

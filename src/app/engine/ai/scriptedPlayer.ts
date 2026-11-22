@@ -3,11 +3,11 @@ import { WorkerStatus, WorkerType } from "@/types/Workers";
 import type { Order } from "../orders/Order";
 import { applyOrder } from "../orders/apply";
 import type { Tile } from "@/types/Tile";
-import type { Worker } from "@/types/Workers";
-import { CONSTRUCTION_COST, DEVELOPMENT_COST } from "@/definisions/workPrices";
+import { developmentLevel } from "./scriptedTechnology";
+import { CONSTRUCTION_COST } from "@/definisions/workPrices";
 import { SCORE_WEIGHTS } from "@/definisions/scoreWeights";
-import { EngineerBuildDurationsTurns, WorkerLevelDurationsTurns } from "@/definisions/workerDurations";
-import { findWorker, nationById, nextResourceLevel, treasuryOf, workersOf, type WorkerLocation } from "../orders/queries";
+import { EngineerBuildDurationsTurns } from "@/definisions/workerDurations";
+import { findWorker, nationById, treasuryOf, workersOf, type WorkerLocation } from "../orders/queries";
 import { validateOrder } from "../orders/validate";
 import { bestDepotSite, nextRailSections, pendingRailTiles, tilesByReach, type DepotSite } from "./railPlan";
 import { planEconomy, planFinalTransport, turnsAfter } from "./economy";
@@ -100,19 +100,6 @@ function depotPaysBack(view: GameState, site: DepotSite): boolean {
   const delivering = turnsAfter(view) - (EngineerBuildDurationsTurns.depot - 1) - site.railNeeded;
   const cost = (CONSTRUCTION_COST.depot + site.railCost) / SCORE_WEIGHTS.dollarsPerPoint;
   return site.gain * delivering >= cost;
-}
-
-/**
- * The level a development job on this tile would reach, when the job pays (FR-131): its 10 points
- * are at least its price in points (level 1 $100 and level 2 $1,000 do; level 3 at $5,000 = 50
- * points does not) and it finishes by the last turn.
- */
-function developmentLevel(view: GameState, tile: Tile, worker: Worker): number | undefined {
-  const level = nextResourceLevel(tile);
-  const price = DEVELOPMENT_COST[level as 1 | 2 | 3];
-  if (price === undefined || price / SCORE_WEIGHTS.dollarsPerPoint > SCORE_WEIGHTS.pointsPerLevel) return undefined;
-  const duration = WorkerLevelDurationsTurns[worker.type]?.[level as 1 | 2 | 3] ?? 1;
-  return turnsAfter(view) >= duration - 1 ? level : undefined;
 }
 
 /**

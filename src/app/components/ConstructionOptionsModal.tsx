@@ -43,7 +43,7 @@ export const ConstructionOptionsModal: React.FC = () => {
   const offerOf = (structure: Structure) => {
     const order = orderOf(structure);
     const result = validateOrder(game, order);
-    return { order, cost: jobCost(game, order), refusal: result.ok ? undefined : offerRefusalText(game, order, result.reason) };
+    return { order, cost: jobCost(game, order), refusal: result.ok ? undefined : offerRefusalText(game, order, result) };
   };
   const depot = offerOf("depot");
   const port = offerOf("port");

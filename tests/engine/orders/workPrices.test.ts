@@ -9,16 +9,11 @@ import { PROSPECT_COST, DEVELOPMENT_COST, CONSTRUCTION_COST } from '@/definision
 
 function makeBaseState(): GameState {
   const { map, nations } = initWorld({ cols: 5, rows: 5 });
-  // Set industry on each nation
-  const nationsWithIndustry = nations.map(n => ({
-    ...n,
-  }));
-
   return {
     turn: 1,
     year: 1900,
     seed: 0,
-    nations: nationsWithIndustry,
+    nations: nations.map(n => ({ ...n, technologies: ['seedDrill', 'feedGrasses', 'ironRailroadBridge', 'oilDrilling'] })),
     cities: [],
     armies: [],
     fleets: [],
@@ -29,7 +24,7 @@ function makeBaseState(): GameState {
     map,
     transportNetwork: { shippingLanes: [], capacity: 0 },
     tradeRoutes: [],
-    technologyState: { technologies: [], oilDrillingTechUnlocked: false },
+    rulesRevision: 'm16b',
     difficulty: 'normal',
   } as GameState;
 }
@@ -113,7 +108,6 @@ describe('FR-029 work prices - every worker type that costs money', () => {
 
   it.each(developmentCases)('deducts level 1 cost for $type', ({ type, terrain, resource }) => {
     const state = makeBaseState();
-    state.nations[0].technologies = ['oilDrilling'];
     const base = state.map.tiles.flat().find(t => t.terrain !== TerrainType.Water && t.terrain !== TerrainType.River)!;
     state.map.tiles[base.y][base.x] = { ...base, terrain, resource: { type: resource, level: 0, discovered: true }, workers: [] };
     const worker: Worker = { id: 'w', type, nationId: 'nation-1', assignedTileId: base.id, efficiency: 100, status: WorkerStatus.Available, justMoved: false };

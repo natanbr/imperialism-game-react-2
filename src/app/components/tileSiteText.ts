@@ -2,7 +2,10 @@
 // wording for Tile Info, Construction Options, the map's status line and the spend question; and who collects a tile
 // (FR-391). Whether a job can start is the engine's validateOrder; this file only words its reason with the tile's facts.
 // It reads state, never builds it.
-import { collectingHub, isConqueredProvince, provinceOf, validateOrder, type Order, type RejectReason } from "@/engine";
+import {
+  collectingHub, isConqueredProvince, provinceOf, validateOrder, type Order, type RejectReason, type ValidationResult,
+} from "@/engine";
+import { technologyById } from "@/definisions/technologies";
 import {
   DEVELOPMENT_WORKER_TYPES,
   TECH,
@@ -17,6 +20,7 @@ import { ResourceDevelopmentTable } from "@/definisions/ResourceDevelopment";
 import { DEVELOPMENT_COST, PROSPECT_COST, constructionCost } from "@/definisions/workPrices";
 import { EngineerBuildDurationsTurns, ProspectorDiscoveryDurationTurns, WorkerLevelDurationsTurns } from "@/definisions/workerDurations";
 import { PROSPECTABLE_TERRAIN_TYPES } from "@/definisions/terrainDefinitions";
+import { technologyTurn } from "@/engine/technology";
 import type { GameState } from "@/types/GameState";
 import { TerrainType, type Tile } from "@/types/Tile";
 import { WorkerStatus, WorkerType, type Worker } from "@/types/Workers";
@@ -166,26 +170,39 @@ function siteReason(state: GameState, order: JobOrder, reason: RejectReason): st
   return undefined;
 }
 
+type OrderRejection = Extract<ValidationResult, { ok: false }>;
+
 /**
  * The line under a refused job offer (FR-381): "A farmer cannot work barren hills.", "A port needs the sea or a river next
  * to it.", "Too close to the capital or another depot.", "This tile already has a fort.", "Not enough money (needs
  * $5,000)."; for a reason with nothing to add, the engine's refusal as a sentence ("The worker already moved this turn.").
  */
-export function offerRefusalText(state: GameState, order: Order, reason: RejectReason): string {
+export function offerRefusalText(
+  state: GameState,
+  order: Order,
+  refusal: OrderRejection,
+): string {
+  const { reason } = refusal;
   if (reason === "insufficient-funds") {
     const cost = jobCost(state, order);
     return cost ? `Not enough money (needs ${money(cost.price)}).` : sentence(REFUSAL_TEXT[reason]);
   }
   if (reason === "tile-has-job") return "Another civilian is already working this tile.";
-  return (isJobOrder(order) ? siteReason(state, order, reason) : undefined) ?? sentence(REFUSAL_TEXT[reason]);
+  return refusalDetail(state, order, refusal) ?? sentence(REFUSAL_TEXT[reason]);
 }
 
 /**
- * What the map's status line adds to a refusal (FR-373 with FR-381): the site reason where the tile's facts say more than
- * the engine's reason ("A farmer cannot work barren hills."); undefined otherwise.
+ * The detail shared by Tile Info and the map's status line (FR-373, FR-381, FR-523).
  */
-export function refusalDetail(state: GameState, order: Order, reason: RejectReason): string | undefined {
-  return isJobOrder(order) ? siteReason(state, order, reason) : undefined;
+export function refusalDetail(state: GameState, order: Order, refusal: OrderRejection): string | undefined {
+  if (!isJobOrder(order)) return undefined;
+  if (refusal.reason === "missing-technology") {
+    const technology = technologyById(refusal.techId);
+    if (technology) {
+      return `Needs ${technology.name} (Technology, ${money(technology.cost)}, from turn ${technologyTurn(state, technology.id)})`;
+    }
+  }
+  return siteReason(state, order, refusal.reason);
 }
 
 /** One job a civilian on its own tile is offered in Tile Info (FR-381): its button's name, its order, price and refusal. */
@@ -219,7 +236,7 @@ export function jobOffers(state: GameState, nationId: string, worker: Worker, ti
   }
   return offers.map(({ name, order }) => {
     const result = validateOrder(state, order);
-    return { name, order, cost: jobCost(state, order), refusal: result.ok ? undefined : offerRefusalText(state, order, result.reason) };
+    return { name, order, cost: jobCost(state, order), refusal: result.ok ? undefined : offerRefusalText(state, order, result) };
   });
 }
 

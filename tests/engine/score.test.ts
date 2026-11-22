@@ -11,7 +11,7 @@ import { ResourceType } from '@/types/Resource';
 import { TerrainType } from '@/types/Tile';
 import { WorkerType } from '@/types/Workers';
 import type { GameState } from '@/types/GameState';
-import { deepFreeze, game, N1, N2, put, setBuilding, setTile, setTreasury, T, workerId } from './fixtures';
+import { deepFreeze, game, N1, N2, put, setBuilding, setTechnologies, setTile, setTreasury, T, workerId } from './fixtures';
 
 // The two-nation fixture: each nation has the six mills and factories (mills 2, factories 1:
 // 9 capacity points) and three level-1 tiles (an orchard next to the capital, another orchard and
@@ -102,9 +102,10 @@ describe('M12 FR-403 a level is worth its price (replaces FR-067\'s 10 per resou
 describe('M12 FR-402 ordering a job does not lower the score (work in progress)', () => {
   const FARMER = 'worker-nation-1-2';
   const ENGINEER = 'worker-nation-1-7';
+  const withPlows = () => setTechnologies(newGame({ seed: 1 }), N1, 'steelAndIronPlows');
 
   it('FR-402 example: a $1,000 development order on turn 1 leaves the score at 240', () => {
-    const s = newGame({ seed: 1 });
+    const s = withPlows();
     expect(scoreOf(s, N1).total).toBe(240);
     const after = applyOrder(s, { kind: 'moveAndStartDevelopment', nationId: N1, workerId: FARMER, toTileId: '2-8' });
     expect(scoreOf(after, N1)).toMatchObject({
@@ -116,7 +117,7 @@ describe('M12 FR-402 ordering a job does not lower the score (work in progress)'
   });
 
   it('FR-402 each job counts floor(price / 100) until it finishes; then its level replaces it', () => {
-    let s = applyOrder(newGame({ seed: 1 }), { kind: 'moveAndStartDevelopment', nationId: N1, workerId: FARMER, toTileId: '2-8' });
+    let s = applyOrder(withPlows(), { kind: 'moveAndStartDevelopment', nationId: N1, workerId: FARMER, toTileId: '2-8' });
     // a depot ($2,000) on the empty orchard 3-7 (3-8 has no depot site on seed 1)
     s = applyOrder(s, { kind: 'moveAndStartConstruction', nationId: N1, workerId: ENGINEER, toTileId: '3-7', structure: 'depot' });
     expect(scoreOf(s, N1)).toMatchObject({ jobsPaid: 3000, points: { workInProgress: 30 } });

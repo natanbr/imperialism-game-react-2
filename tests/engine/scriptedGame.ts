@@ -24,9 +24,9 @@ export interface Health { meals: number; sick: number; starved: number; violatio
  */
 export interface Game { checkpoints: Checkpoint[]; refused: number; health: Health; councils: number; orders: OrdersByNation[]; final: GameState }
 
-/** 40 turns from the real new game; nation 2's orders from `orders`, none for nation 1. */
-export function play(orders: (s: GameState) => Order[], seed: number): Game {
-  let state = start(seed);
+/** The original FR-464 recording omits the edition. Current score comparisons explicitly select M16b. */
+export function play(orders: (s: GameState) => Order[], seed: number, rulesRevision: GameState['rulesRevision'] = 'm16.1'): Game {
+  let state = newGame({ seed, rulesRevision });
   let refused = 0;
   const checkpoints: Checkpoint[] = [];
   const health: Health = { meals: 0, sick: 0, starved: 0, violations: [] };

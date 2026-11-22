@@ -74,7 +74,7 @@ export interface GameState {
   /** Shared ownership in pre-M16 version-1 saves. readSave migrates it to the individual nations. */
   technologyState?: TechnologyState;
   /** Identifies current play in v1 saves; older saves need a historical replay boundary. */
-  rulesRevision?: "m16.1";
+  rulesRevision?: "m16.1" | "m16b";
 
   difficulty: "introductory" | "easy" | "normal" | "hard" | "nighOnImpossible";
 }

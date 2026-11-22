@@ -7,7 +7,7 @@
   "reviewers": 8,
   "folder": "docs/audit/2026-11-14",
   "branch": "claude/m12-honest-game",
-  "main": "de20eca"
+  "main": "9bd5a91"
  },
  "source": "docs/report/roadmap.json, docs/audit/2026-11-14/*.json and docs/requirements.md in the imperialism-game-react-2 repo",
  "reality": {
@@ -180,7 +180,7 @@
    "text": "Of 24 rule topics of the original game: 3 built, 14 partial, 1 wrong, 1 dead code, 5 missing."
   },
   "notChecked": "Not checked by the audit: Firefox and Safari, real touch on a phone, screen readers, and a human game played all the way to a Council win.",
-  "notFixed": "M12 (themes T1 to T10, FR-357 to FR-464) is merged into main 91d7edc (pull request 34), so its findings are fixed on main. M12b (the HUD you asked for, FR-465 to FR-480, and its by-eye QA fixes FR-529 to FR-537) is merged into main 74f595c (pull request 35, 2026-11-17). M13 (theme T11) is merged on the checked origin/main, 1d58b74. M14 (theme T12) merged at 79a94b2. M15 is merged at the Task 11 origin/main baseline, de20eca. You accepted the measured diplomat and Council results for M15 (FR-545 and FR-546). M16 part 1 is a local checkpoint for national technology purchases and Capital unlocks. M16b is planned for technology-gated resource jobs, their cotton unlock test, computer purchases and the protected score margin. M17 and M18 remain planned.",
+  "notFixed": "M12 (themes T1 to T10, FR-357 to FR-464) is merged into main 91d7edc (pull request 34), so its findings are fixed on main. M12b (the HUD you asked for, FR-465 to FR-480, and its by-eye QA fixes FR-529 to FR-537) is merged into main 74f595c (pull request 35, 2026-11-17). M13 (theme T11) is merged on the checked origin/main, 1d58b74. M14 (theme T12) merged at 79a94b2. M15 is merged at the Task 11 origin/main baseline, de20eca. You accepted the measured diplomat and Council results for M15 (FR-545 and FR-546). M16 part 1 merged at 9bd5a91. Task 14 implemented and exercised resource gates, computer purchases and the cotton unlock locally. M16b is blocked on the score, purchase and diplomacy requirements. M17 and M18 remain planned.",
   "filedNote": "The plan named 122 of the 160 findings in its themes. I filed the other 38 under the nearest theme; they are marked \"filed\" and can be moved."
  },
  "statusLegend": [
@@ -1445,14 +1445,14 @@
      "M": 2,
      "L": 2
     },
-    "statusText": "M16 part 1 covers FR-519 through FR-522, FR-524, FR-525 and the Technology dialog and seeded Clipper path of FR-526. Task 13 checks legacy replay, refinery supply, turn-3 news and FR-029 coverage in .gate/codex/13/.",
+    "statusText": "M16 part 1 merged in PR #39 at 9bd5a91. It covers FR-519 through FR-522, FR-524, FR-525 and the Technology dialog and seeded Clipper path of FR-526. Task 13 checks legacy replay, refinery supply, turn-3 news and FR-029 coverage in .gate/codex/13/.",
     "spec": "docs/specs/m13-m16.md",
     "followUps": [
      {
       "id": "M16b",
       "title": "Development and computer technology purchases",
-      "status": "planned",
-      "statusLabel": "Planned",
+      "status": "blocked",
+      "statusLabel": "Blocked by protected balance requirements",
       "themes": ["T14"],
       "goal": "Gate resource development by technology and let the computer buy the technologies it needs while meeting the protected score and campaign thresholds.",
       "check": [
@@ -1462,7 +1462,7 @@
       "depends": "M16 part 1, the protected two-islands replay and the existing balance requirements.",
       "size": { "S": 1, "M": 2, "L": 0 },
       "sizeText": "Two medium requirements and one small requirement, plus the cotton development path of FR-526.",
-      "statusText": "FR-523, FR-527, FR-528 and the remaining cotton development path of FR-526 are planned. Parked candidate f8470ba measured 1.286× against the 1.5× score minimum, 11/24 computer nations with three purchases by turn 20 (24/24 required), and 9/24 games with an embassy and pact by turn 29 (18/24 required). See .gate/codex/11/balance.md.",
+      "statusText": "Resource gates, cotton purchase and both replay editions pass locally. The computer reaches three purchases in 13/24 games (24 required), completes its embassy and pact in 6/24 (18 required), and scores at least 1.5 times the frozen player in 5/12 comparisons. The minimum is 764/594. Task 14 is uncommitted. See .gate/codex/14/balance.md.",
       "spec": "docs/specs/m13-m16.md"
      }
     ]
@@ -2835,7 +2835,7 @@
      "means": "None."
     }
    ],
-   "suggestion": "Option (a), default taken in the full candidate: buy the cheapest useful development technology while preserving reserves. Parked with FR-523 and FR-528 after simulation.",
+   "suggestion": "Option (a), default tested in Task 14. Buy the cheapest available technology for eligible development on a collected tile, protecting both reserves. The candidate reaches three purchases by turn 20 in 13/24 games.",
    "objection": "It ignores ships and military technologies until those milestones exist.",
    "ids": [
     "RULES-GAP-01"
@@ -2880,8 +2880,8 @@
      "means": "Refuse them with FR-362's message."
     }
    ],
-   "suggestion": "Option (a), default taken for M16. Migrate version-1 saves by copying purchased shared IDs and legacy oil ownership to each nation.",
-   "objection": "One migration function to keep until the next version.",
+   "suggestion": "Option (a), default used. Preserve version-1 shared holdings and the rules edition of existing campaigns when loading, continuing and replaying. New campaigns use the M16b resource gates.",
+   "objection": "Both rules editions and the version-1 mid-turn migration must remain executable for historical saves.",
    "ids": [
     "FR-TRUTH-03"
    ],

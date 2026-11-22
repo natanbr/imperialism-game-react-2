@@ -333,7 +333,7 @@ describe('FR-374 a fallback move is said', () => {
     expect(submitFirstAccepted(() => results[i++], [rail, move])).toEqual({
       order: move,
       last: { ok: true },
-      firstRefusal: { order: rail, reason: 'tile-has-job' },
+      firstRefusal: { order: rail, result: { ok: false, reason: 'tile-has-job' } },
     });
   });
 
@@ -350,7 +350,7 @@ describe('FR-374 a fallback move is said', () => {
       after = next;
       return result;
     }, orders);
-    expect(outcome?.firstRefusal).toEqual({ order: orders[0], reason: 'tile-has-job' });
+    expect(outcome?.firstRefusal).toEqual({ order: orders[0], result: { ok: false, reason: 'tile-has-job' } });
     expect(locate(after, ENGINEER_ID)?.tile.id).toBe('3-9');
     expect(clickStatusText(s, outcome)).toBe(
       'Rail refused: another civilian is already working that tile. The engineer moved there instead (Cancel brings it back).'
@@ -456,7 +456,8 @@ describe('FR-374 a fallback move is said', () => {
 
   it('FR-373 a refused click says its last refusal; an accepted click without a fallback says nothing', () => {
     const s = newGame({ seed: 1 });
-    expect(clickStatusText(s, { order: move, last: { ok: false, reason: 'invalid-target' }, firstRefusal: { order: rail, reason: 'invalid-target' } })).toBe(
+    const invalidTarget = { ok: false, reason: 'invalid-target' } as const;
+    expect(clickStatusText(s, { order: move, last: invalidTarget, firstRefusal: { order: rail, result: invalidTarget } })).toBe(
       'Move refused: not possible on that tile.'
     );
     expect(clickStatusText(s, { order: rail, last: { ok: true } })).toBeUndefined();
