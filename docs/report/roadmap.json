@@ -1,13 +1,13 @@
 {
  "project": "Imperialism Revival",
  "schema": 3,
- "updated": "2026-11-21",
+ "updated": "2026-11-22",
  "audit": {
   "date": "2026-11-14",
   "reviewers": 8,
   "folder": "docs/audit/2026-11-14",
   "branch": "claude/m12-honest-game",
-  "main": "de20eca"
+  "main": "9bd5a91"
  },
  "source": "docs/report/roadmap.json, docs/audit/2026-11-14/*.json and docs/requirements.md in the imperialism-game-react-2 repo",
  "reality": {
@@ -180,7 +180,7 @@
    "text": "Of 24 rule topics of the original game: 3 built, 14 partial, 1 wrong, 1 dead code, 5 missing."
   },
   "notChecked": "Not checked by the audit: Firefox and Safari, real touch on a phone, screen readers, and a human game played all the way to a Council win.",
-  "notFixed": "M12 (themes T1 to T10, FR-357 to FR-464) is merged into main 91d7edc (pull request 34), so its findings are fixed on main. M12b (the HUD you asked for, FR-465 to FR-480, and its by-eye QA fixes FR-529 to FR-537) is merged into main 74f595c (pull request 35, 2026-11-17). M13 (theme T11) is merged on the checked origin/main, 1d58b74. M14 (theme T12) merged at 79a94b2. M15 is merged at the Task 11 origin/main baseline, de20eca. You accepted the measured diplomat and Council results for M15 (FR-545 and FR-546). M16 part 1 is a local checkpoint for national technology purchases and Capital unlocks. M16b is planned for technology-gated resource jobs, their cotton unlock test, computer purchases and the protected score margin. M17 and M18 remain planned.",
+  "notFixed": "M12 (themes T1 to T10, FR-357 to FR-464) is merged into main 91d7edc (pull request 34), so its findings are fixed on main. M12b (the HUD you asked for, FR-465 to FR-480, and its by-eye QA fixes FR-529 to FR-537) is merged into main 74f595c (pull request 35, 2026-11-17). M13 (theme T11) is merged on the checked origin/main, 1d58b74. M14 (theme T12) merged at 79a94b2. M15 is merged at the Task 11 origin/main baseline, de20eca. You accepted the measured diplomat and Council results for M15 (FR-545 and FR-546). M16 part 1 merged at 9bd5a91 (pull request 39). On main the player can buy technology and the computer buys none. Both M16b branches are parked pending an original-game play-test. M17 and M18 remain planned.",
   "filedNote": "The plan named 122 of the 160 findings in its themes. I filed the other 38 under the nearest theme; they are marked \"filed\" and can be moved."
  },
  "statusLegend": [
@@ -1250,7 +1250,7 @@
   }
  ],
  "plan": {
-  "orderNote": "M16 part 1 builds on M15's University and Shipyard. M16b is planned for technology-gated development and computer purchases. M17 also depends on the Shipyard. Cards marked \"Needed before\" identify decisions that affect the schedule.",
+  "orderNote": "M16 part 1 builds on M15's University and Shipyard. M16b is parked pending measurements of technology timing and value in the original game. M17 also depends on the Shipyard. Cards marked \"Needed before\" identify decisions that affect the schedule.",
   "milestones": [
    {
     "id": "M12",
@@ -1445,24 +1445,24 @@
      "M": 2,
      "L": 2
     },
-    "statusText": "M16 part 1 covers FR-519 through FR-522, FR-524, FR-525 and the Technology dialog and seeded Clipper path of FR-526. Task 13 checks legacy replay, refinery supply, turn-3 news and FR-029 coverage in .gate/codex/13/.",
+    "statusText": "M16 part 1 covers FR-519 through FR-522, FR-524, FR-525 and the Technology dialog and seeded Clipper path of FR-526. Part 1 merged at 9bd5a91. Task 13 checks legacy replay, refinery supply, turn-3 news and FR-029 coverage in .gate/codex/13/.",
     "spec": "docs/specs/m13-m16.md",
     "followUps": [
      {
       "id": "M16b",
       "title": "Development and computer technology purchases",
-      "status": "planned",
-      "statusLabel": "Planned",
+      "status": "parked",
+      "statusLabel": "Parked",
       "themes": ["T14"],
       "goal": "Gate resource development by technology and let the computer buy the technologies it needs while meeting the protected score and campaign thresholds.",
       "check": [
        "Buy Cotton Gin and verify that a farmer can start a cotton development job.",
-       "Check that the computer buys three technologies by turn 20 in all 24 idle games and retains the required score margin."
+       "Compare the original FR-527 three-purchase quota and the buyer branch’s proposed FR-547 value rule against original-game observations and the protected score and campaign thresholds."
       ],
       "depends": "M16 part 1, the protected two-islands replay and the existing balance requirements.",
       "size": { "S": 1, "M": 2, "L": 0 },
       "sizeText": "Two medium requirements and one small requirement, plus the cotton development path of FR-526.",
-      "statusText": "FR-523, FR-527, FR-528 and the remaining cotton development path of FR-526 are planned. Parked candidate f8470ba measured 1.286× against the 1.5× score minimum, 11/24 computer nations with three purchases by turn 20 (24/24 required), and 9/24 games with an embassy and pact by turn 29 (18/24 required). See .gate/codex/11/balance.md.",
+      "statusText": "The computer buys no technology on main. On claude/m16b-technology (95634c6), FR-523 resource gates plus a buyer lowered FR-125 to 1.286× (1.5× required). On claude/m16b-buyer (49406e9), the buyer alone bought Streamlined Hulls on turn 3 and ordered a Clipper on turn 6 in all 24 idle games. The spending weakened the computer. FR-546 earned a minor vote in 10/24 (13 required) and FR-489 captured a player province in 15/24 (18 required). FR-547 (Q143) is a value rule proposed on the buyer branch. Measure technology timing and value in the original game before tuning.",
       "spec": "docs/specs/m13-m16.md"
      }
     ]
@@ -2835,7 +2835,7 @@
      "means": "None."
     }
    ],
-   "suggestion": "Option (a), default taken in the full candidate: buy the cheapest useful development technology while preserving reserves. Parked with FR-523 and FR-528 after simulation.",
+   "suggestion": "The resource-gate branch tried option (a) and is parked. The buyer-only branch proposes FR-547 (Q143), buying for a planned use within three turns. Compare the timing and value of purchases in the original game before choosing a rule for main.",
    "objection": "It ignores ships and military technologies until those milestones exist.",
    "ids": [
     "RULES-GAP-01"
@@ -3631,6 +3631,16 @@
    "ruling": "Nathan, 2026-11-21. You accepted FR-545 in place of FR-509's diplomat threshold. The diplomat must win a Council by turn 40 without declaring war in at least 15 of 24 games.",
    "objection": "Nine previously winning games now end in defeat. Compare a peaceful player's ability to win the Council against a growing computer fleet in the original game.",
    "ids": ["Q140"]
+  },
+  {
+   "id": "Q143",
+   "title": "When should the computer buy a technology?",
+   "status": "open",
+   "group": "new",
+   "context": "The parked buyer-only branch proposes FR-547. It buys at most one affordable invention per turn when a recruit, ship or collected resource project will use it within three turns. The main game has no computer technology buyer.",
+   "suggestion": "Record the availability, affordability, purchase and first use of inventions in the original game before tuning the buyer.",
+   "objection": "The branch bought Streamlined Hulls on turn 3 and ordered a Clipper on turn 6. Its spending weakened minor votes and province captures.",
+   "ids": ["Q133"]
   }
  ],
  "history": [

@@ -2,9 +2,29 @@
 
 ## Resuming here
 
-- M16 part 1 is reviewed and gated on the local `claude/m16-technology` branch, one fix commit after `b75d196`. All 2,872 unit tests and 135 Chromium tests passed. Reproductions, screenshots and gate logs are in `.gate/codex/13/`.
-- M16b is planned for FR-523, FR-527, FR-528 and the cotton development path of FR-526. The full candidate stays parked at `f8470ba`. Its measured balance results are in `.gate/codex/11/balance.md`.
+- M16 part 1 merged in `9bd5a91`. The human can buy technology. The computer makes no purchases on main.
+- M16b is parked. On `claude/m16b-technology` (`95634c6`), FR-523 resource gates plus the buyer brought FR-125 down to 1.286× (minimum 1.5×). On `claude/m16b-buyer` (`49406e9`), the buyer alone bought Streamlined Hulls on turn 3 and ordered a Clipper on turn 6 in all 24 idle games. The spending weakened the computer. FR-546 earned a minor vote in 10/24 (13 required) and FR-489 captured a player province in 15/24 (18 required).
+- FR-547 (Q143) is the buyer branch's proposed value rule. Measure technology availability, purchase timing and the value of the first unlocked action in the original game before tuning. See `docs/verify-and-tune.md`.
+- Task 19 passed the load trials and full gate on `claude/perf-tests`. Finish future gates with `npm run test:perf` alone. The measured results and six functional logs are indexed in `.gate/codex/19/summary.md`.
 - To see part 1, open Capital, buy Streamlined Hulls on turn 3 and order a Clipper with 6 lumber and 2 fabric on turn 4.
+
+## 2026-11-22 Task 19 — Separate the timing checks
+
+Size M. Run wall-clock assertions alone and keep functional coverage in the normal gate.
+- Change and consumers — give contributors a one-worker performance command, batch the engine lint cases, and prepare a real turn-2 save for the New Game browser check.
+- Coverage — FR-481 and FR-497 retain the original timing limits and simulation inputs. FR-001/002/080 retain every prohibited and permitted case. FR-109 exercises Keep playing and Start new game.
+- Verify — run three pairs of concurrent `npm test` processes, then lint, types, build, Chromium, the roadmap checker and finally `npm run test:perf` alone.
+- Prior failures — Task 15 recorded `Test timed out in 30000ms` on the first engine lint case and `Test timeout of 30000ms exceeded` waiting for the turn-2 HUD during FR-109 setup. Task 19 was requested after FR-497 measured 155–177 ms under load against its 100 ms limit.
+- Objection — a separate command can be overlooked. The documented gate includes it as the final step.
+
+| Claim | Command or evidence in `.gate/codex/19/` | Quoted result |
+|---|---|---|
+| Three load trials, two full functional suites per trial | Six `npm test` logs, `pair-final1-primary.log` through `pair-final3-load.log` | Every run printed `136 passed (136)` files and `2871 passed (2871)` tests. Each pair overlapped for at least 224 seconds. The FR-497 private-order comparisons passed, with zero rejected orders, invariant breaks and idle no-pay disbands. |
+| FR-001/002/080 engine rules | `lintGuard-before.txt`, the six paired runs and `wiring.log` | The first cold probe loaded the full Next.js lint configuration, and each of 17 cases created a new ESLint instance. Batching alone still took 15–17 s in the first trial. One batch against the shared engine config took 2.67–3.62 s under load, with the original 30 s limit. The wiring check printed `PASS` for the production rules and parser. |
+| FR-109 setup and both New Game choices | Focused Chromium, `fr109.log` and `fr109-load.log` | The old setup waited for the map and a live turn to resolve and render inside the test's 30 s budget. The new setup restores a real seed-1 turn-2 save. `1 passed (14.5s)` alone and `1 passed (19.8s)` during a load trial. The latter browser case took 3,516 ms. |
+| Static gates and roadmap | `npm run lint`, `npx tsc --noEmit`, `npm run build`, `node .gate/m12/L4-check-roadmap.cjs` | Lint `2 problems (0 errors, 2 warnings)`. Types and build `EXIT 0`. Roadmap `PASS` against main `9bd5a91`. |
+| Full browser gate | `PORT=3123 PLAYWRIGHT_HTML_OPEN=never npx playwright test --workers=1` | `135 passed (8.5m)` |
+| Wall-clock thresholds, one worker after Chromium exited | `npm run test:perf` | `2 passed (2)`. FR-497 recorded `computerOrders p95 13.1 ms and max 42.2 ms over 3210 turns of 84 games` (p95 ≤100 ms). FR-481 recorded `0.6 s over 40 turns` (limit <15 s) and a maximum plan of 42.3 ms (limit <5,000 ms). |
 
 ## 2026-11-21 Task 13 — M16 part 1 checkpoint review
 

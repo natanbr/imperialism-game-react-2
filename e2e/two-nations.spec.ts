@@ -1,4 +1,6 @@
-import { test, expect, Page, expectFreshGameSeed } from './seededGame';
+import { test, expect, Page, continueSavedGame, expectFreshGameSeed } from './seededGame';
+import { createGameStore } from '../src/app/store/rootStore';
+import { saveOf } from '../src/app/store/persistence';
 
 // M4 part B in the running app: the player watches Valdoria (nation 2, scripted, island 2, capital 14-9)
 // grow. FR-106 the HUD ranks both nations, FR-107 the news names Valdoria, FR-108 Valdoria's capital is
@@ -68,8 +70,11 @@ test('FR-106 FR-107 FR-108 after five End Turns the HUD ranks both nations, the 
 
 test('FR-109 New game in the HUD asks first; Start new game goes back to turn 1 with the news and selection cleared', async ({ page }) => {
   const errors = collectErrors(page);
-  await start(page);
-  await endTurn(page, 2);
+  const store = createGameStore({ seed: 1 });
+  store.getState().advanceTurn();
+  await continueSavedGame(page, saveOf(store.getState()));
+  await expect(page.getByTestId('turn-indicator')).toContainText('Turn: 2 of 40');
+  await expect(page.getByTestId('news-panel').getByRole('heading')).toHaveText(/^News from last turn \(turn 1,/);
   await tile(page, '3-9').click({ position: { x: 6, y: 6 } });
   await expect(page.getByTestId('tile-info')).toBeVisible();
 
@@ -79,6 +84,7 @@ test('FR-109 New game in the HUD asks first; Start new game goes back to turn 1 
   await confirm.getByRole('button', { name: 'Keep playing' }).click();
   await expect(confirm).toHaveCount(0);
   await expect(page.getByTestId('turn-indicator')).toContainText('Turn: 2 of 40');
+  await expect(tile(page, '3-9')).toHaveAttribute('data-selected', 'true');
 
   await page.getByRole('button', { name: /New game/ }).click();
   await confirm.getByRole('button', { name: 'Start new game' }).click();
