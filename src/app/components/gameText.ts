@@ -410,8 +410,18 @@ export function eventText(event: GameEvent, nameOf: (countryId: string) => strin
       const action = event.via === "rail" ? "deployed by rail" : event.via === "sea" ? "sailed as reinforcements" : "marched";
       return `${regiments(event.count)} ${action} from ${nameOf(event.fromProvinceId)} to ${nameOf(event.toProvinceId)}.`;
     }
-    case "attack-cancelled":
-      return `Attack on ${nameOf(event.provinceId)} cancelled. ${nameOf(event.capturedById)} captured it first. Troops stayed in ${nameOf(event.fromProvinceId)}.`;
+    case "attack-cancelled": {
+      const reason = `Attack on ${nameOf(event.provinceId)} cancelled. ${nameOf(event.capturedById)} captured it first.`;
+      const from = nameOf(event.fromProvinceId);
+      const troops = event.troops;
+      if (!troops) return `${reason} The attack was ordered from ${from}.`;
+      if (!troops.lost && !troops.relocated) return `${reason} Troops stayed in ${from}.`;
+      const outcomes = [];
+      if (troops.stayed) outcomes.push(`${regiments(troops.stayed)} stayed`);
+      if (troops.relocated) outcomes.push(`${regiments(troops.relocated)} retreated`);
+      if (troops.lost) outcomes.push(`${regiments(troops.lost)} lost`);
+      return `${reason} Waiting troops in ${from}: ${outcomes.join(", ")}.`;
+    }
     case "sea-deployment-failed":
       return `Landing from ${nameOf(event.fromProvinceId)} to ${nameOf(event.toProvinceId)} stopped: ${REFUSAL_TEXT[event.reason]}. Troops stayed at their origin.`;
     case "naval-engagement": {

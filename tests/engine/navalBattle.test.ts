@@ -39,6 +39,17 @@ function contact(state: GameState, fixedDraw?: number) {
   return { state: next, reports: events.filter(e => e.type === 'naval-engagement') };
 }
 
+it('FR-552 reports first contact and fresh damage, keeping an unchanged contested approach quiet', () => {
+  const first = resolveTurn({ ...battle(fleet(N1, ship('one')), fleet(N2, ship('two'))), seed: 2849 }, {});
+  const second = resolveTurn(first.state, {});
+  const reports = (events: GameEvent[]) => events.filter(e => e.type === 'naval-engagement');
+  expect(reports(first.events)).toHaveLength(1);
+  expect(first.state.fleets.every(f => f.contested && !f.ships[0].hullDamage)).toBe(true);
+  expect(second.state.fleets).toEqual(first.state.fleets);
+  expect(reports(second.events)).toEqual([]);
+  expect(contact(second.state, 0).reports[0]?.sides[0].ships?.[0].hullAfter).toBeLessThan(35);
+});
+
 it.each([[0.4999, 3], [0.5, 0]])('FR-552 resolves three volleys at the 50%% hit boundary (draw %f)', (draw, hits) => {
   const base = battle(fleet(N1, ship('one', { firepower: 12 })), fleet(N2, ship('two')));
   const { state, reports } = contact(base, draw);

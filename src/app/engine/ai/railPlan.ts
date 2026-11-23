@@ -4,7 +4,7 @@
 import { ResourceDevelopmentTable } from "@/definisions/ResourceDevelopment";
 import type { GameState } from "@/types/GameState";
 import { TerrainType, type Tile } from "@/types/Tile";
-import { getNeighborCoords } from "../map/mapHelpers";
+import { getNeighborCoords, isRailLand } from "../map/mapHelpers";
 import { hasJob, isDepotSite, isGreatPowerCapital, isLand, nationById, railTerrainAllowed } from "../orders/queries";
 import { isRailLinked } from "../systems/railroadSystem";
 import { CONSTRUCTION_COST, constructionCost } from "@/definisions/workPrices";
@@ -79,7 +79,7 @@ export function capitalComponent(state: GameState, nationId: string): Set<string
 
 /** A tile rail may run over: own land where rail is allowed, already rail or free of other jobs (FR-113). */
 function isPassable(state: GameState, tile: Tile, nationId: string): boolean {
-  if (tile.ownerNationId !== nationId || !isLand(tile)) return false;
+  if (tile.ownerNationId !== nationId) return false;
   if (tile.connected || tile.depot || tile.terrain === TerrainType.Capital) return true;
   return railTerrainAllowed(state, tile) && !hasJob(tile);
 }
@@ -89,6 +89,7 @@ function isPassable(state: GameState, tile: Tile, nationId: string): boolean {
  * `targets`, both ends included; undefined when none exists.
  */
 export function railPath(state: GameState, nationId: string, from: string, targets: Set<string>): string[] | undefined {
+  if (!isRailLand(tileAtKey(state, from))) return undefined;
   if (targets.has(from)) return [from];
   const previous = new Map<string, string>([[from, from]]);
   const queue = [from];
@@ -96,7 +97,8 @@ export function railPath(state: GameState, nationId: string, from: string, targe
     const k = queue.shift()!;
     for (const n of neighbourKeys(state, k)) {
       if (previous.has(n)) continue;
-      if (!targets.has(n) && !isPassable(state, tileAtKey(state, n), nationId)) continue;
+      const tile = tileAtKey(state, n);
+      if (!isRailLand(tile) || (!targets.has(n) && !isPassable(state, tile, nationId))) continue;
       previous.set(n, k);
       if (targets.has(n)) {
         const path = [n];

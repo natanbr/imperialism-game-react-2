@@ -22,6 +22,7 @@ import { TRADE_COMMODITIES } from "@/definisions/marketPrices";
 import { SCORE_WEIGHTS } from "@/definisions/scoreWeights";
 import { CONSTRUCTION_COST, DEVELOPMENT_COST } from "@/definisions/workPrices";
 import { buildingOf, START_WORKERS } from "../industry/industryState";
+import { planProduction } from "../industry/productionPlan";
 import { GRADES, healthyWorkers, labourTotal } from "../industry/labour";
 import { marketOf, priceOf, tradeCapacityOf, tradeOrdersOf } from "../market/market";
 import { marketModeOf } from "../market/partners";
@@ -277,17 +278,36 @@ function planTraining(view: () => GameState, nationId: string, propose: Propose)
   }
 }
 
+const garrisonTarget = (state: GameState, nationId: string): number =>
+  armsWanted(state, nationId) ? SCRIPTED_GARRISON.armaments : 0;
+
 /** The armaments the run makes first while arms are wanted (FR-213, FR-274): up to 2 in stock, within the metal works. */
-const garrisonArmaments = (state: GameState, nationId: string): number => {
-  if (!armsWanted(state, nationId)) return 0;
-  const nation = nationOf(state, nationId);
-  const short = SCRIPTED_GARRISON.armaments - ((nation.warehouse as Stock)[GoodsType.Armaments] ?? 0);
+const garrisonArmaments = (nation: Nation, target: number): number => {
+  const short = target - (nation.warehouse[GoodsType.Armaments] ?? 0);
   return Math.max(0, Math.min(short, buildingOf(nation, "metalWorks").capacity));
 };
 
-/** The steel those armaments take (2 each). */
-const garrisonSteel = (state: GameState, nationId: string): number =>
-  garrisonArmaments(state, nationId) * RECIPES[GoodsType.Armaments].inputs[0].amount;
+/** Materials expansion and coastal defence may spend after paid orders, standing production and protected plans. */
+export function stockAfterCommitments(state: GameState, nationId: string) {
+  const nation = nationOf(state, nationId);
+  const { stock, made } = planProduction(nation);
+  const hull = saveShipMaterials(state, nationId) ? SHIPS.indiaman : undefined;
+  const migrant = nextMigrantWanted(state, nationId);
+  const arms = garrisonTarget(state, nationId);
+  // Scheduled batches have already taken their inputs from stock. Reserve inputs only for the unfilled plan.
+  const furniture = migrant && !made.furniture ? RECIPES[GoodsType.Furniture].inputs[0].amount : 0;
+  const clothing = migrant && !made.clothing ? RECIPES[GoodsType.Clothing].inputs[0].amount : 0;
+  const armsToMake = Math.max(0, garrisonArmaments(nation, arms) - (made.armaments ?? 0));
+  // Unbuilt cars refund their cost at resolution. An order now can spend only what is already in the warehouse.
+  const free = (resource: MaterialType | GoodsType, reserved: number) =>
+    Math.max(0, Math.min(nation.warehouse[resource] ?? 0, (stock[resource] ?? 0) - reserved));
+  return {
+    lumber: free(MaterialType.Lumber, (hull?.lumber ?? 0) + furniture),
+    fabric: free(MaterialType.Fabric, (hull?.fabric ?? 0) + clothing),
+    steel: free(MaterialType.Steel, armsToMake * RECIPES[GoodsType.Armaments].inputs[0].amount),
+    armaments: free(GoodsType.Armaments, arms),
+  };
+}
 
 /** The lumber + steel pairs the labour can make a turn (4 labour a pair). */
 const pairsLabourAllows = (nation: Nation): number =>
@@ -302,14 +322,10 @@ const pairsLabourAllows = (nation: Nation): number =>
  */
 function planExpansion(view: () => GameState, nationId: string, propose: Propose): void {
   const capped = BUILDING_ORDER.filter((b) => !BUILDINGS[b].unlimited && !BUILDINGS[b].needsOilDrilling);
-  const reserved = garrisonSteel(view(), nationId);
-  // FR-485: the lumber of the next migrant's furniture stays out too (the run makes it first)
-  const migrantLumber = nextMigrantWanted(view(), nationId) ? RECIPES[GoodsType.Furniture].inputs[0].amount : 0;
-  const keptLumber = migrantLumber + (saveShipMaterials(view(), nationId) ? SHIPS.indiaman.lumber : 0);
+  const { lumber, steel } = stockAfterCommitments(view(), nationId);
+  let pairs = Math.min(lumber, steel);
   for (let guard = 0; guard < 64; guard++) {
     const nation = nationOf(view(), nationId);
-    const stock = nation.warehouse as Stock;
-    const pairs = Math.min((stock[MaterialType.Lumber] ?? 0) - keptLumber, (stock[MaterialType.Steel] ?? 0) - reserved);
     const target = pairsLabourAllows(nation);
     const steps = capped
       .map((building) => {
@@ -320,7 +336,9 @@ function planExpansion(view: () => GameState, nationId: string, propose: Propose
       })
       .filter((step) => step.cost <= pairs)
       .sort((a, b) => a.first - b.first || a.cost - b.cost || a.size - b.size);
-    if (!steps.some(({ building }) => propose({ kind: "expandBuilding", nationId, building }))) return;
+    const expanded = steps.find(({ building }) => propose({ kind: "expandBuilding", nationId, building }));
+    if (!expanded) return;
+    pairs -= expanded.cost;
   }
 }
 
@@ -422,7 +440,7 @@ export function planRun(state: GameState, nationId: string, labour = labourTotal
   const have = (type: string) => (stock[type] ?? 0) + (run.made[type as ProductionOutput] ?? 0);
 
   // FR-213: under a threat the run first makes the garrison's armaments, up to 2 in stock
-  make(run, GoodsType.Armaments, garrisonArmaments(state, nationId));
+  make(run, GoodsType.Armaments, garrisonArmaments(nation, garrisonTarget(state, nationId)));
   if (saveShipMaterials(state, nationId)) {
     // A full fleet competes with expansion for lumber and with the clothing factory for fabric.
     // Reserve this hull's stock and run the mills for its shortfall before those uses.
@@ -591,7 +609,7 @@ function nextUseOf(state: GameState, nationId: string, next: Stock): Stock {
   const fibreUse = 2 * capacityOf(nation, "textileMill");
   const ore = (other: ResourceType) => Math.min(steelCap, next[other] ?? 0);
   return {
-    ...(armsWanted(state, nationId) ? { [GoodsType.Armaments]: SCRIPTED_GARRISON.armaments } : {}),
+    [GoodsType.Armaments]: garrisonTarget(state, nationId),
     [MaterialType.Lumber]: Infinity,
     [MaterialType.Steel]: Infinity,
     [MaterialType.Paper]: Infinity,

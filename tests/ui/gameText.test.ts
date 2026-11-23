@@ -37,7 +37,9 @@ it('FR-552/556 shows hull damage, losses and the holder to players and observers
 
 it('FR-556/560 explains the cancelled attack and names the origin and the power that took the target', () => {
   const event: GameEvent = { type: 'attack-cancelled', nationId: 'Testland', capturedById: 'Valdoria', provinceId: 'Pellis', fromProvinceId: 'Sundmark' };
-  expect(newsLines([event], 'Testland', id => id)).toEqual([
+  expect(eventText(event)).toContain('The attack was ordered from Sundmark.');
+  expect(eventText({ ...event, troops: { lost: 1, relocated: 0, stayed: 0 } })).toContain('Waiting troops in Sundmark: 1 regiment lost.');
+  expect(newsLines([{ ...event, troops: { stayed: 1, relocated: 0, lost: 0 } }], 'Testland', id => id)).toEqual([
     'Attack on Pellis cancelled. Valdoria captured it first. Troops stayed in Sundmark.',
   ]);
 });

@@ -7,6 +7,7 @@ import { armyIn, continent, NE1, NW1, NW2, SW1, relocate } from './armyFixtures'
 import { N1, nationOf, setTile } from './fixtures';
 import { TerrainType } from '@/types/Tile';
 import { getAdjacentTiles } from '@/engine/map/mapHelpers';
+import { railConstructionStart } from '@/engine/orders/queries';
 import type { GameState } from '@/types/GameState';
 import type { MoveArmyOrder } from '@/engine/orders/Order';
 
@@ -23,6 +24,15 @@ const apply = (s: GameState, order: Parameters<typeof tryApplyOrder>[1]) => {
 };
 
 describe('FR-555 rail deployment', () => {
+  it('FR-137/555 refuses a Coast rail section, including an explicitly named endpoint', () => {
+    const start = setTile(fixture(15), '2-8', { terrain: TerrainType.Coast, ownerNationId: N1 });
+    const coast = start.map.tiles[8][2];
+    const capital = start.map.tiles[9][2];
+    expect(railConstructionStart(start, N1, coast)).toBeUndefined();
+    expect(railConstructionStart(start, N1, coast, capital.id)).toBeUndefined();
+    const oldTrack = setTile(start, coast.id, { connected: true });
+    expect(railConstructionStart(oldTrack, N1, oldTrack.map.tiles[7][2], coast.id)).toBeUndefined();
+  });
   it('uses only cars in service, whole ARMS and a distinct owned destination on this landmass', () => {
     const regular = ['regiment-1'];
     expect(validateOrder(fixture(4, 1), rail(regular)).ok).toBe(false);

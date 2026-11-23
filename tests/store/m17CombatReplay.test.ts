@@ -28,13 +28,14 @@ it('FR-558/560 retains a historical joint land battle and its outcome without an
 });
 
 it('FR-558 keeps from-start replay for an old naval campaign before the squadrons fought', () => {
-  const legacy = oldSave('pre-q145-engagement.json.gz');
-  const earlier = { ...legacy, game: { ...legacy.game, turn: 3 }, orderLog: legacy.orderLog.filter(e => e.turn < 3), eventLog: legacy.eventLog.slice(0, 2) };
-  const original = replaySession(earlier);
-  expect(original.fleets).toHaveLength(2);
-  const loaded = load({ ...earlier, game: Object.fromEntries(Object.entries(original).reverse()) });
+  // Recorded after turn two with 59fe854, the last engine before Q145.
+  const legacy = oldSave('pre-q145-before-engagement.json.gz');
+  expect(legacy.game.turn).toBe(3);
+  expect(legacy.game.fleets).toHaveLength(2);
+  const loaded = load({ ...legacy, game: Object.fromEntries(Object.entries(legacy.game).reverse()) });
   expect(loaded.replayBoundary).toBeUndefined();
-  expect(replaySession(loaded)).toEqual(loaded.game);
+  expect(loaded.game).toEqual(legacy.game);
+  expect(replaySession(loaded)).toEqual(legacy.game);
 });
 
 it('FR-552/558 continues the old intact engagement, keeps its midturn order and reuses the original checkpoint after saving again', () => {

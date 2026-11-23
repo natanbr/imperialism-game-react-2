@@ -99,6 +99,18 @@ interface Sortie {
   regiment: Regiment;
 }
 
+function waitingTroops(end: GameState, wave: Sortie[], from: ProvinceId) {
+  const troops = { stayed: 0, relocated: 0, lost: 0 };
+  for (const sortie of wave) {
+    if (sortie.fromProvinceId !== from) continue;
+    const survivor = findRegiment(end, sortie.regiment.id);
+    if (!survivor) troops.lost++;
+    else if (survivor.army.provinceId === from) troops.stayed++;
+    else troops.relocated++;
+  }
+  return troops;
+}
+
 /** FR-560 ranks each non-belligerent power's entire commitment, across all origins and routes. */
 function attackWaves(state: GameState, sorties: Sortie[]): Sortie[][] {
   const byNation = new Map<NationId, Sortie[]>();
@@ -173,7 +185,7 @@ function battles(state: GameState, ctx: TurnContext): GameState {
   const dispatched = new Set(plans.filter(p => !p.waiting).flatMap(p => p.wave.map(x => x.regiment.id)));
   let s = removeRegiments(state, dispatched);
   const leaving: Leaving[] = [];
-  const news: GameEvent[] = [];
+  const news: (GameEvent | ((end: GameState) => GameEvent))[] = [];
   const falls: Fall[] = [];
 
   for (const { provinceId, wave, waiting } of plans) {
@@ -183,7 +195,9 @@ function battles(state: GameState, ctx: TurnContext): GameState {
       const nationId = wave[0].nationId;
       if (!warActive(s, nationId, ownerId)) {
         for (const fromProvinceId of [...new Set(wave.map(x => x.fromProvinceId))].sort(compareIds)) {
-          news.push({ type: "attack-cancelled", nationId, capturedById: ownerId, provinceId, fromProvinceId });
+          // Its origin can fall before or after this cancellation. Count survivors after retreats.
+          news.push(end => ({ type: "attack-cancelled", nationId, capturedById: ownerId, provinceId, fromProvinceId,
+            troops: waitingTroops(end, wave, fromProvinceId) }));
         }
         continue;
       }
@@ -269,7 +283,7 @@ function battles(state: GameState, ctx: TurnContext): GameState {
     if (to) s = placeRegiments(s, x.ownerId, to, [x.regiment]);
     else x.line.fate = "surrendered";
   }
-  for (const e of news) ctx.emit(e);
+  for (const e of news) ctx.emit(typeof e === "function" ? e(s) : e);
   for (const e of fallEvents) ctx.emit(e);
   return s;
 }

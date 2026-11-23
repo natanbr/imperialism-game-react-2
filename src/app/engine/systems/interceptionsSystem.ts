@@ -85,6 +85,10 @@ export const interceptionsSystem: TurnSystem = (state, ctx) => {
     const site = a.siteSinceTurn !== undefined || b.siteSinceTurn !== undefined;
     const siteHeld = [a, b].some(f => current.get(f.id)?.siteSinceTurn !== undefined && !ties.has(f.id));
     const landing = !site ? "none" : siteHeld ? "held" : "blocked";
+    if (!winner && ties.get(a.id)?.includes(b.id) && a.contestedWith?.includes(b.id) && b.contestedWith?.includes(a.id)) {
+      const previouslyHadSite = state.fleets.some(f => (f.id === a.id || f.id === b.id) && f.siteSinceTurn !== undefined);
+      if (previouslyHadSite === site && sides.every(side => side.ships?.every(ship => ship.hullBefore === ship.hullAfter))) continue;
+    }
     ctx.emit({ type: "naval-engagement", ...a.approach!, rounds, sides,
       ...(winner && { winnerId: winner.ownerNationId }), ...(winnerContested && { winnerContested: true }),
       ...(winnerDisplaced && { winnerDisplaced: true }), ...(laterHolder && { laterHolderId: laterHolder.ownerNationId }), landing });

@@ -2,6 +2,7 @@
 
 ## Resuming here
 
+- Task 25 on `claude/m17-sea-war` fixes all five second-review findings. Independent review and the local gate passed. Evidence is in `.gate/codex/25/summary.md`.
 - Task 23 on `claude/m17-sea-war` passed independent re-review and the local gate. Two local commits cover seven review fixes and revised Q145 combat. Both HUD examples and the gate logs are indexed in `.gate/codex/23/summary.md`. The branch has not been pushed.
 - Task 21 on `claude/m17-sea-war` from `13d75ab`. The local M17 build passed independent review and the full gate. Evidence in `.gate/codex/21/`. Owner approved Q144, Q145 and Q146 on 2026-11-22.
 - M16 part 1 merged in `9bd5a91`. The human can buy technology. The computer makes no purchases on main.
@@ -9,6 +10,17 @@
 - FR-547 (Q143) is the buyer branch's proposed value rule. Measure technology availability, purchase timing and the value of the first unlocked action in the original game before tuning. See `docs/verify-and-tune.md`.
 - Task 19 passed the load trials and full gate on `claude/perf-tests`. Finish future gates with `npm run test:perf` alone. The measured results and six functional logs are indexed in `.gate/codex/19/summary.md`.
 - To play M17 on continent seed 1, set Armaments and Fabric production to 1. Build a Ship-of-the-Line on turn 6, declare and sail on turn 7, set the site on turn 8, and land the four-ARMS army on turn 9. On turn 10 see the survivors at Sundmark and its colony vote in Council.
+
+## 2026-11-23 Task 25 — M17 second review
+
+Size M. Share protected stock between expansion and defence, unify rail terrain, correct naval and land news, and pin the pre-battle save. A Frigate could delay recovery or change a Council vote, so rerun the frozen campaigns before committing.
+
+| Claim | Evidence in `.gate/codex/25/` | Result |
+|---|---|---|
+| FR-485/557, 555, 552, 560 | `red-worker-reserve.txt`, `red-rail-news.txt`, `red-cancellation.txt`, `green-worker-reserve.txt`, `focused.txt` | The Frigate spent recruitment lumber, Coast admitted track, unchanged contact repeated news, and a lost regiment had no recorded fate in the cancellation. After the fixes, “28 passed” and “161 passed” across the two focused runs. |
+| FR-558 historical replay | `fixture-provenance.txt`, `red-replay-oracle.txt`, `mutant.txt` | An injected extra lumber per warehouse passed the old test and failed against the recorded turn-3 position from `59fe854`. |
+| Protected campaigns and review | `before*.txt`, `after.txt`, `protected.txt`, `review.md` | FR-545 15/24, FR-546 13/24, FR-125 minimum 903/563 before and after. Zero changed plans across 280 private-order checks. Independent review approved. |
+| Local gate | `npm-test.txt`, `lint.txt`, `types.txt`, `build.txt`, `playwright.txt`, `perf.txt`, `roadmap.txt` | “3003 passed”, lint “0 errors, 2 warnings”, types and build exit 0, Chromium “139 passed”, isolated perf “2 passed” (FR-497 p95 21.2 ms), roadmap “PASS”. |
 
 ## 2026-11-23 Task 23 — M17 review and Q145
 

@@ -6,8 +6,10 @@ import type { MoveArmyOrder } from '@/engine/orders/Order';
 import { combatSystem } from '@/engine/systems/combatSystem';
 import { createTurnContext, type GameEvent } from '@/engine/turn/context';
 import { resolveTurn } from '@/engine/turn/resolveTurn';
+import { transferProvince } from '@/engine/world/provinces';
+import { startDiplomacy } from '@/engine/diplomacy/relations';
 import type { GameState } from '@/types/GameState';
-import { ARVELIA_P, ARVELIA, NW2, SUNDMARK, clearArmy, continent, patchRegiment, relocate, addRegiments } from './armyFixtures';
+import { ARVELIA_P, ARVELIA, N3, NW2, SW2, SUNDMARK, clearArmy, continent, patchRegiment, relocate, addRegiments, threePowers } from './armyFixtures';
 import { N1, N2, setPair } from './fixtures';
 
 const island = 'province-minor-2';
@@ -35,6 +37,23 @@ function submit(s: GameState, orders: MoveArmyOrder[]) {
 const reports = (events: GameEvent[]) => events.filter(e => e.type === 'battle-resolved');
 
 describe('FR-560 allied attacks on one target', () => {
+  it('reports the loss of a waiting regiment destroyed at its origin before its ally captures the target', () => {
+    let s = transferProvince(transferProvince(threePowers(), ARVELIA_P, N1), NW2, N3);
+    s = { ...s, seed: 2, turn: 2, diplomacy: startDiplomacy(s.nations, s.minorNations) };
+    for (const id of [N1, N2]) s = setPair(s, id, N3, { war: { since: 1, aggressors: [id] } });
+    s = relocate(clearArmy(s, ARVELIA, ARVELIA_P), ['regiment-1'], ARVELIA_P);
+    s = patchRegiment(s, 'regiment-1', { health: 1 });
+    s = addRegiments(s, N3, NW2, ['artillery', 'artillery']);
+    const march = (nationId: string, fromProvinceId: string, toProvinceId: string, regimentIds: string[]): MoveArmyOrder =>
+      ({ kind: 'moveArmy', nationId, fromProvinceId, toProvinceId, regimentIds });
+    const end = resolveTurn(submit(s, [march(N3, NW2, ARVELIA_P, ['regiment-901', 'regiment-902']),
+      march(N1, ARVELIA_P, NW2, ['regiment-1']), march(N2, SW2, NW2, ['regiment-22'])]), {});
+    expect(reports(end.events)[0].regiments).toContainEqual(expect.objectContaining({ id: 'regiment-1', fate: 'destroyed' }));
+    expect(findRegiment(end.state, 'regiment-1')).toBeUndefined();
+    expect(end.events.find(e => e.type === 'attack-cancelled')).toMatchObject({
+      fromProvinceId: ARVELIA_P, capturedById: N2, troops: { stayed: 0, relocated: 0, lost: 1 },
+    });
+  });
   it.each([false, true])('resolves the stronger of two landings first and cancels the other, reversed=%s', reverse => {
     const s = coast();
     const weak = order(s, N1, ['regiment-1']);
@@ -43,6 +62,7 @@ describe('FR-560 allied attacks on one target', () => {
     expect(reports(run.events).map(e => e.attackerIds)).toEqual([[N2]]);
     expect(run.events).toContainEqual({
       type: 'attack-cancelled', nationId: N1, capturedById: N2, provinceId: island, fromProvinceId: weak.fromProvinceId,
+      troops: { stayed: 1, relocated: 0, lost: 0 },
     });
     expect(findRegiment(run.state, 'regiment-1')).toMatchObject({ army: { provinceId: weak.fromProvinceId },
       regiment: findRegiment(s, 'regiment-1')!.regiment });
@@ -71,7 +91,8 @@ describe('FR-560 allied attacks on one target', () => {
     const resolve = (orders: MoveArmyOrder[]) => resolveTurn(submit(s, orders), {});
     const first = resolve([land, sea]), reversed = resolve([sea, land]);
     expect(reports(first.events).map(e => e.attackerIds)).toEqual([[N1]]);
-    expect(first.events).toContainEqual({ type: 'attack-cancelled', nationId: N2, capturedById: N1, provinceId: ARVELIA_P, fromProvinceId: NW2 });
+    expect(first.events).toContainEqual({ type: 'attack-cancelled', nationId: N2, capturedById: N1, provinceId: ARVELIA_P,
+      fromProvinceId: NW2, troops: { stayed: 1, relocated: 0, lost: 0 } });
     expect(first.events).toEqual(reversed.events);
     expect(first.state).toEqual(reversed.state);
   });

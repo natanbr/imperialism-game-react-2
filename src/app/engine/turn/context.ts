@@ -86,7 +86,8 @@ export type GameEvent =
   | { type: "army-upkeep"; nationId: NationId; amount: number }
   /** Regiments of the nation marched along one route this turn (FR-206). */
   | { type: "army-moved"; nationId: NationId; fromProvinceId: ProvinceId; toProvinceId: ProvinceId; count: number; via?: "rail" | "sea" }
-  | { type: "attack-cancelled"; nationId: NationId; capturedById: CountryId; provinceId: ProvinceId; fromProvinceId: ProvinceId }
+  | { type: "attack-cancelled"; nationId: NationId; capturedById: CountryId; provinceId: ProvinceId; fromProvinceId: ProvinceId;
+      troops?: { stayed: number; relocated: number; lost: number } }
   | { type: "sea-deployment-failed"; nationId: NationId; fromProvinceId: ProvinceId; toProvinceId: ProvinceId; reason: RejectReason }
   /** Regiments left the army: by order (FR-207) or for want of upkeep money (FR-202). */
   | { type: "regiments-disbanded"; nationId: NationId; reason: DisbandReason; count: number }

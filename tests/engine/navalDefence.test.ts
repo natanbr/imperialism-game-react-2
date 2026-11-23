@@ -5,7 +5,7 @@ import { applyTurnOrders, resolveTurn } from '@/engine/turn/resolveTurn';
 import { homeApproach, withFleets } from '@/engine/navy/fleets';
 import { capitalProvinceOf } from '@/engine/army/armies';
 import { addRegiments, ARVELIA_P, continent } from './armyFixtures';
-import { N1, N2, setBuilding, setPair, setWarehouse } from './fixtures';
+import { N1, N2, setBuilding, setIndustry, setPair, setWarehouse } from './fixtures';
 import { WARSHIPS } from '@/definisions/ships';
 import { MaterialType } from '@/types/Resource';
 import { armsWanted } from '@/engine/ai/scriptedArmy';
@@ -72,6 +72,43 @@ describe('FR-557 scripted coastal defence', () => {
     const offer = tryApplyOrder(funded, { kind: 'sellCommodity', nationId: N2, commodity: MaterialType.Lumber, amount: 1 });
     expect(offer.result).toEqual({ ok: true });
     expect(coastalDefenceOrder(offer.state, N2)).toEqual(frigate);
+  });
+  it('FR-485 keeps the lumber for turn-five furniture and a turn-six recruit under blockade', () => {
+    const stores = setWarehouse(fixture(), N2, {
+      lumber: 5, steel: 0, armaments: 5, fabric: 4, paper: 0, timber: 0,
+      furniture: 0, clothing: 4, cannedFood: 10, grain: 20, fruit: 20, livestock: 20,
+    });
+    const sick = setIndustry(stores, N2, {
+      workers: { untrained: 4, trained: 0, expert: 0 }, sick: { untrained: 3, trained: 0, expert: 0 },
+    });
+    const start = withFleets({ ...sick, nations: sick.nations.map(n => n.id === N2
+      ? { ...n, merchantMarine: { ...n.merchantMarine, lastShipOrderTurn: 3 } } : n) },
+    sick.fleets.map(f => ({ ...f, location: homeApproach(sick, N2)!.seaId })));
+    const orders = scriptedPlayer(start, N2);
+    expect.soft(orders).not.toContainEqual(frigate);
+    const fifth = resolveTurn(start, { [N2]: orders }).state;
+    const production = scriptedPlayer(fifth, N2);
+    expect.soft(production).toContainEqual({ kind: 'setProduction', nationId: N2, building: 'furnitureFactory', output: 'furniture', amount: 1 });
+    const sixth = resolveTurn(fifth, { [N2]: production }).state;
+    expect(scriptedPlayer(sixth, N2)).toContainEqual({ kind: 'recruitWorkers', nationId: N2, delta: 1 });
+  });
+  it('FR-485 FR-516 funds defence only from surplus beyond the combined migrant and merchant reserves', () => {
+    const sick = setIndustry(fixture(), N2, { sick: { untrained: 3, trained: 0, expert: 0 } });
+    const saving = { ...sick, nations: sick.nations.map(n => n.id !== N2 ? n : {
+      ...n, merchantMarine: { ...n.merchantMarine, tradeHistory: [{ used: 4, holds: 4 }] },
+    }) };
+    // Seven lumber for the merchant, two for the migrant's furniture, five for the Frigate.
+    expect(coastalDefenceOrder(setWarehouse(saving, N2, { lumber: 13 }), N2)).toBeUndefined();
+    expect(coastalDefenceOrder(setWarehouse(saving, N2, { lumber: 14 }), N2)).toEqual(frigate);
+  });
+  it('FR-485 protects inputs for the migrant goods once, including a scheduled batch', () => {
+    const sick = setIndustry(fixture(), N2, { sick: { untrained: 3, trained: 0, expert: 0 } });
+    const stock = setWarehouse(sick, N2, { lumber: 7, fabric: 3, furniture: 0, clothing: 0 });
+    expect(coastalDefenceOrder(stock, N2)).toBeUndefined();
+    const funded = setWarehouse(stock, N2, { fabric: 4 });
+    const furniture = setBuilding(funded, N2, 'furnitureFactory', { capacity: 1, orders: { furniture: 1 } });
+    const both = setBuilding(furniture, N2, 'clothingFactory', { capacity: 1, orders: { clothing: 1 } });
+    expect(coastalDefenceOrder(both, N2)).toEqual(frigate);
   });
   it('sails an available squadron to the public port; varying rival private plans leaves the entire plan identical', () => {
     const s = fixture();
