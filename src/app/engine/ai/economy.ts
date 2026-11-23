@@ -93,7 +93,7 @@ function fullTradePhases(state: GameState, nationId: string): number {
   if (marine.pendingShips?.indiaman || (marine.lastShipOrderTurn !== undefined && state.turn - marine.lastShipOrderTurn < 4)) return 0;
   return (marine.tradeHistory ?? []).filter(phase => phase.holds > 0 && phase.used === phase.holds).length;
 }
-function saveShipMaterials(state: GameState, nationId: string): boolean {
+export function saveShipMaterials(state: GameState, nationId: string): boolean {
   if (nationOf(state, nationId).controller !== "scripted") return false;
   // Unmatched partner bids can leave a small fleet idle again before its mills finish the hull.
   // World-market orders always settle, so the existing cargo history is enough there.

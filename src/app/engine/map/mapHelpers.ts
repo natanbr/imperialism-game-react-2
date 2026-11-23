@@ -26,10 +26,11 @@ export function getAdjacentTiles(map: GameMap, x: number, y: number): Tile[] {
   return neighborCoords.map(([nx, ny]) => map.tiles[ny][nx]);
 }
 
-// Returns true if any adjacent tile is Coast or Water
+export const isOcean = (tile: Tile): boolean =>
+  tile.terrain === TerrainType.Water || tile.terrain === TerrainType.Coast;
+
 export function isAdjacentToOcean(map: GameMap, x: number, y: number): boolean {
-  const neighbors = getAdjacentTiles(map, x, y);
-  return neighbors.some((n) => n.terrain === TerrainType.Coast || n.terrain === TerrainType.Water);
+  return getAdjacentTiles(map, x, y).some(isOcean);
 }
 
 // Edge-case support for rail building UI rules

@@ -15,8 +15,10 @@ import { adjacentProvinces, transferProvince } from '@/engine/world/provinces';
 import type { GameState } from '@/types/GameState';
 import { ShipType, type Fleet } from '@/types/Navy';
 import { ResourceType } from '@/types/Resource';
+import { TerrainType } from '@/types/Tile';
+import { WorkerType } from '@/types/Workers';
 import { ARVELIA, ARVELIA_P, SUNDMARK, addRegiments, continent } from './armyFixtures';
-import { N1, N2, setPair, setTile } from './fixtures';
+import { N1, N2, put, setPair, setTile, stockOf, tileAt } from './fixtures';
 
 const island = 'province-minor-2';
 const war = (nationId: string, targetId: string): Order => ({ kind: 'proposeOverture', overture: 'war', nationId, targetId });
@@ -218,6 +220,41 @@ describe('FR-553 dispatch through the normal land battle', () => {
 });
 
 describe('FR-554 actual freight under blockade', () => {
+  it('keeps a defended capital open when war starts before the squadrons fight', () => {
+    const base = continent();
+    const coast = capital(base);
+    const peaceful = fleets(base, squadron(N1, coast, 2), squadron(N2, coast, 1));
+    const islandWar = war(N1, SUNDMARK);
+    expect(validateOrder(peaceful, islandWar)).toEqual({ ok: true });
+    const declared = resolveTurn(accepted(peaceful, war(N2, N1)), {});
+    expect(declared.events.some(e => e.type === 'naval-engagement')).toBe(false);
+    expect(declared.events).toContainEqual({ type: 'war-declared', nationId: N2, targetId: N1, startsTurn: base.turn + 1 });
+    expect(validateOrder(declared.state, islandWar)).toEqual({ ok: true });
+  });
+  it('uses the same Coast outlet for embarkation and cotton deliveries at an isolated port (FR-551/554)', () => {
+    const base = transferProvince(continent(), island, N1);
+    const site = '12-7';
+    const tiles = base.map.tiles.map(row => row.map(t => ({
+      ...t, terrain: t.terrain === TerrainType.Water ? TerrainType.Coast : t.terrain, resource: undefined,
+    })));
+    const coast = setTile({ ...base, map: { ...base.map, tiles } }, site, { resource: { type: ResourceType.Cotton, level: 2 } });
+    const engineer = coast.map.tiles.flat().flatMap(t => t.workers).find(w => w.nationId === N1 && w.type === WorkerType.Engineer)!;
+    let built = accepted(put(coast, engineer.id, site), { kind: 'startConstruction', tileId: site, structure: 'port', nationId: N1, workerId: engineer.id });
+    const turns = tileAt(built, site).constructionJob!.durationTurns;
+    for (let i = 0; i < turns; i++) built = resolveTurn(built, {}).state;
+    expect(tileAt(built, site).port).toBe(true);
+    const home = capital(built);
+    const army = addRegiments(built, N1, island, ['regulars']);
+    const open = fleets(atWar(army, N1, N2), squadron(N1, home));
+    const closed = fleets(open, ...open.fleets, squadron(N2, island));
+    const move = sea(open, mobile(open, island), island, home);
+    const cottonDelivery = (s: GameState) => {
+      const ctx = createTurnContext({ turn: s.turn });
+      return stockOf(logisticsSystem(transportConnectivitySystem(s, ctx), ctx), N1, 'cotton') - stockOf(s, N1, 'cotton');
+    };
+    expect([validateOrder(open, move), cottonDelivery(open), validateOrder(closed, move), cottonDelivery(closed)])
+      .toEqual([{ ok: true }, 3, { ok: false, reason: 'port-closed' }, 0]);
+  });
   it('withholds an isolated port delivery, restores it under relief, peace or departure, and permits an independent rail link', () => {
     const base = transferProvince(ready(),island,N1);
     const built = port(base,island), tile = built.tile;

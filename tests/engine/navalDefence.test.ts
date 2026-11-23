@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { coastalDefenceOrder } from '@/engine/ai/navalDefence';
 import { scriptedPlayer } from '@/engine/ai/scriptedPlayer';
-import { applyTurnOrders } from '@/engine/turn/resolveTurn';
+import { applyTurnOrders, resolveTurn } from '@/engine/turn/resolveTurn';
 import { homeApproach, withFleets } from '@/engine/navy/fleets';
 import { capitalProvinceOf } from '@/engine/army/armies';
-import { continent } from './armyFixtures';
+import { addRegiments, ARVELIA_P, continent } from './armyFixtures';
 import { N1, N2, setBuilding, setPair, setWarehouse } from './fixtures';
 import { WARSHIPS } from '@/definisions/ships';
+import { MaterialType } from '@/types/Resource';
+import { armsWanted } from '@/engine/ai/scriptedArmy';
 import { ShipType, type Fleet } from '@/types/Navy';
 import type { GameState } from '@/types/GameState';
 import { applyOrder, tryApplyOrder } from '@/engine/orders/apply';
@@ -17,8 +19,8 @@ function squadron(s: GameState, owner: string, at?: string): Fleet {
     ...(at ? { approach: homeApproach(s, at)! } : {}),
     ships: [{ id: 'test-' + owner, type: ShipType.Frigate, firepower: 3, range: 5, armour: 10, hull: 35, battleMove: 4, speed: 3, experience: 0 }] };
 }
-function fixture() {
-  const start = setWarehouse(continent(), N2, { lumber: 50, fabric: 50, armaments: 50 });
+function fixture(market?: 'world') {
+  const start = setWarehouse(continent(market), N2, { lumber: 50, fabric: 50, armaments: 50 });
   const war = setPair(start, N1, N2, { war: { aggressors: [N1], since: 1 } });
   const s = { ...war, turn: 4 };
   return { ...s, fleets: [squadron(s, N1, N2)] };
@@ -46,6 +48,30 @@ describe('FR-557 scripted coastal defence', () => {
     expect(coastalDefenceOrder(stock, N2)).toEqual(frigate);
     const ordered = setBuilding(stock, N2, 'clothingFactory', { capacity: 1, orders: { clothing: 1 } });
     expect(coastalDefenceOrder(ordered, N2)).toBeUndefined();
+  });
+  it('FR-516 Q140 keeps the turn-five Indiaman when a hostile squadron appears one lumber before funding', () => {
+    const stocked = setWarehouse(fixture(), N2, { lumber: 6, fabric: 5, armaments: 8 });
+    const preparing = { ...stocked, nations: stocked.nations.map(n => n.id !== N2 ? n : {
+      ...n, merchantMarine: { ...n.merchantMarine, tradeHistory: Array(3).fill({ used: 4, holds: 4 }) },
+    }) };
+    const indiaman = { kind: 'setShipyard', nationId: N2, ship: 'indiaman', count: 1 };
+    for (const fleets of [[], preparing.fleets]) {
+      const start = withFleets(preparing, fleets);
+      const orders = scriptedPlayer(start, N2);
+      const next = resolveTurn(start, { [N2]: orders }, start.seed).state;
+      expect(next.turn).toBe(5);
+      expect(scriptedPlayer(next, N2), fleets.length ? 'under blockade' : 'without a threat').toContainEqual(indiaman);
+      expect(orders).not.toContainEqual(frigate);
+    }
+  });
+  it('FR-557 spends only surplus beyond the garrison reserve and counts paid sale commitments once', () => {
+    const threatened = addRegiments(fixture('world'), N1, ARVELIA_P, ['regulars', 'regulars', 'regulars']);
+    expect(armsWanted(threatened, N2)).toBe(true);
+    expect(coastalDefenceOrder(setWarehouse(threatened, N2, { armaments: 2 }), N2)).toBeUndefined();
+    const funded = setWarehouse(threatened, N2, { armaments: 4, lumber: 6 });
+    const offer = tryApplyOrder(funded, { kind: 'sellCommodity', nationId: N2, commodity: MaterialType.Lumber, amount: 1 });
+    expect(offer.result).toEqual({ ok: true });
+    expect(coastalDefenceOrder(offer.state, N2)).toEqual(frigate);
   });
   it('sails an available squadron to the public port; varying rival private plans leaves the entire plan identical', () => {
     const s = fixture();

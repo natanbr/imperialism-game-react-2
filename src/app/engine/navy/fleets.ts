@@ -45,7 +45,9 @@ function portApproaches(state: GameState, nationId: string, provinceId: string):
 
 export function isPortClosed(state: GameState, nationId: string, provinceId: string, seaId: string): boolean {
   const at = { provinceId, seaId };
-  return state.fleets.some(f => f.ships.length > 0 && !f.contested && sameApproach(f.approach, at) && warActive(state, nationId, f.ownerNationId));
+  const onApproach = state.fleets.filter(f => sameApproach(f.approach, at) && f.ships.some(ship => isWarship(ship.type)));
+  return !onApproach.some(f => f.ownerNationId === nationId) &&
+    onApproach.some(f => !f.contested && warActive(state, nationId, f.ownerNationId));
 }
 
 export const openPortApproaches = (state: GameState, nationId: string, provinceId: string) =>

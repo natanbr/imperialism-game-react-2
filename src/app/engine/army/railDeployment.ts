@@ -3,7 +3,7 @@ import type { ProvinceId, NationId } from "@/types/Common";
 import type { MoveArmyOrder, ValidationResult } from "../orders/Order";
 import { TerrainType } from "@/types/Tile";
 import { parseTileIdToArray } from "@/utils/tileIdUtils";
-import { getNeighborCoords } from "../map/mapHelpers";
+import { getNeighborCoords, isOcean } from "../map/mapHelpers";
 import { provinceById } from "../world/provinces";
 import { nationById } from "../orders/queries";
 import { bookedArms, regimentArms } from "./deployment";
@@ -24,7 +24,7 @@ export function sameLandmass(state: GameState, from: ProvinceId, to: ProvinceId)
   for (let index = 0; index < queue.length; index++) {
     const [x, y] = queue[index];
     const tile = state.map.tiles[y]?.[x];
-    if (!tile || tile.terrain === TerrainType.Water) continue;
+    if (!tile || isOcean(tile) || tile.terrain === TerrainType.River) continue;
     if (tile.id === target.seatTileId) return true;
     for (const [nx, ny] of getNeighborCoords(state.map, x, y)) {
       const next = state.map.tiles[ny][nx];

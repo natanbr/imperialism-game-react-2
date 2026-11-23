@@ -1,11 +1,13 @@
 import type { GameState } from "@/types/GameState";
 import type { NationId } from "@/types/Common";
-import { WARSHIPS } from "@/definisions/ships";
+import { SHIPS, WARSHIPS } from "@/definisions/ships";
+import { SCRIPTED_GARRISON } from "@/definisions/regiments";
 import { deployedFleet, fleetApproach, homeFleet, threatenedPorts } from "../navy/fleets";
 import { planProduction } from "../industry/productionPlan";
 import type { Order } from "../orders/Order";
 import { nationById } from "../orders/queries";
-import { tradeOrdersOf } from "../market/market";
+import { saveShipMaterials } from "./economy";
+import { armsWanted } from "./scriptedArmy";
 
 const DEFENSIVE_FRIGATES = 1;
 
@@ -27,10 +29,15 @@ export function coastalDefenceOrder(state: GameState, nationId: NationId): Order
   if (!nation || Object.values(nation.pendingWarships ?? {}).some(count => count > 0)) return;
   const cost = WARSHIPS.frigate;
   const { stock } = planProduction(nation);
-  const offers = tradeOrdersOf(state, nationId).sell;
-  // Standing production and registered offers still own these inputs, even though they settle after the planner.
+  const merchant = saveShipMaterials(state, nationId);
+  // Paid orders, including sell offers, have already removed their materials from the warehouse.
+  const reserved = {
+    lumber: merchant ? SHIPS.indiaman.lumber : 0,
+    fabric: merchant ? SHIPS.indiaman.fabric : 0,
+    armaments: armsWanted(state, nationId) ? SCRIPTED_GARRISON.armaments : 0,
+  };
   for (const resource of ["lumber", "fabric", "armaments"] as const) {
-    if ((stock[resource] ?? 0) - (offers[resource] ?? 0) < cost[resource] * DEFENSIVE_FRIGATES) return;
+    if ((stock[resource] ?? 0) - reserved[resource] < cost[resource] * DEFENSIVE_FRIGATES) return;
   }
   return { kind: "setShipyard", nationId, ship: "frigate", count: DEFENSIVE_FRIGATES };
 }

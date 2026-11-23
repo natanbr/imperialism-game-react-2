@@ -2,10 +2,9 @@ import type { GameState } from "@/types/GameState";
 import type { GameMap } from "@/types/Map";
 import type { Approach } from "@/types/Navy";
 import { TerrainType, type Tile } from "@/types/Tile";
-import { getAdjacentTiles } from "../map/mapHelpers";
+import { getAdjacentTiles, isOcean } from "../map/mapHelpers";
 
 const rowThenColumn = (a: Tile, b: Tile) => a.y - b.y || a.x - b.x;
-const isOcean = (tile: Tile) => tile.terrain === TerrainType.Water;
 const seasByMap = new WeakMap<GameMap, Map<string, string>>();
 
 /** Flood ocean hexes only. Each component takes its first row-major tile as its stable save-game id. */
