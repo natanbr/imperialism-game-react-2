@@ -31,7 +31,7 @@ export function createTurnRng(seed: number, turn: number): Rng {
  * shifts another's, nor the development and price draws of the shared turn stream (`ctx.rng`).
  * A later requirement adds a name when its system needs one.
  */
-export const RNG_STREAMS = ["diplomacy", "combat"] as const;
+export const RNG_STREAMS = ["diplomacy", "combat", "naval"] as const;
 export type RngStream = (typeof RNG_STREAMS)[number];
 
 /** The 32-bit FNV-1a hash of the string's UTF-16 code units. */

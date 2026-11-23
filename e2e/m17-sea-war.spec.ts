@@ -201,7 +201,11 @@ test('FR-556 prepared Sundmark port: interception stops reinforcement, then reli
   await advance(page, 5);
   await expect.poll(async () => (await saved()).game.fleets).toEqual(uninterrupted.fleets);
   const news = page.getByTestId('news-list');
-  await expect(news).toContainText('Naval engagement off Sundmark (Testland 3 against Valdoria 6 firepower). Valdoria holds the approach. Testland returned to berth intact. Landing blocked.');
+  await expect(news).toContainText('Naval engagement off Sundmark after 3 rounds (Testland 3 against Valdoria 6 firepower afloat).');
+  await expect(news).toContainText("Valdoria holds the approach. Testland's survivors returned to berth. Landing blocked.");
+  await expect(news).toContainText(/Frigate sundmark-frigate-ship \(\d+ damage, \d+ hull left\)/);
+  await news.getByText(/^Naval engagement off Sundmark/).scrollIntoViewIfNeeded();
+  if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/q145-battle-report.png` });
   await expect(news).toContainText('Troops stayed at their origin.');
   await origin.click();
   await expect(regulars.getByTestId('health')).toHaveText('100%');
@@ -230,11 +234,41 @@ test('FR-556 prepared Sundmark port: interception stops reinforcement, then reli
   await operations.getByRole('button', { name: 'Sail', exact: true }).click();
   await closeCapital.click();
   await advance(page, 6);
-  await expect(news).toContainText('Valdoria returned to berth intact.');
+  await expect(news).toContainText("Valdoria's survivors returned to berth.");
   await openCapital.click();
   await expect(operations).toContainText('Off Sundmark');
   await expect(operations).not.toContainText('Ports closed');
   await checkCotton(3);
+});
+
+test('FR-556/560 the news explains why the second landing stayed at home', async ({ page }) => {
+  const session = createGameStore({ seed: 1 }).getState();
+  const [first, second] = session.game.nations;
+  const island = 'province-minor-2';
+  const target = session.game.provinces.find(p => p.id === island)!;
+  const fleets: Fleet[] = [first, second].map(n => ({
+    id: `fleet-${n.id}`, ownerNationId: n.id, name: n.name, ships: [{ ...WARSHIPS.shipOfTheLine, id: `ship-${n.id}`, experience: 0 }],
+    location: '0-0', aggression: 'normal', siteSinceTurn: 1, approach: { provinceId: island, seaId: '0-0' },
+  }));
+  let game: typeof session.game = { ...session.game, turn: 2, fleets,
+    armies: session.game.armies.filter(a => a.provinceId !== island),
+    nations: session.game.nations.map(n => ({ ...n, controller: 'human' as const, fleets: [`fleet-${n.id}`] })),
+    diplomacy: { ...session.game.diplomacy },
+  };
+  for (const [nation, regiment] of [[first, 'regiment-1'], [second, 'regiment-22']] as const) {
+    const key = pairKey(nation.id, target.ownerId);
+    game.diplomacy[key] = { ...game.diplomacy[key], war: { since: 1, aggressors: [nation.id] } };
+    const origin = game.armies.find(a => a.regiments.some(r => r.id === regiment))!.provinceId;
+    const ordered = tryApplyOrder(game, { kind: 'moveArmy', via: 'sea', nationId: nation.id, regimentIds: [regiment], fromProvinceId: origin, toProvinceId: island });
+    expect(ordered.result).toEqual({ ok: true });
+    game = ordered.state;
+  }
+  await continueSavedGame(page, saveOf({ ...session, game }));
+  await advance(page, 3);
+  const news = page.getByTestId('news-list');
+  await expect(news).toContainText('Attack on Sundmark cancelled. Valdoria captured it first. Troops stayed in Testland South-West.');
+  await news.getByText(/^Attack on Sundmark cancelled/).scrollIntoViewIfNeeded();
+  if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/q145-cancelled-attack.png` });
 });
 
 test.describe('phone', () => {

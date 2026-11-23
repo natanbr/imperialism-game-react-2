@@ -134,7 +134,7 @@ it('FR-549 retains the arrival sea on a province between two oceans; each port b
   expect(tryApplyOrder(landed,sail(N1,home(N1).id,'east')).result.ok).toBe(false);
 });
 
-it.each([[1,2,N2],[3,1,N1],[2,2,undefined]] as const)('FR-552 compares simultaneous firepower, %i versus %i, once before combat', (one,two,winner) => {
+it.each([[1,2,N2],[3,1,N1],[2,2,undefined]] as const)('FR-552 resolves simultaneous arrivals, %i versus %i, once before land combat', (one,two,winner) => {
   const fleets = [home(N1),home(N2)].map((f,index) => ({
     ...f, ships: Array.from({length:index === 0 ? one : two}, (_,i) => ({...f.ships[0],id:f.id+'-'+i})),
   }));
@@ -150,9 +150,12 @@ it.each([[1,2,N2],[3,1,N1],[2,2,undefined]] as const)('FR-552 compares simultane
   for (const f of first.state.fleets) {
     expect(!!f.approach).toBe(!winner || winner === f.ownerNationId);
     expect(!!f.contested).toBe(!winner);
-    expect(f.ships).toEqual(fleets.find(other => other.id === f.id)!.ships);
+    const side = events[0].sides.find(s => s.nationId === f.ownerNationId)!;
+    expect(f.ships.map(s => [s.id, s.hull - (s.hullDamage ?? 0)]))
+      .toEqual(side.ships!.map(s => [s.id, s.hullAfter]));
   }
-  expect(resolveTurn(first.state,{}).events.filter(e => e.type === 'naval-engagement')).toHaveLength(0);
+  expect(first.state.fleets.flatMap(f => f.ships).some(s => s.hullDamage)).toBe(true);
+  expect(resolveTurn(first.state,{}).events.filter(e => e.type === 'naval-engagement')).toHaveLength(winner ? 0 : 1);
   const peace = setPair(base,N1,N2,{war:undefined});
   expect(resolveTurn(peace,Object.fromEntries(orders.map(o=>[o.nationId,[o]]))).state.fleets.every(f=>f.approach && !f.contested)).toBe(true);
 });
@@ -208,7 +211,7 @@ it('FR-552 settles three squadrons in public strength order and clears a tie onc
   };
   const result = resolve(fleets);
   expect(result.fleets[0].approach).toBeUndefined();
-  expect(result.fleets[0].ships).toEqual(fleets[0].ships);
+  expect(result.fleets[0].ships[0]).toMatchObject({ ...fleets[0].ships[0], hullDamage: expect.any(Number) });
   expect(result.fleets.slice(1).every(f=>f.approach && !f.contested)).toBe(true);
   expect(result.events).toEqual([N1+'/'+N3+' '+N3]);
   expect(resolve([...fleets].reverse())).toEqual(result);

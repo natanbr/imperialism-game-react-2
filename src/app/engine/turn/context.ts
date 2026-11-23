@@ -1,6 +1,7 @@
 import type { GameState } from "@/types/GameState";
 import type { CountryId, MinorNationId, NationId, ProvinceId, TileId } from "@/types/Common";
 import type { BattleReport } from "@/types/Battle";
+import type { NavalBattleSide } from "@/types/Navy";
 import type { RegimentType } from "@/types/Unit";
 import type { GrantAmount, Overture, ProposalKind, WithdrawableOverture } from "@/types/Diplomacy";
 import type { ResourceType } from "@/types/Resource";
@@ -16,8 +17,8 @@ import { createStreamRng, createTurnRng, RNG_STREAMS, type Rng, type RngStream }
 /** What happened during a turn, for news, UI feedback and AI players. */
 export type GameEvent =
   | { type: "naval-engagement"; provinceId: ProvinceId; seaId: string;
-      sides: [{ nationId: NationId; firepower: number }, { nationId: NationId; firepower: number }];
-      winnerId?: NationId; winnerContested?: true; landing: "held" | "blocked" | "none" }
+      sides: [NavalBattleSide, NavalBattleSide]; rounds?: number;
+      winnerId?: NationId; winnerContested?: true; winnerDisplaced?: true; laterHolderId?: NationId; landing: "held" | "blocked" | "none" }
   | { type: "new-invention"; techId: string }
   | { type: "order-rejected"; nationId: NationId; order: Order; reason: RejectReason }
   | { type: "resource-discovered"; tileId: TileId; nationId?: NationId; resource?: ResourceType }
@@ -85,6 +86,7 @@ export type GameEvent =
   | { type: "army-upkeep"; nationId: NationId; amount: number }
   /** Regiments of the nation marched along one route this turn (FR-206). */
   | { type: "army-moved"; nationId: NationId; fromProvinceId: ProvinceId; toProvinceId: ProvinceId; count: number; via?: "rail" | "sea" }
+  | { type: "attack-cancelled"; nationId: NationId; capturedById: CountryId; provinceId: ProvinceId; fromProvinceId: ProvinceId }
   | { type: "sea-deployment-failed"; nationId: NationId; fromProvinceId: ProvinceId; toProvinceId: ProvinceId; reason: RejectReason }
   /** Regiments left the army: by order (FR-207) or for want of upkeep money (FR-202). */
   | { type: "regiments-disbanded"; nationId: NationId; reason: DisbandReason; count: number }

@@ -1483,7 +1483,7 @@
      "Deploy by rail within the national ARMS allowance, continue a midturn save and run the existing score, Council, war and replay guards with their original policies."
     ],
     "depends": "M15 merchant Shipyard and M13 army, diplomacy and battle systems. The M16b technology buyer is independent.",
-    "statusText": "Built and independently reviewed locally on claude/m17-sea-war, FR-548 to FR-559. Q144 to Q146 were approved by owner 2026-11-22. The fresh seed-1 crossing established a colony on Sundmark. The final tree passed 2,964 functional tests, 138 Chromium tests and both isolated performance checks. FR-545 stayed at 15/24, FR-546 at 13/24 and the lowest FR-125 score pair at 903/563. Original-game tuning is open.",
+    "statusText": "Built locally on claude/m17-sea-war through FR-560. Task 23 corrects the seven review findings and implements the owner's revised Q145 sea battles and ordered allied attacks. Original-game tuning remains open. See the dated Task 23 journal for the local gate and protected campaign measurements.",
     "spec": "docs/specs/m17.md",
     "findings": 5,
     "severity": {
@@ -3693,7 +3693,7 @@
     "RULES-GAP-05",
     "ARMY-WAR-04"
    ],
-   "ruling": "approved by owner 2026-11-22. The weaker squadron returns intact. Equal forces stay, block the landing and leave the port contested."
+   "ruling": "Revised by the owner 2026-11-22 and implemented locally. FR-552 resolves three seeded rounds with hull damage, losses and berth repair. FR-560 orders allied attacks by total ARMS, stopping after capture."
   },
   {
    "id": "Q146",

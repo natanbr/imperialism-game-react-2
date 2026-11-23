@@ -44,8 +44,8 @@ export function navalTurn(planned: GameState, next: GameState, events: readonly 
     && beforeOrders.armies.some(a => a.ownerId === nationId && a.regiments.some(r => !isMilitia(r.type) && validateOrder(beforeOrders, {
       kind: 'moveArmy', via: 'sea', nationId, fromProvinceId: a.provinceId, toProvinceId: coast, regimentIds: [r.id],
     }).ok));
-  const built = Math.max(0, own.reduce((sum,f) => sum + f.ships.length, 0)
-    - planned.fleets.filter(f => f.ownerNationId === nationId).reduce((sum,f) => sum + f.ships.length, 0));
+  const previousShipIds = new Set(planned.fleets.filter(f => f.ownerNationId === nationId).flatMap(f => f.ships.map(s => s.id)));
+  const built = own.flatMap(f => f.ships).filter(s => !previousShipIds.has(s.id)).length;
   return { turn: planned.turn, threats: threats.length, ordered, built,
     sailOrders: Number(mission?.mission === 'sail'), arrived: Number(arrived),
     stationed: Number(after?.siteSinceTurn === planned.turn),

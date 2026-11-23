@@ -19,6 +19,7 @@ import {
   type WithdrawableOverture,
 } from "@/engine";
 import type { GameState } from "@/types/GameState";
+import { isWarship, WARSHIPS } from "@/definisions/ships";
 import { technologyById } from "@/definisions/technologies";
 import { TerrainType, type Tile } from "@/types/Tile";
 import { REGIMENTS, UPKEEP_PER_ARMS } from "@/definisions/regiments";
@@ -409,19 +410,40 @@ export function eventText(event: GameEvent, nameOf: (countryId: string) => strin
       const action = event.via === "rail" ? "deployed by rail" : event.via === "sea" ? "sailed as reinforcements" : "marched";
       return `${regiments(event.count)} ${action} from ${nameOf(event.fromProvinceId)} to ${nameOf(event.toProvinceId)}.`;
     }
+    case "attack-cancelled":
+      return `Attack on ${nameOf(event.provinceId)} cancelled. ${nameOf(event.capturedById)} captured it first. Troops stayed in ${nameOf(event.fromProvinceId)}.`;
     case "sea-deployment-failed":
       return `Landing from ${nameOf(event.fromProvinceId)} to ${nameOf(event.toProvinceId)} stopped: ${REFUSAL_TEXT[event.reason]}. Troops stayed at their origin.`;
     case "naval-engagement": {
       const forces = event.sides.map(side => `${nameOf(side.nationId)} ${side.firepower}`).join(" against ");
-      const loser = event.winnerId && event.sides.find(side => side.nationId !== event.winnerId);
-      let result = "Both squadrons remain and the approach is contested.";
-      if (loser && event.winnerId) {
-        result = event.winnerContested
-          ? `${nameOf(event.winnerId)} drove ${nameOf(loser.nationId)} back to berth intact. The approach remains contested.`
-          : `${nameOf(event.winnerId)} holds the approach. ${nameOf(loser.nationId)} returned to berth intact.`;
-      }
+      const loser = event.winnerId ? event.sides.find(side => side.nationId !== event.winnerId) : undefined;
       const landing = event.landing === "blocked" ? " Landing blocked." : event.landing === "held" ? " Landing site held." : "";
-      return `Naval engagement off ${nameOf(event.provinceId)} (${forces} firepower). ${result}${landing}`;
+      // Older saved news records carry only the strengths and the outcome.
+      if (event.rounds === undefined) {
+        const result = !loser || !event.winnerId ? "Both squadrons remain and the approach is contested." :
+          event.winnerContested ? `${nameOf(event.winnerId)} drove ${nameOf(loser.nationId)} back to berth intact. The approach remains contested.` :
+          `${nameOf(event.winnerId)} holds the approach. ${nameOf(loser.nationId)} returned to berth intact.`;
+        return `Naval engagement off ${nameOf(event.provinceId)} (${forces} firepower). ${result}${landing}`;
+      }
+      const damage = event.sides.map(side => {
+        const ships = (side.ships ?? []).map(ship => {
+          const name = isWarship(ship.type) ? WARSHIPS[ship.type].name : ship.type;
+          const loss = ship.hullBefore - ship.hullAfter;
+          return `${name} ${ship.id} (${loss} damage, ${ship.hullAfter ? ship.hullAfter + " hull left" : "sunk"})`;
+        });
+        return `${nameOf(side.nationId)}: ${ships.join(", ")}.`;
+      });
+      let holder = event.laterHolderId
+        ? `The battle was drawn. ${nameOf(event.laterHolderId)} holds the approach after a later engagement.`
+        : "The approach is contested.";
+      if (event.winnerId) {
+        const victor = nameOf(event.winnerId);
+        if (event.winnerDisplaced) holder = `${victor} won this battle but later lost the approach.`;
+        else if (event.winnerContested) holder = `${victor} won this battle. The approach remains contested.`;
+        else holder = `${victor} holds the approach.`;
+      }
+      const retreat = loser?.ships?.some(ship => ship.hullAfter > 0) ? ` ${nameOf(loser.nationId)}'s survivors returned to berth.` : "";
+      return `Naval engagement off ${nameOf(event.provinceId)} after ${event.rounds} round${event.rounds === 1 ? "" : "s"} (${forces} firepower afloat). ${holder}${retreat}${landing} ${damage.join(" ")}`;
     }
     case "regiments-disbanded":
       return event.reason === "no-pay" ? `${regiments(event.count)} disbanded: no money for their upkeep.` : `${regiments(event.count)} disbanded.`;

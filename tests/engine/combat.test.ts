@@ -200,8 +200,9 @@ describe('FR-216 attacks: a move into a province of a country at war is an attac
     expect(armyIn(after, N2, NW1)!.regiments.map(r => r.id)).toEqual(['regiment-901', 'regiment-902', 'regiment-903']);
   });
 
-  it('FR-216 two countries at war with the province\'s owner attack it as one side, in intentOrder', () => {
+  it('FR-216 two mutually hostile countries attacking a third resolve as one side, in intentOrder', () => {
     let s = atWar(atWar(relocate(relocate(continent('world'), [R1], NE1), [V_R1], NW2), N1, ARVELIA), N2, ARVELIA);
+    s = atWar(s, N1, N2);
     s = ordered(s, attackOrder(N1, [R1], NE1, ARVELIA_P), attackOrder(N2, [V_R1], NW2, ARVELIA_P));
     const { ctx, events } = stubContext(1, 0.99);
     combatSystem(s, ctx);
@@ -433,10 +434,11 @@ describe('FR-221 after the battle', () => {
     expect(armyIn(after, N1, SE1)!.regiments.find(r => r.id === 'regiment-901')!.health).toBe(60);
   });
 
-  it('FR-221 FR-222 with several attacking countries the province goes to the first in intentOrder with a standing regiment; the others go home', () => {
+  it('FR-221 FR-222 with mutually hostile attackers the province goes to the first in intentOrder with a standing regiment; the others go home', () => {
     const both = (turn: number) => {
       let s = { ...clearArmy(continent('world'), ARVELIA, ARVELIA_P), turn };
       s = atWar(atWar(relocate(relocate(s, [R1], NE1), [V_R1], NW2), N1, ARVELIA), N2, ARVELIA);
+      s = atWar(s, N1, N2);
       s = ordered(s, attackOrder(N1, [R1], NE1, ARVELIA_P), attackOrder(N2, [V_R1], NW2, ARVELIA_P));
       return combatSystem(s, stubContext(turn, 0).ctx);
     };

@@ -11,6 +11,7 @@ import { FULL_HEALTH, HEALING_PER_TURN, isMilitia } from "@/definisions/regiment
 import {
   armyAt,
   findRegiment,
+  forceSize,
   holds,
   isArmyMoveIntent,
   isAttackIntent,
@@ -98,6 +99,21 @@ interface Sortie {
   regiment: Regiment;
 }
 
+/** FR-560 ranks each non-belligerent power's entire commitment, across all origins and routes. */
+function attackWaves(state: GameState, sorties: Sortie[]): Sortie[][] {
+  const byNation = new Map<NationId, Sortie[]>();
+  for (const sortie of sorties) {
+    const group = byNation.get(sortie.nationId);
+    if (group) group.push(sortie);
+    else byNation.set(sortie.nationId, [sortie]);
+  }
+  const nations = [...byNation.keys()];
+  const allied = nations.some((a, i) => nations.slice(i + 1).some(b => !warActive(state, a, b)));
+  if (!allied) return [sorties]; // FR-216 simultaneous combat when no allied attacks compete.
+  const arms = (group: Sortie[]) => forceSize({ regiments: group.map(x => x.regiment) });
+  return [...byNation.values()].sort((a, b) => arms(b) - arms(a) || compareIds(a[0].nationId, b[0].nationId));
+}
+
 /** A regiment leaving a battlefield (an attacker going home, a routed defender retreating), placed after every battle. */
 interface Leaving {
   ownerId: CountryId;
@@ -121,20 +137,11 @@ interface Fall {
 }
 
 /**
- * FR-216 to FR-224: the turn's attacks, checked again (the regiment still in the nation's army in the province it left
- * from, not militia; a war still active with the province's owner), leave their armies at once; then each attacked
- * province gets one battle, provinces in id order: the attackers are every regiment ordered into it by countries at war
- * with its owner, as one side; the defenders its owner's regiments there (militia included). The province of a won
- * battle goes to the first attacker in `intentOrder` with a standing regiment, whose survivors stay there.
- * Every battle is decided before any capital falls (review F1): a province changes hands at its battle, but the fall of
- * a capital taken in the phase (FR-223, FR-224) applies after the last battle, in the winners' `intentOrder`, to the
- * country holding that capital then; a fall whose capital is back with its owner (its conqueror fell first) is void. So
- * when both Great Powers take each other's capital in one phase, the first in `intentOrder` wins. Until then no war ends
- * and no land but the battlefields changes hands, so the sorties checked at the start are the attackers.
- * Everyone else who leaves a battlefield is placed after the falls, so a regiment fights at most once a turn: attackers go
- * back where they came from when their owner still holds it, else, like routed defenders, to the lowest-id province of
- * their owner bordering the battle; one with nowhere to go (a fallen Great Power's included) surrenders. One
- * `battle-resolved` per battle followed by the province it took, then the events of the falls.
+ * Resolve provinces by ID. Committed first attacks leave together; FR-560 follow-up attacks wait at
+ * their origins. On a failed attack the next wave faces the surviving defenders at their current health.
+ * Apply capital falls after all battles so simultaneous strikes are still decided in intentOrder.
+ * Routed defenders and returning attackers are placed after the falls; the shared report lines record
+ * a surrender if neither home nor a friendly neighbouring province remains.
  */
 function battles(state: GameState, ctx: TurnContext): GameState {
   const attacks = byIntentOrder(state, ctx.turn, state.intents.filter(isAttackIntent));
@@ -160,14 +167,34 @@ function battles(state: GameState, ctx: TurnContext): GameState {
   const rng = ctx.rngFor("combat");
   const rank = intentOrder(state, turn);
   const fought = (r: Regiment, health: number): Regiment => ({ ...r, health, foughtOnTurn: turn });
-  let s = removeRegiments(state, taken);
+  const plans = [...sorties.keys()].sort(compareIds).flatMap(provinceId =>
+    attackWaves(state, sorties.get(provinceId)!).map((wave, i) => ({ provinceId, wave, waiting: i > 0 })));
+  // A contingent awaiting its ally's result stays at its origin until actually dispatched.
+  const dispatched = new Set(plans.filter(p => !p.waiting).flatMap(p => p.wave.map(x => x.regiment.id)));
+  let s = removeRegiments(state, dispatched);
   const leaving: Leaving[] = [];
-  const told: { report: BattleReport; events: GameEvent[] }[] = [];
+  const news: GameEvent[] = [];
   const falls: Fall[] = [];
 
-  for (const provinceId of [...sorties.keys()].sort(compareIds)) {
+  for (const { provinceId, wave, waiting } of plans) {
     const ownerId = provinceById(s, provinceId)!.ownerId;
-    const attackers = [...sorties.get(provinceId)!].sort((a, b) => byRegimentId(a.regiment, b.regiment));
+    let attackers = [...wave].sort((a, b) => byRegimentId(a.regiment, b.regiment));
+    if (waiting) {
+      const nationId = wave[0].nationId;
+      if (!warActive(s, nationId, ownerId)) {
+        for (const fromProvinceId of [...new Set(wave.map(x => x.fromProvinceId))].sort(compareIds)) {
+          news.push({ type: "attack-cancelled", nationId, capturedById: ownerId, provinceId, fromProvinceId });
+        }
+        continue;
+      }
+      // Its origin may itself have been fought over at an earlier battlefield this turn.
+      attackers = attackers.filter(x => {
+        const present = findRegiment(s, x.regiment.id);
+        return present?.army.provinceId === x.fromProvinceId && present.regiment.foughtOnTurn !== turn;
+      });
+      if (!attackers.length) continue;
+      s = removeRegiments(s, new Set(attackers.map(x => x.regiment.id)));
+    }
     const defenders = [...(armyAt(s, ownerId, provinceId)?.regiments ?? [])].sort(byRegimentId);
     const fortLevel = fortLevelOf(s, provinceId);
     const unit = (r: Regiment, owner: CountryId, side: "attacker" | "defender"): BattleUnit => ({ id: r.id, ownerId: owner, type: r.type, name: r.name, health: r.health, side });
@@ -192,8 +219,7 @@ function battles(state: GameState, ctx: TurnContext): GameState {
       result: fight.result,
       provinceTaken: winner !== undefined,
     };
-    const events: GameEvent[] = [];
-    told.push({ report, events });
+    news.push({ type: "battle-resolved", ...report });
     // FR-408: each attacker's war with the defender remembers the battle and who won it
     for (const attackerId of attackerIds) {
       const won = fight.result === "attacker-won";
@@ -212,7 +238,7 @@ function battles(state: GameState, ctx: TurnContext): GameState {
         leaving.push({ ownerId, regiment: fought(r, fight.health[r.id]), battleProvinceId: provinceId, line: lineOf(r.id) });
       }
       if (capitalOwnerOf(s, provinceId) === ownerId) falls.push({ fallenId: ownerId, provinceId, rank: rank.indexOf(winner) });
-      s = takeProvince(s, provinceId, winner, turn, (e) => events.push(e));
+      s = takeProvince(s, provinceId, winner, turn, (e) => news.push(e));
       const survivors = attackers.filter((x) => x.nationId === winner && fight.health[x.regiment.id] > 0);
       s = placeRegiments(s, winner, provinceId, survivors.map((x) => ({ ...fought(x.regiment, fight.health[x.regiment.id]), movedOnTurn: turn })));
     } else {
@@ -243,10 +269,7 @@ function battles(state: GameState, ctx: TurnContext): GameState {
     if (to) s = placeRegiments(s, x.ownerId, to, [x.regiment]);
     else x.line.fate = "surrendered";
   }
-  for (const { report, events } of told) {
-    ctx.emit({ type: "battle-resolved", ...report });
-    for (const e of events) ctx.emit(e);
-  }
+  for (const e of news) ctx.emit(e);
   for (const e of fallEvents) ctx.emit(e);
   return s;
 }

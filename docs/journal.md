@@ -2,7 +2,7 @@
 
 ## Resuming here
 
-- Task 23 on `claude/m17-sea-war` corrects the independent M17 review and implements the revised Q145. Evidence in `.gate/codex/23/`.
+- Task 23 on `claude/m17-sea-war` passed independent re-review and the local gate. Two local commits cover seven review fixes and revised Q145 combat. Both HUD examples and the gate logs are indexed in `.gate/codex/23/summary.md`. The branch has not been pushed.
 - Task 21 on `claude/m17-sea-war` from `13d75ab`. The local M17 build passed independent review and the full gate. Evidence in `.gate/codex/21/`. Owner approved Q144, Q145 and Q146 on 2026-11-22.
 - M16 part 1 merged in `9bd5a91`. The human can buy technology. The computer makes no purchases on main.
 - M16b is parked. On `claude/m16b-technology` (`95634c6`), FR-523 resource gates plus the buyer brought FR-125 down to 1.286× (minimum 1.5×). On `claude/m16b-buyer` (`49406e9`), the buyer alone bought Streamlined Hulls on turn 3 and ordered a Clipper on turn 6 in all 24 idle games. The spending weakened the computer. FR-546 earned a minor vote in 10/24 (13 required) and FR-489 captured a player province in 15/24 (18 required).
@@ -10,17 +10,22 @@
 - Task 19 passed the load trials and full gate on `claude/perf-tests`. Finish future gates with `npm run test:perf` alone. The measured results and six functional logs are indexed in `.gate/codex/19/summary.md`.
 - To play M17 on continent seed 1, set Armaments and Fabric production to 1. Build a Ship-of-the-Line on turn 6, declare and sail on turn 7, set the site on turn 8, and land the four-ARMS army on turn 9. On turn 10 see the survivors at Sundmark and its colony vote in Council.
 
-## 2026-11-23 Task 23 ? M17 review and Q145
+## 2026-11-23 Task 23 — M17 review and Q145
 
 Size L. Resolve the seven Task 22 findings, then implement FR-552/560 and their public news under FR-556. Preserve the campaign guards, save compatibility and golden inputs. Objection: a defensive Frigate can delay the turn-five Indiaman; reserve the Q140 materials before purchasing it.
 
 | Claim | Command or evidence under `.gate/codex/23/` | Result |
 |---|---|---|
-| Unchanged campaign and score baseline | `baseline.txt` (M13/M14, scriptedScore, twoIslandsGolden) | ?98 passed (98)?; FR-545 15/24, FR-546 13/24, lowest FR-125 903/563 on seed 3 turn 25. |
-| Contested and Coast ports, water separation, full freight capacity | `red-ports-rail.txt`, `green-ports-rail.txt` | ?5 failed? before; ?65 passed (65)? after. The 15-car run delivers five more units than its 10-car control. |
-| Merchant reserve, relief arrival and physical port count | `part-a-2-6-7-red.log`, `part-a-6-summary-red.log`, `part-a-2-scenario-stock.log` | ?3 failed? before. On turn three the original exercise has 10 lumber, 7 reserved. The funded relief case adds the cost of one Indiaman to starting stock. |
-| Part A targeted regressions and guards | `part-a-2-6-7-green.log`, `guards-part-a.txt` | ?101 passed (101)?; FR-545 15/24, FR-546 13/24, FR-125 903/563; zero private-order effects in 280 turns. |
-| Part A gate | `part-a/{npm-test,lint,types,build,playwright,perf,roadmap}.txt` | ?2973 passed (2973)?; lint 0 errors and 2 pre-existing warnings; types and build exit 0; ?138 passed?; ?2 passed (2)? for isolated performance; roadmap ?PASS?. |
+| Unchanged campaign and score baseline | `baseline.txt` (M13/M14, scriptedScore, twoIslandsGolden) | "98 passed (98)"; FR-545 15/24, FR-546 13/24, lowest FR-125 903/563 on seed 3 turn 25. |
+| Contested and Coast ports, water separation, full freight capacity | `red-ports-rail.txt`, `green-ports-rail.txt` | "5 failed" before; "65 passed (65)" after. The 15-car run delivers five more units than its 10-car control. |
+| Merchant reserve, relief arrival and physical port count | `part-a-2-6-7-red.log`, `part-a-6-summary-red.log`, `part-a-2-scenario-stock.log` | "3 failed" before. On turn three the original exercise has 10 lumber, 7 reserved. The funded relief case adds the cost of one Indiaman to starting stock. |
+| Part A targeted regressions and guards | `part-a-2-6-7-green.log`, `guards-part-a.txt` | "101 passed (101)"; FR-545 15/24, FR-546 13/24, FR-125 903/563; zero private-order effects in 280 turns. |
+| Part A gate | `part-a/{npm-test,lint,types,build,playwright,perf,roadmap}.txt` | "2973 passed (2973)"; lint 0 errors and 2 pre-existing warnings; types and build exit 0; "138 passed"; "2 passed (2)" for isolated performance; roadmap "PASS". |
+| Seeded battle, allied priority and survivor damage | `red-fr552.log`, `red-allied.txt`, `fr552-final-focused.log`, `green-q145-news.txt` | "8 failed" and "5 failed" before; "59 passed" and "115 passed" in overlapping focused runs. |
+| Older battles retain their result through Continue and replay | `red-fr558-historical.log`, `green-fr558-historical.log`, `delta-review.md` | "2 failed" before; "56 passed (56)" after. The reviewer replayed the original full-hull save and two later turns. Divergent pre-Q145 sessions keep the original log and replay forward from their saved position. |
+| News in the running app | `q145-focused-browser.txt`; `q145-battle-report.png`, `q145-cancelled-attack.png` | "2 passed (31.7s)"; the report shows remaining hull and retreat, and cancellation names the captor and origin. |
+| Final guards | `guards-after.txt`, `protected-files.txt` | "98 passed (98)"; FR-545 15/24, FR-546 13/24, lowest FR-125 903/563 (1.603908×), FR-497 0 changed plans in 280 turns. Frozen policies, goldens and timeouts byte-matched the starting commit. |
+| Final gate | `part-b/{npm-test,lint,types,build,playwright,perf,roadmap}.txt` | "2997 passed (2997)"; lint "0 errors, 2 warnings"; types and build exit 0; "139 passed (12.0m)"; isolated performance "2 passed (2)", FR-497 p95 14.0 ms over 3,210 turns; roadmap "PASS". |
 
 ## 2026-11-22 Task 21 — Sea war and reach
 

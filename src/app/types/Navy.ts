@@ -19,7 +19,9 @@ export interface Ship {
   firepower: number;
   range: number;      // combat range
   armour: number;
-  hull: number;
+  hull: number;       // full hull strength
+  /** Hull points lost. Absent on an undamaged ship, including old saves. */
+  hullDamage?: number;
   battleMove: number;
   speed: number;      // sea zones per turn
   experience: number; // medals 0..4
@@ -50,7 +52,7 @@ export interface Fleet {
   /** The turn the landing site was established. Embarkation starts on the following turn. */
   siteSinceTurn?: number;
   contested?: boolean;
-  /** Opposing fleet ids in the last resolved tie, for announcing new contact exactly once. */
+  /** Opposing fleets still contesting the approach after this turn's battles. */
   contestedWith?: string[];
   admiral?: {
     name: string;
@@ -60,4 +62,12 @@ export interface Fleet {
   aggression: "cautious" | "normal" | "bold";
   mission?: "patrol" | "blockade" | "landing" | "move";
   targetPortCityId?: string;
+}
+
+export interface NavalBattleSide {
+  nationId: NationId;
+  /** Firepower still afloat at the end of this engagement. */
+  firepower: number;
+  /** Pre-battle-report saves contain only the side's firepower. */
+  ships?: { id: string; type: ShipType; hullBefore: number; hullAfter: number }[];
 }
