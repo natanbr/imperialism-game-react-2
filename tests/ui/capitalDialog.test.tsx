@@ -8,7 +8,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { CapitalModal } from '@/components/CapitalModal';
 import { useGameStore } from '@/store/rootStore';
 import { readSave } from '@/store/persistence';
-import type { Order } from '@/engine';
+import { newGame, type Order } from '@/engine';
 import type { GameState } from '@/types/GameState';
 import { emptyWarehouse, game, industryOf, N1, nationOf, setBuilding, setIndustry, setTechnologies, stockOf } from '../engine/fixtures';
 import { text } from './domText';
@@ -124,6 +124,23 @@ it('FR-515 shows both ship costs, holds and current stocks, and lets either orde
 
 beforeEach(() => {
   submitted = [];
+});
+
+it('FR-556 Shipyard shows warship costs and commissioning turn, and reserves and refunds their materials', () => {
+  const state = newGame({ seed: 1, world: 'continent' });
+  Object.assign(nationOf(state, N1).warehouse, { armaments: 5, fabric: 3 });
+  openCapital(state);
+  const yard = within(screen.getByRole('region', { name: 'Shipyard' }));
+  const ship = yard.getByRole('button', { name: 'Build one more Ship-of-the-Line' });
+  const row = within(ship.closest('li')!);
+  expect(text(row.getByText('5 armaments · 8 lumber · 3 fabric'))).toBeTruthy();
+  fireEvent.click(ship);
+  expect(submitted.at(-1)).toMatchObject({ kind: 'setShipyard', ship: 'shipOfTheLine', count: 1 });
+  expect(text(row.getByText('Usable on turn 2.'))).toBeTruthy();
+  expect(nationOf(now(), N1).merchantMarine.holds).toBe(4);
+  expect(stockOf(now(), N1, 'armaments')).toBe(0);
+  fireEvent.click(yard.getByRole('button', { name: 'Build one less Ship-of-the-Line' }));
+  expect(stockOf(now(), N1, 'armaments')).toBe(5);
 });
 
 describe('FR-046 capital dialog: production cards', () => {

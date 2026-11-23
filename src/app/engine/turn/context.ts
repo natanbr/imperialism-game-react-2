@@ -15,6 +15,9 @@ import { createStreamRng, createTurnRng, RNG_STREAMS, type Rng, type RngStream }
 
 /** What happened during a turn, for news, UI feedback and AI players. */
 export type GameEvent =
+  | { type: "naval-engagement"; provinceId: ProvinceId; seaId: string;
+      sides: [{ nationId: NationId; firepower: number }, { nationId: NationId; firepower: number }];
+      winnerId?: NationId; winnerContested?: true; landing: "held" | "blocked" | "none" }
   | { type: "new-invention"; techId: string }
   | { type: "order-rejected"; nationId: NationId; order: Order; reason: RejectReason }
   | { type: "resource-discovered"; tileId: TileId; nationId?: NationId; resource?: ResourceType }
@@ -81,7 +84,8 @@ export type GameEvent =
   /** The upkeep paid this turn (FR-202); none when it is 0. */
   | { type: "army-upkeep"; nationId: NationId; amount: number }
   /** Regiments of the nation marched along one route this turn (FR-206). */
-  | { type: "army-moved"; nationId: NationId; fromProvinceId: ProvinceId; toProvinceId: ProvinceId; count: number }
+  | { type: "army-moved"; nationId: NationId; fromProvinceId: ProvinceId; toProvinceId: ProvinceId; count: number; via?: "rail" | "sea" }
+  | { type: "sea-deployment-failed"; nationId: NationId; fromProvinceId: ProvinceId; toProvinceId: ProvinceId; reason: RejectReason }
   /** Regiments left the army: by order (FR-207) or for want of upkeep money (FR-202). */
   | { type: "regiments-disbanded"; nationId: NationId; reason: DisbandReason; count: number }
   // War (M9). `nationId` is the attacking or conquering Great Power.

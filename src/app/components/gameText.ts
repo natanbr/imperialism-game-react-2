@@ -58,6 +58,7 @@ const ORDER_TEXT: Record<OrderKind, string> = {
   disbandCivilian: "Disband civilian",
   cancelDisbandCivilian: "Cancel civilian disband",
   setShipyard: "Shipyard",
+  setFleetMission: "Fleet order",
   buyTechnology: "Buy technology",
   withdrawTechnology: "Cancel technology purchase",
 };
@@ -94,7 +95,11 @@ export const REFUSAL_TEXT: Record<RejectReason, string> = {
   "no-buyer": "no one buys this",
   "buyers-barred": "we may not trade with any buyer",
   "not-adjacent": "that province does not border the army's province",
-  "no-land-route": "no army can reach them over land (that needs ships, a later milestone)",
+  "no-land-route": "no reachable land or sea route",
+  "no-landing-site": "there is no usable landing site at that coast",
+  "no-port-route": "an open port on the destination's sea is required",
+  "port-closed": "the port is blockaded",
+  "insufficient-naval-support": "the selected troops exceed the remaining naval ARMS allowance",
 };
 
 /** Why an offer passed the nation by, in the news and the Deal Book (FR-244). */
@@ -104,7 +109,8 @@ export const MISSED_TEXT: Record<OfferMissedReason, string> = {
 };
 
 export function refusalText({ order, reason }: { order: Order; reason: RejectReason }): string {
-  return `${ORDER_TEXT[order.kind]} refused: ${REFUSAL_TEXT[reason]}.`;
+  const action = order.kind === "moveArmy" && order.via ? (order.via === "rail" ? "Rail deployment" : "Sea deployment") : ORDER_TEXT[order.kind];
+  return `${action} refused: ${REFUSAL_TEXT[reason]}.`;
 }
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -399,8 +405,24 @@ export function eventText(event: GameEvent, nameOf: (countryId: string) => strin
       return `${event.count} ${REGIMENTS[event.regiment].name} not raised: our capital province is lost. Their cost is refunded.`;
     case "army-upkeep":
       return `Army upkeep: ${money(event.amount)}.`;
-    case "army-moved":
-      return `${regiments(event.count)} marched from ${nameOf(event.fromProvinceId)} to ${nameOf(event.toProvinceId)}.`;
+    case "army-moved": {
+      const action = event.via === "rail" ? "deployed by rail" : event.via === "sea" ? "sailed as reinforcements" : "marched";
+      return `${regiments(event.count)} ${action} from ${nameOf(event.fromProvinceId)} to ${nameOf(event.toProvinceId)}.`;
+    }
+    case "sea-deployment-failed":
+      return `Landing from ${nameOf(event.fromProvinceId)} to ${nameOf(event.toProvinceId)} stopped: ${REFUSAL_TEXT[event.reason]}. Troops stayed at their origin.`;
+    case "naval-engagement": {
+      const forces = event.sides.map(side => `${nameOf(side.nationId)} ${side.firepower}`).join(" against ");
+      const loser = event.winnerId && event.sides.find(side => side.nationId !== event.winnerId);
+      let result = "Both squadrons remain and the approach is contested.";
+      if (loser && event.winnerId) {
+        result = event.winnerContested
+          ? `${nameOf(event.winnerId)} drove ${nameOf(loser.nationId)} back to berth intact. The approach remains contested.`
+          : `${nameOf(event.winnerId)} holds the approach. ${nameOf(loser.nationId)} returned to berth intact.`;
+      }
+      const landing = event.landing === "blocked" ? " Landing blocked." : event.landing === "held" ? " Landing site held." : "";
+      return `Naval engagement off ${nameOf(event.provinceId)} (${forces} firepower). ${result}${landing}`;
+    }
     case "regiments-disbanded":
       return event.reason === "no-pay" ? `${regiments(event.count)} disbanded: no money for their upkeep.` : `${regiments(event.count)} disbanded.`;
     // FR-232 (M9): the war news; `nationId` is the attacking or conquering Great Power
@@ -534,6 +556,7 @@ export function newsItems(events: readonly GameEvent[], playerId: string, nameOf
     if (line === null) continue;
     const nationId = "nationId" in event ? event.nationId : undefined;
     if (event.type === "council-met") council.push({ text: line, ...opens });
+    else if (event.type === "naval-engagement" && event.sides.some(side => side.nationId === playerId)) own.push({ text: line });
     else if (nationId === undefined) general.push({ text: line, ...opens });
     else if (nationId === playerId) own.push({ text: line, ...opens });
     else others.push({ text: `${nameOf(nationId)}: ${line}`, ...opens });

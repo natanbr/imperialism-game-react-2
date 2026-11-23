@@ -19,6 +19,13 @@ const ALL_REASONS: RejectReason[] = [
 
 const prospect: Order = { kind: 'moveAndStartProspecting', nationId: 'nation-1', workerId: 'w', toTileId: '3-4' };
 
+it('FR-552 reports when winning one engagement leaves the landing site contested by another squadron', () => {
+  const event: GameEvent = {type:'naval-engagement', provinceId:'Pellis', seaId:'0-0',
+    sides:[{nationId:'Testland',firepower:6},{nationId:'Carthia',firepower:3}],
+    winnerId:'Testland', winnerContested:true, landing:'blocked'};
+  expect(eventText(event)).toContain('Testland drove Carthia back to berth intact. The approach remains contested. Landing blocked.');
+});
+
 describe('FR-024 refusal text', () => {
   it('every refusal reason has plain words', () => {
     for (const reason of ALL_REASONS) expect(REFUSAL_TEXT[reason]).toMatch(/\w/);

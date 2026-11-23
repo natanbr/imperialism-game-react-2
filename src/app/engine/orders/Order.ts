@@ -4,7 +4,7 @@ import type { ConstructionKind } from "@/types/jobs/ConstructionJob";
 import type { BuildingType, ProductionOutput, WorkerGrade } from "@/types/Industry";
 import type { TradeCommodity } from "@/types/Market";
 import type { RegimentType } from "@/types/Unit";
-import type { MerchantShipType } from "@/definisions/ships";
+import type { MerchantShipType, WarshipType } from "@/definisions/ships";
 import type { UniversityCivilian } from "@/definisions/universityFees";
 
 /**
@@ -217,6 +217,8 @@ export interface SetRecruitmentOrder extends OrderBase {
  */
 export interface MoveArmyOrder extends OrderBase {
   kind: "moveArmy";
+  /** Omitted for the ordinary adjacent march or attack, including historical orders. */
+  via?: "rail" | "sea";
   fromProvinceId: ProvinceId;
   regimentIds: RegimentId[];
   toProvinceId: ProvinceId;
@@ -259,8 +261,15 @@ export interface CancelDisbandCivilianOrder extends OrderBase {
 
 export interface SetShipyardOrder extends OrderBase {
   kind: "setShipyard";
-  ship: MerchantShipType;
+  ship: MerchantShipType | WarshipType;
   count: number;
+}
+
+export interface SetFleetMissionOrder extends OrderBase {
+  kind: "setFleetMission";
+  fleetId: string;
+  mission: "sail" | "station" | "return" | "cancel";
+  provinceId?: ProvinceId;
 }
 
 export type CivilianOrder = SetUniversityOrder | DisbandCivilianOrder | CancelDisbandCivilianOrder;
@@ -278,6 +287,7 @@ export interface WithdrawTechnologyOrder extends OrderBase {
 export type TechnologyOrder = BuyTechnologyOrder | WithdrawTechnologyOrder;
 
 export type Order =
+  | SetFleetMissionOrder
   | TechnologyOrder
   | CivilianOrder
   | SetShipyardOrder
@@ -349,6 +359,7 @@ export const ORDER_KINDS = [
   "disbandCivilian",
   "cancelDisbandCivilian",
   "setShipyard",
+  "setFleetMission",
   "buyTechnology",
   "withdrawTechnology",
 ] as const satisfies readonly OrderKind[];
@@ -399,6 +410,10 @@ export type RejectReason =
   | "buyers-barred"
   /** Armies (FR-205): the province does not border the army's province. */
   | "not-adjacent"
+  | "no-landing-site"
+  | "no-port-route"
+  | "port-closed"
+  | "insufficient-naval-support"
   /** Diplomacy (FR-406): war on a country no chain of land-adjacent provinces joins to ours (that needs ships). */
   | "no-land-route";
 

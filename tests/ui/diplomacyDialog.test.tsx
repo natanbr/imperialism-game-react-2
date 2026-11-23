@@ -1086,9 +1086,9 @@ describe('FR-427 Diplomacy on a narrow window', () => {
 describe('FR-407 FR-395 FR-416 FR-417 FR-418 FR-422 Diplomacy says what each choice does', () => {
   const regiments = (n: number) => `${n} regiment${n === 1 ? '' : 's'}`;
 
-  it('FR-407 war on a country no army can reach over land: Declare war is disabled with "No army can reach Sundmark over land. War needs ships (a later milestone)."', () => {
+  it('FR-407 FR-556 explains the missing commissioned warship for a war across the sea', () => {
     openDiplomacy(start());
-    const line = 'No army can reach Sundmark over land. War needs ships (a later milestone).';
+    const line = 'No army can reach Sundmark over land. Commission a warship at the Shipyard.';
     const war = button('Sundmark', 'Declare war') as HTMLButtonElement;
     expect(war.disabled).toBe(true);
     expect(description(war)).toBe(line);
@@ -1097,7 +1097,7 @@ describe('FR-407 FR-395 FR-416 FR-417 FR-418 FR-422 Diplomacy says what each cho
     expect(within(country('Sundmark')).queryByRole('group', { name: 'Confirm war on Sundmark' })).toBeNull();
     expect(submitted).toEqual([]);
 
-    for (const name of ['Lorran', 'Pellis']) expect(description(button(name, 'Declare war'))).toBe(`No army can reach ${name} over land. War needs ships (a later milestone).`);
+    for (const name of ['Lorran', 'Pellis']) expect(description(button(name, 'Declare war'))).toBe(`No army can reach ${name} over land. Commission a warship at the Shipyard.`);
     for (const name of ['Arvelia', 'Valdoria']) expect((button(name, 'Declare war') as HTMLButtonElement).disabled).toBe(false);
   });
 

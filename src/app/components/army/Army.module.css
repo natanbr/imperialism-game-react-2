@@ -341,6 +341,123 @@
   font-size: var(--font-size-sm);
 }
 
+.deployments {
+  flex: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 8px;
+  margin-top: var(--spacing-md);
+}
+
+.deployment {
+  min-inline-size: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+}
+
+.deployment summary {
+  cursor: pointer;
+  font-weight: 700;
+  padding-block: 4px;
+}
+
+.deployment p {
+  margin: 6px 0;
+}
+
+.deploymentField {
+  display: grid;
+  gap: 4px;
+  margin-block-end: 6px;
+}
+
+.deployment .select {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
+@media (max-width: 599.98px) {
+  .dialog {
+    overflow-y: auto;
+    scroll-padding-block-start: 84px;
+  }
+
+  .dialog .header {
+    position: sticky;
+    inset-block-start: 0;
+    z-index: 2;
+    background: var(--color-bg-secondary);
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr) auto;
+    gap: 4px 8px;
+    padding-block-end: 4px;
+  }
+
+  .dialog .header h2 {
+    grid-column: 1 / 3;
+  }
+
+  .dialog .closeButton {
+    grid-area: 1 / 3;
+    min-inline-size: 44px;
+  }
+
+  .dialog .summary {
+    margin-inline-start: 0;
+    font-size: var(--font-size-sm);
+  }
+
+  .dialog .summary + .summary {
+    grid-column: 2 / 4;
+  }
+
+  .controlGroup {
+    flex-wrap: wrap;
+  }
+
+  .listPane {
+    flex: none;
+    max-block-size: 250px;
+  }
+
+  .table th,
+  .table td {
+    white-space: normal;
+    padding-inline: 4px;
+  }
+
+  .table th {
+    letter-spacing: normal;
+  }
+
+  .healthTrack {
+    display: none;
+  }
+
+  .healthNumber {
+    min-width: 0;
+  }
+}
+
+@media (pointer: coarse) {
+  .dialog .button,
+  .dialog .select,
+  .dialog .closeButton,
+  .deployment summary {
+    min-block-size: 48px;
+    font-size: max(1rem, 1em);
+  }
+
+  .pick {
+    min-block-size: 44px;
+  }
+
+  .deployment summary {
+    align-content: center;
+  }
+}
+
 /* "Disband 2nd Regulars? ..." asked in place, like the war question (FR-178) */
 .confirm {
   flex: none;

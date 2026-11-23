@@ -24,11 +24,12 @@ export function withCurrentRules(state: GameState): GameState {
     const marine = nation.merchantMarine;
     return {
       ...current,
+      fleets: current.fleets ?? [],
       technologies: current.technologies ?? [...inherited],
       ...(marine && { merchantMarine: { ...marine, ships: shipsOf(marine), holds: cargoHolds(marine) } }),
     };
   });
-  return { ...game, rulesRevision: "m16.1", nations };
+  return { ...game, fleets: game.fleets ?? [], rulesRevision: "m16.1", nations };
 }
 
 function applyHumanOrders(state: GameState, orders: readonly Order[], historical = false): GameState {

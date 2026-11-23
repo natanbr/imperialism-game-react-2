@@ -3,7 +3,7 @@ import { CityId, NationId, FleetId } from "./Common";
 import { IndustryState } from './Industry';
 import { WarehouseCommodities } from './Resource';
 import type { RegimentType } from "./Unit";
-import type { ShipCounts } from "@/definisions/ships";
+import type { ShipCounts, WarshipCounts } from "@/definisions/ships";
 import type { UniversityCivilian } from "@/definisions/universityFees";
 
 /** Who gives a nation its orders (FR-099): the person at this client, or a scripted player. */
@@ -32,6 +32,7 @@ export interface Nation {
   cities: CityId[];
   // Its regiments are the state.armies it owns (FR-204, armiesOf).
   fleets: FleetId[];
+  pendingWarships?: WarshipCounts;
 
   merchantMarine: {
     holds: number;       // total cargo holds

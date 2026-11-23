@@ -4,6 +4,7 @@
 import type { GameState } from "@/types/GameState";
 import type { CountryId, NationId, ProvinceId, RegimentId } from "@/types/Common";
 import type { Regiment } from "@/types/Army";
+import type { ArmyMoveIntent, AttackIntent } from "@/types/Intent";
 import type { BattleFate, BattleRegiment, BattleReport } from "@/types/Battle";
 import type { WarBattle } from "@/types/Diplomacy";
 import { FULL_HEALTH, HEALING_PER_TURN, isMilitia } from "@/definisions/regiments";
@@ -19,6 +20,8 @@ import {
 } from "../army/armies";
 import { byRegimentId, fightBattle, fortLevelOf, type BattleUnit } from "../army/combat";
 import { capitalOwnerOf, fallCapital, takeProvince } from "../army/conquest";
+import { validateRailDeployment } from "../army/railDeployment";
+import { validateSeaDeployment } from "../navy/seaArmy";
 import { warActive } from "../diplomacy/queries";
 import { pairKey } from "../diplomacy/relations";
 import { adjacentProvinces, provinceById } from "../world/provinces";
@@ -34,7 +37,23 @@ interface Route {
   nationId: NationId;
   fromProvinceId: ProvinceId;
   toProvinceId: ProvinceId;
+  via?: "rail" | "sea";
   regiments: Regiment[];
+}
+
+function canDispatch(state: GameState, intent: ArmyMoveIntent | AttackIntent, ctx: TurnContext): boolean {
+  const order = { ...intent, kind: "moveArmy" as const };
+  if (intent.via === "rail") return validateRailDeployment(state, order).ok;
+  if (intent.via !== "sea") return true;
+  const expectedOwner = intent.kind === "attack" ? intent.targetId : intent.nationId;
+  const origin = armyAt(state, intent.nationId, intent.fromProvinceId);
+  const present = origin?.regiments.some(r => !isMilitia(r.type) && intent.regimentIds.includes(r.id));
+  const result = present && holds(state, expectedOwner, intent.toProvinceId)
+    ? validateSeaDeployment(state, order, "dispatch") : { ok: false, reason: "invalid-target" } as const;
+  if (result.ok) return true;
+  ctx.emit({ type: "sea-deployment-failed", nationId: intent.nationId, fromProvinceId: intent.fromProvinceId,
+    toProvinceId: intent.toProvinceId, reason: result.reason });
+  return false;
 }
 
 /**
@@ -49,23 +68,25 @@ function march(state: GameState, ctx: TurnContext): GameState {
   const moving = new Set<RegimentId>();
   const routes = new Map<string, Route>();
   for (const intent of moves) {
+    if (!canDispatch(state, intent, ctx)) continue;
     if (!holds(state, intent.nationId, intent.toProvinceId)) continue;
     for (const id of intent.regimentIds) {
       const found = findRegiment(state, id);
       if (!found || moving.has(id) || isMilitia(found.regiment.type)) continue;
       if (found.army.ownerId !== intent.nationId || found.army.provinceId !== intent.fromProvinceId) continue;
       moving.add(id);
-      const key = `${intent.nationId} ${intent.fromProvinceId} ${intent.toProvinceId}`;
-      const route = routes.get(key) ?? { nationId: intent.nationId, fromProvinceId: intent.fromProvinceId, toProvinceId: intent.toProvinceId, regiments: [] };
+      const key = `${intent.nationId} ${intent.fromProvinceId} ${intent.toProvinceId} ${intent.via ?? "march"}`;
+      const route = routes.get(key) ?? { nationId: intent.nationId, fromProvinceId: intent.fromProvinceId,
+        toProvinceId: intent.toProvinceId, via: intent.via, regiments: [] };
       route.regiments.push({ ...found.regiment, movedOnTurn: ctx.turn });
       routes.set(key, route);
     }
   }
   if (moving.size === 0) return state;
   let s = removeRegiments(state, moving);
-  for (const { nationId, fromProvinceId, toProvinceId, regiments } of routes.values()) {
+  for (const { nationId, fromProvinceId, toProvinceId, via, regiments } of routes.values()) {
     s = placeRegiments(s, nationId, toProvinceId, regiments);
-    ctx.emit({ type: "army-moved", nationId, fromProvinceId, toProvinceId, count: regiments.length });
+    ctx.emit({ type: "army-moved", nationId, fromProvinceId, toProvinceId, count: regiments.length, ...(via && { via }) });
   }
   return s;
 }
@@ -121,9 +142,10 @@ function battles(state: GameState, ctx: TurnContext): GameState {
   const taken = new Set<RegimentId>();
   const sorties = new Map<ProvinceId, Sortie[]>();
   for (const intent of attacks) {
+    if (!canDispatch(state, intent, ctx)) continue;
     const target = provinceById(state, intent.toProvinceId);
     if (!target || target.ownerId === intent.nationId || !warActive(state, intent.nationId, target.ownerId)) continue;
-    if (!adjacentProvinces(state, intent.fromProvinceId).some((p) => p.id === target.id)) continue;
+    if (intent.via !== "sea" && !adjacentProvinces(state, intent.fromProvinceId).some((p) => p.id === target.id)) continue;
     for (const id of intent.regimentIds) {
       const found = findRegiment(state, id);
       if (!found || taken.has(id) || isMilitia(found.regiment.type)) continue;

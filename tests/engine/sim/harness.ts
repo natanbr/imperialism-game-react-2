@@ -127,6 +127,8 @@ export interface GameRecord {
 }
 
 export interface RunOptions {
+  /** FR-559: observe registered Orders and their resolved effects without changing a frozen policy. */
+  observe?: (registered: GameState, next: GameState, events: readonly GameEvent[], beforeOrders: GameState) => void;
   seed: number;
   /** A policy of `humans.ts` by name, or one's own. */
   human: HumanName | HumanPolicy;
@@ -143,7 +145,7 @@ const holdsProvince = (state: GameState, id: string): boolean => {
 };
 
 /** Plays one continent game with `human` as nation 1 and returns what each turn did. Deterministic apart from the timings. */
-export function runGame({ seed, human, turns = 40, checkInvariants = true }: RunOptions): GameRecord {
+export function runGame({ seed, human, turns = 40, checkInvariants = true, observe }: RunOptions): GameRecord {
   const policy = typeof human === 'string' ? HUMANS[human] : human;
   const began = performance.now();
   const start = newGame({ seed, world: 'continent' });
@@ -154,6 +156,8 @@ export function runGame({ seed, human, turns = 40, checkInvariants = true }: Run
   for (let played = 0; played < turns && !state.gameOver; played++) {
     const turn = state.turn;
     if (policy.setup) state = policy.setup(state);
+
+    const beforeOrders = state;
 
     // The human's orders, one by one, as the store's submitOrder applies them.
     let accepted = 0;
@@ -180,6 +184,7 @@ export function runGame({ seed, human, turns = 40, checkInvariants = true }: Run
     const traded = mapNations(state, id => tradeOrdersOf(registered, id));
 
     const { state: next, events } = resolveTurn(state, computer, state.seed);
+    observe?.(registered, next, events, beforeOrders);
     lastTrade = traded;
     records.push(recordTurn({ turn, start, next, events, holds, humanRefused, humanOrders: accepted, computerOrdersMs, checkInvariants }));
     state = next;

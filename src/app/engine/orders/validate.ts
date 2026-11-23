@@ -17,6 +17,7 @@ import { validateArmyOrder } from "./armyOrders";
 import { validateCivilianOrder } from "./civilianOrders";
 import { validateTechnologyOrder } from "./technologyOrders";
 import { validateShipyard } from "./shipyardOrders";
+import { validateFleetMission } from "./fleetOrders";
 import { isGameOver } from "../turn/gameOver";
 import { areTilesAdjacent } from "../map/mapHelpers";
 import type {
@@ -71,6 +72,8 @@ export function validateOrder(state: GameState, order: Order): ValidationResult 
     case "setShipyard":
       if (state.technologyState && order.ship === "clipper") return reject("invalid-target");
       return validateShipyard(state, order);
+    case "setFleetMission":
+      return validateFleetMission(state, order);
     case "setUniversity":
     case "disbandCivilian":
     case "cancelDisbandCivilian":

@@ -33,6 +33,7 @@ import {
   type SubsidyPercent,
 } from "@/engine";
 import { PACT_POINTS, SCRIPTED_DIPLOMACY, WAR_RELATION } from "@/definisions/diplomacyRules";
+import { seaWarRequirement } from "@/engine/navy/seaArmy";
 import type { NationId } from "@/types/Common";
 import type { GameState } from "@/types/GameState";
 import type { GrantIntent } from "@/types/Intent";
@@ -441,8 +442,10 @@ function rowOf(state: GameState, nationId: NationId, id: CountryId, kind: Countr
       const c = { ...control(state, overtureLabel(o), { kind: "proposeOverture", nationId, overture: o, targetId: id }, OVERTURE_LABEL[o]), help: overtureHelp(state, id, kind, o) };
       if (o !== "war") return c;
       if (pair?.war && c.refusal === REFUSAL_TEXT["already-in-place"]) return { ...c, refusal: ALREADY_AT_WAR };
-      // FR-407: the war no army can reach, named and said why (FR-406's refusal)
-      if (c.refusal === REFUSAL_TEXT["no-land-route"]) return { ...c, refusal: `No army can reach ${name} over land. War needs ships (a later milestone).` };
+      if (c.refusal === REFUSAL_TEXT["no-land-route"]) {
+        const requirement = seaWarRequirement(state, nationId, id);
+        return { ...c, refusal: `No army can reach ${name} over land. ${requirement ?? "No sea route is available."}` };
+      }
       return c;
     }),
     stopGrant: stopGrantOf(state, nationId, id, intents),

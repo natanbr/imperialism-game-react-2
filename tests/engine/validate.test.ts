@@ -8,6 +8,7 @@ import { CONSTRUCTION_COST, DEVELOPMENT_COST, PROSPECT_COST } from '@/definision
 import type { ConstructionKind } from '@/types/jobs/ConstructionJob';
 import { createTileId } from '@/utils/tileIdUtils';
 import { newGame } from '@/engine/newGame';
+import { resolveTurn } from '@/engine/turn/resolveTurn';
 import { applyOrder } from '@/engine/orders/apply';
 import { transferProvince } from '@/engine/world/provinces';
 import { deepFreeze, game, N1, N2, put, setIndustry, setPair, setTile, setTreasury, setWarehouse, T, workerId } from './fixtures';
@@ -58,7 +59,14 @@ const ARMY = (() => {
 })();
 const marchOrder = (regimentIds: string[], fromProvinceId = SW1, toProvinceId = NW1): Order => ({ kind: 'moveArmy', nationId: N1, fromProvinceId, regimentIds, toProvinceId });
 
+const commissioned = resolveTurn(setWarehouse(armyContinent(), N1, {armaments: 2, lumber: 5, fabric: 2}), {
+  [N1]: [{kind: 'setShipyard', nationId: N1, ship: 'frigate', count: 1}],
+}).state;
+
 const cases: Case[] = [
+  { name: 'FR-549 sail a commissioned squadron to Sundmark', setup: () => commissioned, order: {
+    kind: 'setFleetMission', nationId: N1, fleetId: commissioned.fleets[0].id, mission: 'sail', provinceId: 'province-minor-2',
+  }, expected: 'ok' },
   { name: 'FR-522 buy the available Cotton Gin', order: { kind: 'buyTechnology', nationId: N1, techId: 'cottonGin' }, expected: 'ok' },
   { name: 'FR-522 withdraw the pending Cotton Gin purchase', setup: s => applyOrder(s, { kind: 'buyTechnology', nationId: N1, techId: 'cottonGin' }), order: { kind: 'withdrawTechnology', nationId: N1, techId: 'cottonGin' }, expected: 'ok' },
   { name: 'FR-511 order an Engineer with a free expert and paper', setup: s => setIndustry(setWarehouse(s, N1, { paper: 2 }), N1, { workers: { untrained: 0, trained: 0, expert: 1 } }), order: { kind: 'setUniversity', nationId: N1, civilianType: WorkerType.Engineer, count: 1 }, expected: 'ok' },

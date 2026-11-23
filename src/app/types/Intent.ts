@@ -62,6 +62,7 @@ export type DiplomacyIntent = OvertureIntent | GrantIntent | GrantStopIntent | T
  */
 export interface ArmyMoveIntent extends Intent {
   kind: "army-move";
+  via?: "rail" | "sea";
   fromProvinceId: ProvinceId;
   toProvinceId: ProvinceId;
   regimentIds: RegimentId[];
@@ -73,6 +74,7 @@ export interface ArmyMoveIntent extends Intent {
  */
 export interface AttackIntent extends Intent {
   kind: "attack";
+  via?: "sea";
   targetId: CountryId;
   fromProvinceId: ProvinceId;
   toProvinceId: ProvinceId;

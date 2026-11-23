@@ -63,8 +63,8 @@ describe('FR-406 a war without a land route is refused', () => {
     expect(validateOrder(continent(), war(N1, target))).toEqual({ ok: true });
   });
 
-  it('the reason reads as the spec words it', () => {
-    expect(REFUSAL_TEXT['no-land-route']).toBe('no army can reach them over land (that needs ships, a later milestone)');
+  it('FR-556 the fallback reason covers both the land and sea routes', () => {
+    expect(REFUSAL_TEXT['no-land-route']).toBe('no reachable land or sea route');
   });
 
   it('a war intent stored without a route (a hand-built state) fails in the diplomacy phase with no-land-route', () => {

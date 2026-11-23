@@ -13,6 +13,7 @@ import { bestDepotSite, nextRailSections, pendingRailTiles, tilesByReach, type D
 import { planEconomy, planFinalTransport, turnsAfter } from "./economy";
 import { scriptedDiplomacyOrders } from "./diplomacy";
 import { upkeepReserve } from "./scriptedArmy";
+import { coastalDefenceOrder } from "./navalDefence";
 import { planWarDeclaration, planWarMoves } from "./scriptedWar";
 
 /**
@@ -74,6 +75,8 @@ export const scriptedPlayer = (state: GameState, nationId: string, allowOrder?: 
   // Last, and only at war: a peace offer when beaten (FR-408) or holding what it went to war for (FR-489). At peace
   // nothing is added (FR-181).
   for (const order of scriptedDiplomacyOrders(view, nationId)) propose(order);
+  const relief = coastalDefenceOrder(view, nationId);
+  if (relief) propose(relief);
   return orders;
 };
 
