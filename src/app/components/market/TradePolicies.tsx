@@ -85,6 +85,7 @@ const PolicyRow: React.FC<{ row: TradePolicyRowView; submitOrder: Submit }> = ({
   );
 };
 
+/** Map and List get their policy rows and refusals from diplomacyView's tradePolicyRows. */
 export const TradePolicies: React.FC<{ game: GameState; nationId: string; submitOrder: Submit }> = ({ game, nationId, submitOrder }) => {
   const [mode, setMode] = useState<"Map" | "List">("Map");
   const [chosenId, setChosenId] = useState<string>();

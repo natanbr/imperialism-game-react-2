@@ -34,18 +34,24 @@
   border-radius: var(--radius-sm);
 }
 
-.country[role="button"] {
+.country[role="button"],
+.annotationButton {
   cursor: pointer;
+}
+
+.land,
+.selectedBorder {
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
 }
 
 .land {
   stroke: var(--color-surface-raised);
   stroke-width: 1px;
-  stroke-linejoin: round;
-  vector-effect: non-scaling-stroke;
 }
 
-.country[aria-pressed="true"] .land {
+.selectedBorder {
+  pointer-events: none;
   stroke: var(--color-highlight);
   stroke-width: 3px;
 }
@@ -55,8 +61,20 @@
   outline-offset: 2px;
 }
 
+.country:focus-visible .land {
+  stroke: var(--color-ink);
+  stroke-width: 6px;
+  stroke-dasharray: 5 3;
+}
+
 .label {
   font: bold 23px Georgia, serif;
+}
+
+.labelContents {
+  /* Percentages here measure the flag and its actual typeset name together. */
+  transform-box: fill-box;
+  transform: translateX(clamp(var(--label-min-x), -50%, calc(var(--label-max-x) - 100%)));
 }
 
 .label text {
@@ -147,7 +165,7 @@
   }
 
   .marker {
-    transform: translateY(8px) scale(1.25);
+    transform: scale(1.25);
   }
 
   .sheet .bar tbody tr {

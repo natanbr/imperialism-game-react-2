@@ -462,8 +462,9 @@ describe('FR-579 the Trade policies map', () => {
     expect(text(within(policyRow(N2)).getByRole('rowheader'))).toBe('Valdoria');
 
     const ownLand = policyMap().querySelector(`[data-country="${N1}"]`)!;
-    expect(ownLand.querySelector('text')?.textContent).toBe('Testland');
-    expect(ownLand.querySelector('svg[data-testid="nation-flag"]')).not.toBeNull();
+    const ownLabel = policyMap().querySelector(`[data-annotation-for="${N1}"]`)!;
+    expect(ownLabel.querySelector('text')?.textContent).toBe('Testland');
+    expect(ownLabel.querySelector('svg[data-testid="nation-flag"]')).not.toBeNull();
     expect(ownLand.querySelector('[fill="var(--color-nation-1)"]:is(path, polygon, rect)')).not.toBeNull();
     expect(within(policyMap()).queryByRole('button', { name: /Testland/ })).toBeNull();
     expect(within(policyMap()).queryByTestId(`policy-marker-${N1}`)).toBeNull();
