@@ -1,0 +1,133 @@
+/* FR-562: the Demo level's debug dashboard (tokens in styles/tokens.css). A fixed frame over the page (the About
+   backdrop): only the body scrolls, so the title and the section buttons stay in view on a short window. */
+
+.dialog {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: 1120px;
+  max-width: calc(100vw - 32px);
+  height: min(720px, calc(100vh - 32px));
+  overflow: hidden;
+  padding: 12px 16px 16px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  box-shadow: var(--shadow-dialog);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-bottom: 8px;
+}
+
+.header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.note {
+  margin-right: auto;
+  color: var(--color-ink-muted);
+  font-size: 12px;
+}
+
+.sections {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.sectionButton {
+  width: auto;
+}
+
+/* The section shown: the primary button's look (globals .btn-primary). Trap: globals' `.btn:hover:not(...)` (four
+   classes' weight) paints the hover beige, which left white text on beige under the pointer; these rules outweigh it */
+.sections .sectionButton[aria-pressed="true"],
+.sections .sectionButton[aria-pressed="true"]:active:not(:disabled) {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.sections .sectionButton[aria-pressed="true"]:hover:not(:disabled) {
+  background: var(--color-accent-strong);
+}
+
+.body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.forecast {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
+  gap: 10px;
+}
+
+/* The nation's colour (FR-097) across the card's top and in its swatch */
+.card {
+  min-width: 0;
+  padding: 8px 10px 10px;
+  border: 1px solid var(--color-border);
+  border-top: 6px solid var(--nation-colour);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+}
+
+.cardTitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 6px;
+  font-size: 15px;
+}
+
+.who {
+  color: var(--color-ink-muted);
+  font-size: 12px;
+  font-weight: normal;
+}
+
+.lines {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 2px 10px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.line {
+  display: contents;
+}
+
+.lines dt {
+  color: var(--color-ink-muted);
+}
+
+.lines dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.details {
+  max-width: 640px;
+}
+
+.detailsTitle {
+  margin: 0 0 6px;
+  color: var(--color-ink);
+  font-size: 14px;
+}
