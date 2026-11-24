@@ -7,7 +7,7 @@ Older entries are in `docs/journal/archive-<milestone>.md` (the latest move, 202
 - M18 (play-test comfort, `docs/specs/m18-playtest-comfort.md`): M18a merged into main `af24381` (pull request 43), M18b part 1 (FR-563, FR-568, FR-569) in `5e80bab` (pull request 44), part 2 (FR-564 nation colours and flags) in `4098bfe` (pull request 45). NR-037 in progress.
 - M18b part 3 (FR-565, FR-566) merged into main `cd5b1be` (pull request 46); FR-567 into `994a0ca` (pull request 47), partial: the narrower pane is left for the owner; FR-570 (rail) into `751b74b` (pull request 48). Icons wait for the art (spec section 3).
 - M18c (FR-572 to FR-578) merged in `896d1fb` (pull request 49). The three-tab Board of Trade and Trade School evidence is in `.gate/claude/53/`. The owner’s FR-575 decision about moving Details is still open.
-- Task 29 (FR-579) is on the local branch `claude/m18c-policy-map`. Open Market → Trade policies to select a country on the map or switch to List. Screenshots and gate logs are in `.gate/codex/29/`.
+- Task 30 follows the Task 29 map on the local branch `claude/m18c-policy-map`. Open Market → Trade policies, then Tab to a country to see its keyboard focus. The review evidence is in `.gate/codex/30/`.
 - To try Demo: New game, Start Demo game; then Dashboard in the top bar (Economy, Military, Trade, Diplomacy, Council, Bug report).
 - M17 merged into main `65a4d5a` (pull request 42). Its task evidence is in `.gate/codex/21/` to `.gate/codex/28/`.
 - M16 part 1 merged in `9bd5a91`. The human can buy technology. The computer makes no purchases on main.
@@ -15,6 +15,26 @@ Older entries are in `docs/journal/archive-<milestone>.md` (the latest move, 202
 - FR-547 (Q143) is the buyer branch's proposed value rule. Measure technology availability, purchase timing and the value of the first unlocked action in the original game before tuning. See `docs/verify-and-tune.md`.
 - Task 19 passed the load trials and full gate on `claude/perf-tests`. Finish future gates with `npm run test:perf` alone. The measured results and six functional logs are indexed in `.gate/codex/19/summary.md`.
 - To play M17 on continent seed 1, set Armaments and Fabric production to 1. Build a Ship-of-the-Line on turn 6, declare and sail on turn 7, set the site on turn 8, and land the four-ARMS army on turn 9. On turn 10 see the survivors at Sundmark and its colony vote in Council.
+
+## 2026-11-24 Task 30 — Trade policy map review (FR-579)
+
+Size M. Keep country names, flags and policy markers readable when a small country's land projects to a single tile.
+The map consumes the positions and the selected country's border. Map and List share policy rows and refusals.
+FR-579 regression coverage checks view-unit clearances at two world scales, a tile-only ownership transfer, visible keyboard focus and the selected border.
+Verify with Vitest, lint, TypeScript, the production build, the three trade/readability Playwright specs on port 3123, the roadmap gate and the standalone performance suite.
+Objection: moving an active SVG button to the end could change where Tab goes next. Paint its border after the other land and before the lettering while keeping the buttons in their existing order.
+
+The new geometry tests reported “4 failed | 3 passed” before the fix. With the original world-unit offsets, the phone-sized label and marker bounds overlapped by 14.56 view units on the starting continent and 36.44 on the 96×64 fixture. Reviewing the first keyboard screenshot also revealed that a gold border painted over the entire map cut through Sundmark's name and boycott cross.
+
+| Claim | Command or evidence | Result |
+|---|---|---|
+| Land geometry, including a tile-only transfer on two-islands | `npx vitest run tests/ui/tradePolicyMapView.test.ts` | “7 passed (7)”. All countries in both scale fixtures clear their own marker and the view edges. |
+| Full functional suite | `npm test` | “Test Files  158 passed (158)” and “Tests  3136 passed (3136)”. |
+| Map, List, trade and readability | `PORT=3123 PLAYWRIGHT_HTML_OPEN=never npx playwright test e2e/m18-policy-map.spec.ts e2e/m7-trade.spec.ts e2e/m18-readability.spec.ts --workers=1` | “11 passed (2.5m)”. Clicking Sundmark's lettering beyond its land selected the country. Keyboard focus stayed on Arvelia after Space. |
+| Rendered map at all three sizes | Chromium and Firefox, `.gate/codex/30/layout.txt` | “2 passed (39.2s)”. Both reported “overlap pairs []”. On the phone the closest annotation cleared the edge by 8.22 CSS px. The focused country's land had a 6 px dashed stroke in both browsers. |
+| Roadmap | `git fetch`, `git rev-parse origin/main`, `node .gate/m12/L4-check-roadmap.cjs` | Fetched `896d1fbf08137190351261b9f978b451506d7549`. The gate compares the seven-character abbreviation and printed “PASS”. |
+| Lint, types and production build | `npm run lint`, `npx tsc --noEmit`, `npm run build` | “0 errors, 2 warnings” in existing transport and logistics files. TypeScript exited 0. The build reported “Generating static pages (4/4)”. |
+| Standalone performance suite | `npm run test:perf` | “Tests  3 passed (3)” and “computerOrders p95 25.2 ms” against the 100 ms limit. |
 
 ## 2026-11-24 Task 29 — Trade policies map (FR-579)
 
