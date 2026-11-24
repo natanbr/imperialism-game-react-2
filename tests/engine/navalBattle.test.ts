@@ -39,8 +39,9 @@ function contact(state: GameState, fixedDraw?: number) {
   return { state: next, reports: events.filter(e => e.type === 'naval-engagement') };
 }
 
-it('FR-552 reports first contact and fresh damage, keeping an unchanged contested approach quiet', () => {
-  const first = resolveTurn({ ...battle(fleet(N1, ship('one')), fleet(N2, ship('two'))), seed: 2849 }, {});
+it('FR-552/559 counts repeat contact for each participant while keeping an unchanged contested approach quiet', () => {
+  const start = deepFreeze({ ...withFleets(war(threePowers()), [fleet(N1, ship('one')), fleet(N2, ship('two'))]), seed: 2849 });
+  const first = resolveTurn(start, {});
   const second = resolveTurn(first.state, {});
   const reports = (events: GameEvent[]) => events.filter(e => e.type === 'naval-engagement');
   expect(reports(first.events)).toHaveLength(1);
@@ -48,6 +49,11 @@ it('FR-552 reports first contact and fresh damage, keeping an unchanged conteste
   expect(second.state.fleets).toEqual(first.state.fleets);
   expect(reports(second.events)).toEqual([]);
   expect(contact(second.state, 0).reports[0]?.sides[0].ships?.[0].hullAfter).toBeLessThan(35);
+  for (const [before, turn] of [[start, first], [first.state, second]] as const) {
+    expect(turn.navalEngagements).toEqual([{ ...approach, rounds: 3, nationIds: [N1, N2] }]);
+    expect([N1, N2, N3].map(id => navalTurn(before, turn, id, before).engagements))
+      .toEqual([1, 1, 0]);
+  }
 });
 
 it.each([[0.4999, 3], [0.5, 0]])('FR-552 resolves three volleys at the 50%% hit boundary (draw %f)', (draw, hits) => {
@@ -219,7 +225,7 @@ it('FR-552/559 measures a commissioned hull even when its nation lost a hull in 
   expect(end.events.find(e => e.type === 'naval-engagement')).toMatchObject({ sides: [
     { nationId: N1, ships: [{ id: 'lost', hullAfter: 0 }] }, { nationId: N2 },
   ] });
-  expect(navalTurn(planned.state, end.state, end.events, N1, start).built).toBe(1);
+  expect(navalTurn(planned.state, end, N1, start).built).toBe(1);
 });
 
 it('FR-552/558 replays commissioned ships, battle damage and a subsequent turn from the original continent start', () => {

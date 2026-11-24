@@ -39,8 +39,8 @@ const exercise = (target: 'Sundmark' | 'Valdoria' | 'neutral coast', fundMerchan
 
 function campaign(seed: number, human: HumanPolicy | 'idle' | 'diplomat', turns: number) {
   const observed: Record<string, ReturnType<typeof navalTurn>>[] = [];
-  const game = runGame({ seed, human, turns, observe(planned, next, events, beforeOrders) {
-    observed.push(Object.fromEntries(next.nations.map(n => [n.id, navalTurn(planned, next, events, n.id, beforeOrders)])));
+  const game = runGame({ seed, human, turns, observe(planned, result, beforeOrders) {
+    observed.push(Object.fromEntries(result.state.nations.map(n => [n.id, navalTurn(planned, result, n.id, beforeOrders)])));
   } });
   expect(observed.map(t => t[COMPUTER_ID].turn)).toEqual(game.turns.map(t => t.turn));
   const rows = game.turns.map((t, i) => ({ turn: t.turn, nations: observed[i], votes: t.council?.earnedMinorVotes ?? null,

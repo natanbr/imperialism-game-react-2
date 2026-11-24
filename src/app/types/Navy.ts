@@ -71,3 +71,8 @@ export interface NavalBattleSide {
   /** Pre-battle-report saves contain only the side's firepower. */
   ships?: { id: string; type: ShipType; hullBefore: number; hullAfter: number }[];
 }
+
+export interface NavalEngagement extends Approach {
+  nationIds: [NationId, NationId];
+  rounds: number;
+}

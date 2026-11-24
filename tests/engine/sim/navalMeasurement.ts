@@ -3,7 +3,7 @@ import { isMilitia } from '@/definisions/regiments';
 import { deployedFleet, homeApproach, isPortClosed, pendingFleetMission, portApproach, threatenedPorts } from '@/engine/navy/fleets';
 import type { Approach } from '@/types/Navy';
 import { validateOrder } from '@/engine/orders/validate';
-import type { GameEvent } from '@/engine/turn/context';
+import type { TurnResult } from '@/engine/turn/resolveTurn';
 import type { GameState } from '@/types/GameState';
 import { campaignEconomy } from './campaignEconomy';
 
@@ -23,10 +23,11 @@ function portsUnderThreat(state: GameState, nationId: string): Approach[] {
   return ports;
 }
 
-export function navalTurn(planned: GameState, next: GameState, events: readonly GameEvent[], nationId: string, beforeOrders: GameState) {
+export function navalTurn(planned: GameState, result: TurnResult, nationId: string, beforeOrders: GameState) {
+  const { state: next, events, navalEngagements } = result;
   const after = deployedFleet(next, nationId);
   const mission = pendingFleetMission(planned, nationId);
-  const engagements = events.filter(e => e.type === 'naval-engagement').filter(e => e.sides.some(side => side.nationId === nationId));
+  const engagements = navalEngagements.filter(e => e.nationIds.includes(nationId));
   const arrived = mission?.mission === 'sail' && (after?.approach?.provinceId === mission.provinceId
     || engagements.some(e => e.provinceId === mission.provinceId));
   const own = next.fleets.filter(f => f.ownerNationId === nationId);

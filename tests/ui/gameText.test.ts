@@ -44,6 +44,15 @@ it('FR-556/560 explains the cancelled attack and names the origin and the power 
   ]);
 });
 
+it('FR-556 describes only known outcomes of troops whose landing was stopped', () => {
+  const event: GameEvent = { type: 'sea-deployment-failed', nationId: N1, fromProvinceId: 'Arvelia', toProvinceId: 'Sundmark', reason: 'no-landing-site' };
+  const reason = 'Landing from Arvelia to Sundmark stopped: there is no usable landing site at that coast.';
+  expect(eventText(event)).toBe(reason);
+  expect(eventText({ ...event, troops: { stayed: 2, relocated: 0, lost: 0 } })).toBe(reason + ' Troops stayed at their origin.');
+  expect(eventText({ ...event, troops: { stayed: 1, relocated: 1, lost: 2 } })).toBe(
+    reason + ' Waiting troops in Arvelia: 1 regiment stayed, 1 regiment retreated, 2 regiments lost.');
+});
+
 it('FR-552 reports when winning one engagement leaves the landing site contested by another squadron', () => {
   const event: GameEvent = {type:'naval-engagement', provinceId:'Pellis', seaId:'0-0',
     sides:[{nationId:'Testland',firepower:6},{nationId:'Carthia',firepower:3}],

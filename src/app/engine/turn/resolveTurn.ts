@@ -1,4 +1,5 @@
 import type { GameState } from "@/types/GameState";
+import type { NavalEngagement } from "@/types/Navy";
 import type { Order } from "../orders/Order";
 import { tryApplyOrder } from "../orders/apply";
 import { advanceClock, promoteFreightCars, resetWorkers } from "../systems/turnHousekeeping";
@@ -16,6 +17,7 @@ export type OrdersByNation = Readonly<Record<string, readonly Order[]>>;
 export interface TurnResult {
   state: GameState;
   events: GameEvent[];
+  navalEngagements: NavalEngagement[];
 }
 
 /**
@@ -73,7 +75,10 @@ export function applyTurnOrders(
  */
 export function resolveTurn(state: GameState, ordersByNation: OrdersByNation, seed: number = state.seed): TurnResult {
   const events: GameEvent[] = [];
-  const emit = (event: GameEvent) => {
+  const navalEngagements: NavalEngagement[] = [];
+  const pendingReports: { index: number; finalize: (end: GameState) => GameEvent }[] = [];
+  const emit = (event: GameEvent, finalize?: (end: GameState) => GameEvent) => {
+    if (finalize) pendingReports.push({ index: events.length, finalize });
     events.push(event);
   };
 
@@ -81,11 +86,12 @@ export function resolveTurn(state: GameState, ordersByNation: OrdersByNation, se
     for (const nationId of submitters(state, ordersByNation)) {
       for (const order of ordersByNation[nationId] ?? []) emit({ type: "order-rejected", nationId, order, reason: "game-over" });
     }
-    return { state, events };
+    return { state, events, navalEngagements };
   }
 
   const { state: ordered, accepted } = applyTurnOrders(state, ordersByNation, emit);
-  const ctx = createTurnContext({ turn: ordered.turn, seed, orders: accepted, emit });
+  const ctx = createTurnContext({ turn: ordered.turn, seed, orders: accepted, emit,
+    onNavalEngagement: engagement => navalEngagements.push(engagement) });
 
   let s = runTurnPhases(ordered, ctx);
   // Every phase that resolves intents has run: none of this turn is left (FR-152).
@@ -113,5 +119,6 @@ export function resolveTurn(state: GameState, ordersByNation: OrdersByNation, se
     s = { ...s, gameOver };
     emit({ type: "game-over", ...gameOver });
   }
-  return { state: s, events };
+  for (const { index, finalize } of pendingReports) events[index] = finalize(s);
+  return { state: s, events, navalEngagements };
 }

@@ -2,6 +2,7 @@
 
 ## Resuming here
 
+- Task 28 on `claude/m17-sea-war` covers the two remaining Task 26 findings. Evidence is in `.gate/codex/28/`.
 - Task 25 on `claude/m17-sea-war` fixes all five second-review findings. Independent review and the local gate passed. Evidence is in `.gate/codex/25/summary.md`.
 - Task 23 on `claude/m17-sea-war` passed independent re-review and the local gate. Two local commits cover seven review fixes and revised Q145 combat. Both HUD examples and the gate logs are indexed in `.gate/codex/23/summary.md`. The branch has not been pushed.
 - Task 21 on `claude/m17-sea-war` from `13d75ab`. The local M17 build passed independent review and the full gate. Evidence in `.gate/codex/21/`. Owner approved Q144, Q145 and Q146 on 2026-11-22.
@@ -10,6 +11,17 @@
 - FR-547 (Q143) is the buyer branch's proposed value rule. Measure technology availability, purchase timing and the value of the first unlocked action in the original game before tuning. See `docs/verify-and-tune.md`.
 - Task 19 passed the load trials and full gate on `claude/perf-tests`. Finish future gates with `npm run test:perf` alone. The measured results and six functional logs are indexed in `.gate/codex/19/summary.md`.
 - To play M17 on continent seed 1, set Armaments and Fabric production to 1. Build a Ship-of-the-Line on turn 6, declare and sail on turn 7, set the site on turn 8, and land the four-ARMS army on turn 9. On turn 10 see the survivors at Sundmark and its colony vote in Council.
+
+## 2026-11-23 Task 28 — naval measurement and intercepted landings
+
+Size M. Count engagements for the campaign harness at battle resolution. Use the allied-cancellation casualty calculation for intercepted landings in the turn news.
+FR-559 exercises seed 2849 across two turns of contact. FR-556 exercises three accepted orders on seed 2 and checks the landing report against the regiment destroyed at its origin.
+Verify with the full local gate and the isolated performance suite. Preserve the FR-545, FR-546 and FR-125 campaign results.
+Objection: repeating news on a quiet turn or inferring casualties before retreats finish would make the fix misleading.
+
+| Claim | Evidence in `.gate/codex/28/` | Result |
+|---|---|---|
+| Both review findings reproduced on `b401e0e` | `red.txt` | “2 failed”. The quiet battle counted zero for both participants. The destroyed regiment's report said “Troops stayed at their origin.” |
 
 ## 2026-11-23 Task 25 — M17 second review
 

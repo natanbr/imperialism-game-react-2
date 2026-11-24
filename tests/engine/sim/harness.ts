@@ -9,7 +9,7 @@
 // `turns[29].council`. `holds` is read before the clearing: what the two Great Powers had registered at the trade phase.
 import { newGame } from '@/engine/newGame';
 import { computerOrders } from '@/engine/ai/players';
-import { applyTurnOrders, resolveTurn } from '@/engine/turn/resolveTurn';
+import { applyTurnOrders, resolveTurn, type TurnResult } from '@/engine/turn/resolveTurn';
 import { tryApplyOrder } from '@/engine/orders/apply';
 import { scoreOf } from '@/engine/score/score';
 import { councilVote } from '@/engine/council/council';
@@ -128,7 +128,7 @@ export interface GameRecord {
 
 export interface RunOptions {
   /** FR-559: observe registered Orders and their resolved effects without changing a frozen policy. */
-  observe?: (registered: GameState, next: GameState, events: readonly GameEvent[], beforeOrders: GameState) => void;
+  observe?: (registered: GameState, result: TurnResult, beforeOrders: GameState) => void;
   seed: number;
   /** A policy of `humans.ts` by name, or one's own. */
   human: HumanName | HumanPolicy;
@@ -183,8 +183,9 @@ export function runGame({ seed, human, turns = 40, checkInvariants = true, obser
     });
     const traded = mapNations(state, id => tradeOrdersOf(registered, id));
 
-    const { state: next, events } = resolveTurn(state, computer, state.seed);
-    observe?.(registered, next, events, beforeOrders);
+    const result = resolveTurn(state, computer, state.seed);
+    const { state: next, events } = result;
+    observe?.(registered, result, beforeOrders);
     lastTrade = traded;
     records.push(recordTurn({ turn, start, next, events, holds, humanRefused, humanOrders: accepted, computerOrdersMs, checkInvariants }));
     state = next;

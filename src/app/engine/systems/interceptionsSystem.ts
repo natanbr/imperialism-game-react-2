@@ -63,6 +63,7 @@ export const interceptionsSystem: TurnSystem = (state, ctx) => {
       if (!b?.approach || a.approach.provinceId !== b.approach.provinceId || a.approach.seaId !== b.approach.seaId ||
           !warActive(state, a.ownerNationId, b.ownerNationId)) continue;
       const result = seaBattle(a, b, ctx.rngFor("naval"));
+      ctx.onNavalEngagement?.({ ...a.approach, nationIds: [a.ownerNationId, b.ownerNationId], rounds: result.rounds });
       reports.push(result);
       for (const fleet of [result.afterLeft, result.afterRight]) {
         if (!fleet.ships.length) current.delete(fleet.id);

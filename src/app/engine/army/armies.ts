@@ -2,7 +2,7 @@
 // (FR-210 to FR-212), and the edits the orders and the turn phases share. Every edit returns a new state and keeps two
 // invariants: at most one army per country per province (an army left empty is removed), and `state.armies` sorted by
 // province (state order) then owner id, each army's regiments by id, so the same armies always read the same.
-import type { Army, Regiment } from "@/types/Army";
+import type { Army, Regiment, TroopOutcome } from "@/types/Army";
 import type { CountryId, NationId, ProvinceId, RegimentId } from "@/types/Common";
 import type { GameState } from "@/types/GameState";
 import type { WorkerGrade } from "@/types/Industry";
@@ -44,6 +44,18 @@ export function findRegiment(state: GameState, regimentId: RegimentId): Regiment
     if (regiment) return { army, regiment };
   }
   return undefined;
+}
+
+/** Count the ordered regiment IDs after combat, including retreats and capital falls. */
+export function waitingTroops(end: GameState, from: ProvinceId, regimentIds: readonly RegimentId[]): TroopOutcome {
+  const troops = { stayed: 0, relocated: 0, lost: 0 };
+  for (const id of regimentIds) {
+    const survivor = findRegiment(end, id);
+    if (!survivor) troops.lost++;
+    else if (survivor.army.provinceId === from) troops.stayed++;
+    else troops.relocated++;
+  }
+  return troops;
 }
 
 /** Imp1 Force Size (FR-204): the ARMS of the non-militia regiments; the start army 4. */

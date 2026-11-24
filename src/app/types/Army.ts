@@ -27,3 +27,8 @@ export interface Army {
   /** In creation order (lowest id first); never empty. */
   regiments: Regiment[];
 }
+export interface TroopOutcome {
+  stayed: number;
+  relocated: number;
+  lost: number;
+}

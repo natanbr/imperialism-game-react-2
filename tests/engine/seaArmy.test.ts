@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { eventText } from '@/components/gameText';
 import { isMilitia } from '@/definisions/regiments';
 import { armyAt, capitalProvinceOf, findRegiment } from '@/engine/army/armies';
 import { councilVote } from '@/engine/council/council';
@@ -17,7 +18,7 @@ import { ShipType, type Fleet } from '@/types/Navy';
 import { ResourceType } from '@/types/Resource';
 import { TerrainType } from '@/types/Tile';
 import { WorkerType } from '@/types/Workers';
-import { ARVELIA, ARVELIA_P, SUNDMARK, addRegiments, continent } from './armyFixtures';
+import { ARVELIA, ARVELIA_P, NW2, SUNDMARK, addRegiments, clearArmy, continent, patchRegiment, relocate } from './armyFixtures';
 import { N1, N2, put, setPair, setTile, stockOf, tileAt } from './fixtures';
 
 const island = 'province-minor-2';
@@ -152,6 +153,27 @@ describe('FR-551 book sea transport', () => {
 });
 
 describe('FR-553 dispatch through the normal land battle', () => {
+  it('FR-556 reports the regiment lost at the origin after relief intercepts its landing', () => {
+    let s = transferProvince(atWar(ready(), N1, N2), ARVELIA_P, N1);
+    s = relocate(clearArmy(s, ARVELIA, ARVELIA_P), ['regiment-1'], ARVELIA_P);
+    s = patchRegiment(s, 'regiment-1', { health: 1 });
+    s = addRegiments(s, N2, NW2, ['artillery', 'artillery']);
+    s = fleets({ ...port(s, ARVELIA_P).state, seed: 2 }, squadron(N1, island, 1), squadron(N2, undefined, 2));
+    const orders: Order[] = [
+      sea(s, ['regiment-1'], ARVELIA_P),
+      { kind: 'setFleetMission', nationId: N2, fleetId: s.fleets[1].id, mission: 'sail', provinceId: island },
+      { kind: 'moveArmy', nationId: N2, fromProvinceId: NW2, toProvinceId: ARVELIA_P, regimentIds: ['regiment-901', 'regiment-902'] },
+    ];
+    const end = resolveTurn(orders.reduce(accepted, s), {});
+    expect(end.events.find(e => e.type === 'naval-engagement')).toMatchObject({ landing: 'blocked' });
+    expect(end.events.find(e => e.type === 'battle-resolved')?.regiments)
+      .toContainEqual(expect.objectContaining({ id: 'regiment-1', fate: 'destroyed' }));
+    expect(findRegiment(end.state, 'regiment-1')).toBeUndefined();
+    const failure = end.events.find(e => e.type === 'sea-deployment-failed')!;
+    expect(failure).toMatchObject({ nationId: N1, fromProvinceId: ARVELIA_P, toProvinceId: island, reason: 'no-landing-site' });
+    expect(eventText(failure)).toContain('1 regiment lost');
+    expect(failure).toMatchObject({ troops: { stayed: 0, relocated: 0, lost: 1 } });
+  });
   it('dispatches an already stored sea sortie across nonadjacent provinces', () => {
     const s = ready();
     const intent = { id:'intent-2-1',turn:s.turn,kind:'attack',via:'sea',nationId:N1,targetId:SUNDMARK,
@@ -196,7 +218,7 @@ describe('FR-553 dispatch through the normal land battle', () => {
     for (const stale of [peace, fleets(ordered), transferProvince(ordered,island,N1)]) {
       const { state,events } = resolveTurn(stale,{});
       expect(events.some(e => e.type === 'battle-resolved')).toBe(false);
-      expect(events.some(e => e.type === 'sea-deployment-failed')).toBe(true);
+      expect(events.find(e => e.type === 'sea-deployment-failed')?.troops).toEqual({ stayed: ids.length, relocated: 0, lost: 0 });
       expect(ids.every(id => findRegiment(state,id)?.army.provinceId === capital(s))).toBe(true);
     }
   });

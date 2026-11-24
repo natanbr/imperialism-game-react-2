@@ -1,10 +1,11 @@
 import { isMilitia, REGIMENTS } from "@/definisions/regiments";
 import type { CountryId, NationId } from "@/types/Common";
 import type { GameState } from "@/types/GameState";
-import { armiesOf, holds, pendingArmyIntent } from "../army/armies";
+import { armiesOf, holds, pendingArmyIntent, waitingTroops } from "../army/armies";
 import { bookedArms, regimentArms } from "../army/deployment";
 import { hasLandRoute, warActive } from "../diplomacy/queries";
-import type { MoveArmyOrder, ValidationResult } from "../orders/Order";
+import type { MoveArmyOrder, RejectReason, ValidationResult } from "../orders/Order";
+import type { TurnContext } from "../turn/context";
 import { provinceById, provincesOf } from "../world/provinces";
 import { approachesOf, deployedFleet, firstLandingTurn, fleetApproach, fleetArms, isPortClosed, openPortApproaches, pendingFleetMission } from "./fleets";
 
@@ -29,6 +30,12 @@ export function seaWarRequirement(state: GameState, nationId: NationId, targetId
 
 export const canReachWar = (state: GameState, nationId: NationId, targetId: CountryId): boolean =>
   hasLandRoute(state, nationId, targetId) || !seaWarRequirement(state, nationId, targetId);
+
+export function reportFailedLanding(ctx: TurnContext, order: Pick<MoveArmyOrder, "nationId" | "fromProvinceId" | "toProvinceId" | "regimentIds">, reason: RejectReason) {
+  const { nationId, fromProvinceId, toProvinceId, regimentIds } = order;
+  const event = { type: "sea-deployment-failed" as const, nationId, fromProvinceId, toProvinceId, reason };
+  ctx.emit(event, end => ({ ...event, troops: waitingTroops(end, fromProvinceId, regimentIds) }));
+}
 
 /** Used both for the booking and again with resolved fleet positions before the troops leave. */
 export function validateSeaDeployment(state: GameState, order: MoveArmyOrder, phase: "planning" | "dispatch" = "planning"): ValidationResult {

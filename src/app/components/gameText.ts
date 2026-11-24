@@ -342,6 +342,19 @@ export function tilePlaces(game: Pick<GameState, "map">, nameOf: (id: string) =>
 const tileOf = (event: GameEvent): string | undefined =>
   event.type === "resource-discovered" || event.type === "development-completed" || event.type === "construction-completed" ? event.tileId : undefined;
 
+function waitingTroopText(event: Extract<GameEvent, { type: "attack-cancelled" | "sea-deployment-failed" }>, from: string): string {
+  const troops = event.troops;
+  const landing = event.type === "sea-deployment-failed";
+  // Old news records predate final troop counts. The landing line already names its origin.
+  if (!troops) return landing ? "" : ` The attack was ordered from ${from}.`;
+  if (!troops.lost && !troops.relocated) return landing ? " Troops stayed at their origin." : ` Troops stayed in ${from}.`;
+  const outcomes = [];
+  if (troops.stayed) outcomes.push(`${regiments(troops.stayed)} stayed`);
+  if (troops.relocated) outcomes.push(`${regiments(troops.relocated)} retreated`);
+  if (troops.lost) outcomes.push(`${regiments(troops.lost)} lost`);
+  return ` Waiting troops in ${from}: ${outcomes.join(", ")}.`;
+}
+
 /**
  * One line of news for the event, or null when it is not news (the end of the turn). `nameOf` names the
  * countries a diplomacy line mentions (FR-176) and the provinces of a march (FR-209); without it their ids
@@ -412,18 +425,12 @@ export function eventText(event: GameEvent, nameOf: (countryId: string) => strin
     }
     case "attack-cancelled": {
       const reason = `Attack on ${nameOf(event.provinceId)} cancelled. ${nameOf(event.capturedById)} captured it first.`;
-      const from = nameOf(event.fromProvinceId);
-      const troops = event.troops;
-      if (!troops) return `${reason} The attack was ordered from ${from}.`;
-      if (!troops.lost && !troops.relocated) return `${reason} Troops stayed in ${from}.`;
-      const outcomes = [];
-      if (troops.stayed) outcomes.push(`${regiments(troops.stayed)} stayed`);
-      if (troops.relocated) outcomes.push(`${regiments(troops.relocated)} retreated`);
-      if (troops.lost) outcomes.push(`${regiments(troops.lost)} lost`);
-      return `${reason} Waiting troops in ${from}: ${outcomes.join(", ")}.`;
+      return reason + waitingTroopText(event, nameOf(event.fromProvinceId));
     }
-    case "sea-deployment-failed":
-      return `Landing from ${nameOf(event.fromProvinceId)} to ${nameOf(event.toProvinceId)} stopped: ${REFUSAL_TEXT[event.reason]}. Troops stayed at their origin.`;
+    case "sea-deployment-failed": {
+      const from = nameOf(event.fromProvinceId);
+      return `Landing from ${from} to ${nameOf(event.toProvinceId)} stopped: ${REFUSAL_TEXT[event.reason]}.` + waitingTroopText(event, from);
+    }
     case "naval-engagement": {
       const forces = event.sides.map(side => `${nameOf(side.nationId)} ${side.firepower}`).join(" against ");
       const loser = event.winnerId ? event.sides.find(side => side.nationId !== event.winnerId) : undefined;

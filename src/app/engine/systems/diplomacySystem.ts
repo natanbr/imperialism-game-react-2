@@ -20,7 +20,7 @@ import type { GameEvent, TurnContext, TurnSystem, WarCause } from "../turn/conte
 import { byIntentOrder } from "../turn/intents";
 import { levelOfPoints as levelOf, MAX_RELATION_POINTS, pairKey } from "../diplomacy/relations";
 import { intentCost, isDiplomacyIntent, proposalsOf } from "../diplomacy/queries";
-import { canReachWar } from "../navy/seaArmy";
+import { canReachWar, reportFailedLanding } from "../navy/seaArmy";
 import { isAttackIntent } from "../army/armies";
 import { acceptsAlliance, acceptsPeace } from "../diplomacy/scriptedAnswers";
 
@@ -117,8 +117,7 @@ function makePeace(w: Work, proposerId: NationId, targetId: CountryId): void {
   if (dropped.length === 0) return;
   w.intents = w.intents.filter((i) => !between(i));
   for (const i of dropped) {
-    if (isAttackIntent(i) && i.via === "sea") emit(w, { type:"sea-deployment-failed", nationId:i.nationId,
-      fromProvinceId:i.fromProvinceId, toProvinceId:i.toProvinceId, reason:"not-at-war" });
+    if (isAttackIntent(i) && i.via === "sea") reportFailedLanding(w.ctx, i, "not-at-war");
   }
   for (const [nationId, otherId] of [[proposerId, targetId], [targetId, proposerId]]) {
     const count = dropped.filter((i) => i.nationId === nationId).length;

@@ -18,11 +18,12 @@ import {
   mapRegiments,
   placeRegiments,
   removeRegiments,
+  waitingTroops,
 } from "../army/armies";
 import { byRegimentId, fightBattle, fortLevelOf, type BattleUnit } from "../army/combat";
 import { capitalOwnerOf, fallCapital, takeProvince } from "../army/conquest";
 import { validateRailDeployment } from "../army/railDeployment";
-import { validateSeaDeployment } from "../navy/seaArmy";
+import { reportFailedLanding, validateSeaDeployment } from "../navy/seaArmy";
 import { warActive } from "../diplomacy/queries";
 import { pairKey } from "../diplomacy/relations";
 import { adjacentProvinces, provinceById } from "../world/provinces";
@@ -52,8 +53,7 @@ function canDispatch(state: GameState, intent: ArmyMoveIntent | AttackIntent, ct
   const result = present && holds(state, expectedOwner, intent.toProvinceId)
     ? validateSeaDeployment(state, order, "dispatch") : { ok: false, reason: "invalid-target" } as const;
   if (result.ok) return true;
-  ctx.emit({ type: "sea-deployment-failed", nationId: intent.nationId, fromProvinceId: intent.fromProvinceId,
-    toProvinceId: intent.toProvinceId, reason: result.reason });
+  reportFailedLanding(ctx, intent, result.reason);
   return false;
 }
 
@@ -97,18 +97,6 @@ interface Sortie {
   nationId: NationId;
   fromProvinceId: ProvinceId;
   regiment: Regiment;
-}
-
-function waitingTroops(end: GameState, wave: Sortie[], from: ProvinceId) {
-  const troops = { stayed: 0, relocated: 0, lost: 0 };
-  for (const sortie of wave) {
-    if (sortie.fromProvinceId !== from) continue;
-    const survivor = findRegiment(end, sortie.regiment.id);
-    if (!survivor) troops.lost++;
-    else if (survivor.army.provinceId === from) troops.stayed++;
-    else troops.relocated++;
-  }
-  return troops;
 }
 
 /** FR-560 ranks each non-belligerent power's entire commitment, across all origins and routes. */
@@ -195,9 +183,10 @@ function battles(state: GameState, ctx: TurnContext): GameState {
       const nationId = wave[0].nationId;
       if (!warActive(s, nationId, ownerId)) {
         for (const fromProvinceId of [...new Set(wave.map(x => x.fromProvinceId))].sort(compareIds)) {
+          const regimentIds = wave.filter(x => x.fromProvinceId === fromProvinceId).map(x => x.regiment.id);
           // Its origin can fall before or after this cancellation. Count survivors after retreats.
           news.push(end => ({ type: "attack-cancelled", nationId, capturedById: ownerId, provinceId, fromProvinceId,
-            troops: waitingTroops(end, wave, fromProvinceId) }));
+            troops: waitingTroops(end, fromProvinceId, regimentIds) }));
         }
         continue;
       }
