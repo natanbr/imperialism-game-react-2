@@ -267,7 +267,7 @@ export const LABOUR_ART = icon("worker-icons", "worker-icons/labour.png");
 export const DEPOT_ART = mapObject("infrastructure", "infrastructure/depot.png");
 export const PORT_ART = mapObject("infrastructure", "infrastructure/port.png");
 
-/** The straight rail piece (42x16), laid along each rail link from its left middle (0, 8) to its right middle (42, 8) (FR-328). */
+/** The straight rail piece (42x16): the build-rail cursor (FR-379). The map draws its rail itself (FR-570, replaces FR-328). */
 export const RAIL_ART = { url: packArt("infrastructure/rail-straight.svg", "infrastructure", 42, 16), width: 42, height: 16 } as const;
 
 /** The selection mark: four corner brackets with a pale halo over the tile's outer 42x42 box (FR-326). */
@@ -316,8 +316,8 @@ export const INK_ART_UNUSED: readonly { readonly file: string; readonly reason: 
   // The one place under src/app that may name it (FR-343): the text scans prove no code uses the file
   { file: "city/city-ground.png", reason: "an earlier background study with baked scenery, not a capital ground (FR-272)" },
   { file: "improvements/horse-ranch-1.png", reason: "a fenced variant of the horse ranch, not a level: horses have no tiers" },
-  { file: "infrastructure/rail-curve.svg", reason: "a two-link curve sample; each link is one straight piece (FR-328)" },
-  { file: "infrastructure/rail-bridge.svg", reason: "a bridge: the game has no river or bridge data" },
+  { file: "infrastructure/rail-curve.svg", reason: "a two-link curve sample; the map draws its own curves tile by tile (FR-570)" },
+  { file: "infrastructure/rail-bridge.svg", reason: "a bridge: the map draws its own trestle on a river tile (FR-570)" },
   { file: "map-ui/army-movement-preview.svg", reason: "the curved movement arrow: a march stays a straight line (FR-273, Q69)" },
   { file: "map-ui/army-movement-arrowhead.svg", reason: "the movement arrow's head: a march draws its own head (FR-273)" },
   { file: "map-ui/army-transport.svg", reason: "the curved transport arrow: a march stays a straight line (FR-273, Q69)" },

@@ -38,6 +38,11 @@
   --color-highlight: #e3b341;
   /* The art pack's rail ink (its straight rail piece's rails), at 3:1 on the ground grass (FR-329) */
   --color-rail: #494539;
+  /* FR-570: the rail's sleepers and wash (the pack's sepia), a bridge's timber, a section under construction (pencil);
+     the timber and the pencil reach 3:1 on --color-ground-grass */
+  --color-rail-tie: #725943;
+  --color-rail-timber: #574b3c;
+  --color-rail-pencil: #5a5853;
   /* Minor nations' dashed borders and name tags: one dark slate green for every minor, apart from both
      nation colours and from "bad", also for colour-blind eyes (FR-154), and at 3:1 on the map halo it
      lies on (FR-329). The old slate darkened to 3:1 came within 20 of nation 1 under protanopia; this is

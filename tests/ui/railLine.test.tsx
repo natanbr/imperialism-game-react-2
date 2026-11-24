@@ -3,13 +3,12 @@
 // coast tile to a depot lit the depot green, but the map drew no line on the coast tile. The two-island
 // map has no coast tiles (decision Q16, FR-080), so the line now runs along the shore: the land tiles
 // next to the sea. The game is played through the order API on the real new-game map, then the map is
-// rendered and its rail <line> elements are read back as tile pairs. FR-328 (M11): each line also carries the art pack's
-// straight rail piece, an <image> turned and stretched along it.
+// rendered and its rail <line> elements are read back as tile pairs. FR-570 (M18b; replaces FR-328's stretched piece per
+// line): each tile at a line's end draws its own piece (tests/ui/railDrawing.test.tsx).
 import { describe, it, expect, beforeAll } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { render } from '@testing-library/react';
-import { RAIL_ART } from '@/components/art/inkArt';
 import { MapView } from '@/components/MapView';
 import { useGameStore } from '@/store/rootStore';
 import { newGame, resolveTurn, type Order } from '@/engine';
@@ -77,12 +76,13 @@ function drawnPairs(state: GameState): [XY, XY][] {
 }
 let lastDepotLight = '';
 
-/** FR-328: each rail-segment line and the rail-art images of the overlay, with the images' matrices applied to the piece's ends. */
+/** FR-328: each rail-segment line and the rail-art images of the overlay, with the images' matrices applied to the piece's ends; FR-570: the rail-tile drawings' tiles. */
 interface DrawnArt {
   lines: { x1: number; y1: number; x2: number; y2: number; nationId: string | null }[];
   images: { href: string | null; size: [string | null, string | null]; hidden: string | null; ends: [number, number][]; height: number }[];
+  tiles: string[];
 }
-let lastRailArt: DrawnArt = { lines: [], images: [] };
+let lastRailArt: DrawnArt = { lines: [], images: [], tiles: [] };
 function railArtOf(container: HTMLElement): DrawnArt {
   const lines = [...container.querySelectorAll('svg line[data-testid="rail-segment"]')].map((l) => {
     const n = (name: string) => Number(l.getAttribute(name));
@@ -101,7 +101,8 @@ function railArtOf(container: HTMLElement): DrawnArt {
       height: Math.hypot(bottom[0] - top[0], bottom[1] - top[1]),
     };
   });
-  return { lines, images };
+  const tiles = [...container.querySelectorAll('svg g[data-testid="rail-tile"]')].map((g) => g.getAttribute('data-rail-tile-id') ?? '');
+  return { lines, images, tiles };
 }
 
 /** The tiles reachable from `start` along drawn segments. */
@@ -152,20 +153,14 @@ describe('FR-079 the rail line is drawn as one continuous line (NR-010)', () => 
     art = lastRailArt;
   }, 30000);
 
-  // M11 (NR-032): the pack's straight rail piece over each line, the line kept as its underlay
-  it('FR-328 one rail-art image per segment, whose transform runs the piece\'s middle from the line\'s start to its end', () => {
+  // Changed in M18b (FR-570 replaces FR-328's piece): old -> one rail-art image per segment, the pack's straight piece
+  // stretched along it; new -> no rail-art image, one rail-tile drawing per tile at a segment's end. The lengths stay.
+  it('FR-570 one rail-tile drawing per tile at a segment\'s end and no stretched rail-art image; the lines are 42 or 46.96 px', () => {
     expect(art.lines.length).toBe(pairs.length);
-    expect(art.images).toHaveLength(art.lines.length);
-    for (const [i, line] of art.lines.entries()) {
-      const image = art.images[i];
-      expect([image.href, image.size, image.hidden]).toEqual([RAIL_ART.url, ['42', '16'], 'true']);
-      const [start, end] = image.ends;
-      expect(Math.hypot(start[0] - line.x1, start[1] - line.y1)).toBeLessThan(0.5);
-      expect(Math.hypot(end[0] - line.x2, end[1] - line.y2)).toBeLessThan(0.5);
-      // Stretched along its length only: the 16 px height kept
-      expect(Math.abs(image.height - 16)).toBeLessThan(0.01);
-    }
-    // A 42 px east-west link is drawn unscaled; a diagonal one is 46.96 px long
+    expect(art.images).toHaveLength(0);
+    const ends = new Set(pairs.flatMap(([a, b]) => [createTileId(...a), createTileId(...b)]));
+    expect([...art.tiles].sort()).toEqual([...ends].sort());
+    // A 42 px east-west link; a diagonal one is 46.96 px long
     const lengths = art.lines.map((l) => Math.round(Math.hypot(l.x2 - l.x1, l.y2 - l.y1) * 100) / 100);
     expect([...new Set(lengths)].sort()).toEqual([42, 46.96]);
   });

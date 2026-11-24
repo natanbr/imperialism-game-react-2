@@ -3,7 +3,7 @@
 ## Resuming here
 
 - M18 (play-test comfort, `docs/specs/m18-playtest-comfort.md`): M18a merged into main `af24381` (pull request 43), M18b part 1 (FR-563, FR-568, FR-569) in `5e80bab` (pull request 44), part 2 (FR-564 nation colours and flags) in `4098bfe` (pull request 45). NR-037 in progress.
-- M18b part 3 (FR-565, FR-566) merged into main `cd5b1be` (pull request 46). FR-567 (map fitted on open, its own zoom, top bar 15 px) is on `claude/m18b-map`, local, not pushed: `106f114` (gate green except Playwright, blocked by a leftover server) and "M18b: map review fixes". Partial: the narrower pane is left for the owner. FR-570 next; icons wait for the art (spec section 3). Evidence in `.gate/claude/48/`.
+- M18b part 3 (FR-565, FR-566) merged into main `cd5b1be` (pull request 46); FR-567 (map fitted on open, its own zoom) into `994a0ca` (pull request 47), partial: the narrower pane is left for the owner. FR-570 (rail in the ink and wash style) is tested on `claude/m18b-rail`, committed locally, not pushed; evidence in `.gate/claude/51/`. Icons wait for the art (spec section 3).
 - To try Demo: New game, Start Demo game; then Dashboard in the top bar (Economy, Military, Trade, Diplomacy, Council, Bug report).
 - M17 merged into main `65a4d5a` (pull request 42). Its task evidence is in `.gate/codex/21/` to `.gate/codex/28/`.
 - M16 part 1 merged in `9bd5a91`. The human can buy technology. The computer makes no purchases on main.
@@ -12,6 +12,22 @@
 - Task 19 passed the load trials and full gate on `claude/perf-tests`. Finish future gates with `npm run test:perf` alone. The measured results and six functional logs are indexed in `.gate/codex/19/summary.md`.
 - To play M17 on continent seed 1, set Armaments and Fabric production to 1. Build a Ship-of-the-Line on turn 6, declare and sail on turn 7, set the site on turn 8, and land the four-ARMS army on turn 9. On turn 10 see the survivors at Sundmark and its colony vote in Council.
 
+## 2026-11-24 M18b FR-570 — rail in the ink and wash style
+
+Size M, UI only (NR-037: no rule change). Plan-lite: each railed tile draws its own piece in code (`components/railDrawing.ts`, `map/RailLayer.tsx`) in place of FR-328's stretched rail piece per link; the consumer is MapView's overlay only. Test rows: FR-570 → `tests/ui/railDrawing.test.tsx` (shape per connection pattern, straight and curve geometry, joins on the shared edge, construction, bridge, station, determinism, 3:1 of the new tokens, per-tile memo, the map's groups) and `e2e/m18-rail.spec.ts` (a prepared seed-1 save with a six-tile line, a river tile, a depot and a section under construction). Verify: those, every rail and map e2e spec on port 3123, tsc, lint, roadmap. Objection: on the offset rows a line running north turns on every tile, so it draws as a gentle wave, not a straight line.
+- Readings: a curve bends past the centre (a quadratic curve with the centre as its control point), not exactly through it; the trestle spans the middle of a river tile's piece (a river is a tile flag); a station keeps FR-324's depot picture in its corner and gets a platform beside the track. New tokens `--color-rail-tie`, `--color-rail-timber`, `--color-rail-pencil`. The groups carry `data-rail-tile-id`: a `data-tile-id` on them broke the specs' tile locators (strict mode, 4 failures in the first e2e run).
+- Existing tests changed (old -> new): `tests/ui/railLine.test.tsx` FR-328 case (one rail-art image per segment -> one rail-tile per tile at a segment's end, no rail-art; the 42 and 46.96 px lengths kept); `e2e/look.spec.ts` (rail-art count = rail-segment count -> rail-tile count = tiles at link ends, rail-art 0); `e2e/m11-art.spec.ts` (the same, and the depot's piece is a station).
+
+| Claim | Command | Result (quoted) |
+|---|---|---|
+| FR-570 red | `npx vitest run tests/ui/railDrawing.test.tsx` on a stub; `PORT=3123 npx playwright test e2e/m18-rail.spec.ts` | `Tests  10 failed \| 1 passed (11)` (the memo case passed on empty output); e2e `Expected: 6 Received: 0` (`red-FR-570.txt`) |
+| FR-570 and the map's unit tests | `npx vitest run` on railDrawing, railLine, inkArt, palette, mapIcons, watchNation, tileCursor, inkPicture, mapFit, mapGround, provinceMap, mapKeyboard, mapStatus | `Test Files  13 passed (13)`, `Tests  217 passed (217)` (`green-unit.txt`) |
+| FR-570 e2e and rail specs | `PORT=3123 npx playwright test` m18-rail, m11-art, m4-3, two-nations, m4-1 | `9 passed (35.9s)` (`e2e-batch1.txt`) |
+| Map specs | the same with look, m11-map, m12-map, m18-map | `31 passed (1.3m)` (`e2e-batch2.txt`) |
+| Other specs naming rail | the same with cursor-icons, play-turns, m17-sea-war | `13 passed (39.0s)` (`e2e-batch3.txt`) |
+| Render time, jsdom, whole map | `npx vitest run --config vitest.perf.config.ts tests/ui/railDrawing.perf.tsx`, 3 runs before (HEAD) and after | tree of 198 links: mount 66 to 70 -> 74 to 92 ms, new turn 20 to 22 -> 19 to 21 ms; dense 522 links: mount 83 to 90 -> 84 to 103 ms, new turn 24 to 27 -> 22 to 24 ms (`perf-before.txt`, `perf-after.txt`) |
+| Types, lint, roadmap | `npx tsc --noEmit`; `npm run lint`; `node .gate/m12/L4-check-roadmap.cjs` | exit 0; `2 problems (0 errors, 2 warnings)` (both pre-existing); `PASS` |
+| By eye | `m18-rail-closeup.png` (200%, twice the pixels), `m18-rail-map.png`, before: `before-rail-map.png` | thin sepia rails and ties, curves, the trestle, the platform and pencil ties visible; the terrain shows through |
 ## 2026-11-23 M18b FR-567 review fixes
 
 Orchestrator decisions: keep the 250 px pane (FR-567 partial, left for the owner), Ctrl and the wheel, the 10% minimum

@@ -522,7 +522,7 @@ by the order, FR-137), and when it finishes the tile is linked to that tile only
 are not linked by themselves, and a finished depot or port joins no section until one is built into or
 out of it. (Only a map that already holds rail, a hand-made test map, starts with every neighbouring
 pair linked: a map stores no sections.) The map's rail overlay draws exactly the links (`railLinksOf`,
-then `components/railSegments.ts` for the pixels); the depot lights (`transportConnectivitySystem`),
+then `components/railSegments.ts` and `railDrawing.ts` for the pixels); the depot lights (`transportConnectivitySystem`),
 logistics and the scripted player's planning (`ai/railPlan.ts`, which orders missing sections, FR-138)
 read the same graph (FR-079).
 
@@ -747,8 +747,8 @@ holds civilians or a minor's name tag the tile picture moves to the top centre a
 draws, above the tile pictures and below every tile mark and the selection, first a pale halo (`--color-map-halo`,
 `border-halo`) under every border, then in this order the dotted lines between two provinces of one owner
 (`--color-province-border`), each nation's territory border, each minor nation's dashed border (`--color-minor`, on
-top where it meets a Great Power's) and the rail: each link a 3 px `--color-rail` line with the pack's rail piece
-over it through one transform (`railArtMatrix` in `railSegments.ts`, FR-328) (`components/territoryBorders.ts`,
+top where it meets a Great Power's) and the rail: each link a line that paints nothing (FR-348), and each railed tile's
+piece drawn in code tile by tile (`components/railDrawing.ts`, cached per tile; `map/RailLayer.tsx`, FR-570) (`components/territoryBorders.ts`,
 FR-153, FR-327). A minor's capital tile carries the minor's name
 (`Tile/TileName.tsx`). A tile belongs to a country by `countryOfTile` (the owner of its province, else
 `ownerNationId`): the tile's name, the click (another country's tile, a minor's included, is only

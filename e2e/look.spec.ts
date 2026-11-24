@@ -349,8 +349,12 @@ test.describe('rendered at three times the pixel density', () => {
     await shot(page, 'stations', { x: depotTile.x - 63, y: depotTile.y - 42, width: 168, height: 126 });
     // Nation 2 lays its own rail meanwhile (FR-102): count the player's lines only
     await expect(page.locator('[data-testid="rail-segment"][data-nation-id="nation-1"]')).toHaveCount(2);
-    // FR-328 (M11): the pack's rail piece over each link, all of them (both nations')
-    await expect(page.getByTestId('rail-art')).toHaveCount(await page.getByTestId('rail-segment').count());
+    // FR-570 (M18b; was FR-328's rail-art piece per link): one rail-tile drawing per tile at a link's end, both nations'
+    const railedTiles = await page.getByTestId('rail-segment').evaluateAll((lines) =>
+      new Set(lines.flatMap((l) => [`${l.getAttribute('x1')},${l.getAttribute('y1')}`, `${l.getAttribute('x2')},${l.getAttribute('y2')}`])).size
+    );
+    await expect(page.getByTestId('rail-tile')).toHaveCount(railedTiles);
+    await expect(page.getByTestId('rail-art')).toHaveCount(0);
     // FR-348 (QA): the link's line paints nothing of its own, so the piece's sleepers show (a 3 px line in the rail colour
     // filled the space between its rails); its ends stay (FR-136)
     expect(await page.getByTestId('rail-segment').evaluateAll((lines) => [...new Set(lines.map((l) => getComputedStyle(l).stroke))])).toEqual(['none']);
