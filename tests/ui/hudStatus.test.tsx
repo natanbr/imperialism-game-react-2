@@ -46,11 +46,11 @@ it('FR-506 the HUD Council line describes both ways to win, also readable in Nat
   show({ ...continent(), turnLimit: 35 });
   render(<Home />);
   const rule = '7 of 12 votes wins at any meeting. At the last meeting (turn 30) a free minor votes unless it is at war with both nominees, and the nominee with more votes wins (equal votes: higher standing).';
+  fireEvent.click(screen.getByRole('button', { name: 'Stats' }));
   const line = screen.getByTestId('next-council');
   expect(text(line)).toMatch(/^7 of 12 votes wins · Council: turn 10/);
   expect(text(line)).toContain('This threshold applies at any meeting. At the last meeting (turn 30)');
   expect(line.title).toBe(text(line));
-  fireEvent.click(screen.getByRole('button', { name: 'Nation' }));
   const disclosure = screen.getByText('Council voting rules').closest('details')!;
   expect(disclosure.open).toBe(false);
   fireEvent.click(screen.getByText('Council voting rules'));

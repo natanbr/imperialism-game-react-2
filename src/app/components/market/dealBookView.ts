@@ -15,8 +15,8 @@ export interface DealBookView {
   /** "Bought 2 Coal from Arvelia @ $110". */
   bought: string[];
   /**
-   * What was not traded (FR-255): "1 Furniture not sold (no buyer), back in the warehouse", "Arvelia offered to sell us
-   * 1 Coal (no free hold)", "Nobody sold us 2 Coal (no consulate with Lorran; bid money back)".
+   * What was not traded (FR-255): "1 Furniture not sold (no buyer), back in the warehouse", "Arvelia wanted to sell us
+   * 1 Coal (no free hold)", "Nobody sold us 2 Coal (no consulate with Lorran; money back)" (FR-563).
    */
   notTraded: string[];
   /** Sold, Bought and the Trade net, Sold less Bought (FR-396). */
@@ -83,15 +83,15 @@ export function dealLineText(entry: DealEntry, nameOf: (countryId: string) => st
     case "bought":
       return `Bought ${goods}${entry.counterpartyId ? ` from ${nameOf(entry.counterpartyId)}` : ""} @ ${money(entry.price)}`;
     case "missed":
-      return `${nameOf(entry.counterpartyId)} offered to sell us ${goods} (${MISSED_TEXT[entry.reason]})`;
+      return `${nameOf(entry.counterpartyId)} wanted to sell us ${goods} (${MISSED_TEXT[entry.reason]})`;
     case "unsold":
       return entry.cause
         ? `${goods} not sold (${causeText(entry.cause, "offer", nameOf)}), back in the warehouse`
         : `${goods} not sold, back in the warehouse`;
     case "unfilled":
       return entry.cause
-        ? `Nobody sold us ${goods} (${causeText(entry.cause, "bid", nameOf)}; bid money back)`
-        : `Nobody sold us ${goods} (bid money back)`;
+        ? `Nobody sold us ${goods} (${causeText(entry.cause, "bid", nameOf)}; money back)`
+        : `Nobody sold us ${goods} (money back)`;
   }
 }
 

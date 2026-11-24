@@ -260,10 +260,13 @@ test('FR-233 FR-230 FR-231 FR-232 FR-273 FR-505 declare war on Arvelia, attack i
   await endTurn(page, 2);
 
   // FR-505: compare the same player's development before and after the real conquest.
+  await page.getByRole('button', { name: 'Stats', exact: true }).click();
   const score = page.getByTestId('hud-score');
   await score.focus();
   const development = await page.getByTestId('score-parts').getByText(/^Development \d+$/).innerText();
   await score.press('Escape');
+  // Escape closes the score's parts and, through the dialog, the Stats dialog itself (Modal, FR-175)
+  await expect(page.getByRole('dialog', { name: 'Stats' })).toHaveCount(0);
 
   // Turn 2 on: attack Arvelia from North-East; the Battle screen opens by itself the next turn
   let taken = false;
@@ -332,11 +335,14 @@ test('FR-233 FR-230 FR-231 FR-232 FR-273 FR-505 declare war on Arvelia, attack i
   expect({ stroke: after.stroke, eastOfIt: after.east > after.centre }).toEqual({ stroke: 'var(--color-nation-1)', eastOfIt: true });
   await shot(page, 'm9-colony.png');
 
+  await page.getByRole('button', { name: 'Stats', exact: true }).click();
   await score.focus();
   // FR-517: Arvelia's ranch supplies horses at level zero, replacing one developed plantation.
   await expect(page.getByTestId('score-parts')).toContainText('Conquered land not collected: 10 levels, 0 points');
   await expect(page.getByTestId('score-parts').getByText(/^Development \d+$/)).toHaveText(development);
   await score.press('Escape');
+  // Escape closes the score's parts and, through the dialog, the Stats dialog itself (Modal, FR-175)
+  await expect(page.getByRole('dialog', { name: 'Stats' })).toHaveCount(0);
   await page.locator('[data-tile-id="10-3"]').click();
   await expect(page.getByTestId('tile-collected')).toContainText('Not collected: 0 points');
 

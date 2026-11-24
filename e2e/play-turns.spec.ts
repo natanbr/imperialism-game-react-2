@@ -95,7 +95,7 @@ test('FR-053 order canned food in the capital, end turns until it is made, see i
   await expect(food).toBeVisible();
   await food.getByRole('button', { name: 'More Canned Food' }).click();
   await expect(food.getByTestId('order-cannedFood')).toHaveText(/^2 of \d+$/);
-  await expect(page.getByTestId('capital-refusal')).toHaveCount(0);
+  await expect(page.getByTestId('toast')).toHaveCount(0);
   if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/m2-capital.png` });
   await page.getByRole('button', { name: 'Close capital' }).click();
 

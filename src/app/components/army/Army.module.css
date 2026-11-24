@@ -158,16 +158,6 @@
   filter: brightness(0.9);
 }
 
-.refusal {
-  flex: none;
-  padding: 4px 12px;
-  margin-bottom: var(--spacing-md);
-  background: var(--color-bg-danger);
-  color: var(--color-text-danger);
-  border: 1px solid var(--color-bad);
-  border-radius: var(--radius-sm);
-}
-
 /* The Armoury's note beside its title (FR-212, FR-264) */
 .headerNote {
   margin: 0;

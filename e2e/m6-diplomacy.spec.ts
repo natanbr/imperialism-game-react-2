@@ -103,7 +103,8 @@ test('FR-180 FR-177 FR-178 a consulate, an embassy and a war ordered in Diplomac
   await expect(arvelia.getByTestId('ordered')).toHaveText([/^Declaration of war\s*free\s*Withdraw$/]);
   await endTurn(page, 4);
   await expect(page.getByTestId('news-panel')).toContainText('War declared on Arvelia! The war starts next turn.');
-  await expect(page.getByTestId('news-panel')).not.toContainText('refused');
+  // FR-569: a refusal is a toast now, not a news line
+  await expect(page.getByTestId('toast')).toHaveCount(0);
   // FR-239: the relation lines name the war that moved them
   await expect(page.getByTestId('news-panel')).toContainText('Relations with Sundmark: yellow to orange (our war on Arvelia).');
 

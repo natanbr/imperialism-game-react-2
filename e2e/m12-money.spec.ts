@@ -7,7 +7,7 @@ import { test, expect, Page } from './seededGame';
 // 2 units.".
 // FR-394: on turn 2, with the consulate held, a 10% subsidy toward Arvelia set in Diplomacy shows under the coal's board
 // price "Arvelia charges $N with our 10%", N = floor(P x 1.1) of the price on the row.
-// FR-399: the note under the title starts with "Bids and offers last one turn; production orders in the Capital stay."
+// FR-399: the note under the title starts with "Buy and sell orders last one turn; production orders in the Capital stay."
 
 test.use({ viewport: { width: 1280, height: 720 } });
 
@@ -57,9 +57,9 @@ test('FR-397 FR-394 FR-399 bid 2 coal, End Turn, Repeat orders them again; a 10%
   // Turn 1: a consulate with Arvelia and 2 coal bid; no Repeat button on a new game
   await inArvelia(page, (panel) => panel.getByRole('button', { name: 'Consulate ($500)' }).click());
   await openBoard(page);
-  await expect(board(page).getByTestId('board-duration')).toHaveText('Bids and offers last one turn; production orders in the Capital stay.');
+  await expect(board(page).getByTestId('board-duration')).toHaveText('Buy and sell orders last one turn; production orders in the Capital stay.');
   await expect(board(page).getByRole('button', { name: "Repeat last turn's trades" })).toHaveCount(0);
-  const coalPlus = row(page, 'coal').getByRole('button', { name: 'Bid one more Coal' });
+  const coalPlus = row(page, 'coal').getByRole('button', { name: 'Buy one more Coal' });
   await coalPlus.click();
   await coalPlus.click();
   await expect(row(page, 'coal').getByTestId('bid')).toHaveText('2');
@@ -73,9 +73,9 @@ test('FR-397 FR-394 FR-399 bid 2 coal, End Turn, Repeat orders them again; a 10%
   await expect(row(page, 'coal').getByTestId('bid')).toHaveText('0');
   await board(page).getByRole('button', { name: "Repeat last turn's trades" }).click();
   await expect(row(page, 'coal').getByTestId('bid')).toHaveText('2');
-  await expect(board(page).getByTestId('market-bids')).toHaveText('Bids: 1 of 4');
+  await expect(board(page).getByTestId('market-bids')).toHaveText('Buying: 1 of 4');
   await expect(board(page).getByTestId('repeat-result')).toHaveText('Repeated 2 of 2 units.');
-  await expect(board(page).getByTestId('market-refusal')).toHaveCount(0);
+  await expect(page.getByTestId('toast')).toHaveCount(0);
   await closeBoard(page);
 
   // A 10% subsidy toward Arvelia (the consulate is held now): the coal row shows the deal price under the board price

@@ -87,10 +87,12 @@ test('FR-160 FR-153 FR-155 FR-156 a new game shows the 4 minor nations, the prov
   expect(halo).toEqual({ dash: 'none', width: '4px', stroke: 'rgb(200, 177, 138)' });
   // FR-156: the score table holds the 2 Great Powers, no minor. M12b (FR-474): the table is in the right pane's Nation
   // group, closed by default, so it is opened first (was always shown); it stays open across the End Turn below (FR-473)
-  await page.getByRole('button', { name: 'Nation', exact: true }).click();
+  // FR-568: the score table is in the Stats dialog, opened for each look and closed before End Turn
   const scores = page.getByRole('table', { name: 'Scores' });
+  await page.getByRole('button', { name: 'Stats', exact: true }).click();
   await expect(scores.getByTestId(/^score-row-/)).toHaveCount(2);
   await expect(scores).not.toContainText(/Arvelia|Sundmark|Lorran|Pellis/);
+  await page.getByRole('button', { name: 'Close stats' }).click();
   if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/m5-world.png` });
 
   // FR-155: the province of the player's farm
@@ -118,8 +120,11 @@ test('FR-160 FR-153 FR-155 FR-156 a new game shows the 4 minor nations, the prov
   // An End Turn plays on the continent: no refusal in the news, still 2 rows
   await page.getByRole('button', { name: /Advance Turn/ }).click();
   await expect(page.getByTestId('turn-indicator')).toContainText('Turn: 2 of 40');
-  await expect(page.getByTestId('news-panel')).not.toContainText('refused');
+  // FR-569: a refusal is a toast now, not a news line
+  await expect(page.getByTestId('toast')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Stats', exact: true }).click();
   await expect(scores.getByTestId(/^score-row-/)).toHaveCount(2);
+  await page.getByRole('button', { name: 'Close stats' }).click();
 
   expect(errors).toEqual([]);
 });

@@ -80,7 +80,7 @@ const description = (el: HTMLElement): string =>
 /** A "+" button with what the row shows beside it: disabled, its title, the visible note and the description. */
 const plus = (commodity: string, name: string) => {
   const b = button(commodity, name) as HTMLButtonElement;
-  const side = name.startsWith('Bid') ? 'bid' : 'offer';
+  const side = name.startsWith('Buy') ? 'bid' : 'offer';
   const note = within(row(commodity)).queryByTestId(`${side}-note`);
   return { disabled: b.disabled, title: b.title, note: note ? text(note) : null, description: description(b) };
 };
@@ -107,7 +107,7 @@ const order = (o: Order) => {
 };
 
 // M12 FR-399: the note under the title starts with how long orders last
-const DURATION = 'Bids and offers last one turn; production orders in the Capital stay.';
+const DURATION = 'Buy and sell orders last one turn; production orders in the Capital stay.';
 const NOTE_START =
   DURATION +
   ' Deals settle at End Turn at the board price; bought goods arrive next turn. Minor nations sell what their land yields and buy only clothing, furniture and hardware. A minor trades only where we hold a consulate (one ordered this turn counts) and serves the Great Power it favours first';
@@ -148,7 +148,7 @@ describe('FR-194 the Board of Trade: what it shows', () => {
     const market = marketOf(s);
     openBoard(setWarehouse({ ...s, market: { ...market, prices: { ...market.prices, coal: 123 } } }, N1, { coal: 7 }));
     const headers = within(dialog()).getAllByRole('columnheader').map((h) => text(h));
-    expect(headers).toEqual(['Commodity', 'Price', 'In warehouse', 'Bid', 'Offer', 'Minor nations']);
+    expect(headers).toEqual(['Commodity', 'Price', 'In warehouse', 'Buy', 'Sell', 'Minor nations']);
     expect(cell('coal', 'price')).toBe('$123');
     expect(cell('coal', 'available')).toBe('7');
     expect(cell('clothing', 'price')).toBe('$900');
@@ -238,7 +238,7 @@ describe('FR-194 the Board of Trade: what it shows', () => {
     // The war also costs Testland points with every minor (FR-168), so this turn's trade phase serves Valdoria first
     expect(text(within(dialog()).getByTestId('board-favourites'))).toBe('Arvelia, Sundmark, Lorran and Pellis favour Valdoria.');
     // Sundmark, open to Testland, serves Valdoria first: the coal bid is allowed and says so (FR-252)
-    expect(plus('coal', 'Bid one more Coal')).toEqual({ disabled: false, title: '', note: 'Sundmark favours Valdoria', description: 'Sundmark favours Valdoria' });
+    expect(plus('coal', 'Buy one more Coal')).toEqual({ disabled: false, title: '', note: 'Sundmark favours Valdoria', description: 'Sundmark favours Valdoria' });
   });
 
   it('FR-248 FR-253 FR-251 the note under the title says when deals settle, that minors buy only clothing, furniture and hardware, and whom each favours; it is the dialog\'s description', () => {
@@ -251,41 +251,41 @@ describe('FR-194 the Board of Trade: what it shows', () => {
     openBoard(start());
     expect(text(within(dialog()).getByTestId('market-cash'))).toBe('Cash: $10,000');
     expect(text(within(dialog()).getByTestId('market-holds'))).toBe('Holds: 4 of 4 free');
-    expect(text(within(dialog()).getByTestId('market-bids'))).toBe('Bids: 0 of 4');
+    expect(text(within(dialog()).getByTestId('market-bids'))).toBe('Buying: 0 of 4');
   });
 });
 
 describe('FR-252 FR-253 FR-257 the reasons beside the controls', () => {
   // Re-recorded by M13 FR-494 (FR-492, card Q118 (a)): a bid where no minor sells goes to Valdoria and is refunded if
   // Valdoria does not sell, so that "+" is enabled with FR-494's line. Old: disabled, title, note and description
-  // "No minor nation sells this". New: enabled, no title, note and description "A bid is refunded if Valdoria does not
+  // "No minor nation sells this". New: enabled, no title, note and description "A purchase is refunded if Valdoria does not
   // sell." (FR-494's line without its first clause, which broke FR-257's fit at 1280x720; see the FR-494 describe).
   // Re-recorded by M13 review UTH-2: Clothing's line was the short one -> FR-494's in full ("No minor nation sells this;
   // a bid is ..."): minors buy clothing, so its minors column lists buyers and never said that no minor sells it.
-  it('FR-252 FR-257 FR-494 a new game: a bid no minor sells is open toward Valdoria, "A bid is refunded if Valdoria does not sell." (in full where minors buy it); a bid without a consulate "We need a consulate with a seller", beside the disabled "+" and as its description', () => {
+  it('FR-252 FR-257 FR-494 a new game: a bid no minor sells is open toward Valdoria, "Money back if Valdoria does not sell." (in full where minors buy it); a bid without a consulate "We need a consulate with a seller", beside the disabled "+" and as its description', () => {
     openBoard(start());
-    const rival = 'A bid is refunded if Valdoria does not sell.';
+    const rival = 'Money back if Valdoria does not sell.';
     const noSeller = { disabled: false, title: '', note: rival, description: rival };
-    const full = `No minor nation sells this; a bid is refunded if Valdoria does not sell.`;
-    expect(plus('clothing', 'Bid one more Clothing')).toEqual({ disabled: false, title: '', note: full, description: full });
-    for (const c of ['Lumber', 'Steel', 'Wool', 'Oil']) expect(plus(c === 'Oil' ? 'oil' : c.toLowerCase(), `Bid one more ${c}`)).toEqual(noSeller);
+    const full = `No minor nation sells this; money back if Valdoria does not sell.`;
+    expect(plus('clothing', 'Buy one more Clothing')).toEqual({ disabled: false, title: '', note: full, description: full });
+    for (const c of ['Lumber', 'Steel', 'Wool', 'Oil']) expect(plus(c === 'Oil' ? 'oil' : c.toLowerCase(), `Buy one more ${c}`)).toEqual(noSeller);
     const consulate = 'We need a consulate with a seller';
     for (const [c, name] of [['coal', 'Coal'], ['timber', 'Timber'], ['ironOre', 'Iron Ore'], ['cotton', 'Cotton']]) {
-      expect(plus(c, `Bid one more ${name}`)).toEqual({ disabled: true, title: consulate, note: consulate, description: consulate });
+      expect(plus(c, `Buy one more ${name}`)).toEqual({ disabled: true, title: consulate, note: consulate, description: consulate });
     }
-    fireEvent.click(button('coal', 'Bid one more Coal'));
+    fireEvent.click(button('coal', 'Buy one more Coal'));
     expect(submitted).toEqual([]);
   });
 
   it('FR-253 FR-257 an offer nobody buys shows "No one buys this"; goods without a consulate with a buyer "We need a consulate with a buyer"', () => {
     openBoard(setWarehouse(start(), N1, { clothing: 2 }));
-    expect(plus('lumber', 'Offer one more Lumber')).toEqual({ disabled: true, title: 'No one buys this', note: 'No one buys this', description: 'No one buys this' });
-    expect(plus('timber', 'Offer one more Timber').note).toBe('No one buys this');
+    expect(plus('lumber', 'Sell one more Lumber')).toEqual({ disabled: true, title: 'No one buys this', note: 'No one buys this', description: 'No one buys this' });
+    expect(plus('timber', 'Sell one more Timber').note).toBe('No one buys this');
     const consulate = 'We need a consulate with a buyer';
-    expect(plus('clothing', 'Offer one more Clothing')).toEqual({ disabled: true, title: consulate, note: consulate, description: consulate });
+    expect(plus('clothing', 'Sell one more Clothing')).toEqual({ disabled: true, title: consulate, note: consulate, description: consulate });
 
     order({ kind: 'proposeOverture', nationId: N1, overture: 'consulate', targetId: PELLIS });
-    expect(plus('clothing', 'Offer one more Clothing')).toEqual({ disabled: false, title: '', note: null, description: '' });
+    expect(plus('clothing', 'Sell one more Clothing')).toEqual({ disabled: false, title: '', note: null, description: '' });
   });
 
   it('FR-252 FR-253 war and boycotts name the barrier: "We are at war with every seller", "A boycott bars every buyer"', () => {
@@ -293,8 +293,8 @@ describe('FR-252 FR-253 FR-257 the reasons beside the controls', () => {
     for (const m of [ARVELIA, SUNDMARK, PELLIS]) s = setPair(withConsulate(s, N1, m), N1, m, { war: { aggressors: [N1], since: 1 } });
     s = setPair(withConsulate(s, N1, LORRAN), N1, LORRAN, { boycotts: [N1] });
     openBoard(setWarehouse(s, N1, { furniture: 1 }));
-    expect(plus('coal', 'Bid one more Coal').note).toBe('We are at war with every seller');
-    expect(plus('furniture', 'Offer one more Furniture').note).toBe('War or a boycott bars every buyer');
+    expect(plus('coal', 'Buy one more Coal').note).toBe('We are at war with every seller');
+    expect(plus('furniture', 'Sell one more Furniture').note).toBe('War or a boycott bars every buyer');
     expect(barredText(['boycott', 'boycott'], 'buyer')).toBe('A boycott bars every buyer');
     expect(barredText(['at-war', 'no-consulate'], 'seller')).toBe('We need a consulate with a seller');
   });
@@ -305,15 +305,15 @@ describe('FR-252 FR-253 FR-257 the reasons beside the controls', () => {
   it('FR-253 FR-540 an offer only a rival Great Power may buy: "No one buys this" while it did not bid for it last turn (was "Only Valdoria may buy this"); after its bid "Only Valdoria may buy this"', () => {
     const s = withConsulate(start(), N2, ARVELIA);
     openBoard(s);
-    expect(plus('timber', 'Offer one more Timber').note).toBe('No one buys this');
+    expect(plus('timber', 'Sell one more Timber').note).toBe('No one buys this');
     act(() => useGameStore.setState({ game: { ...s, market: { ...marketOf(s), lastOrders: { [N2]: { sell: {}, buy: { timber: 2 } } } } as GameState['market'] } }));
-    expect(plus('timber', 'Offer one more Timber')).toEqual({
+    expect(plus('timber', 'Sell one more Timber')).toEqual({
       disabled: false,
       title: '',
       note: 'Only Valdoria may buy this',
       description: 'Only Valdoria may buy this',
     });
-    expect(plus('lumber', 'Offer one more Lumber').note).toBe('No one buys this');
+    expect(plus('lumber', 'Sell one more Lumber').note).toBe('No one buys this');
   });
 
   it('FR-540 (M13 review UTH-1) a new game, idle: cotton, coal and iron ore (minors sell them, none buys) have no open Offer "+" while Valdoria did not bid for them last turn', () => {
@@ -322,16 +322,16 @@ describe('FR-252 FR-253 FR-257 the reasons beside the controls', () => {
     openBoard(s);
     const none = 'No one buys this';
     for (const [c, name] of [['cotton', 'Cotton'], ['coal', 'Coal'], ['ironOre', 'Iron Ore']]) {
-      expect(plus(c, `Offer one more ${name}`)).toEqual({ disabled: true, title: none, note: none, description: none });
+      expect(plus(c, `Sell one more ${name}`)).toEqual({ disabled: true, title: none, note: none, description: none });
     }
   });
 
   it('FR-252 a bid a rival may win is allowed and says so: "Arvelia favours Valdoria"; a minor that favours us says nothing', () => {
     openBoard(setPair(withConsulate(withConsulate(start(), N1, ARVELIA), N1, PELLIS), N2, ARVELIA, { points: 40 }));
-    expect(plus('coal', 'Bid one more Coal')).toEqual({ disabled: false, title: '', note: 'Arvelia favours Valdoria', description: 'Arvelia favours Valdoria' });
+    expect(plus('coal', 'Buy one more Coal')).toEqual({ disabled: false, title: '', note: 'Arvelia favours Valdoria', description: 'Arvelia favours Valdoria' });
     // Lorran sells no coal; Pellis (favours Testland) sells timber too, Arvelia timber as well
-    expect(plus('timber', 'Bid one more Timber').note).toBe('Arvelia favours Valdoria');
-    fireEvent.click(button('coal', 'Bid one more Coal'));
+    expect(plus('timber', 'Buy one more Timber').note).toBe('Arvelia favours Valdoria');
+    fireEvent.click(button('coal', 'Buy one more Coal'));
     expect(tradeOrdersOf(now(), N1).buy.coal).toBe(1);
   });
 
@@ -359,8 +359,8 @@ describe('FR-194 the Board of Trade: orders', () => {
 
   it('FR-194 FR-062 Bid + sends buyCommodity one higher: the bid, the cash, the holds and the bids update', () => {
     openBoard(open());
-    fireEvent.click(button('coal', 'Bid one more Coal'));
-    fireEvent.click(button('coal', 'Bid one more Coal'));
+    fireEvent.click(button('coal', 'Buy one more Coal'));
+    fireEvent.click(button('coal', 'Buy one more Coal'));
 
     expect(submitted).toEqual([
       { kind: 'buyCommodity', nationId: N1, commodity: 'coal', amount: 1 },
@@ -371,91 +371,92 @@ describe('FR-194 the Board of Trade: orders', () => {
     expect(treasury(now(), N1)).toBe(10000 - 200);
     expect(text(within(dialog()).getByTestId('market-cash'))).toBe('Cash: $9,800');
     expect(text(within(dialog()).getByTestId('market-holds'))).toBe('Holds: 2 of 4 free');
-    expect(text(within(dialog()).getByTestId('market-bids'))).toBe('Bids: 1 of 4');
+    expect(text(within(dialog()).getByTestId('market-bids'))).toBe('Buying: 1 of 4');
   });
 
   it('FR-194 FR-062 FR-257 Bid − sends buyCommodity one lower and refunds; at 0 there is no "−", only its place', () => {
     openBoard(open());
-    expect(within(row('coal')).queryByRole('button', { name: 'Bid one less Coal' })).toBeNull();
-    fireEvent.click(button('coal', 'Bid one more Coal'));
-    expect((button('coal', 'Bid one less Coal') as HTMLButtonElement).disabled).toBe(false);
-    fireEvent.click(button('coal', 'Bid one less Coal'));
+    expect(within(row('coal')).queryByRole('button', { name: 'Buy one less Coal' })).toBeNull();
+    fireEvent.click(button('coal', 'Buy one more Coal'));
+    expect((button('coal', 'Buy one less Coal') as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(button('coal', 'Buy one less Coal'));
     expect(submitted.at(-1)).toEqual({ kind: 'buyCommodity', nationId: N1, commodity: 'coal', amount: 0 });
     expect(treasury(now(), N1)).toBe(10000);
     expect(cell('coal', 'bid')).toBe('0');
-    expect(within(row('coal')).queryByRole('button', { name: 'Bid one less Coal' })).toBeNull();
+    expect(within(row('coal')).queryByRole('button', { name: 'Buy one less Coal' })).toBeNull();
   });
 
   it('FR-194 FR-061 Offer + sends sellCommodity one higher: the unit leaves the warehouse and takes a hold; − gives it back', () => {
     openBoard(setWarehouse(open(), N1, { clothing: 2 }));
-    fireEvent.click(button('clothing', 'Offer one more Clothing'));
+    fireEvent.click(button('clothing', 'Sell one more Clothing'));
     expect(submitted).toEqual([{ kind: 'sellCommodity', nationId: N1, commodity: 'clothing', amount: 1 }]);
     expect(cell('clothing', 'offer')).toBe('1');
     expect(cell('clothing', 'available')).toBe('1');
     expect(text(within(dialog()).getByTestId('market-holds'))).toBe('Holds: 3 of 4 free');
 
-    fireEvent.click(button('clothing', 'Offer one less Clothing'));
+    fireEvent.click(button('clothing', 'Sell one less Clothing'));
     expect(submitted.at(-1)).toEqual({ kind: 'sellCommodity', nationId: N1, commodity: 'clothing', amount: 0 });
     expect(stockOf(now(), N1, 'clothing')).toBe(2);
   });
 
   it('FR-194 a row with a bid has no offer control, and a row with an offer no bid control', () => {
     openBoard(setWarehouse(open(), N1, { clothing: 2 }));
-    fireEvent.click(button('coal', 'Bid one more Coal'));
-    expect(within(row('coal')).queryByRole('button', { name: /Offer one/ })).toBeNull();
+    fireEvent.click(button('coal', 'Buy one more Coal'));
+    expect(within(row('coal')).queryByRole('button', { name: /Sell one/ })).toBeNull();
     expect(within(row('coal')).queryByTestId('offer')).toBeNull();
 
-    fireEvent.click(button('clothing', 'Offer one more Clothing'));
-    expect(within(row('clothing')).queryByRole('button', { name: /Bid one/ })).toBeNull();
+    fireEvent.click(button('clothing', 'Sell one more Clothing'));
+    expect(within(row('clothing')).queryByRole('button', { name: /Buy one/ })).toBeNull();
     expect(within(row('clothing')).queryByTestId('bid')).toBeNull();
 
     // Back to 0: both controls again
-    fireEvent.click(button('coal', 'Bid one less Coal'));
-    expect(button('coal', 'Offer one more Coal')).toBeTruthy();
+    fireEvent.click(button('coal', 'Buy one less Coal'));
+    expect(button('coal', 'Sell one more Coal')).toBeTruthy();
   });
 
   it('FR-194 FR-248 FR-257 every hold taken: "Holds: 0 of 4 free", each "+" open to trade disabled saying so beside it, and a press sends nothing', () => {
     openBoard(setWarehouse(open(), N1, { clothing: 2 }));
-    for (const c of ['coal', 'timber', 'ironOre', 'cotton']) fireEvent.click(button(c, `Bid one more ${cell(c, 'name')}`));
-    expect(text(within(dialog()).getByTestId('market-bids'))).toBe('Bids: 4 of 4');
+    for (const c of ['coal', 'timber', 'ironOre', 'cotton']) fireEvent.click(button(c, `Buy one more ${cell(c, 'name')}`));
+    expect(text(within(dialog()).getByTestId('market-bids'))).toBe('Buying: 4 of 4');
     expect(text(within(dialog()).getByTestId('market-holds'))).toBe('Holds: 0 of 4 free');
     const sent = submitted.length;
 
     const holds = 'No free hold this turn';
-    for (const [commodity, name] of [['coal', 'Bid one more Coal'], ['timber', 'Bid one more Timber'], ['clothing', 'Offer one more Clothing']]) {
+    for (const [commodity, name] of [['coal', 'Buy one more Coal'], ['timber', 'Buy one more Timber'], ['clothing', 'Sell one more Clothing']]) {
       expect(plus(commodity, name)).toEqual({ disabled: true, title: holds, note: holds, description: holds });
     }
     // Re-recorded by M13 FR-494: old 'No minor nation sells this', new 'No free hold this turn'. Wool, sold by no minor, may
     // be bid toward Valdoria (FR-492), so the market no longer refuses it; the holds do.
-    expect(plus('wool', 'Bid one more Wool').title).toBe('No free hold this turn');
-    fireEvent.click(button('coal', 'Bid one more Coal'));
+    expect(plus('wool', 'Buy one more Wool').title).toBe('No free hold this turn');
+    fireEvent.click(button('coal', 'Buy one more Coal'));
     expect(submitted).toHaveLength(sent);
-    expect(within(dialog()).queryByRole('alert')).toBeNull();
+    // Nothing sent, nothing refused: no toast follows (FR-569)
+    expect(useGameStore.getState().lastRejection).toBeNull();
     // "−" stays: lowering is always allowed
-    expect((button('coal', 'Bid one less Coal') as HTMLButtonElement).disabled).toBe(false);
+    expect((button('coal', 'Buy one less Coal') as HTMLButtonElement).disabled).toBe(false);
   });
 
-  it('FR-248 at most 4 bids: with holds to spare a fifth commodity\'s Bid "+" is disabled with "Already 4 bids this turn, the most"; a row already bid on is not', () => {
+  it('FR-248 at most 4 bids: with holds to spare a fifth commodity\'s Bid "+" is disabled with "Already buying 4 commodities this turn, the most"; a row already bid on is not', () => {
     // A fifth commodity a minor sells: wool on one of Arvelia's tiles; Sundmark also sells the other four
     let s = setTile(withConsulate(open(), N1, SUNDMARK), '10-4', { resource: { type: ResourceType.Wool, level: 1, discovered: true } });
     s = { ...s, nations: s.nations.map((n) => (n.id === N1 ? { ...n, merchantMarine: { ...n.merchantMarine, ships: undefined, holds: 6 } } : n)) };
     openBoard(s);
-    for (const c of ['coal', 'timber', 'ironOre', 'cotton']) fireEvent.click(button(c, `Bid one more ${cell(c, 'name')}`));
+    for (const c of ['coal', 'timber', 'ironOre', 'cotton']) fireEvent.click(button(c, `Buy one more ${cell(c, 'name')}`));
     expect(text(within(dialog()).getByTestId('market-holds'))).toBe('Holds: 2 of 6 free');
 
-    const bids = 'Already 4 bids this turn, the most';
-    expect(plus('wool', 'Bid one more Wool')).toEqual({ disabled: true, title: bids, note: bids, description: bids });
-    expect((button('coal', 'Bid one more Coal') as HTMLButtonElement).disabled).toBe(false);
-    expect(button('coal', 'Bid one more Coal').title).toBe('');
+    const bids = 'Already buying 4 commodities this turn, the most';
+    expect(plus('wool', 'Buy one more Wool')).toEqual({ disabled: true, title: bids, note: bids, description: bids });
+    expect((button('coal', 'Buy one more Coal') as HTMLButtonElement).disabled).toBe(false);
+    expect(button('coal', 'Buy one more Coal').title).toBe('');
   });
 
   it('FR-248 Offer "+" with nothing in the warehouse says "None left in the warehouse"; Bid "+" without the money "Not enough money"', () => {
     openBoard(setWarehouse(setTreasuryOf(open(), 50), N1, { furniture: 1 }));
-    expect(plus('clothing', 'Offer one more Clothing')).toMatchObject({ disabled: true, title: 'None left in the warehouse', note: 'None left in the warehouse' });
-    expect(plus('coal', 'Bid one more Coal')).toMatchObject({ disabled: true, title: 'Not enough money', note: 'Not enough money' });
+    expect(plus('clothing', 'Sell one more Clothing')).toMatchObject({ disabled: true, title: 'None left in the warehouse', note: 'None left in the warehouse' });
+    expect(plus('coal', 'Buy one more Coal')).toMatchObject({ disabled: true, title: 'Not enough money', note: 'Not enough money' });
     // A row the player can trade has an enabled "+" with no title (M12 FR-401: seed 1's Arvelia favours Valdoria at equal
     // points, so the note says so, FR-252; until M12 turn 1 favoured Testland and there was no note)
-    expect(plus('furniture', 'Offer one more Furniture')).toEqual({ disabled: false, title: '', note: 'Arvelia favours Valdoria', description: 'Arvelia favours Valdoria' });
+    expect(plus('furniture', 'Sell one more Furniture')).toEqual({ disabled: false, title: '', note: 'Arvelia favours Valdoria', description: 'Arvelia favours Valdoria' });
   });
 
   it('FR-194 Close closes the Board of Trade', () => {
@@ -496,7 +497,7 @@ describe('M12 FR-394 FR-400 FR-434 the deal price, the offer cap and the first s
     expect(dealPrices('timber')).toEqual(['Arvelia charges $110 with our 10%', 'Sundmark charges $200 with our 100%']);
     expect(dealPrices('lumber')).toEqual([]);
     // Bid and Offer work as before
-    fireEvent.click(button('coal', 'Bid one more Coal'));
+    fireEvent.click(button('coal', 'Buy one more Coal'));
     expect(tradeOrdersOf(now(), N1).buy.coal).toBe(1);
   });
 
@@ -511,22 +512,22 @@ describe('M12 FR-394 FR-400 FR-434 the deal price, the offer cap and the first s
   it('FR-400 the Offer "+" stops at what the minors we may trade with want, with the line "Arvelia and Sundmark want 4"; the engine still takes more', () => {
     const s = withHolds(withConsulate(withConsulate(start(), N1, ARVELIA), N1, SUNDMARK), 8);
     openBoard(setWarehouse(s, N1, { clothing: 6 }));
-    for (let i = 0; i < 3; i++) fireEvent.click(button('clothing', 'Offer one more Clothing'));
-    expect(plus('clothing', 'Offer one more Clothing').disabled).toBe(false);
-    fireEvent.click(button('clothing', 'Offer one more Clothing'));
+    for (let i = 0; i < 3; i++) fireEvent.click(button('clothing', 'Sell one more Clothing'));
+    expect(plus('clothing', 'Sell one more Clothing').disabled).toBe(false);
+    fireEvent.click(button('clothing', 'Sell one more Clothing'));
     expect(cell('clothing', 'offer')).toBe('4');
     const want = 'Arvelia and Sundmark want 4';
-    expect(plus('clothing', 'Offer one more Clothing')).toEqual({ disabled: true, title: want, note: want, description: want });
+    expect(plus('clothing', 'Sell one more Clothing')).toEqual({ disabled: true, title: want, note: want, description: want });
     // Card Q104: the Board only; an order for more is still accepted (the surplus comes back)
     order({ kind: 'sellCommodity', nationId: N1, commodity: GoodsType.Clothing, amount: 5 });
-    expect(plus('clothing', 'Offer one more Clothing').note).toBe(want);
+    expect(plus('clothing', 'Sell one more Clothing').note).toBe(want);
   });
 
   it('FR-400 one buyer reads "Arvelia wants 2"; a minor without a consulate is not counted', () => {
     openBoard(setWarehouse(withConsulate(start(), N1, ARVELIA), N1, { furniture: 3 }));
-    fireEvent.click(button('furniture', 'Offer one more Furniture'));
-    fireEvent.click(button('furniture', 'Offer one more Furniture'));
-    expect(plus('furniture', 'Offer one more Furniture')).toMatchObject({ disabled: true, title: 'Arvelia wants 2', note: 'Arvelia wants 2' });
+    fireEvent.click(button('furniture', 'Sell one more Furniture'));
+    fireEvent.click(button('furniture', 'Sell one more Furniture'));
+    expect(plus('furniture', 'Sell one more Furniture')).toMatchObject({ disabled: true, title: 'Arvelia wants 2', note: 'Arvelia wants 2' });
   });
 
   it('FR-434 a new game, nothing to offer: one line names the goods the minors buy, their buildings and the consulate step', () => {
@@ -557,14 +558,14 @@ describe('M12 FR-397 FR-398 FR-399 repeat last turn\'s trades; how long orders l
   /** Turn 1 with a consulate in Arvelia and 2 clothing in stock: bid 2 coal and offer 1 clothing on the Board, then End Turn. */
   const tradedTurn = () => {
     openBoard(setWarehouse(withConsulate(start(), N1, ARVELIA), N1, { clothing: 2 }));
-    fireEvent.click(button('coal', 'Bid one more Coal'));
-    fireEvent.click(button('coal', 'Bid one more Coal'));
-    fireEvent.click(button('clothing', 'Offer one more Clothing'));
+    fireEvent.click(button('coal', 'Buy one more Coal'));
+    fireEvent.click(button('coal', 'Buy one more Coal'));
+    fireEvent.click(button('clothing', 'Sell one more Clothing'));
     endTurn();
     submitted = [];
   };
 
-  it('FR-399 under the title the Board says "Bids and offers last one turn; production orders in the Capital stay."', () => {
+  it('FR-399 under the title the Board says "Buy and sell orders last one turn; production orders in the Capital stay."', () => {
     openBoard(start());
     const line = within(dialog()).getByTestId('board-duration');
     expect(text(line)).toBe(DURATION);
@@ -591,7 +592,7 @@ describe('M12 FR-397 FR-398 FR-399 repeat last turn\'s trades; how long orders l
     ]);
     expect(cell('coal', 'bid')).toBe('2');
     expect(cell('clothing', 'offer')).toBe('1');
-    expect(text(within(dialog()).getByTestId('market-bids'))).toBe('Bids: 1 of 4');
+    expect(text(within(dialog()).getByTestId('market-bids'))).toBe('Buying: 1 of 4');
     expect(text(repeatLine()!)).toBe('Repeated 3 of 3 units.');
     // A second press finds them in place and sends nothing
     submitted = [];
@@ -604,7 +605,7 @@ describe('M12 FR-397 FR-398 FR-399 repeat last turn\'s trades; how long orders l
     expect(repeatButton()).not.toBeNull();
   });
 
-  it('FR-398 a refused unit is said in one line: "Repeated 2 of 3 units. Coal bid: not enough money."; no other alert', () => {
+  it('FR-398 a refused unit is said in one line: "Repeated 2 of 3 units. Coal purchase: not enough money."; no refusal recorded', () => {
     tradedTurn();
     // Money for one coal and a half: the second unit is refused
     const price = marketOf(now()).prices.coal!;
@@ -612,15 +613,16 @@ describe('M12 FR-397 FR-398 FR-399 repeat last turn\'s trades; how long orders l
     fireEvent.click(repeatButton()!);
     expect(cell('coal', 'bid')).toBe('1');
     expect(cell('clothing', 'offer')).toBe('1');
-    expect(text(repeatLine()!)).toBe('Repeated 2 of 3 units. Coal bid: not enough money.');
-    expect(within(dialog()).queryByRole('alert')).toBeNull();
+    expect(text(repeatLine()!)).toBe('Repeated 2 of 3 units. Coal purchase: not enough money.');
+    // The refused unit was never sent (FR-398), so the store holds no refusal and no toast follows (FR-569)
+    expect(useGameStore.getState().lastRejection).toBeNull();
   });
 
-  it('FR-398 goods gone: "Clothing offer: none left in the warehouse."', () => {
+  it('FR-398 goods gone: "Clothing sale: none left in the warehouse."', () => {
     tradedTurn();
     act(() => useGameStore.setState({ game: setWarehouse(now(), N1, { clothing: 0 }) }));
     fireEvent.click(repeatButton()!);
-    expect(text(repeatLine()!)).toBe('Repeated 2 of 3 units. Clothing offer: none left in the warehouse.');
+    expect(text(repeatLine()!)).toBe('Repeated 2 of 3 units. Clothing sale: none left in the warehouse.');
   });
 
   it('FR-397 lastTurnTrades reads the final total of each bid and offer of the turn just resolved, in the order first given', () => {
@@ -643,13 +645,13 @@ describe('M12 FR-397 FR-398 FR-399 repeat last turn\'s trades; how long orders l
 // M13 FR-494 (card Q118 (a)): last turn's bids and offers of the Great Powers are public (FR-491, `market.lastOrders`), so
 // each row says what another Great Power we may trade with bid or offered last turn; a row no minor sells may be bid toward
 // it (refunded if it does not sell), and a row no minor buys may be offered once it bid for it last turn (FR-492).
-// The Bid line is FR-494's "No minor nation sells this; a bid is refunded if Valdoria does not sell." without its first
+// The Bid line is FR-494's "No minor nation sells this; money back if Valdoria does not sell." without its first
 // clause on a row no minor trades: in full it takes 3 lines of the 104 px note, and on the 13 rows no minor sells it made a
 // new game's board scroll by 109 px at 1280x720 (FR-257, e2e/m7-trade.spec.ts, measured); those rows' minors column
 // already says "No minor trades this". On the clothing, furniture and hardware rows that column lists the minors that buy,
 // so the line is in full there (M13 review UTH-2).
 describe('M13 FR-494 the Board shows the other Great Power\'s last turn', () => {
-  const RIVAL_BID = 'A bid is refunded if Valdoria does not sell.';
+  const RIVAL_BID = 'Money back if Valdoria does not sell.';
   /** Test setup: the Great Powers' bids and offers of the last trade phase (FR-491). */
   const withLastOrders = (s: GameState, orders: Record<string, { sell?: Record<string, number>; buy?: Record<string, number> }>): GameState => {
     const lastOrders = Object.fromEntries(Object.entries(orders).map(([id, o]) => [id, { sell: o.sell ?? {}, buy: o.buy ?? {} }]));
@@ -660,10 +662,10 @@ describe('M13 FR-494 the Board shows the other Great Power\'s last turn', () => 
   const rivalLine = (commodity: string) => within(row(commodity)).queryByTestId('rival-last-turn');
   const show = (s: GameState) => act(() => useGameStore.setState({ game: s }));
 
-  it('FR-494 FR-491 a row Valdoria bid for or offered last turn says so in one line: "Valdoria bid for 2 last turn", "Valdoria offered 1 last turn"; the other rows have none', () => {
+  it('FR-494 FR-491 a row Valdoria bid for or offered last turn says so in one line: "Valdoria wanted to buy 2 last turn", "Valdoria wanted to sell 1 last turn"; the other rows have none', () => {
     openBoard(withLastOrders(start(), { [N2]: { buy: { steel: 2 }, sell: { coal: 1 } } }));
-    expect(text(rivalLine('steel')!)).toBe('Valdoria bid for 2 last turn');
-    expect(text(rivalLine('coal')!)).toBe('Valdoria offered 1 last turn');
+    expect(text(rivalLine('steel')!)).toBe('Valdoria wanted to buy 2 last turn');
+    expect(text(rivalLine('coal')!)).toBe('Valdoria wanted to sell 1 last turn');
     expect(rivalLines()).toHaveLength(2);
     // The minors' lists and FR-254's line stay
     expect(cell('steel', 'no-minor')).toBe('No minor trades this');
@@ -684,25 +686,25 @@ describe('M13 FR-494 the Board shows the other Great Power\'s last turn', () => 
   });
 
   // Re-recorded by M13 review UTH-2: 'clothing' left this list (its line is now in full, the test below)
-  it('FR-494 FR-492 the Bid "+" of a row no minor trades is enabled with "A bid is refunded if Valdoria does not sell."; a press sends the bid', () => {
+  it('FR-494 FR-492 the Bid "+" of a row no minor trades is enabled with "Money back if Valdoria does not sell."; a press sends the bid', () => {
     openBoard(start());
     for (const [c, name] of [['lumber', 'Lumber'], ['steel', 'Steel'], ['armaments', 'Armaments'], ['oil', 'Oil']]) {
-      expect(plus(c, `Bid one more ${name}`)).toEqual({ disabled: false, title: '', note: RIVAL_BID, description: RIVAL_BID });
+      expect(plus(c, `Buy one more ${name}`)).toEqual({ disabled: false, title: '', note: RIVAL_BID, description: RIVAL_BID });
       expect(cell(c, 'no-minor')).toBe('No minor trades this');
     }
-    fireEvent.click(button('steel', 'Bid one more Steel'));
+    fireEvent.click(button('steel', 'Buy one more Steel'));
     expect(submitted).toEqual([{ kind: 'buyCommodity', nationId: N1, commodity: 'steel', amount: 1 }]);
     expect(tradeOrdersOf(now(), N1).buy.steel).toBe(1);
-    expect(plus('steel', 'Bid one more Steel').note).toBe(RIVAL_BID);
+    expect(plus('steel', 'Buy one more Steel').note).toBe(RIVAL_BID);
     // A row a minor sells keeps its own reason (FR-252)
-    expect(plus('coal', 'Bid one more Coal').note).toBe('We need a consulate with a seller');
+    expect(plus('coal', 'Buy one more Coal').note).toBe('We need a consulate with a seller');
   });
 
-  it('FR-494 (M13 review UTH-2) the clothing, furniture and hardware rows list the minors that buy them, not "No minor trades this", so their Bid line is FR-494\'s in full: "No minor nation sells this; a bid is refunded if Valdoria does not sell."', () => {
-    const full = 'No minor nation sells this; a bid is refunded if Valdoria does not sell.';
+  it('FR-494 (M13 review UTH-2) the clothing, furniture and hardware rows list the minors that buy them, not "No minor trades this", so their Bid line is FR-494\'s in full: "No minor nation sells this; money back if Valdoria does not sell."', () => {
+    const full = 'No minor nation sells this; money back if Valdoria does not sell.';
     openBoard(start());
     for (const [c, name] of [['clothing', 'Clothing'], ['furniture', 'Furniture'], ['hardware', 'Hardware']]) {
-      expect(plus(c, `Bid one more ${name}`)).toEqual({ disabled: false, title: '', note: full, description: full });
+      expect(plus(c, `Buy one more ${name}`)).toEqual({ disabled: false, title: '', note: full, description: full });
       expect(partners(c, 'buyers').length).toBeGreaterThan(0);
       expect(within(row(c)).queryByTestId('no-minor')).toBeNull();
     }
@@ -713,40 +715,40 @@ describe('M13 FR-494 the Board shows the other Great Power\'s last turn', () => 
   it('FR-494 FR-492 at war with Valdoria, a war declared on it this turn, or a boycott: that "+" is disabled and names the barrier', () => {
     openBoard(atWarWithValdoria(start()));
     const war = 'We are at war with every seller';
-    expect(plus('steel', 'Bid one more Steel')).toEqual({ disabled: true, title: war, note: war, description: war });
+    expect(plus('steel', 'Buy one more Steel')).toEqual({ disabled: true, title: war, note: war, description: war });
     show(setPair(start(), N1, N2, { boycotts: [N2] }));
-    expect(plus('steel', 'Bid one more Steel').note).toBe('A boycott bars every seller');
+    expect(plus('steel', 'Buy one more Steel').note).toBe('A boycott bars every seller');
     show(start());
-    expect(plus('steel', 'Bid one more Steel').disabled).toBe(false);
+    expect(plus('steel', 'Buy one more Steel').disabled).toBe(false);
     order({ kind: 'proposeOverture', nationId: N1, overture: 'war', targetId: N2 });
-    expect(plus('steel', 'Bid one more Steel').note).toBe(war);
+    expect(plus('steel', 'Buy one more Steel').note).toBe(war);
   });
 
   it('FR-494 FR-492 the Offer "+" of a row no minor buys is enabled only after Valdoria bid for it last turn: "Only Valdoria may buy this"; not for its offer, nor at war', () => {
     const steel = () => setWarehouse(start(), N1, { steel: 3 });
     openBoard(steel());
     const none = 'No one buys this';
-    expect(plus('steel', 'Offer one more Steel')).toEqual({ disabled: true, title: none, note: none, description: none });
+    expect(plus('steel', 'Sell one more Steel')).toEqual({ disabled: true, title: none, note: none, description: none });
 
     show(withLastOrders(steel(), { [N2]: { buy: { steel: 2 } } }));
     const only = 'Only Valdoria may buy this';
-    expect(plus('steel', 'Offer one more Steel')).toEqual({ disabled: false, title: '', note: only, description: only });
-    fireEvent.click(button('steel', 'Offer one more Steel'));
+    expect(plus('steel', 'Sell one more Steel')).toEqual({ disabled: false, title: '', note: only, description: only });
+    fireEvent.click(button('steel', 'Sell one more Steel'));
     expect(submitted.at(-1)).toEqual({ kind: 'sellCommodity', nationId: N1, commodity: 'steel', amount: 1 });
     expect(cell('steel', 'offer')).toBe('1');
 
     // Valdoria's offer of steel last turn is not a bid; its bid for lumber is not one for steel
     show(withLastOrders(steel(), { [N2]: { sell: { steel: 2 }, buy: { lumber: 2 } } }));
-    expect(plus('steel', 'Offer one more Steel').note).toBe(none);
+    expect(plus('steel', 'Sell one more Steel').note).toBe(none);
     show(atWarWithValdoria(withLastOrders(steel(), { [N2]: { buy: { steel: 2 } } })));
-    expect(plus('steel', 'Offer one more Steel').note).toBe('We are at war with every buyer');
+    expect(plus('steel', 'Sell one more Steel').note).toBe('We are at war with every buyer');
   });
 
   it('FR-494 boardView: the row\'s `rivalLastTurn` line and the bid note as info', () => {
     const s = withLastOrders(start(), { [N2]: { buy: { steel: 2 } } });
     const rows = boardView(s, s.nations[0]).rows;
     const steelRow = rows.find((r) => r.commodity === 'steel')!;
-    expect(steelRow.rivalLastTurn).toBe('Valdoria bid for 2 last turn');
+    expect(steelRow.rivalLastTurn).toBe('Valdoria wanted to buy 2 last turn');
     expect(steelRow.bidNote).toEqual({ text: RIVAL_BID, tone: 'info' });
     expect(rows.filter((r) => r.rivalLastTurn !== undefined).map((r) => r.commodity)).toEqual(['steel']);
   });

@@ -1,11 +1,9 @@
 import React, { useEffect, useId, useMemo, useState } from "react";
 import { useGameStore } from "@/store/rootStore";
-import { selectActiveNation, selectActiveScore, selectSelectedWorkerAndTile, selectUpkeepForecast } from "@/store/selectors";
+import { selectActiveNation, selectSelectedWorkerAndTile, selectUpkeepForecast } from "@/store/selectors";
 import { SAVE_VERSION } from "@/store/persistence";
-import { ScoreTable } from "./ScoreTable";
-import { CouncilProjection } from "./TurnIndicator";
 import { showTile } from "./showTile";
-import { detailLines, lastTurnTreasuryText, scoreParts, uncollectedScoreText, spentThisTurnText, upkeepForecastText, workInProgressRows } from "./hudView";
+import { detailLines, lastTurnTreasuryText, spentThisTurnText, upkeepForecastText, workInProgressRows } from "./hudView";
 
 export type GroupId = "nation" | "work" | "details";
 export type GroupsOpen = Record<GroupId, boolean>;
@@ -43,14 +41,12 @@ const HudGroup: React.FC<{
 };
 
 /**
- * FR-474: the nation's numbers beyond the top bar's: the Council projection (the bar's next-council line names it as its
- * description, FR-314), the score's parts as a list (FR-402), every nation's score (FR-106), the army upkeep End Turn will
- * charge, what this turn's orders spent and how the treasury moved last turn.
+ * FR-474: the nation's money beyond the top bar's cash: the army upkeep End Turn will charge, what this turn's orders
+ * spent and how the treasury moved last turn. FR-568: the Council projection, the score's parts and every nation's score
+ * moved to the Stats dialog (HUD/StatsDialog.tsx).
  */
 const NationGroupContent: React.FC = () => {
   const nation = useGameStore(selectActiveNation);
-  const score = useGameStore(selectActiveScore);
-  const excluded = uncollectedScoreText(score);
   const upkeep = useGameStore(selectUpkeepForecast);
   const playerId = useGameStore((s) => s.activeNationId);
   const start = useGameStore((s) => s.turnStartTreasuries?.[playerId]);
@@ -59,16 +55,6 @@ const NationGroupContent: React.FC = () => {
   const lastTurn = lastTurnTreasuryText(lastTreasuries);
   return (
     <>
-      <CouncilProjection />
-      <ul className="hud-score-parts" data-testid="nation-score-parts" aria-label="Score parts">
-        {scoreParts(score.points).map(([name, points]) => (
-          <li key={name}>
-            {name} {points}
-          </li>
-        ))}
-        {excluded && <li>{excluded}</li>}
-      </ul>
-      <ScoreTable />
       <p data-testid="upkeep-forecast">{upkeepForecastText(upkeep)}</p>
       {spent && <p data-testid="spent-this-turn">{spent}</p>}
       {lastTurn && <p data-testid="treasury-last-turn">{lastTurn}</p>}

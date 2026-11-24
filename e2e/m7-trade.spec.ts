@@ -68,7 +68,7 @@ test('FR-197 FR-194 FR-195 a consulate with Arvelia and 2 coal bid on the Board 
   await expect(sellers(page, 'coal').first()).toHaveText('Arvelia: 3 units (no consulate)');
   // M12 FR-401: whom each minor favours at equal points depends on the game's seed (until M12: all Testland on turn 1)
   await expect(board(page).getByTestId('board-favourites')).toHaveText(/^(Arvelia|Sundmark|Lorran|Pellis)\b.* favours? (Testland|Valdoria)\.$/);
-  const coalPlus = row(page, 'coal').getByRole('button', { name: 'Bid one more Coal' });
+  const coalPlus = row(page, 'coal').getByRole('button', { name: 'Buy one more Coal' });
   await expect(coalPlus).toBeDisabled();
   await expect(row(page, 'coal').getByTestId('bid-note')).toHaveText('We need a consulate with a seller');
   await expect(coalPlus).toHaveAccessibleDescription('We need a consulate with a seller');
@@ -85,11 +85,11 @@ test('FR-197 FR-194 FR-195 a consulate with Arvelia and 2 coal bid on the Board 
   await coalPlus.click();
   await coalPlus.click();
   await expect(row(page, 'coal').getByTestId('bid')).toHaveText('2');
-  await expect(row(page, 'coal').getByRole('button', { name: /^Offer one/ })).toHaveCount(0);
+  await expect(row(page, 'coal').getByRole('button', { name: /^Sell one/ })).toHaveCount(0);
   await expect(board(page).getByTestId('market-holds')).toHaveText('Holds: 2 of 4 free');
-  await expect(board(page).getByTestId('market-bids')).toHaveText('Bids: 1 of 4');
+  await expect(board(page).getByTestId('market-bids')).toHaveText('Buying: 1 of 4');
   await expect(board(page).getByTestId('market-cash')).toHaveText(`Cash: $${(start - 700).toLocaleString('en-US')}`);
-  await expect(board(page).getByTestId('market-refusal')).toHaveCount(0);
+  await expect(page.getByTestId('toast')).toHaveCount(0);
   if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/m7-board.png` });
   await closeBoard(page);
 
@@ -153,9 +153,9 @@ test('FR-194 FR-257 at 1280x720 the Board of Trade fits the window with the reas
   const boardOverflow = () => board(page).evaluate((el) => { const pane = el.querySelector('table')!.parentElement!; return pane.scrollHeight - pane.clientHeight; });
   expect(await boardOverflow()).toBeLessThanOrEqual(1);
   await expect(row(page, 'oil')).toBeInViewport({ ratio: 1 });
-  // Re-recorded by M13 FR-494: old 'No minor nation sells this' (a refusal), new 'A bid is refunded if Valdoria does not
+  // Re-recorded by M13 FR-494: old 'No minor nation sells this' (a refusal), new 'A purchase is refunded if Valdoria does not
   // sell.' beside an enabled "+" (a bid where no minor sells goes to Valdoria, FR-492)
-  await expect(row(page, 'oil').getByTestId('bid-note')).toHaveText('A bid is refunded if Valdoria does not sell.');
+  await expect(row(page, 'oil').getByTestId('bid-note')).toHaveText('Money back if Valdoria does not sell.');
   await expect(row(page, 'oil').getByTestId('offer-note')).toHaveText('No one buys this');
   await expect(row(page, 'oil').getByTestId('no-minor')).toHaveText('No minor trades this');
   // FR-251: our own stock is "In warehouse" (in capitals on the screen, by CSS)
@@ -170,9 +170,9 @@ test('FR-194 FR-257 at 1280x720 the Board of Trade fits the window with the reas
   await consulateWithArvelia(page);
   await openBoard(page);
   for (const c of ['Coal', 'Timber', 'Iron Ore', 'Cotton']) {
-    await board(page).getByRole('button', { name: `Bid one more ${c}` }).click();
+    await board(page).getByRole('button', { name: `Buy one more ${c}` }).click();
   }
-  const coal = board(page).getByRole('button', { name: 'Bid one more Coal' });
+  const coal = board(page).getByRole('button', { name: 'Buy one more Coal' });
   await expect(coal).toBeDisabled();
   await expect(coal).toHaveAttribute('title', 'No free hold this turn');
   await expect(coal).toHaveAccessibleDescription('No free hold this turn');

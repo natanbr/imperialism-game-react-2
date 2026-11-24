@@ -2,8 +2,9 @@
 // FR-075, FR-076: the HUD shows the score and the game length; the game-over screen shows the final
 // ranked scores and the Advance Turn button is disabled after the end.
 import { describe, it, expect, vi } from 'vitest';
+import { TopBar } from '@/components/HUD/TopBar';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
-import { ActionButtons, FoodWarning, ScoreIndicator, ScoreRank, TurnIndicator } from '@/components/HUD/index';
+import { ActionButtons, FoodWarning, ScoreIndicator, TurnIndicator } from '@/components/HUD/index';
 import { HUD } from '@/components/HUD';
 import { GameOverModal } from '@/components/GameOverModal';
 import { useGameStore } from '@/store/rootStore';
@@ -277,11 +278,11 @@ describe('FR-076 game-over screen', () => {
     const state = setTreasury(over, N1, 999999);
     expect(scoreTable(state)[0].nationId).toBe(N1);
     show(state);
-    render(<><GameOverModal /><ScoreIndicator /><ScoreRank /><HUD /></>);
+    render(<><GameOverModal /><TopBar /><HUD /></>);
     expect(text(within(screen.getByTestId(`final-score-${N1}`)).getByTestId('total'))).toBe(String(recorded.total));
 
     fireEvent.click(screen.getByRole('button', { name: 'Back to the map' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Nation' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Stats' }));
     for (const score of over.gameOver!.scores) {
       expect.soft(text(within(screen.getByTestId(`score-row-${score.nationId}`)).getByTestId('total'))).toBe(String(score.total));
     }

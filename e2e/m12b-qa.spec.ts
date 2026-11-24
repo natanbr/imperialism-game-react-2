@@ -79,6 +79,7 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 320, height: 640 }
     await page.setViewportSize(viewport);
     await open(page);
     const parts = page.getByTestId('score-parts');
+    await page.getByRole('button', { name: 'Stats', exact: true }).click();
     await page.getByTestId('hud-score').hover();
     await expect(parts).toBeVisible();
     const hovered = (await parts.boundingBox())!;
@@ -101,14 +102,14 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 320, height: 640 }
     const errors = collectErrors(page);
     await page.setViewportSize(viewport);
     await open(page);
-    await page.getByTestId('hud-score').focus();
+    await page.getByRole('button', { name: 'Open Warehouse' }).focus();
     const strip = page.getByTestId('topbar-strip');
     const count = await strip.getByRole('button').count();
-    expect(count).toBe(9);
+    expect(count).toBe(10);
     const stripBox = (await strip.boundingBox())!;
     const seen: string[] = [];
     for (let i = 0; i < count; i++) {
-      await page.keyboard.press('Tab');
+      if (i > 0) await page.keyboard.press('Tab');
       const focused = await page.evaluate(() => {
         const el = document.activeElement as HTMLElement;
         return { name: el.getAttribute('title'), box: el.getBoundingClientRect().toJSON() as Box };
@@ -185,7 +186,7 @@ test('FR-533 at 1280x720 on turn 2 the news text ends at least 4 px before the n
 });
 
 // QA extra "Tab order is map, then top bar, then pane": the first Tab stops were the map's markers
-test('FR-535 at 1280x720 the first Tab stop is the bar\'s score, Advance Turn follows the bar\'s buttons, and the map comes after the bar', async ({ page }) => {
+test('FR-535 at 1280x720 the first Tab stop is the bar\'s first button, Advance Turn follows the bar\'s buttons, and the map comes after the bar', async ({ page }) => {
   const errors = collectErrors(page);
   await page.setViewportSize({ width: 1280, height: 720 });
   await open(page);
@@ -195,8 +196,8 @@ test('FR-535 at 1280x720 the first Tab stop is the bar\'s score, Advance Turn fo
       return el.closest('[data-testid="topbar"]') ? 'bar' : el.closest('.hud-container') ? 'pane' : el.closest('[data-testid="map-scroll"]') || el.closest('[aria-label="Map zoom"]') ? 'map' : el.tagName;
     });
   await page.keyboard.press('Tab');
-  await expect(page.getByTestId('hud-score')).toBeFocused();
-  // The nine strip buttons, then Advance Turn: the eleventh stop
+  await expect(page.getByRole('button', { name: 'Open Warehouse' })).toBeFocused();
+  // FR-568: the ten strip buttons (Stats added, the score gone), then Advance Turn: the eleventh stop
   for (let i = 0; i < 10; i++) await page.keyboard.press('Tab');
   await expect(page.getByRole('button', { name: 'Advance Turn' })).toBeFocused();
   await page.keyboard.press('Tab');

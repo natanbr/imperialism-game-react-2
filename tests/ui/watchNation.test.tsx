@@ -83,7 +83,7 @@ describe('FR-106 score table', () => {
         <HUD />
       </>
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Nation' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Stats' }));
     expect(text(screen.getByTestId('hud-score'))).toBe('Score: 240');
     expect(screen.getByRole('table', { name: 'Scores' })).toBeTruthy();
   });

@@ -4,7 +4,7 @@ import { useGameStore } from "../store/rootStore";
 import { selectActiveNation } from "../store/selectors";
 import { marketModeOf, type Order } from "@/engine";
 import type { TradeCommodity } from "@/types/Market";
-import { money, refusalText } from "./gameText";
+import { money } from "./gameText";
 import { marketView, type MarketRowView } from "./market/marketView";
 import { BoardOfTrade } from "./market/BoardOfTrade";
 import { Stepper } from "./market/Stepper";
@@ -22,7 +22,6 @@ import { goodsArt } from "./art/inkArt";
 const WorldMarket: React.FC = () => {
   const close = useGameStore((s) => s.closeMarket);
   const submitOrder = useGameStore((s) => s.submitOrder);
-  const lastRejection = useGameStore((s) => s.lastRejection);
   const game = useGameStore((s) => s.game);
   const nation = useGameStore(selectActiveNation);
   const titleId = useId();
@@ -54,15 +53,9 @@ const WorldMarket: React.FC = () => {
             <span data-testid="market-holds" title="Every unit sold or bought takes one cargo hold this turn">
               Cargo holds: <strong>{view.capacity.used}</strong> used, <strong>{view.capacity.free}</strong> free of {view.capacity.holds}
             </span>
-            <span data-testid="market-bids" title="At most this many commodities can be bid on in one turn">
-              Buy bids: <strong>{view.bids.used}</strong> of {view.bids.max}
+            <span data-testid="market-bids" title="At most this many commodities can be bought in one turn">
+              Buying: <strong>{view.bids.used}</strong> of {view.bids.max}
             </span>
-          </div>
-        )}
-
-        {lastRejection && (
-          <div className={styles.refusal} role="alert" data-testid="market-refusal">
-            {refusalText(lastRejection)}
           </div>
         )}
 

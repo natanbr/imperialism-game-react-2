@@ -246,7 +246,7 @@ test('FR-424 FR-467 at 640x360 the turn, the date, the cash and the score are in
   await open(page);
   const bar = (await page.getByTestId('topbar').boundingBox())!;
   expect([bar.x, bar.y, bar.width, bar.height]).toEqual([0, 0, 640, 80]);
-  for (const part of [page.getByTestId('turn-indicator'), page.locator('.turn-date'), page.locator('.nation-stats'), page.getByTestId('hud-score')]) {
+  for (const part of [page.getByTestId('turn-indicator'), page.locator('.turn-date'), page.locator('.nation-stats')]) {
     const box = (await part.boundingBox())!;
     expect(box.x).toBeGreaterThanOrEqual(0);
     expect(box.y).toBeGreaterThanOrEqual(bar.y);

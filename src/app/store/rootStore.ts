@@ -4,6 +4,7 @@ import { createTileSelectionSlice, TileSelectionSlice } from './controls/tileSel
 import { createCameraSlice, CameraSlice } from './controls/cameraSlice';
 import { createOverlaySlice, OverlaySlice } from './controls/overlaySlice';
 import { ControlsSlice, createControlsSlice } from './controls/controlsSlice';
+import { createToastSlice, ToastSlice } from './controls/toastSlice';
 
 export { EVENT_LOG_TURNS, randomSeed, type OrderLogEntry, type OrderRejection, type TurnReport } from './gameSlice';
 
@@ -13,7 +14,8 @@ export type GameStore =
   & TileSelectionSlice
   & CameraSlice
   & OverlaySlice
-  & ControlsSlice;
+  & ControlsSlice
+  & ToastSlice;
 
 export type GameStoreOptions = GameSliceOptions;
 
@@ -25,6 +27,7 @@ export function createGameStore(options: GameStoreOptions = {}) {
     ...createOverlaySlice(...a),
     ...createTileSelectionSlice(...a),
     ...createControlsSlice(...a),
+    ...createToastSlice(...a),
   }));
 }
 

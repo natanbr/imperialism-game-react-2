@@ -7,7 +7,7 @@ import { leftInWindow, scoreParts, uncollectedScoreText } from "./hudView";
 /**
  * The active nation's score total (FR-075). Hover or focus shows its parts as visible text (FR-404), work in progress
  * included (FR-402); the `title` stays for a quick read but leaves while the parts show, so two tooltips never stack.
- * In the top bar the parts hang below it (`topbar-popover`), so the bar keeps its height. Their left edge is the score's
+ * The parts hang below it (`topbar-popover`). FR-568: it sits in the Stats dialog, no longer in the top bar. Their left edge is the score's
  * unless the window's right edge pushes them left (FR-530: in a 390 px window the score sits at x 302 and the list,
  * 290 px wide, ran to x 592).
  */
@@ -46,7 +46,7 @@ export const ScoreIndicator: React.FC = () => {
         if (e.key === "Escape") setOpen(false);
       }}
     >
-      <strong className="topbar-wide-only">Score:</strong> {score.total}
+      <strong>Score:</strong> {score.total}
       {open && (
         <div ref={parts} id={partsId} role="tooltip" data-testid="score-parts" className="tile-note topbar-popover">
           {scoreParts(score.points).map(([name, points]) => (

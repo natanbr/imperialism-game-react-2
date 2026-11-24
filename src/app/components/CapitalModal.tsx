@@ -3,7 +3,6 @@ import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useStat
 import { useGameStore } from "../store/rootStore";
 import { selectActiveNation } from "../store/selectors";
 import TransportAllocationModal from "./TransportAllocationModal";
-import { refusalText } from "./gameText";
 import { labourView, productionCards } from "./capital/capitalView";
 import { ProductionCard } from "./capital/ProductionCard";
 import { LabourPanel } from "./capital/LabourPanel";
@@ -43,7 +42,7 @@ function useCutAtBottom<T extends HTMLElement>(): [(el: T | null) => void, boole
 
 /**
  * The capital: production cards, labour, training, migration and freight cars (FR-046, FR-047).
- * Every button sends one order through submitOrder; the engine decides, and a refusal shows here.
+ * Every button sends one order through submitOrder; the engine decides, and a refusal shows as a toast (FR-569).
  * The title shows the capitol, and the Warehouse, Armoury and Technology buttons their buildings (FR-333); Trade and
  * Diplomacy keep their Game Icons, as the pack has no picture for them (FR-335). A column that does not fit shows its
  * scrollbar and a fade at its cut edge (FR-426); below 600 px the columns stack (FR-428).
@@ -58,7 +57,6 @@ export const CapitalModal: React.FC = () => {
   // Regiments need provinces: the Armoury is on the continent only (FR-212)
   const hasProvinces = useGameStore((s) => s.game.provinces.length > 0);
   const submitOrder = useGameStore((s) => s.submitOrder);
-  const lastRejection = useGameStore((s) => s.lastRejection);
   const game = useGameStore((s) => s.game);
   const nation = useGameStore(selectActiveNation);
   const [isAllocOpen, setAllocOpen] = useState(false);
@@ -98,12 +96,6 @@ export const CapitalModal: React.FC = () => {
             <span aria-hidden="true">×</span>
           </button>
         </header>
-
-        {lastRejection && (
-          <div className={styles.refusal} role="alert" data-testid="capital-refusal">
-            {refusalText(lastRejection)}
-          </div>
-        )}
 
         {nation && labour && (
           <div className={styles.body}>

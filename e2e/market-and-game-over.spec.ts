@@ -39,7 +39,9 @@ test('FR-078 open the market, offer one furniture for sale, end the turn, see th
   await page.goto('/');
   await expectStart(page);
   await expect(cash(page)).toContainText('Cash: $10,000');
+  await page.getByRole('button', { name: 'Stats', exact: true }).click();
   await expect(page.getByTestId('hud-score')).toContainText(/Score: \d+/);
+  await page.getByRole('button', { name: 'Close stats' }).click();
 
   // Turn 1: a consulate with Pellis, and 1 furniture from 2 lumber in the capital
   await page.getByRole('button', { name: 'Diplomacy', exact: true }).click();
@@ -67,11 +69,11 @@ test('FR-078 open the market, offer one furniture for sale, end the turn, see th
   await expect(market.getByTestId('board-favourites')).toHaveText(/\bPellis\b.* favours? (Testland|Valdoria)/);
   await expect(market.getByTestId('market-holds')).toHaveText('Holds: 4 of 4 free');
 
-  await furniture.getByRole('button', { name: 'Offer one more Furniture' }).click();
+  await furniture.getByRole('button', { name: 'Sell one more Furniture' }).click();
   await expect(furniture.getByTestId('offer')).toHaveText('1');
   await expect(furniture.getByTestId('available')).toHaveText('0');
   await expect(market.getByTestId('market-holds')).toHaveText('Holds: 3 of 4 free');
-  await expect(market.getByTestId('market-refusal')).toHaveCount(0);
+  await expect(page.getByTestId('toast')).toHaveCount(0);
   if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/m3-market.png` });
   await page.getByRole('button', { name: 'Close Board of Trade' }).click();
 
@@ -151,7 +153,7 @@ test('FR-078 FR-104 FR-109 end 40 turns, see the game-over screen with both nati
   await expect(page.getByTestId('news-panel').getByRole('heading')).toHaveText('News for turn 1');
   await expect(page.getByTestId('news-list').getByRole('listitem')).toHaveText(['New Invention: Cotton Gin']);
   // M12b (FR-474): the score table is in the right pane's Nation group, closed by default (was always shown)
-  await page.getByRole('button', { name: 'Nation', exact: true }).click();
+  await page.getByRole('button', { name: 'Stats', exact: true }).click();
   await expect(page.getByRole('table', { name: 'Scores' }).getByTestId(/^score-row-/)).toHaveCount(2);
 
   expect(errors).toEqual([]);

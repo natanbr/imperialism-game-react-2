@@ -132,16 +132,6 @@
   font-size: 13px;
 }
 
-.refusal {
-  flex: none;
-  padding: 6px 12px;
-  margin-bottom: var(--spacing-md);
-  background: var(--color-bg-danger);
-  color: var(--color-text-danger);
-  border: 1px solid var(--color-bad);
-  border-radius: var(--radius-sm);
-}
-
 .note {
   flex: none;
   margin: 0 0 var(--spacing-md);

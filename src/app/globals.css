@@ -851,11 +851,6 @@ img[data-art-anchor="bottom-center"] {
   font-size: 13px;
 }
 
-.news-refusal {
-  color: var(--color-text-danger);
-  margin-bottom: 6px;
-}
-
 /* The news (FR-268). The HUD's information is a column and the news panel takes the height left in it, so the
    fade (.hud-content::after, FR-235) lies below the news, not over a line of it. The lines scroll on their own in a
    box of whole lines: `.news-scroll` is the space left (a size container, at least 3 lines), and the list is that
@@ -1234,4 +1229,16 @@ img[data-art-anchor="bottom-center"] {
 
 .flex-2 {
   flex: 2;
+}
+
+/* FR-568: the Stats dialog (HUD/StatsDialog.tsx): the score and its rank on one line; the Council line at full width */
+.stats-score {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.stats-panel .next-council {
+  max-width: none;
+  margin-top: 8px;
 }

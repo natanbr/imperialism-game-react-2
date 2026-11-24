@@ -30,7 +30,7 @@ describe('FR-244 FR-255 the Deal Book lines', () => {
     expect(dealBookView(dealBook(EVENTS, N1), nameOf)).toEqual({
       sold: ['Sold 1 Clothing to Arvelia @ $810'],
       bought: ['Bought 2 Coal from Arvelia @ $110'],
-      notTraded: ['1 Furniture not sold, back in the warehouse', 'Arvelia offered to sell us 1 Iron Ore (no free hold)'],
+      notTraded: ['1 Furniture not sold, back in the warehouse', 'Arvelia wanted to sell us 1 Iron Ore (no free hold)'],
       bottomLine: [
         { label: 'Sold', amount: 810, text: '$810' },
         { label: 'Bought', amount: 220, text: '$220' },
@@ -42,7 +42,7 @@ describe('FR-244 FR-255 the Deal Book lines', () => {
 
   it('FR-244 FR-258 a missed offer for want of money, a Great Power counterparty, a world deal, a negative net', () => {
     expect(dealLineText({ kind: 'missed', commodity: ResourceType.Coal, amount: 2, counterpartyId: 'nation-2', reason: 'no-cash' }, nameOf)).toBe(
-      'Valdoria offered to sell us 2 Coal (not enough money)'
+      'Valdoria wanted to sell us 2 Coal (not enough money)'
     );
     expect(dealLineText({ kind: 'sold', commodity: MaterialType.Steel, amount: 2, price: 270, total: 540, counterpartyId: 'nation-1' }, nameOf)).toBe(
       'Sold 2 Steel to Testland @ $270'
@@ -61,11 +61,11 @@ describe('FR-244 FR-255 the Deal Book lines', () => {
     const events: GameEvent[] = [...EVENTS, { type: 'bid-unfilled', nationId: N1, commodity: ResourceType.Timber, amount: 2 }];
     expect(dealBookView(dealBook(events, N1), nameOf).notTraded).toEqual([
       '1 Furniture not sold, back in the warehouse',
-      'Arvelia offered to sell us 1 Iron Ore (no free hold)',
-      'Nobody sold us 2 Timber (bid money back)',
+      'Arvelia wanted to sell us 1 Iron Ore (no free hold)',
+      'Nobody sold us 2 Timber (money back)',
     ]);
     const only = dealBookView(dealBook([{ type: 'bid-unfilled', nationId: N1, commodity: ResourceType.Coal, amount: 2 }], N1), nameOf);
-    expect(only).toMatchObject({ sold: [], bought: [], notTraded: ['Nobody sold us 2 Coal (bid money back)'], empty: false });
+    expect(only).toMatchObject({ sold: [], bought: [], notTraded: ['Nobody sold us 2 Coal (money back)'], empty: false });
     expect(only.bottomLine.at(-1)).toEqual({ label: 'Trade net', amount: 0, text: '$0' });
   });
 });
@@ -99,17 +99,17 @@ describe('FR-255 the cause of what was not traded', () => {
     expect(causeText({ kind: 'served-first', rivalIds: ['nation-2'], barred }, 'bid', nameOf)).toBe('no consulate with Sundmark and Pellis; Valdoria was served first');
     // The review's case (Deal Book after a consulate with Arvelia and a bid of 4 coal)
     const events: GameEvent[] = [{ type: 'bid-unfilled', nationId: N1, commodity: ResourceType.Coal, amount: 1, cause: { kind: 'used-up', barred } }];
-    expect(dealBookView(dealBook(events, N1), nameOf).notTraded).toEqual(['Nobody sold us 1 Coal (no consulate with Sundmark and Pellis; the other sellers had no more; bid money back)']);
+    expect(dealBookView(dealBook(events, N1), nameOf).notTraded).toEqual(['Nobody sold us 1 Coal (no consulate with Sundmark and Pellis; the other sellers had no more; money back)']);
   });
 
-  it('FR-255 the lines of the QA example: an unsold offer "(no buyer)" and an unfilled bid "(no consulate with Lorran; bid money back)"', () => {
+  it('FR-255 the lines of the QA example: an unsold offer "(no buyer)" and an unfilled bid "(no consulate with Lorran; money back)"', () => {
     const events: GameEvent[] = [
       { type: 'offer-unsold', nationId: N1, commodity: MaterialType.CannedFood, amount: 2, cause: { kind: 'nobody' } },
       { type: 'bid-unfilled', nationId: N1, commodity: ResourceType.Timber, amount: 1, cause: { kind: 'barred', barred: [{ countryId: 'minor-3', barrier: 'no-consulate' }] } },
     ];
     expect(dealBookView(dealBook(events, N1), nameOf).notTraded).toEqual([
       '2 Canned Food not sold (no buyer), back in the warehouse',
-      'Nobody sold us 1 Timber (no consulate with Lorran; bid money back)',
+      'Nobody sold us 1 Timber (no consulate with Lorran; money back)',
     ]);
   });
 });
@@ -214,16 +214,16 @@ describe('FR-244 the news lines of the trade events', () => {
       'Sold 1 Clothing to Arvelia for $810.',
       'Bought 2 Coal from Arvelia for $220.',
       'Bought 1 Coal from Arvelia for $100.',
-      'Arvelia offered to sell us 1 Iron Ore: no free hold.',
+      'Arvelia wanted to sell us 1 Iron Ore: no free hold.',
       '1 Furniture not sold; back in the warehouse.',
     ]);
     expect(eventText({ type: 'goods-sold', nationId: N1, commodity: GoodsType.Furniture, amount: 2, price: 900, income: 1800 })).toBe('Sold 2 Furniture for $1,800.');
   });
 
   it('FR-244 a bid nobody filled has its news line; a missed offer for want of money reads as in the Deal Book', () => {
-    expect(eventText({ type: 'bid-unfilled', nationId: N1, commodity: ResourceType.Coal, amount: 2 }, nameOf)).toBe('Nobody sold us 2 Coal; the bid money is back.');
+    expect(eventText({ type: 'bid-unfilled', nationId: N1, commodity: ResourceType.Coal, amount: 2 }, nameOf)).toBe('Nobody sold us 2 Coal; the money is back.');
     expect(eventText({ type: 'offer-missed', nationId: N1, counterpartyId: 'nation-2', commodity: ResourceType.Coal, amount: 1, reason: 'no-cash' }, nameOf)).toBe(
-      'Valdoria offered to sell us 1 Coal: not enough money.'
+      'Valdoria wanted to sell us 1 Coal: not enough money.'
     );
   });
 });

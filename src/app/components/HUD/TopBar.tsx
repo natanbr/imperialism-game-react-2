@@ -9,23 +9,33 @@ import { ActionButtons, BarButton } from "./ActionButtons";
 import { CONFIRM_NEW_GAME_ID, ConfirmNewGame } from "./ConfirmNewGame";
 import { DebugDashboard } from "./DebugDashboard";
 import { CashChange, NationStats } from "./NationStats";
-import { ScoreIndicator, ScoreRank } from "./ScoreIndicator";
-import { NextCouncil, TurnIndicator } from "./TurnIndicator";
+import { StatsDialog } from "./StatsDialog";
+import { TurnIndicator } from "./TurnIndicator";
 import styles from "./TopBar.module.css";
 
 /**
  * New game and About (FR-109, FR-089). The question and the credits are view state only, so they live here; the question
  * opens under New game (FR-480), right after it in the page (the Tab order, M12b review A11Y-1), and gives the focus back
  * to New game when it closes. FR-562: on the Demo level only, Dashboard after About; whether it is open is view state too.
+ * FR-568: Stats first, the score, standing and Council dialog, view state too.
  */
 const GameButtons: React.FC = () => {
   const [isConfirming, setConfirming] = useState(false);
   const [isAboutOpen, setAboutOpen] = useState(false);
   const [isDashboardOpen, setDashboardOpen] = useState(false);
+  const [isStatsOpen, setStatsOpen] = useState(false);
   const isDemo = useGameStore((s) => s.game.difficulty === "demo");
   const newGame = useRef<HTMLButtonElement>(null);
   return (
     <div className="topbar-group">
+      <BarButton
+        name="Stats"
+        title="Stats: score, standing and the Council's votes"
+        icon={<GameIcon name={UI_ICONS.council} />}
+        aria-haspopup="dialog"
+        onClick={() => setStatsOpen((open) => !open)}
+      />
+      {isStatsOpen && <StatsDialog onClose={() => setStatsOpen(false)} />}
       <BarButton
         ref={newGame}
         name="New game"
@@ -64,8 +74,8 @@ const GameButtons: React.FC = () => {
 /**
  * The top bar (FR-465, FR-466; docs/specs/hud.md section 2a), in the spirit of the original's strip of season, year and
  * treasury: across the window's top, the right pane and the map drawn from its bottom (camera.ts mapAreaOf). Left, the
- * status blocks of two 16 px lines each: the nation, the turn (and the next Council), the cash (and last turn's change),
- * the score (and its rank); right, the buttons, Advance Turn last. `data-edge-scroll`: a pointer over it never scrolls
+ * status blocks of two 16 px lines each: the nation, the turn (and the date), the cash (and last turn's change); right,
+ * the buttons, Advance Turn last. FR-568: the score, its rank and the next Council moved to the Stats dialog. `data-edge-scroll`: a pointer over it never scrolls
  * the map (FR-479, FR-366). Below 700 px the nation and the "Turn:", "Cash:", "Score:" prefixes are hidden from sight
  * only (`topbar-wide-only`, FR-467).
  */
@@ -83,15 +93,10 @@ export const TopBar: React.FC = () => {
         </div>
         <div className={`${styles.block} ${styles.turn}`} data-testid="topbar-turn">
           <TurnIndicator />
-          <NextCouncil />
         </div>
         <div className={styles.block} data-testid="topbar-cash">
           <NationStats />
           <CashChange />
-        </div>
-        <div className={styles.block} data-testid="topbar-score">
-          <ScoreIndicator />
-          <ScoreRank />
         </div>
       </div>
       <div className={styles.actions} data-testid="topbar-actions">

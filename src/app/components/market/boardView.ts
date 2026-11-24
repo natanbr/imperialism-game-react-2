@@ -48,22 +48,22 @@ export const MORE_REFUSAL_TEXT = {
   noSeller: "No minor nation sells this",
   noBuyer: "No one buys this",
   holds: "No free hold this turn",
-  bids: `Already ${MAX_BUY_BIDS} bids this turn, the most`,
+  bids: `Already buying ${MAX_BUY_BIDS} commodities this turn, the most`,
   stock: "None left in the warehouse",
   cash: "Not enough money",
 } as const;
 
 /**
  * FR-494 (card Q118 (a)): the line beside an enabled Bid "+" of a row no minor sells, where the bid goes to the other Great
- * Powers we may trade with (FR-492). In full, "No minor nation sells this; a bid is refunded if Valdoria does not sell.",
+ * Powers we may trade with (FR-492). In full, "No minor nation sells this; money back if Valdoria does not sell." (FR-563; was "a bid is refunded"),
  * on a row minors buy (clothing, furniture, hardware), whose minors column lists those buyers (M13 review UTH-2). On a row
- * no minor trades, the column says "No minor trades this", so the line drops its first clause: "A bid is refunded if
- * Valdoria does not sell." In full on all 13 such rows of a new game it took 3 lines of the 104 px note and made the board
+ * no minor trades, the column says "No minor trades this", so the line drops its first clause: "Money back if Valdoria
+ * does not sell." In full on all 13 such rows of a new game it took 3 lines of the 104 px note and made the board
  * scroll by 109 px at 1280x720 (FR-257, e2e/m7-trade.spec.ts).
  */
 export const rivalSellerText = (names: readonly string[], minorsBuy: boolean): string => {
-  const refund = `refunded if ${namesText(names)} ${names.length > 1 ? "do" : "does"} not sell.`;
-  return minorsBuy ? `${MORE_REFUSAL_TEXT.noSeller}; a bid is ${refund}` : `A bid is ${refund}`;
+  const refund = `back if ${namesText(names)} ${names.length > 1 ? "do" : "does"} not sell.`;
+  return minorsBuy ? `${MORE_REFUSAL_TEXT.noSeller}; money ${refund}` : `Money ${refund}`;
 };
 
 /** "We need a consulate with a seller" (FR-252, FR-253): the barriers of every seller (or buyer), the consulate first. */
@@ -138,11 +138,13 @@ export function lastTurnTrades(log: readonly LoggedOrders[], nationId: string, t
 export interface RepeatOutcome {
   repeated: number;
   total: number;
-  /** "Repeated 3 of 4 units. Coal bid: not enough money." */
+  /** "Repeated 3 of 4 units. Coal purchase: not enough money." */
   text: string;
 }
 
 const lowerFirst = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
+/** FR-563: a repeated trade's side in the player's words, never the engine's "bid" or "offer". */
+const SIDE_TEXT = { bid: "purchase", offer: "sale" } as const;
 
 /**
  * FR-397, FR-398: orders `trades` again unit by unit through `submit` (the store's `submitOrder`; NR-018 kept: nothing
@@ -169,7 +171,7 @@ export function repeatTrades(
       const result = check.ok ? submit(order) : check;
       if (!result.ok) {
         const why = lowerFirst(moreRefusalText(state, nationId, trade.commodity, result.reason));
-        refused.push(`${commodityName(trade.commodity)} ${trade.side}: ${why}.`);
+        refused.push(`${commodityName(trade.commodity)} ${SIDE_TEXT[trade.side]}: ${why}.`);
         break;
       }
       amount += 1;
@@ -224,7 +226,7 @@ export interface BoardRowView {
   /** "No minor trades this": no minor sells or buys the commodity (FR-254). */
   noMinorText?: string;
   /**
-   * FR-494: "Valdoria bid for 2 last turn", "Valdoria offered 1 last turn": what each other Great Power we may trade with
+   * FR-494: "Valdoria wanted to buy 2 last turn", "Valdoria wanted to sell 1 last turn" (FR-563): what each other Great Power we may trade with
    * bid or offered for it in the last trade phase (FR-491); absent when none did.
    */
   rivalLastTurn?: string;
@@ -286,7 +288,7 @@ function rivalLastTurnText(state: GameState, nationId: string, commodity: TradeC
       const last = lastTradeOrdersOf(state, id);
       const bid = last.buy[commodity] ?? 0;
       const offer = last.sell[commodity] ?? 0;
-      return [...(bid > 0 ? [`${nameOf(id)} bid for ${bid} last turn`] : []), ...(offer > 0 ? [`${nameOf(id)} offered ${offer} last turn`] : [])];
+      return [...(bid > 0 ? [`${nameOf(id)} wanted to buy ${bid} last turn`] : []), ...(offer > 0 ? [`${nameOf(id)} wanted to sell ${offer} last turn`] : [])];
     });
   return lines.length > 0 ? lines.join("; ") : undefined;
 }

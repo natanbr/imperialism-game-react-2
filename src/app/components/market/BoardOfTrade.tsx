@@ -4,7 +4,7 @@ import { useGameStore } from "../../store/rootStore";
 import { selectActiveNation } from "../../store/selectors";
 import type { Order } from "@/engine";
 import type { TradeCommodity } from "@/types/Market";
-import { money, refusalText } from "../gameText";
+import { money } from "../gameText";
 import { boardView, lastTurnTrades, repeatTrades, type BoardRowView, type PartnerView } from "./boardView";
 import { Stepper } from "./Stepper";
 import styles from "./Market.module.css";
@@ -50,7 +50,6 @@ const PartnerList: React.FC<{ label: "Sellers" | "Buyers"; partners: PartnerView
 export const BoardOfTrade: React.FC = () => {
   const close = useGameStore((s) => s.closeMarket);
   const submitOrder = useGameStore((s) => s.submitOrder);
-  const lastRejection = useGameStore((s) => s.lastRejection);
   const game = useGameStore((s) => s.game);
   const nation = useGameStore(selectActiveNation);
   const titleId = useId();
@@ -91,8 +90,8 @@ export const BoardOfTrade: React.FC = () => {
             <span data-testid="market-holds" title="Every unit traded takes one hold this turn">
               {view.holdsText}
             </span>
-            <span data-testid="market-bids" title="At most this many commodities can be bid on in one turn">
-              Bids: {view.bids.used} of {view.bids.max}
+            <span data-testid="market-bids" title="At most this many commodities can be bought in one turn">
+              Buying: {view.bids.used} of {view.bids.max}
             </span>
           </div>
         )}
@@ -103,7 +102,7 @@ export const BoardOfTrade: React.FC = () => {
 
       <p id={noteId} className={styles.boardNote}>
         {/* FR-399 (NR-018, card Q15): trade orders are one turn's; the Capital's production orders stand */}
-        <span data-testid="board-duration">Bids and offers last one turn; production orders in the Capital stay.</span>{" "}
+        <span data-testid="board-duration">Buy and sell orders last one turn; production orders in the Capital stay.</span>{" "}
         Deals settle at End Turn at the board price; bought goods arrive next turn. Minor nations sell what their land
         yields and buy only clothing, furniture and hardware. A minor trades only where we hold a consulate (one ordered
         this turn counts) and serves the Great Power it favours first
@@ -138,12 +137,6 @@ export const BoardOfTrade: React.FC = () => {
         </p>
       )}
 
-      {lastRejection && (
-        <div className={styles.refusal} role="alert" data-testid="market-refusal">
-          {refusalText(lastRejection)}
-        </div>
-      )}
-
       {view && (
         <div className={styles.boardPane}>
           <table className={`${styles.table} ${styles.boardTable}`}>
@@ -152,8 +145,8 @@ export const BoardOfTrade: React.FC = () => {
                 <th>Commodity</th>
                 <th className={styles.number}>Price</th>
                 <th className={styles.number}>In warehouse</th>
-                <th>Bid</th>
-                <th>Offer</th>
+                <th>Buy</th>
+                <th>Sell</th>
                 <th>Minor nations</th>
               </tr>
             </thead>
@@ -178,7 +171,7 @@ export const BoardOfTrade: React.FC = () => {
                   <td className={styles.stepCell}>
                     {row.offer === 0 && (
                       <Stepper
-                        label="Bid"
+                        label="Buy"
                         name={row.name}
                         value={row.bid}
                         testId="bid"
@@ -192,7 +185,7 @@ export const BoardOfTrade: React.FC = () => {
                   <td className={styles.stepCell}>
                     {row.bid === 0 && (
                       <Stepper
-                        label="Offer"
+                        label="Sell"
                         name={row.name}
                         value={row.offer}
                         testId="offer"

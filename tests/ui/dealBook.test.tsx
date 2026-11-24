@@ -69,7 +69,7 @@ describe('FR-195 the Deal Book', () => {
     openDealBook([{ turn: 1, year: 1815, events: EVENTS }]);
     expect(lines('Sold')).toEqual(['Sold 1 Clothing to Arvelia @ $810']);
     expect(lines('Bought')).toEqual(['Bought 2 Coal from Arvelia @ $110']);
-    expect(lines('Not traded')).toEqual(['1 Furniture not sold, back in the warehouse', 'Arvelia offered to sell us 1 Iron Ore (no free hold)']);
+    expect(lines('Not traded')).toEqual(['1 Furniture not sold, back in the warehouse', 'Arvelia wanted to sell us 1 Iron Ore (no free hold)']);
     expect(bottomLine()).toEqual(['Sold $810', 'Bought $220', 'Trade net $590']);
     // A report made by hand has no treasuries: no Treasury table
     expect(within(dialog()).queryByRole('table', { name: 'Treasury' })).toBeNull();
@@ -104,7 +104,7 @@ describe('FR-195 the Deal Book', () => {
   it('FR-244 FR-195 FR-255 a turn whose only trade is a bid nobody filled says so under Not traded, with its cause, not "No deals last turn."', () => {
     const cause = { kind: 'barred', barred: [{ countryId: 'minor-3', barrier: 'no-consulate' }] } as const;
     openDealBook([{ turn: 1, year: 1815, events: [{ type: 'bid-unfilled', nationId: N1, commodity: ResourceType.Coal, amount: 2, cause: { ...cause, barred: [...cause.barred] } }, EVENTS[5]] }]);
-    expect(lines('Not traded')).toEqual(['Nobody sold us 2 Coal (no consulate with Lorran; bid money back)']);
+    expect(lines('Not traded')).toEqual(['Nobody sold us 2 Coal (no consulate with Lorran; money back)']);
     expect(text(within(dialog()).getByTestId('bought-none'))).toBe('Nothing bought.');
     expect(within(dialog()).queryByTestId('deal-book-empty')).toBeNull();
     expect(bottomLine()).toEqual(['Sold $0', 'Bought $0', 'Trade net $0']);

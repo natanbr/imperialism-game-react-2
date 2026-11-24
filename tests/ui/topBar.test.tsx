@@ -70,24 +70,23 @@ const gameOver = (): GameState => resolveTurn({ ...newGame({ seed: 1, world: 'co
 const barButtons = () => within(screen.getByTestId('topbar-actions')).getAllByRole('button').map(text);
 
 const DIALOGS = ['Open Warehouse', 'Open Capital', 'Open Market', 'Deal Book', 'Diplomacy', 'Transportation of Commodities'];
-const BUTTONS = [...DIALOGS, 'Center', 'New game', 'About', 'Advance Turn'];
+const BUTTONS = [...DIALOGS, 'Center', 'Stats', 'New game', 'About', 'Advance Turn'];
 
 describe('FR-466 the top bar: nation, turn, cash, score, then the buttons, Advance Turn last', () => {
   it('FR-466 left to right: the nation (swatch, name), the turn block, the cash block, the score block; then the buttons in order', () => {
     show(continent());
     render(<TopBar />);
     const blocks = [...screen.getByTestId('topbar-status').children];
-    expect(blocks.map((b) => b.getAttribute('data-testid'))).toEqual(['topbar-nation', 'topbar-turn', 'topbar-cash', 'topbar-score']);
-    const [nation, turn, cash, score] = blocks;
+    expect(blocks.map((b) => b.getAttribute('data-testid'))).toEqual(['topbar-nation', 'topbar-turn', 'topbar-cash']);
+    const [nation, turn, cash] = blocks;
     // The swatch first, then the name in the kept h2 .hud-title
     expect(nation.firstElementChild?.getAttribute('data-testid')).toBe('swatch');
     const title = within(nation as HTMLElement).getByRole('heading', { level: 2 });
     expect(title.classList.contains('hud-title')).toBe(true);
     expect(text(title)).toBe('Testland');
-    // Turn line 1, the next Council line 2; cash, then (from turn 2) its change; the score, then its rank
-    expect([...turn.children].map((c) => c.getAttribute('data-testid'))).toEqual(['turn-indicator', 'next-council']);
+    // Turn and date; cash, then (from turn 2) its change. FR-568: the next Council, the score and its rank are in Stats
+    expect([...turn.children].map((c) => c.getAttribute('data-testid'))).toEqual(['turn-indicator']);
     expect([...cash.children].map((c) => c.className)).toEqual(['nation-stats']);
-    expect([...score.children].map((c) => c.getAttribute('data-testid'))).toEqual(['hud-score', 'score-rank']);
     expect(barButtons()).toEqual(BUTTONS);
     for (const name of BUTTONS) expect(screen.getByRole('button', { name }), name).toBeTruthy();
   });
@@ -99,6 +98,7 @@ describe('FR-466 the top bar: nation, turn, cash, score, then the buttons, Advan
     show(s);
     render(<TopBar />);
     expect(text(screen.getByTestId('turn-indicator'))).toBe('Turn: 1 of 40 Spring 1815');
+    fireEvent.click(screen.getByRole('button', { name: 'Stats' }));
     expect(text(screen.getByTestId('next-council'))).toBe('7 of 12 votes wins · Council: turn 10 (Summer 1817). This threshold applies at any meeting. At the last meeting (turn 40) a free minor votes unless it is at war with both nominees, and the nominee with more votes wins (equal votes: higher standing).');
     expect(text(screen.getByTestId('topbar-cash').querySelector('.nation-stats')!)).toBe('Cash: $10,000');
     expect(screen.queryByTestId('cash-change')).toBeNull();
@@ -146,6 +146,7 @@ describe('FR-466 the top bar: nation, turn, cash, score, then the buttons, Advan
     expect(scoreTable(ahead)[0].nationId).toBe(N1);
     show(ahead);
     render(<TopBar />);
+    fireEvent.click(screen.getByRole('button', { name: 'Stats' }));
     expect(text(screen.getByTestId('score-rank'))).toBe('1st of 2');
 
     const behind = setTreasury(setTreasury(continent(), N1, 0), N2, 100000);
@@ -160,7 +161,7 @@ describe('FR-466 the top bar: nation, turn, cash, score, then the buttons, Advan
     render(<TopBar />);
     expect(text(screen.getByTestId('turn-indicator'))).toBe('Game over after turn 1 of 1 Spring 1815');
     expect(screen.queryByTestId('next-council')).toBeNull();
-    expect(barButtons()).toEqual([...DIALOGS, 'Center', 'New game', 'About', 'Final scores', 'Advance Turn']);
+    expect(barButtons()).toEqual([...DIALOGS, 'Center', 'Stats', 'New game', 'About', 'Final scores', 'Advance Turn']);
     expect((screen.getByRole('button', { name: 'Advance Turn' }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: 'Final scores' }));
     expect(useGameStore.getState().isGameOverHidden).toBe(false);
@@ -193,7 +194,7 @@ describe('FR-467 the fit rules jsdom can read (the boxes: e2e/m13-hud.spec.ts)',
     const strip = screen.getByTestId('topbar-strip');
     const advance = screen.getByRole('button', { name: 'Advance Turn' });
     expect(strip.contains(advance)).toBe(false);
-    expect(within(strip).getAllByRole('button').map(text)).toEqual([...DIALOGS, 'Center', 'New game', 'About', 'Final scores']);
+    expect(within(strip).getAllByRole('button').map(text)).toEqual([...DIALOGS, 'Center', 'Stats', 'New game', 'About', 'Final scores']);
     // Strip and Advance Turn are siblings, Advance Turn last
     expect(advance.parentElement).toBe(strip.parentElement);
     expect(advance.parentElement!.lastElementChild).toBe(advance);
@@ -218,11 +219,10 @@ describe('FR-467 the fit rules jsdom can read (the boxes: e2e/m13-hud.spec.ts)',
     show(continent());
     render(<TopBar />);
     const hidden = [...screen.getByTestId('topbar').querySelectorAll('.topbar-wide-only')];
-    expect(hidden.map((el) => text(el))).toEqual(['Testland', 'Turn:', 'Cash:', 'Score:']);
+    expect(hidden.map((el) => text(el))).toEqual(['Testland', 'Turn:', 'Cash:']);
     expect(hidden[0]).toBe(screen.getByTestId('topbar-nation'));
     // The texts the e2e suite reads stay whole in the DOM
     expect(screen.getByTestId('turn-indicator').textContent).toContain('Turn: 1 of 40');
-    expect(screen.getByTestId('hud-score').textContent).toMatch(/^Score: \d+$/);
     expect(screen.getByTestId('topbar-cash').querySelector('.nation-stats')!.textContent).toBe('Cash: $10,000');
     expect(mediaBlock(GLOBALS(), 'max-width: 699.98px')).toMatch(/\.topbar-wide-only \{[^}]*clip-path: inset\(50%\);/);
   });
@@ -296,11 +296,8 @@ describe('FR-469 the names and test ids kept (the bar\'s share)', () => {
     show(continent());
     render(<TopBar />);
     const bar = screen.getByTestId('topbar');
-    for (const selector of ['.hud-title', '[data-testid="turn-indicator"].turn-indicator', '.turn-date', '[data-testid="next-council"]', '.nation-stats', '[data-testid="hud-score"]', '.action-buttons-container'])
+    for (const selector of ['.hud-title', '[data-testid="turn-indicator"].turn-indicator', '.turn-date', '.nation-stats', '.action-buttons-container'])
       expect(bar.querySelectorAll(selector), selector).toHaveLength(1);
-    // Score parts on focus (FR-404 unchanged)
-    act(() => screen.getByTestId('hud-score').focus());
-    expect(within(bar).getByTestId('score-parts')).toBeTruthy();
     // Every control of the bar has one of the kept names: no new name holds About, Center, Open, Advance Turn, Deal Book or Diplomacy
     expect(within(bar).getAllByRole('button').map(text)).toEqual(BUTTONS);
   });
@@ -480,6 +477,7 @@ describe('M12b review: what hangs from the bar, and keyboard use (A11Y-2, A11Y-4
   it('FR-467 the Council line and the nation name carry their full text as a title, so a line cut by an ellipsis can be read whole (A11Y-5)', () => {
     show(continent());
     render(<TopBar />);
+    fireEvent.click(screen.getByRole('button', { name: 'Stats' }));
     const council = screen.getByTestId('next-council');
     expect(council.getAttribute('title')).toBe('7 of 12 votes wins · Council: turn 10 (Summer 1817). This threshold applies at any meeting. At the last meeting (turn 40) a free minor votes unless it is at war with both nominees, and the nominee with more votes wins (equal votes: higher standing).');
     expect(council.getAttribute('title')).toBe(text(council));
@@ -513,9 +511,9 @@ describe('M12b review: what hangs from the bar, and keyboard use (A11Y-2, A11Y-4
         <HUD />
       </>
     );
+    fireEvent.click(screen.getByRole('button', { name: 'Stats' }));
     act(() => screen.getByTestId('hud-score').focus());
     const popover = [...screen.getByTestId('score-parts').children].map(text);
-    fireEvent.click(screen.getByRole('button', { name: 'Nation' }));
     const list = within(screen.getByTestId('nation-score-parts')).getAllByRole('listitem').map(text);
     const expected = scoreParts(scoreOf(s, N1).points).map(([name, points]) => `${name} ${points}`);
     expect(list).toEqual(expected);
@@ -549,6 +547,8 @@ describe('FR-477 nothing lost: the whole page', () => {
       fireEvent.click(button);
       expect(button.getAttribute('aria-expanded')).toBe('true');
     }
+    // FR-568: the score, the standing, the Council and the score table are in the Stats dialog
+    fireEvent.click(screen.getByRole('button', { name: 'Stats' }));
 
     const ids = [
       // the top bar
@@ -556,8 +556,8 @@ describe('FR-477 nothing lost: the whole page', () => {
       // the pane: Tile Info, the alerts, the news
       'tile-info', 'tile-terrain', 'tile-owner', 'tile-province',
       'not-saved', 'food-warning', 'upkeep-warning', 'at-war', 'idle-civilians',
-      'news-panel', 'order-refusal', 'news-list',
-      // the groups
+      'news-panel', 'news-list',
+      // the groups and the Stats dialog
       'council-projection', 'nation-score-parts', 'score-table', `score-row-${N1}`, `score-row-${N2}`, 'upkeep-forecast', 'treasury-last-turn',
     ];
     for (const id of ids) {

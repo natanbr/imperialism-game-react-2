@@ -25,6 +25,7 @@ import { selectActiveNationCapacity } from './store/selectors';
 import { HOW_TO_PLAY_SEEN_KEY, readFlag, readSave, startAutosave, writeFlag, type SaveSlot } from './store/persistence';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { centreOnCapital, startNewGameOnCapital } from './hooks/mapActions';
+import { Toasts } from './components/Toasts';
 
 /**
  * The game in play (FR-359, FR-360, FR-362): at the start the page reads the save slot once (the only place that loads a
@@ -111,11 +112,13 @@ export default function Home() {
 
   return (
     <div style={{ position: "relative", width: "100vw", height: "100vh", overflow: "hidden" }}>
-      {/* FR-535: in the order the eye meets them, so Tab runs the bar (the score, the buttons, Advance Turn), then the
+      {/* FR-535: in the order the eye meets them, so Tab runs the bar (the buttons, Advance Turn), then the
           map, then the pane; each is placed by its own CSS, the bar drawn over the map by its z-index */}
       <TopBar />
       <MapView />
       <HUD />
+      {/* FR-569: refused orders and other messages slide in over the page */}
+      <Toasts />
       <WarehouseModal />
       <CapitalModal />
       <MarketModal />

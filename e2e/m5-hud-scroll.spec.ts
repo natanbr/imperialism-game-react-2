@@ -137,7 +137,9 @@ test('FR-235 (1) the HUD content area shows a thin scrollbar in the palette, scr
   const news = page.getByTestId('news-panel');
   const debug = page.locator('.hud-debug-section');
   await expect(page.getByTestId('turn-indicator')).toBeInViewport();
-  expect((await debug.boundingBox())!.y, 'the Debug box starts below the fold').toBeGreaterThan(start.bottom);
+  // starts -> ends below the fold: FR-568 (2026-11-23) moved the Council and score parts to the Stats page, so the pane is ~160 px shorter; the test still needs an overflowing pane.
+  const debugStart = (await debug.boundingBox())!;
+  expect(debugStart.y + debugStart.height, 'the Debug box ends below the fold').toBeGreaterThan(start.bottom);
 
   await scrollToEnd(page);
   const end = await area(page);
