@@ -194,7 +194,7 @@ export const BoardOfTrade: React.FC = () => {
       {view && (
         <div className={styles.statusBar} data-testid="board-status">
           <span data-testid="market-cash" title="The treasury before this turn's purchases">
-            Cash: <strong>{money(view.cash)}</strong>
+            Cash before purchases: <strong>{money(view.cash)}</strong>
           </span>
           <span data-testid="market-committed" title="Paid for this turn's purchases at the board price; any unit not bought is paid back at End Turn">
             Committed: <strong>{money(view.committed)}</strong>

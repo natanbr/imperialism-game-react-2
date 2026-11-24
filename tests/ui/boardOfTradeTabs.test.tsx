@@ -83,12 +83,13 @@ const drawn = (el: Element) => {
 };
 
 describe('FR-573 the status bar', () => {
-  it('FR-573 a new game: Cash, Committed, Buying power, holds as one figure and the purchases, in one bar under the title', () => {
+  // M18c review round: "Cash: $10,000" -> "Cash before purchases: $10,000", so it is not taken for the top bar's cash
+  it('FR-573 a new game: Cash before purchases, Committed, Buying power, holds as one figure and the purchases, in one bar under the title', () => {
     openBoard(start());
     const bar = within(dialog()).getByTestId('board-status');
     expect(dialog().querySelector('header')!.nextElementSibling).toBe(bar);
     expect(['market-cash', 'market-committed', 'market-power', 'market-holds', 'market-bids'].map(figure)).toEqual([
-      'Cash: $10,000',
+      'Cash before purchases: $10,000',
       'Committed: $0',
       'Buying power: $10,000',
       'Holds: 0 of 4 used (1 Indiaman)',
@@ -107,7 +108,7 @@ describe('FR-573 the status bar', () => {
     expect(dialog().getAttribute('aria-describedby')).toBeNull();
   });
 
-  it('FR-573 after a purchase of 2 Coal and a sale of 1 Clothing: Committed is what the engine took from the treasury, Buying power what is left, Cash the two together', () => {
+  it('FR-573 after a purchase of 2 Coal and a sale of 1 Clothing: Committed is what the engine took from the treasury, Buying power what is left, Cash before purchases the two together', () => {
     openBoard(setWarehouse(withConsulate(start(), ARVELIA), N1, { clothing: 2 }));
     fireEvent.click(plus('coal', 'Buy one more Coal'));
     fireEvent.click(plus('coal', 'Buy one more Coal'));
@@ -116,7 +117,8 @@ describe('FR-573 the status bar', () => {
     expect(paid).toBe(2 * marketOf(now()).prices.coal!);
     expect(figure('market-committed')).toBe(`Committed: $${paid}`);
     expect(figure('market-power')).toBe('Buying power: $9,800');
-    expect(figure('market-cash')).toBe('Cash: $10,000');
+    // M18c review round: was "Cash: $10,000"
+    expect(figure('market-cash')).toBe('Cash before purchases: $10,000');
     expect(figure('market-holds')).toBe('Holds: 3 of 4 used (1 Indiaman)');
     expect(figure('market-bids')).toBe('Buying 1 of 4 commodities');
   });

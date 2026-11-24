@@ -308,9 +308,10 @@ describe('FR-194 the Board of Trade: what it shows', () => {
   });
 
   // Re-recorded by M18c FR-573: old "Cash: $10,000", "Holds: 4 of 4 free", "Buying: 0 of 4"; now the bar's five figures
-  it('FR-194 FR-573 the cash, what is committed, the buying power, "Holds: 0 of 4 used (1 Indiaman)" and "Buying 0 of 4 commodities"', () => {
+  // (M18c review round: "Cash" -> "Cash before purchases", apart from the top bar's cash)
+  it('FR-194 FR-573 the cash before purchases, what is committed, the buying power, "Holds: 0 of 4 used (1 Indiaman)" and "Buying 0 of 4 commodities"', () => {
     openBoard(start());
-    expect(text(within(dialog()).getByTestId('market-cash'))).toBe('Cash: $10,000');
+    expect(text(within(dialog()).getByTestId('market-cash'))).toBe('Cash before purchases: $10,000');
     expect(text(within(dialog()).getByTestId('market-committed'))).toBe('Committed: $0');
     expect(text(within(dialog()).getByTestId('market-power'))).toBe('Buying power: $10,000');
     expect(text(within(dialog()).getByTestId('market-holds'))).toBe('Holds: 0 of 4 used (1 Indiaman)');
@@ -463,8 +464,9 @@ describe('FR-194 the Board of Trade: orders', () => {
     expect(cell('coal', 'bid')).toBe('2');
     expect(treasury(now(), N1)).toBe(10000 - 200);
     // Re-recorded by M18c FR-573: old "Cash: $9,800" (the treasury once the bid is paid) is now "Buying power"; Cash is the
-    // treasury before this turn's purchases and Committed what they took. Old "Holds: 2 of 4 free", "Buying: 1 of 4".
-    expect(text(within(dialog()).getByTestId('market-cash'))).toBe('Cash: $10,000');
+    // treasury before this turn's purchases (named so since the M18c review round) and Committed what they took. Old
+    // "Holds: 2 of 4 free", "Buying: 1 of 4".
+    expect(text(within(dialog()).getByTestId('market-cash'))).toBe('Cash before purchases: $10,000');
     expect(text(within(dialog()).getByTestId('market-committed'))).toBe('Committed: $200');
     expect(text(within(dialog()).getByTestId('market-power'))).toBe('Buying power: $9,800');
     expect(text(within(dialog()).getByTestId('market-holds'))).toBe('Holds: 2 of 4 used (1 Indiaman)');

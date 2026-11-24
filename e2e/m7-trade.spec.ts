@@ -125,7 +125,8 @@ test('FR-197 FR-194 FR-195 a consulate with Arvelia and 2 coal bid on the Board 
   await expect(board(page).getByTestId('market-bids')).toHaveText('Buying 1 of 4 commodities');
   await expect(board(page).getByTestId('market-power')).toHaveText(`Buying power: $${(start - 700).toLocaleString('en-US')}`);
   await expect(board(page).getByTestId('market-committed')).toHaveText('Committed: $200');
-  await expect(board(page).getByTestId('market-cash')).toHaveText(`Cash: $${(start - 500).toLocaleString('en-US')}`);
+  // M18c review round: "Cash" -> "Cash before purchases", apart from the top bar's cash
+  await expect(board(page).getByTestId('market-cash')).toHaveText(`Cash before purchases: $${(start - 500).toLocaleString('en-US')}`);
   await expect(page.getByTestId('toast')).toHaveCount(0);
   if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/m7-board.png` });
   await closeBoard(page);

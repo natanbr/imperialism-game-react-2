@@ -34,10 +34,11 @@ const sources = (dir: string): string[] =>
   });
 
 describe('FR-258 one money format', () => {
-  it('FR-258 the HUD shows "Cash: $10,000" on a new game, the Board of Trade\'s "Cash: $10,000" beside it', () => {
+  // M18c review round: the Board's figure was "Cash: $10,000"; it is named "Cash before purchases" now, apart from the HUD's
+  it('FR-258 the HUD shows "Cash: $10,000" on a new game, the Board of Trade\'s "Cash before purchases: $10,000" beside it', () => {
     const view = show(newGame({ seed: 1, world: 'continent' }));
     expect(text(view.container.querySelector('.nation-stats')!)).toBe('Cash: $10,000');
-    expect(text(within(screen.getByRole('dialog', { name: /Board of Trade/ })).getByTestId('market-cash'))).toBe('Cash: $10,000');
+    expect(text(within(screen.getByRole('dialog', { name: /Board of Trade/ })).getByTestId('market-cash'))).toBe('Cash before purchases: $10,000');
   });
 
   it('FR-258 thousands separators and a loss with its minus sign in front: "$9,200", "-$1,369"', () => {
