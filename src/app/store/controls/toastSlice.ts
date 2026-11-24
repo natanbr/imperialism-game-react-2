@@ -22,6 +22,8 @@ export interface ToastSlice {
   nextToastId: number;
   showToast: (text: string, tone?: ToastTone) => void;
   dismissToast: (id: number) => void;
+  /** The next accepted order (or a dialog opened, the turn ended) ends every error toast (FR-569, review 2026-11-23). */
+  dismissErrors: () => void;
 }
 
 export const createToastSlice: StateCreator<GameStore, [], [], ToastSlice> = (set) => ({
@@ -30,4 +32,5 @@ export const createToastSlice: StateCreator<GameStore, [], [], ToastSlice> = (se
   showToast: (text, tone = 'error') =>
     set((s) => ({ toasts: [...s.toasts, { id: s.nextToastId, tone, text }].slice(-MAX_TOASTS), nextToastId: s.nextToastId + 1 })),
   dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
+  dismissErrors: () => set((s) => ({ toasts: s.toasts.filter((t) => t.tone !== 'error') })),
 });

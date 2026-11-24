@@ -59,7 +59,6 @@ const WorldMarket: React.FC = () => {
           </div>
         )}
 
-
         <p className={styles.note}>
           Sales and purchases settle at the end of the turn at this price. Bought goods arrive in the warehouse after this turn&apos;s production.
         </p>

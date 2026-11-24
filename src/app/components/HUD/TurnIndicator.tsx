@@ -49,7 +49,7 @@ export const NextCouncil: React.FC = () => {
 
 /**
  * The vote the Council would give now, the player's nation first (FR-313, FR-314; Imp1's Council Projection, the exact
- * count): shown in the pane's Nation group, and the next-council line's description. Shown whenever NextCouncil shows and
+ * count): shown in the Stats dialog (FR-568), and the next-council line's description. Shown whenever NextCouncil shows and
  * the Council would vote.
  */
 export const CouncilProjection: React.FC = () => {

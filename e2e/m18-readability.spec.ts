@@ -88,6 +88,13 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 
       // Over the page: fixed, inside the window, and the dialog did not move down
       expect(await page.getByTestId('toasts').evaluate((el) => getComputedStyle(el).position)).toBe('fixed');
       await expectInsideWindow(page, (await toast.boundingBox())!);
+      // Review 2026-11-23: clear of the map's zoom buttons and its status line (MapView.module.css, bottom of the map area)
+      const toastBox = (await toast.boundingBox())!;
+      const overlaps = (a: typeof toastBox, b: typeof toastBox) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+      const zoom = (await page.getByRole('group', { name: 'Map zoom' }).boundingBox())!;
+      expect(overlaps(toastBox, zoom), 'the toast covers the zoom buttons').toBe(false);
+      const status = await page.getByTestId('map-status').boundingBox();
+      if (status) expect(overlaps(toastBox, status), 'the toast covers the map status line').toBe(false);
       expect((await capital.boundingBox())!.y).toBe(top);
       await expectNoSidewaysScroll(page);
       // WCAG AA: the text on the toast's own background, once the slide-in is over (the first screenshot caught it half faded)

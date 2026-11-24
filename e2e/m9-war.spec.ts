@@ -265,7 +265,8 @@ test('FR-233 FR-230 FR-231 FR-232 FR-273 FR-505 declare war on Arvelia, attack i
   await score.focus();
   const development = await page.getByTestId('score-parts').getByText(/^Development \d+$/).innerText();
   await score.press('Escape');
-  if (await page.getByRole('dialog', { name: 'Stats' }).count()) await page.getByRole('button', { name: 'Close stats' }).click();
+  // Escape closes the score's parts and, through the dialog, the Stats dialog itself (Modal, FR-175)
+  await expect(page.getByRole('dialog', { name: 'Stats' })).toHaveCount(0);
 
   // Turn 2 on: attack Arvelia from North-East; the Battle screen opens by itself the next turn
   let taken = false;
@@ -340,7 +341,8 @@ test('FR-233 FR-230 FR-231 FR-232 FR-273 FR-505 declare war on Arvelia, attack i
   await expect(page.getByTestId('score-parts')).toContainText('Conquered land not collected: 10 levels, 0 points');
   await expect(page.getByTestId('score-parts').getByText(/^Development \d+$/)).toHaveText(development);
   await score.press('Escape');
-  if (await page.getByRole('dialog', { name: 'Stats' }).count()) await page.getByRole('button', { name: 'Close stats' }).click();
+  // Escape closes the score's parts and, through the dialog, the Stats dialog itself (Modal, FR-175)
+  await expect(page.getByRole('dialog', { name: 'Stats' })).toHaveCount(0);
   await page.locator('[data-tile-id="10-3"]').click();
   await expect(page.getByTestId('tile-collected')).toContainText('Not collected: 0 points');
 

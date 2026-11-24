@@ -15,7 +15,7 @@ import { Modal } from "./Modal";
 /**
  * The Diplomacy screen (FR-177, FR-178) in two panes (FR-237): on the left every other country, the other Great Power
  * first, with its relation and treaties; on the right the selected country's overtures and controls. The controls send
- * orders through submitOrder; the engine decides, and a refusal shows here. The selection outlives a close, so the
+ * orders through submitOrder; the engine decides, and a refusal shows as a toast (FR-569). The selection outlives a close, so the
  * screen opens again on the country last looked at (the first one the first time).
  */
 export const DiplomacyModal: React.FC = () => {
@@ -53,7 +53,6 @@ export const DiplomacyModal: React.FC = () => {
         Overtures take effect at End Turn. Until then each one can be withdrawn and its cost comes back. A grant improves
         relations; the money leaves our treasury and no country receives it.
       </p>
-
 
       {nation && selected && (
         <div className={styles.panes}>

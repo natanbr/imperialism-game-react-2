@@ -10,12 +10,13 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { HUD } from '@/components/HUD';
 import { MarketModal } from '@/components/MarketModal';
 import { Toasts, TOAST_MS } from '@/components/Toasts';
+import { MAX_TOASTS } from '@/store/controls/toastSlice';
 import { refusalText } from '@/components/gameText';
 import { useGameStore } from '@/store/rootStore';
 import { newGame, type Order } from '@/engine';
 import type { GameState } from '@/types/GameState';
 import { ResourceType } from '@/types/Resource';
-import { setTreasury } from '../engine/fixtures';
+import { game, setTreasury } from '../engine/fixtures';
 import { failOnActWarnings } from './actWarnings';
 import { text } from './domText';
 
@@ -67,21 +68,53 @@ describe('FR-569 a refused order is a toast', () => {
     expect(within(screen.getByTestId('toast-alerts')).getAllByTestId('toast')).toHaveLength(1);
   });
 
-  it('FR-569 a toast stays about 6 seconds, then goes; Close takes it away at once; two refusals stack', () => {
+  it('FR-569 a message that is not an error stays 6 seconds, then goes', () => {
     vi.useFakeTimers();
-    show(newGame({ seed: 1, world: 'continent' }));
+    show(game());
     render(<Toasts />);
     expect(TOAST_MS).toBe(6000);
-    submit(refusedMove());
-    act(() => vi.advanceTimersByTime(3000));
-    submit(refusedMove());
-    expect(screen.getAllByTestId('toast')).toHaveLength(2);
-    act(() => vi.advanceTimersByTime(TOAST_MS - 3000 - 1));
-    expect(screen.getAllByTestId('toast')).toHaveLength(2);
-    act(() => vi.advanceTimersByTime(1));
+    act(() => useGameStore.getState().showToast('Game saved.', 'info'));
+    act(() => vi.advanceTimersByTime(TOAST_MS - 1));
     expect(screen.getAllByTestId('toast')).toHaveLength(1);
-    fireEvent.click(screen.getByRole('button', { name: 'Close message' }));
+    act(() => vi.advanceTimersByTime(1));
     expect(screen.queryAllByTestId('toast')).toHaveLength(0);
+  });
+
+  // Review 2026-11-23: inside a dialog the keyboard cannot leave the dialog's focus trap to reach a toast's Close, so an
+  // error that left after 6 s could go unread; it stays until Close or until the next accepted order
+  it('FR-569 an error toast stays past 6 s; two refusals stack; Close takes one; the next accepted order takes the rest', () => {
+    vi.useFakeTimers();
+    show(game());
+    render(<Toasts />);
+    const tooMany: Order = { kind: 'sellCommodity', nationId: N1, commodity: ResourceType.Coal, amount: 999 };
+    submit(tooMany);
+    submit(tooMany);
+    act(() => vi.advanceTimersByTime(TOAST_MS * 3));
+    expect(screen.getAllByTestId('toast')).toHaveLength(2);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Close message' })[0]);
+    expect(screen.getAllByTestId('toast')).toHaveLength(1);
+    submit({ kind: 'buyCommodity', nationId: N1, commodity: ResourceType.Coal, amount: 1 });
+    expect(useGameStore.getState().lastRejection).toBeNull();
+    expect(screen.queryAllByTestId('toast')).toHaveLength(0);
+  });
+
+  it('FR-569 at most MAX_TOASTS show at once: a newer one pushes the oldest out', () => {
+    show(game());
+    render(<Toasts />);
+    for (let n = 1; n <= MAX_TOASTS + 1; n++) act(() => useGameStore.getState().showToast(`Message ${n}`, 'info'));
+    expect(screen.getAllByTestId('toast-text').map(text)).toEqual(Array.from({ length: MAX_TOASTS }, (_, i) => `Message ${i + 2}`));
+  });
+
+  it('FR-569 a stack taken off the page leaves no timer behind', () => {
+    vi.useFakeTimers();
+    show(game());
+    const { unmount } = render(<Toasts />);
+    act(() => useGameStore.getState().showToast('Game saved.', 'info'));
+    expect(vi.getTimerCount()).toBe(1);
+    unmount();
+    expect(vi.getTimerCount()).toBe(0);
+    act(() => vi.advanceTimersByTime(TOAST_MS));
+    expect(useGameStore.getState().toasts).toHaveLength(1);
   });
 
   it('FR-569 a message that is not an error goes to the polite live region', () => {

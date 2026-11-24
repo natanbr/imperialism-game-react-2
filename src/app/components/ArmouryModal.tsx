@@ -181,7 +181,6 @@ const Armoury: React.FC = () => {
         </div>
       )}
 
-
       {view && (
         <div className={styles.cards} data-testid="armoury-cards">
           {view.cards.map((card) => (

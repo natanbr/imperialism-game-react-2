@@ -42,7 +42,7 @@ function useCutAtBottom<T extends HTMLElement>(): [(el: T | null) => void, boole
 
 /**
  * The capital: production cards, labour, training, migration and freight cars (FR-046, FR-047).
- * Every button sends one order through submitOrder; the engine decides, and a refusal shows here.
+ * Every button sends one order through submitOrder; the engine decides, and a refusal shows as a toast (FR-569).
  * The title shows the capitol, and the Warehouse, Armoury and Technology buttons their buildings (FR-333); Trade and
  * Diplomacy keep their Game Icons, as the pack has no picture for them (FR-335). A column that does not fit shows its
  * scrollbar and a fade at its cut edge (FR-426); below 600 px the columns stack (FR-428).
@@ -96,7 +96,6 @@ export const CapitalModal: React.FC = () => {
             <span aria-hidden="true">×</span>
           </button>
         </header>
-
 
         {nation && labour && (
           <div className={styles.body}>

@@ -138,11 +138,13 @@ export function lastTurnTrades(log: readonly LoggedOrders[], nationId: string, t
 export interface RepeatOutcome {
   repeated: number;
   total: number;
-  /** "Repeated 3 of 4 units. Coal bid: not enough money." */
+  /** "Repeated 3 of 4 units. Coal purchase: not enough money." */
   text: string;
 }
 
 const lowerFirst = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
+/** FR-563: a repeated trade's side in the player's words, never the engine's "bid" or "offer". */
+const SIDE_TEXT = { bid: "purchase", offer: "sale" } as const;
 
 /**
  * FR-397, FR-398: orders `trades` again unit by unit through `submit` (the store's `submitOrder`; NR-018 kept: nothing
@@ -169,7 +171,7 @@ export function repeatTrades(
       const result = check.ok ? submit(order) : check;
       if (!result.ok) {
         const why = lowerFirst(moreRefusalText(state, nationId, trade.commodity, result.reason));
-        refused.push(`${commodityName(trade.commodity)} ${trade.side}: ${why}.`);
+        refused.push(`${commodityName(trade.commodity)} ${SIDE_TEXT[trade.side]}: ${why}.`);
         break;
       }
       amount += 1;

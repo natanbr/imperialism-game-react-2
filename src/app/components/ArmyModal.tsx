@@ -225,7 +225,6 @@ const ArmyScreen: React.FC<{ provinceId: string }> = ({ provinceId }) => {
         </div>
       )}
 
-
       {view.rows.length === 0 ? (
         <p className={styles.empty} data-testid="no-army">
           No regiment of ours is here.

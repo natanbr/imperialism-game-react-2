@@ -1,15 +1,25 @@
-/* FR-569: the toast stack. Fixed over the page's bottom left (the map), so it never pushes anything down; above every
-   dialog (their overlays reach z-index 110). Only the toasts take the pointer: the stack's empty space lets clicks through. */
+/* FR-569: the toast stack. Fixed under the top bar at the map area's top left, so it never pushes anything down and
+   stays clear of the zoom buttons and the status line at the map's bottom (review 2026-11-23: at the bottom left it
+   covered both); with a dialog open it lies over the dialog's title, not its buttons at the top right. Inside the map
+   area from 700 px of width; below that it spans the window. Above every dialog (their overlays reach z-index 110).
+   Only the toasts take the pointer: the stack's empty space lets clicks through. */
 .stack {
   position: fixed;
-  left: 16px;
-  bottom: 16px;
+  top: calc(var(--topbar-height) + 8px);
+  left: 8px;
   z-index: 1000;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  width: min(420px, calc(100vw - 32px));
+  width: min(420px, calc(100vw - var(--hud-width) - 16px));
   pointer-events: none;
+}
+
+@media (max-width: 699.98px) {
+  .stack {
+    right: 8px;
+    width: auto;
+  }
 }
 
 .region {

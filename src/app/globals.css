@@ -851,11 +851,6 @@ img[data-art-anchor="bottom-center"] {
   font-size: 13px;
 }
 
-.news-refusal {
-  color: var(--color-text-danger);
-  margin-bottom: 6px;
-}
-
 /* The news (FR-268). The HUD's information is a column and the news panel takes the height left in it, so the
    fade (.hud-content::after, FR-235) lies below the news, not over a line of it. The lines scroll on their own in a
    box of whole lines: `.news-scroll` is the space left (a size container, at least 3 lines), and the list is that

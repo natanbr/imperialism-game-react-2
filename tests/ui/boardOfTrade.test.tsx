@@ -430,7 +430,8 @@ describe('FR-194 the Board of Trade: orders', () => {
     expect(plus('wool', 'Buy one more Wool').title).toBe('No free hold this turn');
     fireEvent.click(button('coal', 'Buy one more Coal'));
     expect(submitted).toHaveLength(sent);
-    expect(within(dialog()).queryByRole('alert')).toBeNull();
+    // Nothing sent, nothing refused: no toast follows (FR-569)
+    expect(useGameStore.getState().lastRejection).toBeNull();
     // "−" stays: lowering is always allowed
     expect((button('coal', 'Buy one less Coal') as HTMLButtonElement).disabled).toBe(false);
   });
@@ -604,7 +605,7 @@ describe('M12 FR-397 FR-398 FR-399 repeat last turn\'s trades; how long orders l
     expect(repeatButton()).not.toBeNull();
   });
 
-  it('FR-398 a refused unit is said in one line: "Repeated 2 of 3 units. Coal bid: not enough money."; no other alert', () => {
+  it('FR-398 a refused unit is said in one line: "Repeated 2 of 3 units. Coal purchase: not enough money."; no refusal recorded', () => {
     tradedTurn();
     // Money for one coal and a half: the second unit is refused
     const price = marketOf(now()).prices.coal!;
@@ -612,15 +613,16 @@ describe('M12 FR-397 FR-398 FR-399 repeat last turn\'s trades; how long orders l
     fireEvent.click(repeatButton()!);
     expect(cell('coal', 'bid')).toBe('1');
     expect(cell('clothing', 'offer')).toBe('1');
-    expect(text(repeatLine()!)).toBe('Repeated 2 of 3 units. Coal bid: not enough money.');
-    expect(within(dialog()).queryByRole('alert')).toBeNull();
+    expect(text(repeatLine()!)).toBe('Repeated 2 of 3 units. Coal purchase: not enough money.');
+    // The refused unit was never sent (FR-398), so the store holds no refusal and no toast follows (FR-569)
+    expect(useGameStore.getState().lastRejection).toBeNull();
   });
 
-  it('FR-398 goods gone: "Clothing offer: none left in the warehouse."', () => {
+  it('FR-398 goods gone: "Clothing sale: none left in the warehouse."', () => {
     tradedTurn();
     act(() => useGameStore.setState({ game: setWarehouse(now(), N1, { clothing: 0 }) }));
     fireEvent.click(repeatButton()!);
-    expect(text(repeatLine()!)).toBe('Repeated 2 of 3 units. Clothing offer: none left in the warehouse.');
+    expect(text(repeatLine()!)).toBe('Repeated 2 of 3 units. Clothing sale: none left in the warehouse.');
   });
 
   it('FR-397 lastTurnTrades reads the final total of each bid and offer of the turn just resolved, in the order first given', () => {

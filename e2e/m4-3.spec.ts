@@ -115,7 +115,8 @@ test.describe('rendered at twice the pixel density', () => {
     await pickWorker(page, 'engineer');
     await tile(page, '2-9').click({ position: { x: 6, y: 6 } });
     await expect(tile(page, '2-9').getByTestId('worker-stack')).toHaveAttribute('data-count', '7');
-    await expect(page.getByTestId('news-panel')).not.toContainText('refused');
+    // FR-569: a refusal is a toast now, not a news line
+    await expect(page.getByTestId('toast')).toHaveCount(0);
     await endTurn(page, 3);
 
     // Turn 3: from the capital onto 3-8, the neighbour of both 2-9 and 3-9

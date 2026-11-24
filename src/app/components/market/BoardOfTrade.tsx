@@ -137,7 +137,6 @@ export const BoardOfTrade: React.FC = () => {
         </p>
       )}
 
-
       {view && (
         <div className={styles.boardPane}>
           <table className={`${styles.table} ${styles.boardTable}`}>

@@ -8,14 +8,14 @@ import { join } from 'node:path';
 import { describe, it, expect } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MarketModal } from '@/components/MarketModal';
-import { MORE_REFUSAL_TEXT, rivalSellerText } from '@/components/market/boardView';
+import { MORE_REFUSAL_TEXT, repeatTrades, rivalSellerText } from '@/components/market/boardView';
 import { dealBookView } from '@/components/market/dealBookView';
 import { eventText, MISSED_TEXT, refusalText, REFUSAL_TEXT } from '@/components/gameText';
 import { useGameStore } from '@/store/rootStore';
 import { dealBook, newGame, type GameEvent, type RejectReason } from '@/engine';
 import type { GameState } from '@/types/GameState';
 import { GoodsType, MaterialType, ResourceType } from '@/types/Resource';
-import { emptyWarehouse, game, N1 } from '../engine/fixtures';
+import { emptyWarehouse, game, N1, setTreasury, setWarehouse } from '../engine/fixtures';
 import { failOnActWarnings } from './actWarnings';
 
 failOnActWarnings();
@@ -119,5 +119,22 @@ describe('FR-563 trade texts: news, Deal Book, refusals and notes', () => {
     expect(MORE_REFUSAL_TEXT.bids).toBe('Already buying 4 commodities this turn, the most');
     expect(rivalSellerText(['Valdoria'], false)).toBe('Money back if Valdoria does not sell.');
     expect(leftovers([...refusals, ...notes])).toEqual([]);
+  });
+
+  it('FR-563 Repeat last turn\'s trades names a refused unit as a purchase or a sale, never by the engine\'s side name (review 2026-11-23)', () => {
+    // No money and no clothing: the coal purchase and the clothing sale are both refused, each named in the line
+    const state = setWarehouse(setTreasury(newGame({ seed: 1, world: 'continent' }), N1, 0), N1, { clothing: 0 });
+    const outcome = repeatTrades(
+      [
+        { side: 'bid', commodity: ResourceType.Coal, amount: 2 },
+        { side: 'offer', commodity: GoodsType.Clothing, amount: 1 },
+      ],
+      N1,
+      () => state,
+      () => ({ ok: true })
+    );
+    expect(outcome.text).toMatch(/Coal purchase: [a-z]/);
+    expect(outcome.text).toMatch(/Clothing sale: [a-z]/);
+    expect(leftovers([outcome.text])).toEqual([]);
   });
 });
