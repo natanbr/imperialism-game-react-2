@@ -419,6 +419,15 @@
   border-radius: var(--radius-sm);
 }
 
+/* What the pressed step does (FR-576, as Diplomacy's subsidy-help line), wrapped short so the table stays narrow */
+.policyHelp {
+  max-width: 46ch;
+  margin: 2px 0 0;
+  font-size: var(--font-size-sm);
+  line-height: 1.3;
+  color: var(--color-text-muted);
+}
+
 .policyReasons {
   list-style: none;
   margin: 2px 0 0;

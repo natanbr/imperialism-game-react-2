@@ -390,6 +390,22 @@ describe('FR-576 the Trade policies tab', () => {
     expect(text(within(within(panel()).getByTestId('detail-row-coal')).getByTestId('deal-price'))).toBe('Arvelia charges $125 with our 25%');
   });
 
+  // M18c review round: the help was each step's tooltip only, with "Point at a step to see what it does." in the intro
+  it('FR-576 FR-395 what the pressed step does is a line under the steps, as Diplomacy\'s subsidy help, and the pressed step\'s description', () => {
+    openBoard(withConsulate(start(), ARVELIA));
+    openTab('Trade policies');
+    expect(panel().textContent).not.toMatch(/Point at a step/);
+    const help = () => text(within(policyRow(ARVELIA)).getByTestId('subsidy-help'));
+    expect(help()).toBe('No subsidy: we trade at the Board price.');
+    expect(description(step(ARVELIA, 'None'))).toBe('No subsidy: we trade at the Board price.');
+    expect(within(panel()).getAllByTestId('subsidy-help')).toHaveLength(5);
+    fireEvent.click(step(ARVELIA, '25%'));
+    expect(help()).toBe(step(ARVELIA, '25%').title);
+    expect(help()).toMatch(/^Subsidy 25%: .*Arvelia pays us 25% less for our goods and charges us 25% more for its own\. In return it ranks us higher as a trading partner\.$/);
+    expect(description(step(ARVELIA, '25%'))).toBe(help());
+    expect(description(step(ARVELIA, 'None'))).toBe('');
+  });
+
   it('FR-576 FR-162 a refused step is disabled and its reason stands under the steps, its description, as in Diplomacy; a boycott alone is open', () => {
     openBoard(start());
     openTab('Trade policies');

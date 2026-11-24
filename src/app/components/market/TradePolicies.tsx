@@ -12,7 +12,8 @@ type Submit = (order: Order) => ValidationResult;
  * One country (FR-576): its flag and name, the subsidy steps as toggle buttons (the policy in force pressed) and the
  * boycott switch, each sending Diplomacy's `setTradePolicy` order (FR-171). A step validateOrder would refuse is
  * disabled, and its refusal stands under the steps as in Diplomacy (FR-237: "5%, 10%: we need a consulate there first"),
- * the disabled control's description.
+ * the disabled control's description. What the pressed step does is a line under the steps, as Diplomacy's subsidy-help
+ * line (FR-395); the other steps say it in their tooltip.
  */
 const PolicyRow: React.FC<{ row: TradePolicyRowView; submitOrder: Submit }> = ({ row, submitOrder }) => {
   const base = useId();
@@ -22,6 +23,8 @@ const PolicyRow: React.FC<{ row: TradePolicyRowView; submitOrder: Submit }> = ({
     return i === -1 ? undefined : `${base}-reason-${i}`;
   };
   const boycottId = `${base}-boycott`;
+  const helpId = `${base}-help`;
+  const pressed = row.steps.find((step) => step.pressed);
   return (
     <tr data-testid={`policy-row-${row.id}`}>
       <th scope="row" className={styles.fixed}>
@@ -38,7 +41,7 @@ const PolicyRow: React.FC<{ row: TradePolicyRowView; submitOrder: Submit }> = ({
               aria-pressed={step.pressed}
               disabled={step.refusal !== undefined}
               title={step.help}
-              aria-describedby={reasonId(step)}
+              aria-describedby={[step.pressed ? helpId : undefined, reasonId(step)].filter(Boolean).join(" ") || undefined}
               onClick={() => {
                 if (!step.pressed) submitOrder(step.order);
               }}
@@ -47,6 +50,11 @@ const PolicyRow: React.FC<{ row: TradePolicyRowView; submitOrder: Submit }> = ({
             </button>
           ))}
         </div>
+        {pressed && (
+          <p id={helpId} className={styles.policyHelp} data-testid="subsidy-help">
+            {pressed.help}
+          </p>
+        )}
         {lines.length > 0 && (
           <ul className={styles.policyReasons}>
             {lines.map((line, i) => (
@@ -85,7 +93,7 @@ export const TradePolicies: React.FC<{ game: GameState; nationId: string; submit
     <>
       <p className={styles.boardNote}>
         A subsidy changes the price of our deals with that country, and a boycott stops them; both count in this turn&apos;s
-        trade. Point at a step to see what it does.
+        trade.
       </p>
       <table className={`${styles.table} ${styles.policyTable}`}>
         <thead>
