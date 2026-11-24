@@ -122,7 +122,9 @@ test('FR-515 FR-517 build ships, fill eight holds with purchases and collect hor
   await board.getByRole('tab', { name: 'Board', exact: true }).click();
   await screenshot(page, 'board');
   // Spread the bids over the minors' real supplies and check actual purchases in the Deal Book next turn.
+  // M18c FR-574: pick Buy first; Valdoria bought timber last turn, so our timber sale is open and that row opens on Sell
   for (const [commodity, amount] of [['Timber', 4], ['Coal', 2], ['Iron Ore', 2]] as const) {
+    await board.getByRole('button', { name: `Buy ${commodity}`, exact: true }).click();
     for (let n = 0; n < amount; n++) await board.getByRole('button', { name: `Buy one more ${commodity}` }).click();
   }
   // Re-recorded by M18c FR-573: old "Holds: 0 of 8 free"
