@@ -268,7 +268,7 @@ describe('FR-194 the Board of Trade: what it shows', () => {
     ]);
     // The mark is its own element, so it can look different from the name (and reads as part of the line)
     expect(within(detailRow('timber')).getAllByTestId('barrier').map((el) => text(el))).toEqual(['(boycott)', '(at war)', '(no consulate)']);
-    // FR-574: on the Board tab each barred flag is dimmed and named with its mark; an open one by its name alone
+    // FR-574: on the Board tab each barred flag is faded and named with its mark; an open one by its name alone
     expect(flags('timber', 'sellers')).toEqual(['Arvelia', 'Sundmark (boycott)', 'Lorran (at war)', 'Pellis (no consulate)']);
     expect(within(row('timber')).getAllByRole('listitem').map((li) => li.dataset.barred ?? 'open')).toEqual(['open', 'true', 'true', 'true']);
 

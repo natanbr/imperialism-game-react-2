@@ -343,25 +343,28 @@
   gap: 2px 4px;
 }
 
+/* The flag at its usual 14x18 with no padding above or below, so a row stays one stepper high (measured at 1280x720:
+   17 rows of 27 px, as with the old 11x14 flags) */
 .flag,
 .flagBarred {
   display: inline-flex;
-  padding: 1px 2px;
-  line-height: 14px;
+  padding: 0 2px;
+  line-height: 18px;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
 }
 
 .flag :global(.nation-flag),
 .flagBarred :global(.nation-flag) {
-  width: 11px;
-  height: 14px;
+  width: 14px;
+  height: 18px;
   vertical-align: top;
 }
 
-/* A minor we cannot trade with this turn: dimmed and outlined (not by colour alone); its reason is its name */
+/* A minor we cannot trade with this turn: a little faded and outlined in dashes, its colours kept so the nations stay
+   apart (at the start of a game every flag is barred); its reason is its name */
 .flagBarred {
-  opacity: 0.45;
+  opacity: 0.7;
   border: 1px dashed var(--color-border-strong);
 }
 

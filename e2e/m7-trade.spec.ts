@@ -191,6 +191,14 @@ test('FR-194 FR-257 FR-574 at 1280x720 the Board of Trade fits the window on eve
   const boardOverflow = () => board(page).evaluate((el) => { const pane = el.querySelector('table')!.parentElement!; return pane.scrollHeight - pane.clientHeight; });
   expect(await boardOverflow()).toBeLessThanOrEqual(1);
   await expect(row(page, 'oil')).toBeInViewport({ ratio: 1 });
+  // M18c review round: on a new game every flag is barred (no consulate) and was grey at 0.45, so the nations looked
+  // alike; a barred flag keeps its colours (no filter), a little faded and outlined, at the usual 14x18, and the rows fit
+  const barredFlag = await row(page, 'coal').locator('li[data-barred="true"]').first().evaluate((li) => {
+    const style = getComputedStyle(li);
+    const flag = li.querySelector('.nation-flag')!.getBoundingClientRect();
+    return { filter: style.filter, opacity: style.opacity, outline: style.borderStyle, size: [Math.round(flag.width), Math.round(flag.height)] };
+  });
+  expect(barredFlag).toEqual({ filter: 'none', opacity: '0.7', outline: 'dashed', size: [14, 18] });
   // Re-recorded by M13 FR-494: old 'No minor nation sells this' (a refusal), new 'A purchase is refunded if Valdoria does not
   // sell.' beside an enabled "+" (a bid where no minor sells goes to Valdoria, FR-492). Re-targeted by M18c: that line is
   // on the Details tab (FR-575); the refused Sell "+" says 'No one buys this' in its tooltip (FR-574), once Sell is chosen

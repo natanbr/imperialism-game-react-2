@@ -28,7 +28,8 @@ const TABS: readonly { id: TabId; name: string }[] = [
 
 /**
  * FR-574: "Sellers" or "Buyers" and the minors' flags, nothing more (their units are on the Details tab). A minor we
- * cannot trade with this turn is dimmed and outlined, and its tooltip and accessible name give the reason.
+ * cannot trade with this turn is a little faded and outlined in dashes, its colours kept, and its tooltip and accessible
+ * name give the reason.
  */
 const FlagList: React.FC<{ label: "Sellers" | "Buyers"; partners: PartnerView[]; testId: string }> = ({ label, partners, testId }) => (
   <div className={styles.partners} data-testid={testId}>
