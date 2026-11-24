@@ -2,10 +2,10 @@ import { test, expect, Page, Locator, startSeededGame } from './seededGame';
 
 // M11 (NR-032) lane 3 in the running app, a new continent game at 1280x720: the art pack's pictures in the lists, dialogs
 // and HUD load, and fit.
-// FR-333: each production card's head, with its building's picture, is at most 24 px high, and the picture is no taller
-// than the head's text line. FR-331, FR-332, FR-333, FR-334: every img[data-art] in the Capital dialog, the Armoury, the
-// Board of Trade, the Warehouse and the Transportation of Commodities popup is loaded (complete, natural width above 0),
-// with no console error. FR-334: the HUD's buttons that show a building are exactly as high as those that keep a Game Icon,
+// FR-333, FR-565: each production card's head shows its building's picture at 40 to 48 px, the head no taller than the
+// picture (FR-565 replaced FR-352's 24 px heads). FR-331, FR-332, FR-333, FR-334: every img[data-art] in the Capital
+// dialog, the Armoury, the Board of Trade, the Warehouse and the Transportation of Commodities popup is loaded (complete,
+// natural width above 0), with no console error. FR-334: the HUD's buttons that show a building are exactly as high as those that keep a Game Icon,
 // so the HUD's news keeps its lines (FR-268, FR-315).
 // Set SCREENSHOT_DIR to also save m11-lists-capital.png, m11-lists-board.png and m11-lists-transport.png there.
 
@@ -58,7 +58,7 @@ const shot = async (page: Page, name: string) => {
   if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/${name}` });
 };
 
-test('FR-333 FR-331 FR-332 the Capital dialog: card heads at most 24 px with their buildings, every picture loaded; the Armoury too', async ({ page }) => {
+test('FR-333 FR-331 FR-332 FR-565 the Capital dialog: card heads with their buildings at 40 to 48 px, every picture loaded; the Armoury too', async ({ page }) => {
   test.setTimeout(90000);
   const errors = collectErrors(page);
   await open(page);
@@ -71,7 +71,7 @@ test('FR-333 FR-331 FR-332 the Capital dialog: card heads at most 24 px with the
 
   const heads = await capital.locator('section[data-testid^="building-"] > header').evaluateAll((els) =>
     els.map((el) => {
-      const title = el.querySelector('h4')!;
+      const title = el.querySelector('h3')!;
       const picture = title.querySelector('img');
       return {
         card: el.parentElement!.getAttribute('data-testid'),

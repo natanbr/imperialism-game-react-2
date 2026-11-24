@@ -59,7 +59,7 @@ describe('FR-333 the capital\'s buildings', () => {
     expect(cards.length).toBe(8);
     for (const card of cards) {
       const building = card.getAttribute('data-testid')!.replace('building-', '') as BuildingType;
-      const head = within(card).getByRole('heading', { level: 4 });
+      const head = within(card).getByRole('heading', { level: 3 });
       expect(head.firstElementChild?.tagName.toLowerCase(), building).toBe('img');
       expect(art(head), building).toEqual([artFileOf(buildingArt(building))]);
       expect(allDecorative(head), building).toBe(true);
@@ -67,8 +67,8 @@ describe('FR-333 the capital\'s buildings', () => {
       // The card keeps its name
       expect(card.getAttribute('aria-label'), building).toBe(BUILDING_TEXT[building]);
     }
-    expect(art(within(screen.getByTestId('building-refinery')).getByRole('heading', { level: 4 }))).toEqual(['buildings/oil-refinery.png']);
-    expect(art(within(screen.getByTestId('building-steelMill')).getByRole('heading', { level: 4 }))).toEqual(['buildings/steel-mill.png']);
+    expect(art(within(screen.getByTestId('building-refinery')).getByRole('heading', { level: 3 }))).toEqual(['buildings/oil-refinery.png']);
+    expect(art(within(screen.getByTestId('building-steelMill')).getByRole('heading', { level: 3 }))).toEqual(['buildings/steel-mill.png']);
   });
 
   it('FR-333 the Transport panel shows the railyard, the Trade School and Capitol headings their buildings', () => {
@@ -236,7 +236,7 @@ describe('FR-352 FR-354 FR-349 the QA fix round in the lists, the capital and th
   it("FR-352 each card head's building and the Trade School, Capitol and Transport headings' draw at their CSS size", () => {
     show(continent(), { isCapitalOpen: true });
     render(<CapitalModal />);
-    const heads = screen.getAllByTestId(/^building-/).map((card) => within(card).getByRole('heading', { level: 4 }));
+    const heads = screen.getAllByTestId(/^building-/).map((card) => within(card).getByRole('heading', { level: 3 }));
     const section = (name: string) => within(screen.getByRole('region', { name, hidden: true })).getByRole('heading', { level: 3, hidden: true });
     const headings = [...heads, section('Trade School'), section('Capitol'), section('Transport')];
     expect(headings).toHaveLength(10);

@@ -420,21 +420,36 @@ describe('FR-426 FR-428 the Capital columns show that there is more', () => {
     };
   }
   const industry = () => screen.getByRole('main', { name: 'Industry' });
-  const side = () => screen.getByTestId('labour-panel').parentElement!;
+  /** FR-565: a section's panel, the element its button controls (open or hidden). */
+  const panel = (name: string) => {
+    const button = within(screen.getByRole('navigation', { name: 'Capital sections' })).getByRole('button', { name });
+    return document.getElementById(button.getAttribute('aria-controls')!)!;
+  };
 
-  it('FR-426 a column cut at its bottom shows a fade there; scrolled to its end, none; a column that fits has none', () => {
+  it('FR-426 the open section cut at its bottom shows a fade there; scrolled to its end, none; a section that fits has none', () => {
     openCapital(stocked());
     const scrollIndustry = sized(industry(), 600, 400);
-    sized(side(), 300, 400);
+    sized(panel('University'), 600, 400);
+    sized(panel('Trade School'), 300, 400);
     // A window resize measures again (as a render does)
     fireEvent(window, new Event('resize'));
     expect(screen.getByTestId('industry-fade').getAttribute('aria-hidden')).toBe('true');
-    expect(screen.queryByTestId('side-fade')).toBeNull();
+    expect(screen.queryByTestId('section-fade')).toBeNull();
 
     scrollIndustry(200);
     expect(screen.queryByTestId('industry-fade')).toBeNull();
     scrollIndustry(150);
     expect(screen.getByTestId('industry-fade')).toBeTruthy();
+
+    // FR-565: switching measures the section now open; a cut one shows its fade, one that fits none, Industry's goes
+    openSection('Trade School');
+    expect(screen.queryByTestId('industry-fade')).toBeNull();
+    expect(screen.queryByTestId('section-fade')).toBeNull();
+    openSection('University');
+    expect(screen.getByTestId('section-fade').getAttribute('aria-hidden')).toBe('true');
+    expect(screen.getByTestId('section-fade').parentElement).toBe(panel('University').parentElement);
+    openSection('Trade School');
+    expect(screen.queryByTestId('section-fade')).toBeNull();
   });
 
   it('FR-426 the fade lies over the cut edge, outside the scrolling content, and lets clicks through', () => {
