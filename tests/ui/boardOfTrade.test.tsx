@@ -553,8 +553,9 @@ describe('FR-194 the Board of Trade: orders', () => {
   it('FR-248 at most 4 bids: with holds to spare a fifth commodity\'s Bid "+" is disabled with "Already buying 4 commodities this turn, the most"; a row already bid on is not', () => {
     // A fifth commodity a minor sells: wool on one of Arvelia's tiles; Sundmark also sells the other four
     let s = setTile(withConsulate(open(), N1, SUNDMARK), '10-4', { resource: { type: ResourceType.Wool, level: 1, discovered: true } });
-    // 6 holds: an Indiaman and a Trader (M18c: was `ships: undefined, holds: 6`, a v1 save's shape, which reads as
-    // "1.5 Indiamen" now that the holds figure names the fleet; v1 saves hold 4 per Indiaman, so a real one never does)
+    // 6 holds from 1 Indiaman and 1 Trader. M18c: the fixture was `ships: undefined, holds: 6`; with no ship record
+    // shipsOf counts 6 / 4 = 1.5 Indiamen, which the holds figure now names, so the fixture gets real ships (since the
+    // Shipyard, FR-515, the engine keeps holds equal to the fleet's)
     s = { ...s, nations: s.nations.map((n) => (n.id === N1 ? { ...n, merchantMarine: { ...n.merchantMarine, ships: { indiaman: 1, trader: 1 }, holds: 6 } } : n)) };
     openBoard(s);
     for (const c of ['coal', 'timber', 'ironOre', 'cotton']) fireEvent.click(button(c, `Buy one more ${cell(c, 'name')}`));
