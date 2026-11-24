@@ -92,7 +92,7 @@ test('FR-180 FR-177 FR-178 a consulate, an embassy and a war ordered in Diplomac
   await select(page, 'Lorran');
   await expect(country(page, 'Lorran').getByRole('button', { name: 'Declare war' })).toBeDisabled();
   await expect(country(page, 'Lorran').getByRole('button', { name: 'Declare war' })).toHaveAccessibleDescription(
-    'No army can reach Lorran over land. War needs ships (a later milestone).'
+    'No army can reach Lorran over land. Commission a warship at the Shipyard.'
   );
   await select(page, 'Arvelia');
   const arvelia = country(page, 'Arvelia');

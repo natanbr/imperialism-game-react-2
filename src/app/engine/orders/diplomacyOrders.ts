@@ -9,7 +9,8 @@ import type { AnswerIntent, DiplomacyIntent, GrantIntent, GrantStopIntent, Overt
 import { GRANT_AMOUNTS, OVERTURE_COST, SUBSIDY_PERCENTS } from "@/definisions/diplomacyRules";
 import { addIntent, removeIntent } from "../turn/intents";
 import { relationOf } from "../diplomacy/relations";
-import { hasLandRoute, intentCost, isAnswerable, isDiplomacyIntent, isOverture, proposalsOf } from "../diplomacy/queries";
+import { intentCost, isAnswerable, isDiplomacyIntent, isOverture, proposalsOf } from "../diplomacy/queries";
+import { canReachWar } from "../navy/seaArmy";
 import { isGreatPower, isMinorNation } from "../world/countries";
 import type {
   OrdinaryRejectReason,
@@ -92,8 +93,7 @@ function validateOverture(state: GameState, nation: Nation, { overture, targetId
   const ordered = intentOf(state, nation.id, overture, targetId) !== undefined;
   if (overture === "war") {
     if (pair.war || ordered) return reject("already-in-place");
-    // FR-406 (card Q83): no army could ever reach them; a war on an island needs ships (M17)
-    return hasLandRoute(state, nation.id, targetId) ? OK : reject("no-land-route");
+    return canReachWar(state, nation.id, targetId) ? OK : reject("no-land-route");
   }
   if (overture === "peace") {
     if (!pair.war) return reject("not-at-war");

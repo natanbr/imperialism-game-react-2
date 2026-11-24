@@ -4,7 +4,7 @@
 import type { StoreApi } from "zustand";
 import { inventionNews } from "@/engine/technology";
 import { turnLimitOf } from "@/engine/turn/gameOver";
-import { withCurrentRules } from "./sessionReplay";
+import { m17ReplayBoundary, usedM17CombatRules, withCurrentRules } from "./sessionReplay";
 import type { GameSession } from "./gameSlice";
 import type { GameStore } from "./rootStore";
 
@@ -20,6 +20,8 @@ export const SAVE_DELAY_MS = 500;
 /** What the slot holds (FR-357): the session as JSON, with its version and when it was written. */
 export interface SavedGame extends GameSession {
   version: number;
+  /** Continent saves from before the Q145 sea and land battle revision lack this marker. */
+  combatRevision?: "q145";
   /** ISO date of the write. */
   savedAt: string;
 }
@@ -40,7 +42,7 @@ export function browserStorage(): Storage | undefined {
 export function saveOf(session: GameSession, now: Date = new Date()): SavedGame {
   const { game, activeNationId, eventLog, orderLog, ordersThisTurn, turnStartTreasuries, replayBoundary } = session;
   return { version: SAVE_VERSION, savedAt: now.toISOString(), game, activeNationId, eventLog, orderLog, ordersThisTurn, turnStartTreasuries,
-    ...(replayBoundary && { replayBoundary }) };
+    ...(usedM17CombatRules(session) && { combatRevision: "q145" }), ...(replayBoundary && { replayBoundary }) };
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
@@ -85,6 +87,11 @@ export function readSave(storage: Pick<Storage, "getItem"> | undefined = browser
       }
     }
     parsed.game = withCurrentRules(parsed.game);
+    if (!parsed.combatRevision && usedM17CombatRules(parsed)) {
+      const boundary = m17ReplayBoundary(parsed);
+      if (boundary) parsed.replayBoundary = boundary;
+      parsed.combatRevision = "q145";
+    }
     return { kind: "usable", save: parsed };
   } catch {
     return { kind: "unusable" };

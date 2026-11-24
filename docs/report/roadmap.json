@@ -7,7 +7,7 @@
   "reviewers": 8,
   "folder": "docs/audit/2026-11-14",
   "branch": "claude/m12-honest-game",
-  "main": "df047ac"
+  "main": "13d75ab"
  },
  "source": "docs/report/roadmap.json, docs/audit/2026-11-14/*.json and docs/requirements.md in the imperialism-game-react-2 repo",
  "reality": {
@@ -180,7 +180,7 @@
    "text": "Of 24 rule topics of the original game: 3 built, 14 partial, 1 wrong, 1 dead code, 5 missing."
   },
   "notChecked": "Not checked by the audit: Firefox and Safari, real touch on a phone, screen readers, and a human game played all the way to a Council win.",
-  "notFixed": "M12 (themes T1 to T10, FR-357 to FR-464) is merged into main 91d7edc (pull request 34), so its findings are fixed on main. M12b (the HUD you asked for, FR-465 to FR-480, and its by-eye QA fixes FR-529 to FR-537) is merged into main 74f595c (pull request 35, 2026-11-17). M13 (theme T11) is merged on the checked origin/main, 1d58b74. M14 (theme T12) merged at 79a94b2. M15 is merged at the Task 11 origin/main baseline, de20eca. You accepted the measured diplomat and Council results for M15 (FR-545 and FR-546). M16 part 1 merged at 9bd5a91 (pull request 39). On main the player can buy technology and the computer buys none. Both M16b branches are parked pending an original-game play-test. Task 19 merged at df047ac. M17 now has a spec and plan for the first playable sea campaign. M18 remains planned.",
+  "notFixed": "M12 (themes T1 to T10, FR-357 to FR-464) is merged into main 91d7edc (pull request 34), so its findings are fixed on main. M12b (the HUD you asked for, FR-465 to FR-480, and its by-eye QA fixes FR-529 to FR-537) is merged into main 74f595c (pull request 35, 2026-11-17). M13 (theme T11) is merged on the checked origin/main, 1d58b74. M14 (theme T12) merged at 79a94b2. M15 is merged at the Task 11 origin/main baseline, de20eca. You accepted the measured diplomat and Council results for M15 (FR-545 and FR-546). M16 part 1 merged at 9bd5a91 (pull request 39). On main the player can buy technology and the computer buys none. Both M16b branches are parked pending an original-game play-test. Task 19 merged at df047ac. The M17 specification merged at 13d75ab. The M17 implementation is verified locally on claude/m17-sea-war. M18 remains planned.",
   "filedNote": "The plan named 122 of the 160 findings in its themes. I filed the other 38 under the nearest theme; they are marked \"filed\" and can be moved."
  },
  "statusLegend": [
@@ -1470,8 +1470,9 @@
    {
     "id": "M17",
     "title": "Sea war and reach",
-    "status": "planned",
-    "statusLabel": "Planned",
+    "status": "built",
+    "localBuild": true,
+    "statusLabel": "Built, pull request being opened",
     "themes": [
      "T15"
     ],
@@ -1482,7 +1483,7 @@
      "Deploy by rail within the national ARMS allowance, continue a midturn save and run the existing score, Council, war and replay guards with their original policies."
     ],
     "depends": "M15 merchant Shipyard and M13 army, diplomacy and battle systems. The M16b technology buyer is independent.",
-    "statusText": "Spec and plan only, FR-548 to FR-559 and NR-036. Open owner cards Q144 to Q146 cover sea travel, interceptions and computer spending. Merchant capture, later hulls and computer-led island invasions are later work.",
+    "statusText": "Built locally on claude/m17-sea-war through FR-560. Task 23 corrects the seven review findings and implements the owner's revised Q145 sea battles and ordered allied attacks. Original-game tuning remains open. See the dated Task 23 journal for the local gate and protected campaign measurements.",
     "spec": "docs/specs/m17.md",
     "findings": 5,
     "severity": {
@@ -3648,8 +3649,8 @@
   {
    "id": "Q144",
    "title": "How much water can a squadron cross in one turn?",
-   "status": "open",
-   "group": "new",
+   "status": "done",
+   "group": "decided",
    "context": "The small fixed map has ocean hexes and coastal provinces, but no historical sea-zone boundaries. Rail deployment also needs a land/sea boundary.",
    "options": [
     {
@@ -3667,13 +3668,14 @@
     "ARMY-WAR-04",
     "ARMY-WAR-11",
     "Q37"
-   ]
+   ],
+   "ruling": "approved by owner 2026-11-22. A reachable coast takes one sail Order, followed by a separate station turn. Domestic rail stays on the same landmass. A stationed fleet can also reinforce a friendly shore within its support limit."
   },
   {
    "id": "Q145",
    "title": "What happens when an enemy fleet intercepts a landing?",
-   "status": "open",
-   "group": "new",
+   "status": "done",
+   "group": "decided",
    "context": "The rules describe automatic interception and possible losses. They give ship stats but no engagement odds or drowning rate.",
    "options": [
     {
@@ -3690,13 +3692,14 @@
    "ids": [
     "RULES-GAP-05",
     "ARMY-WAR-04"
-   ]
+   ],
+   "ruling": "Revised by the owner 2026-11-22 and implemented locally. FR-552 resolves three seeded rounds with hull damage, losses and berth repair. FR-560 orders allied attacks by total ARMS, stopping after capture."
   },
   {
    "id": "Q146",
    "title": "When should the computer spend on warships?",
-   "status": "open",
-   "group": "new",
+   "status": "done",
+   "group": "decided",
    "context": "M15 buys merchant holds from observed cargo use. Previous speculative spending weakened Council votes and the one-province campaign. The original naval budget and invasion timing are unknown.",
    "options": [
     {
@@ -3714,7 +3717,8 @@
     "AISIM-07",
     "Q140",
     "Q143"
-   ]
+   ],
+   "ruling": "approved by owner 2026-11-22. Use existing hulls or fund one Frigate after a hostile squadron is seen off one of the computer’s ports."
   }
  ],
  "history": [

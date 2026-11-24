@@ -7,8 +7,8 @@ import { createTurnContext } from '@/engine/turn/context';
 const draws = (rng: { next: () => number }, n: number) => Array.from({ length: n }, () => rng.next());
 
 describe('FR-150 ctx.rngFor', () => {
-  it('FR-150 the stream names are a fixed list: "diplomacy" and "combat"', () => {
-    expect([...RNG_STREAMS]).toEqual(['diplomacy', 'combat']);
+  it('FR-150/552 diplomacy, land combat and naval battles use named streams', () => {
+    expect([...RNG_STREAMS]).toEqual(['diplomacy', 'combat', 'naval']);
   });
 
   it('FR-150 fnv1a32 is the 32-bit FNV-1a hash (published test vectors)', () => {

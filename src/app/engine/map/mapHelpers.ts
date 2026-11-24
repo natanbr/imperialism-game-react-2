@@ -26,14 +26,15 @@ export function getAdjacentTiles(map: GameMap, x: number, y: number): Tile[] {
   return neighborCoords.map(([nx, ny]) => map.tiles[ny][nx]);
 }
 
-// Returns true if any adjacent tile is Coast or Water
+export const isOcean = (tile: Tile): boolean =>
+  tile.terrain === TerrainType.Water || tile.terrain === TerrainType.Coast;
+
 export function isAdjacentToOcean(map: GameMap, x: number, y: number): boolean {
-  const neighbors = getAdjacentTiles(map, x, y);
-  return neighbors.some((n) => n.terrain === TerrainType.Coast || n.terrain === TerrainType.Water);
+  return getAdjacentTiles(map, x, y).some(isOcean);
 }
 
-// Edge-case support for rail building UI rules
-const isLandTile = (t: Tile) => ![TerrainType.Water, TerrainType.River].includes(t.terrain);
+/** Coast belongs to the sea. A river overlay on land keeps the underlying rail terrain. */
+export const isRailLand = (tile: Tile): boolean => !isOcean(tile) && tile.terrain !== TerrainType.River;
 const hasRailStartingPoint = (t: Tile) => !!(t.connected || t.terrain === TerrainType.Capital || t.depot || t.port);
 
 // Check if two tiles are adjacent to each other
@@ -49,10 +50,10 @@ export function canBuildRailAt(map: GameMap, x: number, y: number, nationId: str
   if (!nationId) return false;
   const tile = map.tiles[y]?.[x];
   if (!tile) return false;
-  if (!isLandTile(tile)) return false;
+  if (!isRailLand(tile)) return false;
   if (tile.ownerNationId !== nationId) return false;
   if (tile.connected) return false; // already has rail
 
   const neighbors = getAdjacentTiles(map, x, y);
-  return neighbors.some((n) => n.ownerNationId === nationId && isLandTile(n) && hasRailStartingPoint(n));
+  return neighbors.some((n) => n.ownerNationId === nationId && isRailLand(n) && hasRailStartingPoint(n));
 }

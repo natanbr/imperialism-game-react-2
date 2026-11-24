@@ -9,6 +9,7 @@ import {
   isGameOver,
   isMilitia,
   marchTargets,
+  pendingArmyIntent,
   pendingArmyOrders,
   provinceById,
   RegimentCategory,
@@ -373,7 +374,7 @@ export interface RegimentRowView {
    * Marching: its "Cancel march"; attacking: its "Cancel attack" (both `cancelArmyMove`, FR-230); disband ordered: its
    * "Cancel disband" (`cancelDisband`, review F4).
    */
-  cancel?: ArmyControl & { label: "Cancel march" | "Cancel attack" | "Cancel disband" };
+  cancel?: ArmyControl & { label: "Cancel march" | "Cancel attack" | "Cancel disband" | "Cancel deployment" | "Cancel landing" };
 }
 
 /**
@@ -433,6 +434,8 @@ export function armyView(state: GameState, nationId: string, provinceId: string)
   const rows = regiments.map((r): RegimentRowView => {
     const def = REGIMENTS[r.type];
     const status = regimentStatus(state, r.id);
+    const intent = pendingArmyIntent(state, r.id);
+    const via = intent?.kind === "army-move" || intent?.kind === "attack" ? intent.via : undefined;
     const base = { id: r.id, name: r.name, type: r.type, category: CATEGORY_TEXT[def.category], arms: def.stats.armamentsCost, health: r.health };
     switch (status?.kind) {
       case "available":
@@ -440,16 +443,16 @@ export function armyView(state: GameState, nationId: string, provinceId: string)
       case "marching":
         return {
           ...base,
-          status: `Marching to ${provinceName(state, status.toProvinceId)}`,
+          status: `${via === "rail" ? "Deploying by rail" : via === "sea" ? "Reinforcing by sea" : "Marching"} to ${provinceName(state, status.toProvinceId)}`,
           selectable: false,
-          cancel: { ...control(state, { kind: "cancelArmyMove", nationId, regimentIds: [r.id] }), label: "Cancel march" },
+          cancel: { ...control(state, { kind: "cancelArmyMove", nationId, regimentIds: [r.id] }), label: via ? "Cancel deployment" : "Cancel march" },
         };
       case "attacking":
         return {
           ...base,
-          status: `Attacking ${provinceName(state, status.toProvinceId)}`,
+          status: `${via === "sea" ? "Landing at" : "Attacking"} ${provinceName(state, status.toProvinceId)}`,
           selectable: false,
-          cancel: { ...control(state, { kind: "cancelArmyMove", nationId, regimentIds: [r.id] }), label: "Cancel attack" },
+          cancel: { ...control(state, { kind: "cancelArmyMove", nationId, regimentIds: [r.id] }), label: via === "sea" ? "Cancel landing" : "Cancel attack" },
         };
       case "disband-ordered":
         return {

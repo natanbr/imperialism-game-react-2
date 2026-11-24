@@ -2,12 +2,108 @@
 
 ## Resuming here
 
-- M17 is specified on `claude/m17-spec` from `df047ac`. Start the next implementation run from [the M17 spec](specs/m17.md). Q144–Q146 are open, with suggested defaults. The branch contains planning documents only.
+- Task 28 on `claude/m17-sea-war` covers the two remaining Task 26 findings. Evidence is in `.gate/codex/28/`.
+- Task 25 on `claude/m17-sea-war` fixes all five second-review findings. Independent review and the local gate passed. Evidence is in `.gate/codex/25/summary.md`.
+- Task 23 on `claude/m17-sea-war` passed independent re-review and the local gate. Two local commits cover seven review fixes and revised Q145 combat. Both HUD examples and the gate logs are indexed in `.gate/codex/23/summary.md`. The branch has not been pushed.
+- Task 21 on `claude/m17-sea-war` from `13d75ab`. The local M17 build passed independent review and the full gate. Evidence in `.gate/codex/21/`. Owner approved Q144, Q145 and Q146 on 2026-11-22.
 - M16 part 1 merged in `9bd5a91`. The human can buy technology. The computer makes no purchases on main.
 - M16b is parked. On `claude/m16b-technology` (`95634c6`), FR-523 resource gates plus the buyer brought FR-125 down to 1.286× (minimum 1.5×). On `claude/m16b-buyer` (`49406e9`), the buyer alone bought Streamlined Hulls on turn 3 and ordered a Clipper on turn 6 in all 24 idle games. The spending weakened the computer. FR-546 earned a minor vote in 10/24 (13 required) and FR-489 captured a player province in 15/24 (18 required).
 - FR-547 (Q143) is the buyer branch's proposed value rule. Measure technology availability, purchase timing and the value of the first unlocked action in the original game before tuning. See `docs/verify-and-tune.md`.
 - Task 19 passed the load trials and full gate on `claude/perf-tests`. Finish future gates with `npm run test:perf` alone. The measured results and six functional logs are indexed in `.gate/codex/19/summary.md`.
-- To see part 1, open Capital, buy Streamlined Hulls on turn 3 and order a Clipper with 6 lumber and 2 fabric on turn 4.
+- To play M17 on continent seed 1, set Armaments and Fabric production to 1. Build a Ship-of-the-Line on turn 6, declare and sail on turn 7, set the site on turn 8, and land the four-ARMS army on turn 9. On turn 10 see the survivors at Sundmark and its colony vote in Council.
+
+## 2026-11-23 Task 28 — naval measurement and intercepted landings
+
+Size M. Count engagements for the campaign harness at battle resolution. Use the allied-cancellation casualty calculation for intercepted landings in the turn news.
+FR-559 exercises seed 2849 across two turns of contact. FR-556 exercises three accepted orders on seed 2 and checks the landing report against the regiment destroyed at its origin.
+Verify with the full local gate and the isolated performance suite. Preserve the FR-545, FR-546 and FR-125 campaign results.
+Objection: repeating news on a quiet turn or inferring casualties before retreats finish would make the fix misleading.
+
+| Claim | Evidence in `.gate/codex/28/` | Result |
+|---|---|---|
+| Both review findings reproduced on `b401e0e` | `red.txt` | “2 failed”. The quiet battle counted zero for both participants. The destroyed regiment's report said “Troops stayed at their origin.” |
+
+## 2026-11-23 Task 25 — M17 second review
+
+Size M. Share protected stock between expansion and defence, unify rail terrain, correct naval and land news, and pin the pre-battle save. A Frigate could delay recovery or change a Council vote, so rerun the frozen campaigns before committing.
+
+| Claim | Evidence in `.gate/codex/25/` | Result |
+|---|---|---|
+| FR-485/557, 555, 552, 560 | `red-worker-reserve.txt`, `red-rail-news.txt`, `red-cancellation.txt`, `green-worker-reserve.txt`, `focused.txt` | The Frigate spent recruitment lumber, Coast admitted track, unchanged contact repeated news, and a lost regiment had no recorded fate in the cancellation. After the fixes, “28 passed” and “161 passed” across the two focused runs. |
+| FR-558 historical replay | `fixture-provenance.txt`, `red-replay-oracle.txt`, `mutant.txt` | An injected extra lumber per warehouse passed the old test and failed against the recorded turn-3 position from `59fe854`. |
+| Protected campaigns and review | `before*.txt`, `after.txt`, `protected.txt`, `review.md` | FR-545 15/24, FR-546 13/24, FR-125 minimum 903/563 before and after. Zero changed plans across 280 private-order checks. Independent review approved. |
+| Local gate | `npm-test.txt`, `lint.txt`, `types.txt`, `build.txt`, `playwright.txt`, `perf.txt`, `roadmap.txt` | “3003 passed”, lint “0 errors, 2 warnings”, types and build exit 0, Chromium “139 passed”, isolated perf “2 passed” (FR-497 p95 21.2 ms), roadmap “PASS”. |
+
+## 2026-11-23 Task 23 — M17 review and Q145
+
+Size L. Resolve the seven Task 22 findings, then implement FR-552/560 and their public news under FR-556. Preserve the campaign guards, save compatibility and golden inputs. Objection: a defensive Frigate can delay the turn-five Indiaman; reserve the Q140 materials before purchasing it.
+
+| Claim | Command or evidence under `.gate/codex/23/` | Result |
+|---|---|---|
+| Unchanged campaign and score baseline | `baseline.txt` (M13/M14, scriptedScore, twoIslandsGolden) | "98 passed (98)"; FR-545 15/24, FR-546 13/24, lowest FR-125 903/563 on seed 3 turn 25. |
+| Contested and Coast ports, water separation, full freight capacity | `red-ports-rail.txt`, `green-ports-rail.txt` | "5 failed" before; "65 passed (65)" after. The 15-car run delivers five more units than its 10-car control. |
+| Merchant reserve, relief arrival and physical port count | `part-a-2-6-7-red.log`, `part-a-6-summary-red.log`, `part-a-2-scenario-stock.log` | "3 failed" before. On turn three the original exercise has 10 lumber, 7 reserved. The funded relief case adds the cost of one Indiaman to starting stock. |
+| Part A targeted regressions and guards | `part-a-2-6-7-green.log`, `guards-part-a.txt` | "101 passed (101)"; FR-545 15/24, FR-546 13/24, FR-125 903/563; zero private-order effects in 280 turns. |
+| Part A gate | `part-a/{npm-test,lint,types,build,playwright,perf,roadmap}.txt` | "2973 passed (2973)"; lint 0 errors and 2 pre-existing warnings; types and build exit 0; "138 passed"; "2 passed (2)" for isolated performance; roadmap "PASS". |
+| Seeded battle, allied priority and survivor damage | `red-fr552.log`, `red-allied.txt`, `fr552-final-focused.log`, `green-q145-news.txt` | "8 failed" and "5 failed" before; "59 passed" and "115 passed" in overlapping focused runs. |
+| Older battles retain their result through Continue and replay | `red-fr558-historical.log`, `green-fr558-historical.log`, `delta-review.md` | "2 failed" before; "56 passed (56)" after. The reviewer replayed the original full-hull save and two later turns. Divergent pre-Q145 sessions keep the original log and replay forward from their saved position. |
+| News in the running app | `q145-focused-browser.txt`; `q145-battle-report.png`, `q145-cancelled-attack.png` | "2 passed (31.7s)"; the report shows remaining hull and retreat, and cancellation names the captor and origin. |
+| Final guards | `guards-after.txt`, `protected-files.txt` | "98 passed (98)"; FR-545 15/24, FR-546 13/24, lowest FR-125 903/563 (1.603908×), FR-497 0 changed plans in 280 turns. Frozen policies, goldens and timeouts byte-matched the starting commit. |
+| Final gate | `part-b/{npm-test,lint,types,build,playwright,perf,roadmap}.txt` | "2997 passed (2997)"; lint "0 errors, 2 warnings"; types and build exit 0; "139 passed (12.0m)"; isolated performance "2 passed (2)", FR-497 p95 14.0 ms over 3,210 turns; roadmap "PASS". |
+
+## 2026-11-22 Task 21 — Sea war and reach
+
+Size L. Follow the [M17 lane plan and per-row test contracts](specs/m17.md#4-plan-for-one-implementation-run), T-01 through T-13.
+- Change and consumers — Shipyard commissions warships. Diplomacy, Army and the scripted defender submit editable Orders. Combat, collection, replay and the campaign harness consume the resolved state.
+- Row tests — FR-548/549/552 hulls, sailing and engagement. FR-550/551/553/554 reach, reservations, battle and freight. FR-555 rail. FR-556/557 controls and public defence. FR-558/559 saves, paired campaigns and frozen guards.
+- Verify — capture each red first, rerun protected campaigns, then functional tests, lint, types, build, Playwright and isolated performance. Review the diff and inspect the app before a local commit.
+- Objection: buying even one Frigate can displace production and lose a deciding Council vote. Measure FR-545 and FR-546 before and after and stop on a decline.
+- Owner decisions (2026-11-22) — Q144 one sail on connected water, then one turn establishing a site. Q145 the larger firepower sends the weaker squadron home intact, a tie blocks landing. Q146 defend only a publicly threatened port using commissioned ships or one affordable Frigate.
+
+- Three-power contacts use descending firepower, then nation and fleet IDs to settle simultaneous arrivals consistently. The final surviving forces determine which sites can dispatch.
+- Review regressions cover mixed sea/land attribution, declining an eligible landing, relief on the final turn using existing stocks, station invalidation by peace and simultaneous multi-power contact. Funding the defensive Frigate follows the ordinary production, trade and army commitments.
+
+### Tests first
+
+Each row has its original failing output in `.gate/codex/21/red-FR-<number>.txt`. The subsequent focused runs exercise the accepted Orders, resolved state and public events.
+
+| FR | Test file | Red observation |
+|---|---|---|
+| 548 | `tests/engine/navalFleet.test.ts` | Paying for a Frigate returned `invalid-target`. |
+| 549 | `tests/engine/navalFleet.test.ts` | A connected sail returned `invalid-target`. |
+| 550 | `tests/engine/seaArmy.test.ts` | A commissioned squadron and port army still returned `no-land-route`. |
+| 551 | `tests/engine/seaArmy.test.ts` | A supported overseas deployment returned `not-adjacent`. |
+| 552 | `tests/engine/navalFleet.test.ts` | Opposing squadrons emitted zero engagements, expected one. |
+| 553 | `tests/engine/seaArmy.test.ts` | An otherwise qualified, stored sea sortie produced zero land battles. |
+| 554 | `tests/engine/seaArmy.test.ts` | An isolated blockaded port delivered 3 cotton, expected zero. |
+| 555 | `tests/engine/railDeployment.test.ts` | Four cars permitted one ARMS and a full reservation accepted another regiment. |
+| 556 | `tests/ui/capitalDialog.test.tsx` and `e2e/m17-sea-war.spec.ts` | The Shipyard lacked the accessible Build one more Ship-of-the-Line control. |
+| 557 | `tests/engine/navalDefence.test.ts` | An active port threat returned zero defensive build or sail orders. |
+| 558 | `tests/store/navalReplay.test.ts` | The store refused the first warship Order in a midturn replay. |
+| 559 | `tests/engine/sim/navalCampaign.test.ts` | The harness observed zero resolved turns, expected turns 1 and 2. |
+
+### Checkpoint evidence
+
+| Claim | Command | Result quoted |
+|---|---|---|
+| Before, at `13d75ab` | Vitest M13/M14/M15 acceptance, scriptedScore and twoIslandsGolden, verbose (`guards-before.txt`) | `100 passed (100)`. Diplomat `15/24 games`, minor vote `13 of 24`, minimum `903/563 (1.60)`. |
+| Q144, Q145, Q146 recorded | `node .gate/m12/L4-check-roadmap.cjs` | `PASS` |
+| Identical frozen economies | `python .gate/codex/21/compare-campaigns.py` (`paired-campaigns.md`) | `48 paired campaigns, 1920 paired turns, 0 changed turns.` Both nations, idle/diplomat seeds 1 through 24. |
+| UI, battle results, restored freight and phone rail | Focused Chromium `m17-sea-war.spec.ts` (`e2e-FR-556.txt`) | `3 passed (30.9s)`. Interception kept the troops at origin. Port collection recovered from 0 cotton to 3. |
+| New Game, funded Ship-of-the-Line, colony and Council | Fresh Chromium run (`e2e-FR-556-new-game.txt`) | `1 passed (28.7s)`. The seed-1 ordinary production Orders supply the ship, survivors occupy Sundmark, its colony casts one vote. |
+| Protected campaigns after implementation | `npm test` (M13/M14/M15 acceptance, scriptedScore, twoIslandsGolden) | Diplomat `15/24 games`, FR-546 `13 of 24`, FR-125 `903/563 (1.60)`. FR-542 (i) `23 of 24`, FR-489 captures `21 of 24`, FR-516 `24/24 fleets reached eight holds by turn 25, maximum 8 holds actually used`. |
+| Functional suite | `npm test`; final tree `npm test -- --maxWorkers=4` | `2963 passed (2963)`, then `2964 passed (2964)` including the added three-power news assertion. Both runs exited 0. |
+| Privacy and invariants | `npm test`, strengthened FR-557 and news rerun in `final-privacy-news.txt` | `0 turns where Valdoria's plan changed without them` over 280 turns. Zero rejected computer orders, invariant breaks or idle no-pay disbands. With a public threat, all three private Order edits were accepted and the plan stayed identical. |
+| Lint and TypeScript | `npm run lint`; `npx tsc --noEmit` | `2 problems (0 errors, 2 warnings)`; `EXIT 0`. Warnings in unchanged useTransportAllocations and logisticsSystem test. |
+| Production build | `npm run build` | `Compiled successfully in 5.9s`, `Generating static pages (4/4)`, `EXIT 0`. Next reported multiple workspace lockfiles. |
+| Full Chromium suite | `PORT=3123 PLAYWRIGHT_HTML_OPEN=never npx playwright test --workers=1` | `138 passed (10.8m)`; `EXIT 0`. Report in `.gate/codex/21/playwright-html/`. |
+| Isolated timing gate after Chromium | `npm run test:perf` | `2 passed (2)`. FR-497 `p95 12.2 ms and max 42.5 ms over 3210 turns of 84 games` (100 ms limit). |
+
+The first full runs exposed missing fleet Order coverage in FR-003, a tile-only writer guard matching squadron construction, and a Vitest worker reporting timeout. The Shipyard uses the typed squadron factory, FR-003 exercises a commissioned Frigate, and the 48-campaign harness yields between games. The original timeouts and guarded rows are intact.
+
+Independent review approved after the three-power contact, same-turn peace, final-turn defence and landing measurement fixes. The review reran 18 regressions and independently compared both nations in all 1,920 paired turns. See `.gate/codex/21/review.md`. A further check asserts that each private rival Order is accepted, including a funded Shipyard edit, before comparing the defender's complete plan.
+
+The earlier headless seed-1 exercise attacks on turn four and loses the battle. It has two eligible turns and attempts one landing. The browser's turn-nine landing wins. In the two-power relief exercise a public threat on turn three funds one Frigate. Turn four produces an equal-firepower interception, zero land battles and a reopened port. With the same war and an unthreatened port, the computer orders zero hulls. In the matched turn-five snapshots, the defender produced four units with relief and eight in the control. Each carried four commercial units and paid $100 upkeep. See the per-turn commodity and treasury records in `.gate/codex/21/paired/`.
 
 ## 2026-11-22 Task 20 — Plan sea war and reach (T15)
 
@@ -77,103 +173,9 @@ The [M16 part 1 journal archive](journal/archive-M16-part-1.md) records the orig
 [The M15 journal archive](journal/archive-M15.md) preserves Task 07's implementation, review and browser checks
 and Task 09's original diplomat and Council replays. Task 10 records the owner's accepted 15/24 peaceful wins and 13/24 earned minor votes, each measured with the unchanged human policies.
 
-## 2026-11-20 M14 review fixes (Task 06)
+## 2026-11-20 M14 A game that can end well (archived)
 
-Size: M. Reproduce the three findings against `a1f3e74`, then correct the turn-40 test setup, Council forecast and finished-game scores.
-The affected screens are the Council forecast and voting rules, Nation and Final Scores.
-Test FR-507's turn-40 path with a fixed seed, FR-543 with a below-threshold election, and FR-544 with a finished save whose score differs under M14.
-Verify each red and green result, then run Vitest, ESLint, TypeScript, the production build and single-worker Chromium on port 3123.
-Objection: fixing the seed could hide an early election. Preserve the turn-40 assertions and the separate early-election coverage.
-
-| Claim | Command or evidence in `.gate/codex/06/` | Quoted result |
-|---|---|---|
-| Random games could finish early. Six scenarios now use seed 1. | Playwright on the two turn-40 cases with seed 63174040, then all six fixed-seed cases. Commands in `e2e-seed-audit.md`. | `2 failed` expecting `Turn: 31 of 40` after `Game over after turn 30 of 40` → `6 passed (3.5m)` |
-| The forecast used the ordinary threshold after the engine had elected a winner. It now reads the vote result. | Focused Vitest, `council-red.txt` and `council-green.txt` | `4 failed` → `197 passed`. The final 5–4 forecast now says `Testland wins on votes`. |
-| Nation and the HUD recalculated finished scores. Both now use the recorded score table. | Finished M13 seed 1 in `3-m13-red.txt` and `3-m13-green.txt`. UI regression in `3-red.txt` and focused suite in `3-green.txt`. | `Nation: 1363` → `Nation: 1443`, matching Final Scores. `1 failed` → `104 passed`. |
-| Unit suite and balance | `npm test` and baseline blob comparison in `balance.txt` | `Tests  2774 passed (2774)`. Lowest FR-125 ratio `t25 903/563 (1.60)`. Both original two-islands test blobs match `a1f3e74`. |
-| Lint, types and production build | `npm run lint`, `npx tsc --noEmit`, `npm run build` | `2 problems (0 errors, 2 warnings)`, types `Exit code 0`, build `Compiled successfully in 8.7s`, `Generating static pages (4/4)`. |
-| Full browser gate | `PORT=3123 PLAYWRIGHT_HTML_OPEN=never npx playwright test --workers=1` | `132 passed (9.6m)`, `Exit code 0`. |
-| Production browser check | `npx playwright test --config=.gate/codex/06/app-check.config.ts --workers=1` | `Final Scores — Valdoria 1443`, `Nation — Valdoria 1443`, `Testland 5, Valdoria 4, abstain 3 of 12; Testland wins on votes`. `2 passed (8.3s)`. |
-
-The independent delta review found no blocking issues (`review.md`). The workspace sandbox denied Node execution. All gate commands ran on the approved installed Node v22.22.0.
-
-## 2026-11-20 M14 A game that can end well
-
-Size: L. Resolve the final Council, make a peaceful election possible, and explain the result and conquered development.
-Consumers are End Turn, Council projections, HUD, Tile Info, How to play, final standings and version-1 saves.
-Plan: confirm FR-501 to FR-510, capture individual red logs, implement engine, UI and simulation tasks, run the full gate, independent review and browser QA.
-Verify with Vitest, lint, TypeScript, production build, single-worker Playwright on port 3123 and the roadmap check.
-Objection: a passive player can now lose early, and a final tie may be decided by the same land it won in battle.
-
-| Task | FR | Test assertion |
-|---|---|---|
-| T-01/02/03, Council | FR-501 | Only the last meeting removes the relation floor and breaks ties. A minor at war with both abstains. |
-| T-02/03, Council | FR-502 | A final result records threshold, vote count or standing, with intent order for an exact tie. |
-| T-02/03, Council | FR-503 | 7 of 12 elects with two Great Powers. Three or more require a strict two-thirds majority. |
-| T-04/05, UI | FR-504 | The winner ranks first. All nations have score, provinces, strength and standing. |
-| T-02/03, score | FR-505 | Only collected conquered levels count. Restoring home land restores its score. Jobs retain their points. |
-| T-04/05, UI | FR-506 | HUD, Council and How to play use the current threshold and final scheduled turn. |
-| T-04/05, UI | FR-507 | Continue a turn-39 save, play the final Council, then view the same result in final standings. |
-| T-04/05, UI | FR-508 | On two-islands a turn-limit result names the best score. |
-| T-06, simulations | FR-509 | Use 24 seeds per policy. Idle loses, a diplomat wins peacefully, and aggressor ends by conquest or Council. |
-| T-02/03, baselines | FR-510 | Pin actual continent outcomes and preserve the original two-islands orders and scores. |
-
-### Defaults taken before implementation
-
-- Q120 (a), default taken. At the final Council each free minor votes by relations with no 50-point floor. War with both nominees forces an abstention.
-  Objection: Even two weak nations now produce a final winner.
-- Q121 (a), default taken. With fewer than three Great Powers a strict majority elects a nominee (7 of 12). Three or more retain the two-thirds rule.
-  Objection: This departs from the original threshold and lets a computer win before turn 40.
-- Q122 (a), default taken. A tied final vote uses standing, then intent order.
-  Objection: Holding land helps win a tied vote through its standing bonus.
-- Q123 (a), default taken. Conquered development counts only where the owner can collect the tile.
-  Objection: A connected depot restores those points and the province still adds standing.
-- Q124 (a), default taken. On a world without provinces the turn limit names the nation with the best score.
-  Objection: Score alone decides the test world and is only one part of standing on the continent.
-
-### Red runs before the corresponding implementation
-
-Each log is in `.gate/codex/04/`. The per-row filters exclude tests belonging to other rows.
-
-| FR | Log | Vitest summary |
-|---|---|---|
-| FR-501 | `red-FR-501.txt` | `Tests  2 failed \| 66 skipped (68)` |
-| FR-502 | `red-FR-502.txt` | `Tests  4 failed \| 64 skipped (68)` |
-| FR-503 | `red-FR-503.txt` | `Tests  1 failed \| 67 skipped (68)` |
-| FR-504 | `red-FR-504.txt` | `Tests  2 failed \| 97 skipped (99)` |
-| FR-505 | `red-FR-505.txt` | `Tests  3 failed \| 1 passed \| 16 skipped (20)` |
-| FR-506 | `red-FR-506.txt` | `Tests  3 failed \| 96 skipped (99)` |
-| FR-507 | `red-FR-507.txt` | `Tests  4 failed \| 95 skipped (99)` |
-| FR-508 | `red-FR-508.txt` | `Tests  1 failed \| 98 skipped (99)` |
-| FR-509 | `red-FR-509.txt` | `Tests  4 failed \| 1 passed (5)` |
-| FR-510 | `red-FR-510.txt` | `Tests  1 failed \| 67 skipped (68)` |
-
-### Verification and balance
-
-All three policies played seeds 1 through 24. Every idle game elected Valdoria. Every diplomat game elected Testland with seven votes on turn 40. Each diplomat opened four consulates in four turns, kept its army on home soil, declared no war and paid one to five $1,000 grants. The human policy starts from the regular game and buys the first embassy at the scripted time and price. It favours a free minor whose support is contested, using public relations and borders. Grants require an established embassy and $3,000 left after payment. All 24 aggressor games ended at Council. The separate conquest test exercises a capital falling on a meeting turn.
-The identical final diplomat policy won 0/24 on the original M13 Council. Its contract tests still passed in that comparison (`red-FR-509-final-policy.txt`, `red-FR-509-final-policy-provenance.txt`). M13's voluntary minor-vote measure still reaches 18/24 under the original 50-point rule. The simulation records these separately from compulsory ballots.
-For the four world-market continent baselines, the final Testland/Valdoria votes are 6/6, 4/8, 7/5 and 4/8. The first is decided by Valdoria's standing. Excluding uncollected development changes Valdoria's final scores on seeds 1 and 3 from 1,443 to 1,363 and from 1,477 to 1,367. Each displaced pin names its old and new result. FR-125 and FR-464 keep their original test files.
-The independent review checked all ten rows and the old-save paths. Its fixes cover legacy score ordering, the Development tooltip, diplomat contract checks, the HUD threshold, and the Diplomacy facts shown after the last vote. The final scroll check put the longer Nation explanation behind a keyboard-operable disclosure. Review evidence is in `.gate/codex/04/review.md`.
-
-### App checks
-
-- HUD and How to play (QA 1-2): at 1280 px the threshold and next meeting both fit. The last digit of the turn ends at x311 inside the edge at x345. The full rule is also readable in Nation.
-- Continue and final Council (QA 3-5, 9): load turn 39, resolve turns 39 and 40, then see all governors vote, 6-6. Valdoria wins by standing (2,111 against 998). The final-scores button stays visible at 1280x720 and 800x600. The next screen says Defeat and ranks Valdoria first. Screenshot: `.gate/codex/04/m14-last-council.png`.
-- Arvelia (QA 6-7): real declare, march, attack and conquest on turn 2. On turn 3 the HUD went from 239 to 238, with 11 uncollected levels and zero additional development points. Tile Info explains the missing points. See `qa-turn2-score.txt`.
-- Early peaceful election (QA 8): Continue a crafted six-vote turn-10 save, pay Pellis $1,000 in Diplomacy, then End Turn. Testland wins 7/12. The 24 fresh diplomat games above all won at the last meeting.
-
-| Claim | Command | Result quoted |
-|---|---|---|
-| Unit and integration gate | `npm test` | `Test Files  127 passed (127)`, `Tests  2771 passed (2771)` |
-| Lint | `npm run lint` | `2 problems (0 errors, 2 warnings)`, exit 0 |
-| Types | `npx tsc --noEmit` | `Exit code 0` (no diagnostics) |
-| Production build | `npm run build` | `Compiled successfully in 7.5s`, `Generating static pages (4/4)`, `Exit code 0` |
-| Browser gate | `PORT=3123 PLAYWRIGHT_HTML_OPEN=never npx playwright test --workers=1` | `132 passed (13.7m)` |
-| Original two-islands guards | `npx vitest run tests/engine/score.test.ts tests/ui/scoreExplained.test.tsx tests/engine/provinces.test.ts tests/engine/scriptedScore.test.ts tests/engine/twoIslandsGolden.test.ts` | `Tests  87 passed (87)`, `t25 903/563 (1.60)` |
-| FR-509 acceptance | `npx vitest run tests/engine/sim/m14Acceptance.test.ts --reporter=verbose` | `24/24 games (required 18), 24 with a paid grant and 0 before the last meeting`, `Tests  6 passed (6)` |
-| FR-507 Continue and early election | `npx playwright test e2e/m14-endgame.spec.ts --workers=1` (port 3123; first two scenarios) | `2 passed (33.3s)` |
-| FR-505 played conquest | `npx playwright test --config=.gate/codex/04/qa-score.config.ts --workers=1` (port 3123) | `FR-505 HUD before attack: Score: 239 after conquest: Score: 238 current turn: 3` |
-| Roadmap | `node .gate/m12/L4-check-roadmap.cjs` and `node .gate/codex/04/check-report.cjs` | `PASS`, `M14 rendered as Built locally; five default-taken cards remain open.` |
+The final Council, peaceful campaign and UI review evidence are in [archive-M14.md](journal/archive-M14.md).
 
 ## 2026-11-20 M13 review fixes (PR 36, starting at fdbe870)
 

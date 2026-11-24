@@ -2,6 +2,7 @@ import { GameState } from "@/types/GameState";
 import { GameMap } from "@/types/Map";
 import { RailroadNode, RailroadNetworks, RailroadNetwork } from "@/types/Transport";
 import { isAdjacentToOcean } from "../map/mapHelpers";
+import { isPortClosed, portApproach } from "../navy/fleets";
 import type { TurnSystem } from "../turn/context";
 
 const key = (x: number, y: number) => `${x},${y}`;
@@ -54,7 +55,8 @@ const bfs = (
 
 const updateNetworkConnectivity = (
   network: RailroadNetwork,
-  map: GameMap
+  map: GameMap,
+  seaLinkOpen: (port: RailroadNode) => boolean
 ): void => {
   const { graph, capital, ports, depots } = network;
 
@@ -64,7 +66,7 @@ const updateNetworkConnectivity = (
   const starts: RailroadNode[] = capital ? [capital] : [];
   const reachableFromCapital = bfs(graph, starts);
 
-  const candidatePorts = ports.filter((p) => isAdjacentToOcean(map, p.x, p.y));
+  const candidatePorts = ports.filter((p) => isAdjacentToOcean(map, p.x, p.y) && seaLinkOpen(p));
   const reachableFromPorts = candidatePorts.length
     ? bfs(graph, candidatePorts)
     : new Set<string>();
@@ -97,7 +99,11 @@ export const transportConnectivitySystem: TurnSystem = (state: GameState): GameS
 
   for (const nationId in newNetworks) {
     const network = newNetworks[nationId];
-    updateNetworkConnectivity(network, state.map);
+    updateNetworkConnectivity(network, state.map, ({ x, y }) => {
+      if (!state.fleets.length) return true;
+      const shore = portApproach(state, state.map.tiles[y][x]);
+      return !shore || !isPortClosed(state, nationId, shore.provinceId, shore.seaId);
+    });
   }
 
   return {

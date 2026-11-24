@@ -22,6 +22,14 @@ The engine never imports React, Zustand, Next, the store, components or hooks, a
 DOM globals, `Math.random` or `Date.now`. An ESLint rule enforces this for `src/app/engine/**`
 (`eslint.config.mjs`, tested by `tests/engine/lintGuard.test.ts`).
 
+### M17 sea war and reach
+
+The Shipyard reserves hull costs from the catalogue in `definisions/ships.ts`. Commissioning creates operational ships in `GameState.fleets` after combat. Each nation indexes its own squadrons. Merchant holds continue to belong to its merchant marine.
+
+`engine/navy/approaches.ts` labels connected ocean hexes. A port or home berth has one outlet. A fleet Order moves a squadron on that sea, establishes a site on a later turn, or brings it home. The interception phase settles movement and public engagements before land combat. The combat and freight phases use the resolved positions. Ports connected independently by rail can continue collecting.
+
+Army Orders store the selected transport mode on existing per-regiment intents. The engine checks capacity on edit and dispatch, then sends qualified troops through the normal march or battle. Rail uses in-service cars and leaves the goods allowance intact. The scripted defender examines public port threats after its existing commitments. Optional mission and site fields allow older saves and their historical Orders to use the same turn loop.
+
 ### M16 technology
 
 The catalogue in `definisions/technologies.ts` records the manual's first year, prerequisite IDs, price and effect. The clock in `engine/technology.ts` scales the historical years to the saved game's turn limit. `TIME_CONFIG.TURN_LIMIT` remains the single default for future game lengths.
@@ -420,9 +428,9 @@ store.advanceTurn()                                      (tests and headless run
        game over already?  return the same state; each given order -> order-rejected game-over
        applyTurnOrders     orders given here, nations in state order (the computer nations')
        TURN_PHASES         development, diplomacy, trade (deals, then prices), disband and upkeep
-                           (M8), production (freight cars first), combat (M8: marches, healing),
-                           recruits (M8), interceptions, transportConnectivity, logistics,
-                           tradeDelivery (units bought), food
+                           (M8), production (freight cars first), fleet movement and interception,
+                           combat, recruits, Shipyard, transportConnectivity, logistics,
+                           tradeDelivery (units bought), food, University, technology
        promoteFreightCars  the cars built this turn go into service (FR-101, NR-016)
        resetWorkers        everyone may move again; working only while the job is unfinished
        advanceClock        turn + 1, year + 1 after winter (turn 1 = Spring 1815)
@@ -895,10 +903,7 @@ Orders only, every dialog renders `Modal.tsx`, only `components/art/inkArt.ts` n
 
 **Engine reads behind them**
 
-- **War needs a land route** (FR-406): `validateOverture` refuses war with `no-land-route` when `hasLandRoute(state,
-  nationId, countryId)` is false (a search over `adjacentProvinces` from the nation's provinces; false on a world
-  without provinces); the diplomacy phase checks again and fails the intent with the same reason. On the continent the
-  islands Lorran, Pellis and Sundmark cannot be attacked until ships exist.
+- **War needs a reachable province** (FR-406, FR-550). Diplomacy validates and rechecks either the land route or a commissioned squadron on a sea shared by an open embarkation port, an available regiment and the target coast.
 - **Scripted peace offers** (FR-408): `combatSystem` records each battle of a war in `War.battles` (`WarBattle`:
   `provinceId`, `turn`, `winnerId`, `loserId`); `beatenInWar(state, nationId, enemyId)` is true when the enemy took a
   province or won a battle; `ai/diplomacy.ts` proposes peace only then, and again after `SCRIPTED_DIPLOMACY.offerAgainTurns`
@@ -972,17 +977,12 @@ never imports `src/app/testing` (ESLint rule, FR-043, now FR-080).
 
 ## Not on the engine yet
 
-- Interceptions, rail and sea moves of armies, generals and medals are not built (Q37); diplomacy is built
-  in M6, armies and marches in M8, attacks, battles and conquest in M9. Trade between countries is built in
-  M7 on the continent; there is no Shipyard (holds do not grow, so a hold is never short at settlement
-  unless the holds drop after ordering). Since M9 a capture is recorded in the war, so FR-174's peace
-  condition (a) fires. Since M12 a war needs a land route (`hasLandRoute`, FR-406), so the island minors Lorran,
-  Pellis and Sundmark cannot be fought until armies can cross water (a later milestone).
+- Generals, medals, offensive naval campaigns by the computer and interception of merchant deals remain future work. M15 supplies merchant construction. M17 supplies operational warships, rail deployment and sea landings.
 - The maps are fixed templates, `engine/world/twoIslands.ts` (FR-080) and the continent's minor land in
   `engine/world/continent.ts` (FR-145): the same for every seed, so
   e2e specs and M4 can name tiles. Island 2 is island 1 shifted 12 columns (a shift along a row
   keeps the hex neighbours); `settleIsland(map, nationId, cityId, CAPITAL_SITES[i])` puts a capital
   on island i, raises its farm, orchard and plantation neighbours to level 1 and gives the nation
   the island. A new game settles only island 1. No coast or river tiles are placed (decision Q16).
-- Transport logic gaps from `docs/rules/04` (river ports, a depot on a port, blockades, town
+- Transport logic gaps from `docs/rules/04` (river ports, a depot on a port, town
   development) and the power plant are not modelled.

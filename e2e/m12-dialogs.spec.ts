@@ -120,7 +120,7 @@ test.describe('at 1280x720', () => {
     await select(page, 'Sundmark');
     const sundmark = country(page, 'Sundmark');
     await expect(sundmark.getByRole('button', { name: 'Declare war' })).toBeDisabled();
-    await expect(sundmark.getByTestId('reason')).toContainText(['Declare war: No army can reach Sundmark over land. War needs ships (a later milestone).']);
+    await expect(sundmark.getByTestId('reason')).toContainText(['Declare war: No army can reach Sundmark over land. Commission a warship at the Shipyard.']);
     await expect(sundmark.getByTestId('overture-help')).toHaveCount(5);
     await expect(sundmark.getByTestId('council-vote')).toHaveText(/^Sundmark: \d+ with us, \d+ with Valdoria; a vote needs 50 and more than the rival$/);
     await expect(sundmark.getByRole('group', { name: 'Strength' }).getByTestId('fact')).toHaveText([/^Provinces\s*\d+$/, /^Militia\s*\d+ regiments?$/]);

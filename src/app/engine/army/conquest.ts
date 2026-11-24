@@ -12,6 +12,7 @@ import type { GameEvent } from "../turn/context";
 import { isGreatPower, isMinorNation } from "../world/countries";
 import { provinceById, provincesOf, transferProvince } from "../world/provinces";
 import { capitalProvinceOf } from "./armies";
+import { withFleets } from "../navy/fleets";
 
 type Emit = (event: GameEvent) => void;
 
@@ -166,6 +167,11 @@ function fallNation(state: GameState, fallenId: NationId, winnerId: NationId, tu
   let s = state;
   for (const province of provincesOf(state, fallenId)) s = passProvince(s, province.id, winnerId, turn, emit);
   s = { ...s, armies: s.armies.filter((a) => a.ownerId !== fallenId), diplomacy: endWarsOf(s.diplomacy, fallenId) };
+  if (s.fleets.some(f => f.ownerNationId === fallenId) || s.nations.find(n => n.id === fallenId)?.pendingWarships) {
+    s = withFleets(s, s.fleets.filter(f => f.ownerNationId !== fallenId));
+    s = { ...s, nations: s.nations.map(n => n.id === fallenId ? { ...n, pendingWarships: {} } : n),
+      intents: s.intents.filter(i => i.kind !== "fleet-mission" || i.nationId !== fallenId) };
+  }
   emit({ type: "nation-fallen", nationId: winnerId, fallenId });
   for (const colony of s.minorNations.filter((m) => m.colonyOf === fallenId)) s = makeColony(s, colony.id, winnerId, emit);
   return s;

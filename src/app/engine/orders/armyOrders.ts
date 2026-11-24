@@ -10,6 +10,8 @@ import { GoodsType, ResourceType } from "@/types/Resource";
 import { isMilitia, isRegimentType, RECRUITABLE_REGIMENTS, REGIMENTS } from "@/definisions/regiments";
 import { capitalProvinceOf, findRegiment, freeWorkersOf, isArmyIntent, recruitingOf, withRecruiting } from "../army/armies";
 import { warActive } from "../diplomacy/queries";
+import { validateRailDeployment } from "../army/railDeployment";
+import { validateSeaDeployment } from "../navy/seaArmy";
 import { adjacentProvinces, provinceById } from "../world/provinces";
 import { addIntent } from "../turn/intents";
 import type {
@@ -95,6 +97,9 @@ function validateMove(state: GameState, order: MoveArmyOrder): ValidationResult 
   if (!own.ok) return own;
   const to = provinceById(state, order.toProvinceId);
   if (!to) return reject("invalid-target");
+  if (order.via === "sea") return validateSeaDeployment(state, order);
+  if (order.via === "rail") return validateRailDeployment(state, order);
+  if (order.via !== undefined) return reject("invalid-target");
   if (!adjacentProvinces(state, order.fromProvinceId).some((p) => p.id === to.id)) return reject("not-adjacent");
   if (to.ownerId === order.nationId) return OK;
   // FR-205, FR-216: into another country's province only with a war active this turn (FR-167); that move is an attack
@@ -156,8 +161,8 @@ export function applyArmyOrder(state: GameState, order: ArmyOrder): GameState {
       // FR-216: into another country's province (validated: at war with it) the move is an attack on its owner
       const owner = provinceById(state, toProvinceId)!.ownerId;
       return owner === nationId
-        ? addIntent(cleared, { kind: "army-move", nationId, fromProvinceId, toProvinceId, regimentIds: [...regimentIds] })
-        : addIntent(cleared, { kind: "attack", nationId, targetId: owner, fromProvinceId, toProvinceId, regimentIds: [...regimentIds] });
+        ? addIntent(cleared, { kind: "army-move", nationId, fromProvinceId, toProvinceId, regimentIds: [...regimentIds], ...(order.via && { via: order.via }) })
+        : addIntent(cleared, { kind: "attack", nationId, targetId: owner, fromProvinceId, toProvinceId, regimentIds: [...regimentIds], ...(order.via === "sea" && { via: "sea" }) });
     }
     case "cancelArmyMove":
       return withoutRegiments(state, order.nationId, order.regimentIds, CANCELS.cancelArmyMove);

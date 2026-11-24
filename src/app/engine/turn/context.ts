@@ -1,7 +1,9 @@
 import type { GameState } from "@/types/GameState";
 import type { CountryId, MinorNationId, NationId, ProvinceId, TileId } from "@/types/Common";
 import type { BattleReport } from "@/types/Battle";
+import type { NavalBattleSide, NavalEngagement } from "@/types/Navy";
 import type { RegimentType } from "@/types/Unit";
+import type { TroopOutcome } from "@/types/Army";
 import type { GrantAmount, Overture, ProposalKind, WithdrawableOverture } from "@/types/Diplomacy";
 import type { ResourceType } from "@/types/Resource";
 import type { ConstructionKind } from "@/types/jobs/ConstructionJob";
@@ -15,6 +17,9 @@ import { createStreamRng, createTurnRng, RNG_STREAMS, type Rng, type RngStream }
 
 /** What happened during a turn, for news, UI feedback and AI players. */
 export type GameEvent =
+  | { type: "naval-engagement"; provinceId: ProvinceId; seaId: string;
+      sides: [NavalBattleSide, NavalBattleSide]; rounds?: number;
+      winnerId?: NationId; winnerContested?: true; winnerDisplaced?: true; laterHolderId?: NationId; landing: "held" | "blocked" | "none" }
   | { type: "new-invention"; techId: string }
   | { type: "order-rejected"; nationId: NationId; order: Order; reason: RejectReason }
   | { type: "resource-discovered"; tileId: TileId; nationId?: NationId; resource?: ResourceType }
@@ -81,7 +86,10 @@ export type GameEvent =
   /** The upkeep paid this turn (FR-202); none when it is 0. */
   | { type: "army-upkeep"; nationId: NationId; amount: number }
   /** Regiments of the nation marched along one route this turn (FR-206). */
-  | { type: "army-moved"; nationId: NationId; fromProvinceId: ProvinceId; toProvinceId: ProvinceId; count: number }
+  | { type: "army-moved"; nationId: NationId; fromProvinceId: ProvinceId; toProvinceId: ProvinceId; count: number; via?: "rail" | "sea" }
+  | { type: "attack-cancelled"; nationId: NationId; capturedById: CountryId; provinceId: ProvinceId; fromProvinceId: ProvinceId;
+      troops?: TroopOutcome }
+  | { type: "sea-deployment-failed"; nationId: NationId; fromProvinceId: ProvinceId; toProvinceId: ProvinceId; reason: RejectReason; troops?: TroopOutcome }
   /** Regiments left the army: by order (FR-207) or for want of upkeep money (FR-202). */
   | { type: "regiments-disbanded"; nationId: NationId; reason: DisbandReason; count: number }
   // War (M9). `nationId` is the attacking or conquering Great Power.
@@ -149,7 +157,9 @@ export interface TurnContext {
   readonly rngFor: (name: RngStream) => Rng;
   /** The orders accepted this turn, in the order they were applied. */
   readonly orders: readonly Order[];
-  readonly emit: (event: GameEvent) => void;
+  /** Finalize a report against the resolved state when a later phase can change its outcome. */
+  readonly emit: (event: GameEvent, finalize?: (end: GameState) => GameEvent) => void;
+  readonly onNavalEngagement?: (engagement: NavalEngagement) => void;
 }
 
 export type TurnSystem = (state: GameState, ctx: TurnContext) => GameState;
@@ -160,7 +170,8 @@ export interface TurnContextOptions {
   /** Overrides the (seed, turn) RNG; only the pre-M1 adapters pass one. */
   rng?: Rng;
   orders?: readonly Order[];
-  emit?: (event: GameEvent) => void;
+  emit?: TurnContext["emit"];
+  onNavalEngagement?: TurnContext["onNavalEngagement"];
 }
 
 export function createTurnContext(opts: TurnContextOptions): TurnContext {
@@ -182,6 +193,7 @@ export function createTurnContext(opts: TurnContextOptions): TurnContext {
     rng: opts.rng ?? createTurnRng(seed, nextTurn),
     rngFor,
     orders: opts.orders ?? [],
+    onNavalEngagement: opts.onNavalEngagement,
     emit: opts.emit ?? (() => {}),
   };
 }

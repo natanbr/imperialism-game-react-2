@@ -1,3 +1,4 @@
+import { ShipType } from '@/types/Navy';
 // FR-024: display text for the HUD's news and refusals, derived from engine data.
 import { beforeAll, describe, it, expect } from 'vitest';
 import {
@@ -18,6 +19,46 @@ const ALL_REASONS: RejectReason[] = [
 ];
 
 const prospect: Order = { kind: 'moveAndStartProspecting', nationId: 'nation-1', workerId: 'w', toTileId: '3-4' };
+
+it('FR-552/556 shows hull damage, losses and the holder to players and observers', () => {
+  const event: GameEvent = { type: 'naval-engagement', provinceId: 'Pellis', seaId: '0-0', rounds: 2,
+    sides: [{ nationId: 'Testland', firepower: 6, ships: [{ id: 'A', type: ShipType.ShipOfTheLine, hullBefore: 65, hullAfter: 64 }] },
+      { nationId: 'Carthia', firepower: 0, ships: [{ id: 'B', type: ShipType.Frigate, hullBefore: 2, hullAfter: 0 }] }],
+    winnerId: 'Testland', landing: 'held' };
+  expect(eventText({ ...event, winnerId: undefined, laterHolderId: 'Testland' })).toContain('The battle was drawn. Testland holds the approach after a later engagement. Landing site held.');
+  expect(eventText({ ...event, winnerDisplaced: true, landing: 'blocked' })).toContain('Testland won this battle but later lost the approach. Landing blocked.');
+  for (const reader of ['Testland', 'Carthia', 'Valdoria']) {
+    const [line] = newsLines([event], reader, id => id);
+    for (const expected of ['2 rounds', 'Ship-of-the-Line A', '1 damage', 'Frigate B', '2 damage, sunk', 'Testland holds the approach', 'Landing site held']) {
+      expect(line).toContain(expected);
+    }
+  }
+});
+
+it('FR-556/560 explains the cancelled attack and names the origin and the power that took the target', () => {
+  const event: GameEvent = { type: 'attack-cancelled', nationId: 'Testland', capturedById: 'Valdoria', provinceId: 'Pellis', fromProvinceId: 'Sundmark' };
+  expect(eventText(event)).toContain('The attack was ordered from Sundmark.');
+  expect(eventText({ ...event, troops: { lost: 1, relocated: 0, stayed: 0 } })).toContain('Waiting troops in Sundmark: 1 regiment lost.');
+  expect(newsLines([{ ...event, troops: { stayed: 1, relocated: 0, lost: 0 } }], 'Testland', id => id)).toEqual([
+    'Attack on Pellis cancelled. Valdoria captured it first. Troops stayed in Sundmark.',
+  ]);
+});
+
+it('FR-556 describes only known outcomes of troops whose landing was stopped', () => {
+  const event: GameEvent = { type: 'sea-deployment-failed', nationId: N1, fromProvinceId: 'Arvelia', toProvinceId: 'Sundmark', reason: 'no-landing-site' };
+  const reason = 'Landing from Arvelia to Sundmark stopped: there is no usable landing site at that coast.';
+  expect(eventText(event)).toBe(reason);
+  expect(eventText({ ...event, troops: { stayed: 2, relocated: 0, lost: 0 } })).toBe(reason + ' Troops stayed at their origin.');
+  expect(eventText({ ...event, troops: { stayed: 1, relocated: 1, lost: 2 } })).toBe(
+    reason + ' Waiting troops in Arvelia: 1 regiment stayed, 1 regiment retreated, 2 regiments lost.');
+});
+
+it('FR-552 reports when winning one engagement leaves the landing site contested by another squadron', () => {
+  const event: GameEvent = {type:'naval-engagement', provinceId:'Pellis', seaId:'0-0',
+    sides:[{nationId:'Testland',firepower:6},{nationId:'Carthia',firepower:3}],
+    winnerId:'Testland', winnerContested:true, landing:'blocked'};
+  expect(eventText(event)).toContain('Testland drove Carthia back to berth intact. The approach remains contested. Landing blocked.');
+});
 
 describe('FR-024 refusal text', () => {
   it('every refusal reason has plain words', () => {

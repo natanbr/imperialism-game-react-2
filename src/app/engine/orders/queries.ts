@@ -12,7 +12,7 @@ import {
 } from "@/definisions/terrainDefinitions";
 import type { ConstructionKind } from "@/types/jobs/ConstructionJob";
 import { parseTileIdToArray } from "@/utils/tileIdUtils";
-import { areTilesAdjacent, canBuildRailAt, getAdjacentTiles, isAdjacentToOcean } from "../map/mapHelpers";
+import { areTilesAdjacent, canBuildRailAt, getAdjacentTiles, isAdjacentToOcean, isRailLand } from "../map/mapHelpers";
 import { hasRailLink, isRailLinked } from "../systems/railroadSystem";
 
 export { availableTechnologies } from "../technology";
@@ -116,7 +116,7 @@ export const isRailSite = (state: GameState, tile: Tile, nationId: string): bool
 
 /** A tile a rail section may start from: the nation's own land with rail on it, its capital, a depot or a port. */
 export const isRailNode = (tile: Tile, nationId: string): boolean =>
-  tile.ownerNationId === nationId && isLand(tile) && !!(tile.connected || isCapital(tile) || tile.depot || tile.port);
+  tile.ownerNationId === nationId && isRailLand(tile) && !!(tile.connected || isCapital(tile) || tile.depot || tile.port);
 
 /**
  * The tile a rail section onto `to` starts from (FR-137): `named` when it is a rail node of the nation
@@ -141,7 +141,7 @@ export function railSectionStart(state: GameState, nationId: string, to: Tile, n
 export function railConstructionStart(state: GameState, nationId: string, tile: Tile, fromTileId?: string): Tile | undefined {
   if (fromTileId === undefined) return isRailSite(state, tile, nationId) ? railSectionStart(state, nationId, tile) : undefined;
   const named = tileById(state, fromTileId);
-  if (!named || tile.ownerNationId !== nationId || !isLand(tile) || !railTerrainAllowed(state, tile)) return undefined;
+  if (!named || tile.ownerNationId !== nationId || !isRailLand(tile) || !railTerrainAllowed(state, tile)) return undefined;
   return railSectionStart(state, nationId, tile, named);
 }
 

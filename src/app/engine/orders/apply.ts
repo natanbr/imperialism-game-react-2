@@ -19,6 +19,7 @@ import { applyArmyOrder } from "./armyOrders";
 import { applyCivilianOrder } from "./civilianOrders";
 import { applyTechnologyOrder } from "./technologyOrders";
 import { applyShipyard } from "./shipyardOrders";
+import { applyFleetMission } from "./fleetOrders";
 import {
   findWorker,
   holdsJob,
@@ -50,6 +51,8 @@ function applyValidOrder(state: GameState, order: Order): GameState {
       return applyTechnologyOrder(state, order);
     case "setShipyard":
       return applyShipyard(state, order);
+    case "setFleetMission":
+      return applyFleetMission(state, order);
     case "setUniversity":
     case "disbandCivilian":
     case "cancelDisbandCivilian":

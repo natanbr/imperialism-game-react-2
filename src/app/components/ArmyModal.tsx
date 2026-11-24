@@ -14,6 +14,7 @@ import {
   type RegimentRowView,
 } from "./army/armyView";
 import { RegimentPicture } from "./art/ArtPicture";
+import { DeploymentControls } from "./army/DeploymentControls";
 import styles from "./army/Army.module.css";
 import { UI_ICONS } from "./icons";
 import { GameIcon } from "./GameIcon";
@@ -66,7 +67,7 @@ interface RowProps {
 const RegimentRow: React.FC<RowProps> = ({ row, ticked, onTick, onSubmit }) => {
   const reasonId = useId();
   const statusClass =
-    row.status === "Disband ordered" ? styles.disbanding : row.cancel?.label === "Cancel attack" ? styles.attacking : row.cancel ? styles.marching : row.selectable ? "" : styles.militia;
+    row.status === "Disband ordered" ? styles.disbanding : row.cancel?.label === "Cancel attack" || row.cancel?.label === "Cancel landing" ? styles.attacking : row.cancel ? styles.marching : row.selectable ? "" : styles.militia;
   return (
     <tr data-testid={`regiment-${row.name}`}>
       <td>
@@ -237,7 +238,7 @@ const ArmyScreen: React.FC<{ provinceId: string }> = ({ provinceId }) => {
           No regiment of ours is here.
         </p>
       ) : (
-        <div className={styles.listPane}>
+        <div className={styles.listPane} role="region" aria-label="Regiments" tabIndex={0}>
           <table className={styles.table}>
             <thead>
               <tr>
@@ -329,6 +330,11 @@ const ArmyScreen: React.FC<{ provinceId: string }> = ({ provinceId }) => {
             <Reason id={disbandReasonId} control={disband} testId="disband-reason" />
           </div>
         </div>
+      )}
+
+      {view.rows.length > 0 && !view.militiaOnly && (
+        <DeploymentControls game={game} nationId={nationId} provinceId={provinceId} regimentIds={selectedIds}
+          onDeploy={order => { if (submitOrder(order).ok) clearTicks(); }} />
       )}
 
       {asking && selected.length > 0 && !view.militiaOnly && (

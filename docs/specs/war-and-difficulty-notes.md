@@ -46,6 +46,7 @@ A difficulty level becomes one object, `DifficultyProfile`, chosen at game start
    an expert can bait it by leaving a province weak (the Q115 objection).
 7. **Other levels of the same profile:** Council vote buying (Q117), recruiting to staff mills (Q116), trade with the
    rival (Q118), how fast it learns technologies (Q133). One profile, one place.
+8. **Navy (Q146, owner 2026-11-22):** Easy = M17's rule (defend a visibly threatened port with existing ships or one Frigate). Harder levels: build a fleet in advance according to position (island colonies, exposed coasts, a rival across water); prepare the attack fleet a few turns before a planned war; prepare the defence when another power is flagged aggressive (public signs only, FR-497: a declared war, a hostile fleet seen near its coast, falling relations).
 
 Levels to offer, as a first guess: Peaceful (never attacks an idle player), Standard (today's rules), Hard (earlier,
 more provinces, re-declares), Conquest (fights on, may take the capital). The 40-turn game then becomes the shortest of

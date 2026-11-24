@@ -19,7 +19,9 @@ import type { RejectReason } from "../orders/Order";
 import type { GameEvent, TurnContext, TurnSystem, WarCause } from "../turn/context";
 import { byIntentOrder } from "../turn/intents";
 import { levelOfPoints as levelOf, MAX_RELATION_POINTS, pairKey } from "../diplomacy/relations";
-import { hasLandRoute, intentCost, isDiplomacyIntent, proposalsOf } from "../diplomacy/queries";
+import { intentCost, isDiplomacyIntent, proposalsOf } from "../diplomacy/queries";
+import { canReachWar, reportFailedLanding } from "../navy/seaArmy";
+import { isAttackIntent } from "../army/armies";
 import { acceptsAlliance, acceptsPeace } from "../diplomacy/scriptedAnswers";
 
 const clampPoints = (points: number): number => Math.min(MAX_RELATION_POINTS, Math.max(0, points));
@@ -114,6 +116,9 @@ function makePeace(w: Work, proposerId: NationId, targetId: CountryId): void {
   const dropped = w.intents.filter(between);
   if (dropped.length === 0) return;
   w.intents = w.intents.filter((i) => !between(i));
+  for (const i of dropped) {
+    if (isAttackIntent(i) && i.via === "sea") reportFailedLanding(w.ctx, i, "not-at-war");
+  }
   for (const [nationId, otherId] of [[proposerId, targetId], [targetId, proposerId]]) {
     const count = dropped.filter((i) => i.nationId === nationId).length;
     if (count > 0) emit(w, { type: "attacks-cancelled", nationId, targetId: otherId, count });
@@ -174,7 +179,7 @@ function resolveWars(w: Work, list: readonly OvertureIntent[]): void {
       continue;
     }
     // FR-406: checked again like every intent (provinces do not move in this phase)
-    if (!hasLandRoute(w.state, i.nationId, i.targetId)) {
+    if (!canReachWar({ ...view(w), intents: w.intents }, i.nationId, i.targetId)) {
       fail(w, i, "no-land-route");
       continue;
     }

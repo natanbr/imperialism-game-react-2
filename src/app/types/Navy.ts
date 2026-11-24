@@ -1,5 +1,6 @@
 // types/Navy.ts
-import { NationId, SeaZoneId } from "./Common";
+import type { NationId, ProvinceId, SeaZoneId } from "./Common";
+import type { Intent } from "./Intent";
 
 export enum ShipType {
   Frigate = "frigate",
@@ -18,11 +19,26 @@ export interface Ship {
   firepower: number;
   range: number;      // combat range
   armour: number;
-  hull: number;
+  hull: number;       // full hull strength
+  /** Hull points lost. Absent on an undamaged ship, including old saves. */
+  hullDamage?: number;
   battleMove: number;
   speed: number;      // sea zones per turn
   experience: number; // medals 0..4
   flagship?: boolean;
+}
+
+export interface Approach {
+  provinceId: ProvinceId;
+  /** The lowest ocean tile in this connected sea, in row then column order. */
+  seaId: SeaZoneId;
+}
+
+export interface FleetMissionIntent extends Intent {
+  kind: "fleet-mission";
+  fleetId: string;
+  mission: "sail" | "station" | "return";
+  provinceId?: ProvinceId;
 }
 
 export interface Fleet {
@@ -31,6 +47,13 @@ export interface Fleet {
   ownerNationId: NationId;
   ships: Ship[];
   location: SeaZoneId;
+  /** At the home berth when absent. */
+  approach?: Approach;
+  /** The turn the landing site was established. Embarkation starts on the following turn. */
+  siteSinceTurn?: number;
+  contested?: boolean;
+  /** Opposing fleets still contesting the approach after this turn's battles. */
+  contestedWith?: string[];
   admiral?: {
     name: string;
     initiativeBonus: number;
@@ -39,4 +62,17 @@ export interface Fleet {
   aggression: "cautious" | "normal" | "bold";
   mission?: "patrol" | "blockade" | "landing" | "move";
   targetPortCityId?: string;
+}
+
+export interface NavalBattleSide {
+  nationId: NationId;
+  /** Firepower still afloat at the end of this engagement. */
+  firepower: number;
+  /** Pre-battle-report saves contain only the side's firepower. */
+  ships?: { id: string; type: ShipType; hullBefore: number; hullAfter: number }[];
+}
+
+export interface NavalEngagement extends Approach {
+  nationIds: [NationId, NationId];
+  rounds: number;
 }

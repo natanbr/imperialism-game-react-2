@@ -19,6 +19,7 @@ import {
   type WithdrawableOverture,
 } from "@/engine";
 import type { GameState } from "@/types/GameState";
+import { isWarship, WARSHIPS } from "@/definisions/ships";
 import { technologyById } from "@/definisions/technologies";
 import { TerrainType, type Tile } from "@/types/Tile";
 import { REGIMENTS, UPKEEP_PER_ARMS } from "@/definisions/regiments";
@@ -58,6 +59,7 @@ const ORDER_TEXT: Record<OrderKind, string> = {
   disbandCivilian: "Disband civilian",
   cancelDisbandCivilian: "Cancel civilian disband",
   setShipyard: "Shipyard",
+  setFleetMission: "Fleet order",
   buyTechnology: "Buy technology",
   withdrawTechnology: "Cancel technology purchase",
 };
@@ -94,7 +96,11 @@ export const REFUSAL_TEXT: Record<RejectReason, string> = {
   "no-buyer": "no one buys this",
   "buyers-barred": "we may not trade with any buyer",
   "not-adjacent": "that province does not border the army's province",
-  "no-land-route": "no army can reach them over land (that needs ships, a later milestone)",
+  "no-land-route": "no reachable land or sea route",
+  "no-landing-site": "there is no usable landing site at that coast",
+  "no-port-route": "an open port on the destination's sea is required",
+  "port-closed": "the port is blockaded",
+  "insufficient-naval-support": "the selected troops exceed the remaining naval ARMS allowance",
 };
 
 /** Why an offer passed the nation by, in the news and the Deal Book (FR-244). */
@@ -104,7 +110,8 @@ export const MISSED_TEXT: Record<OfferMissedReason, string> = {
 };
 
 export function refusalText({ order, reason }: { order: Order; reason: RejectReason }): string {
-  return `${ORDER_TEXT[order.kind]} refused: ${REFUSAL_TEXT[reason]}.`;
+  const action = order.kind === "moveArmy" && order.via ? (order.via === "rail" ? "Rail deployment" : "Sea deployment") : ORDER_TEXT[order.kind];
+  return `${action} refused: ${REFUSAL_TEXT[reason]}.`;
 }
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -335,6 +342,19 @@ export function tilePlaces(game: Pick<GameState, "map">, nameOf: (id: string) =>
 const tileOf = (event: GameEvent): string | undefined =>
   event.type === "resource-discovered" || event.type === "development-completed" || event.type === "construction-completed" ? event.tileId : undefined;
 
+function waitingTroopText(event: Extract<GameEvent, { type: "attack-cancelled" | "sea-deployment-failed" }>, from: string): string {
+  const troops = event.troops;
+  const landing = event.type === "sea-deployment-failed";
+  // Old news records predate final troop counts. The landing line already names its origin.
+  if (!troops) return landing ? "" : ` The attack was ordered from ${from}.`;
+  if (!troops.lost && !troops.relocated) return landing ? " Troops stayed at their origin." : ` Troops stayed in ${from}.`;
+  const outcomes = [];
+  if (troops.stayed) outcomes.push(`${regiments(troops.stayed)} stayed`);
+  if (troops.relocated) outcomes.push(`${regiments(troops.relocated)} retreated`);
+  if (troops.lost) outcomes.push(`${regiments(troops.lost)} lost`);
+  return ` Waiting troops in ${from}: ${outcomes.join(", ")}.`;
+}
+
 /**
  * One line of news for the event, or null when it is not news (the end of the turn). `nameOf` names the
  * countries a diplomacy line mentions (FR-176) and the provinces of a march (FR-209); without it their ids
@@ -399,8 +419,49 @@ export function eventText(event: GameEvent, nameOf: (countryId: string) => strin
       return `${event.count} ${REGIMENTS[event.regiment].name} not raised: our capital province is lost. Their cost is refunded.`;
     case "army-upkeep":
       return `Army upkeep: ${money(event.amount)}.`;
-    case "army-moved":
-      return `${regiments(event.count)} marched from ${nameOf(event.fromProvinceId)} to ${nameOf(event.toProvinceId)}.`;
+    case "army-moved": {
+      const action = event.via === "rail" ? "deployed by rail" : event.via === "sea" ? "sailed as reinforcements" : "marched";
+      return `${regiments(event.count)} ${action} from ${nameOf(event.fromProvinceId)} to ${nameOf(event.toProvinceId)}.`;
+    }
+    case "attack-cancelled": {
+      const reason = `Attack on ${nameOf(event.provinceId)} cancelled. ${nameOf(event.capturedById)} captured it first.`;
+      return reason + waitingTroopText(event, nameOf(event.fromProvinceId));
+    }
+    case "sea-deployment-failed": {
+      const from = nameOf(event.fromProvinceId);
+      return `Landing from ${from} to ${nameOf(event.toProvinceId)} stopped: ${REFUSAL_TEXT[event.reason]}.` + waitingTroopText(event, from);
+    }
+    case "naval-engagement": {
+      const forces = event.sides.map(side => `${nameOf(side.nationId)} ${side.firepower}`).join(" against ");
+      const loser = event.winnerId ? event.sides.find(side => side.nationId !== event.winnerId) : undefined;
+      const landing = event.landing === "blocked" ? " Landing blocked." : event.landing === "held" ? " Landing site held." : "";
+      // Older saved news records carry only the strengths and the outcome.
+      if (event.rounds === undefined) {
+        const result = !loser || !event.winnerId ? "Both squadrons remain and the approach is contested." :
+          event.winnerContested ? `${nameOf(event.winnerId)} drove ${nameOf(loser.nationId)} back to berth intact. The approach remains contested.` :
+          `${nameOf(event.winnerId)} holds the approach. ${nameOf(loser.nationId)} returned to berth intact.`;
+        return `Naval engagement off ${nameOf(event.provinceId)} (${forces} firepower). ${result}${landing}`;
+      }
+      const damage = event.sides.map(side => {
+        const ships = (side.ships ?? []).map(ship => {
+          const name = isWarship(ship.type) ? WARSHIPS[ship.type].name : ship.type;
+          const loss = ship.hullBefore - ship.hullAfter;
+          return `${name} ${ship.id} (${loss} damage, ${ship.hullAfter ? ship.hullAfter + " hull left" : "sunk"})`;
+        });
+        return `${nameOf(side.nationId)}: ${ships.join(", ")}.`;
+      });
+      let holder = event.laterHolderId
+        ? `The battle was drawn. ${nameOf(event.laterHolderId)} holds the approach after a later engagement.`
+        : "The approach is contested.";
+      if (event.winnerId) {
+        const victor = nameOf(event.winnerId);
+        if (event.winnerDisplaced) holder = `${victor} won this battle but later lost the approach.`;
+        else if (event.winnerContested) holder = `${victor} won this battle. The approach remains contested.`;
+        else holder = `${victor} holds the approach.`;
+      }
+      const retreat = loser?.ships?.some(ship => ship.hullAfter > 0) ? ` ${nameOf(loser.nationId)}'s survivors returned to berth.` : "";
+      return `Naval engagement off ${nameOf(event.provinceId)} after ${event.rounds} round${event.rounds === 1 ? "" : "s"} (${forces} firepower afloat). ${holder}${retreat}${landing} ${damage.join(" ")}`;
+    }
     case "regiments-disbanded":
       return event.reason === "no-pay" ? `${regiments(event.count)} disbanded: no money for their upkeep.` : `${regiments(event.count)} disbanded.`;
     // FR-232 (M9): the war news; `nationId` is the attacking or conquering Great Power
@@ -534,6 +595,7 @@ export function newsItems(events: readonly GameEvent[], playerId: string, nameOf
     if (line === null) continue;
     const nationId = "nationId" in event ? event.nationId : undefined;
     if (event.type === "council-met") council.push({ text: line, ...opens });
+    else if (event.type === "naval-engagement" && event.sides.some(side => side.nationId === playerId)) own.push({ text: line });
     else if (nationId === undefined) general.push({ text: line, ...opens });
     else if (nationId === playerId) own.push({ text: line, ...opens });
     else others.push({ text: `${nameOf(nationId)}: ${line}`, ...opens });
