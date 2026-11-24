@@ -8,7 +8,7 @@ import styles from "./council/Council.module.css";
 import { UI_ICONS } from "./icons";
 import { GameIcon } from "./GameIcon";
 import { Modal } from "./Modal";
-import { NationSwatch } from "./NationSwatch";
+import { NationFlag } from "./NationFlag";
 
 /** One meeting's report; keyed by the meeting, so a news line of another meeting starts fresh. */
 const CouncilReport: React.FC<{ event: CouncilMetEvent }> = ({ event }) => {
@@ -48,7 +48,7 @@ const CouncilReport: React.FC<{ event: CouncilMetEvent }> = ({ event }) => {
   };
   const head = (column: CouncilColumnView) => (
     <th scope="col" className={styles.nominee}>
-      <NationSwatch slot={column.colorSlot} />
+      <NationFlag nationId={column.nationId} size="large" />
       {column.name}
       {/* FR-313, FR-413: the columns follow the player, so the standing shows as a mark: "1st by standing" */}
       <span className={styles.rank} data-testid={`council-rank-${column.nationId}`}>

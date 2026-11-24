@@ -69,7 +69,7 @@ const TileComponentInner: React.FC<TileProps> = ({
     return country ? countryName(s.game, country) : undefined;
   });
   // A minor nation's capital carries its name (FR-153 d)
-  const minorCapitalName = useGameStore((s) => s.game.minorNations.find((m) => m.capitalTileId === tile.id)?.name);
+  const minorCapital = useGameStore((s) => s.game.minorNations.find((m) => m.capitalTileId === tile.id));
   // The other nation whose civilians stand here (FR-108); strings, so the subscription stays cheap
   const otherNationName = useGameStore((s) => {
     const id = tile.workers.find((w) => w.nationId !== s.activeNationId)?.nationId;
@@ -113,7 +113,7 @@ const TileComponentInner: React.FC<TileProps> = ({
   // A capital or town is the tile a player looks for: civilians or a minor's name tag on it draw its picture larger and
   // move the civilians to the corner, so it stays readable (FR-346)
   const crowded =
-    (tile.terrain === TerrainType.Capital || tile.terrain === TerrainType.Town) && (tile.workers.length > 0 || minorCapitalName !== undefined);
+    (tile.terrain === TerrainType.Capital || tile.terrain === TerrainType.Town) && (tile.workers.length > 0 || minorCapital !== undefined);
   // A depot or a port takes the top-right: the civilians move to the corner, below its drawing; a depot and a port stand
   // side by side along the top, and the level badge and job markers below them (FR-356)
   const station = !!tile.depot || !!tile.port;
@@ -163,7 +163,7 @@ const TileComponentInner: React.FC<TileProps> = ({
       tabbable={tabbable}
     >
       <TileIcon src={tileArt(tile)} crowded={crowded} />
-      {minorCapitalName !== undefined && <TileName name={minorCapitalName} />}
+      {minorCapital && <TileName minorId={minorCapital.id} name={minorCapital.name} />}
 
       {tile.resource && <TileResource resource={tile.resource} low={marksLow} />}
 
@@ -196,7 +196,7 @@ const TileComponentInner: React.FC<TileProps> = ({
         low={marksLow}
       />
 
-      {armyMarkers && armyMarkers.length > 0 && <TileArmy markers={armyMarkers} onOpen={openArmy} high={minorCapitalName !== undefined} low={crowded} />}
+      {armyMarkers && armyMarkers.length > 0 && <TileArmy markers={armyMarkers} onOpen={openArmy} high={minorCapital !== undefined} low={crowded} />}
     </TileBase>
   );
 };

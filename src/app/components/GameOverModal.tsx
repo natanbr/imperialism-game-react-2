@@ -7,7 +7,7 @@ import { dateText, groupedNumber } from "./gameText";
 import styles from "./market/Market.module.css";
 import { UI_ICONS } from "./icons";
 import { GameIcon } from "./GameIcon";
-import { NationSwatch } from "./NationSwatch";
+import { NationFlag } from "./NationFlag";
 import { Modal } from "./Modal";
 import { startNewGameOnCapital } from "@/hooks/mapActions";
 
@@ -124,7 +124,7 @@ export const GameOverModal: React.FC = () => {
                   <tr key={score.nationId} className={you ? styles.you : undefined} data-testid={`final-score-${score.nationId}`}>
                     <td data-testid="rank">{i + 1}</td>
                     <th scope="row" data-testid="nation">
-                      <NationSwatch slot={nationOf(score.nationId)?.colorSlot} />
+                      <NationFlag nationId={score.nationId} />
                       {nationOf(score.nationId)?.name ?? score.nationId}
                       {you ? " (you)" : ""}
                     </th>

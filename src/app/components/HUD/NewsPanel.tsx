@@ -4,6 +4,7 @@ import { dateText, newsItems, tilePlaces } from "../gameText";
 import { showTile } from "./showTile";
 import { TIME_CONFIG } from "@/constants/gameConstants";
 import { inventionNews } from "@/engine/technology";
+import { NationFlag } from "../NationFlag";
 
 /**
  * The news of the last resolved turn (FR-024; FR-569: a refused order is a toast now, components/Toasts.tsx): the player's lines first,
@@ -48,9 +49,10 @@ export const NewsPanel: React.FC = () => {
               {/* A scroll region the keyboard can reach (Tab, then the arrow keys, Page Down, End) */}
               <ul className="news-list" tabIndex={0} aria-labelledby={headingId} data-testid="news-list">
                 {news.map((item, i) => {
-                  const { battle, council, tileId } = item;
+                  const { battle, council, tileId, nationId } = item;
                   return (
-                    <li key={i}>
+                    <li key={i} className={nationId ? "news-flagged" : undefined}>
+                      {nationId && <NationFlag nationId={nationId} />}
                       {battle ? (
                         <button type="button" className="news-battle" onClick={() => showBattle(battle)}>
                           {item.text}

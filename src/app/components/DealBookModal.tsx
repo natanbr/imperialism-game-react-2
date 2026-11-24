@@ -11,6 +11,7 @@ import { GameIcon } from "./GameIcon";
 import { Modal } from "./Modal";
 import { InkPicture } from "./art/ArtPicture";
 import { goodsArt } from "./art/inkArt";
+import { NationFlag } from "./NationFlag";
 
 interface PageProps {
   title: "Sold" | "Bought" | "Not traded";
@@ -37,7 +38,9 @@ const Page: React.FC<PageProps> = ({ title, entries, lines, none, testId, classN
             const aside = entry.kind === "missed" || entry.kind === "unsold" || entry.kind === "unfilled";
             return (
               <li key={i} className={`${styles.ledgerLine} ${aside ? styles.ledgerAside : ""}`}>
-                <InkPicture src={goodsArt(entry.commodity)} alt="" inline />{line}
+                <InkPicture src={goodsArt(entry.commodity)} alt="" inline />
+                {"counterpartyId" in entry && entry.counterpartyId && <NationFlag nationId={entry.counterpartyId} />}
+                {line}
               </li>
             );
           })}
@@ -100,7 +103,8 @@ export const DealBookModal: React.FC = () => {
     <Modal titleId={titleId} onClose={close} overlayClassName={styles.overlay} className={styles.dealBook}>
       <header className={styles.header}>
         <h2 id={titleId}>
-          <GameIcon name={UI_ICONS.dealBook} />Deal Book — {nation?.name ?? "Unknown"}
+          <GameIcon name={UI_ICONS.dealBook} />Deal Book — {nation && <NationFlag nationId={nation.id} />}
+          {nation?.name ?? "Unknown"}
         </h2>
         <button onClick={close} className={styles.closeButton} aria-label="Close Deal Book">
           <span aria-hidden="true">×</span>

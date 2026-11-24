@@ -2,6 +2,9 @@
 import React, { useId, useRef } from "react";
 import type { CountryId } from "@/engine";
 import { relationColor } from "@/styles/theme";
+import { NationFlag } from "../NationFlag";
+import { nationMark } from "../nationMark";
+import { useGameStore } from "@/store/rootStore";
 import type { CountryRowView } from "./diplomacyView";
 import styles from "./Diplomacy.module.css";
 
@@ -27,6 +30,10 @@ const CountryTab: React.FC<CountryTabProps> = ({ row, selected, panelId, onSelec
   const ordered = row.ordered.length;
   const offered = row.offers.length > 0;
   const describedBy = [infoId, ordered > 0 && markId, offered && offerId].filter(Boolean).join(" ");
+  // FR-564: the card's left edge in the country's colour, as its flag
+  const nations = useGameStore((s) => s.game.nations);
+  const minorNations = useGameStore((s) => s.game.minorNations);
+  const edge = nationMark({ nations, minorNations }, row.id).colour;
   return (
     <button
       ref={tabRef}
@@ -40,9 +47,11 @@ const CountryTab: React.FC<CountryTabProps> = ({ row, selected, panelId, onSelec
       className={`${styles.tab} ${selected ? styles.tabSelected : ""}`}
       onClick={onSelect}
       data-testid={`country-tab-${row.id}`}
+      style={{ borderLeftColor: edge }}
     >
       <span className={styles.tabTop}>
         <span id={nameId} className={styles.tabName}>
+          <NationFlag nationId={row.id} size="large" />
           {row.name}
         </span>
         {ordered > 0 && (

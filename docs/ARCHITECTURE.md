@@ -767,8 +767,8 @@ Tile Info (or the line "No tile selected", FR-470), the alerts (`HUD/Alerts.tsx`
 wars, idle civilians, FR-471), the news of the last turn and the last refused order (`components/HUD/NewsPanel.tsx`;
 `newsLines` puts the player's lines first and names the other nations on theirs), then three groups closed by default
 (`HUD/HudGroups.tsx`, the WAI-ARIA accordion, open state in `HUD`'s component state, never in the store or the save,
-FR-473): Nation (Council projection, score parts, every nation ranked by score with its colour swatch and name,
-`HUD/ScoreTable.tsx`, `NationSwatch.tsx`, upkeep and treasury lines), Work in progress and Details for bug reports. Their
+FR-473): Nation (Council projection, score parts, every nation ranked by score with its flag mark and name,
+`HUD/ScoreTable.tsx`, `NationFlag.tsx`, upkeep and treasury lines), Work in progress and Details for bug reports. Their
 texts come from pure helpers in `HUD/hudView.ts` (`workInProgressRows`, `leftInWindow` for what hangs from the bar and others), tested without React.
 On the Demo level (FR-562) the top bar adds a Dashboard button (`HUD/DebugDashboard.tsx`, a portal `Modal`, open state in
 the bar's component state): one card per Great Power in its nation colour, with section buttons; its lines come from

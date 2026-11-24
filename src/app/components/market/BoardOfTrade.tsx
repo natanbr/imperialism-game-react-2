@@ -13,6 +13,7 @@ import { GameIcon } from "../GameIcon";
 import { Modal } from "../Modal";
 import { InkPicture } from "../art/ArtPicture";
 import { goodsArt } from "../art/inkArt";
+import { NationFlag } from "../NationFlag";
 
 /** "Sellers: Arvelia: 4 units (no consulate) …": the minors on one row, the barrier marked in words. */
 const PartnerList: React.FC<{ label: "Sellers" | "Buyers"; partners: PartnerView[]; testId: string }> = ({ label, partners, testId }) => (
@@ -24,6 +25,7 @@ const PartnerList: React.FC<{ label: "Sellers" | "Buyers"; partners: PartnerView
     <ul className={styles.partnerList} aria-label={label}>
       {partners.map((p) => (
         <li key={p.minorId} className={`${styles.partner} ${p.barrier ? styles.partnerBlocked : ""}`}>
+          <NationFlag nationId={p.minorId} />
           <span>{p.text}</span>
           {p.barrier && (
             <>
@@ -79,7 +81,8 @@ export const BoardOfTrade: React.FC = () => {
     <Modal titleId={titleId} describedBy={noteId} onClose={close} overlayClassName={styles.overlay} className={styles.board}>
       <header className={styles.header}>
         <h2 id={titleId}>
-          <GameIcon name={UI_ICONS.market} />Board of Trade — {nation?.name ?? "Unknown"}
+          <GameIcon name={UI_ICONS.market} />Board of Trade — {nation && <NationFlag nationId={nation.id} />}
+          {nation?.name ?? "Unknown"}
         </h2>
         {view && (
           <div className={styles.boardSummary}>

@@ -81,7 +81,7 @@
   min-width: 0;
   padding: 8px 10px 10px;
   border: 1px solid var(--color-border);
-  border-top: 6px solid var(--nation-colour);
+  border-left: 6px solid var(--nation-colour);
   border-radius: var(--radius-sm);
   background: var(--color-surface-raised);
 }

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // FR-153 (M5): the map draws (a) the Great Power borders as before, (b) a dotted line between two
-// provinces of the same owner, (c) each minor nation's border dashed in --color-minor, and (d) the
+// provinces of the same owner, (c) each minor nation's border dashed in its own colour (FR-564; was --color-minor), and (d) the
 // minor's name on its capital tile beside the capital icon. A new continent game shows 2 Great Power
 // borders, 8 Great Power provinces and 4 minor names; two-islands (no provinces, no minors) is as before. FR-327 (M11):
 // each border line lies on a pale halo path (the pack's territory-line halo colour), the lines themselves unchanged.
@@ -14,7 +14,7 @@ import { minorBorderSegments, provinceBorderSegments, territoryBorderSegments } 
 import { useGameStore } from '@/store/rootStore';
 import { newGame } from '@/engine';
 import { getNeighborCoords } from '@/engine/map/mapHelpers';
-import { NATION_COLORS, THEME } from '@/styles/theme';
+import { MINOR_COLORS, NATION_COLORS, THEME } from '@/styles/theme';
 import type { GameState } from '@/types/GameState';
 import type { Tile } from '@/types/Tile';
 import { failOnActWarnings } from './actWarnings';
@@ -141,7 +141,7 @@ describe('FR-153 (c) minor nation borders', () => {
 });
 
 describe('FR-153 MapView on a new continent game', () => {
-  it('FR-153 (a) to (c) 2 Great Power borders in slot colours, 2 dotted province paths, 4 dashed minor borders in --color-minor', () => {
+  it('FR-153 (a) to (c) 2 Great Power borders in slot colours, 2 dotted province paths, 4 dashed minor borders, each in its own colour (FR-564)', () => {
     show(continent);
     const { container, unmount } = render(<MapView />);
     const paths = (id: string) => [...container.querySelectorAll(`[data-testid="${id}"]`)];
@@ -156,7 +156,8 @@ describe('FR-153 MapView on a new continent game', () => {
 
     const minors = paths('minor-border');
     expect(minors.map((p) => p.getAttribute('data-minor-id'))).toEqual(['minor-1', 'minor-2', 'minor-3', 'minor-4']);
-    expect(minors.every((p) => p.getAttribute('stroke') === THEME.minor)).toBe(true);
+    // FR-564: each minor's border in its own colour
+    expect(minors.map((p) => p.getAttribute('stroke'))).toEqual(MINOR_COLORS);
     expect([...provinces, ...minors, ...gp].every((p) => p.tagName.toLowerCase() === 'path' && (p.getAttribute('d') ?? '').length > 0)).toBe(true);
     unmount();
   });

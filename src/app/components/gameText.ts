@@ -552,6 +552,8 @@ export interface NewsItem {
   council?: CouncilMetEvent;
   /** The tile a line is about (FR-375): the news panel selects it and scrolls it into view (FR-376). */
   tileId?: string;
+  /** Another nation's line, which starts with its name: the panel puts its flag first (FR-564). */
+  nationId?: string;
 }
 
 /**
@@ -598,7 +600,7 @@ export function newsItems(events: readonly GameEvent[], playerId: string, nameOf
     else if (event.type === "naval-engagement" && event.sides.some(side => side.nationId === playerId)) own.push({ text: line });
     else if (nationId === undefined) general.push({ text: line, ...opens });
     else if (nationId === playerId) own.push({ text: line, ...opens });
-    else others.push({ text: `${nameOf(nationId)}: ${line}`, ...opens });
+    else others.push({ text: `${nameOf(nationId)}: ${line}`, nationId, ...opens });
   }
   return [...council, ...own, ...others, ...general];
 }

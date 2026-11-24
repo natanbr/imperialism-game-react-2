@@ -43,7 +43,6 @@ export interface CouncilCellView {
 export interface CouncilColumnView {
   nationId: string;
   name: string;
-  colorSlot: number | undefined;
   /** "1st by standing" or "2nd by standing" (FR-313, FR-413): the standing, as the columns follow the player */
   rank: string;
   cells: Record<CouncilTableRow, CouncilCellView>;
@@ -111,7 +110,6 @@ export function abstentionReason(abstention: CouncilAbstention, order: readonly 
 export function councilView(event: CouncilMetEvent, game: GameState, playerId: string): CouncilView {
   const provinceName = (id: string) => game.provinces.find((p) => p.id === id)?.name ?? id;
   const countryName = (id: string) => game.nations.find((n) => n.id === id)?.name ?? game.minorNations.find((m) => m.id === id)?.name ?? id;
-  const nationOf = (id: string) => game.nations.find((n) => n.id === id);
   const unusedRowNote = game.nations.length < 3 ? ONLY_TWO_POWERS_NOTE : undefined;
   const column = (nationId: string): CouncilColumnView => {
     const index = event.nominees.findIndex((n) => n.nationId === nationId);
@@ -125,7 +123,6 @@ export function councilView(event: CouncilMetEvent, game: GameState, playerId: s
     return {
       nationId,
       name: countryName(nationId),
-      colorSlot: nationOf(nationId)?.colorSlot,
       rank: RANK_TEXT[index],
       cells: Object.fromEntries(COUNCIL_TABLE_ROWS.map((row) => [row, cell(row)])) as Record<CouncilTableRow, CouncilCellView>,
     };

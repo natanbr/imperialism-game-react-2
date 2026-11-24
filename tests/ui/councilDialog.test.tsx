@@ -120,9 +120,9 @@ describe('FR-298 the Council screen: what it shows', () => {
     const heads = within(table()).getAllByRole('columnheader');
     expect(heads.map((h) => text(h))).toEqual(['Testland 1st by standing', 'Valdoria 2nd by standing']);
     expect(heads.map((h) => h.getAttribute('scope'))).toEqual(['col', 'col']);
-    for (const head of heads) expect(within(head).getByTestId('swatch').getAttribute('aria-hidden')).toBe('true');
-    expect((within(heads[0]).getByTestId('swatch') as HTMLElement).style.backgroundColor).toBe('var(--color-nation-1)');
-    expect((within(heads[1]).getByTestId('swatch') as HTMLElement).style.backgroundColor).toBe('var(--color-nation-2)');
+    for (const head of heads) expect(within(head).getByTestId('nation-flag').getAttribute('aria-hidden')).toBe('true');
+    expect((within(heads[0]).getByTestId('nation-flag') as HTMLElement).style.color).toBe('var(--color-nation-1)');
+    expect((within(heads[1]).getByTestId('nation-flag') as HTMLElement).style.color).toBe('var(--color-nation-2)');
 
     const rowHeads = within(table()).getAllByRole('rowheader');
     expect(rowHeads.map((h) => text(h))).toEqual(['Controlled', 'Colonies', `Other Great Powers ${NOTE}`, 'Other Minor Nations', 'Total']);

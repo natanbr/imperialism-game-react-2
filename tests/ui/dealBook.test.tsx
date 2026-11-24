@@ -80,7 +80,8 @@ describe('FR-195 the Deal Book', () => {
     expect(sold[0].firstElementChild?.tagName.toLowerCase()).toBe('img');
     expect(sold[0].querySelector('img')?.getAttribute('data-art')).toBe('goods/clothing.png');
     expect(sold[0].querySelector('img')?.getAttribute('alt')).toBe('');
-    expect(sold[0].querySelector('svg')).toBeNull();
+    // No Game Icon: the line's one svg is its partner's flag (FR-564)
+    expect([...sold[0].querySelectorAll('svg')].map((svg) => svg.parentElement?.getAttribute('data-testid'))).toEqual(['nation-flag']);
     const notTraded = within(within(dialog()).getByRole('list', { name: 'Not traded' })).getAllByRole('listitem');
     expect(notTraded.map((li) => li.querySelector('img')?.getAttribute('data-art'))).toEqual(['goods/furniture.png', 'goods/iron-ore.png']);
   });

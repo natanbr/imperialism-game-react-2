@@ -53,9 +53,9 @@ describe('FR-106 score table', () => {
     expect(rows.map((r) => r.dataset.testid)).toEqual([`score-row-${N1}`, `score-row-${N2}`]);
     // FR-104: equal start scores
     expect(rows.map(text)).toEqual(['1 Testland (you) 240', '2 Valdoria 240']);
-    const swatches = rows.map((r) => within(r).getByTestId('swatch'));
+    const swatches = rows.map((r) => within(r).getByTestId('nation-flag'));
     expect(swatches.map((s) => s.getAttribute('aria-hidden'))).toEqual(['true', 'true']);
-    expect(swatches.map((s) => s.style.backgroundColor)).toEqual([NATION_COLORS[0], NATION_COLORS[1]]);
+    expect(swatches.map((s) => s.style.color)).toEqual([NATION_COLORS[0], NATION_COLORS[1]]);
     // The name is text, never only the colour
     expect(text(within(rows[1]).getByTestId('nation'))).toBe('Valdoria');
   });
@@ -70,7 +70,7 @@ describe('FR-106 score table', () => {
     expect(rows.map((r) => text(within(r).getByTestId('total')))).toEqual(totals);
     expect(rows.map((r) => text(within(r).getByTestId('rank')))).toEqual(['1', '2']);
     // The swatch keeps the nation's slot colour whatever its rank (FR-097)
-    expect(within(rows[0]).getByTestId('swatch').style.backgroundColor).toBe(NATION_COLORS[1]);
+    expect(within(rows[0]).getByTestId('nation-flag').style.color).toBe(NATION_COLORS[1]);
   });
 
   it("FR-106 the HUD shows the player's score and the table", () => {
@@ -99,9 +99,9 @@ describe('FR-106 score table', () => {
       const id = row.dataset.testid!.replace('final-score-', '');
       const nation = within(row).getByTestId('nation');
       expect(text(nation)).toBe(id === N1 ? 'Testland (you)' : 'Valdoria');
-      const swatch = within(nation).getByTestId('swatch');
+      const swatch = within(nation).getByTestId('nation-flag');
       expect(swatch.getAttribute('aria-hidden')).toBe('true');
-      expect(swatch.style.backgroundColor).toBe(id === N1 ? NATION_COLORS[0] : NATION_COLORS[1]);
+      expect(swatch.style.color).toBe(id === N1 ? NATION_COLORS[0] : NATION_COLORS[1]);
     }
   });
 });
