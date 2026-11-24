@@ -90,7 +90,7 @@ test('FR-494 FR-491 FR-492 a saved game where Valdoria bid for 2 steel last turn
   await offerPlus.click();
   await expect(steelRow(page).getByTestId('offer')).toHaveText('1');
   await expect(steelRow(page).getByTestId('available')).toHaveText('2');
-  await expect(board(page).getByTestId('market-refusal')).toHaveCount(0);
+  await expect(page.getByTestId('toast')).toHaveCount(0);
   if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/m13-board-steel.png` });
   await closeBoard(page);
 

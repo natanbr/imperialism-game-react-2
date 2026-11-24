@@ -1,12 +1,12 @@
 import React, { useId } from "react";
 import { useGameStore } from "@/store/rootStore";
-import { dateText, newsItems, refusalText, tilePlaces } from "../gameText";
+import { dateText, newsItems, tilePlaces } from "../gameText";
 import { showTile } from "./showTile";
 import { TIME_CONFIG } from "@/constants/gameConstants";
 import { inventionNews } from "@/engine/technology";
 
 /**
- * The last refused order and the news of the last resolved turn (FR-024): the player's lines first,
+ * The news of the last resolved turn (FR-024; FR-569: a refused order is a toast now, components/Toasts.tsx): the player's lines first,
  * then each other nation's lines under its name (FR-107). The lines are their own scroll region (FR-268): it fills the
  * HUD's space left above the fade (FR-235) in whole lines, so no line is cut behind the fade, and Tab reaches it.
  * A battle's line is a button that opens its Battle screen (FR-232), a Council meeting's line one that opens its Council
@@ -14,7 +14,6 @@ import { inventionNews } from "@/engine/technology";
  * focus to Tile Info (`showTile`, shared with the Work in progress rows).
  */
 export const NewsPanel: React.FC = () => {
-  const lastRejection = useGameStore((s) => s.lastRejection);
   const lastReport = useGameStore((s) => s.eventLog[s.eventLog.length - 1]);
   const activeNationId = useGameStore((s) => s.activeNationId);
   const nations = useGameStore((s) => s.game.nations);
@@ -36,11 +35,6 @@ export const NewsPanel: React.FC = () => {
 
   return (
     <div className="news-panel" data-testid="news-panel">
-      {lastRejection && (
-        <div role="status" data-testid="order-refusal" className="news-refusal">
-          {refusalText(lastRejection)}
-        </div>
-      )}
       {(lastReport || news.length > 0) && (
         <>
           {/* FR-280: the news are the last resolved turn's, so the heading names it beside the HUD's current turn */}

@@ -3,7 +3,6 @@ import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useStat
 import { useGameStore } from "../store/rootStore";
 import { selectActiveNation } from "../store/selectors";
 import TransportAllocationModal from "./TransportAllocationModal";
-import { refusalText } from "./gameText";
 import { labourView, productionCards } from "./capital/capitalView";
 import { ProductionCard } from "./capital/ProductionCard";
 import { LabourPanel } from "./capital/LabourPanel";
@@ -58,7 +57,6 @@ export const CapitalModal: React.FC = () => {
   // Regiments need provinces: the Armoury is on the continent only (FR-212)
   const hasProvinces = useGameStore((s) => s.game.provinces.length > 0);
   const submitOrder = useGameStore((s) => s.submitOrder);
-  const lastRejection = useGameStore((s) => s.lastRejection);
   const game = useGameStore((s) => s.game);
   const nation = useGameStore(selectActiveNation);
   const [isAllocOpen, setAllocOpen] = useState(false);
@@ -99,11 +97,6 @@ export const CapitalModal: React.FC = () => {
           </button>
         </header>
 
-        {lastRejection && (
-          <div className={styles.refusal} role="alert" data-testid="capital-refusal">
-            {refusalText(lastRejection)}
-          </div>
-        )}
 
         {nation && labour && (
           <div className={styles.body}>

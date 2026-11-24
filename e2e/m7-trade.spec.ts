@@ -89,7 +89,7 @@ test('FR-197 FR-194 FR-195 a consulate with Arvelia and 2 coal bid on the Board 
   await expect(board(page).getByTestId('market-holds')).toHaveText('Holds: 2 of 4 free');
   await expect(board(page).getByTestId('market-bids')).toHaveText('Buying: 1 of 4');
   await expect(board(page).getByTestId('market-cash')).toHaveText(`Cash: $${(start - 700).toLocaleString('en-US')}`);
-  await expect(board(page).getByTestId('market-refusal')).toHaveCount(0);
+  await expect(page.getByTestId('toast')).toHaveCount(0);
   if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/m7-board.png` });
   await closeBoard(page);
 

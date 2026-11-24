@@ -19,6 +19,7 @@ import { act, fireEvent, render, renderHook, screen, within } from '@testing-lib
 import Home from '@/page';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { DiplomacyModal } from '@/components/DiplomacyModal';
+import { Toasts } from '@/components/Toasts';
 import { AcceptOfferModal } from '@/components/AcceptOfferModal';
 import { CapitalModal } from '@/components/CapitalModal';
 import { ActionButtons } from '@/components/HUD/index';
@@ -79,7 +80,7 @@ function show(state: GameState, ui: Partial<ReturnType<typeof useGameStore.getSt
 /** Opens the Diplomacy dialog on `state`. */
 function openDiplomacy(state: GameState) {
   show(state, { isDiplomacyOpen: true });
-  return render(<DiplomacyModal />);
+  return render(<><DiplomacyModal /><Toasts /></>);
 }
 
 // FR-236: the dialog is named by its title (was aria-label "Diplomacy")
@@ -501,7 +502,8 @@ describe('FR-178 the Diplomacy screen: the overtures', () => {
     act(() => {
       useGameStore.getState().submitOrder({ kind: 'proposeOverture', nationId: N1, overture: 'embassy', targetId: ARVELIA });
     });
-    expect(text(within(dialog()).getByRole('alert'))).toBe('Overture refused: we need a consulate there first.');
+    // FR-569: a toast over the page, outside the dialog
+    expect(text(within(screen.getByTestId('toast-alerts')).getByTestId('toast-text'))).toBe('Overture refused: we need a consulate there first.');
   });
 });
 

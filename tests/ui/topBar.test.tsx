@@ -556,7 +556,7 @@ describe('FR-477 nothing lost: the whole page', () => {
       // the pane: Tile Info, the alerts, the news
       'tile-info', 'tile-terrain', 'tile-owner', 'tile-province',
       'not-saved', 'food-warning', 'upkeep-warning', 'at-war', 'idle-civilians',
-      'news-panel', 'order-refusal', 'news-list',
+      'news-panel', 'news-list',
       // the groups and the Stats dialog
       'council-projection', 'nation-score-parts', 'score-table', `score-row-${N1}`, `score-row-${N2}`, 'upkeep-forecast', 'treasury-last-turn',
     ];

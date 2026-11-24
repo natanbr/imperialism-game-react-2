@@ -6,6 +6,7 @@ import { existsSync, readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { CapitalModal } from '@/components/CapitalModal';
+import { Toasts } from '@/components/Toasts';
 import { useGameStore } from '@/store/rootStore';
 import { readSave } from '@/store/persistence';
 import { newGame, type Order } from '@/engine';
@@ -29,7 +30,8 @@ function openCapital(state: GameState) {
       return submitOrder(order);
     },
   });
-  return render(<CapitalModal />);
+  // FR-569: a refusal is a toast, so the stack is rendered beside the dialog
+  return render(<><CapitalModal /><Toasts /></>);
 }
 
 const stocked = () =>
@@ -265,7 +267,8 @@ describe('FR-046 capital dialog: production cards', () => {
     expect(industryOf(now(), N1).buildings.steelMill!.pendingCapacity).toBe(0);
 
     fireEvent.click(screen.getByRole('button', { name: 'Order a freight car' }));
-    expect(screen.queryByRole('alert')).toBeNull();
+    // FR-569: the toast stays its 6 seconds; the store's refusal is cleared
+    expect(useGameStore.getState().lastRejection).toBeNull();
   });
 
   it('FR-046 the dialog and its parts use a CSS module, no inline styles; the old IndustryCard is gone', () => {

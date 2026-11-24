@@ -12,6 +12,7 @@ import { MAX_BUY_BIDS, START_PRICES, TRADE_COMMODITIES } from '@/definisions/mar
 import type { GameState } from '@/types/GameState';
 import { emptyWarehouse, game, N1, setWarehouse, stockOf, treasury } from '../engine/fixtures';
 import { text } from './domText';
+import { refusalText } from '@/components/gameText';
 
 let submitted: Order[] = [];
 
@@ -160,7 +161,8 @@ describe('FR-074 market dialog: orders', () => {
 
     expect(submitted).toEqual([{ kind: 'sellCommodity', nationId: N1, commodity: 'steel', amount: 1 }]);
     expect(now()).toBe(before);
-    expect(text(screen.getByTestId('market-refusal'))).toBe('Sale refused: not enough goods in the warehouse.');
+    // FR-569: the refusal is a toast now (tests/ui/toasts.test.tsx); its text
+    expect(refusalText(useGameStore.getState().lastRejection!)).toBe('Sale refused: not enough goods in the warehouse.');
   });
 
   it('FR-074 more units than the holds are refused as over the limit', () => {
@@ -169,7 +171,8 @@ describe('FR-074 market dialog: orders', () => {
     for (let i = 0; i < 6; i++) fireEvent.click(sellMore);
 
     expect(cell('coal', 'sell')).toBe('5');
-    expect(text(screen.getByTestId('market-refusal'))).toBe('Sale refused: over the limit.');
+    // FR-569: the refusal is a toast now (tests/ui/toasts.test.tsx); its text
+    expect(refusalText(useGameStore.getState().lastRejection!)).toBe('Sale refused: over the limit.');
   });
 
   it('FR-074 opening the market clears a refusal from elsewhere (as FR-055)', () => {

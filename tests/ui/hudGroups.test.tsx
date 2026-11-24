@@ -282,7 +282,7 @@ describe("FR-477 nothing lost: the pane's share", () => {
     const ids = [
       'tile-info', 'tile-terrain', 'tile-owner', 'tile-province',
       'not-saved', 'food-warning', 'upkeep-warning', 'at-war', 'idle-civilians',
-      'news-panel', 'order-refusal', 'news-list',
+      'news-panel', 'news-list',
       'upkeep-forecast', 'treasury-last-turn',
     ];
     for (const id of ids) expect(screen.getAllByTestId(id), id).toHaveLength(1);

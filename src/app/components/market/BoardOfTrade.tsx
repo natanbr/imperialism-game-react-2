@@ -4,7 +4,7 @@ import { useGameStore } from "../../store/rootStore";
 import { selectActiveNation } from "../../store/selectors";
 import type { Order } from "@/engine";
 import type { TradeCommodity } from "@/types/Market";
-import { money, refusalText } from "../gameText";
+import { money } from "../gameText";
 import { boardView, lastTurnTrades, repeatTrades, type BoardRowView, type PartnerView } from "./boardView";
 import { Stepper } from "./Stepper";
 import styles from "./Market.module.css";
@@ -50,7 +50,6 @@ const PartnerList: React.FC<{ label: "Sellers" | "Buyers"; partners: PartnerView
 export const BoardOfTrade: React.FC = () => {
   const close = useGameStore((s) => s.closeMarket);
   const submitOrder = useGameStore((s) => s.submitOrder);
-  const lastRejection = useGameStore((s) => s.lastRejection);
   const game = useGameStore((s) => s.game);
   const nation = useGameStore(selectActiveNation);
   const titleId = useId();
@@ -138,11 +137,6 @@ export const BoardOfTrade: React.FC = () => {
         </p>
       )}
 
-      {lastRejection && (
-        <div className={styles.refusal} role="alert" data-testid="market-refusal">
-          {refusalText(lastRejection)}
-        </div>
-      )}
 
       {view && (
         <div className={styles.boardPane}>

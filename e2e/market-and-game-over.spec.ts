@@ -73,7 +73,7 @@ test('FR-078 open the market, offer one furniture for sale, end the turn, see th
   await expect(furniture.getByTestId('offer')).toHaveText('1');
   await expect(furniture.getByTestId('available')).toHaveText('0');
   await expect(market.getByTestId('market-holds')).toHaveText('Holds: 3 of 4 free');
-  await expect(market.getByTestId('market-refusal')).toHaveCount(0);
+  await expect(page.getByTestId('toast')).toHaveCount(0);
   if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/m3-market.png` });
   await page.getByRole('button', { name: 'Close Board of Trade' }).click();
 

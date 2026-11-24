@@ -4,7 +4,7 @@ import { useGameStore } from "../store/rootStore";
 import { selectActiveNation } from "../store/selectors";
 import { marketModeOf, type Order } from "@/engine";
 import type { TradeCommodity } from "@/types/Market";
-import { money, refusalText } from "./gameText";
+import { money } from "./gameText";
 import { marketView, type MarketRowView } from "./market/marketView";
 import { BoardOfTrade } from "./market/BoardOfTrade";
 import { Stepper } from "./market/Stepper";
@@ -22,7 +22,6 @@ import { goodsArt } from "./art/inkArt";
 const WorldMarket: React.FC = () => {
   const close = useGameStore((s) => s.closeMarket);
   const submitOrder = useGameStore((s) => s.submitOrder);
-  const lastRejection = useGameStore((s) => s.lastRejection);
   const game = useGameStore((s) => s.game);
   const nation = useGameStore(selectActiveNation);
   const titleId = useId();
@@ -60,11 +59,6 @@ const WorldMarket: React.FC = () => {
           </div>
         )}
 
-        {lastRejection && (
-          <div className={styles.refusal} role="alert" data-testid="market-refusal">
-            {refusalText(lastRejection)}
-          </div>
-        )}
 
         <p className={styles.note}>
           Sales and purchases settle at the end of the turn at this price. Bought goods arrive in the warehouse after this turn&apos;s production.

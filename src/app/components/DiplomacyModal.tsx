@@ -3,7 +3,7 @@ import React, { useId, useMemo, useState } from "react";
 import type { CountryId } from "@/engine";
 import { useGameStore } from "../store/rootStore";
 import { selectActiveNation } from "../store/selectors";
-import { money, refusalText } from "./gameText";
+import { money } from "./gameText";
 import { diplomacyRows } from "./diplomacy/diplomacyView";
 import { CountryList } from "./diplomacy/CountryList";
 import { CountryDetails } from "./diplomacy/CountryDetails";
@@ -22,7 +22,6 @@ export const DiplomacyModal: React.FC = () => {
   const isOpen = useGameStore((s) => s.isDiplomacyOpen);
   const close = useGameStore((s) => s.closeDiplomacy);
   const submitOrder = useGameStore((s) => s.submitOrder);
-  const lastRejection = useGameStore((s) => s.lastRejection);
   const game = useGameStore((s) => s.game);
   const nation = useGameStore(selectActiveNation);
   const [selectedId, setSelectedId] = useState<CountryId | undefined>(undefined);
@@ -55,11 +54,6 @@ export const DiplomacyModal: React.FC = () => {
         relations; the money leaves our treasury and no country receives it.
       </p>
 
-      {lastRejection && (
-        <div className={styles.refusal} role="alert" data-testid="diplomacy-refusal">
-          {refusalText(lastRejection)}
-        </div>
-      )}
 
       {nation && selected && (
         <div className={styles.panes}>

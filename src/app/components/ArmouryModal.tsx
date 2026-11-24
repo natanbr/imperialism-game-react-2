@@ -3,7 +3,7 @@ import React, { useId, useMemo } from "react";
 import { useGameStore } from "../store/rootStore";
 import { selectActiveNation } from "../store/selectors";
 import type { Order } from "@/engine";
-import { money, refusalText } from "./gameText";
+import { money } from "./gameText";
 import { armouryView, type ArmouryCardView, type ArmouryItem, type AtHandItem } from "./army/armouryView";
 import { Stepper } from "./market/Stepper";
 import styles from "./army/Army.module.css";
@@ -137,7 +137,6 @@ const RegimentCard: React.FC<{ card: ArmouryCardView; onChange: (count: number) 
 const Armoury: React.FC = () => {
   const close = useGameStore((s) => s.closeArmoury);
   const submitOrder = useGameStore((s) => s.submitOrder);
-  const lastRejection = useGameStore((s) => s.lastRejection);
   const game = useGameStore((s) => s.game);
   const nation = useGameStore(selectActiveNation);
   const titleId = useId();
@@ -182,11 +181,6 @@ const Armoury: React.FC = () => {
         </div>
       )}
 
-      {lastRejection && (
-        <div className={styles.refusal} role="alert" data-testid="armoury-refusal">
-          {refusalText(lastRejection)}
-        </div>
-      )}
 
       {view && (
         <div className={styles.cards} data-testid="armoury-cards">

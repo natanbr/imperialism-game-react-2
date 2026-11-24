@@ -1,7 +1,6 @@
 "use client";
 import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useGameStore } from "../store/rootStore";
-import { refusalText } from "./gameText";
 import {
   ARMY_REASON,
   armyView,
@@ -154,7 +153,6 @@ const ArmyScreen: React.FC<{ provinceId: string }> = ({ provinceId }) => {
   const selectRegiments = useGameStore((s) => s.selectRegiments);
   const openAttack = useGameStore((s) => s.openAttack);
   const submitOrder = useGameStore((s) => s.submitOrder);
-  const lastRejection = useGameStore((s) => s.lastRejection);
   const game = useGameStore((s) => s.game);
   const nationId = useGameStore((s) => s.activeNationId);
   const titleId = useId();
@@ -227,11 +225,6 @@ const ArmyScreen: React.FC<{ provinceId: string }> = ({ provinceId }) => {
         </div>
       )}
 
-      {lastRejection && (
-        <div className={styles.refusal} role="alert" data-testid="army-refusal">
-          {refusalText(lastRejection)}
-        </div>
-      )}
 
       {view.rows.length === 0 ? (
         <p className={styles.empty} data-testid="no-army">

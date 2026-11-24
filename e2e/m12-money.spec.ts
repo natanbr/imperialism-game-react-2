@@ -75,7 +75,7 @@ test('FR-397 FR-394 FR-399 bid 2 coal, End Turn, Repeat orders them again; a 10%
   await expect(row(page, 'coal').getByTestId('bid')).toHaveText('2');
   await expect(board(page).getByTestId('market-bids')).toHaveText('Buying: 1 of 4');
   await expect(board(page).getByTestId('repeat-result')).toHaveText('Repeated 2 of 2 units.');
-  await expect(board(page).getByTestId('market-refusal')).toHaveCount(0);
+  await expect(page.getByTestId('toast')).toHaveCount(0);
   await closeBoard(page);
 
   // A 10% subsidy toward Arvelia (the consulate is held now): the coal row shows the deal price under the board price

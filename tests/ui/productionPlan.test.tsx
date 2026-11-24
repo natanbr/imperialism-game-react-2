@@ -80,7 +80,7 @@ describe('FR-119 the dialog shows the production plan', () => {
     expect(orderOf('lumberMill', 'lumber')).toBe(2);
     expect(amountText('lumberMill', 'lumber')).toBe('2 of 2');
     expect(shortNote('lumberMill', 'lumber')).toBeNull();
-    expect(screen.queryByTestId('capital-refusal')).toBeNull();
+    expect(useGameStore.getState().lastRejection).toBeNull();
   });
 
   it('FR-119 when stock comes back the stale order counts again (the order is kept, rules 05)', () => {
@@ -114,7 +114,7 @@ describe('FR-120 the play-test bug in the dialog, from the real newGame()', () =
     fireEvent.click(less('textileMill', 'Fabric'));
     fireEvent.click(more('textileMill', 'Fabric'));
     fireEvent.click(more('textileMill', 'Fabric'));
-    expect(screen.queryByTestId('capital-refusal')).toBeNull();
+    expect(useGameStore.getState().lastRejection).toBeNull();
     expect(amountText('textileMill', 'fabric')).toBe('2 of 2');
   });
 });
