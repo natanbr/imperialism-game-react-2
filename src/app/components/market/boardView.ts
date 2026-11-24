@@ -55,15 +55,15 @@ export const MORE_REFUSAL_TEXT = {
 
 /**
  * FR-494 (card Q118 (a)): the line beside an enabled Bid "+" of a row no minor sells, where the bid goes to the other Great
- * Powers we may trade with (FR-492). In full, "No minor nation sells this; a purchase is refunded if Valdoria does not sell.",
+ * Powers we may trade with (FR-492). In full, "No minor nation sells this; money back if Valdoria does not sell." (FR-563; was "a bid is refunded"),
  * on a row minors buy (clothing, furniture, hardware), whose minors column lists those buyers (M13 review UTH-2). On a row
- * no minor trades, the column says "No minor trades this", so the line drops its first clause: "A purchase is refunded if
- * Valdoria does not sell." In full on all 13 such rows of a new game it took 3 lines of the 104 px note and made the board
+ * no minor trades, the column says "No minor trades this", so the line drops its first clause: "Money back if Valdoria
+ * does not sell." In full on all 13 such rows of a new game it took 3 lines of the 104 px note and made the board
  * scroll by 109 px at 1280x720 (FR-257, e2e/m7-trade.spec.ts).
  */
 export const rivalSellerText = (names: readonly string[], minorsBuy: boolean): string => {
-  const refund = `refunded if ${namesText(names)} ${names.length > 1 ? "do" : "does"} not sell.`;
-  return minorsBuy ? `${MORE_REFUSAL_TEXT.noSeller}; a purchase is ${refund}` : `A purchase is ${refund}`;
+  const refund = `back if ${namesText(names)} ${names.length > 1 ? "do" : "does"} not sell.`;
+  return minorsBuy ? `${MORE_REFUSAL_TEXT.noSeller}; money ${refund}` : `Money ${refund}`;
 };
 
 /** "We need a consulate with a seller" (FR-252, FR-253): the barriers of every seller (or buyer), the consulate first. */

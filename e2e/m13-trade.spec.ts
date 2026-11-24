@@ -6,7 +6,7 @@ import { test, expect, Page } from './seededGame';
 // ("Only Valdoria may buy this", FR-492); offer 1 steel, End Turn, and the Deal Book shows the sale to Valdoria.
 // Valdoria's own warehouse is set to 20 lumber and no steel, so the scripted Valdoria bids for 2 steel this turn as well
 // (FR-493 (a): the side that pairs its lumber first). On the way, a new game's steel Bid "+" is open with FR-494's line,
-// "A purchase is refunded if Valdoria does not sell."
+// "Money back if Valdoria does not sell."
 // Run alone: PORT=3197 PLAYWRIGHT_HTML_OPEN=never npx playwright test e2e/m13-trade.spec.ts
 
 test.use({ viewport: { width: 1280, height: 720 } });
@@ -59,7 +59,7 @@ test('FR-494 FR-491 FR-492 a saved game where Valdoria bid for 2 steel last turn
   const bidPlus = steelRow(page).getByRole('button', { name: 'Buy one more Steel' });
   await expect(bidPlus).toBeEnabled();
   // FR-494's line without its first clause (in full it broke FR-257's fit at 1280x720 by 109 px; boardView.ts)
-  const rivalBid = 'A purchase is refunded if Valdoria does not sell.';
+  const rivalBid = 'Money back if Valdoria does not sell.';
   await expect(steelRow(page).getByTestId('bid-note')).toHaveText(rivalBid);
   await expect(bidPlus).toHaveAccessibleDescription(rivalBid);
   await closeBoard(page);
@@ -107,7 +107,7 @@ test('FR-494 FR-491 FR-492 a saved game where Valdoria bid for 2 steel last turn
 
   // Valdoria's bid of this turn is public on the next: the Board's steel row names it
   await openBoard(page);
-  await expect(steelRow(page).getByTestId('rival-last-turn')).toHaveText(/^Valdoria bid for \d+ last turn$/);
+  await expect(steelRow(page).getByTestId('rival-last-turn')).toHaveText(/^Valdoria wanted to buy \d+ last turn$/);
   expect(errors).toEqual([]);
 });
 

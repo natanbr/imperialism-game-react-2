@@ -155,7 +155,7 @@ test('FR-194 FR-257 at 1280x720 the Board of Trade fits the window with the reas
   await expect(row(page, 'oil')).toBeInViewport({ ratio: 1 });
   // Re-recorded by M13 FR-494: old 'No minor nation sells this' (a refusal), new 'A purchase is refunded if Valdoria does not
   // sell.' beside an enabled "+" (a bid where no minor sells goes to Valdoria, FR-492)
-  await expect(row(page, 'oil').getByTestId('bid-note')).toHaveText('A purchase is refunded if Valdoria does not sell.');
+  await expect(row(page, 'oil').getByTestId('bid-note')).toHaveText('Money back if Valdoria does not sell.');
   await expect(row(page, 'oil').getByTestId('offer-note')).toHaveText('No one buys this');
   await expect(row(page, 'oil').getByTestId('no-minor')).toHaveText('No minor trades this');
   // FR-251: our own stock is "In warehouse" (in capitals on the screen, by CSS)

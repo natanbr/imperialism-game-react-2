@@ -262,11 +262,11 @@ describe('FR-252 FR-253 FR-257 the reasons beside the controls', () => {
   // sell." (FR-494's line without its first clause, which broke FR-257's fit at 1280x720; see the FR-494 describe).
   // Re-recorded by M13 review UTH-2: Clothing's line was the short one -> FR-494's in full ("No minor nation sells this;
   // a bid is ..."): minors buy clothing, so its minors column lists buyers and never said that no minor sells it.
-  it('FR-252 FR-257 FR-494 a new game: a bid no minor sells is open toward Valdoria, "A purchase is refunded if Valdoria does not sell." (in full where minors buy it); a bid without a consulate "We need a consulate with a seller", beside the disabled "+" and as its description', () => {
+  it('FR-252 FR-257 FR-494 a new game: a bid no minor sells is open toward Valdoria, "Money back if Valdoria does not sell." (in full where minors buy it); a bid without a consulate "We need a consulate with a seller", beside the disabled "+" and as its description', () => {
     openBoard(start());
-    const rival = 'A purchase is refunded if Valdoria does not sell.';
+    const rival = 'Money back if Valdoria does not sell.';
     const noSeller = { disabled: false, title: '', note: rival, description: rival };
-    const full = `No minor nation sells this; a purchase is refunded if Valdoria does not sell.`;
+    const full = `No minor nation sells this; money back if Valdoria does not sell.`;
     expect(plus('clothing', 'Buy one more Clothing')).toEqual({ disabled: false, title: '', note: full, description: full });
     for (const c of ['Lumber', 'Steel', 'Wool', 'Oil']) expect(plus(c === 'Oil' ? 'oil' : c.toLowerCase(), `Buy one more ${c}`)).toEqual(noSeller);
     const consulate = 'We need a consulate with a seller';
@@ -643,13 +643,13 @@ describe('M12 FR-397 FR-398 FR-399 repeat last turn\'s trades; how long orders l
 // M13 FR-494 (card Q118 (a)): last turn's bids and offers of the Great Powers are public (FR-491, `market.lastOrders`), so
 // each row says what another Great Power we may trade with bid or offered last turn; a row no minor sells may be bid toward
 // it (refunded if it does not sell), and a row no minor buys may be offered once it bid for it last turn (FR-492).
-// The Bid line is FR-494's "No minor nation sells this; a purchase is refunded if Valdoria does not sell." without its first
+// The Bid line is FR-494's "No minor nation sells this; money back if Valdoria does not sell." without its first
 // clause on a row no minor trades: in full it takes 3 lines of the 104 px note, and on the 13 rows no minor sells it made a
 // new game's board scroll by 109 px at 1280x720 (FR-257, e2e/m7-trade.spec.ts, measured); those rows' minors column
 // already says "No minor trades this". On the clothing, furniture and hardware rows that column lists the minors that buy,
 // so the line is in full there (M13 review UTH-2).
 describe('M13 FR-494 the Board shows the other Great Power\'s last turn', () => {
-  const RIVAL_BID = 'A purchase is refunded if Valdoria does not sell.';
+  const RIVAL_BID = 'Money back if Valdoria does not sell.';
   /** Test setup: the Great Powers' bids and offers of the last trade phase (FR-491). */
   const withLastOrders = (s: GameState, orders: Record<string, { sell?: Record<string, number>; buy?: Record<string, number> }>): GameState => {
     const lastOrders = Object.fromEntries(Object.entries(orders).map(([id, o]) => [id, { sell: o.sell ?? {}, buy: o.buy ?? {} }]));
@@ -684,7 +684,7 @@ describe('M13 FR-494 the Board shows the other Great Power\'s last turn', () => 
   });
 
   // Re-recorded by M13 review UTH-2: 'clothing' left this list (its line is now in full, the test below)
-  it('FR-494 FR-492 the Bid "+" of a row no minor trades is enabled with "A purchase is refunded if Valdoria does not sell."; a press sends the bid', () => {
+  it('FR-494 FR-492 the Bid "+" of a row no minor trades is enabled with "Money back if Valdoria does not sell."; a press sends the bid', () => {
     openBoard(start());
     for (const [c, name] of [['lumber', 'Lumber'], ['steel', 'Steel'], ['armaments', 'Armaments'], ['oil', 'Oil']]) {
       expect(plus(c, `Buy one more ${name}`)).toEqual({ disabled: false, title: '', note: RIVAL_BID, description: RIVAL_BID });
@@ -698,8 +698,8 @@ describe('M13 FR-494 the Board shows the other Great Power\'s last turn', () => 
     expect(plus('coal', 'Buy one more Coal').note).toBe('We need a consulate with a seller');
   });
 
-  it('FR-494 (M13 review UTH-2) the clothing, furniture and hardware rows list the minors that buy them, not "No minor trades this", so their Bid line is FR-494\'s in full: "No minor nation sells this; a purchase is refunded if Valdoria does not sell."', () => {
-    const full = 'No minor nation sells this; a purchase is refunded if Valdoria does not sell.';
+  it('FR-494 (M13 review UTH-2) the clothing, furniture and hardware rows list the minors that buy them, not "No minor trades this", so their Bid line is FR-494\'s in full: "No minor nation sells this; money back if Valdoria does not sell."', () => {
+    const full = 'No minor nation sells this; money back if Valdoria does not sell.';
     openBoard(start());
     for (const [c, name] of [['clothing', 'Clothing'], ['furniture', 'Furniture'], ['hardware', 'Hardware']]) {
       expect(plus(c, `Buy one more ${name}`)).toEqual({ disabled: false, title: '', note: full, description: full });

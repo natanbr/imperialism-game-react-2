@@ -117,7 +117,7 @@ describe('FR-563 trade texts: news, Deal Book, refusals and notes', () => {
     ]);
     const notes = [...Object.values(MORE_REFUSAL_TEXT), ...Object.values(MISSED_TEXT), rivalSellerText(['Valdoria'], true), rivalSellerText(['Valdoria'], false)];
     expect(MORE_REFUSAL_TEXT.bids).toBe('Already buying 4 commodities this turn, the most');
-    expect(rivalSellerText(['Valdoria'], false)).toBe('A purchase is refunded if Valdoria does not sell.');
+    expect(rivalSellerText(['Valdoria'], false)).toBe('Money back if Valdoria does not sell.');
     expect(leftovers([...refusals, ...notes])).toEqual([]);
   });
 });
