@@ -9,7 +9,7 @@ export interface CameraSlice {
   cameraY: number;
   /** Counts `moveCamera` calls, so MapView scrolls even when the camera value did not change (FR-092). */
   cameraMoves: number;
-  /** The map's zoom: 1 (100%, the start), 1.5 or 2 (`ZOOM_STEPS` in components/camera.ts, FR-368). */
+  /** The map's zoom, 1 (100%) to 2 (components/camera.ts): a step (FR-368), the opening fit, the wheel or a pinch (FR-567). */
   zoom: number;
   /** Mirrors where the browser scrolled the map; does not scroll it. */
   setCamera: (x: number, y: number) => void;

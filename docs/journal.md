@@ -3,7 +3,7 @@
 ## Resuming here
 
 - M18 (play-test comfort, `docs/specs/m18-playtest-comfort.md`): M18a merged into main `af24381` (pull request 43), M18b part 1 (FR-563, FR-568, FR-569) in `5e80bab` (pull request 44), part 2 (FR-564 nation colours and flags) in `4098bfe` (pull request 45). NR-037 in progress.
-- M18b part 3 (FR-565 Capital one section at a time, FR-566 city labour bar) is on `claude/m18b-capital`, local, not pushed: `731c797`, `3430434` and "M18b: Capital review cleanups". Full gate green on `3430434`, review approved. FR-567 and FR-570 next; icons wait for the art (spec section 3). Evidence in `.gate/claude/45/`.
+- M18b part 3 (FR-565, FR-566) merged into main `cd5b1be` (pull request 46). FR-567 (map fitted on open, its own zoom, top bar 15 px) is on `claude/m18b-map`, local, not pushed; targeted tests green, full gate not run. FR-570 next; icons wait for the art (spec section 3). Evidence in `.gate/claude/48/`.
 - To try Demo: New game, Start Demo game; then Dashboard in the top bar (Economy, Military, Trade, Diplomacy, Council, Bug report).
 - M17 merged into main `65a4d5a` (pull request 42). Its task evidence is in `.gate/codex/21/` to `.gate/codex/28/`.
 - M16 part 1 merged in `9bd5a91`. The human can buy technology. The computer makes no purchases on main.
@@ -11,6 +11,28 @@
 - FR-547 (Q143) is the buyer branch's proposed value rule. Measure technology availability, purchase timing and the value of the first unlocked action in the original game before tuning. See `docs/verify-and-tune.md`.
 - Task 19 passed the load trials and full gate on `claude/perf-tests`. Finish future gates with `npm run test:perf` alone. The measured results and six functional logs are indexed in `.gate/codex/19/summary.md`.
 - To play M17 on continent seed 1, set Armaments and Fabric production to 1. Build a Ship-of-the-Line on turn 6, declare and sail on turn 7, set the site on turn 8, and land the four-ARMS army on turn 9. On turn 10 see the survivors at Sundmark and its colony vote in Council.
+
+## 2026-11-23 M18b FR-567 — the map opens fitted, with its own zoom
+
+Size M, on `claude/m18b-map` from `cd5b1be`. Plan-lite: the opening view (`camera.ts` `landBoxPx`, `fitZoom`,
+`openingView`; `mapActions.ts` `openMap` on the first view, Continue and New game) fits the land plus half a tile of sea to
+the map area, whole pixels a tile, 100% to 200%, 100% under a 10% gain; a smaller screen opens at 100% on the capital
+(FR-083). Ctrl and the wheel, a trackpad pinch and two fingers zoom about the pointer (`hooks/useMapZoomGestures.ts`,
+`zoomMapTo`); the buttons step from any zoom. Top bar values 15 px (were 13). Consumers: the player on open; Center and the
+news lines keep the zoom. Tests: FR-567 rows in `tests/ui/mapFit.test.tsx`, `e2e/m18-map.spec.ts`.
+Objection: the plain wheel still scrolls (FR-364, tested); the owner said "mouse wheel", read here as Ctrl and the wheel,
+the gesture that zoomed his page. The 10% floor keeps 1280x720 at 100% (and FR-088's camera 0, 0) for crisp pictures.
+The pane stays 250 px: the brief's 280 to 300 px target assumed a wider pane; narrowing it is left for the orchestrator.
+Edited tests (old -> new): the FR-367 and FR-340 tests at 1920x1080 (`tests/ui/camera.test.tsx`, `e2e/m12-map.spec.ts`,
+`e2e/m11-map.spec.ts`) now zoom out to 100% first, as that size opens at 69 px tiles.
+
+| Claim | Command | Result |
+|---|---|---|
+| FR-567 red | `npx vitest run tests/ui/mapFit.test.tsx`; `PORT=3123 npx playwright test e2e/m18-map.spec.ts` | `12 failed / 1 passed` (13); `2 failed` (land share 0.654, top bar 13 px) (`.gate/claude/48/red-FR-567.txt`) |
+| FR-567 green | the same two | `13 passed`; `2 passed` (land share 0.854, 48 px tiles, top bar 15 px, pane 250 px) |
+| Camera, map, HUD unit tests | `npx vitest run` on 32 ui files that mount the map, the bar or the page | `Test Files 32 passed`, all green |
+| Map, camera, HUD, 1366 e2e | `PORT=3123 npx playwright test` m11-map, m12-map, islands, look, m13-hud, m5-hud-scroll, m12b-qa, m12-qa, m12-scrollbars, m18-readability, m18-capital, m18-colours, m18-dashboard, m5-world, m4-1, m10-council | `30 passed`, `2 failed` (the two 1920 tests; edited) then `2 passed`; `42 passed`; `16 passed` |
+| Types and lint | `npx tsc --noEmit`; `npm run lint` | exit 0; 0 errors (2 old warnings) |
 
 ## 2026-11-23 M18b parts 2 and 3 — nation colours, Capital layout and labour bar
 

@@ -257,6 +257,9 @@ test.describe('on a 1920x1080 screen', () => {
     await page.goto('/');
     await expect(page.getByTestId('map-scroll')).toHaveAttribute('data-ready', 'true', { timeout: 15000 });
     await picturesLoaded(page);
+    // FR-567: 1920x1080 opens at the fit zoom (69 px tiles, the map larger than its area) -> zoom out to 100%, where it is small
+    while (await page.getByRole('button', { name: 'Zoom out' }).isEnabled()) await page.getByRole('button', { name: 'Zoom out' }).click();
+    await expect(page.getByTestId('map-viewport')).toHaveAttribute('data-zoom', '1');
     await page.waitForLoadState('networkidle');
     const ground = (await page.getByTestId('map-ground').boundingBox())!;
     // M12 FR-367: a map smaller than its area is centred, half the spare space on each side rounded down (camera.ts

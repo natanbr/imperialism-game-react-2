@@ -71,6 +71,9 @@ test('FR-366 FR-479 the pointer on Advance Turn at the top bar\'s right end, the
 test('FR-367 at 1920x1080 the map is centred in the area left of the HUD; FR-088 at 1280x720 it stays at the top left', async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await open(page);
+  // FR-567: 1920x1080 opens at the fit zoom (69 px tiles, the map larger than its area) -> zoom out to 100%, where it is small
+  while (await page.getByRole('button', { name: 'Zoom out' }).isEnabled()) await page.getByRole('button', { name: 'Zoom out' }).click();
+  await expect(page.getByTestId('map-viewport')).toHaveAttribute('data-zoom', '1');
   const map = (await page.getByTestId('map-viewport').boundingBox())!;
   // M12b (FR-465): the area is 1670 x 1040 under the 40 px top bar (was 1670 x 1080), the map 1,029 x 672: 320.5 and
   // 184 px to spare on each side, so the map is drawn at y 40 + 184 = 224 (was 204)
