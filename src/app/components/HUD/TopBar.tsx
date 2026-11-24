@@ -3,7 +3,7 @@ import { useGameStore } from "@/store/rootStore";
 import { selectActiveNation } from "@/store/selectors";
 import { UI_ICONS } from "../icons";
 import { GameIcon } from "../GameIcon";
-import { NationSwatch } from "../NationSwatch";
+import { NationFlag } from "../NationFlag";
 import { AboutPanel } from "./AboutPanel";
 import { ActionButtons, BarButton } from "./ActionButtons";
 import { CONFIRM_NEW_GAME_ID, ConfirmNewGame } from "./ConfirmNewGame";
@@ -85,7 +85,7 @@ export const TopBar: React.FC = () => {
     <header className={styles.bar} data-testid="topbar" data-edge-scroll="">
       <div className={styles.status} data-testid="topbar-status">
         <div className={`${styles.nation} topbar-wide-only`} data-testid="topbar-nation">
-          <NationSwatch slot={nation?.colorSlot} />
+          {nation && <NationFlag nationId={nation.id} />}
           {/* The title: short of room the name ends in an ellipsis (M12b review A11Y-5) */}
           <h2 className="hud-title" title={nation?.name}>
             {nation?.name ?? "HUD"}

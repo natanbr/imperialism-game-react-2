@@ -2,6 +2,7 @@
 import React, { useId, useRef } from "react";
 import type { CountryId } from "@/engine";
 import { relationColor } from "@/styles/theme";
+import { NationFlag } from "../NationFlag";
 import type { CountryRowView } from "./diplomacyView";
 import styles from "./Diplomacy.module.css";
 
@@ -43,6 +44,7 @@ const CountryTab: React.FC<CountryTabProps> = ({ row, selected, panelId, onSelec
     >
       <span className={styles.tabTop}>
         <span id={nameId} className={styles.tabName}>
+          <NationFlag nationId={row.id} />
           {row.name}
         </span>
         {ordered > 0 && (

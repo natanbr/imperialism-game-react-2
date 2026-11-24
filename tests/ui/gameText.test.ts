@@ -521,8 +521,8 @@ describe('FR-232 the war news', () => {
     const theirs = battle({ nationId: 'nation-2', attackerIds: ['nation-2'] });
     const items = newsItems([theirs, { type: 'minor-colonised', nationId: 'nation-2', minorId: 'minor-1' }], 'nation-1', name);
     expect(items).toEqual([
-      { text: 'Valdoria: Battle at Arvelia: Province Taken!', battle: theirs },
-      { text: 'Valdoria: Arvelia is now our colony.' },
+      { text: 'Valdoria: Battle at Arvelia: Province Taken!', battle: theirs, nationId: 'nation-2' },
+      { text: 'Valdoria: Arvelia is now our colony.', nationId: 'nation-2' },
     ]);
   });
 
@@ -590,7 +590,7 @@ describe('FR-496 the news names the other Great Power\'s moves', () => {
     const battle = events.find((e) => e.type === 'battle-resolved');
     expect(battle).toMatchObject({ nationId: N2, provinceId: ARVELIA_P, defenderId: ARVELIA });
     const items = newsItems(events, N1, nameOf(s)).filter((i) => i.battle);
-    expect(items).toEqual([{ text: 'Valdoria: Battle at Arvelia: Province Taken!', battle }]);
+    expect(items).toEqual([{ text: 'Valdoria: Battle at Arvelia: Province Taken!', battle, nationId: N2 }]);
   });
 
   // M13 review UTH-3: before M13 the computer never offered the player peace nor declared war on it, so Valdoria's own
@@ -766,7 +766,7 @@ describe('M12 FR-375 the news names the place', () => {
     expect(newsItems(events, N1, nameOf, placeOf)).toEqual([
       { text: 'Prospectors found coal at 5-2 in Testland North-West.', tileId: '5-2' },
       { text: 'Army upkeep: $100.' },
-      { text: 'Valdoria: Rail finished at 10-1 in Lorran.', tileId: '10-1' },
+      { text: 'Valdoria: Rail finished at 10-1 in Lorran.', tileId: '10-1', nationId: V },
     ]);
   });
 

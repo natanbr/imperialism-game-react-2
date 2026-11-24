@@ -55,6 +55,8 @@ export const THEME = {
   mapHalo: v("color-map-halo"),
   /** The field behind every goods picture in a list (FR-353). */
   artBacking: v("color-art-backing"),
+  /** The light pattern on a nation's flag mark (FR-564). */
+  flagPattern: v("color-flag-pattern"),
 } as const;
 
 /** One strong colour per palette slot (`Nation.colorSlot`, 1 first); used only for territory borders (FR-097). */
@@ -66,6 +68,9 @@ export const nationColor = (slot: number | undefined): string => {
   return NATION_COLORS[index % NATION_COLORS.length];
 };
 
+/** One colour per minor nation, by its place in `state.minorNations` (founding order, FR-564); past the last it wraps round. */
+export const MINOR_COLORS: readonly string[] = [1, 2, 3, 4].map((n) => v(`color-minor-${n}`));
+
 /** The nine relation swatches, level 0 (dark brown) to 8 (dark green): --color-relation-<level> (FR-179). */
 export const RELATION_COLORS: readonly string[] = Array.from({ length: 9 }, (_, level) => v(`color-relation-${level}`));
 
@@ -74,6 +79,6 @@ export const relationColor = (level: number): string => RELATION_COLORS[Math.min
 
 /** Every CSS variable this module names, without `var()`. */
 export function themeVariables(): string[] {
-  const all = [...Object.values(THEME), ...NATION_COLORS, ...RELATION_COLORS];
+  const all = [...Object.values(THEME), ...NATION_COLORS, ...MINOR_COLORS, ...RELATION_COLORS];
   return all.map((value) => /^var\((--[\w-]+)\)$/.exec(value)![1]);
 }

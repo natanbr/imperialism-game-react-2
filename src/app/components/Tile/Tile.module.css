@@ -119,6 +119,14 @@
   pointer-events: none;
 }
 
+/* The minor's flag (FR-564), sized to the 11 px tag line */
+.minorName :global(.nation-flag) {
+  width: 8px;
+  height: 11px;
+  margin-right: 2px;
+  vertical-align: -2px;
+}
+
 .river {
   position: absolute;
   left: 1px;

@@ -2,7 +2,7 @@ import React, { useId, useMemo, useState } from "react";
 import { useGameStore } from "@/store/rootStore";
 import { nationColor } from "@/styles/theme";
 import { Modal } from "../Modal";
-import { NationSwatch } from "../NationSwatch";
+import { NationFlag } from "../NationFlag";
 import { councilForecastText, DASHBOARD_SECTIONS, dashboardCards, type DashboardCard, type DashboardSectionId } from "./dashboardView";
 import { DetailsGroupContent } from "./HudGroups";
 import styles from "./Dashboard.module.css";
@@ -17,7 +17,7 @@ const NationCard: React.FC<{ card: DashboardCard; section: Exclude<DashboardSect
       style={{ "--nation-colour": nationColor(card.colorSlot) } as React.CSSProperties}
     >
       <h3 id={headingId} className={styles.cardTitle}>
-        <NationSwatch slot={card.colorSlot} />
+        <NationFlag nationId={card.nationId} />
         {card.name}
         <span className={styles.who}>{card.isPlayer ? "(you)" : "(computer)"}</span>
       </h3>

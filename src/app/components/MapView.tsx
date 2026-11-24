@@ -22,6 +22,7 @@ import {
   territoryBorderSegments,
 } from "./territoryBorders";
 import { HUD_PX, THEME, TILE_PX } from "@/styles/theme";
+import { nationMark } from "./nationMark";
 import styles from "./MapView.module.css";
 
 /**
@@ -257,7 +258,7 @@ export const MapView: React.FC = () => {
               <path key={b.nationId} d={b.d} stroke={b.color} className={styles.territoryBorder} data-testid="territory-border" data-nation-id={b.nationId} />
             ))}
             {minorBorders.map((b) => (
-              <path key={b.minorId} d={b.d} stroke={THEME.minor} className={styles.minorBorder} data-testid="minor-border" data-minor-id={b.minorId} />
+              <path key={b.minorId} d={b.d} stroke={nationMark({ nations, minorNations }, b.minorId).colour} className={styles.minorBorder} data-testid="minor-border" data-minor-id={b.minorId} />
             ))}
             {railSegments.map((s, i) => (
               <line

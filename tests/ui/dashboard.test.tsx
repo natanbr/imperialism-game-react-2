@@ -88,7 +88,7 @@ describe('FR-562 the debug dashboard on the Demo level', () => {
       const c = card(dialog, nation.id);
       expect(text(c)).toContain(nation.name);
       expect(c.style.getPropertyValue('--nation-colour')).toBe(nationColor(nation.colorSlot));
-      expect((within(c).getByTestId('swatch') as HTMLElement).style.backgroundColor).toBe(nationColor(nation.colorSlot));
+      expect((within(c).getByTestId('nation-flag') as HTMLElement).style.color).toBe(nationColor(nation.colorSlot));
     }
     // The player's own card first, marked as ours
     expect(within(dialog).getAllByTestId(/^dashboard-card-/)[0].getAttribute('data-testid')).toBe(`dashboard-card-${N1}`);

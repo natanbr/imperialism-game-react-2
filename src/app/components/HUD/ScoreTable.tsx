@@ -1,7 +1,7 @@
 import React from "react";
 import { useGameStore } from "@/store/rootStore";
 import { selectScoreTable } from "@/store/selectors";
-import { NationSwatch } from "../NationSwatch";
+import { NationFlag } from "../NationFlag";
 
 /** Every nation ranked by score, highest first (FR-106): rank, swatch and name, total. */
 export const ScoreTable: React.FC = () => {
@@ -26,7 +26,7 @@ export const ScoreTable: React.FC = () => {
             <tr key={score.nationId} data-testid={`score-row-${score.nationId}`} className={you ? "score-you" : undefined}>
               <td data-testid="rank">{i + 1}</td>
               <td data-testid="nation">
-                <NationSwatch slot={nation?.colorSlot} />
+                <NationFlag nationId={score.nationId} />
                 {nation?.name ?? score.nationId}
                 {you ? " (you)" : ""}
               </td>

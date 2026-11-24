@@ -323,7 +323,7 @@ export const INK_ART_UNUSED: readonly { readonly file: string; readonly reason: 
   { file: "map-ui/army-transport.svg", reason: "the curved transport arrow: a march stays a straight line (FR-273, Q69)" },
   { file: "map-ui/army-movement-committed.svg", reason: "its colours only, copied into the army-move tokens (FR-273)" },
   { file: "map-ui/territory-line.svg", reason: "its halo colour only, the map-halo token: one fixed brown cannot show the owner (FR-327)" },
-  { file: "map-ui/nation-flag.svg", reason: "no flag on the map: nations show by their border colour" },
+  { file: "map-ui/nation-flag.svg", reason: "its pole and cloth paths only, drawn by NationFlag in each nation's colour and pattern (FR-564)" },
 ];
 
 /** The manifest file a table URL names ("/assets/ink-and-wash/goods/steel.png" -> "goods/steel.png"), for `data-art`. */

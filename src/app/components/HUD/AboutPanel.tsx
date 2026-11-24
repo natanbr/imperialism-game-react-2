@@ -66,7 +66,7 @@ export const AboutPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         </li>
         <li>
           <LineSample stroke={THEME.minor} className={mapStyles.minorBorder} />
-          <span>Dashed slate line: minor nation border</span>
+          <span>Dashed line: minor nation border, in its own colour</span>
         </li>
         <li>
           <LineSample stroke={THEME.provinceBorder} className={mapStyles.provinceBorder} />

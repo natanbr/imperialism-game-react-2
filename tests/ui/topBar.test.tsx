@@ -79,8 +79,8 @@ describe('FR-466 the top bar: nation, turn, cash, score, then the buttons, Advan
     const blocks = [...screen.getByTestId('topbar-status').children];
     expect(blocks.map((b) => b.getAttribute('data-testid'))).toEqual(['topbar-nation', 'topbar-turn', 'topbar-cash']);
     const [nation, turn, cash] = blocks;
-    // The swatch first, then the name in the kept h2 .hud-title
-    expect(nation.firstElementChild?.getAttribute('data-testid')).toBe('swatch');
+    // The flag first (FR-564), then the name in the kept h2 .hud-title
+    expect(nation.firstElementChild?.getAttribute('data-testid')).toBe('nation-flag');
     const title = within(nation as HTMLElement).getByRole('heading', { level: 2 });
     expect(title.classList.contains('hud-title')).toBe(true);
     expect(text(title)).toBe('Testland');

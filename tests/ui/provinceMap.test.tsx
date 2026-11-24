@@ -14,7 +14,7 @@ import { minorBorderSegments, provinceBorderSegments, territoryBorderSegments } 
 import { useGameStore } from '@/store/rootStore';
 import { newGame } from '@/engine';
 import { getNeighborCoords } from '@/engine/map/mapHelpers';
-import { NATION_COLORS, THEME } from '@/styles/theme';
+import { MINOR_COLORS, NATION_COLORS, THEME } from '@/styles/theme';
 import type { GameState } from '@/types/GameState';
 import type { Tile } from '@/types/Tile';
 import { failOnActWarnings } from './actWarnings';
@@ -156,7 +156,8 @@ describe('FR-153 MapView on a new continent game', () => {
 
     const minors = paths('minor-border');
     expect(minors.map((p) => p.getAttribute('data-minor-id'))).toEqual(['minor-1', 'minor-2', 'minor-3', 'minor-4']);
-    expect(minors.every((p) => p.getAttribute('stroke') === THEME.minor)).toBe(true);
+    // FR-564: each minor's border in its own colour
+    expect(minors.map((p) => p.getAttribute('stroke'))).toEqual(MINOR_COLORS);
     expect([...provinces, ...minors, ...gp].every((p) => p.tagName.toLowerCase() === 'path' && (p.getAttribute('d') ?? '').length > 0)).toBe(true);
     unmount();
   });

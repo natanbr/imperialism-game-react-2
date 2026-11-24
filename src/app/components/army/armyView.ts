@@ -26,7 +26,8 @@ import {
 } from "@/engine";
 import type { GameState } from "@/types/GameState";
 import { TerrainType } from "@/types/Tile";
-import { nationColor, THEME, TILE_PX } from "@/styles/theme";
+import { THEME, TILE_PX } from "@/styles/theme";
+import { nationMark } from "../nationMark";
 import { money, REFUSAL_TEXT, upkeepDueText, upkeepWarningText } from "../gameText";
 import { namesText } from "../market/dealBookView";
 import { ATTACK_ARROW_ART } from "../art/inkArt";
@@ -86,11 +87,8 @@ export function markerLabel(marker: Pick<ArmyMarker, "forceSize" | "regiments" |
   return `${ownerName} army: ${[...parts, ...pending].join(", ")}`;
 }
 
-/** A Great Power's slot colour (FR-097); one slate for every minor (FR-154). */
-export const ownerColor = (state: GameState, ownerId: string): string => {
-  const nation = state.nations.find((n) => n.id === ownerId);
-  return nation ? nationColor(nation.colorSlot) : THEME.minor;
-};
+/** The owner's one colour (FR-564): a Great Power's slot colour (FR-097), a minor's own colour. */
+export const ownerColor = (state: GameState, ownerId: string): string => nationMark(state, ownerId).colour;
 
 /** The regiments of the selection still Available in its province, in the army's order (FR-230). */
 export function selectedRegimentIds(

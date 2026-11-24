@@ -13,7 +13,7 @@ import { ATTACK_ARROW_ART } from '@/components/art/inkArt';
 import { useGameStore } from '@/store/rootStore';
 import { newGame, type Order } from '@/engine';
 import { tryApplyOrder } from '@/engine/orders/apply';
-import { NATION_COLORS, THEME } from '@/styles/theme';
+import { MINOR_COLORS, NATION_COLORS, THEME } from '@/styles/theme';
 import type { GameState } from '@/types/GameState';
 import { addRegiments, ARVELIA, ARVELIA_P, continent, idOf, NE1, NW1, relocate, SW1 } from '../engine/armyFixtures';
 import { setPair } from '../engine/fixtures';
@@ -98,7 +98,8 @@ describe('FR-210 army markers on the seat tiles', () => {
     const { container } = render(<MapView />);
     expect(markersIn(container, '2-9')[0].style.borderColor).toBe(NATION_COLORS[0]);
     expect(markersIn(container, '14-9')[0].style.borderColor).toBe(NATION_COLORS[1]);
-    expect(markersIn(container, '11-4')[0].style.borderColor).toBe(THEME.minor);
+    // FR-564: Arvelia's own colour
+    expect(markersIn(container, '11-4')[0].style.borderColor).toBe(MINOR_COLORS[0]);
     // The force size sits on the owner's colour
     expect(within(markersIn(container, '2-9')[0]).getByTestId('army-force').style.backgroundColor).toBe(NATION_COLORS[0]);
   });

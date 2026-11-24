@@ -177,7 +177,7 @@ describe('FR-231 the Battle screen: the grid', () => {
     const img = regulars.querySelector('img')!;
     expect([img.getAttribute('src'), img.getAttribute('alt')]).toEqual(['/assets/ink-and-wash/army/regulars.png', '']);
     const [minutemen] = tokens('Defenders');
-    expect((within(minutemen).getByTestId('token-swatch') as HTMLElement).style.background).toBe('var(--color-minor)');
+    expect((within(minutemen).getByTestId('token-swatch') as HTMLElement).style.background).toBe('var(--color-minor-1)'); // FR-564: Arvelia's own colour
     expect(minutemen.querySelector('img')!.getAttribute('src')).toBe('/assets/ink-and-wash/army/militia.png');
   });
 

@@ -12,7 +12,7 @@ import { useGameStore } from '@/store/rootStore';
 import { COUNCIL, newGame, OVERTURE_COST, votesNeeded } from '@/engine';
 import { HowToPlay, howToPlayText } from '@/components/HowToPlay';
 import { money } from '@/components/gameText';
-import { NATION_COLORS, THEME } from '@/styles/theme';
+import { MINOR_COLORS, NATION_COLORS, THEME } from '@/styles/theme';
 import { text } from './domText';
 
 describe('FR-089 credits', () => {
@@ -61,7 +61,7 @@ describe('FR-235 map legend in the About panel', () => {
   it('FR-235 FR-327 three rows: solid Great Power, dashed slate minor, dotted province, each sample in the map\'s token and line class on its halo', () => {
     expect(samples(openLegend('nation-1'))).toEqual([
       { text: 'Solid line: Great Power border', svgs: [{ hidden: 'true', lines: [halo, { stroke: NATION_COLORS[0], class: mapStyles.territoryBorder }] }] },
-      { text: 'Dashed slate line: minor nation border', svgs: [{ hidden: 'true', lines: [halo, { stroke: THEME.minor, class: mapStyles.minorBorder }] }] },
+      { text: 'Dashed line: minor nation border, in its own colour', svgs: [{ hidden: 'true', lines: [halo, { stroke: THEME.minor, class: mapStyles.minorBorder }] }] },
       { text: 'Dotted line: province border', svgs: [{ hidden: 'true', lines: [halo, { stroke: THEME.provinceBorder, class: mapStyles.provinceBorder }] }] },
     ]);
   });
@@ -80,7 +80,8 @@ describe('FR-235 map legend in the About panel', () => {
     };
     expect([drawn('territory-border'), drawn('minor-border'), drawn('province-border'), drawn('border-halo')]).toEqual([
       { stroke: NATION_COLORS[0], class: mapStyles.territoryBorder },
-      { stroke: THEME.minor, class: mapStyles.minorBorder },
+      // FR-564: the first minor's border in its own colour; the legend's sample is the one minor colour
+      { stroke: MINOR_COLORS[0], class: mapStyles.minorBorder },
       { stroke: THEME.provinceBorder, class: mapStyles.provinceBorder },
       halo,
     ]);

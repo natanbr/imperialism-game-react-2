@@ -599,13 +599,20 @@ img[data-art-anchor="bottom-center"] {
 }
 
 /* A nation's colour beside its name: never the only cue (FR-106) */
-.nation-swatch {
+/* A nation's flag mark beside its name (FR-564; components/NationFlag.tsx) */
+.nation-flag {
   display: inline-block;
-  width: 10px;
-  height: 10px;
-  margin-right: 6px;
-  border-radius: 2px;
-  vertical-align: -1px;
+  flex: none;
+  width: 14px;
+  height: 18px;
+  margin-right: 4px;
+  vertical-align: -4px;
+}
+
+.nation-flag svg {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 /* M12b FR-476: the Details for bug reports group's panel (the class kept for e2e/m12-map.spec.ts), shown to every
