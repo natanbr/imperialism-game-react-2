@@ -3,7 +3,7 @@
 ## Resuming here
 
 - M18a (play-test comfort, `docs/specs/m18-playtest-comfort.md`) is on `claude/m18a-demo`, local only: FR-561 Demo level (`5afe257`), FR-562 debug dashboard (`f03519f`) and the review-fix commit "M18a: fix review findings". NR-037 in progress. Evidence in `.gate/claude/31/` and `.gate/claude/33/`.
-- Next in M18: M18b readability, FR-563 to FR-570. Icons wait for the art (spec section 3).
+- M18a merged into main `af24381` (pull request 43). M18b part 1 (FR-563, FR-568, FR-569) is on `claude/m18b-readability`, local; FR-564 to FR-567 and FR-570 next. Icons wait for the art (spec section 3).
 - To try Demo: New game, Start Demo game; then Dashboard in the top bar (Economy, Military, Trade, Diplomacy, Council, Bug report).
 - M17 merged into main `65a4d5a` (pull request 42). Its task evidence is in `.gate/codex/21/` to `.gate/codex/28/`.
 - M16 part 1 merged in `9bd5a91`. The human can buy technology. The computer makes no purchases on main.
@@ -11,6 +11,22 @@
 - FR-547 (Q143) is the buyer branch's proposed value rule. Measure technology availability, purchase timing and the value of the first unlocked action in the original game before tuning. See `docs/verify-and-tune.md`.
 - Task 19 passed the load trials and full gate on `claude/perf-tests`. Finish future gates with `npm run test:perf` alone. The measured results and six functional logs are indexed in `.gate/codex/19/summary.md`.
 - To play M17 on continent seed 1, set Armaments and Fabric production to 1. Build a Ship-of-the-Line on turn 6, declare and sail on turn 7, set the site on turn 8, and land the four-ARMS army on turn 9. On turn 10 see the survivors at Sundmark and its colony vote in Council.
+
+## 2026-11-23 M18b part 1 — Buy and Sell, Stats page, toasts
+
+Size M. FR-563: the Market, Board of Trade, Deal Book and trade news say Buy and Sell (Diplomacy keeps "offer" for
+alliance and peace offers). FR-568: score, standing, Council line and projection, score parts and table moved from the
+top bar and the pane's Nation group to a Stats dialog (`HUD/StatsDialog.tsx`); the Nation group keeps the money lines.
+FR-569: refused orders are toasts (`components/Toasts.tsx`, `store/controls/toastSlice.ts`), the inline refusal lines
+are gone. Objection: the Nation group still exists with three money lines; the owner may want it in Stats too.
+Gate round: startNewGame now clears the toasts (FR-160 guard); the error toast's text is ink (8.92:1, was 4.70:1);
+e2e/m5-hud-scroll FR-235 (1) lost its "Debug box below the fold" premise because FR-568 shortened the Nation group
+(reported to the orchestrator, assertion unchanged). Evidence in `.gate/claude/35/` and `.gate/claude/37/`.
+
+| Claim | Command | Result |
+|---|---|---|
+| FR-563, FR-568, FR-569 red, then green | `npx vitest run tests/ui/buySellWording.test.tsx` (and statsPage, toasts) | red 6/6, 3/3, no component; green 6, 3, 5 passed (`.gate/claude/35/`) |
+| In the app, 1366x768 and 390 px | `PORT=3123 npx playwright test e2e/m18-readability.spec.ts` | `6 passed` |
 
 ## 2026-11-23 M18a — Demo level and debug dashboard
 

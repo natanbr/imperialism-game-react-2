@@ -227,9 +227,14 @@ export const createGameSlice =
     };
   };
 
-/** The UI of a game just started or restored: no refusal, nothing selected, no dialog open (FR-105, FR-109, FR-359). */
+/**
+ * The UI of a game just started or restored: no refusal, no toast, nothing selected, no dialog open (FR-105, FR-109,
+ * FR-359). FR-569: the old game's toasts and their id count go too (the FR-160 guard, tests/store/computerNations.test.ts).
+ */
 const NO_SELECTION_NO_DIALOG: Partial<GameStore> = {
   lastRejection: null,
+  toasts: [],
+  nextToastId: 1,
   isGameOverHidden: false,
   selectedTileId: undefined,
   hoveredTileId: undefined,

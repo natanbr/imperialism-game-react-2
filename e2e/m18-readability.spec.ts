@@ -90,6 +90,20 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 
       await expectInsideWindow(page, (await toast.boundingBox())!);
       expect((await capital.boundingBox())!.y).toBe(top);
       await expectNoSidewaysScroll(page);
+      // WCAG AA: the text on the toast's own background, once the slide-in is over (the first screenshot caught it half faded)
+      await toast.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
+      const contrast = await toast.evaluate((el) => {
+        const rgb = (c: string) => (c.match(/\d+(\.\d+)?/g) ?? []).slice(0, 3).map(Number);
+        const lum = (c: string) => {
+          const [r, g, b] = rgb(c).map((v) => v / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+          return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        };
+        const text = lum(getComputedStyle(el.querySelector('[data-testid="toast-text"]')!).color);
+        const back = lum(getComputedStyle(el).backgroundColor);
+        return { ratio: (Math.max(text, back) + 0.05) / (Math.min(text, back) + 0.05), opacity: getComputedStyle(el).opacity };
+      });
+      expect(contrast.opacity).toBe('1');
+      expect(contrast.ratio).toBeGreaterThanOrEqual(4.5);
       await page.screenshot({ path: shotPath(testInfo, `m18b-toast-${at}.png`) });
       await toast.getByRole('button', { name: 'Close message' }).click();
       await expect(toast).toHaveCount(0);

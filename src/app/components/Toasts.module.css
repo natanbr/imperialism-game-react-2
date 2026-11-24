@@ -32,10 +32,13 @@
   animation: toast-in 200ms ease-out;
 }
 
+/* An error: the red edge marks it, the text stays ink. Ink on the pale red is 8.92:1; the red text it had (--color-bad on
+   --color-bg-danger) measured 4.70:1, AA by a hair, and lighter still as anti-aliased glyphs (gate finding, 2026-11-23). */
 .error {
   background: var(--color-bg-danger);
-  color: var(--color-text-danger);
+  color: var(--color-ink);
   border-color: var(--color-bad);
+  border-left-width: 4px;
 }
 
 .text {
