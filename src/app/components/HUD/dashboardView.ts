@@ -103,12 +103,21 @@ function militaryLines(game: GameState, nation: Nation): DashboardLine[] {
   ];
 }
 
-function tradeLines(game: GameState, nation: Nation): DashboardLine[] {
+/**
+ * The player's orders of this turn as submitted, then last turn's. Trap (M18a review finding 1): the computer plans its
+ * orders inside End Turn (store's advanceTurn), so on the player's turn a rival has none in the market yet; a "this turn"
+ * line would always read "none". A rival's real data is last turn's bids and offers (FR-491, `market.lastOrders`).
+ */
+function tradeLines(game: GameState, nation: Nation, isPlayer: boolean): DashboardLine[] {
   const now = tradeOrdersOf(game, nation.id);
   const last = lastTradeOrdersOf(game, nation.id);
   return [
-    { term: "Buy this turn", value: amountsText(now.buy) },
-    { term: "Sell this turn", value: amountsText(now.sell) },
+    ...(isPlayer
+      ? [
+          { term: "Buy this turn", value: amountsText(now.buy) },
+          { term: "Sell this turn", value: amountsText(now.sell) },
+        ]
+      : [{ term: "This turn", value: "decided at End Turn" }]),
     { term: "Buy last turn", value: amountsText(last.buy) },
     { term: "Sell last turn", value: amountsText(last.sell) },
   ];
@@ -172,7 +181,7 @@ export function dashboardCards(game: GameState, playerId: string): DashboardCard
     sections: {
       economy: economyLines(nation),
       military: militaryLines(game, nation),
-      trade: tradeLines(game, nation),
+      trade: tradeLines(game, nation, nation.id === playerId),
       diplomacy: diplomacyLines(game, nation),
       council: councilLines(game, nation),
     },

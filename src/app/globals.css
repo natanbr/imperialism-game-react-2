@@ -555,6 +555,15 @@ img[data-art-anchor="bottom-center"] {
   gap: 6px;
 }
 
+/* FR-561 (M18a review): what Start Demo game gives, on screen for touch and keyboard users; it wraps rather than widen
+   the panel much past its buttons */
+.confirm-panel .confirm-note {
+  max-width: 30em;
+  margin: 6px 0 0;
+  color: var(--color-ink-muted);
+  font-size: 12px;
+}
+
 /* Every nation's score, ranked (FR-106) */
 /* M12 integration: 4 px below the table (was 8). FR-432's "N civilians without orders" line takes 16 px of the HUD, and
    at 1280x720 the news list's minimum of 3 lines then reached 1.5 px into the fade (FR-268, FR-306: e2e/m8-qa.spec.ts,

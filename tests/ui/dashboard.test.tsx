@@ -9,9 +9,10 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { TopBar } from '@/components/HUD/TopBar';
 import { HUD } from '@/components/HUD';
-import { dashboardCards, DASHBOARD_SECTIONS } from '@/components/HUD/dashboardView';
+import { amountsText, dashboardCards, DASHBOARD_SECTIONS } from '@/components/HUD/dashboardView';
 import { useGameStore } from '@/store/rootStore';
-import { computerOrders, councilVote, newGame, regimentsOf, relationLevel } from '@/engine';
+import { computerOrders, councilVote, newGame, regimentsOf, relationLevel, tradeOrdersOf, type Order } from '@/engine';
+import { lastTradeOrdersOf } from '@/engine/market/partners';
 import { money } from '@/components/gameText';
 import { relationText } from '@/components/diplomacy/diplomacyView';
 import { nationColor } from '@/styles/theme';
@@ -29,22 +30,25 @@ afterEach(() => {
 /** A cash no screen of a Normal game shows for the rival: only the dashboard reveals it. */
 const RIVAL_CASH = 77_777;
 
-/** A Demo game on the continent with the rival's cash and its buy and sell orders, this turn's and last turn's. */
+/** A Demo game on the continent with the rival's cash set by hand: a number no Normal screen shows for the rival. */
 function demoGame(difficulty: 'demo' | 'normal' = 'demo'): GameState {
-  const start = setTreasury(newGame({ seed: 1, world: 'continent', difficulty }), N2, RIVAL_CASH);
-  const market = start.market!;
-  return {
-    ...start,
-    market: {
-      ...market,
-      orders: { ...market.orders, [N2]: { buy: { lumber: 3 }, sell: { wool: 5 } } },
-      lastOrders: { ...(market.lastOrders ?? {}), [N2]: { buy: { coal: 2 }, sell: { fabric: 4 } } },
-    },
-  };
+  return setTreasury(newGame({ seed: 1, world: 'continent', difficulty }), N2, RIVAL_CASH);
 }
 
 function show(game: GameState) {
   useGameStore.setState({ ...useGameStore.getInitialState(), game, activeNationId: N1 });
+}
+
+/**
+ * Review M18a finding 1: a Demo game played through the real store, New game's Demo start then `turns` End Turns, so the
+ * computer's orders are what advanceTurn plans (gameSlice.ts), not hand-written ones. On seed 1 Valdoria has bid and
+ * offered by turn 4.
+ */
+function playedDemo(turns = 3): GameState {
+  useGameStore.setState(useGameStore.getInitialState());
+  useGameStore.getState().startNewGame({ seed: 1, difficulty: 'demo' });
+  for (let i = 0; i < turns; i++) useGameStore.getState().advanceTurn();
+  return useGameStore.getState().game;
 }
 
 const Screen = () => (
@@ -134,17 +138,35 @@ describe('FR-562 the debug dashboard on the Demo level', () => {
     expect(rival).not.toContain('Cash');
   });
 
-  it("FR-562 Trade shows a rival's buy and sell orders, this turn's and last turn's", () => {
-    show(demoGame());
+  // Review M18a finding 1: the computer plans its orders inside End Turn, so on the player's turn a rival has none in the
+  // market yet; a "this turn: none" line read as if it would not trade. Its real data is last turn's orders.
+  it("FR-562 Trade, in real play: a rival's buy and sell orders of last turn, and no 'this turn' line, as the computer decides at End Turn", () => {
+    const game = playedDemo(3);
+    const last = lastTradeOrdersOf(game, N2);
+    // The precondition real play gives: the rival bid or offered last turn, and has nothing in this turn's market
+    expect(amountsText(last.buy) !== 'none' || amountsText(last.sell) !== 'none').toBe(true);
+    expect(tradeOrdersOf(game, N2)).toEqual({ buy: {}, sell: {} });
     render(<Screen />);
     const dialog = openDashboard();
     section(dialog, 'Trade');
     const rival = text(card(dialog, N2));
-    expect(rival).toContain('Buy this turn Lumber 3');
-    expect(rival).toContain('Sell this turn Wool 5');
-    expect(rival).toContain('Buy last turn Coal 2');
-    expect(rival).toContain('Sell last turn Fabric 4');
-    expect(text(card(dialog, N1))).toContain('Buy this turn none');
+    expect(rival).toContain(`Buy last turn ${amountsText(last.buy)}`);
+    expect(rival).toContain(`Sell last turn ${amountsText(last.sell)}`);
+    expect(rival).toContain('This turn decided at End Turn');
+    expect(rival).not.toContain('Buy this turn');
+    expect(rival).not.toContain('Sell this turn');
+  });
+
+  it("FR-562 Trade: the player's own orders of this turn, as submitted through the store", () => {
+    playedDemo(1);
+    expect(useGameStore.getState().submitOrder({ kind: 'sellCommodity', nationId: N1, commodity: 'lumber', amount: 2 } as Order).ok).toBe(true);
+    render(<Screen />);
+    const dialog = openDashboard();
+    section(dialog, 'Trade');
+    const own = text(card(dialog, N1));
+    expect(own).toContain('Sell this turn Lumber 2');
+    expect(own).toContain('Buy this turn none');
+    expect(own).not.toContain('decided at End Turn');
   });
 
   it("FR-562 Diplomacy shows each nation's relation with every other country; Council the forecast", () => {
@@ -210,6 +232,18 @@ describe('NR-037 FR-562 the other levels are unchanged', () => {
 });
 
 describe('FR-497 NR-037 the dashboard only reads', () => {
+  // Review M18a finding 2: the property itself. Demo reveals numbers to the human screen only, so the computer plans the
+  // same orders on a Demo state as on the same state on Normal: at the start and after three End Turns of real play.
+  it('FR-497 NR-037 the computer orders of a Demo state equal those of the same state with difficulty "normal"', () => {
+    for (const game of [newGame({ seed: 1, world: 'continent', difficulty: 'demo' }), playedDemo(3)]) {
+      expect(game.difficulty).toBe('demo');
+      const orders = computerOrders(game);
+      expect(Object.keys(orders)).toEqual([N2]);
+      expect(orders[N2].length, `turn ${game.turn}`).toBeGreaterThan(0);
+      expect(computerOrders({ ...game, difficulty: 'normal' })).toEqual(orders);
+    }
+  });
+
   it('FR-497 the computer orders on a Demo game are identical with and without the dashboard open and its view called', () => {
     const game = demoGame();
     const snapshot = structuredClone(game);

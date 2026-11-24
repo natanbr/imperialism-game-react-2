@@ -25,6 +25,9 @@ import { continent } from '../engine/armyFixtures';
 import { text } from './domText';
 import { failOnActWarnings } from './actWarnings';
 
+/** M18a review finding 3: what the question says about Start Demo game, on screen. */
+const DEMO_NOTE = "Demo: more cash and troops, and a dashboard of every nation's numbers.";
+
 // The page test renders Home; the map is not under test here
 vi.mock('@/components/MapView', () => ({ MapView: () => null }));
 
@@ -340,8 +343,8 @@ describe('FR-480 New game in the bar', () => {
     fireEvent.click(toggle);
     const panel = screen.getByRole('group', { name: 'Confirm new game' });
     expect(panel.id).toBe('confirm-new-game');
-    // FR-561 added Start Demo game between the two
-    expect(text(panel)).toBe('Start a new game? This game will be lost. Start new game Start Demo game Keep playing');
+    // FR-561 added Start Demo game between the two, and (M18a review finding 3) its visible description under them
+    expect(text(panel)).toBe(`Start a new game? This game will be lost. Start new game Start Demo game Keep playing ${DEMO_NOTE}`);
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
     expect(toggle.getAttribute('aria-controls')).toBe('confirm-new-game');
     expect(document.activeElement).toBe(panel);
@@ -438,6 +441,21 @@ describe('FR-480 New game in the bar', () => {
     expect(cash).toBe(START_TREASURY * DEMO_START.cashMultiplier);
     expect(text(screen.getByTestId('topbar-cash'))).toContain(money(cash));
     expect(screen.queryByRole('group', { name: 'Confirm new game' })).toBeNull();
+  });
+
+  // M18a review finding 3: a title is a mouse-only tooltip, so touch and keyboard users never saw what Demo gives
+  it('FR-561 Start Demo game has a visible description in the question, which is also its accessible description', () => {
+    show(continent());
+    render(<TopBar />);
+    fireEvent.click(screen.getByRole('button', { name: 'New game' }));
+    const panel = screen.getByRole('group', { name: 'Confirm new game' });
+    const demo = within(panel).getByRole('button', { name: 'Start Demo game' });
+    const note = document.getElementById(demo.getAttribute('aria-describedby') ?? '');
+    expect(note).not.toBeNull();
+    expect(panel.contains(note)).toBe(true);
+    expect(note!.hidden).toBe(false);
+    expect(text(note!)).toBe(DEMO_NOTE);
+    expect(demo.hasAttribute('title')).toBe(false);
   });
 
   // Pin moved (M12b review LP-1, LP-3, A11Y-1, old -> new): "the panel at the window's right (right: 8px) with its own

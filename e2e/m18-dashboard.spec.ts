@@ -1,6 +1,8 @@
 // FR-562: the debug dashboard of the Demo level, in the running app. Continue the seeded save (Normal: no Dashboard
 // button), start a Demo game from New game's question, open Dashboard and read the rival's cash on its card; at 1366x768
-// (one screenshot for the gate) and at 390 px wide, with no sideways page scroll and the dialog inside the window.
+// and at 390 px wide, with no sideways page scroll and the dialog inside the window. Each test leaves a screenshot in its
+// output folder (testInfo.outputPath), or in SCREENSHOT_DIR when that is set.
+import type { TestInfo } from '@playwright/test';
 import { START_TREASURY } from '../src/app/engine/world/startWorld';
 import { expect, startSeededGame, test, type Page } from './seededGame';
 
@@ -19,6 +21,9 @@ async function openDemoDashboard(page: Page) {
   return dialog;
 }
 
+/** The run's own output folder (no fixed path), or SCREENSHOT_DIR when the gate sets it, as the other specs do. */
+const shotPath = (testInfo: TestInfo, name: string) => (process.env.SCREENSHOT_DIR ? `${process.env.SCREENSHOT_DIR}/${name}` : testInfo.outputPath(name));
+
 async function expectNoSidewaysScroll(page: Page) {
   const { scrollWidth, innerWidth } = await page.evaluate(() => ({ scrollWidth: document.documentElement.scrollWidth, innerWidth: window.innerWidth }));
   expect(scrollWidth).toBeLessThanOrEqual(innerWidth);
@@ -27,7 +32,7 @@ async function expectNoSidewaysScroll(page: Page) {
 test.describe('FR-562 at 1366x768', () => {
   test.use({ viewport: { width: 1366, height: 768 } });
 
-  test('FR-562 Start Demo game, open Dashboard: the rival card shows its cash; the sections switch with buttons', async ({ page }) => {
+  test('FR-562 Start Demo game, open Dashboard: the rival card shows its cash; the sections switch with buttons', async ({ page }, testInfo) => {
     const errors: string[] = [];
     page.on('pageerror', err => errors.push(err.message));
     const dialog = await openDemoDashboard(page);
@@ -42,7 +47,7 @@ test.describe('FR-562 at 1366x768', () => {
     expect(box.x).toBeGreaterThanOrEqual(0);
     expect(box.x + box.width).toBeLessThanOrEqual(1366);
     expect(box.y + box.height).toBeLessThanOrEqual(768);
-    await page.screenshot({ path: '.gate/claude/31/dashboard.png', animations: 'disabled' });
+    await page.screenshot({ path: shotPath(testInfo, 'm18-dashboard.png'), animations: 'disabled' });
     expect(errors).toEqual([]);
   });
 });
@@ -50,7 +55,7 @@ test.describe('FR-562 at 1366x768', () => {
 test.describe('FR-562 at 390 px wide', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
-  test('FR-562 the dashboard fits a phone-wide window: no sideways page scroll, the rival cash in view', async ({ page }) => {
+  test('FR-562 the dashboard fits a phone-wide window: no sideways page scroll, the rival cash in view', async ({ page }, testInfo) => {
     const dialog = await openDemoDashboard(page);
     const rival = dialog.getByTestId(`dashboard-card-${RIVAL}`);
     await expect(rival).toContainText(rivalCash);
@@ -63,6 +68,6 @@ test.describe('FR-562 at 390 px wide', () => {
     await dialog.getByRole('button', { name: 'Military' }).click();
     await expect(rival).toContainText('Regiments');
     await expectNoSidewaysScroll(page);
-    await page.screenshot({ path: '.gate/claude/31/dashboard-390.png', animations: 'disabled' });
+    await page.screenshot({ path: shotPath(testInfo, 'm18-dashboard-390.png'), animations: 'disabled' });
   });
 });

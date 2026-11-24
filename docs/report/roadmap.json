@@ -1,13 +1,13 @@
 {
  "project": "Imperialism Revival",
  "schema": 3,
- "updated": "2026-11-22",
+ "updated": "2026-11-23",
  "audit": {
   "date": "2026-11-14",
   "reviewers": 8,
   "folder": "docs/audit/2026-11-14",
   "branch": "claude/m12-honest-game",
-  "main": "13d75ab"
+  "main": "65a4d5a"
  },
  "source": "docs/report/roadmap.json, docs/audit/2026-11-14/*.json and docs/requirements.md in the imperialism-game-react-2 repo",
  "reality": {
@@ -180,7 +180,7 @@
    "text": "Of 24 rule topics of the original game: 3 built, 14 partial, 1 wrong, 1 dead code, 5 missing."
   },
   "notChecked": "Not checked by the audit: Firefox and Safari, real touch on a phone, screen readers, and a human game played all the way to a Council win.",
-  "notFixed": "M12 (themes T1 to T10, FR-357 to FR-464) is merged into main 91d7edc (pull request 34), so its findings are fixed on main. M12b (the HUD you asked for, FR-465 to FR-480, and its by-eye QA fixes FR-529 to FR-537) is merged into main 74f595c (pull request 35, 2026-11-17). M13 (theme T11) is merged on the checked origin/main, 1d58b74. M14 (theme T12) merged at 79a94b2. M15 is merged at the Task 11 origin/main baseline, de20eca. You accepted the measured diplomat and Council results for M15 (FR-545 and FR-546). M16 part 1 merged at 9bd5a91 (pull request 39). On main the player can buy technology and the computer buys none. Both M16b branches are parked pending an original-game play-test. Task 19 merged at df047ac. The M17 specification merged at 13d75ab. The M17 implementation is verified locally on claude/m17-sea-war. M18 remains planned.",
+  "notFixed": "M12 (themes T1 to T10, FR-357 to FR-464) is merged into main 91d7edc (pull request 34), so its findings are fixed on main. M12b (the HUD you asked for, FR-465 to FR-480, and its by-eye QA fixes FR-529 to FR-537) is merged into main 74f595c (pull request 35, 2026-11-17). M13 (theme T11) is merged on the checked origin/main, 1d58b74. M14 (theme T12) merged at 79a94b2. M15 is merged at the Task 11 origin/main baseline, de20eca. You accepted the measured diplomat and Council results for M15 (FR-545 and FR-546). M16 part 1 merged at 9bd5a91 (pull request 39). On main the player can buy technology and the computer buys none. Both M16b branches are parked pending an original-game play-test. Task 19 merged at df047ac. The M17 specification merged at 13d75ab. M17 merged into main 65a4d5a (pull request 42). M18a, the play-test comfort aids, is in progress on claude/m18a-demo: FR-561 (Demo level) and FR-562 (debug dashboard) are tested on that branch.",
   "filedNote": "The plan named 122 of the 160 findings in its themes. I filed the other 38 under the nearest theme; they are marked \"filed\" and can be moved."
  },
  "statusLegend": [
@@ -1471,7 +1471,6 @@
     "id": "M17",
     "title": "Sea war and reach",
     "status": "built",
-    "localBuild": true,
     "statusLabel": "Built, pull request being opened",
     "themes": [
      "T15"
@@ -1483,7 +1482,7 @@
      "Deploy by rail within the national ARMS allowance, continue a midturn save and run the existing score, Council, war and replay guards with their original policies."
     ],
     "depends": "M15 merchant Shipyard and M13 army, diplomacy and battle systems. The M16b technology buyer is independent.",
-    "statusText": "Built locally on claude/m17-sea-war through FR-560. Task 23 corrects the seven review findings and implements the owner's revised Q145 sea battles and ordered allied attacks. Original-game tuning remains open. See the dated Task 23 journal for the local gate and protected campaign measurements.",
+    "statusText": "Merged into main 65a4d5a (pull request 42). Built on claude/m17-sea-war through FR-560. Task 23 corrects the seven review findings and implements the owner's revised Q145 sea battles and ordered allied attacks. Original-game tuning remains open. See the dated Task 23 journal for the local gate and protected campaign measurements.",
     "spec": "docs/specs/m17.md",
     "findings": 5,
     "severity": {
@@ -1500,8 +1499,8 @@
    {
     "id": "M18",
     "title": "World variety and depth",
-    "status": "planned",
-    "statusLabel": "Planned",
+    "status": "tonight",
+    "statusLabel": "Planned for tonight",
     "themes": [
      "T16"
     ],
@@ -1511,6 +1510,8 @@
      "Choose a difficulty and a game length."
     ],
     "depends": "Mostly M15 to M17; each piece is planned separately.",
+    "statusText": "In progress. M18a, the play-test comfort aids of docs/specs/m18-playtest-comfort.md, is on claude/m18a-demo: FR-561 (Demo level) and FR-562 (debug dashboard) are tested on that branch, not merged. FR-563 to FR-570 and the rest of M18 are not started.",
+    "spec": "docs/specs/m18-playtest-comfort.md",
     "findings": 18,
     "severity": {
      "major": 2,
