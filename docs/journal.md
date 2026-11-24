@@ -5,7 +5,8 @@ Older entries are in `docs/journal/archive-<milestone>.md` (the latest move, 202
 ## Resuming here
 
 - M18 (play-test comfort, `docs/specs/m18-playtest-comfort.md`): M18a merged into main `af24381` (pull request 43), M18b part 1 (FR-563, FR-568, FR-569) in `5e80bab` (pull request 44), part 2 (FR-564 nation colours and flags) in `4098bfe` (pull request 45). NR-037 in progress.
-- M18b part 3 (FR-565, FR-566) merged into main `cd5b1be` (pull request 46); FR-567 (map fitted on open, its own zoom) into `994a0ca` (pull request 47), partial: the narrower pane is left for the owner. FR-570 (rail in the ink and wash style) is tested on `claude/m18b-rail`, committed locally, not pushed; evidence in `.gate/claude/51/`. Icons wait for the art (spec section 3).
+- M18b part 3 (FR-565, FR-566) merged into main `cd5b1be` (pull request 46); FR-567 into `994a0ca` (pull request 47), partial: the narrower pane is left for the owner; FR-570 (rail) into `751b74b` (pull request 48). Icons wait for the art (spec section 3).
+- M18c (owner play-test 2026-11-24, spec section 5, FR-572 to FR-578): the Trade School holds the Capitol; the Board of Trade has a status bar and three tabs (Board, Details, Trade policies), one Buy/Sell choice per row and flags-only Market column. Built by Opus 5.5, reviewed by Sonnet 5.5, full gate green (`.gate/claude/53/`, screenshots there). Open: whether the Details information leaves the trade screen as in the original (FR-575); a map view for Trade policies.
 - To try Demo: New game, Start Demo game; then Dashboard in the top bar (Economy, Military, Trade, Diplomacy, Council, Bug report).
 - M17 merged into main `65a4d5a` (pull request 42). Its task evidence is in `.gate/codex/21/` to `.gate/codex/28/`.
 - M16 part 1 merged in `9bd5a91`. The human can buy technology. The computer makes no purchases on main.
@@ -13,6 +14,10 @@ Older entries are in `docs/journal/archive-<milestone>.md` (the latest move, 202
 - FR-547 (Q143) is the buyer branch's proposed value rule. Measure technology availability, purchase timing and the value of the first unlocked action in the original game before tuning. See `docs/verify-and-tune.md`.
 - Task 19 passed the load trials and full gate on `claude/perf-tests`. Finish future gates with `npm run test:perf` alone. The measured results and six functional logs are indexed in `.gate/codex/19/summary.md`.
 - To play M17 on continent seed 1, set Armaments and Fabric production to 1. Build a Ship-of-the-Line on turn 6, declare and sail on turn 7, set the site on turn 8, and land the four-ARMS army on turn 9. On turn 10 see the survivors at Sundmark and its colony vote in Council.
+
+## 2026-11-24 M18c — trade screen and Trade School
+
+Owner feedback with original-game screenshots became FR-572 to FR-577; the review round added FR-578 (refused "+" focusable with a visible reason, Buy/Sell a radio group following the order in place). Cash shown as "Cash before purchases" because the engine takes a purchase's money when it is ordered. Flags were approved by the owner; minor colours stay.
 
 ## 2026-11-24 M18b FR-570 — rail in the ink and wash style
 
