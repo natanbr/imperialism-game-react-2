@@ -12,11 +12,20 @@ interface Land {
 }
 
 export interface TradePolicyMap {
+  width: number;
   viewBox: string;
   countries: { id: string; d: string; label: Point; marker: Point }[];
 }
 
 const keyOf = ({ x, y }: Point) => `${x},${y}`;
+
+const LAND_PADDING = 30;
+export const POLICY_MAP_EDGE_CLEARANCE = 24;
+// In SVG view units, including the phone's larger lettering and stroked marker.
+const LABEL_HALF_HEIGHT = 20;
+const MARKER_RADIUS = 23;
+const LABEL_ABOVE = 21;
+const MARKER_BELOW = 25;
 
 function outline(next: Map<string, Point>, project: (p: Point) => Point): string {
   let d = "";
@@ -43,7 +52,7 @@ function centreTile(points: Point[]): Point {
   mean.x /= points.length;
   mean.y /= points.length;
   const distance = (p: Point) => (p.x - mean.x) ** 2 + (p.y - mean.y) ** 2;
-  // The mean can lie in the sea or another country. Both anchors must be inside an owned tile.
+  // The mean can lie in the sea or another country. Centre the annotations on an owned tile.
   return points.reduce((best, p) => distance(p) < distance(best) ? p : best);
 }
 
@@ -80,22 +89,30 @@ function buildView(game: GameState, width: number, height: number): TradePolicyM
     }
   }
   const viewBox = `0 0 ${width} ${height}`;
-  if (!lands.size) return { viewBox, countries: [] };
-  const scale = Math.min(width / (right - left + 2 * half), height / (bottom - top + 2 * half));
+  if (!lands.size) return { width, viewBox, countries: [] };
+  const padding = Math.min(LAND_PADDING, width / 4, height / 4);
+  const scale = Math.min((width - 2 * padding) / (right - left), (height - 2 * padding) / (bottom - top));
   const project = (p: Point): Point => ({
     x: (p.x - (left + right) / 2) * scale + width / 2,
     y: (p.y - (top + bottom) / 2) * scale + height / 2,
   });
+  const above = LABEL_ABOVE + LABEL_HALF_HEIGHT;
+  const below = MARKER_BELOW + MARKER_RADIUS;
+  const verticalClearance = Math.max(0, Math.min(POLICY_MAP_EDGE_CLEARANCE, (height - above - below) / 2));
   const countries = Array.from(lands, ([id, land]) => {
-    const centre = centreTile(land.centres);
+    const centre = project(centreTile(land.centres));
+    // Move the pair together at an edge so clamping cannot close the gap.
+    const cy = Math.min(height - verticalClearance - below, Math.max(verticalClearance + above, centre.y));
+    const markerX = Math.min(width - POLICY_MAP_EDGE_CLEARANCE - MARKER_RADIUS,
+      Math.max(POLICY_MAP_EDGE_CLEARANCE + MARKER_RADIUS, centre.x));
     return {
       id,
       d: outline(land.next, project),
-      label: project({ x: centre.x, y: centre.y - TILE_PX / 3 }),
-      marker: project({ x: centre.x, y: centre.y + TILE_PX / 3 }),
+      label: { x: centre.x, y: cy - LABEL_ABOVE },
+      marker: { x: markerX, y: cy + MARKER_BELOW },
     };
   });
-  return { viewBox, countries };
+  return { width, viewBox, countries };
 }
 
 interface CachedMap {
