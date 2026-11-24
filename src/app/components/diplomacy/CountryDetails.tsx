@@ -337,7 +337,7 @@ export const CountryDetails: React.FC<CountryDetailsProps> = ({ row, state, nati
     <section id={panelId} role="tabpanel" aria-labelledby={nameId} className={styles.details} data-testid={`country-${row.id}`}>
       <header className={styles.detailsHeader}>
         <h3 id={nameId} className={styles.detailsName}>
-          <NationFlag nationId={row.id} />
+          <NationFlag nationId={row.id} size="large" />
           {row.name}
         </h3>
         <span className={styles.kind}>{row.kind}</span>

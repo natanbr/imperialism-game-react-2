@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // M8 UI half. FR-210 (plan M8; Imp1 encampment tents, rules 11 section 5.1): on each province's seat tile the map draws one
-// marker per country with regiments there, in its colour (the Great Power's slot colour, --color-minor for a minor),
+// marker per country with regiments there, in its colour (the Great Power's slot colour, a minor's own colour, FR-564),
 // showing its force size and militia count, named "Testland army: force size 4, 3 regiments, 4 militia" or "Arvelia
 // militia: 3". The player's own marker is a button that opens the Army screen (FR-211); the others are images.
 // The markers come from the engine's `armyMarkers` through the React-free components/army/armyView.ts.
@@ -93,7 +93,7 @@ describe('FR-210 army markers on the seat tiles', () => {
     expect(text(within(militia).getByTestId('army-militia'))).toBe('3');
   });
 
-  it("FR-210 in its owner's colour: the Great Power's slot colour, --color-minor for a minor", () => {
+  it("FR-210 in its owner's colour: the Great Power's slot colour, a minor's own colour (FR-564)", () => {
     show(continent());
     const { container } = render(<MapView />);
     expect(markersIn(container, '2-9')[0].style.borderColor).toBe(NATION_COLORS[0]);

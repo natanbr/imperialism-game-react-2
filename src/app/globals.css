@@ -598,8 +598,8 @@ img[data-art-anchor="bottom-center"] {
   background: var(--color-bg-you);
 }
 
-/* A nation's colour beside its name: never the only cue (FR-106) */
-/* A nation's flag mark beside its name (FR-564; components/NationFlag.tsx) */
+/* A nation's flag mark beside its name, never the only cue (FR-106, FR-564; components/NationFlag.tsx). Large where a list
+   has room; the Board of Trade's chips, the news and the map's name tags size it to their line. */
 .nation-flag {
   display: inline-block;
   flex: none;
@@ -607,6 +607,13 @@ img[data-art-anchor="bottom-center"] {
   height: 18px;
   margin-right: 4px;
   vertical-align: -4px;
+}
+
+.nation-flag-large {
+  width: 18px;
+  height: 24px;
+  margin-right: 6px;
+  vertical-align: -6px;
 }
 
 .nation-flag svg {
@@ -910,6 +917,22 @@ img[data-art-anchor="bottom-center"] {
 .news-list li {
   margin: 0;
   padding: 0;
+}
+
+/* Another nation's line (FR-564): its flag stands in the bullet's place, so the line keeps its width and its 20 px
+   height and the list still holds whole lines (FR-268) */
+.news-list li.news-flagged {
+  position: relative;
+  list-style: none;
+}
+
+.news-list li.news-flagged > .nation-flag {
+  position: absolute;
+  left: -15px;
+  top: 2px;
+  width: 12px;
+  height: 16px;
+  margin: 0;
 }
 
 .news-list:focus-visible {

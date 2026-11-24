@@ -48,7 +48,7 @@ const CouncilReport: React.FC<{ event: CouncilMetEvent }> = ({ event }) => {
   };
   const head = (column: CouncilColumnView) => (
     <th scope="col" className={styles.nominee}>
-      <NationFlag nationId={column.nationId} />
+      <NationFlag nationId={column.nationId} size="large" />
       {column.name}
       {/* FR-313, FR-413: the columns follow the player, so the standing shows as a mark: "1st by standing" */}
       <span className={styles.rank} data-testid={`council-rank-${column.nationId}`}>

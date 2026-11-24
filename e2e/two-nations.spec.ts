@@ -48,7 +48,7 @@ test('FR-106 FR-107 FR-108 after five End Turns the HUD ranks both nations, the 
   expect(await page.locator('[data-testid="rail-segment"][data-nation-id="nation-2"]').count()).toBeGreaterThan(0);
   await expect(page.getByTestId('news-panel')).toContainText('Valdoria: ');
   await page.getByRole('button', { name: 'Stats', exact: true }).click();
-  await expect(scores(page).getByTestId('score-row-nation-2').getByTestId('swatch')).toBeVisible();
+  await expect(scores(page).getByTestId('score-row-nation-2').getByTestId('nation-flag')).toBeVisible();
   await expect(scores(page).getByTestId(/^score-row-/).first().getByTestId('rank')).toHaveText('1');
   await page.getByRole('button', { name: 'Close stats' }).click();
   if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/m4-map.png` });

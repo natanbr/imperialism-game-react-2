@@ -46,14 +46,15 @@
      Great Power: a warm grey, dotted, at 3:1 on the map halo and on the ground grass, which the halo barely
      lifts (1.09:1), so the 2 px dots hold by themselves (WCAG 1.4.11; FR-329, FR-344). */
   --color-minor: #26362c;
-  /* FR-564: each minor nation's own colour, by founding order (minor-1 Arvelia to minor-4 Pellis): green, ochre, plum and
-     the slate above. Its flag, its dashed border and its army markers use it. Dark enough for 3:1 on the map halo and
-     the grass (its dashed border, FR-329, FR-344) and on every cream surface; at least 25 apart (ΔE76) from each other and
-     from both nation colours. Colour-blind eyes may confuse some pairs: the flag patterns tell them apart. */
-  --color-minor-1: #2e5a2e;
-  --color-minor-2: #7a4b14;
-  --color-minor-3: #6b2d6b;
-  --color-minor-4: #26362c;
+  /* FR-564: each minor nation's own colour, by founding order (minor-1 Arvelia to minor-4 Pellis): olive green, mustard,
+     plum and a green-black. Its flag, its dashed border and its army markers use it. Dark enough for 3:1 on the map halo
+     and the grass (its dashed border, FR-329, FR-344) and on every cream surface; any two of the six nation colours at least
+     20 apart (ΔE76) in normal vision and under simulated deuteranopia and protanopia (tests/ui/nationFlag.test.tsx).
+     --color-minor above stays the colour of a country no list knows. */
+  --color-minor-1: #243600;
+  --color-minor-2: #665a0c;
+  --color-minor-3: #5a0c54;
+  --color-minor-4: #123024;
   /* The light pattern on a flag mark (FR-564): stripes, cross, canton on the nation's colour */
   --color-flag-pattern: var(--color-surface-raised);
   --color-province-border: #5f5548;

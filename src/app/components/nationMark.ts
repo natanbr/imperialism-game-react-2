@@ -14,9 +14,19 @@ export interface NationMark {
   pattern: FlagPattern;
 }
 
-/** Great Powers by colour slot, then minors by founding order; each list wraps round past its last entry. */
+/** Each colour's first pattern: the Great Powers' by colour slot, the minors' by founding order. */
 const GREAT_POWER_PATTERNS: readonly FlagPattern[] = ["solid", "cross"];
 const MINOR_PATTERNS: readonly FlagPattern[] = ["canton", "stripes", "diagonal", "triangle"];
+
+/**
+ * The mark at place `index` of a list: its colour, and the colour's first pattern moved on by one for each time the list
+ * has gone round its colours, so a third Great Power or a fifth minor still gets a mark of its own (colours x 6 marks).
+ */
+function markAt(index: number, colours: readonly string[], firstPatterns: readonly FlagPattern[]): NationMark {
+  const slot = index % colours.length;
+  const lap = Math.floor(index / colours.length);
+  return { colour: colours[slot], pattern: FLAG_PATTERNS[(FLAG_PATTERNS.indexOf(firstPatterns[slot]) + lap) % FLAG_PATTERNS.length] };
+}
 
 /** What a lookup needs of the game: `GameState` fits. */
 export interface NationLists {
@@ -32,9 +42,9 @@ export function nationMark({ nations, minorNations }: NationLists, id: string): 
   const nation = nations.find((n) => n.id === id);
   if (nation) {
     const slot = Number.isInteger(nation.colorSlot) && nation.colorSlot >= 1 ? nation.colorSlot - 1 : 0;
-    return { colour: NATION_COLORS[slot % NATION_COLORS.length], pattern: GREAT_POWER_PATTERNS[slot % GREAT_POWER_PATTERNS.length] };
+    return markAt(slot, NATION_COLORS, GREAT_POWER_PATTERNS);
   }
   const minor = minorNations.findIndex((m) => m.id === id);
-  if (minor >= 0) return { colour: MINOR_COLORS[minor % MINOR_COLORS.length], pattern: MINOR_PATTERNS[minor % MINOR_PATTERNS.length] };
+  if (minor >= 0) return markAt(minor, MINOR_COLORS, MINOR_PATTERNS);
   return { colour: THEME.minor, pattern: "solid" };
 }

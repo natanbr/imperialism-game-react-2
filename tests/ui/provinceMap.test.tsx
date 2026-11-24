@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // FR-153 (M5): the map draws (a) the Great Power borders as before, (b) a dotted line between two
-// provinces of the same owner, (c) each minor nation's border dashed in --color-minor, and (d) the
+// provinces of the same owner, (c) each minor nation's border dashed in its own colour (FR-564; was --color-minor), and (d) the
 // minor's name on its capital tile beside the capital icon. A new continent game shows 2 Great Power
 // borders, 8 Great Power provinces and 4 minor names; two-islands (no provinces, no minors) is as before. FR-327 (M11):
 // each border line lies on a pale halo path (the pack's territory-line halo colour), the lines themselves unchanged.
@@ -141,7 +141,7 @@ describe('FR-153 (c) minor nation borders', () => {
 });
 
 describe('FR-153 MapView on a new continent game', () => {
-  it('FR-153 (a) to (c) 2 Great Power borders in slot colours, 2 dotted province paths, 4 dashed minor borders in --color-minor', () => {
+  it('FR-153 (a) to (c) 2 Great Power borders in slot colours, 2 dotted province paths, 4 dashed minor borders, each in its own colour (FR-564)', () => {
     show(continent);
     const { container, unmount } = render(<MapView />);
     const paths = (id: string) => [...container.querySelectorAll(`[data-testid="${id}"]`)];

@@ -55,17 +55,29 @@ const contrast = (a: string, b: string) => {
   const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
   return Math.round(((hi + 0.05) / (lo + 0.05)) * 100) / 100;
 };
-/** CIE76 distance in Lab (D65). */
-const deltaE = (a: string, b: string) => {
-  const lab = (h: string) => {
-    const [r, g, bl] = linear(h);
-    const x = (0.4124 * r + 0.3576 * g + 0.1805 * bl) / 0.95047;
-    const y = 0.2126 * r + 0.7152 * g + 0.0722 * bl;
-    const z = (0.0193 * r + 0.1192 * g + 0.9505 * bl) / 1.08883;
-    const f = (t: number) => (t > 216 / 24389 ? Math.cbrt(t) : ((24389 / 27) * t + 16) / 116);
-    return [116 * f(y) - 16, 500 * (f(x) - f(y)), 200 * (f(y) - f(z))];
+/** Linear sRGB to CIE Lab (D65). */
+const labOf = ([r, g, bl]: [number, number, number]) => {
+  const x = (0.4124 * r + 0.3576 * g + 0.1805 * bl) / 0.95047;
+  const y = 0.2126 * r + 0.7152 * g + 0.0722 * bl;
+  const z = (0.0193 * r + 0.1192 * g + 0.9505 * bl) / 1.08883;
+  const f = (t: number) => (t > 216 / 24389 ? Math.cbrt(t) : ((24389 / 27) * t + 16) / 116);
+  return [116 * f(y) - 16, 500 * (f(x) - f(y)), 200 * (f(y) - f(z))];
+};
+/** Colour vision deficiency on linear RGB (Machado, Oliveira and Fernandes 2009, severity 1), as tests/ui/palette.test.ts. */
+const VIEWS: Record<string, number[][] | null> = {
+  normal: null,
+  deuteranopia: [[0.367322, 0.860646, -0.227968], [0.280085, 0.672501, 0.047413], [-0.01182, 0.04294, 0.968881]],
+  protanopia: [[0.152286, 1.052583, -0.204868], [0.114503, 0.786281, 0.099216], [-0.003882, -0.048116, 1.051998]],
+};
+/** CIE76 distance of two colours as an eye with that vision sees them. */
+const deltaE = (a: string, b: string, view = 'normal') => {
+  const seen = (h: string) => {
+    const c = linear(h);
+    const m = VIEWS[view];
+    const clamp = (v: number) => Math.min(1, Math.max(0, v));
+    return labOf(m ? ([0, 1, 2].map((i) => clamp(m[i][0] * c[0] + m[i][1] * c[1] + m[i][2] * c[2])) as [number, number, number]) : c);
   };
-  const [p, q] = [lab(a), lab(b)];
+  const [p, q] = [seen(a), seen(b)];
   return Math.round(Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]) * 10) / 10;
 };
 
@@ -86,6 +98,7 @@ const flagsIn = (root: ParentNode) =>
     colour: el.style.color,
     pattern: el.getAttribute('data-pattern') ?? '',
     hidden: el.getAttribute('aria-hidden'),
+    large: el.classList.contains('nation-flag-large'),
   }));
 
 describe('FR-564 one colour and one flag pattern per nation', () => {
@@ -127,10 +140,29 @@ describe('FR-564 one colour and one flag pattern per nation', () => {
     expect(file).toContain(`d="${FLAG_CLOTH_PATH}"`);
   });
 
-  it('FR-564 the six colours are told apart (ΔE76 25 or more between any two)', () => {
+  it('FR-564 the six colours are told apart: ΔE76 20 or more between any two, in normal vision and under deuteranopia and protanopia', () => {
     const colours = [...NATION_COLORS, ...MINOR_COLORS].map(hex);
-    const close = colours.flatMap((a, i) => colours.slice(i + 1).map((b) => ({ pair: `${a} vs ${b}`, dE: deltaE(a, b) }))).filter(({ dE }) => dE < 25);
+    const pairs = colours.flatMap((a, i) => colours.slice(i + 1).map((b) => [a, b] as const));
+    const close = Object.keys(VIEWS)
+      .flatMap((view) => pairs.map(([a, b]) => ({ pair: `${view}: ${a} vs ${b}`, dE: deltaE(a, b, view) })))
+      .filter(({ dE }) => dE < 20);
     expect(close).toEqual([]);
+    expect(deltaE('#a8322d', '#c9483a')).toBeCloseTo(11.0, 0);
+  });
+
+  it('FR-564 a third Great Power or a fifth minor still gets a mark of its own: past the last colour the pattern moves on', () => {
+    const g = game();
+    const more: GameState = {
+      ...g,
+      nations: [...g.nations, { ...g.nations[1], id: 'nation-3', colorSlot: 3 }, { ...g.nations[1], id: 'nation-4', colorSlot: 4 }],
+      minorNations: [...g.minorNations, ...[5, 6, 7, 8, 9].map((n) => ({ ...g.minorNations[0], id: `minor-${n}` }))],
+    };
+    const marks = idsOf(more).map((id) => nationMark(more, id));
+    expect(new Set(marks.map((m) => `${m.colour} ${m.pattern}`)).size).toBe(marks.length);
+    // The stock nations keep their marks
+    for (const id of idsOf(g)) expect(nationMark(more, id)).toEqual(nationMark(g, id));
+    expect(nationMark(more, 'nation-3')).toEqual({ colour: NATION_COLORS[0], pattern: 'cross' });
+    expect(nationMark(more, 'minor-5')).toEqual({ colour: MINOR_COLORS[0], pattern: 'stripes' });
   });
 
   it('FR-564 the mark reaches 3:1 on every surface a name lies on; the pattern 3:1 on every colour; a minor 3:1 on the map halo and grass', () => {
@@ -153,12 +185,12 @@ describe('FR-564 every screen shows the same flag for the same nation', () => {
     expect(flags.length, screen).toBeGreaterThan(0);
     for (const flag of flags) {
       const mark = nationMark(g, flag.id);
-      expect({ screen, ...flag }).toEqual({ screen, id: flag.id, colour: mark.colour, pattern: mark.pattern, hidden: 'true' });
+      expect({ screen, ...flag }).toEqual({ screen, id: flag.id, colour: mark.colour, pattern: mark.pattern, hidden: 'true', large: flag.large });
     }
     return flags;
   }
 
-  it('FR-564 the map: each minor border in its colour, its name tag with its flag', () => {
+  it('FR-564 the map: each minor border in its colour, its name tag with its flag (small) and its border in that colour', () => {
     const g = game();
     show(g);
     const { container } = render(<MapView />);
@@ -168,16 +200,20 @@ describe('FR-564 every screen shows the same flag for the same nation', () => {
       const tag = container.querySelector(`[data-tile-id="${minor.capitalTileId}"] [data-testid="minor-name"]`)!;
       expect(flagsOf('map', tag, g).map((f) => f.id)).toEqual([minor.id]);
       expect(tag.textContent).toBe(minor.name);
+      expect((tag as HTMLElement).style.borderColor).toBe(nationMark(g, minor.id).colour);
+      expect(tag.querySelector('.nation-flag-large')).toBeNull();
     }
   });
 
-  it('FR-564 Diplomacy: every country tab and the chosen country\'s heading carry its flag', () => {
+  it("FR-564 Diplomacy: every country card has its large flag and a left edge in its colour; the chosen country's heading its flag", () => {
     const g = game();
     show(g, { isDiplomacyOpen: true });
     const { container } = render(<DiplomacyModal />);
     for (const id of [N2, ...MINORS]) {
       const tab = container.querySelector(`[data-testid="country-tab-${id}"]`) as HTMLElement;
       expect(flagsOf('diplomacy', tab, g).map((f) => f.id)).toEqual([id]);
+      expect(tab.querySelector('[data-testid="nation-flag"]')!.classList.contains('nation-flag-large')).toBe(true);
+      expect(tab.style.borderLeftColor).toBe(nationMark(g, id).colour);
     }
     const headed = [...container.querySelectorAll('h3')].filter((h) => flagsIn(h).length > 0);
     expect(headed).toHaveLength(1);
@@ -207,8 +243,8 @@ describe('FR-564 every screen shows the same flag for the same nation', () => {
   });
 
   it('FR-564 the Council, the Stats dialog, the Demo dashboard and the news: each Great Power with its flag', () => {
-    const seen: { screen: string; id: string; colour: string }[] = [];
-    const note = (screen: string, flags: ReturnType<typeof flagsIn>) => seen.push(...flags.map(({ id, colour }) => ({ screen, id, colour })));
+    const seen: { screen: string; id: string; colour: string; large: boolean }[] = [];
+    const note = (screen: string, flags: ReturnType<typeof flagsIn>) => seen.push(...flags.map(({ id, colour, large }) => ({ screen, id, colour, large })));
 
     const g = game();
     const vote = councilVote({ ...g, turn: 10, year: 1817 });
@@ -235,7 +271,12 @@ describe('FR-564 every screen shows the same flag for the same nation', () => {
     note('news', flagsOf('news', panel.container, g));
     panel.unmount();
 
-    for (const screen of ['council', 'stats', 'dashboard']) expect(seen.filter((s) => s.screen === screen).map((s) => s.id).sort(), screen).toEqual([N1, N2]);
+    for (const screen of ['council', 'stats', 'dashboard']) {
+      expect(seen.filter((s) => s.screen === screen).map((s) => s.id).sort(), screen).toEqual([N1, N2]);
+      expect(seen.filter((s) => s.screen === screen).every((s) => s.large), screen).toBe(true);
+    }
+    // The dashboard card's left edge is in its nation's colour (--nation-colour, set per card)
+    expect(readFileSync(join(ROOT, 'src/app/components/HUD/Dashboard.module.css'), 'utf8')).toContain('border-left: 6px solid var(--nation-colour);');
     expect(seen.filter((s) => s.screen === 'news').map((s) => s.id)).toEqual([N2]);
     // One colour per nation across the screens
     const coloursOf = (id: string) => [...new Set(seen.filter((s) => s.id === id).map((s) => s.colour))];

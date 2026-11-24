@@ -1,5 +1,6 @@
 // FR-564 (M18b) in the running app, from the seed 1 save (e2e/seededGame.ts), at 1366x768 and at 390 px wide: Diplomacy
-// and the Board of Trade show each nation's flag mark beside its name, in the nation's one colour, with its pattern.
+// and the Board of Trade show each nation's flag mark beside its name, in the nation's one colour, with its pattern; each
+// Diplomacy card has a large flag and a left edge in that colour.
 // No sideways page scroll. Screenshots go to the test's output folder (testInfo.outputPath), or SCREENSHOT_DIR when set.
 import type { TestInfo } from '@playwright/test';
 import { expect, startSeededGame, test, type Locator, type Page } from './seededGame';
@@ -10,10 +11,10 @@ const shotPath = (testInfo: TestInfo, name: string) => (process.env.SCREENSHOT_D
 const MARKS: Record<string, { colour: string; pattern: string }> = {
   'nation-1': { colour: 'rgb(158, 42, 91)', pattern: 'solid' },
   'nation-2': { colour: 'rgb(44, 92, 158)', pattern: 'cross' },
-  'minor-1': { colour: 'rgb(46, 90, 46)', pattern: 'canton' },
-  'minor-2': { colour: 'rgb(122, 75, 20)', pattern: 'stripes' },
-  'minor-3': { colour: 'rgb(107, 45, 107)', pattern: 'diagonal' },
-  'minor-4': { colour: 'rgb(38, 54, 44)', pattern: 'triangle' },
+  'minor-1': { colour: 'rgb(36, 54, 0)', pattern: 'canton' },
+  'minor-2': { colour: 'rgb(102, 90, 12)', pattern: 'stripes' },
+  'minor-3': { colour: 'rgb(90, 12, 84)', pattern: 'diagonal' },
+  'minor-4': { colour: 'rgb(18, 48, 36)', pattern: 'triangle' },
 };
 
 async function expectNoSidewaysScroll(page: Page) {
@@ -22,7 +23,7 @@ async function expectNoSidewaysScroll(page: Page) {
 }
 
 /** The flag in `where`: visible, its nation's colour on the cloth, its pattern. */
-async function expectFlag(where: Locator, id: string) {
+async function expectFlag(where: Locator, id: string, minHeight = 10) {
   const flag = where.getByTestId('nation-flag');
   await expect(flag).toHaveCount(1);
   await expect(flag).toBeVisible();
@@ -33,7 +34,7 @@ async function expectFlag(where: Locator, id: string) {
   expect(cloth, id).toBe(MARKS[id].colour);
   const box = (await flag.boundingBox())!;
   expect(box.width).toBeGreaterThanOrEqual(8);
-  expect(box.height).toBeGreaterThanOrEqual(10);
+  expect(box.height).toBeGreaterThanOrEqual(minHeight);
 }
 
 for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 }]) {
@@ -49,7 +50,12 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 
       await page.getByRole('button', { name: 'Diplomacy', exact: true }).click();
       const diplomacy = page.getByRole('dialog', { name: 'Diplomacy' });
       await expect(diplomacy).toBeVisible();
-      for (const id of ['nation-2', 'minor-1', 'minor-2', 'minor-3', 'minor-4']) await expectFlag(diplomacy.getByTestId(`country-tab-${id}`), id);
+      // Each country card: its flag large (24 px), its left edge in its colour
+      for (const id of ['nation-2', 'minor-1', 'minor-2', 'minor-3', 'minor-4']) {
+        const card = diplomacy.getByTestId(`country-tab-${id}`);
+        await expectFlag(card, id, 23);
+        expect(await card.evaluate((el) => getComputedStyle(el).borderLeftColor), id).toBe(MARKS[id].colour);
+      }
       await expectNoSidewaysScroll(page);
       await page.screenshot({ path: shotPath(testInfo, `fr564-diplomacy-${at}.png`) });
       await page.keyboard.press('Escape');

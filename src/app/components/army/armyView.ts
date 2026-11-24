@@ -39,7 +39,7 @@ export interface MarkerView {
   ownerId: string;
   /** "Testland army: force size 4, 3 regiments, 4 militia", "Arvelia militia: 3": its accessible name and title. */
   label: string;
-  /** The owner's colour: a Great Power's slot colour, --color-minor for a minor. */
+  /** The owner's one colour (FR-564): a Great Power's slot colour, a minor's own colour. */
   color: string;
   forceSize: number;
   /** Its non-militia regiments. */

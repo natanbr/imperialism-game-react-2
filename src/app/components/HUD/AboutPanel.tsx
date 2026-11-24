@@ -65,7 +65,7 @@ export const AboutPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           <span>Solid line: Great Power border</span>
         </li>
         <li>
-          <LineSample stroke={THEME.minor} className={mapStyles.minorBorder} />
+          <LineSample stroke={THEME.ink} className={mapStyles.minorBorder} />
           <span>Dashed line: minor nation border, in its own colour</span>
         </li>
         <li>

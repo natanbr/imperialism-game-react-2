@@ -30,15 +30,16 @@ const PATTERN_SHAPES: Record<FlagPattern, React.ReactNode> = {
 
 /**
  * A nation's flag mark (FR-564): the pack's flag in the nation's one colour with its pattern, beside the nation's name.
- * Decorative: the name next to it says which nation it is, so it is hidden from assistive technology.
+ * Decorative: the name next to it says which nation it is, so it is hidden from assistive technology. `size="large"`
+ * where a list has room (Diplomacy, Council, Stats, the dashboard); the Board of Trade, the news and the map size it down.
  */
-export const NationFlag: React.FC<{ nationId: string }> = ({ nationId }) => {
+export const NationFlag: React.FC<{ nationId: string; size?: "large" }> = ({ nationId, size }) => {
   const nations = useGameStore((s) => s.game.nations);
   const minorNations = useGameStore((s) => s.game.minorNations);
   const { colour, pattern } = nationMark({ nations, minorNations }, nationId);
   const clipId = `flag-${useId().replace(/[^\w-]/g, "")}`;
   return (
-    <span className="nation-flag" data-testid="nation-flag" data-nation-id={nationId} data-pattern={pattern} aria-hidden="true" style={{ color: colour }}>
+    <span className={size === "large" ? "nation-flag nation-flag-large" : "nation-flag"} data-testid="nation-flag" data-nation-id={nationId} data-pattern={pattern} aria-hidden="true" style={{ color: colour }}>
       <svg viewBox="3 2 12.5 16.5" focusable="false">
         <defs>
           <clipPath id={clipId}>

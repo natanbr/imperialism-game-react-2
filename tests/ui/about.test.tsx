@@ -58,10 +58,10 @@ describe('FR-235 map legend in the About panel', () => {
   // FR-327 (M11): each sample lies on the map's pale halo, as the borders on the map do
   const halo = { stroke: THEME.mapHalo, class: mapStyles.borderHalo };
 
-  it('FR-235 FR-327 three rows: solid Great Power, dashed slate minor, dotted province, each sample in the map\'s token and line class on its halo', () => {
+  it('FR-235 FR-327 three rows: solid Great Power, dashed minor (a neutral ink sample: each minor has its own colour, FR-564), dotted province, each sample in the map\'s token and line class on its halo', () => {
     expect(samples(openLegend('nation-1'))).toEqual([
       { text: 'Solid line: Great Power border', svgs: [{ hidden: 'true', lines: [halo, { stroke: NATION_COLORS[0], class: mapStyles.territoryBorder }] }] },
-      { text: 'Dashed line: minor nation border, in its own colour', svgs: [{ hidden: 'true', lines: [halo, { stroke: THEME.minor, class: mapStyles.minorBorder }] }] },
+      { text: 'Dashed line: minor nation border, in its own colour', svgs: [{ hidden: 'true', lines: [halo, { stroke: THEME.ink, class: mapStyles.minorBorder }] }] },
       { text: 'Dotted line: province border', svgs: [{ hidden: 'true', lines: [halo, { stroke: THEME.provinceBorder, class: mapStyles.provinceBorder }] }] },
     ]);
   });

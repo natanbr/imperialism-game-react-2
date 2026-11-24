@@ -17,7 +17,7 @@ const NationCard: React.FC<{ card: DashboardCard; section: Exclude<DashboardSect
       style={{ "--nation-colour": nationColor(card.colorSlot) } as React.CSSProperties}
     >
       <h3 id={headingId} className={styles.cardTitle}>
-        <NationFlag nationId={card.nationId} />
+        <NationFlag nationId={card.nationId} size="large" />
         {card.name}
         <span className={styles.who}>{card.isPlayer ? "(you)" : "(computer)"}</span>
       </h3>

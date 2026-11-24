@@ -26,7 +26,7 @@ export const ScoreTable: React.FC = () => {
             <tr key={score.nationId} data-testid={`score-row-${score.nationId}`} className={you ? "score-you" : undefined}>
               <td data-testid="rank">{i + 1}</td>
               <td data-testid="nation">
-                <NationFlag nationId={score.nationId} />
+                <NationFlag nationId={score.nationId} size="large" />
                 {nation?.name ?? score.nationId}
                 {you ? " (you)" : ""}
               </td>

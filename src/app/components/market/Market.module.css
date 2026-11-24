@@ -316,7 +316,7 @@
 }
 
 .partner {
-  padding: 0 6px;
+  padding: 0 5px 0 4px;
   line-height: 14px;
   border: 1px solid transparent;
   border-radius: 999px;
@@ -325,6 +325,14 @@
 }
 
 /* A minor we cannot trade with this turn: an outline, not a fill, and the reason in words (FR-194) */
+/* The minor's flag (FR-564) at the chip's line height, so a chip stays one 14 px line */
+.partner :global(.nation-flag) {
+  width: 11px;
+  height: 14px;
+  margin-right: 2px;
+  vertical-align: top;
+}
+
 .partnerBlocked {
   background: transparent;
   border: 1px dashed var(--color-border-strong);

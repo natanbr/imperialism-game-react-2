@@ -127,8 +127,8 @@ test('FR-078 FR-104 FR-109 end 40 turns, see the game-over screen with both nati
   await expect(rival.getByTestId('nation')).toHaveText('Valdoria');
   expect([await row.getByTestId('rank').textContent(), await rival.getByTestId('rank').textContent()].sort()).toEqual(['1', '2']);
   for (const part of ['treasury', 'industry', 'development', 'total']) await expect(row.getByTestId(part)).toHaveText(/^\d+$/);
-  // FR-106: each nation's name beside its colour swatch
-  await expect(rival.getByTestId('swatch')).toBeVisible();
+  // FR-106, FR-564: each nation's name beside its flag mark
+  await expect(rival.getByTestId('nation-flag')).toBeVisible();
   if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/m4-game-over.png` });
 
   await over.getByRole('button', { name: 'Back to the map' }).click();

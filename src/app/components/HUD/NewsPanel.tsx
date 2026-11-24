@@ -51,7 +51,7 @@ export const NewsPanel: React.FC = () => {
                 {news.map((item, i) => {
                   const { battle, council, tileId, nationId } = item;
                   return (
-                    <li key={i}>
+                    <li key={i} className={nationId ? "news-flagged" : undefined}>
                       {nationId && <NationFlag nationId={nationId} />}
                       {battle ? (
                         <button type="button" className="news-battle" onClick={() => showBattle(battle)}>
