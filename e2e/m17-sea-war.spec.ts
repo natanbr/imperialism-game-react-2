@@ -58,6 +58,8 @@ test('FR-556 commission, sail and land at Sundmark, then see the survivors and c
   const closeCapital = capital.getByRole('button', { name: 'Close capital' });
   const yard = capital.getByRole('region', { name: 'Shipyard' });
   const operations = yard.getByRole('region', { name: 'Fleet operations' });
+  // FR-565: the Capital shows one section at a time and opens on Industry
+  const openShipyard = () => capital.getByRole('navigation', { name: 'Capital sections' }).getByRole('button', { name: 'Shipyard', exact: true }).click();
   const openDiplomacy = page.getByRole('button', { name: 'Diplomacy', exact: true });
   const diplomacy = page.getByRole('dialog', { name: /^Diplomacy/ });
   const island = diplomacy.getByRole('tab', { name: 'Sundmark', exact: true });
@@ -71,6 +73,7 @@ test('FR-556 commission, sail and land at Sundmark, then see the survivors and c
   await diplomacy.getByRole('button', { name: 'Close diplomacy' }).click();
 
   await openCapital.click();
+  await openShipyard();
   const ship = yard.getByRole('listitem').filter({ hasText: 'Ship-of-the-Line ·' });
   const build = ship.getByRole('button', { name: 'Build one more Ship-of-the-Line' });
   const cancelBuild = ship.getByRole('button', { name: 'Build one less Ship-of-the-Line' });
@@ -90,6 +93,7 @@ test('FR-556 commission, sail and land at Sundmark, then see the survivors and c
   await diplomacy.getByRole('button', { name: 'Close diplomacy' }).click();
 
   await openCapital.click();
+  await openShipyard();
   await expect(operations).toContainText('Home berth');
   await expect(operations).toContainText('5 ARMS');
   await operations.getByLabel('Destination coast').selectOption({ label: 'Sundmark' });
@@ -99,6 +103,7 @@ test('FR-556 commission, sail and land at Sundmark, then see the survivors and c
   await advance(page, 8);
 
   await openCapital.click();
+  await openShipyard();
   await expect(operations).toContainText('Off Sundmark');
   await operations.getByRole('button', { name: 'Set landing site' }).click();
   await expect(operations).toContainText('Usable on turn 9.');
@@ -216,6 +221,8 @@ test('FR-556 prepared Sundmark port: interception stops reinforcement, then reli
   const capital = page.getByRole('dialog', { name: /^Capital/ });
   const closeCapital = capital.getByRole('button', { name: 'Close capital' });
   const operations = capital.getByRole('region', { name: 'Fleet operations' });
+  // FR-565: the Capital shows one section at a time and opens on Industry
+  const openShipyard = () => capital.getByRole('navigation', { name: 'Capital sections' }).getByRole('button', { name: 'Shipyard', exact: true }).click();
   const warehouse = page.getByRole('dialog', { name: /^Warehouse/ });
   const checkCotton = async (count: number) => {
     await capital.getByRole('button', { name: 'Warehouse', exact: true }).click();
@@ -224,6 +231,7 @@ test('FR-556 prepared Sundmark port: interception stops reinforcement, then reli
   };
   await openCapital.click();
   await checkCotton(0);
+  await openShipyard();
   await expect(operations).toContainText('Ports closed to embarkation and sea freight.');
   await expect(operations).toContainText('9 firepower');
   await operations.getByLabel('Destination coast').selectOption({ label: 'Sundmark' });
@@ -236,6 +244,7 @@ test('FR-556 prepared Sundmark port: interception stops reinforcement, then reli
   await advance(page, 6);
   await expect(news).toContainText("Valdoria's survivors returned to berth.");
   await openCapital.click();
+  await openShipyard();
   await expect(operations).toContainText('Off Sundmark');
   await expect(operations).not.toContainText('Ports closed');
   await checkCotton(3);
@@ -278,6 +287,8 @@ test.describe('phone', () => {
     await continueSavedGame(page, shipyardSave());
     await page.getByRole('button', { name: /Open Capital/ }).click();
     const capital = page.getByRole('dialog', { name: /^Capital/ });
+    // FR-565: the Capital shows one section at a time and opens on Industry
+    await capital.getByRole('navigation', { name: 'Capital sections' }).getByRole('button', { name: 'Shipyard', exact: true }).click();
     const build = capital.getByRole('button', { name: 'Build one more Ship-of-the-Line' });
     await build.click();
     await expect(capital.getByTestId('shipyard-shipOfTheLine')).toHaveText('1');

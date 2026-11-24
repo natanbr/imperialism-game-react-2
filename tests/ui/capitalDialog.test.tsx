@@ -42,11 +42,15 @@ const stocked = () =>
 
 const card = (building: string) => screen.getByTestId(`building-${building}`);
 const now = () => useGameStore.getState().game;
+/** FR-565: one section open at a time; the dialog opens on Industry. */
+const openSection = (name: string) =>
+  fireEvent.click(within(screen.getByRole('navigation', { name: 'Capital sections' })).getByRole('button', { name }));
 
 it('FR-524 University explains each missing technology beside the affected civilian', () => {
   const s = stocked();
   nationOf(s, N1).technologies = [];
   openCapital(s);
+  openSection('University');
   for (const [worker, tech] of [['Rancher', 'Feed Grasses'], ['Forester', 'Iron Railroad Bridge'], ['Driller', 'Oil Drilling']]) {
     const button = screen.getByRole('button', { name: `Train one more ${worker}` }) as HTMLButtonElement;
     expect(button.disabled).toBe(true);
@@ -59,6 +63,7 @@ it('FR-525 the Clipper and refinery follow the active nation’s inventions', ()
   const owner = nationOf(s, N1);
   owner.technologies = ['streamlinedHulls', 'oilDrilling'];
   openCapital(s);
+  openSection('Shipyard');
   const more = screen.getByRole('button', { name: 'Build one more Clipper' });
   expect(text(more.closest('li')!)).toMatch(/4 holds.*6 lumber.*2 fabric/);
   fireEvent.click(more);
@@ -70,6 +75,8 @@ it('FR-525 a rival owning Streamlined Hulls and Oil Drilling reveals neither opt
   const s = stocked();
   nationOf(s, 'nation-2').technologies = ['streamlinedHulls', 'oilDrilling'];
   openCapital(s);
+  openSection('Shipyard');
+  expect(screen.getByRole('button', { name: 'Build one more Trader' })).toBeTruthy();
   expect(screen.queryByRole('button', { name: 'Build one more Clipper' })).toBeNull();
   expect(screen.queryByTestId('building-refinery')).toBeNull();
 });
@@ -77,6 +84,7 @@ it('FR-525 a rival owning Streamlined Hulls and Oil Drilling reveals neither opt
 describe('FR-513 University orders in the Capital', () => {
   it('FR-513 shows seven fees and requirements, orders an Engineer and refunds it', () => {
     openCapital(stocked());
+    openSection('University');
     const university = within(screen.getByRole('region', { name: 'University' }));
     const costs = { Prospector: '$500', Miner: '$1,500', Engineer: '$1,000', Farmer: '$1,000', Rancher: '$1,000', Forester: '$1,000', Driller: '$1,000' };
     const rows = university.getAllByRole('listitem');
@@ -102,6 +110,7 @@ describe('FR-513 University orders in the Capital', () => {
 
   it('FR-513 explains a missing paper supply beside the disabled control', () => {
     openCapital(emptyWarehouse(game(), N1, {}));
+    openSection('University');
     const more = screen.getByRole('button', { name: 'Train one more Prospector' }) as HTMLButtonElement;
     expect(more.disabled).toBe(true);
     expect(document.getElementById(more.getAttribute('aria-describedby')!)?.textContent).toBe('Needs 2 paper (0)');
@@ -110,6 +119,7 @@ describe('FR-513 University orders in the Capital', () => {
 
 it('FR-515 shows both ship costs, holds and current stocks, and lets either order be refunded', () => {
   openCapital(stocked());
+  openSection('Shipyard');
   const yard = within(screen.getByRole('region', { name: 'Shipyard' }));
   for (const [ship, lumber, fabric, holds] of [['Trader', 4, 2, 2], ['Indiaman', 7, 3, 4]] as const) {
     const more = yard.getByRole('button', { name: `Build one more ${ship}` });
@@ -132,6 +142,7 @@ it('FR-556 Shipyard shows warship costs and commissioning turn, and reserves and
   const state = newGame({ seed: 1, world: 'continent' });
   Object.assign(nationOf(state, N1).warehouse, { armaments: 5, fabric: 3 });
   openCapital(state);
+  openSection('Shipyard');
   const yard = within(screen.getByRole('region', { name: 'Shipyard' }));
   const ship = yard.getByRole('button', { name: 'Build one more Ship-of-the-Line' });
   const row = within(ship.closest('li')!);
@@ -266,6 +277,7 @@ describe('FR-046 capital dialog: production cards', () => {
     expect(text(screen.getByRole('alert'))).toContain('refused: not enough goods in the warehouse.');
     expect(industryOf(now(), N1).buildings.steelMill!.pendingCapacity).toBe(0);
 
+    openSection('Transport');
     fireEvent.click(screen.getByRole('button', { name: 'Order a freight car' }));
     // FR-569: the toast stays its 6 seconds; the store's refusal is cleared
     expect(useGameStore.getState().lastRejection).toBeNull();
@@ -326,6 +338,7 @@ describe('FR-047 capital dialog: labour, training, migration, freight cars', () 
 
   it('FR-047 Trade School buttons send trainWorkers, and a cancel sends a negative delta', () => {
     openCapital(stocked());
+    openSection('Trade School');
 
     fireEvent.click(screen.getByRole('button', { name: /Train an untrained worker/ }));
     fireEvent.click(screen.getByRole('button', { name: /Train a trained worker/ }));
@@ -344,6 +357,7 @@ describe('FR-047 capital dialog: labour, training, migration, freight cars', () 
 
   it('FR-047 Capitol buttons send recruitWorkers up to the cap; the cap shows', () => {
     openCapital(stocked());
+    openSection('Capitol');
 
     fireEvent.click(screen.getByRole('button', { name: /Recruit a migrant/ }));
 
@@ -361,6 +375,7 @@ describe('FR-047 capital dialog: labour, training, migration, freight cars', () 
 
   it('FR-047 the freight-car buttons send changeTransportCapacity +1 and -1 and show the cost per car', () => {
     openCapital(stocked());
+    openSection('Transport');
     const freight = screen.getByTestId('freight-cars');
     expect(text(freight)).toContain('1 Lumber, 1 Steel and 2 labour per car');
 
@@ -379,6 +394,7 @@ describe('FR-047 capital dialog: labour, training, migration, freight cars', () 
 
   it('FR-101 the capacity line shows only the cars in service, and the ordered cars say they carry goods from next turn', () => {
     openCapital(stocked());
+    openSection('Transport');
     const freight = screen.getByTestId('freight-cars');
     const before = text(freight);
     fireEvent.click(within(freight).getByRole('button', { name: 'Order a freight car' }));
@@ -433,10 +449,11 @@ describe('FR-426 FR-428 the Capital columns show that there is more', () => {
     expect(css).toMatch(/\.column \{[^}]*position: relative;/);
   });
 
-  it('FR-426 both columns draw an always-visible scrollbar when they scroll (not the overlay one)', () => {
+  // FR-565 FR-566: the open section scrolls; the labour bar above it never does
+  it('FR-426 every section draws an always-visible scrollbar when it scrolls (not the overlay one)', () => {
     const css = readFileSync(join(ROOT, 'src/app/components/capital/Capital.module.css'), 'utf8');
-    expect(css).toMatch(/\.industry::-webkit-scrollbar,\s*\.side::-webkit-scrollbar \{[^}]*width: \d+px/);
-    expect(css).toMatch(/\.industry::-webkit-scrollbar-thumb,\s*\.side::-webkit-scrollbar-thumb \{[^}]*background/);
+    expect(css).toMatch(/\.industry::-webkit-scrollbar,\s*\.sectionPanel::-webkit-scrollbar \{[^}]*width: \d+px/);
+    expect(css).toMatch(/\.industry::-webkit-scrollbar-thumb,\s*\.sectionPanel::-webkit-scrollbar-thumb \{[^}]*background/);
   });
 
   it('FR-428 below 600 px the columns stack and the body scrolls as one; the header wraps so the close button stays', () => {

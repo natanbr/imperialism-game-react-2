@@ -1,0 +1,117 @@
+// @vitest-environment jsdom
+// M18b FR-565: the Capital keeps one section open at a time (Industry, Trade School, Capitol, Transport, University,
+// Shipyard), chosen with real buttons (aria-expanded, aria-controls), Industry open when the dialog opens; the industry
+// cards draw their buildings at 44 px.
+import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { CapitalModal } from '@/components/CapitalModal';
+import { useGameStore } from '@/store/rootStore';
+import { newGame } from '@/engine';
+import type { GameState } from '@/types/GameState';
+import { emptyWarehouse, game, N1, nationOf } from '../engine/fixtures';
+import { text } from './domText';
+
+const ROOT = join(__dirname, '..', '..');
+const SECTIONS = ['Industry', 'Trade School', 'Capitol', 'Transport', 'University', 'Shipyard'];
+
+function openCapital(state: GameState) {
+  useGameStore.setState({ ...useGameStore.getInitialState(), game: state, activeNationId: N1, isCapitalOpen: true, lastRejection: null });
+  return render(<CapitalModal />);
+}
+
+const stocked = () =>
+  emptyWarehouse(game(), N1, {
+    grain: 20, fruit: 10, livestock: 10, timber: 10, cotton: 10, coal: 10, ironOre: 10, lumber: 10, steel: 10, paper: 5,
+    cannedFood: 3, clothing: 3, furniture: 3, fabric: 4,
+  });
+
+const sectionButtons = () => within(screen.getByRole('navigation', { name: 'Capital sections' })).getAllByRole('button') as HTMLButtonElement[];
+const sectionButton = (name: string) => sectionButtons().find((b) => b.textContent === name)!;
+const openName = () => sectionButtons().find((b) => b.getAttribute('aria-expanded') === 'true')?.textContent ?? null;
+const panelOf = (button: HTMLButtonElement) => document.getElementById(button.getAttribute('aria-controls')!)!;
+const open = (name: string) => fireEvent.click(sectionButton(name));
+
+describe('FR-565 the Capital shows one section at a time', () => {
+  it('FR-565 six section buttons, each a real button that names the panel it opens; Industry open by default', () => {
+    openCapital(stocked());
+    const buttons = sectionButtons();
+    expect(buttons.map((b) => b.textContent)).toEqual(SECTIONS);
+    for (const button of buttons) {
+      expect(button.tagName).toBe('BUTTON');
+      expect(button.getAttribute('type')).toBe('button');
+      expect(button.getAttribute('aria-controls'), button.textContent!).toBeTruthy();
+      expect(panelOf(button), button.textContent!).toBeTruthy();
+    }
+    expect(buttons.map((b) => b.getAttribute('aria-expanded'))).toEqual(['true', 'false', 'false', 'false', 'false', 'false']);
+    expect(panelOf(buttons[0]).hidden).toBe(false);
+    expect(panelOf(buttons[0])).toBe(screen.getByRole('main', { name: 'Industry' }));
+    expect(buttons.slice(1).map((b) => panelOf(b).hidden)).toEqual([true, true, true, true, true]);
+  });
+
+  it('FR-565 opening a section closes the one that was open; pressing the open one keeps it open', () => {
+    openCapital(stocked());
+    for (const name of [...SECTIONS.slice(1), 'Industry', 'Shipyard', 'Shipyard']) {
+      open(name);
+      const buttons = sectionButtons();
+      expect(buttons.filter((b) => b.getAttribute('aria-expanded') === 'true').map((b) => b.textContent), name).toEqual([name]);
+      expect(buttons.filter((b) => !panelOf(b).hidden).map((b) => b.textContent), name).toEqual([name]);
+    }
+    expect(sectionButton('Shipyard').getAttribute('aria-expanded')).toBe('true');
+  });
+
+  it('FR-565 each former control is reachable once its section is open, and only then', () => {
+    const s = newGame({ seed: 1, world: 'continent' });
+    Object.assign(nationOf(s, N1).warehouse, { armaments: 5, fabric: 3, paper: 4 });
+    openCapital(s);
+    const controls: Record<string, string[]> = {
+      Industry: ['More Steel', 'Less Steel', 'Expand Steel mill', 'Cancel expansion of Steel mill'],
+      'Trade School': ['Train an untrained worker', 'Train a trained worker', 'Cancel an untrained trainee', 'Cancel a trained trainee'],
+      Capitol: ['Recruit a migrant', 'Cancel a migrant'],
+      Transport: ['Order a freight car', 'Cancel a freight car', 'Transportation of Commodities'],
+      University: ['Train one more Engineer', 'Train one less Engineer'],
+      Shipyard: ['Build one more Trader', 'Build one less Trader', 'Build one more Ship-of-the-Line'],
+    };
+    for (const [section, names] of Object.entries(controls)) {
+      open(section);
+      for (const name of names) expect(screen.queryByRole('button', { name }), `${section}: ${name}`).not.toBeNull();
+      for (const [other, otherNames] of Object.entries(controls)) {
+        if (other === section) continue;
+        for (const name of otherNames) expect(screen.queryByRole('button', { name }), `${section} open, ${other}: ${name}`).toBeNull();
+      }
+    }
+    // The header's buttons stay whatever section is open
+    for (const name of ['Warehouse', 'Trade', 'Diplomacy', 'Armoury', 'Technology', 'Close capital']) {
+      expect(screen.queryByRole('button', { name }), name).not.toBeNull();
+    }
+  });
+
+  it('FR-565 an order from a section goes through as before: Trade School trains an untrained worker', () => {
+    openCapital(stocked());
+    open('Trade School');
+    fireEvent.click(screen.getByRole('button', { name: 'Train an untrained worker' }));
+    expect(useGameStore.getState().game.nations[0].industry.training.untrained).toBe(1);
+    expect(text(screen.getByTestId('grade-untrained'))).toContain('1 in training');
+  });
+
+  it('FR-565 the dialog opens on Industry again after it was closed on another section', () => {
+    const view = openCapital(stocked());
+    open('University');
+    expect(openName()).toBe('University');
+    act(() => useGameStore.getState().closeCapital());
+    expect(screen.queryByRole('dialog')).toBeNull();
+    act(() => useGameStore.getState().openCapital());
+    expect(openName()).toBe('Industry');
+    view.unmount();
+  });
+
+  it('FR-565 the industry cards draw their buildings at 44 px (about 40 to 48 px, was 30 px)', () => {
+    const css = readFileSync(join(ROOT, 'src/app/components/capital/Capital.module.css'), 'utf8');
+    const rule = /\.cardTitle \.buildingPicture\s*\{([^}]*)\}/.exec(css)?.[1] ?? '';
+    const size = (prop: string) => Number(new RegExp(`(?:^|[;\\s])${prop}:\\s*(\\d+)px`).exec(rule)?.[1] ?? NaN);
+    expect(size('width')).toBeGreaterThanOrEqual(40);
+    expect(size('width')).toBeLessThanOrEqual(48);
+    expect(size('height')).toBe(size('width'));
+  });
+});

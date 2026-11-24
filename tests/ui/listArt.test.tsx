@@ -74,15 +74,17 @@ describe('FR-333 the capital\'s buildings', () => {
   it('FR-333 the Transport panel shows the railyard, the Trade School and Capitol headings their buildings', () => {
     show(continent(), { isCapitalOpen: true });
     render(<CapitalModal />);
-    const transport = within(screen.getByTestId('freight-cars')).getByRole('heading', { level: 3 });
+    // FR-565: Trade School and Capitol are sections of their own now (h3), shown one at a time; `hidden: true` finds them closed
+    const transport = within(screen.getByTestId('freight-cars')).getByRole('heading', { level: 3, hidden: true });
     expect(art(transport)).toEqual(['buildings/railyard.png']);
     expect(text(transport)).toBe('Transport');
-    const labour = screen.getByTestId('labour-panel');
-    const school = within(labour).getByRole('heading', { level: 4, name: 'Trade School' });
+    const school = within(screen.getByRole('region', { name: 'Trade School', hidden: true })).getByRole('heading', { level: 3, hidden: true });
+    expect(text(school)).toBe('Trade School');
     expect(art(school)).toEqual(['buildings/trade-school.png']);
-    const capitol = within(labour).getByRole('heading', { level: 4, name: 'Capitol' });
+    const capitol = within(screen.getByRole('region', { name: 'Capitol', hidden: true })).getByRole('heading', { level: 3, hidden: true });
+    expect(text(capitol)).toBe('Capitol');
     expect(art(capitol)).toEqual(['buildings/capitol.png']);
-    expect(allDecorative(labour)).toBe(true);
+    expect(allDecorative(screen.getByTestId('labour-panel'))).toBe(true);
   });
 
   it("FR-333 the Capital dialog's title shows the capitol; Warehouse, Armoury and Technology their buildings; Trade and Diplomacy keep their Game Icons", () => {
@@ -230,22 +232,18 @@ describe('FR-352 FR-354 FR-349 the QA fix round in the lists, the capital and th
       .filter(({ next }) => next?.nodeType === 3 && /^\s/.test(next.textContent ?? ''))
       .map(({ art, next }) => `${art}:"${next!.textContent}"`);
 
-  it("FR-352 each card head's building and the Trade School, Capitol and Transport headings' draw at 30 px (the CSS rule)", () => {
+  // FR-565 replaces the 30 px of the card heads with 44 px (tests/ui/capitalSections.test.tsx); the section headings keep 30 px
+  it("FR-352 each card head's building and the Trade School, Capitol and Transport headings' draw at their CSS size", () => {
     show(continent(), { isCapitalOpen: true });
     render(<CapitalModal />);
     const heads = screen.getAllByTestId(/^building-/).map((card) => within(card).getByRole('heading', { level: 4 }));
-    const labour = screen.getByTestId('labour-panel');
-    const headings = [
-      ...heads,
-      within(labour).getByRole('heading', { level: 4, name: 'Trade School' }),
-      within(labour).getByRole('heading', { level: 4, name: 'Capitol' }),
-      within(screen.getByTestId('freight-cars')).getByRole('heading', { level: 3 }),
-    ];
+    const section = (name: string) => within(screen.getByRole('region', { name, hidden: true })).getByRole('heading', { level: 3, hidden: true });
+    const headings = [...heads, section('Trade School'), section('Capitol'), section('Transport')];
     expect(headings).toHaveLength(10);
     const unboxed = headings.filter((h) => !h.querySelector('img')!.classList.contains(capitalStyles.buildingPicture)).map((h) => text(h));
     expect(unboxed).toEqual([]);
     const css = readFileSync(join(__dirname, '..', '..', 'src/app/components/capital/Capital.module.css'), 'utf8');
-    const rule = /\.cardTitle \.buildingPicture,\s*\.panelTitle \.buildingPicture,\s*\.subTitle \.buildingPicture\s*\{([^}]*)\}/.exec(css)?.[1] ?? '';
+    const rule = /\.panelTitle \.buildingPicture\s*\{([^}]*)\}/.exec(css)?.[1] ?? '';
     expect(rule).toMatch(/width:\s*30px/);
     expect(rule).toMatch(/height:\s*30px/);
     // One line: "Canned Food" with its picture wrapped to two
