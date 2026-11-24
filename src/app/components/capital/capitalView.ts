@@ -4,12 +4,12 @@ import { labourOf, largestOrder, migrantCap, planProduction, type Labour, type P
 import { BUILDING_ORDER, BUILDINGS, nextCapacity } from "@/definisions/industryBuildings";
 import { owns } from "@/engine/orders/queries";
 import { acceptsProductionInputs } from "@/engine/industry/productionPlan";
-import { EXPANSION_COST_PER_POINT, RECIPES } from "@/definisions/ResourceConversions";
+import { EXPANSION_COST_PER_POINT, MIGRANT_COST, RECIPES, TRAINING_COST } from "@/definisions/ResourceConversions";
 import type { GameState } from "@/types/GameState";
 import type { BuildingType, ProductionOutput, WorkerGrade, Workers } from "@/types/Industry";
 import type { Nation } from "@/types/Nation";
-import type { WarehouseCommodities } from "@/types/Resource";
-import { commodityName } from "../gameText";
+import { MaterialType, type WarehouseCommodities } from "@/types/Resource";
+import { commodityName, money } from "../gameText";
 
 export interface InputView {
   /** The first commodity of the input, used as its id ("cotton" for cotton-or-wool). */
@@ -156,4 +156,41 @@ export function labourView(state: GameState, nation: Nation): LabourView {
     recruitCap: migrantCap(state, nation.id),
     carsOrdered: Math.max(0, nation.transportCapacityPendingIncrease ?? 0),
   };
+}
+
+/** FR-572: one cost of a Trade School action, as an industry card shows an input: what one more needs and what we hold. */
+export interface CostView {
+  /** "paper", "cannedFood", or "cash". */
+  key: string;
+  /** The goods pictures (FR-331); none for cash. */
+  types: readonly WarehouseCommodities[];
+  /** "Paper: 1 needed, 5 in warehouse", "Cash: $100 needed, $10,000 in treasury". */
+  text: string;
+  /** Less than one more needs. */
+  missing: boolean;
+}
+
+/** FR-572: the Trade School's actions, training (FR-047) and, merged from the Capitol, recruiting a migrant. */
+export type SchoolAction = "untrained" | "trained" | "migrant";
+
+const goodsCost = (stock: Stock, key: WarehouseCommodities, needed: number): CostView => {
+  const have = stock[key] ?? 0;
+  return { key, types: [key], text: `${commodityName(key)}: ${needed} needed, ${have} in warehouse`, missing: have < needed };
+};
+
+/** FR-572: per Trade School action the cash and goods one more costs (TRAINING_COST, MIGRANT_COST), against our stock. */
+export function tradeSchoolCosts(nation: Nation): Record<SchoolAction, CostView[]> {
+  const stock = nation.warehouse as Stock;
+  const training = (from: "untrained" | "trained"): CostView[] => {
+    const cost = TRAINING_COST[from];
+    const cash: CostView = {
+      key: "cash",
+      types: [],
+      text: `Cash: ${money(cost.cash)} needed, ${money(nation.treasury)} in treasury`,
+      missing: nation.treasury < cost.cash,
+    };
+    return [cash, goodsCost(stock, MaterialType.Paper, cost.paper)];
+  };
+  const migrant = Object.entries(MIGRANT_COST).map(([key, amount]) => goodsCost(stock, key as WarehouseCommodities, amount ?? 0));
+  return { untrained: training("untrained"), trained: training("trained"), migrant };
 }

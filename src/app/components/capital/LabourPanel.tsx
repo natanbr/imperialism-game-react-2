@@ -1,13 +1,12 @@
 "use client";
 import React from "react";
 import type { FoodForecast, Order, ValidationResult } from "@/engine";
-import { MIGRANT_COST, TRAINING_COST } from "@/definisions/ResourceConversions";
+import { TRAINED_TO } from "@/definisions/ResourceConversions";
 import type { WorkerGrade } from "@/types/Industry";
 import { ResourceType } from "@/types/Resource";
-import { commodityName, money } from "../gameText";
 import { InkPicture } from "../art/ArtPicture";
 import { LABOUR_ART, buildingArt, goodsArt, gradeArt } from "../art/inkArt";
-import type { LabourView } from "./capitalView";
+import type { CostView, LabourView, SchoolAction } from "./capitalView";
 import styles from "./Capital.module.css";
 
 interface OrderPanelProps {
@@ -22,10 +21,6 @@ const TRAINING: readonly { from: "untrained" | "trained"; article: string; to: s
   { from: "untrained", article: "an untrained", to: "Trained" },
   { from: "trained", article: "a trained", to: "Expert" },
 ];
-
-const MIGRANT_TEXT = Object.entries(MIGRANT_COST)
-  .map(([key, amount]) => `${amount} ${commodityName(key)}`)
-  .join(", ");
 
 /**
  * The city's labour bar, the Capital's HUD (FR-566): labour, the workforce by grade with the sick and the trainees
@@ -70,24 +65,58 @@ export const LabourBar: React.FC<{ view: LabourView; food: FoodForecast }> = ({ 
   );
 };
 
-/** The Trade School (FR-047): one more or one fewer trainee of each grade; its building before its heading (FR-333). */
-export const TradeSchoolPanel: React.FC<OrderPanelProps> = ({ view, nationId, submitOrder }) => {
+
+/** FR-572: an action's costs, as an industry card lists its inputs: the goods pictures, needed and held, ✗ when short. */
+const CostList: React.FC<{ costs: readonly CostView[]; label: string }> = ({ costs, label }) => (
+  <ul className={styles.inputs} aria-label={label}>
+    {costs.map((cost) => (
+      <li
+        key={cost.key}
+        className={cost.missing ? styles.inputMissing : styles.input}
+        data-testid={`cost-${cost.key}`}
+        data-missing={cost.missing ? "true" : undefined}
+        title={cost.missing ? "Not enough for one more" : undefined}
+      >
+        {cost.missing && <span aria-hidden="true">✗ </span>}
+        {cost.types.map((type) => (
+          <InkPicture key={type} src={goodsArt(type)} alt="" inline />
+        ))}
+        {cost.missing ? `${cost.text} (short)` : cost.text}
+      </li>
+    ))}
+  </ul>
+);
+
+/**
+ * The Trade School (FR-047; M18c FR-572 merged the Capitol into it): training (Untrained → Trained, Trained → Expert) and
+ * recruiting migrants, each with its grade pictures and, like an industry card, what one more costs against what we hold.
+ * Every button sends one order; the engine judges it and a refusal is a toast (FR-569). Its building before its heading
+ * (FR-333).
+ */
+export const TradeSchoolPanel: React.FC<OrderPanelProps & { costs: Record<SchoolAction, CostView[]> }> = ({ view, nationId, submitOrder, costs }) => {
   const training = (grade: WorkerGrade) => view.grades.find((g) => g.grade === grade)?.training ?? 0;
   return (
     <section className={styles.panel} aria-label="Trade School">
       <h3 className={styles.panelTitle}>
         <InkPicture src={buildingArt("tradeSchool")} alt="" inline className={styles.buildingPicture} />Trade School
       </h3>
-      {TRAINING.map(({ from, article, to }) => {
-        const cost = TRAINING_COST[from];
-        return (
-          <div key={from} className={styles.actionRow}>
+      {TRAINING.map(({ from, article, to }) => (
+        <div key={from} className={styles.schoolAction} data-testid={`school-${from}`}>
+          <div className={styles.schoolName}>
+            <InkPicture src={gradeArt(from)} alt="" inline />
+            {GRADE_TEXT[from]}
+            {" → "}
+            <InkPicture src={gradeArt(TRAINED_TO[from])} alt="" inline />
+            {to}
+          </div>
+          <CostList costs={costs[from]} label={`${GRADE_TEXT[from]} to ${to} needs`} />
+          <div className={styles.actionRow}>
             <button
               className={styles.actionButton}
               aria-label={`Train ${article} worker`}
               onClick={() => submitOrder({ kind: "trainWorkers", nationId, from, delta: 1 })}
             >
-              {`${GRADE_TEXT[from]} → ${to} (${money(cost.cash)} + ${cost.paper} Paper)`}
+              Train
             </button>
             <button
               className={styles.cancelButton}
@@ -98,37 +127,37 @@ export const TradeSchoolPanel: React.FC<OrderPanelProps> = ({ view, nationId, su
               Cancel
             </button>
           </div>
-        );
-      })}
+        </div>
+      ))}
+      <div className={styles.schoolAction} data-testid="school-migrant">
+        <div className={styles.schoolName}>
+          <InkPicture src={buildingArt("capitol")} alt="" inline />
+          {"Migrant → "}
+          <InkPicture src={gradeArt("untrained")} alt="" inline />
+          Untrained
+        </div>
+        <CostList costs={costs.migrant} label="A migrant needs" />
+        <div className={styles.actionRow}>
+          <button
+            className={styles.actionButton}
+            aria-label="Recruit a migrant"
+            onClick={() => submitOrder({ kind: "recruitWorkers", nationId, delta: 1 })}
+          >
+            Recruit
+          </button>
+          <button
+            className={styles.cancelButton}
+            aria-label="Cancel a migrant"
+            disabled={view.recruits <= 0}
+            onClick={() => submitOrder({ kind: "recruitWorkers", nationId, delta: -1 })}
+          >
+            Cancel
+          </button>
+        </div>
+        <div className={styles.note} data-testid="recruits">
+          {`${view.recruits} of ${view.recruitCap} migrants this turn`}
+        </div>
+      </div>
     </section>
   );
 };
-
-/** The Capitol (FR-047): migrants recruited this turn, up to the cap; its building before its heading (FR-333). */
-export const CapitolPanel: React.FC<OrderPanelProps> = ({ view, nationId, submitOrder }) => (
-  <section className={styles.panel} aria-label="Capitol">
-    <h3 className={styles.panelTitle}>
-      <InkPicture src={buildingArt("capitol")} alt="" inline className={styles.buildingPicture} />Capitol
-    </h3>
-    <div className={styles.actionRow}>
-      <button
-        className={styles.actionButton}
-        aria-label="Recruit a migrant"
-        onClick={() => submitOrder({ kind: "recruitWorkers", nationId, delta: 1 })}
-      >
-        {`Recruit (${MIGRANT_TEXT})`}
-      </button>
-      <button
-        className={styles.cancelButton}
-        aria-label="Cancel a migrant"
-        disabled={view.recruits <= 0}
-        onClick={() => submitOrder({ kind: "recruitWorkers", nationId, delta: -1 })}
-      >
-        Cancel
-      </button>
-    </div>
-    <div className={styles.note} data-testid="recruits">
-      {`${view.recruits} of ${view.recruitCap} this turn`}
-    </div>
-  </section>
-);

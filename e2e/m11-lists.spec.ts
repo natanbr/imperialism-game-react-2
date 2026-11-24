@@ -113,10 +113,11 @@ test('FR-352 the Capital dialog: headings drawn large, one-line names and labour
   const capital = page.getByRole('dialog', { name: /Capital/ });
   await expect(capital).toBeVisible();
   await expectLoaded(capital, 30);
-  // FR-352: the Trade School, Capitol and Transport headings too, their lines as high as their text's. FR-565: each is a
-  // section of its own, shown one at a time, so each is measured with its section open
+  // FR-352: the Trade School and Transport headings too, their lines as high as their text's. FR-565: each is a
+  // section of its own, shown one at a time, so each is measured with its section open. M18c FR-572: the Capitol
+  // section and its heading merged into the Trade School (old list: Trade School, Capitol, Transport, University, Shipyard)
   const headings: { name: string; picture: number; line: number; text: number }[] = [];
-  for (const section of ['Trade School', 'Capitol', 'Transport', 'University', 'Shipyard']) {
+  for (const section of ['Trade School', 'Transport', 'University', 'Shipyard']) {
     await capital.getByRole('navigation', { name: 'Capital sections' }).getByRole('button', { name: section, exact: true }).click();
     headings.push(
       ...(await capital.locator('h4:has(img):visible, h3:has(img):visible').evaluateAll((els) =>
@@ -132,7 +133,7 @@ test('FR-352 the Capital dialog: headings drawn large, one-line names and labour
     );
   }
   // FR-513/515 add two illustrated headings, held to the same height and picture limits as the first three.
-  expect(headings.map((h) => h.name)).toEqual(['Trade School', 'Capitol', 'Transport', 'University', 'Shipyard']);
+  expect(headings.map((h) => h.name)).toEqual(['Trade School', 'Transport', 'University', 'Shipyard']);
   for (const h of headings) {
     expect(h.picture, h.name).toBeGreaterThanOrEqual(28);
     expect(h.line, h.name).toBeLessThanOrEqual(h.text + 0.5);
