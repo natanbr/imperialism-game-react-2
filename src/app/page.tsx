@@ -24,7 +24,7 @@ import { useGameStore } from './store/rootStore';
 import { selectActiveNationCapacity } from './store/selectors';
 import { HOW_TO_PLAY_SEEN_KEY, readFlag, readSave, startAutosave, writeFlag, type SaveSlot } from './store/persistence';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
-import { centreOnCapital, startNewGameOnCapital } from './hooks/mapActions';
+import { openMap, startNewGameOnCapital } from './hooks/mapActions';
 import { Toasts } from './components/Toasts';
 
 /**
@@ -78,7 +78,7 @@ function useSavedGame() {
     onContinue: () =>
       decide(() => {
         if (offered?.kind === 'usable') useGameStore.getState().restoreGame(offered.save);
-        centreOnCapital();
+        openMap();
         // The restore closes every dialog, so How to play opens after it
         offerHowToPlay();
       }),

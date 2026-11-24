@@ -7,8 +7,8 @@
    starts at the bar's bottom), and under every dialog (60 and up). At 10 the pane covered the score's parts below 1024 px
    (M12b review LP-1).
    Not overflow: hidden: the score's parts hang below the bar (globals.css .topbar-popover). Its bottom line is a shadow, not
-   a border, so below 1024 px the two 40 px rows fill the 80 px exactly (FR-467). Text: 13 px on 16 px lines, two lines in
-   each status block. */
+   a border, so below 1024 px the two 40 px rows fill the 80 px exactly (FR-467). Text (FR-567, was 13 px on 16 px): the main
+   values 15 px on 18 px lines, a block's second line 13 px on 16 px (globals.css .cash-change), so two fit the 40 px. */
 .bar {
   position: absolute;
   top: 0;
@@ -24,8 +24,8 @@
   background-color: var(--color-surface);
   color: var(--color-ink);
   box-shadow: inset 0 -1px 0 var(--color-border), var(--shadow-panel);
-  font-size: 13px;
-  line-height: 16px;
+  font-size: 15px;
+  line-height: 18px;
   white-space: nowrap;
 }
 

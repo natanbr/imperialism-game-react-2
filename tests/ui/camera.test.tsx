@@ -316,6 +316,9 @@ describe('FR-367 a small map is centred', () => {
   it('FR-367 at 1920x1080 the map is drawn centred in the map area; FR-088 at 1280x720 it is not moved and the camera stays 0, 0', () => {
     screenOf(1920, 1080);
     const { unmount } = render(<MapView />);
+    // FR-567: 1920x1080 opens at the fit zoom (69 px tiles: the map is larger than its area) -> zoom out to 100%, where it is small
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom out' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom out' }));
     const viewport = screen.getByTestId('map-viewport');
     // Re-recorded in M12b T1 (FR-465): 204px -> 184px, as above (the scroller itself starts under the bar)
     expect([viewport.style.marginLeft, viewport.style.marginTop]).toEqual(['320px', '184px']);

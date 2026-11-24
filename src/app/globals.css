@@ -1084,6 +1084,12 @@ img[data-art-anchor="bottom-center"] {
   color: var(--color-ink-muted);
 }
 
+/* FR-567: the cash block's line 2 stays 13 px under the bar's 15 px values, so the two lines fit the 40 px bar */
+.cash-change {
+  font-size: 13px;
+  line-height: 16px;
+}
+
 /* Labels from 1800 px, not the spec's estimated 1600 px (M12b T2, measured in the running app on turn 2): with labels the
    buttons take 1225 px and the row 1746 px; at 1600 px the nation's name was squeezed to 0 px, the Council line cut from
    215 to 150 px and the score block ran 6 px into the buttons. .gate/hud/T2-notes.md, decision for the orchestrator. */

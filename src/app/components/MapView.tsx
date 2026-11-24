@@ -6,8 +6,10 @@ import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from "
 import { flushSync } from "react-dom";
 import { TileComponent } from "./Tile";
 import { GROUND_ART, GROUND_ART_PX, RAIL_ART } from "./art/inkArt";
-import { cameraOnCapital, mapAreaOf, mapOffset, type MapArea } from "./camera";
+import { mapAreaOf, mapOffset, type MapArea } from "./camera";
 import { nextZoom, useMapKeyboard, zoomBy } from "@/hooks/useMapKeyboard";
+import { useMapZoomGestures } from "@/hooks/useMapZoomGestures";
+import { openMap } from "@/hooks/mapActions";
 import { MapGround } from "./map/MapGround";
 import { MapStatus } from "./MapStatus";
 import { ConfirmSpend } from "./ConfirmSpend";
@@ -86,14 +88,12 @@ export const MapView: React.FC = () => {
     if (el.scrollTop !== cameraY) el.scrollTop = cameraY;
   }, [cameraX, cameraY, cameraMoves]);
 
-  // The first view centres the capital. `data-ready` then tells e2e specs the page is live: the
-  // server-rendered map is visible before React handles clicks, and on a screen that holds the whole
-  // map (FR-088) the first view no longer scrolls, so "the capital is in view" proves nothing.
+  // The first view fits the land to the map area, or on a smaller screen centres the capital (FR-567, FR-083). `data-ready`
+  // then tells e2e specs the page is live: the server-rendered map is visible before React handles clicks, and on a screen
+  // that holds the whole map (FR-088) the first view no longer scrolls, so "the capital is in view" proves nothing.
   const [ready, setReady] = useState(false);
   useLayoutEffect(() => {
-    const { game, activeNationId } = useGameStore.getState();
-    const camera = cameraOnCapital(game, activeNationId);
-    if (camera) useGameStore.getState().moveCamera(camera.x, camera.y);
+    openMap();
     setReady(true);
   }, []);
 
@@ -114,6 +114,8 @@ export const MapView: React.FC = () => {
   }, []);
   const offset = area ? mapOffset(area, map.config, zoom) : { x: 0, y: 0 };
   useMapKeyboard();
+  // FR-567: Ctrl and the wheel, a trackpad pinch and two fingers zoom the map, not the page
+  useMapZoomGestures(containerRef);
   // FR-368: the map is zoomed as one layer (CSS zoom scales every length inside it, so tiles, rail, borders, marks, arrows
   // and clicks stay together); the offset and the HUD padding are screen pixels, so they are divided by the zoom
   const viewportStyle: React.CSSProperties = {};
