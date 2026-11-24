@@ -161,12 +161,14 @@ test('FR-338 the map after a rail link and a depot built through the UI: every p
   await expect(tile(page, '2-7').getByTitle('Construction in progress')).toBeVisible();
   for (let turn = 4; turn <= 7 && !(await tile(page, '2-7').getByTitle(/^Depot: /).count()); turn++) await endTurn(page, turn);
 
-  // The depot with its connected station mark (FR-324), the pack's rail piece over each link (FR-328)
+  // The depot with its connected station mark (FR-324); each railed tile's piece (FR-570, was FR-328's piece per link)
   const depot = tile(page, '2-7').getByRole('img', { name: 'Depot: connected' });
   await expect(depot.locator('img').first()).toHaveAttribute('data-art', 'infrastructure/depot.png');
   await expect(depot.locator('img').nth(1)).toHaveAttribute('data-art', 'map-ui/station-connected.svg');
   await expect(page.locator('[data-testid="rail-segment"][data-nation-id="nation-1"]')).toHaveCount(2);
-  await expect(page.getByTestId('rail-art')).toHaveCount(await page.getByTestId('rail-segment').count());
+  await expect(page.locator('[data-testid="rail-tile"][data-nation-id="nation-1"]')).toHaveCount(3);
+  await expect(page.locator('[data-testid="rail-tile"][data-rail-tile-id="2-7"]')).toHaveAttribute('data-station', 'true');
+  await expect(page.getByTestId('rail-art')).toHaveCount(0);
 
   await expectLoaded(page.getByTestId('map-scroll'), 226);
   await shot(page, 'm11-art-rail-depot.png');

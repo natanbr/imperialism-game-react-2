@@ -211,9 +211,9 @@
   stroke-linecap: butt;
 }
 
-/* The link from tile centre to tile centre (FR-136, FR-328): the pack's rail piece over it draws it. No stroke of its own
-   (FR-348, QA): a 3 px line in the rail colour filled the 2.8 px between the piece's two rails and hid its sleepers, so a
-   link read as a dark cable. */
+/* The link from tile centre to tile centre (FR-136): the railed tiles' pieces over it draw it (FR-570, map/RailLayer). No
+   stroke of its own (FR-348, QA): a 3 px line in the rail colour filled the gap between the two rails and hid the
+   sleepers, so a link read as a dark cable. */
 .railSegment {
   stroke: none;
 }

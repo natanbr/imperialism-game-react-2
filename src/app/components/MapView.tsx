@@ -5,7 +5,7 @@ import { selectArmyMarkersBySeat, selectAttackArrows, selectMarchArrows } from "
 import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { TileComponent } from "./Tile";
-import { GROUND_ART, GROUND_ART_PX, RAIL_ART } from "./art/inkArt";
+import { GROUND_ART, GROUND_ART_PX } from "./art/inkArt";
 import { mapAreaOf, mapOffset, type MapArea } from "./camera";
 import { nextZoom, useMapKeyboard, zoomBy } from "@/hooks/useMapKeyboard";
 import { useMapZoomGestures } from "@/hooks/useMapZoomGestures";
@@ -14,7 +14,9 @@ import { MapGround } from "./map/MapGround";
 import { MapStatus } from "./MapStatus";
 import { ConfirmSpend } from "./ConfirmSpend";
 import { groundSignature } from "./map/shoreline";
-import { computeRailSegmentsPixels, railArtMatrix } from "./railSegments";
+import { computeRailSegmentsPixels } from "./railSegments";
+import { railDrawing } from "./railDrawing";
+import { RailConstruction, RailPiece } from "./map/RailLayer";
 import {
   borderPaths,
   minorBorderPaths,
@@ -178,15 +180,11 @@ export const MapView: React.FC = () => {
 
   // The ground is drawn from the land and water pattern only: a string, so MapGround's memo holds across turns (FR-321)
   const ground = useMemo(() => groundSignature(map.tiles), [map]);
-  // The rail graph the depot lights use, drawn as it is (FR-079), each link with the pack's rail piece on it (FR-328)
-  const railSegments = useMemo(
-    () =>
-      computeRailSegmentsPixels(railLinksOf({ transportNetwork }), TILE_PX, TILE_PX / 2).map((s) => ({
-        ...s,
-        art: `matrix(${railArtMatrix(s, RAIL_ART.width, RAIL_ART.height).join(" ")})`,
-      })),
-    [transportNetwork]
-  );
+  // The rail graph the depot lights use, drawn as it is (FR-079): one line per link that paints nothing (FR-348), and
+  // over the links each railed tile's piece and each section under construction in the ink and wash style (FR-570)
+  const railLinks = useMemo(() => railLinksOf({ transportNetwork }), [transportNetwork]);
+  const railSegments = useMemo(() => computeRailSegmentsPixels(railLinks, TILE_PX, TILE_PX / 2), [railLinks]);
+  const rail = useMemo(() => railDrawing(map, railLinks, TILE_PX), [map, railLinks]);
   // Each nation's territory as one outline in its colour (FR-087); inside it the provinces, dotted, and
   // each minor nation's land, dashed (FR-153)
   const borders = useMemo(() => borderPaths(territoryBorderSegments(map, nations)), [map, nations]);
@@ -274,16 +272,11 @@ export const MapView: React.FC = () => {
                 data-nation-id={s.nationId}
               />
             ))}
-            {railSegments.map((s, i) => (
-              <image
-                key={i}
-                href={RAIL_ART.url}
-                width={RAIL_ART.width}
-                height={RAIL_ART.height}
-                transform={s.art}
-                aria-hidden="true"
-                data-testid="rail-art"
-              />
+            {rail.pieces.map((p) => (
+              <RailPiece key={p.tileId} piece={p} />
+            ))}
+            {rail.constructions.map((c) => (
+              <RailConstruction key={c.tileId} section={c} />
             ))}
           </svg>
 

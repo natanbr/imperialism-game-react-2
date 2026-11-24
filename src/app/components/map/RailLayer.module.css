@@ -1,0 +1,50 @@
+/* FR-570: the rail in the ink and wash style (geometry in components/railDrawing.ts). Thin pen lines, so the terrain
+   and the tile's marks stay visible beneath: a faint sepia wash, sepia ties, two rails in the rail ink. */
+.wash {
+  fill: none;
+  stroke: var(--color-rail-tie);
+  stroke-width: 4.2;
+  /* Butt ends: two neighbours' washes meet flush on their shared edge instead of doubling up */
+  stroke-linecap: butt;
+  opacity: 0.2;
+}
+
+.ties {
+  fill: none;
+  stroke: var(--color-rail-tie);
+  stroke-width: 0.9;
+  stroke-linecap: round;
+  opacity: 0.85;
+}
+
+.rails {
+  fill: none;
+  stroke: var(--color-rail);
+  stroke-width: 0.8;
+  stroke-linecap: butt;
+}
+
+/* A bridge over a river tile: the timber beams and bents, under the ties and rails */
+.trestle {
+  fill: none;
+  stroke: var(--color-rail-timber);
+  stroke-width: 1.1;
+  stroke-linecap: square;
+}
+
+/* A depot's or a port's platform beside the track */
+.platform {
+  fill: var(--color-rail-timber);
+  stroke: var(--color-rail);
+  stroke-width: 0.4;
+  stroke-linejoin: round;
+}
+
+/* A section under construction: pencil ties, each a broken stroke, and no rails yet */
+.pencil {
+  fill: none;
+  stroke: var(--color-rail-pencil);
+  stroke-width: 0.9;
+  stroke-linecap: round;
+  stroke-dasharray: 1.8 0.9;
+}
