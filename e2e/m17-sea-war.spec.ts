@@ -143,7 +143,8 @@ test('FR-556 commission, sail and land at Sundmark, then see the survivors and c
   await testInfo.attach('m17-sundmark-colony', { body: await page.screenshot(), contentType: 'image/png' });
   await diplomacy.getByRole('button', { name: 'Close diplomacy' }).click();
   await page.getByRole('button', { name: /Open Market/ }).click();
-  await expect(page.getByTestId('market-holds')).toHaveText('Holds: 4 of 4 free');
+  // Re-recorded by M18c FR-573: old "Holds: 4 of 4 free"
+  await expect(page.getByTestId('market-holds')).toHaveText(/^Holds: 0 of 4 used \(/);
   await page.getByRole('button', { name: 'Close Board of Trade' }).click();
   await advance(page, 11);
   await expect(page.getByRole('dialog', { name: 'Council of Governors' }).getByTestId('council-cell-nation-1-colonies')).toHaveAttribute('data-count', '1');

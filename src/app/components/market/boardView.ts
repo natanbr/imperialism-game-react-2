@@ -1,4 +1,5 @@
-// What the Board of Trade shows (FR-194, FR-248, FR-251 to FR-254, FR-257; M12 FR-394, FR-397, FR-398, FR-400, FR-434),
+// What the Board of Trade shows (FR-194, FR-248, FR-251 to FR-254, FR-257; M12 FR-394, FR-397, FR-398, FR-400, FR-434;
+// M18c FR-573 to FR-575),
 // derived from the engine's `boardOfTrade`.
 // No React, no store: the dialog renders this view and sends orders; the engine stays the judge of every order.
 import {
@@ -185,6 +186,8 @@ export function repeatTrades(
 /** One minor on a row: a seller of the commodity or, for goods, a buyer. */
 export interface PartnerView {
   minorId: string;
+  /** "Arvelia": its flag's name on the Board tab (FR-574). */
+  name: string;
   /** "Arvelia: 3 units" (FR-251) */
   text: string;
   /** "no consulate", "at war", "boycott": the player cannot trade with it this turn; absent when it can. */
@@ -232,13 +235,29 @@ export interface BoardRowView {
   rivalLastTurn?: string;
 }
 
+/** FR-574: the side of a row's one order, as the Order column chooses it (rules 06 section 2: never both). */
+export type TradeSide = "buy" | "sell";
+
+/**
+ * FR-574: the side a row's Order choice starts on: the side of its order this turn, else Sell when one more unit could be
+ * sold ("+" not refused), else Buy.
+ */
+export const startSide = (row: Pick<BoardRowView, "bid" | "offer" | "offerMoreRefusal">): TradeSide =>
+  row.bid > 0 ? "buy" : row.offer > 0 ? "sell" : row.offerMoreRefusal === undefined ? "sell" : "buy";
+
 export interface BoardView {
   rows: BoardRowView[];
+  /** The treasury now: a purchase is paid when it is ordered (FR-062), so this is the buying power (FR-573). */
   treasury: number;
+  /** FR-573: paid for this turn's purchases, each unit at the board price as the engine took it (`applyBuyCommodity`). */
+  committed: number;
+  /** FR-573: the cash before this turn's purchases: the treasury with `committed` added back. */
+  cash: number;
   capacity: TradeCapacity;
-  /** "Holds: 3 of 4 free" */
+  /** FR-573 (replaces FR-251's two hold lines): "Holds: 1 of 4 used (1 Indiaman)" */
   holdsText: string;
-  fleetText: string;
+  /** FR-573: "Buying 1 of 4 commodities" */
+  bidsText: string;
   /** Commodities bid on this turn, of the most the engine accepts (FR-062). */
   bids: { used: number; max: number };
   /** "Arvelia favours Valdoria; Sundmark, Lorran and Pellis favour Testland." (FR-251), empty without a trading minor. */
@@ -309,6 +328,7 @@ export function boardView(state: GameState, nation: Nation): BoardView {
   const nameOf = (id: string) => countryName(state, id) ?? id;
   const partner = (p: BoardSeller | BoardBuyer): PartnerView => ({
     minorId: p.minorId,
+    name: nameOf(p.minorId),
     text: partnerText(p, nameOf),
     ...(p.barrier ? { barrier: BARRIER_TEXT[p.barrier] } : {}),
   });
@@ -380,13 +400,17 @@ export function boardView(state: GameState, nation: Nation): BoardView {
   for (const p of board.flatMap((r) => [...r.sellers, ...r.buyers])) if (p.favouriteId && !favouriteOf.has(p.minorId)) favouriteOf.set(p.minorId, p.favouriteId);
   const favourites = [...favouriteOf].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([minorId, favouriteId]) => ({ minorId, favouriteId }));
   const firstSaleText = firstSaleLine(board, rows);
+  const committed = rows.reduce((sum, r) => sum + r.bid * r.price, 0);
+  const bids = { used: rows.filter((r) => r.bid > 0).length, max: MAX_BUY_BIDS };
   return {
     rows,
     treasury: nation.treasury,
+    committed,
+    cash: nation.treasury + committed,
     capacity,
-    holdsText: `Holds: ${capacity.free} of ${capacity.holds} free`,
-    fleetText: `Holds: ${capacity.holds} (${fleet.join(", ") || "no ships"})`,
-    bids: { used: rows.filter((r) => r.bid > 0).length, max: MAX_BUY_BIDS },
+    holdsText: `Holds: ${capacity.used} of ${capacity.holds} used (${fleet.join(", ") || "no ships"})`,
+    bidsText: `Buying ${bids.used} of ${bids.max} commodities`,
+    bids,
     favouritesText: favourites.length > 0 ? `${favouritesSentence(favourites, nameOf)}.` : "",
     ...(firstSaleText ? { firstSaleText } : {}),
   };

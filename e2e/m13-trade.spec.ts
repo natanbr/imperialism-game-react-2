@@ -7,6 +7,8 @@ import { test, expect, Page } from './seededGame';
 // Valdoria's own warehouse is set to 20 lumber and no steel, so the scripted Valdoria bids for 2 steel this turn as well
 // (FR-493 (a): the side that pairs its lumber first). On the way, a new game's steel Bid "+" is open with FR-494's line,
 // "Money back if Valdoria does not sell."
+// Re-targeted by M18c (FR-574, FR-575): the last-turn line and the lines beside an open "+" are on the Details tab; the
+// steel row opens on Sell once a sale is open (FR-574's default side).
 // Run alone: PORT=3197 PLAYWRIGHT_HTML_OPEN=never npx playwright test e2e/m13-trade.spec.ts
 
 test.use({ viewport: { width: 1280, height: 720 } });
@@ -35,6 +37,9 @@ const savedTurn = (page: Page) =>
 
 const board = (page: Page) => page.getByRole('dialog', { name: 'Board of Trade' });
 const steelRow = (page: Page) => board(page).getByTestId('trade-row-steel');
+/** FR-575: the steel row of the Details tab (open it first). */
+const steelDetails = (page: Page) => board(page).getByTestId('detail-row-steel');
+const openTab = (page: Page, name: 'Board' | 'Details') => board(page).getByRole('tab', { name, exact: true }).click();
 
 async function openBoard(page: Page) {
   await page.getByRole('button', { name: /Open Market/ }).click();
@@ -55,13 +60,15 @@ test('FR-494 FR-491 FR-492 a saved game where Valdoria bid for 2 steel last turn
 
   // A new game: no line from last turn; the steel bid goes toward Valdoria and says so (FR-494)
   await openBoard(page);
-  await expect(steelRow(page).getByTestId('rival-last-turn')).toHaveCount(0);
   const bidPlus = steelRow(page).getByRole('button', { name: 'Buy one more Steel' });
   await expect(bidPlus).toBeEnabled();
+  // Old: the line was beside the "+" and its accessible description; M18c FR-575: on the Details tab, the "+" plain
+  await expect(bidPlus).toHaveAccessibleName('Buy one more Steel');
+  await openTab(page, 'Details');
+  await expect(steelDetails(page).getByTestId('rival-last-turn')).toHaveCount(0);
   // FR-494's line without its first clause (in full it broke FR-257's fit at 1280x720 by 109 px; boardView.ts)
   const rivalBid = 'Money back if Valdoria does not sell.';
-  await expect(steelRow(page).getByTestId('bid-note')).toHaveText(rivalBid);
-  await expect(bidPlus).toHaveAccessibleDescription(rivalBid);
+  await expect(steelDetails(page).getByTestId('bid-note')).toHaveText(rivalBid);
   await closeBoard(page);
 
   // The crafted save: the slot's game with Valdoria's bid of last turn, our steel and Valdoria's lumber
@@ -82,11 +89,15 @@ test('FR-494 FR-491 FR-492 a saved game where Valdoria bid for 2 steel last turn
   await ready(page);
 
   await openBoard(page);
-  await expect(steelRow(page).getByTestId('rival-last-turn')).toHaveText('Valdoria wanted to buy 2 last turn');
   await expect(steelRow(page).getByTestId('available')).toHaveText('3');
+  // FR-574: the row opens on Sell, the sale being open
+  await expect(steelRow(page).getByRole('button', { name: 'Sell Steel', exact: true })).toHaveAttribute('aria-pressed', 'true');
   const offerPlus = steelRow(page).getByRole('button', { name: 'Sell one more Steel' });
   await expect(offerPlus).toBeEnabled();
-  await expect(steelRow(page).getByTestId('offer-note')).toHaveText('Only Valdoria may buy this');
+  await openTab(page, 'Details');
+  await expect(steelDetails(page).getByTestId('rival-last-turn')).toHaveText('Valdoria wanted to buy 2 last turn');
+  await expect(steelDetails(page).getByTestId('offer-note')).toHaveText('Only Valdoria may buy this');
+  await openTab(page, 'Board');
   await offerPlus.click();
   await expect(steelRow(page).getByTestId('offer')).toHaveText('1');
   await expect(steelRow(page).getByTestId('available')).toHaveText('2');
@@ -107,7 +118,8 @@ test('FR-494 FR-491 FR-492 a saved game where Valdoria bid for 2 steel last turn
 
   // Valdoria's bid of this turn is public on the next: the Board's steel row names it
   await openBoard(page);
-  await expect(steelRow(page).getByTestId('rival-last-turn')).toHaveText(/^Valdoria wanted to buy \d+ last turn$/);
+  await openTab(page, 'Details');
+  await expect(steelDetails(page).getByTestId('rival-last-turn')).toHaveText(/^Valdoria wanted to buy \d+ last turn$/);
   expect(errors).toEqual([]);
 });
 

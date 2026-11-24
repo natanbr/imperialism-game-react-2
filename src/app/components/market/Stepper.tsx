@@ -23,11 +23,17 @@ export interface StepperProps {
    * visible reason. Without it "−" is disabled at 0 (the World market, FR-074).
    */
   hideLessAtZero?: boolean;
+  /**
+   * The Board of Trade (FR-574): no line beside the stepper; a refused "+" says why in its tooltip and its accessible
+   * name ("Buy one more Coal: We need a consulate with a seller").
+   */
+  refusalInName?: boolean;
 }
 
 /** "− n +": each press sends this turn's total one lower or higher; the engine judges it (FR-074, FR-194). */
-export const Stepper: React.FC<StepperProps> = ({ label, name, value, testId, onChange, moreRefusal, note, hideLessAtZero }) => {
+export const Stepper: React.FC<StepperProps> = ({ label, name, value, testId, onChange, moreRefusal, note, hideLessAtZero, refusalInName }) => {
   const noteId = useId();
+  const more = `${label} one more ${name}`;
   return (
     <span className={styles.amount}>
       {hideLessAtZero && value <= 0 ? (
@@ -42,7 +48,7 @@ export const Stepper: React.FC<StepperProps> = ({ label, name, value, testId, on
       </span>
       <button
         className={styles.stepButton}
-        aria-label={`${label} one more ${name}`}
+        aria-label={refusalInName && moreRefusal !== undefined ? `${more}: ${moreRefusal}` : more}
         aria-describedby={note ? noteId : undefined}
         disabled={moreRefusal !== undefined}
         title={moreRefusal}
