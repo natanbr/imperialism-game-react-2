@@ -2,10 +2,10 @@ import { test, expect, Page, Locator, startSeededGame } from './seededGame';
 
 // M11 (NR-032) lane 3 in the running app, a new continent game at 1280x720: the art pack's pictures in the lists, dialogs
 // and HUD load, and fit.
-// FR-333: each production card's head, with its building's picture, is at most 24 px high, and the picture is no taller
-// than the head's text line. FR-331, FR-332, FR-333, FR-334: every img[data-art] in the Capital dialog, the Armoury, the
-// Board of Trade, the Warehouse and the Transportation of Commodities popup is loaded (complete, natural width above 0),
-// with no console error. FR-334: the HUD's buttons that show a building are exactly as high as those that keep a Game Icon,
+// FR-333, FR-565: each production card's head shows its building's picture at 40 to 48 px, the head no taller than the
+// picture (FR-565 replaced FR-352's 24 px heads). FR-331, FR-332, FR-333, FR-334: every img[data-art] in the Capital
+// dialog, the Armoury, the Board of Trade, the Warehouse and the Transportation of Commodities popup is loaded (complete,
+// natural width above 0), with no console error. FR-334: the HUD's buttons that show a building are exactly as high as those that keep a Game Icon,
 // so the HUD's news keeps its lines (FR-268, FR-315).
 // Set SCREENSHOT_DIR to also save m11-lists-capital.png, m11-lists-board.png and m11-lists-transport.png there.
 
@@ -58,7 +58,7 @@ const shot = async (page: Page, name: string) => {
   if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/${name}` });
 };
 
-test('FR-333 FR-331 FR-332 the Capital dialog: card heads at most 24 px with their buildings, every picture loaded; the Armoury too', async ({ page }) => {
+test('FR-333 FR-331 FR-332 FR-565 the Capital dialog: card heads with their buildings at 40 to 48 px, every picture loaded; the Armoury too', async ({ page }) => {
   test.setTimeout(90000);
   const errors = collectErrors(page);
   await open(page);
@@ -71,7 +71,7 @@ test('FR-333 FR-331 FR-332 the Capital dialog: card heads at most 24 px with the
 
   const heads = await capital.locator('section[data-testid^="building-"] > header').evaluateAll((els) =>
     els.map((el) => {
-      const title = el.querySelector('h4')!;
+      const title = el.querySelector('h3')!;
       const picture = title.querySelector('img');
       return {
         card: el.parentElement!.getAttribute('data-testid'),
@@ -83,13 +83,13 @@ test('FR-333 FR-331 FR-332 the Capital dialog: card heads at most 24 px with the
     })
   );
   expect(heads).toHaveLength(7);
-  // FR-352 (QA; replaces FR-333's "no taller than the head's text line", at which the buildings were murky 19 px
-  // silhouettes): each building drawn at 28 to 32 px, reaching past its line, the head still at most 24 px
+  // FR-565 (2026-11-23, replaces FR-352's 30 px buildings in 24 px heads): each building drawn at 40 to 48 px, the head
+  // as high as its picture
   for (const h of heads) {
     expect(h.art, h.card ?? '').toMatch(/^buildings\//);
-    expect(h.head, h.card ?? '').toBeLessThanOrEqual(24);
-    expect(h.picture, h.card ?? '').toBeGreaterThanOrEqual(28);
-    expect(h.picture, h.card ?? '').toBeLessThanOrEqual(32);
+    expect(h.picture, h.card ?? '').toBeGreaterThanOrEqual(40);
+    expect(h.picture, h.card ?? '').toBeLessThanOrEqual(48);
+    expect(h.head, h.card ?? '').toBeLessThanOrEqual(h.picture + 0.5);
   }
   await shot(page, 'm11-lists-capital.png');
 
@@ -113,17 +113,24 @@ test('FR-352 the Capital dialog: headings drawn large, one-line names and labour
   const capital = page.getByRole('dialog', { name: /Capital/ });
   await expect(capital).toBeVisible();
   await expectLoaded(capital, 30);
-  // FR-352: the Trade School, Capitol and Transport headings too, their lines as high as their text's
-  const headings = await capital.locator('h4:has(img), h3:has(img)').evaluateAll((els) =>
-    els
-      .filter((el) => !el.closest('section[data-testid^="building-"]'))
-      .map((el) => ({
-        name: (el.textContent ?? '').trim(),
-        picture: el.querySelector('img')!.getBoundingClientRect().height,
-        line: el.getBoundingClientRect().height,
-        text: parseFloat(getComputedStyle(el).lineHeight),
-      }))
-  );
+  // FR-352: the Trade School, Capitol and Transport headings too, their lines as high as their text's. FR-565: each is a
+  // section of its own, shown one at a time, so each is measured with its section open
+  const headings: { name: string; picture: number; line: number; text: number }[] = [];
+  for (const section of ['Trade School', 'Capitol', 'Transport', 'University', 'Shipyard']) {
+    await capital.getByRole('navigation', { name: 'Capital sections' }).getByRole('button', { name: section, exact: true }).click();
+    headings.push(
+      ...(await capital.locator('h4:has(img):visible, h3:has(img):visible').evaluateAll((els) =>
+        els
+          .filter((el) => !el.closest('section[data-testid^="building-"]'))
+          .map((el) => ({
+            name: (el.textContent ?? '').trim(),
+            picture: el.querySelector('img')!.getBoundingClientRect().height,
+            line: el.getBoundingClientRect().height,
+            text: parseFloat(getComputedStyle(el).lineHeight),
+          }))
+      ))
+    );
+  }
   // FR-513/515 add two illustrated headings, held to the same height and picture limits as the first three.
   expect(headings.map((h) => h.name)).toEqual(['Trade School', 'Capitol', 'Transport', 'University', 'Shipyard']);
   for (const h of headings) {
@@ -131,6 +138,7 @@ test('FR-352 the Capital dialog: headings drawn large, one-line names and labour
     expect(h.line, h.name).toBeLessThanOrEqual(h.text + 0.5);
   }
   // FR-352: each output's name on one line, ending before its "−" ("Canned Food" with its picture wrapped to two)
+  await capital.getByRole('navigation', { name: 'Capital sections' }).getByRole('button', { name: 'Industry', exact: true }).click();
   const outputs = await capital.locator('[data-testid^="output-"]:has([data-testid="output-name"])').evaluateAll((els) =>
     els.map((el) => {
       const name = el.querySelector('[data-testid="output-name"]')!;
@@ -144,10 +152,12 @@ test('FR-352 the Capital dialog: headings drawn large, one-line names and labour
   expect(outputs.length).toBeGreaterThanOrEqual(9);
   expect(outputs.filter((o) => o.lines > 1 || o.right > o.less).map((o) => `${o.name}: ${o.lines} lines`)).toEqual([]);
   // FR-352: the Labour line on one line, and "+ Freight car" wholly inside the side column (it ran 3 px below its end
-  // before M11 and 27 px once the Labour line's picture wrapped it beside a classic scrollbar)
+  // before M11 and 27 px once the Labour line's picture wrapped it beside a classic scrollbar). FR-565 FR-566: the labour
+  // line is in the bar above the sections, "+ Freight car" in the Transport section
   const labour = (await capital.getByTestId('labour').boundingBox())!;
   expect(labour.height).toBeLessThanOrEqual(22);
-  const column = await capital.getByTestId('labour-panel').evaluate((el) => el.parentElement!.getBoundingClientRect().bottom);
+  await capital.getByRole('navigation', { name: 'Capital sections' }).getByRole('button', { name: 'Transport', exact: true }).click();
+  const column = await capital.getByTestId('freight-cars').evaluate((el) => el.parentElement!.getBoundingClientRect().bottom);
   const freight = (await capital.getByRole('button', { name: 'Order a freight car' }).boundingBox())!;
   expect(freight.y + freight.height).toBeLessThanOrEqual(column);
   expect(errors).toEqual([]);

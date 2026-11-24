@@ -1,15 +1,16 @@
 "use client";
 import React from "react";
-import type { Order, ValidationResult } from "@/engine";
+import type { FoodForecast, Order, ValidationResult } from "@/engine";
 import { MIGRANT_COST, TRAINING_COST } from "@/definisions/ResourceConversions";
 import type { WorkerGrade } from "@/types/Industry";
+import { ResourceType } from "@/types/Resource";
 import { commodityName, money } from "../gameText";
 import { InkPicture } from "../art/ArtPicture";
-import { LABOUR_ART, buildingArt, gradeArt } from "../art/inkArt";
+import { LABOUR_ART, buildingArt, goodsArt, gradeArt } from "../art/inkArt";
 import type { LabourView } from "./capitalView";
 import styles from "./Capital.module.css";
 
-interface LabourPanelProps {
+interface OrderPanelProps {
   view: LabourView;
   nationId: string;
   submitOrder: (order: Order) => ValidationResult;
@@ -27,16 +28,14 @@ const MIGRANT_TEXT = Object.entries(MIGRANT_COST)
   .join(", ");
 
 /**
- * Labour, the workforce, the Trade School and the Capitol (FR-047); the labour and grade pictures before their names
- * (FR-332), the Trade School and the Capitol before their headings (FR-333).
+ * The city's labour bar, the Capital's HUD (FR-566): labour, the workforce by grade with the sick and the trainees
+ * (FR-047), and the meal at the end of this turn (FR-049), on one line where the width allows. It has no controls; the
+ * grade and labour pictures stand before their names (FR-332).
  */
-export const LabourPanel: React.FC<LabourPanelProps> = ({ view, nationId, submitOrder }) => {
+export const LabourBar: React.FC<{ view: LabourView; food: FoodForecast }> = ({ view, food }) => {
   const { labour, grades } = view;
-  const training = (grade: WorkerGrade) => grades.find((g) => g.grade === grade)?.training ?? 0;
-
   return (
-    <section className={styles.panel} data-testid="labour-panel" aria-label="Labour">
-      <h3 className={styles.panelTitle}>Labour</h3>
+    <section className={styles.labourBar} data-testid="labour-panel" aria-label="Labour">
       <div className={styles.labourLine} data-testid="labour">
         <span>
           <InkPicture src={LABOUR_ART} alt="" inline />Labour
@@ -57,9 +56,28 @@ export const LabourPanel: React.FC<LabourPanelProps> = ({ view, nationId, submit
         ))}
       </ul>
 
-      <h4 className={styles.subTitle}>
+      <div className={styles.labourLine} data-testid="food" title="The meal at the end of this turn">
+        <span>
+          <InkPicture src={goodsArt(ResourceType.Grain)} alt="" inline />Food
+        </span>
+        <span>
+          {`${food.fed} of ${food.mouths} fed`}
+          {food.sick > 0 && <span className={styles.sick}>{` · ${food.sick} sick`}</span>}
+          {food.starved > 0 && <span className={styles.sick}>{` · ${food.starved} starve${food.starved === 1 ? "s" : ""}`}</span>}
+        </span>
+      </div>
+    </section>
+  );
+};
+
+/** The Trade School (FR-047): one more or one fewer trainee of each grade; its building before its heading (FR-333). */
+export const TradeSchoolPanel: React.FC<OrderPanelProps> = ({ view, nationId, submitOrder }) => {
+  const training = (grade: WorkerGrade) => view.grades.find((g) => g.grade === grade)?.training ?? 0;
+  return (
+    <section className={styles.panel} aria-label="Trade School">
+      <h3 className={styles.panelTitle}>
         <InkPicture src={buildingArt("tradeSchool")} alt="" inline className={styles.buildingPicture} />Trade School
-      </h4>
+      </h3>
       {TRAINING.map(({ from, article, to }) => {
         const cost = TRAINING_COST[from];
         return (
@@ -82,30 +100,35 @@ export const LabourPanel: React.FC<LabourPanelProps> = ({ view, nationId, submit
           </div>
         );
       })}
-
-      <h4 className={styles.subTitle}>
-        <InkPicture src={buildingArt("capitol")} alt="" inline className={styles.buildingPicture} />Capitol
-      </h4>
-      <div className={styles.actionRow}>
-        <button
-          className={styles.actionButton}
-          aria-label="Recruit a migrant"
-          onClick={() => submitOrder({ kind: "recruitWorkers", nationId, delta: 1 })}
-        >
-          {`Recruit (${MIGRANT_TEXT})`}
-        </button>
-        <button
-          className={styles.cancelButton}
-          aria-label="Cancel a migrant"
-          disabled={view.recruits <= 0}
-          onClick={() => submitOrder({ kind: "recruitWorkers", nationId, delta: -1 })}
-        >
-          Cancel
-        </button>
-      </div>
-      <div className={styles.note} data-testid="recruits">
-        {`${view.recruits} of ${view.recruitCap} this turn`}
-      </div>
     </section>
   );
 };
+
+/** The Capitol (FR-047): migrants recruited this turn, up to the cap; its building before its heading (FR-333). */
+export const CapitolPanel: React.FC<OrderPanelProps> = ({ view, nationId, submitOrder }) => (
+  <section className={styles.panel} aria-label="Capitol">
+    <h3 className={styles.panelTitle}>
+      <InkPicture src={buildingArt("capitol")} alt="" inline className={styles.buildingPicture} />Capitol
+    </h3>
+    <div className={styles.actionRow}>
+      <button
+        className={styles.actionButton}
+        aria-label="Recruit a migrant"
+        onClick={() => submitOrder({ kind: "recruitWorkers", nationId, delta: 1 })}
+      >
+        {`Recruit (${MIGRANT_TEXT})`}
+      </button>
+      <button
+        className={styles.cancelButton}
+        aria-label="Cancel a migrant"
+        disabled={view.recruits <= 0}
+        onClick={() => submitOrder({ kind: "recruitWorkers", nationId, delta: -1 })}
+      >
+        Cancel
+      </button>
+    </div>
+    <div className={styles.note} data-testid="recruits">
+      {`${view.recruits} of ${view.recruitCap} this turn`}
+    </div>
+  </section>
+);

@@ -17,7 +17,8 @@ interface ProductionCardProps {
  * One production building: capacity, Expand, and per output its inputs and amount control (FR-046).
  * The control shows what will really be made, of the most that can be ordered (FR-119): "−" and "+"
  * step from the planned amount, so a standing order the stock no longer covers is cleared in one press.
- * The head shows the building's picture at 30 px (FR-352), each output and input its goods pictures (FR-331).
+ * The head shows the building's picture at 44 px (FR-565), each output and input its goods pictures (FR-331). The name
+ * is an h3: the card sits right under the dialog's h2 title, as the Industry section has no heading of its own.
  */
 export const ProductionCard: React.FC<ProductionCardProps> = ({ card, nationId, submitOrder }) => {
   const name = BUILDING_TEXT[card.building];
@@ -26,9 +27,9 @@ export const ProductionCard: React.FC<ProductionCardProps> = ({ card, nationId, 
   return (
     <section className={styles.card} data-testid={`building-${building}`} aria-label={name}>
       <header className={styles.cardHeader}>
-        <h4 className={styles.cardTitle}>
+        <h3 className={styles.cardTitle}>
           <InkPicture src={buildingArt(building)} alt="" inline className={styles.buildingPicture} />{name}
-        </h4>
+        </h3>
         <span className={styles.capacity} data-testid="capacity">
           {card.unlimited ? "No limit" : `Capacity ${card.capacity}`}
           {card.pendingCapacity > 0 && <span className={styles.pending}> (+{card.pendingCapacity} next turn)</span>}

@@ -155,9 +155,10 @@ describe('FR-236 every dialog is a modal dialog', () => {
     const dialog = screen.getByRole('dialog', { name });
 
     const controls = tabCycle(dialog);
-    // Tab visits every control of the dialog that takes the focus, in page order (jsdom moves no focus on its own)
+    // Tab visits every control of the dialog that takes the focus, in page order (jsdom moves no focus on its own); a
+    // control in a closed part (`hidden`, the Capital's other sections: FR-565) takes none
     const enabled = [...dialog.querySelectorAll<HTMLElement>('button, select, input, a[href], [tabindex]')].filter(
-      (el) => !(el as HTMLButtonElement).disabled && el.tabIndex >= 0
+      (el) => !(el as HTMLButtonElement).disabled && el.tabIndex >= 0 && !el.closest('[hidden]')
     );
     expect(enabled.length).toBeGreaterThan(0);
     expect(controls).toEqual(enabled);
@@ -272,6 +273,8 @@ describe('FR-236 a stack of dialogs: only the top one answers', () => {
     render(<Dialogs />);
     openWith(screen.getByRole('button', { name: /Open Capital/ }));
     const capital = screen.getByRole('dialog', { name: 'Capital — Testland' });
+    // FR-565: the button is in the Transport section
+    fireEvent.click(within(capital).getByRole('button', { name: 'Transport' }));
     const fromCapital = within(capital).getByRole('button', { name: 'Transportation of Commodities' });
     openWith(fromCapital);
     const transport = screen.getByRole('dialog', { name: 'Transportation of Commodities' });

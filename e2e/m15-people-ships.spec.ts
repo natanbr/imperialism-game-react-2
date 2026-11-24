@@ -13,6 +13,10 @@ const openCapital = async (page: Page) => {
   return page.getByRole('dialog', { name: /^Capital/ });
 };
 
+/** FR-565: the Capital shows one section at a time and opens on Industry. */
+const openSection = (page: Page, name: string) =>
+  page.getByRole('dialog', { name: /^Capital/ }).getByRole('navigation', { name: 'Capital sections' }).getByRole('button', { name, exact: true }).click();
+
 const advance = async (page: Page, turn: number) => {
   await page.getByRole('button', { name: 'Advance Turn' }).click();
   await expect(page.getByTestId('turn-indicator')).toContainText(`Turn: ${turn} of 40`);
@@ -25,13 +29,15 @@ test('FR-513 train an Engineer and return a Prospector to industry after continu
     game.nations[0].warehouse.paper = 2;
   });
   const capital = await openCapital(page);
+  await openSection(page, 'University');
   const university = capital.getByRole('region', { name: 'University' });
   const cash = page.getByTestId('topbar-cash');
   await expect(cash).toContainText('$10,000');
   await university.scrollIntoViewIfNeeded();
   await expect(university.getByRole('listitem')).toHaveCount(7);
-  const side = capital.getByRole('complementary');
-  expect(await side.evaluate((el: HTMLElement) => el.scrollHeight > el.clientHeight && el.offsetWidth > el.clientWidth)).toBe(true);
+  // FR-565: the University is a section of its own now; at 1280x720 its panel scrolls with a drawn scrollbar (FR-426)
+  const panel = university.locator('xpath=..');
+  expect(await panel.evaluate((el: HTMLElement) => el.scrollHeight > el.clientHeight && el.offsetWidth > el.clientWidth)).toBe(true);
   await university.getByRole('button', { name: 'Train one more Engineer' }).click();
   await expect(cash).toContainText('$9,000');
   await expect(university.getByTestId('university-stock')).toContainText('0 paper');
@@ -39,10 +45,6 @@ test('FR-513 train an Engineer and return a Prospector to industry after continu
   await expect(cash).toContainText('$10,000');
   await expect(university.getByTestId('university-stock')).toContainText('2 paper');
   await university.getByRole('button', { name: 'Train one more Engineer' }).click();
-  await university.evaluate(el => {
-    const side = el.closest('aside')!;
-    side.scrollTop += el.getBoundingClientRect().top - side.getBoundingClientRect().top - 2;
-  });
   await screenshot(page, 'university');
   await capital.getByRole('button', { name: 'Close capital' }).click();
   await advance(page, 2);
@@ -81,6 +83,7 @@ test('FR-515 FR-517 build ships, fill eight holds with purchases and collect hor
     Object.assign(game.nations[0].warehouse, { lumber: 11, fabric: 5 });
   });
   const capital = await openCapital(page);
+  await openSection(page, 'Shipyard');
   const yard = capital.getByRole('region', { name: 'Shipyard' });
   await yard.getByRole('button', { name: 'Build one more Trader' }).click();
   await expect(yard.getByTestId('shipyard-stock')).toContainText('7 lumber, 3 fabric');
@@ -121,6 +124,7 @@ test('FR-515 FR-517 build ships, fill eight holds with purchases and collect hor
   await expect(board.getByTestId('market-holds')).toHaveText('Holds: 0 of 8 free');
   await page.keyboard.press('Escape');
   await openCapital(page);
+  await openSection(page, 'Shipyard');
   await yard.getByRole('button', { name: 'Build one more Trader' }).click();
   await capital.getByRole('button', { name: 'Close capital' }).click();
   await advance(page, 3);

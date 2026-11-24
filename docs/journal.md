@@ -2,8 +2,8 @@
 
 ## Resuming here
 
-- M18a (play-test comfort, `docs/specs/m18-playtest-comfort.md`) is on `claude/m18a-demo`, local only: FR-561 Demo level (`5afe257`), FR-562 debug dashboard (`f03519f`) and the review-fix commit "M18a: fix review findings". NR-037 in progress. Evidence in `.gate/claude/31/` and `.gate/claude/33/`.
-- M18a merged into main `af24381` (pull request 43). M18b part 1 (FR-563, FR-568, FR-569) is on `claude/m18b-readability`, local; FR-564 to FR-567 and FR-570 next. Icons wait for the art (spec section 3).
+- M18 (play-test comfort, `docs/specs/m18-playtest-comfort.md`): M18a merged into main `af24381` (pull request 43), M18b part 1 (FR-563, FR-568, FR-569) in `5e80bab` (pull request 44), part 2 (FR-564 nation colours and flags) in `4098bfe` (pull request 45). NR-037 in progress.
+- M18b part 3 (FR-565 Capital one section at a time, FR-566 city labour bar) is on `claude/m18b-capital`, local, not pushed: `731c797`, `3430434` and "M18b: Capital review cleanups". Full gate green on `3430434`, review approved. FR-567 and FR-570 next; icons wait for the art (spec section 3). Evidence in `.gate/claude/45/`.
 - To try Demo: New game, Start Demo game; then Dashboard in the top bar (Economy, Military, Trade, Diplomacy, Council, Bug report).
 - M17 merged into main `65a4d5a` (pull request 42). Its task evidence is in `.gate/codex/21/` to `.gate/codex/28/`.
 - M16 part 1 merged in `9bd5a91`. The human can buy technology. The computer makes no purchases on main.
@@ -11,6 +11,26 @@
 - FR-547 (Q143) is the buyer branch's proposed value rule. Measure technology availability, purchase timing and the value of the first unlocked action in the original game before tuning. See `docs/verify-and-tune.md`.
 - Task 19 passed the load trials and full gate on `claude/perf-tests`. Finish future gates with `npm run test:perf` alone. The measured results and six functional logs are indexed in `.gate/codex/19/summary.md`.
 - To play M17 on continent seed 1, set Armaments and Fabric production to 1. Build a Ship-of-the-Line on turn 6, declare and sail on turn 7, set the site on turn 8, and land the four-ARMS army on turn 9. On turn 10 see the survivors at Sundmark and its colony vote in Council.
+
+## 2026-11-23 M18b parts 2 and 3 — nation colours, Capital layout and labour bar
+
+Part 2 (FR-564, one colour and flag per nation) merged into main `4098bfe` (pull request 45).
+Part 3, size M, on `claude/m18b-capital`. FR-565: the Capital shows one section at a time (Industry, Trade School,
+Capitol, Transport, University, Shipyard) through disclosure buttons; Industry opens first; the closed sections stay
+mounted and `hidden`; the card buildings are 44 px (replaces FR-352's 30 px in 24 px heads). FR-566: the city's labour
+bar (labour, grades, the turn's food forecast) sits above the sections inside the dialog, so the cards get the full
+width and every section fits 1366x768 with no scroll bar; on a phone the bar follows the open section (FR-428).
+Objection: the owner's words put the city HUD on the right; a right column left Industry 60 px short at 1366x768.
+Review cleanups: the FR-426 fade test now covers the section fade (and failed on a mutant that kept the measuring on
+Industry), the card names are h3 under the h2 title, stale 24 px and 30 px texts fixed, roadmap main `4098bfe`.
+
+| Claim | Command | Result |
+|---|---|---|
+| FR-565, FR-566 red, then green | `npx vitest run tests/ui/capitalSections.test.tsx -t FR-565` (and `-t FR-566`) | red `6 failed`, `3 failed`; green `6 passed`, `3 passed` (`.gate/claude/45/`) |
+| In the app, 1366x768 and 390 px | `PORT=3123 npx playwright test e2e/m18-capital.spec.ts` | red `2 failed`; green `2 passed` |
+| Full gate on `3430434` (orchestrator) | `npm test`, Playwright, tsc, lint, build, perf | 3066 unit, 152 e2e, tsc, lint, build, perf passed; roadmap check failed (fixed in the cleanups) |
+| FR-426 fade test can fail | mutant: measuring ref left on Industry | `1 failed \| 3 passed` (`.gate/claude/45/mutant-FR-426.txt`) |
+| Cleanups | `npx vitest run tests/ui/capitalDialog.test.tsx tests/ui/listArt.test.tsx`; `PORT=3123 npx playwright test e2e/m11-lists.spec.ts e2e/m18-capital.spec.ts` | `Tests 42 passed (42)`; `7 passed` |
 
 ## 2026-11-23 M18b part 1 — Buy and Sell, Stats page, toasts
 
