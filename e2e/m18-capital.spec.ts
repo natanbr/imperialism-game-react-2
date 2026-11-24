@@ -2,12 +2,15 @@
 // FR-565: one section open at a time, Industry first, with no vertical scroll bar in the dialog at 1366x768; the industry
 // cards' buildings drawn at 40 to 48 px. FR-566: the city's labour bar stays in view above the sections; the Trade
 // School trains a worker through the real buttons and the bar counts the trainee. No sideways page scroll at 390 px.
+// M18c FR-572: the Capitol merged into the Trade School (five sections, was six); each training shows its cost as needed
+// against held, and the figures follow the order.
 // Screenshots go to the test's output folder (testInfo.outputPath), or SCREENSHOT_DIR when set.
 import type { TestInfo } from '@playwright/test';
 import { expect, startSeededGame, test, type Locator, type Page } from './seededGame';
 
 const shotPath = (testInfo: TestInfo, name: string) => (process.env.SCREENSHOT_DIR ? `${process.env.SCREENSHOT_DIR}/${name}` : testInfo.outputPath(name));
-const SECTIONS = ['Industry', 'Trade School', 'Capitol', 'Transport', 'University', 'Shipyard'];
+// Re-recorded by M18c FR-572: old ['Industry', 'Trade School', 'Capitol', 'Transport', 'University', 'Shipyard']
+const SECTIONS = ['Industry', 'Trade School', 'Transport', 'University', 'Shipyard'];
 
 async function expectNoSidewaysScroll(page: Page) {
   const { scrollWidth, innerWidth } = await page.evaluate(() => ({ scrollWidth: document.documentElement.scrollWidth, innerWidth: window.innerWidth }));
@@ -48,9 +51,19 @@ async function trainInTradeSchool(page: Page, capital: Locator) {
   await expect(capital.getByRole('main', { name: 'Industry' })).toBeHidden();
   const cash = page.getByTestId('topbar-cash');
   await expect(cash).toContainText('$10,000');
+  // FR-572: the training's costs, needed against held, and the migrants in the same section
+  const untrained = capital.getByTestId('school-untrained');
+  await expect(untrained.getByRole('listitem')).toHaveText(['Cash: $100 needed, $10,000 in treasury', 'Paper: 1 needed, 2 in warehouse']);
+  await expect(capital.getByTestId('school-trained').getByRole('listitem')).toHaveText(['Cash: $1,000 needed, $10,000 in treasury', 'Paper: 2 needed, 2 in warehouse']);
+  await expect(capital.getByTestId('school-migrant').getByRole('button', { name: 'Recruit a migrant' })).toBeVisible();
   await capital.getByRole('button', { name: 'Train an untrained worker' }).click();
   await expect(bar.getByTestId('grade-untrained')).toContainText('1 in training');
   await expect(cash).toContainText('$9,900');
+  await expect(untrained.getByRole('listitem')).toHaveText(['Cash: $100 needed, $9,900 in treasury', 'Paper: 1 needed, 1 in warehouse']);
+  // One paper left: Trained → Expert is short of paper, marked so
+  const trainedPaper = capital.getByTestId('school-trained').getByTestId('cost-paper');
+  await expect(trainedPaper).toHaveAttribute('data-missing', 'true');
+  await expect(trainedPaper).toHaveText('✗ Paper: 2 needed, 1 in warehouse (short)');
   await expect(bar).toBeInViewport();
 }
 

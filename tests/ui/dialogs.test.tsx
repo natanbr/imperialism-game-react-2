@@ -523,10 +523,12 @@ describe('FR-425 FR-428 the Board of Trade on smaller windows', () => {
     expect(rules).toMatch(/\.boardTable td:nth-child\(1\),\s*\.boardTable td:nth-child\(6\) \{[^}]*grid-column: 1 \/ -1;/);
   });
 
-  it('FR-428 the Board keeps the columns its narrow rules count on: name, price, stock, Buy, Sell, minors (FR-563)', () => {
+  // Re-recorded by M18c FR-574: old Commodity, Price, In warehouse, Buy, Sell, Minor nations; still six columns in the
+  // places the narrow rules count on (1 the name, 6 the minors), now name, price, stock, the Buy/Sell choice, its stepper
+  it('FR-428 FR-574 the Board keeps the columns its narrow rules count on: name, price, stock, order, quantity, market', () => {
     show(start(), { isMarketOpen: true });
     render(<MarketModal />);
     const head = within(screen.getByRole('dialog', { name: 'Board of Trade — Testland' })).getAllByRole('columnheader').map((th) => text(th));
-    expect(head).toEqual(['Commodity', 'Price', 'In warehouse', 'Buy', 'Sell', 'Minor nations']);
+    expect(head).toEqual(['Commodity', 'Price', 'Available', 'Order', 'Quantity', 'Market']);
   });
 });

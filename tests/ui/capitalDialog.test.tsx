@@ -351,18 +351,23 @@ describe('FR-047 capital dialog: labour, training, migration, freight cars', () 
     ]);
     expect(industryOf(now(), N1).training).toEqual({ untrained: 0, trained: 1, expert: 0 });
     expect(nationOf(now(), N1).treasury).toBe(10000 - 1000);
-    expect(text(screen.getByRole('button', { name: /Train an untrained worker/ }))).toContain('$100 + 1 Paper');
-    expect(text(screen.getByRole('button', { name: /Train a trained worker/ }))).toContain('$1,000 + 2 Paper');
+    // Re-recorded by M18c FR-572: the cost was in the button ("$100 + 1 Paper", "$1,000 + 2 Paper"); now each training
+    // lists it as an industry card lists its inputs, what one more needs against what we hold
+    const costs = (from: string) => within(screen.getByTestId(`school-${from}`)).getAllByRole('listitem').map((li) => text(li));
+    expect(costs('untrained')).toEqual(['Cash: $100 needed, $9,000 in treasury', 'Paper: 1 needed, 3 in warehouse']);
+    expect(costs('trained')).toEqual(['Cash: $1,000 needed, $9,000 in treasury', 'Paper: 2 needed, 3 in warehouse']);
+    expect(text(screen.getByRole('button', { name: 'Train an untrained worker' }))).toBe('Train');
   });
 
-  it('FR-047 Capitol buttons send recruitWorkers up to the cap; the cap shows', () => {
+  // Re-targeted by M18c FR-572: the Capitol section is merged into the Trade School; the cap line was "1 of 1 this turn"
+  it('FR-047 FR-572 the Trade School\'s migrant buttons send recruitWorkers up to the cap; the cap shows', () => {
     openCapital(stocked());
-    openSection('Capitol');
+    openSection('Trade School');
 
     fireEvent.click(screen.getByRole('button', { name: /Recruit a migrant/ }));
 
     expect(submitted).toEqual([{ kind: 'recruitWorkers', nationId: N1, delta: 1 }]);
-    expect(text(screen.getByTestId('recruits'))).toContain('1 of 1 this turn');
+    expect(text(screen.getByTestId('recruits'))).toBe('1 of 1 migrants this turn');
     expect(stockOf(now(), N1, 'cannedFood')).toBe(2);
 
     fireEvent.click(screen.getByRole('button', { name: /Recruit a migrant/ }));

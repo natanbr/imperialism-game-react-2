@@ -467,6 +467,47 @@ export function diplomacyRows(state: GameState, nationId: NationId): CountryRowV
   return [...powers, ...minors];
 }
 
+/** FR-576: one subsidy step of a Trade policies row: the order it sends, and whether it is the policy in force. */
+export interface PolicyStepView extends ControlView {
+  value: 0 | SubsidyPercent;
+  pressed: boolean;
+  /** FR-395: what the step costs and does (`subsidyHelp`). */
+  help: string;
+}
+
+/** FR-576: a country on the Board of Trade's Trade policies tab, with the same orders and refusals as Diplomacy's form. */
+export interface TradePolicyRowView {
+  id: CountryId;
+  name: string;
+  kind: CountryKind;
+  /** This turn's order if there is one, else the standing policy (as Diplomacy's form starts). */
+  policy: PolicyView;
+  steps: PolicyStepView[];
+  /** The policy with the boycott switched; `help` is FR-416's line (`boycottHelp`). */
+  boycott: ControlView & { help: string };
+}
+
+/**
+ * FR-576: every country we may set a trade policy for (validateOrder takes "no subsidy, no boycott" toward it: not a colony,
+ * FR-162), in Diplomacy's order: the other Great Powers, then the minors in id order. Each step and the boycott switch is a
+ * `policyControl`, so a refused one carries FR-162's text, named by its step for `reasonLines`.
+ */
+export function tradePolicyRows(state: GameState, nationId: NationId): TradePolicyRowView[] {
+  const powers = state.nations.filter((n) => n.id !== nationId).map((n): [CountryId, CountryKind] => [n.id, "Great Power"]);
+  const minors = [...state.minorNations].sort(byId).map((m): [CountryId, CountryKind] => [m.id, "Minor nation"]);
+  return [...powers, ...minors]
+    .filter(([id]) => policyControl(state, nationId, id, 0, false).refusal === undefined)
+    .map(([id, kind]) => {
+      const policy = policyOf(state, nationId, id, diplomacyIntentsOf(state, nationId, id));
+      const steps = SUBSIDY_OPTIONS.map(({ value, text }): PolicyStepView => {
+        const label = capitalize(text);
+        return { ...policyControl(state, nationId, id, value, policy.boycott), label, name: label, value, pressed: value === policy.subsidyPercent, help: subsidyHelp(state, id, value) };
+      });
+      const boycott = { ...policyControl(state, nationId, id, policy.subsidyPercent, !policy.boycott), label: "Boycott", name: "Boycott", help: boycottHelp(state, id) };
+      return { id, name: countryName(state, id) ?? id, kind, policy, steps, boycott };
+    });
+}
+
 /**
  * The Accept Offer sentence (FR-175, the Imp1 text): "Valdoria seeks to enter into an alliance with our great Empire.
  * Do you accept their offer?"; for peace "Valdoria asks for an end to our war. Do you accept?".

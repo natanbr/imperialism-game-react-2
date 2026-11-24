@@ -3,9 +3,9 @@ import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useStat
 import { useGameStore } from "../store/rootStore";
 import { selectActiveNation, selectFoodForecast } from "../store/selectors";
 import TransportAllocationModal from "./TransportAllocationModal";
-import { labourView, productionCards } from "./capital/capitalView";
+import { labourView, productionCards, tradeSchoolCosts } from "./capital/capitalView";
 import { ProductionCard } from "./capital/ProductionCard";
-import { CapitolPanel, LabourBar, TradeSchoolPanel } from "./capital/LabourPanel";
+import { LabourBar, TradeSchoolPanel } from "./capital/LabourPanel";
 import { FreightCars } from "./capital/FreightCars";
 import { UniversityPanel } from "./capital/UniversityPanel";
 import { ShipyardPanel } from "./capital/ShipyardPanel";
@@ -40,13 +40,15 @@ function useCutAtBottom<T extends HTMLElement>(): [(el: T | null) => void, boole
   return [setEl, cut];
 }
 
-type SectionId = "industry" | "tradeSchool" | "capitol" | "transport" | "university" | "shipyard";
+type SectionId = "industry" | "tradeSchool" | "transport" | "university" | "shipyard";
 
-/** FR-565: the Capital's sections, one open at a time, in this order on the left (FR-566); Industry opens first. */
+/**
+ * FR-565: the Capital's sections, one open at a time, in this order on the left (FR-566); Industry opens first. FR-572: the
+ * Capitol's recruiting is part of the Trade School, so five sections (were six).
+ */
 const SECTIONS: readonly { id: SectionId; name: string; art: string }[] = [
   { id: "industry", name: "Industry", art: buildingArt("steelMill") },
   { id: "tradeSchool", name: "Trade School", art: buildingArt("tradeSchool") },
-  { id: "capitol", name: "Capitol", art: buildingArt("capitol") },
   { id: "transport", name: "Transport", art: buildingArt("railyard") },
   { id: "university", name: "University", art: buildingArt("university") },
   { id: "shipyard", name: "Shipyard", art: buildingArt("shipyard") },
@@ -90,6 +92,7 @@ const CapitalDialog: React.FC = () => {
 
   const cards = useMemo(() => (nation ? productionCards(game, nation) : []), [game, nation]);
   const labour = useMemo(() => (nation ? labourView(game, nation) : null), [game, nation]);
+  const schoolCosts = useMemo(() => (nation ? tradeSchoolCosts(nation) : null), [nation]);
 
   const panelId = (id: SectionId) => `${sectionId}-${id}`;
   /** The open section's panel scrolls by itself and answers the fade (FR-426); the others are hidden. */
@@ -152,10 +155,7 @@ const CapitalDialog: React.FC = () => {
                 </div>
               </main>
               <div {...panelProps("tradeSchool")} className={styles.sectionPanel}>
-                <TradeSchoolPanel view={labour} nationId={nation.id} submitOrder={submitOrder} />
-              </div>
-              <div {...panelProps("capitol")} className={styles.sectionPanel}>
-                <CapitolPanel view={labour} nationId={nation.id} submitOrder={submitOrder} />
+                {schoolCosts && <TradeSchoolPanel view={labour} costs={schoolCosts} nationId={nation.id} submitOrder={submitOrder} />}
               </div>
               <div {...panelProps("transport")} className={styles.sectionPanel}>
                 <FreightCars

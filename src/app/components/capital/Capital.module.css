@@ -556,6 +556,34 @@
   gap: 6px;
 }
 
+/* FR-572: a Trade School action, as an industry card's output: its pictures and name, its costs, its buttons */
+.schoolAction {
+  display: grid;
+  gap: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border);
+}
+
+.schoolName {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* Not the industry card's "inputs" grid area: this grid has none */
+.schoolAction .inputs {
+  grid-area: auto;
+  margin: 0;
+}
+
+.schoolAction .actionRow {
+  justify-content: flex-start;
+}
+
+.schoolAction .actionButton {
+  flex: none;
+  min-width: 96px;
+}
+
 /* FR-428 (card Q96): below 600 px the dialog fills the window, the close button stays on the title's line, the buttons
    wrap under it, the columns stack and the body scrolls as one */
 @media (max-width: 599.98px) {

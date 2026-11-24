@@ -33,13 +33,22 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 
       const board = page.getByRole('dialog', { name: /^Board of Trade/ });
       await expect(board).toBeVisible();
       await expect(board.getByRole('button', { name: 'Buy one more Coal' })).toBeAttached();
+      // Re-targeted by M18c FR-574 FR-575: a row shows the stepper of the side chosen (Clothing opens on Buy here), and the
+      // duration line is on the Details tab; every tab is read for the old words
+      // M18c review round: Buy and Sell are radios (were toggle buttons)
+      await board.getByRole('radio', { name: 'Sell Clothing', exact: true }).click();
       await expect(board.getByRole('button', { name: 'Sell one more Clothing' })).toBeAttached();
+      const words = () =>
+        board.evaluate((el) => {
+          const names = [...el.querySelectorAll('[aria-label], [title]')].map((e) => `${e.getAttribute('aria-label') ?? ''} ${e.getAttribute('title') ?? ''}`);
+          return [el.textContent ?? '', ...names].join(' ');
+        });
+      expect(await words()).not.toMatch(/\b(bid|bids|bidder|offer|offers|offered)\b/i);
+      await board.getByRole('tab', { name: 'Details', exact: true }).click();
       await expect(board.getByTestId('board-duration')).toHaveText('Buy and sell orders last one turn; production orders in the Capital stay.');
-      const words = await board.evaluate((el) => {
-        const names = [...el.querySelectorAll('[aria-label], [title]')].map((e) => `${e.getAttribute('aria-label') ?? ''} ${e.getAttribute('title') ?? ''}`);
-        return [el.textContent ?? '', ...names].join(' ');
-      });
-      expect(words).not.toMatch(/\b(bid|bids|bidder|offer|offers|offered)\b/i);
+      expect(await words()).not.toMatch(/\b(bid|bids|bidder|offer|offers|offered)\b/i);
+      await board.getByRole('tab', { name: 'Trade policies', exact: true }).click();
+      expect(await words()).not.toMatch(/\b(bid|bids|bidder|offer|offers|offered)\b/i);
       await expectNoSidewaysScroll(page);
       expect(errors).toEqual([]);
     });

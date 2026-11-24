@@ -47,7 +47,10 @@ function open(state: GameState) {
 }
 
 describe('FR-563 the Market says Buy and Sell', () => {
-  it('FR-563 the Board of Trade: headers Buy and Sell, buttons "Buy one more Coal" and "Sell one more Clothing", no Bid or Offer anywhere', () => {
+  // Re-targeted by M18c FR-574 to FR-577: the heads were Commodity, Price, In warehouse, Buy, Sell, Minor nations; now Buy
+  // and Sell are the choice in each row's Order column (its buttons' visible text), and the rival lines and FR-399's line
+  // are on the Details tab. Every tab is read for the old words, not only the Board.
+  it('FR-563 the Board of Trade: Buy and Sell in each row, buttons "Buy one more Coal" and "Sell one more Clothing", no Bid or Offer on any tab', () => {
     // Valdoria bought steel and sold coal last turn (FR-491), so the rival lines show too
     const start = newGame({ seed: 1, world: 'continent' });
     const state: GameState = {
@@ -56,13 +59,25 @@ describe('FR-563 the Market says Buy and Sell', () => {
     };
     open(state);
     const dialog = screen.getByRole('dialog', { name: 'Board of Trade — Testland' });
-    expect(within(dialog).getAllByRole('columnheader').map((th) => th.textContent)).toEqual(['Commodity', 'Price', 'In warehouse', 'Buy', 'Sell', 'Minor nations']);
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Buy one more Coal' }));
+    expect(within(dialog).getAllByRole('columnheader').map((th) => th.textContent)).toEqual(['Commodity', 'Price', 'Available', 'Order', 'Quantity', 'Market']);
+    const coal = within(dialog).getByTestId('trade-row-coal');
+    // M18c review round: Buy and Sell are radios (were toggle buttons); a refused "+" keeps its plain name, the reason its
+    // description (was "Buy one more Coal: We need a consulate with a seller")
+    expect(within(coal).getAllByRole('radio', { name: /^(Buy|Sell) Coal$/ }).map((b) => b.textContent)).toEqual(['Buy', 'Sell']);
+    fireEvent.click(within(coal).getByRole('button', { name: 'Buy one more Coal' }));
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Sell Clothing' }));
     expect(within(dialog).getByRole('button', { name: 'Sell one more Clothing' })).toBeTruthy();
-    expect(within(dialog).getByTestId('market-bids').textContent).toMatch(/^Buying: [01] of 4$/);
+    expect(within(dialog).getByTestId('market-bids').textContent).toMatch(/^Buying [01] of 4 commodities$/);
+    expect(leftovers(readable(dialog))).toEqual([]);
+
+    fireEvent.click(within(dialog).getByRole('tab', { name: 'Details' }));
     expect(within(dialog).getByTestId('board-duration').textContent).toBe('Buy and sell orders last one turn; production orders in the Capital stay.');
-    expect(within(within(dialog).getByTestId('trade-row-steel')).getByTestId('rival-last-turn').textContent).toBe('Valdoria wanted to buy 2 last turn');
-    expect(within(within(dialog).getByTestId('trade-row-coal')).getByTestId('rival-last-turn').textContent).toBe('Valdoria wanted to sell 1 last turn');
+    expect(within(within(dialog).getByTestId('detail-row-steel')).getByTestId('rival-last-turn').textContent).toBe('Valdoria wanted to buy 2 last turn');
+    expect(within(within(dialog).getByTestId('detail-row-coal')).getByTestId('rival-last-turn').textContent).toBe('Valdoria wanted to sell 1 last turn');
+    expect(leftovers(readable(dialog))).toEqual([]);
+
+    fireEvent.click(within(dialog).getByRole('tab', { name: 'Trade policies' }));
+    expect(within(dialog).getAllByRole('button', { name: '5%' }).length).toBeGreaterThan(0);
     expect(leftovers(readable(dialog))).toEqual([]);
   });
 
@@ -73,11 +88,13 @@ describe('FR-563 the Market says Buy and Sell', () => {
     expect(leftovers(readable(dialog))).toEqual([]);
   });
 
-  it('FR-563 the narrow Board labels its cells Buy and Sell (Market.module.css, below 600 px)', () => {
+  // Re-recorded by M18c FR-574: the narrow cells were labelled "Buy" and "Sell" (one stepper each); now one cell holds the
+  // Buy/Sell choice ("Order") and one the stepper ("Quantity"), and the words Buy and Sell are the choice's own text
+  it('FR-563 FR-574 the narrow Board labels its cells Order and Quantity, never Bid or Offer (Market.module.css, below 600 px)', () => {
     const css = readFileSync(join(process.cwd(), 'src/app/components/market/Market.module.css'), 'utf8');
     const contents = [...css.matchAll(/content:\s*"([^"]*)"/g)].map((m) => m[1]);
-    expect(contents).toContain('Buy');
-    expect(contents).toContain('Sell');
+    expect(contents).toContain('Order');
+    expect(contents).toContain('Quantity');
     expect(leftovers(contents)).toEqual([]);
   });
 });

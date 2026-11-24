@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-// M18b FR-565: the Capital keeps one section open at a time (Industry, Trade School, Capitol, Transport, University,
-// Shipyard), chosen with real buttons (aria-expanded, aria-controls), Industry open when the dialog opens; the industry
+// M18b FR-565: the Capital keeps one section open at a time (Industry, Trade School, Transport, University, Shipyard;
+// M18c FR-572 merged the Capitol into the Trade School, so five, was six), chosen with real buttons (aria-expanded, aria-controls), Industry open when the dialog opens; the industry
 // cards draw their buildings at 44 px. FR-566: the city's labour (workers by grade, labour, food) is a bar that stays in
-// the dialog's HUD column whatever section is open, and the five other sections sit on the left with Industry.
+// the dialog's HUD column whatever section is open, and the four other sections sit on the left with Industry.
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
@@ -15,7 +15,8 @@ import { emptyWarehouse, game, N1, nationOf, setIndustry, setTile, T } from '../
 import { text } from './domText';
 
 const ROOT = join(__dirname, '..', '..');
-const SECTIONS = ['Industry', 'Trade School', 'Capitol', 'Transport', 'University', 'Shipyard'];
+// Re-recorded by M18c FR-572: old ['Industry', 'Trade School', 'Capitol', 'Transport', 'University', 'Shipyard']
+const SECTIONS = ['Industry', 'Trade School', 'Transport', 'University', 'Shipyard'];
 
 function openCapital(state: GameState) {
   useGameStore.setState({ ...useGameStore.getInitialState(), game: state, activeNationId: N1, isCapitalOpen: true, lastRejection: null });
@@ -35,7 +36,7 @@ const panelOf = (button: HTMLButtonElement) => document.getElementById(button.ge
 const open = (name: string) => fireEvent.click(sectionButton(name));
 
 describe('FR-565 the Capital shows one section at a time', () => {
-  it('FR-565 six section buttons, each a real button that names the panel it opens; Industry open by default', () => {
+  it('FR-565 FR-572 five section buttons, each a real button that names the panel it opens; Industry open by default', () => {
     openCapital(stocked());
     const buttons = sectionButtons();
     expect(buttons.map((b) => b.textContent)).toEqual(SECTIONS);
@@ -45,10 +46,10 @@ describe('FR-565 the Capital shows one section at a time', () => {
       expect(button.getAttribute('aria-controls'), button.textContent!).toBeTruthy();
       expect(panelOf(button), button.textContent!).toBeTruthy();
     }
-    expect(buttons.map((b) => b.getAttribute('aria-expanded'))).toEqual(['true', 'false', 'false', 'false', 'false', 'false']);
+    expect(buttons.map((b) => b.getAttribute('aria-expanded'))).toEqual(['true', 'false', 'false', 'false', 'false']);
     expect(panelOf(buttons[0]).hidden).toBe(false);
     expect(panelOf(buttons[0])).toBe(screen.getByRole('main', { name: 'Industry' }));
-    expect(buttons.slice(1).map((b) => panelOf(b).hidden)).toEqual([true, true, true, true, true]);
+    expect(buttons.slice(1).map((b) => panelOf(b).hidden)).toEqual([true, true, true, true]);
   });
 
   it('FR-565 opening a section closes the one that was open; pressing the open one keeps it open', () => {
@@ -68,8 +69,15 @@ describe('FR-565 the Capital shows one section at a time', () => {
     openCapital(s);
     const controls: Record<string, string[]> = {
       Industry: ['More Steel', 'Less Steel', 'Expand Steel mill', 'Cancel expansion of Steel mill'],
-      'Trade School': ['Train an untrained worker', 'Train a trained worker', 'Cancel an untrained trainee', 'Cancel a trained trainee'],
-      Capitol: ['Recruit a migrant', 'Cancel a migrant'],
+      // M18c FR-572: the Capitol's two buttons are in the Trade School now (old: a section of their own)
+      'Trade School': [
+        'Train an untrained worker',
+        'Train a trained worker',
+        'Cancel an untrained trainee',
+        'Cancel a trained trainee',
+        'Recruit a migrant',
+        'Cancel a migrant',
+      ],
       Transport: ['Order a freight car', 'Cancel a freight car', 'Transportation of Commodities'],
       University: ['Train one more Engineer', 'Train one less Engineer'],
       Shipyard: ['Build one more Trader', 'Build one less Trader', 'Build one more Ship-of-the-Line'],
@@ -138,7 +146,7 @@ describe('FR-566 the city labour bar', () => {
     expect(text(within(bar).getByTestId('food'))).toMatch(new RegExp(`^Food ${meal.fed} of ${meal.mouths} fed`));
   });
 
-  it('FR-566 the bar stays in the HUD column, visible whatever section is open; the five sections sit on the left with Industry', () => {
+  it('FR-566 the bar stays in the HUD column, visible whatever section is open; the four other sections sit on the left with Industry', () => {
     openCapital(workforce());
     const bar = screen.getByTestId('labour-panel');
     const hud = screen.getByRole('complementary', { name: 'City' });

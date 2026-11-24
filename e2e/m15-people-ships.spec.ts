@@ -114,14 +114,22 @@ test('FR-515 FR-517 build ships, fill eight holds with purchases and collect hor
   await diplomacy.getByRole('button', { name: 'Close diplomacy' }).click();
   await page.getByRole('button', { name: /Open Market/ }).click();
   const board = page.getByRole('dialog', { name: /Board of Trade/ });
-  await expect(board.getByText('Holds: 8 (2 Indiamen)')).toBeVisible();
-  await expect(board.getByTestId('trade-row-horses')).toContainText('Arvelia: 1 unit');
+  // Re-recorded by M18c FR-573: old "Holds: 8 (2 Indiamen)" and "Holds: 8 of 8 free", one figure now
+  await expect(board.getByTestId('market-holds')).toHaveText('Holds: 0 of 8 used (2 Indiamen)');
+  // Re-targeted by M18c FR-575: the sellers with their units are on the Details tab
+  await board.getByRole('tab', { name: 'Details', exact: true }).click();
+  await expect(board.getByTestId('detail-row-horses')).toContainText('Arvelia: 1 unit');
+  await board.getByRole('tab', { name: 'Board', exact: true }).click();
   await screenshot(page, 'board');
   // Spread the bids over the minors' real supplies and check actual purchases in the Deal Book next turn.
+  // M18c FR-574: pick Buy first; Valdoria bought timber last turn, so our timber sale is open and that row opens on Sell
   for (const [commodity, amount] of [['Timber', 4], ['Coal', 2], ['Iron Ore', 2]] as const) {
+    // M18c review round: Buy and Sell are radios (were toggle buttons)
+    await board.getByRole('radio', { name: `Buy ${commodity}`, exact: true }).click();
     for (let n = 0; n < amount; n++) await board.getByRole('button', { name: `Buy one more ${commodity}` }).click();
   }
-  await expect(board.getByTestId('market-holds')).toHaveText('Holds: 0 of 8 free');
+  // Re-recorded by M18c FR-573: old "Holds: 0 of 8 free"
+  await expect(board.getByTestId('market-holds')).toHaveText('Holds: 8 of 8 used (2 Indiamen)');
   await page.keyboard.press('Escape');
   await openCapital(page);
   await openSection(page, 'Shipyard');
@@ -139,6 +147,7 @@ test('FR-515 FR-517 build ships, fill eight holds with purchases and collect hor
   await expect(hussars).toContainText('Horses: 6 in warehouse, +1 a turn');
   await page.keyboard.press('Escape');
   await capital.getByRole('button', { name: 'Trade', exact: true }).click();
-  await expect(board.getByText('Holds: 10 (1 Trader, 2 Indiamen)')).toBeVisible();
+  // Re-recorded by M18c FR-573: old "Holds: 10 (1 Trader, 2 Indiamen)"
+  await expect(board.getByTestId('market-holds')).toHaveText('Holds: 0 of 10 used (1 Trader, 2 Indiamen)');
   expect(errors).toEqual([]);
 });

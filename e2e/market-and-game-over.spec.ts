@@ -64,15 +64,23 @@ test('FR-078 open the market, offer one furniture for sale, end the turn, see th
   const market = page.getByRole('dialog', { name: 'Board of Trade' });
   const furniture = market.getByTestId('trade-row-furniture');
   await expect(furniture.getByTestId('available')).toHaveText('1');
-  await expect(furniture.getByRole('list', { name: 'Buyers' }).getByRole('listitem').last()).toHaveText('Pellis: 2 units');
-  // FR-251: the favourites are named once, in the note under the title
+  // M18c FR-574: on the Board tab Pellis is a flag, open to us; the row opens on Sell, the sale being open
+  await expect(furniture.getByRole('list', { name: 'Buyers' }).getByRole('img', { name: 'Pellis', exact: true })).toBeVisible();
+  // M18c review round: a radio, aria-checked (was a toggle button, aria-pressed)
+  await expect(furniture.getByRole('radio', { name: 'Sell Furniture', exact: true })).toHaveAttribute('aria-checked', 'true');
+  // Re-recorded by M18c FR-573: old "Holds: 4 of 4 free"
+  await expect(market.getByTestId('market-holds')).toHaveText('Holds: 0 of 4 used (1 Indiaman)');
+  // Re-targeted by M18c FR-575: the buyers with their units and the favourites (FR-251, once, in the note) are on Details
+  await market.getByRole('tab', { name: 'Details', exact: true }).click();
+  await expect(market.getByTestId('detail-row-furniture').getByRole('list', { name: 'Buyers' }).getByRole('listitem').last()).toHaveText('Pellis: 2 units');
   await expect(market.getByTestId('board-favourites')).toHaveText(/\bPellis\b.* favours? (Testland|Valdoria)/);
-  await expect(market.getByTestId('market-holds')).toHaveText('Holds: 4 of 4 free');
+  await market.getByRole('tab', { name: 'Board', exact: true }).click();
 
   await furniture.getByRole('button', { name: 'Sell one more Furniture' }).click();
   await expect(furniture.getByTestId('offer')).toHaveText('1');
   await expect(furniture.getByTestId('available')).toHaveText('0');
-  await expect(market.getByTestId('market-holds')).toHaveText('Holds: 3 of 4 free');
+  // Re-recorded by M18c FR-573: old "Holds: 3 of 4 free"
+  await expect(market.getByTestId('market-holds')).toHaveText('Holds: 1 of 4 used (1 Indiaman)');
   await expect(page.getByTestId('toast')).toHaveCount(0);
   if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/m3-market.png` });
   await page.getByRole('button', { name: 'Close Board of Trade' }).click();
