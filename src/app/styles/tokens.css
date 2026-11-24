@@ -154,6 +154,19 @@
   --shadow-dialog: 0 10px 30px rgba(40, 36, 28, 0.25);
 }
 
+/* FR-579: resolve the label ink and its contrasting halo against each country's own fill. */
+.political-map-lettering {
+  --color-map-lettering: var(--color-surface-raised);
+  --color-map-lettering-halo: var(--color-ink);
+}
+
+@supports (color: contrast-color(currentColor)) {
+  .political-map-lettering {
+    --color-map-lettering: contrast-color(var(--country-fill));
+    --color-map-lettering-halo: contrast-color(var(--color-map-lettering));
+  }
+}
+
 /* FR-465: below 1024 px of width the top bar is two 40 px rows (styles/theme.ts TOPBAR_NARROW_PX, TOPBAR_BREAKPOINT;
    topBarPx must say the same, tests/ui/palette.test.ts) */
 @media (max-width: 1023.98px) {

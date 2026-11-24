@@ -12,7 +12,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { MarketModal } from '@/components/MarketModal';
 import { DiplomacyModal } from '@/components/DiplomacyModal';
 import { useGameStore } from '@/store/rootStore';
-import { BOARD_ORDER, marketOf, newGame, pairKey, tradeOrdersOf, type Order } from '@/engine';
+import { BOARD_ORDER, marketOf, newGame, pairKey, tradeOrdersOf, transferProvince, type Order } from '@/engine';
 import type { GameState } from '@/types/GameState';
 import { GoodsType } from '@/types/Resource';
 import { setPair, setWarehouse, treasury } from '../engine/fixtures';
@@ -58,6 +58,11 @@ const tabs = () => within(dialog()).getAllByRole('tab');
 const tab = (name: string) => within(dialog()).getByRole('tab', { name });
 const openTab = (name: string) => fireEvent.click(tab(name));
 const panel = () => within(dialog()).getByRole('tabpanel');
+const policyView = (name: 'Map' | 'List') => within(panel()).getByRole('button', { name });
+const policyMap = () => within(panel()).getByRole('group', { name: 'Trade policy map' });
+const policyRow = (id: string) => within(panel()).getByTestId(`policy-row-${id}`);
+const step = (id: string, label: string) => within(within(policyRow(id)).getByRole('group')).getByRole('button', { name: label }) as HTMLButtonElement;
+const boycott = (id: string) => within(policyRow(id)).getByRole('checkbox', { name: 'Boycott' }) as HTMLInputElement;
 const figure = (id: string) => text(within(dialog()).getByTestId(id));
 const row = (commodity: string) => {
   openTab('Board');
@@ -349,15 +354,16 @@ describe('FR-575 the Details tab', () => {
   });
 });
 
-describe('FR-576 the Trade policies tab', () => {
-  const policyRow = (id: string) => within(panel()).getByTestId(`policy-row-${id}`);
-  const step = (id: string, label: string) => within(within(policyRow(id)).getByRole('group')).getByRole('button', { name: label }) as HTMLButtonElement;
-  const boycott = (id: string) => within(policyRow(id)).getByRole('checkbox', { name: 'Boycott' }) as HTMLInputElement;
+describe('FR-576 the Trade policies list', () => {
+  const openList = () => {
+    openTab('Trade policies');
+    fireEvent.click(policyView('List'));
+  };
   const describedBy = (el: Element) => document.getElementById(el.getAttribute('aria-describedby') ?? '')?.textContent ?? '';
 
   it('FR-576 every country we may set a policy for, its flag, the steps None to 100% and Boycott', () => {
     openBoard(start());
-    openTab('Trade policies');
+    openList();
     const rows = within(panel()).getAllByTestId(/^policy-row-/);
     expect(rows.map((r) => text(within(r).getByRole('rowheader')))).toEqual(['Valdoria', 'Arvelia', 'Sundmark', 'Lorran', 'Pellis']);
     for (const r of rows) {
@@ -372,7 +378,7 @@ describe('FR-576 the Trade policies tab', () => {
 
   it('FR-576 FR-171 a step and the boycott send setTradePolicy; the step pressed is the policy ordered, and the deal prices follow', () => {
     openBoard(withConsulate(start(), ARVELIA));
-    openTab('Trade policies');
+    openList();
     fireEvent.click(step(ARVELIA, '25%'));
     expect(submitted).toEqual([{ kind: 'setTradePolicy', nationId: N1, targetId: ARVELIA, subsidyPercent: 25, boycott: false }]);
     expect(step(ARVELIA, '25%').getAttribute('aria-pressed')).toBe('true');
@@ -393,7 +399,7 @@ describe('FR-576 the Trade policies tab', () => {
   // M18c review round: the help was each step's tooltip only, with "Point at a step to see what it does." in the intro
   it('FR-576 FR-395 what the pressed step does is a line under the steps, as Diplomacy\'s subsidy help, and the pressed step\'s description', () => {
     openBoard(withConsulate(start(), ARVELIA));
-    openTab('Trade policies');
+    openList();
     expect(panel().textContent).not.toMatch(/Point at a step/);
     const help = () => text(within(policyRow(ARVELIA)).getByTestId('subsidy-help'));
     expect(help()).toBe('No subsidy: we trade at the Board price.');
@@ -408,7 +414,7 @@ describe('FR-576 the Trade policies tab', () => {
 
   it('FR-576 FR-162 a refused step is disabled and its reason stands under the steps, its description, as in Diplomacy; a boycott alone is open', () => {
     openBoard(start());
-    openTab('Trade policies');
+    openList();
     const five = step(ARVELIA, '5%');
     expect(five.disabled).toBe(true);
     expect(describedBy(five)).toBe('we need a consulate there first');
@@ -423,7 +429,7 @@ describe('FR-576 the Trade policies tab', () => {
 
   it('FR-576 Diplomacy keeps its own trade policy form (Subsidy, Boycott, Set policy), and it starts at the order the tab sent', () => {
     const view = openBoard(withConsulate(start(), ARVELIA));
-    openTab('Trade policies');
+    openList();
     fireEvent.click(step(ARVELIA, '50%'));
     view.unmount();
 
@@ -435,6 +441,162 @@ describe('FR-576 the Trade policies tab', () => {
     expect((details.getByRole('combobox', { name: 'Subsidy' }) as HTMLSelectElement).value).toBe('50');
     expect(details.getByRole('checkbox', { name: 'Boycott' })).toBeTruthy();
     expect(details.getByRole('button', { name: 'Set policy' })).toBeTruthy();
+  });
+});
+
+describe('FR-579 the Trade policies map', () => {
+  const countryButton = (name: string) => within(policyMap()).getByRole('button', { name });
+  const marker = (id: string) => within(policyMap()).getByTestId(`policy-marker-${id}`);
+
+  it('FR-579 opens the SVG map with the first eligible landed country selected; the player’s country is drawn but has no selection control', () => {
+    openBoard(start());
+    openTab('Trade policies');
+
+    expect(policyView('Map').getAttribute('aria-pressed')).toBe('true');
+    expect(policyView('List').getAttribute('aria-pressed')).toBe('false');
+    expect(policyMap().localName).toBe('svg');
+    const buttons = within(policyMap()).getAllByRole('button');
+    expect(buttons).toHaveLength(5);
+    expect(within(policyMap()).getAllByRole('button', { pressed: true })).toEqual([countryButton('Valdoria, subsidy 0%')]);
+    expect(within(panel()).getAllByTestId(/^policy-row-/)).toEqual([policyRow(N2)]);
+    expect(text(within(policyRow(N2)).getByRole('rowheader'))).toBe('Valdoria');
+
+    const ownLand = policyMap().querySelector(`[data-country="${N1}"]`)!;
+    expect(ownLand.querySelector('text')?.textContent).toBe('Testland');
+    expect(ownLand.querySelector('svg[data-testid="nation-flag"]')).not.toBeNull();
+    expect(ownLand.querySelector('[fill="var(--color-nation-1)"]:is(path, polygon, rect)')).not.toBeNull();
+    expect(within(policyMap()).queryByRole('button', { name: /Testland/ })).toBeNull();
+    expect(within(policyMap()).queryByTestId(`policy-marker-${N1}`)).toBeNull();
+    expect(ownLand.getAttribute('tabindex')).toBeNull();
+    fireEvent.click(ownLand);
+    expect(countryButton('Valdoria, subsidy 0%').getAttribute('aria-pressed')).toBe('true');
+    expect(submitted).toEqual([]);
+  });
+
+  it('FR-579 clicking, Enter and Space select a country and update its pressed state and the bar', () => {
+    openBoard(start());
+    openTab('Trade policies');
+
+    const arvelia = countryButton('Arvelia, subsidy 0%');
+    expect(arvelia.getAttribute('aria-label')).toBe('Arvelia, subsidy 0%');
+    expect(arvelia.getAttribute('aria-pressed')).toBe('false');
+    fireEvent.click(arvelia);
+    expect(arvelia.getAttribute('aria-pressed')).toBe('true');
+    expect(countryButton('Valdoria, subsidy 0%').getAttribute('aria-pressed')).toBe('false');
+    expect(within(panel()).getAllByTestId(/^policy-row-/)).toEqual([policyRow(ARVELIA)]);
+
+    const sundmark = countryButton('Sundmark, subsidy 0%') as unknown as SVGElement;
+    expect(sundmark.tabIndex).toBe(0);
+    act(() => sundmark.focus());
+    expect(document.activeElement).toBe(sundmark);
+    fireEvent.keyDown(sundmark, { key: 'Enter' });
+    expect(sundmark.getAttribute('aria-pressed')).toBe('true');
+    expect(within(panel()).getAllByTestId(/^policy-row-/)).toEqual([policyRow(SUNDMARK)]);
+    expect(document.activeElement).toBe(sundmark);
+
+    const valdoria = countryButton('Valdoria, subsidy 0%') as unknown as SVGElement;
+    act(() => valdoria.focus());
+    expect(fireEvent.keyDown(valdoria, { key: ' ' })).toBe(false);
+    expect(sundmark.getAttribute('aria-pressed')).toBe('true');
+    fireEvent.keyUp(valdoria, { key: ' ' });
+    expect(valdoria.getAttribute('aria-pressed')).toBe('true');
+    expect(sundmark.getAttribute('aria-pressed')).toBe('false');
+    expect(within(panel()).getAllByTestId(/^policy-row-/)).toEqual([policyRow(N2)]);
+    expect(document.activeElement).toBe(valdoria);
+    expect(submitted).toEqual([]);
+  });
+
+  it('FR-579 Tab and Shift+Tab move between the SVG country buttons in the dialog', () => {
+    openBoard(start());
+    openTab('Trade policies');
+
+    const [first, second] = within(policyMap()).getAllByRole('button');
+    act(() => first.focus());
+    expect(document.activeElement).toBe(first);
+    fireEvent.keyDown(first, { key: 'Tab' });
+    expect(document.activeElement).toBe(second);
+    fireEvent.keyDown(second, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(first);
+    fireEvent.keyDown(first, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(policyView('List'));
+  });
+
+  it('FR-579 the selected country’s bar sends subsidy and boycott orders and the SVG changes from no fill to a quarter ring to a cross', () => {
+    openBoard(withConsulate(start(), ARVELIA));
+    openTab('Trade policies');
+    fireEvent.click(countryButton('Arvelia, subsidy 0%'));
+
+    const arc = () => marker(ARVELIA).querySelector('circle[stroke-dasharray]');
+    const cross = () => within(marker(ARVELIA)).queryByTestId('boycott-cross');
+    expect(arc()?.getAttribute('stroke-dasharray')).toBe('0 100');
+    expect(cross()).toBeNull();
+    expect(description(step(ARVELIA, 'None'))).toBe('No subsidy: we trade at the Board price.');
+
+    fireEvent.click(step(ARVELIA, '25%'));
+    const subsidy = { kind: 'setTradePolicy', nationId: N1, targetId: ARVELIA, subsidyPercent: 25, boycott: false };
+    expect(submitted).toEqual([subsidy]);
+    expect(countryButton('Arvelia, subsidy 25%').getAttribute('aria-pressed')).toBe('true');
+    expect(arc()?.getAttribute('pathLength')).toBe('100');
+    expect(arc()?.getAttribute('stroke-dasharray')).toBe('25 100');
+    expect(cross()).toBeNull();
+    const help = text(within(policyRow(ARVELIA)).getByTestId('subsidy-help'));
+    expect(help).toMatch(/Arvelia pays us 25% less for our goods and charges us 25% more for its own/);
+    expect(description(step(ARVELIA, '25%'))).toBe(help);
+
+    fireEvent.click(boycott(ARVELIA));
+    expect(submitted).toEqual([subsidy, { ...subsidy, boycott: true }]);
+    expect(countryButton('Arvelia, boycott').getAttribute('aria-pressed')).toBe('true');
+    expect(arc()).toBeNull();
+    expect(cross()?.localName).toBe('path');
+    expect(cross()?.getAttribute('d')).toMatch(/M.+[Ll].+M.+[Ll]/i);
+    expect(boycott(ARVELIA).checked).toBe(true);
+
+    fireEvent.click(boycott(ARVELIA));
+    expect(submitted).toEqual([subsidy, { ...subsidy, boycott: true }, subsidy]);
+    expect(countryButton('Arvelia, subsidy 25%').getAttribute('aria-pressed')).toBe('true');
+    expect(arc()?.getAttribute('stroke-dasharray')).toBe('25 100');
+    expect(cross()).toBeNull();
+  });
+
+  it('FR-579 the selected country’s bar visibly explains a refused step and sending is disabled', () => {
+    openBoard(start());
+    openTab('Trade policies');
+    fireEvent.click(countryButton('Arvelia, subsidy 0%'));
+
+    const five = step(ARVELIA, '5%');
+    expect(five.disabled).toBe(true);
+    expect(description(five)).toBe('we need a consulate there first');
+    expect(within(policyRow(ARVELIA)).getAllByTestId('reason').map(text)).toEqual(['5%, 10%, 25%, 50%, 75%, 100%: we need a consulate there first']);
+    fireEvent.click(five);
+    expect(submitted).toEqual([]);
+    expect(boycott(ARVELIA).disabled).toBe(false);
+  });
+
+  it('FR-579 List retains the full FR-576 list even if the first eligible country has no land, and Map restores the selected country', () => {
+    const game = start();
+    const landlessValdoria = game.provinces.filter((province) => province.ownerId === N2)
+      .reduce((state, province) => transferProvince(state, province.id, N1), game);
+    openBoard(landlessValdoria);
+    openTab('Trade policies');
+
+    expect(within(policyMap()).queryByRole('button', { name: /Valdoria/ })).toBeNull();
+    expect(policyMap().querySelector(`[data-country="${N2}"]`)).toBeNull();
+    expect(countryButton('Arvelia, subsidy 0%').getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(countryButton('Sundmark, subsidy 0%'));
+
+    fireEvent.click(policyView('List'));
+    expect(policyView('List').getAttribute('aria-pressed')).toBe('true');
+    expect(policyView('Map').getAttribute('aria-pressed')).toBe('false');
+    expect(within(panel()).queryByRole('group', { name: 'Trade policy map' })).toBeNull();
+    const rows = within(panel()).getAllByTestId(/^policy-row-/);
+    expect(rows.map((r) => text(within(r).getByRole('rowheader')))).toEqual(['Valdoria', 'Arvelia', 'Sundmark', 'Lorran', 'Pellis']);
+    fireEvent.click(boycott(N2));
+    expect(submitted).toEqual([{ kind: 'setTradePolicy', nationId: N1, targetId: N2, subsidyPercent: 0, boycott: true }]);
+
+    fireEvent.click(policyView('Map'));
+    expect(policyView('Map').getAttribute('aria-pressed')).toBe('true');
+    expect(countryButton('Sundmark, subsidy 0%').getAttribute('aria-pressed')).toBe('true');
+    expect(within(panel()).getAllByTestId(/^policy-row-/)).toEqual([policyRow(SUNDMARK)]);
   });
 });
 

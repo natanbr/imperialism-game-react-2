@@ -79,6 +79,10 @@ describe('FR-563 the Market says Buy and Sell', () => {
     fireEvent.click(within(dialog).getByRole('tab', { name: 'Trade policies' }));
     expect(within(dialog).getAllByRole('button', { name: '5%' }).length).toBeGreaterThan(0);
     expect(leftovers(readable(dialog))).toEqual([]);
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'List' }));
+    expect(within(dialog).getAllByRole('button', { name: '5%' })).toHaveLength(5);
+    expect(leftovers(readable(dialog))).toEqual([]);
   });
 
   it('FR-563 the World market: "Buying: 0 of 4" and no Bid or Offer anywhere', () => {

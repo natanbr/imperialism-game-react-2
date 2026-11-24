@@ -39,8 +39,8 @@ const openDialogs: object[] = [];
 const TABBABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]';
 
 /** The controls Tab visits inside `root`, in page order (no roving-tabindex item that is not current). */
-function tabbables(root: HTMLElement): HTMLElement[] {
-  return [...root.querySelectorAll<HTMLElement>(TABBABLE)].filter(
+function tabbables(root: HTMLElement): (HTMLElement | SVGElement)[] {
+  return [...root.querySelectorAll<HTMLElement | SVGElement>(TABBABLE)].filter(
     (el) => el.tabIndex >= 0 && !el.closest("[hidden], [inert]") && (typeof el.checkVisibility !== "function" || el.checkVisibility())
   );
 }
@@ -80,7 +80,7 @@ function moveFocus(dialog: HTMLElement, forward: boolean, last: LastFocus | null
       return;
     }
   }
-  let index = active instanceof HTMLElement ? list.indexOf(active) : -1;
+  let index = list.findIndex((el) => el === active);
   if (index === -1 && active && active !== dialog && dialog.contains(active)) {
     // On the dialog's text, a focused group (the war question) or a disabled control: go on from there
     const after = list.findIndex((el) => active.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING);
@@ -146,7 +146,9 @@ export const Modal: React.FC<ModalProps> = ({
     // Where the focus was inside, so Tab goes on from there after an order took the focus away (moveFocus)
     let last: LastFocus | null = null;
     const onFocusIn = (e: FocusEvent) => {
-      if (e.target instanceof HTMLElement) last = { el: e.target, index: tabbables(el).indexOf(e.target) };
+      if (e.target instanceof HTMLElement || e.target instanceof SVGElement) {
+        last = { el: e.target, index: tabbables(el).indexOf(e.target) };
+      }
     };
     el.addEventListener("focusin", onFocusIn);
     focusInto(el, initialFocus);
