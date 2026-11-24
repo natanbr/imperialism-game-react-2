@@ -1,16 +1,17 @@
 // @vitest-environment jsdom
 // M18b FR-565: the Capital keeps one section open at a time (Industry, Trade School, Capitol, Transport, University,
 // Shipyard), chosen with real buttons (aria-expanded, aria-controls), Industry open when the dialog opens; the industry
-// cards draw their buildings at 44 px.
+// cards draw their buildings at 44 px. FR-566: the city's labour (workers by grade, labour, food) is a bar that stays in
+// the dialog's HUD column whatever section is open, and the five other sections sit on the left with Industry.
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { CapitalModal } from '@/components/CapitalModal';
 import { useGameStore } from '@/store/rootStore';
-import { newGame } from '@/engine';
+import { foodForecast, newGame } from '@/engine';
 import type { GameState } from '@/types/GameState';
-import { emptyWarehouse, game, N1, nationOf } from '../engine/fixtures';
+import { emptyWarehouse, game, N1, nationOf, setIndustry, setTile, T } from '../engine/fixtures';
 import { text } from './domText';
 
 const ROOT = join(__dirname, '..', '..');
@@ -113,5 +114,58 @@ describe('FR-565 the Capital shows one section at a time', () => {
     expect(size('width')).toBeGreaterThanOrEqual(40);
     expect(size('width')).toBeLessThanOrEqual(48);
     expect(size('height')).toBe(size('width'));
+  });
+});
+
+describe('FR-566 the city labour bar', () => {
+  const workforce = () =>
+    setIndustry(stocked(), N1, {
+      workers: { untrained: 4, trained: 2, expert: 1 },
+      sick: { untrained: 1, trained: 0, expert: 0 },
+      training: { untrained: 1, trained: 0, expert: 0 },
+    });
+
+  it('FR-566 the bar shows labour, workers by grade, the sick, the trainees and the food, with the same selectors as before', () => {
+    const s = workforce();
+    openCapital(s);
+    const bar = screen.getByTestId('labour-panel');
+    expect(text(within(bar).getByTestId('labour'))).toBe('Labour 10 total, 0 committed, 10 free');
+    expect(text(within(bar).getByTestId('grade-untrained'))).toBe('Untrained 4 1 sick 1 in training');
+    expect(text(within(bar).getByTestId('grade-trained'))).toBe('Trained 2');
+    expect(text(within(bar).getByTestId('grade-expert'))).toBe('Expert 1');
+    const meal = foodForecast(s, N1);
+    expect(meal.mouths).toBeGreaterThan(0);
+    expect(text(within(bar).getByTestId('food'))).toMatch(new RegExp(`^Food ${meal.fed} of ${meal.mouths} fed`));
+  });
+
+  it('FR-566 the bar stays in the HUD column, visible whatever section is open; the five sections sit on the left with Industry', () => {
+    openCapital(workforce());
+    const bar = screen.getByTestId('labour-panel');
+    const hud = screen.getByRole('complementary', { name: 'City' });
+    expect(hud.contains(bar)).toBe(true);
+    const left = screen.getByRole('navigation', { name: 'Capital sections' }).parentElement!;
+    for (const button of sectionButtons()) {
+      expect(left.contains(panelOf(button)), button.textContent!).toBe(true);
+      expect(hud.contains(panelOf(button)), button.textContent!).toBe(false);
+    }
+    for (const name of SECTIONS) {
+      open(name);
+      const isHidden = (el: HTMLElement | null): boolean => !!el && (el.hidden || isHidden(el.parentElement));
+      expect(isHidden(bar), name).toBe(false);
+      expect(text(within(bar).getByTestId('labour')), name).toBe('Labour 10 total, 0 committed, 10 free');
+    }
+  });
+
+  it('FR-566 the food line shows who would fall sick or starve when food is short', () => {
+    // As tests/engine/foodForecast.test.ts: grain only, no food tiles by the capital, so the fruit and meat eaters fall sick
+    let s = emptyWarehouse(game(), N1, { grain: 3 });
+    for (const tileId of [T.farm1, T.dryPlains1, T.homeOrchard1, T.range1]) s = setTile(s, tileId, { resource: undefined });
+    const meal = foodForecast(s, N1);
+    expect(meal.short).toBe(true);
+    openCapital(s);
+    const food = text(screen.getByTestId('food'));
+    expect(food).toContain(`Food ${meal.fed} of ${meal.mouths} fed`);
+    if (meal.sick > 0) expect(food).toContain(`${meal.sick} sick`);
+    if (meal.starved > 0) expect(food).toContain(`${meal.starved} starve`);
   });
 });

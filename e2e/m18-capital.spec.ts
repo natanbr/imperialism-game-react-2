@@ -84,6 +84,7 @@ test.describe('M18b Capital at 1366x768', () => {
     const bar = capital.getByTestId('labour-panel');
     await expect(bar).toBeInViewport({ ratio: 1 });
     await expect(bar.getByTestId('labour')).toHaveText(/^Labour\s*\d+ total, \d+ committed, \d+ free$/);
+    await expect(bar.getByTestId('food')).toHaveText(/^Food\s*\d+ of \d+ fed/);
     for (const grade of ['untrained', 'trained', 'expert']) await expect(bar.getByTestId(`grade-${grade}`)).toBeVisible();
     const below = async (upper: Locator, lower: Locator) => (await upper.boundingBox())!.y + (await upper.boundingBox())!.height <= (await lower.boundingBox())!.y + 0.5;
     expect(await below(bar, nav)).toBe(true);

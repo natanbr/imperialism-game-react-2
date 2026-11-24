@@ -155,7 +155,8 @@ src/app/
                            Tile/TileFort.tsx (the fort mark), gameText.ts `tilePlaces` and `PlaceOf` (a news
                            line's province)
     capital/               the capital dialog's parts: capitalView.ts (what it shows, no React),
-                           ProductionCard, LabourPanel, FreightCars, Capital.module.css
+                           ProductionCard, LabourPanel (LabourBar, TradeSchoolPanel, CapitolPanel),
+                           FreightCars, UniversityPanel, ShipyardPanel, Capital.module.css
     market/                the market dialog's view (marketView.ts, no React) and the CSS module
                            shared by MarketModal, BoardOfTrade, DealBookModal and GameOverModal;
                            M7: BoardOfTrade.tsx and boardView.ts (the Board of Trade, no React in the
@@ -664,10 +665,12 @@ unusable     the same dialog with the reason and New game only (FR-362)
 ## Components
 
 `page.tsx` renders `TopBar`, `MapView`, `HUD` (in that order, the order Tab follows: FR-535) and the modals (`HowToPlay` and `SavedGameDialog` included). The capital dialog (`CapitalModal.tsx`)
-renders views from `capital/capitalView.ts`: a production card per built building (inputs with
-stock, the standing order and the most `validateOrder` accepts, Expand), the labour panel (labour,
-grades, sick, trainees, Trade School, Capitol) and the freight cars; each button sends one order,
-and `lastRejection` shows as an alert in the dialog. Dialog styles are CSS modules
+renders views from `capital/capitalView.ts`: the city's labour bar above (`LabourBar`: labour, grades,
+sick, trainees, the food forecast; FR-566) and below it one section at a time (FR-565), chosen with
+disclosure buttons: Industry (a production card per built building: inputs with stock, the standing
+order and the most `validateOrder` accepts, Expand), Trade School, Capitol, Transport (freight cars),
+University and Shipyard; the closed sections stay mounted and `hidden`. Each button sends one order,
+and a refusal shows as a toast (FR-569). Dialog styles are CSS modules
 (`capital/Capital.module.css`, `WarehouseModal.module.css`) on the tokens in `styles/tokens.css`.
 The warehouse dialog lists every commodity by display name in three groups (`COMMODITY_GROUPS`).
 The market dialog (`MarketModal.tsx`, opened from the HUD or the capital's Trade button) renders

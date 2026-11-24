@@ -1,7 +1,7 @@
 "use client";
 import React, { useCallback, useEffect, useId, useLayoutEffect, useMemo, useState } from "react";
 import { useGameStore } from "../store/rootStore";
-import { selectActiveNation } from "../store/selectors";
+import { selectActiveNation, selectFoodForecast } from "../store/selectors";
 import TransportAllocationModal from "./TransportAllocationModal";
 import { labourView, productionCards } from "./capital/capitalView";
 import { ProductionCard } from "./capital/ProductionCard";
@@ -58,8 +58,8 @@ const SECTIONS: readonly { id: SectionId; name: string; art: string }[] = [
  * The title shows the capitol, and the Warehouse, Armoury and Technology buttons their buildings (FR-333); Trade and
  * Diplomacy keep their Game Icons, as the pack has no picture for them (FR-335).
  * FR-565: one section open at a time, chosen with disclosure buttons (aria-expanded, aria-controls); the closed ones stay
- * mounted and `hidden`, so their pictures load. The city's labour stays in view above the sections whichever is open,
- * so the cards get the dialog's full width (four to a row at 1366 px). The open section
+ * mounted and `hidden`, so their pictures load. FR-566: the city's labour bar, the HUD of the city, stays in view above
+ * the sections whichever is open, so the cards get the dialog's full width (four to a row at 1366 px). The open section
  * shows its scrollbar and a fade at its cut edge when it does not fit (FR-426); below 600 px the body scrolls as one and
  * the bar follows the sections (FR-428).
  */
@@ -80,6 +80,8 @@ const CapitalDialog: React.FC = () => {
   const submitOrder = useGameStore((s) => s.submitOrder);
   const game = useGameStore((s) => s.game);
   const nation = useGameStore(selectActiveNation);
+  // The HUD's food warning reads the same memoised forecast, so the bar costs no second run of the turn's phases
+  const food = useGameStore(selectFoodForecast);
   const [isAllocOpen, setAllocOpen] = useState(false);
   const [openSection, setOpenSection] = useState<SectionId>("industry");
   const titleId = useId();
@@ -174,9 +176,9 @@ const CapitalDialog: React.FC = () => {
                 <div className={styles.fade} aria-hidden="true" data-testid={openSection === "industry" ? "industry-fade" : "section-fade"} />
               )}
             </div>
-            {/* After the sections in the page, drawn above them; below them on a phone (FR-428) */}
+            {/* After the sections in the page, drawn above them (FR-566); below them on a phone (FR-428) */}
             <aside className={styles.side} aria-label="City">
-              <LabourBar view={labour} />
+              <LabourBar view={labour} food={food} />
             </aside>
           </div>
         )}

@@ -1,11 +1,12 @@
 "use client";
 import React from "react";
-import type { Order, ValidationResult } from "@/engine";
+import type { FoodForecast, Order, ValidationResult } from "@/engine";
 import { MIGRANT_COST, TRAINING_COST } from "@/definisions/ResourceConversions";
 import type { WorkerGrade } from "@/types/Industry";
+import { ResourceType } from "@/types/Resource";
 import { commodityName, money } from "../gameText";
 import { InkPicture } from "../art/ArtPicture";
-import { LABOUR_ART, buildingArt, gradeArt } from "../art/inkArt";
+import { LABOUR_ART, buildingArt, goodsArt, gradeArt } from "../art/inkArt";
 import type { LabourView } from "./capitalView";
 import styles from "./Capital.module.css";
 
@@ -27,11 +28,11 @@ const MIGRANT_TEXT = Object.entries(MIGRANT_COST)
   .join(", ");
 
 /**
- * The city's labour above the Capital's sections (FR-565): labour and the workforce by grade with the sick and the
- * trainees (FR-047), on one line where the width allows. It has no controls; the grade and labour pictures stand before
- * their names (FR-332).
+ * The city's labour bar, the Capital's HUD (FR-566): labour, the workforce by grade with the sick and the trainees
+ * (FR-047), and the meal at the end of this turn (FR-049), on one line where the width allows. It has no controls; the
+ * grade and labour pictures stand before their names (FR-332).
  */
-export const LabourBar: React.FC<{ view: LabourView }> = ({ view }) => {
+export const LabourBar: React.FC<{ view: LabourView; food: FoodForecast }> = ({ view, food }) => {
   const { labour, grades } = view;
   return (
     <section className={styles.labourBar} data-testid="labour-panel" aria-label="Labour">
@@ -54,6 +55,17 @@ export const LabourBar: React.FC<{ view: LabourView }> = ({ view }) => {
           </li>
         ))}
       </ul>
+
+      <div className={styles.labourLine} data-testid="food" title="The meal at the end of this turn">
+        <span>
+          <InkPicture src={goodsArt(ResourceType.Grain)} alt="" inline />Food
+        </span>
+        <span>
+          {`${food.fed} of ${food.mouths} fed`}
+          {food.sick > 0 && <span className={styles.sick}>{` · ${food.sick} sick`}</span>}
+          {food.starved > 0 && <span className={styles.sick}>{` · ${food.starved} starve${food.starved === 1 ? "s" : ""}`}</span>}
+        </span>
+      </div>
     </section>
   );
 };
