@@ -114,3 +114,66 @@ Pins moved (old -> new; the reason is written in the test): harness FR-481's tra
 
 Not verified: Firefox and WebKit (the app check above ran in Chromium); the progress page was not republished (its data,
 `docs/report/roadmap.json`, is updated).
+
+## Moved from docs/journal.md on 2026-11-24
+
+## 2026-11-20 M13 review fixes (PR 36, starting at fdbe870)
+
+Size: M. Reproduce the eight findings in `.gate/codex/02/review.md` before changing the affected planner or test.
+The consumers are the scripted Great Power, the Board's diplomacy forecast and the 24-seed simulation report.
+Test rows cover FR-497 forecast and pre-order comparison, FR-489 conquest and recapture, FR-482 upkeep, FR-486 sales, FR-493 pair bidding and FR-500 report traceability.
+Verify each reproduction separately, then run Vitest, ESLint, TypeScript, the production build and single-worker Chromium. Evidence goes in `.gate/codex/03/`.
+Objection: a local improvement can change later simulated turns. Check the exact continent pins and the two-islands and FR-125 guards before committing.
+
+Findings 1–2: the forecast now projects the viewer's current orders and cash only. It cannot infer payment of another nation's standing grant from that nation's private balance. Real End Turn settlement still uses both nations' orders. The fair-play probe uses the original state before applying a human order and the resulting state after all accepted orders.
+
+Findings 3 and 7: separate armies can target one foreign conquest in a war of choice. They can recover home territory and retake that same objective. Retaking it starts a fresh peace-offer interval. Findings 4–6: campaign recruitment retries with the cheapest eligible regiment that leaves upkeep, optional migrants use surplus after planning trade with a new consulate, and the final hold buys the material missing from a pair. Finding 8: the 24-seed report identifies FR-500 in its Vitest title.
+
+| Claim | Command | Result quoted |
+|---|---|---|
+| Rival cash changed the Board and planner | `vitest run tests/engine/partnerMarket.test.ts -t "private steel bid"` | `expected 'nation-2' to be 'nation-1'` (1-red.txt) |
+| The old probe missed cash reserved by a bid | `vitest run tests/engine/sim/m13Acceptance.test.ts -t "cash reserved"` | `expected false to be true` (2-red.txt) |
+| Two armies took two provinces; cross-turn and home-recovery controls also failed | `vitest run tests/engine/scriptedWar.test.ts -t "separate field armies\|losing its conquered\|reclaiming home"` | `Tests  3 failed \| 33 skipped (36)` (3-red.txt) |
+| No affordable fallback recruit; optional migrant cost $1,800 of sales; last hold bought lumber | `vitest run` on scriptedArmy, scriptedWorkers and scriptedTrade, individually | `Tests  1 failed` in each of 4-red.txt, 5-red.txt and 6-red.txt. After fixes: `Tests  94 passed (94)` |
+| New peace offer missing after recapture | `vitest run tests/engine/scriptedDiplomacy.test.ts -t "retaking the war aim"` | `Tests  1 failed \| 29 skipped (30)` (7-red.txt). War and diplomacy after fixes: `Tests  66 passed (66)` |
+| Report title omitted its FR | `vitest run tests/engine/sim/m13Acceptance.test.ts -t "scripted report names"` | `to contain 'FR-500'` (8-red.txt and 8-runtime-red.txt) |
+| M13 acceptance and pre-order probe | `vitest run --configLoader runner` | `m13Acceptance.test.ts (43 tests)`; `320 turns checked, 320 with orders of Testland in the state, 0 turns where Valdoria's plan changed without them` |
+| FR-125 and two-islands pins on the integrated tree | Same full Vitest run | `t25 903/563 (1.60)` (lowest); `twoIslandsGolden.test.ts (2 tests)` |
+| Unit suite on bundled Node v24.22.1 | `vitest run --configLoader runner` | `Tests  1 failed \| 2741 passed (2742)`. FR-330: `expected [ '★' ] to deeply equal []`. Node's Unicode 17 classifies the star differently. |
+| Lint | `eslint` | `2 problems (0 errors, 2 warnings)`, `eslint exit 0` |
+| Types | `tsc --noEmit` | `tsc --noEmit exit 0` |
+| Production build | `next build --turbopack` | “Failed to fetch `Geist Mono` from Google Fonts.” Geist also failed. |
+| Chromium | `PLAYWRIGHT_HTML_OPEN=never playwright test --workers=1` | `Process from config.webServer was not able to start. Exit code: 1`. The server requires npm. A separate launch of the configured browser returned `browserType.launch: spawn EPERM`. |
+
+All eight numbered red logs are in `.gate/codex/03/`. The final focused probe/title run in `2-8-green.txt` reported `Tests  3 passed | 40 skipped (43)`. After reconnecting, Windows denied execution of the installed Node 22/npm toolchain. All five literal npm/npx invocations exited 1 before starting their tools (npm-*.txt and npx-*.txt). The unit, lint, type, build and browser commands above used the checked-in package configuration and installed CLI entry points with the bundled Node runtime. The default Vitest loader could not enumerate a parent directory, so the full run used its runner loader. No threshold, timeout or expected pin changed. Resume with the requested five commands in a session with access to Node 22/npm, the pinned Chromium and the build's Google Fonts. Commit locally only after all five pass.
+
+## 2026-11-20 M13 close-out (FR-539, FR-542, NR-035)
+
+Size: L (milestone gate and review). FR-539 places the standing steel bid from turn 7. FR-541 continues to handle lumber. FR-542 keeps the grants and replaces the turn-30 vote target. Both replacement thresholds require 18 of 24 games. Q139 remains open before merge.
+
+Review found that a pre-existing embassy could trigger an ineligible pact, including before the first Council. The planner now checks the meeting, relation band and rival score before proposing it. The acceptance measure now excludes Great Powers and colonised minors, and the vote spread uses the requested Council turn for every game. The simulator yields to Vitest between seeds so its worker can report progress during long runs. The games still run in seed order and the yield is outside the per-turn timing measurement.
+
+The old and new continent pins and their reasons are recorded with FR-247, FR-481 and FR-499. The four FR-498 guard files match the starting commit. The changed planners read their own orders, public trade history, diplomacy and map state. The full suite includes the separate FR-497 test that removes the opponent's current orders and compares the plans.
+
+Gate logs are in `.gate/codex/01/`. The first unit run timed out during ESLint startup. The passing run used `VITEST_MAX_FORKS=3` and `VITEST_MIN_FORKS=1`. The first Chromium run timed out reopening Details for bug reports on a busy machine. The full rerun used one worker after the other gates finished. Both original 30-second timeouts remained in force. The Chromium app checks started fresh games and used the normal controls to advance turns. The grant and Council check fixed the initial seeds to 11 and 1 respectively.
+
+| Claim | Command | Result quoted |
+|---|---|---|
+| Regressions before the fix | `npx.cmd vitest run tests/engine/scriptedInfluence.test.ts tests/engine/sim/m13Acceptance.test.ts -t 'an existing embassy cannot\|a pact requires an eligible\|reads the turn of Valdoria'` | `Tests  3 failed \| 72 skipped (75)` |
+| Initial focused run hit a Vitest worker timeout | `npx vitest run tests/engine/scriptedInfluence.test.ts tests/engine/sim/m13Acceptance.test.ts` | `Error: [vitest-worker]: Timeout calling "onTaskUpdate"` |
+| First full unit run | `npm test` | `Tests  1 failed \| 2730 passed (2731)` |
+| Unit suite | `VITEST_MAX_FORKS=3 VITEST_MIN_FORKS=1 npm test` | `Tests  2731 passed (2731)` |
+| First browser run | `PLAYWRIGHT_HTML_OPEN=never npx playwright test --workers=1` | `128 passed (24.9m)` |
+| FR-539 (Board) | `npm test` | `meets FR-539 (Board) idle 24 of 24 (required 18) min 10, median 12, max 12` |
+| FR-539 (sold) | `npm test` | `meets FR-539 (sold) trader 24 of 24 (required 18) min 7, median 10, max 10` |
+| FR-542 (i) | `npm test` | `meets FR-542 (i) idle 21 of 24 (required 18) min 23, median 24, max 26` |
+| FR-542 (ii) | `npm test` | `meets FR-542 (ii) idle 18 of 24 (required 18) min 0, median 1, max 1` |
+| FR-490 (replaced by FR-542) | `npm test` | `MISSES FR-490 (replaced by FR-542) idle 0 of 24 (required 18) min 0, median 0, max 0` |
+| Fair play and planning time | `npm test` | `FR-497 rejected orders of Valdoria 0 (required 0), invariant breaks 0 (required 0), no-pay disbands in idle games 0 (required 0), computerOrders p95 35.3 ms and max 97.8 ms over 3360 turns of 84 games (p95 required <= 100)` |
+| Lint | `npm run lint` | `✖ 2 problems (0 errors, 2 warnings)` |
+| Types | `npx tsc --noEmit` | `npx tsc --noEmit exit 0` |
+| Production build | `npm run build` | `✓ Compiled successfully in 21.1s` |
+| Browser suite | `PLAYWRIGHT_HTML_OPEN=never npx playwright test --workers=1` | `129 passed (11.8m)` |
+| Steel sale from the Board | `node .gate/codex/01/fr539-app.mjs` | `PASS FR-539: 10 turns, 3 offers, 3 steel sold to Valdoria, 0 browser errors` |
+| Grant in the news and vote on the Council screen | `node .gate/codex/01/fr542-app.mjs` | `PASS FR-542: grant on seed 11 turn 27 and a Valdoria Other Minor Nations vote on seed 1 turn 40, zero browser errors` |
+| Roadmap consistency | `node .gate/m12/L4-check-roadmap.cjs` | `PASS` |
