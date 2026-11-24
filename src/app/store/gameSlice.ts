@@ -13,7 +13,7 @@ import {
   type ValidationResult,
 } from "@/engine";
 import type { NationId } from "@/types/Common";
-import type { GameState } from "@/types/GameState";
+import type { Difficulty, GameState } from "@/types/GameState";
 import type { WorldId } from "@/types/World";
 import type { MarketMode } from "@/types/Market";
 import type { GameStore } from "./rootStore";
@@ -98,9 +98,9 @@ export interface GameSlice extends GameSession {
   endTurn: () => void;
   /**
    * Replaces the game with a new one and clears what belonged to the old one (FR-105, FR-109); on the
-   * continent unless `world` names another (FR-144).
+   * continent unless `world` names another (FR-144); on the Normal level unless `difficulty` is "demo" (FR-561).
    */
-  startNewGame: (options?: { seed?: number; turnLimit?: number; world?: WorldId; market?: MarketMode }) => void;
+  startNewGame: (options?: { seed?: number; turnLimit?: number; world?: WorldId; market?: MarketMode; difficulty?: Difficulty }) => void;
   /**
    * Replaces the game and its session with a saved one (FR-359), with nothing selected and no dialog open, as a new game
    * starts. Only page.tsx calls it, at the start: the store never loads a save by itself.
@@ -204,8 +204,8 @@ export const createGameSlice =
       },
 
       // Nothing of the old game's session survives: selection, dialogs, news, logs (FR-105, FR-109).
-      startNewGame: ({ seed, turnLimit, world, market } = {}) => {
-        const next = newGame({ seed: seed ?? randomSeed(), turnLimit, world: world ?? APP_WORLD, market });
+      startNewGame: ({ seed, turnLimit, world, market, difficulty } = {}) => {
+        const next = newGame({ seed: seed ?? randomSeed(), turnLimit, world: world ?? APP_WORLD, market, difficulty });
         set({
           ...NO_SELECTION_NO_DIALOG,
           game: next,

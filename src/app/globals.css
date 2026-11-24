@@ -548,8 +548,10 @@ img[data-art-anchor="bottom-center"] {
   margin: 0 0 6px;
 }
 
+/* FR-561: three buttons wrap in a phone-wide window instead of running out of the panel */
 .confirm-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
 }
 

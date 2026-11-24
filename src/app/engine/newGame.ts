@@ -1,4 +1,4 @@
-import type { GameState } from "@/types/GameState";
+import type { Difficulty, GameState } from "@/types/GameState";
 import type { WorldId } from "@/types/World";
 import type { MarketMode } from "@/types/Market";
 import { TIME_CONFIG } from "@/constants/gameConstants";
@@ -7,6 +7,7 @@ import { startMarket } from "./market/market";
 import { startDiplomacy } from "./diplomacy/relations";
 import { buildWorld, DEFAULT_WORLD, WORLD_MARKET } from "./world/worlds";
 import { withStartForces } from "./army/startForces";
+import { withDemoStart } from "./world/demoStart";
 
 export interface NewGameOptions {
   seed: number;
@@ -16,6 +17,8 @@ export interface NewGameOptions {
   world?: WorldId;
   /** The market mode (FR-242); the world's own (`WORLD_MARKET`) when omitted. */
   market?: MarketMode;
+  /** The level; "normal" when omitted. Only "demo" changes the start (FR-561): the human nation's Demo kit. */
+  difficulty?: Difficulty;
 }
 
 /** A whole number of turns from 1 to MAX_TURN_LIMIT; anything that is not a finite number is the default (FR-105). */
@@ -33,9 +36,10 @@ export function clampTurnLimit(turnLimit: number | undefined): number {
  * draws one, tests pass 1); the map is the same for every seed. `newGame(seed)` is `newGame({ seed })`.
  */
 export function newGame(options: number | NewGameOptions): GameState {
-  const { seed, turnLimit, world = DEFAULT_WORLD, market }: NewGameOptions = typeof options === "number" ? { seed: options } : options;
+  const { seed, turnLimit, world = DEFAULT_WORLD, market, difficulty = "normal" }: NewGameOptions =
+    typeof options === "number" ? { seed: options } : options;
   const { map, nations, minorNations, provinces } = buildWorld(world);
-  return withStartForces({
+  const start = withStartForces({
     turn: TIME_CONFIG.STARTING_TURN,
     rulesRevision: "m16.1",
     year: TIME_CONFIG.STARTING_YEAR,
@@ -56,6 +60,7 @@ export function newGame(options: number | NewGameOptions): GameState {
     transportAllocationsByNation: {},
     tradeRoutes: [],
     market: startMarket(market ?? WORLD_MARKET[world]),
-    difficulty: "normal",
+    difficulty,
   });
+  return difficulty === "demo" ? withDemoStart(start) : start;
 }

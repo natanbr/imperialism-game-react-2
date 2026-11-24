@@ -76,5 +76,8 @@ export interface GameState {
   /** Identifies current play in v1 saves; older saves need a historical replay boundary. */
   rulesRevision?: "m16.1";
 
-  difficulty: "introductory" | "easy" | "normal" | "hard" | "nighOnImpossible";
+  difficulty: Difficulty;
 }
+
+/** The game's level. New games are "normal" unless the player picks "demo", a testing aid (FR-561); the rest are unused. */
+export type Difficulty = "introductory" | "easy" | "normal" | "hard" | "nighOnImpossible" | "demo";

@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef } from "react";
-import { startNewGameOnCapital } from "@/hooks/mapActions";
+import { startDemoGameOnCapital, startNewGameOnCapital } from "@/hooks/mapActions";
 import { leftInWindow } from "./hudView";
 
 export const CONFIRM_NEW_GAME_ID = "confirm-new-game";
@@ -63,6 +63,17 @@ export const ConfirmNewGame: React.FC<{ anchor: React.RefObject<HTMLElement | nu
           }}
         >
           Start new game
+        </button>
+        {/* FR-561: a testing aid; the description is the title only, so the panel keeps its size (FR-480) */}
+        <button
+          className="btn btn-plain btn-sm"
+          title="Demo level: more cash, stock and regiments and a Frigate, to try a war and a landing early"
+          onClick={() => {
+            startDemoGameOnCapital();
+            onDone();
+          }}
+        >
+          Start Demo game
         </button>
         <button className="btn btn-plain btn-sm" onClick={onDone}>
           Keep playing

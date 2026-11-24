@@ -17,6 +17,8 @@ import type { TurnReport } from '@/store/gameSlice';
 import { HOW_TO_PLAY_SEEN_KEY } from '@/store/persistence';
 import { newGame, ordinal, resolveTurn, scoreOf, scoreTable } from '@/engine';
 import { money } from '@/components/gameText';
+import { START_TREASURY } from '@/engine/world/startWorld';
+import { DEMO_START } from '@/engine/world/demoStart';
 import type { GameState } from '@/types/GameState';
 import { emptyWarehouse, N1, N2, setPair, setTreasury } from '../engine/fixtures';
 import { continent } from '../engine/armyFixtures';
@@ -338,7 +340,8 @@ describe('FR-480 New game in the bar', () => {
     fireEvent.click(toggle);
     const panel = screen.getByRole('group', { name: 'Confirm new game' });
     expect(panel.id).toBe('confirm-new-game');
-    expect(text(panel)).toBe('Start a new game? This game will be lost. Start new game Keep playing');
+    // FR-561 added Start Demo game between the two
+    expect(text(panel)).toBe('Start a new game? This game will be lost. Start new game Start Demo game Keep playing');
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
     expect(toggle.getAttribute('aria-controls')).toBe('confirm-new-game');
     expect(document.activeElement).toBe(panel);
@@ -418,6 +421,22 @@ describe('FR-480 New game in the bar', () => {
     fireEvent.click(within(screen.getByRole('group', { name: 'Confirm new game' })).getByRole('button', { name: 'Start new game' }));
     expect(useGameStore.getState().game.turn).toBe(1);
     expect(text(screen.getByTestId('turn-indicator'))).toBe('Turn: 1 of 40 Spring 1815');
+    expect(screen.queryByRole('group', { name: 'Confirm new game' })).toBeNull();
+    expect(useGameStore.getState().game.difficulty).toBe('normal');
+  });
+
+  it('FR-561 Start Demo game starts a Demo game on turn 1: the HUD shows the Demo cash and the question closes', () => {
+    show(continent());
+    render(<TopBar />);
+    act(() => useGameStore.getState().advanceTurn());
+    fireEvent.click(screen.getByRole('button', { name: 'New game' }));
+    fireEvent.click(within(screen.getByRole('group', { name: 'Confirm new game' })).getByRole('button', { name: 'Start Demo game' }));
+    const { game, activeNationId } = useGameStore.getState();
+    expect(game.turn).toBe(1);
+    expect(game.difficulty).toBe('demo');
+    const cash = game.nations.find(n => n.id === activeNationId)!.treasury;
+    expect(cash).toBe(START_TREASURY * DEMO_START.cashMultiplier);
+    expect(text(screen.getByTestId('topbar-cash'))).toContain(money(cash));
     expect(screen.queryByRole('group', { name: 'Confirm new game' })).toBeNull();
   });
 
