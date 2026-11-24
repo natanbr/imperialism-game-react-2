@@ -2,7 +2,7 @@ import React, { useId } from "react";
 import styles from "./Market.module.css";
 
 export interface StepperProps {
-  /** The verb of the buttons' names: "Sell one more Lumber", "Bid one less Coal". */
+  /** The verb of the buttons' names: "Sell one more Lumber", "Buy one less Coal". */
   label: string;
   name: string;
   value: number;

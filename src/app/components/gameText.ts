@@ -393,11 +393,11 @@ export function eventText(event: GameEvent, nameOf: (countryId: string) => strin
     case "goods-bought":
       return `Bought ${event.amount} ${commodityName(event.commodity)}${event.counterpartyId ? ` from ${nameOf(event.counterpartyId)}` : ""} for ${money(event.cost)}.`;
     case "offer-missed":
-      return `${nameOf(event.counterpartyId)} offered to sell us ${event.amount} ${commodityName(event.commodity)}: ${MISSED_TEXT[event.reason]}.`;
+      return `${nameOf(event.counterpartyId)} wanted to sell us ${event.amount} ${commodityName(event.commodity)}: ${MISSED_TEXT[event.reason]}.`;
     case "offer-unsold":
       return `${event.amount} ${commodityName(event.commodity)} not sold; back in the warehouse.`;
     case "bid-unfilled":
-      return `Nobody sold us ${event.amount} ${commodityName(event.commodity)}; the bid money is back.`;
+      return `Nobody sold us ${event.amount} ${commodityName(event.commodity)}; the money is back.`;
     case "turn-ended":
       return null;
     case "game-over":

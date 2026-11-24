@@ -116,7 +116,7 @@ test('FR-515 FR-517 build ships, fill eight holds with purchases and collect hor
   await screenshot(page, 'board');
   // Spread the bids over the minors' real supplies and check actual purchases in the Deal Book next turn.
   for (const [commodity, amount] of [['Timber', 4], ['Coal', 2], ['Iron Ore', 2]] as const) {
-    for (let n = 0; n < amount; n++) await board.getByRole('button', { name: `Bid one more ${commodity}` }).click();
+    for (let n = 0; n < amount; n++) await board.getByRole('button', { name: `Buy one more ${commodity}` }).click();
   }
   await expect(board.getByTestId('market-holds')).toHaveText('Holds: 0 of 8 free');
   await page.keyboard.press('Escape');

@@ -264,7 +264,7 @@
   width: 1%;
 }
 
-/* A Bid or Offer stepper with its line beside it (FR-257): the line wraps in two short lines so the row stays one
+/* A Buy or Sell stepper with its line beside it (FR-257): the line wraps in two short lines so the row stays one
    stepper high */
 .stepCell {
   width: 1%;
@@ -497,7 +497,7 @@
   }
 }
 
-/* FR-428 (MKT-15, card Q96): below 600 px each Board row is a block: the name, then price and stock, then Bid and Offer
+/* FR-428 (MKT-15, card Q96): below 600 px each Board row is a block: the name, then price and stock, then Buy and Sell
    side by side, then the minors. The head stays for screen readers only, so the cells say what they are */
 @media (max-width: 599.98px) {
   .board {
@@ -571,12 +571,12 @@
 
   .boardTable td:nth-child(4):not(:empty)::before {
     display: block;
-    content: "Bid";
+    content: "Buy";
   }
 
   .boardTable td:nth-child(5):not(:empty)::before {
     display: block;
-    content: "Offer";
+    content: "Sell";
   }
 
   .stepCell {

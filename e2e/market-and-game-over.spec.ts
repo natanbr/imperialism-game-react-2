@@ -67,7 +67,7 @@ test('FR-078 open the market, offer one furniture for sale, end the turn, see th
   await expect(market.getByTestId('board-favourites')).toHaveText(/\bPellis\b.* favours? (Testland|Valdoria)/);
   await expect(market.getByTestId('market-holds')).toHaveText('Holds: 4 of 4 free');
 
-  await furniture.getByRole('button', { name: 'Offer one more Furniture' }).click();
+  await furniture.getByRole('button', { name: 'Sell one more Furniture' }).click();
   await expect(furniture.getByTestId('offer')).toHaveText('1');
   await expect(furniture.getByTestId('available')).toHaveText('0');
   await expect(market.getByTestId('market-holds')).toHaveText('Holds: 3 of 4 free');

@@ -91,8 +91,8 @@ export const BoardOfTrade: React.FC = () => {
             <span data-testid="market-holds" title="Every unit traded takes one hold this turn">
               {view.holdsText}
             </span>
-            <span data-testid="market-bids" title="At most this many commodities can be bid on in one turn">
-              Bids: {view.bids.used} of {view.bids.max}
+            <span data-testid="market-bids" title="At most this many commodities can be bought in one turn">
+              Buying: {view.bids.used} of {view.bids.max}
             </span>
           </div>
         )}
@@ -103,7 +103,7 @@ export const BoardOfTrade: React.FC = () => {
 
       <p id={noteId} className={styles.boardNote}>
         {/* FR-399 (NR-018, card Q15): trade orders are one turn's; the Capital's production orders stand */}
-        <span data-testid="board-duration">Bids and offers last one turn; production orders in the Capital stay.</span>{" "}
+        <span data-testid="board-duration">Buy and sell orders last one turn; production orders in the Capital stay.</span>{" "}
         Deals settle at End Turn at the board price; bought goods arrive next turn. Minor nations sell what their land
         yields and buy only clothing, furniture and hardware. A minor trades only where we hold a consulate (one ordered
         this turn counts) and serves the Great Power it favours first
@@ -152,8 +152,8 @@ export const BoardOfTrade: React.FC = () => {
                 <th>Commodity</th>
                 <th className={styles.number}>Price</th>
                 <th className={styles.number}>In warehouse</th>
-                <th>Bid</th>
-                <th>Offer</th>
+                <th>Buy</th>
+                <th>Sell</th>
                 <th>Minor nations</th>
               </tr>
             </thead>
@@ -178,7 +178,7 @@ export const BoardOfTrade: React.FC = () => {
                   <td className={styles.stepCell}>
                     {row.offer === 0 && (
                       <Stepper
-                        label="Bid"
+                        label="Buy"
                         name={row.name}
                         value={row.bid}
                         testId="bid"
@@ -192,7 +192,7 @@ export const BoardOfTrade: React.FC = () => {
                   <td className={styles.stepCell}>
                     {row.bid === 0 && (
                       <Stepper
-                        label="Offer"
+                        label="Sell"
                         name={row.name}
                         value={row.offer}
                         testId="offer"

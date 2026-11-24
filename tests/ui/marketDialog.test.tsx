@@ -81,7 +81,7 @@ describe('FR-073 market dialog: what it shows', () => {
 
     expect(text(screen.getByTestId('market-cash'))).toBe('Cash: $10,000');
     expect(text(screen.getByTestId('market-holds'))).toBe('Cargo holds: 0 used, 5 free of 5');
-    expect(text(screen.getByTestId('market-bids'))).toBe(`Buy bids: 0 of ${MAX_BUY_BIDS}`);
+    expect(text(screen.getByTestId('market-bids'))).toBe(`Buying: 0 of ${MAX_BUY_BIDS}`);
   });
 });
 
@@ -120,7 +120,7 @@ describe('FR-074 market dialog: orders', () => {
     expect(treasury(now(), N1)).toBe(10000 - 100);
     expect(cell('coal', 'buy')).toBe('1');
     expect(text(screen.getByTestId('market-cash'))).toBe('Cash: $9,900');
-    expect(text(screen.getByTestId('market-bids'))).toBe(`Buy bids: 1 of ${MAX_BUY_BIDS}`);
+    expect(text(screen.getByTestId('market-bids'))).toBe(`Buying: 1 of ${MAX_BUY_BIDS}`);
     expect(text(screen.getByTestId('market-holds'))).toBe('Cargo holds: 1 used, 4 free of 5');
   });
 

@@ -54,8 +54,8 @@ const WorldMarket: React.FC = () => {
             <span data-testid="market-holds" title="Every unit sold or bought takes one cargo hold this turn">
               Cargo holds: <strong>{view.capacity.used}</strong> used, <strong>{view.capacity.free}</strong> free of {view.capacity.holds}
             </span>
-            <span data-testid="market-bids" title="At most this many commodities can be bid on in one turn">
-              Buy bids: <strong>{view.bids.used}</strong> of {view.bids.max}
+            <span data-testid="market-bids" title="At most this many commodities can be bought in one turn">
+              Buying: <strong>{view.bids.used}</strong> of {view.bids.max}
             </span>
           </div>
         )}

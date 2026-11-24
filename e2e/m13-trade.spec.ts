@@ -2,11 +2,11 @@ import { test, expect, Page } from './seededGame';
 
 // M13 FR-494 in the running app (card Q118 (a)): the Great Powers' bids and offers of last turn are public (FR-491). A
 // saved game, crafted in the slot `imperialism-remake.save`, where Valdoria bid for 2 steel last turn (`market.lastOrders`)
-// and Testland holds 3 steel: the Board's steel row says "Valdoria bid for 2 last turn" and its Offer "+" is enabled
+// and Testland holds 3 steel: the Board's steel row says "Valdoria wanted to buy 2 last turn" and its Offer "+" is enabled
 // ("Only Valdoria may buy this", FR-492); offer 1 steel, End Turn, and the Deal Book shows the sale to Valdoria.
 // Valdoria's own warehouse is set to 20 lumber and no steel, so the scripted Valdoria bids for 2 steel this turn as well
 // (FR-493 (a): the side that pairs its lumber first). On the way, a new game's steel Bid "+" is open with FR-494's line,
-// "A bid is refunded if Valdoria does not sell."
+// "A purchase is refunded if Valdoria does not sell."
 // Run alone: PORT=3197 PLAYWRIGHT_HTML_OPEN=never npx playwright test e2e/m13-trade.spec.ts
 
 test.use({ viewport: { width: 1280, height: 720 } });
@@ -56,10 +56,10 @@ test('FR-494 FR-491 FR-492 a saved game where Valdoria bid for 2 steel last turn
   // A new game: no line from last turn; the steel bid goes toward Valdoria and says so (FR-494)
   await openBoard(page);
   await expect(steelRow(page).getByTestId('rival-last-turn')).toHaveCount(0);
-  const bidPlus = steelRow(page).getByRole('button', { name: 'Bid one more Steel' });
+  const bidPlus = steelRow(page).getByRole('button', { name: 'Buy one more Steel' });
   await expect(bidPlus).toBeEnabled();
   // FR-494's line without its first clause (in full it broke FR-257's fit at 1280x720 by 109 px; boardView.ts)
-  const rivalBid = 'A bid is refunded if Valdoria does not sell.';
+  const rivalBid = 'A purchase is refunded if Valdoria does not sell.';
   await expect(steelRow(page).getByTestId('bid-note')).toHaveText(rivalBid);
   await expect(bidPlus).toHaveAccessibleDescription(rivalBid);
   await closeBoard(page);
@@ -82,9 +82,9 @@ test('FR-494 FR-491 FR-492 a saved game where Valdoria bid for 2 steel last turn
   await ready(page);
 
   await openBoard(page);
-  await expect(steelRow(page).getByTestId('rival-last-turn')).toHaveText('Valdoria bid for 2 last turn');
+  await expect(steelRow(page).getByTestId('rival-last-turn')).toHaveText('Valdoria wanted to buy 2 last turn');
   await expect(steelRow(page).getByTestId('available')).toHaveText('3');
-  const offerPlus = steelRow(page).getByRole('button', { name: 'Offer one more Steel' });
+  const offerPlus = steelRow(page).getByRole('button', { name: 'Sell one more Steel' });
   await expect(offerPlus).toBeEnabled();
   await expect(steelRow(page).getByTestId('offer-note')).toHaveText('Only Valdoria may buy this');
   await offerPlus.click();
