@@ -4,6 +4,7 @@ import { continueCouncilSave } from './councilSave';
 test('FR-506 the entire winning threshold is visible in the 1280px HUD before opening Nation', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.goto('/');
+  await page.getByRole('button', { name: 'Stats', exact: true }).click();
   const line = page.getByTestId('next-council');
   const width = await line.evaluate(el => {
     const text = el.firstChild!;
@@ -24,8 +25,10 @@ test('FR-504 FR-506 FR-507 Continue at turn 39, resolve the last Council, and op
   await page.setViewportSize({ width: 1280, height: 720 });
   await continueCouncilSave(page, 'last');
   const advance = page.getByRole('button', { name: /Advance Turn/ });
+  await page.getByRole('button', { name: 'Stats', exact: true }).click();
   await expect(page.getByTestId('next-council')).toHaveAttribute('title', /7 of 12 votes wins.*last meeting \(turn 40\)/);
   await expect(page.getByTestId('next-council')).toContainText('This threshold applies at any meeting.');
+  await page.getByRole('button', { name: 'Close stats' }).click();
   await page.getByRole('button', { name: 'About', exact: true }).click();
   await page.getByRole('button', { name: 'How to play' }).click();
   const help = page.getByRole('dialog', { name: 'How to play' });

@@ -4,9 +4,9 @@ import { useGameStore } from "@/store/rootStore";
 import { councilEndRule, councilProjectionText, dateText } from "../gameText";
 
 /**
- * The id of the Council projection, the next-council line's accessible description. The line sits in the top bar and the
- * projection in the pane's Nation group (M12b, docs/specs/hud.md section 2b), two components, so the id is fixed: one
- * CouncilProjection is mounted at a time. A closed group hides it (`hidden`); a description may name a hidden element.
+ * The id of the Council projection, the next-council line's accessible description. Both sit in the Stats dialog (FR-568;
+ * until M18b the line was in the top bar and the projection in the pane's Nation group), two components, so the id is
+ * fixed: one CouncilProjection is mounted at a time.
  */
 export const COUNCIL_PROJECTION_ID = "council-projection-text";
 

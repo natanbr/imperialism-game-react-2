@@ -5,6 +5,7 @@
 // closes them, nothing is saved). FR-474: the Nation group's lines. FR-475: the Work in progress rows and their click.
 // FR-476: Details for bug reports, shown without ?debug (Nathan, card Q102), and its Copy details button.
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import { StatsDialog } from '@/components/HUD/StatsDialog';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { renderToString } from 'react-dom/server';
 import { HUD } from '@/components/HUD';
@@ -66,7 +67,7 @@ describe('FR-473 the right pane groups', () => {
     expect(screen.queryByRole('table', { name: 'Scores' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Copy details' })).toBeNull();
     expect(screen.queryByRole('region', { name: 'Nation' })).toBeNull();
-    expect(screen.getByTestId('score-table').closest('[hidden]')).not.toBeNull();
+    expect(screen.getByTestId('upkeep-forecast').closest('[hidden]')).not.toBeNull();
   });
 
   it('FR-473 a click opens one group (its region named by the button) and a second click closes it; the focus stays on the button', () => {
@@ -78,7 +79,7 @@ describe('FR-473 the right pane groups', () => {
     expect(nation.getAttribute('aria-expanded')).toBe('true');
     expect(panelOf(nation).hidden).toBe(false);
     expect(screen.getByRole('region', { name: 'Nation' })).toBe(panelOf(nation));
-    expect(within(panelOf(nation)).getByRole('table', { name: 'Scores' })).toBeTruthy();
+    expect(within(panelOf(nation)).getByTestId('upkeep-forecast')).toBeTruthy();
     expect(document.activeElement).toBe(nation);
     // The other groups stay closed
     expect(groupButton('Work in progress').getAttribute('aria-expanded')).toBe('false');
@@ -155,22 +156,23 @@ describe('FR-474 the Nation group', () => {
   it('FR-474 the Council projection (the next-council line describes it by id), the score parts, the score table and the army upkeep', () => {
     const state = continent();
     show(state);
-    render(<HUD />);
+    render(<><HUD /><StatsDialog onClose={() => {}} /></>);
     const panel = openGroup('Nation');
-    // The projection lives in the group (the bar's next-council line names it by id: tests/ui/warehouseAndHud.test.tsx FR-301)
-    const projection = within(panel).getByTestId('council-projection');
+    // FR-568: the projection, the score parts and the score table moved to the Stats dialog; the upkeep stays here
+    const stats = screen.getByRole('dialog', { name: 'Stats' });
+    const projection = within(stats).getByTestId('council-projection');
     expect(text(projection)).toBe(PROJECTION);
     expect(projection.id).toBe(COUNCIL_PROJECTION_ID);
     expect(screen.getAllByTestId('council-projection')).toHaveLength(1);
 
     const { treasury, industry, development, workInProgress } = scoreOf(state, N1).points;
-    expect(within(within(panel).getByTestId('nation-score-parts')).getAllByRole('listitem').map(text)).toEqual([
+    expect(within(within(stats).getByTestId('nation-score-parts')).getAllByRole('listitem').map(text)).toEqual([
       `Treasury ${treasury}`,
       `Industry ${industry}`,
       `Development ${development}`,
       `Work in progress ${workInProgress}`,
     ]);
-    expect(within(panel).getByTestId('score-table')).toBeTruthy();
+    expect(within(stats).getByTestId('score-table')).toBeTruthy();
 
     const forecast = upkeepForecast(state, N1);
     expect(forecast.due).toBe(100);
@@ -281,7 +283,7 @@ describe("FR-477 nothing lost: the pane's share", () => {
       'tile-info', 'tile-terrain', 'tile-owner', 'tile-province',
       'not-saved', 'food-warning', 'upkeep-warning', 'at-war', 'idle-civilians',
       'news-panel', 'order-refusal', 'news-list',
-      'council-projection', 'nation-score-parts', 'score-table', `score-row-${N1}`, `score-row-${N2}`, 'upkeep-forecast', 'treasury-last-turn',
+      'upkeep-forecast', 'treasury-last-turn',
     ];
     for (const id of ids) expect(screen.getAllByTestId(id), id).toHaveLength(1);
     expect(screen.getByRole('button', { name: 'Close tile info' })).toBeTruthy();

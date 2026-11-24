@@ -36,18 +36,21 @@ test('FR-106 FR-107 FR-108 after five End Turns the HUD ranks both nations, the 
   await start(page);
   // M12b (FR-474): the score table is in the right pane's Nation group, closed by default, so it is opened first (was
   // always shown); it stays open across the End Turns below (FR-473)
-  await page.getByRole('button', { name: 'Nation', exact: true }).click();
+  await page.getByRole('button', { name: 'Stats', exact: true }).click();
   await expect(scores(page).getByTestId(/^score-row-/)).toHaveCount(2);
   await expect(scores(page).getByTestId('score-row-nation-1')).toContainText('Testland (you)');
   await expect(scores(page).getByTestId('score-row-nation-2')).toContainText('Valdoria');
+  await page.getByRole('button', { name: 'Close stats' }).click();
 
   for (let turn = 2; turn <= 6; turn++) await endTurn(page, turn);
 
   // Valdoria grows on island 2: its own rail, and its lines in the news under its name
   expect(await page.locator('[data-testid="rail-segment"][data-nation-id="nation-2"]').count()).toBeGreaterThan(0);
   await expect(page.getByTestId('news-panel')).toContainText('Valdoria: ');
+  await page.getByRole('button', { name: 'Stats', exact: true }).click();
   await expect(scores(page).getByTestId('score-row-nation-2').getByTestId('swatch')).toBeVisible();
   await expect(scores(page).getByTestId(/^score-row-/).first().getByTestId('rank')).toHaveText('1');
+  await page.getByRole('button', { name: 'Close stats' }).click();
   if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/m4-map.png` });
 
   // Its capital shows who owns it and what stands there, and offers no order

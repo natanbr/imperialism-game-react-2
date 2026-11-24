@@ -69,13 +69,9 @@ async function turnLineLayout(page: Page) {
   const turn = (await indicator.locator(':scope > div').first().boundingBox())!;
   const date = (await indicator.locator('.turn-date').boundingBox())!;
   const box = (await indicator.boundingBox())!;
-  const council = (await page.getByTestId('next-council').boundingBox())!;
   expect(Math.abs(turn.y - date.y), 'the turn and the date on one line').toBeLessThanOrEqual(2);
   expect(date.x).toBeGreaterThan(turn.x + turn.width);
   expect(Math.abs(date.x + date.width - (box.x + box.width)), 'the date right-aligned').toBeLessThanOrEqual(1);
-  expect(council.y, 'the Council line under the turn line').toBeGreaterThanOrEqual(Math.max(turn.y + turn.height, date.y + date.height) - 0.5);
-  expect(council.x).toBeGreaterThanOrEqual(box.x - 0.5);
-  expect(council.x + council.width).toBeLessThanOrEqual(box.x + box.width + 0.5);
 }
 
 /**
@@ -86,34 +82,37 @@ async function turnLineLayout(page: Page) {
  * so the rest of the test sees the pane as the player first does. The description and colour checks are unchanged.
  */
 async function projectionShown(page: Page) {
-  const line = page.getByTestId('next-council');
-  const projection = page.getByTestId('council-projection');
-  const nation = page.getByRole('button', { name: 'Nation', exact: true });
-  // The line names it as its description even while the group is closed (aria-describedby reads hidden text)
+  // FR-568: the Council line and the projection moved from the top bar and the Nation group to the Stats dialog
+  await page.getByRole('button', { name: 'Stats', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Stats' });
+  const line = dialog.getByTestId('next-council');
+  const projection = dialog.getByTestId('council-projection');
   await expect(line).toHaveAccessibleDescription(/^If it met now: Testland \d+, Valdoria \d+, abstain \d+ of 12; 7 needed$/);
-  await nation.click();
-  await expect(nation).toHaveAttribute('aria-expanded', 'true');
   await expect(projection).toBeVisible();
   await expect(projection).toHaveText(/^If it met now: Testland \d+, Valdoria \d+, abstain \d+ of 12; 7 needed$/);
   await expect(line).toHaveAccessibleDescription((await projection.innerText()).trim());
-  // Pin moved (M12b final gate, FR-537, old -> new): "no title" -> "the title is the line's own text, never the projection". The
-  // M10 pin guarded against the projection living only in a tooltip (it was the title before FR-314's QA fix, 8607fe9).
-  // M12b review A11Y-5 gave the line its own text as a title, for the ellipsis of a narrow bar; the projection stays out.
   await expect(line).toHaveAttribute('title', (await line.innerText()).trim());
   await expect(line).not.toHaveAttribute('title', /met now/);
   const box = (await projection.boundingBox())!;
-  const panel = (await page.getByRole('region', { name: 'Nation' }).boundingBox())!;
+  const panel = (await dialog.boundingBox())!;
   expect(box.y).toBeGreaterThanOrEqual(panel.y - 0.5);
   expect(box.x).toBeGreaterThanOrEqual(panel.x - 0.5);
   expect(box.x + box.width).toBeLessThanOrEqual(panel.x + panel.width + 0.5);
   expect(box.y + box.height).toBeLessThanOrEqual(panel.y + panel.height + 0.5);
   const colours = await page.evaluate(() => {
     const colour = (selector: string) => getComputedStyle(document.querySelector(selector)!).color;
-    return { body: colour('.hud-container'), line: colour('[data-testid="next-council"]'), projection: colour('[data-testid="council-projection"]') };
+    return { body: colour('.stats-panel'), line: colour('[data-testid="next-council"]'), projection: colour('[data-testid="council-projection"]') };
   });
   expect(colours).toEqual({ body: colours.body, line: colours.body, projection: colours.body });
-  await nation.click();
-  await expect(nation).toHaveAttribute('aria-expanded', 'false');
+  await page.getByRole('button', { name: 'Close stats' }).click();
+  await expect(dialog).toHaveCount(0);
+}
+
+/** FR-568: the Council line is in the Stats dialog: open it, check the line, close it. */
+async function expectCouncilLine(page: Page, line: string) {
+  await page.getByRole('button', { name: 'Stats', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: 'Stats' }).getByTestId('next-council')).toHaveText(line);
+  await page.getByRole('button', { name: 'Close stats' }).click();
 }
 
 /**
@@ -158,8 +157,7 @@ test('FR-303 the Council meets on turn 10: its screen opens by itself on turn 11
   await expect(page.getByTestId('turn-indicator')).toContainText('Turn: 1 of 40');
 
   // FR-301: the next meeting; FR-314: the vote it would give now, shown under it, the player's nation first (FR-313)
-  const next = page.getByTestId('next-council');
-  await expect(next).toHaveText('7 of 12 votes wins · Council: turn 10 (Summer 1817). This threshold applies at any meeting. At the last meeting (turn 40) a free minor votes unless it is at war with both nominees, and the nominee with more votes wins (equal votes: higher standing).');
+  await expectCouncilLine(page, '7 of 12 votes wins · Council: turn 10 (Summer 1817). This threshold applies at any meeting. At the last meeting (turn 40) a free minor votes unless it is at war with both nominees, and the nominee with more votes wins (equal votes: higher standing).');
   await projectionShown(page);
   await turnLineLayout(page);
 
@@ -168,7 +166,7 @@ test('FR-303 the Council meets on turn 10: its screen opens by itself on turn 11
     await endTurn(page, turn + 1);
     await expect(council).toHaveCount(0);
   }
-  await expect(next).toHaveText('7 of 12 votes wins · Council: this turn. This threshold applies at any meeting. At the last meeting (turn 40) a free minor votes unless it is at war with both nominees, and the nominee with more votes wins (equal votes: higher standing).');
+  await expectCouncilLine(page, '7 of 12 votes wins · Council: this turn. This threshold applies at any meeting. At the last meeting (turn 40) a free minor votes unless it is at war with both nominees, and the nominee with more votes wins (equal votes: higher standing).');
 
   // Turn 10 resolves: the Council meets and its screen opens by itself on turn 11 (FR-299)
   await endTurn(page, 11);
@@ -228,7 +226,7 @@ test('FR-303 the Council meets on turn 10: its screen opens by itself on turn 11
   await council.getByRole('button', { name: 'Close' }).click();
   await expect(council).toHaveCount(0);
   await expect(advance(page)).toBeFocused();
-  await expect(next).toHaveText('7 of 12 votes wins · Council: turn 20 (Winter 1819). This threshold applies at any meeting. At the last meeting (turn 40) a free minor votes unless it is at war with both nominees, and the nominee with more votes wins (equal votes: higher standing).');
+  await expectCouncilLine(page, '7 of 12 votes wins · Council: turn 20 (Winter 1819). This threshold applies at any meeting. At the last meeting (turn 40) a free minor votes unless it is at war with both nominees, and the nominee with more votes wins (equal votes: higher standing).');
   await projectionShown(page);
 
   await turnLineLayout(page);
@@ -249,6 +247,6 @@ test('FR-303 the Council meets on turn 10: its screen opens by itself on turn 11
   // Turn 11 holds no meeting: nothing opens
   await endTurn(page, 12);
   await expect(council).toHaveCount(0);
-  await expect(next).toHaveText('7 of 12 votes wins · Council: turn 20 (Winter 1819). This threshold applies at any meeting. At the last meeting (turn 40) a free minor votes unless it is at war with both nominees, and the nominee with more votes wins (equal votes: higher standing).');
+  await expectCouncilLine(page, '7 of 12 votes wins · Council: turn 20 (Winter 1819). This threshold applies at any meeting. At the last meeting (turn 40) a free minor votes unless it is at war with both nominees, and the nominee with more votes wins (equal votes: higher standing).');
   expect(errors).toEqual([]);
 });

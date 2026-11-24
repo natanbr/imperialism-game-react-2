@@ -1235,3 +1235,15 @@ img[data-art-anchor="bottom-center"] {
 .flex-2 {
   flex: 2;
 }
+
+/* FR-568: the Stats dialog (HUD/StatsDialog.tsx): the score and its rank on one line; the Council line at full width */
+.stats-score {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.stats-panel .next-council {
+  max-width: none;
+  margin-top: 8px;
+}

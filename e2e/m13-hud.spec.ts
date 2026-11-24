@@ -138,13 +138,13 @@ for (const viewport of [...ONE_ROW, ...TWO_ROWS]) {
     const pane = (await page.locator('.hud-container').boundingBox())!;
     expect([pane.x, pane.y, pane.width, pane.height]).toEqual([viewport.width - 250, 40 * rows, 250, viewport.height - 40 * rows]);
 
-    for (const part of [page.getByTestId('turn-indicator'), page.locator('.turn-date'), page.locator('.nation-stats'), page.getByTestId('hud-score')]) {
+    for (const part of [page.getByTestId('turn-indicator'), page.locator('.turn-date'), page.locator('.nation-stats')]) {
       const box = (await part.boundingBox())!;
       expect(inside(box, window_), `${await part.innerText()} inside the window`).toBe(true);
       expect(inside(box, barBox), 'inside the bar').toBe(true);
     }
     await expect(page.getByTestId('turn-indicator')).toContainText('Turn: 1 of 40');
-    await expect(page.getByTestId('hud-score')).toContainText(/Score: \d+/);
+    await expect(page.getByRole('button', { name: 'Stats', exact: true })).toBeVisible();
     await advanceInSight(page, viewport, 'turn 1');
 
     if (rows === 1) {
@@ -246,7 +246,7 @@ test('FR-473 the groups: closed on load, a click and Enter and Space toggle one,
   await expect(nation).toHaveAttribute('aria-expanded', 'true');
   const nationPanel = page.getByRole('region', { name: 'Nation' });
   await expect(nationPanel).toBeVisible();
-  await expect(nationPanel.getByRole('table', { name: 'Scores' })).toBeVisible();
+  await expect(nationPanel.getByTestId('upkeep-forecast')).toBeVisible();
   await nation.click();
   await expect(nation).toHaveAttribute('aria-expanded', 'false');
   await expect(nationPanel).toBeHidden();
@@ -367,7 +367,9 @@ test('FR-467 the bar fits its widest states at every size: turn 2, a late turn w
   await page.getByRole('dialog', { name: 'Saved game' }).getByRole('button', { name: 'Continue' }).click();
   await expect(page.getByTestId('turn-indicator')).toContainText('Turn: 39 of 40');
   // FR-506 preserves the date and leads with the winning threshold. FR-502 elects a winner at turn 40.
+  await page.getByRole('button', { name: 'Stats', exact: true }).click();
   await expect(page.getByTestId('next-council')).toHaveText('7 of 12 votes wins · Council: turn 40 (Winter 1824). This threshold applies at any meeting. At the last meeting (turn 40) a free minor votes unless it is at war with both nominees, and the nominee with more votes wins (equal votes: higher standing).');
+  await page.getByRole('button', { name: 'Close stats' }).click();
   await expect(page.locator('.nation-stats')).toHaveText('Cash: $1,234,567');
   await expect(page.getByTestId('cash-change')).toContainText('last turn');
   for (const viewport of ALL_SIZES) {
@@ -423,6 +425,7 @@ for (const viewport of [{ width: 800, height: 600 }, { width: 640, height: 360 }
     const errors = collectErrors(page);
     await page.setViewportSize(viewport);
     await open(page);
+    await page.getByRole('button', { name: 'Stats', exact: true }).click();
     await page.getByTestId('hud-score').hover();
     const parts = page.getByTestId('score-parts');
     await expect(parts).toBeVisible();
@@ -502,10 +505,9 @@ for (const viewport of [{ width: 800, height: 600 }, { width: 1280, height: 720 
   });
 }
 
-/** Tab from the score (the last stop before the buttons) to the bar's first button, Open Warehouse. */
+/** The bar's first button, Open Warehouse (FR-568: the score, the stop before it, moved to the Stats dialog). */
 async function tabIntoTheButtons(page: Page) {
-  await page.getByTestId('hud-score').focus();
-  await page.keyboard.press('Tab');
+  await page.getByRole('button', { name: 'Open Warehouse' }).focus();
   await expect(page.getByRole('button', { name: 'Open Warehouse' })).toBeFocused();
 }
 
@@ -518,7 +520,7 @@ test('FR-467 at 800x600 a keyboard focus ring on each strip button lies inside t
   await tabIntoTheButtons(page);
   const strip = (await page.getByTestId('topbar-strip').boundingBox())!;
   const count = await page.getByTestId('topbar-strip').getByRole('button').count();
-  expect(count).toBe(9);
+  expect(count).toBe(10);
   for (let i = 0; i < count; i++) {
     if (i > 0) await page.keyboard.press('Tab');
     const ring = await page.evaluate(() => {
@@ -542,7 +544,7 @@ test('FR-468 at 1280x720 a keyboard focus on an icon button shows its name under
   await open(page);
   await tabIntoTheButtons(page);
   const count = await page.getByTestId('topbar-strip').getByRole('button').count();
-  expect(count).toBe(9);
+  expect(count).toBe(10);
   for (let i = 0; i < count; i++) {
     if (i > 0) await page.keyboard.press('Tab');
     const shown = await page.evaluate(() => {

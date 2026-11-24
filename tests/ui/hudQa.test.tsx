@@ -190,9 +190,9 @@ describe('FR-535 the page order is the bar, the map, the pane', () => {
     const pane = document.querySelector('.hud-container')!;
     expect(bar.compareDocumentPosition(map) & Node.DOCUMENT_POSITION_FOLLOWING, 'map after the bar').toBeTruthy();
     expect(map.compareDocumentPosition(pane) & Node.DOCUMENT_POSITION_FOLLOWING, 'pane after the map').toBeTruthy();
-    // The first focusable thing of the page is the bar's score, Advance Turn the bar's last
+    // The first focusable thing of the page is the bar's first button (FR-568: the score moved to Stats), Advance Turn the bar's last
     const focusable = [...document.querySelectorAll<HTMLElement>('button, [tabindex="0"]')].filter((el) => !el.closest('[hidden]'));
-    expect(focusable[0]).toBe(screen.getByTestId('hud-score'));
+    expect(focusable[0]).toBe(screen.getByRole('button', { name: 'Open Warehouse' }));
     expect(focusable.indexOf(screen.getByRole('button', { name: 'Advance Turn' }))).toBeLessThan(focusable.indexOf(within(map).getByRole('button')));
   });
 });
