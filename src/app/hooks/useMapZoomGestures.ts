@@ -1,9 +1,11 @@
 // The map's own zoom gestures (FR-567): Ctrl and the wheel, and a trackpad pinch (the browser sends it as Ctrl and the
-// wheel), zoom the map about the pointer instead of the page, so the top bar and the pane keep their size; two fingers
-// pinch it on a touch screen. The plain wheel still scrolls the map (FR-364) and one finger still pans it (FR-365).
+// wheel), anywhere on the game screen zoom the map instead of the page, so the top bar and the pane never change size:
+// about the pointer over the map, about the map area's middle elsewhere (the bar, the pane, the zoom buttons); with a dialog
+// open neither zooms. Two fingers pinch the map on a touch screen. The plain wheel still scrolls the map (FR-364) and one
+// finger still pans it (FR-365). Known gap: Safari's trackpad pinch sends gesture events, not Ctrl and the wheel.
 import { useEffect, type RefObject } from "react";
 import { useGameStore } from "@/store/rootStore";
-import { zoomMapTo } from "./useMapKeyboard";
+import { isDialogOpen, zoomMapTo } from "./useMapKeyboard";
 
 /** How fast Ctrl and the wheel zoom: one mouse notch (100 px of deltaY) is about 22%. */
 const WHEEL_ZOOM_RATE = 0.002;
@@ -28,10 +30,12 @@ export function useMapZoomGestures(containerRef: RefObject<HTMLDivElement | null
 
     const onWheel = (e: WheelEvent) => {
       if (!e.ctrlKey) return;
-      // The page's own zoom would resize the HUD too: the map takes this one
+      // The page's own zoom would resize the HUD too: the map takes this one, over the whole game screen
       e.preventDefault();
+      if (isDialogOpen()) return;
+      const overMap = e.target instanceof Node && el.contains(e.target);
       const pixels = e.deltaY * (e.deltaMode === 1 ? LINE_PX : e.deltaMode === 2 ? el.clientHeight : 1);
-      zoomMapTo(useGameStore.getState().zoom * Math.exp(-pixels * WHEEL_ZOOM_RATE), inArea({ x: e.clientX, y: e.clientY }));
+      zoomMapTo(useGameStore.getState().zoom * Math.exp(-pixels * WHEEL_ZOOM_RATE), overMap ? inArea({ x: e.clientX, y: e.clientY }) : undefined);
     };
 
     let pinch: { distance: number; zoom: number } | undefined;
@@ -48,13 +52,13 @@ export function useMapZoomGestures(containerRef: RefObject<HTMLDivElement | null
       if (e.touches.length < 2) pinch = undefined;
     };
 
-    el.addEventListener("wheel", onWheel, { passive: false });
+    window.addEventListener("wheel", onWheel, { passive: false });
     el.addEventListener("touchstart", onTouchStart, { passive: true });
     el.addEventListener("touchmove", onTouchMove, { passive: false });
     el.addEventListener("touchend", onTouchEnd);
     el.addEventListener("touchcancel", onTouchEnd);
     return () => {
-      el.removeEventListener("wheel", onWheel);
+      window.removeEventListener("wheel", onWheel);
       el.removeEventListener("touchstart", onTouchStart);
       el.removeEventListener("touchmove", onTouchMove);
       el.removeEventListener("touchend", onTouchEnd);

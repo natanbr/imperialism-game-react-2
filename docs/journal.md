@@ -3,7 +3,7 @@
 ## Resuming here
 
 - M18 (play-test comfort, `docs/specs/m18-playtest-comfort.md`): M18a merged into main `af24381` (pull request 43), M18b part 1 (FR-563, FR-568, FR-569) in `5e80bab` (pull request 44), part 2 (FR-564 nation colours and flags) in `4098bfe` (pull request 45). NR-037 in progress.
-- M18b part 3 (FR-565, FR-566) merged into main `cd5b1be` (pull request 46). FR-567 (map fitted on open, its own zoom, top bar 15 px) is on `claude/m18b-map`, local, not pushed; targeted tests green, full gate not run. FR-570 next; icons wait for the art (spec section 3). Evidence in `.gate/claude/48/`.
+- M18b part 3 (FR-565, FR-566) merged into main `cd5b1be` (pull request 46). FR-567 (map fitted on open, its own zoom, top bar 15 px) is on `claude/m18b-map`, local, not pushed: `106f114` (gate green except Playwright, blocked by a leftover server) and "M18b: map review fixes". Partial: the narrower pane is left for the owner. FR-570 next; icons wait for the art (spec section 3). Evidence in `.gate/claude/48/`.
 - To try Demo: New game, Start Demo game; then Dashboard in the top bar (Economy, Military, Trade, Diplomacy, Council, Bug report).
 - M17 merged into main `65a4d5a` (pull request 42). Its task evidence is in `.gate/codex/21/` to `.gate/codex/28/`.
 - M16 part 1 merged in `9bd5a91`. The human can buy technology. The computer makes no purchases on main.
@@ -11,6 +11,22 @@
 - FR-547 (Q143) is the buyer branch's proposed value rule. Measure technology availability, purchase timing and the value of the first unlocked action in the original game before tuning. See `docs/verify-and-tune.md`.
 - Task 19 passed the load trials and full gate on `claude/perf-tests`. Finish future gates with `npm run test:perf` alone. The measured results and six functional logs are indexed in `.gate/codex/19/summary.md`.
 - To play M17 on continent seed 1, set Armaments and Fabric production to 1. Build a Ship-of-the-Line on turn 6, declare and sail on turn 7, set the site on turn 8, and land the four-ARMS army on turn 9. On turn 10 see the survivors at Sundmark and its colony vote in Council.
+
+## 2026-11-23 M18b FR-567 review fixes
+
+Orchestrator decisions: keep the 250 px pane (FR-567 partial, left for the owner), Ctrl and the wheel, the 10% minimum
+gain. Fixes: an exact fit allowed half a pixel (`camera.ts` `FIT_SLACK_PX`; 1465x850 opened on the capital and clipped
+the land); Ctrl and the wheel over the whole game screen zoom the map (about its middle off the map, nothing with a dialog
+open), so the HUD never resizes; the 200% layer test zooms after the mount; new tests make New game, Start Demo game and
+Continue go through `openMap`. Safari gesture events are a known gap, noted in the row. Objection: Ctrl and the wheel no
+longer zoom the page anywhere on the game screen; Ctrl and + still do.
+
+| Claim | Command | Result |
+|---|---|---|
+| Review rows red | `npx vitest run tests/ui/mapFit.test.tsx` | `3 failed / 15 passed` (`.gate/claude/48/red-review.txt`) |
+| Wiring tests catch a revert | the same, `-t "open the map fitted"`, page.tsx and mapActions.ts mutated to centreOnCapital | `3 failed`; mutant reverted |
+| Green | `npx vitest run` mapFit, camera, computerNations, mapKeyboard | `Test Files 4 passed`, `Tests 78 passed` |
+| e2e | `PORT=3123 npx playwright test` m18-map, m11-map, m12-map, m13-hud (Playwright's own server, port free after) | `52 passed` |
 
 ## 2026-11-23 M18b FR-567 — the map opens fitted, with its own zoom
 

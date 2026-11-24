@@ -96,6 +96,15 @@ test.describe('FR-567 at 1366x768', () => {
     const under = await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest('[data-testid="tile"]')?.getAttribute('data-tile-id'), pointer);
     expect(under).toBe('6-8');
     expect(await hudSizes(page)).toEqual(before);
+    // Ctrl and the wheel over the pane (review): the map zooms (about its middle), the page and the HUD do not
+    const pane = (await page.locator('.hud-container').boundingBox())!;
+    const overPane = await zoomOf(page);
+    await page.mouse.move(pane.x + pane.width / 2, pane.y + 200);
+    await page.keyboard.down('Control');
+    await page.mouse.wheel(0, 200);
+    await page.keyboard.up('Control');
+    await expect.poll(() => zoomOf(page)).toBeLessThan(overPane);
+    expect(await hudSizes(page)).toEqual(before);
     // The page itself was not zoomed: the window is still 1366 CSS px wide
     expect(await page.evaluate(() => window.innerWidth)).toBe(1366);
     await page.screenshot({ path: shotPath(testInfo, 'fr567-1366x768-zoomed.png') });

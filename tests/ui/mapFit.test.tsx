@@ -8,7 +8,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { MapView } from '@/components/MapView';
 import { TopBar } from '@/components/HUD/TopBar';
 import { HUD } from '@/components/HUD';
@@ -25,7 +25,9 @@ import {
   openingView,
 } from '@/components/camera';
 import { nextZoom } from '@/hooks/useMapKeyboard';
-import { useGameStore } from '@/store/rootStore';
+import { createGameStore, useGameStore } from '@/store/rootStore';
+import { SAVE_KEY, saveOf } from '@/store/persistence';
+import Home from '@/page';
 import { newGame } from '@/engine';
 import type { WorldId } from '@/types/World';
 
@@ -82,6 +84,24 @@ describe('FR-567 the land box and the zoom that fits it', () => {
     }
     // The continent at 1366x768, by hand: centre (535.5, 336) x 48/42 = (612, 384), less half the area (558, 364)
     expect(openingView(gameOn('continent'), 'nation-1', AREA_1366)).toEqual({ zoom: 48 / 42, camera: { x: 54, y: 20 } });
+  });
+
+  it('FR-567 review: an exact fit opens on the land, not on the capital (1465x850 and 1920x1045 continent, 1920x978 two islands)', () => {
+    const cases = [['continent', 1465, 850, 54], ['continent', 1920, 1045, 67], ['two-islands', 1920, 978, 67]] as const;
+    for (const [world, innerWidth, innerHeight, tilePx] of cases) {
+      const at = `${world} ${innerWidth}x${innerHeight}`;
+      const game = gameOn(world);
+      const area = mapAreaOf({ innerWidth, innerHeight });
+      const view = openingView(game, 'nation-1', area);
+      expect(view.zoom, at).toBe(tilePx / 42);
+      // The land box exactly fills one axis: whole inside the area, none of it clipped
+      const box = landBoxPx(game.map);
+      const offset = mapOffset(area, game.map.config, view.zoom);
+      const left = box.x * view.zoom + offset.x - view.camera.x;
+      const top = box.y * view.zoom + offset.y - view.camera.y;
+      expect([left >= -1, top >= -1], at).toEqual([true, true]);
+      expect([left + box.width * view.zoom <= area.width + 1, top + box.height * view.zoom <= area.height + 1], at).toEqual([true, true]);
+    }
   });
 
   it('FR-567 where the land does not fit at 100% the map opens at 100% on the capital, as before (FR-083)', () => {
@@ -149,6 +169,35 @@ describe('FR-567 the map opens fitted and zooms on its own', () => {
     expect(Math.abs(now.y - under.y)).toBeLessThanOrEqual(1);
   });
 
+  it('FR-567 review: Ctrl and the wheel over the top bar, the pane or the zoom buttons zoom the map about its middle, never the page', () => {
+    render(
+      <>
+        <TopBar />
+        <MapView />
+        <HUD />
+      </>
+    );
+    const middle = { x: AREA_1366.width / 2, y: AREA_1366.height / 2 };
+    for (const target of [screen.getByTestId('topbar'), document.querySelector('.hud-container')!, screen.getByRole('button', { name: 'Zoom out' })]) {
+      const before = zoom();
+      const under = mapPointUnder(middle);
+      const notCancelled = fireEvent.wheel(target, { deltaY: -100, ctrlKey: true, clientX: 1300, clientY: 20 });
+      expect(notCancelled, target.className).toBe(false);
+      expect(zoom(), target.className).toBeGreaterThan(before);
+      const now = mapPointUnder(middle);
+      expect(Math.abs(now.x - under.x), target.className).toBeLessThanOrEqual(1);
+      expect(Math.abs(now.y - under.y), target.className).toBeLessThanOrEqual(1);
+    }
+    // While a dialog is open the page still does not zoom, and neither does the map behind it (as the keys, FR-368)
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    document.body.appendChild(dialog);
+    const before = zoom();
+    expect(fireEvent.wheel(dialog, { deltaY: 100, ctrlKey: true })).toBe(false);
+    expect(zoom()).toBe(before);
+    dialog.remove();
+  });
+
   it('FR-567 the wheel zoom is clamped to 100% and 200%', () => {
     render(<MapView />);
     const scroller = screen.getByTestId('map-scroll');
@@ -186,7 +235,6 @@ describe('FR-567 the map opens fitted and zooms on its own', () => {
   });
 
   it('FR-567 the top bar and the pane lie outside the zoomed layer, so the map zoom never resizes them', () => {
-    useGameStore.setState({ zoom: 2 });
     const { container } = render(
       <>
         <TopBar />
@@ -194,6 +242,9 @@ describe('FR-567 the map opens fitted and zooms on its own', () => {
         <HUD />
       </>
     );
+    // After the mount: the first view sets the opening zoom (review: a zoom set before the render was reset)
+    act(() => useGameStore.getState().zoomTo(2, { x: 0, y: 0 }));
+    expect(zoomOf()).toBe('2');
     const zoomed = [...container.querySelectorAll<HTMLElement>('*')].filter((el) => ![undefined, ''].includes(el.style.zoom) || ![undefined, ''].includes(el.style.transform));
     expect(zoomed.map((el) => el.getAttribute('data-testid'))).toEqual(['map-viewport']);
     expect(screen.getByTestId('map-viewport').contains(screen.getByTestId('topbar'))).toBe(false);
@@ -211,5 +262,45 @@ describe('FR-567 the top bar text stays readable', () => {
     const globals = readFileSync(join(process.cwd(), 'src/app/globals.css'), 'utf8');
     const second = /\.cash-change \{[^}]*\}/.exec(globals)![0];
     expect(px(bar, 'line-height') + (px(second, 'line-height') || px(bar, 'line-height'))).toBeLessThanOrEqual(40);
+  });
+});
+
+// FR-567 review: every way a game opens goes through openMap, so a revert of any to centreOnCapital (the old zoom, the
+// capital) fails here. Each starts from 200% at 0, 0, which only the opening view leaves.
+describe('FR-567 New game, Start Demo game and Continue open the map fitted', () => {
+  const saved = { innerWidth: window.innerWidth, innerHeight: window.innerHeight };
+  beforeEach(() => {
+    Object.assign(window, { innerWidth: 1366, innerHeight: 768 });
+    window.localStorage.clear();
+    useGameStore.setState({ ...useGameStore.getInitialState(), game: gameOn('continent'), activeNationId: 'nation-1' });
+  });
+  afterEach(() => {
+    Object.assign(window, saved);
+    window.localStorage.clear();
+  });
+  const zoomedIn = () => act(() => useGameStore.getState().zoomTo(2, { x: 0, y: 0 }));
+  const expectOpened = () => {
+    const { game, activeNationId } = useGameStore.getState();
+    const want = openingView(game, activeNationId, mapAreaOf(window));
+    expect(want.zoom).toBeGreaterThan(1);
+    expect({ zoom: zoom(), camera: camera() }).toEqual(want);
+  };
+
+  for (const start of ['Start new game', 'Start Demo game']) {
+    it(`FR-567 ${start} opens the new game's map fitted`, () => {
+      render(<TopBar />);
+      zoomedIn();
+      fireEvent.click(screen.getByRole('button', { name: 'New game' }));
+      fireEvent.click(screen.getByRole('button', { name: start }));
+      expectOpened();
+    });
+  }
+
+  it('FR-567 Continue opens the map of the saved game fitted', () => {
+    window.localStorage.setItem(SAVE_KEY, JSON.stringify(saveOf(createGameStore({ seed: 4 }).getState())));
+    render(<Home />);
+    zoomedIn();
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    expectOpened();
   });
 });

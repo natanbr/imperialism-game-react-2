@@ -23,6 +23,11 @@ export const ZOOM_MAX = ZOOM_STEPS[ZOOM_STEPS.length - 1];
 export const FIT_MIN_GAIN = 1.1;
 
 export const clampZoom = (zoom: number): number => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom));
+/**
+ * Trap (FR-567 review): an exact fit is a float a hair off, 630 x 54/42 = 810.0000000000001 at 1465x850, so a strict test
+ * of "the land fits" opened on the capital and clipped the land. The fit and the test allow half a pixel.
+ */
+const FIT_SLACK_PX = 0.5;
 
 /** A map smaller than the map area by more than this on an axis is centred on it (FR-367); 1280x720 spares 1 and 8 px. */
 export const CENTRE_SPARE_PX = 64;
@@ -117,7 +122,7 @@ export function landBoxPx(map: Pick<GameState["map"], "tiles">): MapBox {
  */
 export function fitZoom(area: MapArea, box: MapBox): number {
   if (box.width <= 0 || box.height <= 0) return ZOOM_MIN;
-  const fit = Math.floor(Math.min(area.width / box.width, area.height / box.height) * TILE_PX) / TILE_PX;
+  const fit = Math.floor(Math.min((area.width + FIT_SLACK_PX) / box.width, (area.height + FIT_SLACK_PX) / box.height) * TILE_PX) / TILE_PX;
   return fit < FIT_MIN_GAIN ? ZOOM_MIN : Math.min(ZOOM_MAX, fit);
 }
 
@@ -128,7 +133,7 @@ export function fitZoom(area: MapArea, box: MapBox): number {
 export function openingView(game: GameState, nationId: string, area: MapArea): { zoom: number; camera: Camera } {
   const box = landBoxPx(game.map);
   const zoom = fitZoom(area, box);
-  if (box.width * zoom <= area.width && box.height * zoom <= area.height) {
+  if (box.width * zoom <= area.width + FIT_SLACK_PX && box.height * zoom <= area.height + FIT_SLACK_PX) {
     const offset = mapOffset(area, game.map.config, zoom);
     const centre = { x: (box.x + box.width / 2) * zoom + offset.x, y: (box.y + box.height / 2) * zoom + offset.y };
     return { zoom, camera: clampCamera({ x: centre.x - area.width / 2, y: centre.y - area.height / 2 }, area, game.map.config, zoom) };

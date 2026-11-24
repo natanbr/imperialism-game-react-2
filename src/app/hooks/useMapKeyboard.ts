@@ -16,8 +16,8 @@ function isField(target: EventTarget | null): boolean {
   );
 }
 
-/** Any dialog on the page: its keys are its own. */
-const isDialogOpen = (): boolean => document.querySelector('[role="dialog"]') !== null;
+/** Any dialog on the page: its keys (and Ctrl and the wheel, FR-567) are its own. */
+export const isDialogOpen = (): boolean => document.querySelector('[role="dialog"]') !== null;
 
 /**
  * The next zoom step in (1) or out (-1) from the map's zoom (FR-368), or undefined past either end. The zoom may lie between
