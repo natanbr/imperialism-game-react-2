@@ -2,7 +2,7 @@
 import React, { useId, useMemo, useRef, useState } from "react";
 import { useGameStore } from "../../store/rootStore";
 import { selectActiveNation } from "../../store/selectors";
-import type { Order } from "@/engine";
+import { tradeOrdersOf, type Order, type ValidationResult } from "@/engine";
 import type { TradeCommodity } from "@/types/Market";
 import { money } from "../gameText";
 import { boardView, lastTurnTrades, repeatTrades, startSide, type BoardRowView, type PartnerView, type TradeSide } from "./boardView";
@@ -51,32 +51,56 @@ const FlagList: React.FC<{ label: "Sellers" | "Buyers"; partners: PartnerView[];
   </div>
 );
 
-/** FR-574: the row's one order, Buy or Sell (rules 06 section 2: a commodity is bought or sold in a turn, never both). */
-const SideChoice: React.FC<{ name: string; side: TradeSide; onChoose: (side: TradeSide) => void }> = ({ name, side, onChoose }) => (
-  <span className={styles.sideChoice}>
-    {(["buy", "sell"] as const).map((s) => (
-      <button
-        key={s}
-        type="button"
-        className={styles.sideButton}
-        aria-pressed={side === s}
-        aria-label={`${s === "buy" ? "Buy" : "Sell"} ${name}`}
-        onClick={() => onChoose(s)}
-      >
-        {s === "buy" ? "Buy" : "Sell"}
-      </button>
-    ))}
-  </span>
-);
+const SIDES: readonly TradeSide[] = ["buy", "sell"];
+const SIDE_NAME: Record<TradeSide, string> = { buy: "Buy", sell: "Sell" };
+const SIDE_KEYS: Record<string, 1 | -1> = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
+
+/**
+ * FR-574: the row's one order, Buy or Sell (rules 06 section 2: a commodity is bought or sold in a turn, never both). A
+ * radio group with one Tab stop: the arrow keys choose the other side, and keep the focus where it was when it is refused.
+ */
+const SideChoice: React.FC<{ name: string; side: TradeSide; onChoose: (side: TradeSide) => boolean }> = ({ name, side, onChoose }) => {
+  const radios = useRef(new Map<TradeSide, HTMLButtonElement>());
+  const onKey = (e: React.KeyboardEvent) => {
+    const step = SIDE_KEYS[e.key];
+    if (step === undefined || e.altKey || e.ctrlKey || e.metaKey) return;
+    e.preventDefault();
+    const next = SIDES[(SIDES.indexOf(side) + step + SIDES.length) % SIDES.length];
+    if (onChoose(next)) radios.current.get(next)?.focus();
+  };
+  return (
+    <span role="radiogroup" aria-label={`Order for ${name}`} className={styles.sideChoice} onKeyDown={onKey}>
+      {SIDES.map((s) => (
+        <button
+          key={s}
+          ref={(el) => {
+            if (el) radios.current.set(s, el);
+            else radios.current.delete(s);
+          }}
+          type="button"
+          role="radio"
+          className={styles.sideButton}
+          aria-checked={side === s}
+          aria-label={`${SIDE_NAME[s]} ${name}`}
+          tabIndex={side === s ? 0 : -1}
+          onClick={() => onChoose(s)}
+        >
+          {SIDE_NAME[s]}
+        </button>
+      ))}
+    </span>
+  );
+};
 
 /**
  * The Board of Trade (FR-194, FR-248, FR-252 to FR-254; M18c FR-573 to FR-577; Imp1 Board of Trade, rules 11 sections 1
- * and 1.2). A bar of figures under the title (cash, what this turn's purchases took, the buying power left, holds and
- * purchases, FR-573), then three tabs (FR-577): the Board, one row per commodity in the Board order with Price, Available,
- * a Buy/Sell choice and one stepper for that side, and the minors' flags (FR-574); Details, what the Board no longer shows
- * (FR-575); Trade policies, the subsidy and boycott toward each country (FR-576). Every control sends one order through
- * submitOrder, and a "+" the engine would refuse is disabled with its reason in its tooltip and accessible name. A fixed
- * frame: at 1280x720 the dialog fits the window and only the open tab scrolls.
+ * and 1.2). A bar of figures under the title (the cash before this turn's purchases, what they took, the buying power
+ * left, holds and purchases, FR-573), then three tabs (FR-577): the Board, one row per commodity in the Board order with
+ * Price, Available, a Buy/Sell choice and one stepper for that side, and the minors' flags (FR-574); Details, what the
+ * Board no longer shows (FR-575); Trade policies, the subsidy and boycott toward each country (FR-576). Every control
+ * sends one order through submitOrder; a "+" the engine would refuse sends nothing and stays focusable, with its reason
+ * beside it on focus or press and as its accessible description. A fixed frame: at 1280x720 the dialog fits the window
+ * and only the open tab scrolls.
  */
 export const BoardOfTrade: React.FC = () => {
   const close = useGameStore((s) => s.closeMarket);
@@ -93,39 +117,56 @@ export const BoardOfTrade: React.FC = () => {
   const tabButtons = useRef(new Map<TabId, HTMLButtonElement>());
 
   const view = useMemo(() => (nation ? boardView(game, nation) : null), [game, nation]);
-  // FR-574: each row's side as the dialog opened, so a row does not jump sides while the holds or the cash run out
+  // FR-574: each row's side, from its order when the dialog opened and from each order since, so a row does not jump
+  // sides when its order goes back to 0 or while the holds or the cash run out
   const [chosen, setChosen] = useState<Partial<Record<TradeCommodity, TradeSide>>>(() =>
     Object.fromEntries((view?.rows ?? []).map((row) => [row.commodity, startSide(row)]))
   );
   // FR-397: last turn's bids and offers, from the order log (NR-018 kept: the engine holds no standing trade order)
   const lastTrades = useMemo(() => (nation ? lastTurnTrades(orderLog, nation.id, game.turn) : []), [orderLog, nation, game.turn]);
 
-  const send = (kind: "sellCommodity" | "buyCommodity", commodity: TradeCommodity) => (amount: number) => {
-    if (!nation) return;
-    const order: Order = { kind, nationId: nation.id, commodity, amount };
-    submitOrder(order);
-  };
+  const send =
+    (kind: "sellCommodity" | "buyCommodity", commodity: TradeCommodity) =>
+    (amount: number): ValidationResult => {
+      if (!nation) return { ok: false, reason: "unknown-nation" };
+      const order: Order = { kind, nationId: nation.id, commodity, amount };
+      const result = submitOrder(order);
+      if (result.ok && amount > 0) setChosen((current) => ({ ...current, [commodity]: kind === "buyCommodity" ? "buy" : "sell" }));
+      return result;
+    };
 
   /** A row with an order stays on its side; otherwise the side chosen, or the one it started on. */
   const sideOf = (row: BoardRowView): TradeSide => (row.bid > 0 ? "buy" : row.offer > 0 ? "sell" : (chosen[row.commodity] ?? startSide(row)));
 
-  /** FR-574: switching sides first takes back the other side's order (an order of 0), then shows the chosen stepper. */
-  const choose = (row: BoardRowView) => (side: TradeSide) => {
-    if (side === sideOf(row)) return;
-    if (side === "sell" && row.bid > 0) send("buyCommodity", row.commodity)(0);
-    if (side === "buy" && row.offer > 0) send("sellCommodity", row.commodity)(0);
-    setChosen((current) => ({ ...current, [row.commodity]: side }));
-  };
+  /**
+   * FR-574: switching sides first takes back the other side's order (an order of 0), then shows the chosen stepper. When
+   * the engine refuses to take it back, the row keeps its side; the answer says which happened.
+   */
+  const choose =
+    (row: BoardRowView) =>
+    (side: TradeSide): boolean => {
+      if (side === sideOf(row)) return true;
+      const takeBack = side === "sell" && row.bid > 0 ? "buyCommodity" : side === "buy" && row.offer > 0 ? "sellCommodity" : undefined;
+      if (takeBack && !send(takeBack, row.commodity)(0).ok) return false;
+      setChosen((current) => ({ ...current, [row.commodity]: side }));
+      return true;
+    };
 
   /** FR-397, FR-398: each unit through submitOrder; the line says how many and, for a refused one, why. Shown this turn only. */
   const repeat = () => {
     if (!nation) return;
     const outcome = repeatTrades(lastTrades, nation.id, () => useGameStore.getState().game, submitOrder);
     setRepeated({ turn: game.turn, text: outcome.text });
+    // FR-574: each row with an order now is on that order's side
+    const now = tradeOrdersOf(useGameStore.getState().game, nation.id);
+    const placed = (orders: Partial<Record<TradeCommodity, number>>, side: TradeSide) =>
+      Object.entries(orders).flatMap(([commodity, amount]) => ((amount ?? 0) > 0 ? [[commodity, side] as const] : []));
+    setChosen((current) => ({ ...current, ...Object.fromEntries([...placed(now.buy, "buy"), ...placed(now.sell, "sell")]) }));
   };
 
   /** FR-577: Left and Right (wrapping), Home and End move the focus and open that tab; only the open tab is in the Tab order. */
   const onTabKey = (e: React.KeyboardEvent) => {
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
     const at = TABS.findIndex((t) => t.id === tab);
     const targets: Record<string, number> = { ArrowRight: at + 1, ArrowLeft: at - 1, Home: 0, End: TABS.length - 1 };
     const target = targets[e.key];
@@ -205,7 +246,7 @@ export const BoardOfTrade: React.FC = () => {
       </div>
 
       {view && nation && (
-        <div role="tabpanel" id={panelId} aria-labelledby={tabId(tab)} className={styles.boardPane} data-testid={`board-tab-${tab}`}>
+        <div role="tabpanel" id={panelId} aria-labelledby={tabId(tab)} tabIndex={0} className={styles.boardPane} data-testid={`board-tab-${tab}`}>
           {tab === "board" && (
             <table className={`${styles.table} ${styles.boardTable}`}>
               <thead>
@@ -244,7 +285,7 @@ export const BoardOfTrade: React.FC = () => {
                             testId="bid"
                             moreRefusal={row.bidMoreRefusal}
                             hideLessAtZero
-                            refusalInName
+                            focusableRefusal
                             onChange={send("buyCommodity", row.commodity)}
                           />
                         ) : (
@@ -255,7 +296,7 @@ export const BoardOfTrade: React.FC = () => {
                             testId="offer"
                             moreRefusal={row.offerMoreRefusal}
                             hideLessAtZero
-                            refusalInName
+                            focusableRefusal
                             onChange={send("sellCommodity", row.commodity)}
                           />
                         )}

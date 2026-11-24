@@ -52,7 +52,7 @@
 }
 
 .closeButton:hover,
-.stepButton:hover:not(:disabled),
+.stepButton:hover:not(:disabled, [aria-disabled="true"]),
 .plainButton:hover,
 .primaryButton:hover {
   background: var(--color-bg-button-hover);
@@ -65,7 +65,8 @@
   line-height: 1;
 }
 
-.stepButton:disabled {
+.stepButton:disabled,
+.stepButton[aria-disabled="true"] {
   opacity: 0.4;
   cursor: default;
 }
@@ -318,7 +319,9 @@
 }
 
 .sideButton[aria-pressed="true"],
-.sideButton[aria-pressed="true"]:hover {
+.sideButton[aria-pressed="true"]:hover,
+.sideButton[aria-checked="true"],
+.sideButton[aria-checked="true"]:hover {
   color: var(--color-on-accent);
   background: var(--color-bg-accent);
   border-color: var(--color-bg-accent);
@@ -485,6 +488,30 @@
 /* Beside a disabled "+": calm, as the many market reasons of a new game would shout in red */
 .stepRefusal {
   color: var(--color-text-muted);
+}
+
+/* The Board of Trade (FR-574): a refused "+" shows its reason beside it, over the Market column, while it has focus */
+.amountAnchor {
+  position: relative;
+}
+
+.stepReason {
+  position: absolute;
+  left: calc(100% + 4px);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  width: max-content;
+  max-width: 220px;
+  padding: 1px 6px;
+  white-space: normal;
+  font-size: var(--font-size-sm);
+  line-height: 16px;
+  color: var(--color-text-primary);
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-panel);
 }
 
 .noMinor {
@@ -821,5 +848,15 @@
 
   .stepNote {
     width: auto;
+  }
+
+  /* A refused "+"'s reason under its stepper, ending under the "+": beside it, it would run past a phone's edge (the
+     Quantity cell is the card's right column) */
+  .stepReason {
+    left: auto;
+    right: 0;
+    top: calc(100% + 2px);
+    transform: none;
+    max-width: 200px;
   }
 }

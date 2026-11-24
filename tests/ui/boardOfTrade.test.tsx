@@ -13,7 +13,8 @@
 // disabled control shows its reason as visible text, its accessible description, and there is no "−" at 0 (FR-257).
 // Re-targeted by M18c (FR-573 to FR-575, owner play-test 2026-11-24): the Board tab shows Price, Available, a Buy/Sell
 // choice with one stepper for that side, and the minors as flags; a refused "+" says why in its tooltip (title) and its
-// accessible name, no longer in a visible note beside it; the minors in words with their units, the notes beside the
+// accessible description (the M18c review round: it stays focusable, aria-disabled, and was its accessible name's end
+// before), no longer in a visible note beside it; the minors in words with their units, the notes beside the
 // steppers that were info (not refusals), the deal prices, the rivals' last turn, the first-sale line and the note under
 // the title moved to the Details tab, where these tests now read them. New FR-573 to FR-577 tests: boardOfTradeTabs.test.tsx.
 import { describe, it, expect } from 'vitest';
@@ -95,23 +96,25 @@ const flags = (commodity: string, side: 'sellers' | 'buyers') =>
   within(within(row(commodity)).getByRole('list', { name: side === 'sellers' ? 'Sellers' : 'Buyers' }))
     .getAllByRole('img')
     .map((img) => img.getAttribute('aria-label'));
-const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-/** A button by its name; a "+" also when its name goes on with its refusal ("Buy one more Coal: We need …", FR-574). */
-const button = (commodity: string, name: string) => within(row(commodity)).getByRole('button', { name: new RegExp(`^${escape(name)}(: .*)?$`) });
-/** FR-574: picks Buy or Sell in the row's Order column. */
-const choose = (commodity: string, side: 'Buy' | 'Sell') => fireEvent.click(within(row(commodity)).getByRole('button', { name: `${side} ${cell(commodity, 'name')}` }));
+/** A button by its exact name (a refused "+" keeps its plain name, "Buy one more Coal", FR-574). */
+const button = (commodity: string, name: string) => within(row(commodity)).getByRole('button', { name });
+/** FR-574: picks Buy or Sell in the row's Order column (a radio group). */
+const choose = (commodity: string, side: 'Buy' | 'Sell') => fireEvent.click(within(row(commodity)).getByRole('radio', { name: `${side} ${cell(commodity, 'name')}` }));
+/** The accessible description: the text of the elements aria-describedby names, "" without one. */
+const description = (el: Element) =>
+  (el.getAttribute('aria-describedby') ?? '').split(' ').filter(Boolean).map((id) => text(document.getElementById(id)!)).join(' ');
 /**
- * A "+" button as the Board shows it since FR-574: disabled, its tooltip, and the reason its accessible name adds after
- * the action ("" when it adds none). Old (FR-257): the reason was also a visible note beside it and its description.
+ * A "+" button as the Board shows it since the M18c review round (FR-574): refused (aria-disabled), still focusable (not
+ * natively disabled), its tooltip, and its accessible description, the reason. Old (FR-257): disabled, the reason also a
+ * visible note beside it; then (M18c) disabled, the reason at the end of its accessible name.
  */
 const plus = (commodity: string, name: string) => {
   const b = button(commodity, name) as HTMLButtonElement;
-  const label = b.getAttribute('aria-label') ?? '';
-  return { disabled: b.disabled, title: b.title, reason: label.startsWith(`${name}: `) ? label.slice(name.length + 2) : '' };
+  return { disabled: b.getAttribute('aria-disabled') === 'true', focusable: !b.disabled, title: b.title, reason: description(b) };
 };
-/** A "+" refused for `why`: disabled, the reason in its tooltip and its accessible name. */
-const refused = (why: string) => ({ disabled: true, title: why, reason: why });
-const OPEN = { disabled: false, title: '', reason: '' };
+/** A "+" refused for `why`: aria-disabled and focusable, the reason in its tooltip and its accessible description. */
+const refused = (why: string) => ({ disabled: true, focusable: true, title: why, reason: why });
+const OPEN = { disabled: false, focusable: true, title: '', reason: '' };
 const now = () => useGameStore.getState().game;
 
 // Re-recorded by M18c FR-573: the two lines "Holds: 8 (2 Indiamen)" (in the header) and "Holds: 8 of 8 free" are one
@@ -323,10 +326,11 @@ describe('FR-252 FR-253 FR-257 the reasons beside the controls', () => {
   // Re-recorded by M13 review UTH-2: Clothing's line was the short one -> FR-494's in full ("No minor nation sells this;
   // a bid is ..."): minors buy clothing, so its minors column lists buyers and never said that no minor sells it.
   // Re-targeted by M18c FR-574 FR-575 (all of this describe): a refusal was a visible note beside the disabled "+", its
-  // title and its description; now it is the title and the end of the "+"'s accessible name, and no note shows. A line
+  // title and its description; now it is the title and the description of the focusable, aria-disabled "+" (the end of its
+  // accessible name before the M18c review round), and no note shows until the "+" has focus or is pressed. A line
   // beside an open "+" (info, not a refusal) moved to the row's Notes on the Details tab. A Sell "+" is reached by picking
   // Sell first where the row opens on Buy (its offer refused).
-  it('FR-252 FR-257 FR-494 a new game: a bid no minor sells is open toward Valdoria, "Money back if Valdoria does not sell." (in full where minors buy it); a bid without a consulate "We need a consulate with a seller", in the disabled "+"\'s title and name', () => {
+  it('FR-252 FR-257 FR-494 a new game: a bid no minor sells is open toward Valdoria, "Money back if Valdoria does not sell." (in full where minors buy it); a bid without a consulate "We need a consulate with a seller", in the refused "+"\'s title and description', () => {
     openBoard(start());
     const rival = 'Money back if Valdoria does not sell.';
     const full = `No minor nation sells this; money back if Valdoria does not sell.`;
@@ -412,16 +416,20 @@ describe('FR-252 FR-253 FR-257 the reasons beside the controls', () => {
   // Re-recorded by M18c FR-574: old 22 disabled "+" in a new game, a Buy and a Sell stepper per row, each reason a visible
   // note and the description. Now a row shows one stepper: a new game opens every row on Buy (no offer is open without a
   // consulate), 5 Buy "+" are refused (coal, timber, iron ore, cotton, horses: a consulate with a seller); on Sell all 17
-  // are (5 + 17 = the old 22). Each says its reason in its title and at the end of its accessible name.
-  it('FR-257 FR-574 no disabled control without its reason: every disabled "+" has it as its tooltip and in its name, and there is no "−" at 0', () => {
+  // are (5 + 17 = the old 22). Each says its reason in its title and its accessible description. M18c review round: a
+  // refused "+" is aria-disabled and stays focusable (was disabled, the reason at the end of its name).
+  it('FR-257 FR-574 no refused control without its reason: every refused "+" is focusable with it as its tooltip and description, and there is no "−" at 0', () => {
     openBoard(start());
     const steppers = () => within(dialog()).getAllByRole('button').filter((b) => /one (more|less)/.test(b.getAttribute('aria-label') ?? ''));
-    const refusedPlus = () => steppers().filter((b) => (b as HTMLButtonElement).disabled);
+    const refusedPlus = () => steppers().filter((b) => b.getAttribute('aria-disabled') === 'true');
     const check = () => {
       expect(steppers().filter((b) => /one less/.test(b.getAttribute('aria-label')!))).toEqual([]);
+      // No "+" is natively disabled, so every one is in the Tab order
+      expect(steppers().filter((b) => (b as HTMLButtonElement).disabled)).toEqual([]);
       for (const b of refusedPlus()) {
         expect(b.title).not.toBe('');
-        expect(b.getAttribute('aria-label')!.endsWith(`: ${b.title}`)).toBe(true);
+        expect(description(b)).toBe(b.title);
+        expect(b.getAttribute('aria-label')).toMatch(/^(Buy|Sell) one more [A-Za-z ]+$/);
       }
     };
     expect(steppers()).toHaveLength(BOARD_ORDER.length);
@@ -515,7 +523,7 @@ describe('FR-194 the Board of Trade: orders', () => {
     expect(within(row('clothing')).queryByTestId('offer')).toBeNull();
   });
 
-  it('FR-194 FR-248 FR-257 every hold taken: "Holds: 4 of 4 used", each "+" open to trade disabled saying so in its tooltip and name, and a press sends nothing', () => {
+  it('FR-194 FR-248 FR-257 every hold taken: "Holds: 4 of 4 used", each "+" open to trade refused saying so in its tooltip and description, and a press sends nothing', () => {
     openBoard(setWarehouse(open(), N1, { clothing: 2 }));
     for (const c of ['coal', 'timber', 'ironOre', 'cotton']) fireEvent.click(button(c, `Buy one more ${cell(c, 'name')}`));
     // Re-recorded by M18c FR-573: old "Buying: 4 of 4", "Holds: 0 of 4 free"
@@ -533,8 +541,9 @@ describe('FR-194 the Board of Trade: orders', () => {
     expect(plus('wool', 'Buy one more Wool').title).toBe('No free hold this turn');
     fireEvent.click(button('coal', 'Buy one more Coal'));
     expect(submitted).toHaveLength(sent);
-    // Nothing sent, nothing refused: no toast follows (FR-569)
+    // Nothing sent, nothing refused: no toast follows (FR-569); the press shows the reason beside the "+" (M18c review)
     expect(useGameStore.getState().lastRejection).toBeNull();
+    expect(within(row('coal')).getByTestId('bid-reason').hidden).toBe(false);
     // "−" stays: lowering is always allowed
     expect((button('coal', 'Buy one less Coal') as HTMLButtonElement).disabled).toBe(false);
   });
@@ -552,17 +561,21 @@ describe('FR-194 the Board of Trade: orders', () => {
 
     const bids = 'Already buying 4 commodities this turn, the most';
     expect(plus('wool', 'Buy one more Wool')).toEqual(refused(bids));
-    expect((button('coal', 'Buy one more Coal') as HTMLButtonElement).disabled).toBe(false);
-    expect(button('coal', 'Buy one more Coal').title).toBe('');
+    // M18c review round: was `.disabled` false and title ''; a refused "+" is aria-disabled now, so the whole state
+    expect(plus('coal', 'Buy one more Coal')).toEqual(OPEN);
   });
 
   it('FR-248 Offer "+" with nothing in the warehouse says "None left in the warehouse"; Bid "+" without the money "Not enough money"', () => {
     openBoard(setWarehouse(setTreasuryOf(open(), 50), N1, { furniture: 1 }));
-    // M18c FR-574: no visible "None left in the warehouse" any more, only the tooltip and the name
+    // M18c FR-574: no visible "None left in the warehouse" any more, only the tooltip and the description
     choose('clothing', 'Sell');
     expect(plus('clothing', 'Sell one more Clothing')).toEqual(refused('None left in the warehouse'));
     expect(plus('coal', 'Buy one more Coal')).toEqual(refused('Not enough money'));
-    expect(within(dialog()).queryByText(/None left in the warehouse|Not enough money/)).toBeNull();
+    // M18c review round: was no such text at all; now each is a refused "+"'s description, drawn only while that "+" has
+    // focus or was pressed, so none shows
+    const reasons = within(dialog()).queryAllByText(/None left in the warehouse|Not enough money/);
+    expect(reasons.length).toBeGreaterThan(0);
+    expect(reasons.filter((el) => !/^(bid|offer)-reason$/.test(el.dataset.testid ?? '') || !el.hidden)).toEqual([]);
     // A row the player can trade has an enabled "+" with no title (M12 FR-401: seed 1's Arvelia favours Valdoria at equal
     // points, so the note says so, FR-252; until M12 turn 1 favoured Testland and there was no note). The note is on the
     // Details tab since M18c FR-575.
@@ -783,7 +796,7 @@ describe('M13 FR-494 the Board shows the other Great Power\'s last turn', () => 
   };
   const atWarWithValdoria = (s: GameState): GameState => setPair(s, N1, N2, { war: { aggressors: [N2], since: 1 } });
   // Re-targeted by M18c FR-575 (all of this describe): the last-turn line, "No minor trades this" and the line beside an
-  // open "+" are on the row's Details; a refused "+" says why in its tooltip and name (see the FR-257 describe)
+  // open "+" are on the row's Details; a refused "+" says why in its tooltip and description (see the FR-257 describe)
   const rivalLines = () => {
     openTab('Details');
     return within(dialog()).queryAllByTestId('rival-last-turn');

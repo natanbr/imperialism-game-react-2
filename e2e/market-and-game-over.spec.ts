@@ -66,7 +66,8 @@ test('FR-078 open the market, offer one furniture for sale, end the turn, see th
   await expect(furniture.getByTestId('available')).toHaveText('1');
   // M18c FR-574: on the Board tab Pellis is a flag, open to us; the row opens on Sell, the sale being open
   await expect(furniture.getByRole('list', { name: 'Buyers' }).getByRole('img', { name: 'Pellis', exact: true })).toBeVisible();
-  await expect(furniture.getByRole('button', { name: 'Sell Furniture', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  // M18c review round: a radio, aria-checked (was a toggle button, aria-pressed)
+  await expect(furniture.getByRole('radio', { name: 'Sell Furniture', exact: true })).toHaveAttribute('aria-checked', 'true');
   // Re-recorded by M18c FR-573: old "Holds: 4 of 4 free"
   await expect(market.getByTestId('market-holds')).toHaveText('Holds: 0 of 4 used (1 Indiaman)');
   // Re-targeted by M18c FR-575: the buyers with their units and the favourites (FR-251, once, in the note) are on Details

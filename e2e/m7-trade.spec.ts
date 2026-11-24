@@ -75,12 +75,24 @@ test('FR-197 FR-194 FR-195 a consulate with Arvelia and 2 coal bid on the Board 
   await expect(board(page).getByRole('heading', { level: 2 })).toHaveText(/Board of Trade — Testland/);
   // FR-574: on the Board tab Arvelia is a dimmed flag named with its mark
   await expect(row(page, 'coal').getByRole('img', { name: 'Arvelia (no consulate)', exact: true })).toHaveAttribute('title', 'Arvelia (no consulate)');
-  const coalPlus = row(page, 'coal').getByRole('button', { name: 'Buy one more Coal' });
+  const coalPlus = row(page, 'coal').getByRole('button', { name: 'Buy one more Coal', exact: true });
+  // toBeDisabled reads aria-disabled too: since the M18c review round the refused "+" is aria-disabled, not disabled
   await expect(coalPlus).toBeDisabled();
-  // Old: the note beside the "+" and its accessible description; FR-574: its tooltip and the end of its name
+  await expect(coalPlus).not.toHaveAttribute('disabled');
+  // Old: the note beside the "+" and its accessible description; M18c FR-574: its tooltip and the end of its name; the
+  // M18c review round: its tooltip and its accessible description, the name plain
   await expect(coalPlus).toHaveAttribute('title', 'We need a consulate with a seller');
-  await expect(coalPlus).toHaveAccessibleName('Buy one more Coal: We need a consulate with a seller');
-  await expect(row(page, 'coal')).not.toContainText('We need a consulate');
+  await expect(coalPlus).toHaveAccessibleName('Buy one more Coal');
+  await expect(coalPlus).toHaveAccessibleDescription('We need a consulate with a seller');
+  // Old: not in textContent; the reason is in the row now, hidden until the "+" has focus, so not drawn (innerText)
+  await expect(row(page, 'coal')).not.toContainText('We need a consulate', { useInnerText: true });
+  // The keyboard reaches it, and its reason shows beside it; a press sends nothing (no toast, the bid stays 0)
+  await coalPlus.focus();
+  await expect(row(page, 'coal').getByTestId('bid-reason')).toBeVisible();
+  await expect(row(page, 'coal').getByTestId('bid-reason')).toHaveText('We need a consulate with a seller');
+  await page.keyboard.press('Enter');
+  await expect(row(page, 'coal').getByTestId('bid')).toHaveText('0');
+  await expect(page.getByTestId('toast')).toHaveCount(0);
   // Re-recorded by M18c FR-573: old "Holds: 4 of 4 free"
   await expect(board(page).getByTestId('market-holds')).toHaveText('Holds: 0 of 4 used (1 Indiaman)');
   await openTab(page, 'Details');
@@ -182,7 +194,8 @@ test('FR-194 FR-257 FR-574 at 1280x720 the Board of Trade fits the window on eve
   // sell.' beside an enabled "+" (a bid where no minor sells goes to Valdoria, FR-492). Re-targeted by M18c: that line is
   // on the Details tab (FR-575); the refused Sell "+" says 'No one buys this' in its tooltip (FR-574), once Sell is chosen
   await expect(row(page, 'oil').getByRole('button', { name: 'Buy one more Oil', exact: true })).toBeEnabled();
-  await row(page, 'oil').getByRole('button', { name: 'Sell Oil', exact: true }).click();
+  // M18c review round: Buy and Sell are radios (were toggle buttons)
+  await row(page, 'oil').getByRole('radio', { name: 'Sell Oil', exact: true }).click();
   await expect(row(page, 'oil').getByRole('button', { name: 'Sell one more Oil' })).toHaveAttribute('title', 'No one buys this');
   await expect(row(page, 'oil').getByRole('img', { name: 'No minor trades this' })).toBeVisible();
   // FR-251: our own stock, now "Available" (FR-574; in capitals on the screen, by CSS)
@@ -205,11 +218,13 @@ test('FR-194 FR-257 FR-574 at 1280x720 the Board of Trade fits the window on eve
   for (const c of ['Coal', 'Timber', 'Iron Ore', 'Cotton']) {
     await board(page).getByRole('button', { name: `Buy one more ${c}` }).click();
   }
-  const coal = board(page).getByRole('button', { name: 'Buy one more Coal' });
+  const coal = board(page).getByRole('button', { name: 'Buy one more Coal', exact: true });
   await expect(coal).toBeDisabled();
   await expect(coal).toHaveAttribute('title', 'No free hold this turn');
-  // Old: its accessible description and a note beside it (bid-note); the reason is the end of its name now
-  await expect(coal).toHaveAccessibleName('Buy one more Coal: No free hold this turn');
+  // Old: its accessible description and a note beside it (bid-note); M18c: the end of its name; the M18c review round:
+  // its accessible description again, the name plain, and no note until it has focus
+  await expect(coal).toHaveAccessibleName('Buy one more Coal');
+  await expect(coal).toHaveAccessibleDescription('No free hold this turn');
   await expect(row(page, 'wool').getByRole('button', { name: 'Buy one more Wool' })).toHaveAttribute('title', 'No free hold this turn');
   // Re-recorded by M18c FR-573: old "Holds: 0 of 4 free"
   await expect(board(page).getByTestId('market-holds')).toHaveText('Holds: 4 of 4 used (1 Indiaman)');

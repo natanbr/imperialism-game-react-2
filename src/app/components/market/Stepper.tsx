@@ -1,4 +1,4 @@
-import React, { useId } from "react";
+import React, { useId, useState } from "react";
 import styles from "./Market.module.css";
 
 export interface StepperProps {
@@ -24,18 +24,22 @@ export interface StepperProps {
    */
   hideLessAtZero?: boolean;
   /**
-   * The Board of Trade (FR-574): no line beside the stepper; a refused "+" says why in its tooltip and its accessible
-   * name ("Buy one more Coal: We need a consulate with a seller").
+   * The Board of Trade (FR-574): a refused "+" stays in the Tab order (aria-disabled, its press sends nothing). Its
+   * reason is its accessible description, and shows beside it while it has focus or after a press.
    */
-  refusalInName?: boolean;
+  focusableRefusal?: boolean;
 }
 
 /** "− n +": each press sends this turn's total one lower or higher; the engine judges it (FR-074, FR-194). */
-export const Stepper: React.FC<StepperProps> = ({ label, name, value, testId, onChange, moreRefusal, note, hideLessAtZero, refusalInName }) => {
+export const Stepper: React.FC<StepperProps> = ({ label, name, value, testId, onChange, moreRefusal, note, hideLessAtZero, focusableRefusal }) => {
   const noteId = useId();
-  const more = `${label} one more ${name}`;
+  const reasonId = useId();
+  const [reasonShown, setReasonShown] = useState(false);
+  const refused = moreRefusal !== undefined;
+  const focusable = focusableRefusal === true && refused;
+  const describedBy = [focusable ? reasonId : undefined, note ? noteId : undefined].filter(Boolean).join(" ") || undefined;
   return (
-    <span className={styles.amount}>
+    <span className={`${styles.amount} ${focusableRefusal ? styles.amountAnchor : ""}`}>
       {hideLessAtZero && value <= 0 ? (
         <span className={styles.stepPlace} aria-hidden="true" data-testid={`${testId}-less-place`} />
       ) : (
@@ -48,14 +52,26 @@ export const Stepper: React.FC<StepperProps> = ({ label, name, value, testId, on
       </span>
       <button
         className={styles.stepButton}
-        aria-label={refusalInName && moreRefusal !== undefined ? `${more}: ${moreRefusal}` : more}
-        aria-describedby={note ? noteId : undefined}
-        disabled={moreRefusal !== undefined}
+        aria-label={`${label} one more ${name}`}
+        aria-describedby={describedBy}
+        aria-disabled={focusable ? true : undefined}
+        disabled={refused && !focusable}
         title={moreRefusal}
-        onClick={() => onChange(value + 1)}
+        onClick={() => (focusable ? setReasonShown(true) : onChange(value + 1))}
+        onFocus={focusable ? () => setReasonShown(true) : undefined}
+        onBlur={() => setReasonShown(false)}
+        onMouseLeave={(e) => {
+          if (document.activeElement !== e.currentTarget) setReasonShown(false);
+        }}
       >
         +
       </button>
+      {/* Hidden, it is still the description: aria-describedby reads a hidden element it names */}
+      {focusable && (
+        <span id={reasonId} className={styles.stepReason} hidden={!reasonShown} data-testid={`${testId}-reason`}>
+          {moreRefusal}
+        </span>
+      )}
       {note && (
         <span id={noteId} className={`${styles.stepNote} ${note.tone === "refusal" ? styles.stepRefusal : ""}`} data-testid={`${testId}-note`}>
           {note.text}

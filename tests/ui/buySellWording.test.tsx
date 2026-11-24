@@ -61,11 +61,12 @@ describe('FR-563 the Market says Buy and Sell', () => {
     const dialog = screen.getByRole('dialog', { name: 'Board of Trade — Testland' });
     expect(within(dialog).getAllByRole('columnheader').map((th) => th.textContent)).toEqual(['Commodity', 'Price', 'Available', 'Order', 'Quantity', 'Market']);
     const coal = within(dialog).getByTestId('trade-row-coal');
-    expect(within(coal).getAllByRole('button', { name: /^(Buy|Sell) Coal$/ }).map((b) => b.textContent)).toEqual(['Buy', 'Sell']);
-    // A refused "+" adds its reason to its name ("Buy one more Coal: We need a consulate with a seller")
-    fireEvent.click(within(coal).getByRole('button', { name: /^Buy one more Coal(: .*)?$/ }));
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Sell Clothing' }));
-    expect(within(dialog).getByRole('button', { name: /^Sell one more Clothing(: .*)?$/ })).toBeTruthy();
+    // M18c review round: Buy and Sell are radios (were toggle buttons); a refused "+" keeps its plain name, the reason its
+    // description (was "Buy one more Coal: We need a consulate with a seller")
+    expect(within(coal).getAllByRole('radio', { name: /^(Buy|Sell) Coal$/ }).map((b) => b.textContent)).toEqual(['Buy', 'Sell']);
+    fireEvent.click(within(coal).getByRole('button', { name: 'Buy one more Coal' }));
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Sell Clothing' }));
+    expect(within(dialog).getByRole('button', { name: 'Sell one more Clothing' })).toBeTruthy();
     expect(within(dialog).getByTestId('market-bids').textContent).toMatch(/^Buying [01] of 4 commodities$/);
     expect(leftovers(readable(dialog))).toEqual([]);
 

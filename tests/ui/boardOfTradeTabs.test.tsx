@@ -4,6 +4,9 @@
 // per row, the minors as flags (FR-574); a Details tab with what the Board no longer shows (FR-575); a Trade policies tab
 // sending Diplomacy's setTradePolicy (FR-576); the three as WAI-ARIA tabs, each opening on the Board (FR-577).
 // The FR-194 to FR-494 behaviour the tabs keep is in boardOfTrade.test.tsx.
+// M18c review round: "Cash before purchases"; Buy/Sell a radio group whose side follows the order in place; a refused "+"
+// aria-disabled and focusable, its reason its description and shown beside it on focus or press; the pressed subsidy
+// step's help as text; the panel focusable and the tab keys without modifiers.
 import { describe, it, expect } from 'vitest';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { MarketModal } from '@/components/MarketModal';
@@ -60,13 +63,24 @@ const row = (commodity: string) => {
   openTab('Board');
   return within(dialog()).getByTestId(`trade-row-${commodity}`);
 };
+/** FR-574: a row's Buy or Sell radio (M18c review round: was a toggle button with aria-pressed). */
 const choice = (commodity: string, side: 'Buy' | 'Sell') =>
-  within(row(commodity)).getByRole('button', { name: `${side} ${text(within(row(commodity)).getByTestId('name'))}` });
-const pressed = (commodity: string) => (['Buy', 'Sell'] as const).filter((side) => choice(commodity, side).getAttribute('aria-pressed') === 'true');
-const plus = (commodity: string, name: string) => within(row(commodity)).getByRole('button', { name: new RegExp(`^${name}(: .*)?$`) }) as HTMLButtonElement;
+  within(row(commodity)).getByRole('radio', { name: `${side} ${text(within(row(commodity)).getByTestId('name'))}` });
+const pressed = (commodity: string) => (['Buy', 'Sell'] as const).filter((side) => choice(commodity, side).getAttribute('aria-checked') === 'true');
+const plus = (commodity: string, name: string) => within(row(commodity)).getByRole('button', { name }) as HTMLButtonElement;
+const less = (commodity: string, name: string) => within(row(commodity)).getByRole('button', { name }) as HTMLButtonElement;
+/** The accessible description: the text of the elements aria-describedby names, "" without one. */
+const description = (el: Element) =>
+  (el.getAttribute('aria-describedby') ?? '').split(' ').filter(Boolean).map((id) => text(document.getElementById(id)!)).join(' ');
 /** Everything on screen or read aloud in `el`: its text and every name and tooltip. */
 const readable = (el: Element) =>
   [el.textContent ?? '', ...[...el.querySelectorAll('*')].flatMap((e) => ['aria-label', 'title'].map((a) => e.getAttribute(a) ?? ''))].join('\n');
+/** The text drawn in `el`: its text without a refused "+"'s reason while that one is not shown (a description only). */
+const drawn = (el: Element) => {
+  const copy = el.cloneNode(true) as Element;
+  copy.querySelectorAll('[hidden]').forEach((e) => e.remove());
+  return copy.textContent ?? '';
+};
 
 describe('FR-573 the status bar', () => {
   it('FR-573 a new game: Cash, Committed, Buying power, holds as one figure and the purchases, in one bar under the title', () => {
@@ -189,21 +203,110 @@ describe('FR-574 the Board tab: columns, one order per row, flags', () => {
     expect([text(none), none.getAttribute('aria-label'), none.getAttribute('title')]).toEqual(['—', 'No minor trades this', 'No minor trades this']);
   });
 
-  it('FR-574 why a "+" is disabled is its tooltip and the end of its name, never text in the row ("None left in the warehouse" is gone: Available says 0)', () => {
+  // M18c review round: was disabled, the reason at the end of its name ("Sell one more Clothing: None left in the
+  // warehouse"), out of the Tab order. Now aria-disabled and focusable, the name plain and the reason its description;
+  // the row draws no reason until the "+" has focus or is pressed (next test)
+  it('FR-574 why a "+" is refused is its tooltip and its description, never text drawn in the row ("None left in the warehouse" is gone: Available says 0)', () => {
     openBoard(withConsulate(start(), ARVELIA));
     fireEvent.click(choice('clothing', 'Sell'));
     const sell = plus('clothing', 'Sell one more Clothing');
-    expect([sell.disabled, sell.title, sell.getAttribute('aria-label')]).toEqual([
-      true,
+    expect([sell.getAttribute('aria-disabled'), sell.disabled, sell.title, sell.getAttribute('aria-label'), description(sell)]).toEqual([
+      'true',
+      false,
       'None left in the warehouse',
-      'Sell one more Clothing: None left in the warehouse',
+      'Sell one more Clothing',
+      'None left in the warehouse',
     ]);
     expect(text(within(row('clothing')).getByTestId('available'))).toBe('0');
     const buy = plus('ironOre', 'Buy one more Iron Ore');
-    expect(buy.disabled).toBe(false);
-    expect(buy.getAttribute('aria-label')).toBe('Buy one more Iron Ore');
-    for (const c of BOARD_ORDER) expect(row(c).textContent, c).not.toMatch(/None left|We need|No one buys|Not enough|favours|Money back/);
+    expect([buy.getAttribute('aria-disabled'), buy.disabled, buy.getAttribute('aria-label'), description(buy)]).toEqual([null, false, 'Buy one more Iron Ore', '']);
+    // Old: row(c).textContent; the reasons are in the row now, as descriptions nobody sees until asked for
+    for (const c of BOARD_ORDER) expect(drawn(row(c)), c).not.toMatch(/None left|We need|No one buys|Not enough|favours|Money back/);
     expect(within(panel()).queryAllByTestId(/-note$/)).toEqual([]);
+  });
+
+  it('FR-574 a refused "+" is in the Tab order: focus or a press shows its reason beside it and sends nothing; leaving it hides the reason', () => {
+    openBoard(start());
+    const coal = plus('coal', 'Buy one more Coal');
+    const reason = () => within(row('coal')).getByTestId('bid-reason');
+    expect([coal.tabIndex, coal.disabled, reason().hidden, text(reason())]).toEqual([0, false, true, 'We need a consulate with a seller']);
+    act(() => coal.focus());
+    expect(document.activeElement).toBe(coal);
+    expect(reason().hidden).toBe(false);
+    act(() => coal.blur());
+    expect(reason().hidden).toBe(true);
+    fireEvent.click(coal);
+    expect(reason().hidden).toBe(false);
+    expect(submitted).toEqual([]);
+    expect(useGameStore.getState().lastRejection).toBeNull();
+  });
+
+  // M18c review round (FR-574): the side follows the order in place. Old: a row's side came from its order at the opening
+  // and from the Order column, so an order placed by Repeat left the row on its opening side once it went back to 0.
+  it('FR-574 FR-397 after Repeat buys clothing on a row that opened on Sell, "−" to 0 keeps the row on Buy', () => {
+    openBoard(setWarehouse(withConsulate(start(), ARVELIA), N1, { clothing: 2 }));
+    fireEvent.click(choice('clothing', 'Buy'));
+    fireEvent.click(plus('clothing', 'Buy one more Clothing'));
+    act(() => useGameStore.getState().advanceTurn());
+    // A new opening, so each row starts from the orders in place (none this turn yet)
+    act(() => useGameStore.getState().closeMarket());
+    act(() => useGameStore.getState().openMarket());
+    expect(pressed('clothing')).toEqual(['Sell']);
+    fireEvent.click(within(dialog()).getByRole('button', { name: "Repeat last turn's trades" }));
+    expect(tradeOrdersOf(now(), N1).buy.clothing).toBe(1);
+    expect(pressed('clothing')).toEqual(['Buy']);
+    fireEvent.click(less('clothing', 'Buy one less Clothing'));
+    expect(tradeOrdersOf(now(), N1).buy.clothing ?? 0).toBe(0);
+    expect(pressed('clothing')).toEqual(['Buy']);
+    expect(text(within(row('clothing')).getByTestId('bid'))).toBe('0');
+  });
+
+  it('FR-574 a switch the engine refuses (taking the purchase back) leaves the row on its side, and it stays there at 0', () => {
+    openBoard(withConsulate(start(), ARVELIA));
+    fireEvent.click(plus('coal', 'Buy one more Coal'));
+    const accept = useGameStore.getState().submitOrder;
+    // Any refusal will do; after the last turn every order is refused so (FR-069)
+    const refuseZero = (o: Order) => (o.kind === 'buyCommodity' && o.amount === 0 ? ({ ok: false, reason: 'game-over' } as const) : accept(o));
+    act(() => useGameStore.setState({ submitOrder: refuseZero }));
+    fireEvent.click(choice('coal', 'Sell'));
+    expect(pressed('coal')).toEqual(['Buy']);
+    expect(text(within(row('coal')).getByTestId('bid'))).toBe('1');
+    act(() => useGameStore.setState({ submitOrder: accept }));
+    fireEvent.click(less('coal', 'Buy one less Coal'));
+    expect(tradeOrdersOf(now(), N1).buy.coal ?? 0).toBe(0);
+    expect(pressed('coal')).toEqual(['Buy']);
+  });
+
+  it('FR-574 Buy/Sell is a radio group with one Tab stop: the arrow keys pick the other side and move the focus; a refused switch keeps both', () => {
+    openBoard(withConsulate(start(), ARVELIA));
+    const group = within(row('coal')).getByRole('radiogroup', { name: 'Order for Coal' });
+    expect(within(group).getAllByRole('radio').map((r) => [text(r), r.getAttribute('aria-checked'), r.tabIndex])).toEqual([
+      ['Buy', 'true', 0],
+      ['Sell', 'false', -1],
+    ]);
+    act(() => choice('coal', 'Buy').focus());
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowRight' });
+    expect(pressed('coal')).toEqual(['Sell']);
+    expect(document.activeElement).toBe(choice('coal', 'Sell'));
+    expect([choice('coal', 'Buy').tabIndex, choice('coal', 'Sell').tabIndex]).toEqual([-1, 0]);
+    // Wrapping: Right from the last and Left from the first reach the other one; Up and Down too
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowRight' });
+    expect(document.activeElement).toBe(choice('coal', 'Buy'));
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowUp' });
+    expect(pressed('coal')).toEqual(['Sell']);
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowDown' });
+    expect(pressed('coal')).toEqual(['Buy']);
+    // With a modifier the key belongs to the browser
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowRight', altKey: true });
+    expect(pressed('coal')).toEqual(['Buy']);
+    // A purchase the engine will not take back: the arrow changes nothing and the focus stays
+    fireEvent.click(plus('coal', 'Buy one more Coal'));
+    const accept = useGameStore.getState().submitOrder;
+    act(() => useGameStore.setState({ submitOrder: (o: Order) => (o.kind === 'buyCommodity' && o.amount === 0 ? ({ ok: false, reason: 'game-over' } as const) : accept(o)) }));
+    act(() => choice('coal', 'Buy').focus());
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowLeft' });
+    expect(pressed('coal')).toEqual(['Buy']);
+    expect(document.activeElement).toBe(choice('coal', 'Buy'));
   });
 });
 
@@ -326,6 +429,8 @@ describe('FR-577 the tabs', () => {
     expect(tabs().map((t) => t.tabIndex)).toEqual([0, -1, -1]);
     expect(panel().getAttribute('aria-labelledby')).toBe(tab('Board').id);
     expect(tab('Board').getAttribute('aria-controls')).toBe(panel().id);
+    // M18c review round: the panel is a Tab stop of its own, so the keyboard reaches a tab with nothing to focus in it
+    expect(panel().tabIndex).toBe(0);
     openTab('Details');
     expect(tabs().map((t) => t.getAttribute('aria-selected'))).toEqual(['false', 'true', 'false']);
     expect(panel().dataset.testid).toBe('board-tab-details');
@@ -354,6 +459,14 @@ describe('FR-577 the tabs', () => {
     // Another key does nothing
     key('ArrowDown');
     expect(document.activeElement).toBe(tab('Details'));
+    // M18c review round: with Alt, Ctrl or Meta the key belongs to the browser (Alt+Left is Back)
+    for (const modifier of ['altKey', 'ctrlKey', 'metaKey']) {
+      for (const k of ['ArrowRight', 'ArrowLeft', 'Home', 'End']) {
+        const event = fireEvent.keyDown(document.activeElement!, { key: k, [modifier]: true });
+        expect(event, `${modifier} ${k}`).toBe(true);
+        expect(document.activeElement, `${modifier} ${k}`).toBe(tab('Details'));
+      }
+    }
   });
 
   it('FR-577 each opening starts on the Board tab', () => {

@@ -90,8 +90,8 @@ test('FR-494 FR-491 FR-492 a saved game where Valdoria bid for 2 steel last turn
 
   await openBoard(page);
   await expect(steelRow(page).getByTestId('available')).toHaveText('3');
-  // FR-574: the row opens on Sell, the sale being open
-  await expect(steelRow(page).getByRole('button', { name: 'Sell Steel', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  // FR-574: the row opens on Sell, the sale being open (M18c review round: a radio, aria-checked; was aria-pressed)
+  await expect(steelRow(page).getByRole('radio', { name: 'Sell Steel', exact: true })).toHaveAttribute('aria-checked', 'true');
   const offerPlus = steelRow(page).getByRole('button', { name: 'Sell one more Steel' });
   await expect(offerPlus).toBeEnabled();
   await openTab(page, 'Details');

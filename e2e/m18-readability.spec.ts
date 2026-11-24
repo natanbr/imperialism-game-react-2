@@ -35,7 +35,8 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 
       await expect(board.getByRole('button', { name: 'Buy one more Coal' })).toBeAttached();
       // Re-targeted by M18c FR-574 FR-575: a row shows the stepper of the side chosen (Clothing opens on Buy here), and the
       // duration line is on the Details tab; every tab is read for the old words
-      await board.getByRole('button', { name: 'Sell Clothing', exact: true }).click();
+      // M18c review round: Buy and Sell are radios (were toggle buttons)
+      await board.getByRole('radio', { name: 'Sell Clothing', exact: true }).click();
       await expect(board.getByRole('button', { name: 'Sell one more Clothing' })).toBeAttached();
       const words = () =>
         board.evaluate((el) => {
