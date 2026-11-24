@@ -477,7 +477,8 @@ describe('FR-111 keyboard and screen reader use of the worker tray and New game'
     expect(toggle.getAttribute('aria-controls')).toBe(confirm.id);
     expect(document.activeElement).toBe(confirm);
     // The first Tab stop inside is Start new game; the focus itself is not on it, so Enter does nothing
-    expect(within(confirm).getAllByRole('button').map(text)).toEqual(['Start new game', 'Keep playing']);
+    // FR-561: Start Demo game after it
+    expect(within(confirm).getAllByRole('button').map(text)).toEqual(['Start new game', 'Start Demo game', 'Keep playing']);
 
     fireEvent.click(within(confirm).getByRole('button', { name: 'Keep playing' }));
     expect(toggle.getAttribute('aria-expanded')).toBe('false');

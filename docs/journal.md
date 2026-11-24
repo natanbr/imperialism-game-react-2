@@ -2,15 +2,36 @@
 
 ## Resuming here
 
-- Task 28 on `claude/m17-sea-war` covers the two remaining Task 26 findings. Evidence is in `.gate/codex/28/`.
-- Task 25 on `claude/m17-sea-war` fixes all five second-review findings. Independent review and the local gate passed. Evidence is in `.gate/codex/25/summary.md`.
-- Task 23 on `claude/m17-sea-war` passed independent re-review and the local gate. Two local commits cover seven review fixes and revised Q145 combat. Both HUD examples and the gate logs are indexed in `.gate/codex/23/summary.md`. The branch has not been pushed.
-- Task 21 on `claude/m17-sea-war` from `13d75ab`. The local M17 build passed independent review and the full gate. Evidence in `.gate/codex/21/`. Owner approved Q144, Q145 and Q146 on 2026-11-22.
+- M18a (play-test comfort, `docs/specs/m18-playtest-comfort.md`) is on `claude/m18a-demo`, local only: FR-561 Demo level (`5afe257`), FR-562 debug dashboard (`f03519f`) and the review-fix commit "M18a: fix review findings". NR-037 in progress. Evidence in `.gate/claude/31/` and `.gate/claude/33/`.
+- Next in M18: M18b readability, FR-563 to FR-570. Icons wait for the art (spec section 3).
+- To try Demo: New game, Start Demo game; then Dashboard in the top bar (Economy, Military, Trade, Diplomacy, Council, Bug report).
+- M17 merged into main `65a4d5a` (pull request 42). Its task evidence is in `.gate/codex/21/` to `.gate/codex/28/`.
 - M16 part 1 merged in `9bd5a91`. The human can buy technology. The computer makes no purchases on main.
 - M16b is parked. On `claude/m16b-technology` (`95634c6`), FR-523 resource gates plus the buyer brought FR-125 down to 1.286× (minimum 1.5×). On `claude/m16b-buyer` (`49406e9`), the buyer alone bought Streamlined Hulls on turn 3 and ordered a Clipper on turn 6 in all 24 idle games. The spending weakened the computer. FR-546 earned a minor vote in 10/24 (13 required) and FR-489 captured a player province in 15/24 (18 required).
 - FR-547 (Q143) is the buyer branch's proposed value rule. Measure technology availability, purchase timing and the value of the first unlocked action in the original game before tuning. See `docs/verify-and-tune.md`.
 - Task 19 passed the load trials and full gate on `claude/perf-tests`. Finish future gates with `npm run test:perf` alone. The measured results and six functional logs are indexed in `.gate/codex/19/summary.md`.
 - To play M17 on continent seed 1, set Armaments and Fabric production to 1. Build a Ship-of-the-Line on turn 6, declare and sail on turn 7, set the site on turn 8, and land the four-ARMS army on turn 9. On turn 10 see the survivors at Sundmark and its colony vote in Council.
+
+## 2026-11-23 M18a — Demo level and debug dashboard
+
+Size M. FR-561 gives the human a Demo start (`engine/world/demoStart.ts`); FR-562 adds the Demo-only Dashboard
+(`HUD/DebugDashboard.tsx`, data from `HUD/dashboardView.ts`: cards per Great Power, section buttons, Bug report holding
+Details for bug reports). Consumers: the top bar and the right pane. Verify: the targeted tests below, then the full gate.
+Objection: Demo both changes the economy and reveals numbers; split into two switches if that gets in the way.
+Review round: a rival's "this turn" trade line always read "none", because the computer plans inside End Turn; the
+rival card now says "decided at End Turn" and shows last turn's orders, tested on a game played through the real store.
+
+| Claim | Command | Result |
+|---|---|---|
+| FR-562 red before the build | `npx vitest run tests/ui/dashboard.test.tsx` (stub view module) | `Tests 9 failed \| 1 passed (10)` (`.gate/claude/31/red-FR-562.txt`) |
+| FR-562 green | `npx vitest run tests/ui/dashboard.test.tsx` | `Tests 10 passed (10)` (`.gate/claude/31/green-FR-562.txt`) |
+| FR-562 in the app, 1366x768 and 390 px | `PORT=3123 npx playwright test e2e/m18-dashboard.spec.ts` | `2 passed` (`.gate/claude/31/e2e-FR-562.txt`) |
+| Full gate on `f03519f` (orchestrator) | `npm test`, Playwright, tsc, build, perf | 3023 unit, 142 e2e, tsc, build and perf passed; roadmap check failed (fixed below) |
+| Review findings 1 to 3 red | `npx vitest run tests/ui/dashboard.test.tsx tests/ui/topBar.test.tsx` | `Tests 3 failed \| 37 passed (40)`: the rival card said "Buy this turn none"; no visible Demo note (`.gate/claude/33/red-review.txt`) |
+| Review findings green | `npx vitest run tests/ui/dashboard.test.tsx tests/ui/topBar.test.tsx tests/ui/watchNation.test.tsx tests/ui/hudGroups.test.tsx` | `Tests 80 passed (80)` (`.gate/claude/33/green-review.txt`) |
+| e2e after the review | `PORT=3123 npx playwright test e2e/m18-dashboard.spec.ts e2e/m18-demo.spec.ts`; New game specs `--grep "FR-480\|FR-109\|New game"` | `3 passed`; `7 passed` (`.gate/claude/33/e2e-*.txt`) |
+| Types and lint | `npx tsc --noEmit`; `npm run lint` | exit 0; `0 errors, 2 warnings` (both in untouched files) |
+| Roadmap | `node .gate/m12/L4-check-roadmap.cjs` | `PASS` (`.gate/claude/33/roadmap-check.txt`) |
 
 ## 2026-11-23 Task 28 — naval measurement and intercepted landings
 

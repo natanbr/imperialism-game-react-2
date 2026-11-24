@@ -769,7 +769,10 @@ wars, idle civilians, FR-471), the news of the last turn and the last refused or
 (`HUD/HudGroups.tsx`, the WAI-ARIA accordion, open state in `HUD`'s component state, never in the store or the save,
 FR-473): Nation (Council projection, score parts, every nation ranked by score with its colour swatch and name,
 `HUD/ScoreTable.tsx`, `NationSwatch.tsx`, upkeep and treasury lines), Work in progress and Details for bug reports. Their
-texts come from pure helpers in `HUD/hudView.ts` (`workInProgressRows`, `leftInWindow` for what hangs from the bar and others), tested without React. The pane's
+texts come from pure helpers in `HUD/hudView.ts` (`workInProgressRows`, `leftInWindow` for what hangs from the bar and others), tested without React.
+On the Demo level (FR-562) the top bar adds a Dashboard button (`HUD/DebugDashboard.tsx`, a portal `Modal`, open state in
+the bar's component state): one card per Great Power in its nation colour, with section buttons; its lines come from
+`HUD/dashboardView.ts` (pure reads, no orders), and Details for bug reports moves from the pane into it. The pane's
 information scrolls on its own (`.hud-content`). `.hud-content` is a flex column: the
 news panel takes the height left, and its list scrolls on its own in whole lines (a size container and
 `round()` in globals.css, FR-268), so the fade at the bottom never covers a line of news. New game (the top bar, asked in a panel under it, FR-480, and

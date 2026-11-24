@@ -112,9 +112,9 @@ function useWindowSize(): { width: number; height: number } {
 /**
  * FR-476: what a bug report needs, for every player (Nathan, card Q102: not only with ?debug), and a button that copies
  * it as plain text. "Copied" shows for 2 s; a browser that refuses the clipboard shows nothing. FR-536: the window's size
- * too, as most layout bugs depend on it.
+ * too, as most layout bugs depend on it. FR-562: on the Demo level the dashboard's Bug report section shows it instead.
  */
-const DetailsGroupContent: React.FC = () => {
+export const DetailsGroupContent: React.FC = () => {
   const game = useGameStore((s) => s.game);
   const nationId = useGameStore((s) => s.activeNationId);
   const selectedTileId = useGameStore((s) => s.selectedTileId);
@@ -177,10 +177,12 @@ const DetailsGroupContent: React.FC = () => {
 /**
  * The right pane's three groups at its bottom (FR-473): Nation (FR-474), Work in progress with its count (FR-475) and
  * Details for bug reports (FR-476, the `.hud-debug-section` panel). Which are open is the HUD's state, passed in.
+ * FR-562: on the Demo level Details for bug reports lives in the top bar's Dashboard instead; every other level keeps it here.
  */
 export const HudGroups: React.FC<{ open: GroupsOpen; onToggle: (id: GroupId) => void }> = ({ open, onToggle }) => {
   const game = useGameStore((s) => s.game);
   const playerId = useGameStore((s) => s.activeNationId);
+  const isDemo = game.difficulty === "demo";
   const rows = useMemo(() => workInProgressRows(game, playerId), [game, playerId]);
   return (
     <div className="hud-groups" data-testid="hud-groups">
@@ -192,9 +194,11 @@ export const HudGroups: React.FC<{ open: GroupsOpen; onToggle: (id: GroupId) => 
       </HudGroup>
       {/* Trap: only while open. The server and the browser each draw a new game's seed (FR-019), so a seed line in the
           server's HTML fails hydration; every group is closed there. It also spares a re-render per scroll (the camera). */}
-      <HudGroup id="details" title="Details for bug reports" open={open.details} onToggle={onToggle} panelClassName="hud-debug-section">
-        {open.details && <DetailsGroupContent />}
-      </HudGroup>
+      {!isDemo && (
+        <HudGroup id="details" title="Details for bug reports" open={open.details} onToggle={onToggle} panelClassName="hud-debug-section">
+          {open.details && <DetailsGroupContent />}
+        </HudGroup>
+      )}
     </div>
   );
 };

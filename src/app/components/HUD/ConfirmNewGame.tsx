@@ -1,5 +1,5 @@
-import React, { useEffect, useLayoutEffect, useRef } from "react";
-import { startNewGameOnCapital } from "@/hooks/mapActions";
+import React, { useEffect, useId, useLayoutEffect, useRef } from "react";
+import { startDemoGameOnCapital, startNewGameOnCapital } from "@/hooks/mapActions";
 import { leftInWindow } from "./hudView";
 
 export const CONFIRM_NEW_GAME_ID = "confirm-new-game";
@@ -17,6 +17,7 @@ export const CONFIRM_NEW_GAME_ID = "confirm-new-game";
  */
 export const ConfirmNewGame: React.FC<{ anchor: React.RefObject<HTMLElement | null>; onDone: () => void }> = ({ anchor, onDone }) => {
   const panel = useRef<HTMLDivElement>(null);
+  const demoNoteId = useId();
   useLayoutEffect(() => {
     const place = () => {
       const button = anchor.current;
@@ -64,10 +65,24 @@ export const ConfirmNewGame: React.FC<{ anchor: React.RefObject<HTMLElement | nu
         >
           Start new game
         </button>
+        {/* FR-561: a testing aid, described by the visible line under the buttons (M18a review: a title is mouse-only) */}
+        <button
+          className="btn btn-plain btn-sm"
+          aria-describedby={demoNoteId}
+          onClick={() => {
+            startDemoGameOnCapital();
+            onDone();
+          }}
+        >
+          Start Demo game
+        </button>
         <button className="btn btn-plain btn-sm" onClick={onDone}>
           Keep playing
         </button>
       </div>
+      <p id={demoNoteId} className="confirm-note">
+        Demo: more cash and troops, and a dashboard of every nation&apos;s numbers.
+      </p>
     </div>
   );
 };

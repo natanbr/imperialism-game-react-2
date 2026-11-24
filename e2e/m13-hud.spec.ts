@@ -447,6 +447,9 @@ test('FR-480 FR-111 the question sits in the Tab order right after New game (Shi
   await expect(newGame).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(panel.getByRole('button', { name: 'Start new game' })).toBeFocused();
+  // FR-561: Start Demo game between the two
+  await page.keyboard.press('Tab');
+  await expect(panel.getByRole('button', { name: 'Start Demo game' })).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(panel.getByRole('button', { name: 'Keep playing' })).toBeFocused();
   await page.keyboard.press('Tab');

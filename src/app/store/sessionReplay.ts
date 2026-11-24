@@ -51,7 +51,8 @@ function applyHumanOrders(state: GameState, orders: readonly Order[], historical
 export function replaySession(session: GameSession): GameState {
   const { game, activeNationId, replayBoundary } = session;
   const checkpoint = replayBoundary?.checkpoint;
-  let state = checkpoint ?? newGame({ seed: game.seed, world: game.worldId, market: game.market?.mode ?? "world", turnLimit: game.turnLimit });
+  let state = checkpoint ?? newGame({ seed: game.seed, world: game.worldId, market: game.market?.mode ?? "world", turnLimit: game.turnLimit,
+    difficulty: game.difficulty });
   if (replayBoundary && !checkpoint) {
     const shared = replayBoundary.sharedTechnology;
     state = {
