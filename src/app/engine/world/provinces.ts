@@ -38,7 +38,7 @@ export function adjacentProvinces(state: GameState, provinceId: ProvinceId): Pro
 }
 
 /** Version-1 continent saves predate startOwnerId. Their province IDs come from continentWorld. */
-function startOwnerOf(province: Province): CountryId {
+export function startOwnerOf(province: Province): CountryId {
   if (province.startOwnerId !== undefined) return province.startOwnerId;
   return /^province-(nation-\d+)-(?:nw|ne|sw|se)$/.exec(province.id)?.[1]
     ?? /^province-(minor-\d+)$/.exec(province.id)?.[1]

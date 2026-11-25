@@ -1,8 +1,9 @@
 import type { GameState } from "@/types/GameState";
-import { TerrainType, type Tile } from "@/types/Tile";
+import type { Tile } from "@/types/Tile";
 import { WorkerStatus, WorkerType, type Worker } from "@/types/Workers";
 import type { ConstructionKind } from "@/types/jobs/ConstructionJob";
-import { PROSPECTABLE_TERRAIN_TYPES } from "@/definisions/terrainDefinitions";
+import { DRILLING_TERRAINS, FIXED_OUTPUT_TERRAINS, PROSPECTABLE_TERRAIN_TYPES } from "@/definisions/terrainDefinitions";
+import { requiredDevelopmentTechnology } from "@/definisions/developmentTechnology";
 import { CONSTRUCTION_COST, DEVELOPMENT_COST, PROSPECT_COST, constructionCost } from "@/definisions/workPrices";
 import {
   validateCapacityChange,
@@ -40,6 +41,7 @@ import {
   isWorkerBusy,
   nationById,
   nextResourceLevel,
+  owns,
   railConstructionStart,
   railOnMoveStart,
   tileById,
@@ -198,8 +200,11 @@ const checkProspecting: JobCheck = (state, worker, tile) => {
   if (worker.type !== WorkerType.Prospector) return reject("wrong-worker-type");
   if (tile.ownerNationId !== worker.nationId) return reject("not-owner");
   if (!PROSPECTABLE_TERRAIN_TYPES.includes(tile.terrain)) return reject("invalid-site");
-  if (!tile.resource || tile.resource.discovered) return reject("invalid-target");
+  if (tile.prospected || tile.resource?.discovered) return reject("invalid-target");
   if (hasJob(tile)) return reject("tile-has-job");
+  if (DRILLING_TERRAINS.includes(tile.terrain) && !owns(state, worker.nationId, "oilDrilling")) {
+    return { ok: false, reason: "missing-technology", techId: "oilDrilling" };
+  }
   if (treasuryOf(state, worker.nationId) < PROSPECT_COST) return reject("insufficient-funds");
   return OK;
 };
@@ -208,11 +213,13 @@ const checkDevelopment: JobCheck = (state, worker, tile) => {
   if (!DEVELOPMENT_WORKER_TYPES.includes(worker.type)) return reject("wrong-worker-type");
   if (tile.ownerNationId !== worker.nationId) return reject("not-owner");
   const terrains = DEVELOPMENT_TERRAINS[worker.type];
-  if (tile.terrain === TerrainType.HorseRanch || (terrains && !terrains.includes(tile.terrain))) return reject("invalid-site");
+  if (FIXED_OUTPUT_TERRAINS.includes(tile.terrain) || (terrains && !terrains.includes(tile.terrain))) return reject("invalid-site");
   if (!tile.resource || tile.resource.discovered === false) return reject("invalid-target");
   const level = nextResourceLevel(tile);
   if (level > 3) return reject("invalid-target");
   if (hasJob(tile)) return reject("tile-has-job");
+  const techId = requiredDevelopmentTechnology(tile, level);
+  if (techId && !owns(state, worker.nationId, techId)) return { ok: false, reason: "missing-technology", techId };
   if (treasuryOf(state, worker.nationId) < DEVELOPMENT_COST[level as 1 | 2 | 3]) return reject("insufficient-funds");
   return OK;
 };

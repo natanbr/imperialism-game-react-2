@@ -39,6 +39,8 @@ export interface Tile {
   terrain: TerrainType;
   hasRiver?: boolean;           // enables fish + river ports
   resource?: Resource;
+  /** An unassigned site has been surveyed, including when there was no deposit. */
+  prospected?: boolean;
   // Prospecting action state (resolved on next turn)
   prospecting?: { startedOnTurn: number; workerId: string };
 
