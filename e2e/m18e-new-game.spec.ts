@@ -33,10 +33,14 @@ async function readSettingsSeed(page: Page) {
   expect(text).toMatch(/\bRandom\b/);
   expect(text).toMatch(/\bLarge\b/);
   expect(text).toMatch(/\bNormal\b/);
-  const decimal = text.match(/\bSeed\s*:?\s*(\d+)\b/i)?.[1];
+  const decimal = text.match(/\bSeed\s*:?\s*(\d+)\b/i)?.[1] ?? '';
   expect(decimal).toBe('2813929771'); // FR-588's pinned hash of Brete.
+  // The value spans a grid column; double-click its first digit as a player would to copy the seed.
+  await stats.getByText(decimal, { exact: true }).dblclick({ position: { x: 4, y: 8 } });
+  const selection = await page.evaluate(() => window.getSelection()?.toString() ?? '');
+  expect(selection).toBe(decimal);
   await stats.getByRole('button', { name: 'Close stats' }).click();
-  return decimal!;
+  return selection;
 }
 
 // Read the persisted game and events, including deposits and province seats that the map does not display.
@@ -130,7 +134,7 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 
       await seed.fill('4294967296');
       await expect(seed).toHaveAttribute('aria-invalid', 'true');
       await expect(seed).toHaveAttribute('aria-describedby', /\S/);
-      await expect(seed).toHaveAccessibleDescription(/4294967295|0.to.4,294,967,295|unsigned|number|integer|seed/i);
+      await expect(seed).toHaveAccessibleDescription(/4294967295.*at least one letter/i);
       await expect(start).toBeDisabled();
       await expect(demo).toBeDisabled();
       await keep.click();

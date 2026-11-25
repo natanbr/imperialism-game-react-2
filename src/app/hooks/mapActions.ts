@@ -1,7 +1,7 @@
 // UI actions shared by the HUD and the game-over screen. Plain functions on the store, no React.
 import { cameraOnCapital, mapAreaOf, openingView } from "@/components/camera";
 import { useGameStore } from "@/store/rootStore";
-import type { Difficulty } from "@/types/GameState";
+import type { NewGameOptions } from "@/engine";
 
 /** The capital back in the middle of the map area (FR-083), scrolled even if the store already agrees (FR-092). */
 export function centreOnCapital(): void {
@@ -20,17 +20,12 @@ export function openMap(): void {
   zoomTo(view.zoom, view.camera);
 }
 
-function startOnCapital(difficulty: Difficulty): void {
-  useGameStore.getState().startNewGame({ difficulty });
+export function startGameOnCapital(options: Partial<NewGameOptions>): void {
+  useGameStore.getState().startNewGame(options);
   openMap();
 }
 
 /** A new game, with the map opened on its land or its capital (FR-109, FR-567). */
 export function startNewGameOnCapital(): void {
-  startOnCapital("normal");
-}
-
-/** A new game on the Demo level (FR-561), with the map opened on its land or its capital. */
-export function startDemoGameOnCapital(): void {
-  startOnCapital("demo");
+  startGameOnCapital({ difficulty: "normal" });
 }

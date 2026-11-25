@@ -532,36 +532,98 @@ img[data-art-anchor="bottom-center"] {
   top: calc(var(--topbar-height) + 4px);
   left: 8px;
   z-index: 1;
-  width: max-content;
+  width: 21rem;
   max-width: calc(100vw - 16px);
+  max-height: calc(100dvh - var(--topbar-height) - 12px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  white-space: normal;
   box-sizing: border-box;
-  padding: 8px;
+  padding: 14px;
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
   background: var(--color-surface-raised);
   color: var(--color-ink);
   box-shadow: var(--shadow-dialog);
-  font-size: 13px;
+  font-size: 14px;
 }
 
-.confirm-panel p {
-  margin: 0 0 6px;
+.confirm-warning {
+  margin: 0 0 12px;
+  font-weight: 600;
 }
 
-/* FR-561: three buttons wrap in a phone-wide window instead of running out of the panel */
+.confirm-panel form,
+.confirm-field:not([hidden]) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.confirm-panel form {
+  gap: 10px;
+}
+
+.confirm-field {
+  gap: 3px;
+}
+
+.confirm-field label {
+  font-weight: 600;
+}
+
+.confirm-field :is(input, select) {
+  width: 100%;
+  min-height: 32px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  padding: 3px 7px;
+  background: var(--color-surface-raised);
+  color: var(--color-ink);
+  font: inherit;
+  font-size: 1rem;
+}
+
+.confirm-field [aria-invalid="true"] {
+  border-color: var(--color-bad);
+}
+
+.confirm-error {
+  color: var(--color-bad);
+}
+
+.confirm-error:empty {
+  margin-top: -3px;
+}
+
+.confirm-disclosure {
+  justify-self: start;
+}
+
+.confirm-hint,
+.confirm-panel .confirm-note {
+  color: var(--color-ink-muted);
+  font-size: 12px;
+}
+
 .confirm-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
 
-/* FR-561 (M18a review): what Start Demo game gives, on screen for touch and keyboard users; it wraps rather than widen
-   the panel much past its buttons */
+.confirm-demo {
+  border-top: 1px solid var(--color-border);
+  padding-top: 10px;
+}
+
 .confirm-panel .confirm-note {
-  max-width: 30em;
-  margin: 6px 0 0;
-  color: var(--color-ink-muted);
-  font-size: 12px;
+  margin: 4px 0 0;
+}
+
+@media (pointer: coarse) {
+  .confirm-panel :is(input, select, button) {
+    min-height: 48px;
+  }
 }
 
 /* Every nation's score, ranked (FR-106) */
@@ -1268,6 +1330,25 @@ img[data-art-anchor="bottom-center"] {
 }
 
 /* FR-568: the Stats dialog (HUD/StatsDialog.tsx): the score and its rank on one line; the Council line at full width */
+.stats-settings {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 2px 16px;
+  margin: 0 0 4px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--color-border);
+  user-select: text;
+}
+
+.stats-settings dt {
+  color: var(--color-ink-muted);
+}
+
+.stats-settings dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
 .stats-score {
   display: flex;
   gap: 12px;

@@ -92,7 +92,9 @@ it('FR-588 FR-595 invalid input has an inline accessible error, blocks both star
     fireEvent.change(seed, { target: { value: invalid } });
     expect(seed.getAttribute('aria-invalid')).toBe('true');
     const described = (seed.getAttribute('aria-describedby') ?? '').split(/\s+/).map(id => document.getElementById(id));
-    expect(described.some(el => el && panel.contains(el) && !el.hidden && /seed|number|word|digit|letter/i.test(el.textContent ?? ''))).toBe(true);
+    const error = form.getByText(/4294967295.*at least one letter/i);
+    expect(panel.contains(error) && !error.hidden).toBe(true);
+    expect(described).toContain(error);
     for (const button of buttons) {
       expect(button.disabled).toBe(true);
       fireEvent.click(button);
@@ -102,6 +104,7 @@ it('FR-588 FR-595 invalid input has an inline accessible error, blocks both star
   expect(useGameStore.getState().game).toBe(running);
   fireEvent.change(seed, { target: { value: ' 0000 ' } });
   expect(seed.getAttribute('aria-invalid')).not.toBe('true');
+  expect(form.queryByText(/4294967295.*at least one letter/i)).toBeNull();
   for (const button of buttons) expect(button.disabled).toBe(false);
   fireEvent.click(buttons[0]);
   expect(start).toHaveBeenCalledTimes(1);
