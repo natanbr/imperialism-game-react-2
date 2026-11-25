@@ -7,9 +7,7 @@ import { leftInWindow, scoreParts, uncollectedScoreText } from "./hudView";
 /**
  * The active nation's score total (FR-075). Hover or focus shows its parts as visible text (FR-404), work in progress
  * included (FR-402); the `title` stays for a quick read but leaves while the parts show, so two tooltips never stack.
- * The parts hang below it (`topbar-popover`). FR-568: it sits in the Stats dialog, no longer in the top bar. Their left edge is the score's
- * unless the window's right edge pushes them left (FR-530: in a 390 px window the score sits at x 302 and the list,
- * 290 px wide, ran to x 592).
+ * The parts open below the score when they fit, or above it in a short window. FR-530 keeps their right edge in view.
  */
 export const ScoreIndicator: React.FC = () => {
   const score = useGameStore(selectActiveScore);
@@ -25,9 +23,26 @@ export const ScoreIndicator: React.FC = () => {
     const at = host.current;
     const el = parts.current;
     if (!open || !at || !el) return;
-    // Placed in the score's own box (position: absolute), so the offset is the window position less the score's left
-    const left = at.getBoundingClientRect().left;
-    el.style.left = `${leftInWindow(left, el.getBoundingClientRect().width, window.innerWidth) - left}px`;
+    const panel = at.closest<HTMLElement>('[role="tabpanel"]');
+    const place = () => {
+      const anchor = at.getBoundingClientRect();
+      const clip = panel && panel.scrollHeight > panel.clientHeight ? panel.getBoundingClientRect() : null;
+      el.hidden = clip !== null && (anchor.bottom <= clip.top || anchor.top >= clip.bottom);
+      if (el.hidden) return;
+      const { width, height } = el.getBoundingClientRect();
+      const gap = 4;
+      const below = anchor.bottom + gap;
+      const top = below + height <= window.innerHeight ? below : Math.max(0, anchor.top - gap - height);
+      el.style.left = `${leftInWindow(anchor.left, width, window.innerWidth)}px`;
+      el.style.top = `${top}px`;
+    };
+    place();
+    window.addEventListener("resize", place);
+    panel?.addEventListener("scroll", place);
+    return () => {
+      window.removeEventListener("resize", place);
+      panel?.removeEventListener("scroll", place);
+    };
   }, [open]);
 
   return (

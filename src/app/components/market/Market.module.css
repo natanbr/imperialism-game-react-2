@@ -227,7 +227,7 @@
   padding: 2px 10px;
 }
 
-/* FR-577: Board | Details | Trade policies, as tabs on a line */
+/* FR-577: views of the Board, including the FR-612 Trade Book. */
 .tabs {
   flex: none;
   display: flex;
@@ -809,6 +809,10 @@
 
   .board .header {
     flex-wrap: wrap;
+  }
+
+  .board .tab {
+    padding-inline: 7px;
   }
 
   .boardTable,

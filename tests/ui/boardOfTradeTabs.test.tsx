@@ -12,9 +12,9 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { MarketModal } from '@/components/MarketModal';
 import { DiplomacyModal } from '@/components/DiplomacyModal';
 import { useGameStore } from '@/store/rootStore';
-import { BOARD_ORDER, marketOf, newGame, pairKey, tradeOrdersOf, transferProvince, type Order } from '@/engine';
+import { applyOrder, BOARD_ORDER, marketOf, newGame, pairKey, tradeOrdersOf, transferProvince, type Order } from '@/engine';
 import type { GameState } from '@/types/GameState';
-import { GoodsType } from '@/types/Resource';
+import { GoodsType, ResourceType } from '@/types/Resource';
 import { setPair, setTreasury, setWarehouse, treasury } from '../engine/fixtures';
 import { failOnActWarnings } from './actWarnings';
 import { text } from './domText';
@@ -635,18 +635,18 @@ describe('FR-579 the Trade policies map', () => {
 });
 
 describe('FR-577 the tabs', () => {
-  it('FR-577 a tablist of Board, Details and Trade policies; the open tab is selected and alone in the Tab order; the panel is named by it', () => {
+  it('FR-577 FR-612 the four Board tabs; the open tab is selected and alone in the Tab order; the panel is named by it', () => {
     openBoard(start());
     expect(within(dialog()).getByRole('tablist', { name: 'Board of Trade views' })).toBeTruthy();
-    expect(tabs().map(text)).toEqual(['Board', 'Details', 'Trade policies']);
-    expect(tabs().map((t) => t.getAttribute('aria-selected'))).toEqual(['true', 'false', 'false']);
-    expect(tabs().map((t) => t.tabIndex)).toEqual([0, -1, -1]);
+    expect(tabs().map(text)).toEqual(['Board', 'Details', 'Trade policies', 'Trade Book']);
+    expect(tabs().map((t) => t.getAttribute('aria-selected'))).toEqual(['true', 'false', 'false', 'false']);
+    expect(tabs().map((t) => t.tabIndex)).toEqual([0, -1, -1, -1]);
     expect(panel().getAttribute('aria-labelledby')).toBe(tab('Board').id);
     expect(tab('Board').getAttribute('aria-controls')).toBe(panel().id);
     // M18c review round: the panel is a Tab stop of its own, so the keyboard reaches a tab with nothing to focus in it
     expect(panel().tabIndex).toBe(0);
     openTab('Details');
-    expect(tabs().map((t) => t.getAttribute('aria-selected'))).toEqual(['false', 'true', 'false']);
+    expect(tabs().map((t) => t.getAttribute('aria-selected'))).toEqual(['false', 'true', 'false', 'false']);
     expect(panel().dataset.testid).toBe('board-tab-details');
     expect(within(dialog()).getByRole('tabpanel', { name: 'Details' })).toBe(panel());
   });
@@ -658,10 +658,12 @@ describe('FR-577 the tabs', () => {
     const expected: [string, string][] = [
       ['ArrowRight', 'Details'],
       ['ArrowRight', 'Trade policies'],
+      ['ArrowRight', 'Trade Book'],
       ['ArrowRight', 'Board'],
-      ['ArrowLeft', 'Trade policies'],
+      ['ArrowLeft', 'Trade Book'],
       ['Home', 'Board'],
-      ['End', 'Trade policies'],
+      ['End', 'Trade Book'],
+      ['ArrowLeft', 'Trade policies'],
       ['ArrowLeft', 'Details'],
     ];
     for (const [k, name] of expected) {
@@ -691,5 +693,148 @@ describe('FR-577 the tabs', () => {
     act(() => useGameStore.getState().openMarket());
     expect(tab('Board').getAttribute('aria-selected')).toBe('true');
     expect(panel().dataset.testid).toBe('board-tab-board');
+  });
+});
+
+describe('FR-612 Trade Book', () => {
+  const region = (name: string) => within(panel()).getByRole('region', { name });
+  const choices = (el: HTMLElement) => within(el).getAllByRole('option').map(text);
+  const book = () => openTab('Trade Book');
+
+  it('NR-040 keeps Repeat last turn’s trades on the existing views and hides the order in each information view', () => {
+    openBoard(withConsulate(start(), ARVELIA));
+    order({ kind: 'buyCommodity', nationId: N1, commodity: ResourceType.Coal, amount: 1 });
+    act(() => useGameStore.getState().advanceTurn());
+    const repeat = () => within(dialog()).queryByRole('button', { name: "Repeat last turn's trades" });
+    expect(repeat()).toBeTruthy();
+    openTab('Details');
+    expect(repeat()).toBeTruthy();
+    book();
+    expect(repeat()).toBeNull();
+    openTab('Trade policies');
+    expect(repeat()).toBeTruthy();
+    const mode = within(panel()).getByRole('combobox', { name: 'Map mode' }) as HTMLSelectElement;
+    for (const label of ['Relationships', 'Political status', 'Trade policies']) {
+      const option = within(mode).getByRole('option', { name: label }) as HTMLOptionElement;
+      fireEvent.change(mode, { target: { value: option.value } });
+      expect(Boolean(repeat()), label).toBe(label === 'Trade policies');
+    }
+  });
+
+  it('requires a positive bid in this round and withdraws access immediately on cancellation', () => {
+    openBoard(withConsulate(start(), ARVELIA));
+    book();
+    expect(within(panel()).queryByRole('combobox')).toBeNull();
+    expect(text(panel())).toMatch(/bid/i);
+    order({ kind: 'buyCommodity', nationId: N1, commodity: ResourceType.Coal, amount: 1 });
+    const current = region('Current turn 1');
+    expect(choices(current)).toEqual(['Coal']);
+    expect(text(current)).toMatch(/Our remaining holds\D*3/i);
+    expect(text(current)).toMatch(/Arvelia\D*3 units/i);
+    expect(text(current)).toMatch(/Sundmark\D*1 unit.*no consulate/i);
+    const preferences = within(current).getAllByRole('list', { name: 'Seller preference' });
+    expect(within(preferences[0]).getAllByRole('listitem').map(text)).toEqual(['Valdoria', 'Testland']);
+    expect(within(panel()).queryByRole('region', { name: /Settled/ })).toBeNull();
+    order({ kind: 'buyCommodity', nationId: N1, commodity: ResourceType.Coal, amount: 0 });
+    expect(within(current).queryByRole('combobox')).toBeNull();
+    expect(text(panel())).not.toMatch(/Arvelia|Seller preference/);
+  });
+
+  it('scopes an unfilled prior bid, offers and encounters to the viewer, commodity and turn', () => {
+    const base = start();
+    const game: GameState = { ...base, turn: 4, market: { ...marketOf(base),
+      orders: { [N1]: { buy: { timber: 1 }, sell: {} } },
+      lastOrders: {
+        [N1]: { buy: { wool: 1, coal: 2 }, sell: { timber: 3 } },
+        [N2]: { buy: { coal: 2 }, sell: { wool: 4, timber: 17 } },
+      },
+    } };
+    openBoard(game);
+    const purchase = { type: 'goods-bought', nationId: N1, commodity: ResourceType.Coal, amount: 1, price: 100, cost: 100, counterpartyId: ARVELIA } as const;
+    act(() => useGameStore.setState({ eventLog: [
+      { turn: 2, year: 1815, events: [{ ...purchase, amount: 91 }] },
+      { turn: 3, year: 1815, events: [purchase, { ...purchase, nationId: N2, amount: 92 }, { ...purchase, commodity: ResourceType.Timber, amount: 93 },
+        { ...purchase, counterpartyId: N2, amount: 94 },
+        { type: 'offer-missed', nationId: N1, counterpartyId: SUNDMARK, commodity: ResourceType.Coal, amount: 1, reason: 'no-hold' }] },
+    ] }));
+    book();
+    expect(choices(region('Current turn 4'))).toEqual(['Timber']);
+    const settled = region('Settled turn 3');
+    expect(choices(settled).sort()).toEqual(['Coal', 'Wool']);
+    const select = within(settled).getByRole('combobox', { name: 'Commodity' });
+    fireEvent.change(select, { target: { value: 'wool' } });
+    expect(text(settled)).toMatch(/Valdoria\D*4 units/);
+    expect(text(within(settled).getByRole('list', { name: 'Bidding Great Powers' }))).toBe('Testland');
+    fireEvent.change(select, { target: { value: 'coal' } });
+    expect(within(within(settled).getByRole('list', { name: 'Bidding Great Powers' })).getAllByRole('listitem').map(text)).toEqual(['Testland', 'Valdoria']);
+    expect(text(settled)).toMatch(/Bought 1 Coal from Arvelia/);
+    expect(text(settled)).toMatch(/Sundmark wanted to sell us 1 Coal \(no free hold\)/);
+    expect(readable(settled)).not.toMatch(/91|92|93|94|17|preference|remaining holds/i);
+    const before = readable(settled);
+    act(() => useGameStore.setState({ game: setPair({ ...game, minorNations: game.minorNations.map(m => ({ ...m, colonyOf: N2 })) }, N1, ARVELIA, { points: 80 }) }));
+    expect(readable(settled)).toBe(before);
+    act(() => useGameStore.setState({ eventLog: [] }));
+    expect(text(settled)).toContain('Deal Book report unavailable for this turn.');
+    expect(text(settled)).not.toMatch(/Bought 1 Coal|Sundmark wanted to sell/);
+    expect(within(within(settled).getByRole('list', { name: 'Bidding Great Powers' })).getAllByRole('listitem').map(text)).toEqual(['Testland', 'Valdoria']);
+    act(() => useGameStore.setState({ game: { ...game, market: { ...marketOf(game), lastOrders: undefined } } }));
+    expect(within(panel()).queryByRole('region', { name: /Settled/ })).toBeNull();
+    expect(submitted).toEqual([]);
+  });
+
+  it('FR-612 keeps the settled page until End Turn when our current subsidy changes Arvelia’s preference', () => {
+    const game = setPair(withConsulate(start(), ARVELIA), N2, ARVELIA, { consulates: [N2] });
+    openBoard({ ...game, nations: game.nations.map(nation => ({ ...nation, controller: 'human' })) });
+    // Both powers bid for two of Arvelia's three Coal each round; the preferred power receives two.
+    const bothBid = () => {
+      const bid = { kind: 'buyCommodity', commodity: ResourceType.Coal, amount: 2 } as const;
+      act(() => useGameStore.setState({ game: applyOrder(now(), { ...bid, nationId: N2 }) }));
+      order({ ...bid, nationId: N1 });
+    };
+    const arveliaPreference = () => {
+      const current = region(`Current turn ${now().turn}`);
+      const seller = within(current).getByText(/Arvelia.*3 units/).closest('li')!;
+      const preference = within(seller).getByRole('list', { name: 'Seller preference' });
+      return within(preference).getAllByRole('listitem').map(text);
+    };
+    bothBid();
+    act(() => useGameStore.getState().advanceTurn());
+    bothBid();
+    book();
+    expect(arveliaPreference()).toEqual(['Valdoria', 'Testland']);
+    const settled = readable(region('Settled turn 1'));
+    expect(settled).toContain('Bought 1 Coal from Arvelia');
+
+    order({ kind: 'setTradePolicy', nationId: N1, targetId: ARVELIA, subsidyPercent: 25, boycott: false });
+    expect(arveliaPreference()).toEqual(['Testland', 'Valdoria']);
+    expect(readable(region('Settled turn 1'))).toBe(settled);
+    expect(within(panel()).queryByRole('region', { name: 'Settled turn 2' })).toBeNull();
+
+    act(() => useGameStore.getState().advanceTurn());
+    expect(within(panel()).queryByRole('region', { name: 'Settled turn 1' })).toBeNull();
+    expect(text(region('Settled turn 2'))).toContain('Bought 2 Coal from Arvelia');
+  });
+
+  it('NR-040 has identical text and accessible names on Normal and Demo around a rival private reservation, bid and boycott', () => {
+    const base = start();
+    const game: GameState = { ...base, market: { ...marketOf(base), orders: { [N1]: { sell: {}, buy: { coal: 1 } } } } };
+    openBoard(game);
+    book();
+    const expected = readable(dialog());
+    const boycottIntent = { id: 'private', turn: 1, nationId: N2, targetId: ARVELIA, kind: 'trade-policy', boycott: true, subsidyPercent: 0 };
+    for (const difficulty of ['normal', 'demo'] as const) {
+      const changed = setTreasury(game, N2, 73);
+      act(() => useGameStore.setState({ game: { ...changed, difficulty, intents: [boycottIntent],
+        market: { ...marketOf(game), orders: { ...marketOf(game).orders, [N2]: { buy: { coal: 3 }, sell: { wool: 1 } } } },
+      } }));
+      expect(readable(dialog())).toBe(expected);
+    }
+    expect(submitted).toEqual([]);
+  });
+
+  it('keeps the Two islands world market without a Trade Book', () => {
+    openBoard(newGame({ seed: 1, world: 'two-islands' }));
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    expect(screen.queryByRole('tab', { name: 'Trade Book' })).toBeNull();
   });
 });

@@ -3,7 +3,10 @@
 // FR-569 a refused order (Expand Steel mill with no lumber or steel) is a toast over the page, not a line in the dialog.
 // No sideways page scroll. Screenshots go to the test's output folder (testInfo.outputPath), or SCREENSHOT_DIR when set.
 import type { TestInfo } from '@playwright/test';
-import { expect, startSeededGame, test, type Page } from './seededGame';
+import { continueSavedGame, expect, startSeededGame, test, type Page } from './seededGame';
+import { createGameStore } from '../src/app/store/rootStore';
+import { saveOf } from '../src/app/store/persistence';
+import { newGame } from '../src/app/engine/newGame';
 
 const shotPath = (testInfo: TestInfo, name: string) => (process.env.SCREENSHOT_DIR ? `${process.env.SCREENSHOT_DIR}/${name}` : testInfo.outputPath(name));
 
@@ -19,6 +22,28 @@ async function expectInsideWindow(page: Page, box: { x: number; y: number; width
   expect(box.x + box.width).toBeLessThanOrEqual(size.width + 0.5);
   expect(box.y + box.height).toBeLessThanOrEqual(size.height + 0.5);
 }
+
+test('FR-404 scrolling a focused score out of Overview hides its parts until the score returns', async ({ page }) => {
+  await page.setViewportSize({ width: 640, height: 360 });
+  await startSeededGame(page);
+  await page.getByRole('button', { name: 'Stats', exact: true }).click();
+  const overview = page.getByRole('tabpanel', { name: 'Overview' });
+  const score = overview.getByTestId('hud-score');
+  const parts = overview.getByTestId('score-parts');
+  await score.focus();
+  await expect(parts).toBeVisible();
+
+  await overview.evaluate(panel => { panel.scrollTop = panel.scrollHeight; });
+  await expect(score).not.toBeInViewport();
+  await expect(score).toBeFocused();
+  await expect(parts).toBeHidden();
+
+  await overview.evaluate(panel => { panel.scrollTop = 0; });
+  await expect(score).toBeInViewport();
+  await expect(score).toBeFocused();
+  await expect(parts).toBeVisible();
+  await expectInsideWindow(page, (await parts.boundingBox())!);
+});
 
 for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 }]) {
   const at = `${viewport.width}x${viewport.height}`;
@@ -77,6 +102,66 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 
       await stats.getByRole('button', { name: 'Close stats' }).click();
       await expect(stats).toHaveCount(0);
       expect(errors).toEqual([]);
+    });
+
+    test(`FR-610 FR-611 at ${at} settled rankings have equal bars for ties and a keyboard-readable history`, async ({ page }, testInfo) => {
+      const game = newGame({ seed: 1, world: 'continent' });
+      const [human, rival] = game.nations;
+      // Give just the human's expansion: a scripted rival also expands before the first settlement.
+      rival.controller = 'human';
+      human.industry.buildings = structuredClone(rival.industry.buildings);
+      human.warehouse.lumber = 10;
+      human.warehouse.steel = 10;
+      const store = createGameStore({ game });
+      for (let turn = 1; turn <= 5; turn++) {
+        if (turn === 3) expect(store.getState().submitOrder({ kind: 'expandBuilding', nationId: human.id, building: 'steelMill' }).ok).toBe(true);
+        store.getState().advanceTurn();
+      }
+      expect(store.getState().rankHistory?.[0].places.industry).toEqual([{ nationId: human.id, place: 1 }, { nationId: rival.id, place: 1 }]);
+      expect(store.getState().rankHistory?.[2].places.industry).toEqual([{ nationId: human.id, place: 1 }, { nationId: rival.id, place: 2 }]);
+      await continueSavedGame(page, saveOf(store.getState()));
+      const opener = page.getByRole('button', { name: 'Stats', exact: true });
+      await opener.click();
+      const stats = page.getByRole('dialog', { name: 'Stats' });
+      await stats.getByRole('tab', { name: 'Overview' }).focus();
+      await page.keyboard.press('ArrowRight');
+      const rankings = stats.getByRole('tabpanel', { name: 'Rankings' });
+      await expect(stats.getByRole('tab', { name: 'Rankings' })).toBeFocused();
+      const measure = rankings.getByLabel('Measure', { exact: true });
+      await expect(measure.locator('option')).toHaveText([
+        'Council standing', 'Army strength (land)', 'Industry (installed capacity)', 'Labour (available output)',
+        'Transport (freight cars)', 'Merchant marine (cargo capacity)', 'World exports (units sold this turn)',
+      ]);
+      const turn = rankings.getByLabel('Resolved turn', { exact: true });
+      await expect(turn).toHaveValue('5');
+      await measure.selectOption({ label: 'Industry (installed capacity)' });
+      await turn.focus();
+      await turn.press('Home');
+      await expect(turn).toHaveValue('1');
+      const placings = rankings.getByRole('list', { name: 'Placings on turn 1' });
+      await expect(placings.getByRole('listitem')).toHaveText([/1st.*Testland/, /1st.*Valdoria/]);
+      await expect(placings.getByTestId('nation-flag')).toHaveCount(2);
+      const bars = await placings.getByTestId('rank-bar').evaluateAll(els => els.map(el => el.getBoundingClientRect().width));
+      expect(bars[0]).toBeGreaterThan(0);
+      expect(bars).toEqual([bars[0], bars[0]]);
+      const markers = rankings.locator('svg circle');
+      await expect(markers).toHaveCount(2);
+      for (const marker of await markers.all()) {
+        const box = (await marker.boundingBox())!;
+        expect(box.width).toBeGreaterThan(0);
+        expect(box.width, 'the selected-turn marker is round').toBeCloseTo(box.height, 2);
+      }
+      const history = rankings.getByRole('table', { name: 'Industry (installed capacity) by turn' });
+      await expect(history.getByRole('columnheader')).toHaveText(['Turn', 'Testland', 'Valdoria']);
+      await expect(history.getByRole('row')).toHaveCount(6);
+      await expect(history.getByRole('row').nth(1)).toHaveText(/1.*1st.*1st/);
+      await expect(history.getByRole('row').nth(3)).toHaveText(/3.*1st.*2nd/);
+      await expectInsideWindow(page, (await stats.boundingBox())!);
+      expect(await rankings.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+      await expectNoSidewaysScroll(page);
+      await page.screenshot({ path: shotPath(testInfo, `m18g-rankings-${at}.png`) });
+      await page.keyboard.press('Escape');
+      await expect(opener).toBeFocused();
     });
 
     test(`FR-569 at ${at} a refused order is a toast over the page, not a line in the dialog; Close takes it away`, async ({ page }, testInfo) => {

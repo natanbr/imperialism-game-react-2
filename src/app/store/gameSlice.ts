@@ -17,6 +17,7 @@ import type { GameState } from "@/types/GameState";
 import type { WorldId } from "@/types/World";
 import type { GameStore } from "./rootStore";
 import type { ReplayBoundary } from "./sessionReplay";
+import { projectRankings, type RankRecord } from "./rankHistory";
 import { isPlayersWorker } from "./controls/playersWorker";
 import { rejectedOrder, type OrderRejection } from "@/engine/orders/Order";
 export type { OrderRejection } from "@/engine/orders/Order";
@@ -55,6 +56,8 @@ export interface GameSession {
   activeNationId: NationId;
   /** Oldest first, at most EVENT_LOG_TURNS entries. */
   eventLog: TurnReport[];
+  /** FR-611: settled display placings, oldest first. A v1 save can lack some or all earlier turns. */
+  rankHistory?: RankRecord[];
   /** Every nation's orders of every resolved turn, oldest first (FR-100). */
   orderLog: OrderLogEntry[];
   /** The active nation's orders applied this turn, in order; logged at End Turn (FR-100). */
@@ -128,6 +131,7 @@ export const createGameSlice =
       activeNationId: options.activeNationId ?? game.nations[0]?.id ?? "nation-1",
       lastRejection: null,
       eventLog: [],
+      rankHistory: undefined,
       orderLog: [],
       ordersThisTurn: [],
       turnStartTreasuries: null,
@@ -152,7 +156,7 @@ export const createGameSlice =
       // The human's orders were applied when submitted; the computer nations plan on that state and
       // their orders resolve with the turn (FR-099, ARCHITECTURE.md turn flow).
       advanceTurn: () => {
-        const { game: current, eventLog, orderLog, ordersThisTurn, activeNationId, selectedWorkerId, turnStartTreasuries } = get();
+        const { game: current, eventLog, rankHistory, orderLog, ordersThisTurn, activeNationId, selectedWorkerId, turnStartTreasuries } = get();
         // After the end resolveTurn is a no-op that would still log an empty turn (FR-077).
         if (isGameOver(current)) return;
         const computer = computerOrders(current);
@@ -168,10 +172,17 @@ export const createGameSlice =
           nationId: n.id,
           orders: n.id === activeNationId ? ordersThisTurn : (computer[n.id] ?? []),
         }));
+        let ranking: RankRecord | undefined;
+        try {
+          ranking = projectRankings(state, events, report.turn);
+        } catch {
+          // FR-611: keep the settled turn even when its display sample is unavailable.
+        }
         set({
           game: state,
           selectedWorkerId: selectedWorkerId && isPlayersWorker({ game: state, activeNationId }, selectedWorkerId) ? selectedWorkerId : undefined,
           eventLog: [...eventLog, report].slice(-EVENT_LOG_TURNS),
+          rankHistory: ranking ? [...(rankHistory ?? []), ranking] : rankHistory,
           orderLog: [...orderLog, ...logged],
           ordersThisTurn: [],
           turnStartTreasuries: null,
@@ -205,6 +216,7 @@ export const createGameSlice =
           replayBoundary: undefined,
           activeNationId: next.nations[0]?.id ?? "nation-1",
           eventLog: [],
+          rankHistory: undefined,
           orderLog: [],
           ordersThisTurn: [],
           turnStartTreasuries: null,
@@ -215,8 +227,8 @@ export const createGameSlice =
       setSaveFailed: (failed) => set({ saveFailed: failed }),
 
       // FR-359: the saved session, and of the UI only what a new game starts with; a finished game shows its final scores
-      restoreGame: ({ game: saved, replayBoundary, activeNationId, eventLog, orderLog, ordersThisTurn, turnStartTreasuries }) =>
-        set({ ...NO_SELECTION_NO_DIALOG, game: saved, replayBoundary, activeNationId, eventLog, orderLog, ordersThisTurn, turnStartTreasuries }),
+      restoreGame: ({ game: saved, replayBoundary, activeNationId, eventLog, rankHistory, orderLog, ordersThisTurn, turnStartTreasuries }) =>
+        set({ ...NO_SELECTION_NO_DIALOG, game: saved, replayBoundary, activeNationId, eventLog, rankHistory, orderLog, ordersThisTurn, turnStartTreasuries }),
     };
   };
 

@@ -92,6 +92,12 @@
   --color-relation-6: #8f8f8a;
   --color-relation-7: #8fc27a;
   --color-relation-8: #2f6b2f;
+  /* The settled political map (FR-614, FR-615), in the original treaty colours. */
+  --color-map-home: #164633;
+  --color-map-war: #4f5155;
+  --color-map-pact: #8dc8bc;
+  --color-map-alliance: #827db2;
+  --color-map-empire: #c7a5cf;
 
   /* Map (the tiles have no tint of their own since M11: they lie on the ground, FR-321; Q71) */
   --color-job-completed: var(--color-highlight);
@@ -161,6 +167,10 @@
 }
 
 @supports (color: contrast-color(currentColor)) {
+  .diplomatic-map-country {
+    --color-map-country-border: contrast-color(var(--country-fill));
+  }
+
   .political-map-lettering {
     --color-map-lettering: contrast-color(var(--country-fill));
     --color-map-lettering-halo: contrast-color(var(--color-map-lettering));
