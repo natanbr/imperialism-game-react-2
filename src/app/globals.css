@@ -1121,15 +1121,9 @@ img[data-art-anchor="bottom-center"] {
   white-space: nowrap;
 }
 
-/* The score's parts (FR-404) hang under the bar, so the bar keeps its height */
-.hud-score {
-  position: relative;
-}
-
+/* Viewport positioning keeps the score parts clear of the Stats tab panel's scrolling clip (FR-404). */
 .topbar-popover {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
+  position: fixed;
   z-index: 1;
   padding: 6px 8px;
   border: 1px solid var(--color-border-strong);

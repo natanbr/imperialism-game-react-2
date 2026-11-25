@@ -22,11 +22,13 @@ function PlaceTrace({ places, nationCount, selectedTurn }: { places: (number | u
   const y = (place: number) => 4 + 36 * (place - 1) / Math.max(1, nationCount - 1);
   const path = places.map((place, i) => place === undefined ? "" : `${places[i - 1] === undefined ? "M" : "L"}${x(i)},${y(place)}`).join(" ");
   return (
-    <svg viewBox="0 0 200 44" preserveAspectRatio="none" aria-hidden="true" focusable="false">
-      <path className={styles.gridlines} d="M4 4H196 M4 40H196" />
-      <path d={path} fill="none" stroke="currentColor" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+    <svg aria-hidden="true" focusable="false" overflow="visible">
+      <svg viewBox="0 0 200 44" preserveAspectRatio="none" width="100%" height="100%">
+        <path className={styles.gridlines} d="M4 4H196 M4 40H196" />
+        <path d={path} fill="none" stroke="currentColor" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+      </svg>
       {places.map((place, i) => place !== undefined && (i + 1 === selectedTurn || (places[i - 1] === undefined && places[i + 1] === undefined))
-        ? <circle key={i} cx={x(i)} cy={y(place)} r="3" fill="currentColor" /> : null)}
+        ? <circle key={i} cx={`${100 * x(i) / 200}%`} cy={`${100 * y(place) / 44}%`} r="3" fill="currentColor" /> : null)}
     </svg>
   );
 }

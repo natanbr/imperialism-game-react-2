@@ -118,7 +118,7 @@
 }
 
 .plot { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px; margin-top: 4px; }
-.plot svg { width: 100%; height: 42px; }
+.plot > svg { width: 100%; height: 42px; }
 .gridlines { fill: none; stroke: var(--color-border); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .scale, .period { display: flex; justify-content: space-between; font-size: 11px; color: var(--color-ink-muted); }
 .scale { flex-direction: column; }
