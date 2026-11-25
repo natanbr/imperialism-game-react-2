@@ -37,7 +37,7 @@ import { seaWarRequirement } from "@/engine/navy/seaArmy";
 import type { NationId } from "@/types/Common";
 import type { GameState } from "@/types/GameState";
 import type { GrantIntent } from "@/types/Intent";
-import { money, REFUSAL_TEXT, upkeepWarningText } from "../gameText";
+import { fundsNeededText, money, REFUSAL_TEXT, spendingWarningText } from "../gameText";
 
 export type CountryKind = "Great Power" | "Minor nation";
 
@@ -163,7 +163,11 @@ export const overtureLabel = (overture: Overture): string =>
 
 const control = (state: GameState, label: string, order: Order, name = label): ControlView => {
   const result = validateOrder(state, order);
-  return result.ok ? { label, name, order } : { label, name, order, refusal: REFUSAL_TEXT[result.reason] };
+  if (result.ok) return { label, name, order };
+  const refusal = "cost" in result
+    ? fundsNeededText(result.cost, result.buyingPower, order.kind === "proposeOverture" && order.overture === "embassy")
+    : REFUSAL_TEXT[result.reason];
+  return { label, name, order, refusal };
 };
 
 /** "Declare war" at war (FR-241): FR-162's `already-in-place` says it plainly there. */
@@ -276,7 +280,7 @@ export function grantAsk(state: GameState, nationId: NationId, targetId: Country
   const treasury = (state.nations.find((n) => n.id === nationId)?.treasury ?? 0) + refund - amount;
   return {
     question: `Give ${money(amount)} to ${name}${locked ? " each turn" : ""}? The treasury will hold ${money(treasury)} after it.`,
-    upkeep: upkeepWarningText(upkeepForecastWithGrant(state, { kind: "giveGrant", nationId, targetId, amount, locked })),
+    upkeep: spendingWarningText(upkeepForecastWithGrant(state, { kind: "giveGrant", nationId, targetId, amount, locked }), treasury) ?? null,
     confirm: `Give ${money(amount)}`,
   };
 }

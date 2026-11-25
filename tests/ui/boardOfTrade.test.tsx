@@ -121,7 +121,8 @@ it('FR-608 shows public sources through bids, full holds, the final reserved sto
   const state = setWarehouse(start(), N1, { wool: 1 });
   const market = { ...marketOf(state), lastOrders: { [N2]: { buy: { wool: 1 }, sell: {} } } };
   openBoard({ ...state, market });
-  const source = 'No known local source · Another power may offer this';
+  // FR-563: “may offer” → “may sell”, preserving the uncertain supplier.
+  const source = 'No known local source · Another power may sell this';
   for (const key of ['wool', 'oil', 'fuel']) expect(text(row(key)), key).toContain(source);
   expect(flags('horses', 'sellers')).toEqual(['Arvelia (no consulate)']);
   expect(text(row('horses'))).not.toContain('No known local source');

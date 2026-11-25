@@ -55,8 +55,11 @@ describe('FR-022 the UI changes the game only through submitOrder', () => {
     const scanned = files.map((f) => relative(ROOT, f).replace(/\\/g, '/'));
     expect(screens.filter((f) => !scanned.includes(f))).toEqual([]);
     expect(/\bsubmitOrder\(/.test(readFileSync(join(ROOT, 'src/app/components/market/BoardOfTrade.tsx'), 'utf8'))).toBe(true);
-    // The Deal Book only reads the last turn's events: it builds no order at all
-    expect(/\bsubmitOrder\b/.test(readFileSync(join(ROOT, 'src/app/components/DealBookModal.tsx'), 'utf8'))).toBe(false);
+    // FR-599/604: a read-only Deal Book → a read-only statement and exactly one live account Order.
+    const book = readFileSync(join(ROOT, 'src/app/components/DealBookModal.tsx'), 'utf8');
+    expect([...book.matchAll(/\bkind:\s*"([^"]+)"/g)].map(match => match[1])).toEqual(['openCredit']);
+    expect(book.match(/\bsubmitOrder\s*\(/g)).toHaveLength(1);
+    expect(book.match(/\bsubmitOrder\(order\)/g)).toHaveLength(1);
   });
 
   it('FR-210 FR-211 FR-212 the army markers, the Army screen and the Armoury are scanned; the two screens send their orders through submitOrder', () => {

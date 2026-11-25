@@ -81,7 +81,8 @@ it('FR-605 the named treasury group exposes signed live cash independently of th
   const treasury = screen.getByRole('group', { name: 'Treasury' });
   expect(text(treasury.querySelector('.nation-stats')!)).toBe('Cash: -$25');
   act(() => {
-    expect(useGameStore.getState().submitOrder({ kind: 'buyCommodity', nationId: N1, commodity: ResourceType.Coal, amount: 1 })).toEqual({ ok: true });
+    // Coal (barred before a consulate) -> Wool, a $100 bid a Great Power may fill.
+    expect(useGameStore.getState().submitOrder({ kind: 'buyCommodity', nationId: N1, commodity: ResourceType.Wool, amount: 1 })).toEqual({ ok: true });
   });
   expect(text(treasury.querySelector('.nation-stats')!)).toBe('Cash: -$125');
   expect(text(within(treasury).getByTestId('cash-change'))).toBe('-$101 last turn');

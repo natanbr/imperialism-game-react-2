@@ -26,6 +26,8 @@ export interface DealBookView {
    * (FR-396), each diplomacy cost, each type recruited (FR-262), Other when not 0, Treasury change.
    */
   treasury?: MoneyLine[];
+  /** Dated closing balances, separate from the cash movements above. Absent on pre-credit and cash-only reports. */
+  balances?: MoneyLine[];
   /** "From $10,000 to $9,200": the treasury before and after the turn (FR-256). */
   cash?: string;
   /** Nothing sold, bought or left: the screen says "No deals last turn." */
@@ -120,10 +122,16 @@ export function dealBookView(book: DealBook, nameOf: (countryId: string) => stri
             ...(militaryUpkeep !== 0 ? [line("Army upkeep", -militaryUpkeep)] : []),
             ...book.diplomacy.map((d) => line(`${DIPLOMACY_TEXT[d.kind]} ${nameOf(d.targetId)}`, -d.amount)),
             ...book.recruits.map((r) => line(`${r.count} ${REGIMENTS[r.regiment].name} recruited`, -r.amount)),
+            ...(treasury.interest ? [line(`Interest (${treasury.interest.ratePercent}% per turn)`, -treasury.interest.amount)] : []),
+            ...(treasury.forcedSales ?? []).map(sale =>
+              line(`Forced sale of ${sale.amount} ${commodityName(sale.commodity)} @ ${money(sale.price)}`, sale.proceeds)),
             ...(treasury.other !== 0 ? [line(OTHER_MONEY_LABEL, treasury.other)] : []),
             line("Treasury change", treasury.change),
           ],
           cash: `From ${money(treasury.start)} to ${money(treasury.end)}`,
+          ...(treasury.closingCredit && {
+            balances: [line("Closing debt", treasury.closingCredit.closingDebt), line("Credit limit", treasury.closingCredit.limit)],
+          }),
         }
       : {}),
     empty,

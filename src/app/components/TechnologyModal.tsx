@@ -2,13 +2,14 @@ import { useId, useState } from "react";
 import { TECHNOLOGIES, technologyById } from "@/definisions/technologies";
 import { validateOrder } from "@/engine";
 import { owns } from "@/engine/orders/queries";
+import { buyingPower, hasOpenCredit } from "@/engine/credit/account";
 import { availableTechnologies, technologyTurn } from "@/engine/technology";
 import { useGameStore } from "@/store/rootStore";
 import { selectActiveNation } from "@/store/selectors";
 import { InkPicture } from "./art/ArtPicture";
 import { buildingArt } from "./art/inkArt";
 import capital from "./capital/Capital.module.css";
-import { money, REFUSAL_TEXT } from "./gameText";
+import { fundsNeededText, money, REFUSAL_TEXT } from "./gameText";
 import { Modal } from "./Modal";
 import styles from "./Technology.module.css";
 
@@ -41,7 +42,7 @@ export function TechnologyModal({ onClose }: { onClose: () => void }) {
         <h2 id={titleId} className={capital.title}><InkPicture src={buildingArt("university")} alt="" inline />Invest in Technology</h2>
         <button className={capital.closeButton} onClick={onClose} aria-label="Close technology">Close</button>
       </header>
-      <div className={styles.treasury}>Treasury <strong>{money(nation.treasury)}</strong></div>
+      <div className={styles.treasury}>Treasury <strong>{money(nation.treasury)}</strong>{hasOpenCredit(nation) && ` · Buying power ${money(buyingPower(nation))}`}</div>
       <div className={styles.scroll} tabIndex={0} role="region" aria-label="Technology catalogue">
         <p>Resource improvements are already available in this build. Technology purchases unlock civilian training, the Clipper and the Oil Refinery.</p>
         <section aria-label="Available">
@@ -56,7 +57,7 @@ export function TechnologyModal({ onClose }: { onClose: () => void }) {
             return <li key={tech.id} className={styles.offer}>
               <div><strong>{tech.name}</strong><p>{tech.effect}</p>
                 {purchased && <small>Ordered for next turn</small>}
-                {!result.ok && <small id={noteId}>{REFUSAL_TEXT[result.reason]}</small>}
+                {!result.ok && <small id={noteId}>{"cost" in result ? fundsNeededText(result.cost, result.buyingPower) : REFUSAL_TEXT[result.reason]}</small>}
               </div>
               <div className={styles.action}>
                 <strong>{money(tech.cost)}</strong>

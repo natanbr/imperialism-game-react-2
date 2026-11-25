@@ -6,18 +6,22 @@ import type { NationId, ProvinceId, RegimentId } from "@/types/Common";
 import type { GameState } from "@/types/GameState";
 import type { GrantIntent } from "@/types/Intent";
 import { hasOpenCredit } from "../credit/account";
+import { interestOn } from "../credit/settlement";
 import { isMilitia, REGIMENTS, UPKEEP_PER_ARMS } from "@/definisions/regiments";
 import { marketOf, priceOf, tradeOrdersOf } from "../market/market";
 import { diplomacyAfterThisTurn, marketModeOf } from "../market/partners";
 import { settlePartnerTrade } from "../market/settlePartners";
-import type { GiveGrantOrder } from "../orders/Order";
+import type { BuyCommodityOrder, GiveGrantOrder } from "../orders/Order";
 import { applyDiplomacyOrder } from "../orders/diplomacyOrders";
+import { applyBuyCommodity } from "../orders/tradeOrders";
 import { armyAt, isArmyIntent, regimentsOf, serialOf } from "./armies";
 
 export interface UpkeepForecast {
   /** Debt and excess after projected upkeep, before interest, using the currently posted limit. */
   projectedDebt?: number;
   overLimitBy?: number;
+  /** Conditional on the posted limit still applying and no sale receipts before assessment. */
+  forcedSaleRisk?: { interest: number; debt: number; excess: number };
   /** FR-202's upkeep on the regiments left after this turn's disband orders (FR-207); this turn's recruits pay from next turn. */
   due: number;
   /**
@@ -112,11 +116,20 @@ export function upkeepForecast(state: GameState, nationId: NationId, extraSpend 
     if (settled.has(a === nationId ? b : a)) continue;
     if (cash >= amount) cash -= amount;
   }
-  cash -= bidExtraOf(state, nationId);
+  // A prospective spend also changes what a subsidised seller can collect above the bid reserve.
+  const bidState = extraSpend && nation ? {
+    ...state,
+    nations: state.nations.map(n => n === nation ? { ...n, treasury: n.treasury - extraSpend } : n),
+  } : state;
+  cash -= bidExtraOf(bidState, nationId);
   if (hasOpenCredit(nation)) {
     const projectedDebt = Math.max(0, due - cash);
+    const limit = nation.creditAccount.limit;
+    const interest = interestOn(projectedDebt, limit).amount;
+    const debt = projectedDebt + interest;
     return { due, cash, short: false, shortBy: 0, regimentsLost: [],
-      projectedDebt, overLimitBy: Math.max(0, projectedDebt - nation.creditAccount.limit) };
+      projectedDebt, overLimitBy: Math.max(0, projectedDebt - limit),
+      ...(debt > limit && { forcedSaleRisk: { interest, debt, excess: debt - limit } }) };
   }
   const short = cash < due;
   return { due, cash, short, shortBy: short ? due - cash : 0, regimentsLost: short ? lostAt(paying, due, cash) : [] };
@@ -130,3 +143,7 @@ export function upkeepForecast(state: GameState, nationId: NationId, extraSpend 
  */
 export const upkeepForecastWithGrant = (state: GameState, order: GiveGrantOrder): UpkeepForecast =>
   upkeepForecast(applyDiplomacyOrder(state, order), order.nationId);
+
+/** Preview an allowed bid, including the new reservation and any public partner price premium. */
+export const upkeepForecastWithPurchase = (state: GameState, order: BuyCommodityOrder): UpkeepForecast =>
+  upkeepForecast(applyBuyCommodity(state, order), order.nationId);

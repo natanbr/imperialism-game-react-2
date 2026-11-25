@@ -88,7 +88,8 @@ describe('FR-604 FR-605 the current credit line and dated statement', () => {
     expect(treasuryLines()).toEqual(dated);
     expect(text(account())).toMatch(/buying power\s*\$175/i);
     act(() => {
-      expect(useGameStore.getState().submitOrder({ kind: 'buyCommodity', nationId: N1, commodity: ResourceType.Coal, amount: 1 })).toEqual({ ok: true });
+      // Coal (barred before a consulate) -> Wool, a $100 bid a Great Power may fill.
+      expect(useGameStore.getState().submitOrder({ kind: 'buyCommodity', nationId: N1, commodity: ResourceType.Wool, amount: 1 })).toEqual({ ok: true });
     });
     expect(text(account())).toMatch(/buying power\s*\$75/i);
     expect(text(account())).toMatch(/debt\s*\$125/i);

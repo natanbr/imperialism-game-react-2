@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo } from "react";
 import { useGameStore } from "../store/rootStore";
 import { computeLogisticsTransport, transportShipments } from "@/engine/systems/logisticsSystem";
 
@@ -18,26 +18,7 @@ export const useTransportAllocations = (capacity: number) => {
   const submitOrder = useGameStore((s) => s.submitOrder);
   const railroadNetworks = useGameStore((s) => s.game.transportNetwork.railroadNetworks);
 
-  const initialAllocations = useMemo(
-    () => transportAllocationsByNation?.[activeNationId] ?? NO_PLAN,
-    [transportAllocationsByNation, activeNationId]
-  );
-
-  const [allocations, setAllocations] = useState<Record<string, number>>(initialAllocations);
-
-  useEffect(() => {
-    setAllocations((prev) => {
-      const prevKeys = Object.keys(prev);
-      const nextKeys = Object.keys(initialAllocations);
-      if (
-        prevKeys.length === nextKeys.length &&
-        prevKeys.every((k) => Object.hasOwn(initialAllocations, k) && (prev[k] ?? 0) === (initialAllocations[k] ?? 0))
-      ) {
-        return prev;
-      }
-      return { ...initialAllocations };
-    });
-  }, [initialAllocations]);
+  const allocations = transportAllocationsByNation?.[activeNationId] ?? NO_PLAN;
 
   const nationNetwork = railroadNetworks?.[activeNationId];
   const collected = useMemo(
@@ -48,18 +29,14 @@ export const useTransportAllocations = (capacity: number) => {
   /** FR-390: what each commodity ships this turn under the plan, the logistics phase's own rule (FR-389). */
   const shipments = useMemo(() => transportShipments(capacity, collected, allocations), [capacity, collected, allocations]);
 
-  /** Allocated: the set amounts only (FR-390); Remaining: the capacity they leave for the automatic commodities. */
-  const totalAllocated = useMemo(
-    () => Object.values(allocations).reduce((a, b) => a + (b || 0), 0),
-    [allocations]
-  );
+  // A saved cap can exceed today's supply. Only its actual shipment uses capacity.
+  const totalAllocated = Object.keys(allocations).reduce((sum, key) => sum + (shipments[key] ?? 0), 0);
   const remaining = Math.max(0, capacity - totalAllocated);
 
   const isSet = (key: string) => Object.hasOwn(allocations, key);
   const autoAmount = (key: string) => shipments[key] ?? 0;
 
   const submit = (next: Record<string, number>) => {
-    setAllocations(next);
     submitOrder({ kind: "setTransportAllocations", nationId: activeNationId, allocations: next });
   };
 
@@ -68,7 +45,7 @@ export const useTransportAllocations = (capacity: number) => {
     const maxForKey = Math.max(0, Math.floor(collected[key] ?? 0));
     const nextVal = Math.max(0, Math.min(maxForKey, Math.floor(nextValRaw) || 0));
     const currentForKey = allocations[key] ?? 0;
-    const othersTotal = totalAllocated - currentForKey;
+    const othersTotal = totalAllocated - (isSet(key) ? shipments[key] ?? 0 : 0);
     const allowedForKey = Math.max(0, Math.min(capacity - othersTotal, maxForKey));
     const clamped = Math.min(nextVal, allowedForKey);
     if (isSet(key) && clamped === currentForKey) return;
@@ -84,26 +61,6 @@ export const useTransportAllocations = (capacity: number) => {
   };
 
   const sliderMax = (key: string) => Math.max(0, Math.floor(collected[key] ?? 0));
-
-  useEffect(() => {
-    setAllocations((prev) => {
-      const next: Record<string, number> = { ...prev };
-      Object.keys(next).forEach((k) => {
-        const maxK = sliderMax(k);
-        next[k] = Math.max(0, Math.min(next[k] || 0, maxK));
-      });
-      let total = Object.values(next).reduce((a, b) => a + (b || 0), 0);
-      if (total > capacity) {
-        for (const k of Object.keys(next)) {
-          if (total <= capacity) break;
-          const reduceBy = Math.min(next[k], total - capacity);
-          next[k] -= reduceBy;
-          total -= reduceBy;
-        }
-      }
-      return Object.keys(next).every((k) => next[k] === prev[k]) ? prev : next;
-    });
-  }, [collected, capacity]);
 
   return {
     allocations,

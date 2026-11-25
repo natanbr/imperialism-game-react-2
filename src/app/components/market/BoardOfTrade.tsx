@@ -200,8 +200,9 @@ export const BoardOfTrade: React.FC = () => {
           <span data-testid="market-committed" title="Paid for this turn's purchases at the board price; any unit not bought is paid back at End Turn">
             Committed: <strong>{money(view.committed)}</strong>
           </span>
-          <span data-testid="market-power" title="The cash left after this turn's purchases">
-            Buying power: <strong>{money(view.treasury)}</strong>
+          {view.creditLimit !== undefined && <span>Credit limit: <strong>{money(view.creditLimit)}</strong></span>}
+          <span data-testid="market-power" title="Cash plus available credit after this turn's purchases">
+            Buying power: <strong>{money(view.buyingPower)}</strong>
           </span>
           <span data-testid="market-holds" title="Every unit traded takes one hold this turn">
             {view.holdsText}
@@ -285,6 +286,7 @@ export const BoardOfTrade: React.FC = () => {
                             value={row.bid}
                             testId="bid"
                             moreRefusal={row.bidMoreRefusal}
+                            note={row.purchaseWarning ? { text: row.purchaseWarning, tone: "info" } : undefined}
                             hideLessAtZero
                             focusableRefusal
                             onChange={send("buyCommodity", row.commodity)}
@@ -310,6 +312,7 @@ export const BoardOfTrade: React.FC = () => {
                             —
                           </span>
                         )}
+                        {row.sourceNote && <span className={styles.sourceNote}>{row.sourceNote}</span>}
                       </td>
                     </tr>
                   );

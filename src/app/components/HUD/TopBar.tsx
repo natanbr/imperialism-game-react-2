@@ -94,7 +94,7 @@ export const TopBar: React.FC = () => {
         <div className={`${styles.block} ${styles.turn}`} data-testid="topbar-turn">
           <TurnIndicator />
         </div>
-        <div className={styles.block} data-testid="topbar-cash">
+        <div className={styles.block} data-testid="topbar-cash" role="group" aria-label="Treasury">
           <NationStats />
           <CashChange />
         </div>

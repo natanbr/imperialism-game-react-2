@@ -110,8 +110,15 @@ export const MISSED_TEXT: Record<OfferMissedReason, string> = {
   "no-cash": "not enough money",
 };
 
-export function refusalText({ order, reason }: { order: Order; reason: RejectReason }): string {
+export function fundsNeededText(cost: number, available: number, cashOnly = false): string {
+  return `Needs ${money(cost)}, ${money(available)} ${cashOnly ? "cash available" : "buying power available"}`;
+}
+
+export function refusalText({ order, reason, cost, buyingPower }: { order: Order; reason: RejectReason; cost?: number; buyingPower?: number }): string {
   const action = order.kind === "moveArmy" && order.via ? (order.via === "rail" ? "Rail deployment" : "Sea deployment") : ORDER_TEXT[order.kind];
+  if (reason === "insufficient-funds" && cost !== undefined && buyingPower !== undefined) {
+    return `${action} refused. ${fundsNeededText(cost, buyingPower, order.kind === "proposeOverture" && order.overture === "embassy")}.`;
+  }
   return `${action} refused: ${REFUSAL_TEXT[reason]}.`;
 }
 
@@ -237,12 +244,30 @@ export function foodWarningText(forecast: FoodForecast): string | null {
 /** "Army upkeep at End Turn: $100" (FR-261): what the upkeep step will charge (FR-202). */
 export const upkeepDueText = (forecast: Pick<UpkeepForecast, "due">): string => `Army upkeep at End Turn: ${money(forecast.due)}`;
 
+export function creditUpkeepText(forecast: Pick<UpkeepForecast, "due" | "projectedDebt" | "overLimitBy" | "forcedSaleRisk">): string | null {
+  if (!forecast.projectedDebt) return null;
+  const debt = `Projected debt after ${money(forecast.due)} upkeep: ${money(forecast.projectedDebt)} before interest and sale receipts.`;
+  const before = forecast.overLimitBy ? `${debt} This is ${money(forecast.overLimitBy)} over the current limit.` : debt;
+  const risk = forecast.forcedSaleRisk;
+  if (!risk) return before;
+  return `${before} At the posted limit, ${money(risk.interest)} interest would bring debt to ${money(risk.debt)}, ${money(risk.excess)} over. A forced sale may follow.`;
+}
+
+export function spendingWarningText(forecast: UpkeepForecast, cashAfterOrder: number): string | undefined {
+  const warning = upkeepWarningText(forecast);
+  if (forecast.projectedDebt !== undefined && cashAfterOrder < 0) {
+    return `Debt after this order: ${money(-cashAfterOrder)}. ${warning ?? ""}`.trim();
+  }
+  return warning ?? undefined;
+}
+
 /**
  * FR-261, worded by FR-393 (M12): shown while the cash End Turn's upkeep step will find is below the upkeep: "Army upkeep
  * of $50 is due at End Turn and the treasury will hold $16: $34 short. Unless this turn's sales bring in $34, 1 regiment
  * is disbanded (2nd Hussars)."; when the lost regiments' upkeep is the whole of it, "... all 3 regiments are disbanded."
  */
 export function upkeepWarningText(forecast: UpkeepForecast): string | null {
+  if (forecast.projectedDebt !== undefined) return creditUpkeepText(forecast);
   if (!forecast.short) return null;
   const lost = forecast.regimentsLost;
   const lostUpkeep = lost.reduce((sum, r) => sum + UPKEEP_PER_ARMS * REGIMENTS[r.type].stats.armamentsCost, 0);

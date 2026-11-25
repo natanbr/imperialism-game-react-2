@@ -48,7 +48,8 @@ describe('FR-050 warehouse dialog', () => {
     }
     act(() => show(newGame({ seed: 1, world: 'continent' }), { isWarehouseOpen: true }));
     expect(stock('horses')).toBe('Horses 4');
-    expect(stock('wool')).toContain('No known local source · Another power may offer this');
+    // FR-563: “may offer” → “may sell”, as on the Board.
+    expect(stock('wool')).toContain('No known local source · Another power may sell this');
     act(() => show(newGame({ seed: 1, world: 'random' }), { isWarehouseOpen: true }));
     expect(stock('horses')).toContain('No known local source');
     expect(stock('horses')).toContain('4');

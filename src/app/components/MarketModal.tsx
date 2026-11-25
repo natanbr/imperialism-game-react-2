@@ -52,6 +52,7 @@ const WorldMarket: React.FC = () => {
             <span data-testid="market-cash">
               Cash: <strong>{money(view.treasury)}</strong>
             </span>
+            {view.buyingPower !== undefined && <span data-testid="market-power">Buying power: <strong>{money(view.buyingPower)}</strong></span>}
             <span data-testid="market-holds" title="Every unit sold or bought takes one cargo hold this turn">
               Cargo holds: <strong>{view.capacity.used}</strong> used, <strong>{view.capacity.free}</strong> free of {view.capacity.holds}
             </span>
@@ -66,7 +67,7 @@ const WorldMarket: React.FC = () => {
         </p>
 
         {view && (
-          <table className={styles.table}>
+          <table className={`${styles.table} ${styles.worldTable}`} aria-label="World market goods">
             <thead>
               <tr>
                 <th>Commodity</th>
@@ -79,8 +80,9 @@ const WorldMarket: React.FC = () => {
             <tbody>
               {view.rows.map((row: MarketRowView) => (
                 <tr key={row.commodity} data-testid={`trade-row-${row.commodity}`}>
-                  <td data-testid="name">
-                    <InkPicture src={goodsArt(row.commodity)} alt="" inline />{row.name}
+                  <td>
+                    <span data-testid="name"><InkPicture src={goodsArt(row.commodity)} alt="" inline />{row.name}</span>
+                    {row.sourceNote && <span className={styles.sourceNote}>{row.sourceNote}</span>}
                   </td>
                   <td className={styles.number} data-testid="price">
                     {money(row.price)}
@@ -95,7 +97,7 @@ const WorldMarket: React.FC = () => {
                     <Stepper
                       label="Buy" name={row.name} value={row.buy} testId="buy" onChange={send("buyCommodity", row.commodity)}
                       moreRefusal={row.buyRefusal}
-                      note={row.buyRefusal ? { text: row.buyRefusal, tone: "refusal" } : undefined}
+                      note={row.buyRefusal ? { text: row.buyRefusal, tone: "refusal" } : row.purchaseWarning ? { text: row.purchaseWarning, tone: "info" } : undefined}
                     />
                   </td>
                 </tr>
