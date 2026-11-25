@@ -16,6 +16,16 @@ Older entries are in `docs/journal/archive-<milestone>.md` (the latest move, 202
 - Task 19 passed the load trials and full gate on `claude/perf-tests`. Finish future gates with `npm run test:perf` alone. The measured results and six functional logs are indexed in `.gate/codex/19/summary.md`.
 - To play M17 on continent seed 1, set Armaments and Fabric production to 1. Build a Ship-of-the-Line on turn 6, declare and sail on turn 7, set the site on turn 8, and land the four-ARMS army on turn 9. On turn 10 see the survivors at Sundmark and its colony vote in Council.
 
+
+## 2026-11-24 night shift 2 — M18d terrains and resources, M18e maps and options
+
+- Environment: worktree `.claude/worktrees/imperialism-game-revival-fee36d`; branches from origin/main a52d6b4; deploy: none (merge to main by pull request); gate `.gate/claude/NN/gate.sh` (test, lint, tsc, build, e2e on port 3123 with one worker, perf, roadmap check). Protected: `tests/engine/sim/humans.ts`, `.claude/launch.json` uncommitted.
+- Allowance 6 points (source: default; the owner's prompt named none). Weekly gauge 27% at start (resets 2026-11-29).
+- Plan (orchestrator's call, from the roadmap's M18 "World variety and depth", worst items first):
+  1. M18d: the missing terrains and resources with rivers (RULES-GAP-06), prospecting that can find nothing (RULES-GAP-25), the dead goods rows becoming live (RULES-GAP-26). Forecast 2.5 points with its review.
+  2. M18e: a seeded random map and game options, game length (RULES-GAP-07, RULES-GAP-24). Depends on M18d. Forecast 2 points.
+  Deferred: town development, credit, diplomacy leftovers, land war eras, original screens.
+- Decision: Codex builds (gpt-6.2-astra xhigh; its quota is back), Claude Sonnet 5.5 xhigh reviews. Rejected: Claude Opus builds, which spend the weekly gauge three times faster for the same work. The play-test pieces M18a to M18c already live under M18, so these are M18d and M18e, and no new milestone number is needed.
 ## 2026-11-24 Task 30 — Trade policy map review (FR-579)
 
 Size M. Keep country names, flags and policy markers readable when a small country's land projects to a single tile.
