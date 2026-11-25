@@ -1,6 +1,8 @@
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import { newGame, tryApplyOrder } from '@/engine';
+import { END_TURN_LOCK_MS } from '@/store/gameSlice';
 import { readSave, saveOf, type SavedGame } from '@/store/persistence';
+import * as rankings from '@/store/rankHistory';
 import { replaySession } from '@/store/sessionReplay';
 import { createGameStore } from '@/store/rootStore';
 import { ResourceType } from '@/types/Resource';
@@ -51,6 +53,30 @@ it('FR-497 FR-610 uses the resolved state, and a rival privately reserving a bid
   expect(bid.state.nations[1].treasury).toBeLessThan(settled.nations[1].treasury);
   store.setState({ game: bid.state });
   expect(saveOf(store.getState(), now).rankHistory).toEqual(record);
+});
+
+it('FR-611 FR-423 settles the turn and unlocks End Turn when the display projection fails', () => {
+  const store = createGameStore({ world: 'two-islands', seed: 9 });
+  store.getState().advanceTurn();
+  const [first] = store.getState().rankHistory!;
+  vi.useFakeTimers();
+  const projection = vi.spyOn(rankings, 'projectRankings').mockImplementationOnce(() => {
+    throw new Error('Rank projection failed');
+  });
+  try {
+    store.getState().endTurn();
+    expect(store.getState().game.turn).toBe(3);
+    expect(store.getState().eventLog.at(-1)?.turn).toBe(2);
+    expect(store.getState().rankHistory).toEqual([first]);
+    expect(store.getState().endTurnLocked).toBe(true);
+    vi.advanceTimersByTime(END_TURN_LOCK_MS);
+    expect(store.getState().endTurnLocked).toBe(false);
+    store.getState().endTurn();
+    expect(store.getState().rankHistory?.map(record => record.turn)).toEqual([1, 3]);
+  } finally {
+    projection.mockRestore();
+    vi.useRealTimers();
+  }
 });
 
 it.each(['normal', 'demo'] as const)('NR-040 FR-611 preserves %s mid-turn gameplay, Orders, replay and next settlement with history retained, altered or missing', difficulty => {
@@ -119,4 +145,13 @@ it('FR-611 checks mandatory land measures against fixed geography and preserves 
   const previous = emptyLand.rankHistory![0];
   const history = [{ turn: 1, places: { ...previous.places, army: record.places.army } }];
   expect(load({ ...emptyLand, rankHistory: history }).rankHistory).toEqual(history);
+});
+
+it('FR-611 reads known placings from a newer save that adds a measure', () => {
+  const store = createGameStore({ world: 'two-islands', seed: 9 });
+  store.getState().advanceTurn();
+  const save = saveOf(store.getState(), now);
+  const [record] = save.rankHistory!;
+  const places = { ...record.places, futureMeasure: { futureFormat: true } };
+  expect(load({ ...save, rankHistory: [{ ...record, places }] }).rankHistory).toEqual([record]);
 });

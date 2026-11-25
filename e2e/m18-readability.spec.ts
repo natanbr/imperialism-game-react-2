@@ -122,6 +122,13 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 
       const bars = await placings.getByTestId('rank-bar').evaluateAll(els => els.map(el => el.getBoundingClientRect().width));
       expect(bars[0]).toBeGreaterThan(0);
       expect(bars).toEqual([bars[0], bars[0]]);
+      const markers = rankings.locator('svg circle');
+      await expect(markers).toHaveCount(2);
+      for (const marker of await markers.all()) {
+        const box = (await marker.boundingBox())!;
+        expect(box.width).toBeGreaterThan(0);
+        expect(box.width, 'the selected-turn marker is round').toBeCloseTo(box.height, 2);
+      }
       const history = rankings.getByRole('table', { name: 'Industry (installed capacity) by turn' });
       await expect(history.getByRole('columnheader')).toHaveText(['Turn', 'Testland', 'Valdoria']);
       await expect(history.getByRole('row')).toHaveCount(6);

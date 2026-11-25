@@ -12,7 +12,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { MarketModal } from '@/components/MarketModal';
 import { DiplomacyModal } from '@/components/DiplomacyModal';
 import { useGameStore } from '@/store/rootStore';
-import { BOARD_ORDER, marketOf, newGame, pairKey, tradeOrdersOf, transferProvince, type Order } from '@/engine';
+import { applyOrder, BOARD_ORDER, marketOf, newGame, pairKey, tradeOrdersOf, transferProvince, type Order } from '@/engine';
 import type { GameState } from '@/types/GameState';
 import { GoodsType, ResourceType } from '@/types/Resource';
 import { setPair, setTreasury, setWarehouse, treasury } from '../engine/fixtures';
@@ -780,6 +780,39 @@ describe('FR-612 Trade Book', () => {
     act(() => useGameStore.setState({ game: { ...game, market: { ...marketOf(game), lastOrders: undefined } } }));
     expect(within(panel()).queryByRole('region', { name: /Settled/ })).toBeNull();
     expect(submitted).toEqual([]);
+  });
+
+  it('FR-612 keeps the settled page until End Turn when our current subsidy changes Arvelia’s preference', () => {
+    const game = setPair(withConsulate(start(), ARVELIA), N2, ARVELIA, { consulates: [N2] });
+    openBoard({ ...game, nations: game.nations.map(nation => ({ ...nation, controller: 'human' })) });
+    // Both powers bid for two of Arvelia's three Coal each round; the preferred power receives two.
+    const bothBid = () => {
+      const bid = { kind: 'buyCommodity', commodity: ResourceType.Coal, amount: 2 } as const;
+      act(() => useGameStore.setState({ game: applyOrder(now(), { ...bid, nationId: N2 }) }));
+      order({ ...bid, nationId: N1 });
+    };
+    const arveliaPreference = () => {
+      const current = region(`Current turn ${now().turn}`);
+      const seller = within(current).getByText(/Arvelia.*3 units/).closest('li')!;
+      const preference = within(seller).getByRole('list', { name: 'Seller preference' });
+      return within(preference).getAllByRole('listitem').map(text);
+    };
+    bothBid();
+    act(() => useGameStore.getState().advanceTurn());
+    bothBid();
+    book();
+    expect(arveliaPreference()).toEqual(['Valdoria', 'Testland']);
+    const settled = readable(region('Settled turn 1'));
+    expect(settled).toContain('Bought 1 Coal from Arvelia');
+
+    order({ kind: 'setTradePolicy', nationId: N1, targetId: ARVELIA, subsidyPercent: 25, boycott: false });
+    expect(arveliaPreference()).toEqual(['Testland', 'Valdoria']);
+    expect(readable(region('Settled turn 1'))).toBe(settled);
+    expect(within(panel()).queryByRole('region', { name: 'Settled turn 2' })).toBeNull();
+
+    act(() => useGameStore.getState().advanceTurn());
+    expect(within(panel()).queryByRole('region', { name: 'Settled turn 1' })).toBeNull();
+    expect(text(region('Settled turn 2'))).toContain('Bought 2 Coal from Arvelia');
   });
 
   it('NR-040 has identical text and accessible names on Normal and Demo around a rival private reservation, bid and boycott', () => {
