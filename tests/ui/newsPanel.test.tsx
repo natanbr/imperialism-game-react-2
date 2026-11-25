@@ -12,6 +12,7 @@ import { cameraOnTile, mapAreaOf } from '@/components/camera';
 import { newsItems, type NewsItem } from '@/components/gameText';
 import { useGameStore } from '@/store/rootStore';
 import { councilVote, type GameEvent } from '@/engine';
+import { ResourceType } from '@/types/Resource';
 import { continent } from '../engine/armyFixtures';
 import { failOnActWarnings } from './actWarnings';
 import { text } from './domText';
@@ -50,6 +51,22 @@ const EVENTS = [
 ] as unknown as GameEvent[];
 
 describe('FR-268 the HUD news list', () => {
+  it('FR-602 FR-603 reports the interest charge and the proceeds of each forced sale in settlement order', () => {
+    showNews([
+      { type: 'army-upkeep', nationId: N1, amount: 100 },
+      { type: 'credit-interest', nationId: N1, debt: 250, limit: 200, ratePercent: 6, amount: 15 },
+      { type: 'forced-sale', nationId: N1, commodity: ResourceType.Wool, amount: 2, price: 25, proceeds: 50 },
+      { type: 'forced-sale', nationId: N1, commodity: ResourceType.Timber, amount: 1, price: 20, proceeds: 20 },
+      { type: 'credit-settled', nationId: N1, limit: 200, closingDebt: 195 },
+    ]);
+    expect(within(screen.getByTestId('news-list')).getAllByRole('listitem').map(text)).toEqual([
+      'Army upkeep: $100.',
+      'Interest charged: $15.',
+      'Forced sale of 2 Wool: $50.',
+      'Forced sale of 1 Timber: $20.',
+    ]);
+  });
+
   it("FR-268 FR-107 the player's own lines come first, in event order; then the other nation's, each under its name", () => {
     showNews(EVENTS);
     const lines = within(screen.getByTestId('news-panel')).getAllByRole('listitem').map(text);

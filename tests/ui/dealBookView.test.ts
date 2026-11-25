@@ -209,6 +209,15 @@ describe('FR-396 the Deal Book names the army upkeep', () => {
 });
 
 describe('FR-604 finance in the dated statement', () => {
+  it('shows $0 when interest on a small debt rounds down to zero', () => {
+    const events: GameEvent[] = [
+      { type: 'credit-interest', nationId: N1, debt: 1, limit: 200, ratePercent: 3, amount: 0 },
+      { type: 'credit-settled', nationId: N1, limit: 200, closingDebt: 1 },
+    ];
+    const view = dealBookView(dealBook(events, N1, { start: -1, end: -1 }), nameOf);
+    expect(view.treasury?.find(row => row.label.startsWith('Interest'))?.text).toBe('$0');
+  });
+
   it('reconciles purchases, upkeep, assessed interest, actual forced-sale proceeds and later income exactly once', () => {
     const events: GameEvent[] = [
       { type: 'goods-bought', nationId: N1, commodity: ResourceType.Coal, amount: 2, price: 100, cost: 200 },
@@ -225,7 +234,7 @@ describe('FR-604 finance in the dated statement', () => {
     expect(view.bottomLine.at(-1)?.text).toBe('-$200');
     const lines = view.treasury!;
     expect(lines.map(row => [row.label, row.amount])).toEqual([
-      ['Trade net', -200], ['Army upkeep', -100], ['Interest (6% per turn)', -15],
+      ['Trade net', -200], ['Army upkeep', -100], ['Interest (6% per turn, inferred)', -15],
       ['Forced sale of 2 Wool @ $25', 50], ['Forced sale of 1 Timber @ $20', 20],
       ['Other (building, workers, gold, gems)', 20], ['Treasury change', -225],
     ]);

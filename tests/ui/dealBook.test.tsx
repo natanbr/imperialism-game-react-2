@@ -84,7 +84,7 @@ describe('FR-604 FR-605 the current credit line and dated statement', () => {
       { type: 'credit-interest', nationId: N1, debt: 24, limit: 200, ratePercent: 3, amount: 1 },
       { type: 'credit-settled', nationId: N1, limit: 200, closingDebt: 25 },
     ], treasuries: { [N1]: { start: 76, end: -25 } } }], game);
-    const dated = ['Army upkeep -$100', 'Interest (3% per turn) -$1', 'Treasury change -$101', 'Closing debt $25', 'Credit limit $200'];
+    const dated = ['Army upkeep -$100', 'Interest (3% per turn, inferred) -$1', 'Treasury change -$101', 'Closing debt $25', 'Credit limit $200'];
     expect(treasuryLines()).toEqual(dated);
     expect(text(account())).toMatch(/buying power\s*\$175/i);
     act(() => {
