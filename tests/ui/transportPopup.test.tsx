@@ -109,15 +109,28 @@ describe('FR-141 FR-142 what the popup lists', () => {
     show({ ...bareGame(), transportAllocationsByNation: { 'nation-1': { oil: 0 } } });
     expect(shownGroups()).toEqual(['Raw materials']);
     expect(text(screen.getByTestId('transport-row-oil'))).toBe('Oil 0 / 0 Auto');
-    fireEvent.click(screen.getByRole('button', { name: 'Auto Oil' }));
+    const auto = screen.getByRole('button', { name: 'Auto Oil' });
+    auto.focus();
+    fireEvent.click(auto);
     expect(useGameStore.getState().ordersThisTurn.at(-1)).toEqual({ kind: 'setTransportAllocations', nationId: 'nation-1', allocations: {} });
     expect(shownGroups()).toEqual([]);
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close transport' }));
   });
 
   it('FR-607 a connected custom resource is listed even when absent from the ordinary maps', () => {
     show(setTile(bareGame(), '3-9', { resource: { type: ResourceType.Fish, level: 0, discovered: true } }));
     expect(shownGroups()).toEqual(['Food']);
     expect(text(screen.getByTestId('transport-row-fish'))).toBe('Fish Auto: 1');
+  });
+
+  it('FR-607 editing another slider preserves a saved positive allocation whose collection has stopped', () => {
+    show({ ...newGame({ seed: 1 }), transportAllocationsByNation: { 'nation-1': { wool: 2 } } });
+    fireEvent.change(screen.getByRole('slider', { name: 'Grain' }), { target: { value: '1' } });
+    const plan = () => useGameStore.getState().game.transportAllocationsByNation?.['nation-1'];
+    expect(plan()).toEqual({ wool: 2, grain: 1 });
+    fireEvent.click(screen.getByRole('button', { name: 'Auto Wool' }));
+    expect(plan()).toEqual({ grain: 1 });
+    expect(screen.queryByRole('slider', { name: 'Wool' })).toBeNull();
   });
 });
 
