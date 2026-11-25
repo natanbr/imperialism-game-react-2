@@ -4,7 +4,7 @@ Older entries are in `docs/journal/archive-<milestone>.md` (the latest move, 202
 
 ## Resuming here
 
-- M18e task 33 on `claude/m18e-maps` adds headless seeded worlds and Random save/replay. Task 34 owns the New game and Stats controls. The owner deferred the length menu and historical calendar. See the task 33 balance measurements in `docs/specs/m18e-maps.md`.
+- M18e on `claude/m18e-maps` adds seeded worlds and New game options. To replay the desktop or phone example, choose Random, Large and `Brete`, then copy `2813929771` from Stats. Task 34 screenshots and logs are in `.gate/codex/34/`. M18d terrain is parked. Game length and the historical calendar are deferred.
 - M18 (play-test comfort, `docs/specs/m18-playtest-comfort.md`): M18a merged into main `af24381` (pull request 43), M18b part 1 (FR-563, FR-568, FR-569) in `5e80bab` (pull request 44), part 2 (FR-564 nation colours and flags) in `4098bfe` (pull request 45). NR-037 in progress.
 - M18b part 3 (FR-565, FR-566) merged into main `cd5b1be` (pull request 46); FR-567 into `994a0ca` (pull request 47), partial: the narrower pane is left for the owner; FR-570 (rail) into `751b74b` (pull request 48). Icons wait for the art (spec section 3).
 - M18c (FR-572 to FR-578) merged in `896d1fb` (pull request 49). The three-tab Board of Trade and Trade School evidence is in `.gate/claude/53/`. The owner’s FR-575 decision about moving Details is still open.
@@ -16,6 +16,22 @@ Older entries are in `docs/journal/archive-<milestone>.md` (the latest move, 202
 - FR-547 (Q143) is the buyer branch's proposed value rule. Measure technology availability, purchase timing and the value of the first unlocked action in the original game before tuning. See `docs/verify-and-tune.md`.
 - Task 19 passed the load trials and full gate on `claude/perf-tests`. Finish future gates with `npm run test:perf` alone. The measured results and six functional logs are indexed in `.gate/codex/19/summary.md`.
 - To play M17 on continent seed 1, set Armaments and Fabric production to 1. Build a Ship-of-the-Line on turn 6, declare and sail on turn 7, set the site on turn 8, and land the four-ARMS army on turn 9. On turn 10 see the survivors at Sundmark and its colony vote in Council.
+
+## 2026-11-24 Task 34 — New game options and Stats (M18e T-02)
+
+Size M. Stage the map, Random size, replay seed and difficulty in the top bar. Read the founding settings from the current game in Stats.
+FR-595 uses the existing seed parser, store start and opening camera. FR-596 covers Random and version-1 saves, including a 400-turn Council game.
+Verify the keyboard and pointer paths, Continue and replay at 1366×768 and 390×844, then compare the original NR-038 guards and run the repository gates.
+Objection: a hidden seed or size could override a fixed-map start. Only visible seed input and Random size may contribute settings.
+
+| Claim | Command or evidence | Observed result |
+|---|---|---|
+| Tests first | `3f2ad16`, `ui-red.log`, `red-keyboard.log` | 15 failed and 53 passed across four UI suites. The old browser panel had no Map field at the first Tab stop. |
+| Options, Stats and cancellation | New game, Stats and the two existing HUD unit suites | 68/68 passed, including an actual pre-M16 save, omitted settings and a custom 400-turn game. Review strengthened the check that the inline error itself supplies the seed's accessible description. |
+| Replay and fit | Five Playwright specs on port 3123 with one worker, then the final `e2e/m18e-new-game.spec.ts` | 33/33 passed, then 4/4. At 1366×768 and 390×844 the panel stayed within the viewport. Selecting the decimal seed reproduced six capitals, the full founding state, and events and Orders after a consulate order. Continue restored the saved settings. |
+| NR-038 | Original seven suites, then task 33's comparison script against `.gate/codex/32/fixed-baseline.log` | 139/139 passed. All 247 deterministic lines matched. FR-125 minimum 903/563 (1.604×), FR-464 four identical Order hashes, FR-545 15/24, FR-546 13/24, FR-497 0/280 changed plans and zero rejected computer Orders, invariant violations or idle no-pay disbands. |
+| Roadmap | `node .gate/m12/L4-check-roadmap.cjs` | `PASS` after recording M18d and M18e and aligning the two main references with the local `origin/main` merge of PR 50 (`a52d6b4`). |
+| Repository gates at implementation `27593ff` | `npm test`, lint, TypeScript, production build, then `npm run test:perf` alone | 3,305/3,305 tests in 162 files (160.22 s), zero lint errors and two existing warnings, TypeScript and build passed. Performance 3/3 with computer planning p95 12.8 ms across 3,210 turns (100 ms limit). |
 
 ## 2026-11-24 Task 33 — Seeded random world (M18e T-01)
 
