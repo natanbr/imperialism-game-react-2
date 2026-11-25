@@ -1,7 +1,7 @@
 // What the market dialog shows, derived from the game (FR-073). No React, no store: the dialog
 // renders this view and sends orders; the engine stays the judge of every order.
 import { marketOf, priceOf, tradeCapacityOf, tradeOrdersOf, validateOrder, type TradeCapacity } from "@/engine";
-import { upkeepForecastWithPurchase } from "@/engine/army/upkeepForecast";
+import { nextPurchaseForecasts } from "@/engine/army/upkeepForecast";
 import { buyingPower, hasOpenCredit } from "@/engine/credit/account";
 import { MAX_BUY_BIDS, TRADE_COMMODITIES } from "@/definisions/marketPrices";
 import { worldMarketSupplies } from "@/engine/market/market";
@@ -36,9 +36,12 @@ export interface MarketView {
 }
 
 /** The next allowed unit is paid for now. Its premium and upkeep are projected from public information. */
-export function nextPurchaseWarning(state: GameState, nation: Nation, commodity: TradeCommodity, amount: number, price: number): string | undefined {
-  const forecast = upkeepForecastWithPurchase(state, { kind: "buyCommodity", nationId: nation.id, commodity, amount });
-  return spendingWarningText(forecast, nation.treasury - price);
+export function purchaseWarnings(state: GameState, nation: Nation) {
+  const preview = nextPurchaseForecasts(state, nation);
+  return (commodity: TradeCommodity, price: number): string | undefined => {
+    const forecast = preview(commodity, price);
+    return forecast && spendingWarningText(forecast, nation.treasury - price);
+  };
 }
 
 export function marketView(state: GameState, nation: Nation): MarketView {
@@ -46,6 +49,7 @@ export function marketView(state: GameState, nation: Nation): MarketView {
   const { sell, buy } = tradeOrdersOf(state, nation.id);
   const stock = nation.warehouse as Record<string, number>;
   const sources = goodsSourceNotes(state, nation, "market");
+  const warningFor = purchaseWarnings(state, nation);
   const rows = TRADE_COMMODITIES.map((commodity): MarketRowView => {
     const amount = (buy[commodity] ?? 0) + 1;
     const price = priceOf(market, commodity);
@@ -60,7 +64,7 @@ export function marketView(state: GameState, nation: Nation): MarketView {
       sell: sell[commodity] ?? 0,
       buy: buy[commodity] ?? 0,
       buyRefusal,
-      purchaseWarning: check.ok ? nextPurchaseWarning(state, nation, commodity, amount, price) : undefined,
+      purchaseWarning: check.ok ? warningFor(commodity, price) : undefined,
     };
   });
   return {

@@ -31,7 +31,7 @@ import type { TradeCommodity } from "@/types/Market";
 import type { Nation } from "@/types/Nation";
 import { BUILDING_TEXT, commodityName, fundsNeededText, money, REFUSAL_TEXT } from "../gameText";
 import { namesText } from "./dealBookView";
-import { nextPurchaseWarning } from "./marketView";
+import { purchaseWarnings } from "./marketView";
 import { goodsSourceNotes } from "../goodsSources";
 
 /** Why the player cannot trade with a minor this turn (FR-185), as the board marks it. */
@@ -347,6 +347,7 @@ export function boardView(state: GameState, nation: Nation): BoardView {
   });
   const board = boardOfTrade(state, nation.id);
   const sources = goodsSourceNotes(state, nation, "market");
+  const warningFor = purchaseWarnings(state, nation);
   /** The refusal of one more unit on that side, as validateOrder judges it now. */
   const moreRefusal = (kind: "buyCommodity" | "sellCommodity", row: (typeof board)[number], current: number): string | undefined => {
     const result = validateOrder(state, { kind, nationId: nation.id, commodity: row.commodity, amount: current + 1 });
@@ -395,7 +396,7 @@ export function boardView(state: GameState, nation: Nation): BoardView {
       bid: row.bid,
       offer: row.offer,
       ...(bidMore ? { bidMoreRefusal: bidMore } : {}),
-      ...(!bidMore && { purchaseWarning: nextPurchaseWarning(state, nation, row.commodity, row.bid + 1, row.price) }),
+      ...(!bidMore && { purchaseWarning: warningFor(row.commodity, row.price) }),
       ...(offerMore ? { offerMoreRefusal: offerMore } : {}),
       ...(bidNote ? { bidNote } : {}),
       ...(offerNote ? { offerNote } : {}),
