@@ -11,7 +11,7 @@ import type { DiplomacyState, Proposal } from "./Diplomacy";
 import type { Intent } from "./Intent";
 import type { MinorNation } from "./MinorNation";
 import type { Province } from "./Province";
-import type { WorldId } from "./World";
+import type { RandomMapSize, WorldId } from "./World";
 import type { WorldMarket } from "./Market";
 import type { GameOver } from "./Score";
 import type { CountryId } from "./Common";
@@ -28,6 +28,8 @@ export interface GameState {
   seed: number;
   /** The world the game started on (FR-144); absent on a hand-built test state. */
   worldId?: WorldId;
+  /** Only Random stores its size. A missing size rebuilds the Standard map (NR-038). */
+  randomMapSize?: RandomMapSize;
 
   /** The Great Powers. Every system and view that iterates nations sees these only (FR-146). */
   nations: Nation[];

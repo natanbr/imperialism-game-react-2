@@ -11,12 +11,19 @@ import {
   type UpkeepForecast,
 } from "@/engine";
 import { TRAINED_TO } from "@/definisions/ResourceConversions";
-import type { GameState } from "@/types/GameState";
+import type { Difficulty, GameState } from "@/types/GameState";
+import type { RandomMapSize, WorldId } from "@/types/World";
 import type { WorkerGrade } from "@/types/Industry";
 import type { Tile } from "@/types/Tile";
 import { WorkerStatus } from "@/types/Workers";
 import { strengthText } from "../army/attackView";
 import { commodityName, dateText, money, TERRAIN_TEXT } from "../gameText";
+
+export const WORLD_LABEL: Record<WorldId, string> = { continent: "Continent", "two-islands": "Two islands", random: "Random" };
+export const SIZE_LABEL: Record<RandomMapSize, string> = { standard: "Standard", large: "Large" };
+export const DIFFICULTY_LABEL: Record<Difficulty, string> = {
+  introductory: "Introductory", easy: "Easy", normal: "Normal", hard: "Hard", nighOnImpossible: "Nigh on Impossible", demo: "Demo",
+};
 
 /** FR-412: each country at war with the player, the other Great Powers first, then the minors, in id order. */
 export function playerWars(game: GameState, playerId: string): { id: string; name: string; since: number }[] {

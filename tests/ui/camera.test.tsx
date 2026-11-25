@@ -349,12 +349,39 @@ describe('FR-368 zoom', () => {
   const zoomOf = () => screen.getByTestId('map-viewport').getAttribute('data-zoom');
 
   it('FR-368 the steps and the arithmetic: the map is 1.5 and 2 times as large; the camera is clamped to the zoomed map', () => {
+    // FR-598 old -> new: every button step -> the shared steps, plus a whole-map step below 100% on oversized maps.
     expect(ZOOM_STEPS).toEqual([1, 1.5, 2]);
     expect(mapSizePx(CONFIG, 1.5)).toEqual({ width: 1543.5, height: 1008 });
     expect(mapSizePx(CONFIG, 2)).toEqual({ width: 2058, height: 1344 });
     expect(clampCamera({ x: 5000, y: 5000 }, SMALL, CONFIG, 2)).toEqual({ x: 2058 - 550, y: 1344 - 450 });
     // The capital 2-9 at 200%: its centre 2 x (84 + 21 + 21, 378 + 21) = (252, 798), so the left edge stops the camera
     expect(cameraOnTile({ x: 2, y: 9 }, SMALL, CONFIG, 2)).toEqual({ x: 0, y: 798 - 225 });
+  });
+
+  it('FR-598 Large map buttons, keyboard and wheel share the whole-map minimum when the window resizes', () => {
+    Object.assign(window, { innerWidth: 1366, innerHeight: 768 });
+    useGameStore.setState({ game: newGame({ seed: 1, world: 'random', randomMapSize: 'large' }) });
+    render(<MapView />);
+    const zoomOut = screen.getByRole('button', { name: 'Zoom out' }) as HTMLButtonElement;
+    expect(zoomOf()).toBe(String(34 / 42));
+    expect(zoomOut.disabled).toBe(true);
+    fireEvent.keyDown(document.body, { key: '+' });
+    expect(zoomOf()).toBe('1');
+    expect(zoomOut.disabled).toBe(false);
+    fireEvent.click(zoomOut);
+    expect(zoomOf()).toBe(String(34 / 42));
+    Object.assign(window, { innerWidth: 1280, innerHeight: 720 });
+    fireEvent(window, new Event('resize'));
+    expect(zoomOut.disabled).toBe(false);
+    fireEvent.keyDown(document.body, { key: '-' });
+    expect(zoomOf()).toBe(String(31 / 42));
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+    fireEvent.wheel(screen.getByTestId('map-scroll'), { deltaY: 1000, ctrlKey: true });
+    expect(zoomOf()).toBe(String(31 / 42));
+    expect(zoomOut.disabled).toBe(true);
+    Object.assign(window, { innerWidth: 1366, innerHeight: 768 });
+    fireEvent(window, new Event('resize'));
+    expect(zoomOf()).toBe(String(34 / 42));
   });
 
   it('FR-368 100% at the start; Zoom in to 150% and 200% (then disabled), Zoom out back (disabled at 100%)', () => {

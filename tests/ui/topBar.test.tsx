@@ -340,8 +340,13 @@ describe('FR-480 New game in the bar', () => {
     fireEvent.click(toggle);
     const panel = screen.getByRole('group', { name: 'Confirm new game' });
     expect(panel.id).toBe('confirm-new-game');
-    // FR-561 added Start Demo game between the two, and (M18a review finding 3) its visible description under them
-    expect(text(panel)).toBe(`Start a new game? This game will be lost. Start new game Start Demo game Keep playing ${DEMO_NOTE}`);
+    // FR-595 old -> new: warning/actions/Demo note -> warning, staged fields, Start/Keep/Demo and the same note.
+    expect(text(panel).startsWith('Start a new game? This game will be lost. ')).toBe(true);
+    expect(within(panel).getAllByRole('combobox')).toEqual([
+      within(panel).getByLabelText('Map'), within(panel).getByLabelText('Difficulty'),
+    ]);
+    expect(within(panel).getAllByRole('button').map(text)).toEqual(['Set replay seed', 'Start new game', 'Keep playing', 'Start Demo game']);
+    expect(text(panel).endsWith(DEMO_NOTE)).toBe(true);
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
     expect(toggle.getAttribute('aria-controls')).toBe('confirm-new-game');
     expect(document.activeElement).toBe(panel);

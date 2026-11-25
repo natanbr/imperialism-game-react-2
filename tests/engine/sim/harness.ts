@@ -7,7 +7,7 @@
 // capacity, treasury, score, votes) is read on the state after it, which is what the person sees on turn + 1 (the audit's
 // probes read the same way). So "at turn 40" is the record of turn 40, and the Council that met "at turn 30" is
 // `turns[29].council`. `holds` is read before the clearing: what the two Great Powers had registered at the trade phase.
-import { newGame } from '@/engine/newGame';
+import { newGame, type NewGameOptions } from '@/engine/newGame';
 import { computerOrders } from '@/engine/ai/players';
 import { applyTurnOrders, resolveTurn, type TurnResult } from '@/engine/turn/resolveTurn';
 import { tryApplyOrder } from '@/engine/orders/apply';
@@ -129,7 +129,11 @@ export interface GameRecord {
 export interface RunOptions {
   /** FR-559: observe registered Orders and their resolved effects without changing a frozen policy. */
   observe?: (registered: GameState, result: TurnResult, beforeOrders: GameState) => void;
+  /** Compare the real plan with the world before the human submitted private Orders (FR-597). */
+  observePlan?: (beforeHuman: GameState, afterHuman: GameState, plan: ReturnType<typeof computerOrders>) => void;
   seed: number;
+  world?: NewGameOptions['world'];
+  randomMapSize?: NewGameOptions['randomMapSize'];
   /** A policy of `humans.ts` by name, or one's own. */
   human: HumanName | HumanPolicy;
   /** Turns to play at most (default 40, the game's limit). */
@@ -144,11 +148,11 @@ const holdsProvince = (state: GameState, id: string): boolean => {
   return province !== undefined && province.ownerId === id;
 };
 
-/** Plays one continent game with `human` as nation 1 and returns what each turn did. Deterministic apart from the timings. */
-export function runGame({ seed, human, turns = 40, checkInvariants = true, observe }: RunOptions): GameRecord {
+/** Plays the requested world (Continent by default) with `human` as nation 1. Only the timings vary. */
+export function runGame({ seed, world = 'continent', randomMapSize, human, turns = 40, checkInvariants = true, observe, observePlan }: RunOptions): GameRecord {
   const policy = typeof human === 'string' ? HUMANS[human] : human;
   const began = performance.now();
-  const start = newGame({ seed, world: 'continent' });
+  const start = newGame({ seed, world, randomMapSize });
   let state = start;
   let lastTrade: Record<string, TradeOrders> = {};
   const records: TurnRecord[] = [];
@@ -174,6 +178,7 @@ export function runGame({ seed, human, turns = 40, checkInvariants = true, obser
     const planningStarted = performance.now();
     const computer = computerOrders(state);
     const computerOrdersMs = performance.now() - planningStarted;
+    observePlan?.(beforeOrders, state, computer);
 
     // The orders as registered when the trade phase clears them: the holds used, and next turn's public orders.
     const registered = applyTurnOrders(state, computer, () => {}).state;

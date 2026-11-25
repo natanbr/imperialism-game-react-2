@@ -7,7 +7,7 @@ import { flushSync } from "react-dom";
 import { TileComponent } from "./Tile";
 import { GROUND_ART, GROUND_ART_PX } from "./art/inkArt";
 import { mapAreaOf, mapOffset, type MapArea } from "./camera";
-import { nextZoom, useMapKeyboard, zoomBy } from "@/hooks/useMapKeyboard";
+import { nextZoom, useMapKeyboard, zoomBy, zoomMapTo } from "@/hooks/useMapKeyboard";
 import { useMapZoomGestures } from "@/hooks/useMapZoomGestures";
 import { openMap } from "@/hooks/mapActions";
 import { MapGround } from "./map/MapGround";
@@ -90,7 +90,7 @@ export const MapView: React.FC = () => {
     if (el.scrollTop !== cameraY) el.scrollTop = cameraY;
   }, [cameraX, cameraY, cameraMoves]);
 
-  // The first view fits the land to the map area, or on a smaller screen centres the capital (FR-567, FR-083). `data-ready`
+  // The first view fits the land (the whole grid on oversized maps) or centres the capital (FR-567, FR-598). `data-ready`
   // then tells e2e specs the page is live: the server-rendered map is visible before React handles clicks, and on a screen
   // that holds the whole map (FR-088) the first view no longer scrolls, so "the capital is in view" proves nothing.
   const [ready, setReady] = useState(false);
@@ -107,14 +107,18 @@ export const MapView: React.FC = () => {
   // FR-367: a map with more than 64 px to spare on an axis of the map area is centred on it. The area is read after the
   // first commit (the server render knows no window), in a layout effect, so the first paint already shows it.
   const zoom = useGameStore((s) => s.zoom);
-  const [area, setArea] = useState<MapArea | null>(null);
+  const [area, setArea] = useState<MapArea>({ width: 0, height: 0 });
   useLayoutEffect(() => {
-    const read = () => setArea(mapAreaOf(window));
+    const read = () => {
+      setArea(mapAreaOf(window));
+      // A wider window can raise the minimum above the player's current zoom (FR-598).
+      zoomMapTo(useGameStore.getState().zoom);
+    };
     read();
     window.addEventListener("resize", read);
     return () => window.removeEventListener("resize", read);
   }, []);
-  const offset = area ? mapOffset(area, map.config, zoom) : { x: 0, y: 0 };
+  const offset = mapOffset(area, map.config, zoom);
   useMapKeyboard();
   // FR-567: Ctrl and the wheel, a trackpad pinch and two fingers zoom the map, not the page
   useMapZoomGestures(containerRef);
@@ -326,10 +330,10 @@ export const MapView: React.FC = () => {
       </div>
       {/* FR-368: the zoom steps, at the map area's bottom left; the keys "+" and "-" too (useMapKeyboard) */}
       <div className={styles.zoomControls} role="group" aria-label="Map zoom">
-        <button type="button" className={styles.zoomButton} aria-label="Zoom in" title="Zoom in" disabled={nextZoom(zoom, 1) === undefined} onClick={() => zoomBy(1)}>
+        <button type="button" className={styles.zoomButton} aria-label="Zoom in" title="Zoom in" disabled={nextZoom(zoom, 1, area, map.config) === undefined} onClick={() => zoomBy(1)}>
           +
         </button>
-        <button type="button" className={styles.zoomButton} aria-label="Zoom out" title="Zoom out" disabled={nextZoom(zoom, -1) === undefined} onClick={() => zoomBy(-1)}>
+        <button type="button" className={styles.zoomButton} aria-label="Zoom out" title="Zoom out" disabled={nextZoom(zoom, -1, area, map.config) === undefined} onClick={() => zoomBy(-1)}>
           −
         </button>
       </div>

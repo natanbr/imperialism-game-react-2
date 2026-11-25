@@ -448,13 +448,19 @@ test('FR-480 FR-111 the question sits in the Tab order right after New game (Shi
   await expect(panel).toBeFocused();
   await page.keyboard.press('Shift+Tab');
   await expect(newGame).toBeFocused();
+  // FR-595 old -> new: Start / Demo / Keep -> staged fields, Start / Keep / Demo. Tab still leaves for About.
+  await page.keyboard.press('Tab');
+  await expect(panel.getByLabel('Map', { exact: true })).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(panel.getByText('Set replay seed', { exact: true })).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(panel.getByLabel('Difficulty', { exact: true })).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(panel.getByRole('button', { name: 'Start new game' })).toBeFocused();
-  // FR-561: Start Demo game between the two
-  await page.keyboard.press('Tab');
-  await expect(panel.getByRole('button', { name: 'Start Demo game' })).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(panel.getByRole('button', { name: 'Keep playing' })).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(panel.getByRole('button', { name: 'Start Demo game' })).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(page.getByRole('button', { name: 'About', exact: true })).toBeFocused();
   await panel.getByRole('button', { name: 'Keep playing' }).click();
@@ -468,7 +474,8 @@ test('FR-480 FR-111 the question sits in the Tab order right after New game (Shi
   await newGame.click();
   await expect(panel).toBeFocused();
   await page.keyboard.press('Tab');
-  await expect(panel.getByRole('button', { name: 'Start new game' })).toBeFocused();
+  // FR-595 old -> new: the first field after the panel is now Map, before Start new game.
+  await expect(panel.getByLabel('Map', { exact: true })).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(panel).toHaveCount(0);
   await expect(newGame).toBeFocused();
