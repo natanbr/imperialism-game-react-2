@@ -1,4 +1,5 @@
 import { afterAll, describe, expect, it } from 'vitest';
+import { setImmediate as yieldToRunner } from 'node:timers/promises';
 import { isDeepStrictEqual } from 'node:util';
 import { computerOrders } from '@/engine/ai/players';
 import { capitalComponent, yieldOf } from '@/engine/ai/railPlan';
@@ -6,13 +7,13 @@ import { collectingHub } from '@/engine/systems/logisticsSystem';
 import type { GameState } from '@/types/GameState';
 import { atTurn, runGame } from './harness';
 import { COMPUTER_ID, HUMAN_ID } from './humans';
+import baseline from './randomMapsBaseline.json';
 
 const sizes = ['standard', 'large'] as const;
 const policies = ['idle', 'scripted', 'diplomat'] as const;
 type Size = typeof sizes[number];
 type Policy = typeof policies[number];
-const full = process.env.M18E_MAP_SWEEP === 'full';
-const seeds = Array.from({ length: full ? 12 : 4 }, (_, i) => i + 1);
+const seeds = Array.from({ length: 12 }, (_, i) => i + 1);
 
 function hasProductiveDepot(state: GameState): boolean {
   const network = state.transportNetwork.railroadNetworks?.[COMPUTER_ID];
@@ -105,11 +106,12 @@ function spread(values: number[]) {
 }
 
 for (const size of sizes) {
-  for (const policy of full ? policies : ['idle'] as const) {
+  for (const policy of policies) {
     describe(`FR-597 ${size} random, ${policy}`, () => {
       const games: Result[] = [];
-      it.each(seeds)('seed %i finishes with legal Orders, valid turns and fair information', seed => {
+      it.each(seeds)('seed %i finishes with legal Orders, valid turns and fair information', async seed => {
         const game = measure(size, policy, seed);
+        await yieldToRunner();
         games.push(game);
         console.log('FR-597 game ' + JSON.stringify(game));
         expect(game.reason).not.toBe('unfinished');
@@ -122,6 +124,11 @@ for (const size of sizes) {
           expect(game.probes).toBeGreaterThan(0);
           expect(game.changedPlans).toEqual([]);
         }
+        // The scripted partners offered finished goods and bid for inputs. Their observed zero
+        // exchanges has no accepted floor. The fixture pins the accepted outcomes by seed.
+        const expected = baseline[size][policy].find(row => row.seed === seed);
+        expect(expected).toBeDefined();
+        expect(game).toMatchObject(expected!);
       });
       afterAll(() => {
         const count = (predicate: (g: Result) => boolean) => games.filter(predicate).length;
