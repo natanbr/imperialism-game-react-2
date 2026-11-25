@@ -127,7 +127,7 @@ const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
  * Dollars with thousands separators and a loss's minus sign in front: "$1,800", "-$1,369". The one money format of the
  * HUD, the market dialogs, the Deal Book, Diplomacy and the capital (FR-258).
  */
-export const money = (n: number) => (n < 0 ? `-$${groupedNumber(-n)}` : `$${groupedNumber(n)}`);
+export const money = (n: number) => `${n < 0 ? "-" : ""}$${groupedNumber(Math.abs(n))}`;
 
 export const groupedNumber = (n: number): string => n.toLocaleString("en-US");
 
@@ -446,7 +446,9 @@ export function eventText(event: GameEvent, nameOf: (countryId: string) => strin
     case "army-upkeep":
       return `Army upkeep: ${money(event.amount)}.`;
     case "credit-interest":
+      return `Interest charged: ${money(event.amount)}.`;
     case "forced-sale":
+      return `Forced sale of ${event.amount} ${commodityName(event.commodity)}: ${money(event.proceeds)}.`;
     case "credit-settled":
       return null;
     case "army-moved": {

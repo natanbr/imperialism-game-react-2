@@ -122,7 +122,7 @@ export function dealBookView(book: DealBook, nameOf: (countryId: string) => stri
             ...(militaryUpkeep !== 0 ? [line("Army upkeep", -militaryUpkeep)] : []),
             ...book.diplomacy.map((d) => line(`${DIPLOMACY_TEXT[d.kind]} ${nameOf(d.targetId)}`, -d.amount)),
             ...book.recruits.map((r) => line(`${r.count} ${REGIMENTS[r.regiment].name} recruited`, -r.amount)),
-            ...(treasury.interest ? [line(`Interest (${treasury.interest.ratePercent}% per turn)`, -treasury.interest.amount)] : []),
+            ...(treasury.interest ? [line(`Interest (${treasury.interest.ratePercent}% per turn, inferred)`, -treasury.interest.amount)] : []),
             ...(treasury.forcedSales ?? []).map(sale =>
               line(`Forced sale of ${sale.amount} ${commodityName(sale.commodity)} @ ${money(sale.price)}`, sale.proceeds)),
             ...(treasury.other !== 0 ? [line(OTHER_MONEY_LABEL, treasury.other)] : []),
