@@ -4,7 +4,7 @@ Older entries are in `docs/journal/archive-<milestone>.md` (the latest move, 202
 
 ## Resuming here
 
-- M18e on `claude/m18e-maps` adds seeded worlds and New game options. To replay the desktop or phone example, choose Random, Large and `Brete`, then copy `2813929771` from Stats. Task 34 screenshots and logs are in `.gate/codex/34/`. M18d terrain is parked. Game length and the historical calendar are deferred.
+- M18e on `claude/m18e-maps` adds seeded worlds and New game options. To replay the desktop or phone example, choose Random, Large and `Brete`, then copy `2813929771` from Stats. Task 35 fits the whole Large map at laptop sizes. Its before/after screenshots and guard comparison are in `.gate/codex/35/`. M18d terrain is parked. Game length and the historical calendar are deferred.
 - M18 (play-test comfort, `docs/specs/m18-playtest-comfort.md`): M18a merged into main `af24381` (pull request 43), M18b part 1 (FR-563, FR-568, FR-569) in `5e80bab` (pull request 44), part 2 (FR-564 nation colours and flags) in `4098bfe` (pull request 45). NR-037 in progress.
 - M18b part 3 (FR-565, FR-566) merged into main `cd5b1be` (pull request 46); FR-567 into `994a0ca` (pull request 47), partial: the narrower pane is left for the owner; FR-570 (rail) into `751b74b` (pull request 48). Icons wait for the art (spec section 3).
 - M18c (FR-572 to FR-578) merged in `896d1fb` (pull request 49). The three-tab Board of Trade and Trade School evidence is in `.gate/claude/53/`. The owner’s FR-575 decision about moving Details is still open.
@@ -16,6 +16,21 @@ Older entries are in `docs/journal/archive-<milestone>.md` (the latest move, 202
 - FR-547 (Q143) is the buyer branch's proposed value rule. Measure technology availability, purchase timing and the value of the first unlocked action in the original game before tuning. See `docs/verify-and-tune.md`.
 - Task 19 passed the load trials and full gate on `claude/perf-tests`. Finish future gates with `npm run test:perf` alone. The measured results and six functional logs are indexed in `.gate/codex/19/summary.md`.
 - To play M17 on continent seed 1, set Armaments and Fabric production to 1. Build a Ship-of-the-Line on turn 6, declare and sail on turn 7, set the site on turn 8, and land the four-ARMS army on turn 9. On turn 10 see the survivors at Sundmark and its colony vote in Council.
+
+## 2026-11-24 Task 35 — M18e review fixes
+
+Size M. FR-598 fits the whole grid on opening and adds a final zoom-out step for maps wider than 24 columns or taller than 20 rows.
+The opening camera, buttons, keyboard, wheel and pinch share the limit. New game takes its initial map from `APP_WORLD`. Random generation and version-1 replay use Standard for an unrecognized size.
+Check a 32×20 grid at 1366×768 and 1280×720, the 50% floor, the fixed-map boundary and a hand-edited save.
+Verify the functional, lint, type, build and map browser gates, and compare the original seven NR-038 suites against the Task 32 baseline.
+Objection: using the land bounds could cut off the coast's outer water tiles. Measure the outer edges of all 640 tiles against the space beside the HUD.
+
+| Claim | Command or evidence | Observed result |
+|---|---|---|
+| Reproduced before the fixes | Test commit `6087632` and `.gate/codex/35/playwright-red.log` | Large opened at 100% and clipped 249 px at the left edge. Four cases using `unknown` and `constructor` failed during generation or save replay. |
+| FR-598 whole-grid fit | Both camera suites and seven Playwright specs on port 3123, one worker | “58 passed” and “43 passed”. Large opened with 34 px tiles at 1366×768 and 31 px at 1280×720. Chromium verified all 640 tiles clear the HUD. Screenshot in `.gate/codex/35/fr598-large-map-1366x768.png`. |
+| NR-038 compatibility | Original seven suites and task 33's comparison script against `.gate/codex/32/fixed-baseline.log` | “139 passed”. “All 247 deterministic output and assertion lines match.” FR-125 903/563, FR-545 15/24, FR-546 13/24, FR-497 0/280 changed plans, zero rejections, invariant breaks or idle no-pay disbands, and four identical FR-464 hashes. |
+| Verification at implementation `e1a12f3` | `npm test`, lint, TypeScript, production build, roadmap, isolated performance | “3313 passed”, “0 errors, 2 warnings” (both existing), type check and build exit 0, roadmap “PASS”, performance “3 passed” with p95 13.1 ms over 3,210 turns. Independent review found one stale camera comment, corrected in `1419f3c`. |
 
 ## 2026-11-24 Task 34 — New game options and Stats (M18e T-02)
 
