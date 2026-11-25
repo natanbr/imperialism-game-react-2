@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // FR-567 (M18b, owner 2026-11-23: "the map when I open the game is too small, the only way to zoom in is with browser zoom
 // in but that changes also the size of the HUD"). The map opens at the zoom that fits its land (plus half a tile of sea)
-// to the map area, never under 100% and never over 200%; under a 10% gain it stays at 100%, where the ink pictures are
+// to the map area, from 100% to 200% on fixed-size maps; under a 10% gain it stays at 100%, where the ink pictures are
 // drawn (so 1280x720 keeps FR-088's camera 0, 0). Its own zoom: the buttons and keys (FR-368) step from any zoom, Ctrl and
 // the wheel (a trackpad pinch is the same event) keep the point under the pointer, two fingers pinch. The top bar and the
 // pane are outside the zoomed layer, so the map's zoom never resizes them. jsdom draws no zoom: sizes are in e2e/m18-map.spec.ts.
@@ -15,13 +15,14 @@ import { HUD } from '@/components/HUD';
 import {
   FIT_MIN_GAIN,
   ZOOM_MAX,
-  ZOOM_MIN,
   cameraAfterZoom,
+  cameraOnCapital,
   cameraOnTile,
   fitZoom,
   landBoxPx,
   mapAreaOf,
   mapOffset,
+  minZoom,
   openingView,
 } from '@/components/camera';
 import { nextZoom } from '@/hooks/useMapKeyboard';
@@ -32,6 +33,7 @@ import { newGame } from '@/engine';
 import type { WorldId } from '@/types/World';
 
 const AREA_1366 = mapAreaOf({ innerWidth: 1366, innerHeight: 768 });
+const AREA_1280 = mapAreaOf({ innerWidth: 1280, innerHeight: 720 });
 const AREA_1920 = mapAreaOf({ innerWidth: 1920, innerHeight: 1080 });
 const camera = () => ({ x: useGameStore.getState().cameraX, y: useGameStore.getState().cameraY });
 const zoom = () => useGameStore.getState().zoom;
@@ -45,22 +47,47 @@ describe('FR-567 the land box and the zoom that fits it', () => {
     expect(landBoxPx(gameOn('continent').map)).toEqual({ x: 84 - 21, y: 42 - 21, width: 903 + 42, height: 588 + 42 });
   });
 
-  it('FR-567 the fit zoom: whole pixels a tile, at least 100%, at most 200%, and 100% under a 10% gain', () => {
-    expect([ZOOM_MIN, ZOOM_MAX, FIT_MIN_GAIN]).toEqual([1, 2, 1.1]);
+  it('FR-567 the fixed maps fit at whole pixels a tile, at least 100%, at most 200%, and 100% under a 10% gain', () => {
+    const stock = gameOn('continent').map.config;
+    // FR-598 old -> new: 100% for every map -> 100% for maps within the fixed-map dimensions.
+    expect([minZoom(AREA_1366, stock), ZOOM_MAX, FIT_MIN_GAIN]).toEqual([1, 2, 1.1]);
     const continent = landBoxPx(gameOn('continent').map);
     const islands = landBoxPx(gameOn('two-islands').map);
     // 1366x768: 1116 x 728 over 945 x 630 is 1.156, floored to 48 px tiles; the islands 1.181, 49 px
-    expect(fitZoom(AREA_1366, continent)).toBe(48 / 42);
-    expect(fitZoom(AREA_1366, islands)).toBe(49 / 42);
+    expect(fitZoom(AREA_1366, continent, stock)).toBe(48 / 42);
+    expect(fitZoom(AREA_1366, islands, stock)).toBe(49 / 42);
     // 1920x1080: 1040 / 630 = 1.651, 69 px tiles
-    expect(fitZoom(AREA_1920, continent)).toBe(69 / 42);
+    expect(fitZoom(AREA_1920, continent, stock)).toBe(69 / 42);
     // 2560x1440 would be 2.2: clamped to 200%
-    expect(fitZoom(mapAreaOf({ innerWidth: 2560, innerHeight: 1440 }), continent)).toBe(2);
+    expect(fitZoom(mapAreaOf({ innerWidth: 2560, innerHeight: 1440 }), continent, stock)).toBe(2);
     // 1280x720 gains 7% (45 px tiles): not worth blurring the 42 px pictures, so 100% (FR-088 holds)
-    expect(fitZoom(mapAreaOf({ innerWidth: 1280, innerHeight: 720 }), continent)).toBe(1);
+    expect(fitZoom(AREA_1280, continent, stock)).toBe(1);
     // Smaller than the land: never under 100%
-    expect(fitZoom(mapAreaOf({ innerWidth: 1024, innerHeight: 768 }), continent)).toBe(1);
-    expect(fitZoom(mapAreaOf({ innerWidth: 390, innerHeight: 844 }), continent)).toBe(1);
+    expect(fitZoom(mapAreaOf({ innerWidth: 1024, innerHeight: 768 }), continent, stock)).toBe(1);
+    expect(fitZoom(mapAreaOf({ innerWidth: 390, innerHeight: 844 }), continent, stock)).toBe(1);
+  });
+
+  it('FR-598 a Large map opens whole at 1366x768 and 1280x720, including the half-tile odd-row shift', () => {
+    const game = newGame({ seed: 1, world: 'random', randomMapSize: 'large' });
+    for (const [area, tilePx] of [[AREA_1366, 34], [AREA_1280, 31]] as const) {
+      expect(openingView(game, 'nation-1', area)).toEqual({ zoom: tilePx / 42, camera: { x: 0, y: 0 } });
+      expect(minZoom(area, game.map.config)).toBe(tilePx / 42);
+    }
+  });
+
+  it('FR-598 the lower step applies past either fixed-map dimension, stops at 50%, and never exceeds 100%', () => {
+    const tiny = { width: 300, height: 300 };
+    expect(minZoom(tiny, { cols: 24, rows: 20 })).toBe(1);
+    expect(minZoom(tiny, { cols: 25, rows: 20 })).toBe(0.5);
+    expect(minZoom(tiny, { cols: 24, rows: 21 })).toBe(0.5);
+    expect(minZoom(AREA_1920, { cols: 32, rows: 20 })).toBe(1);
+  });
+
+  it('FR-598 Large opens on the whole grid on a wide window, and on the capital when even 50% cannot fit', () => {
+    const game = newGame({ seed: 1, world: 'random', randomMapSize: 'large' });
+    expect(openingView(game, 'nation-1', AREA_1920)).toEqual({ zoom: 51 / 42, camera: { x: 0, y: 0 } });
+    const phone = mapAreaOf({ innerWidth: 390, innerHeight: 844 });
+    expect(openingView(game, 'nation-1', phone)).toEqual({ zoom: 0.5, camera: cameraOnCapital(game, 'nation-1', 0.5, phone) });
   });
 
   it('FR-567 the opening view at 1366x768 and 1920x1080 shows the whole land box inside the map area, filling most of it', () => {
@@ -127,9 +154,10 @@ describe('FR-567 the land box and the zoom that fits it', () => {
   });
 
   it('FR-567 FR-368 the steps go to the next step past any zoom: 1.14 steps out to 100% and in to 150%', () => {
-    expect([nextZoom(48 / 42, -1), nextZoom(48 / 42, 1)]).toEqual([1, 1.5]);
-    expect([nextZoom(69 / 42, -1), nextZoom(69 / 42, 1)]).toEqual([1.5, 2]);
-    expect([nextZoom(1, -1), nextZoom(1, 1), nextZoom(1.5, 1), nextZoom(2, 1)]).toEqual([undefined, 1.5, 2, undefined]);
+    const step = (from: number, by: 1 | -1) => nextZoom(from, by, AREA_1366, { cols: 24, rows: 16 });
+    expect([step(48 / 42, -1), step(48 / 42, 1)]).toEqual([1, 1.5]);
+    expect([step(69 / 42, -1), step(69 / 42, 1)]).toEqual([1.5, 2]);
+    expect([step(1, -1), step(1, 1), step(1.5, 1), step(2, 1)]).toEqual([undefined, 1.5, 2, undefined]);
   });
 });
 

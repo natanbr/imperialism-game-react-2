@@ -67,6 +67,35 @@ async function capture(page: Page, testInfo: TestInfo, name: string) {
   await page.screenshot({ path, animations: 'disabled' });
 }
 
+test.describe('FR-598 at 1366x768', () => {
+  test.use({ viewport: { width: 1366, height: 768 } });
+
+  test('a Large random map opens wholly between the top bar and the HUD', async ({ page }, testInfo) => {
+    await startFreshSeededGame(page);
+    const panel = await stageLargeMap(page, 'Brete');
+    await panel.getByRole('button', { name: 'Start new game', exact: true }).click();
+    const tiles = page.getByTestId('tile');
+    await expect(tiles).toHaveCount(32 * 20);
+    const margins = await tiles.evaluateAll(elements => {
+      const area = document.querySelector('[data-testid="map-scroll"]')!.getBoundingClientRect();
+      const hud = document.querySelector('.hud-container')!.getBoundingClientRect();
+      const boxes = elements.map(tile => tile.getBoundingClientRect());
+      return {
+        left: Math.min(...boxes.map(box => box.left)) - area.left,
+        top: Math.min(...boxes.map(box => box.top)) - area.top,
+        right: hud.left - Math.max(...boxes.map(box => box.right)),
+        bottom: area.bottom - Math.max(...boxes.map(box => box.bottom)),
+      };
+    });
+    for (const [edge, margin] of Object.entries(margins)) {
+      expect(margin, `whole-map ${edge} margin in pixels`).toBeGreaterThanOrEqual(0);
+    }
+    await expect(page.getByTestId('map-viewport')).toHaveAttribute('data-zoom', String(34 / 42));
+    await expect(page.getByRole('button', { name: 'Zoom out' })).toBeDisabled();
+    await capture(page, testInfo, 'fr598-large-map-1366x768.png');
+  });
+});
+
 for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 }]) {
   const size = `${viewport.width}x${viewport.height}`;
   test.describe(size, () => {

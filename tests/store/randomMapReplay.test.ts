@@ -90,3 +90,12 @@ it('NR-038 replays a Standard Random save that omits its optional size', () => {
   const session = saved(createGameStore({ game }));
   expect(replaySession(session)).toStrictEqual(game);
 });
+
+it.each(['unknown', 'constructor'])('FR-588 reads and replays a hand-edited Random size %s as Standard', randomMapSize => {
+  const game = newGame({ seed: 42, world: 'random', randomMapSize: 'standard' });
+  const session = saved(createGameStore({ game }));
+  const slot = read({ ...session, game: { ...game, randomMapSize } });
+  if (slot.kind !== 'usable') throw new Error('Expected a usable v1 save');
+  expect(replaySession(slot.save)).toStrictEqual(game);
+  expect(slot.save.game).toStrictEqual(game);
+});

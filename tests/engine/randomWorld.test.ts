@@ -204,6 +204,9 @@ describe('FR-588 replayable keys and worlds', () => {
     expect(a.map.tiles.flat().map(t => t.terrain === T.Water)).not.toEqual(b.map.tiles.flat().map(t => t.terrain === T.Water));
     expect(a.provinces.map(p => p.tileIds)).not.toEqual(b.provinces.map(p => p.tileIds));
   });
+  it.each(['unknown', 'constructor'])('rebuilds an unknown Random size %s using the Standard plan', size => {
+    expect(randomWorldPlan(42, size as RandomMapSize)).toStrictEqual(randomWorldPlan(42, 'standard'));
+  });
   it.each(sizes)('pins the Brete %s geography and deposits', size => {
     const g = random(2813929771, size);
     const fingerprint = createHash('sha256').update(JSON.stringify(worldOf(g))).digest('hex');
