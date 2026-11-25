@@ -1,6 +1,7 @@
 // Shared helpers for the engine tests. Not a test file (vitest only runs *.test.ts).
 import { createTwoNationGame } from '@/testing/mockNation';
 import { hasOpenCredit } from '@/engine/credit/account';
+import type { GameEvent } from '@/engine/turn/context';
 import { pairKey } from '@/engine/diplomacy/relations';
 import type { PairDiplomacy } from '@/types/Diplomacy';
 import { GameState } from '@/types/GameState';
@@ -145,10 +146,11 @@ export function deepFreeze<T>(value: T): T {
 }
 
 /**
- * No worker on two tiles, finite cash (nonnegative for cash-only nations), and a working
+ * No worker on two tiles, finite cash within the credit limit plus any unpaid excess
+ * recorded at the last settlement (zero borrowing for cash-only nations), and a working
  * worker on the tile for each job and a job for each working worker.
  */
-export function invariantViolations(state: GameState): string[] {
+export function invariantViolations(state: GameState, lastTurnEvents: readonly GameEvent[] = []): string[] {
   const problems: string[] = [];
   const seen = new Map<string, string>();
   for (const tile of state.map.tiles.flat()) {
@@ -173,7 +175,10 @@ export function invariantViolations(state: GameState): string[] {
     }
   }
   for (const n of state.nations) {
-    if (!Number.isFinite(n.treasury) || (n.treasury < 0 && !hasOpenCredit(n))) problems.push(`nation ${n.id} treasury ${n.treasury}`);
+    const settlement = lastTurnEvents.find(event => event.type === 'credit-settled' && event.nationId === n.id);
+    const unpaidExcess = settlement?.type === 'credit-settled' ? Math.max(0, settlement.closingDebt - settlement.limit) : 0;
+    const minimumCash = hasOpenCredit(n) ? -(n.creditAccount.limit + unpaidExcess) : 0;
+    if (!Number.isFinite(n.treasury) || n.treasury < minimumCash) problems.push(`nation ${n.id} treasury ${n.treasury}`);
     problems.push(...economyViolations(n));
   }
   return problems;
