@@ -4,9 +4,10 @@ import type { GameMap } from "@/types/Map";
 import type { MinorNation } from "@/types/MinorNation";
 import type { Nation } from "@/types/Nation";
 import type { Province } from "@/types/Province";
-import type { WorldId } from "@/types/World";
+import type { RandomMapSize, WorldId } from "@/types/World";
 import type { MarketMode } from "@/types/Market";
 import { continentWorld } from "./continent";
+import { randomWorld } from "./randomWorld";
 import { startWorld } from "./startWorld";
 
 /** What a world puts on the board; newGame adds the clock, the market, the rail and the diplomacy. */
@@ -21,17 +22,18 @@ export interface World {
 /** The engine's world when `newGame` is given none. */
 export const DEFAULT_WORLD: WorldId = "two-islands";
 
-/** Every world by its key; each builder returns a new world, the same for every call. */
-export const WORLDS: Readonly<Record<WorldId, () => World>> = {
+/** Fixed builders ignore the seed and size. All builders return fresh game data. */
+export const WORLDS: Readonly<Record<WorldId, (seed?: number, size?: RandomMapSize) => World>> = {
   "two-islands": () => ({ ...startWorld(), minorNations: [], provinces: [] }),
   continent: continentWorld,
+  random: randomWorld,
 };
 
 /** The market mode of a new game on each world (FR-242): the v1 world market on two-islands, partners on the continent. */
-export const WORLD_MARKET: Readonly<Record<WorldId, MarketMode>> = { "two-islands": "world", continent: "partners" };
+export const WORLD_MARKET: Readonly<Record<WorldId, MarketMode>> = { "two-islands": "world", continent: "partners", random: "partners" };
 
 /** The world of that key; an unknown key throws an error naming the known keys (FR-144). */
-export function buildWorld(id: WorldId): World {
+export function buildWorld(id: WorldId, seed = 0, size?: RandomMapSize): World {
   if (!Object.hasOwn(WORLDS, id)) throw new Error(`Unknown world "${id}"; the worlds are: ${Object.keys(WORLDS).join(", ")}`);
-  return WORLDS[id]();
+  return WORLDS[id](seed, size);
 }

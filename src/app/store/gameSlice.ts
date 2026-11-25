@@ -8,14 +8,14 @@ import {
   tryApplyOrder,
   type CouncilMetEvent,
   type GameEvent,
+  type NewGameOptions,
   type Order,
   type RejectReason,
   type ValidationResult,
 } from "@/engine";
 import type { NationId } from "@/types/Common";
-import type { Difficulty, GameState } from "@/types/GameState";
+import type { GameState } from "@/types/GameState";
 import type { WorldId } from "@/types/World";
-import type { MarketMode } from "@/types/Market";
 import type { GameStore } from "./rootStore";
 import type { ReplayBoundary } from "./sessionReplay";
 import { isPlayersWorker } from "./controls/playersWorker";
@@ -100,7 +100,7 @@ export interface GameSlice extends GameSession {
    * Replaces the game with a new one and clears what belonged to the old one (FR-105, FR-109); on the
    * continent unless `world` names another (FR-144); on the Normal level unless `difficulty` is "demo" (FR-561).
    */
-  startNewGame: (options?: { seed?: number; turnLimit?: number; world?: WorldId; market?: MarketMode; difficulty?: Difficulty }) => void;
+  startNewGame: (options?: Partial<NewGameOptions>) => void;
   /**
    * Replaces the game and its session with a saved one (FR-359), with nothing selected and no dialog open, as a new game
    * starts. Only page.tsx calls it, at the start: the store never loads a save by itself.
@@ -108,15 +108,11 @@ export interface GameSlice extends GameSession {
   restoreGame: (session: GameSession) => void;
 }
 
-export interface GameSliceOptions {
+export interface GameSliceOptions extends Pick<NewGameOptions, "world" | "market" | "randomMapSize"> {
   /** Start from this state instead of a new game (tests). */
   game?: GameState;
   /** Seed for a new game; drawn at random when missing (FR-019). */
   seed?: number;
-  /** The world of a new game; the continent when missing (FR-144). */
-  world?: WorldId;
-  /** The market mode of a new game; the world's own when missing (FR-242: the continent's is "partners"). */
-  market?: MarketMode;
   activeNationId?: NationId;
 }
 
@@ -129,7 +125,8 @@ export const randomSeed = (random: () => number = Math.random): number => 1 + Ma
 export const createGameSlice =
   (options: GameSliceOptions = {}): StateCreator<GameStore, [], [], GameSlice> =>
   (set, get) => {
-    const game = options.game ?? newGame({ seed: options.seed ?? randomSeed(), world: options.world ?? APP_WORLD, market: options.market });
+    const game = options.game ?? newGame({ seed: options.seed ?? randomSeed(), world: options.world ?? APP_WORLD,
+      market: options.market, randomMapSize: options.randomMapSize });
     return {
       game,
       activeNationId: options.activeNationId ?? game.nations[0]?.id ?? "nation-1",
@@ -204,8 +201,8 @@ export const createGameSlice =
       },
 
       // Nothing of the old game's session survives: selection, dialogs, news, logs (FR-105, FR-109).
-      startNewGame: ({ seed, turnLimit, world, market, difficulty } = {}) => {
-        const next = newGame({ seed: seed ?? randomSeed(), turnLimit, world: world ?? APP_WORLD, market, difficulty });
+      startNewGame: (settings = {}) => {
+        const next = newGame({ ...settings, seed: settings.seed ?? randomSeed(), world: settings.world ?? APP_WORLD });
         set({
           ...NO_SELECTION_NO_DIALOG,
           game: next,

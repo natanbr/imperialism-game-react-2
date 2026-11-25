@@ -357,7 +357,8 @@ describe('FR-260 (replaces FR-157) the continent plays: 40 turns, nation 2 scrip
 
 describe('FR-215 the seams with the start army: the frozen M4 player on both worlds, seeds 1 to 4 (replaces FR-158)', () => {
   /** Nation 2 scripted and nation 1 idle, and (R3) both nations scripted; the continent without its start forces. */
-  const games = new Map<number, Record<'n2' | 'both', Record<WorldId, Game>>>();
+  type FixedWorld = 'two-islands' | 'continent';
+  const games = new Map<number, Record<'n2' | 'both', Record<FixedWorld, Game>>>();
   beforeAll(() => {
     for (const seed of SEEDS) {
       games.set(seed, {
@@ -411,7 +412,7 @@ describe('FR-215 the seams with the start army: the frozen M4 player on both wor
 
   it('FR-215 the frozen M4 player has as many orders refused on the continent as on two-islands', () => {
     for (const run of ['n2', 'both'] as const) {
-      const refused = (world: WorldId) => SEEDS.map(seed => games.get(seed)![run][world].refused);
+      const refused = (world: FixedWorld) => SEEDS.map(seed => games.get(seed)![run][world].refused);
       expect(refused('continent')).toEqual(refused('two-islands'));
     }
   });

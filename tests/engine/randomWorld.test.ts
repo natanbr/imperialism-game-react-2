@@ -1,8 +1,11 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { ResourceDevelopmentTable } from '@/definisions/ResourceDevelopment';
+import { yieldOf } from '@/engine/ai/railPlan';
 import { hasLandRoute } from '@/engine/diplomacy/queries';
 import { getAdjacentTiles, isAdjacentToOcean } from '@/engine/map/mapHelpers';
+import { isTradeCommodity } from '@/engine/market/market';
+import { minorOffers } from '@/engine/market/partners';
 import { homeApproach, portApproach } from '@/engine/navy/approaches';
 import { newGame } from '@/engine/newGame';
 import { isPortSite } from '@/engine/orders/queries';
@@ -47,7 +50,7 @@ function connected(map: GameMap, province: Province, byId: Map<string, Tile>): b
 
 function seaRoute(g: GameState, power: string, minor: string): boolean {
   const home = homeApproach(g, power);
-  if (!home) return false;
+  if (!home?.seaId) return false;
   const provinces = new Set(g.provinces.filter(p => p.ownerId === minor).map(p => p.id));
   return g.map.tiles.flat().some(t => t.provinceId && provinces.has(t.provinceId) &&
     t.terrain !== T.Capital && isPortSite(g, t) && portApproach(g, t)?.seaId === home.seaId);
@@ -79,7 +82,7 @@ function foodParity(g: GameState): void {
       const capital = g.map.tiles.flat().find(t => t.cityId === nation.cities[0])!;
       return neighbours(g.map, capital).reduce((sum, t) => {
         if (t.resource?.type !== resource || collectingHub(g, nation.id, t.id)?.tileId !== capital.id) return sum;
-        return sum + ResourceDevelopmentTable[resource][t.resource.level];
+        return sum + yieldOf(t);
       }, 0);
     });
     if (!units[0] || units[0] !== units[1]) {
@@ -148,7 +151,8 @@ function checkWorld(g: GameState, size: RandomMapSize) {
     expect(isAdjacentToOcean(plan.map, capital.x, capital.y), label).toBe(true);
     expect(isAdjacentToOcean(map, capital.x, capital.y), label).toBe(true);
     const improvable = neighbours(map, capital).filter(t => t.provinceId && owner.get(t.provinceId) === country &&
-      !seats.has(t.id) && t.resource && ResourceDevelopmentTable[t.resource.type][t.resource.level + 1] !== undefined);
+      !seats.has(t.id) && t.resource && t.resource.discovered !== false &&
+      ResourceDevelopmentTable[t.resource.type][t.resource.level + 1] !== undefined);
     expect(improvable.length, `${label}, ${country} development sites`).toBeGreaterThanOrEqual(2);
     expect(improvable.some(t => food.includes(t.resource!.type)), `${label}, ${country} food site`).toBe(true);
     if (!powers.has(country)) continue;
@@ -160,6 +164,13 @@ function checkWorld(g: GameState, size: RandomMapSize) {
     }
   }
   const land = landByCountry(g);
+  for (const minor of g.minorNations) {
+    const offers = minorOffers(g, minor.id);
+    const hasStartingSupply = land.get(minor.id)!.some(({ resource }) =>
+      resource && resource.level > 0 && resource.discovered !== false &&
+      isTradeCommodity(resource.type) && (offers[resource.type] ?? 0) > 0);
+    expect(hasStartingSupply, `${label}, ${minor.name} offers a developed, discovered input`).toBe(true);
+  }
   for (const resource of resources) resourceFairness(g, resource, land);
   foodParity(g);
   return land;
@@ -196,7 +207,10 @@ describe('FR-588 replayable keys and worlds', () => {
   it.each(sizes)('pins the Brete %s geography and deposits', size => {
     const g = random(2813929771, size);
     const fingerprint = createHash('sha256').update(JSON.stringify(worldOf(g))).digest('hex');
-    expect(fingerprint).toBe(({ standard: 'STANDARD_FINGERPRINT', large: 'LARGE_FINGERPRINT' })[size]);
+    expect(fingerprint).toBe({
+      standard: '4c738cad32f5714170916df77b19cb8c06490722fccd3ca0226ebb6badfe70b1',
+      large: '0045d736a358d7c0c61426267065e005181b618fb29a5427f289321400f78e16',
+    }[size]);
   });
 });
 

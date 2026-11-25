@@ -48,7 +48,7 @@ function startOwnerOf(province: Province): CountryId {
 export const isConqueredProvince = (province: Province): boolean => province.ownerId !== startOwnerOf(province);
 
 /** The tile owned by `nationId`, or by no Great Power when it is undefined. */
-function withOwner(tile: Tile, nationId: string | undefined): Tile {
+export function withOwner(tile: Tile, nationId: string | undefined): Tile {
   if (nationId) return { ...tile, ownerNationId: nationId };
   const copy = { ...tile };
   delete copy.ownerNationId;
