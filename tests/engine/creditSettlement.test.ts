@@ -5,7 +5,7 @@ import type { Order } from '@/engine/orders/Order';
 import { upkeepSystem } from '@/engine/systems/armySystem';
 import { productionSystem } from '@/engine/systems/productionSystem';
 import { createTurnContext, type GameEvent } from '@/engine/turn/context';
-import { TURN_PHASES } from '@/engine/turn/phases';
+import { runTurnPhases, TURN_PHASES } from '@/engine/turn/phases';
 import { resolveTurn } from '@/engine/turn/resolveTurn';
 import type { GameState } from '@/types/GameState';
 import { GoodsType, ResourceType } from '@/types/Resource';
@@ -79,10 +79,14 @@ describe('FR-602 upkeep and interest', () => {
 
   it('collecting gold after assessment clears excess and counts only toward the next interest assessment', () => {
     const base = account(setTile(emptyWarehouse(game(), N1), T.mountains1, { resource: { type: ResourceType.Gold, level: 2, discovered: true } }), -250);
-    const first = settle({ ...base, transportAllocationsByNation: { [N1]: { gold: 1 } } });
+    const input = { ...base, transportAllocationsByNation: { [N1]: { gold: 1 } } };
+    const first = settle(input);
     expect(eventsOf(first.events, 'credit-interest').map(e => [e.debt, e.amount])).toEqual([[250, 15]]);
     expect(treasury(first.state, N1)).toBe(-65);
     expect(eventsOf(first.events, 'credit-settled').map(e => e.closingDebt)).toEqual([65]);
+    const observed: GameEvent[] = [];
+    runTurnPhases(input, createTurnContext({ turn: input.turn, seed: input.seed, emit: e => observed.push(e) }));
+    expect(eventsOf(observed, 'credit-settled').map(e => e.closingDebt)).toEqual([65]);
     expect(nationOf(first.state, N1).creditAccount?.saleReceipts).toEqual([0]);
     expect(eventsOf(settle(first.state).events, 'credit-interest').map(e => [e.debt, e.amount])).toEqual([[65, 2]]);
   });

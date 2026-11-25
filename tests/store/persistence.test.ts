@@ -12,6 +12,7 @@ import React from 'react';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { computerOrders, newGame, resolveTurn, type Order } from '@/engine';
 import { createGameStore, useGameStore } from '@/store/rootStore';
+import { GoodsType } from '@/types/Resource';
 import { replaySession } from '@/store/sessionReplay';
 import { HOW_TO_PLAY_SEEN_KEY, readSave, saveOf, startAutosave, SAVE_DELAY_MS, SAVE_KEY, SAVE_VERSION, type SavedGame } from '@/store/persistence';
 // M12b (FR-471): the Not saved line moved from the cash block (NationStats) to the right pane's alerts
@@ -164,6 +165,28 @@ describe('FR-358 autosave after orders', () => {
 });
 
 describe('FR-361 a restored game plays on exactly', () => {
+  it.each(['world', 'partners'] as const)('FR-601 a %s save retains the qualifying receipts until their fourth subsequent settlement', market => {
+    const game = newGame({ seed: 2, world: 'continent', market });
+    const store = createGameStore({ game: { ...game, nations: game.nations.map(n => n.id === N1
+      ? { ...n, warehouse: { ...n.warehouse, clothing: 4 } } : n) } });
+    for (const order of [
+      { kind: 'openCredit', nationId: N1 }, consulate('minor-1'), consulate('minor-2'),
+      { kind: 'sellCommodity', nationId: N1, commodity: GoodsType.Clothing, amount: 4 },
+    ] satisfies Order[]) expect(store.getState().submitOrder(order)).toEqual({ ok: true });
+    store.getState().advanceTurn();
+    expect(store.getState().game.nations[0].creditAccount).toEqual({ limit: 360, saleReceipts: [3600] });
+    const slot = readSave({ getItem: () => JSON.stringify(saveOf(store.getState())) });
+    if (slot.kind !== 'usable') throw new Error('The settled credit save must load');
+    const restored = createGameStore({ seed: 99 });
+    restored.getState().restoreGame(slot.save);
+    for (const expectedLimit of [360, 360, 360, 200]) {
+      store.getState().advanceTurn();
+      restored.getState().advanceTurn();
+      expect(restored.getState().game).toEqual(store.getState().game);
+      expect(restored.getState().game.nations[0].creditAccount?.limit).toBe(expectedLimit);
+    }
+  });
+
   it.each(['world', 'partners'] as const)('NR-039 FR-599–603 replays a v1 mid-turn overdraft and its next %s settlement from the original seed', market => {
     const store = createGameStore({ game: newGame({ seed: 1, world: 'continent', market }) });
     expect(store.getState().submitOrder({ kind: 'openCredit', nationId: 'nation-2' }).ok).toBe(false);
@@ -177,6 +200,10 @@ describe('FR-361 a restored game plays on exactly', () => {
     submit({ kind: 'openCredit', nationId: N1 });
     submit({ kind: 'giveGrant', nationId: N1, targetId: 'minor-1', amount: 3000, locked: false });
     expect(store.getState().game.nations[0].treasury).toBe(-200);
+    const increase: Order = { kind: 'giveGrant', nationId: N1, targetId: 'minor-1', amount: 5000, locked: false };
+    const refusal = { reason: 'insufficient-funds', cost: 2000, buyingPower: 0 };
+    expect(store.getState().submitOrder(increase)).toEqual({ ok: false, ...refusal });
+    expect(store.getState().lastRejection).toEqual({ order: increase, ...refusal });
     const slot = readSave({ getItem: () => JSON.stringify(saveOf(store.getState())) });
     if (slot.kind !== 'usable') throw new Error('The mid-turn credit save must load');
     expect(slot.save.version).toBe(1);

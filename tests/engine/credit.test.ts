@@ -61,4 +61,13 @@ describe('FR-599 authorization', () => {
       due: 100, cash: -105, short: false, shortBy: 0, regimentsLost: [], projectedDebt: 205, overLimitBy: 5,
     });
   });
+
+  it('FR-600 a rejected batch Order reports its cost and the remaining buying power', () => {
+    const start = setTreasury(newGame(1), N1, 99);
+    const bid: Order = { kind: 'buyCommodity', nationId: N1, commodity: ResourceType.Coal, amount: 3 };
+    const { events } = resolveTurn(start, { [N1]: [open, bid] });
+    expect(events).toContainEqual({
+      type: 'order-rejected', nationId: N1, order: bid, reason: 'insufficient-funds', cost: 300, buyingPower: 299,
+    });
+  });
 });
