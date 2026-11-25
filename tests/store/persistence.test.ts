@@ -12,6 +12,7 @@ import React from 'react';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { computerOrders, newGame, resolveTurn, type Order } from '@/engine';
 import { createGameStore, useGameStore } from '@/store/rootStore';
+import { replaySession } from '@/store/sessionReplay';
 import { HOW_TO_PLAY_SEEN_KEY, readSave, saveOf, startAutosave, SAVE_DELAY_MS, SAVE_KEY, SAVE_VERSION, type SavedGame } from '@/store/persistence';
 // M12b (FR-471): the Not saved line moved from the cash block (NationStats) to the right pane's alerts
 import { Alerts } from '@/components/HUD/Alerts';
@@ -163,6 +164,35 @@ describe('FR-358 autosave after orders', () => {
 });
 
 describe('FR-361 a restored game plays on exactly', () => {
+  it.each(['world', 'partners'] as const)('NR-039 FR-599–603 replays a v1 mid-turn overdraft and its next %s settlement from the original seed', market => {
+    const store = createGameStore({ game: newGame({ seed: 1, world: 'continent', market }) });
+    expect(store.getState().submitOrder({ kind: 'openCredit', nationId: 'nation-2' }).ok).toBe(false);
+    for (const minor of ['minor-1', 'minor-2', 'minor-3', 'minor-4']) {
+      expect(store.getState().submitOrder(consulate(minor))).toEqual({ ok: true });
+    }
+    store.getState().advanceTurn();
+    expect(store.getState().submitOrder({ kind: 'proposeOverture', nationId: N1, overture: 'embassy', targetId: 'minor-1' })).toEqual({ ok: true });
+    store.getState().advanceTurn();
+    const submit = (order: Order) => expect(store.getState().submitOrder(order)).toEqual({ ok: true });
+    submit({ kind: 'openCredit', nationId: N1 });
+    submit({ kind: 'giveGrant', nationId: N1, targetId: 'minor-1', amount: 3000, locked: false });
+    expect(store.getState().game.nations[0].treasury).toBe(-200);
+    const slot = readSave({ getItem: () => JSON.stringify(saveOf(store.getState())) });
+    if (slot.kind !== 'usable') throw new Error('The mid-turn credit save must load');
+    expect(slot.save.version).toBe(1);
+    expect(slot.save.replayBoundary).toBeUndefined();
+    expect(replaySession(slot.save)).toEqual(slot.save.game);
+    const loaded = createGameStore({ seed: 99 });
+    loaded.getState().restoreGame(slot.save);
+    for (const game of [store, loaded]) game.getState().advanceTurn();
+    const continued = loaded.getState();
+    expect(continued.game).toEqual(store.getState().game);
+    expect(continued.orderLog).toEqual(store.getState().orderLog);
+    expect(continued.eventLog).toEqual(store.getState().eventLog);
+    expect(continued.eventLog.at(-1)?.events).toContainEqual(expect.objectContaining({ type: 'forced-sale', nationId: N1 }));
+    expect(replaySession(continued)).toEqual(continued.game);
+  });
+
   it.each([1, 2, 3])('FR-361 seed %i: after a JSON round trip of the save at turns 1, 10 and 25, advanceTurn gives a deep-equal game, the same events and the same logs', (seed) => {
     const store = createGameStore({ seed });
     for (const checkpoint of [1, 10, 25]) {

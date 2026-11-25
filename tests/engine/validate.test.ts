@@ -64,6 +64,8 @@ const commissioned = resolveTurn(setWarehouse(armyContinent(), N1, {armaments: 2
 }).state;
 
 const cases: Case[] = [
+  { name: 'FR-599 the human can authorize credit', order: { kind: 'openCredit', nationId: N1 }, expected: 'ok' },
+  { name: 'NR-039 a scripted nation cannot authorize credit', order: { kind: 'openCredit', nationId: N2 }, expected: 'not-owner' },
   { name: 'FR-549 sail a commissioned squadron to Sundmark', setup: () => commissioned, order: {
     kind: 'setFleetMission', nationId: N1, fleetId: commissioned.fleets[0].id, mission: 'sail', provinceId: 'province-minor-2',
   }, expected: 'ok' },
