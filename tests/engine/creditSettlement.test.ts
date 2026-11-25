@@ -10,6 +10,7 @@ import { resolveTurn } from '@/engine/turn/resolveTurn';
 import type { GameState } from '@/types/GameState';
 import { GoodsType, ResourceType } from '@/types/Resource';
 import { ARVELIA, continent, idOf, SW1 } from './armyFixtures';
+import { runGame } from './sim/harness';
 import { deepFreeze, emptyWarehouse, game, invariantViolations, N1, N2, nationOf, setPair, setTile, setTreasury, setWarehouse, stockOf, T, treasury } from './fixtures';
 
 // A mid-game fixture with an already authorized line, independent of the opening Order under test elsewhere.
@@ -93,6 +94,24 @@ describe('FR-602 upkeep and interest', () => {
 });
 
 describe('FR-603 forced sale', () => {
+  it('NR-039 accepts legitimate unpaid excess in the simulation turn record', () => {
+    const { turns } = runGame({
+      seed: 1, world: 'continent', turns: 1,
+      human: {
+        name: 'borrower',
+        setup: state => setTreasury(emptyWarehouse(state, N1), N1, 300),
+        orders: () => [
+          { kind: 'openCredit', nationId: N1 },
+          { kind: 'proposeOverture', nationId: N1, targetId: ARVELIA, overture: 'consulate' },
+        ],
+      },
+    });
+    // $300 minus $500 consulate, $100 upkeep and $18 interest. No stock is available to sell.
+    expect(turns[0].humanOrders).toBe(2);
+    expect(turns[0].treasury[N1]).toBe(-318);
+    expect(turns[0].invariantViolations).toEqual([]);
+  });
+
   it('retains stock exactly at the limit after interest, then sells a whole unit at its posted post-trade price and credits the surplus', () => {
     const base = setWarehouse(islands(), N1, { timber: 2 });
     const equal = settle(account(base, -189));
