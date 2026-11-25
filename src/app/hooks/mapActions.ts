@@ -10,10 +10,7 @@ export function centreOnCapital(): void {
   if (camera) moveCamera(camera.x, camera.y);
 }
 
-/**
- * How the map opens (FR-567): the land fitted to the map area, or on a screen smaller than the land 100% on the capital
- * (FR-083). On the first view, a continued game and a new one.
- */
+/** First view, Continue and New game use the same opening fit and capital fallback (FR-083, FR-567, FR-598). */
 export function openMap(): void {
   const { game, activeNationId, zoomTo } = useGameStore.getState();
   const view = openingView(game, activeNationId, mapAreaOf(window));
