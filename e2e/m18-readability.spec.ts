@@ -23,6 +23,28 @@ async function expectInsideWindow(page: Page, box: { x: number; y: number; width
   expect(box.y + box.height).toBeLessThanOrEqual(size.height + 0.5);
 }
 
+test('FR-404 scrolling a focused score out of Overview hides its parts until the score returns', async ({ page }) => {
+  await page.setViewportSize({ width: 640, height: 360 });
+  await startSeededGame(page);
+  await page.getByRole('button', { name: 'Stats', exact: true }).click();
+  const overview = page.getByRole('tabpanel', { name: 'Overview' });
+  const score = overview.getByTestId('hud-score');
+  const parts = overview.getByTestId('score-parts');
+  await score.focus();
+  await expect(parts).toBeVisible();
+
+  await overview.evaluate(panel => { panel.scrollTop = panel.scrollHeight; });
+  await expect(score).not.toBeInViewport();
+  await expect(score).toBeFocused();
+  await expect(parts).toBeHidden();
+
+  await overview.evaluate(panel => { panel.scrollTop = 0; });
+  await expect(score).toBeInViewport();
+  await expect(score).toBeFocused();
+  await expect(parts).toBeVisible();
+  await expectInsideWindow(page, (await parts.boundingBox())!);
+});
+
 for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 }]) {
   const at = `${viewport.width}x${viewport.height}`;
   test.describe(`M18b at ${at}`, () => {
