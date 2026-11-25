@@ -7,8 +7,8 @@ import { startWorld } from '@/engine/world/startWorld';
 import type { WorldId } from '@/types/World';
 
 describe('FR-144 the world option of newGame', () => {
-  it('FR-144 the registry holds exactly "two-islands" and "continent"', () => {
-    expect(Object.keys(WORLDS).sort()).toEqual(['continent', 'two-islands']);
+  it('FR-144 FR-589 the registry holds the two fixed worlds and Random', () => {
+    expect(Object.keys(WORLDS).sort()).toEqual(['continent', 'random', 'two-islands']);
   });
 
   it('FR-144 without a world newGame builds "two-islands" and records it', () => {
@@ -47,7 +47,7 @@ describe('FR-144 the world option of newGame', () => {
     expect(build).toThrow(/continent/);
   });
 
-  it('FR-144 each world builds the same game for any seed (the map does not depend on the seed)', () => {
+  it('FR-144 each fixed map is independent of the seed', () => {
     for (const world of ['two-islands', 'continent'] as const) {
       expect(newGame({ seed: 1, world }).map).toEqual(newGame({ seed: 99, world }).map);
     }
