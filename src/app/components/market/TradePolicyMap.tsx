@@ -3,6 +3,8 @@ import type { GameState } from "@/types/GameState";
 import { FlagDrawing } from "../NationFlag";
 import { nationMark } from "../nationMark";
 import type { TradePolicyRowView } from "../diplomacy/diplomacyView";
+import { HOME_FILL, type DiplomaticCountry } from "./diplomaticMapView";
+import type { MapMode } from "./TradePolicies";
 import { POLICY_MAP_EDGE_CLEARANCE, type TradePolicyMap as MapGeometry } from "./tradePolicyMapView";
 import styles from "./TradePolicyMap.module.css";
 
@@ -27,42 +29,57 @@ interface Props {
   game: GameState;
   geometry: MapGeometry;
   rows: TradePolicyRowView[];
+  information: DiplomaticCountry[];
+  mode: MapMode;
+  viewerId: string;
   selectedId?: string;
   select: (id: string) => void;
 }
 
-export function TradePolicyMap({ game, geometry, rows, selectedId, select }: Props) {
+export function TradePolicyMap({ game, geometry, rows, information, mode, viewerId, selectedId, select }: Props) {
   const mapId = React.useId();
   const countries = [...game.nations, ...game.minorNations].flatMap(({ id, name }) => {
     const land = geometry.countries.find(country => country.id === id);
     if (!land) return [];
-    return [{ id, name, land, row: rows.find(country => country.id === id), mark: nationMark(game, id) }];
+    const row = rows.find(country => country.id === id);
+    const info = information.find(country => country.id === id);
+    const mark = nationMark(game, id);
+    const home = mode !== "Trade policies" && viewerId === id;
+    const fill = info?.fill ?? (home ? HOME_FILL : mark.colour);
+    let label = name;
+    if (home) label += ", Home";
+    if (info) {
+      label += `, ${info.status}`;
+      if (info.offices.length) label += `, our offices there: ${info.offices.join(", ")}`;
+    }
+    if (row) label += `, ${row.policy.boycott ? "boycott" : `subsidy ${row.policy.subsidyPercent}%`}`;
+    return [{ id, name, land, row, info, selectable: Boolean(row || info), mark, fill, label }];
   });
   const selected = geometry.countries.find(({ id }) => id === selectedId);
   return (
-    <svg className={styles.map} viewBox={geometry.viewBox} role="group" aria-label="Trade policy map">
+    <svg className={mode === "Trade policies" ? styles.map : `${styles.map} ${styles.informationMap}`}
+      viewBox={geometry.viewBox} role="group" aria-label={mode === "Trade policies" ? "Trade policy map" : `${mode} map`}>
       <g>
-        {countries.map(({ id, name, land, row, mark }) => {
-          const policy = row?.policy;
-          const label = policy ? `${name}, ${policy.boycott ? "boycott" : `subsidy ${policy.subsidyPercent}%`}` : name;
+        {countries.map(({ id, land, selectable, fill, label }) => {
           return (
             <g
               key={id}
               id={`${mapId}-${id}`}
-              className={styles.country}
+              className={mode === "Trade policies" ? styles.country : `${styles.country} diplomatic-map-country`}
+              style={mode === "Trade policies" ? undefined : { "--country-fill": fill } as React.CSSProperties}
               data-country={id}
-              role={row ? "button" : "img"}
+              role={selectable ? "button" : "img"}
               aria-label={label}
-              aria-pressed={row ? selectedId === id : undefined}
-              tabIndex={row ? 0 : undefined}
-              onClick={row ? () => select(id) : undefined}
-              onKeyDown={row ? (event) => {
+              aria-pressed={selectable ? selectedId === id : undefined}
+              tabIndex={selectable ? 0 : undefined}
+              onClick={selectable ? () => select(id) : undefined}
+              onKeyDown={selectable ? (event) => {
                 if (event.key === "Enter" || event.key === " ") {
                   event.preventDefault();
                   if (event.key === "Enter") select(id);
                 }
               } : undefined}
-              onKeyUp={row ? (event) => {
+              onKeyUp={selectable ? (event) => {
                 if (event.key === " ") {
                   event.preventDefault();
                   select(id);
@@ -70,7 +87,7 @@ export function TradePolicyMap({ game, geometry, rows, selectedId, select }: Pro
               } : undefined}
             >
               <title>{label}</title>
-              <path className={styles.land} d={land.d} fill={mark.colour} fillRule="evenodd" />
+              <path className={styles.land} d={land.d} fill={fill} fillRule="evenodd" />
             </g>
           );
         })}
@@ -78,12 +95,12 @@ export function TradePolicyMap({ game, geometry, rows, selectedId, select }: Pro
         {selected && <path className={styles.selectedBorder} d={selected.d} fill="none" aria-hidden="true" />}
       </g>
       <g aria-hidden="true">
-        {countries.map(({ id, name, land, row, mark }) => (
+        {countries.map(({ id, name, land, row, info, selectable, fill, mark }) => (
           <g
             key={id}
             data-annotation-for={id}
-            className={row ? styles.annotationButton : undefined}
-            onClick={row ? () => {
+            className={selectable ? styles.annotationButton : undefined}
+            onClick={selectable ? () => {
               document.getElementById(`${mapId}-${id}`)?.focus({ preventScroll: true });
               select(id);
             } : undefined}
@@ -91,7 +108,7 @@ export function TradePolicyMap({ game, geometry, rows, selectedId, select }: Pro
             <g
               className={`${styles.label} political-map-lettering`}
               style={{
-                "--country-fill": mark.colour,
+                "--country-fill": fill,
                 "--label-min-x": `${POLICY_MAP_EDGE_CLEARANCE - land.label.x}px`,
                 "--label-max-x": `${geometry.width - POLICY_MAP_EDGE_CLEARANCE - land.label.x}px`,
               } as React.CSSProperties}
@@ -106,6 +123,14 @@ export function TradePolicyMap({ game, geometry, rows, selectedId, select }: Pro
               </g>
             </g>
             {row && <PolicyMarker row={row} x={land.marker.x} y={land.marker.y} />}
+            {info && info.offices.length > 0 && (
+              <g transform={`translate(${land.marker.x} ${land.marker.y})`}>
+                <g className={styles.marker}>
+                  <circle r="17" className={styles.medallion} />
+                  <text className={styles.officeMark} textAnchor="middle" dy=".34em">{info.offices.map(office => office[0]).join("")}</text>
+                </g>
+              </g>
+            )}
           </g>
         ))}
       </g>

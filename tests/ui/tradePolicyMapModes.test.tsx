@@ -30,7 +30,7 @@ function mode(name: string) {
 }
 const map = (name: string) => within(screen.getByRole('group', { name: name + ' map' }));
 const detail = () => text(screen.getByRole('region', { name: 'Selected country' }));
-const list = () => fireEvent.click(screen.getByRole('button', { name: 'List', exact: true }));
+const list = () => fireEvent.click(screen.getByRole('button', { name: 'List' }));
 const land = (country: Element) => country.querySelector('path')!.getAttribute('fill');
 function queued(game: GameState, order: Order) {
   const result = tryApplyOrder(game, order);
@@ -64,7 +64,7 @@ describe('FR-614 and FR-615 diplomatic map modes', () => {
       expect(text(legend)).toContain(relationText(level));
     }
     list();
-    fireEvent.click(screen.getByRole('button', { name: 'Arvelia', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Arvelia' }));
     expect(detail()).toContain(relationText(7));
     expect(screen.queryByRole('checkbox')).toBeNull();
     expect(submit).not.toHaveBeenCalled();
@@ -109,7 +109,7 @@ describe('FR-614 and FR-615 diplomatic map modes', () => {
     for (const word of ['Peace', 'War', 'Pact', 'Alliance', 'Empire', 'Consulate', 'Embassy']) expect(key).toContain(word);
     expect(countries.queryByRole('button', { name: new RegExp('^' + colony.name + ',') })).toBeNull();
     list();
-    fireEvent.click(screen.getByRole('button', { name: colony.name, exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: colony.name }));
     expect(detail()).toMatch(/Empire.*Valdoria/i);
     expect(screen.queryByRole('checkbox')).toBeNull();
     expect(submit).not.toHaveBeenCalled();
@@ -126,7 +126,7 @@ describe('FR-614 and FR-615 diplomatic map modes', () => {
     const { container, update } = renderPolicies(game);
     mode('Political status');
     for (const layout of ['Map', 'List']) {
-      fireEvent.click(screen.getByRole('button', { name: layout, exact: true }));
+      fireEvent.click(screen.getByRole('button', { name: layout }));
       update(game);
       const before = container.innerHTML;
       for (const difficulty of ['normal', 'demo'] as const) {

@@ -131,7 +131,7 @@ for (const viewport of viewports) {
         await panel.getByRole('button', { name: 'List', exact: true }).click();
         const country = panel.getByRole('button', { name: 'Arvelia', exact: true });
         await country.press('Enter');
-        await expect(detail).toHaveText(facts);
+        await expect(detail).toHaveText(facts, { useInnerText: true });
         await expectPaneFits(panel);
         await capture(page, info, `${file}-list`);
         await panel.getByRole('button', { name: 'Map', exact: true }).click();

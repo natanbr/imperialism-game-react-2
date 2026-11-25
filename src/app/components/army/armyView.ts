@@ -426,7 +426,7 @@ const provinceName = (state: GameState, provinceId: string) => provinceById(stat
 /** FR-265: what the Arms column holds (FR-199 ARMS, FR-202 upkeep, FR-204 force size). */
 export const ARMS_LEGEND = `Arms: armaments per regiment; each costs ${money(UPKEEP_PER_ARMS)} a turn and counts toward force size`;
 
-export function armyView(state: GameState, nationId: string, provinceId: string): ArmyView {
+export function armyRoster(state: GameState, nationId: string, provinceId: string) {
   const army = armyAt(state, nationId, provinceId);
   const regiments = army ? [...army.regiments.filter((r) => !isMilitia(r.type)), ...army.regiments.filter((r) => isMilitia(r.type))] : [];
   const rows = regiments.map((r): RegimentRowView => {
@@ -463,8 +463,13 @@ export function armyView(state: GameState, nationId: string, provinceId: string)
         return { ...base, status: "Defending", selectable: false };
     }
   });
+  return { rows, forceSize: army ? forceSize(army) : 0 };
+}
+
+export function armyView(state: GameState, nationId: string, provinceId: string): ArmyView {
+  const roster = armyRoster(state, nationId, provinceId);
   const attacks = new Map<string, string[]>();
-  for (const r of regiments) {
+  for (const r of roster.rows) {
     const status = regimentStatus(state, r.id);
     if (status?.kind === "attacking") attacks.set(status.toProvinceId, [...(attacks.get(status.toProvinceId) ?? []), r.id]);
   }
@@ -479,13 +484,12 @@ export function armyView(state: GameState, nationId: string, provinceId: string)
   return {
     provinceName: name,
     title: `Army in ${name}`,
-    forceSize: army ? forceSize(army) : 0,
+    ...roster,
     upkeepHere: `Upkeep here: ${money(upkeepIn(state, nationId, provinceId))} a turn`,
     upkeep: `${upkeepDueText(forecast)} for all provinces`,
     armsLegend: ARMS_LEGEND,
-    militiaOnly: regiments.length > 0 && regiments.every((r) => isMilitia(r.type)),
+    militiaOnly: roster.rows.length > 0 && roster.rows.every((r) => isMilitia(r.type)),
     ...(warning ? { upkeepWarning: warning } : {}),
-    rows,
     attackCancels,
     targets: [
       ...marchTargets(state, nationId, provinceId).map((p): ArmyTarget => ({ id: p.id, name: p.name, kind: "march", text: p.name })),

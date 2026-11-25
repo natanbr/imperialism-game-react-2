@@ -773,6 +773,10 @@ describe('FR-612 Trade Book', () => {
     const before = readable(settled);
     act(() => useGameStore.setState({ game: setPair({ ...game, minorNations: game.minorNations.map(m => ({ ...m, colonyOf: N2 })) }, N1, ARVELIA, { points: 80 }) }));
     expect(readable(settled)).toBe(before);
+    act(() => useGameStore.setState({ eventLog: [] }));
+    expect(text(settled)).toContain('Deal Book report unavailable for this turn.');
+    expect(text(settled)).not.toMatch(/Bought 1 Coal|Sundmark wanted to sell/);
+    expect(within(within(settled).getByRole('list', { name: 'Bidding Great Powers' })).getAllByRole('listitem').map(text)).toEqual(['Testland', 'Valdoria']);
     act(() => useGameStore.setState({ game: { ...game, market: { ...marketOf(game), lastOrders: undefined } } }));
     expect(within(panel()).queryByRole('region', { name: /Settled/ })).toBeNull();
     expect(submitted).toEqual([]);

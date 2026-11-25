@@ -2,9 +2,8 @@
 
 ## Resuming here
 
-- Task 41 on `claude/m18g-screens` is verified locally. Advance a turn and open Stats → Rankings to compare powers or inspect an earlier turn. The accepted defaults are the seven named measures, one record per settlement, and gaps for earlier turns in old saves. Task 42 covers the books and diplomatic map modes.
-- M18f (credit for the human: an opened credit line, interest, forced sale, the Deal Book statement, signed cash; goods rows marked or hidden when nothing can supply them) built by Codex tasks 36 to 39, reviewed by Sonnet 5.5, gate `.gate/claude/56/` green. Computers never borrow, so every guard is unchanged. Owner decisions open: the inferred interest, limit and forced-sale numbers, and FR-609 (debt counts against the score; owner may reverse).
-- Task 39 (M) follows the M18f credit review on `claude/m18f-credit` in `imperialism-game-revival-fee36d`. FR-609 counts signed cash in the score of a nation with open credit. The owner may reverse the decision. [M18f journal and gate evidence](journal/archive-M18f.md) · [Task 39 report](../.gate/codex/39/report.md) · [Earlier journal archives](journal/)
+- M18g on `claude/m18g-screens` in the `imperialism-game-revival-fee36d` worktree adds Stats rankings and history, Trade Book, Garrison Book and two diplomatic map modes. The owner kept Board Details and the human nation as the reference. [Implementation and gate evidence](journal/archive-M18g.md) · [Task 42 report](../.gate/codex/42/report.md)
+- M18f (human credit, interest, forced sales, signed cash and supply notes) merged at `9d2f9eb` in pull request 52. The inferred credit numbers and FR-609 debt scoring remain open to owner revision. [M18f journal and gate evidence](journal/archive-M18f.md) · [Task 39 report](../.gate/codex/39/report.md) · [Earlier journal archives](journal/)
 - Night shift 2 (2026-11-24): M18d (terrains, resources, fishing) is PARKED on `claude/m18d-terrain` (pushed, not merged) for an owner decision: fishing moves the protected guards (FR-125 1.604 to 1.519, 3 rail dead ends, the two-islands golden, old-save replays); table and options in that branch's `docs/verify-and-tune.md` ("M18d parked"). M18e (seeded random maps, New game options, seed in Stats) built by Codex tasks 32 to 35, reviewed by Sonnet 5.5, gate `.gate/claude/55/` green. Deferred to the owner: the 400-turn historical length (FR-593, FR-594). M18e on `claude/m18e-maps` adds seeded worlds and New game options. To replay the desktop or phone example, choose Random, Large and `Brete`, then copy `2813929771` from Stats. Task 35 fits the whole Large map at laptop sizes. Its before/after screenshots and guard comparison are in `.gate/codex/35/`. M18d terrain is parked. Game length and the historical calendar are deferred.
 - M18 (play-test comfort, `docs/specs/m18-playtest-comfort.md`): M18a merged into main `af24381` (pull request 43), M18b part 1 (FR-563, FR-568, FR-569) in `5e80bab` (pull request 44), part 2 (FR-564 nation colours and flags) in `4098bfe` (pull request 45). NR-037 in progress.
 - M18b part 3 (FR-565, FR-566) merged into main `cd5b1be` (pull request 46); FR-567 into `994a0ca` (pull request 47), partial: the narrower pane is left for the owner; FR-570 (rail) into `751b74b` (pull request 48). Icons wait for the art (spec section 3).
@@ -17,25 +16,6 @@
 - FR-547 (Q143) is the buyer branch's proposed value rule. Measure technology availability, purchase timing and the value of the first unlocked action in the original game before tuning. See `docs/verify-and-tune.md`.
 - Task 19 passed the load trials and full gate on `claude/perf-tests`. Finish future gates with `npm run test:perf` alone. The measured results and six functional logs are indexed in `.gate/codex/19/summary.md`.
 - To play M17 on continent seed 1, set Armaments and Fabric production to 1. Build a Ship-of-the-Line on turn 6, declare and sail on turn 7, set the site on turn 8, and land the four-ARMS army on turn 9. On turn 10 see the survivors at Sundmark and its colony vote in Council.
-
-## 2026-11-24 Task 41 — M18g Stats rankings and history
-
-Size M. FR-610 projects seven public placings after settlement. FR-611 stores each turn's placings beside the game in the v1 session.
-Stats consumes the record for a selected turn and the series for its history chart and text equivalent.
-NR-040 compares Orders, settlement, replay and serialized gameplay across private Orders, screen selection, old saves and changes to the optional history.
-Verify both Stats viewports, the full unit suite, lint, types, build, the protected simulations and isolated performance.
-Objection: ranking the current position would expose a rival's private reservation. Capture the resolved position once and read its places in Stats.
-
-| Claim | Command or evidence | Observed result |
-|---|---|---|
-| Tests first | Test-only commit `cd11339`; focused store, component and Chromium runs | The projection module and history were absent. Seven store assertions failed plus the projection import. Three component cases failed at the missing Rankings tab. Chromium failed at the missing Overview tab. |
-| Measured base | Protected suites on `e163f12` (only docs changed from `9d2f9eb`) | 263 tests passed. FR-125 903/563 = 1.604×, FR-545 15/24, FR-546 13/24, FR-497 0/280. Four complete goldens and 72 random games across 2,790 turns were captured before implementation. |
-| Settlements and gaps | `rankProjection.test.ts`, `rankHistory.test.ts`, `statsRankings.test.tsx` | Ties use 1, 1, 3 and founding order. Tests cover a change of leader, matched export/buyer events, 23 settlements, a final turn, New game, and a missing or damaged record. Additional red test commit `f5d2407` covers an army ranking outliving the last army on a world without provinces. |
-| v1 save and replay | Fixed-time base comparison in `.gate/codex/41/save-compat.ts` and the 400-turn fixture in `randomMapReplay.test.ts` | Normal, Demo, open credit and a historical combat checkpoint matched the base on restore, next settlement and replay. The 400-turn test now hashes the original envelope with only the optional history removed. Both existing SHA-256 pins matched. Continuing the original save records turn 10 once. |
-| Protected runs | `npm test`, then `.gate/codex/41/guard_compare.py after` | 3,414 tests passed across 170 files. Before and after SHA-256 `28818fdc3b7a7eed6853c2324abadfe433b8d01ec56caba9f5b26cc25efaa9b2` covers all four goldens and all 72 per-seed records with the base measurements above. |
-| Stats in Chromium | `m18-readability`, `m18e-new-game`, `m14-endgame` on port 3123 with one worker | 16 passed. The 1366×768 and 390×844 captures show a first-place tie on turn 1 and the mill expansion changing turn 3. Verified keyboard navigation, return focus, Overview and reopening Stats after the final Council. |
-| Static checks | `npm run lint`, `npx tsc --noEmit`, `npm run build` | TypeScript and the production build passed. ESLint reported zero errors and one existing unused-variable warning in `logisticsSystem.test.ts`. |
-| Performance and review | `npm run test:perf` alone and independent source review | Three performance tests passed. FR-497 p95 was 13.3 ms over 3,210 turns, within 100 ms. Review checked historical gaps, the finished-save message, keyboard labels and both legacy hashes. The full logs and desktop/phone screenshots are under `.gate/codex/41/`. |
 
 ## 2026-11-24 Task 35 — M18e review fixes
 
