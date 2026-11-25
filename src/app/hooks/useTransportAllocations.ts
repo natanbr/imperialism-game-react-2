@@ -36,9 +36,8 @@ export const useTransportAllocations = (capacity: number) => {
   const isSet = (key: string) => Object.hasOwn(allocations, key);
   const autoAmount = (key: string) => shipments[key] ?? 0;
 
-  const submit = (next: Record<string, number>) => {
+  const submit = (next: Record<string, number>) =>
     submitOrder({ kind: "setTransportAllocations", nationId: activeNationId, allocations: next });
-  };
 
   /** Moving a slider sets its commodity, an automatic one too (FR-389). */
   const handleAllocChange = (key: string, nextValRaw: number) => {
@@ -54,10 +53,10 @@ export const useTransportAllocations = (capacity: number) => {
 
   /** The Auto button: the commodity leaves the plan and is automatic again (FR-390). */
   const setAuto = (key: string) => {
-    if (!isSet(key)) return;
+    if (!isSet(key)) return false;
     const next = { ...allocations };
     delete next[key];
-    submit(next);
+    return submit(next).ok;
   };
 
   const sliderMax = (key: string) => Math.max(0, Math.floor(collected[key] ?? 0));

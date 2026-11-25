@@ -89,7 +89,7 @@ const TransportAllocationModal: React.FC<TransportAllocationModalProps> = ({ cap
                     {set && (
                       <button type="button" className="btn btn-sm" aria-label={`Auto ${commodityName(key)}`} onClick={() => {
                         clearedSlider.current = inputId;
-                        setAuto(key);
+                        if (!setAuto(key)) clearedSlider.current = null;
                       }}>
                         Auto
                       </button>
