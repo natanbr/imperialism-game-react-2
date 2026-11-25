@@ -172,11 +172,17 @@ export const createGameSlice =
           nationId: n.id,
           orders: n.id === activeNationId ? ordersThisTurn : (computer[n.id] ?? []),
         }));
+        let ranking: RankRecord | undefined;
+        try {
+          ranking = projectRankings(state, events, report.turn);
+        } catch {
+          // FR-611: keep the settled turn even when its display sample is unavailable.
+        }
         set({
           game: state,
           selectedWorkerId: selectedWorkerId && isPlayersWorker({ game: state, activeNationId }, selectedWorkerId) ? selectedWorkerId : undefined,
           eventLog: [...eventLog, report].slice(-EVENT_LOG_TURNS),
-          rankHistory: [...(rankHistory ?? []), projectRankings(state, events, report.turn)],
+          rankHistory: ranking ? [...(rankHistory ?? []), ranking] : rankHistory,
           orderLog: [...orderLog, ...logged],
           ordersThisTurn: [],
           turnStartTreasuries: null,

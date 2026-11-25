@@ -8,6 +8,7 @@ import { turnLimitOf } from "@/engine/turn/gameOver";
 import { normalizeRandomMapSize } from "@/types/World";
 import { m17ReplayBoundary, usedM17CombatRules, withCurrentRules } from "./sessionReplay";
 import type { GameSession } from "./gameSlice";
+import { isRecord } from "./isRecord";
 import { readRankHistory } from "./rankHistory";
 import type { GameStore } from "./rootStore";
 
@@ -48,8 +49,6 @@ export function saveOf(session: GameSession, now: Date = new Date()): SavedGame 
     ...(usedM17CombatRules(session) && { combatRevision: "q145" }), ...(replayBoundary && { replayBoundary }),
     ...(rankHistory?.length && { rankHistory }) };
 }
-
-const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 
 /** This version's save with a game that has a turn, nations and a map, and the session's logs (FR-362's shape check). */
 function isUsable(value: unknown): value is SavedGame {

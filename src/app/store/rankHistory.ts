@@ -7,6 +7,7 @@ import type { GameEvent } from "@/engine/turn/context";
 import type { NationId } from "@/types/Common";
 import type { GameState } from "@/types/GameState";
 import type { Nation } from "@/types/Nation";
+import { isRecord } from "./isRecord";
 
 const economicMeasures = ["industry", "labour", "transport", "merchant", "exports"] as const;
 const rankMeasures = [...economicMeasures, "council", "army"] as const;
@@ -49,16 +50,13 @@ export function projectRankings(game: GameState, events: readonly GameEvent[], t
   } };
 }
 
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-
 function validPlaces(rows: unknown, foundingSlots: Map<NationId, number>, council: boolean): rows is NationPlace[] {
   if (!Array.isArray(rows) || rows.length > foundingSlots.size || (!council && rows.length !== foundingSlots.size)) return false;
   const seen = new Set<NationId>();
   let previousPlace = 0;
   let previousSlot = 0;
   for (const [index, row] of rows.entries()) {
-    if (!isObject(row) || Object.keys(row).length !== 2 || typeof row.nationId !== "string" || typeof row.place !== "number") return false;
+    if (!isRecord(row) || Object.keys(row).length !== 2 || typeof row.nationId !== "string" || typeof row.place !== "number") return false;
     const slot = foundingSlots.get(row.nationId);
     if (slot === undefined || seen.has(row.nationId)) return false;
     if (row.place !== index + 1 && (index === 0 || row.place !== previousPlace || slot < previousSlot)) return false;
@@ -69,14 +67,20 @@ function validPlaces(rows: unknown, foundingSlots: Map<NationId, number>, counci
   return true;
 }
 
-function validMeasures(places: unknown, slots: Map<NationId, number>, hasProvinces: boolean): places is RankRecord["places"] {
-  if (!isObject(places) || Object.keys(places).some(key => !rankMeasures.some(measure => measure === key))) return false;
+function readMeasures(places: unknown, slots: Map<NationId, number>, hasProvinces: boolean): RankRecord["places"] | undefined {
+  if (!isRecord(places)) return undefined;
   const required = hasProvinces ? rankMeasures : economicMeasures;
-  if (!required.every(measure => Object.hasOwn(places, measure))) return false;
-  if (!hasProvinces && Object.hasOwn(places, "council")) return false;
+  if (!required.every(measure => Object.hasOwn(places, measure))) return undefined;
+  if (!hasProvinces && Object.hasOwn(places, "council")) return undefined;
   // Provinces persist across turns. Armies can disappear, so an earlier land ranking can outlive the last army.
-  return rankMeasures.every(measure =>
-    !Object.hasOwn(places, measure) || validPlaces(places[measure], slots, measure === "council"));
+  const known: RankRecord["places"] = {};
+  for (const measure of rankMeasures) {
+    if (!Object.hasOwn(places, measure)) continue;
+    const rows = places[measure];
+    if (!validPlaces(rows, slots, measure === "council")) return undefined;
+    known[measure] = rows;
+  }
+  return known;
 }
 
 /** A damaged display sample leaves a gap. The game and every other usable sample survive. */
@@ -85,11 +89,10 @@ export function readRankHistory(raw: unknown, game: GameState): RankRecord[] {
   const slots = new Map(game.nations.map(n => [n.id, n.colorSlot]));
   const byTurn = new Map<number, RankRecord>();
   for (const record of raw) {
-    if (!isObject(record) || Object.keys(record).length !== 2 || typeof record.turn !== "number" ||
+    if (!isRecord(record) || Object.keys(record).length !== 2 || typeof record.turn !== "number" ||
         !Number.isInteger(record.turn) || record.turn < 1 || record.turn >= game.turn || byTurn.has(record.turn)) continue;
-    if (validMeasures(record.places, slots, game.provinces.length > 0)) {
-      byTurn.set(record.turn, { turn: record.turn, places: record.places });
-    }
+    const places = readMeasures(record.places, slots, game.provinces.length > 0);
+    if (places) byTurn.set(record.turn, { turn: record.turn, places });
   }
   return [...byTurn.values()].sort((a, b) => a.turn - b.turn);
 }
