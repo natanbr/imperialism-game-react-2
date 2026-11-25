@@ -1,6 +1,14 @@
 // Shared map helpers
+import { ResourceDevelopmentTable } from "@/definisions/ResourceDevelopment";
 import { GameMap } from "@/types/Map";
 import { Tile, TerrainType } from "@/types/Tile";
+
+/** Units a tile yields a turn at its level; a resource not yet found yields nothing. */
+export function yieldOf(tile: Tile): number {
+  const res = tile.resource;
+  if (!res || res.discovered === false) return 0;
+  return ResourceDevelopmentTable[res.type]?.[res.level] ?? 0;
+}
 
 export function getNeighborCoords(map: GameMap, x: number, y: number): [number, number][] {
   const { cols, rows } = map.config;

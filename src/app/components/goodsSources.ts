@@ -1,4 +1,4 @@
-import { yieldOf } from "@/engine/ai/railPlan";
+import { yieldOf } from "@/engine/map/mapHelpers";
 import { acceptsProductionInputs } from "@/engine/industry/productionPlan";
 import { isTradeCommodity, worldMarketSupplies } from "@/engine/market/market";
 import { bidSellersOf, marketModeOf, tradeBarrier } from "@/engine/market/partners";
