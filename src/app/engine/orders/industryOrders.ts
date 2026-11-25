@@ -1,6 +1,7 @@
 // Industry orders of the capital: production, expansion, freight cars, training, migration
 // (FR-036, FR-038, FR-039, FR-041, FR-042). Validation reads the state; apply returns a new one.
 import type { GameState } from "@/types/GameState";
+import { canAfford } from "../credit/account";
 import type { IndustryState, ProductionOutput } from "@/types/Industry";
 import type { Nation } from "@/types/Nation";
 import { MaterialType } from "@/types/Resource";
@@ -168,7 +169,8 @@ export function validateTrainWorkers(nation: Nation, order: TrainWorkersOrder): 
 
   if (delta > healthyWorkers(industry, from)) return reject("invalid-amount");
   const cost = TRAINING_COST[from];
-  if ((nation.treasury ?? 0) < delta * cost.cash) return reject("insufficient-funds");
+  const funds = canAfford(nation, delta * cost.cash);
+  if (!funds.ok) return funds;
   if (!has(stockOf(nation), MaterialType.Paper, delta * cost.paper)) return reject("insufficient-resources");
   // Rules 05 section 4: at least 1 labour must be free to start training, not the trainee's whole
   // labour. The trainee gives no labour this turn; production clamps orders it no longer covers.

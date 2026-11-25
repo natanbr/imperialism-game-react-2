@@ -20,6 +20,7 @@ import { money } from '@/components/gameText';
 import { START_TREASURY } from '@/engine/world/startWorld';
 import { DEMO_START } from '@/engine/world/demoStart';
 import type { GameState } from '@/types/GameState';
+import { ResourceType } from '@/types/Resource';
 import { emptyWarehouse, N1, N2, setPair, setTreasury } from '../engine/fixtures';
 import { continent } from '../engine/armyFixtures';
 import { text } from './domText';
@@ -71,6 +72,21 @@ const barButtons = () => within(screen.getByTestId('topbar-actions')).getAllByRo
 
 const DIALOGS = ['Open Warehouse', 'Open Capital', 'Open Market', 'Deal Book', 'Diplomacy', 'Transportation of Commodities'];
 const BUTTONS = [...DIALOGS, 'Center', 'Stats', 'New game', 'About', 'Advance Turn'];
+
+it('FR-605 the named treasury group exposes signed live cash independently of the previous settlement', () => {
+  const game = setTreasury(continent(), N1, -25);
+  game.nations[0] = { ...game.nations[0], creditAccount: { limit: 200, saleReceipts: [] } };
+  show(game, { eventLog: [report(1, { [N1]: { start: 76, end: -25 } })] });
+  render(<TopBar />);
+  const treasury = screen.getByRole('group', { name: 'Treasury' });
+  expect(text(treasury.querySelector('.nation-stats')!)).toBe('Cash: -$25');
+  act(() => {
+    // Coal (barred before a consulate) -> Wool, a $100 bid a Great Power may fill.
+    expect(useGameStore.getState().submitOrder({ kind: 'buyCommodity', nationId: N1, commodity: ResourceType.Wool, amount: 1 })).toEqual({ ok: true });
+  });
+  expect(text(treasury.querySelector('.nation-stats')!)).toBe('Cash: -$125');
+  expect(text(within(treasury).getByTestId('cash-change'))).toBe('-$101 last turn');
+});
 
 describe('FR-466 the top bar: nation, turn, cash, score, then the buttons, Advance Turn last', () => {
   it('FR-466 left to right: the nation (swatch, name), the turn block, the cash block, the score block; then the buttons in order', () => {

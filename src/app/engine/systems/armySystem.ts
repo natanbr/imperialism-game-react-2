@@ -17,6 +17,7 @@ import {
   withRecruiting,
 } from "../army/armies";
 import { byIntentOrder, intentOrder } from "../turn/intents";
+import { hasOpenCredit } from "../credit/account";
 import type { TurnContext, TurnSystem } from "../turn/context";
 
 /**
@@ -47,15 +48,14 @@ export const disbandSystem: TurnSystem = (state: GameState, ctx: TurnContext): G
 
 /**
  * FR-202: each Great Power pays $25 x the ARMS of its non-militia regiments and gets `army-upkeep` (none at $0). When
- * the treasury cannot pay, its newest regiments (highest id) are disbanded one at a time until it can (Q36: Imp1 goes
- * into debt; v2 has no credit), with one `regiments-disbanded` (reason "no-pay") before the payment.
+ * a cash-only nation cannot pay, its newest regiments (highest id) disband until it can. An authorized line pays in full.
  */
 export const upkeepSystem: TurnSystem = (state: GameState, ctx: TurnContext): GameState => {
   let s = state;
   for (const nation of state.nations) {
     let amount = upkeepOf(s, nation.id);
     if (amount === 0) continue;
-    if (nation.treasury < amount) {
+    if (nation.treasury < amount && !hasOpenCredit(nation)) {
       const newestFirst = regimentsOf(s, nation.id)
         .filter((r) => !isMilitia(r.type))
         .sort((a, b) => serialOf(b.id) - serialOf(a.id));

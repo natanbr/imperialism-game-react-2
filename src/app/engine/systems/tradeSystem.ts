@@ -10,10 +10,25 @@ import { TRADE_COMMODITIES } from "@/definisions/marketPrices";
 import { marketOf, nextPrices, priceOf, recordHolds, unitsOf } from "../market/market";
 import { marketModeOf } from "../market/partners";
 import { settlePartnerTrade } from "../market/settlePartners";
+import { hasOpenCredit } from "../credit/account";
+import { nextCreditAccount } from "../credit/settlement";
 import type { TurnContext, TurnSystem } from "../turn/context";
 
-export const tradeSystem: TurnSystem = (state: GameState, ctx: TurnContext): GameState =>
-  marketModeOf(state) === "partners" ? partnersTrade(state, ctx) : worldTrade(state, ctx);
+export const tradeSystem: TurnSystem = (state, ctx) => {
+  const trade = marketModeOf(state) === "partners" ? partnersTrade : worldTrade;
+  if (!state.nations.some(hasOpenCredit)) return trade(state, ctx);
+
+  // Both markets report the actual sale price here, including subsidies. Refunds share the treasury but do not qualify.
+  const receipts = new Map<NationId, number>();
+  const traded = trade(state, { ...ctx, emit(event, finalize) {
+    if (event.type === "goods-sold") receipts.set(event.nationId, (receipts.get(event.nationId) ?? 0) + event.income);
+    ctx.emit(event, finalize);
+  } });
+  const nations = traded.nations.map(nation => hasOpenCredit(nation)
+    ? { ...nation, creditAccount: nextCreditAccount(nation.creditAccount, receipts.get(nation.id) ?? 0) }
+    : nation);
+  return { ...traded, nations };
+};
 
 /**
  * FR-243: the deals, then the FR-065 price step (one drift draw from the shared stream per commodity in

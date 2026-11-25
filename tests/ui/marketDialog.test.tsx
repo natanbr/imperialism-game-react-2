@@ -7,10 +7,10 @@ import { MarketModal } from '@/components/MarketModal';
 import { ActionButtons } from '@/components/HUD/index';
 import { CapitalModal } from '@/components/CapitalModal';
 import { useGameStore } from '@/store/rootStore';
-import { marketOf, tradeOrdersOf, type Order } from '@/engine';
+import { applyOrder, marketOf, tradeOrdersOf, type Order } from '@/engine';
 import { MAX_BUY_BIDS, START_PRICES, TRADE_COMMODITIES } from '@/definisions/marketPrices';
 import type { GameState } from '@/types/GameState';
-import { emptyWarehouse, game, N1, setWarehouse, stockOf, treasury } from '../engine/fixtures';
+import { emptyWarehouse, game, N1, setTreasury, setWarehouse, stockOf, treasury } from '../engine/fixtures';
 import { text } from './domText';
 import { refusalText } from '@/components/gameText';
 
@@ -40,6 +40,28 @@ beforeEach(() => {
 });
 
 describe('FR-073 market dialog: what it shows', () => {
+  it('FR-608 distinguishes world imports from missing supply and keeps buy and sell controls on held stock', () => {
+    openMarket(setWarehouse(stocked(), N1, { oil: 1 }));
+    for (const key of ['wool', 'horses', 'fuel']) expect(text(row(key)), key).toContain('No known local source · World market sells this');
+    expect(text(row('oil'))).toContain('No known local source · No known supply');
+    expect(screen.queryByTestId('trade-row-fish')).toBeNull();
+    fireEvent.click(within(row('fuel')).getByRole('button', { name: 'Buy one more Fuel' }));
+    expect(cell('fuel', 'buy')).toBe('1');
+    fireEvent.click(within(row('oil')).getByRole('button', { name: 'Sell one more Oil' }));
+    expect(cell('oil', 'stock')).toBe('0');
+    fireEvent.click(within(row('oil')).getByRole('button', { name: 'Sell one less Oil' }));
+    expect(cell('oil', 'stock')).toBe('1');
+  });
+
+  it('FR-605 shows the live buying power and credit consequences of the next world purchase', () => {
+    openMarket(applyOrder(setTreasury(stocked(), N1, 25), { kind: 'openCredit', nationId: N1 }));
+    const buy = within(row('coal')).getByRole('button', { name: 'Buy one more Coal' });
+    expect(text(screen.getByTestId('market-power'))).toBe('Buying power: $225');
+    expect(document.getElementById(buy.getAttribute('aria-describedby')!)?.textContent).toMatch(/\$75.*debt|debt.*\$75/i);
+    fireEvent.click(buy);
+    expect(text(screen.getByTestId('market-cash'))).toBe('Cash: -$75');
+    expect(text(screen.getByTestId('market-power'))).toBe('Buying power: $125');
+  });
   it('is closed until opened', () => {
     useGameStore.setState({ ...useGameStore.getInitialState(), game: game(), activeNationId: N1 });
     render(<MarketModal />);

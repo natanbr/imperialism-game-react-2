@@ -17,7 +17,7 @@ import type { WorkerGrade } from "@/types/Industry";
 import type { Tile } from "@/types/Tile";
 import { WorkerStatus } from "@/types/Workers";
 import { strengthText } from "../army/attackView";
-import { commodityName, dateText, money, TERRAIN_TEXT } from "../gameText";
+import { commodityName, creditUpkeepText, dateText, money, TERRAIN_TEXT } from "../gameText";
 
 export const WORLD_LABEL: Record<WorldId, string> = { continent: "Continent", "two-islands": "Two islands", random: "Random" };
 export const SIZE_LABEL: Record<RandomMapSize, string> = { standard: "Standard", large: "Large" };
@@ -187,7 +187,9 @@ export function workInProgressRows(game: GameState, nationId: string): WorkRow[]
  * FR-474: "Army upkeep at End Turn: $100; the treasury will then hold $9,800" (before this turn's sales), "No army
  * upkeep." when nothing is due; when the cash is short, what the upkeep warning says (FR-261) in one line.
  */
-export function upkeepForecastText(forecast: Pick<UpkeepForecast, "due" | "cash" | "short" | "shortBy">): string {
+export function upkeepForecastText(forecast: Pick<UpkeepForecast, "due" | "cash" | "short" | "shortBy" | "projectedDebt" | "overLimitBy" | "forcedSaleRisk">): string {
+  const credit = creditUpkeepText(forecast);
+  if (credit) return credit;
   if (forecast.due === 0) return "No army upkeep.";
   const due = `Army upkeep at End Turn: ${money(forecast.due)}`;
   if (forecast.short) return `${due}; the treasury will hold ${money(Math.max(0, forecast.cash))}, ${money(forecast.shortBy)} short`;

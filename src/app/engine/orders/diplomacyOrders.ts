@@ -3,6 +3,7 @@
 // phase resolves the turn's intents together (engine/systems/diplomacySystem.ts).
 import type { CountryId, NationId } from "@/types/Common";
 import type { GameState } from "@/types/GameState";
+import { canAfford } from "../credit/account";
 import type { Nation } from "@/types/Nation";
 import type { PairDiplomacy } from "@/types/Diplomacy";
 import type { AnswerIntent, DiplomacyIntent, GrantIntent, GrantStopIntent, OvertureIntent, TradePolicyIntent } from "@/types/Intent";
@@ -39,8 +40,6 @@ type KindOf<K extends DiplomacyIntent["kind"]> = Extract<DiplomacyIntent, { kind
 function intentOf<K extends Exclude<DiplomacyIntent["kind"], "answer">>(state: GameState, nationId: NationId, kind: K, targetId: CountryId): KindOf<K> | undefined {
   return state.intents.find((i): i is KindOf<K> => isDiplomacyIntent(i) && i.kind === kind && i.nationId === nationId && i.targetId === targetId);
 }
-
-const treasury = (nation: Nation): number => nation.treasury ?? 0;
 
 /** FR-224 (M9 review F2): a minor that became a colony; its owner rules it, so no overture, grant or policy reaches it. */
 const isColony = (state: GameState, countryId: CountryId): boolean => state.minorNations.some((m) => m.id === countryId && m.colonyOf !== undefined);
@@ -81,7 +80,7 @@ function held(pair: PairDiplomacy, overture: ProposeOvertureOrder["overture"], n
  * invalid-target; war while at war or declared this turn -> already-in-place; peace while not at war ->
  * not-at-war; any other overture while at war -> at-war; held or ordered this turn -> already-in-place;
  * an embassy without a consulate -> needs-consulate; a pact without an embassy -> needs-embassy; the cost
- * above the treasury -> insufficient-funds. A consulate or embassy "established before this turn" is one
+ * above available funds -> insufficient-funds (embassies require cash). A consulate or embassy "established before this turn" is one
  * in the state: the diplomacy phase is the only place that adds them. Any overture to a colony -> colony (FR-224).
  */
 function validateOverture(state: GameState, nation: Nation, { overture, targetId }: ProposeOvertureOrder): ValidationResult {
@@ -103,11 +102,11 @@ function validateOverture(state: GameState, nation: Nation, { overture, targetId
   if (ordered || held(pair, overture, nation.id)) return reject("already-in-place");
   if (overture === "embassy" && !pair.consulates.includes(nation.id)) return reject("needs-consulate");
   if (overture === "pact" && !pair.embassies.includes(nation.id)) return reject("needs-embassy");
-  return treasury(nation) >= OVERTURE_COST[overture] ? OK : reject("insufficient-funds");
+  return canAfford(nation, OVERTURE_COST[overture], overture === "embassy");
 }
 
 /**
- * FR-162: one of the four sizes, not at war, an embassy held, and the cash (a grant replaced this turn gives its amount
+ * FR-162: one of the four sizes, not at war, an embassy held, and available funds (a grant replaced this turn gives its amount
  * back first); never to a colony (FR-224).
  */
 function validateGrant(state: GameState, nation: Nation, { targetId, amount, locked }: GiveGrantOrder): ValidationResult {
@@ -118,7 +117,7 @@ function validateGrant(state: GameState, nation: Nation, { targetId, amount, loc
   if (pair.war) return reject("at-war");
   if (!pair.embassies.includes(nation.id)) return reject("needs-embassy");
   const refund = intentOf(state, nation.id, "grant", targetId)?.cost ?? 0;
-  return treasury(nation) + refund >= amount ? OK : reject("insufficient-funds");
+  return canAfford(nation, amount - refund);
 }
 
 /**

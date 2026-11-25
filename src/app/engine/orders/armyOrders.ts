@@ -3,6 +3,7 @@
 // most one army intent: a later march, attack or disband for it replaces the earlier one. Validation reads the state;
 // apply returns a new one.
 import type { GameState } from "@/types/GameState";
+import { canAfford } from "../credit/account";
 import type { Nation } from "@/types/Nation";
 import type { NationId, ProvinceId, RegimentId } from "@/types/Common";
 import type { ArmyIntent } from "@/types/Intent";
@@ -57,7 +58,8 @@ function validateRecruitment(state: GameState, nation: Nation, order: SetRecruit
   const more = count - recruitingOf(nation, order.regiment);
   if (more <= 0) return OK; // lowering gives everything back
   const def = REGIMENTS[order.regiment];
-  if ((nation.treasury ?? 0) < more * def.cash) return reject("insufficient-funds");
+  const funds = canAfford(nation, more * def.cash);
+  if (!funds.ok) return funds;
   const stock = nation.warehouse as Stock;
   if ((stock[GoodsType.Armaments] ?? 0) < more * def.stats.armamentsCost || (stock[ResourceType.Horses] ?? 0) < more * def.horses) {
     return reject("insufficient-resources");

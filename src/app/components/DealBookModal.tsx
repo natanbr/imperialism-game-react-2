@@ -1,9 +1,12 @@
 "use client";
-import React, { useId, useMemo } from "react";
-import { countryName, dealBook, type DealEntry } from "@/engine";
+import React, { useId, useMemo, useRef } from "react";
+import { countryName, dealBook, validateOrder, type DealEntry } from "@/engine";
+import { buyingPower, creditDebt, hasOpenCredit } from "@/engine/credit/account";
+import { CREDIT_FLOOR, CREDIT_HIGH_RATE_PERCENT, CREDIT_LOW_RATE_PERCENT } from "@/engine/credit/definitions";
+import type { Nation } from "@/types/Nation";
 import { useGameStore } from "../store/rootStore";
 import { selectActiveNation } from "../store/selectors";
-import { dateText } from "./gameText";
+import { dateText, money } from "./gameText";
 import { dealBookView, type MoneyLine } from "./market/dealBookView";
 import styles from "./market/Market.module.css";
 import { UI_ICONS } from "./icons";
@@ -54,8 +57,15 @@ const Page: React.FC<PageProps> = ({ title, entries, lines, none, testId, classN
   );
 };
 
-/** A table of money lines; the last one is the total, in bold; a loss in the danger colour. */
-const MoneyTable: React.FC<{ title: string; lines: MoneyLine[]; caption?: string; testId: string }> = ({ title, lines, caption, testId }) => {
+const moneyRows = (lines: MoneyLine[]) => lines.map((row, i) => (
+  <tr key={`${row.label}-${i}`}>
+    <th scope="row">{row.label}</th>
+    <td className={row.amount < 0 ? styles.negative : undefined}>{row.text}</td>
+  </tr>
+));
+
+/** The balances follow the cash movements' total and have no part in the sum. */
+const MoneyTable: React.FC<{ title: string; lines: MoneyLine[]; balances?: MoneyLine[]; caption?: string; testId: string }> = ({ title, lines, balances, caption, testId }) => {
   const titleId = useId();
   return (
     <div className={styles.bottomLine} data-testid={testId}>
@@ -63,26 +73,51 @@ const MoneyTable: React.FC<{ title: string; lines: MoneyLine[]; caption?: string
         {title}
       </h3>
       <table aria-labelledby={titleId}>
-        <tbody>
-          {lines.map((row, i) => (
-            <tr key={`${row.label}-${i}`}>
-              <th scope="row">{row.label}</th>
-              <td className={row.amount < 0 ? styles.negative : undefined}>{row.text}</td>
-            </tr>
-          ))}
-        </tbody>
+        <tbody className={styles.movements}>{moneyRows(lines)}</tbody>
+        {balances && <tbody aria-label="Closing balances">{moneyRows(balances)}</tbody>}
       </table>
       {caption && <p className={styles.moneyCaption}>{caption}</p>}
     </div>
   );
 };
 
+function CurrentCreditLine({ nation }: { nation: Nation }) {
+  const game = useGameStore(s => s.game);
+  const submitOrder = useGameStore(s => s.submitOrder);
+  const headingId = useId();
+  const termsId = useId();
+  const status = useRef<HTMLSpanElement>(null);
+  const open = hasOpenCredit(nation);
+  const order = { kind: "openCredit", nationId: nation.id } as const;
+  const canOpen = !open && validateOrder(game, order).ok;
+  return (
+    <section className={styles.creditLine} aria-labelledby={headingId}>
+      <h3 id={headingId} className={styles.pageTitle}>Current credit line</h3>
+      <span role="status" tabIndex={-1} ref={status}>{open ? "Credit line open" : "Credit line closed"}</span>
+      <dl className={styles.creditFigures}>
+        <div><dt>Debt</dt><dd>{money(creditDebt(nation))}</dd></div>
+        <div><dt>{canOpen ? "Opening limit" : "Credit limit"}</dt><dd>{money(open ? nation.creditAccount.limit : canOpen ? CREDIT_FLOOR : 0)}</dd></div>
+        <div><dt>Buying power</dt><dd>{money(buyingPower(nation))}</dd></div>
+      </dl>
+      {canOpen && <>
+        <p id={termsId}>
+          Interest per turn is {CREDIT_LOW_RATE_PERCENT}% on debt up to half the limit and {CREDIT_HIGH_RATE_PERCENT}% on the whole debt above half.
+          {" "}Embassies require cash. If debt exceeds the limit after upkeep and interest, a forced sale of warehouse stock covers as much of the excess as possible.
+        </p>
+        <button type="button" className={styles.plainButton} aria-describedby={termsId} onClick={() => {
+          if (submitOrder(order).ok) status.current?.focus();
+        }}>Open credit line</button>
+      </>}
+    </section>
+  );
+}
+
 /**
  * The Deal Book (FR-195, FR-248, FR-255, FR-256; Imp1 Deal Book, rules 11 section 2): the player's deals of the last
  * resolved turn, Sold and Bought side by side, then what was Not traded (units not sold, offers missed, bids nobody
  * filled, each with its cause), the turn it shows ("Turn 1, Spring 1815"), the bottom line ending in the Trade net and,
  * beside it, the Treasury: the trade net, the army upkeep (FR-396), the diplomacy costs and the rest add up to the
- * treasury's change over the turn. It only reads the turn's events and treasuries; it builds no order.
+ * treasury's change over the turn. The live account can open credit independently of that dated report.
  */
 export const DealBookModal: React.FC = () => {
   const isOpen = useGameStore((s) => s.isDealBookOpen);
@@ -134,9 +169,10 @@ export const DealBookModal: React.FC = () => {
       {view && (!view.empty || view.treasury) && (
         <div className={styles.totals}>
           {!view.empty && <MoneyTable title="Bottom line" lines={view.bottomLine} testId="bottom-line" />}
-          {view.treasury && <MoneyTable title="Treasury" lines={view.treasury} caption={view.cash} testId="treasury" />}
+          {view.treasury && <MoneyTable title="Treasury" lines={view.treasury} balances={view.balances} caption={view.cash} testId="treasury" />}
         </div>
       )}
+      {nation && <CurrentCreditLine nation={nation} />}
     </Modal>
   );
 };

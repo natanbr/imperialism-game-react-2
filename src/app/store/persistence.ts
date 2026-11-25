@@ -2,6 +2,7 @@
 // writes the store's session to one localStorage slot and reads it back for page.tsx, the only place that loads a save
 // (the store never does by itself). Its writes are the autosave page.tsx starts once the game in play is decided.
 import type { StoreApi } from "zustand";
+import { validSavedCredit } from "./creditSave";
 import { inventionNews } from "@/engine/technology";
 import { turnLimitOf } from "@/engine/turn/gameOver";
 import { normalizeRandomMapSize } from "@/types/World";
@@ -75,7 +76,7 @@ export function readSave(storage: Pick<Storage, "getItem"> | undefined = browser
   if (raw === null) return { kind: "empty" };
   try {
     const parsed: unknown = JSON.parse(raw);
-    if (!isUsable(parsed)) return { kind: "unusable" };
+    if (!isUsable(parsed) || !validSavedCredit(parsed)) return { kind: "unusable" };
     if (parsed.game.worldId === "random" && parsed.game.randomMapSize !== undefined) {
       parsed.game.randomMapSize = normalizeRandomMapSize(parsed.game.randomMapSize);
     }

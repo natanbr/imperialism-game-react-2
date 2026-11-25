@@ -208,6 +208,41 @@ describe('FR-396 the Deal Book names the army upkeep', () => {
   });
 });
 
+describe('FR-604 finance in the dated statement', () => {
+  it('shows $0 when interest on a small debt rounds down to zero', () => {
+    const events: GameEvent[] = [
+      { type: 'credit-interest', nationId: N1, debt: 1, limit: 200, ratePercent: 3, amount: 0 },
+      { type: 'credit-settled', nationId: N1, limit: 200, closingDebt: 1 },
+    ];
+    const view = dealBookView(dealBook(events, N1, { start: -1, end: -1 }), nameOf);
+    expect(view.treasury?.find(row => row.label.startsWith('Interest'))?.text).toBe('$0');
+  });
+
+  it('reconciles purchases, upkeep, assessed interest, actual forced-sale proceeds and later income exactly once', () => {
+    const events: GameEvent[] = [
+      { type: 'goods-bought', nationId: N1, commodity: ResourceType.Coal, amount: 2, price: 100, cost: 200 },
+      { type: 'army-upkeep', nationId: N1, amount: 100 },
+      { type: 'credit-interest', nationId: N1, debt: 250, limit: 200, ratePercent: 6, amount: 15 },
+      { type: 'forced-sale', nationId: N1, commodity: ResourceType.Wool, amount: 2, price: 25, proceeds: 50 },
+      { type: 'forced-sale', nationId: N1, commodity: ResourceType.Timber, amount: 1, price: 20, proceeds: 20 },
+      { type: 'credit-settled', nationId: N1, limit: 200, closingDebt: 175 },
+      { type: 'forced-sale', nationId: 'nation-2', commodity: ResourceType.Coal, amount: 1, price: 40, proceeds: 40 },
+      { type: 'credit-settled', nationId: 'nation-2', limit: 900, closingDebt: 0 },
+    ];
+    const view = dealBookView(dealBook(events, N1, { start: 50, end: -175 }), nameOf);
+    expect(view.sold).toEqual([]);
+    expect(view.bottomLine.at(-1)?.text).toBe('-$200');
+    const lines = view.treasury!;
+    expect(lines.map(row => [row.label, row.amount])).toEqual([
+      ['Trade net', -200], ['Army upkeep', -100], ['Interest (6% per turn, inferred)', -15],
+      ['Forced sale of 2 Wool @ $25', 50], ['Forced sale of 1 Timber @ $20', 20],
+      ['Other (building, workers, gold, gems)', 20], ['Treasury change', -225],
+    ]);
+    expect(lines.slice(0, -1).reduce((sum, row) => sum + row.amount, 0)).toBe(-225);
+    expect(view.cash).toBe('From $50 to -$175');
+  });
+});
+
 describe('FR-244 the news lines of the trade events', () => {
   it('FR-244 a deal names its counterparty; a missed offer and an unsold offer have their own lines; v1 lines are unchanged', () => {
     expect(EVENTS.slice(0, 5).map(e => eventText(e, nameOf))).toEqual([

@@ -6,7 +6,8 @@ import type { Nation } from "@/types/Nation";
 import { MaterialType } from "@/types/Resource";
 import { InkPicture } from "../art/ArtPicture";
 import { buildingArt, civilianArt } from "../art/inkArt";
-import { money, REFUSAL_TEXT } from "../gameText";
+import { fundsNeededText, money, REFUSAL_TEXT } from "../gameText";
+import { buyingPower, hasOpenCredit } from "@/engine/credit/account";
 import { Stepper } from "../market/Stepper";
 import styles from "./Capital.module.css";
 
@@ -22,7 +23,7 @@ export function UniversityPanel({ game, nation, submitOrder }: Props) {
   return (
     <section className={styles.panel} aria-label="University">
       <h3 className={styles.panelTitle}><InkPicture src={buildingArt("university")} alt="" inline className={styles.buildingPicture} />University</h3>
-      <span className={styles.note} data-testid="university-stock">{money(nation.treasury)} · {paper} paper · {experts} free expert {experts === 1 ? "worker" : "workers"}</span>
+      <span className={styles.note} data-testid="university-stock">{money(nation.treasury)}{hasOpenCredit(nation) && ` · ${money(buyingPower(nation))} buying power`} · {paper} paper · {experts} free expert {experts === 1 ? "worker" : "workers"}</span>
       <ul className={styles.orderRows}>
         {(Object.keys(UNIVERSITY_FEES) as UniversityCivilian[]).map(type => {
           const name = type.charAt(0).toUpperCase() + type.slice(1);
@@ -33,6 +34,7 @@ export function UniversityPanel({ game, nation, submitOrder }: Props) {
           let reason: string | undefined;
           if (!result.ok) {
             if (result.reason === "insufficient-resources") reason = `Needs ${UNIVERSITY_PAPER_COST} paper (${paper})`;
+            else if ("cost" in result) reason = fundsNeededText(result.cost, result.buyingPower);
             else if (result.reason === "insufficient-funds") reason = `Needs ${money(fee)} (${money(nation.treasury)})`;
             else if (result.reason === "missing-technology") reason = `Needs ${technologyById(result.techId)!.name}`;
             else reason = REFUSAL_TEXT[result.reason];

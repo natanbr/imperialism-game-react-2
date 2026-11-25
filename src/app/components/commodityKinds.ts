@@ -4,6 +4,7 @@
 import { RECIPES } from "@/definisions/ResourceConversions";
 import { RAW_FOOD } from "@/engine/systems/foodSystem";
 import { GoodsType, MaterialType, ResourceType, type WarehouseCommodities } from "@/types/Resource";
+import { GOODS_WITH_SOURCE_NOTES } from "./goodsSources";
 
 export interface CommodityKind {
   title: string;
@@ -39,7 +40,10 @@ export const SHIPPABLE_KINDS: readonly CommodityKind[] = COMMODITY_KINDS.map((ki
 
 /**
  * The groups the transport popup shows (FR-142): those with at least one commodity in use (something
- * to ship this turn or allocated), each with all the commodities it lists; a group all 0 / 0 is hidden.
+ * to ship this turn or allocated). FR-607 also hides individual candidate goods until collected or set.
  */
 export const transportKinds = (inUse: (key: WarehouseCommodities) => boolean): CommodityKind[] =>
-  SHIPPABLE_KINDS.filter((kind) => kind.keys.some(inUse));
+  SHIPPABLE_KINDS.filter(kind => kind.keys.some(inUse)).map(kind => ({
+    ...kind,
+    keys: kind.keys.filter(key => !GOODS_WITH_SOURCE_NOTES.includes(key) || inUse(key)),
+  }));

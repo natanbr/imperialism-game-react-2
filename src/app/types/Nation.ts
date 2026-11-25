@@ -22,8 +22,10 @@ export interface Nation {
   /** Set only during replay of the old rules that allowed imported oil to feed a refinery. */
   legacyOilSupply?: true;
   pendingTechnologies?: string[];
+  /** Inert fields in earlier v1 games. Only the openCredit Order creates an account. */
   debt?: number;
   creditLimit?: number;
+  creditAccount?: { limit: number; saleReceipts: number[] };
 
   // Relations, treaties, trade policies and grants live in state.diplomacy (FR-151); the provinces
   // a nation holds are the state.provinces it owns (FR-148, provincesOf); its colonies are the minor

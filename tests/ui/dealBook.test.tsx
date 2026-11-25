@@ -54,6 +54,50 @@ const bottomLine = () =>
 const treasuryLines = () =>
   within(within(dialog()).getByRole('table', { name: 'Treasury' })).getAllByRole('row').map((r) => text(r));
 
+describe('FR-604 FR-605 the current credit line and dated statement', () => {
+  const account = () => within(dialog()).getByRole('region', { name: 'Current credit line' });
+
+  it('explains and opens the offered line by Order before the first settlement', () => {
+    openDealBook([]);
+    const open = within(account()).getByRole('button', { name: 'Open credit line' });
+    fireEvent.keyDown(document.activeElement!, { key: 'Tab' });
+    expect(document.activeElement).toBe(open);
+    expect(text(account())).toMatch(/Opening limit\s*\$200/i);
+    expect(text(account())).toMatch(/3%.*half.*6%/i);
+    expect(text(account())).toMatch(/embassies require cash/i);
+    expect(text(account())).toMatch(/forced sale/i);
+    expect(text(account())).toMatch(/buying power\s*\$10,000/i);
+    fireEvent.click(open);
+    expect(useGameStore.getState().ordersThisTurn).toEqual([{ kind: 'openCredit', nationId: N1 }]);
+    expect(within(account()).queryByRole('button', { name: 'Open credit line' })).toBeNull();
+    expect(account().contains(document.activeElement)).toBe(true);
+    expect(text(account())).toMatch(/buying power\s*\$10,200/i);
+    expect(text(account())).toMatch(/debt\s*\$0/i);
+    expect(within(dialog()).queryByRole('table', { name: 'Treasury' })).toBeNull();
+  });
+
+  it('keeps the recorded balance below the total when the next bid spends the live line', () => {
+    const game = start();
+    game.nations[0] = { ...game.nations[0], treasury: -25, creditAccount: { limit: 200, saleReceipts: [] } };
+    openDealBook([{ turn: 1, year: 1815, events: [
+      { type: 'army-upkeep', nationId: N1, amount: 100 },
+      { type: 'credit-interest', nationId: N1, debt: 24, limit: 200, ratePercent: 3, amount: 1 },
+      { type: 'credit-settled', nationId: N1, limit: 200, closingDebt: 25 },
+    ], treasuries: { [N1]: { start: 76, end: -25 } } }], game);
+    const dated = ['Army upkeep -$100', 'Interest (3% per turn, inferred) -$1', 'Treasury change -$101', 'Closing debt $25', 'Credit limit $200'];
+    expect(treasuryLines()).toEqual(dated);
+    expect(text(account())).toMatch(/buying power\s*\$175/i);
+    act(() => {
+      // Coal (barred before a consulate) -> Wool, a $100 bid a Great Power may fill.
+      expect(useGameStore.getState().submitOrder({ kind: 'buyCommodity', nationId: N1, commodity: ResourceType.Wool, amount: 1 })).toEqual({ ok: true });
+    });
+    expect(text(account())).toMatch(/buying power\s*\$75/i);
+    expect(text(account())).toMatch(/debt\s*\$125/i);
+    expect(treasuryLines()).toEqual(dated);
+    expect(text(within(dialog()).getByTestId('treasury'))).toContain('From $76 to -$25');
+  });
+});
+
 describe('FR-195 the Deal Book', () => {
   it('FR-195 is closed until opened; the HUD button "Deal Book" opens it', () => {
     useGameStore.setState({ ...useGameStore.getInitialState(), game: start(), activeNationId: N1 });

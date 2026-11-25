@@ -252,7 +252,7 @@ function recordTurn(input: {
     ordersRejected: [],
     humanRefused: input.humanRefused,
     humanOrders: input.humanOrders,
-    invariantViolations: input.checkInvariants ? [...invariantViolations(next), ...worldViolations(next, start)] : [],
+    invariantViolations: input.checkInvariants ? [...invariantViolations(next, events), ...worldViolations(next, start)] : [],
     computerOrdersMs: input.computerOrdersMs,
   };
   const peacePairs = new Set<string>();

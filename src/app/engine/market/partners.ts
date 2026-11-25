@@ -124,7 +124,12 @@ export function diplomacyAfterThisTurn(state: GameState, viewerId: NationId): Ga
     const own: GameState = {
       ...state,
       intents: state.intents.filter((i) => i.nationId === viewerId),
-      nations: state.nations.map((nation) => nation.id === viewerId ? nation : { ...nation, treasury: 0 }),
+      nations: state.nations.map((nation) => {
+        if (nation.id === viewerId) return nation;
+        const rival = { ...nation, treasury: 0 };
+        delete rival.creditAccount;
+        return rival;
+      }),
       ...(state.market && { market: { ...state.market, orders: { [viewerId]: tradeOrdersOf(state, viewerId) } } }),
     };
     next = diplomacySystem(own, createTurnContext({ turn: state.turn, seed: state.seed }));

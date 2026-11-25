@@ -15,7 +15,7 @@ import { useGameStore } from '@/store/rootStore';
 import { BOARD_ORDER, marketOf, newGame, pairKey, tradeOrdersOf, transferProvince, type Order } from '@/engine';
 import type { GameState } from '@/types/GameState';
 import { GoodsType } from '@/types/Resource';
-import { setPair, setWarehouse, treasury } from '../engine/fixtures';
+import { setPair, setTreasury, setWarehouse, treasury } from '../engine/fixtures';
 import { failOnActWarnings } from './actWarnings';
 import { text } from './domText';
 
@@ -88,6 +88,39 @@ const drawn = (el: Element) => {
 };
 
 describe('FR-573 the status bar', () => {
+  it('FR-605 review: interest alone can put the next purchase over the posted limit', () => {
+    openBoard(setTreasury(withConsulate(start(), ARVELIA), N1, 5));
+    order({ kind: 'openCredit', nationId: N1 });
+    const preview = description(plus('coal', 'Buy one more Coal'));
+    expect(preview).toMatch(/\$195 before interest/);
+    expect(preview).toMatch(/\$12 interest/);
+    expect(preview).toMatch(/\$207/);
+    expect(preview).toMatch(/\$7 over/);
+    expect(preview).toMatch(/forced sale/i);
+  });
+  it('FR-605 puts credit in the existing bar and describes the next purchase before the player pays', () => {
+    openBoard(setTreasury(withConsulate(start(), ARVELIA), N1, 25));
+    const buy = plus('coal', 'Buy one more Coal');
+    expect(description(buy)).toBe('Not enough money');
+    order({ kind: 'openCredit', nationId: N1 });
+    const bar = within(dialog()).getByTestId('board-status');
+    expect(text(bar)).toMatch(/credit limit:\s*\$200/i);
+    expect(figure('market-power')).toBe('Buying power: $225');
+    expect(description(buy)).toMatch(/\$75.*debt|debt.*\$75/i);
+    expect(description(buy)).toMatch(/upkeep.*\$175/i);
+    fireEvent.click(buy);
+    expect(figure('market-cash')).toBe('Cash before purchases: $25');
+    expect(figure('market-committed')).toBe('Committed: $100');
+    expect(figure('market-power')).toBe('Buying power: $125');
+    expect(description(buy)).toMatch(/\$75 over/i);
+    fireEvent.click(buy);
+    expect(figure('market-power')).toBe('Buying power: $25');
+    expect(buy.getAttribute('aria-disabled')).toBe('true');
+    expect(description(buy)).toMatch(/\$100.*\$25/);
+    const count = submitted.length;
+    fireEvent.click(buy);
+    expect(submitted).toHaveLength(count);
+  });
   // M18c review round: "Cash: $10,000" -> "Cash before purchases: $10,000", so it is not taken for the top bar's cash
   it('FR-573 a new game: Cash before purchases, Committed, Buying power, holds as one figure and the purchases, in one bar under the title', () => {
     openBoard(start());

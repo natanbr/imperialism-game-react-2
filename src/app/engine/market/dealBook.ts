@@ -42,14 +42,16 @@ export interface DealBottomLine {
 }
 
 /**
- * How the treasury moved over the turn (FR-256, FR-262): `change` = `end` - `start` = the trade net - the diplomacy
- * costs - the recruits' cash + `other` (what none explains: building, prospecting, development, training, gold and gems).
+ * The turn's signed cash change. Other excludes itemized trade, upkeep, diplomacy, recruitment and credit movements.
  */
 export interface TreasuryChange {
   start: number;
   end: number;
   change: number;
   other: number;
+  interest?: Extract<GameEvent, { type: "credit-interest" }>;
+  forcedSales?: Extract<GameEvent, { type: "forced-sale" }>[];
+  closingCredit?: Extract<GameEvent, { type: "credit-settled" }>;
 }
 
 export interface DealBook {
@@ -85,6 +87,9 @@ export function dealBook(events: readonly GameEvent[], nationId: NationId, treas
   const unfilled: DealEntry[] = [];
   const diplomacy: DiplomacyCost[] = [];
   let militaryUpkeep = 0;
+  let interest: TreasuryChange["interest"];
+  let closingCredit: TreasuryChange["closingCredit"];
+  const forcedSales: NonNullable<TreasuryChange["forcedSales"]> = [];
   const recruits: RecruitCost[] = [];
   const counterparty = (id: CountryId | undefined) => (id === undefined ? {} : { counterpartyId: id });
   const cause = (c: TradeMissCause | undefined) => (c === undefined ? {} : { cause: c });
@@ -117,6 +122,15 @@ export function dealBook(events: readonly GameEvent[], nationId: NationId, treas
       case "army-upkeep":
         militaryUpkeep += e.amount;
         break;
+      case "credit-interest":
+        interest = e;
+        break;
+      case "forced-sale":
+        forcedSales.push(e);
+        break;
+      case "credit-settled":
+        closingCredit = e;
+        break;
       case "regiments-recruited":
         recruits.push({ regiment: e.regiment, count: e.count, amount: e.count * REGIMENTS[e.regiment].cash });
         break;
@@ -128,6 +142,7 @@ export function dealBook(events: readonly GameEvent[], nationId: NationId, treas
   const net = sold - bought - militaryUpkeep;
   const paid = diplomacy.reduce((sum, d) => sum + d.amount, 0) + recruits.reduce((sum, r) => sum + r.amount, 0);
   const change = treasury ? treasury.end - treasury.start : 0;
+  const forcedProceeds = forcedSales.reduce((sum, sale) => sum + sale.proceeds, 0);
   return {
     sold: sales,
     bought: purchases,
@@ -135,6 +150,13 @@ export function dealBook(events: readonly GameEvent[], nationId: NationId, treas
     bottomLine: { sold, bought, militaryUpkeep, net },
     diplomacy,
     recruits,
-    ...(treasury ? { treasury: { start: treasury.start, end: treasury.end, change, other: change - net + paid } } : {}),
+    ...(treasury ? {
+      treasury: {
+        ...treasury, change, other: change - net + paid + (interest?.amount ?? 0) - forcedProceeds,
+        ...(interest && { interest }),
+        ...(forcedSales.length > 0 && { forcedSales }),
+        ...(closingCredit && { closingCredit }),
+      },
+    } : {}),
   };
 }

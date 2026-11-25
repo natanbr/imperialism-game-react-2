@@ -3,7 +3,8 @@ import React, { useId } from "react";
 import { useGameStore } from "@/store/rootStore";
 import { submitAndSay } from "@/hooks/tileClickOrders";
 import { Modal } from "./Modal";
-import { money } from "./gameText";
+import { upkeepForecast } from "@/engine";
+import { money, spendingWarningText } from "./gameText";
 
 /**
  * The question before an order of $1,000 or more (FR-383, card Q82): the job, the tile, the price, the turns and the cancel
@@ -13,11 +14,14 @@ import { money } from "./gameText";
  */
 export const ConfirmSpend: React.FC = () => {
   const spend = useGameStore((s) => s.pendingSpend);
+  const game = useGameStore((s) => s.game);
   const closeSpend = useGameStore((s) => s.closeSpend);
   const titleId = useId();
   const questionId = useId();
 
   if (!spend) return null;
+  const nation = game.nations.find((n) => n.id === spend.order.nationId);
+  const warning = nation && spendingWarningText(upkeepForecast(game, nation.id, spend.price), nation.treasury - spend.price);
 
   const onSpend = () => {
     const { selectWorker, selectTile } = useGameStore.getState();
@@ -42,7 +46,7 @@ export const ConfirmSpend: React.FC = () => {
         Spend {money(spend.price)}?
       </h2>
       <p id={questionId} className="question-text">
-        {spend.question}
+        {spend.question}{warning && ` ${warning}`}
       </p>
       <div className="question-answers">
         <button type="button" className="btn btn-primary" onClick={onSpend}>

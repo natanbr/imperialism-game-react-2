@@ -14,6 +14,8 @@ import { mealNeeds } from "../systems/foodSystem";
 import { SCORE_WEIGHTS } from "@/definisions/scoreWeights";
 import { EngineerBuildDurationsTurns } from "@/definisions/workerDurations";
 
+export { yieldOf } from "../map/mapHelpers";
+
 const key = (x: number, y: number) => `${x},${y}`;
 const keyOf = (tile: Pick<Tile, "x" | "y">) => key(tile.x, tile.y);
 const tileAtKey = (state: GameState, k: string): Tile => {
@@ -46,13 +48,6 @@ export function coveredTiles(state: GameState, nationId: string): Set<string> {
     for (const n of neighbourKeys(state, keyOf(tile))) covered.add(n);
   }
   return covered;
-}
-
-/** Units a tile yields a turn at its level; a resource not yet found yields nothing. */
-export function yieldOf(tile: Tile): number {
-  const res = tile.resource;
-  if (!res || res.discovered === false) return 0;
-  return ResourceDevelopmentTable[res.type]?.[res.level] ?? 0;
 }
 
 /** The nodes of the nation's rail graph reachable from its capital (the capital's component). */

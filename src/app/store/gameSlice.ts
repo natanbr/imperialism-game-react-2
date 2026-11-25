@@ -10,7 +10,6 @@ import {
   type GameEvent,
   type NewGameOptions,
   type Order,
-  type RejectReason,
   type ValidationResult,
 } from "@/engine";
 import type { NationId } from "@/types/Common";
@@ -19,6 +18,8 @@ import type { WorldId } from "@/types/World";
 import type { GameStore } from "./rootStore";
 import type { ReplayBoundary } from "./sessionReplay";
 import { isPlayersWorker } from "./controls/playersWorker";
+import { rejectedOrder, type OrderRejection } from "@/engine/orders/Order";
+export type { OrderRejection } from "@/engine/orders/Order";
 
 /** How many resolved turns the event log keeps. */
 export const EVENT_LOG_TURNS = 20;
@@ -37,11 +38,6 @@ export interface TurnReport {
 }
 
 const treasuriesOf = (state: GameState): Record<NationId, number> => Object.fromEntries(state.nations.map((n) => [n.id, n.treasury ?? 0]));
-
-export interface OrderRejection {
-  order: Order;
-  reason: RejectReason;
-}
 
 /** One nation's orders for one resolved turn (FR-100); the log of these replays the game. */
 export interface OrderLogEntry {
@@ -149,7 +145,7 @@ export const createGameSlice =
             ordersThisTurn: [...ordersThisTurn, order],
             turnStartTreasuries: ordersThisTurn.length === 0 ? treasuriesOf(current) : turnStartTreasuries,
           });
-        else set({ lastRejection: { order, reason: result.reason } });
+        else set({ lastRejection: rejectedOrder(order, result) });
         return result;
       },
 

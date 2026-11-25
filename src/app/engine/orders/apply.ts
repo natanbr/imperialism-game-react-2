@@ -6,6 +6,7 @@ import { DEVELOPMENT_COST, PROSPECT_COST, constructionCost } from "@/definisions
 import { EngineerBuildDurationsTurns, WorkerLevelDurationsTurns } from "@/definisions/workerDurations";
 import type { CancelWorkerActionOrder, Order, ValidationResult } from "./Order";
 import { validateOrder } from "./validate";
+import { openCredit } from "../credit/account";
 import {
   applyCapacityChange,
   applyExpandBuilding,
@@ -46,6 +47,8 @@ export function applyOrder(state: GameState, order: Order): GameState {
 
 function applyValidOrder(state: GameState, order: Order): GameState {
   switch (order.kind) {
+    case "openCredit":
+      return { ...state, nations: state.nations.map(n => n.id === order.nationId ? openCredit(n) : n) };
     case "buyTechnology":
     case "withdrawTechnology":
       return applyTechnologyOrder(state, order);

@@ -13,7 +13,7 @@ import { MapView } from '@/components/MapView';
 import { ConfirmSpend } from '@/components/ConfirmSpend';
 import { ConstructionOptionsModal } from '@/components/ConstructionOptionsModal';
 import { useGameStore } from '@/store/rootStore';
-import { newGame, type Order } from '@/engine';
+import { applyOrder, newGame, type Order } from '@/engine';
 import type { GameState } from '@/types/GameState';
 import { WorkerType } from '@/types/Workers';
 import { locate, put, setTile, setTreasury, tileAt, treasury } from '../engine/fixtures';
@@ -41,6 +41,24 @@ const tile = (id: string) => document.querySelector(`[data-tile-id="${id}"]`) as
 const answers = (dialog: HTMLElement) => within(dialog).getAllByRole('button').map(text);
 
 describe('FR-383 ask before a large spend', () => {
+  it('FR-605 review: a refused Tile Info depot names its cost and remaining buying power', () => {
+    const start = applyOrder(setTreasury(newGame({ seed: 1 }), N1, 25), { kind: 'openCredit', nationId: N1 });
+    const engineer = civilian(start, WorkerType.Engineer);
+    show(put(start, engineer, '7-8'), { selectedTileId: '7-8', selectedWorkerId: engineer });
+    render(<HUD />);
+    const depot = within(screen.getByTestId('tile-info')).getByRole('button', { name: 'Construct Depot' });
+    expect(document.getElementById(depot.getAttribute('aria-describedby')!)?.textContent).toMatch(/\$2,000.*\$225 buying power/i);
+  });
+  it('FR-605 the large-spend question projects debt before the player commits', () => {
+    const start = applyOrder(setTreasury(newGame({ seed: 1 }), N1, 1900), { kind: 'openCredit', nationId: N1 });
+    const engineer = civilian(start, WorkerType.Engineer);
+    show(put(start, engineer, '7-8'), { selectedTileId: '7-8', selectedWorkerId: engineer });
+    render(<><HUD /><ConfirmSpend /></>);
+    fireEvent.click(within(screen.getByTestId('tile-info')).getByRole('button', { name: 'Construct Depot' }));
+    expect(text(question()!)).toMatch(/debt.*\$100|\$100.*debt/i);
+    expect(submitted).toEqual([]);
+    expect(cash()).toBe(1900);
+  });
   beforeEach(() => useGameStore.setState(useGameStore.getInitialState()));
 
   it('FR-383 Tile Info: Construct Depot ($2,000) asks first, naming job, tile, price, turns and the cancel rule; "Spend $2,000" first, then "Keep the money"; nothing is sent yet', () => {

@@ -1,7 +1,8 @@
 "use client";
-import React, { useId } from "react";
+import React, { useId, useLayoutEffect, useRef } from "react";
 import { useTransportAllocations } from "../hooks/useTransportAllocations";
 import { transportKinds } from "./commodityKinds";
+import { GOODS_WITH_SOURCE_NOTES } from "./goodsSources";
 import { commodityName } from "./gameText";
 import { Modal } from "./Modal";
 import { InkPicture } from "./art/ArtPicture";
@@ -25,7 +26,14 @@ const ROW_COLUMNS = { gridTemplateColumns: "7.5rem minmax(4rem, 1fr) 4rem 3rem" 
 const TransportAllocationModal: React.FC<TransportAllocationModalProps> = ({ capacity, onClose }) => {
   const { allocations, handleAllocChange, setAuto, isSet, autoAmount, totalAllocated, remaining, sliderMax } = useTransportAllocations(capacity);
   const titleId = useId();
-  const kinds = transportKinds((key) => sliderMax(key) > 0 || (allocations[key] ?? 0) > 0);
+  const kinds = transportKinds((key) => sliderMax(key) > 0 || (allocations[key] ?? 0) > 0 || (GOODS_WITH_SOURCE_NOTES.includes(key) && isSet(key)));
+  const closeButton = useRef<HTMLButtonElement>(null);
+  const clearedSlider = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    if (!clearedSlider.current) return;
+    (document.getElementById(clearedSlider.current) ?? closeButton.current)?.focus();
+    clearedSlider.current = null;
+  }, [allocations]);
 
   return (
     <Modal titleId={titleId} onClose={onClose} overlayClassName="modal-overlay" className="modal-content">
@@ -33,7 +41,7 @@ const TransportAllocationModal: React.FC<TransportAllocationModalProps> = ({ cap
           <h3 id={titleId} className="modal-title">
             <InkPicture src={buildingArt("railyard")} alt="" inline />Transportation of Commodities
           </h3>
-          <button onClick={onClose} className="modal-close-btn" aria-label="Close transport">
+          <button ref={closeButton} onClick={onClose} className="modal-close-btn" aria-label="Close transport">
             <span aria-hidden="true">×</span>
           </button>
         </div>
@@ -57,6 +65,9 @@ const TransportAllocationModal: React.FC<TransportAllocationModalProps> = ({ cap
               {kind.keys.map((key) => {
                 const inputId = `transport-${key}`;
                 const set = isSet(key);
+                const max = sliderMax(key);
+                const cap = allocations[key] ?? 0;
+                const savedAboveSupply = set && cap > max;
                 return (
                   <div key={key} className="transport-row" data-testid={`transport-row-${key}`} style={ROW_COLUMNS}>
                     <label htmlFor={inputId} className="transport-name" data-testid="name">
@@ -66,16 +77,20 @@ const TransportAllocationModal: React.FC<TransportAllocationModalProps> = ({ cap
                       id={inputId}
                       type="range"
                       min={0}
-                      max={sliderMax(key)}
+                      max={max}
                       step={1}
-                      value={set ? (allocations[key] ?? 0) : autoAmount(key)}
+                      value={set ? Math.min(cap, max) : autoAmount(key)}
+                      aria-valuetext={savedAboveSupply ? `Saved allocation ${cap}, ${max} available` : undefined}
                       onChange={(e) => handleAllocChange(key, Number(e.target.value) || 0)}
                     />
                     <span className="transport-amount">
-                      {set ? `${allocations[key] ?? 0} / ${sliderMax(key)}` : `Auto: ${autoAmount(key)}`}
+                      {set ? (savedAboveSupply ? `Set: ${cap}` : `${cap} / ${max}`) : `Auto: ${autoAmount(key)}`}
                     </span>
                     {set && (
-                      <button type="button" className="btn btn-sm" aria-label={`Auto ${commodityName(key)}`} onClick={() => setAuto(key)}>
+                      <button type="button" className="btn btn-sm" aria-label={`Auto ${commodityName(key)}`} onClick={() => {
+                        clearedSlider.current = inputId;
+                        if (!setAuto(key)) clearedSlider.current = null;
+                      }}>
                         Auto
                       </button>
                     )}
