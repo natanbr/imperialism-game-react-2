@@ -78,6 +78,16 @@ function deepFreeze<T>(value: T): T {
 }
 
 describe('FR-562 the debug dashboard on the Demo level', () => {
+  it('FR-562 FR-599 shows current credit debt and ignores the legacy debt field', () => {
+    const game = setTreasury(demoGame(), N1, -80);
+    const nations = game.nations.map(nation => nation.id === N1
+      ? { ...nation, creditAccount: { limit: 200, saleReceipts: [] }, debt: 987 }
+      : { ...nation, debt: 432 });
+    const [player, rival] = dashboardCards({ ...game, nations }, N1);
+    expect(player.sections.economy).toContainEqual({ term: 'Debt', value: '$80' });
+    expect(rival.sections.economy.some(line => line.term === 'Debt')).toBe(false);
+  });
+
   it('FR-562 on Demo the top bar has a Dashboard button that opens a dialog with one card per Great Power, each in its nation colour', () => {
     const game = demoGame();
     show(game);

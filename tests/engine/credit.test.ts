@@ -45,8 +45,10 @@ describe('FR-599 authorization', () => {
     expect(invariantViolations(cashOnly)).toContain('nation nation-1 treasury -1');
     const authorized = tryApplyOrder(start, open);
     expect(authorized.result).toEqual({ ok: true });
-    const inDebt = setTreasury(authorized.state, N1, -1000);
+    const inDebt = setTreasury(authorized.state, N1, -200);
     expect(invariantViolations(inDebt)).toEqual([]);
+    expect(invariantViolations(setTreasury(inDebt, N1, -201))).toContain('nation nation-1 treasury -201');
+    expect(invariantViolations(setTreasury(inDebt, N1, -1000))).toContain('nation nation-1 treasury -1000');
     expect(invariantViolations(setTreasury(inDebt, N1, -Infinity))).toContain('nation nation-1 treasury -Infinity');
     const forged = { ...inDebt, nations: inDebt.nations.map(n => n.id === N2
       ? { ...n, treasury: -5, creditAccount: { limit: 500, saleReceipts: [] } } : n) };

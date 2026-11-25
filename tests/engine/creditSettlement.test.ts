@@ -10,7 +10,7 @@ import { resolveTurn } from '@/engine/turn/resolveTurn';
 import type { GameState } from '@/types/GameState';
 import { GoodsType, ResourceType } from '@/types/Resource';
 import { ARVELIA, continent, idOf, SW1 } from './armyFixtures';
-import { deepFreeze, emptyWarehouse, game, N1, N2, nationOf, setPair, setTile, setTreasury, setWarehouse, stockOf, T, treasury } from './fixtures';
+import { deepFreeze, emptyWarehouse, game, invariantViolations, N1, N2, nationOf, setPair, setTile, setTreasury, setWarehouse, stockOf, T, treasury } from './fixtures';
 
 // A mid-game fixture with an already authorized line, independent of the opening Order under test elsewhere.
 function account(state: GameState, cash: number, limit = 200, saleReceipts: number[] = []): GameState {
@@ -135,6 +135,9 @@ describe('FR-603 forced sale', () => {
     expect(eventsOf(events, 'forced-sale')).toEqual([{ type: 'forced-sale', nationId: N1, commodity: 'timber', amount: 2, price, proceeds: 2 * price }]);
     expect(eventsOf(events, 'goods-produced').filter(e => e.nationId === N1)).toEqual([]);
     expect(treasury(state, N1)).toBe(-530 + 2 * price);
+    expect(invariantViolations(state, events)).toEqual([]);
+    const overspent = treasury(state, N1) - 1;
+    expect(invariantViolations(setTreasury(state, N1, overspent), events)).toContain(`nation ${N1} treasury ${overspent}`);
     expect(state.gameOver).toBeUndefined();
     expect(eventsOf(events, 'regiments-disbanded')).toEqual([]);
     expect(eventsOf(settle(account(islands(), -500)).events, 'forced-sale')).toEqual([]);

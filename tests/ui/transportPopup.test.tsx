@@ -186,6 +186,22 @@ describe('FR-390 the popup shows set and automatic (M12, card Q80, audit ECONOMY
     expect(infoBar()).toBe('Capacity: 15 Allocated: 0 Remaining: 15');
   });
 
+  it('FR-607 a rejected Auto order leaves focus on the next slider the player edits', () => {
+    // The invalid saved Fruit allocation makes the complete plan fail until the player repairs it.
+    show({ ...newGame({ seed: 1 }), transportAllocationsByNation: { 'nation-1': { grain: 1, fruit: -1 } } });
+    const auto = screen.getByRole('button', { name: 'Auto Grain' });
+    auto.focus();
+    fireEvent.click(auto);
+    expect(useGameStore.getState().lastRejection).toMatchObject({ reason: 'invalid-amount' });
+    expect(document.activeElement).toBe(auto);
+
+    const fruit = screen.getByRole('slider', { name: 'Fruit' });
+    fruit.focus();
+    fireEvent.change(fruit, { target: { value: '2' } });
+    expect(plan()).toEqual({ grain: 1, fruit: 2 });
+    expect(document.activeElement).toBe(fruit);
+  });
+
   it('FR-390 automatic rows share what the set ones leave: capacity 15 with grain set to 4 and fruit to 4 leaves cotton its 2', () => {
     show({ ...newGame({ seed: 1 }), transportAllocationsByNation: { 'nation-1': { grain: 4, fruit: 4 } } });
     expect(infoBar()).toBe('Capacity: 15 Allocated: 8 Remaining: 7');
