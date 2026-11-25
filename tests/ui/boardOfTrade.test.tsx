@@ -117,6 +117,36 @@ const refused = (why: string) => ({ disabled: true, focusable: true, title: why,
 const OPEN = { disabled: false, focusable: true, title: '', reason: '' };
 const now = () => useGameStore.getState().game;
 
+it('FR-608 shows public sources through bids, full holds, the final reserved stock and cancellation', () => {
+  const state = setWarehouse(start(), N1, { wool: 1 });
+  const market = { ...marketOf(state), lastOrders: { [N2]: { buy: { wool: 1 }, sell: {} } } };
+  openBoard({ ...state, market });
+  const source = 'No known local source · Another power may offer this';
+  for (const key of ['wool', 'oil', 'fuel']) expect(text(row(key)), key).toContain(source);
+  expect(flags('horses', 'sellers')).toEqual(['Arvelia (no consulate)']);
+  expect(text(row('horses'))).not.toContain('No known local source');
+  expect(screen.queryByTestId('trade-row-fish')).toBeNull();
+  expect(detail('wool', 'rival-last-turn')).toBe('Valdoria wanted to buy 1 last turn');
+  choose('wool', 'Sell');
+  fireEvent.click(button('wool', 'Sell one more Wool'));
+  expect(cell('wool', 'available')).toBe('0');
+  expect(text(row('wool'))).toContain(source);
+  fireEvent.click(button('wool', 'Sell one less Wool'));
+  expect(cell('wool', 'available')).toBe('1');
+  choose('wool', 'Buy');
+  for (let i = 0; i < 4; i++) fireEvent.click(button('wool', 'Buy one more Wool'));
+  expect(plus('wool', 'Buy one more Wool')).toEqual(refused('No free hold this turn'));
+  expect(text(row('wool'))).toContain(source);
+  fireEvent.click(button('wool', 'Buy one less Wool'));
+  expect(cell('wool', 'bid')).toBe('3');
+  const current = now();
+  const before = text(row('wool'));
+  act(() => useGameStore.setState({ game: { ...current, market: { ...marketOf(current),
+    orders: { ...marketOf(current).orders, [N2]: { buy: {}, sell: { wool: 3 } } },
+  } } }));
+  expect(text(row('wool'))).toBe(before);
+});
+
 // Re-recorded by M18c FR-573: the two lines "Holds: 8 (2 Indiamen)" (in the header) and "Holds: 8 of 8 free" are one
 // figure in the bar under the title, "Holds: 0 of 8 used (2 Indiamen)"; it still counts this turn's units live.
 it('FR-515 FR-573 names the merchant fleet in the holds figure and keeps the live hold count', () => {

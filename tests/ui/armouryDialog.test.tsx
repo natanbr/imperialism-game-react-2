@@ -60,6 +60,12 @@ const now = () => useGameStore.getState().game;
 /** A new continent game with armaments in the warehouse. */
 const armed = (armaments = 2) => setWarehouse(continent(), N1, { armaments });
 
+it('FR-605 explains borrowing for upkeep in the Armoury before End Turn', () => {
+  openArmoury(applyOrder(setTreasury(armed(), N1, 25), { kind: 'openCredit', nationId: N1 }));
+  expect(text(armoury())).toMatch(/debt.*\$75|\$75.*debt/i);
+  expect(text(armoury())).not.toMatch(/disband/i);
+});
+
 it('FR-517 shows the horses in stock and the supply from collected ranches', () => {
   openArmoury(armed());
   expect(items('Hussars', 'At hand')).toContain('Horses: 4 in warehouse, +1 a turn');

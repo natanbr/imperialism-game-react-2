@@ -14,7 +14,7 @@ import { COUNCIL_PROJECTION_ID } from '@/components/HUD/TurnIndicator';
 import { cameraOnTileId } from '@/components/camera';
 import { useGameStore } from '@/store/rootStore';
 import { SAVE_VERSION } from '@/store/persistence';
-import { scoreOf, upkeepForecast } from '@/engine';
+import { applyOrder, scoreOf, upkeepForecast } from '@/engine';
 import { DEVELOPMENT_COST } from '@/definisions/workPrices';
 import type { GameState } from '@/types/GameState';
 import { WorkerType } from '@/types/Workers';
@@ -45,6 +45,17 @@ const openGroup = (name: string) => {
   return panelOf(button);
 };
 const GROUP_NAMES = ['Nation', 'Work in progress', 'Details for bug reports'];
+
+it('FR-605 the Stats forecast and HUD alert identify debt before interest and excess at the posted limit', () => {
+  show(applyOrder(setTreasury(continent(), N1, -150), { kind: 'openCredit', nationId: N1 }));
+  render(<><HUD /><StatsDialog onClose={() => {}} /></>);
+  for (const message of [within(openGroup('Nation')).getByTestId('upkeep-forecast'), screen.getByTestId('upkeep-warning'), screen.getByRole('dialog', { name: 'Stats' })]) {
+    expect(text(message)).toMatch(/debt.*\$250|\$250.*debt/i);
+    expect(text(message)).toMatch(/\$50 over/i);
+    expect(text(message)).toMatch(/before interest/i);
+    expect(text(message)).not.toMatch(/disband/i);
+  }
+});
 
 describe('FR-473 the right pane groups', () => {
   it('FR-473 three level-3 headings, each a native button with aria-expanded and aria-controls; the panel a region named by it, hidden; all closed', () => {
