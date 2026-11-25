@@ -46,6 +46,25 @@ describe('FR-067 score', () => {
     expect(scoreOf(setTreasury(game(), N1, 0), N1).points.treasury).toBe(0);
   });
 
+  it('FR-609 treasury points use signed cash only for a nation with open credit', () => {
+    const start = game();
+    const opened = applyOrder(start, { kind: 'openCredit', nationId: N1 });
+    const balances = [-101, -100, -1, 0, 199];
+    const points = (state: GameState) => balances.map(cash => scoreOf(setTreasury(state, N1, cash), N1).points.treasury);
+    expect(points(start)).toEqual([0, 0, 0, 0, 1]);
+    expect(points(opened)).toEqual([-2, -1, -1, 0, 1]);
+  });
+
+  it('FR-609 outstanding debt breaks an otherwise tied final score', () => {
+    const opened = applyOrder(game(), { kind: 'openCredit', nationId: N1 });
+    const start = setTreasury(setTreasury(opened, N1, -100), N2, 0);
+    const final = resolveTurn({ ...start, turnLimit: 1 }, {}).state.gameOver!;
+    expect(final.scores.map(s => [s.nationId, s.treasury, s.points.treasury, s.total])).toEqual([
+      [N2, 0, 0, 120],
+      [N1, -103, -2, 118],
+    ]);
+  });
+
   it('FR-067 capacity ordered this turn counts from the next turn; the refinery counts; food processing does not', () => {
     expect(scoreOf(setBuilding(game(), N1, 'steelMill', { capacity: 2, pendingCapacity: 2 }), N1).capacity).toBe(9);
     expect(scoreOf(setBuilding(game(), N1, 'steelMill', { capacity: 4, pendingCapacity: 0 }), N1).capacity).toBe(11);
