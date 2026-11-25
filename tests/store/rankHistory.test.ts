@@ -97,3 +97,26 @@ it('FR-611 discards malformed display data without losing the game or adjacent u
   }
   expect(load({ ...save, rankHistory: 'invalid' }).rankHistory ?? []).toEqual([]);
 });
+
+it('FR-611 checks mandatory land measures against fixed geography and preserves historical armies after they disappear', () => {
+  const continent = createGameStore({ seed: 2, world: 'continent' });
+  continent.getState().advanceTurn();
+  const continental = saveOf(continent.getState(), now);
+  const [record] = continental.rankHistory!;
+  for (const measure of ['army', 'council'] as const) {
+    const places = { ...record.places };
+    delete places[measure];
+    const partial = load({ ...continental, rankHistory: [{ ...record, places }] });
+    expect(partial.rankHistory ?? []).toEqual([]);
+    expect(gameplay(partial)).toEqual(gameplay(continental));
+  }
+
+  const islands = createGameStore({ seed: 2, world: 'two-islands' });
+  islands.getState().advanceTurn();
+  const emptyLand = saveOf(islands.getState(), now);
+  expect(emptyLand.game.provinces).toEqual([]);
+  expect(emptyLand.game.armies).toEqual([]);
+  const previous = emptyLand.rankHistory![0];
+  const history = [{ turn: 1, places: { ...previous.places, army: record.places.army } }];
+  expect(load({ ...emptyLand, rankHistory: history }).rankHistory).toEqual(history);
+});
