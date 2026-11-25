@@ -1,6 +1,7 @@
 import React, { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { parseMapSeed } from "@/engine";
 import { startGameOnCapital } from "@/hooks/mapActions";
+import { APP_WORLD } from "@/store/gameSlice";
 import type { RandomMapSize, WorldId } from "@/types/World";
 import { DIFFICULTY_LABEL, leftInWindow, SIZE_LABEL, WORLD_LABEL } from "./hudView";
 
@@ -20,7 +21,7 @@ export const CONFIRM_NEW_GAME_ID = "confirm-new-game";
 export const ConfirmNewGame: React.FC<{ anchor: React.RefObject<HTMLElement | null>; onDone: () => void }> = ({ anchor, onDone }) => {
   const panel = useRef<HTMLDivElement>(null);
   const id = useId();
-  const [world, setWorld] = useState<WorldId>("continent");
+  const [world, setWorld] = useState<WorldId>(APP_WORLD);
   const [size, setSize] = useState<RandomMapSize>("standard");
   const [difficulty, setDifficulty] = useState<"normal" | "demo">("normal");
   const [fixedSeedOpen, setFixedSeedOpen] = useState(false);
