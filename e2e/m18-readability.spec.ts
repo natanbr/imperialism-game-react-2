@@ -3,7 +3,9 @@
 // FR-569 a refused order (Expand Steel mill with no lumber or steel) is a toast over the page, not a line in the dialog.
 // No sideways page scroll. Screenshots go to the test's output folder (testInfo.outputPath), or SCREENSHOT_DIR when set.
 import type { TestInfo } from '@playwright/test';
-import { expect, startSeededGame, test, type Page } from './seededGame';
+import { continueSavedGame, expect, startSeededGame, test, type Page } from './seededGame';
+import { createGameStore } from '../src/app/store/rootStore';
+import { saveOf } from '../src/app/store/persistence';
 
 const shotPath = (testInfo: TestInfo, name: string) => (process.env.SCREENSHOT_DIR ? `${process.env.SCREENSHOT_DIR}/${name}` : testInfo.outputPath(name));
 
@@ -77,6 +79,46 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 
       await stats.getByRole('button', { name: 'Close stats' }).click();
       await expect(stats).toHaveCount(0);
       expect(errors).toEqual([]);
+    });
+
+    test(`FR-610 FR-611 at ${at} settled rankings have equal bars for ties and a keyboard-readable history`, async ({ page }, testInfo) => {
+      const store = createGameStore({ seed: 1 });
+      for (let turn = 1; turn <= 5; turn++) store.getState().advanceTurn();
+      await continueSavedGame(page, saveOf(store.getState()));
+      const opener = page.getByRole('button', { name: 'Stats', exact: true });
+      await opener.click();
+      const stats = page.getByRole('dialog', { name: 'Stats' });
+      await stats.getByRole('tab', { name: 'Overview' }).focus();
+      await page.keyboard.press('ArrowRight');
+      const rankings = stats.getByRole('tabpanel', { name: 'Rankings' });
+      await expect(stats.getByRole('tab', { name: 'Rankings' })).toBeFocused();
+      const measure = rankings.getByLabel('Measure', { exact: true });
+      await expect(measure.locator('option')).toHaveText([
+        'Council standing', 'Army strength (land)', 'Industry (installed capacity)', 'Labour (available output)',
+        'Transport (freight cars)', 'Merchant marine (cargo capacity)', 'World exports (units sold this turn)',
+      ]);
+      const turn = rankings.getByLabel('Resolved turn', { exact: true });
+      await expect(turn).toHaveValue('5');
+      await measure.selectOption({ label: 'Industry (installed capacity)' });
+      await turn.focus();
+      await turn.press('Home');
+      await expect(turn).toHaveValue('1');
+      const placings = rankings.getByRole('list', { name: 'Placings on turn 1' });
+      await expect(placings.getByRole('listitem')).toHaveText([/1st.*Testland/, /1st.*Valdoria/]);
+      await expect(placings.getByTestId('nation-flag')).toHaveCount(2);
+      const bars = await placings.getByTestId('rank-bar').evaluateAll(els => els.map(el => el.getBoundingClientRect().width));
+      expect(bars[0]).toBeGreaterThan(0);
+      expect(bars).toEqual([bars[0], bars[0]]);
+      const history = rankings.getByRole('table', { name: 'Industry (installed capacity) by turn' });
+      await expect(history.getByRole('columnheader')).toHaveText(['Turn', 'Testland', 'Valdoria']);
+      await expect(history.getByRole('row')).toHaveCount(6);
+      await expect(history.getByRole('row').nth(1)).toHaveText(/1.*1st.*1st/);
+      await expectInsideWindow(page, (await stats.boundingBox())!);
+      expect(await rankings.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+      await expectNoSidewaysScroll(page);
+      await page.screenshot({ path: shotPath(testInfo, `m18g-rankings-${at}.png`) });
+      await page.keyboard.press('Escape');
+      await expect(opener).toBeFocused();
     });
 
     test(`FR-569 at ${at} a refused order is a toast over the page, not a line in the dialog; Close takes it away`, async ({ page }, testInfo) => {

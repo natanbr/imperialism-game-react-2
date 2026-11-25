@@ -72,7 +72,7 @@ describe('FR-357 autosave at End Turn', () => {
     expect(SAVE_KEY).toBe('imperialism-remake.save');
     expect(SAVE_VERSION).toBe(1);
     const saved = slotOf(storage);
-    expect(Object.keys(saved).sort()).toEqual(['activeNationId', 'eventLog', 'game', 'orderLog', 'ordersThisTurn', 'savedAt', 'turnStartTreasuries', 'version']);
+    expect(Object.keys(saved).sort()).toEqual(['activeNationId', 'eventLog', 'game', 'orderLog', 'ordersThisTurn', 'rankHistory', 'savedAt', 'turnStartTreasuries', 'version']);
     const s = store.getState();
     expect(saved).toEqual({
       version: 1,
@@ -81,6 +81,7 @@ describe('FR-357 autosave at End Turn', () => {
       activeNationId: N1,
       eventLog: json(s.eventLog),
       orderLog: json(s.orderLog),
+      rankHistory: json(s.rankHistory),
       ordersThisTurn: [],
       turnStartTreasuries: null,
     });
