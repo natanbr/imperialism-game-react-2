@@ -50,6 +50,9 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 
       await board.getByRole('tab', { name: 'Trade policies', exact: true }).click();
       expect(await words()).not.toMatch(/\b(bid|bids|bidder|offer|offers|offered)\b/i);
       await expectNoSidewaysScroll(page);
+      await board.getByRole('button', { name: 'List', exact: true }).click();
+      expect(await words()).not.toMatch(/\b(bid|bids|bidder|offer|offers|offered)\b/i);
+      await expectNoSidewaysScroll(page);
       expect(errors).toEqual([]);
     });
 

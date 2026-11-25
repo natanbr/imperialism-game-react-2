@@ -6,7 +6,8 @@ Older entries are in `docs/journal/archive-<milestone>.md` (the latest move, 202
 
 - M18 (play-test comfort, `docs/specs/m18-playtest-comfort.md`): M18a merged into main `af24381` (pull request 43), M18b part 1 (FR-563, FR-568, FR-569) in `5e80bab` (pull request 44), part 2 (FR-564 nation colours and flags) in `4098bfe` (pull request 45). NR-037 in progress.
 - M18b part 3 (FR-565, FR-566) merged into main `cd5b1be` (pull request 46); FR-567 into `994a0ca` (pull request 47), partial: the narrower pane is left for the owner; FR-570 (rail) into `751b74b` (pull request 48). Icons wait for the art (spec section 3).
-- M18c (owner play-test 2026-11-24, spec section 5, FR-572 to FR-578): the Trade School holds the Capitol; the Board of Trade has a status bar and three tabs (Board, Details, Trade policies), one Buy/Sell choice per row and flags-only Market column. Built by Opus 5.5, reviewed by Sonnet 5.5, full gate green (`.gate/claude/53/`, screenshots there). Open: whether the Details information leaves the trade screen as in the original (FR-575); a map view for Trade policies.
+- M18c (FR-572 to FR-578) merged in `896d1fb` (pull request 49). The three-tab Board of Trade and Trade School evidence is in `.gate/claude/53/`. The owner’s FR-575 decision about moving Details is still open.
+- FR-579 Trade policies map (owner chose the map, 2026-11-24): built by Codex (tasks 29, 30), reviewed by Sonnet 5.5, gate green (`.gate/claude/54/`, screenshots `.gate/codex/30/`), merged via the pull request from `claude/m18c-policy-map`. Open Market → Trade policies; Tab to a country to see its keyboard focus.
 - To try Demo: New game, Start Demo game; then Dashboard in the top bar (Economy, Military, Trade, Diplomacy, Council, Bug report).
 - M17 merged into main `65a4d5a` (pull request 42). Its task evidence is in `.gate/codex/21/` to `.gate/codex/28/`.
 - M16 part 1 merged in `9bd5a91`. The human can buy technology. The computer makes no purchases on main.
@@ -14,6 +15,47 @@ Older entries are in `docs/journal/archive-<milestone>.md` (the latest move, 202
 - FR-547 (Q143) is the buyer branch's proposed value rule. Measure technology availability, purchase timing and the value of the first unlocked action in the original game before tuning. See `docs/verify-and-tune.md`.
 - Task 19 passed the load trials and full gate on `claude/perf-tests`. Finish future gates with `npm run test:perf` alone. The measured results and six functional logs are indexed in `.gate/codex/19/summary.md`.
 - To play M17 on continent seed 1, set Armaments and Fabric production to 1. Build a Ship-of-the-Line on turn 6, declare and sail on turn 7, set the site on turn 8, and land the four-ARMS army on turn 9. On turn 10 see the survivors at Sundmark and its colony vote in Council.
+
+## 2026-11-24 Task 30 — Trade policy map review (FR-579)
+
+Size M. Keep country names, flags and policy markers readable when a small country's land projects to a single tile.
+The map consumes the positions and the selected country's border. Map and List share policy rows and refusals.
+FR-579 regression coverage checks view-unit clearances at two world scales, a tile-only ownership transfer, visible keyboard focus and the selected border.
+Verify with Vitest, lint, TypeScript, the production build, the three trade/readability Playwright specs on port 3123, the roadmap gate and the standalone performance suite.
+Objection: moving an active SVG button to the end could change where Tab goes next. Paint its border after the other land and before the lettering while keeping the buttons in their existing order.
+
+The new geometry tests reported “4 failed | 3 passed” before the fix. With the original world-unit offsets, the phone-sized label and marker bounds overlapped by 14.56 view units on the starting continent and 36.44 on the 96×64 fixture. Reviewing the first keyboard screenshot also revealed that a gold border painted over the entire map cut through Sundmark's name and boycott cross.
+
+| Claim | Command or evidence | Result |
+|---|---|---|
+| Land geometry, including a tile-only transfer on two-islands | `npx vitest run tests/ui/tradePolicyMapView.test.ts` | “7 passed (7)”. All countries in both scale fixtures clear their own marker and the view edges. |
+| Full functional suite | `npm test` | “Test Files  158 passed (158)” and “Tests  3136 passed (3136)”. |
+| Map, List, trade and readability | `PORT=3123 PLAYWRIGHT_HTML_OPEN=never npx playwright test e2e/m18-policy-map.spec.ts e2e/m7-trade.spec.ts e2e/m18-readability.spec.ts --workers=1` | “11 passed (2.5m)”. Clicking Sundmark's lettering beyond its land selected the country. Keyboard focus stayed on Arvelia after Space. |
+| Rendered map at all three sizes | Chromium and Firefox, `.gate/codex/30/layout.txt` | “2 passed (39.2s)”. Both reported “overlap pairs []”. On the phone the closest annotation cleared the edge by 8.22 CSS px. The focused country's land had a 6 px dashed stroke in both browsers. |
+| Roadmap | `git fetch`, `git rev-parse origin/main`, `node .gate/m12/L4-check-roadmap.cjs` | Fetched `896d1fbf08137190351261b9f978b451506d7549`. The gate compares the seven-character abbreviation and printed “PASS”. |
+| Lint, types and production build | `npm run lint`, `npx tsc --noEmit`, `npm run build` | “0 errors, 2 warnings” in existing transport and logistics files. TypeScript exited 0. The build reported “Generating static pages (4/4)”. |
+| Standalone performance suite | `npm run test:perf` | “Tests  3 passed (3)” and “computerOrders p95 25.2 ms” against the 100 ms limit. |
+
+## 2026-11-24 Task 29 — Trade policies map (FR-579)
+
+Size M. Build the political map from the same tile geometry and ownership as the game map.
+The Board of Trade opens Trade policies on Map. List and the selected country share the FR-576 controls.
+FR-579 tests cover geometry, land ownership, keyboard and pointer selection, policy orders and the three viewport sizes.
+Verify with Vitest, lint, TypeScript, build, touched Playwright specs on 3123 and the standalone performance suite.
+Objection: small countries can be hard to select on a phone. Check the actual labels and markers at 390 px and retain the full List.
+
+The main map draws the six neighbours as staggered rows. The policy map shares its tile sides and uses province ownership, falling back to tile ownership on older maps. A jsdom draw on the 24×16 continent took 6.59 ms cold and 2.10 ms median over 25 uncached draws. This was below the owner's 20 ms threshold for adding a timing test.
+
+| Claim | Command | Result |
+|---|---|---|
+| Tests failed before the feature | Focused geometry and Board of Trade UI suites and new Playwright spec | “Failed to resolve import” for the geometry builder. UI reported “11 failed” and “24 passed” for the absent Map and List controls. Chromium also failed on the missing Map button. |
+| Phone fit regression caught | FR-579 at 390×844, first integration run | The pane overflowed horizontally by 256 px. The toolbar explanation inherited a fixed flex size. |
+| Map and List in Chromium, including the corrected phone fit | `PORT=3123 PLAYWRIGHT_HTML_OPEN=never npx playwright test e2e/m18-policy-map.spec.ts e2e/m18-readability.spec.ts e2e/m7-trade.spec.ts --workers=1` | “11 passed (1.0m)”. The map, controls and visible help fit all three viewports. |
+| Static checks and production build | `npm run lint`, `npx tsc --noEmit`, `npm run build` | “0 errors, 2 warnings” in existing transport and logistics code, TypeScript exit 0, “Generating static pages (4/4)”. |
+| Full functional suite, including the two-nation games | `npm test` | “Test Files  158 passed (158)” and “Tests  3133 passed (3133)”. |
+| Performance suite, run alone | `npm run test:perf` | “Tests  3 passed (3)”. Computer orders took “p95 25.5 ms” against the 100 ms limit. |
+
+Independent review covered landless countries, keyboard focus, shared flags and the selected country's orders and refusals. The three final screenshots show Arvelia at 25%, Sundmark under boycott and the other trading partners at 0%.
 
 ## 2026-11-24 M18c — trade screen and Trade School
 

@@ -169,12 +169,12 @@ const fit = (page: Page) =>
   board(page).evaluate((el: HTMLElement) => {
     const r = el.getBoundingClientRect();
     const doc = document.scrollingElement!;
-    const pane = el.querySelector('table')?.parentElement ?? null;
+    const pane = el.querySelector('[role="tabpanel"]')!;
     return {
       inside: r.top >= 0 && r.left >= 0 && r.bottom <= window.innerHeight && r.right <= window.innerWidth,
       dialogScrolls: el.scrollHeight > el.clientHeight + 1,
       pageScrolls: doc.scrollHeight > window.innerHeight + 1,
-      boardScroll: pane ? getComputedStyle(pane).overflowY : 'none',
+      boardScroll: getComputedStyle(pane).overflowY,
       // The column heads stay in view while the board scrolls
       headSticky: getComputedStyle(el.querySelector('th')!).position,
     };
@@ -214,6 +214,9 @@ test('FR-194 FR-257 FR-574 at 1280x720 the Board of Trade fits the window on eve
   await expect(detailRow(page, 'oil').getByTestId('no-minor')).toHaveText('No minor trades this');
   expect(await fit(page)).toEqual(fits);
   await openTab(page, 'Trade policies');
+  await expect(board(page).getByRole('button', { name: 'Map', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  // FR-579 keeps the FR-576 table as List. Check its sticky header and scroll pane as before.
+  await board(page).getByRole('button', { name: 'List', exact: true }).click();
   expect(await fit(page)).toEqual(fits);
   if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/m7-board-new-game.png` });
   await closeBoard(page);

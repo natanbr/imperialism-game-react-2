@@ -1,7 +1,7 @@
 import React, { useId } from "react";
 import { useGameStore } from "@/store/rootStore";
 import { THEME } from "@/styles/theme";
-import { nationMark, type FlagPattern } from "./nationMark";
+import { nationMark, type FlagPattern, type NationMark } from "./nationMark";
 
 // The art pack's flag shape (its map-ui flag, listed in art/inkArt.ts): the pole and the swallow-tailed cloth, drawn
 // here so the cloth takes the nation's colour and pattern. tests/ui/nationFlag.test.tsx checks the paths still match the file.
@@ -28,6 +28,28 @@ const PATTERN_SHAPES: Record<FlagPattern, React.ReactNode> = {
   triangle: <path d="M4 3L10 7.1 4 11.2Z" />,
 };
 
+/** The same flag drawing can sit in a line of text or inside another SVG. */
+export const FlagDrawing: React.FC<{ mark: NationMark } & React.SVGProps<SVGSVGElement>> = ({ mark, ...props }) => {
+  const clipId = `flag-${useId().replace(/[^\w-]/g, "")}`;
+  return (
+    <svg viewBox="3 2 12.5 16.5" focusable="false" {...props}>
+      <defs>
+        <clipPath id={clipId}>
+          <path d={FLAG_CLOTH_PATH} />
+        </clipPath>
+      </defs>
+      <path d={FLAG_POLE_PATH} fill="none" stroke={THEME.ink} strokeWidth={1.35} strokeLinecap="round" />
+      <path d={FLAG_CLOTH_PATH} fill="currentColor" data-part="cloth" />
+      {PATTERN_SHAPES[mark.pattern] && (
+        <g clipPath={`url(#${clipId})`} fill={THEME.flagPattern}>
+          {PATTERN_SHAPES[mark.pattern]}
+        </g>
+      )}
+      <path d={FLAG_CLOTH_PATH} fill="none" stroke={THEME.ink} strokeWidth={0.7} strokeLinejoin="round" />
+    </svg>
+  );
+};
+
 /**
  * A nation's flag mark (FR-564): the pack's flag in the nation's one colour with its pattern, beside the nation's name.
  * Decorative: the name next to it says which nation it is, so it is hidden from assistive technology. `size="large"`
@@ -36,25 +58,10 @@ const PATTERN_SHAPES: Record<FlagPattern, React.ReactNode> = {
 export const NationFlag: React.FC<{ nationId: string; size?: "large" }> = ({ nationId, size }) => {
   const nations = useGameStore((s) => s.game.nations);
   const minorNations = useGameStore((s) => s.game.minorNations);
-  const { colour, pattern } = nationMark({ nations, minorNations }, nationId);
-  const clipId = `flag-${useId().replace(/[^\w-]/g, "")}`;
+  const mark = nationMark({ nations, minorNations }, nationId);
   return (
-    <span className={size === "large" ? "nation-flag nation-flag-large" : "nation-flag"} data-testid="nation-flag" data-nation-id={nationId} data-pattern={pattern} aria-hidden="true" style={{ color: colour }}>
-      <svg viewBox="3 2 12.5 16.5" focusable="false">
-        <defs>
-          <clipPath id={clipId}>
-            <path d={FLAG_CLOTH_PATH} />
-          </clipPath>
-        </defs>
-        <path d={FLAG_POLE_PATH} fill="none" stroke={THEME.ink} strokeWidth={1.35} strokeLinecap="round" />
-        <path d={FLAG_CLOTH_PATH} fill="currentColor" data-part="cloth" />
-        {PATTERN_SHAPES[pattern] && (
-          <g clipPath={`url(#${clipId})`} fill={THEME.flagPattern}>
-            {PATTERN_SHAPES[pattern]}
-          </g>
-        )}
-        <path d={FLAG_CLOTH_PATH} fill="none" stroke={THEME.ink} strokeWidth={0.7} strokeLinejoin="round" />
-      </svg>
+    <span className={size === "large" ? "nation-flag nation-flag-large" : "nation-flag"} data-testid="nation-flag" data-nation-id={nationId} data-pattern={mark.pattern} aria-hidden="true" style={{ color: mark.colour }}>
+      <FlagDrawing mark={mark} />
     </span>
   );
 };

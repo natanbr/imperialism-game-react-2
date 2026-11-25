@@ -40,7 +40,7 @@ export interface MinorBorderSegment extends TileSide {
  * six neighbours are its six sides: left, right, and the left and right halves of its top and bottom.
  * The same neighbours as `getNeighborCoords` in engine/map/mapHelpers.ts.
  */
-function sidesOf(map: GameMap, tile: Tile, tilePx: number): TileSide[] {
+export function sidesOf(map: GameMap, tile: Tile, tilePx: number): TileSide[] {
   const { cols, rows } = map.config;
   const half = tilePx / 2;
   const odd = tile.y % 2 === 1;
