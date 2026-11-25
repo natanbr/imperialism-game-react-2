@@ -6,6 +6,7 @@ import type { Score } from "@/types/Score";
 import { BUILDINGS } from "@/definisions/industryBuildings";
 import { SCORE_WEIGHTS } from "@/definisions/scoreWeights";
 import { constructionCost, DEVELOPMENT_COST } from "@/definisions/workPrices";
+import { hasOpenCredit } from "../credit/account";
 import { isConqueredProvince } from "../world/provinces";
 import { collectingHub } from "../systems/logisticsSystem";
 import { nationById } from "../orders/queries";
@@ -65,11 +66,12 @@ function jobsOf(state: GameState, nationId: string): { paid: number; points: num
 export function scoreOf(state: GameState, nationId: string): Score {
   const nation = nationById(state, nationId);
   const treasury = nation?.treasury ?? 0;
+  const scoringCash = hasOpenCredit(nation) ? treasury : Math.max(0, treasury);
   const capacity = nation ? capacityOf(nation) : 0;
   const development = nation ? developmentOf(state, nationId) : { levels: 0, points: 0, uncollectedLevels: 0 };
   const jobs = nation ? jobsOf(state, nationId) : { paid: 0, points: 0 };
   const points = {
-    treasury: Math.max(0, Math.floor(treasury / SCORE_WEIGHTS.dollarsPerPoint)),
+    treasury: Math.floor(scoringCash / SCORE_WEIGHTS.dollarsPerPoint),
     industry: capacity * SCORE_WEIGHTS.pointsPerCapacity,
     development: development.points,
     workInProgress: jobs.points,
