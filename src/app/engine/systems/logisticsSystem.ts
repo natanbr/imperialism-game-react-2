@@ -8,6 +8,7 @@ import { Tile } from "@/types/Tile";
 import { RailroadNetwork } from "@/types/Transport";
 import { parseTileIdToArray } from "@/utils/tileIdUtils";
 import type { TurnSystem } from "../turn/context";
+import { getAdjacentTiles, isOcean } from "../map/mapHelpers";
 
 /**
  * What the logistics phase ships of what the hubs collected (FR-389, card Q80): the plan holds per commodity either a
@@ -125,6 +126,26 @@ export function collectingHub(state: GameState, nationId: string, tileId: string
   return hubOf(state.map, nationId, hubsOf(state.transportNetwork.railroadNetworks?.[nationId]), tile);
 }
 
+/** A shared fishing hex supplies one unit per nation, even when two ports can reach it. */
+function fishingGrounds(map: GameMap, nationId: string, hubs: readonly CollectingHub[]): Map<string, CollectingHub> {
+  const grounds = new Map<string, CollectingHub>();
+  for (const hub of hubs) {
+    if (hub.kind === "depot") continue;
+    const [x, y] = parseTileIdToArray(hub.tileId);
+    for (const tile of getAdjacentTiles(map, x, y)) {
+      if (isOcean(tile) || (tile.hasRiver && tile.ownerNationId === nationId)) {
+        if (!grounds.has(tile.id)) grounds.set(tile.id, hub);
+      }
+    }
+  }
+  return grounds;
+}
+
+export function collectingFishHub(state: GameState, nationId: string, tileId: string): CollectingHub | undefined {
+  const hubs = hubsOf(state.transportNetwork.railroadNetworks?.[nationId]);
+  return fishingGrounds(state.map, nationId, hubs).get(tileId);
+}
+
 export const computeLogisticsTransport = (
   map: GameMap,
   nationId: string,
@@ -132,13 +153,15 @@ export const computeLogisticsTransport = (
 ): Record<string, number> => {
   const hubs = hubsOf(network);
   const transported: Record<string, number> = {};
+  const fish = fishingGrounds(map, nationId, hubs);
   for (const t of map.tiles.flat()) {
     if (!hubOf(map, nationId, hubs, t)) continue;
     const res = t.resource;
-    if (!res) continue;
+    if (!res || (res.type === ResourceType.Fish && fish.has(t.id))) continue;
     const amount = ResourceDevelopmentTable[res.type]?.[res.level] ?? 0;
     if (amount <= 0) continue;
     transported[res.type] = (transported[res.type] ?? 0) + amount;
   }
+  if (fish.size) transported[ResourceType.Fish] = (transported[ResourceType.Fish] ?? 0) + fish.size;
   return transported;
 };
