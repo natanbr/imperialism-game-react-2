@@ -3,7 +3,7 @@ import { MapStyle, type GameMap } from "@/types/Map";
 import type { Province } from "@/types/Province";
 import { ResourceType } from "@/types/Resource";
 import { TerrainType, type Tile } from "@/types/Tile";
-import type { RandomMapSize } from "@/types/World";
+import { normalizeRandomMapSize, type RandomMapSize } from "@/types/World";
 import { createTileId, parseTileIdToArray } from "@/utils/tileIdUtils";
 import { getAdjacentTiles } from "../map/mapHelpers";
 import { createMulberry32, type Rng } from "../rng";
@@ -151,7 +151,7 @@ function partition(map: GameMap, country: { id: CountryId; name: string }, area:
 /** FR-588–592. This is the map immediately before the selected coastal Farms become capitals. */
 export function randomWorldPlan(seed: number, size: RandomMapSize = "standard") {
   const rng = createMulberry32(seed);
-  const { cols, rows, width, depth } = dimensions[size];
+  const { cols, rows, width, depth } = dimensions[normalizeRandomMapSize(size)];
   const map: GameMap = {
     config: { cols, rows, style: MapStyle.HexGrid },
     tiles: Array.from({ length: rows }, (_, y) => Array.from({ length: cols }, (_, x) => ({

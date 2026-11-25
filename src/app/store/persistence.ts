@@ -4,6 +4,7 @@
 import type { StoreApi } from "zustand";
 import { inventionNews } from "@/engine/technology";
 import { turnLimitOf } from "@/engine/turn/gameOver";
+import { normalizeRandomMapSize } from "@/types/World";
 import { m17ReplayBoundary, usedM17CombatRules, withCurrentRules } from "./sessionReplay";
 import type { GameSession } from "./gameSlice";
 import type { GameStore } from "./rootStore";
@@ -75,6 +76,9 @@ export function readSave(storage: Pick<Storage, "getItem"> | undefined = browser
   try {
     const parsed: unknown = JSON.parse(raw);
     if (!isUsable(parsed)) return { kind: "unusable" };
+    if (parsed.game.worldId === "random" && parsed.game.randomMapSize !== undefined) {
+      parsed.game.randomMapSize = normalizeRandomMapSize(parsed.game.randomMapSize);
+    }
     const shared = parsed.game.technologyState;
     if (shared || !parsed.game.rulesRevision) {
       parsed.replayBoundary ??= { turn: parsed.game.turn, appliedOrders: parsed.ordersThisTurn.length,
