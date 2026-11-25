@@ -1,5 +1,6 @@
 // Shared helpers for the engine tests. Not a test file (vitest only runs *.test.ts).
 import { createTwoNationGame } from '@/testing/mockNation';
+import { hasOpenCredit } from '@/engine/credit/account';
 import { pairKey } from '@/engine/diplomacy/relations';
 import type { PairDiplomacy } from '@/types/Diplomacy';
 import { GameState } from '@/types/GameState';
@@ -144,8 +145,8 @@ export function deepFreeze<T>(value: T): T {
 }
 
 /**
- * Game invariants checked after every headless turn: no worker on two tiles, no negative
- * treasury, every job's worker is on that tile and working, every working worker has a job.
+ * No worker on two tiles, finite cash (nonnegative for cash-only nations), and a working
+ * worker on the tile for each job and a job for each working worker.
  */
 export function invariantViolations(state: GameState): string[] {
   const problems: string[] = [];
@@ -172,7 +173,7 @@ export function invariantViolations(state: GameState): string[] {
     }
   }
   for (const n of state.nations) {
-    if (!(n.treasury >= 0)) problems.push(`nation ${n.id} treasury ${n.treasury}`);
+    if (!Number.isFinite(n.treasury) || (n.treasury < 0 && !hasOpenCredit(n))) problems.push(`nation ${n.id} treasury ${n.treasury}`);
     problems.push(...economyViolations(n));
   }
   return problems;

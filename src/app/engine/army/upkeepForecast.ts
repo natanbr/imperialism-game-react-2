@@ -5,6 +5,7 @@ import type { Regiment } from "@/types/Army";
 import type { NationId, ProvinceId, RegimentId } from "@/types/Common";
 import type { GameState } from "@/types/GameState";
 import type { GrantIntent } from "@/types/Intent";
+import { hasOpenCredit } from "../credit/account";
 import { isMilitia, REGIMENTS, UPKEEP_PER_ARMS } from "@/definisions/regiments";
 import { marketOf, priceOf, tradeOrdersOf } from "../market/market";
 import { diplomacyAfterThisTurn, marketModeOf } from "../market/partners";
@@ -14,6 +15,9 @@ import { applyDiplomacyOrder } from "../orders/diplomacyOrders";
 import { armyAt, isArmyIntent, regimentsOf, serialOf } from "./armies";
 
 export interface UpkeepForecast {
+  /** Debt and excess after projected upkeep, before interest, using the currently posted limit. */
+  projectedDebt?: number;
+  overLimitBy?: number;
   /** FR-202's upkeep on the regiments left after this turn's disband orders (FR-207); this turn's recruits pay from next turn. */
   due: number;
   /**
@@ -92,7 +96,8 @@ export function upkeepForecast(state: GameState, nationId: NationId, extraSpend 
   const paying = regimentsOf(state, nationId).filter((r) => !isMilitia(r.type) && !disbanding.has(r.id));
   const due = upkeepOn(paying, disbanding);
 
-  let cash = (state.nations.find((n) => n.id === nationId)?.treasury ?? 0) - extraSpend;
+  const nation = state.nations.find(n => n.id === nationId);
+  let cash = (nation?.treasury ?? 0) - extraSpend;
   // A standing locked grant replaced by a locked grant ordered this turn (paid when ordered) or stopped this turn is not
   // paid again; the others are paid, in pair order, while the treasury holds them (FR-170).
   const settled = new Set(
@@ -108,6 +113,11 @@ export function upkeepForecast(state: GameState, nationId: NationId, extraSpend 
     if (cash >= amount) cash -= amount;
   }
   cash -= bidExtraOf(state, nationId);
+  if (hasOpenCredit(nation)) {
+    const projectedDebt = Math.max(0, due - cash);
+    return { due, cash, short: false, shortBy: 0, regimentsLost: [],
+      projectedDebt, overLimitBy: Math.max(0, projectedDebt - nation.creditAccount.limit) };
+  }
   const short = cash < due;
   return { due, cash, short, shortBy: short ? due - cash : 0, regimentsLost: short ? lostAt(paying, due, cash) : [] };
 }

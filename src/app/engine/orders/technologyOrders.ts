@@ -1,5 +1,6 @@
 ﻿import { technologyById } from "@/definisions/technologies";
 import type { GameState } from "@/types/GameState";
+import { canAfford } from "../credit/account";
 import { technologyTurn } from "../technology";
 import type { Order, ValidationResult } from "./Order";
 import { nationById } from "./queries";
@@ -15,8 +16,7 @@ export function validateTechnologyOrder(state: GameState, { kind, nationId, tech
   if (pending || nation.technologies?.includes(techId)) return { ok: false, reason: "already-owned" };
   if (state.turn < technologyTurn(state, techId)) return { ok: false, reason: "not-available" };
   if (tech.prerequisites.some(id => !nation.technologies?.includes(id))) return { ok: false, reason: "missing-prerequisite" };
-  if (nation.treasury < tech.cost) return { ok: false, reason: "insufficient-funds" };
-  return { ok: true };
+  return canAfford(nation, tech.cost);
 }
 
 export function applyTechnologyOrder(state: GameState, { kind, nationId, techId }: TechnologyOrder): GameState {

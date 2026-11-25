@@ -2,6 +2,7 @@
 // An order sets this turn's amount for one commodity: goods offered leave the warehouse and bids
 // are paid at once, and a lower amount gives the difference back, as for every other order.
 import type { GameState } from "@/types/GameState";
+import { canAfford } from "../credit/account";
 import type { Nation } from "@/types/Nation";
 import type { TradeCommodity, TradeOrders } from "@/types/Market";
 import { MAX_BUY_BIDS } from "@/definisions/marketPrices";
@@ -45,7 +46,7 @@ export function validateTradeOrder(state: GameState, nation: Nation, order: Trad
   if (used + added > holds) return reject("limit-reached");
 
   if (side === "sell") return stockOf(nation, commodity) >= added ? OK : reject("insufficient-resources");
-  return (nation.treasury ?? 0) >= added * priceOf(marketOf(state), commodity) ? OK : reject("insufficient-funds");
+  return canAfford(nation, added * priceOf(marketOf(state), commodity));
 }
 
 /** Sets the nation's amount for the commodity on one side; empty entries are dropped. */

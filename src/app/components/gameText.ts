@@ -28,6 +28,7 @@ import { GoodsType, MaterialType, ResourceType, type WarehouseCommodities } from
 import { WorkerStatus, WorkerType, type Worker } from "@/types/Workers";
 
 const ORDER_TEXT: Record<OrderKind, string> = {
+  openCredit: "Open credit",
   moveWorker: "Move",
   moveAndBuildRail: "Build rail",
   startProspecting: "Prospect",
@@ -419,6 +420,10 @@ export function eventText(event: GameEvent, nameOf: (countryId: string) => strin
       return `${event.count} ${REGIMENTS[event.regiment].name} not raised: our capital province is lost. Their cost is refunded.`;
     case "army-upkeep":
       return `Army upkeep: ${money(event.amount)}.`;
+    case "credit-interest":
+    case "forced-sale":
+    case "credit-settled":
+      return null;
     case "army-moved": {
       const action = event.via === "rail" ? "deployed by rail" : event.via === "sea" ? "sailed as reinforcements" : "marched";
       return `${regiments(event.count)} ${action} from ${nameOf(event.fromProvinceId)} to ${nameOf(event.toProvinceId)}.`;
