@@ -3,8 +3,8 @@
 // for (Q60); the per-terrain, resource, commodity and worker tables, tileIconOf and the UI icons the pack replaced are
 // gone. FR-085: no emoji on the map, in the HUD or in the dialogs. What a tile shows (FR-322 to FR-325) is tested in
 // tests/ui/mapIcons.test.tsx, the pack's table in tests/ui/inkArt.test.ts.
-import { describe, it, expect } from 'vitest';
-import { render, within } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { act, render, within } from '@testing-library/react';
 import * as gi from 'react-icons/gi';
 import Home from '@/page';
 import * as icons from '@/components/icons';
@@ -65,6 +65,8 @@ describe('FR-085 what a tile shows', () => {
       selectedTileId: '2-9',
     });
     const { container, unmount } = render(<Home />);
+    // Let Home's Market import finish and React commit it before querying the full map.
+    await act(() => vi.dynamicImportSettled());
     // FR-236: dialogs are named by their title (aria-labelledby), not aria-label
     expect(within(container).getByRole('dialog', { name: 'Game over' })).toBeTruthy();
     const market = await within(container).findByRole('dialog', { name: marketTitle });
