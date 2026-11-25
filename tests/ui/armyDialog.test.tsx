@@ -9,10 +9,12 @@
 import { describe, it, expect } from 'vitest';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { ArmyModal } from '@/components/ArmyModal';
+import { StatsDialog } from '@/components/HUD/StatsDialog';
+import { readSave, saveOf } from '@/store/persistence';
 import { useGameStore } from '@/store/rootStore';
-import { transferProvince, type Order } from '@/engine';
+import { newGame, transferProvince, tryApplyOrder, type Order } from '@/engine';
 import type { GameState } from '@/types/GameState';
-import { ARVELIA, ARVELIA_P, clearArmy, continent, idOf, NE1, NW1, patchRegiment, relocate, SE1, SW1 } from '../engine/armyFixtures';
+import { ARVELIA, ARVELIA_P, clearArmy, continent, idOf, NE1, NW1, NW2, patchRegiment, relocate, SE1, SW1, SW2 } from '../engine/armyFixtures';
 import { setPair } from '../engine/fixtures';
 import { applyOrder } from '@/engine/orders/apply';
 import { failOnActWarnings } from './actWarnings';
@@ -52,6 +54,78 @@ const description = (el: HTMLElement): string =>
 const button = (name: string | RegExp) => within(dialog()).getByRole('button', { name }) as HTMLButtonElement;
 const now = () => useGameStore.getState().game;
 const SW_REGIMENTS = ['1st Regulars', '2nd Regulars', '1st Artillery', '9th Minutemen', '10th Minutemen', '11th Minutemen', '12th Minutemen'];
+
+function openGarrison(game: GameState) {
+  useGameStore.setState({ ...useGameStore.getInitialState(), game, activeNationId: N1 });
+  render(<StatsDialog onClose={() => {}} />);
+  fireEvent.keyDown(screen.getByRole('tab', { name: 'Overview' }), { key: 'End' });
+  expect(document.activeElement).toBe(screen.getByRole('tab', { name: 'Garrison Book', selected: true }));
+  return screen.getByRole('tabpanel', { name: 'Garrison Book' });
+}
+
+const provincePicker = (pane: HTMLElement) => within(pane).getByRole<HTMLSelectElement>('combobox', { name: /province/i });
+const selectProvince = (pane: HTMLElement, id: string) => fireEvent.change(provincePicker(pane), { target: { value: id } });
+
+describe('FR-613 Garrison Book in Stats', () => {
+  it('shows each regiment at its origin with its type, health and Army status, including militia; inspecting issues no orders', () => {
+    let game = continent();
+    game = patchRegiment(game, idOf(game, N1, '1st Regulars'), { health: 65 });
+    game = applyOrder(game, { kind: 'moveArmy', nationId: N1, fromProvinceId: SW1, toProvinceId: NE1,
+      regimentIds: [idOf(game, N1, '1st Regulars')] });
+    game = applyOrder(game, { kind: 'disbandRegiments', nationId: N1, provinceId: SW1, regimentIds: [idOf(game, N1, '1st Artillery')] });
+    const pane = openGarrison(game);
+    selectProvince(pane, SW1);
+    const table = within(within(pane).getByRole('table'));
+    expect(table.getAllByRole('row')).toHaveLength(SW_REGIMENTS.length + 1);
+    for (const name of SW_REGIMENTS) expect(table.getByText(name, { exact: true })).toBeTruthy();
+    expect(table.getByRole('row', { name: /1st Regulars.*Regulars.*65%.*Marching to Testland North-East/i })).toBeTruthy();
+    expect(table.getByRole('row', { name: /1st Artillery.*Artillery.*100%.*Disband ordered/i })).toBeTruthy();
+    expect(table.getByRole('row', { name: /9th Minutemen.*Minutemen.*100%.*Defending/i })).toBeTruthy();
+    expect(text(pane)).toMatch(/Force Size:\s*4/i);
+    expect(within(pane).queryByRole('button')).toBeNull();
+    expect(within(pane).queryByRole('checkbox')).toBeNull();
+    selectProvince(pane, NE1);
+    expect(within(pane).queryByText('1st Regulars')).toBeNull();
+    expect(text(pane)).toMatch(/Force Size:\s*0/i);
+    expect(useGameStore.getState().game).toBe(game);
+    expect(useGameStore.getState().ordersThisTurn).toEqual([]);
+  });
+
+  it('drops a captured selection on restore and handles an empty owned province and a world without provinces', () => {
+    const game = clearArmy(continent(), N1, NE1);
+    const pane = openGarrison(game);
+    selectProvince(pane, NE1);
+    expect(text(pane)).toMatch(/no regiments?\b/i);
+    expect(text(pane)).toMatch(/Force Size:\s*0/i);
+    selectProvince(pane, SW1);
+    const captured = transferProvince(game, SW1, 'nation-2');
+    const saved = saveOf({ ...useGameStore.getState(), game: captured });
+    const slot = readSave({ getItem: () => JSON.stringify(saved) });
+    if (slot.kind !== 'usable') throw new Error('Expected a usable v1 save');
+    act(() => useGameStore.getState().restoreGame(slot.save));
+    const options = Array.from(provincePicker(pane).options, o => o.value);
+    expect(options.sort()).toEqual([NE1, NW1, SE1].sort());
+    expect(options).toContain(provincePicker(pane).value);
+    expect(within(pane).queryByText('1st Artillery')).toBeNull();
+    act(() => useGameStore.setState({ game: newGame({ seed: 1, world: 'two-islands' }) }));
+    expect(text(pane)).toMatch(/no (?:owned )?provinces?/i);
+    expect(within(pane).queryByRole('table')).toBeNull();
+  });
+
+  it('NR-040 FR-497 own roster and accessible markup stay identical across rival march orders and Normal or Demo', () => {
+    const game = continent();
+    const rivalMarch = tryApplyOrder(game, { kind: 'moveArmy', nationId: 'nation-2', fromProvinceId: SW2, toProvinceId: NW2,
+      regimentIds: [idOf(game, 'nation-2', '1st Regulars')] });
+    expect(rivalMarch.result.ok).toBe(true);
+    const pane = openGarrison(game);
+    selectProvince(pane, SW1);
+    const baseline = pane.innerHTML;
+    for (const variant of [rivalMarch.state, { ...game, difficulty: 'demo' as const }, { ...rivalMarch.state, difficulty: 'demo' as const }]) {
+      act(() => useGameStore.setState({ game: variant }));
+      expect(pane.innerHTML).toBe(baseline);
+    }
+  });
+});
 
 describe('FR-211 the Army screen: what it shows', () => {
   it('FR-211 the dialog is named "Army in Testland South-West" and shows "Force Size: 4"', () => {
