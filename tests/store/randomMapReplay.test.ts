@@ -83,3 +83,10 @@ it('NR-038 restores and replays a Large Random v1 save with a pending human Orde
   expect(saved(restored)).toEqual(saved(control));
   expect(replaySession(saved(restored))).toEqual(control.getState().game);
 });
+
+it('NR-038 replays a Standard Random save that omits its optional size', () => {
+  const game = newGame({ seed: 42, world: 'random', randomMapSize: 'standard' });
+  delete game.randomMapSize;
+  const session = saved(createGameStore({ game }));
+  expect(replaySession(session)).toStrictEqual(game);
+});
