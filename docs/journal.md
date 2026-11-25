@@ -4,6 +4,7 @@ Older entries are in `docs/journal/archive-<milestone>.md` (the latest move, 202
 
 ## Resuming here
 
+- M18d Task 31 on `claude/m18d-terrain` stopped at the first protected comparison, before map edits. At seed 4, coastal Fish changed the turn-7 Canned Food order from 4 to 6. See Q147, `docs/specs/m18d-terrain.md` and `.gate/codex/31/report.md`. Local candidate only.
 - M18 (play-test comfort, `docs/specs/m18-playtest-comfort.md`): M18a merged into main `af24381` (pull request 43), M18b part 1 (FR-563, FR-568, FR-569) in `5e80bab` (pull request 44), part 2 (FR-564 nation colours and flags) in `4098bfe` (pull request 45). NR-037 in progress.
 - M18b part 3 (FR-565, FR-566) merged into main `cd5b1be` (pull request 46); FR-567 into `994a0ca` (pull request 47), partial: the narrower pane is left for the owner; FR-570 (rail) into `751b74b` (pull request 48). Icons wait for the art (spec section 3).
 - M18c (FR-572 to FR-578) merged in `896d1fb` (pull request 49). The three-tab Board of Trade and Trade School evidence is in `.gate/claude/53/`. The owner’s FR-575 decision about moving Details is still open.
@@ -16,6 +17,24 @@ Older entries are in `docs/journal/archive-<milestone>.md` (the latest move, 202
 - Task 19 passed the load trials and full gate on `claude/perf-tests`. Finish future gates with `npm run test:perf` alone. The measured results and six functional logs are indexed in `.gate/codex/19/summary.md`.
 - To play M17 on continent seed 1, set Armaments and Fabric production to 1. Build a Ship-of-the-Line on turn 6, declare and sail on turn 7, set the site on turn 8, and land the four-ARMS army on turn 9. On turn 10 see the survivors at Sundmark and its colony vote in Council.
 
+
+## 2026-11-24 Task 31 — M18d stopped at the engine balance guard
+
+Size L. Spec-first commit `bf49f87`, baseline `e285459`, engine and test candidate `d6f928f`. See `docs/specs/m18d-terrain.md` for FR-580–587, inference notes and row status. The next owner decision is Q147.
+
+| Claim | Command or comparison | Recorded result |
+|---|---|---|
+| Red then green | Vitest terrainResources, fishing | Terrain and survey cases: 15 failed and 14 passed before implementation, then 29 passed. Fishing: 3 failed, then 3 passed. River port and bridge cases remain at 4 failed and 1 passed. |
+| Protected candidate | Vitest scriptedScore, twoIslandsGolden, sim/m13Acceptance, sim/m14Acceptance | 98/98 before. After: 95 passed, 3 failed. FR-125 minimum 903/563 (1.604×) → 878/578 (1.519×). Seeds 1, 3 and 4 have a new turn-15 rail dead end. |
+| Council and information | Same suites, verbose m14Acceptance confirmation | FR-545 15/24 → 15/24 peaceful wins (10 → 12 with a paid grant), FR-546 13/24 → 17/24. FR-497 private orders changed 0/280 plans in both runs, including orders present on all 280 turns. |
+| Four golden games | Orders and computer score at turn 40, seeds 1–4 | Orders 529/503/502/533 → 555/558/558/550. Scores 1643/1546/1530/1637 → 1473/1466/1536/1480. All four order-log hashes moved. The human scored 240 throughout. |
+| Cause | Candidate with only baseline logistics loaded by an isolated Vitest configuration | 50/50 passed. All four goldens and the original FR-125 minimum returned. Seed 4 first diverges on turn 7, order 7: Food Processing requests 4 → 6 Canned Food. |
+| Functional and build gates | npm test, npm run lint, npx tsc --noEmit, npm run build | 3,135 passed, 38 failed (143 passing files, 18 failing). Lint 0 errors, 2 warnings. TypeScript exit 0. Production build exit 0, 4/4 static pages. |
+| Browser and performance | Playwright m12-save and m18-rail on port 3123 with one worker, then npm run test:perf alone | 4 browser checks passed in 42.8 s. Two FR-570 fixture screenshots, no M18d new-world acceptance image. Performance 3/3 passed, FR-497 p95 12.5 ms (limit 100 ms). |
+
+Independent review found that a port can still fish under blockade when it has an independent rail route. Historical saves also need a new replay boundary. The full test run reproduced failures in the legacy technology and naval replay suites. The first guard stopped the world, refinery, UI and save work.
+
+Objection: suppressing a capital’s fish would depart from rules 02 and 04, which treat the capital as a port. Updating the golden alone would also accept a new rail dead end. Keep the candidate parked for Q147. The specific defaults for survey odds, gem territory, river mouths and fishing rights are in the spec. No deployment or push.
 
 ## 2026-11-24 night shift 2 — M18d terrains and resources, M18e maps and options
 
