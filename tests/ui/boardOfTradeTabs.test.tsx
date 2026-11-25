@@ -88,6 +88,16 @@ const drawn = (el: Element) => {
 };
 
 describe('FR-573 the status bar', () => {
+  it('FR-605 review: interest alone can put the next purchase over the posted limit', () => {
+    openBoard(setTreasury(withConsulate(start(), ARVELIA), N1, 5));
+    order({ kind: 'openCredit', nationId: N1 });
+    const preview = description(plus('coal', 'Buy one more Coal'));
+    expect(preview).toMatch(/\$195 before interest/);
+    expect(preview).toMatch(/\$12 interest/);
+    expect(preview).toMatch(/\$207/);
+    expect(preview).toMatch(/\$7 over/);
+    expect(preview).toMatch(/forced sale/i);
+  });
   it('FR-605 puts credit in the existing bar and describes the next purchase before the player pays', () => {
     openBoard(setTreasury(withConsulate(start(), ARVELIA), N1, 25));
     const buy = plus('coal', 'Buy one more Coal');
