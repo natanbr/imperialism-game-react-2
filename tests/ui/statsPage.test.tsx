@@ -5,11 +5,14 @@
 // numbers from the same functions (councilVote, selectScoreTable, selectActiveScore). Turn, date and cash stay in the bar.
 import { describe, it, expect } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { TopBar } from '@/components/HUD/TopBar';
 import { HudGroups } from '@/components/HUD/HudGroups';
 import { councilVote, newGame, ordinal, scoreTable } from '@/engine';
 import { councilProjectionText } from '@/components/gameText';
 import { useGameStore } from '@/store/rootStore';
+import { readSave } from '@/store/persistence';
 import type { GameState } from '@/types/GameState';
 import { failOnActWarnings } from './actWarnings';
 import { text } from './domText';
@@ -64,5 +67,53 @@ describe('FR-568 votes, score and standing on a Stats page', () => {
     expect(text(within(dialog).getByTestId('council-projection'))).toBe(councilProjectionText(councilVote(game)!, N1, nameOf));
     fireEvent.click(within(dialog).getByRole('button', { name: 'Close stats' }));
     expect(screen.queryByRole('dialog', { name: 'Stats' })).toBeNull();
+  });
+});
+
+describe('FR-596 starting settings in Stats', () => {
+  function settingsText() {
+    render(<TopBar />);
+    fireEvent.click(screen.getByRole('button', { name: 'Stats' }));
+    return text(screen.getByRole('dialog', { name: 'Stats' }));
+  }
+
+  it.each([['large', 'Large'], [undefined, 'Standard']] as const)(
+    'FR-596 shows the Random map, size %s, decimal seed, turn limit, Council interval and difficulty as text',
+    (size, name) => {
+      show(newGame({ seed: 2813929771, world: 'random', randomMapSize: size, difficulty: 'demo' }));
+      const stats = settingsText();
+      expect(stats).toMatch(/\bMap\s*:?\s*Random\b/i);
+      expect(stats).toMatch(new RegExp(`size\\s*:?\\s*${name}\\b`, 'i'));
+      expect(stats).toMatch(/\bSeed\s*:?\s*2813929771\b/i);
+      expect(stats).toMatch(/Turn limit\s*:?\s*40\b/i);
+      expect(stats).toMatch(/Council\s*:?\s*(?:every )?10[- ]turns?\b/i);
+      expect(stats).toMatch(/Difficulty\s*:?\s*Demo\b/i);
+    }
+  );
+
+  it.each(['as captured', 'without worldId, difficulty or turnLimit'])('FR-596 a pre-M16 v1 save %s shows its fixed map, seed and settings after restore', variant => {
+    const raw = readFileSync(join(__dirname, '../store/fixtures/pre-m16-turn-3.json'), 'utf8');
+    const serialized = variant === 'as captured' ? raw : JSON.stringify(JSON.parse(raw),
+      (key, value) => ['worldId', 'difficulty', 'turnLimit'].includes(key) ? undefined : value);
+    const slot = readSave({ getItem: () => serialized });
+    if (slot.kind !== 'usable') throw new Error('Expected the pre-M16 v1 fixture to load');
+    useGameStore.setState(useGameStore.getInitialState());
+    useGameStore.getState().restoreGame(slot.save);
+    const stats = settingsText();
+    expect(stats).toMatch(/Map\s*:?\s*Two islands\b/i);
+    expect(stats).toMatch(/Seed\s*:?\s*1\b/);
+    expect(stats).toMatch(/Turn limit\s*:?\s*40\b/i);
+    expect(stats).toMatch(/Difficulty\s*:?\s*Normal\b/i);
+    expect(stats).not.toMatch(/\b(?:random )?size\b/i);
+  });
+
+  it('FR-596 NR-038 an unmarked 400-turn Continent game shows the ten-turn Council calendar and its saved difficulty', () => {
+    show(newGame({ seed: 15, world: 'continent', turnLimit: 400, difficulty: 'hard' }));
+    const stats = settingsText();
+    expect(stats).toMatch(/Map\s*:?\s*Continent\b/i);
+    expect(stats).toMatch(/Turn limit\s*:?\s*400\b/i);
+    expect(stats).toMatch(/Council\s*:?\s*(?:every )?10[- ]turns?\b/i);
+    expect(stats).toMatch(/Difficulty\s*:?\s*Hard\b/i);
+    expect(stats).not.toMatch(/\b(?:random )?size\b/i);
   });
 });

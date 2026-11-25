@@ -8,17 +8,19 @@ import {
   tryApplyOrder,
   type CouncilMetEvent,
   type GameEvent,
+  type NewGameOptions,
   type Order,
-  type RejectReason,
   type ValidationResult,
 } from "@/engine";
 import type { NationId } from "@/types/Common";
-import type { Difficulty, GameState } from "@/types/GameState";
+import type { GameState } from "@/types/GameState";
 import type { WorldId } from "@/types/World";
-import type { MarketMode } from "@/types/Market";
 import type { GameStore } from "./rootStore";
 import type { ReplayBoundary } from "./sessionReplay";
+import { projectRankings, type RankRecord } from "./rankHistory";
 import { isPlayersWorker } from "./controls/playersWorker";
+import { rejectedOrder, type OrderRejection } from "@/engine/orders/Order";
+export type { OrderRejection } from "@/engine/orders/Order";
 
 /** How many resolved turns the event log keeps. */
 export const EVENT_LOG_TURNS = 20;
@@ -38,11 +40,6 @@ export interface TurnReport {
 
 const treasuriesOf = (state: GameState): Record<NationId, number> => Object.fromEntries(state.nations.map((n) => [n.id, n.treasury ?? 0]));
 
-export interface OrderRejection {
-  order: Order;
-  reason: RejectReason;
-}
-
 /** One nation's orders for one resolved turn (FR-100); the log of these replays the game. */
 export interface OrderLogEntry {
   turn: number;
@@ -59,6 +56,8 @@ export interface GameSession {
   activeNationId: NationId;
   /** Oldest first, at most EVENT_LOG_TURNS entries. */
   eventLog: TurnReport[];
+  /** FR-611: settled display placings, oldest first. A v1 save can lack some or all earlier turns. */
+  rankHistory?: RankRecord[];
   /** Every nation's orders of every resolved turn, oldest first (FR-100). */
   orderLog: OrderLogEntry[];
   /** The active nation's orders applied this turn, in order; logged at End Turn (FR-100). */
@@ -100,7 +99,7 @@ export interface GameSlice extends GameSession {
    * Replaces the game with a new one and clears what belonged to the old one (FR-105, FR-109); on the
    * continent unless `world` names another (FR-144); on the Normal level unless `difficulty` is "demo" (FR-561).
    */
-  startNewGame: (options?: { seed?: number; turnLimit?: number; world?: WorldId; market?: MarketMode; difficulty?: Difficulty }) => void;
+  startNewGame: (options?: Partial<NewGameOptions>) => void;
   /**
    * Replaces the game and its session with a saved one (FR-359), with nothing selected and no dialog open, as a new game
    * starts. Only page.tsx calls it, at the start: the store never loads a save by itself.
@@ -108,15 +107,11 @@ export interface GameSlice extends GameSession {
   restoreGame: (session: GameSession) => void;
 }
 
-export interface GameSliceOptions {
+export interface GameSliceOptions extends Pick<NewGameOptions, "world" | "market" | "randomMapSize"> {
   /** Start from this state instead of a new game (tests). */
   game?: GameState;
   /** Seed for a new game; drawn at random when missing (FR-019). */
   seed?: number;
-  /** The world of a new game; the continent when missing (FR-144). */
-  world?: WorldId;
-  /** The market mode of a new game; the world's own when missing (FR-242: the continent's is "partners"). */
-  market?: MarketMode;
   activeNationId?: NationId;
 }
 
@@ -129,12 +124,14 @@ export const randomSeed = (random: () => number = Math.random): number => 1 + Ma
 export const createGameSlice =
   (options: GameSliceOptions = {}): StateCreator<GameStore, [], [], GameSlice> =>
   (set, get) => {
-    const game = options.game ?? newGame({ seed: options.seed ?? randomSeed(), world: options.world ?? APP_WORLD, market: options.market });
+    const game = options.game ?? newGame({ seed: options.seed ?? randomSeed(), world: options.world ?? APP_WORLD,
+      market: options.market, randomMapSize: options.randomMapSize });
     return {
       game,
       activeNationId: options.activeNationId ?? game.nations[0]?.id ?? "nation-1",
       lastRejection: null,
       eventLog: [],
+      rankHistory: undefined,
       orderLog: [],
       ordersThisTurn: [],
       turnStartTreasuries: null,
@@ -152,14 +149,14 @@ export const createGameSlice =
             ordersThisTurn: [...ordersThisTurn, order],
             turnStartTreasuries: ordersThisTurn.length === 0 ? treasuriesOf(current) : turnStartTreasuries,
           });
-        else set({ lastRejection: { order, reason: result.reason } });
+        else set({ lastRejection: rejectedOrder(order, result) });
         return result;
       },
 
       // The human's orders were applied when submitted; the computer nations plan on that state and
       // their orders resolve with the turn (FR-099, ARCHITECTURE.md turn flow).
       advanceTurn: () => {
-        const { game: current, eventLog, orderLog, ordersThisTurn, activeNationId, selectedWorkerId, turnStartTreasuries } = get();
+        const { game: current, eventLog, rankHistory, orderLog, ordersThisTurn, activeNationId, selectedWorkerId, turnStartTreasuries } = get();
         // After the end resolveTurn is a no-op that would still log an empty turn (FR-077).
         if (isGameOver(current)) return;
         const computer = computerOrders(current);
@@ -175,10 +172,17 @@ export const createGameSlice =
           nationId: n.id,
           orders: n.id === activeNationId ? ordersThisTurn : (computer[n.id] ?? []),
         }));
+        let ranking: RankRecord | undefined;
+        try {
+          ranking = projectRankings(state, events, report.turn);
+        } catch {
+          // FR-611: keep the settled turn even when its display sample is unavailable.
+        }
         set({
           game: state,
           selectedWorkerId: selectedWorkerId && isPlayersWorker({ game: state, activeNationId }, selectedWorkerId) ? selectedWorkerId : undefined,
           eventLog: [...eventLog, report].slice(-EVENT_LOG_TURNS),
+          rankHistory: ranking ? [...(rankHistory ?? []), ranking] : rankHistory,
           orderLog: [...orderLog, ...logged],
           ordersThisTurn: [],
           turnStartTreasuries: null,
@@ -204,14 +208,15 @@ export const createGameSlice =
       },
 
       // Nothing of the old game's session survives: selection, dialogs, news, logs (FR-105, FR-109).
-      startNewGame: ({ seed, turnLimit, world, market, difficulty } = {}) => {
-        const next = newGame({ seed: seed ?? randomSeed(), turnLimit, world: world ?? APP_WORLD, market, difficulty });
+      startNewGame: (settings = {}) => {
+        const next = newGame({ ...settings, seed: settings.seed ?? randomSeed(), world: settings.world ?? APP_WORLD });
         set({
           ...NO_SELECTION_NO_DIALOG,
           game: next,
           replayBoundary: undefined,
           activeNationId: next.nations[0]?.id ?? "nation-1",
           eventLog: [],
+          rankHistory: undefined,
           orderLog: [],
           ordersThisTurn: [],
           turnStartTreasuries: null,
@@ -222,8 +227,8 @@ export const createGameSlice =
       setSaveFailed: (failed) => set({ saveFailed: failed }),
 
       // FR-359: the saved session, and of the UI only what a new game starts with; a finished game shows its final scores
-      restoreGame: ({ game: saved, replayBoundary, activeNationId, eventLog, orderLog, ordersThisTurn, turnStartTreasuries }) =>
-        set({ ...NO_SELECTION_NO_DIALOG, game: saved, replayBoundary, activeNationId, eventLog, orderLog, ordersThisTurn, turnStartTreasuries }),
+      restoreGame: ({ game: saved, replayBoundary, activeNationId, eventLog, rankHistory, orderLog, ordersThisTurn, turnStartTreasuries }) =>
+        set({ ...NO_SELECTION_NO_DIALOG, game: saved, replayBoundary, activeNationId, eventLog, rankHistory, orderLog, ordersThisTurn, turnStartTreasuries }),
     };
   };
 

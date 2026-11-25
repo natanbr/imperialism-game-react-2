@@ -1,5 +1,5 @@
 import type { Difficulty, GameState } from "@/types/GameState";
-import type { WorldId } from "@/types/World";
+import type { RandomMapSize, WorldId } from "@/types/World";
 import type { MarketMode } from "@/types/Market";
 import { TIME_CONFIG } from "@/constants/gameConstants";
 import { initializeRailroadNetworks } from "./systems/railroadSystem";
@@ -15,6 +15,7 @@ export interface NewGameOptions {
   turnLimit?: number;
   /** A key of `WORLDS` (FR-144); "two-islands" when omitted, so every v1 call is unchanged. */
   world?: WorldId;
+  randomMapSize?: RandomMapSize;
   /** The market mode (FR-242); the world's own (`WORLD_MARKET`) when omitted. */
   market?: MarketMode;
   /** The level; "normal" when omitted. Only "demo" changes the start (FR-561): the human nation's Demo kit. */
@@ -33,18 +34,19 @@ export function clampTurnLimit(turnLimit: number | undefined): number {
  * buildings and warehouse, its civilians on the capital and its rail network built; on the continent
  * also the minor nations, the provinces (FR-145 to FR-147) and the start forces (FR-203: armies, capital
  * forts, 4 more horses each; none on two-islands). The caller chooses the seed (the store
- * draws one, tests pass 1); the map is the same for every seed. `newGame(seed)` is `newGame({ seed })`.
+ * draws one, tests pass 1). Random uses the seed and size to build its map. `newGame(seed)` is `newGame({ seed })`.
  */
 export function newGame(options: number | NewGameOptions): GameState {
-  const { seed, turnLimit, world = DEFAULT_WORLD, market, difficulty = "normal" }: NewGameOptions =
+  const { seed, turnLimit, world = DEFAULT_WORLD, randomMapSize, market, difficulty = "normal" }: NewGameOptions =
     typeof options === "number" ? { seed: options } : options;
-  const { map, nations, minorNations, provinces } = buildWorld(world);
+  const { map, nations, minorNations, provinces } = buildWorld(world, seed, randomMapSize);
   const start = withStartForces({
     turn: TIME_CONFIG.STARTING_TURN,
     rulesRevision: "m16.1",
     year: TIME_CONFIG.STARTING_YEAR,
     seed,
     worldId: world,
+    ...(world === "random" && randomMapSize !== undefined && { randomMapSize }),
     turnLimit: clampTurnLimit(turnLimit),
     nations,
     minorNations,

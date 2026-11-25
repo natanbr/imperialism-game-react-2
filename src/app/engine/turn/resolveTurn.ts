@@ -1,6 +1,6 @@
 import type { GameState } from "@/types/GameState";
 import type { NavalEngagement } from "@/types/Navy";
-import type { Order } from "../orders/Order";
+import { rejectedOrder, type Order } from "../orders/Order";
 import { tryApplyOrder } from "../orders/apply";
 import { advanceClock, promoteFreightCars, resetWorkers } from "../systems/turnHousekeeping";
 import { createTurnContext, type GameEvent } from "./context";
@@ -51,7 +51,7 @@ export function applyTurnOrders(
         s = next;
         accepted.push(order);
       } else {
-        emit({ type: "order-rejected", nationId, order, reason: result.reason });
+        emit({ type: "order-rejected", nationId, ...rejectedOrder(order, result) });
       }
     }
   }

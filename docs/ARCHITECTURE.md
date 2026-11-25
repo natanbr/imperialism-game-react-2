@@ -634,6 +634,10 @@ at turns 1, 10 and 25).
   (a guard test; localStorage holds about 5 MB). `readSave()` never throws and returns `empty` (also when the browser
   blocks storage), `usable`, or `unusable` (does not parse, another version, no game with turn, nations and map).
   `writeSave` returns false when the browser refuses.
+- **Settled rankings (FR-610, FR-611).** The optional `GameSession.rankHistory` stores the turn played and each
+  Great Power's place per measure. `advanceTurn` derives it from the resolved game and its events in the same update
+  as the turn report. Stats can therefore read turns older than the 20-report limit. Missing records appear as gaps.
+  The engine continues to receive only `GameState` and Orders.
 - **Autosave** (`startAutosave(store)`): a change of `game` that comes with a new `eventLog` (End Turn, a new game, a
   restore) is written at once; one without it (an accepted order) 500 ms after the first of a burst
   (`SAVE_DELAY_MS`), one write per burst. Each write sets the store's `saveFailed`, which the HUD shows

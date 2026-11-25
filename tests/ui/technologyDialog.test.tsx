@@ -3,11 +3,12 @@ import { expect, it } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { CapitalModal } from '@/components/CapitalModal';
 import { useGameStore } from '@/store/rootStore';
-import { newGame } from '@/engine';
+import { applyOrder, newGame } from '@/engine';
 import { N1 } from '../engine/fixtures';
 
-function open(cash = 10000) {
-  const state = newGame({ seed: 1 });
+function open(cash = 10000, credit = false) {
+  const start = newGame({ seed: 1 });
+  const state = credit ? applyOrder(start, { kind: 'openCredit', nationId: N1 }) : start;
   state.nations.find(n => n.id === N1)!.treasury = cash;
   useGameStore.setState({ ...useGameStore.getInitialState(), game: state, activeNationId: N1, isCapitalOpen: true });
   render(<CapitalModal />);
@@ -16,6 +17,12 @@ function open(cash = 10000) {
   fireEvent.click(trigger);
   return within(screen.getByRole('dialog', { name: 'Invest in Technology' }));
 }
+
+it('FR-605 review: a refused technology names its cost and remaining buying power', () => {
+  const dialog = open(25, true);
+  const buy = dialog.getByRole('button', { name: 'Buy Cotton Gin' });
+  expect(document.getElementById(buy.getAttribute('aria-describedby')!)?.textContent).toMatch(/\$1,000.*\$225 buying power/i);
+});
 
 it('FR-526 lists all 28 technologies, their effects, prices, arrival turns and missing prerequisites', () => {
   const dialog = open();

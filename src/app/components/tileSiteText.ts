@@ -2,7 +2,7 @@
 // wording for Tile Info, Construction Options, the map's status line and the spend question; and who collects a tile
 // (FR-391). Whether a job can start is the engine's validateOrder; this file only words its reason with the tile's facts.
 // It reads state, never builds it.
-import { collectingHub, isConqueredProvince, provinceOf, validateOrder, type Order, type RejectReason } from "@/engine";
+import { collectingHub, isConqueredProvince, provinceOf, validateOrder, type Order, type RejectReason, type ValidationResult } from "@/engine";
 import {
   DEVELOPMENT_WORKER_TYPES,
   TECH,
@@ -21,7 +21,7 @@ import type { GameState } from "@/types/GameState";
 import { TerrainType, type Tile } from "@/types/Tile";
 import { WorkerStatus, WorkerType, type Worker } from "@/types/Workers";
 import type { ConstructionKind } from "@/types/jobs/ConstructionJob";
-import { REFUSAL_TEXT, TERRAIN_TEXT, commodityName, money } from "./gameText";
+import { REFUSAL_TEXT, TERRAIN_TEXT, commodityName, fundsNeededText, money } from "./gameText";
 
 /** A job's price, paid when it is ordered, and the turns it takes. */
 export interface JobCost {
@@ -171,8 +171,10 @@ function siteReason(state: GameState, order: JobOrder, reason: RejectReason): st
  * to it.", "Too close to the capital or another depot.", "This tile already has a fort.", "Not enough money (needs
  * $5,000)."; for a reason with nothing to add, the engine's refusal as a sentence ("The worker already moved this turn.").
  */
-export function offerRefusalText(state: GameState, order: Order, reason: RejectReason): string {
+export function offerRefusalText(state: GameState, order: Order, result: Extract<ValidationResult, { ok: false }>): string {
+  const { reason } = result;
   if (reason === "insufficient-funds") {
+    if ("cost" in result) return `${fundsNeededText(result.cost, result.buyingPower)}.`;
     const cost = jobCost(state, order);
     return cost ? `Not enough money (needs ${money(cost.price)}).` : sentence(REFUSAL_TEXT[reason]);
   }
@@ -219,7 +221,7 @@ export function jobOffers(state: GameState, nationId: string, worker: Worker, ti
   }
   return offers.map(({ name, order }) => {
     const result = validateOrder(state, order);
-    return { name, order, cost: jobCost(state, order), refusal: result.ok ? undefined : offerRefusalText(state, order, result.reason) };
+    return { name, order, cost: jobCost(state, order), refusal: result.ok ? undefined : offerRefusalText(state, order, result) };
   });
 }
 

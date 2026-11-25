@@ -1,6 +1,6 @@
 "use client";
 import React, { useId, useMemo, useState } from "react";
-import type { Order, ValidationResult } from "@/engine";
+import { countryName, type Order, type ValidationResult } from "@/engine";
 import type { GameState } from "@/types/GameState";
 import { reasonLines, tradePolicyRows, type ControlView, type TradePolicyRowView } from "../diplomacy/diplomacyView";
 import styles from "./Market.module.css";
@@ -8,8 +8,11 @@ import { NationFlag } from "../NationFlag";
 import { TradePolicyMap } from "./TradePolicyMap";
 import { tradePolicyMapView } from "./tradePolicyMapView";
 import mapStyles from "./TradePolicyMap.module.css";
+import { diplomaticCountries, type InformationMode } from "./diplomaticMapView";
+import { CountryDetail, DiplomaticCountryList, DiplomaticMapKey } from "./DiplomaticMapInfo";
 
 type Submit = (order: Order) => ValidationResult;
+export type MapMode = "Trade policies" | InformationMode;
 
 /**
  * One country (FR-576): its flag and name, the subsidy steps as toggle buttons (the policy in force pressed) and the
@@ -85,33 +88,58 @@ const PolicyRow: React.FC<{ row: TradePolicyRowView; submitOrder: Submit }> = ({
   );
 };
 
-/** Map and List get their policy rows and refusals from diplomacyView's tradePolicyRows. */
-export const TradePolicies: React.FC<{ game: GameState; nationId: string; submitOrder: Submit }> = ({ game, nationId, submitOrder }) => {
-  const [mode, setMode] = useState<"Map" | "List">("Map");
+interface Props {
+  game: GameState;
+  nationId: string;
+  submitOrder: Submit;
+  mode: MapMode;
+  onModeChange: (mode: MapMode) => void;
+}
+
+export const TradePolicies: React.FC<Props> = ({ game, nationId, submitOrder, mode, onModeChange }) => {
+  const [layout, setLayout] = useState<"Map" | "List">("Map");
   const [chosenId, setChosenId] = useState<string>();
-  const rows = useMemo(() => tradePolicyRows(game, nationId), [game, nationId]);
+  const rows = useMemo(() => mode === "Trade policies" ? tradePolicyRows(game, nationId) : [], [game, nationId, mode]);
+  const information = useMemo(() => mode === "Trade policies" ? [] : diplomaticCountries(game, nationId, mode), [game, nationId, mode]);
   const geometry = tradePolicyMapView(game);
-  const landedRows = rows.filter((row) => geometry.countries.some((land) => land.id === row.id));
-  const selected = landedRows.find((row) => row.id === chosenId) ?? landedRows[0];
-  const visibleRows = mode === "List" ? rows : selected ? [selected] : [];
+  const isMap = layout === "Map";
+  const candidates = mode === "Trade policies" ? rows : information;
+  const available = isMap ? candidates.filter(row => geometry.countries.some(land => land.id === row.id)) : candidates;
+  const selectedId = available.find(row => row.id === chosenId)?.id ?? available[0]?.id;
+  const visibleRows = isMap ? rows.filter(row => row.id === selectedId) : rows;
+  const selectedInfo = information.find(row => row.id === selectedId);
+  const viewer = countryName(game, nationId) ?? nationId;
   return (
-    <div className={mode === "Map" ? mapStyles.sheet : undefined}>
+    <div className={isMap ? mapStyles.sheet : undefined}>
       <div className={mapStyles.toolbar}>
+        <label className={mapStyles.mode}>
+          Map mode
+          <select value={mode} onChange={(event) => onModeChange(event.target.value as MapMode)}>
+            <option>Trade policies</option><option>Relationships</option><option>Political status</option>
+          </select>
+        </label>
         <div className={styles.sideChoice} role="group" aria-label="Trade policy view">
           {(["Map", "List"] as const).map((view) => (
-            <button key={view} className={styles.sideButton} type="button" aria-pressed={mode === view} onClick={() => setMode(view)}>{view}</button>
+            <button key={view} className={styles.sideButton} type="button" aria-pressed={layout === view} onClick={() => setLayout(view)}>{view}</button>
           ))}
         </div>
-        <p className={styles.boardNote}>
+        {mode === "Trade policies" ? <p className={styles.boardNote}>
           A subsidy changes the price of our deals with that country, and a boycott stops them; both count in this turn&apos;s
           trade.
-        </p>
+        </p> : <>
+          <p className={styles.boardNote}>From {viewer}{mode === "Political status" ? " · Markers show our offices abroad." : " · Settled relationships, from bad to good."}</p>
+          <DiplomaticMapKey mode={mode} />
+        </>}
       </div>
-      {mode === "Map" && <TradePolicyMap game={game} geometry={geometry} rows={rows} selectedId={selected?.id} select={setChosenId} />}
-      {visibleRows.length > 0 ? (
+      {isMap && <TradePolicyMap game={game} geometry={geometry} rows={rows} information={information}
+        mode={mode} viewerId={nationId} selectedId={selectedId} select={setChosenId} />}
+      {mode !== "Trade policies" ? <>
+        {!isMap && <DiplomaticCountryList mode={mode} viewer={viewer} selected={selectedInfo} countries={information} select={setChosenId} />}
+        <CountryDetail mode={mode} viewer={viewer} selected={selectedInfo} />
+      </> : visibleRows.length > 0 ? (
         <table
-          aria-label={mode === "Map" ? "Selected country policy" : "Country policies"}
-          className={`${styles.table} ${styles.policyTable} ${mode === "Map" ? mapStyles.bar : ""}`}
+          aria-label={isMap ? "Selected country policy" : "Country policies"}
+          className={`${styles.table} ${styles.policyTable} ${isMap ? mapStyles.bar : ""}`}
         >
           <thead>
             <tr>
@@ -126,7 +154,7 @@ export const TradePolicies: React.FC<{ game: GameState; nationId: string; submit
         </table>
       ) : (
         <p className={styles.boardNote}>
-          {mode === "Map" ? "No countries on the map are available for a trade policy." : "No countries are available for a trade policy."}
+          {isMap ? "No countries on the map are available for a trade policy." : "No countries are available for a trade policy."}
         </p>
       )}
     </div>

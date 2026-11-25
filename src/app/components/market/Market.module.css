@@ -227,7 +227,7 @@
   padding: 2px 10px;
 }
 
-/* FR-577: Board | Details | Trade policies, as tabs on a line */
+/* FR-577: views of the Board, including the FR-612 Trade Book. */
 .tabs {
   flex: none;
   display: flex;
@@ -502,6 +502,22 @@
   color: var(--color-text-muted);
 }
 
+.boardTable .amount:has(.stepNote),
+.worldTable .amount:has(.stepNote) {
+  display: grid;
+  grid-template-columns: repeat(3, max-content);
+}
+
+.boardTable .stepNote,
+.worldTable .stepNote {
+  grid-column: 1 / -1;
+  width: 25ch;
+  max-width: 100%;
+  text-wrap: wrap;
+  font-size: var(--font-size-sm);
+  line-height: 1.25;
+}
+
 /* The Board of Trade (FR-574): a refused "+" shows its reason beside it, over the Market column, while it has focus */
 .amountAnchor {
   position: relative;
@@ -532,6 +548,19 @@
 
 .partnersCell {
   font-size: var(--font-size-sm);
+}
+
+.sourceNote {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.partnersCell .sourceNote {
+  margin-inline-start: 0.4em;
+}
+
+.worldTable .sourceNote {
+  display: block;
 }
 
 .partners {
@@ -589,6 +618,8 @@
 /* The Deal Book (FR-195): Sold and Bought side by side, as the Imp1 ledger's two pages, the bottom line under them */
 
 .dealBook {
+  box-sizing: border-box;
+  container-type: inline-size;
   width: 760px;
   max-width: calc(100vw - 32px);
   max-height: calc(100vh - 32px);
@@ -696,10 +727,11 @@
 
 .bottomLine td {
   text-align: right;
+  white-space: nowrap;
 }
 
-.bottomLine tr:last-child th,
-.bottomLine tr:last-child td {
+.movements tr:last-child th,
+.movements tr:last-child td {
   font-weight: 700;
   border-bottom: none;
   border-top: 1px solid var(--color-border-strong);
@@ -707,6 +739,37 @@
 
 .negative {
   color: var(--color-text-danger);
+}
+
+.creditLine {
+  margin-block-start: var(--spacing-lg);
+  padding-block-start: var(--spacing-md);
+  border-block-start: 1px solid var(--color-border-strong);
+}
+
+.creditFigures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px var(--spacing-lg);
+  margin-block: 8px 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.creditFigures dt, .creditLine p {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.creditFigures dd {
+  margin: 2px 0 0;
+  font-weight: bold;
+}
+
+@container (max-width: 480px) {
+  .pages, .totals {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-sm);
+  }
 }
 
 /* FR-425 (UIV-13): up to 1000 px (800x600 among them) the Board's Market column and the Details tab's Minor nations fit
@@ -748,12 +811,19 @@
     flex-wrap: wrap;
   }
 
+  .board .tab {
+    padding-inline: 7px;
+  }
+
   .boardTable,
-  .boardTable tbody {
+  .boardTable tbody,
+  .worldTable,
+  .worldTable tbody {
     display: block;
   }
 
-  .boardTable thead {
+  .boardTable thead,
+  .worldTable thead {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -761,7 +831,8 @@
     clip-path: inset(50%);
   }
 
-  .boardTable tr {
+  .boardTable tr,
+  .worldTable tr {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 4px 8px;
@@ -769,7 +840,8 @@
     border-bottom: 1px solid var(--color-border);
   }
 
-  .boardTable td {
+  .boardTable td,
+  .worldTable td {
     display: block;
     width: auto;
     padding: 0;
@@ -777,6 +849,7 @@
     text-align: left;
   }
 
+  .worldTable td:first-child,
   .boardTable td:nth-child(1),
   .boardTable td:nth-child(6) {
     grid-column: 1 / -1;
@@ -807,6 +880,27 @@
   .boardTable td:nth-child(5)::before {
     display: block;
     content: "Quantity";
+  }
+
+  .worldTable td::before {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-sm);
+  }
+
+  .worldTable td:nth-child(2)::before { content: "Price "; }
+  .worldTable td:nth-child(3)::before { content: "Stock "; }
+  .worldTable td:nth-child(4)::before { display: block; content: "Sell"; }
+  .worldTable td:nth-child(5)::before { display: block; content: "Buy"; }
+
+  .boardTable .amount:has(.stepNote),
+  .worldTable .amount:has(.stepNote) {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .boardTable .stepNote,
+  .worldTable .stepNote {
+    width: 100%;
   }
 
   /* FR-575, FR-576: the Details and Trade policies rows as blocks too, their cells one under the other */

@@ -518,8 +518,9 @@ describe('FR-425 FR-428 the Board of Trade on smaller windows', () => {
   it('FR-428 below 600 px each row is a block: the name, then price and stock, then Bid and Offer side by side, then the minors', () => {
     const rules = block('(max-width: 599.98px)');
     expect(rules).toMatch(/\.board \{[^}]*width: calc\(100vw - 16px\);/);
-    expect(rules).toMatch(/\.boardTable thead \{[^}]*position: absolute;/);
-    expect(rules).toMatch(/\.boardTable tr \{[^}]*display: grid;[^}]*grid-template-columns: minmax\(0, 1fr\) minmax\(0, 1fr\);/);
+    // FR-608: Board-only selectors → Board and World market share the accessible header and two-column layout.
+    expect(rules).toMatch(/\.boardTable thead,\s*\.worldTable thead \{[^}]*position: absolute;/);
+    expect(rules).toMatch(/\.boardTable tr,\s*\.worldTable tr \{[^}]*display: grid;[^}]*grid-template-columns: minmax\(0, 1fr\) minmax\(0, 1fr\);/);
     expect(rules).toMatch(/\.boardTable td:nth-child\(1\),\s*\.boardTable td:nth-child\(6\) \{[^}]*grid-column: 1 \/ -1;/);
   });
 

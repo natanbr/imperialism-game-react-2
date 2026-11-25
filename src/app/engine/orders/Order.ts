@@ -15,6 +15,10 @@ interface OrderBase {
   nationId: NationId;
 }
 
+export interface OpenCreditOrder extends OrderBase {
+  kind: "openCredit";
+}
+
 /** Plain move to any owned land tile. */
 export interface MoveWorkerOrder extends OrderBase {
   kind: "moveWorker";
@@ -287,6 +291,7 @@ export interface WithdrawTechnologyOrder extends OrderBase {
 export type TechnologyOrder = BuyTechnologyOrder | WithdrawTechnologyOrder;
 
 export type Order =
+  | OpenCreditOrder
   | SetFleetMissionOrder
   | TechnologyOrder
   | CivilianOrder
@@ -328,6 +333,7 @@ export type DiplomacyOrder = ProposeOvertureOrder | GiveGrantOrder | SetTradePol
 export type ArmyOrder = SetRecruitmentOrder | MoveArmyOrder | CancelArmyMoveOrder | DisbandRegimentsOrder | CancelDisbandOrder;
 
 export const ORDER_KINDS = [
+  "openCredit",
   "moveWorker",
   "moveAndBuildRail",
   "startProspecting",
@@ -421,4 +427,17 @@ export type OrdinaryRejectReason = Exclude<RejectReason, "missing-technology">;
 export type ValidationResult =
   | { ok: true }
   | { ok: false; reason: OrdinaryRejectReason }
+  | { ok: false; reason: "insufficient-funds"; cost: number; buyingPower: number }
   | { ok: false; reason: "missing-technology"; techId: string };
+
+export interface OrderRejection {
+  order: Order;
+  reason: RejectReason;
+  cost?: number;
+  buyingPower?: number;
+}
+
+export function rejectedOrder(order: Order, result: Extract<ValidationResult, { ok: false }>): OrderRejection {
+  const rejection = { order, reason: result.reason };
+  return "cost" in result ? { ...rejection, cost: result.cost, buyingPower: result.buyingPower } : rejection;
+}

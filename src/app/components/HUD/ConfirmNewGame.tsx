@@ -1,6 +1,9 @@
-import React, { useEffect, useId, useLayoutEffect, useRef } from "react";
-import { startDemoGameOnCapital, startNewGameOnCapital } from "@/hooks/mapActions";
-import { leftInWindow } from "./hudView";
+import React, { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { parseMapSeed } from "@/engine";
+import { startGameOnCapital } from "@/hooks/mapActions";
+import { APP_WORLD } from "@/store/gameSlice";
+import type { RandomMapSize, WorldId } from "@/types/World";
+import { DIFFICULTY_LABEL, leftInWindow, SIZE_LABEL, WORLD_LABEL } from "./hudView";
 
 export const CONFIRM_NEW_GAME_ID = "confirm-new-game";
 
@@ -17,7 +20,27 @@ export const CONFIRM_NEW_GAME_ID = "confirm-new-game";
  */
 export const ConfirmNewGame: React.FC<{ anchor: React.RefObject<HTMLElement | null>; onDone: () => void }> = ({ anchor, onDone }) => {
   const panel = useRef<HTMLDivElement>(null);
-  const demoNoteId = useId();
+  const id = useId();
+  const [world, setWorld] = useState<WorldId>(APP_WORLD);
+  const [size, setSize] = useState<RandomMapSize>("standard");
+  const [difficulty, setDifficulty] = useState<"normal" | "demo">("normal");
+  const [fixedSeedOpen, setFixedSeedOpen] = useState(false);
+  const [seedText, setSeedText] = useState("");
+  const randomMap = world === "random";
+  const showSeed = randomMap || fixedSeedOpen;
+  const seed = parseMapSeed(showSeed ? seedText : "");
+  const invalid = seed.kind === "invalid";
+
+  function start(level: "normal" | "demo") {
+    if (seed.kind === "invalid") return;
+    startGameOnCapital({
+      world, difficulty: level,
+      ...(randomMap && { randomMapSize: size }),
+      ...(seed.kind === "seed" && { seed: seed.seed }),
+    });
+    onDone();
+  }
+
   useLayoutEffect(() => {
     const place = () => {
       const button = anchor.current;
@@ -47,6 +70,7 @@ export const ConfirmNewGame: React.FC<{ anchor: React.RefObject<HTMLElement | nu
       className="confirm-panel"
       role="group"
       aria-label="Confirm new game"
+      aria-describedby={`${id}-warning`}
       data-edge-scroll=""
       onKeyDown={(e) => {
         if (e.key !== "Escape") return;
@@ -54,35 +78,54 @@ export const ConfirmNewGame: React.FC<{ anchor: React.RefObject<HTMLElement | nu
         onDone();
       }}
     >
-      <p>Start a new game? This game will be lost.</p>
-      <div className="confirm-actions">
-        <button
-          className="btn btn-primary btn-sm"
-          onClick={() => {
-            startNewGameOnCapital();
-            onDone();
-          }}
-        >
-          Start new game
-        </button>
-        {/* FR-561: a testing aid, described by the visible line under the buttons (M18a review: a title is mouse-only) */}
-        <button
-          className="btn btn-plain btn-sm"
-          aria-describedby={demoNoteId}
-          onClick={() => {
-            startDemoGameOnCapital();
-            onDone();
-          }}
-        >
-          Start Demo game
-        </button>
-        <button className="btn btn-plain btn-sm" onClick={onDone}>
-          Keep playing
-        </button>
-      </div>
-      <p id={demoNoteId} className="confirm-note">
-        Demo: more cash and troops, and a dashboard of every nation&apos;s numbers.
-      </p>
+      <p id={`${id}-warning`} className="confirm-warning">Start a new game? This game will be lost.</p>
+      <form onSubmit={(event) => { event.preventDefault(); start(difficulty); }}>
+        <div className="confirm-field">
+          <label htmlFor={`${id}-map`}>Map</label>
+          <select id={`${id}-map`} name="world" value={world} onChange={e => setWorld(e.target.value as WorldId)}>
+            {(["continent", "two-islands", "random"] as const).map(value => <option key={value} value={value}>{WORLD_LABEL[value]}</option>)}
+          </select>
+        </div>
+        {randomMap ? (
+          <div className="confirm-field">
+            <label htmlFor={`${id}-size`}>Random size</label>
+            <select id={`${id}-size`} name="randomMapSize" value={size} onChange={e => setSize(e.target.value as RandomMapSize)}>
+              {(["standard", "large"] as const).map(value => <option key={value} value={value}>{SIZE_LABEL[value]}</option>)}
+            </select>
+          </div>
+        ) : (
+          <button type="button" className="btn btn-plain btn-sm confirm-disclosure" aria-expanded={fixedSeedOpen}
+            aria-controls={`${id}-seed-field`} onClick={() => setFixedSeedOpen(!fixedSeedOpen)}>
+            Set replay seed
+          </button>
+        )}
+        <div id={`${id}-seed-field`} className="confirm-field" hidden={!showSeed}>
+          <label htmlFor={`${id}-seed`}>Seed</label>
+          <input id={`${id}-seed`} name="seed" type="text" value={seedText} onChange={e => setSeedText(e.target.value)}
+            autoCapitalize="none" autoCorrect="off" spellCheck={false} autoComplete="off"
+            aria-invalid={invalid} aria-describedby={invalid ? `${id}-seed-hint ${id}-seed-error` : `${id}-seed-hint`} />
+          <span className="confirm-hint" id={`${id}-seed-hint`}>Enter a number or key word, or leave blank for a new seed.</span>
+          <span className="confirm-error" id={`${id}-seed-error`} aria-live="polite">{invalid &&
+            "Use a whole number from 0 to 4294967295, or 1–64 letters (A–Z), digits, spaces or hyphens with at least one letter."}</span>
+        </div>
+        <div className="confirm-field">
+          <label htmlFor={`${id}-difficulty`}>Difficulty</label>
+          <select id={`${id}-difficulty`} name="difficulty" value={difficulty} onChange={e => setDifficulty(e.target.value as "normal" | "demo")}>
+            {(["normal", "demo"] as const).map(value => <option key={value} value={value}>{DIFFICULTY_LABEL[value]}</option>)}
+          </select>
+        </div>
+        <div className="confirm-actions">
+          <button type="submit" className="btn btn-primary btn-sm" disabled={invalid}>Start new game</button>
+          <button type="button" className="btn btn-plain btn-sm" onClick={onDone}>Keep playing</button>
+        </div>
+        <div className="confirm-demo">
+          <button type="button" className="btn btn-plain btn-sm" aria-describedby={`${id}-demo`}
+            disabled={invalid} onClick={() => start("demo")}>Start Demo game</button>
+          <p id={`${id}-demo`} className="confirm-note">
+            Demo: more cash and troops, and a dashboard of every nation&apos;s numbers.
+          </p>
+        </div>
+      </form>
     </div>
   );
 };

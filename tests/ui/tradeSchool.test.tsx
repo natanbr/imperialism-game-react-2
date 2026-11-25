@@ -6,6 +6,7 @@
 import { describe, it, expect } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { CapitalModal } from '@/components/CapitalModal';
+import { applyOrder } from '@/engine';
 import { useGameStore } from '@/store/rootStore';
 import type { GameState } from '@/types/GameState';
 import { emptyWarehouse, game, N1, setTreasury } from '../engine/fixtures';
@@ -27,6 +28,13 @@ const costs = (el: HTMLElement) => within(el).getAllByRole('listitem').map((li) 
 const art = (el: Element) => [...el.querySelectorAll('img')].map((img) => img.getAttribute('data-art') ?? '');
 
 describe('FR-572 the Trade School holds the Capitol', () => {
+  it('FR-605 training costs use buying power when the credit line is open', () => {
+    const state = applyOrder(setTreasury(stocked(), N1, 20), { kind: 'openCredit', nationId: N1 });
+    const school = openSchool(state);
+    expect(costs(action(school, 'untrained'))[0]).toMatch(/\$100 needed, \$220 buying power/);
+    expect(costs(action(school, 'untrained'))[0]).not.toContain('short');
+    expect(costs(action(school, 'trained'))[0]).toMatch(/\$1,000 needed, \$220 buying power.*short/);
+  });
   it('FR-572 one section with the two trainings and the migrants, each with its pictures and its buttons; no Capitol section', () => {
     const school = openSchool(stocked());
     expect(screen.queryByRole('region', { name: 'Capitol', hidden: true })).toBeNull();

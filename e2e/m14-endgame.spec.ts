@@ -53,6 +53,12 @@ test('FR-504 FR-506 FR-507 Continue at turn 39, resolve the last Council, and op
   const table = over.getByRole('table', { name: 'Final scores' });
   for (const name of ['Score', 'Provinces', 'Military', 'Standing']) await expect(table.getByRole('columnheader', { name, exact: true })).toHaveCount(1);
   await expect(table.getByRole('row').nth(1).getByRole('rowheader')).toHaveText('Valdoria');
+  await over.getByRole('button', { name: 'Back to the map' }).click();
+  await page.getByRole('button', { name: 'Stats', exact: true }).click();
+  const stats = page.getByRole('dialog', { name: 'Stats' });
+  await stats.getByRole('tab', { name: 'Rankings' }).click();
+  await expect(stats.getByLabel('Resolved turn')).toHaveValue('40');
+  await expect(stats.getByRole('list', { name: 'Placings on turn 40' })).toBeVisible();
 });
 
 test('FR-503 FR-507 giving a grant in Diplomacy wins the seventh vote at the first meeting', async ({ page }) => {

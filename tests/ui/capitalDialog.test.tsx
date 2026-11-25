@@ -9,9 +9,9 @@ import { CapitalModal } from '@/components/CapitalModal';
 import { Toasts } from '@/components/Toasts';
 import { useGameStore } from '@/store/rootStore';
 import { readSave } from '@/store/persistence';
-import { newGame, type Order } from '@/engine';
+import { applyOrder, newGame, type Order } from '@/engine';
 import type { GameState } from '@/types/GameState';
-import { emptyWarehouse, game, industryOf, N1, nationOf, setBuilding, setIndustry, setTechnologies, stockOf } from '../engine/fixtures';
+import { emptyWarehouse, game, industryOf, N1, nationOf, setBuilding, setIndustry, setTechnologies, setTreasury, stockOf } from '../engine/fixtures';
 import { text } from './domText';
 
 const ROOT = join(__dirname, '..', '..');
@@ -82,6 +82,12 @@ it('FR-525 a rival owning Streamlined Hulls and Oil Drilling reveals neither opt
 });
 
 describe('FR-513 University orders in the Capital', () => {
+  it('FR-605 review: a refused University fee names its cost and remaining buying power', () => {
+    openCapital(applyOrder(setTreasury(stocked(), N1, 25), { kind: 'openCredit', nationId: N1 }));
+    openSection('University');
+    const train = screen.getByRole('button', { name: 'Train one more Engineer' });
+    expect(document.getElementById(train.getAttribute('aria-describedby')!)?.textContent).toMatch(/\$1,000.*\$225 buying power/i);
+  });
   it('FR-513 shows seven fees and requirements, orders an Engineer and refunds it', () => {
     openCapital(stocked());
     openSection('University');

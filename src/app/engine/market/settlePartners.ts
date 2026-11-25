@@ -7,6 +7,7 @@
 import type { CountryId, MinorNationId, NationId } from "@/types/Common";
 import type { DiplomacyState } from "@/types/Diplomacy";
 import type { GameState } from "@/types/GameState";
+import { buyingPower } from "../credit/account";
 import type { TradeAmounts, TradeCommodity } from "@/types/Market";
 import type { Nation } from "@/types/Nation";
 import { BOARD_ORDER, TRADE_RELATION_POINTS } from "@/definisions/partnersMarket";
@@ -30,6 +31,7 @@ export interface PartnerSettlement {
 
 /** One Great Power during the phase: what it still has to spend, carry, buy and sell. */
 interface Account {
+  nation: Nation;
   treasury: number;
   holds: number;
   bid: TradeAmounts;
@@ -68,7 +70,7 @@ export function settlePartnerTrade(state: GameState, turn: number, emit: (event:
     order.map((id) => {
       const nation = state.nations.find((n) => n.id === id)!;
       const { sell, buy } = tradeOrdersOf(state, id);
-      return [id, { treasury: nation.treasury ?? 0, holds: cargoHolds(nation.merchantMarine), bid: { ...buy }, offer: { ...sell } }];
+      return [id, { nation, treasury: nation.treasury ?? 0, holds: cargoHolds(nation.merchantMarine), bid: { ...buy }, offer: { ...sell } }];
     })
   );
   const deliveries: Record<NationId, TradeAmounts> = { ...market.deliveries };
@@ -105,14 +107,14 @@ export function settlePartnerTrade(state: GameState, turn: number, emit: (event:
     };
     /**
      * `reach` units at `unitPrice` reach the buyer for its bid: it takes those its holds and money allow (the
-     * reserve first, then the treasury) and the rest pass on (`offer-missed`). Returns the units it took. With
+     * reserve first, then the buyer's remaining buying power) and the rest pass on (`offer-missed`). Returns the units it took. With
      * the order-time hold check (FR-188) and holds that never change in v2, "no-hold" needs holds lowered after
      * ordering (the tests do it; M8's ships may); the branch stays for that.
      */
     const take = (buyerId: NationId, sellerId: CountryId, unitPrice: number, reach: number): number => {
       const buyer = accounts.get(buyerId)!;
       const reserved = reserve.get(buyerId)!;
-      const affordable = unitPrice <= 0 ? Infinity : Math.floor((reserved + Math.max(0, buyer.treasury)) / unitPrice);
+      const affordable = unitPrice <= 0 ? Infinity : Math.floor((reserved + buyingPower(buyer.nation, buyer.treasury)) / unitPrice);
       const units = Math.min(reach, buyer.holds, affordable);
       if (units < reach) miss(buyerId, sellerId, reach - units, buyer.holds <= affordable ? "no-hold" : "no-cash");
       if (units <= 0) return 0;

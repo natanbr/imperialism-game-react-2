@@ -42,7 +42,10 @@ it('FR-100 FR-520 builds a save under pre-M16 rules, matches the independent de2
   advanceTurn();
   expect(submitOrder({ kind: 'buyCommodity', nationId, commodity: ResourceType.Oil, amount: 1 })).toEqual({ ok: true });
   const built = saveOf(store.getState(), new Date(original.savedAt));
-  const encoded = JSON.stringify(built, (key, value) => key === 'legacyOilSupply' ? undefined : value);
+  expect(built.rankHistory?.map(record => record.turn)).toEqual([1, 2]);
+  const historical = { ...built };
+  delete historical.rankHistory;
+  const encoded = JSON.stringify(historical, (key, value) => key === 'legacyOilSupply' ? undefined : value);
   expect(JSON.parse(encoded)).toEqual(original);
   const loaded = load(encoded);
   expect(replaySession(loaded)).toEqual(loaded.game);

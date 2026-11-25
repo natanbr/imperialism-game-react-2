@@ -7,6 +7,7 @@ import styles from "./WarehouseModal.module.css";
 import { Modal } from "./Modal";
 import { InkPicture } from "./art/ArtPicture";
 import { buildingArt, goodsArt } from "./art/inkArt";
+import { goodsSourceNotes } from "./goodsSources";
 
 /**
  * The active nation's stock of every commodity, by display name, in three groups (FR-050); each name after its goods
@@ -16,11 +17,13 @@ export const WarehouseModal: React.FC = () => {
   const isOpen = useGameStore((s) => s.isWarehouseOpen);
   const close = useGameStore((s) => s.closeWarehouse);
   const nation = useGameStore(selectActiveNation);
+  const game = useGameStore((s) => s.game);
   const titleId = useId();
 
   if (!isOpen) return null;
 
   const stock = (nation?.warehouse ?? {}) as Record<string, number>;
+  const sources = nation && goodsSourceNotes(game, nation, "warehouse");
 
   return (
     <Modal titleId={titleId} onClose={close} overlayClassName={styles.overlay} className={styles.modal}>
@@ -43,6 +46,7 @@ export const WarehouseModal: React.FC = () => {
                     <InkPicture src={goodsArt(key)} alt="" inline />{commodityName(key)}
                   </span>
                   <span className={styles.itemAmount}>{stock[key] ?? 0}</span>
+                  {sources?.has(key) && <span className={styles.sourceNote}>{sources.get(key)}</span>}
                 </div>
               ))}
             </div>

@@ -93,23 +93,32 @@ describe('FR-530 the score parts stay inside the window', () => {
     expect(leftInWindow(100, 400, 300)).toBe(8);
   });
 
-  function hoverWith(scoreLeft: number, windowWidth: number) {
+  function hoverWith(scoreLeft: number, windowWidth: number, scoreTop = 0) {
     vi.stubGlobal('innerWidth', windowWidth);
     render(<ScoreIndicator />);
     const score = screen.getByTestId('hud-score');
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
-      return this === score ? box(scoreLeft, 60) : box(0, 290, 24, 94);
+      return this === score ? box(scoreLeft, 60, scoreTop, 20) : box(0, 290, 24, 94);
     });
     fireEvent.mouseEnter(score);
     return screen.getByTestId('score-parts');
   }
 
   it('FR-530 at 390 px the list opening under the score at x 302 is moved 210 px left, so it ends 8 px inside the window', () => {
-    expect(hoverWith(302, 390).style.left).toBe('-210px');
+    expect(hoverWith(302, 390).style.left).toBe('92px');
   });
 
   it('FR-530 FR-404 where it fits (800 px, the score at x 439) the list keeps its left edge at the score\'s', () => {
-    expect(hoverWith(439, 800).style.left).toBe('0px');
+    expect(hoverWith(439, 800).style.left).toBe('439px');
+  });
+
+  it('FR-404 places the parts above the score in a short window and below again when the window grows', () => {
+    vi.stubGlobal('innerHeight', 360);
+    const parts = hoverWith(68, 640, 262);
+    expect(parts.style.top).toBe('164px'); // 262 - 4 px gap - 94 px of parts
+    vi.stubGlobal('innerHeight', 600);
+    fireEvent(window, new Event('resize'));
+    expect(parts.style.top).toBe('286px'); // score bottom 282 + 4 px gap
   });
 });
 

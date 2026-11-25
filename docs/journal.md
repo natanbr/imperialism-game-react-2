@@ -1,11 +1,11 @@
 # Journal
 
-Older entries are in `docs/journal/archive-<milestone>.md` (the latest move, 2026-11-24: M13, M16 part 1, Task 19 and M17).
-
 ## Resuming here
 
-- M18d (terrains, resources, fishing) is PARKED on `claude/m18d-terrain` for an owner decision: see `docs/verify-and-tune.md` "M18d parked".
-- M18d Task 31 on `claude/m18d-terrain` stopped at the first protected comparison, before map edits. At seed 4, coastal Fish changed the turn-7 Canned Food order from 4 to 6. See Q147, `docs/specs/m18d-terrain.md` and `.gate/codex/31/report.md`. Local candidate only.
+- M18d (owner decision 2026-11-25, Q103: record the new results): fishing ships for every game. The moved guards are re-recorded with old -> new values and their reason (FR-616); the 3 rail dead ends are a defect to fix, not a number to re-record. Branch `claude/m18d-terrain`, main merged in.
+- M18g on `claude/m18g-screens` in the `imperialism-game-revival-fee36d` worktree adds Stats rankings and history, Trade Book, Garrison Book and two diplomatic map modes. The owner kept Board Details and the human nation as the reference. [Implementation and gate evidence](journal/archive-M18g.md) · [Task 43 review fixes and gate](journal/archive-M18g.md#2026-11-25-task-43--m18g-review-fixes)
+- M18f (human credit, interest, forced sales, signed cash and supply notes) merged at `9d2f9eb` in pull request 52. The inferred credit numbers and FR-609 debt scoring remain open to owner revision. [M18f journal and gate evidence](journal/archive-M18f.md) · [Task 39 report](../.gate/codex/39/report.md) · [Earlier journal archives](journal/)
+- Night shift 2 (2026-11-24): M18d (terrains, resources, fishing) is PARKED on `claude/m18d-terrain` (pushed, not merged) for an owner decision: fishing moves the protected guards (FR-125 1.604 to 1.519, 3 rail dead ends, the two-islands golden, old-save replays); table and options in that branch's `docs/verify-and-tune.md` ("M18d parked"). M18e (seeded random maps, New game options, seed in Stats) built by Codex tasks 32 to 35, reviewed by Sonnet 5.5, gate `.gate/claude/55/` green. Deferred to the owner: the 400-turn historical length (FR-593, FR-594). M18e on `claude/m18e-maps` adds seeded worlds and New game options. To replay the desktop or phone example, choose Random, Large and `Brete`, then copy `2813929771` from Stats. Task 35 fits the whole Large map at laptop sizes. Its before/after screenshots and guard comparison are in `.gate/codex/35/`. M18d terrain is parked. Game length and the historical calendar are deferred.
 - M18 (play-test comfort, `docs/specs/m18-playtest-comfort.md`): M18a merged into main `af24381` (pull request 43), M18b part 1 (FR-563, FR-568, FR-569) in `5e80bab` (pull request 44), part 2 (FR-564 nation colours and flags) in `4098bfe` (pull request 45). NR-037 in progress.
 - M18b part 3 (FR-565, FR-566) merged into main `cd5b1be` (pull request 46); FR-567 into `994a0ca` (pull request 47), partial: the narrower pane is left for the owner; FR-570 (rail) into `751b74b` (pull request 48). Icons wait for the art (spec section 3).
 - M18c (FR-572 to FR-578) merged in `896d1fb` (pull request 49). The three-tab Board of Trade and Trade School evidence is in `.gate/claude/53/`. The owner’s FR-575 decision about moving Details is still open.
@@ -47,6 +47,53 @@ Objection: suppressing a capital’s fish would depart from rules 02 and 04, whi
 - M18d parked (Codex stopped as briefed): fishing moves the protected guards; table and options in `docs/verify-and-tune.md` ("M18d parked"). Branch `claude/m18d-terrain` kept, not merged. Rejected tonight: a per-game rules version (hard to undo, it would set new thresholds the build then passes; the owner's call) and merging a fishing-free subset (no map uses it yet, unreviewed).
   Deferred: town development, credit, diplomacy leftovers, land war eras, original screens.
 - Decision: Codex builds (gpt-6.2-astra xhigh; its quota is back), Claude Sonnet 5.5 xhigh reviews. Rejected: Claude Opus builds, which spend the weekly gauge three times faster for the same work. The play-test pieces M18a to M18c already live under M18, so these are M18d and M18e, and no new milestone number is needed.
+## 2026-11-24 Task 35 — M18e review fixes
+
+Size M. FR-598 fits the whole grid on opening and adds a final zoom-out step for maps wider than 24 columns or taller than 20 rows.
+The opening camera, buttons, keyboard, wheel and pinch share the limit. New game takes its initial map from `APP_WORLD`. Random generation and version-1 replay use Standard for an unrecognized size.
+Check a 32×20 grid at 1366×768 and 1280×720, the 50% floor, the fixed-map boundary and a hand-edited save.
+Verify the functional, lint, type, build and map browser gates, and compare the original seven NR-038 suites against the Task 32 baseline.
+Objection: using the land bounds could cut off the coast's outer water tiles. Measure the outer edges of all 640 tiles against the space beside the HUD.
+
+| Claim | Command or evidence | Observed result |
+|---|---|---|
+| Reproduced before the fixes | Test commit `6087632` and `.gate/codex/35/playwright-red.log` | Large opened at 100% and clipped 249 px at the left edge. Four cases using `unknown` and `constructor` failed during generation or save replay. |
+| FR-598 whole-grid fit | Both camera suites and seven Playwright specs on port 3123, one worker | “58 passed” and “43 passed”. Large opened with 34 px tiles at 1366×768 and 31 px at 1280×720. Chromium verified all 640 tiles clear the HUD. Screenshot in `.gate/codex/35/fr598-large-map-1366x768.png`. |
+| NR-038 compatibility | Original seven suites and task 33's comparison script against `.gate/codex/32/fixed-baseline.log` | “139 passed”. “All 247 deterministic output and assertion lines match.” FR-125 903/563, FR-545 15/24, FR-546 13/24, FR-497 0/280 changed plans, zero rejections, invariant breaks or idle no-pay disbands, and four identical FR-464 hashes. |
+| Verification at implementation `e1a12f3` | `npm test`, lint, TypeScript, production build, roadmap, isolated performance | “3313 passed”, “0 errors, 2 warnings” (both existing), type check and build exit 0, roadmap “PASS”, performance “3 passed” with p95 13.1 ms over 3,210 turns. Independent review found one stale camera comment, corrected in `1419f3c`. |
+
+## 2026-11-24 Task 34 — New game options and Stats (M18e T-02)
+
+Size M. Stage the map, Random size, replay seed and difficulty in the top bar. Read the founding settings from the current game in Stats.
+FR-595 uses the existing seed parser, store start and opening camera. FR-596 covers Random and version-1 saves, including a 400-turn Council game.
+Verify the keyboard and pointer paths, Continue and replay at 1366×768 and 390×844, then compare the original NR-038 guards and run the repository gates.
+Objection: a hidden seed or size could override a fixed-map start. Only visible seed input and Random size may contribute settings.
+
+| Claim | Command or evidence | Observed result |
+|---|---|---|
+| Tests first | `3f2ad16`, `ui-red.log`, `red-keyboard.log` | 15 failed and 53 passed across four UI suites. The old browser panel had no Map field at the first Tab stop. |
+| Options, Stats and cancellation | New game, Stats and the two existing HUD unit suites | 68/68 passed, including an actual pre-M16 save, omitted settings and a custom 400-turn game. Review strengthened the check that the inline error itself supplies the seed's accessible description. |
+| Replay and fit | Five Playwright specs on port 3123 with one worker, then the final `e2e/m18e-new-game.spec.ts` | 33/33 passed, then 4/4. At 1366×768 and 390×844 the panel stayed within the viewport. Selecting the decimal seed reproduced six capitals, the full founding state, and events and Orders after a consulate order. Continue restored the saved settings. |
+| NR-038 | Original seven suites, then task 33's comparison script against `.gate/codex/32/fixed-baseline.log` | 139/139 passed. All 247 deterministic lines matched. FR-125 minimum 903/563 (1.604×), FR-464 four identical Order hashes, FR-545 15/24, FR-546 13/24, FR-497 0/280 changed plans and zero rejected computer Orders, invariant violations or idle no-pay disbands. |
+| Roadmap | `node .gate/m12/L4-check-roadmap.cjs` | `PASS` after recording M18d and M18e and aligning the two main references with the local `origin/main` merge of PR 50 (`a52d6b4`). |
+| Repository gates at implementation `27593ff` | `npm test`, lint, TypeScript, production build, then `npm run test:perf` alone | 3,305/3,305 tests in 162 files (160.22 s), zero lint errors and two existing warnings, TypeScript and build passed. Performance 3/3 with computer planning p95 12.8 ms across 3,210 turns (100 ms limit). |
+
+## 2026-11-24 Task 33 — Seeded random world (M18e T-01)
+
+Size L. Two map sizes, a private generator stream and the existing start kit. Engine, store starts and replay consume the numeric seed and size. Fixed-world compatibility is a stop condition. The generation plan reserves the six coastal country footprints and the food rings before partitioning them into provinces. A six-country site budget keeps hidden seams and minor land in the same fairness measure.
+
+| Check | Evidence |
+|---|---|
+| Red before implementation | `f91b982`: 4 suites red. The parser was missing, the registry and replay rejected Random, and the harness still played Continent. A subsequent case in `361b0fb` caught an extra size field when replaying an omitted-size Standard save. |
+| FR-588–592 | 134 generated starts and 536 minor markets checked, with two pinned Brete fingerprints, disconnected-sea and split-province controls, and deliberately unequal ore and food fixtures. |
+| NR-038 | The seven fixed suites passed 139/139 before and after. All 247 deterministic output lines matched, including FR-125 at 903/563, the four FR-464 hashes, FR-545 at 15/24, FR-546 at 13/24, and 0/280 changed private-Order plans. Includes original inputs for scripted scores, four pinned Order logs, Council balance, the private-Order probe, persistence, legacy tech and M17 combat replay. Six additional SHA-256 pins cover serialized starts and a 400-turn v1 save before and after its turn-10 Council. |
+| FR-597 | 72/72 games reached a decision. No rejected computer Orders (37,475 submitted), invariant failures (2,790 turns), no-pay disbands in 940 idle turns, or changes to 930 probed plans. See the spec for policy outcomes and the per-seed fixture. |
+| Open balance question | Scripted Great Power trade settled in 0/24 games. On seed 1 both powers offered finished goods and bid for inputs. Trade with minors settled. A Great Power trade target is open for the owner. |
+
+Final gates: 3,292/3,292 tests across 161 files in 164.88 s, including the 72-game sweep (+29.53 s over the eight-game repository run). Lint returned 0 errors and 2 existing warnings. TypeScript and the production build passed. Isolated performance passed 3/3 before and after, with FR-497 p95 14.0 ms and 12.4 ms over 3,210 turns (100 ms limit). The test-first, guard, sweep and trade logs are in `.gate/codex/33/`.
+
+Task 34 can pass an accepted `parseMapSeed` result and Random size to `startNewGame`. Empty input uses the store's existing seed draw. Build only Normal/Demo controls and the existing calendar display.
+
 ## 2026-11-24 Task 30 — Trade policy map review (FR-579)
 
 Size M. Keep country names, flags and policy markers readable when a small country's land projects to a single tile.

@@ -1,7 +1,7 @@
 // The map's own keys (FR-368): "+" and "-" zoom. Not React apart from the hook; the zoom step itself is a plain function
 // on the store, shared with the map's Zoom in and Zoom out buttons.
 import { useEffect } from "react";
-import { ZOOM_STEPS, cameraAfterZoom, clampZoom, mapAreaOf } from "@/components/camera";
+import { ZOOM_STEPS, cameraAfterZoom, clampZoom, mapAreaOf, minZoom, type MapArea, type MapSize } from "@/components/camera";
 import { useGameStore } from "@/store/rootStore";
 
 /** A form field or editable text: its keys are typing. */
@@ -23,25 +23,29 @@ export const isDialogOpen = (): boolean => document.querySelector('[role="dialog
  * The next zoom step in (1) or out (-1) from the map's zoom (FR-368), or undefined past either end. The zoom may lie between
  * steps (the opening fit, the wheel, a pinch: FR-567), so it is the first step strictly past it.
  */
-export function nextZoom(zoom: number, by: 1 | -1): number | undefined {
+export function nextZoom(zoom: number, by: 1 | -1, area: MapArea, map: MapSize): number | undefined {
   const past = by === 1 ? ZOOM_STEPS.filter((z) => z > zoom + 1e-9) : ZOOM_STEPS.filter((z) => z < zoom - 1e-9).reverse();
-  return past[0];
+  if (past.length || by === 1) return past[0];
+  const minimum = minZoom(area, map);
+  return minimum < zoom - 1e-9 ? minimum : undefined;
 }
 
 /**
- * Draws the map at `zoom` (clamped to ZOOM_MIN..ZOOM_MAX, FR-567), keeping the map point under `focus` (a point of the map
+ * Draws the map at `zoom` within its allowed range, keeping the map point under `focus` (a point of the map
  * area, its middle by default, FR-368) in place.
  */
 export function zoomMapTo(zoom: number, focus?: { x: number; y: number }): void {
   const { zoom: from, cameraX, cameraY, game, zoomTo } = useGameStore.getState();
-  const to = clampZoom(zoom);
+  const area = mapAreaOf(window);
+  const to = clampZoom(zoom, area, game.map.config);
   if (to === from) return;
-  zoomTo(to, cameraAfterZoom({ x: cameraX, y: cameraY }, mapAreaOf(window), game.map.config, from, to, focus));
+  zoomTo(to, cameraAfterZoom({ x: cameraX, y: cameraY }, area, game.map.config, from, to, focus));
 }
 
 /** Zooms the map one step in (1) or out (-1), keeping the point at the map area's middle in place (FR-368). */
 export function zoomBy(by: 1 | -1): void {
-  const next = nextZoom(useGameStore.getState().zoom, by);
+  const { zoom, game } = useGameStore.getState();
+  const next = nextZoom(zoom, by, mapAreaOf(window), game.map.config);
   if (next !== undefined) zoomMapTo(next);
 }
 

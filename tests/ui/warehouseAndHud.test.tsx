@@ -5,7 +5,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { WarehouseModal } from '@/components/WarehouseModal';
 import { CouncilProjection, FoodWarning, NewsPanel, NextCouncil, TurnIndicator, UpkeepWarning } from '@/components/HUD/index';
 import { useGameStore } from '@/store/rootStore';
-import { councilVote, resolveTurn } from '@/engine';
+import { councilVote, newGame, resolveTurn } from '@/engine';
 import type { GameState } from '@/types/GameState';
 import { GoodsType, MaterialType, ResourceType, type WarehouseCommodities } from '@/types/Resource';
 import { TileInfoPanel } from '@/components/TileInfoPanel';
@@ -30,6 +30,45 @@ function show(state: GameState, ui: Partial<ReturnType<typeof useGameStore.getSt
 }
 
 describe('FR-050 warehouse dialog', () => {
+  it('FR-606 keeps starting, imported and saved stocks alongside the public source on the active map', () => {
+    const islands = newGame({ seed: 1, world: 'two-islands' });
+    // Keep opening Wool; represent previously received and saved stocks independently of domestic production.
+    const state = { ...islands, nations: islands.nations.map(n => n.id === N1 ? {
+      ...n, technologies: ['oilDrilling' as const], warehouse: { ...n.warehouse, fish: 3, oil: 2, fuel: 1 },
+    } : n) };
+    show(state, { isWarehouseOpen: true });
+    render(<WarehouseModal />);
+    const stock = (key: string) => text(screen.getByTestId(`stock-${key}`));
+    for (const [key, amount, source] of [
+      ['wool', '10', 'World market sells this'], ['fish', '3', 'No known supply'],
+      ['oil', '2', 'No known supply'], ['fuel', '1', 'World market sells this'], ['horses', '0', 'World market sells this'],
+    ]) {
+      expect(stock(key), key).toContain(amount);
+      expect(stock(key), key).toContain(`No known local source · ${source}`);
+    }
+    act(() => show(newGame({ seed: 1, world: 'continent' }), { isWarehouseOpen: true }));
+    expect(stock('horses')).toBe('Horses 4');
+    // FR-563: “may offer” → “may sell”, as on the Board.
+    expect(stock('wool')).toContain('No known local source · Another power may sell this');
+    act(() => show(newGame({ seed: 1, world: 'random' }), { isWarehouseOpen: true }));
+    expect(stock('horses')).toContain('No known local source');
+    expect(stock('horses')).toContain('4');
+  });
+
+  it('FR-606 a known productive site can be disconnected; hidden and foreign sites cannot explain our stock', () => {
+    const oil = { type: ResourceType.Oil, level: 1 };
+    const hidden = setTile(game(), T.orchard1, { resource: { ...oil, discovered: false } });
+    show(hidden, { isWarehouseOpen: true });
+    render(<WarehouseModal />);
+    const note = () => text(screen.getByTestId('stock-oil'));
+    expect(note()).toContain('No known local source');
+    const known = setTile(hidden, T.orchard1, { resource: { ...oil, discovered: true } });
+    act(() => show(known, { isWarehouseOpen: true }));
+    expect(note()).toBe('Oil 0');
+    act(() => show(known, { isWarehouseOpen: true, activeNationId: N2 }));
+    expect(note()).toContain('No known local source');
+  });
+
   it('FR-056 lists every commodity but gold and gems by display name with its stock, grouped as resources, materials and goods', () => {
     show(emptyWarehouse(game(), N1, { cannedFood: 12, ironOre: 3, furniture: 1 }), { isWarehouseOpen: true });
     render(<WarehouseModal />);

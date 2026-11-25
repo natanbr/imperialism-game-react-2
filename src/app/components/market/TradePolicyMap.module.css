@@ -25,6 +25,82 @@
   margin: 0;
 }
 
+.mode, .keyItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.mode {
+  font-weight: 600;
+}
+
+.mode select {
+  height: 28px;
+  font: inherit;
+  color: var(--color-ink);
+  background: var(--color-bg-button);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.key, .detail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+}
+
+.key {
+  flex-basis: 100%;
+  font-size: var(--font-size-sm);
+}
+
+.swatch {
+  display: inline-block;
+  width: .9em;
+  height: .9em;
+  border: 1px solid var(--color-ink-muted);
+  vertical-align: -.08em;
+}
+
+.officeLetter {
+  text-align: center;
+  width: 1.4em;
+  border: 1px solid var(--color-ink);
+  border-radius: 50%;
+}
+
+.officeMark {
+  font: bold 16px Georgia, serif;
+  fill: var(--color-ink);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.detail {
+  padding: 6px 10px;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border-strong);
+}
+
+.infoTable th, .infoTable td {
+  text-align: left;
+  padding: 4px;
+}
+
+.infoTable button {
+  height: auto;
+  min-height: 26px;
+}
+
 .map {
   display: block;
   width: 100%;
@@ -48,6 +124,11 @@
 .land {
   stroke: var(--color-surface-raised);
   stroke-width: 1px;
+}
+
+/* Adjacent countries can share the same treaty tint, including the cream used for policy borders. */
+.informationMap .land {
+  stroke: var(--color-map-country-border, var(--color-ink-muted));
 }
 
 .selectedBorder {

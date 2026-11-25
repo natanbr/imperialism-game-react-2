@@ -8,7 +8,8 @@ import { money } from "../gameText";
 import { boardView, lastTurnTrades, repeatTrades, startSide, type BoardRowView, type PartnerView, type TradeSide } from "./boardView";
 import { Stepper } from "./Stepper";
 import { BoardDetails } from "./BoardDetails";
-import { TradePolicies } from "./TradePolicies";
+import { TradePolicies, type MapMode } from "./TradePolicies";
+import { TradeBook } from "./TradeBook";
 import styles from "./Market.module.css";
 import { UI_ICONS } from "../icons";
 import { GameIcon } from "../GameIcon";
@@ -17,13 +18,14 @@ import { InkPicture } from "../art/ArtPicture";
 import { goodsArt } from "../art/inkArt";
 import { NationFlag } from "../NationFlag";
 
-type TabId = "board" | "details" | "policies";
+type TabId = "board" | "details" | "policies" | "book";
 
-/** FR-577: the three views of the Board of Trade, in this order; each opening starts on the first. */
+/** FR-577: each opening starts on the Board. */
 const TABS: readonly { id: TabId; name: string }[] = [
   { id: "board", name: "Board" },
   { id: "details", name: "Details" },
   { id: "policies", name: "Trade policies" },
+  { id: "book", name: "Trade Book" },
 ];
 
 /**
@@ -96,9 +98,9 @@ const SideChoice: React.FC<{ name: string; side: TradeSide; onChoose: (side: Tra
 /**
  * The Board of Trade (FR-194, FR-248, FR-252 to FR-254; M18c FR-573 to FR-577; Imp1 Board of Trade, rules 11 sections 1
  * and 1.2). A bar of figures under the title (the cash before this turn's purchases, what they took, the buying power
- * left, holds and purchases, FR-573), then three tabs (FR-577): the Board, one row per commodity in the Board order with
+ * left, holds and purchases, FR-573), then tabs (FR-577): the Board, one row per commodity in the Board order with
  * Price, Available, a Buy/Sell choice and one stepper for that side, and the minors' flags (FR-574); Details, what the
- * Board no longer shows (FR-575); Trade policies, the subsidy and boycott toward each country (FR-576). Every control
+ * Board no longer shows (FR-575); Trade policies (FR-576); and the bid-specific Trade Book (FR-612). Every order control
  * sends one order through submitOrder; a "+" the engine would refuse sends nothing and stays focusable, with its reason
  * beside it on focus or press and as its accessible description. A fixed frame: at 1280x720 the dialog fits the window
  * and only the open tab scrolls.
@@ -115,6 +117,11 @@ export const BoardOfTrade: React.FC = () => {
   const [repeated, setRepeated] = useState<{ turn: number; text: string } | null>(null);
   // Mounted only while the market is open (MarketModal), so each opening starts on the Board (FR-577)
   const [tab, setTab] = useState<TabId>("board");
+  const [mapMode, setMapMode] = useState<MapMode>("Trade policies");
+  const selectTab = (next: TabId) => {
+    setTab(next);
+    if (next !== "policies") setMapMode("Trade policies");
+  };
   const tabButtons = useRef(new Map<TabId, HTMLButtonElement>());
 
   const view = useMemo(() => (nation ? boardView(game, nation) : null), [game, nation]);
@@ -174,7 +181,7 @@ export const BoardOfTrade: React.FC = () => {
     if (target === undefined) return;
     e.preventDefault();
     const next = TABS[(target + TABS.length) % TABS.length].id;
-    setTab(next);
+    selectTab(next);
     tabButtons.current.get(next)?.focus();
   };
   const tabId = (id: TabId) => `${tabsId}-tab-${id}`;
@@ -200,8 +207,9 @@ export const BoardOfTrade: React.FC = () => {
           <span data-testid="market-committed" title="Paid for this turn's purchases at the board price; any unit not bought is paid back at End Turn">
             Committed: <strong>{money(view.committed)}</strong>
           </span>
-          <span data-testid="market-power" title="The cash left after this turn's purchases">
-            Buying power: <strong>{money(view.treasury)}</strong>
+          {view.creditLimit !== undefined && <span>Credit limit: <strong>{money(view.creditLimit)}</strong></span>}
+          <span data-testid="market-power" title="Cash plus available credit after this turn's purchases">
+            Buying power: <strong>{money(view.buyingPower)}</strong>
           </span>
           <span data-testid="market-holds" title="Every unit traded takes one hold this turn">
             {view.holdsText}
@@ -209,7 +217,7 @@ export const BoardOfTrade: React.FC = () => {
           <span data-testid="market-bids" title="At most this many commodities can be bought in one turn">
             {view.bidsText}
           </span>
-          {nation && lastTrades.length > 0 && (
+          {nation && lastTrades.length > 0 && tab !== "book" && mapMode === "Trade policies" && (
             <span className={styles.repeat}>
               <button type="button" className={styles.plainButton} onClick={repeat}>
                 Repeat last turn&apos;s trades
@@ -239,7 +247,7 @@ export const BoardOfTrade: React.FC = () => {
             aria-controls={tab === t.id ? panelId : undefined}
             tabIndex={tab === t.id ? 0 : -1}
             className={`${styles.tab} ${tab === t.id ? styles.tabSelected : ""}`}
-            onClick={() => setTab(t.id)}
+            onClick={() => selectTab(t.id)}
           >
             {t.name}
           </button>
@@ -285,6 +293,7 @@ export const BoardOfTrade: React.FC = () => {
                             value={row.bid}
                             testId="bid"
                             moreRefusal={row.bidMoreRefusal}
+                            note={row.purchaseWarning ? { text: row.purchaseWarning, tone: "info" } : undefined}
                             hideLessAtZero
                             focusableRefusal
                             onChange={send("buyCommodity", row.commodity)}
@@ -310,6 +319,7 @@ export const BoardOfTrade: React.FC = () => {
                             —
                           </span>
                         )}
+                        {row.sourceNote && <span className={styles.sourceNote}>{row.sourceNote}</span>}
                       </td>
                     </tr>
                   );
@@ -318,7 +328,8 @@ export const BoardOfTrade: React.FC = () => {
             </table>
           )}
           {tab === "details" && <BoardDetails view={view} />}
-          {tab === "policies" && <TradePolicies game={game} nationId={nation.id} submitOrder={submitOrder} />}
+          {tab === "policies" && <TradePolicies game={game} nationId={nation.id} submitOrder={submitOrder} mode={mapMode} onModeChange={setMapMode} />}
+          {tab === "book" && <TradeBook game={game} nationId={nation.id} view={view} />}
         </div>
       )}
     </Modal>

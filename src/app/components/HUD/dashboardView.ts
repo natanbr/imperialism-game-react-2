@@ -16,6 +16,7 @@ import {
   tradeOrdersOf,
   type RegimentType,
 } from "@/engine";
+import { creditDebt } from "@/engine/credit/account";
 import { lastTradeOrdersOf } from "@/engine/market/partners";
 import { fleetFirepower } from "@/engine/navy/fleets";
 import { isWarship, WARSHIPS } from "@/definisions/ships";
@@ -73,9 +74,10 @@ function countsText(names: readonly string[]): string {
 }
 
 function economyLines(nation: Nation): DashboardLine[] {
+  const debt = creditDebt(nation);
   return [
     { term: "Cash", value: money(nation.treasury), testId: "dashboard-cash" },
-    ...((nation.debt ?? 0) > 0 ? [{ term: "Debt", value: money(nation.debt!) }] : []),
+    ...(debt > 0 ? [{ term: "Debt", value: money(debt) }] : []),
     { term: "Stock", value: amountsText(nation.warehouse) },
     { term: "Freight cars", value: String(nation.transportCapacity) },
   ];

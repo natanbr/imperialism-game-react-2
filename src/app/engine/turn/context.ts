@@ -11,7 +11,7 @@ import type { BuildingType, ProductionOutput } from "@/types/Industry";
 import type { TradeCommodity } from "@/types/Market";
 import type { GameOver } from "@/types/Score";
 import type { CouncilVote } from "@/types/Council";
-import type { Order, RejectReason } from "../orders/Order";
+import type { Order, OrderRejection, RejectReason } from "../orders/Order";
 import type { TradeBarrier } from "../market/partners";
 import { createStreamRng, createTurnRng, RNG_STREAMS, type Rng, type RngStream } from "../rng";
 
@@ -21,7 +21,7 @@ export type GameEvent =
       sides: [NavalBattleSide, NavalBattleSide]; rounds?: number;
       winnerId?: NationId; winnerContested?: true; winnerDisplaced?: true; laterHolderId?: NationId; landing: "held" | "blocked" | "none" }
   | { type: "new-invention"; techId: string }
-  | { type: "order-rejected"; nationId: NationId; order: Order; reason: RejectReason }
+  | ({ type: "order-rejected"; nationId: NationId } & OrderRejection)
   | { type: "resource-discovered"; tileId: TileId; nationId?: NationId; resource?: ResourceType }
   | { type: "development-completed"; tileId: TileId; nationId?: NationId; level: number }
   | { type: "construction-completed"; tileId: TileId; nationId?: NationId; structure: ConstructionKind }
@@ -85,6 +85,10 @@ export type GameEvent =
   | { type: "recruits-refunded"; nationId: NationId; regiment: RegimentType; count: number }
   /** The upkeep paid this turn (FR-202); none when it is 0. */
   | { type: "army-upkeep"; nationId: NationId; amount: number }
+  | { type: "credit-interest"; nationId: NationId; debt: number; limit: number; ratePercent: number; amount: number }
+  | { type: "forced-sale"; nationId: NationId; commodity: TradeCommodity; amount: number; price: number; proceeds: number }
+  /** The limit used for this settlement and debt after all later receipts and refunds. */
+  | { type: "credit-settled"; nationId: NationId; limit: number; closingDebt: number }
   /** Regiments of the nation marched along one route this turn (FR-206). */
   | { type: "army-moved"; nationId: NationId; fromProvinceId: ProvinceId; toProvinceId: ProvinceId; count: number; via?: "rail" | "sea" }
   | { type: "attack-cancelled"; nationId: NationId; capturedById: CountryId; provinceId: ProvinceId; fromProvinceId: ProvinceId;

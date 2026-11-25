@@ -21,7 +21,8 @@ failOnActWarnings();
 
 const ALL = [...Object.values(ResourceType), ...Object.values(MaterialType), ...Object.values(GoodsType)];
 /** Seed 1, nation 1: the capital 2-9 and its tiles deliver grain 4, fruit 4 and cotton 2 a turn. */
-const START_KEYS = ['grain', 'livestock', 'fruit', 'fish', 'cotton', 'wool', 'timber', 'coal', 'ironOre', 'oil'];
+// FR-607: formerly all rows in an active group; now unsourced Fish, Wool and Oil are omitted individually.
+const START_KEYS = ['grain', 'livestock', 'fruit', 'cotton', 'timber', 'coal', 'ironOre'];
 
 function show(game: GameState = newGame({ seed: 1 })) {
   useGameStore.setState({ ...useGameStore.getInitialState(), game, activeNationId: 'nation-1' });
@@ -72,11 +73,11 @@ describe('FR-141 FR-142 what the popup lists', () => {
     ]);
   });
 
-  it('FR-142 a group shows while one of its commodities is in use, with all it lists; a group all 0 / 0 is hidden', () => {
+  it('FR-142 FR-607 a group shows its ordinary rows and in-use candidate rows; an idle group is hidden', () => {
     expect(transportKinds(() => false)).toEqual([]);
     expect(transportKinds(() => true)).toEqual(SHIPPABLE_KINDS);
-    // One commodity in use shows its whole group; a never-shipped one shows nothing
-    expect(transportKinds(k => k === 'gold')).toEqual([{ title: 'Other resources', keys: ['horses', 'gold', 'gems'] }]);
+    // FR-607: Horses used to appear beside collected gold even without an allocation or horse collection.
+    expect(transportKinds(k => k === 'gold')).toEqual([{ title: 'Other resources', keys: ['gold', 'gems'] }]);
     expect(transportKinds(k => k === 'steel')).toEqual([{ title: 'Materials', keys: ['fabric', 'lumber', 'steel'] }]);
     expect(transportKinds(k => k === 'paper' || k === 'armaments')).toEqual([]);
   });
@@ -86,9 +87,8 @@ describe('FR-141 FR-142 what the popup lists', () => {
     expect(shownGroups()).toEqual(['Food', 'Raw materials']);
     expect(shownRows()).toEqual(START_KEYS);
     for (const key of ['horses', 'steel', 'clothing', 'paper', 'cannedFood', 'fuel', 'armaments']) expect(screen.queryByTestId(`transport-row-${key}`), key).toBeNull();
-    // A shown group keeps its rows with nothing to ship: fish and oil are in groups with something to ship
-    // (changed in M12, FR-390: an untouched row is automatic and reads "Auto: 0", it read "0 / 0")
-    expect(text(screen.getByTestId('transport-row-fish'))).toContain('Auto: 0');
+    // FR-607: previously "Auto: 0" in a visible group, now absent until collected or explicitly allocated.
+    for (const name of ['Fish', 'Wool', 'Oil']) expect(screen.queryByRole('slider', { name })).toBeNull();
   });
 
   it('FR-142 a group appears as soon as one of its commodities has something to ship', () => {
@@ -103,6 +103,34 @@ describe('FR-141 FR-142 what the popup lists', () => {
     show(bareGame());
     expect(shownGroups()).toEqual([]);
     expect(text(dialog())).toContain('Nothing to ship this turn.');
+  });
+
+  it('FR-607 a saved explicit zero keeps its otherwise empty group until Auto clears the order', () => {
+    show({ ...bareGame(), transportAllocationsByNation: { 'nation-1': { oil: 0 } } });
+    expect(shownGroups()).toEqual(['Raw materials']);
+    expect(text(screen.getByTestId('transport-row-oil'))).toBe('Oil 0 / 0 Auto');
+    const auto = screen.getByRole('button', { name: 'Auto Oil' });
+    auto.focus();
+    fireEvent.click(auto);
+    expect(useGameStore.getState().ordersThisTurn.at(-1)).toEqual({ kind: 'setTransportAllocations', nationId: 'nation-1', allocations: {} });
+    expect(shownGroups()).toEqual([]);
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close transport' }));
+  });
+
+  it('FR-607 a connected custom resource is listed even when absent from the ordinary maps', () => {
+    show(setTile(bareGame(), '3-9', { resource: { type: ResourceType.Fish, level: 0, discovered: true } }));
+    expect(shownGroups()).toEqual(['Food']);
+    expect(text(screen.getByTestId('transport-row-fish'))).toBe('Fish Auto: 1');
+  });
+
+  it('FR-607 editing another slider preserves a saved positive allocation whose collection has stopped', () => {
+    show({ ...newGame({ seed: 1 }), transportAllocationsByNation: { 'nation-1': { wool: 2 } } });
+    fireEvent.change(screen.getByRole('slider', { name: 'Grain' }), { target: { value: '1' } });
+    const plan = () => useGameStore.getState().game.transportAllocationsByNation?.['nation-1'];
+    expect(plan()).toEqual({ wool: 2, grain: 1 });
+    fireEvent.click(screen.getByRole('button', { name: 'Auto Wool' }));
+    expect(plan()).toEqual({ grain: 1 });
+    expect(screen.queryByRole('slider', { name: 'Wool' })).toBeNull();
   });
 });
 
@@ -158,6 +186,22 @@ describe('FR-390 the popup shows set and automatic (M12, card Q80, audit ECONOMY
     expect(infoBar()).toBe('Capacity: 15 Allocated: 0 Remaining: 15');
   });
 
+  it('FR-607 a rejected Auto order leaves focus on the next slider the player edits', () => {
+    // The invalid saved Fruit allocation makes the complete plan fail until the player repairs it.
+    show({ ...newGame({ seed: 1 }), transportAllocationsByNation: { 'nation-1': { grain: 1, fruit: -1 } } });
+    const auto = screen.getByRole('button', { name: 'Auto Grain' });
+    auto.focus();
+    fireEvent.click(auto);
+    expect(useGameStore.getState().lastRejection).toMatchObject({ reason: 'invalid-amount' });
+    expect(document.activeElement).toBe(auto);
+
+    const fruit = screen.getByRole('slider', { name: 'Fruit' });
+    fruit.focus();
+    fireEvent.change(fruit, { target: { value: '2' } });
+    expect(plan()).toEqual({ grain: 1, fruit: 2 });
+    expect(document.activeElement).toBe(fruit);
+  });
+
   it('FR-390 automatic rows share what the set ones leave: capacity 15 with grain set to 4 and fruit to 4 leaves cotton its 2', () => {
     show({ ...newGame({ seed: 1 }), transportAllocationsByNation: { 'nation-1': { grain: 4, fruit: 4 } } });
     expect(infoBar()).toBe('Capacity: 15 Allocated: 8 Remaining: 7');
@@ -204,7 +248,8 @@ describe('FR-133 FR-135 the transport popup', () => {
     for (const [i, kind] of kinds.entries()) {
       expect(text(within(sections[i]).getByRole('heading'))).toBe(kind.title);
       const rows = [...sections[i].querySelectorAll('[data-testid^="transport-row-"]')].map(r => r.getAttribute('data-testid'));
-      expect(rows).toEqual(kind.keys.map(k => `transport-row-${k}`));
+      // FR-607: previously all shippable keys, now exactly the collected/saved candidate rows plus ordinary rows.
+      expect(rows).toEqual(kind.keys.filter(k => [...START_KEYS, 'horses', 'gold', 'gems'].includes(k)).map(k => `transport-row-${k}`));
     }
     expect(dialog().querySelector('.transport-groups')?.children).toHaveLength(kinds.length);
   });

@@ -16,12 +16,12 @@ import {
   type BoardRow,
   type BoardSeller,
   type Order,
-  type RejectReason,
   type TradeBarrier,
   type TradeCapacity,
   type ValidationResult,
 } from "@/engine";
 import { bidSellersOf, lastTradeOrdersOf } from "@/engine/market/partners";
+import { buyingPower, hasOpenCredit } from "@/engine/credit/account";
 import { MAX_BUY_BIDS } from "@/definisions/marketPrices";
 import { RECIPES } from "@/definisions/ResourceConversions";
 import { SHIPS, SHIP_TYPES, shipsOf } from "@/definisions/ships";
@@ -29,8 +29,10 @@ import type { Recipe } from "@/definisions/RecipeTypes";
 import type { GameState } from "@/types/GameState";
 import type { TradeCommodity } from "@/types/Market";
 import type { Nation } from "@/types/Nation";
-import { BUILDING_TEXT, commodityName, money, REFUSAL_TEXT } from "../gameText";
+import { BUILDING_TEXT, commodityName, fundsNeededText, money, REFUSAL_TEXT } from "../gameText";
 import { namesText } from "./dealBookView";
+import { purchaseWarnings } from "./marketView";
+import { goodsSourceNotes } from "../goodsSources";
 
 /** Why the player cannot trade with a minor this turn (FR-185), as the board marks it. */
 export const BARRIER_TEXT: Record<TradeBarrier, string> = {
@@ -83,7 +85,8 @@ export function barredText(barriers: readonly (TradeBarrier | undefined)[], side
  * reason, the limit the header counts ("Holds", "Bids"), the warehouse, the money. Also what a repeated unit was refused
  * for (FR-398). "limit-reached" is either limit, told apart by the free holds.
  */
-export function moreRefusalText(state: GameState, nationId: string, commodity: TradeCommodity, reason: RejectReason): string {
+export function moreRefusalText(state: GameState, nationId: string, commodity: TradeCommodity, result: Extract<ValidationResult, { ok: false }>): string {
+  const { reason } = result;
   switch (reason) {
     case "no-seller":
       return MORE_REFUSAL_TEXT.noSeller;
@@ -99,7 +102,7 @@ export function moreRefusalText(state: GameState, nationId: string, commodity: T
     case "insufficient-resources":
       return MORE_REFUSAL_TEXT.stock;
     case "insufficient-funds":
-      return MORE_REFUSAL_TEXT.cash;
+      return "cost" in result ? fundsNeededText(result.cost, result.buyingPower) : MORE_REFUSAL_TEXT.cash;
     default:
       return REFUSAL_TEXT[reason];
   }
@@ -171,7 +174,7 @@ export function repeatTrades(
       const check = validateOrder(state, order);
       const result = check.ok ? submit(order) : check;
       if (!result.ok) {
-        const why = lowerFirst(moreRefusalText(state, nationId, trade.commodity, result.reason));
+        const why = lowerFirst(moreRefusalText(state, nationId, trade.commodity, result));
         refused.push(`${commodityName(trade.commodity)} ${SIDE_TEXT[trade.side]}: ${why}.`);
         break;
       }
@@ -206,6 +209,7 @@ export interface StepNote {
 export interface BoardRowView {
   commodity: TradeCommodity;
   name: string;
+  sourceNote?: string;
   /** The board price: last turn's world price, the base of every deal this turn (FR-189). */
   price: number;
   /**
@@ -220,6 +224,7 @@ export interface BoardRowView {
   offer: number;
   /** Why one more unit of bid, or of offer, would be refused; absent when it would not (FR-248). */
   bidMoreRefusal?: string;
+  purchaseWarning?: string;
   offerMoreRefusal?: string;
   /** The line beside the Bid and the Offer stepper (FR-257); absent when there is nothing to say. */
   bidNote?: StepNote;
@@ -247,8 +252,10 @@ export const startSide = (row: Pick<BoardRowView, "bid" | "offer" | "offerMoreRe
 
 export interface BoardView {
   rows: BoardRowView[];
-  /** The treasury now: a purchase is paid when it is ordered (FR-062), so this is the buying power (FR-573). */
+  /** Signed cash after this turn's purchases. */
   treasury: number;
+  buyingPower: number;
+  creditLimit?: number;
   /** FR-573: paid for this turn's purchases, each unit at the board price as the engine took it (`applyBuyCommodity`). */
   committed: number;
   /** FR-573: the cash before this turn's purchases: the treasury with `committed` added back. */
@@ -339,10 +346,12 @@ export function boardView(state: GameState, nation: Nation): BoardView {
     return count ? [`${count} ${count === 1 ? SHIPS[type].name : SHIPS[type].plural}`] : [];
   });
   const board = boardOfTrade(state, nation.id);
+  const sources = goodsSourceNotes(state, nation, "market");
+  const warningFor = purchaseWarnings(state, nation);
   /** The refusal of one more unit on that side, as validateOrder judges it now. */
   const moreRefusal = (kind: "buyCommodity" | "sellCommodity", row: (typeof board)[number], current: number): string | undefined => {
     const result = validateOrder(state, { kind, nationId: nation.id, commodity: row.commodity, amount: current + 1 });
-    return result.ok ? undefined : moreRefusalText(state, nation.id, row.commodity, result.reason);
+    return result.ok ? undefined : moreRefusalText(state, nation.id, row.commodity, result);
   };
   /** "Arvelia favours Valdoria": the open counterparties that serve another Great Power first (FR-252). */
   const rivalFavourites = (partners: readonly (BoardSeller | BoardBuyer)[]): string | undefined => {
@@ -380,12 +389,14 @@ export function boardView(state: GameState, nation: Nation): BoardView {
     return {
       commodity: row.commodity,
       name: commodityName(row.commodity),
+      sourceNote: sources.get(row.commodity),
       price: row.price,
       ...(dealPrices.length > 0 ? { dealPrices } : {}),
       available: row.available,
       bid: row.bid,
       offer: row.offer,
       ...(bidMore ? { bidMoreRefusal: bidMore } : {}),
+      ...(!bidMore && { purchaseWarning: warningFor(row.commodity, row.price) }),
       ...(offerMore ? { offerMoreRefusal: offerMore } : {}),
       ...(bidNote ? { bidNote } : {}),
       ...(offerNote ? { offerNote } : {}),
@@ -405,6 +416,8 @@ export function boardView(state: GameState, nation: Nation): BoardView {
   return {
     rows,
     treasury: nation.treasury,
+    buyingPower: buyingPower(nation),
+    ...(hasOpenCredit(nation) && { creditLimit: nation.creditAccount.limit }),
     committed,
     cash: nation.treasury + committed,
     capacity,

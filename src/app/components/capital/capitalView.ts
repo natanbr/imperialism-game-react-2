@@ -4,6 +4,7 @@ import { labourOf, largestOrder, migrantCap, planProduction, type Labour, type P
 import { BUILDING_ORDER, BUILDINGS, nextCapacity } from "@/definisions/industryBuildings";
 import { owns } from "@/engine/orders/queries";
 import { acceptsProductionInputs } from "@/engine/industry/productionPlan";
+import { buyingPower, hasOpenCredit } from "@/engine/credit/account";
 import { EXPANSION_COST_PER_POINT, MIGRANT_COST, RECIPES, TRAINING_COST } from "@/definisions/ResourceConversions";
 import type { GameState } from "@/types/GameState";
 import type { BuildingType, ProductionOutput, WorkerGrade, Workers } from "@/types/Industry";
@@ -181,13 +182,15 @@ const goodsCost = (stock: Stock, key: WarehouseCommodities, needed: number): Cos
 /** FR-572: per Trade School action the cash and goods one more costs (TRAINING_COST, MIGRANT_COST), against our stock. */
 export function tradeSchoolCosts(nation: Nation): Record<SchoolAction, CostView[]> {
   const stock = nation.warehouse as Stock;
+  const available = buyingPower(nation);
+  const funds = hasOpenCredit(nation) ? `${money(available)} buying power` : `${money(available)} in treasury`;
   const training = (from: "untrained" | "trained"): CostView[] => {
     const cost = TRAINING_COST[from];
     const cash: CostView = {
       key: "cash",
       types: [],
-      text: `Cash: ${money(cost.cash)} needed, ${money(nation.treasury)} in treasury`,
-      missing: nation.treasury < cost.cash,
+      text: `Cash: ${money(cost.cash)} needed, ${funds}`,
+      missing: available < cost.cash,
     };
     return [cash, goodsCost(stock, MaterialType.Paper, cost.paper)];
   };

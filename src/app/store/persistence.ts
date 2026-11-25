@@ -2,10 +2,14 @@
 // writes the store's session to one localStorage slot and reads it back for page.tsx, the only place that loads a save
 // (the store never does by itself). Its writes are the autosave page.tsx starts once the game in play is decided.
 import type { StoreApi } from "zustand";
+import { validSavedCredit } from "./creditSave";
 import { inventionNews } from "@/engine/technology";
 import { turnLimitOf } from "@/engine/turn/gameOver";
+import { normalizeRandomMapSize } from "@/types/World";
 import { m17ReplayBoundary, usedM17CombatRules, withCurrentRules } from "./sessionReplay";
 import type { GameSession } from "./gameSlice";
+import { isRecord } from "./isRecord";
+import { readRankHistory } from "./rankHistory";
 import type { GameStore } from "./rootStore";
 
 /** The one save slot (FR-357). */
@@ -40,12 +44,11 @@ export function browserStorage(): Storage | undefined {
 
 /** The save of a store's session (FR-357). */
 export function saveOf(session: GameSession, now: Date = new Date()): SavedGame {
-  const { game, activeNationId, eventLog, orderLog, ordersThisTurn, turnStartTreasuries, replayBoundary } = session;
+  const { game, activeNationId, eventLog, orderLog, ordersThisTurn, turnStartTreasuries, replayBoundary, rankHistory } = session;
   return { version: SAVE_VERSION, savedAt: now.toISOString(), game, activeNationId, eventLog, orderLog, ordersThisTurn, turnStartTreasuries,
-    ...(usedM17CombatRules(session) && { combatRevision: "q145" }), ...(replayBoundary && { replayBoundary }) };
+    ...(usedM17CombatRules(session) && { combatRevision: "q145" }), ...(replayBoundary && { replayBoundary }),
+    ...(rankHistory?.length && { rankHistory }) };
 }
-
-const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 
 /** This version's save with a game that has a turn, nations and a map, and the session's logs (FR-362's shape check). */
 function isUsable(value: unknown): value is SavedGame {
@@ -74,7 +77,10 @@ export function readSave(storage: Pick<Storage, "getItem"> | undefined = browser
   if (raw === null) return { kind: "empty" };
   try {
     const parsed: unknown = JSON.parse(raw);
-    if (!isUsable(parsed)) return { kind: "unusable" };
+    if (!isUsable(parsed) || !validSavedCredit(parsed)) return { kind: "unusable" };
+    if (parsed.game.worldId === "random" && parsed.game.randomMapSize !== undefined) {
+      parsed.game.randomMapSize = normalizeRandomMapSize(parsed.game.randomMapSize);
+    }
     const shared = parsed.game.technologyState;
     if (shared || !parsed.game.rulesRevision) {
       parsed.replayBoundary ??= { turn: parsed.game.turn, appliedOrders: parsed.ordersThisTurn.length,
@@ -92,6 +98,7 @@ export function readSave(storage: Pick<Storage, "getItem"> | undefined = browser
       if (boundary) parsed.replayBoundary = boundary;
       parsed.combatRevision = "q145";
     }
+    if (parsed.rankHistory !== undefined) parsed.rankHistory = readRankHistory(parsed.rankHistory, parsed.game);
     return { kind: "usable", save: parsed };
   } catch {
     return { kind: "unusable" };

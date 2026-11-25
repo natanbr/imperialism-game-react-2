@@ -1,5 +1,6 @@
 import { UNIVERSITY_FEES, UNIVERSITY_PAPER_COST, UNIVERSITY_TECHNOLOGY, type UniversityCivilian } from "@/definisions/universityFees";
 import type { GameState } from "@/types/GameState";
+import { canAfford } from "../credit/account";
 import type { Nation } from "@/types/Nation";
 import { MaterialType } from "@/types/Resource";
 import { freeWorkersOf } from "../army/armies";
@@ -23,8 +24,7 @@ export function validateCivilianOrder(state: GameState, nation: Nation, order: C
     if (requireTechnology && techId && !owns(state, nation.id, techId)) return { ok: false, reason: "missing-technology", techId };
     if (freeWorkersOf(nation, "expert") < increase) return { ok: false, reason: "no-expert" };
     if ((nation.warehouse[MaterialType.Paper] ?? 0) < increase * UNIVERSITY_PAPER_COST) return { ok: false, reason: "insufficient-resources" };
-    if (nation.treasury < increase * UNIVERSITY_FEES[civilianType]) return { ok: false, reason: "insufficient-funds" };
-    return { ok: true };
+    return canAfford(nation, increase * UNIVERSITY_FEES[civilianType]);
   }
 
   const actor = findWorker(state, order.workerId);

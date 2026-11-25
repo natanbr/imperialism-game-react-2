@@ -63,7 +63,7 @@ export const START_FOUNDINGS: readonly NationFounding[] = [
 ];
 
 /** A nation at the start of a game: the founding plus the start kit (rules 01 section 3 and 05 section 4). */
-function startNation({ id, name, capitalId, colorSlot, controller }: NationFounding): Nation {
+export function startNation({ id, name, capitalId, colorSlot, controller }: NationFounding): Nation {
   return {
     id,
     name,

@@ -11,10 +11,8 @@ import { isLandTerrain } from "./map/shoreline";
 // The grid as MapView draws it (FR-088): odd rows are shifted half a tile.
 export { HUD_PX, TILE_PX, topBarPx };
 
-/** The map's zoom steps (FR-368): 100% (today's 42 px tiles), 150% and 200%, for the buttons and keys. */
+/** Steps shared by all maps (FR-368). Oversized maps may have one more step below 100% (FR-598). */
 export const ZOOM_STEPS = [1, 1.5, 2] as const;
-/** Every zoom stays within these (FR-567): the opening fit, the wheel and a pinch included. */
-export const ZOOM_MIN = ZOOM_STEPS[0];
 export const ZOOM_MAX = ZOOM_STEPS[ZOOM_STEPS.length - 1];
 /**
  * FR-567: an opening fit under this gain stays at 100%, where the ink pictures are drawn: at 1280x720 the land would gain
@@ -22,7 +20,6 @@ export const ZOOM_MAX = ZOOM_STEPS[ZOOM_STEPS.length - 1];
  */
 export const FIT_MIN_GAIN = 1.1;
 
-export const clampZoom = (zoom: number): number => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom));
 /**
  * Trap (FR-567 review): an exact fit is a float a hair off, 630 x 54/42 = 810.0000000000001 at 1465x850, so a strict test
  * of "the land fits" opened on the capital and clipped the land. The fit and the test allow half a pixel.
@@ -42,12 +39,26 @@ export interface MapArea {
   height: number;
 }
 
-type MapSize = Pick<MapConfig, "cols" | "rows">;
+export type MapSize = Pick<MapConfig, "cols" | "rows">;
 
 export const mapSizePx = ({ cols, rows }: MapSize, zoom = 1): MapArea => ({
   width: (cols * TILE_PX + TILE_PX / 2) * zoom,
   height: rows * TILE_PX * zoom,
 });
+
+const exceedsFixedMapSize = ({ cols, rows }: MapSize) => cols > 24 || rows > 20;
+
+function wholePixelFit(area: MapArea, size: MapArea, slack = 0): number {
+  const fit = Math.min((area.width + slack) / size.width, (area.height + slack) / size.height);
+  return Math.floor(fit * TILE_PX) / TILE_PX;
+}
+
+/** FR-598: only maps beyond the fixed dimensions can shrink below their native 42 px tiles. */
+export function minZoom(area: MapArea, map: MapSize): number {
+  return exceedsFixedMapSize(map) ? Math.max(0.5, Math.min(1, wholePixelFit(area, mapSizePx(map)))) : 1;
+}
+
+export const clampZoom = (zoom: number, area: MapArea, map: MapSize): number => Math.min(ZOOM_MAX, Math.max(minZoom(area, map), zoom));
 
 /** The window less the right pane and the top bar (FR-465): 1030 x 680 at 1280x720, 550 x 370 at 800x450 (two-row bar). */
 export const mapAreaOf = ({ innerWidth, innerHeight }: { innerWidth: number; innerHeight: number }): MapArea => ({
@@ -117,22 +128,22 @@ export function landBoxPx(map: Pick<GameState["map"], "tiles">): MapBox {
 }
 
 /**
- * The opening zoom that fits the box to the area (FR-567), floored to whole pixels a tile, within ZOOM_MIN..ZOOM_MAX, and
- * 100% for a gain under FIT_MIN_GAIN.
+ * Fit the opening box (fixed-map land or the whole oversized grid), in whole pixels per tile.
+ * Keep native-size art for a gain under FIT_MIN_GAIN (FR-567, FR-598).
  */
-export function fitZoom(area: MapArea, box: MapBox): number {
-  if (box.width <= 0 || box.height <= 0) return ZOOM_MIN;
-  const fit = Math.floor(Math.min((area.width + FIT_SLACK_PX) / box.width, (area.height + FIT_SLACK_PX) / box.height) * TILE_PX) / TILE_PX;
-  return fit < FIT_MIN_GAIN ? ZOOM_MIN : Math.min(ZOOM_MAX, fit);
+export function fitZoom(area: MapArea, box: MapBox, map: MapSize): number {
+  if (box.width <= 0 || box.height <= 0) return 1;
+  const fit = wholePixelFit(area, box, exceedsFixedMapSize(map) ? 0 : FIT_SLACK_PX);
+  return fit < FIT_MIN_GAIN ? minZoom(area, map) : Math.min(ZOOM_MAX, fit);
 }
 
 /**
- * How the map opens (FR-567): at the fit zoom with the land box in the middle of the area when it fits there; else (a
- * screen smaller than the land) at 100% on the capital, as FR-083 always did.
+ * Centre the opening box when it fits at an allowed zoom, or centre the capital when the area is too small.
  */
 export function openingView(game: GameState, nationId: string, area: MapArea): { zoom: number; camera: Camera } {
-  const box = landBoxPx(game.map);
-  const zoom = fitZoom(area, box);
+  const map = game.map.config;
+  const box = exceedsFixedMapSize(map) ? { x: 0, y: 0, ...mapSizePx(map) } : landBoxPx(game.map);
+  const zoom = fitZoom(area, box, map);
   if (box.width * zoom <= area.width + FIT_SLACK_PX && box.height * zoom <= area.height + FIT_SLACK_PX) {
     const offset = mapOffset(area, game.map.config, zoom);
     const centre = { x: (box.x + box.width / 2) * zoom + offset.x, y: (box.y + box.height / 2) * zoom + offset.y };

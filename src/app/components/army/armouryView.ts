@@ -10,15 +10,16 @@ import {
   upkeepForecast,
   validateOrder,
   type RegimentType,
-  type RejectReason,
+  type ValidationResult,
 } from "@/engine";
 import type { GameState } from "@/types/GameState";
 import type { WorkerGrade } from "@/types/Industry";
 import type { Nation } from "@/types/Nation";
 import { GoodsType, ResourceType } from "@/types/Resource";
-import { money, REFUSAL_TEXT, upkeepDueText, upkeepWarningText } from "../gameText";
+import { fundsNeededText, money, REFUSAL_TEXT, upkeepDueText, upkeepWarningText } from "../gameText";
 import { computeLogisticsTransport, transportShipments } from "@/engine/systems/logisticsSystem";
 import { CATEGORY_TEXT } from "./armyView";
+import { buyingPower, hasOpenCredit } from "@/engine/credit/account";
 
 /** One thing a regiment costs, or the nation has at hand: a worker of its grade, armaments, horses, cash. */
 export type ArmouryItemKey = "worker" | "armaments" | "horses" | "cash";
@@ -105,11 +106,12 @@ function atHandItem(key: ArmouryItemKey, label: string, first: string, own: numb
 }
 
 /** "+" disabled (FR-212): the engine's reason, named for the thing that is short. */
-function moreRefusalText(reason: RejectReason, nation: Nation, type: RegimentType): string {
+function moreRefusalText(result: Extract<ValidationResult, { ok: false }>, nation: Nation, type: RegimentType): string {
+  const { reason } = result;
   const def = REGIMENTS[type];
   switch (reason) {
     case "insufficient-funds":
-      return "Not enough money";
+      return "cost" in result ? fundsNeededText(result.cost, result.buyingPower) : "Not enough money";
     case "insufficient-resources":
       return (nation.warehouse[GoodsType.Armaments] ?? 0) < def.stats.armamentsCost ? "Not enough armaments" : "Not enough horses";
     case "insufficient-labour":
@@ -159,7 +161,7 @@ export function armouryView(state: GameState, nation: Nation): ArmouryView {
       ...(def.horses > 0
         ? [atHandItem("horses", "Horses", `${stockBefore(ResourceType.Horses)} in warehouse, +${horseSupply} a turn`, own.horses, others.horses, plain, none && stock(ResourceType.Horses) < def.horses)]
         : []),
-      atHandItem("cash", "Cash", money(before.treasury), own.cash, others.cash, money, none && nation.treasury < def.cash),
+      atHandItem("cash", hasOpenCredit(nation) ? "Buying power" : "Cash", money(buyingPower(before)), own.cash, others.cash, money, none && buyingPower(nation) < def.cash),
     ];
     const result = validateOrder(state, { kind: "setRecruitment", nationId: nation.id, regiment: type, count: count + 1 });
     return {
@@ -173,7 +175,7 @@ export function armouryView(state: GameState, nation: Nation): ArmouryView {
       cost,
       atHand,
       count,
-      ...(result.ok ? {} : { moreRefusal: moreRefusalText(result.reason, nation, type) }),
+      ...(result.ok ? {} : { moreRefusal: moreRefusalText(result, nation, type) }),
     };
   });
   const forecast = upkeepForecast(state, nation.id);

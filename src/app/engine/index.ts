@@ -9,6 +9,7 @@ export { createTurnRng, type Rng } from "./rng";
 export { scriptedPlayer, type Player } from "./ai/scriptedPlayer";
 export { computerOrders, PLAYERS } from "./ai/players";
 export { newGame, type NewGameOptions } from "./newGame";
+export { parseMapSeed } from "./world/mapSeed";
 export { seasonOf, type Season } from "./calendar";
 export { labourOf, planProduction, type Labour, type ProductionPlan } from "./industry/productionPlan";
 export { migrantCap } from "./industry/industryState";
@@ -66,7 +67,7 @@ export type {
 export type { DiplomacyIntent } from "@/types/Intent";
 export type { MinorNation } from "@/types/MinorNation";
 export type { Province } from "@/types/Province";
-export type { WorldId } from "@/types/World";
+export type { RandomMapSize, WorldId } from "@/types/World";
 export type { TradeCommodity, TradeOrders, WorldMarket } from "@/types/Market";
 // M7 (FR-183 to FR-191, FR-242 to FR-256): nation-to-nation trade, the Board of Trade rows and the Deal Book data.
 export {

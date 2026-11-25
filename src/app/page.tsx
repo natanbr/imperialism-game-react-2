@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { HUD } from './components/HUD';
 import { TopBar } from './components/HUD/TopBar';
 import { MapView } from './components/MapView';
 import { WarehouseModal } from './components/WarehouseModal';
 import { CapitalModal } from './components/CapitalModal';
-import { MarketModal } from './components/MarketModal';
 import { DealBookModal } from './components/DealBookModal';
 import { DiplomacyModal } from './components/DiplomacyModal';
 import { AcceptOfferModal } from './components/AcceptOfferModal';
@@ -26,6 +26,13 @@ import { HOW_TO_PLAY_SEEN_KEY, readFlag, readSave, startAutosave, writeFlag, typ
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { openMap, startNewGameOnCapital } from './hooks/mapActions';
 import { Toasts } from './components/Toasts';
+
+// Keep the market screens in their own production chunk. Merging them into the map page
+// exceeds Turbopack 15's source-position limit during code generation.
+const MarketModal = dynamic(() => import('./components/MarketModal').then(module => module.MarketModal), {
+  // Give the closed Market its own Suspense boundary so the HUD can hydrate independently.
+  loading: () => null,
+});
 
 /**
  * The game in play (FR-359, FR-360, FR-362): at the start the page reads the save slot once (the only place that loads a
