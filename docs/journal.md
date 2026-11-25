@@ -4,6 +4,7 @@ Older entries are in `docs/journal/archive-<milestone>.md` (the latest move, 202
 
 ## Resuming here
 
+- M18d (terrains, resources, fishing) is PARKED on `claude/m18d-terrain` for an owner decision: see `docs/verify-and-tune.md` "M18d parked".
 - M18d Task 31 on `claude/m18d-terrain` stopped at the first protected comparison, before map edits. At seed 4, coastal Fish changed the turn-7 Canned Food order from 4 to 6. See Q147, `docs/specs/m18d-terrain.md` and `.gate/codex/31/report.md`. Local candidate only.
 - M18 (play-test comfort, `docs/specs/m18-playtest-comfort.md`): M18a merged into main `af24381` (pull request 43), M18b part 1 (FR-563, FR-568, FR-569) in `5e80bab` (pull request 44), part 2 (FR-564 nation colours and flags) in `4098bfe` (pull request 45). NR-037 in progress.
 - M18b part 3 (FR-565, FR-566) merged into main `cd5b1be` (pull request 46); FR-567 into `994a0ca` (pull request 47), partial: the narrower pane is left for the owner; FR-570 (rail) into `751b74b` (pull request 48). Icons wait for the art (spec section 3).
@@ -42,7 +43,8 @@ Objection: suppressing a capital’s fish would depart from rules 02 and 04, whi
 - Allowance 6 points (source: default; the owner's prompt named none). Weekly gauge 27% at start (resets 2026-11-29).
 - Plan (orchestrator's call, from the roadmap's M18 "World variety and depth", worst items first):
   1. M18d: the missing terrains and resources with rivers (RULES-GAP-06), prospecting that can find nothing (RULES-GAP-25), the dead goods rows becoming live (RULES-GAP-26). Forecast 2.5 points with its review.
-  2. M18e: a seeded random map and game options, game length (RULES-GAP-07, RULES-GAP-24). Depends on M18d. Forecast 2 points.
+  2. M18e: a seeded random map and game options, game length (RULES-GAP-07, RULES-GAP-24). Forecast 2 points. It was listed as depending on M18d; it does not: it builds maps from the six existing terrains, so it goes ahead while M18d is parked.
+- M18d parked (Codex stopped as briefed): fishing moves the protected guards; table and options in `docs/verify-and-tune.md` ("M18d parked"). Branch `claude/m18d-terrain` kept, not merged. Rejected tonight: a per-game rules version (hard to undo, it would set new thresholds the build then passes; the owner's call) and merging a fishing-free subset (no map uses it yet, unreviewed).
   Deferred: town development, credit, diplomacy leftovers, land war eras, original screens.
 - Decision: Codex builds (gpt-6.2-astra xhigh; its quota is back), Claude Sonnet 5.5 xhigh reviews. Rejected: Claude Opus builds, which spend the weekly gauge three times faster for the same work. The play-test pieces M18a to M18c already live under M18, so these are M18d and M18e, and no new milestone number is needed.
 ## 2026-11-24 Task 30 — Trade policy map review (FR-579)

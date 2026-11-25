@@ -50,3 +50,29 @@ Status: `default` = taken, nobody has checked; `confirmed` = Nathan agreed or th
 
 Balance numbers worth comparing to the real game first: score at turns 15, 25 and 40 (FR-125's 1.5× margin is our own
 yardstick), the turn Arvelia falls, workers per nation, price levels of the first five goods, and war timing.
+
+## M18d parked (2026-11-24, night shift 2): coastal and river fishing moves the protected guards
+
+Branch `claude/m18d-terrain` (3561b9c, Codex task 31; spec `docs/specs/m18d-terrain.md`, FR-580 to FR-587). Fishing
+from sea and river tiles next to a port changed every two-islands golden game (seed 4 first differs on turn 7: 6 Canned
+Food ordered instead of 4). With the old logistics code alone, all guards return to their recorded values.
+
+| Guard | main | M18d candidate |
+|---|---:|---:|
+| FR-125 lowest score ratio (minimum 1.5) | 1.604 | 1.519 |
+| FR-124/FR-125 rail dead ends at turn 15 | 0 | 3 (a defect, fails the guard) |
+| FR-545 peaceful Council wins | 15/24 | 15/24 |
+| FR-546 voluntary minor vote | 13/24 | 17/24 |
+| FR-497 private orders change plans | 0/280 | 0/280 |
+| Two-islands golden (orders, seeds 1-4) | 529/503/502/533 | 555/558/558/550 |
+
+38 unit tests fail on the branch: the guards above, logistics and start-world freight numbers, the HUD/transport rows
+that now show fish, the four FR-582 river-port cases left red, and three historical save replays (legacy technology,
+pre-M17 naval, M17 combat), because old saves replay under the new fishing rule. Mining also now needs a technology
+(Square-Set Timbering, Dynamite; commit d6f928f), which changes the existing rules.
+
+Options for the owner:
+1. Fishing applies to new games only (a per-game rules flag; old saves and goldens keep today's rules, the way FR-558
+   kept old sea campaigns). New games need their own balance targets and the rail dead-end fix.
+2. Fishing for every game: re-record the goldens with the reason, fix the rail dead ends, and give old saves a migration.
+3. Drop fishing for now; ship terrain development and prospecting alone after its own review.
