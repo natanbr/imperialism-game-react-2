@@ -1,5 +1,26 @@
 # M18g information screens journal
 
+## 2026-11-25 Task 43 — M18g review fixes
+
+Size M. The review covered the two Market variants, dated trade, rank-history recovery and Stats layout.
+The score breakdown and rank history serve the player in Stats. The optional ranking sample also passes through End Turn and the save reader.
+FR-085 checks the loaded Market text. FR-612 follows a viewer subsidy through settlement. FR-611 checks a failed projection, an extra measure from a newer save and round trend markers. FR-404 checks hover, keyboard focus, scroll and resize.
+Run the complete unit and browser suites, lint, TypeScript and the production build. Compare NR-040 with the recorded base and run performance last.
+The score can fit inside the window and still be covered by the scrolling pane. Check its corners and each line in Chromium.
+
+Local implementation commits on `claude/m18g-screens` are `6c67571` for the store and `d4cfeac` for Stats.
+
+| Check | Evidence |
+|---|---|
+| Tests before implementation | `07de0c0` includes the two store regressions that failed on the prior code. The trend marker measured 6.23×5.73 px at 1366×768 and 3.50×5.73 px at 390×844. `ae4299f` covers the score's placement on resize. `f552d2c` caught a focused tooltip remaining visible after its anchor had scrolled out. |
+| FR-404 score breakdown | The Stats tabs added in `2ad9045` moved the score 35 px lower in a 640×360 window. The 94 px tooltip opened downwards at y=286, extended to y=380 and was clipped by the new scroll pane. Restoring the layout from `9d2f9eb` on the same page put the tooltip bottom at y=345. The fix measures available space on hover or focus, resize and pane scroll. The tooltip now ends at y=258.5 at 640×360, y=380 at 800×600 and y=432.25 at 1280×720. The original browser test checks the corners and the end of each line. [640×360 screenshot](../../.gate/codex/43/score-640x360.png) |
+| FR-085 and FR-612 | The full-page emoji scan now waits for and includes each named Market dialog. In the two-round Coal fixture, the viewer's 25% subsidy reverses Arvelia's current preference. The full settled page still records one Coal bought until End Turn replaces it with the purchase of two. |
+| FR-611 and NR-040 | A projection exception on turn 2 leaves history entries for turns 1 and 3. Turn 2 settles and unlocks on schedule. Loading a future measure keeps the validated known placings. Chart paths still use the full plot width and circular markers use a three-pixel radius. |
+| Browser gates | `npx playwright test e2e/m13-hud.spec.ts --workers=1` passed 23/23 on the final source, including FR-404 at all three sizes. The full suite passed 176/176 in 11.4 minutes with three workers. |
+| Full unit suite | The first full run caught the one-second dialog query timing out on the cold Market import. Test commit `b25ea0d` waits for the actual dynamic import and React update. Six suites passed 163/163 under six-worker load. The final `npm test` passed 3,431/3,431 in 171 files. |
+| NR-040 comparison | FR-125 903/563, FR-545 15/24, FR-546 13/24 and FR-497 0/280. All four FR-464 goldens and all 72 FR-597 records across 2,790 turns matched the base byte for byte. The normalized SHA-256 was `28818fdc3b7a7eed6853c2324abadfe433b8d01ec56caba9f5b26cc25efaa9b2`. [Guard log](../../.gate/codex/43/guard-summary.log) |
+| Static checks, performance and review | TypeScript and the production build passed. Lint found zero errors and one existing unused variable in `logisticsSystem.test.ts`. All three isolated performance tests passed, with FR-497 planner p95 at 12.3 ms against a 100 ms limit. Independent review of the store, SVG, tooltip and Market tests found no outstanding issues. |
+
 ## 2026-11-24 Task 42 — M18g books and diplomatic map modes
 
 Size M. Market gains dated commodity pages and two diplomatic views. Stats gains a province roster.
