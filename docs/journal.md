@@ -4,6 +4,7 @@ Older entries are in `docs/journal/archive-<milestone>.md` (the latest move, 202
 
 ## Resuming here
 
+- M18e task 33 on `claude/m18e-maps` adds headless seeded worlds and Random save/replay. Task 34 owns the New game and Stats controls. The owner deferred the length menu and historical calendar. See the task 33 balance measurements in `docs/specs/m18e-maps.md`.
 - M18 (play-test comfort, `docs/specs/m18-playtest-comfort.md`): M18a merged into main `af24381` (pull request 43), M18b part 1 (FR-563, FR-568, FR-569) in `5e80bab` (pull request 44), part 2 (FR-564 nation colours and flags) in `4098bfe` (pull request 45). NR-037 in progress.
 - M18b part 3 (FR-565, FR-566) merged into main `cd5b1be` (pull request 46); FR-567 into `994a0ca` (pull request 47), partial: the narrower pane is left for the owner; FR-570 (rail) into `751b74b` (pull request 48). Icons wait for the art (spec section 3).
 - M18c (FR-572 to FR-578) merged in `896d1fb` (pull request 49). The three-tab Board of Trade and Trade School evidence is in `.gate/claude/53/`. The owner’s FR-575 decision about moving Details is still open.
@@ -15,6 +16,22 @@ Older entries are in `docs/journal/archive-<milestone>.md` (the latest move, 202
 - FR-547 (Q143) is the buyer branch's proposed value rule. Measure technology availability, purchase timing and the value of the first unlocked action in the original game before tuning. See `docs/verify-and-tune.md`.
 - Task 19 passed the load trials and full gate on `claude/perf-tests`. Finish future gates with `npm run test:perf` alone. The measured results and six functional logs are indexed in `.gate/codex/19/summary.md`.
 - To play M17 on continent seed 1, set Armaments and Fabric production to 1. Build a Ship-of-the-Line on turn 6, declare and sail on turn 7, set the site on turn 8, and land the four-ARMS army on turn 9. On turn 10 see the survivors at Sundmark and its colony vote in Council.
+
+## 2026-11-24 Task 33 — Seeded random world (M18e T-01)
+
+Size L. Two map sizes, a private generator stream and the existing start kit. Engine, store starts and replay consume the numeric seed and size. Fixed-world compatibility is a stop condition. The generation plan reserves the six coastal country footprints and the food rings before partitioning them into provinces. A six-country site budget keeps hidden seams and minor land in the same fairness measure.
+
+| Check | Evidence |
+|---|---|
+| Red before implementation | `f91b982`: 4 suites red. The parser was missing, the registry and replay rejected Random, and the harness still played Continent. A subsequent case in `361b0fb` caught an extra size field when replaying an omitted-size Standard save. |
+| FR-588–592 | 134 generated starts and 536 minor markets checked, with two pinned Brete fingerprints, disconnected-sea and split-province controls, and deliberately unequal ore and food fixtures. |
+| NR-038 | The seven fixed suites passed 139/139 before and after. All 247 deterministic output lines matched, including FR-125 at 903/563, the four FR-464 hashes, FR-545 at 15/24, FR-546 at 13/24, and 0/280 changed private-Order plans. Includes original inputs for scripted scores, four pinned Order logs, Council balance, the private-Order probe, persistence, legacy tech and M17 combat replay. Six additional SHA-256 pins cover serialized starts and a 400-turn v1 save before and after its turn-10 Council. |
+| FR-597 | 72/72 games reached a decision. No rejected computer Orders (37,475 submitted), invariant failures (2,790 turns), no-pay disbands in 940 idle turns, or changes to 930 probed plans. See the spec for policy outcomes and the per-seed fixture. |
+| Open balance question | Scripted Great Power trade settled in 0/24 games. On seed 1 both powers offered finished goods and bid for inputs. Trade with minors settled. A Great Power trade target is open for the owner. |
+
+Final gates: 3,292/3,292 tests across 161 files in 164.88 s, including the 72-game sweep (+29.53 s over the eight-game repository run). Lint returned 0 errors and 2 existing warnings. TypeScript and the production build passed. Isolated performance passed 3/3 before and after, with FR-497 p95 14.0 ms and 12.4 ms over 3,210 turns (100 ms limit). The test-first, guard, sweep and trade logs are in `.gate/codex/33/`.
+
+Task 34 can pass an accepted `parseMapSeed` result and Random size to `startNewGame`. Empty input uses the store's existing seed draw. Build only Normal/Demo controls and the existing calendar display.
 
 ## 2026-11-24 Task 30 — Trade policy map review (FR-579)
 
