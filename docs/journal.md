@@ -7,7 +7,7 @@ Older entries are in `docs/journal/archive-<milestone>.md` (the latest move, 202
 - M18 (play-test comfort, `docs/specs/m18-playtest-comfort.md`): M18a merged into main `af24381` (pull request 43), M18b part 1 (FR-563, FR-568, FR-569) in `5e80bab` (pull request 44), part 2 (FR-564 nation colours and flags) in `4098bfe` (pull request 45). NR-037 in progress.
 - M18b part 3 (FR-565, FR-566) merged into main `cd5b1be` (pull request 46); FR-567 into `994a0ca` (pull request 47), partial: the narrower pane is left for the owner; FR-570 (rail) into `751b74b` (pull request 48). Icons wait for the art (spec section 3).
 - M18c (FR-572 to FR-578) merged in `896d1fb` (pull request 49). The three-tab Board of Trade and Trade School evidence is in `.gate/claude/53/`. The owner’s FR-575 decision about moving Details is still open.
-- Task 30 follows the Task 29 map on the local branch `claude/m18c-policy-map`. Open Market → Trade policies, then Tab to a country to see its keyboard focus. The review evidence is in `.gate/codex/30/`.
+- FR-579 Trade policies map (owner chose the map, 2026-11-24): built by Codex (tasks 29, 30), reviewed by Sonnet 5.5, gate green (`.gate/claude/54/`, screenshots `.gate/codex/30/`), merged via the pull request from `claude/m18c-policy-map`. Open Market → Trade policies; Tab to a country to see its keyboard focus.
 - To try Demo: New game, Start Demo game; then Dashboard in the top bar (Economy, Military, Trade, Diplomacy, Council, Bug report).
 - M17 merged into main `65a4d5a` (pull request 42). Its task evidence is in `.gate/codex/21/` to `.gate/codex/28/`.
 - M16 part 1 merged in `9bd5a91`. The human can buy technology. The computer makes no purchases on main.
