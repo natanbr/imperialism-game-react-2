@@ -46,7 +46,8 @@ it('NR-038 preserves the serialized seed-only, app, Normal and Demo fixed starts
 it('NR-038 loads, advances and replays the pre-M18e unmarked custom 400-turn game including its meeting at turn 10', () => {
   const old = createGameStore({ game: newGame({ seed: 7, world: 'continent', turnLimit: 400 }) });
   for (let turn = 1; turn < 10; turn++) old.getState().advanceTurn();
-  const original = saved(old);
+  const { rankHistory: newHistory, ...original } = saved(old);
+  expect(newHistory?.map(record => record.turn)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
   // The digest pins this exact v1 session on the parent of the M18e implementation.
   expect(digest(original)).toBe('544df1968c34056c07e33246c47f5a50d2ed8206ba51d2cfa7b5215831c0aa3a');
   const slot = read(original);
@@ -55,7 +56,8 @@ it('NR-038 loads, advances and replays the pre-M18e unmarked custom 400-turn gam
   restored.getState().restoreGame(slot.save);
   expect(replaySession(slot.save)).toEqual(slot.save.game);
   restored.getState().advanceTurn();
-  const after = saved(restored);
+  const { rankHistory: continuedHistory, ...after } = saved(restored);
+  expect(continuedHistory?.map(record => record.turn)).toEqual([10]);
   expect(after.eventLog.at(-1)?.events.some(e => e.type === 'council-met')).toBe(true);
   expect(replaySession(after)).toEqual(after.game);
   expect(digest(after)).toBe('27dc351a2b8b4e08222d5de3d68c11397a9d39b2b94409e771b3f1fb739fd3b2');

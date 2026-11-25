@@ -35,6 +35,8 @@ describe('FR-610 FR-611 Stats rankings', () => {
     act(() => useGameStore.setState({ game: { ...game, turn: 6 } }));
     expect(panel.getByText(/turns 1[–-]5.*unavailable/i)).toBeTruthy();
     expect(panel.queryByRole('list')).toBeNull();
+    act(() => useGameStore.setState({ game: { ...game, turn: 6, gameOver: { turn: 5, year: game.year, scores: [] } } }));
+    expect(panel.getByText(/^Turns 1–5 are unavailable\.$/)).toBeTruthy();
   });
 
   it('shows earlier leaders, ties and explicit gaps in the readable history, without altering the session or next settlement', () => {

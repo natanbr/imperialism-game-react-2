@@ -1,4 +1,4 @@
-import React, { useId } from "react";
+import React, { useId, useState } from "react";
 import { COUNCIL, DEFAULT_WORLD, lastCouncilTurn, turnLimitOf } from "@/engine";
 import { useGameStore } from "@/store/rootStore";
 import { selectActiveScore, selectUpkeepForecast } from "@/store/selectors";
@@ -6,6 +6,8 @@ import { Modal } from "../Modal";
 import { ScoreTable } from "./ScoreTable";
 import { ScoreIndicator, ScoreRank } from "./ScoreIndicator";
 import { CouncilProjection, NextCouncil } from "./TurnIndicator";
+import { StatsRankings } from "./StatsRankings";
+import styles from "./Stats.module.css";
 import { DIFFICULTY_LABEL, SIZE_LABEL, WORLD_LABEL, scoreParts, uncollectedScoreText, upkeepForecastText } from "./hudView";
 
 /**
@@ -15,22 +17,13 @@ import { DIFFICULTY_LABEL, SIZE_LABEL, WORLD_LABEL, scoreParts, uncollectedScore
  * FR-466), the next Council meeting and the vote it would give now (councilVote, FR-301, FR-313, FR-314). A modal dialog
  * over the whole page like About, rendered into the body.
  */
-export const StatsDialog: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+const Overview = () => {
   const game = useGameStore((s) => s.game);
   const score = useGameStore(selectActiveScore);
   const upkeep = useGameStore(selectUpkeepForecast);
   const excluded = uncollectedScoreText(score);
-  const titleId = useId();
   return (
-    <Modal titleId={titleId} onClose={onClose} overlayClassName="about-overlay" className="about-panel stats-panel" portal>
-      <div className="about-header">
-        <h2 id={titleId} className="about-title">
-          Stats
-        </h2>
-        <button className="icon-button" onClick={onClose} aria-label="Close stats">
-          <span aria-hidden="true">×</span>
-        </button>
-      </div>
+    <div className={styles.overview}>
       <dl className="stats-settings" aria-label="Starting settings">
         <dt>Map</dt><dd>{WORLD_LABEL[game.worldId ?? DEFAULT_WORLD]}</dd>
         {game.worldId === "random" && <><dt>Random size</dt><dd>{SIZE_LABEL[game.randomMapSize ?? "standard"]}</dd></>}
@@ -55,6 +48,47 @@ export const StatsDialog: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       <ScoreTable />
       <NextCouncil />
       <CouncilProjection />
+    </div>
+  );
+};
+
+const VIEWS = ["Overview", "Rankings"] as const;
+type View = typeof VIEWS[number];
+
+export const StatsDialog: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  const titleId = useId();
+  const panelId = useId();
+  const [view, setView] = useState<View>("Overview");
+  return (
+    <Modal titleId={titleId} onClose={onClose} overlayClassName="about-overlay" className={`about-panel stats-panel ${styles.dialog}`} portal>
+      <div className="about-header">
+        <h2 id={titleId} className="about-title">Stats</h2>
+        <button className="icon-button" onClick={onClose} aria-label="Close stats"><span aria-hidden="true">×</span></button>
+      </div>
+      <div role="tablist" aria-label="Stats views" className={styles.tabs}>
+        {VIEWS.map(name => (
+          <button key={name} id={`${panelId}-${name}`} type="button" role="tab" aria-selected={name === view}
+            aria-controls={name === view ? panelId : undefined} tabIndex={name === view ? 0 : -1} onClick={() => setView(name)}
+            onKeyDown={event => {
+              let target: View;
+              switch (event.key) {
+                case "ArrowLeft":
+                case "ArrowRight": target = view === "Overview" ? "Rankings" : "Overview"; break;
+                case "Home": target = "Overview"; break;
+                case "End": target = "Rankings"; break;
+                default: return;
+              }
+              event.preventDefault();
+              setView(target);
+              event.currentTarget.ownerDocument.getElementById(`${panelId}-${target}`)?.focus();
+            }}>
+            {name}
+          </button>
+        ))}
+      </div>
+      <div role="tabpanel" id={panelId} aria-labelledby={`${panelId}-${view}`} tabIndex={0} className={styles.pane}>
+        {view === "Overview" ? <Overview /> : <StatsRankings />}
+      </div>
     </Modal>
   );
 };

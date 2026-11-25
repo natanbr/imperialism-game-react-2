@@ -8,6 +8,7 @@ import { turnLimitOf } from "@/engine/turn/gameOver";
 import { normalizeRandomMapSize } from "@/types/World";
 import { m17ReplayBoundary, usedM17CombatRules, withCurrentRules } from "./sessionReplay";
 import type { GameSession } from "./gameSlice";
+import { readRankHistory } from "./rankHistory";
 import type { GameStore } from "./rootStore";
 
 /** The one save slot (FR-357). */
@@ -42,9 +43,10 @@ export function browserStorage(): Storage | undefined {
 
 /** The save of a store's session (FR-357). */
 export function saveOf(session: GameSession, now: Date = new Date()): SavedGame {
-  const { game, activeNationId, eventLog, orderLog, ordersThisTurn, turnStartTreasuries, replayBoundary } = session;
+  const { game, activeNationId, eventLog, orderLog, ordersThisTurn, turnStartTreasuries, replayBoundary, rankHistory } = session;
   return { version: SAVE_VERSION, savedAt: now.toISOString(), game, activeNationId, eventLog, orderLog, ordersThisTurn, turnStartTreasuries,
-    ...(usedM17CombatRules(session) && { combatRevision: "q145" }), ...(replayBoundary && { replayBoundary }) };
+    ...(usedM17CombatRules(session) && { combatRevision: "q145" }), ...(replayBoundary && { replayBoundary }),
+    ...(rankHistory?.length && { rankHistory }) };
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
@@ -97,6 +99,7 @@ export function readSave(storage: Pick<Storage, "getItem"> | undefined = browser
       if (boundary) parsed.replayBoundary = boundary;
       parsed.combatRevision = "q145";
     }
+    if (parsed.rankHistory !== undefined) parsed.rankHistory = readRankHistory(parsed.rankHistory, parsed.game);
     return { kind: "usable", save: parsed };
   } catch {
     return { kind: "unusable" };

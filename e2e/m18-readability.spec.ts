@@ -6,6 +6,7 @@ import type { TestInfo } from '@playwright/test';
 import { continueSavedGame, expect, startSeededGame, test, type Page } from './seededGame';
 import { createGameStore } from '../src/app/store/rootStore';
 import { saveOf } from '../src/app/store/persistence';
+import { newGame } from '../src/app/engine/newGame';
 
 const shotPath = (testInfo: TestInfo, name: string) => (process.env.SCREENSHOT_DIR ? `${process.env.SCREENSHOT_DIR}/${name}` : testInfo.outputPath(name));
 
@@ -82,8 +83,20 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 
     });
 
     test(`FR-610 FR-611 at ${at} settled rankings have equal bars for ties and a keyboard-readable history`, async ({ page }, testInfo) => {
-      const store = createGameStore({ seed: 1 });
-      for (let turn = 1; turn <= 5; turn++) store.getState().advanceTurn();
+      const game = newGame({ seed: 1, world: 'continent' });
+      const [human, rival] = game.nations;
+      // Give just the human's expansion: a scripted rival also expands before the first settlement.
+      rival.controller = 'human';
+      human.industry.buildings = structuredClone(rival.industry.buildings);
+      human.warehouse.lumber = 10;
+      human.warehouse.steel = 10;
+      const store = createGameStore({ game });
+      for (let turn = 1; turn <= 5; turn++) {
+        if (turn === 3) expect(store.getState().submitOrder({ kind: 'expandBuilding', nationId: human.id, building: 'steelMill' }).ok).toBe(true);
+        store.getState().advanceTurn();
+      }
+      expect(store.getState().rankHistory?.[0].places.industry).toEqual([{ nationId: human.id, place: 1 }, { nationId: rival.id, place: 1 }]);
+      expect(store.getState().rankHistory?.[2].places.industry).toEqual([{ nationId: human.id, place: 1 }, { nationId: rival.id, place: 2 }]);
       await continueSavedGame(page, saveOf(store.getState()));
       const opener = page.getByRole('button', { name: 'Stats', exact: true });
       await opener.click();
@@ -113,6 +126,7 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 390, height: 844 
       await expect(history.getByRole('columnheader')).toHaveText(['Turn', 'Testland', 'Valdoria']);
       await expect(history.getByRole('row')).toHaveCount(6);
       await expect(history.getByRole('row').nth(1)).toHaveText(/1.*1st.*1st/);
+      await expect(history.getByRole('row').nth(3)).toHaveText(/3.*1st.*2nd/);
       await expectInsideWindow(page, (await stats.boundingBox())!);
       expect(await rankings.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
       await expectNoSidewaysScroll(page);
