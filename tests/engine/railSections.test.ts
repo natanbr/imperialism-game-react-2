@@ -16,7 +16,7 @@ import type { Order, RejectReason } from '@/engine/orders/Order';
 import type { GameState } from '@/types/GameState';
 import { WorkerType } from '@/types/Workers';
 import { createTileId, parseTileIdToArray } from '@/utils/tileIdUtils';
-import { game, N1, N2, put, setTile, T, tileAt, workerId } from './fixtures';
+import { game, N1, N2, put, setTechnologies, setTile, T, tileAt, workerId } from './fixtures';
 
 const at = (tileId: string) => {
   const [x, y] = parseTileIdToArray(tileId);
@@ -193,6 +193,31 @@ describe('FR-138 the scripted engineer plans rail sections', () => {
     const site = bestDepotSite(s, N2)!;
     const path = railPath(s, N2, site.tileId.replace('-', ','), capitalComponent(s, N2))!;
     expect(site.railNeeded).toBe(path.length - 1);
+  });
+
+  it('FR-582 skips a proposed riverside depot until it can actually join the new rail section', () => {
+    const start = newGame({ seed: 1 });
+    const first = bestDepotSite(start, N2)!;
+    const river = setTechnologies(setTile(start, first.tileId, { hasRiver: true }), N2, 'highPressureSteamEngine');
+    const built = withDepot(river, first.tileId);
+    expect(bestDepotSite(river, N2)?.tileId).not.toBe(first.tileId);
+    expect(nextRailSections(built, N2)).toEqual([]);
+    expect(bestDepotSite(setTechnologies(river, N2, 'ironRailroadBridge'), N2)?.tileId).toBe(first.tileId);
+  });
+
+  it('FR-582 builds around a river node when the direct section is forbidden, and can reuse an existing crossing', () => {
+    const depot = withDepot(setTechnologies(newGame({ seed: 1 }), N2, 'highPressureSteamEngine'), '16-9');
+    const bank = setTile(depot, '15-9', { hasRiver: true });
+    const capital = '14-9';
+    const connectedBank = addRailroad(bank, N2, at('15-9'), at(capital));
+    const [section] = nextRailSections(connectedBank, N2);
+    expect(outcome(connectedBank, { kind: 'moveAndStartConstruction', nationId: N2, workerId: ENGINEER_2, structure: 'rail', ...section })).toBe('ok');
+    expect(section.fromTileId).toBe(capital);
+
+    // A riverside depot already has a section to dry land. Only the dry section to the capital is missing.
+    const riverDepot = setTile(depot, '16-9', { hasRiver: true });
+    const tracked = addRailroad(riverDepot, N2, at('15-9'), at('16-9'));
+    expect(nextRailSections(tracked, N2)).toEqual([{ fromTileId: capital, toTileId: '15-9' }]);
   });
 
   it('FR-138 the engineer orders the capital-end section first, naming its start', () => {

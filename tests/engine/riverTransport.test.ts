@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { WARSHIPS } from '@/definisions/ships';
 import { getAdjacentTiles, isOcean } from '@/engine/map/mapHelpers';
 import { newGame } from '@/engine/newGame';
-import { homeApproach, portApproach, withFleets } from '@/engine/navy/fleets';
+import { homeApproach, openPortApproaches, portApproach, threatenedPorts, withFleets } from '@/engine/navy/fleets';
 import { tryApplyOrder } from '@/engine/orders/apply';
 import type { Order } from '@/engine/orders/Order';
 import { validateOrder } from '@/engine/orders/validate';
@@ -17,6 +17,7 @@ import type { Approach, Fleet } from '@/types/Navy';
 import { ResourceType } from '@/types/Resource';
 import { TerrainType } from '@/types/Tile';
 import { deepFreeze, N1, N2, put, setPair, setTechnologies, setTile, tileAt } from './fixtures';
+import { addRegiments } from './armyFixtures';
 
 const engineer = 'worker-nation-1-7';
 const inland = '7-6';
@@ -119,6 +120,31 @@ describe('FR-582 river transport and rail bridges', () => {
       .filter(tile => isOcean(tile) || (tile.hasRiver && tile.ownerNationId === N1));
     expect(blockaded.fish).toBe(open.fish - nearbyGrounds.length);
     expect(catchAtPort([enemy, squadron(N1, approach)])).toEqual(open);
+  });
+
+  it('embarks from a commissioned inland river port via its mouth and identifies that shore for relief', () => {
+    const built = commissionRiverPort(riverside());
+    const fromProvinceId = tileAt(built, inland).provinceId!;
+    const outlet = portApproach(built, tileAt(built, mouth))!;
+    expect(outlet.provinceId).not.toBe(fromProvinceId);
+    const island = portApproach(built, tileAt(built, '12-7'))!;
+    const state = addRegiments(transferProvince(built, island.provinceId, N1), N1, fromProvinceId, ['regulars']);
+    const army = state.armies.find(a => a.ownerId === N1 && a.provinceId === fromProvinceId)!;
+    const regimentIds = [army.regiments.find(r => r.type === 'regulars')!.id];
+    const war = setPair(state, N1, N2, { war: { since: 1, aggressors: [N2] } });
+    const station = (approach: Approach) => ({ ...squadron(N1, approach), siteSinceTurn: 1 });
+    const move = (to: Approach): Order => ({
+      kind: 'moveArmy', via: 'sea', nationId: N1, fromProvinceId, toProvinceId: to.provinceId, regimentIds,
+    });
+    const open = withFleets(war, [station(island)]);
+    expect(validateOrder(open, move(island))).toEqual({ ok: true });
+    expect(openPortApproaches(setTile(open, '9-7', { hasRiver: false }), N1, fromProvinceId)).toEqual([]);
+    const enemy = squadron(N2, outlet);
+    const closed = withFleets(war, [station(island), enemy]);
+    expect(validateOrder(closed, move(island))).toEqual({ ok: false, reason: 'port-closed' });
+    expect(threatenedPorts(closed, N1)).toContainEqual(outlet);
+    const relieved = withFleets(war, [station(outlet), enemy]);
+    expect(validateOrder(relieved, move(outlet))).toEqual({ ok: true });
   });
 
   it('FR-583 stops capital fishing under blockade while its depot keeps gathering land resources', () => {
