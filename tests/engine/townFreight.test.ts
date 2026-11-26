@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { GEMS_CASH_PER_UNIT, GOLD_CASH_PER_UNIT } from '@/definisions/cashValues';
-import { projectedFreightPlan, projectedFreightSupply } from '@/engine/systems/logisticsSystem';
+import { scriptedPlayer } from '@/engine/ai/scriptedPlayer';
+import { projectedFreightPlan, projectedFreightSupply, rawFreightSupply } from '@/engine/systems/logisticsSystem';
 import { resolveTurn, type TurnResult } from '@/engine/turn/resolveTurn';
 import type { GameState } from '@/types/GameState';
 import type { NationController } from '@/types/Nation';
 import { ResourceType } from '@/types/Resource';
-import { deepFreeze, game, N1, N2, nationOf, setBuilding, setTile, stockOf } from './fixtures';
+import { deepFreeze, game, N1, N2, nationOf, setBuilding, setTile, setWarehouse, stockOf, T } from './fixtures';
 
 const towns = [
   { id: 'west', name: 'West', seatTileId: '2-1', timber: ['0-3', '1-3', '2-3', '3-3'], cotton: ['3-0', '3-1'] },
@@ -74,21 +75,64 @@ describe('FR-621/622 shared town freight through the real turn phases', () => {
     expect(resolve(state)).toEqual(result);
   });
 
-  it('loads raw and fish first, then the first province’s full bundle before any automatic units of the next', () => {
-    const state = beforeUpgrade(6);
-    const result = resolve(state);
-    const shipped = { grain: 1, fish: 1, fabric: 1, lumber: 2, furniture: 1 };
-    expect(stockDeltas(state, result.state)).toEqual(shipped);
-    expect(receipts(result)).toEqual(expectedReceipts(1, 2, 0, 1, 0));
-    expect(projectedFreightPlan(state, N1, 6).shipments).toEqual(shipped);
+  it('FR-628 loads both towns’ bundles in province and chain order before automatic raw and Fish freight', () => {
+    // Grain and Fish alone would fill both cars. The towns take them, the first province’s material first.
+    const scarce = beforeUpgrade(2);
+    const first = resolve(scarce);
+    const towns = { grain: 0, fish: 0, fabric: 1, lumber: 1, furniture: 0 };
+    expect(stockDeltas(scarce, first.state)).toEqual(towns);
+    expect(receipts(first)).toEqual(expectedReceipts(1, 1, 0, 0, 0));
+    expect(projectedFreightPlan(scarce, N1, 2).shipments).toEqual({ fabric: 1, lumber: 1 });
+    // With eight cars every town unit ships and the one car short falls on Fish, last in collection order.
+    const short = beforeUpgrade(8);
+    const second = resolve(short);
+    expect(stockDeltas(short, second.state)).toEqual({ grain: 1, fish: 0, fabric: 1, lumber: 4, furniture: 2 });
+    expect(receipts(second)).toEqual(expectedReceipts(1, 2, 2, 1, 1));
+    expect(projectedFreightPlan(short, N1, 8).shipments).toEqual({ fabric: 1, lumber: 4, furniture: 2, grain: 1 });
   });
 
-  it('uses a set lumber target across both towns first, then fills automatic freight in source order', () => {
+  it('uses a set lumber target across both towns first, then fills automatic town and raw freight in that order', () => {
     const state = beforeUpgrade(6);
     const plan = { lumber: 3, fabric: 0 };
     const result = resolve(state, plan);
-    expect(receipts(result)).toEqual(expectedReceipts(0, 2, 1, 1, 0));
-    expect(projectedFreightPlan(state, N1, 6, plan).shipments).toEqual({ lumber: 3, grain: 1, fish: 1, furniture: 1 });
+    expect(receipts(result)).toEqual(expectedReceipts(0, 2, 1, 1, 1));
+    expect(projectedFreightPlan(state, N1, 6, plan).shipments).toEqual({ lumber: 3, furniture: 2, grain: 1 });
+  });
+
+  it('FR-628 an explicit raw allocation still ships before every town', () => {
+    const state = beforeUpgrade(2);
+    const plan = { fish: 1, grain: 1 };
+    const result = resolve(state, plan);
+    expect(stockDeltas(state, result.state)).toEqual({ grain: 1, fish: 1, fabric: 0, lumber: 0, furniture: 0 });
+    expect(receipts(result)).toEqual(expectedReceipts(0, 0, 0, 0, 0));
+    expect(projectedFreightPlan(state, N1, 2, plan).shipments).toEqual({ fish: 1, grain: 1 });
+  });
+
+  it('FR-628 a zero target still blocks a town commodity or a raw one when the towns go first', () => {
+    const scarce = beforeUpgrade(2);
+    const blocked = resolve(scarce, { fabric: 0 });
+    expect(stockDeltas(scarce, blocked.state)).toEqual({ grain: 0, fish: 0, fabric: 0, lumber: 2, furniture: 0 });
+    expect(receipts(blocked)).toEqual(expectedReceipts(0, 2, 0, 0, 0));
+    const ample = beforeUpgrade(12);
+    const plan = { grain: 0, lumber: 0 };
+    const result = resolve(ample, plan);
+    expect(stockDeltas(ample, result.state)).toEqual({ grain: 0, fish: 1, fabric: 1, lumber: 0, furniture: 2 });
+    expect(receipts(result)).toEqual(expectedReceipts(1, 0, 0, 1, 1));
+    expect(projectedFreightPlan(ample, N1, 12, plan).shipments).toEqual({ fabric: 1, furniture: 2, fish: 1 });
+  });
+
+  it('FR-628 FR-497 a computer owner with scarce cars plans its own towns before its mill inputs', () => {
+    // Two timber at the capital would fill both cars as the lumber mill’s input, as it did before FR-628.
+    let state = beforeUpgrade(2, 'scripted');
+    state = setTile(state, T.dryPlains1, { resource: { type: ResourceType.Timber, level: 1 } });
+    state = setWarehouse(setBuilding(state, N1, 'lumberMill', { capacity: 4 }), N1, { timber: 0 });
+    expect(rawFreightSupply(state, N1)).toEqual({ grain: 1, timber: 2, fish: 1 });
+    const orders = scriptedPlayer(deepFreeze(state), N1);
+    const result = resolveTurn(deepFreeze(state), { [N1]: orders });
+    expect(result.events.filter(e => e.type === 'order-rejected')).toEqual([]);
+    expect(receipts(result)).toEqual(expectedReceipts(1, 1, 0, 0, 0));
+    expect(stockDeltas(state, result.state)).toEqual({ grain: 0, fish: 0, fabric: 1, lumber: 1, furniture: 0 });
+    expect(stockOf(result.state, N1, 'timber')).toBe(0);
   });
 
   it('reserves cars for furniture and skips explicitly zero lumber even with cars to spare', () => {
