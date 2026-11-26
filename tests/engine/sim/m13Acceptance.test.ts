@@ -71,7 +71,7 @@ const REQUIRED = {
    */
   overtures: { games: 18, of: 24, byTurn: 29 },
   /** FR-546 replaces FR-542 (ii), which required 18 of 24. FR-616: fishing changes trade and influence spending; measured 13/24 -> 17/24. The floor stays 13. */
-  votesAt40: { games: 13, of: 24, atLeast: 1, atMeeting: 40 },
+  votesAt40: { games: 13, recordedGames: 17, of: 24, atLeast: 1, atMeeting: 40 },
   /** FR-493: trader: at least 5 units traded between the Great Powers in 40 turns (before: 0 of 24). */
   traded: { games: 18, of: 24, atLeast: 5 },
   /** FR-497: rejected orders 0, invariant breaks 0, no-pay disbands 0 in idle games. */
@@ -604,6 +604,7 @@ describe('M13 acceptance (FR-500): the sim thresholds of the table, seeds 1 to 2
         votesAt40Row.measured,
         `${missNote(votesAt40Row, idle)}; FR-542 (ii) previously required 18 of 24; FR-490 (replaced) turn-30 votes per game: ${at30}`
       ).toBeGreaterThanOrEqual(votesAt40Row.required);
+      expect(votesAt40Row.measured, missNote(votesAt40Row, idle)).toBe(REQUIRED.votesAt40.recordedGames);
     });
   });
 

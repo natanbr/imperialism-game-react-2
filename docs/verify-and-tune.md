@@ -64,6 +64,8 @@ Task 48 kept both FR-339 limits. The opening map now draws Coal and Fish from se
 
 ### Fixed maps and campaigns
 
+Two M18d results have little room above their acceptance thresholds. FR-545 wins exactly 15 of 24 peaceful diplomat games, so losing one more game would fail the floor. For FR-125, seed 3 on turn 15 scores 690 against 450 (1.533×). The 1.5× floor requires 675 at that baseline, leaving 15 score points.
+
 | Requirement | Measurement | Old | New | FR-616 reason |
 |---|---|---|---|---|
 | FR-125 | Seed 1, turns 15/25/40, scripted/M4 | 760/451, 903/550, 1643/741 | 701/445, 936/573, 1485/749 | Sea Fish supplies both players. The computer builds a shorter second depot route and reserves cash for development. |
