@@ -63,12 +63,14 @@ describe('FR-516 the scripted fleet', () => {
     expect(ships(stocked)).toEqual(purchase);
     expect(ships(withHumanController(stocked))).toEqual(purchase);
   });
-  it('FR-497 keeps six turns of field-army pay at half cargo usage across four phases', () => {
-    const reserve = (used: number[]) => upkeepReserve(addRegiments(fixture(used), N2, SW2, ['regulars']), N2);
+  it.each(['partners', 'world'] as const)('FR-260 FR-497 keeps six turns of field-army pay at half cargo usage across four %s phases', market => {
+    const start = newGame({ seed: 1, world: 'continent', market });
+    const history = (used: number[]) => fixture(used, undefined, start);
+    const reserve = (used: number[]) => upkeepReserve(addRegiments(history(used), N2, SW2, ['regulars']), N2);
     expect(reserve([2, 2, 2, 2])).toBe(750); // $125 per turn for five arms.
     expect(reserve([3, 2, 2, 2])).toBe(250);
     expect(reserve([0, 0, 0])).toBe(250);
-    expect(upkeepReserve(fixture([0, 0, 0, 0]), N2)).toBe(200);
+    expect(upkeepReserve(history([0, 0, 0, 0]), N2)).toBe(200);
   });
   it('records holds consumed by settlement, so an unsold offer does not fill the fleet', () => {
     const s = setWarehouse(continent(), N2, { steel: 4 });
