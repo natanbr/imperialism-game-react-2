@@ -53,6 +53,8 @@ yardstick), the turn Arvelia falls, workers per nation, price levels of the firs
 
 ## M18d parked (2026-11-24, night shift 2): coastal and river fishing moves the protected guards
 
+**Update, 2026-11-25.** The owner chose option 2 for every game (FR-616). Task 44 fixes the rail and water-access defects. Task 45 owns the numerical re-records. The table below records the original Task 31 run. [Task 44 findings and verification](journal/task-44-m18d.md)
+
 Branch `claude/m18d-terrain` (3561b9c, Codex task 31; spec `docs/specs/m18d-terrain.md`, FR-580 to FR-587). Fishing
 from sea and river tiles next to a port changed every two-islands golden game (seed 4 first differs on turn 7: 6 Canned
 Food ordered instead of 4). With the old logistics code alone, all guards return to their recorded values.
