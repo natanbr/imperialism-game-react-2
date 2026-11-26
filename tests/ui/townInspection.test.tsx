@@ -1,9 +1,13 @@
 // @vitest-environment jsdom
 import { render, screen, within } from '@testing-library/react';
 import { expect, it } from 'vitest';
+import { TownIncome } from '@/components/capital/TownIncome';
 import { MapView } from '@/components/MapView';
 import { TileInfoPanel } from '@/components/TileInfoPanel';
 import { capitalProvinceOf } from '@/engine/army/armies';
+import { addPort } from '@/engine/systems/railroadSystem';
+import { transportConnectivitySystem } from '@/engine/systems/transportConnectivitySystem';
+import { createTurnContext } from '@/engine/turn/context';
 import { townsOf } from '@/engine/world/towns';
 import { useGameStore } from '@/store/rootStore';
 import type { GameState } from '@/types/GameState';
@@ -46,6 +50,51 @@ it('FR-623 explains a closed port, retained progress and zero estimated output',
   expect(text).toMatch(/port.*closed|closed.*port/i);
   expect(text).toMatch(/1 of 2 qualifying settlements/i);
   expect(text).toMatch(/before freight[^.]*none/i);
+});
+
+it('FR-623 gives rail advice for an inactive port with open water', () => {
+  const { game, seat } = coastalFreightTown();
+  const network = game.transportNetwork.railroadNetworks![N1];
+  delete network.graph[`${seat.x},${seat.y}`];
+  const position = transportConnectivitySystem(game, createTurnContext({ turn: game.turn }));
+  show(position);
+  render(<TileInfoPanel selectedTile={tileAt(position, seat.id)} />);
+  const info = screen.getByRole('region', { name: 'Town development' }).textContent;
+  expect(info).toMatch(/disconnected/i);
+  expect(info).toMatch(/port[^.]*rail|rail[^.]*port/i);
+  expect(info).not.toMatch(/port route closed|reopen.*water/i);
+});
+
+it('FR-623 explains lost water access for an inactive river port with no rail link', () => {
+  const { game } = coastalFreightTown();
+  const seat = tileAt(game, '7-6');
+  const province = game.provinces.find(p => p.id === seat.provinceId)!;
+  game.provinces = game.provinces.map(p => p === province ? { ...p, seatTileId: seat.id } : p);
+  const built = addPort(setTile(game, seat.id, { port: true, hasRiver: true }), N1, seat);
+  const position = transportConnectivitySystem(built, createTurnContext({ turn: game.turn }));
+  show(position);
+  render(<TileInfoPanel selectedTile={tileAt(position, seat.id)} />);
+  const info = screen.getByRole('region', { name: 'Town development' }).textContent;
+  expect(info).toMatch(/port route closed/i);
+  expect(info).toMatch(/reopen.*water/i);
+});
+
+it('FR-623 FR-624 shows the growth counter in both views when timber and capacity already support the next tier', () => {
+  const { game: fixture, province, seat } = coastalFreightTown();
+  let game = setBuilding(fixture, N1, 'furnitureFactory', { capacity: 16 });
+  for (const id of province.tileIds.slice(0, 8)) {
+    game = setTile(game, id, { resource: { type: ResourceType.Timber, level: 1 } });
+  }
+  game.townProgress![province.id].upgradeSettlements.wood = 0;
+  show(game);
+  render(<><TileInfoPanel selectedTile={tileAt(game, seat.id)} /><TownIncome /></>);
+  const inspection = screen.getByRole('region', { name: 'Town development' });
+  const income = screen.getByRole('region', { name: 'Town income' });
+  const wood = within(inspection).getByText(/^Furniture factory$/i).closest('li')!;
+  for (const row of [wood, within(income).getByText('1 Lumber').closest('p')!]) {
+    expect(row.textContent).toMatch(/growth toward tier 2: 0 of 2 qualifying settlements/i);
+    expect(row.textContent).not.toMatch(/next tier.*(?:needs|requires)/i);
+  }
 });
 
 it('FR-623 distinguishes an idle seat awaiting its first connection from a town whose connection was lost', () => {

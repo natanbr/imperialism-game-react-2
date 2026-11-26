@@ -79,6 +79,12 @@ test('FR-621–624 from the first lumber to furniture, one car reconciles across
   await advance(page, 6);
   const news = page.getByTestId('news-panel').getByRole('listitem').filter({ hasText: province.name + ' delivered' });
   await expect(news).toContainText('1 of 1 Lumber');
+  await inspectByKeyboard(page, '10-6');
+  await expect(tile(page, '10-6')).toHaveAttribute('data-selected', 'true');
+  await news.getByRole('button').click();
+  await expect(tile(page, seat.id)).toHaveAttribute('data-selected', 'true');
+  await expect(page.getByTestId('tile-info').getByRole('heading', { name: /Tile Info/ })).toBeFocused();
+  await expect(details(page)).toContainText(province.name);
   await page.getByRole('button', { name: 'Open Capital' }).click();
   await page.getByRole('button', { name: 'Expand Furniture Factory' }).click();
   await expect(page.getByTestId('building-furnitureFactory').getByTestId('capacity')).toContainText('(+4 next turn)');

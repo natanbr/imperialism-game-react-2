@@ -1,10 +1,21 @@
-import { expect, it } from 'vitest';
-import { collectedAtLogistics } from '@/engine/ai/economy';
+import { expect, it, vi } from 'vitest';
+import { collectedAtLogistics, hubLabourNeed, shippingWants } from '@/engine/ai/economy';
 import { scriptedPlayer } from '@/engine/ai/scriptedPlayer';
+import * as townDevelopment from '@/engine/systems/townDevelopmentSystem';
 import { resolveTurn } from '@/engine/turn/resolveTurn';
 import { ResourceType } from '@/types/Resource';
 import { deepFreeze, N1, N2, setBuilding, setTile } from './fixtures';
 import { coastalFreightTown } from './townFreightFixture';
+
+it('FR-497 raw shipping wants and hub labour needs skip town settlement projections', ({ onTestFinished }) => {
+  const { game } = coastalFreightTown();
+  const settlements = vi.spyOn(townDevelopment, 'nextTownSettlements');
+  onTestFinished(() => settlements.mockRestore());
+
+  shippingWants(game, N1);
+  hubLabourNeed(game, N1);
+  expect(settlements).not.toHaveBeenCalled();
+});
 
 it.each(['normal', 'demo'] as const)('FR-621 FR-625 %s computer freight sees its own next bundle and ignores rival changes', difficulty => {
   const { game } = coastalFreightTown(difficulty);
