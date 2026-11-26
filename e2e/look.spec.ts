@@ -49,7 +49,7 @@ const stationCover = (page: Page, id: string) =>
       [...document.querySelectorAll(selector)].filter((el) => !except || !except.contains(el)).map((el) => el.getBoundingClientRect());
     const civilians = '[data-testid="worker-stack"], [data-testid="worker-stack"] > span, [data-testid="worker-button"], [data-testid="worker-marker"], [data-testid="worker-marker"] > span';
     const others =
-      '[data-testid="army-marker"], [data-testid="army-disband"], [data-testid="minor-name"], [data-testid="level-badge"], [data-testid="resource-mark"], ' +
+      '[data-testid="army-marker"], [data-testid="army-disband"], [data-testid="minor-name"], [data-testid="level-badge"], [data-testid="resource-mark"], [data-testid="town-marker"], ' +
       '[title$=" in progress"], [title="River"], [data-testid="fort-mark"], [role="img"][aria-label^="Depot: "], [role="img"][aria-label^="Port: "], [role="img"][aria-label^="Depot: "] img, [role="img"][aria-label^="Port: "] img';
     return [...tileEl.querySelectorAll('[role="img"][aria-label^="Depot: "], [role="img"][aria-label^="Port: "]')].map((station) => {
       const img = station.querySelector('img')!;
@@ -135,7 +135,6 @@ test('FR-090 the whole map fits 1280x720 next to the HUD, with an icon on every 
         probe.remove();
         return hit === img ? 'picture' : `${hit?.tagName} ${hit?.getAttribute('data-testid') ?? hit?.className}`;
       });
-  expect([await onTop('2-9'), await onTop('11-4')]).toEqual(['picture', 'picture']);
 
   // FR-346 (QA; replaces FR-341's 24 px, at which only a small dome showed): on turn 1 every capital's picture is drawn
   // large (its drawing at least 36 px across) and the boxes lying over its drawing (civilians, their count, army chips,
@@ -144,6 +143,20 @@ test('FR-090 the whole map fits 1280x720 next to the HUD, with an icon on every 
   const capitals = await page.locator('[data-testid="tile"][data-terrain="capital"]').evaluateAll((els) => els.map((el) => el.getAttribute('data-tile-id')!));
   expect(capitals).toHaveLength(6);
   for (const id of capitals) {
+    expect(await onTop(id), `FR-623 capital picture at ${id}`).toBe('picture');
+    const marker = tile(page, id).getByTestId('town-marker');
+    await expect(marker).toBeInViewport();
+    const coveredControls = await marker.evaluate(el => {
+      const markerBox = el.getBoundingClientRect();
+      const controls = document.querySelectorAll(
+        '[data-testid="army-marker"], [data-testid="worker-button"], [data-testid="worker-stack"], [data-testid="worker-marker"], [data-testid="minor-name"]'
+      );
+      return [...controls].filter(control => {
+        const box = control.getBoundingClientRect();
+        return markerBox.left < box.right && markerBox.right > box.left && markerBox.top < box.bottom && markerBox.bottom > box.top;
+      }).map(control => control.getAttribute('data-testid'));
+    });
+    expect(coveredControls, `FR-623 town marker at ${id}`).toEqual([]);
     const placement = await tile(page, id)
       .getByTestId('tile-icon')
       .evaluate((img) => {
@@ -154,7 +167,7 @@ test('FR-090 the whole map fits 1280x720 next to the HUD, with an icon on every 
           ...document.querySelectorAll(
             '[data-testid="worker-stack"], [data-testid="worker-stack"] > span, [data-testid="worker-button"], [data-testid="worker-marker"], ' +
               '[data-testid="army-marker"], [data-testid="army-disband"], [data-testid="minor-name"], [data-testid="level-badge"], ' +
-              '[data-testid="resource-mark"], [role="img"][aria-label^="Depot: "], [role="img"][aria-label^="Port: "]'
+              '[data-testid="resource-mark"], [data-testid="town-marker"], [role="img"][aria-label^="Depot: "], [role="img"][aria-label^="Port: "]'
           ),
         ]
           .map((el) => el.getBoundingClientRect())
@@ -191,7 +204,7 @@ test('FR-090 the whole map fits 1280x720 next to the HUD, with an icon on every 
         ...document.querySelectorAll(
           '[data-testid="worker-stack"], [data-testid="worker-stack"] > span, [data-testid="worker-button"], [data-testid="worker-marker"], ' +
             '[data-testid="army-marker"], [data-testid="army-disband"], [data-testid="minor-name"], [data-testid="level-badge"], ' +
-            '[data-testid="resource-mark"], [role="img"][aria-label^="Depot: "], [role="img"][aria-label^="Port: "], [title$=" in progress"], [title="River"]'
+            '[data-testid="resource-mark"], [data-testid="town-marker"], [role="img"][aria-label^="Depot: "], [role="img"][aria-label^="Port: "], [title$=" in progress"], [title="River"]'
         ),
       ].map((el) => el.getBoundingClientRect());
       return others.reduce((sum, o) => sum + Math.max(0, Math.min(r.right, o.right) - Math.max(r.x, o.x)) * Math.max(0, Math.min(r.bottom, o.bottom) - Math.max(r.y, o.y)), 0);

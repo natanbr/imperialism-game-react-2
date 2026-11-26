@@ -46,14 +46,17 @@ it('NR-038 preserves the serialized seed-only, app, Normal and Demo fixed starts
   }
 });
 
-it('NR-038 FR-616 pins the same unmarked custom 400-turn campaign under current rules, including its meeting at turn 10', () => {
+it('NR-038 FR-616 FR-626 FR-627 pins the same unmarked custom 400-turn campaign under current rules, including its meeting at turn 10', () => {
   const old = createGameStore({ game: newGame({ seed: 7, world: 'continent', turnLimit: 400 }) });
   for (let turn = 1; turn < 10; turn++) old.getState().advanceTurn();
   const { rankHistory: newHistory, ...original } = saved(old);
   expect(newHistory?.map(record => record.turn)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
   // FR-616: fishing changes freight, stock and later orders. The settled game also records the M18d rules revision.
   // Turn 10: 544df1968c34056c07e33246c47f5a50d2ed8206ba51d2cfa7b5215831c0aa3a -> e842158982c0889a30494b72cdd0bffcc6f85c2836f2bbb9619a0339fc282b05.
-  expect(digest(original)).toBe('e842158982c0889a30494b72cdd0bffcc6f85c2836f2bbb9619a0339fc282b05');
+  // FR-626 / FR-627, seed 7 turn 10: e842158982c0889a30494b72cdd0bffcc6f85c2836f2bbb9619a0339fc282b05 -> 1cd5a212843f098b0fa773e108ac6977e5b5658eceb9496ae066dcb6d799219d.
+  // Only the rules revision changed on these turns. Substituting the M18d marker must recover each old digest exactly.
+  expect(digest({ ...original, game: { ...original.game, rulesRevision: 'm18d' } })).toBe('e842158982c0889a30494b72cdd0bffcc6f85c2836f2bbb9619a0339fc282b05');
+  expect(digest(original)).toBe('1cd5a212843f098b0fa773e108ac6977e5b5658eceb9496ae066dcb6d799219d');
   const slot = read(original);
   if (slot.kind !== 'usable') throw new Error('Expected a usable v1 save');
   const restored = createGameStore({ seed: 1 });
@@ -65,7 +68,9 @@ it('NR-038 FR-616 pins the same unmarked custom 400-turn campaign under current 
   expect(after.eventLog.at(-1)?.events.some(e => e.type === 'council-met')).toBe(true);
   expect(replaySession(after)).toEqual(after.game);
   // FR-616, turn 11: 27dc351a2b8b4e08222d5de3d68c11397a9d39b2b94409e771b3f1fb739fd3b2 -> 15436a8c378d346598bda6ca9b41ac8aac1b14d9ec62981ee4638e2f63b8f847.
-  expect(digest(after)).toBe('15436a8c378d346598bda6ca9b41ac8aac1b14d9ec62981ee4638e2f63b8f847');
+  // FR-626 / FR-627, seed 7 turn 11: 15436a8c378d346598bda6ca9b41ac8aac1b14d9ec62981ee4638e2f63b8f847 -> 78f6ae8d549f9361e8c46251b4f5e1a468a00bfc5582132936583218cf602b22.
+  expect(digest({ ...after, game: { ...after.game, rulesRevision: 'm18d' } })).toBe('15436a8c378d346598bda6ca9b41ac8aac1b14d9ec62981ee4638e2f63b8f847');
+  expect(digest(after)).toBe('78f6ae8d549f9361e8c46251b4f5e1a468a00bfc5582132936583218cf602b22');
 });
 
 it('FR-587 FR-616 loads the v1 save written by main, ships its first Fish, saves and replays the continued game', () => {

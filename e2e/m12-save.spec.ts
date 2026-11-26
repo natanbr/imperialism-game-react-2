@@ -1,4 +1,9 @@
-import { test, expect, Page, expectFreshGameSeed } from './seededGame';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { gunzipSync } from 'node:zlib';
+import { readSave, type SavedGame } from '../src/app/store/persistence';
+import { replaySession } from '../src/app/store/sessionReplay';
+import { continueSavedGame, test, expect, Page, expectFreshGameSeed } from './seededGame';
 
 // M12 lane L3 in the running app: the game is saved in the browser and offered back (FR-357 to FR-363), and How to play
 // opens on a browser's first new game (FR-430, FR-431).
@@ -64,6 +69,37 @@ test('FR-357 FR-359 FR-360 End Turn saves; a reload offers the saved game; Conti
   await expect(turnLine(page)).toContainText('Turn: 1 of 40');
   await expect.poll(() => savedTurn(page)).toBe(1);
   expect(errors).toEqual([]);
+});
+
+test('FR-626 FR-627 Continue and End Turn autosave the M18d campaign at its paid Order boundary and replay the next settlement', async ({ page }) => {
+  const raw = gunzipSync(readFileSync(join(__dirname, '../tests/store/fixtures/m18d-turn-15-midturn.json.gz'))).toString();
+  const original: SavedGame = JSON.parse(raw);
+  expect(original.game.rulesRevision).toBe('m18d');
+  // FR-626/627: (turn 10, 0 paid Orders) -> (turn 15, 1 paid Order) preserves the five historical settlements and the consulate payment.
+  expect(original.replayBoundary).toMatchObject({ turn: 10, appliedOrders: 0 });
+  expect(original.ordersThisTurn).toEqual([expect.objectContaining({ kind: 'proposeOverture', overture: 'consulate' })]);
+  await continueSavedGame(page, original);
+  await expect(turnLine(page)).toContainText('Turn: 15 of 400');
+  await page.getByRole('button', { name: /Advance Turn/ }).click();
+  await expect.poll(() => savedTurn(page)).toBe(16);
+
+  const autosave = await page.evaluate(key => localStorage.getItem(key), SAVE_KEY);
+  const slot = readSave({ getItem: () => autosave });
+  if (slot.kind !== 'usable') throw new Error('Expected a usable End Turn autosave');
+  const { save } = slot;
+  expect(save.version).toBe(1);
+  expect(save.game.rulesRevision).toBe('m18h');
+  expect(save.replayBoundary).toEqual({ turn: 15, appliedOrders: 1, checkpoint: original.game });
+  expect(save.eventLog.slice(0, -1)).toEqual(original.eventLog);
+  expect(save.eventLog.at(-1)?.turn).toBe(15);
+  expect(save.orderLog.filter(entry => entry.turn === 15 && entry.nationId === original.activeNationId))
+    .toEqual([{ turn: 15, nationId: original.activeNationId, orders: original.ordersThisTurn }]);
+  expect(save.ordersThisTurn).toEqual([]);
+  expect(replaySession(save)).toEqual(save.game);
+
+  await page.reload();
+  await savedGame(page).getByRole('button', { name: 'Continue' }).click();
+  await expect(turnLine(page)).toContainText('Turn: 16 of 400');
 });
 
 test('FR-362 a slot the game cannot load says why and offers New game only; New game overwrites it', async ({ page }) => {

@@ -49,6 +49,12 @@ it('FR-357 FR-587 keeps one full game on disk and replays every turn since a his
     const ordinarySize = JSON.stringify({ ...current, replayBoundary: undefined }).length;
     const checkpointSize = JSON.stringify(historical.game).length;
     console.info(`Historical continent T${turn}: ${raw.length} characters, ${raw.length - ordinarySize} for replay; full checkpoint ${checkpointSize}.`);
+    // FR-627, seed 7 T40: FR-626 progress/checkpoint adds 204 characters (replay delta 10854 -> 10872).
+    // FR-622 adds 14 receipts, another 2550 characters. Total 201597 -> 204351. T11 is unchanged.
+    if (turn === 40) {
+      expect(raw.length).toBe(204351);
+      expect(raw.length - ordinarySize).toBe(10872);
+    }
     expect(raw.length - ordinarySize).toBeLessThan(checkpointSize / 2);
     expect(JSON.parse(raw).replayBoundary).not.toHaveProperty('checkpoint');
     const roundTrip = read(raw);
@@ -74,6 +80,8 @@ it('FR-357 keeps the Large historical random-map save at turn 40 within the 2,00
   const raw = write(saved);
   expect(JSON.parse(raw).replayBoundary).toHaveProperty('checkpointChanges');
   console.info(`Large seed 1 T40: ${raw.length} characters, ${Buffer.byteLength(raw)} UTF-8 bytes.`);
+  // FR-627, Large seed 1 T40: 246942 -> 249543 (+203 FR-626 progress/checkpoint, +2398 FR-622 for 11 receipts).
+  expect(raw.length).toBe(249543);
   expect(raw.length).toBeLessThan(2_000_000);
   expect(read(raw).game).toEqual(saved.game);
   store.getState().advanceTurn();
@@ -83,6 +91,8 @@ it('FR-357 keeps the Large historical random-map save at turn 40 within the 2,00
   const finalRaw = write(finished);
   expect(JSON.parse(finalRaw).replayBoundary).toHaveProperty('checkpointChanges');
   console.info(`Large seed 1 after T40: ${finalRaw.length} characters, ${Buffer.byteLength(finalRaw)} UTF-8 bytes.`);
+  // FR-627, after T40: 251943 -> 254762 (+203 FR-626 progress/checkpoint, +2616 FR-622 for 12 receipts).
+  expect(finalRaw.length).toBe(254762);
   expect(finalRaw.length).toBeLessThan(2_000_000);
   expect(read(finalRaw).game).toEqual(finished.game);
 });
