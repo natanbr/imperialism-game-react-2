@@ -90,6 +90,8 @@ it.each(['growing', 'blockaded', 'captured'] as const)('FR-626 round-trips a %s 
     matured: { textile: 0, wood: 1, metal: 0 }, upgradeSettlements: { textile: 0, wood: 1, metal: 0 } } } };
   const live = createGameStore({ game });
   live.setState({ replayBoundary: { turn: 1, appliedOrders: 0, checkpoint: game } });
+  expect(live.getState().submitOrder({ kind: 'setTransportAllocations', nationId: N1, allocations: { furniture: 1, lumber: 0 } })).toEqual({ ok: true });
+  const openingFurniture = game.nations[0].warehouse.furniture ?? 0;
   live.getState().advanceTurn();
   const settled = live.getState().game;
   expect(townsOf(settled, owner).find(t => t.provinceId === province.id)?.connected).toBe(stage !== 'blockaded');
@@ -97,6 +99,13 @@ it.each(['growing', 'blockaded', 'captured'] as const)('FR-626 round-trips a %s 
     ? { ownerId: owner, connectedSettlements: 1, matured: { wood: 0 } }
     : { ownerId: owner, matured: { wood: stage === 'blockaded' ? 1 : 2 } });
   const saved = load(serializeSave(saveOf(live.getState())));
+  const receipts = live.getState().eventLog[0].events.filter(e => e.type === 'town-receipt' && e.provinceId === province.id);
+  expect(receipts).toEqual(stage === 'growing' ? [{ type: 'town-receipt', nationId: N1, turn: 1,
+    provinceId: province.id, seatTileId: shore.id, lines: [
+      { commodity: 'lumber', offered: 2, delivered: 0 }, { commodity: 'furniture', offered: 1, delivered: 1 },
+    ] }] : []);
+  expect(settled.nations[0].warehouse.furniture ?? 0).toBe(openingFurniture + (stage === 'growing' ? 1 : 0));
+  expect(saved.eventLog).toEqual(live.getState().eventLog);
   expect(replaySession(saved)).toEqual(settled);
   expect(saved.game.townProgress).toEqual(settled.townProgress);
   const continued = createGameStore();
