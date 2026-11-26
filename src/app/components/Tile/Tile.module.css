@@ -102,6 +102,11 @@
   max-width: none;
 }
 
+/* Keep the town gable at the top of the raised picture, clear of its centre and the seat's controls. */
+.iconCrowded + .townMarker {
+  top: -18px;
+}
+
 /* Each half of a 2:1 map atlas is a complete square, clipped to the same box as its source PNG. */
 .tile .leftFrame,
 .tile .rightFrame {

@@ -2,7 +2,7 @@
 
 ## Resuming here
 
-- M18h on `claude/m18h-towns` shows town development on the map and freight income in Capital → Transport. T-05 owns the full milestone gate and inherited save-hash re-record. [Task 55 verification](journal/task-55-m18h.md) · [Town activation by seed](journal/task-55-campaigns.md)
+- M18h on `claude/m18h-towns` adds town development, freight and owner receipts. Task 56 passed the full gate. The local branch is ready for merge review. [Milestone journal](journal/archive-M18h.md) · [Exact guard comparisons](journal/task-56-guards.md)
 - M18g on `claude/m18g-screens` in the `imperialism-game-revival-fee36d` worktree adds Stats rankings and history, Trade Book, Garrison Book and two diplomatic map modes. The owner kept Board Details and the human nation as the reference. [Implementation and gate evidence](journal/archive-M18g.md) · [Task 43 review fixes and gate](journal/archive-M18g.md#2026-11-25-task-43--m18g-review-fixes)
 - M18f (human credit, interest, forced sales, signed cash and supply notes) merged at `9d2f9eb` in pull request 52. The inferred credit numbers and FR-609 debt scoring remain open to owner revision. [M18f journal and gate evidence](journal/archive-M18f.md) · [Task 39 report](../.gate/codex/39/report.md) · [Earlier journal archives](journal/)
 - M18e merged at `21ea18b`. Choose Random, Large and `Brete` to replay seed `2813929771`. The 400-turn historical calendar remains an owner decision (FR-593, FR-594).
@@ -18,13 +18,9 @@
 - Task 19 passed the load trials and full gate on `claude/perf-tests`. Finish future gates with `npm run test:perf` alone. The measured results and six functional logs are indexed in `.gate/codex/19/summary.md`.
 - To play M17 on continent seed 1, set Armaments and Fabric production to 1. Build a Ship-of-the-Line on turn 6, declare and sail on turn 7, set the site on turn 8, and land the four-ARMS army on turn 9. On turn 10 see the survivors at Sundmark and its colony vote in Council.
 
-## 2026-11-25–26 Task 55 — M18h town views (T-04)
+## 2026-11-26 Task 56 — M18h town development
 
-Size M. FR-621–625. Map and Tile Info explain growth. Capital and News reconcile actual town receipts with Transport and Warehouse. Across 72 random games, 39 towns offered 778 units and delivered zero. [Checks and screenshots](journal/task-55-m18h.md) · [Both players and first producing turns](journal/task-55-campaigns.md)
-
-## 2026-11-25 Tasks 52–54 — M18h queries, growth and freight (T-01–03)
-
-T-01 established seat, resource and capacity queries. T-02 added settlement, transfers and v1 continuation. T-03 shipped town output and recorded private receipts, including zero deliveries. [Task 52 baseline](journal/task-52-m18h.md) · [Task 53 save hashes](journal/task-53-m18h.md) · [Task 54 freight checks](journal/task-54-m18h.md)
+Size L. T-01 through T-04 built province town growth, shared rail freight and owner-scoped views. T-05 checks Continue, autosave and replay from a paid historical Order, compares every protected campaign and records the measured save changes under FR-627. [Tasks 52–56 and gate evidence](journal/archive-M18h.md) · [Protected results](journal/task-56-guards.md) · [Town activation by seed and player](journal/task-55-campaigns.md)
 
 ## 2026-11-25 Task 50 — Verify the saved replay checkpoint
 
