@@ -510,7 +510,8 @@ graph from the capital, depots and ports; `logisticsSystem` moves collected reso
 warehouse up to the capacity, following the player's allocation
 (`setTransportAllocations` order). Since M12 (FR-389) an amount in the allocation is exact: a set commodity
 ships at most that amount (0 ships nothing), in the allocation's order, and only the commodities with no
-entry ("Auto") share the capacity left, in tile order. `transportShipments(capacity, collected, plan)` is that
+entry ("Auto") share the capacity left, in tile order. Since FR-628 the Auto share loads mature town offers first, by
+province and chain, then tile and Fish supply. `transportShipments(capacity, collected, plan, collectionOrder)` is that
 one rule, and the transport popup reads the same numbers (rows "Grain Auto: 4", an Auto button that drops the key,
 FR-390). `collectingHub(state, nationId, tileId)` names the hub that collects a tile (`{ tileId, kind }`: the
 tile's own hub, else the first hub next to it, in the order capital, active depots, active ports; the logistics
@@ -531,8 +532,9 @@ logistics and the scripted player's planning (`ai/railPlan.ts`, which orders mis
 read the same graph (FR-079).
 
 The scripted player's transport plan (FR-405): its wants, each raised to what the old top-up rule would ship, the
-rest automatic (`priorityPlan`, `ai/economy.ts`), so its shipments equal what they were before exact amounts. It
-plans twice: `planEconomy` on the state as it is, and `planFinalTransport` after its civilians' orders, because a
+rest automatic (`priorityPlan`, `ai/economy.ts`), so its shipments equal what they were before exact amounts. Since
+FR-628 the wants end with its own forecast town materials and goods (`townShippingWants`), after the meal's food and
+the mills' capped inputs; the freight-car purchase (`planFreightCars`) still counts raw wants only. It plans twice: `planEconomy` on the state as it is, and `planFinalTransport` after its civilians' orders, because a
 rail ordered that turn finishes in the development phase and joins a hub before logistics, and the plan must see
 that collection (`collectedAtLogistics` runs the development and connectivity phases on the planned state). The
 planned trade (`planTrade`, `projectTurn`) runs no development phase and keeps the first plan's view.

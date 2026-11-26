@@ -9,6 +9,9 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['tests/**/*.test.{ts,tsx}'],
+    // One event-loop turn after each test, so a long file of synchronous tests cannot starve the worker's RPC
+    // ("Timeout calling onTaskUpdate", Task 58 follow-up).
+    setupFiles: ['tests/yieldBetweenTests.ts'],
     // UI tests that render the whole map take about 5 s alone and timed out at the 5 s default under a
     // loaded full run (M4.1 gate); one limit here instead of per-test overrides.
     testTimeout: 20_000,

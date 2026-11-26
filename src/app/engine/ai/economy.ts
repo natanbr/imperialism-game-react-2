@@ -42,6 +42,7 @@ import { armsWanted, planGarrison, upkeepReserve } from "./scriptedArmy";
 import { workersKeptForCampaign } from "./scriptedWar";
 import { capitalComponent } from "./railPlan";
 import { upkeepOf } from "../army/armies";
+import { townChains } from "../world/towns";
 import { WorkerType } from "@/types/Workers";
 
 export type Propose = (order: Order) => boolean;
@@ -139,14 +140,30 @@ export function planEconomy(view: () => GameState, nationId: string, propose: Pr
 
 // --- transport (FR-127) ---------------------------------------------------------------------
 
+const townCommodities = new Set<string>(townChains.flatMap(([, material, good]) => [material, good]));
+
+/**
+ * FR-628: the town materials and goods of a forecast collection, one entry per commodity holding every town's units.
+ * The entries keep the order in which each commodity first entered the collection: the first producing province's
+ * chain order (material before good), then any commodity only a later province adds. That is not each town's own
+ * offer order. The whole forecast is wanted: lumber and steel build capacity, fabric feeds the clothing factory and
+ * the goods sell. A raw-only collection has none. The forecast reads only the nation's own towns on its own map
+ * (FR-497).
+ */
+export const townShippingWants = (collected: Stock): [string, number][] =>
+  Object.entries(collected).filter(([commodity, units]) => townCommodities.has(commodity) && units > 0);
+
 /**
  * Units worth shipping this turn, in priority order: the meal's raw food that the warehouse lacks
  * (keeping one meal in stock), plus one canned-food batch's while the cans are fewer than the
  * workers; the steel mill's coal and iron (the scarcer in stock first), the lumber mill's timber,
- * the textile mill's cotton and wool, each up to two turns of its mill at full capacity. The
- * logistics phase fills any cars left from the other resources.
+ * the textile mill's cotton and wool, each up to two turns of its mill at full capacity; then the towns' materials and
+ * goods (`towns`, FR-628), before the cars left for the other resources. As for a person, the planned amounts come
+ * first and the towns before ordinary freight.
  */
-export function shippingWants(state: GameState, nationId: string, gathered = rawFreightSupply(state, nationId)): [string, number][] {
+export function shippingWants(
+  state: GameState, nationId: string, gathered = rawFreightSupply(state, nationId), towns = townShippingWants(gathered)
+): [string, number][] {
   const nation = nationOf(state, nationId);
   const stock = nation.warehouse as Stock;
   const mouths = mouthsOf(nation);
@@ -175,6 +192,7 @@ export function shippingWants(state: GameState, nationId: string, gathered = raw
     input(ResourceType.Timber, 2 * capacityOf(nation, "lumberMill")),
     input(ResourceType.Cotton, fibreUse),
     input(ResourceType.Wool, fibreUse),
+    ...towns,
   ];
 }
 
@@ -183,7 +201,9 @@ export function shippingWants(state: GameState, nationId: string, gathered = raw
  * and the `collected` units: each commodity with a want is set, in the wants' order, to the larger of its want and what
  * the rule from before FR-389 (the wants first, then the cars left filled in tile order) ships of it; every other
  * commodity stays automatic and takes the cars left in tile order. The logistics phase then ships what that rule
- * shipped. Example: 15 cars, collected grain 10, livestock 4, fruit 5, cotton 2, wants livestock 1 and cotton 2:
+ * shipped. The fill follows the collection's key order, with raw tile and Fish supply before town commodities, not the
+ * logistics phase's towns-first order (FR-628). The towns lose nothing by it: `townShippingWants` makes their whole
+ * forecast a want, so they take their cars before the fill. Example: 15 cars, collected grain 10, livestock 4, fruit 5, cotton 2, wants livestock 1 and cotton 2:
  * { livestock: 3, cotton: 2 }, and the logistics phase ships livestock 3, cotton 2, grain 10.
  */
 export function priorityPlan(capacity: number, collected: Stock, wants: readonly (readonly [string, number])[]): Record<string, number> {
@@ -224,11 +244,13 @@ export function collectedAtLogistics(view: GameState, nationId: string): Stock {
 /**
  * FR-389: the plan given again once the turn's other orders are known (scriptedPlayer, after the civilians): a rail
  * an engineer starts may finish in this turn's development phase and join a new hub, and a set amount no longer takes
- * the cars that frees. The wants are the turn's start's (`start`), the collection the logistics phase's
- * (`collectedAtLogistics(view)`); the cars ordered this turn join only after the phases.
+ * the cars that frees. The raw wants are the turn's start's (`start`), the collection and the towns' wants (FR-628) the
+ * logistics phase's (`collectedAtLogistics(view)`); the cars ordered this turn join only after the phases.
  */
 export function planFinalTransport(start: GameState, view: GameState, nationId: string, propose: Propose): void {
-  const allocations = priorityPlan(carsOf(view, nationId), collectedAtLogistics(view, nationId), shippingWants(start, nationId));
+  const collected = collectedAtLogistics(view, nationId);
+  const wants = shippingWants(start, nationId, rawFreightSupply(start, nationId), townShippingWants(collected));
+  const allocations = priorityPlan(carsOf(view, nationId), collected, wants);
   propose({ kind: "setTransportAllocations", nationId, allocations });
 }
 
@@ -236,6 +258,8 @@ export function planFinalTransport(start: GameState, view: GameState, nationId: 
 function planFreightCars(view: () => GameState, nationId: string, propose: Propose): void {
   const state = view();
   if (turnsAfter(state) < CAR_MIN_TURNS) return;
+  // Raw wants only (FR-628): FR-628 changed which freight ships first, not when a car is bought. Counting town goods
+  // here would also bring back the town projection that Task 57 removed from this per-turn query.
   const wanted = shippingWants(state, nationId).reduce((sum, [, n]) => sum + n, 0);
   if (wanted > Math.max(0, nationOf(state, nationId).transportCapacity ?? 0)) propose({ kind: "changeTransportCapacity", nationId, delta: 1 });
 }

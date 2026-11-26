@@ -4,6 +4,7 @@
 // to its bound. The measured numbers are pinned below and written into FR-247's status: a change that moves them is
 // a deliberate one, as for the v1 baselines of FR-159.
 import { beforeAll, describe, it, expect } from 'vitest';
+import { setImmediate as yieldToRunner } from 'node:timers/promises';
 import { newGame } from '@/engine/newGame';
 import { scriptedPlayer } from '@/engine/ai/scriptedPlayer';
 import { resolveTurn } from '@/engine/turn/resolveTurn';
@@ -208,11 +209,13 @@ const BASELINE = [
   // FR-616: Fish changes cargo, trade and recruitment. minorDeals [81, 109] -> [85, 104], minorPurchases [44, 71] -> [47, 66], treasury [1555, 7909] -> [3217, 12403].
   { seed: 1, minorDeals: [85, 104], minorPurchases: [47, 66], minorsDealt: [4, 4], treasury: [3217, 12403], noPay: [0, 0], capitalArms: [4, 4] },
   // FR-616: Fish changes cargo, trade and recruitment. minorDeals [78, 118] -> [78, 102], minorPurchases [43, 78] -> [44, 63], treasury [4894, 1959] -> [3055, 2896], capitalArms [5, 4] -> [4, 5].
-  { seed: 2, minorDeals: [78, 102], minorPurchases: [44, 63], minorsDealt: [4, 4], treasury: [3055, 2896], noPay: [0, 0], capitalArms: [4, 5] },
+  // FR-627 under FR-628: towns ship before automatic freight. minorDeals [78, 102] -> [82, 101], minorPurchases [44, 63] -> [46, 62], treasury [3055, 2896] -> [4475, 2889].
+  { seed: 2, minorDeals: [82, 101], minorPurchases: [46, 62], minorsDealt: [4, 4], treasury: [4475, 2889], noPay: [0, 0], capitalArms: [4, 5] },
   // FR-616: Fish changes cargo, trade and recruitment. minorDeals [91, 104] -> [67, 105], minorPurchases [49, 65] -> [34, 63], treasury [9641, 12437] -> [5941, 19604].
   { seed: 3, minorDeals: [67, 105], minorPurchases: [34, 63], minorsDealt: [4, 4], treasury: [5941, 19604], noPay: [0, 0], capitalArms: [4, 4] },
   // FR-616: Fish changes cargo, trade and recruitment. minorDeals [69, 76] -> [68, 70], minorPurchases [41, 44] -> [40, 40], treasury [1742, 2184] -> [3182, 1385], capitalArms [4, 5] -> [4, 4].
-  { seed: 4, minorDeals: [68, 70], minorPurchases: [40, 40], minorsDealt: [4, 4], treasury: [3182, 1385], noPay: [0, 0], capitalArms: [4, 4] },
+  // FR-627 under FR-628: towns ship before automatic freight. minorDeals [68, 70] -> [71, 75], minorPurchases [40, 40] -> [41, 43], treasury [3182, 1385] -> [4491, 1461].
+  { seed: 4, minorDeals: [71, 75], minorPurchases: [41, 43], minorsDealt: [4, 4], treasury: [4491, 1461], noPay: [0, 0], capitalArms: [4, 4] },
 ];
 
 /** The force size (FR-204) of the nation's army in its capital province at turn 40. */
@@ -233,8 +236,12 @@ const measured = (seed: number, g: Game) => ({
 
 describe('FR-247 the v2 trade baseline: 40 turns, both nations scripted, seeds 1 to 4', () => {
   const games = new Map<number, { first: Game; again: Game }>();
-  beforeAll(() => {
-    for (const seed of SEEDS) games.set(seed, { first: play(seed), again: play(seed) });
+  beforeAll(async () => {
+    for (const seed of SEEDS) {
+      games.set(seed, { first: play(seed), again: play(seed) });
+      // Let the worker answer Vitest's RPC between seeds: the 8 games ran 23 s in one block under a full run.
+      await yieldToRunner();
+    }
     console.log(
       'FR-247 measured:',
       JSON.stringify(SEEDS.map(seed => ({ ...measured(seed, games.get(seed)!.first), consulateBy: games.get(seed)!.first.consulateBy, minorsDealtIds: games.get(seed)!.first.minorsDealt })))

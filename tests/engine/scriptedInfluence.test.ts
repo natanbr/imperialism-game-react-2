@@ -469,7 +469,8 @@ describe('FR-490 FR-542 real games from the start, no embassy preset (the row\'s
     expect(g.startEmbassies).toBe(0);
     expect(g.done).toEqual([`embassy ${SUNDMARK} 17`, `pact ${SUNDMARK} 18`]);
     // FR-516/517: the earlier pact gives a turn-20 vote, 0 -> 1.
-    expect(g.votes).toEqual({ 10: 0, 20: 1, 30: 0, 40: 1 });
+    // FR-627 under FR-628: delivered town goods change Valdoria's minor trade; turn-40 free-minor votes 1 -> 2.
+    expect(g.votes).toEqual({ 10: 0, 20: 1, 30: 0, 40: 2 });
     expect(councilCell(councilVote(g.state, COUNCIL.firstTurn)!, N2, 'otherMinorNations')).toEqual(['province-minor-2']);
   }, 60_000);
 });

@@ -4,6 +4,7 @@
 // start forces it does turn by turn the same on both. FR-305/510: the fourth Council elects a winner.
 // FR-302: the scripted player gives the same orders as in the game without the Council.
 import { beforeAll, describe, it, expect } from 'vitest';
+import { setImmediate as yieldToRunner } from 'node:timers/promises';
 import { newGame } from '@/engine/newGame';
 import { forceSize } from '@/engine/army/armies';
 import { SCRIPTED_GARRISON } from '@/definisions/regiments';
@@ -140,6 +141,8 @@ describe('FR-260 (replaces FR-157) the continent plays: 40 turns, nation 2 scrip
         bare: play('continent', current, seed, 'world', withoutStartForces),
         noCouncil: play('continent', s => off.computerOrders(s), seed, 'world', s => s, off.resolveTurn),
       });
+      // Let the worker answer Vitest's RPC between seeds: the 20 games ran 37 s in one block under a full run.
+      await yieldToRunner();
     }
   }, 240_000);
 
@@ -382,12 +385,13 @@ describe('FR-215 the seams with the start army: the frozen M4 player on both wor
   /** Nation 2 scripted and nation 1 idle, and (R3) both nations scripted; the continent without its start forces. */
   type FixedWorld = 'two-islands' | 'continent';
   const games = new Map<number, Record<'n2' | 'both', Record<FixedWorld, Game>>>();
-  beforeAll(() => {
+  beforeAll(async () => {
     for (const seed of SEEDS) {
       games.set(seed, {
         n2: { 'two-islands': play('two-islands', frozenM4, seed), continent: play('continent', frozenM4, seed, 'world', historicalContinent) },
         both: { 'two-islands': play('two-islands', frozenM4Both, seed), continent: play('continent', frozenM4Both, seed, 'world', historicalContinent) },
       });
+      await yieldToRunner();
     }
   }, 180_000);
 

@@ -16,7 +16,8 @@ export type { CollectingHub } from "../map/collectingHubs";
 /**
  * What the logistics phase ships of what the hubs collected (FR-389, card Q80): the plan holds per commodity either a
  * set amount or nothing (automatic). A set commodity ships at most its set amount (0 ships nothing), set ones first in
- * plan order. Automatics share the rest in ordinary collection order, then by town and chain (FR-621).
+ * plan order. Automatics share the rest in `collectionOrder`: town offers by province and chain, then ordinary tile and
+ * Fish supply (FR-628).
  */
 export const transportShipments = (
   capacity: number,
@@ -76,12 +77,13 @@ function freightSupply(state: GameState, owner: string, timing: "projected" | "s
   const collected = rawFreightSupply(state, owner);
   const supply: FreightSupply = { collected, offers: [] };
   if (!state.provinces.length || !hasTownFactoryCapacity(state, owner)) return supply;
+  const raw = Object.entries(collected);
+  const towns: [string, number][] = [];
   const add = (town: TownFacts, bundle: ReturnType<typeof townOutput>) => {
     const units = Object.entries(bundle) as [TownCommodity, number][];
     if (!units.length) return;
     // Preserve where each town's units enter the queue even when its commodity already has an aggregate total.
-    supply.collectionOrder ??= Object.entries(collected);
-    supply.collectionOrder.push(...units);
+    towns.push(...units);
     supply.offers.push({ provinceId: town.provinceId, seatTileId: town.seatTileId, units });
     for (const [commodity, amount] of units) collected[commodity] = (collected[commodity] ?? 0) + amount;
   };
@@ -92,6 +94,8 @@ function freightSupply(state: GameState, owner: string, timing: "projected" | "s
   } else if (state.townProgress) {
     for (const town of townsOf(state, owner)) add(town, settledTownOutput(state, owner, town));
   }
+  // FR-628: towns load before automatic tile and Fish freight, so a car shortage falls on raw supply.
+  if (towns.length) supply.collectionOrder = [...towns, ...raw];
   return supply;
 }
 
