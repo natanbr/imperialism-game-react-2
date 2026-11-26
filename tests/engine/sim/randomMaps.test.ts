@@ -38,6 +38,21 @@ import baseline from './randomMapsBaseline.json';
 // large scripted 12: winner nation-2 -> nation-1
 // large diplomat 5: turns 30 -> 40
 // large diplomat 10: winner nation-2 -> nation-1, peacefulWin false -> true
+//
+// FR-627 under FR-628: towns now ship before automatic raw and Fish freight, and the computer plans its own town goods
+// after its mills' inputs. Town deliveries 0 -> 344 of 778 offered units, in 28 of 72 games. The other 60 games matched.
+// standard idle 2: scores [465, 680, 1162] -> [465, 680, 1141]
+// standard idle 4: scores [462, 649, 1032] -> [462, 649, 1120]
+// standard idle 8: firstCapture 36 -> null, firstPact null -> 39, compulsory 0 -> 3, scores [452, 681, 1072] -> [452, 681, 1177]
+// standard scripted 11: winner nation-1 -> nation-2
+// standard diplomat 11: winner nation-1 -> nation-2, peacefulWin true -> false
+// large idle 1: scores [472, 660, 984] -> [472, 660, 1024]
+// large idle 3: firstCapture null -> 35, compulsory 3 -> 0, scores [495, 747, 1276] -> [495, 746, 1261]
+// large idle 6: scores [502, 746, 1138] -> [502, 746, 1147]
+// large idle 10: scores [505, 652, 1239] -> [505, 652, 1234]
+// large scripted 3: winner nation-2 -> nation-1
+// large scripted 7: winner nation-1 -> nation-2
+// large diplomat 8: winner nation-2 -> nation-1, peacefulWin false -> true
 
 const sizes = ['standard', 'large'] as const;
 const policies = ['idle', 'scripted', 'diplomat'] as const;

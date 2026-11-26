@@ -319,11 +319,12 @@ describe('FR-481 the idle game on seed 1, before M13 (2026-11-16, docs/specs/m13
   // votes for Valdoria (the scriptedInfluence.test.ts real game of seed 1).
   // FR-518: at turn 40 one fewer worker has finished expert training; the workforce remains seven.
   // FR-616: fishing alters the training budget. Untrained/trained/expert [0,2,5] -> [1,2,4], labour 24 -> 21.
-  it('FR-481 FR-485 FR-538 FR-539 FR-542 FR-518 Valdoria has 7 healthy workers and 21 labour at turn 40', () => {
+  // FR-627 under FR-628: delivered town goods change the training budget again. [1,2,4] -> [0,2,5], labour 21 -> 24.
+  it('FR-481 FR-485 FR-538 FR-539 FR-542 FR-518 FR-628 Valdoria has 7 healthy workers and 24 labour at turn 40', () => {
     expect(healthyWorkersAt(idle, 1, COMPUTER_ID)).toBeLessThanOrEqual(7);
     expect(healthyWorkersAt(idle, 40, COMPUTER_ID)).toBe(7);
-    expect(atTurn(idle, 40)!.workers[COMPUTER_ID]).toEqual({ untrained: 1, trained: 2, expert: 4 });
-    expect(atTurn(idle, 40)!.labour[COMPUTER_ID]).toBe(21);
+    expect(atTurn(idle, 40)!.workers[COMPUTER_ID]).toEqual({ untrained: 0, trained: 2, expert: 5 });
+    expect(atTurn(idle, 40)!.labour[COMPUTER_ID]).toBe(24);
   });
 
   // Re-recorded by the M13 final round (FR-541, FR-499): units 6 -> 9 and refused bids 6 -> 8. Valdoria now keeps its lumber

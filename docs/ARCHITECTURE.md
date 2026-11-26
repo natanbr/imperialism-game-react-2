@@ -510,7 +510,8 @@ graph from the capital, depots and ports; `logisticsSystem` moves collected reso
 warehouse up to the capacity, following the player's allocation
 (`setTransportAllocations` order). Since M12 (FR-389) an amount in the allocation is exact: a set commodity
 ships at most that amount (0 ships nothing), in the allocation's order, and only the commodities with no
-entry ("Auto") share the capacity left, in tile order. `transportShipments(capacity, collected, plan)` is that
+entry ("Auto") share the capacity left, in tile order. Since FR-628 the Auto share loads mature town offers first, by
+province and chain, then tile and Fish supply. `transportShipments(capacity, collected, plan, collectionOrder)` is that
 one rule, and the transport popup reads the same numbers (rows "Grain Auto: 4", an Auto button that drops the key,
 FR-390). `collectingHub(state, nationId, tileId)` names the hub that collects a tile (`{ tileId, kind }`: the
 tile's own hub, else the first hub next to it, in the order capital, active depots, active ports; the logistics

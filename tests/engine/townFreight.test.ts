@@ -121,18 +121,21 @@ describe('FR-621/622 shared town freight through the real turn phases', () => {
     expect(projectedFreightPlan(ample, N1, 12, plan).shipments).toEqual({ fabric: 1, furniture: 2, fish: 1 });
   });
 
-  it('FR-628 FR-497 a computer owner with scarce cars plans its own towns before its mill inputs', () => {
-    // Two timber at the capital would fill both cars as the lumber mill’s input, as it did before FR-628.
+  it('FR-628 FR-497 a computer owner with scarce cars plans its own towns after its mill’s need and before ordinary freight', () => {
+    // Two timber next to the capital, first in collection order. The lumber mill needs one. Before FR-628 the plan's
+    // fill of the spare car set timber to 2, and that explicit amount took both cars ahead of the towns.
     let state = beforeUpgrade(2, 'scripted');
-    state = setTile(state, T.dryPlains1, { resource: { type: ResourceType.Timber, level: 1 } });
-    state = setWarehouse(setBuilding(state, N1, 'lumberMill', { capacity: 4 }), N1, { timber: 0 });
-    expect(rawFreightSupply(state, N1)).toEqual({ grain: 1, timber: 2, fish: 1 });
-    const orders = scriptedPlayer(deepFreeze(state), N1);
+    state = setTile(state, T.mountains1, { resource: { type: ResourceType.Timber, level: 1 } });
+    state = setWarehouse(setBuilding(state, N1, 'lumberMill', { capacity: 1 }), N1, { timber: 3 });
+    expect(rawFreightSupply(state, N1)).toEqual({ timber: 2, grain: 1, fish: 1 });
+    // Only the freight plan, so its trade and production Orders cannot move the warehouse figures.
+    const orders = scriptedPlayer(deepFreeze(state), N1).filter(o => o.kind === 'setTransportAllocations');
+    expect(orders.length).toBeGreaterThan(0);
     const result = resolveTurn(deepFreeze(state), { [N1]: orders });
     expect(result.events.filter(e => e.type === 'order-rejected')).toEqual([]);
-    expect(receipts(result)).toEqual(expectedReceipts(1, 1, 0, 0, 0));
-    expect(stockDeltas(state, result.state)).toEqual({ grain: 0, fish: 0, fabric: 1, lumber: 1, furniture: 0 });
-    expect(stockOf(result.state, N1, 'timber')).toBe(0);
+    expect(receipts(result)).toEqual(expectedReceipts(1, 0, 0, 0, 0));
+    expect(stockDeltas(state, result.state)).toEqual({ grain: 0, fish: 0, fabric: 1, lumber: 0, furniture: 0 });
+    expect(stockOf(result.state, N1, 'timber') - stockOf(state, N1, 'timber')).toBe(1);
   });
 
   it('reserves cars for furniture and skips explicitly zero lumber even with cars to spare', () => {
