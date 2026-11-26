@@ -7,7 +7,7 @@ import { hasLandRoute, warActive } from "../diplomacy/queries";
 import type { MoveArmyOrder, RejectReason, ValidationResult } from "../orders/Order";
 import type { TurnContext } from "../turn/context";
 import { provinceById, provincesOf } from "../world/provinces";
-import { approachesOf, deployedFleet, firstLandingTurn, fleetApproach, fleetArms, isPortClosed, openPortApproaches, pendingFleetMission } from "./fleets";
+import { approachesOf, approachIsOpen, deployedFleet, firstLandingTurn, fleetApproach, fleetArms, openPortApproaches, pendingFleetMission, portApproaches } from "./fleets";
 
 /** The missing requirement for a sea declaration. Only the declarer's commitments and resolved foreign positions count. */
 export function seaWarRequirement(state: GameState, nationId: NationId, targetId: CountryId): string | undefined {
@@ -50,8 +50,10 @@ export function validateSeaDeployment(state: GameState, order: MoveArmyOrder, ph
     return { ok: false, reason: "no-landing-site" };
   }
   const seaId = fleet.approach.seaId;
-  if (!openPortApproaches(state, nationId, fromProvinceId).some(a => a.seaId === seaId)) {
-    return { ok: false, reason: isPortClosed(state, nationId, fromProvinceId, seaId) ? "port-closed" : "no-port-route" };
+  const outlets = portApproaches(state, nationId, fromProvinceId).filter(a => a.seaId === seaId);
+  if (!outlets.length) return { ok: false, reason: "no-port-route" };
+  if (!outlets.some(a => approachIsOpen(state, nationId, a))) {
+    return { ok: false, reason: "port-closed" };
   }
   const booked = bookedArms(state, nationId, "sea", regimentIds);
   return booked + regimentArms(state, regimentIds) <= fleetArms(fleet)

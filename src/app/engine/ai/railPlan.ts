@@ -4,7 +4,7 @@
 import { ResourceDevelopmentTable } from "@/definisions/ResourceDevelopment";
 import type { GameState } from "@/types/GameState";
 import { TerrainType, type Tile } from "@/types/Tile";
-import { getNeighborCoords, isRailLand } from "../map/mapHelpers";
+import { getAdjacentTiles, getNeighborCoords, isRailLand } from "../map/mapHelpers";
 import { hasJob, isDepotSite, isGreatPowerCapital, isLand, nationById, railTerrainAllowed } from "../orders/queries";
 import { isRailLinked } from "../systems/railroadSystem";
 import { CONSTRUCTION_COST, constructionCost } from "@/definisions/workPrices";
@@ -72,12 +72,14 @@ export function capitalComponent(state: GameState, nationId: string): Set<string
   return seen;
 }
 
-/** A tile rail may run over: own land where rail is allowed, already rail or free of other jobs (FR-113). */
-function isPassable(state: GameState, tile: Tile, nationId: string): boolean {
-  if (tile.ownerNationId !== nationId) return false;
+/** A tile the nation may build through, already rail or free of other jobs (FR-113). */
+function isPassable(state: GameState, tile: Tile): boolean {
   if (tile.connected || tile.depot || tile.terrain === TerrainType.Capital) return true;
   return railTerrainAllowed(state, tile) && !hasJob(tile);
 }
+
+const isLockedRiver = (state: GameState, tile: Tile): boolean =>
+  !!tile.hasRiver && !railTerrainAllowed(state, tile);
 
 /**
  * The shortest rail path (breadth-first, neighbours in map order) from tile `from` to any tile of
@@ -86,14 +88,20 @@ function isPassable(state: GameState, tile: Tile, nationId: string): boolean {
 export function railPath(state: GameState, nationId: string, from: string, targets: Set<string>): string[] | undefined {
   if (!isRailLand(tileAtKey(state, from))) return undefined;
   if (targets.has(from)) return [from];
+  const network = state.transportNetwork.railroadNetworks?.[nationId];
   const previous = new Map<string, string>([[from, from]]);
   const queue = [from];
   while (queue.length) {
     const k = queue.shift()!;
-    for (const n of neighbourKeys(state, k)) {
-      if (previous.has(n)) continue;
-      const tile = tileAtKey(state, n);
-      if (!isRailLand(tile) || (!targets.has(n) && !isPassable(state, tile, nationId))) continue;
+    const current = tileAtKey(state, k);
+    const riverLocked = isLockedRiver(state, current);
+    for (const tile of getAdjacentTiles(state.map, current.x, current.y)) {
+      const n = keyOf(tile);
+      if (previous.has(n) || !isRailLand(tile) || tile.ownerNationId !== nationId) continue;
+      // FR-582: either river endpoint requires permission for a new section. An existing crossing stays usable.
+      if (riverLocked || isLockedRiver(state, tile)) {
+        if (!isRailLinked(network, current, tile)) continue;
+      } else if (!targets.has(n) && !isPassable(state, tile)) continue;
       previous.set(n, k);
       if (targets.has(n)) {
         const path = [n];
