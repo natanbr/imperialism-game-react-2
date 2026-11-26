@@ -21,6 +21,8 @@ export interface RailroadNetwork {
   capital?: RailroadNode;
   ports: PortNode[];
   depots: DepotNode[];
+  /** Active hubs with no fishing access this turn. Older saves have no closures recorded. */
+  closedFishingPorts?: string[];
 }
 
 export type RailroadNetworks = Record<string, RailroadNetwork>;

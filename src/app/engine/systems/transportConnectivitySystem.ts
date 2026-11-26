@@ -1,8 +1,8 @@
 import { GameState } from "@/types/GameState";
-import { GameMap } from "@/types/Map";
+import type { Tile } from "@/types/Tile";
 import { RailroadNode, RailroadNetworks, RailroadNetwork } from "@/types/Transport";
-import { isAdjacentToOcean } from "../map/mapHelpers";
-import { isPortClosed, portApproach } from "../navy/fleets";
+import { getAdjacentTiles, isAdjacentToOcean, isRailLand } from "../map/mapHelpers";
+import { homeApproach, isPortClosed, portApproach } from "../navy/fleets";
 import type { TurnSystem } from "../turn/context";
 
 const key = (x: number, y: number) => `${x},${y}`;
@@ -53,41 +53,55 @@ const bfs = (
   return visited;
 };
 
-const updateNetworkConnectivity = (
-  network: RailroadNetwork,
-  map: GameMap,
-  seaLinkOpen: (port: RailroadNode) => boolean
-): void => {
+/** A coastal port binds to its own shore. Inland ports can use any open mouth on their owned river. */
+function portWaterRoute(state: GameState, nationId: string, site: Tile, fleetsAtSea: boolean): "open" | "closed" | "no-site" {
+  if (site.ownerNationId !== nationId || !isRailLand(site)) return "no-site";
+  const shoreIsOpen = (tile: Tile) => {
+    const shore = fleetsAtSea && portApproach(state, tile);
+    return !shore || !isPortClosed(state, nationId, shore.provinceId, shore.seaId);
+  };
+  if (isAdjacentToOcean(state.map, site.x, site.y)) return shoreIsOpen(site) ? "open" : "closed";
+  if (!site.hasRiver) return "no-site";
+
+  const visited = new Set([site.id]);
+  const queue = [site];
+  for (let i = 0; i < queue.length; i++) {
+    const bank = queue[i];
+    for (const next of getAdjacentTiles(state.map, bank.x, bank.y)) {
+      if (!next.hasRiver || next.ownerNationId !== nationId || !isRailLand(next) || visited.has(next.id)) continue;
+      if (isAdjacentToOcean(state.map, next.x, next.y) && shoreIsOpen(next)) return "open";
+      visited.add(next.id);
+      queue.push(next);
+    }
+  }
+  return "closed";
+}
+
+function updateNetworkConnectivity(network: RailroadNetwork, state: GameState, nationId: string, fleetsAtSea: boolean): void {
   const { graph, capital, ports, depots } = network;
-
-  ports.forEach((p) => (p.isActive = false));
-  depots.forEach((d) => (d.isActive = false));
-
   const starts: RailroadNode[] = capital ? [capital] : [];
-  const reachableFromCapital = bfs(graph, starts);
-
-  const candidatePorts = ports.filter((p) => isAdjacentToOcean(map, p.x, p.y) && seaLinkOpen(p));
-  const reachableFromPorts = candidatePorts.length
-    ? bfs(graph, candidatePorts)
-    : new Set<string>();
-
-  const allReachable = new Set<string>([
-    ...reachableFromCapital,
-    ...reachableFromPorts,
-  ]);
-
-  depots.forEach((d) => {
-    if (allReachable.has(key(d.x, d.y))) {
-      d.isActive = true;
+  const closedFishingPorts: string[] = [];
+  if (capital && fleetsAtSea) {
+    const home = homeApproach(state, nationId);
+    if (home && isPortClosed(state, nationId, home.provinceId, home.seaId)) {
+      closedFishingPorts.push(state.map.tiles[capital.y][capital.x].id);
     }
-  });
+  }
 
-  ports.forEach((p) => {
-    if (allReachable.has(key(p.x, p.y)) && isAdjacentToOcean(map, p.x, p.y)) {
-      p.isActive = true;
-    }
+  const routes = ports.map(port => {
+    const route = portWaterRoute(state, nationId, state.map.tiles[port.y][port.x], fleetsAtSea);
+    if (route === "open") starts.push(port);
+    return route;
   });
-};
+  const reachable = bfs(graph, starts);
+  for (const depot of depots) depot.isActive = reachable.has(key(depot.x, depot.y));
+  ports.forEach((port, i) => {
+    port.isActive = routes[i] !== "no-site" && reachable.has(key(port.x, port.y));
+    if (port.isActive && routes[i] === "closed") closedFishingPorts.push(state.map.tiles[port.y][port.x].id);
+  });
+  if (closedFishingPorts.length) network.closedFishingPorts = closedFishingPorts;
+  else delete network.closedFishingPorts;
+}
 
 export const transportConnectivitySystem: TurnSystem = (state: GameState): GameState => {
   const originalNetworks = state.transportNetwork.railroadNetworks;
@@ -97,14 +111,8 @@ export const transportConnectivitySystem: TurnSystem = (state: GameState): GameS
 
   const newNetworks: RailroadNetworks = JSON.parse(JSON.stringify(originalNetworks));
 
-  for (const nationId in newNetworks) {
-    const network = newNetworks[nationId];
-    updateNetworkConnectivity(network, state.map, ({ x, y }) => {
-      if (!state.fleets.length) return true;
-      const shore = portApproach(state, state.map.tiles[y][x]);
-      return !shore || !isPortClosed(state, nationId, shore.provinceId, shore.seaId);
-    });
-  }
+  const fleetsAtSea = state.fleets.some(fleet => fleet.approach);
+  for (const nationId in newNetworks) updateNetworkConnectivity(newNetworks[nationId], state, nationId, fleetsAtSea);
 
   return {
     ...state,

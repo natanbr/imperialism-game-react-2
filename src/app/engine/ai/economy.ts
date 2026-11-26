@@ -10,6 +10,7 @@
 // holds and cash buy more pairs while a pair costs less than the $1,000 its point is worth.
 import type { GameState } from "@/types/GameState";
 import type { Nation } from "@/types/Nation";
+import type { Tile } from "@/types/Tile";
 import type { BuildingType, ProductionOutput } from "@/types/Industry";
 import type { TradeAmounts, TradeCommodity } from "@/types/Market";
 import { SHIPS } from "@/definisions/ships";
@@ -60,6 +61,12 @@ export const CASH_RESERVE = CONSTRUCTION_COST.depot + 5 * DEVELOPMENT_COST[1];
 const RAIL_RESERVE = 300;
 const DEVELOPERS: readonly WorkerType[] = [WorkerType.Farmer, WorkerType.Rancher, WorkerType.Forester, WorkerType.Miner, WorkerType.Driller];
 
+/** FR-454: one level-one job for each of the nation's developers on its land. */
+export function developerReserve(ownTiles: Tile[], nationId: string): number {
+  const developers = ownTiles.reduce((n, t) => n + t.workers.filter((w) => w.nationId === nationId && DEVELOPERS.includes(w.type)).length, 0);
+  return developers * DEVELOPMENT_COST[1];
+}
+
 /**
  * FR-454: the cash the civilians need soon, kept from bids and the pairs-first run (FR-128, FR-129) and, without an
  * army, from training (FR-460): a level-1 job ($100) for each developer, plus a depot's price while the engineer is
@@ -70,10 +77,9 @@ const DEVELOPERS: readonly WorkerType[] = [WorkerType.Farmer, WorkerType.Rancher
 export function cashReserve(state: GameState, nationId: string): number {
   if (upkeepOf(state, nationId) > 0) return Math.max(CASH_RESERVE, SCRIPTED_GARRISON.treasuryFloor);
   const own = state.map.tiles.flat().filter((t) => t.ownerNationId === nationId);
-  const developers = own.reduce((n, t) => n + t.workers.filter((w) => w.nationId === nationId && DEVELOPERS.includes(w.type)).length, 0);
   const component = capitalComponent(state, nationId);
   const depotWork = own.some((t) => t.constructionJob?.kind === "depot" || (!!t.depot && !component.has(`${t.x},${t.y}`)));
-  return developers * DEVELOPMENT_COST[1] + (depotWork ? RAIL_RESERVE : CONSTRUCTION_COST.depot);
+  return developerReserve(own, nationId) + (depotWork ? RAIL_RESERVE : CONSTRUCTION_COST.depot);
 }
 
 /** Untrained to trained gives 1 more labour a turn from next turn on; trained to expert 2 more (FR-130). */
