@@ -4,6 +4,7 @@
 // to its bound. The measured numbers are pinned below and written into FR-247's status: a change that moves them is
 // a deliberate one, as for the v1 baselines of FR-159.
 import { beforeAll, describe, it, expect } from 'vitest';
+import { setImmediate as yieldToRunner } from 'node:timers/promises';
 import { newGame } from '@/engine/newGame';
 import { scriptedPlayer } from '@/engine/ai/scriptedPlayer';
 import { resolveTurn } from '@/engine/turn/resolveTurn';
@@ -235,8 +236,12 @@ const measured = (seed: number, g: Game) => ({
 
 describe('FR-247 the v2 trade baseline: 40 turns, both nations scripted, seeds 1 to 4', () => {
   const games = new Map<number, { first: Game; again: Game }>();
-  beforeAll(() => {
-    for (const seed of SEEDS) games.set(seed, { first: play(seed), again: play(seed) });
+  beforeAll(async () => {
+    for (const seed of SEEDS) {
+      games.set(seed, { first: play(seed), again: play(seed) });
+      // Let the worker answer Vitest's RPC between seeds: the 8 games ran 23 s in one block under a full run.
+      await yieldToRunner();
+    }
     console.log(
       'FR-247 measured:',
       JSON.stringify(SEEDS.map(seed => ({ ...measured(seed, games.get(seed)!.first), consulateBy: games.get(seed)!.first.consulateBy, minorsDealtIds: games.get(seed)!.first.minorsDealt })))
