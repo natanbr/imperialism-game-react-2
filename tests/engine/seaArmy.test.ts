@@ -300,7 +300,7 @@ describe('FR-554 actual freight under blockade', () => {
   });
   it('preserves the capital depot and actual commercial trade records while the capital port is blockaded', () => {
     const war = atWar(setPair(continent(), N1, ARVELIA, { consulates: [N1] }), N1, N2);
-    // Compare the same land freight and overseas trade on both sides of the blockade.
+    // FR-616: the open port can land Fish. Allocate zero Fish so both sides compare the same land freight and overseas trade.
     const base = accepted(war, { kind: 'setTransportAllocations', nationId: N1, allocations: { fish: 0 } });
     const buy: Order = { kind: 'buyCommodity', commodity: ResourceType.Timber, amount: 2, nationId: N1 };
     const open = resolveTurn(accepted(base, buy), {});

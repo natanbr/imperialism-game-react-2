@@ -100,6 +100,7 @@ describe('FR-485 migrants replace the workers it lost', () => {
   it('FR-485 FR-040 (M13 T-15) the migrant never takes the can this turn\'s meal needs: with 1 can and no meat, none; with 2, one; no worker is sick either way', () => {
     // Measured before the fix: FR-260 seed 2 (world market), turn 18, Valdoria's 6 workers had no livestock and 1 can;
     // the migrant took it and one worker fell sick (FR-260 "no worker sick" went red)
+    // FR-616: stop freight so the new Fish catch cannot replace the cans in this meal.
     const noMeat = (cans: number) =>
       emptyWarehouse(withoutFreight(withWorkers(continent(), FIVE), N2), N2, {
         grain: 20, fruit: 10, [MaterialType.CannedFood]: cans, [GoodsType.Clothing]: 1, [GoodsType.Furniture]: 1,

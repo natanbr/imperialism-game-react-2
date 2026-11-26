@@ -551,6 +551,7 @@ describe('FR-477 nothing lost: the whole page', () => {
     act(() => useGameStore.getState().advanceTurn());
     let g = setTreasury(useGameStore.getState().game, N1, 0);
     g = setPair(g, N1, N2, { war: { aggressors: [N2], since: 2 } });
+    // FR-616: stop Fish deliveries as well as emptying stock to trigger the food warning.
     g = emptyWarehouse(withoutFreight(g, N1), N1);
     const capital = g.map.tiles.flat().find((t) => t.cityId === g.nations[0].cities[0])!;
     useGameStore.setState({ game: g, selectedTileId: capital.id });

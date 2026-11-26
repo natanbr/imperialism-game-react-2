@@ -282,6 +282,7 @@ describe("FR-477 nothing lost: the pane's share", () => {
     const s = useGameStore.getState();
     let g = setTreasury(s.game, N1, 0);
     g = setPair(g, N1, N2, { war: { aggressors: [N2], since: 2 } });
+    // FR-616: an empty warehouse still receives coastal Fish unless freight stops.
     g = emptyWarehouse(withoutFreight(g, N1), N1);
     const capital = g.map.tiles.flat().find((t) => t.cityId === g.nations[0].cities[0])!;
     useGameStore.setState({ game: g, saveFailed: true, selectedTileId: capital.id });

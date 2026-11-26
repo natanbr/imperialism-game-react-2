@@ -67,6 +67,7 @@ describe('FR-516 the scripted fleet', () => {
     const start = newGame({ seed: 1, world: 'continent', market });
     const history = (used: number[]) => fixture(used, undefined, start);
     const reserve = (used: number[]) => upkeepReserve(addRegiments(history(used), N2, SW2, ['regulars']), N2);
+    // FR-616: after weak trade, ordinary world-market spending reserves $750 -> $250. New depots still reserve six payrolls.
     expect(reserve([2, 2, 2, 2])).toBe(market === 'partners' ? 750 : 250); // $125 per turn for five arms.
     expect(reserve([3, 2, 2, 2])).toBe(250);
     expect(reserve([0, 0, 0])).toBe(250);

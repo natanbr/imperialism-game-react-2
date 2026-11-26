@@ -288,6 +288,7 @@ describe('FR-471 the alerts stay in sight', () => {
   it('FR-471 Not saved, the food and upkeep warnings, the wars and the idle civilians are all in the alerts block, none in a group; texts and roles unchanged', () => {
     let g = setTreasury({ ...continent(), turn: 5 }, N1, 0);
     g = setPair(g, N1, N2, { war: { aggressors: [N2], since: 3 } });
+    // A short meal: no food in the warehouse and no incoming Fish freight (FR-616).
     g = emptyWarehouse(withoutFreight(g, N1), N1);
     show(g);
     useGameStore.setState({ saveFailed: true });
