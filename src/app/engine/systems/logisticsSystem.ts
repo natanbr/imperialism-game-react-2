@@ -143,9 +143,12 @@ function fishingGrounds(map: GameMap, nationId: string, hubs: readonly Collectin
   return grounds;
 }
 
+export function fishingGroundsOf(map: GameMap, nationId: string, network?: RailroadNetwork): ReadonlyMap<string, CollectingHub> {
+  return fishingGrounds(map, nationId, hubsOf(network), network?.closedFishingPorts);
+}
+
 export function collectingFishHub(state: GameState, nationId: string, tileId: string): CollectingHub | undefined {
-  const network = state.transportNetwork.railroadNetworks?.[nationId];
-  return fishingGrounds(state.map, nationId, hubsOf(network), network?.closedFishingPorts).get(tileId);
+  return fishingGroundsOf(state.map, nationId, state.transportNetwork.railroadNetworks?.[nationId]).get(tileId);
 }
 
 export const computeLogisticsTransport = (

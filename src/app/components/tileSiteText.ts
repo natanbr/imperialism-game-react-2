@@ -14,6 +14,7 @@ import {
   tileById,
 } from "@/engine/orders/queries";
 import { ResourceDevelopmentTable } from "@/definisions/ResourceDevelopment";
+import { technologyById } from "@/definisions/technologies";
 import { DEVELOPMENT_COST, PROSPECT_COST, constructionCost } from "@/definisions/workPrices";
 import { EngineerBuildDurationsTurns, ProspectorDiscoveryDurationTurns, WorkerLevelDurationsTurns } from "@/definisions/workerDurations";
 import { PROSPECTABLE_TERRAIN_TYPES } from "@/definisions/terrainDefinitions";
@@ -154,6 +155,7 @@ function siteReason(state: GameState, order: JobOrder, reason: RejectReason): st
     if (!isLand(tile)) return undefined;
     if (!("toTileId" in order) && findWorker(state, order.workerId)?.tile.id !== tile.id) return undefined;
     if (prospecting) {
+      if (tile.prospected && !tile.resource) return "Surveyed, no deposit.";
       if (!tile.resource) return "Nothing here for a prospector to find.";
       return tile.resource.discovered ? "Already prospected." : undefined;
     }
@@ -173,6 +175,7 @@ function siteReason(state: GameState, order: JobOrder, reason: RejectReason): st
  */
 export function offerRefusalText(state: GameState, order: Order, result: Extract<ValidationResult, { ok: false }>): string {
   const { reason } = result;
+  if (reason === "missing-technology") return `Needs ${technologyById(result.techId)?.name ?? result.techId}.`;
   if (reason === "insufficient-funds") {
     if ("cost" in result) return `${fundsNeededText(result.cost, result.buyingPower)}.`;
     const cost = jobCost(state, order);
@@ -322,7 +325,7 @@ export function cancelQuestion(state: GameState, nationId: string, worker: Worke
  */
 export function collectionText(state: GameState, nationId: string, tile: Tile): string | undefined {
   const resource = tile.resource;
-  if (tile.ownerNationId !== nationId || !resource || resource.discovered === false) return undefined;
+  if (tile.ownerNationId !== nationId || !resource || resource.type === "fish" || resource.discovered === false) return undefined;
   const hub = collectingHub(state, nationId, tile.id);
   if (!hub) {
     const province = provinceOf(state, tile.id);

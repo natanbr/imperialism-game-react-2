@@ -1,7 +1,10 @@
 import { TerrainType, type Tile } from "@/types/Tile";
+import { ResourceType } from "@/types/Resource";
 import React, { useEffect, useId, useRef, useState } from "react";
 import { useGameStore } from "../store/rootStore";
 import { Worker, WorkerStatus, WorkerType } from "@/types/Workers";
+import { collectingFishHub } from "@/engine/systems/logisticsSystem";
+import { PROSPECTABLE_TERRAIN_TYPES } from "@/definisions/terrainDefinitions";
 import { countryName, countryOfTile, isMinorNation, provinceOf, validateOrder } from "@/engine";
 import { commodityName, TERRAIN_TEXT, workerJobLabel } from "./gameText";
 import { InkPicture } from "./art/ArtPicture";
@@ -106,8 +109,11 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
   const ownerText = !ownerName ? "Unclaimed" : minor ? `${ownerName} (minor nation)` : `${ownerName}${countryId === activeNationId ? " (you)" : ""}`;
   const resource = selectedTile.resource;
   const known = resource !== undefined && resource.discovered !== false;
+  const fishHub = collectingFishHub(game, activeNationId, selectedTile.id);
+  const geology = PROSPECTABLE_TERRAIN_TYPES.includes(selectedTile.terrain);
+  const emptySite = selectedTile.prospected ? "Surveyed, no deposit" : "Not yet prospected";
   const resourceText = !resource
-    ? "None"
+    ? geology ? emptySite : fishHub ? "Fish" : "None"
     : !known
       ? "Not yet prospected"
       : selectedTile.terrain === TerrainType.HorseRanch ? commodityName(resource.type) : `${commodityName(resource.type)} (L${resource.level})`;
@@ -180,9 +186,11 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
             <InkPicture src={goodsArt(resource.type)} alt="" inline />
           </>
         )}
+        {!resource && fishHub && !geology && <InkPicture src={goodsArt(ResourceType.Fish)} alt="" inline />}
         {resourceText}
       </p>
       {/* FR-391: who collects the player's resource, by the logistics phase's rule */}
+      {fishHub && <p>Fishing ground · 1 Fish a turn for {fishHub.kind === "capital" ? "the capital" : `the port at ${fishHub.tileId}`}.</p>}
       {collected && <p data-testid="tile-collected">{collected}</p>}
       <p data-testid="tile-owner">
         <strong>Owner:</strong> {ownerText}

@@ -27,6 +27,7 @@ import type { MarkerView } from './army/armyView';
 
 interface TileProps {
   tile: Tile;
+  fishing?: boolean;
   selectedTileId: string | undefined;
   selectedWorkerId: string | undefined;
   transportNetwork: TransportNetwork;
@@ -47,6 +48,7 @@ interface TileProps {
  */
 const TileComponentInner: React.FC<TileProps> = ({
   tile,
+  fishing = false,
   selectedTileId,
   selectedWorkerId,
   transportNetwork,
@@ -150,7 +152,8 @@ const TileComponentInner: React.FC<TileProps> = ({
   return (
     <TileBase
       tileId={tile.id}
-      label={tileLabel(tile, ownerName)}
+      label={fishing ? `${tileLabel(tile, ownerName)}, fishing ground` : tileLabel(tile, ownerName)}
+      fishing={fishing}
       terrain={tile.terrain}
       hasRiver={tile.hasRiver ?? false}
       besideResourceMark={resourceMarkArt(tile) !== undefined}

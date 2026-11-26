@@ -1,7 +1,8 @@
 import React from 'react';
+import { ResourceType } from '@/types/Resource';
 import { TerrainType } from '@/types/Tile';
 import { InkPicture } from '../art/ArtPicture';
-import { SELECTION_ART } from '../art/inkArt';
+import { COAL_FISH_ATLAS, SELECTION_ART, goodsArt } from '../art/inkArt';
 import { GameIcon } from '../GameIcon';
 import styles from './Tile.module.css';
 
@@ -11,6 +12,7 @@ export interface TileBaseProps {
   label: string;
   terrain: TerrainType;
   hasRiver: boolean;
+  fishing?: boolean;
   /** The tile shows a resource mark at its bottom-left (FR-323): the river marker moves beside it. */
   besideResourceMark: boolean;
   border: string;
@@ -34,6 +36,7 @@ const TileBaseInner: React.FC<TileBaseProps> = ({
   label,
   terrain,
   hasRiver,
+  fishing,
   besideResourceMark,
   border,
   isSelected,
@@ -62,6 +65,10 @@ const TileBaseInner: React.FC<TileBaseProps> = ({
         <span className={styles.selectionRing} data-testid="selection-ring" aria-hidden="true">
           <InkPicture src={SELECTION_ART.url} alt="" width={SELECTION_ART.width} height={SELECTION_ART.height} className={styles.selectionMark} />
         </span>
+      )}
+      {fishing && (
+        <InkPicture src={goodsArt(ResourceType.Fish)} sheet={COAL_FISH_ATLAS} alt="" title="Fishing ground"
+          size={20} className={`${styles.fishing} ${styles.rightFrame}`} testId="fishing-ground" />
       )}
       {hasRiver && (
         <span className={`${styles.river} ${besideResourceMark ? styles.riverBesideMark : ''}`} title="River">

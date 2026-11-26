@@ -1,3 +1,4 @@
+import { fishingGroundsOf } from "@/engine/systems/logisticsSystem";
 import { railLinksOf } from "@/engine";
 import { useEdgeScroll } from "@/hooks/useEdgeScroll";
 import { useGameStore } from "@/store/rootStore";
@@ -62,6 +63,9 @@ export const MapView: React.FC = () => {
   const provinces = useGameStore((s) => s.game.provinces);
   const minorNations = useGameStore((s) => s.game.minorNations);
   const transportNetwork = useGameStore((s) => s.game.transportNetwork);
+  const activeNationId = useGameStore(s => s.activeNationId);
+  const network = transportNetwork.railroadNetworks?.[activeNationId];
+  const fisheries = useMemo(() => fishingGroundsOf(map, activeNationId, network), [map, activeNationId, network]);
   // Each seat tile's army markers (FR-210); every other tile gets none, so its props stay the same
   const armyMarkers = useGameStore(selectArmyMarkersBySeat);
   // The player's march and attack orders of this turn, drawn as arrows until End Turn (FR-263, FR-273)
@@ -235,6 +239,7 @@ export const MapView: React.FC = () => {
                 <TileComponent
                   key={tile.id}
                   tile={tile}
+                  fishing={fisheries.has(tile.id)}
                   selectedTileId={selectedTileId}
                   selectedWorkerId={selectedWorkerId}
                   transportNetwork={transportNetwork}

@@ -1,4 +1,5 @@
 import { yieldOf } from "@/engine/map/mapHelpers";
+import { fishingGroundsOf } from "@/engine/systems/logisticsSystem";
 import { acceptsProductionInputs } from "@/engine/industry/productionPlan";
 import { isTradeCommodity, worldMarketSupplies } from "@/engine/market/market";
 import { bidSellersOf, marketModeOf, tradeBarrier } from "@/engine/market/partners";
@@ -27,6 +28,7 @@ function publicSupplier(state: GameState, nation: Nation, good: WarehouseCommodi
 
 export function goodsSourceNotes(state: GameState, nation: Nation, screen: "warehouse" | "market") {
   const domestic = new Set<WarehouseCommodities>();
+  if (fishingGroundsOf(state.map, nation.id, state.transportNetwork.railroadNetworks?.[nation.id]).size) domestic.add(ResourceType.Fish);
   for (const row of state.map.tiles) {
     for (const tile of row) {
       if (tile.ownerNationId === nation.id && tile.visible && tile.resource && yieldOf(tile) > 0) domestic.add(tile.resource.type);
