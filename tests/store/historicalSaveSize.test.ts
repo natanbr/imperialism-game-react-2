@@ -6,6 +6,7 @@ import { expect, it } from 'vitest';
 import { readSave, SAVE_KEY, saveOf, writeSave, type SavedGame } from '@/store/persistence';
 import { createGameStore } from '@/store/rootStore';
 import { replaySession } from '@/store/sessionReplay';
+import { checkpointDifference, restoreCheckpoint } from '@/store/checkpointStorage';
 
 function read(raw: string) {
   const result = readSave({ getItem: () => raw });
@@ -62,4 +63,60 @@ it('FR-357 keeps the Large random-map save at turn 40 within the 2,000,000-chara
   console.info(`Large seed 1 T40: ${raw.length} characters, ${Buffer.byteLength(raw)} UTF-8 bytes.`);
   expect(raw.length).toBeLessThan(2_000_000);
   expect(read(raw).game).toEqual(saved.game);
+  store.getState().advanceTurn();
+  const finished = saveOf(store.getState(), new Date(0));
+  expect(finished.game.gameOver).toBeDefined();
+  expect(finished.eventLog.at(-1)?.turn).toBe(40);
+  const finalRaw = write(finished);
+  console.info(`Large seed 1 after T40: ${finalRaw.length} characters, ${Buffer.byteLength(finalRaw)} UTF-8 bytes.`);
+  expect(finalRaw.length).toBeLessThan(2_000_000);
+  expect(read(finalRaw).game).toEqual(finished.game);
+});
+
+it('FR-100 FR-587 preserves the paid order at a historical mid-turn boundary and replays a later order once', () => {
+  const historical = read(readFileSync(join(__dirname, 'fixtures/pre-m16-turn-3.json'), 'utf8'));
+  const store = createGameStore({ seed: 99 });
+  store.getState().restoreGame(historical);
+  expect(historical.replayBoundary?.appliedOrders).toBe(1);
+  expect(store.getState().submitOrder({ kind: 'buyTechnology', nationId: historical.activeNationId, techId: 'feedGrasses' })).toEqual({ ok: true });
+  for (const turn of [3, 4]) {
+    const roundTrip = read(write(saveOf(store.getState())));
+    expect(roundTrip.game.turn).toBe(turn);
+    expect(roundTrip.replayBoundary).toStrictEqual(historical.replayBoundary);
+    expect(replaySession(roundTrip)).toEqual(store.getState().game);
+    store.getState().restoreGame(roundTrip);
+    store.getState().advanceTurn();
+  }
+});
+
+it('FR-587 restores deleted fields, nulls, changed array lengths and sparse map edits after JSON serialization', () => {
+  const current = { old: null, new: 'present', rows: [[1, 2], [3, 4]], orders: [1, 2] };
+  const historical = { old: [null], absentNow: null, rows: [[1, 8], [3, 4]], orders: [3] };
+  const edit = JSON.parse(JSON.stringify(checkpointDifference(current, historical)));
+  expect(edit.rows).toEqual({ 0: { 1: [8] } });
+  expect(restoreCheckpoint(current, edit)).toStrictEqual(historical);
+  expect(current).toStrictEqual({ old: null, new: 'present', rows: [[1, 2], [3, 4]], orders: [1, 2] });
+});
+
+it('NR-039 FR-587 validates credit in both historical checkpoint formats', () => {
+  const save = saveOf(createGameStore({ seed: 1 }).getState());
+  const checkpoint = { ...save.game, nations: save.game.nations.map(n => ({ ...n, treasury: -1 })) };
+  const invalid = { ...save, replayBoundary: { turn: save.game.turn, appliedOrders: 0, checkpoint } };
+  expect(readSave({ getItem: () => JSON.stringify(invalid) }).kind).toBe('unusable');
+  const raw = write(invalid);
+  expect(readSave({ getItem: () => raw }).kind).toBe('unusable');
+});
+
+it.each([
+  false,
+  { turn: [1, 2] },
+  { turn: [3] },
+  { nations: { 100: [] } },
+  { nations: { '-1': [] } },
+  { nations: { length: [0] } },
+  { nations: { 0: [] } },
+])('FR-362 refuses malformed replay changes %j', checkpointChanges => {
+  const save = saveOf(createGameStore({ seed: 1 }).getState());
+  const raw = JSON.stringify({ ...save, replayBoundary: { turn: save.game.turn, appliedOrders: 0, checkpointChanges } });
+  expect(readSave({ getItem: () => raw }).kind).toBe('unusable');
 });

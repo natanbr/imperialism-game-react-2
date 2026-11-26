@@ -2,6 +2,7 @@
 // writes the store's session to one localStorage slot and reads it back for page.tsx, the only place that loads a save
 // (the store never does by itself). Its writes are the autosave page.tsx starts once the game in play is decided.
 import type { StoreApi } from "zustand";
+import { checkpointDifference, restoreCheckpoint, type CheckpointEdit } from "./checkpointStorage";
 import { validSavedCredit } from "./creditSave";
 import { inventionNews } from "@/engine/technology";
 import { turnLimitOf } from "@/engine/turn/gameOver";
@@ -30,6 +31,10 @@ export interface SavedGame extends GameSession {
   savedAt: string;
 }
 
+type StoredGame = SavedGame & {
+  replayBoundary?: SavedGame["replayBoundary"] & { checkpointChanges?: CheckpointEdit };
+};
+
 /** The slot read at the start (FR-359, FR-360, FR-362). */
 export type SaveSlot = { kind: "empty" } | { kind: "usable"; save: SavedGame } | { kind: "unusable" };
 
@@ -51,7 +56,7 @@ export function saveOf(session: GameSession, now: Date = new Date()): SavedGame 
 }
 
 /** This version's save with a game that has a turn, nations and a map, and the session's logs (FR-362's shape check). */
-function isUsable(value: unknown): value is SavedGame {
+function isUsable(value: unknown): value is StoredGame {
   if (!isRecord(value) || value.version !== SAVE_VERSION) return false;
   const { game } = value;
   return (
@@ -77,7 +82,14 @@ export function readSave(storage: Pick<Storage, "getItem"> | undefined = browser
   if (raw === null) return { kind: "empty" };
   try {
     const parsed: unknown = JSON.parse(raw);
-    if (!isUsable(parsed) || !validSavedCredit(parsed)) return { kind: "unusable" };
+    if (!isUsable(parsed)) return { kind: "unusable" };
+    if (parsed.replayBoundary?.checkpointChanges !== undefined) {
+      const { checkpointChanges, ...boundary } = parsed.replayBoundary;
+      const restored = { ...parsed, game: restoreCheckpoint(parsed.game, checkpointChanges) };
+      if (!isUsable(restored) || restored.game.turn !== boundary.turn || boundary.turn > parsed.game.turn) return { kind: "unusable" };
+      parsed.replayBoundary = { ...boundary, checkpoint: restored.game };
+    }
+    if (!validSavedCredit(parsed)) return { kind: "unusable" };
     if (parsed.game.worldId === "random" && parsed.game.randomMapSize !== undefined) {
       parsed.game.randomMapSize = normalizeRandomMapSize(parsed.game.randomMapSize);
     }
@@ -109,7 +121,12 @@ export function readSave(storage: Pick<Storage, "getItem"> | undefined = browser
 export function writeSave(save: SavedGame, storage: Storage | undefined = browserStorage()): boolean {
   if (!storage) return false;
   try {
-    storage.setItem(SAVE_KEY, JSON.stringify(save));
+    let stored: StoredGame = save;
+    if (save.replayBoundary?.checkpoint) {
+      const { checkpoint, ...boundary } = save.replayBoundary;
+      stored = { ...save, replayBoundary: { ...boundary, checkpointChanges: checkpointDifference(save.game, checkpoint) ?? {} } };
+    }
+    storage.setItem(SAVE_KEY, JSON.stringify(stored));
     return true;
   } catch {
     return false;
