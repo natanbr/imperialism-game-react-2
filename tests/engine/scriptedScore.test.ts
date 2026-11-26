@@ -108,6 +108,18 @@ describe('FR-125 score acceptance: 40 turns of nation 2 on seeds 1 to 4', () => 
     expect(SEEDS.map(seed => m4.get(seed)!.checkpoints[2].deadEnds.length > 0)).toEqual(SEEDS.map(() => true));
   });
 
+  it.each([1, 3, 4])('FR-125 FR-454 seed %i waits for developer cash before starting the depot at 20-10', seed => {
+    const game = now.get(seed)!;
+    const startTurn = game.orders.findIndex(orders => orders[N2].some(order => {
+      if (order.kind === 'startConstruction') return order.structure === 'depot' && order.tileId === '20-10';
+      if (order.kind === 'moveAndStartConstruction') return order.structure === 'depot' && order.toTileId === '20-10';
+      return false;
+    })) + 1;
+    const checkpoint = game.checkpoints.find(c => c.turn === 15)!;
+    // Spending the developers' cash on turn 12 starts the first rail section a turn early, leaving a tip at 18-11.
+    expect({ startTurn, deadEnds: checkpoint.deadEnds }).toEqual({ startTurn: 13, deadEnds: [] });
+  });
+
   it('FR-305 two-islands has no provinces, so no Council meets: no council-met in any game, each ends by the turn limit', () => {
     for (const games of [now, m4]) {
       expect(SEEDS.map(seed => games.get(seed)!.councils)).toEqual(SEEDS.map(() => 0));
