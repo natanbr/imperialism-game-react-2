@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { logisticsSystem, collectingHub, computeLogisticsTransport, transportShipments, updateNationStateWithTransportedResources } from '@/engine/systems/logisticsSystem';
+import { logisticsSystem, collectingFishHub, collectingHub, computeLogisticsTransport, transportShipments, updateNationStateWithTransportedResources } from '@/engine/systems/logisticsSystem';
 import { newGame } from '@/engine/newGame';
 import { ResourceDevelopmentTable } from '@/definisions/ResourceDevelopment';
 import { N1, N2 } from '../fixtures';
@@ -454,6 +454,10 @@ describe('FR-391 collectingHub: the logistics phase\'s own rule, for Tile Info',
     const network = s.transportNetwork.railroadNetworks![N1];
     const byHub: Record<string, number> = {};
     for (const t of s.map.tiles.flat()) {
+      if (collectingFishHub(s, N1, t.id)) {
+        byHub.fish = (byHub.fish ?? 0) + 1;
+        if (t.resource?.type === ResourceType.Fish) continue;
+      }
       if (!t.resource || !collectingHub(s, N1, t.id)) continue;
       const amount = ResourceDevelopmentTable[t.resource.type]?.[t.resource.level] ?? 0;
       if (amount > 0) byHub[t.resource.type] = (byHub[t.resource.type] ?? 0) + amount;

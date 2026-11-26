@@ -70,6 +70,11 @@ export function setTreasury(state: GameState, nationId: string, amount: number):
   return { ...state, nations: state.nations.map(n => (n.id === nationId ? { ...n, treasury: amount } : n)) };
 }
 
+/** This turn's meal can use warehouse stock but receives no freight. */
+export function withoutFreight(state: GameState, nationId: string): GameState {
+  return { ...state, nations: state.nations.map(n => n.id === nationId ? { ...n, transportCapacity: 0 } : n) };
+}
+
 export function setWarehouse(state: GameState, nationId: string, patch: Record<string, number>): GameState {
   return {
     ...state,

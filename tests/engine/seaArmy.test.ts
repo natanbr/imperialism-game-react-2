@@ -299,7 +299,9 @@ describe('FR-554 actual freight under blockade', () => {
     expect(delivery({...closed,transportNetwork:{...closed.transportNetwork,railroadNetworks:{...networks,[N1]:{...network,graph}}}})).toBe(3);
   });
   it('preserves the capital depot and actual commercial trade records while the capital port is blockaded', () => {
-    const base = atWar(setPair(continent(), N1, ARVELIA, { consulates: [N1] }), N1, N2);
+    const war = atWar(setPair(continent(), N1, ARVELIA, { consulates: [N1] }), N1, N2);
+    // Compare the same land freight and overseas trade on both sides of the blockade.
+    const base = accepted(war, { kind: 'setTransportAllocations', nationId: N1, allocations: { fish: 0 } });
     const buy: Order = { kind: 'buyCommodity', commodity: ResourceType.Timber, amount: 2, nationId: N1 };
     const open = resolveTurn(accepted(base, buy), {});
     const closed = resolveTurn(accepted(fleets(base, squadron(N2, capital(base))), buy), {});

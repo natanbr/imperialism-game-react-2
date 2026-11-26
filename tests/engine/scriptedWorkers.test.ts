@@ -16,7 +16,7 @@ import type { Order } from '@/engine/orders/Order';
 import type { Workers } from '@/types/Industry';
 import type { GameState } from '@/types/GameState';
 import { GoodsType, MaterialType } from '@/types/Resource';
-import { N2, emptyWarehouse, setBuilding, setIndustry, setPair, setWarehouse } from './fixtures';
+import { N2, emptyWarehouse, setBuilding, setIndustry, setPair, setWarehouse, withoutFreight } from './fixtures';
 
 const continent = (): GameState => newGame({ seed: 1, world: 'continent' });
 const twoIslands = (): GameState => newGame({ seed: 1 });
@@ -101,7 +101,9 @@ describe('FR-485 migrants replace the workers it lost', () => {
     // Measured before the fix: FR-260 seed 2 (world market), turn 18, Valdoria's 6 workers had no livestock and 1 can;
     // the migrant took it and one worker fell sick (FR-260 "no worker sick" went red)
     const noMeat = (cans: number) =>
-      emptyWarehouse(withWorkers(continent(), FIVE), N2, { grain: 20, fruit: 10, [MaterialType.CannedFood]: cans, [GoodsType.Clothing]: 1, [GoodsType.Furniture]: 1 });
+      emptyWarehouse(withoutFreight(withWorkers(continent(), FIVE), N2), N2, {
+        grain: 20, fruit: 10, [MaterialType.CannedFood]: cans, [GoodsType.Clothing]: 1, [GoodsType.Furniture]: 1,
+      });
     const meal = (s: GameState) => {
       const fed = resolveTurn(s, { [N2]: scriptedPlayer(s, N2) }, s.seed).events.filter(e => e.type === 'workers-fed' && e.nationId === N2);
       return fed.map(e => (e.type === 'workers-fed' ? e.sick + e.starved : -1));

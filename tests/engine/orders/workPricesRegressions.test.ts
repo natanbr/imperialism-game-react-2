@@ -305,7 +305,7 @@ describe('move-and-start when affordable', () => {
 // 3. The chosen construction kind must be honoured by move-and-construct
 // ---------------------------------------------------------------------------
 describe('moveAndStartConstruction honours the chosen kind', () => {
-  // Town (2,3) touches the Coast tile (3,3); the capital tile has a river.
+  // Town (2,3) touches the Coast tile (3,3).
   function portSite(state: GameState, how: 'ocean' | 'river'): Tile {
     if (how === 'ocean') return tilesOf(state, TerrainType.Town)[0];
     const site = tilesOf(state, TerrainType.DryPlains)[0];

@@ -11,7 +11,9 @@ import { artFileOf, goodsArt } from '@/components/art/inkArt';
 import { commodityName } from '@/components/gameText';
 import { useGameStore } from '@/store/rootStore';
 import { newGame } from '@/engine';
+import { isOcean } from '@/engine/map/mapHelpers';
 import type { GameState } from '@/types/GameState';
+import { TerrainType } from '@/types/Tile';
 import { GoodsType, MaterialType, ResourceType, type WarehouseCommodities } from '@/types/Resource';
 import { setTile, tileAt } from '../engine/fixtures';
 import { failOnActWarnings } from './actWarnings';
@@ -31,10 +33,14 @@ function show(game: GameState = newGame({ seed: 1 })) {
 const dialog = () => screen.getByRole('dialog', { name: 'Transportation of Commodities' });
 const shownRows = () => [...dialog().querySelectorAll('[data-testid^="transport-row-"]')].map(r => r.getAttribute('data-testid')!.replace('transport-row-', ''));
 const shownGroups = () => within(dialog()).queryAllByRole('region').map(s => s.getAttribute('aria-label'));
-/** Nation 1's tiles without a resource: nothing to ship at all. */
+/** Dry land around the capital with no resources or fishing grounds. */
 const bareGame = () => {
   const s = newGame({ seed: 1 });
-  return { ...s, map: { ...s.map, tiles: s.map.tiles.map(row => row.map(t => (t.ownerNationId === 'nation-1' ? { ...t, resource: undefined } : t))) } };
+  const tiles = s.map.tiles.map(row => row.map(t => {
+    if (isOcean(t)) return { ...t, terrain: TerrainType.DryPlains };
+    return t.ownerNationId === 'nation-1' ? { ...t, resource: undefined, hasRiver: false } : t;
+  }));
+  return { ...s, map: { ...s.map, tiles } };
 };
 /** Horses (level 0 gives 1 a turn) on 3-9, next to nation 1's capital. */
 const withHorses = () => {
