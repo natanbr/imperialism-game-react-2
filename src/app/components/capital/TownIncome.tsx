@@ -1,7 +1,7 @@
 import { useId } from "react";
 import type { GameEvent } from "@/engine/turn/context";
 import { useGameStore } from "@/store/rootStore";
-import { commodityName, eventText } from "../gameText";
+import { commodityName, townReceiptText } from "../gameText";
 import { selectOwnTownViews } from "../towns/townView";
 import styles from "./Capital.module.css";
 
@@ -30,11 +30,13 @@ export function TownIncome() {
           {town.chains.map(chain => {
             const { material, good } = chain;
             if (!town.output[material]) return null;
+            const growth = chain.matured === 0 ? town.startup : chain.growth;
+            const nextStep = chain.nextRequirement ? `Next tier requires ${chain.nextRequirement}.` : growth;
             return (
               <p key={chain.chain}>
                 <strong>{town.output[material]} {commodityName(material)}{town.output[good] ? `, ${town.output[good]} ${commodityName(good)}` : ""}</strong>
                 {" · "}{chain.factoryName} capacity {chain.capacity}
-                {chain.nextRequirement && <span className={styles.note}>Next tier requires {chain.nextRequirement}.</span>}
+                {nextStep && <span className={styles.note}>{nextStep}</span>}
               </p>
             );
           })}
@@ -42,7 +44,7 @@ export function TownIncome() {
       )) : <p>No town output expected.</p>}
       <h4>{lastTurn ? `Warehouse deliveries · turn ${lastTurn.turn}` : "Warehouse deliveries"}</h4>
       {receipts.length ? (
-        <ul>{receipts.map(receipt => <li key={receipt.provinceId}>{eventText(receipt, provinceName)}</li>)}</ul>
+        <ul>{receipts.map(receipt => <li key={receipt.provinceId}>{townReceiptText(receipt, provinceName(receipt.provinceId))}</li>)}</ul>
       ) : <p>{lastTurn ? "No deliveries from towns." : "No resolved turn yet."}</p>}
     </section>
   );

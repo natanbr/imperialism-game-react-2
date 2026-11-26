@@ -2,7 +2,7 @@
 
 ## Resuming here
 
-- M18h on `claude/m18h-towns` adds town development, freight and owner receipts. Task 56 passed the full gate. The local branch is ready for merge review. [Milestone journal](journal/archive-M18h.md) · [Exact guard comparisons](journal/task-56-guards.md)
+- M18h on `claude/m18h-towns` is ready for merge review after Task 57 fixed town guidance, receipt navigation and raw freight planning. [Review fixes and gate](#2026-11-26-task-57--m18h-review-fixes) · [Milestone journal](journal/archive-M18h.md)
 - M18g on `claude/m18g-screens` in the `imperialism-game-revival-fee36d` worktree adds Stats rankings and history, Trade Book, Garrison Book and two diplomatic map modes. The owner kept Board Details and the human nation as the reference. [Implementation and gate evidence](journal/archive-M18g.md) · [Task 43 review fixes and gate](journal/archive-M18g.md#2026-11-25-task-43--m18g-review-fixes)
 - M18f (human credit, interest, forced sales, signed cash and supply notes) merged at `9d2f9eb` in pull request 52. The inferred credit numbers and FR-609 debt scoring remain open to owner revision. [M18f journal and gate evidence](journal/archive-M18f.md) · [Task 39 report](../.gate/codex/39/report.md) · [Earlier journal archives](journal/)
 - M18e merged at `21ea18b`. Choose Random, Large and `Brete` to replay seed `2813929771`. The 400-turn historical calendar remains an owner decision (FR-593, FR-594).
@@ -17,6 +17,12 @@
 - FR-547 (Q143) is the buyer branch's proposed value rule. Measure technology availability, purchase timing and the value of the first unlocked action in the original game before tuning. See `docs/verify-and-tune.md`.
 - Task 19 passed the load trials and full gate on `claude/perf-tests`. Finish future gates with `npm run test:perf` alone. The measured results and six functional logs are indexed in `.gate/codex/19/summary.md`.
 - To play M17 on continent seed 1, set Armaments and Fabric production to 1. Build a Ship-of-the-Line on turn 6, declare and sail on turn 7, set the site on turn 8, and land the four-ARMS army on turn 9. On turn 10 see the survivors at Sundmark and its colony vote in Council.
+
+## 2026-11-26 Task 57 — M18h review fixes
+
+Size M. Tile Info and Capital show growth when resources and capacity already support the next tier. Port advice identifies the missing connection. A News receipt names its province and selects its recorded seat. Raw AI estimates skip town settlements, and the town view looks up each founder's capital once. The pre-fix run reported `4 failed | 123 passed (127)` in the three affected suites. All 127 passed with the fixes.
+
+All 3,584 functional tests, TypeScript, build, 31 Chromium checks and three final isolated performance tests passed. Lint reported its existing warning. All four goldens and 72 generated records matched byte for byte. Across 3,230 turns in 84 games, the FR-497 AI planning p95 rose from 19.8 to 24.6 ms against the 100 ms limit. [Commands, results and guard hashes](../.gate/codex/57/report.md)
 
 ## 2026-11-26 Task 56 — M18h town development
 

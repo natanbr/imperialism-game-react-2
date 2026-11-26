@@ -68,8 +68,12 @@ interface FreightSupply {
   offers: { provinceId: string; seatTileId: string; units: [TownCommodity, number][] }[];
 }
 
+export function rawFreightSupply(state: GameState, owner: string): Record<string, number> {
+  return computeLogisticsTransport(state.map, owner, state.transportNetwork.railroadNetworks?.[owner]);
+}
+
 function freightSupply(state: GameState, owner: string, timing: "projected" | "settled", knownMap = state.map): FreightSupply {
-  const collected = computeLogisticsTransport(state.map, owner, state.transportNetwork.railroadNetworks?.[owner]);
+  const collected = rawFreightSupply(state, owner);
   const supply: FreightSupply = { collected, offers: [] };
   if (!state.provinces.length || !hasTownFactoryCapacity(state, owner)) return supply;
   const add = (town: TownFacts, bundle: ReturnType<typeof townOutput>) => {

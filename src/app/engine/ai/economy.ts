@@ -32,7 +32,7 @@ import { councilTradeInputs, embassySaving, planInfluence } from "./scriptedInfl
 import { greatPowerTradeCaps } from "./scriptedGreatPowerTrade";
 import { mealNeeds } from "../systems/foodSystem";
 import { productionSystem } from "../systems/productionSystem";
-import { projectedFreightPlan, projectedFreightSupply, updateNationStateWithTransportedResources } from "../systems/logisticsSystem";
+import { projectedFreightPlan, projectedFreightSupply, rawFreightSupply, updateNationStateWithTransportedResources } from "../systems/logisticsSystem";
 import { transportConnectivitySystem } from "../systems/transportConnectivitySystem";
 import { developmentSystem } from "../systems/developmentSystem";
 import { createTurnContext } from "../turn/context";
@@ -146,7 +146,7 @@ export function planEconomy(view: () => GameState, nationId: string, propose: Pr
  * the textile mill's cotton and wool, each up to two turns of its mill at full capacity. The
  * logistics phase fills any cars left from the other resources.
  */
-export function shippingWants(state: GameState, nationId: string, gathered = projectedFreightSupply(state, nationId)): [string, number][] {
+export function shippingWants(state: GameState, nationId: string, gathered = rawFreightSupply(state, nationId)): [string, number][] {
   const nation = nationOf(state, nationId);
   const stock = nation.warehouse as Stock;
   const mouths = mouthsOf(nation);
@@ -386,7 +386,7 @@ function make(run: Run, output: ProductionOutput, units: number): number {
  * clothing. The start stock is left out: it is spent within a few turns whatever the labour.
  */
 export function hubLabourNeed(state: GameState, nationId: string): number {
-  const gathered = projectedFreightSupply(state, nationId);
+  const gathered = rawFreightSupply(state, nationId);
   const of = (type: ResourceType) => gathered[type] ?? 0;
   const steel = Math.min(of(ResourceType.Coal), of(ResourceType.IronOre)) * RECIPES[MaterialType.Steel].labour;
   const timber = (of(ResourceType.Timber) / RECIPES[MaterialType.Lumber].inputs[0].amount) * RECIPES[MaterialType.Lumber].labour;

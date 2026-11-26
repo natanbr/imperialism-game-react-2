@@ -1596,6 +1596,8 @@ Task 42 keeps Board Details available and uses the human Great Power as the dipl
 
 [Town rules, guard evidence and build split](specs/m18h-towns.md)
 
+Task 57 clarifies FR-622–624. A town receipt names its province and selects its recorded seat. Tile Info distinguishes a closed water route from a missing rail connection. Tile Info and Capital show the settlement counter when the next tier's resources and factory capacity are already available. Under FR-497, raw-only shipping and labour estimates skip town projection. The four Two islands goldens and 72 generated campaign records must match the pre-fix results exactly.
+
 | ID | Requirement | Status |
 |---|---|---|
 | FR-617 | **One town per province, one rule for every Great Power.** At settlement the engine SHALL develop each eligible province seat once for its current owner, under human, scripted or computer control, without a town Order, RNG draw or open screen. The owner's capital (a land depot), active depot or open active port must be on the seat or one hex away. Closing the capital's fishing approach leaves its land-depot connection usable. Port access uses the M18d fishing closure, including controlled river mouths. Rail that keeps a closed port active for land freight cannot qualify that port. Another qualifying hub can serve the seat.<br>Verify: Settle identical positions with empty Orders and swapped controllers. Compare one hub, two overlapping hubs, an inactive depot, a hub two hexes away, a closed rail-served port, an independent active depot and relief of a coastal or river port. Two islands has no provinces and earns nothing. Size: M. | T-01 and T-02 tested seat eligibility and settlement for both controllers, including closed ports. |

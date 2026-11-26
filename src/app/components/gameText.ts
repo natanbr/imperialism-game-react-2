@@ -372,8 +372,24 @@ export function tilePlaces(game: Pick<GameState, "map">, nameOf: (id: string) =>
 }
 
 /** Events about one tile (FR-375): their lines name the place and their news items carry the tile. */
-const tileOf = (event: GameEvent): string | undefined =>
-  event.type === "resource-discovered" || event.type === "development-completed" || event.type === "construction-completed" ? event.tileId : undefined;
+function tileOf(event: GameEvent): string | undefined {
+  switch (event.type) {
+    case "town-receipt":
+      return event.seatTileId;
+    case "resource-discovered":
+    case "development-completed":
+    case "construction-completed":
+      return event.tileId;
+    default:
+      return undefined;
+  }
+}
+
+export function townReceiptText(event: Extract<GameEvent, { type: "town-receipt" }>, provinceName: string): string {
+  const deliveries = event.lines.map(line => `${line.delivered} of ${line.offered} ${commodityName(line.commodity)}`).join(", ");
+  const short = event.lines.some(line => line.delivered < line.offered);
+  return `${provinceName} delivered ${deliveries}.${short ? " Some town freight went unshipped." : ""}`;
+}
 
 function waitingTroopText(event: Extract<GameEvent, { type: "attack-cancelled" | "sea-deployment-failed" }>, from: string): string {
   const troops = event.troops;
@@ -410,11 +426,8 @@ export function eventText(event: GameEvent, nameOf: (countryId: string) => strin
       return `${capitalize(event.structure)} finished at ${at(event.tileId)}.`;
     case "goods-produced":
       return `Produced ${event.amount} ${commodityName(event.output)}.`;
-    case "town-receipt": {
-      const deliveries = event.lines.map(line => `${line.delivered} of ${line.offered} ${commodityName(line.commodity)}`).join(", ");
-      const short = event.lines.some(line => line.delivered < line.offered);
-      return `${nameOf(event.provinceId)} delivered ${deliveries}.${short ? " Some town freight went unshipped." : ""}`;
-    }
+    case "town-receipt":
+      return townReceiptText(event, placeOf?.(event.seatTileId) ?? event.provinceId);
     case "freight-cars-built":
       return `${event.count} freight car${event.count === 1 ? "" : "s"} built.`;
     case "building-expanded":

@@ -28,11 +28,12 @@ export const NewsPanel: React.FC = () => {
   const headingId = useId();
 
   // Great Powers and minor nations: diplomacy lines name both (FR-176); a march names its provinces (FR-209).
+  const provinceName = (id: string) => provinces.find((p) => p.id === id)?.name ?? id;
   const nameOf = (id: string) =>
-    nations.find((n) => n.id === id)?.name ?? minorNations.find((m) => m.id === id)?.name ?? provinces.find((p) => p.id === id)?.name ?? id;
+    nations.find((n) => n.id === id)?.name ?? minorNations.find((m) => m.id === id)?.name ?? provinceName(id);
   // FR-375: a tile line names its province ("Rail finished at 3-9 in Testland North-West.")
   const events = lastReport?.events ?? (turn === TIME_CONFIG.STARTING_TURN ? inventionNews({ turnLimit }, turn) : []);
-  const news = newsItems(events, activeNationId, nameOf, tilePlaces({ map }, nameOf));
+  const news = newsItems(events, activeNationId, nameOf, tilePlaces({ map }, provinceName));
 
   return (
     <div className="news-panel" data-testid="news-panel">

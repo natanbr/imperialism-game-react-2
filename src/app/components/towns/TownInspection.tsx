@@ -1,4 +1,3 @@
-import { STARTUP_SETTLEMENTS, UPGRADE_SETTLEMENTS } from "@/engine/systems/townDevelopmentSystem";
 import { TOWN_CAPACITY_PER_TIER, TOWN_MAX_TIER, TOWN_TILES_PER_TIER } from "@/engine/world/towns";
 import { useGameStore } from "@/store/rootStore";
 import type { Province } from "@/types/Province";
@@ -25,7 +24,7 @@ function firstTierGaps(town: OwnTownView, chain: OwnTownView["chains"][number]):
 export function TownInspection({ province }: { province: Province }) {
   const town = useGameStore(s => selectOwnTownViews(s).find(item => item.province.id === province.id));
   if (!town) return <p>Town seat at {province.seatTileId}.</p>;
-  const { resources, capital, progress } = town;
+  const { resources, capital } = town;
   const excluded = capital === "own" || capital === "minor";
   const knownTiles = <p><strong>Known tiles</strong> · {resources.cotton} cotton, {resources.wool} wool, {resources.timber} timber,
     {" "}{resources.coal} coal, {resources.ironOre} iron ore.</p>;
@@ -40,7 +39,6 @@ export function TownInspection({ province }: { province: Province }) {
       </details>
     </section>;
   }
-  const elapsed = progress?.connectedSettlements ?? 0;
   const offered = Object.entries(town.output).map(([key, amount]) => `${amount} ${commodityName(key)}`).join(", ");
   return (
     <section className={styles.inspection} aria-label="Town development">
@@ -55,23 +53,19 @@ export function TownInspection({ province }: { province: Province }) {
           </li>)}
         </ul>
       </>}
-      <p>{capital === "captured"
-        ? "A captured Great Power capital can start on its first qualifying settlement."
-        : `Startup: ${Math.min(elapsed, STARTUP_SETTLEMENTS)} of ${STARTUP_SETTLEMENTS} connected settlements.`}</p>
+      <p>{town.startup}</p>
       <p><strong>Next settlement before freight</strong> · {offered || "None"}. Estimated at current routes and installed factory sizes.</p>
       {knownTiles}
       <details>
         <summary>Factory requirements and growth</summary>
         <ul>
           {town.chains.map(chain => {
-            const matured = progress?.matured[chain.chain] ?? 0;
-            const interval = progress?.upgradeSettlements[chain.chain] ?? 0;
+            const { matured } = chain;
             return <li key={chain.chain}>
               <strong>{chain.factoryName}</strong> · Installed capacity {chain.capacity}.
               {" "}{matured > 0 && `Matured tier ${matured}. `}
               {matured > chain.supportedTier && `Current resources and capacity support tier ${chain.supportedTier}. `}
-              {matured > 0 && chain.supportedTier > matured &&
-                `Growth toward tier ${matured + 1}: ${interval} of ${UPGRADE_SETTLEMENTS} qualifying settlements. `}
+              {chain.growth && `${chain.growth} `}
               {chain.nextRequirement && `Next tier after the estimate needs ${chain.nextRequirement}.`}
               {chain.nextTier === null && (matured === TOWN_MAX_TIER ? "Highest tier reached." : "The next settlement reaches the highest tier.")}
             </li>;
