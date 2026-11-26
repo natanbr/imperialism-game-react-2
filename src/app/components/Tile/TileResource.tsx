@@ -1,7 +1,8 @@
 import React from 'react';
+import { ResourceType } from '@/types/Resource';
 import { Resource } from '@/types/Tile';
 import { InkPicture } from '../art/ArtPicture';
-import { resourceMarkArt } from '../art/inkArt';
+import { COAL_FISH_ATLAS, resourceMarkArt } from '../art/inkArt';
 import styles from './Tile.module.css';
 
 export interface TileResourceProps {
@@ -16,9 +17,13 @@ export interface TileResourceProps {
  */
 const TileResourceInner: React.FC<TileResourceProps> = ({ resource, low = false }) => {
   const mark = resourceMarkArt({ resource });
+  const coal = resource.type === ResourceType.Coal;
   return (
     <>
-      {mark && <InkPicture src={mark} alt="" size={16} className={styles.resourceMark} testId="resource-mark" />}
+      {mark && (
+        <InkPicture src={mark} sheet={coal ? COAL_FISH_ATLAS : undefined} alt="" size={16}
+          className={coal ? `${styles.resourceMark} ${styles.leftFrame}` : styles.resourceMark} testId="resource-mark" />
+      )}
       {resource.level > 0 && (
         <span className={low ? `${styles.levelBadge} ${styles.levelBadgeLow}` : styles.levelBadge} data-testid="level-badge" aria-label={`Development level ${resource.level}`}>
           L{resource.level}

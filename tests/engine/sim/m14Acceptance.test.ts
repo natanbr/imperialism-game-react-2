@@ -61,6 +61,7 @@ describe('FR-509 a diplomat can win peacefully using normal orders', () => {
   const peacefulWinTarget = `FR-545 requires ${requiredPeacefulWins}/24; FR-509 (ii) required 18/24 and measured 24/24 on M14 before the FR-516 computer fleet`;
   const wars = diplomaticGames.flatMap(g => g.turns.flatMap(t => t.warsDeclared.filter(w => w.byId === HUMAN_ID)));
   const winners = diplomaticGames.filter(g => councilBy40(g) && g.final.gameOver?.winnerId === HUMAN_ID);
+  // FR-616: coastal Fish changes freight and trade income. Wins with a paid grant rose from 10 to 12 of the 15 peaceful wins.
   const fundedWins = winners.filter(g => g.turns.some(t => t.grants.some(p => p.fromId === HUMAN_ID && p.amount === 1000))).length;
   const earlyWins = winners.filter(g => g.final.gameOver!.turn < 40).length;
   it('opens one consulate every turn on turns 1–4, makes only domestic marches, and receives no order refusal', () => {

@@ -12,7 +12,7 @@ import { HUD } from '@/components/HUD';
 import { ConstructionOptionsModal } from '@/components/ConstructionOptionsModal';
 import { useGameStore } from '@/store/rootStore';
 import { newGame, validateOrder, type Order } from '@/engine';
-import { getAdjacentTiles } from '@/engine/map/mapHelpers';
+import { getAdjacentTiles, isOcean } from '@/engine/map/mapHelpers';
 import type { GameState } from '@/types/GameState';
 import { WorkerType } from '@/types/Workers';
 import { ResourceType } from '@/types/Resource';
@@ -26,6 +26,8 @@ failOnActWarnings();
 
 const N1 = 'nation-1';
 const CAPITAL = '2-9';
+const riverBanks = ['7-6', '8-6', '8-7', '9-7', '10-7'];
+const riverToSea = () => riverBanks.reduce((game, id) => setTile(game, id, { hasRiver: true }), newGame({ world: 'continent', seed: 1 }));
 const civilian = (state: GameState, type: WorkerType) =>
   state.map.tiles.flat().flatMap((t) => t.workers).find((w) => w.nationId === N1 && w.type === type)!.id;
 
@@ -157,6 +159,13 @@ describe('FR-381 Tile Info offers only what can work, with its price', () => {
     expect([isOff(free.button), free.price, free.reason]).toEqual([false, '$2,000, 3 turns', '']);
   });
 
+  it('FR-582 Construct Port describes a disconnected river before the engineer spends money', () => {
+    showOffers(setTile(riverToSea(), '9-7', { hasRiver: false }), WorkerType.Engineer, '7-6');
+    const port = offer('Construct Port').button;
+    expect(isOff(port)).toBe(false);
+    expect(document.getElementById(port.getAttribute('aria-describedby') ?? '')?.textContent).toMatch(/no downstream route to the sea/i);
+  });
+
   it('FR-381 a tile next to a depot: Construct Depot disabled with "Too close to the capital or another depot."', () => {
     const start = newGame({ seed: 1 });
     const t = tileAt(start, '7-8');
@@ -224,6 +233,18 @@ describe('FR-382 Construction Options tells price, time and reason', () => {
     expect(isOff(offer('Build Depot', dialog).button)).toBe(false);
     const port = offer('Build Port', dialog);
     expect([isOff(port.button), port.reason]).toEqual([true, 'Not enough money (needs $3,000).']);
+  });
+
+  it('FR-582 Build Port warns when the downstream river is outside our control and clears the warning on a connected river', () => {
+    const connected = riverToSea();
+    const dialog = showOptions(setTile(connected, '9-7', { ownerNationId: 'nation-2' }), '7-6');
+    const port = offer('Build Port', dialog).button;
+    expect(isOff(port)).toBe(false);
+    expect(document.getElementById(port.getAttribute('aria-describedby') ?? '')?.textContent).toMatch(/no downstream route to the sea/i);
+    cleanup();
+    const open = offer('Build Port', showOptions(connected, '7-6')).button;
+    expect(isOff(open)).toBe(false);
+    expect(text(offerOf(open))).not.toMatch(/no downstream route/i);
   });
 });
 
@@ -338,6 +359,15 @@ function withHub(state: GameState, tileId: string, kind: 'depot' | 'port'): Game
 // its units a turn (the development table); or that nothing does.
 describe('FR-391 Tile Info says who collects the tile', () => {
   const collected = () => within(screen.getByTestId('tile-info')).queryByTestId('tile-collected');
+
+  it('FR-583 the fishing ground names the collecting port and its province', () => {
+    const game = withHub(newGame({ seed: 1, world: 'continent' }), '10-7', 'port');
+    const port = tileAt(game, '10-7');
+    const ground = getAdjacentTiles(game.map, port.x, port.y).find(isOcean)!;
+    const province = game.provinces.find(p => p.id === port.provinceId)!;
+    showTile(game, ground.id);
+    expect(text(within(tileInfo()).getByText(/^Fishing ground/))).toBe(`Fishing ground · 1 Fish a turn for the port at 10-7 in ${province.name}.`);
+  });
 
   it('FR-391 the farm 3-9 next to the capital (grain level 1): "Collected by the capital: 2 grain a turn", under the resource', () => {
     showTile(newGame({ seed: 1 }), '3-9');

@@ -2,7 +2,7 @@ import type { GameState } from "@/types/GameState";
 import type { GameMap } from "@/types/Map";
 import type { Approach } from "@/types/Navy";
 import { TerrainType, type Tile } from "@/types/Tile";
-import { getAdjacentTiles, isOcean } from "../map/mapHelpers";
+import { getAdjacentTiles, isAdjacentToOcean, isOcean, isRailLand } from "../map/mapHelpers";
 
 const rowThenColumn = (a: Tile, b: Tile) => a.y - b.y || a.x - b.x;
 const seasByMap = new WeakMap<GameMap, Map<string, string>>();
@@ -50,6 +50,25 @@ export function portApproach(state: GameState, tile: Tile): Approach | undefined
   if (!tile.provinceId) return undefined;
   const water = getAdjacentTiles(state.map, tile.x, tile.y).filter(isOcean).sort(rowThenColumn);
   return outlet(state, tile.provinceId, water[0]);
+}
+
+/** The shores where a port reaches the sea. A coastal port always uses its own outlet. */
+export function portMouths(map: GameMap, nationId: string, port: Tile): Tile[] {
+  if (port.ownerNationId !== nationId || !isRailLand(port)) return [];
+  if (isAdjacentToOcean(map, port.x, port.y)) return [port];
+  if (!port.hasRiver) return [];
+  const mouths: Tile[] = [];
+  const visited = new Set([port.id]);
+  const queue = [port];
+  for (let i = 0; i < queue.length; i++) {
+    for (const bank of getAdjacentTiles(map, queue[i].x, queue[i].y)) {
+      if (visited.has(bank.id) || bank.ownerNationId !== nationId || !bank.hasRiver || !isRailLand(bank)) continue;
+      visited.add(bank.id);
+      if (isAdjacentToOcean(map, bank.x, bank.y)) mouths.push(bank);
+      queue.push(bank);
+    }
+  }
+  return mouths;
 }
 
 /** A capital can be inland. Walk its own province shoreward in increasing hex distance. */

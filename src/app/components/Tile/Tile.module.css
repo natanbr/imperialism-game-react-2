@@ -85,17 +85,17 @@
   max-width: none;
 }
 
-/* Each half of the 2:1 atlas is a complete square, clipped to the same tile box as its source PNG. */
-.icon.leftFrame,
-.icon.rightFrame {
+/* Each half of a 2:1 map atlas is a complete square, clipped to the same box as its source PNG. */
+.tile .leftFrame,
+.tile .rightFrame {
   object-fit: cover;
 }
 
-.icon.leftFrame {
+.tile .leftFrame {
   object-position: left;
 }
 
-.icon.rightFrame {
+.tile .rightFrame {
   object-position: right;
 }
 
@@ -141,6 +141,22 @@
 /* Beside the 16 px mineral mark at the bottom-left (FR-323) */
 .riverBesideMark {
   left: 18px;
+}
+
+.fishing {
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.tile[data-terrain="water"] .fishing,
+.tile[data-terrain="coast"] .fishing {
+  inset: 0;
+  width: 70%;
+  height: 70%;
+  margin: auto;
 }
 
 /* A known mineral's or oil's goods picture (FR-323): which one a mine or an oil well holds */

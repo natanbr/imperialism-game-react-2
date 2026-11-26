@@ -286,16 +286,17 @@ describe('FR-481 the idle game on seed 1, before M13 (2026-11-16, docs/specs/m13
 
   // FR-518: Valdoria now buys a hull and supplies its mills. Its two declarations and captures
   // move from 17/18 and 23/24 to 25/26 and 32/33; it still takes both provinces.
-  it('FR-481 FR-487 FR-488 FR-489 FR-538 FR-539 FR-518 Arvelia falls on turn 26, then Testland North-East on turn 33', () => {
+  // FR-616: Fish changes campaign spending: war with Testland 32 -> 34, North-East capture 33 -> 35.
+  it('FR-481 FR-487 FR-488 FR-489 FR-538 FR-539 FR-518 Arvelia falls on turn 26, then Testland North-East on turn 35', () => {
     expect(firstProvinceTakenTurn(idle)).toBe(26);
     expect(idle.turns.flatMap(t => t.warsDeclared)).toEqual([
       { byId: COMPUTER_ID, onId: 'minor-1', turn: 25 },
-      { byId: COMPUTER_ID, onId: HUMAN_ID, turn: 32 },
+      { byId: COMPUTER_ID, onId: HUMAN_ID, turn: 34 },
     ]);
     expect(atTurn(idle, 26)!.minorsColonised).toEqual([{ nationId: COMPUTER_ID, minorId: 'minor-1' }]);
     expect(atTurn(idle, 26)!.provincesTaken).toEqual([{ byId: COMPUTER_ID, provinceId: 'province-minor-1', fromId: 'minor-1' }]);
     expect(atTurn(idle, 26)!.provincesHeld).toEqual({ [HUMAN_ID]: 4, [COMPUTER_ID]: 5 });
-    expect(atTurn(idle, 33)!.provincesTaken).toEqual([{ byId: COMPUTER_ID, provinceId: 'province-nation-1-ne', fromId: HUMAN_ID }]);
+    expect(atTurn(idle, 35)!.provincesTaken).toEqual([{ byId: COMPUTER_ID, provinceId: 'province-nation-1-ne', fromId: HUMAN_ID }]);
     expect(atTurn(idle, 40)!.provincesHeld).toEqual({ [HUMAN_ID]: 3, [COMPUTER_ID]: 6 });
   });
 
@@ -317,11 +318,12 @@ describe('FR-481 the idle game on seed 1, before M13 (2026-11-16, docs/specs/m13
   // 36 and 37 ($1,000 each); the wars, provinces and the turn-30 vote above do not move, and at the turn-40 meeting Sundmark
   // votes for Valdoria (the scriptedInfluence.test.ts real game of seed 1).
   // FR-518: at turn 40 one fewer worker has finished expert training; the workforce remains seven.
-  it('FR-481 FR-485 FR-538 FR-539 FR-542 FR-518 Valdoria has 7 healthy workers and 24 labour at turn 40', () => {
+  // FR-616: fishing alters the training budget. Untrained/trained/expert [0,2,5] -> [1,2,4], labour 24 -> 21.
+  it('FR-481 FR-485 FR-538 FR-539 FR-542 FR-518 Valdoria has 7 healthy workers and 21 labour at turn 40', () => {
     expect(healthyWorkersAt(idle, 1, COMPUTER_ID)).toBeLessThanOrEqual(7);
     expect(healthyWorkersAt(idle, 40, COMPUTER_ID)).toBe(7);
-    expect(atTurn(idle, 40)!.workers[COMPUTER_ID]).toEqual({ untrained: 0, trained: 2, expert: 5 });
-    expect(atTurn(idle, 40)!.labour[COMPUTER_ID]).toBe(24);
+    expect(atTurn(idle, 40)!.workers[COMPUTER_ID]).toEqual({ untrained: 1, trained: 2, expert: 4 });
+    expect(atTurn(idle, 40)!.labour[COMPUTER_ID]).toBe(21);
   });
 
   // Re-recorded by the M13 final round (FR-541, FR-499): units 6 -> 9 and refused bids 6 -> 8. Valdoria now keeps its lumber
@@ -338,12 +340,12 @@ describe('FR-481 the idle game on seed 1, before M13 (2026-11-16, docs/specs/m13
   // (.gate/m13/close/attrib-off.txt and attrib-on.txt).
   // FR-518: reserving materials for the fleet changes Valdoria's public bids and offers.
   // The trader fills 14 units (was 19); it submits two blocked clothing bids (was eight).
-  it('FR-481 FR-492 FR-493 FR-538 FR-539 FR-541 FR-518 the trader human trades 14 units with Valdoria; its only two refusals are blocked wartime bids', () => {
+  // FR-616: fishing changes the public offers the trader answers. Blocked wartime bids 2 -> 1 (turn 38).
+  it('FR-481 FR-492 FR-493 FR-538 FR-539 FR-541 FR-518 the trader human trades 14 units with Valdoria and has one blocked wartime bid', () => {
     const game = runGame({ seed: 1, human: 'trader' });
     expect(unitsTradedBetweenGreatPowers(game)).toBe(14);
     const blocked = game.turns.filter(t => t.humanRefused.length);
     expect(blocked.flatMap(t => t.humanRefused)).toEqual([
-      { kind: 'buyCommodity', reason: 'sellers-barred' },
       { kind: 'buyCommodity', reason: 'sellers-barred' },
     ]);
     expect(blocked.every(t => t.turn > 26)).toBe(true);

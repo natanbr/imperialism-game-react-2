@@ -3,7 +3,7 @@ import type { GameState } from "@/types/GameState";
 import type { Approach, Fleet, FleetMissionIntent } from "@/types/Navy";
 import { warActive } from "../diplomacy/queries";
 import { provinceById } from "../world/provinces";
-import { homeApproach, portApproach } from "./approaches";
+import { homeApproach, portApproach, portMouths } from "./approaches";
 
 export { approachesOf, homeApproach, portApproach } from "./approaches";
 export type { Approach } from "@/types/Navy";
@@ -31,14 +31,17 @@ export const pendingFleetMission = (state: GameState, nationId: string) =>
 
 const sameApproach = (a: Approach | undefined, b: Approach) => a?.provinceId === b.provinceId && a.seaId === b.seaId;
 
-function portApproaches(state: GameState, nationId: string, provinceId: string): Approach[] {
-  if (provinceById(state, provinceId)?.ownerId !== nationId) return [];
+/** Outlets of ports in the origin province, or all of the nation's ports when locating a threat. */
+export function portApproaches(state: GameState, nationId: string, provinceId?: string): Approach[] {
+  if (provinceId && provinceById(state, provinceId)?.ownerId !== nationId) return [];
   const home = homeApproach(state, nationId);
-  const result = home?.provinceId === provinceId ? [home] : [];
+  const result = home && (!provinceId || home.provinceId === provinceId) ? [home] : [];
   for (const tile of state.map.tiles.flat()) {
-    if (tile.provinceId !== provinceId || !tile.port || tile.ownerNationId !== nationId) continue;
-    const a = portApproach(state, tile);
-    if (a && !result.some(p => sameApproach(p, a))) result.push(a);
+    if (!tile.port || tile.ownerNationId !== nationId || (provinceId && tile.provinceId !== provinceId)) continue;
+    for (const mouth of portMouths(state.map, nationId, tile)) {
+      const approach = portApproach(state, mouth);
+      if (approach && !result.some(p => sameApproach(p, approach))) result.push(approach);
+    }
   }
   return result;
 }
@@ -50,16 +53,21 @@ export function isPortClosed(state: GameState, nationId: string, provinceId: str
     onApproach.some(f => !f.contested && warActive(state, nationId, f.ownerNationId));
 }
 
+export const approachIsOpen = (state: GameState, nationId: string, approach: Approach) =>
+  !isPortClosed(state, nationId, approach.provinceId, approach.seaId);
+
 export const openPortApproaches = (state: GameState, nationId: string, provinceId: string) =>
-  portApproaches(state, nationId, provinceId).filter(p => !isPortClosed(state, nationId, provinceId, p.seaId));
+  portApproaches(state, nationId, provinceId).filter(p => approachIsOpen(state, nationId, p));
 
 /** Public resolved positions only; a blockaded home berth still permits a relief sortie. */
 export function threatenedPorts(state: GameState, nationId: string): Approach[] {
   const threats: Approach[] = [];
+  let outlets: Approach[] | undefined;
   for (const fleet of state.fleets) {
     const at = fleet.approach;
     if (!at || !fleet.ships.length || !warActive(state, nationId, fleet.ownerNationId)) continue;
-    if (portApproaches(state, nationId, at.provinceId).some(p => sameApproach(p, at)) && !threats.some(p => sameApproach(p, at))) threats.push(at);
+    outlets ??= portApproaches(state, nationId);
+    if (outlets.some(p => sameApproach(p, at)) && !threats.some(p => sameApproach(p, at))) threats.push(at);
   }
   if (threats.length > 1) {
     const capital = homeApproach(state, nationId)?.provinceId;

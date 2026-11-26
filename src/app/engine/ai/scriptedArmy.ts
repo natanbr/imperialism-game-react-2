@@ -64,8 +64,10 @@ function recruitsUpkeep(state: GameState, nationId: string): number {
  * FR-488, FR-489, FR-497: in a war it declared on a Great Power it keeps the upkeep of every turn left, since that
  * country may never accept its peace. Measured on the 24 idle sim games: 3 lost regiments for want of pay without it
  * (seeds 4, 5, 6, turns 31 to 38, sales stopped from about turn 26), none with it; mean score at turn 40 1,383 -> 1,413.
+ * Set `purchase` to `"depot"` when budgeting a new depot. In a weak world market a field army then keeps six payrolls.
+ * Omit it when funding connecting rail or other orders, which use the ordinary world-market reserve.
  */
-export const upkeepReserve = (state: GameState, nationId: string, extraUpkeep = 0): number => {
+export const upkeepReserve = (state: GameState, nationId: string, extraUpkeep = 0, purchase?: "depot"): number => {
   const left = Math.max(0, turnLimitOf(state) - state.turn) + 1;
   const upkeep = upkeepOf(state, nationId) + recruitsUpkeep(state, nationId) + extraUpkeep;
   const { upkeepTurns, endgameTurns } = SCRIPTED_GARRISON;
@@ -74,14 +76,14 @@ export const upkeepReserve = (state: GameState, nationId: string, extraUpkeep = 
   const ramp = field ? 2 * endgameTurns - left : 0;
   const history = nationById(state, nationId)?.merchantMarine.tradeHistory;
   let reserveTurns = Math.max(upkeepTurns, ramp);
-  if (state.market?.mode === "partners" && history?.length) {
-    const declaringWar = state.intents.some(intent => intent.nationId === nationId && intent.kind === "war");
+  const partners = state.market?.mode === "partners";
+  if (history?.length && (partners || purchase === "depot")) {
+    const closingPartners = partners && state.intents.some(intent => intent.nationId === nationId && intent.kind === "war");
     const totalHolds = history.reduce((sum, phase) => sum + phase.holds, 0);
     const usedHolds = history.reduce((sum, phase) => sum + phase.used, 0);
     const halfEmpty = field && history.length === 4 && usedHolds * 2 <= totalHolds;
-    // Declaring war can close the nation's market before its bills fall due. A field army
-    // also needs a longer reserve while four settled phases show weak demand for the fleet.
-    if (declaringWar || halfEmpty) reserveTurns = Math.max(reserveTurns, SCRIPTED_GARRISON.disruptedTradeUpkeepTurns);
+    // On the world market, weak sales defer a new depot while the existing railway can still be joined.
+    if (closingPartners || halfEmpty) reserveTurns = Math.max(reserveTurns, SCRIPTED_GARRISON.disruptedTradeUpkeepTurns);
   }
   return upkeep * Math.min(left, reserveTurns);
 };

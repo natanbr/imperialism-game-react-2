@@ -15,7 +15,7 @@ import { borderThreat, borderThreatText } from '@/components/HUD/hudView';
 import Home from '@/page';
 import { WorkerStatus } from '@/types/Workers';
 import type { GameState } from '@/types/GameState';
-import { emptyWarehouse, N1, N2, setPair, setTreasury } from '../engine/fixtures';
+import { emptyWarehouse, N1, N2, setPair, setTreasury, withoutFreight } from '../engine/fixtures';
 import { addRegiments, ARVELIA, ARVELIA_P, clearArmy, NE1, SE1 } from '../engine/armyFixtures';
 import { text } from './domText';
 import { failOnActWarnings } from './actWarnings';
@@ -288,8 +288,8 @@ describe('FR-471 the alerts stay in sight', () => {
   it('FR-471 Not saved, the food and upkeep warnings, the wars and the idle civilians are all in the alerts block, none in a group; texts and roles unchanged', () => {
     let g = setTreasury({ ...continent(), turn: 5 }, N1, 0);
     g = setPair(g, N1, N2, { war: { aggressors: [N2], since: 3 } });
-    // A short meal: no food in the warehouse
-    g = emptyWarehouse(g, N1);
+    // A short meal: no food in the warehouse and no incoming Fish freight (FR-616).
+    g = emptyWarehouse(withoutFreight(g, N1), N1);
     show(g);
     useGameStore.setState({ saveFailed: true });
     render(<HUD />);

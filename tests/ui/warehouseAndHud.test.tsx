@@ -40,12 +40,14 @@ describe('FR-050 warehouse dialog', () => {
     render(<WarehouseModal />);
     const stock = (key: string) => text(screen.getByTestId(`stock-${key}`));
     for (const [key, amount, source] of [
-      ['wool', '10', 'World market sells this'], ['fish', '3', 'No known supply'],
+      ['wool', '10', 'World market sells this'],
       ['oil', '2', 'No known supply'], ['fuel', '1', 'World market sells this'], ['horses', '0', 'World market sells this'],
     ]) {
       expect(stock(key), key).toContain(amount);
       expect(stock(key), key).toContain(`No known local source · ${source}`);
     }
+    // FR-616: Fish 3 No known local source · No known supply -> Fish 3. The coastal capital now fishes.
+    expect(stock('fish')).toBe('Fish 3');
     act(() => show(newGame({ seed: 1, world: 'continent' }), { isWarehouseOpen: true }));
     expect(stock('horses')).toBe('Horses 4');
     // FR-563: “may offer” → “may sell”, as on the Board.

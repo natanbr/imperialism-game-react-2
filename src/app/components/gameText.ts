@@ -1,6 +1,7 @@
 // Display text for engine data: worker jobs, refused orders and turn events (FR-024).
 import {
   battleOutcome,
+  provinceOf,
   RELATION_SWATCHES,
   seasonOf,
   type BattleOutcome,
@@ -351,6 +352,12 @@ function diplomacyText(event: GameEvent, name: (countryId: string) => string): s
 
 /** The name of a tile's place for the news (FR-375): its province's name, or undefined (two-islands has no provinces). */
 export type PlaceOf = (tileId: string) => string | undefined;
+
+/** "3-9 in Testland North-West", as the news names a tile (FR-375); the bare id where there is no province. */
+export function placeText(game: GameState, tileId: string): string {
+  const province = provinceOf(game, tileId);
+  return province ? `${tileId} in ${province.name}` : tileId;
+}
 
 /**
  * FR-375: the place lookup for `eventText` and `newsItems`: a tile's province by `nameOf` ("Testland North-West"; a

@@ -463,12 +463,13 @@ describe('FR-490 FR-542 real games from the start, no embassy preset (the row\'s
   // FR-516/517: spare cargo supports the embassy; embassy 23 -> 17, pact 24 -> 18, grants [36,37] -> [29].
   // FR-245 review: buying only productive inputs changes Sundmark's trade on turns 33-35.
   // It enters turn 36 at 49 points instead of 52, so Valdoria pays a second grant: [29] -> [29,36].
-  it('FR-542 FR-510 seed 1: commerce and a funded grant earn Sundmark; the forced final ballot adds a second minor', () => {
+  // FR-616: fishing changes trade and campaign spending. Grant turns [29,36] -> []; turn-40 minor votes 2 -> 1.
+  it('FR-542 FR-510 seed 1: commerce and a pact earn Sundmark without a grant', () => {
     const g = idleGame(1, 40);
     expect(g.startEmbassies).toBe(0);
-    expect(g.done).toEqual([`embassy ${SUNDMARK} 17`, `pact ${SUNDMARK} 18`, `grant ${SUNDMARK} $1000 29`, `grant ${SUNDMARK} $1000 36`]);
-    // FR-516/517: the earlier pact gives a turn-20 vote, 0 -> 1. The final ballot still adds a second minor (FR-501).
-    expect(g.votes).toEqual({ 10: 0, 20: 1, 30: 0, 40: 2 });
+    expect(g.done).toEqual([`embassy ${SUNDMARK} 17`, `pact ${SUNDMARK} 18`]);
+    // FR-516/517: the earlier pact gives a turn-20 vote, 0 -> 1.
+    expect(g.votes).toEqual({ 10: 0, 20: 1, 30: 0, 40: 1 });
     expect(councilCell(councilVote(g.state, COUNCIL.firstTurn)!, N2, 'otherMinorNations')).toEqual(['province-minor-2']);
   }, 60_000);
 });

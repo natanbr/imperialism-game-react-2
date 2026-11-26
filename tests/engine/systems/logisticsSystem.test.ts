@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { logisticsSystem, collectingHub, computeLogisticsTransport, transportShipments, updateNationStateWithTransportedResources } from '@/engine/systems/logisticsSystem';
+import { logisticsSystem, collectingFishHub, collectingHub, computeLogisticsTransport, transportShipments, updateNationStateWithTransportedResources } from '@/engine/systems/logisticsSystem';
 import { newGame } from '@/engine/newGame';
 import { ResourceDevelopmentTable } from '@/definisions/ResourceDevelopment';
 import { N1, N2 } from '../fixtures';
@@ -379,7 +379,9 @@ describe('logisticsSystem', () => {
   });
 });
 describe('FR-389 a set slider is a hard cap; an untouched commodity is automatic (card Q80, audit ECONOMY-01)', () => {
-  /** Seed 1, nation 1 on two-islands: the capital collects grain 4, fruit 4 and cotton 2 a turn (FR-081). */
+  // FR-616: the capital's adjacent sea supplies 0 -> 1 Fish. With 15 cars the totals below
+  // move 0 -> 1 (all land goods capped at zero), 7 -> 8 and 5 -> 6 (grain capped at one),
+  // and 10 -> 11 (grain capped at ten, or automatic). Land freight and car limits still hold.
   const shipped = (capacity: number, plan?: Record<string, number>): Record<string, number> => {
     const s = newGame({ seed: 1, world: 'two-islands' });
     const before: GameState = {
@@ -393,22 +395,23 @@ describe('FR-389 a set slider is a hard cap; an untouched commodity is automatic
     return Object.fromEntries(Object.keys(now).filter(k => now[k] !== was[k]).map(k => [k, now[k] - was[k]]));
   };
 
-  it('FR-389 the ECONOMY-01 example: capacity 15, grain, fruit and cotton set to 0 and nothing else collected: nothing ships', () => {
-    expect(shipped(15, { grain: 0, fruit: 0, cotton: 0 })).toEqual({});
+  it('FR-389 only automatic Fish ships when every collected land good is capped at zero', () => {
+    expect(shipped(15, { grain: 0, fruit: 0, cotton: 0 })).toEqual({ fish: 1 });
+    expect(shipped(15, { grain: 0, fruit: 0, cotton: 0, fish: 0 })).toEqual({});
   });
 
   it('FR-389 a set commodity ships at most its set amount; the spare capacity goes to the automatic ones only', () => {
-    expect(shipped(15, { grain: 1 })).toEqual({ grain: 1, fruit: 4, cotton: 2 });
-    expect(shipped(15, { grain: 1, cotton: 0 })).toEqual({ grain: 1, fruit: 4 });
+    expect(shipped(15, { grain: 1 })).toEqual({ grain: 1, fruit: 4, cotton: 2, fish: 1 });
+    expect(shipped(15, { grain: 1, cotton: 0 })).toEqual({ grain: 1, fruit: 4, fish: 1 });
   });
 
   it('FR-389 a set amount above what is collected ships what is collected', () => {
-    expect(shipped(15, { grain: 10 })).toEqual({ grain: 4, fruit: 4, cotton: 2 });
+    expect(shipped(15, { grain: 10 })).toEqual({ grain: 4, fruit: 4, cotton: 2, fish: 1 });
   });
 
   it('FR-389 with no plan every commodity is automatic, up to the capacity (today\'s behaviour)', () => {
-    expect(shipped(15)).toEqual({ grain: 4, fruit: 4, cotton: 2 });
-    expect(shipped(15, {})).toEqual({ grain: 4, fruit: 4, cotton: 2 });
+    expect(shipped(15)).toEqual({ grain: 4, fruit: 4, cotton: 2, fish: 1 });
+    expect(shipped(15, {})).toEqual({ grain: 4, fruit: 4, cotton: 2, fish: 1 });
     const total = Object.values(shipped(5)).reduce((a, b) => a + b, 0);
     expect(total).toBe(5);
   });
@@ -454,6 +457,10 @@ describe('FR-391 collectingHub: the logistics phase\'s own rule, for Tile Info',
     const network = s.transportNetwork.railroadNetworks![N1];
     const byHub: Record<string, number> = {};
     for (const t of s.map.tiles.flat()) {
+      if (collectingFishHub(s, N1, t.id)) {
+        byHub.fish = (byHub.fish ?? 0) + 1;
+        if (t.resource?.type === ResourceType.Fish) continue;
+      }
       if (!t.resource || !collectingHub(s, N1, t.id)) continue;
       const amount = ResourceDevelopmentTable[t.resource.type]?.[t.resource.level] ?? 0;
       if (amount > 0) byHub[t.resource.type] = (byHub[t.resource.type] ?? 0) + amount;

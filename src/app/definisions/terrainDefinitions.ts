@@ -31,3 +31,6 @@ export const DRILLING_TERRAINS = [
   TerrainType.Desert,
   TerrainType.Tundra,
 ];
+
+/** These visible resources always produce at level zero. */
+export const FIXED_OUTPUT_TERRAINS = [TerrainType.DryPlains, TerrainType.ScrubForest, TerrainType.HorseRanch];

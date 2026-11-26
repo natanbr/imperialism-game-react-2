@@ -50,3 +50,139 @@ Status: `default` = taken, nobody has checked; `confirmed` = Nathan agreed or th
 
 Balance numbers worth comparing to the real game first: score at turns 15, 25 and 40 (FR-125's 1.5× margin is our own
 yardstick), the turn Arvelia falls, workers per nation, price levels of the first five goods, and war timing.
+
+## M18d recorded results
+
+On 2026-11-25 the owner chose coastal and river fishing and terrain development for every game, including historical saves (Q103, FR-616). The tables compare the pre-fishing results with Task 47's measured campaigns. They include Task 44's change to depot routing and the six-payroll reserve for starting a depot with a field army during weak world-market trade. [Rail trace](journal/task-44-m18d.md) · [Payroll and campaign measurements](journal/task-47-m18d.md)
+
+Task 48 kept both FR-339 limits. The opening map now draws Coal and Fish from separate frames of one 18,970-byte lossless atlas. Each URL was requested once. [Task 48 first-paint inventory](../.gate/codex/48/first-paint.json)
+
+| Opening continent, 1280×720 | Before map Fish | Task 47, separate PNG | Task 48, shared atlas | Limit |
+|---|---:|---:|---:|---:|
+| Distinct art requests | 20 | 21 | 20 | 20 |
+| Total art bytes on disk | 1,988,396 | 2,002,009 | 1,990,043 | 2,050,000 |
+
+### Fixed maps and campaigns
+
+Two M18d results have little room above their acceptance thresholds. FR-545 wins exactly 15 of 24 peaceful diplomat games, so losing one more game would fail the floor. For FR-125, seed 3 on turn 15 scores 690 against 450 (1.533×). The 1.5× floor requires 675 at that baseline, leaving 15 score points.
+
+| Requirement | Measurement | Old | New | FR-616 reason |
+|---|---|---|---|---|
+| FR-125 | Seed 1, turns 15/25/40, scripted/M4 | 760/451, 903/550, 1643/741 | 701/445, 936/573, 1485/749 | Sea Fish supplies both players. The computer builds a shorter second depot route and reserves cash for development. |
+| FR-125 | Seed 2, turns 15/25/40, scripted/M4 | 751/442, 900/522, 1546/711 | 693/437, 896/537, 1353/723 | Sea Fish supplies both players. The computer builds a shorter second depot route and reserves cash for development. |
+| FR-125 | Seed 3, turns 15/25/40, scripted/M4 | 757/457, 903/563, 1530/756 | 690/450, 916/578, 1456/742 | Sea Fish supplies both players. The computer builds a shorter second depot route and reserves cash for development. |
+| FR-125 | Seed 4, turns 15/25/40, scripted/M4 | 759/441, 903/525, 1637/708 | 699/436, 944/532, 1511/724 | Sea Fish supplies both players. The computer builds a shorter second depot route and reserves cash for development. |
+| FR-389 | Turn 6 before/after rail, new commodity | Fish 0/0 | Fish 1/1 | Capital fishing ground. |
+| FR-125 | Minimum score ratio | 903/563 = 1.604× (seed 3, turn 25) | 690/450 = 1.533× (seed 3, turn 15) | Sea Fish supplies both players. The computer builds a shorter second depot route and reserves cash for development. Every checkpoint clears 1.5×. |
+| FR-546 | Voluntary Council vote, idle seeds 1–24 | 13/24 | 17/24 | Fishing changes trade, the funds available for influence and the final relations. Floor 13/24. |
+| FR-545 | Peaceful Council wins with a paid grant, diplomat seeds 1–24 | 10 of 15 wins | 12 of 15 wins | Fishing changes trade receipts and the funds available for diplomacy. The diplomat won 15/24 games in each run. |
+| FR-464 | Seed 1, orders, computer score, SHA-256 | 529, 1643, `27ee667b3904d673ffee765149f37fd33e24ce9f87af635cbd0638ec06fdbae5` | 562, 1485, `bf71813db1a8b3a1777d41a1f86cc667fa5e192a400cfa967af2fa41335b435e` | Sea Fish supplies both players. The computer builds a shorter second depot route and reserves cash for development. |
+| FR-464 | Seed 1, joined depots/links/bound at turns 15, 25, 40 | 2/8/11, 4/12/27, 5/16/33 | 2/5/11, 4/10/24, 6/17/37 | Sea Fish supplies both players. The computer builds a shorter second depot route and reserves cash for development. |
+| FR-464 | Seed 2, orders, computer score, SHA-256 | 503, 1546, `eb5dcffe5198c82f8bdf1023fcaace919552fc3bd7a45f0265f8719b65ce3a55` | 559, 1353, `78f78b1ccff43268108552b1c6906b46b936e627cee686a2fbf91d51177312e0` | Sea Fish supplies both players. The computer builds a shorter second depot route and reserves cash for development. |
+| FR-464 | Seed 2, joined depots/links/bound at turns 15, 25, 40 | 2/8/11, 4/12/27, 4/12/27 | 2/5/11, 4/10/24, 6/17/37 | Sea Fish supplies both players. The computer builds a shorter second depot route and reserves cash for development. |
+| FR-464 | Seed 3, orders, computer score, SHA-256 | 502, 1530, `047bf977b0de80a897c7bfdcba7115164e5e3d47827fdd71c45e1d41d7d6ccae` | 561, 1456, `a9c952ff6cf1840c5f84fae041f9b97d1bd0c6df7a1bc3d84c5e9ee014d8deab` | Sea Fish supplies both players. The computer builds a shorter second depot route and reserves cash for development. |
+| FR-464 | Seed 3, joined depots/links/bound at turns 15, 25, 40 | 2/8/11, 4/12/27, 5/16/33 | 2/5/11, 4/10/24, 6/17/37 | Sea Fish supplies both players. The computer builds a shorter second depot route and reserves cash for development. |
+| FR-464 | Seed 4, orders, computer score, SHA-256 | 533, 1637, `d26fc62495eb21d0241f7e4ca676fbef470b31d4f4af9a2473f129cdcd524293` | 563, 1511, `0eee92248f049b070cd75020a715a811d46f8f3c2fbda1eb6a8049539731f64f` | Sea Fish supplies both players. The computer builds a shorter second depot route and reserves cash for development. |
+| FR-464 | Seed 4, joined depots/links/bound at turns 15, 25, 40 | 2/8/11, 4/12/27, 5/16/33 | 2/5/11, 4/10/24, 6/17/37 | Sea Fish supplies both players. The computer builds a shorter second depot route and reserves cash for development. |
+| FR-124 | Seed 1 turn 15 current (depots, links, yield, shipped, sold, score) | [2,8,35,200,22,760] | [3,5,30,205,23,701] | Sea Fish supplies both players. The computer builds a shorter second depot route and reserves cash for development. |
+| FR-124 | Seed 1 turn 15 frozen M4 (depots, links, yield, shipped, sold, score) | [1,10,21,181,32,451] | [1,10,22,195,32,445] | The frozen policy receives Fish from the capital. Its one depot and ten rail links now deliver more freight. |
+| FR-247 | Seed 1, minorDeals (Testland, Valdoria) | [81, 109] | [85, 104] | Fishing changes production, cargo, trade and the funds available for recruitment. |
+| FR-247 | Seed 1, minorPurchases (Testland, Valdoria) | [44, 71] | [47, 66] | Fishing changes production, cargo, trade and the funds available for recruitment. |
+| FR-247 | Seed 1, treasury (Testland, Valdoria) | [1555, 7909] | [3217, 12403] | Fishing changes production, cargo, trade and the funds available for recruitment. |
+| FR-247 | Seed 2, minorDeals (Testland, Valdoria) | [78, 118] | [78, 102] | Fishing changes production, cargo, trade and the funds available for recruitment. |
+| FR-247 | Seed 2, minorPurchases (Testland, Valdoria) | [43, 78] | [44, 63] | Fishing changes production, cargo, trade and the funds available for recruitment. |
+| FR-247 | Seed 2, treasury (Testland, Valdoria) | [4894, 1959] | [3055, 2896] | Fishing changes production, cargo, trade and the funds available for recruitment. |
+| FR-247 | Seed 2, capitalArms (Testland, Valdoria) | [5, 4] | [4, 5] | Fishing changes production, cargo, trade and the funds available for recruitment. |
+| FR-247 | Seed 3, minorDeals (Testland, Valdoria) | [91, 104] | [67, 105] | Fishing changes production, cargo, trade and the funds available for recruitment. |
+| FR-247 | Seed 3, minorPurchases (Testland, Valdoria) | [49, 65] | [34, 63] | Fishing changes production, cargo, trade and the funds available for recruitment. |
+| FR-247 | Seed 3, treasury (Testland, Valdoria) | [9641, 12437] | [5941, 19604] | Fishing changes production, cargo, trade and the funds available for recruitment. |
+| FR-247 | Seed 4, minorDeals (Testland, Valdoria) | [69, 76] | [68, 70] | Fishing changes production, cargo, trade and the funds available for recruitment. |
+| FR-247 | Seed 4, minorPurchases (Testland, Valdoria) | [41, 44] | [40, 40] | Fishing changes production, cargo, trade and the funds available for recruitment. |
+| FR-247 | Seed 4, treasury (Testland, Valdoria) | [1742, 2184] | [3182, 1385] | Fishing changes production, cargo, trade and the funds available for recruitment. |
+| FR-247 | Seed 4, capitalArms (Testland, Valdoria) | [4, 5] | [4, 4] | Fishing changes production, cargo, trade and the funds available for recruitment. |
+| FR-260 / FR-215 | Seed 1 upkeep [$, consecutive turns] | [[100, 11], [125, 1], [150, 8], [175, 5], [200, 7], [225, 3], [250, 5]] | [[100, 11], [125, 1], [150, 10], [175, 1], [200, 12], [225, 5]] | Fish changes the campaign income. The depot reserve preserves payroll and changes recruitment dates. |
+| FR-260 / FR-215 | Seed 2 upkeep [$, consecutive turns] | [[100, 11], [125, 1], [150, 8], [175, 4], [200, 16]] | [[100, 11], [125, 1], [150, 9], [175, 19]] | Fish changes the campaign income. The depot reserve preserves payroll and changes recruitment dates. |
+| FR-260 / FR-215 | Seed 3 upkeep [$, consecutive turns] | [[100, 11], [125, 1], [150, 8], [175, 4], [200, 11], [225, 5]] | [[100, 11], [125, 1], [150, 10], [175, 1], [200, 17]] | Fish changes the campaign income. The depot reserve preserves payroll and changes recruitment dates. |
+| FR-260 / FR-215 | Seed 4 upkeep [$, consecutive turns] | [[100, 11], [125, 1], [150, 14], [175, 13], [200, 1]] | [[100, 11], [125, 1], [150, 9], [175, 4], [200, 12], [225, 3]] | Fish changes the campaign income. The depot reserve preserves payroll and changes recruitment dates. |
+| FR-260 / FR-215 | Capital garrison arms, seeds 1–4 | 4,4,4,4 | 4,7,4,4 | Different recruiting and campaign forces. |
+| FR-260 | Armed turn-40 scores, seeds 1–4 | 1159,1225,1207,1222 | 1207,1225,1317,1330 | Fish affects production, army costs and territory. |
+| FR-260 / FR-215 | Army-less seed 1, treasury/capacity/development/score | 10012, 80, 53, 1430 | 6642, 88, 56, 1506 | Fishing changes factory and development investment. |
+| FR-260 / FR-215 | Army-less seed 2, treasury/capacity/development/score | 9787, 76, 57, 1427 | 9463, 76, 57, 1424 | Fishing changes factory and development investment. |
+| FR-260 / FR-215 | Army-less seed 3, treasury/capacity/development/score | 11835, 80, 56, 1478 | 9281, 84, 57, 1502 | Fishing changes factory and development investment. |
+| FR-260 / FR-215 | Army-less seed 4, treasury/capacity/development/score | 10716, 80, 55, 1457 | 9664, 88, 56, 1536 | Fishing changes factory and development investment. |
+| FR-305 / FR-510 | Final elected nation, seeds 1–4 | 2,1,2,1 | 2,2,1,1 | Conquest changes controlled provinces, colonies and free minor votes. |
+| FR-305 / FR-510 | Turn 30 Arvelian colony vote instead of abstention, seeds | 1,2,3 | 1,3,4 | Changed campaign timing. All remaining free minors abstain. |
+| FR-305 / FR-510 | Final ballot, Testland/Valdoria (controlled, colonies, other GPs, free minors, total), seeds 1–4 | s1/s3 [3,0,0,3,6]/[5,1,0,0,6], s2 [4,0,0,3,7]/[4,1,0,0,5], s4 [4,0,0,4,8]/[4,0,0,0,4] | s1 [3,0,0,3,6]/[5,1,0,0,6], s2 [4,0,0,0,4]/[4,0,0,4,8], s3 [4,0,0,3,7]/[4,1,0,0,5], s4 [4,0,0,3,7]/[4,1,0,0,5] | Territorial control and remaining free minors change. |
+| FR-542 / FR-510 | Idle seed 1, grant turns and turn-40 free-minor votes | [29,36], 2 | [], 1 | Commerce and a pact bring Sundmark to 50 points. |
+| FR-481 / FR-488 / FR-489 | Idle seed 1, second declaration/capture | 32/33 | 34/35 | Campaign spending changes when the field army is ready. |
+| FR-481 / FR-485 | Idle seed 1 turn 40 workers (untrained/trained/expert), labour | 0/2/5, 24 | 1/2/4, 21 | Fishing changes the training budget. |
+| FR-481 / FR-492 / FR-493 | Trader seed 1, blocked wartime bids, 14 units traded | 2 | 1 (turn 38) | Fishing changes the publicly offered cargo. |
+| FR-260 | Two-islands turn-40 scores, seeds 1–4 | 1643,1546,1530,1637 | 1485,1353,1456,1511 | Fish and the shorter depot route change the final score. |
+| FR-389 / FR-405 | Continent seed 1, turn 6 transport plan before and after the depot joins | Livestock 1 + Cotton 2, then Livestock 1 + Cotton 3 | Cotton 2, then Cotton 3 | Fish supplies protein. Both plans leave Livestock automatic, and the new rail still increases Cotton. |
+| FR-081 | Starting capital collection with spare capacity | 4 Grain, 4 Fruit, 2 Cotton (10) | 4 Grain, 4 Fruit, 2 Cotton, 1 Fish (11) | One adjacent sea hex supplies Fish. |
+| FR-389 | 15 cars with Grain, Fruit and Cotton capped at zero | 0 units | 1 Fish | An untouched Fish allocation is automatic. Capping Fish too ships zero. |
+| FR-389 | 15 cars with Grain capped at 1 | 1 Grain, 4 Fruit, 2 Cotton (7) | 1 Grain, 4 Fruit, 2 Cotton, 1 Fish (8) | The capital collects one additional Fish and has a spare car. |
+| FR-389 | 15 cars with Grain capped at 1 and Cotton at zero | 1 Grain, 4 Fruit (5) | 1 Grain, 4 Fruit, 1 Fish (6) | The capital collects one additional Fish and has a spare car. |
+| FR-389 | 15 cars with Grain capped at 10 or every commodity automatic | 4 Grain, 4 Fruit, 2 Cotton (10) | 4 Grain, 4 Fruit, 2 Cotton, 1 Fish (11) | All accessible goods fit within the capacity. |
+
+### Historical saves and user interface
+
+The turn-10 and turn-11 campaign digests use the historical comparison fields. The test checks the later rank history separately. The main v1 fixture retains that history through Continue.
+
+| FR | Measurement | Historical value | Accepted value | FR-616 reason |
+|---|---|---|---|---|
+| FR-135, FR-142, FR-607 | Seed 1 Food sliders, two-islands total, horse fixture total and continent total | 3, 7, 10, 10 | 4, 8, 11, 11 | The opening capital has a coastal fishing ground. Transport puts Fish after Fruit with automatic allocation 1. |
+| FR-050, FR-584, FR-607 | Warehouse row in the three-Fish fixture | Fish 3 No known local source · No known supply | Fish 3 | Coastal Fish can be collected locally. |
+| FR-100, FR-520 | Pre-M16 sequence of paper production, recruitment and oil orders at turn 3, SHA-256 | `e07b340d145b28e2cb02b3c5d81f34de4a1b85747959af5be6e76d21acf73883` | `ef0ac9668522d86b901b59a634d070fdf926786de2a14af622ae3ef21c45cffb` | Fishing changes the freight and stock of the reconstructed sequence. The independent captured save keeps the historical digest. |
+| FR-100, FR-520 | Historical pre-M16 save and M16 resave, replay start | Turn 1 | Turn 3, one pending oil order already applied | The saved positions include pre-fishing freight and stock. Both load, continue and replay through a second save. |
+| FR-558, FR-587 | Pre-M17 naval campaign, replay start | Turn 1 | Turn 2, one production order already applied | The first settlement now includes coastal Fish. The earlier saved inventory, edited order and map are preserved. |
+| FR-558, FR-587 | Pre-Q145 naval campaign before combat, replay start | Turn 1 | Turn 3, zero pending orders | New fishing rules apply before the first engagement. A historical joint land battle and intact naval engagement also retain their recorded outcomes. |
+| FR-558, FR-587 | Old turn-3 combat checkpoint with another pre-fishing turn in its log | Turn 3 | Turn 4, zero pending orders | A turn settled after the older checkpoint followed historical rules. The later saved position covers that turn. |
+| FR-587 | Actual `765fcaa` save, seed 7 at turn 10 | Replay start 1 | Replay start 10, zero pending orders | The original map and logs survive migration. On continuation Fish stock advances from 0 to 1. |
+| FR-587, NR-038 | Same seed-7 400-turn-limit campaign, turn-10 SHA-256 | `544df1968c34056c07e33246c47f5a50d2ed8206ba51d2cfa7b5215831c0aa3a` | `e842158982c0889a30494b72cdd0bffcc6f85c2836f2bbb9619a0339fc282b05` | Fishing changes freight, inventories and subsequent computer orders. Settling a modern turn records the M18d rules revision in the game. |
+| FR-587, NR-038 | Same campaign after saving, restoring and resolving the Council, turn-11 SHA-256 | `27dc351a2b8b4e08222d5de3d68c11397a9d39b2b94409e771b3f1fb739fd3b2` | `15436a8c378d346598bda6ca9b41ac8aac1b14d9ec62981ee4638e2f63b8f847` | Same fishing settlement and recorded rules revision. The Council still meets on turn 10. |
+
+### Generated maps
+
+Under FR-616, each row records a change to FR-597. Connected ports now supply Fish. The change in freight and food supply alters later computer orders, production, captures and Council ballots. Task 47 measured both map sizes, three frozen policies and twelve seeds. Scores are computer scores on turns 15, 25 and 40. The other 45 games and every unlisted field matched the pre-fishing records.
+
+| Size | Policy | Seed | Field and old -> new value |
+|---|---|---:|---|
+| standard | idle | 1 | scores [476,717,1108] -> [476,717,1068] |
+| standard | idle | 2 | scores [465,680,1093] -> [465,680,1162] |
+| standard | idle | 3 | firstCapture 33 -> 35, scores [444,693,971] -> [444,693,1059] |
+| standard | idle | 4 | winner nation-2 -> nation-1, firstCapture 36 -> null, scores [462,672,1007] -> [462,649,1032] |
+| standard | idle | 5 | scores [484,555,860] -> [484,562,820] |
+| standard | idle | 6 | firstCapture null -> 37, compulsory 3 -> 0, scores [471,723,1106] -> [471,723,1122] |
+| standard | idle | 7 | scores [477,595,1131] -> [477,635,1064] |
+| standard | idle | 12 | scores [475,708,1265] -> [475,715,1200] |
+| standard | scripted | 4 | winner nation-1 -> nation-2 |
+| standard | scripted | 5 | winner nation-1 -> nation-2 |
+| standard | diplomat | 2 | winner nation-2 -> nation-1, peacefulWin false -> true |
+| standard | diplomat | 6 | winner nation-2 -> nation-1, peacefulWin false -> true |
+| standard | diplomat | 10 | winner nation-1 -> nation-2, peacefulWin true -> false |
+| large | idle | 1 | scores [472,660,1009] -> [472,660,984] |
+| large | idle | 2 | scores [503,664,1238] -> [503,664,1271] |
+| large | idle | 4 | firstCapture 35 -> 40, scores [503,688,1225] -> [503,688,1276] |
+| large | idle | 6 | firstCapture 30 -> 38, scores [494,717,1217] -> [502,746,1138] |
+| large | idle | 8 | scores [453,620,null] -> [453,615,null] |
+| large | idle | 9 | firstCapture 37 -> 30, scores [500,667,1189] -> [500,657,1278] |
+| large | idle | 10 | firstCapture 26 -> 25, firstPact null -> 29, compulsory 0 -> 1, scores [505,623,1302] -> [505,652,1239] |
+| large | idle | 11 | scores [457,624,1218] -> [457,623,1203] |
+| large | idle | 12 | firstCapture 31 -> null, compulsory 0 -> 3, scores [479,653,1235] -> [479,653,1349] |
+| large | scripted | 5 | turns 30 -> 40 |
+| large | scripted | 7 | winner nation-2 -> nation-1 |
+| large | scripted | 12 | winner nation-2 -> nation-1 |
+| large | diplomat | 5 | turns 30 -> 40 |
+| large | diplomat | 10 | winner nation-2 -> nation-1, peacefulWin false -> true |
+
+| Size | Policy | Seeds matching in every recorded field |
+|---|---|---|
+| standard | idle | 8,9,10,11 |
+| standard | scripted | 1,2,3,6,7,8,9,10,11,12 |
+| standard | diplomat | 1,3,4,5,7,8,9,11,12 |
+| large | idle | 3,5,7 |
+| large | scripted | 1,2,3,4,6,8,9,10,11 |
+| large | diplomat | 1,2,3,4,6,7,8,9,11,12 |
+
+Tasks 47 and 48 measured all 72 generated games in 2,810 turns. All 37,557 computer orders were accepted. There were zero invariant violations, zero unpaid disbands across 940 idle turns and zero changed plans across 940 privacy probes. The other two policies recorded 50 unpaid disbands in total. [Post-fix records](../.gate/codex/47/random-pins.md) · [Task 48 guard measurements](../.gate/codex/48/gameplay-guards-summary.txt)

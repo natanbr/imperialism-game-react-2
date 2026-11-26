@@ -3,6 +3,8 @@
 // (FR-391). Whether a job can start is the engine's validateOrder; this file only words its reason with the tile's facts.
 // It reads state, never builds it.
 import { collectingHub, isConqueredProvince, provinceOf, validateOrder, type Order, type RejectReason, type ValidationResult } from "@/engine";
+import { portMouths } from "@/engine/navy/approaches";
+import type { CollectingHub } from "@/engine/systems/logisticsSystem";
 import {
   DEVELOPMENT_WORKER_TYPES,
   TECH,
@@ -14,6 +16,7 @@ import {
   tileById,
 } from "@/engine/orders/queries";
 import { ResourceDevelopmentTable } from "@/definisions/ResourceDevelopment";
+import { technologyById } from "@/definisions/technologies";
 import { DEVELOPMENT_COST, PROSPECT_COST, constructionCost } from "@/definisions/workPrices";
 import { EngineerBuildDurationsTurns, ProspectorDiscoveryDurationTurns, WorkerLevelDurationsTurns } from "@/definisions/workerDurations";
 import { PROSPECTABLE_TERRAIN_TYPES } from "@/definisions/terrainDefinitions";
@@ -21,7 +24,7 @@ import type { GameState } from "@/types/GameState";
 import { TerrainType, type Tile } from "@/types/Tile";
 import { WorkerStatus, WorkerType, type Worker } from "@/types/Workers";
 import type { ConstructionKind } from "@/types/jobs/ConstructionJob";
-import { REFUSAL_TEXT, TERRAIN_TEXT, commodityName, fundsNeededText, money } from "./gameText";
+import { REFUSAL_TEXT, TERRAIN_TEXT, commodityName, fundsNeededText, money, placeText } from "./gameText";
 
 /** A job's price, paid when it is ordered, and the turns it takes. */
 export interface JobCost {
@@ -154,8 +157,8 @@ function siteReason(state: GameState, order: JobOrder, reason: RejectReason): st
     if (!isLand(tile)) return undefined;
     if (!("toTileId" in order) && findWorker(state, order.workerId)?.tile.id !== tile.id) return undefined;
     if (prospecting) {
-      if (!tile.resource) return "Nothing here for a prospector to find.";
-      return tile.resource.discovered ? "Already prospected." : undefined;
+      if (tile.prospected && !tile.resource) return "Surveyed, no deposit.";
+      return tile.resource?.discovered ? "Already prospected." : undefined;
     }
     if (DEVELOPMENT_WORKER_TYPES.includes(worker.type) && !structure) {
       if (!tile.resource) return "Nothing here to develop.";
@@ -173,6 +176,7 @@ function siteReason(state: GameState, order: JobOrder, reason: RejectReason): st
  */
 export function offerRefusalText(state: GameState, order: Order, result: Extract<ValidationResult, { ok: false }>): string {
   const { reason } = result;
+  if (reason === "missing-technology") return `Needs ${technologyById(result.techId)?.name ?? result.techId}.`;
   if (reason === "insufficient-funds") {
     if ("cost" in result) return `${fundsNeededText(result.cost, result.buyingPower)}.`;
     const cost = jobCost(state, order);
@@ -197,6 +201,19 @@ export interface JobOffer {
   cost?: JobCost;
   /** Why the engine would refuse it; undefined when it would accept. */
   refusal?: string;
+  warning?: string;
+}
+
+/** Tile Info and Construction Options use the same price, refusal and river access warning. */
+export function jobOffer(state: GameState, tile: Tile, order: Order, name: string): JobOffer {
+  const result = validateOrder(state, order);
+  const offer = { name, order, cost: jobCost(state, order) };
+  if (!result.ok) return { ...offer, refusal: offerRefusalText(state, order, result) };
+  if (order.kind === "startConstruction" && order.structure === "port" && tile.hasRiver &&
+      portMouths(state.map, order.nationId, tile).length === 0) {
+    return { ...offer, warning: "No downstream route to the sea through land you control. The port needs rail to collect goods and cannot fish here." };
+  }
+  return offer;
 }
 
 const STRUCTURES: readonly ConstructionKind[] = ["depot", "port", "fort", "rail"];
@@ -219,10 +236,7 @@ export function jobOffers(state: GameState, nationId: string, worker: Worker, ti
       offers.push({ name: `Construct ${capitalized(structure)}`, order: { kind: "startConstruction", ...base, structure } });
     }
   }
-  return offers.map(({ name, order }) => {
-    const result = validateOrder(state, order);
-    return { name, order, cost: jobCost(state, order), refusal: result.ok ? undefined : offerRefusalText(state, order, result) };
-  });
+  return offers.map(({ name, order }) => jobOffer(state, tile, order, name));
 }
 
 /** A line in place of an offer that no longer exists: a development worker on a resource at level 3. */
@@ -322,16 +336,20 @@ export function cancelQuestion(state: GameState, nationId: string, worker: Worke
  */
 export function collectionText(state: GameState, nationId: string, tile: Tile): string | undefined {
   const resource = tile.resource;
-  if (tile.ownerNationId !== nationId || !resource || resource.discovered === false) return undefined;
+  if (tile.ownerNationId !== nationId || !resource || resource.type === "fish" || resource.discovered === false) return undefined;
   const hub = collectingHub(state, nationId, tile.id);
   if (!hub) {
     const province = provinceOf(state, tile.id);
     if (province && isConqueredProvince(province)) return "Not collected: 0 points until a depot, port or capital collects it.";
     return "Not collected: no connected depot, port or capital next to it";
   }
-  const by = hub.kind === "capital" ? "the capital" : `the ${hub.kind} at ${hub.tileId}`;
+  const by = collectingHubText(state, hub);
   if (tile.terrain === TerrainType.HorseRanch) return `Collected by ${by}, 1 horse a turn`;
   const units = ResourceDevelopmentTable[resource.type]?.[resource.level] ?? 0;
   const goods = commodityName(resource.type).toLowerCase();
   return `Collected by ${by}: ${units > 0 ? `${units} ${goods} a turn` : `no ${goods} until it is developed`}`;
+}
+
+export function collectingHubText(state: GameState, hub: CollectingHub): string {
+  return hub.kind === "capital" ? "the capital" : `the ${hub.kind} at ${placeText(state, hub.tileId)}`;
 }

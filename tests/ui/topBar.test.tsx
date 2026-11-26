@@ -21,7 +21,7 @@ import { START_TREASURY } from '@/engine/world/startWorld';
 import { DEMO_START } from '@/engine/world/demoStart';
 import type { GameState } from '@/types/GameState';
 import { ResourceType } from '@/types/Resource';
-import { emptyWarehouse, N1, N2, setPair, setTreasury } from '../engine/fixtures';
+import { emptyWarehouse, N1, N2, setPair, setTreasury, withoutFreight } from '../engine/fixtures';
 import { continent } from '../engine/armyFixtures';
 import { text } from './domText';
 import { failOnActWarnings } from './actWarnings';
@@ -551,7 +551,8 @@ describe('FR-477 nothing lost: the whole page', () => {
     act(() => useGameStore.getState().advanceTurn());
     let g = setTreasury(useGameStore.getState().game, N1, 0);
     g = setPair(g, N1, N2, { war: { aggressors: [N2], since: 2 } });
-    g = emptyWarehouse(g, N1);
+    // FR-616: stop Fish deliveries as well as emptying stock to trigger the food warning.
+    g = emptyWarehouse(withoutFreight(g, N1), N1);
     const capital = g.map.tiles.flat().find((t) => t.cityId === g.nations[0].cities[0])!;
     useGameStore.setState({ game: g, selectedTileId: capital.id });
     act(() => void useGameStore.getState().submitOrder({ kind: 'moveWorker', nationId: N1, workerId: capital.workers[0].id, toTileId: '0-0' }));

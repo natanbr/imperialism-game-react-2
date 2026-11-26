@@ -1,14 +1,17 @@
 import { TerrainType, type Tile } from "@/types/Tile";
+import { ResourceType } from "@/types/Resource";
 import React, { useEffect, useId, useRef, useState } from "react";
 import { useGameStore } from "../store/rootStore";
 import { Worker, WorkerStatus, WorkerType } from "@/types/Workers";
+import { collectingFishHub } from "@/engine/systems/logisticsSystem";
+import { PROSPECTABLE_TERRAIN_TYPES } from "@/definisions/terrainDefinitions";
 import { countryName, countryOfTile, isMinorNation, provinceOf, validateOrder } from "@/engine";
 import { commodityName, TERRAIN_TEXT, workerJobLabel } from "./gameText";
 import { InkPicture } from "./art/ArtPicture";
 import { civilianArt, goodsArt } from "./art/inkArt";
 import { THEME } from "@/styles/theme";
 import { submitAndSay, submitOrAsk } from "@/hooks/tileClickOrders";
-import { cancelQuestion, collectionText, costText, jobNote, jobOffers, type JobOffer } from "./tileSiteText";
+import { cancelQuestion, collectingHubText, collectionText, costText, jobNote, jobOffers, type JobOffer } from "./tileSiteText";
 import { Modal } from "./Modal";
 
 interface TileInfoPanelProps {
@@ -32,6 +35,7 @@ const WorkerStatusIndicator: React.FC<{ status: WorkerStatus }> = ({ status }) =
  */
 const JobOfferRow: React.FC<{ offer: JobOffer; tileId: string }> = ({ offer, tileId }) => {
   const reasonId = useId();
+  const detail = offer.refusal ?? offer.warning;
   return (
     <div className="job-offer" data-testid="job-offer">
       <button
@@ -42,7 +46,7 @@ const JobOfferRow: React.FC<{ offer: JobOffer; tileId: string }> = ({ offer, til
           submitOrAsk(offer.order, tileId);
         }}
         disabled={offer.refusal !== undefined}
-        aria-describedby={offer.refusal !== undefined ? reasonId : undefined}
+        aria-describedby={detail ? reasonId : undefined}
         className="btn btn-action">
         {offer.order.kind === "startProspecting" && <InkPicture src={civilianArt(WorkerType.Prospector)} alt="" inline />}
         {offer.name}
@@ -52,9 +56,9 @@ const JobOfferRow: React.FC<{ offer: JobOffer; tileId: string }> = ({ offer, til
           {costText(offer.cost)}
         </span>
       )}
-      {offer.refusal !== undefined && (
+      {detail && (
         <div className="job-reason" data-testid="job-reason" id={reasonId}>
-          {offer.refusal}
+          {detail}
         </div>
       )}
     </div>
@@ -106,8 +110,11 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
   const ownerText = !ownerName ? "Unclaimed" : minor ? `${ownerName} (minor nation)` : `${ownerName}${countryId === activeNationId ? " (you)" : ""}`;
   const resource = selectedTile.resource;
   const known = resource !== undefined && resource.discovered !== false;
+  const fishHub = collectingFishHub(game, activeNationId, selectedTile.id);
+  const geology = PROSPECTABLE_TERRAIN_TYPES.includes(selectedTile.terrain);
+  const emptySite = selectedTile.prospected ? "Surveyed, no deposit" : "Not yet prospected";
   const resourceText = !resource
-    ? "None"
+    ? geology ? emptySite : fishHub ? "Fish" : "None"
     : !known
       ? "Not yet prospected"
       : selectedTile.terrain === TerrainType.HorseRanch ? commodityName(resource.type) : `${commodityName(resource.type)} (L${resource.level})`;
@@ -180,9 +187,11 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
             <InkPicture src={goodsArt(resource.type)} alt="" inline />
           </>
         )}
+        {!resource && fishHub && !geology && <InkPicture src={goodsArt(ResourceType.Fish)} alt="" inline />}
         {resourceText}
       </p>
       {/* FR-391: who collects the player's resource, by the logistics phase's rule */}
+      {fishHub && <p>Fishing ground · 1 Fish a turn for {collectingHubText(game, fishHub)}.</p>}
       {collected && <p data-testid="tile-collected">{collected}</p>}
       <p data-testid="tile-owner">
         <strong>Owner:</strong> {ownerText}

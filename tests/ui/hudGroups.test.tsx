@@ -18,7 +18,7 @@ import { applyOrder, scoreOf, upkeepForecast } from '@/engine';
 import { DEVELOPMENT_COST } from '@/definisions/workPrices';
 import type { GameState } from '@/types/GameState';
 import { WorkerType } from '@/types/Workers';
-import { emptyWarehouse, game, N1, N2, put, setPair, setTreasury, T, workerId } from '../engine/fixtures';
+import { emptyWarehouse, game, N1, N2, put, setPair, setTreasury, T, withoutFreight, workerId } from '../engine/fixtures';
 import { continent } from '../engine/armyFixtures';
 import { text } from './domText';
 import { failOnActWarnings } from './actWarnings';
@@ -282,7 +282,8 @@ describe("FR-477 nothing lost: the pane's share", () => {
     const s = useGameStore.getState();
     let g = setTreasury(s.game, N1, 0);
     g = setPair(g, N1, N2, { war: { aggressors: [N2], since: 2 } });
-    g = emptyWarehouse(g, N1);
+    // FR-616: an empty warehouse still receives coastal Fish unless freight stops.
+    g = emptyWarehouse(withoutFreight(g, N1), N1);
     const capital = g.map.tiles.flat().find((t) => t.cityId === g.nations[0].cities[0])!;
     useGameStore.setState({ game: g, saveFailed: true, selectedTileId: capital.id });
     act(() => void useGameStore.getState().submitOrder({ kind: 'moveWorker', nationId: N1, workerId: capital.workers[0].id, toTileId: '0-0' }));

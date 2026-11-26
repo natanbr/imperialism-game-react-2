@@ -105,6 +105,7 @@ export const isGreatPowerCapital = (state: GameState, tile: Tile): boolean =>
 
 /** Hills need Compound Steam Engine, swamp Iron Railroad Bridge, mountains Dynamite. */
 export function railTerrainAllowed(state: GameState, tile: Tile): boolean {
+  if (tile.hasRiver && !owns(state, tile.ownerNationId, TECH.ironRailroadBridge)) return false;
   if (isHills(tile)) return owns(state, tile.ownerNationId, TECH.compoundSteamEngine);
   if (tile.terrain === TerrainType.Swamp) return owns(state, tile.ownerNationId, TECH.ironRailroadBridge);
   if (tile.terrain === TerrainType.Mountains) return owns(state, tile.ownerNationId, TECH.dynamite);
@@ -125,12 +126,13 @@ export const isRailNode = (tile: Tile, nationId: string): boolean =>
  */
 export function railSectionStart(state: GameState, nationId: string, to: Tile, named?: Tile): Tile | undefined {
   const network = state.transportNetwork.railroadNetworks?.[nationId];
+  const canStart = (tile: Tile) => isRailNode(tile, nationId) && (!tile.hasRiver || railTerrainAllowed(state, tile));
   if (named) {
-    const joinable = isRailNode(named, nationId) && areTilesAdjacent(state.map, named.x, named.y, to.x, to.y);
+    const joinable = canStart(named) && areTilesAdjacent(state.map, named.x, named.y, to.x, to.y);
     return joinable && !isRailLinked(network, named, to) ? named : undefined;
   }
   if (hasRailLink(network, to)) return undefined;
-  return getAdjacentTiles(state.map, to.x, to.y).find((n) => isRailNode(n, nationId));
+  return getAdjacentTiles(state.map, to.x, to.y).find(canStart);
 }
 
 /**

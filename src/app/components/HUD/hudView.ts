@@ -3,7 +3,6 @@ import {
   adjacentProvinces,
   countryName,
   defenceOf,
-  provinceOf,
   provincesOf,
   strengthIn,
   warBetween,
@@ -17,7 +16,7 @@ import type { WorkerGrade } from "@/types/Industry";
 import type { Tile } from "@/types/Tile";
 import { WorkerStatus } from "@/types/Workers";
 import { strengthText } from "../army/attackView";
-import { commodityName, creditUpkeepText, dateText, money, TERRAIN_TEXT } from "../gameText";
+import { commodityName, creditUpkeepText, dateText, money, placeText, TERRAIN_TEXT } from "../gameText";
 
 export const WORLD_LABEL: Record<WorldId, string> = { continent: "Continent", "two-islands": "Two islands", random: "Random" };
 export const SIZE_LABEL: Record<RandomMapSize, string> = { standard: "Standard", large: "Large" };
@@ -126,12 +125,6 @@ const turnsLeftOf = (turn: number, startedOnTurn: number, durationTurns: number)
 
 /** The worker's nation, else the tile's owner: whose job this is. */
 const jobNationOf = (tile: Tile, workerId: string) => tile.workers.find((w) => w.id === workerId)?.nationId ?? tile.ownerNationId;
-
-/** "3-9 in Testland North-West", as the news names a tile (FR-375); the bare id where there is no province. */
-function placeText(game: GameState, tileId: string): string {
-  const province = provinceOf(game, tileId);
-  return province ? `${tileId} in ${province.name}` : tileId;
-}
 
 /**
  * FR-475: every unfinished job of the nation, development first, then construction (rail, depot, port, fort),

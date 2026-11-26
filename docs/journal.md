@@ -2,9 +2,10 @@
 
 ## Resuming here
 
+- M18d Task 50 on `claude/m18d-terrain` verifies historical checkpoints at write time and preserves tied market bid order. Authored terrain and rivers in the fixed worlds and ordinary refinery Oil remain open. [Task 50 verification](#2026-11-25-task-50--verify-the-saved-replay-checkpoint) · [Task 49 review and handoff](journal/task-49-m18d.md) · [Task 48 gate and screenshots](journal/task-48-m18d.md)
 - M18g on `claude/m18g-screens` in the `imperialism-game-revival-fee36d` worktree adds Stats rankings and history, Trade Book, Garrison Book and two diplomatic map modes. The owner kept Board Details and the human nation as the reference. [Implementation and gate evidence](journal/archive-M18g.md) · [Task 43 review fixes and gate](journal/archive-M18g.md#2026-11-25-task-43--m18g-review-fixes)
 - M18f (human credit, interest, forced sales, signed cash and supply notes) merged at `9d2f9eb` in pull request 52. The inferred credit numbers and FR-609 debt scoring remain open to owner revision. [M18f journal and gate evidence](journal/archive-M18f.md) · [Task 39 report](../.gate/codex/39/report.md) · [Earlier journal archives](journal/)
-- Night shift 2 (2026-11-24): M18d (terrains, resources, fishing) is PARKED on `claude/m18d-terrain` (pushed, not merged) for an owner decision: fishing moves the protected guards (FR-125 1.604 to 1.519, 3 rail dead ends, the two-islands golden, old-save replays); table and options in that branch's `docs/verify-and-tune.md` ("M18d parked"). M18e (seeded random maps, New game options, seed in Stats) built by Codex tasks 32 to 35, reviewed by Sonnet 5.5, gate `.gate/claude/55/` green. Deferred to the owner: the 400-turn historical length (FR-593, FR-594). M18e on `claude/m18e-maps` adds seeded worlds and New game options. To replay the desktop or phone example, choose Random, Large and `Brete`, then copy `2813929771` from Stats. Task 35 fits the whole Large map at laptop sizes. Its before/after screenshots and guard comparison are in `.gate/codex/35/`. M18d terrain is parked. Game length and the historical calendar are deferred.
+- M18e merged at `21ea18b`. Choose Random, Large and `Brete` to replay seed `2813929771`. The 400-turn historical calendar remains an owner decision (FR-593, FR-594).
 - M18 (play-test comfort, `docs/specs/m18-playtest-comfort.md`): M18a merged into main `af24381` (pull request 43), M18b part 1 (FR-563, FR-568, FR-569) in `5e80bab` (pull request 44), part 2 (FR-564 nation colours and flags) in `4098bfe` (pull request 45). NR-037 in progress.
 - M18b part 3 (FR-565, FR-566) merged into main `cd5b1be` (pull request 46); FR-567 into `994a0ca` (pull request 47), partial: the narrower pane is left for the owner; FR-570 (rail) into `751b74b` (pull request 48). Icons wait for the art (spec section 3).
 - M18c (FR-572 to FR-578) merged in `896d1fb` (pull request 49). The three-tab Board of Trade and Trade School evidence is in `.gate/claude/53/`. The owner’s FR-575 decision about moving Details is still open.
@@ -17,36 +18,40 @@
 - Task 19 passed the load trials and full gate on `claude/perf-tests`. Finish future gates with `npm run test:perf` alone. The measured results and six functional logs are indexed in `.gate/codex/19/summary.md`.
 - To play M17 on continent seed 1, set Armaments and Fabric production to 1. Build a Ship-of-the-Line on turn 6, declare and sail on turn 7, set the site on turn 8, and land the four-ARMS army on turn 9. On turn 10 see the survivors at Sundmark and its colony vote in Council.
 
-## 2026-11-24 Task 35 — M18e review fixes
 
-Size M. FR-598 fits the whole grid on opening and adds a final zoom-out step for maps wider than 24 columns or taller than 20 rows.
-The opening camera, buttons, keyboard, wheel and pinch share the limit. New game takes its initial map from `APP_WORLD`. Random generation and version-1 replay use Standard for an unrecognized size.
-Check a 32×20 grid at 1366×768 and 1280×720, the 50% floor, the fixed-map boundary and a hand-edited save.
-Verify the functional, lint, type, build and map browser gates, and compare the original seven NR-038 suites against the Task 32 baseline.
-Objection: using the land bounds could cut off the coast's outer water tiles. Measure the outer edges of all 640 tiles against the space beside the HUD.
+## 2026-11-25 Task 50 — Verify the saved replay checkpoint
 
-| Claim | Command or evidence | Observed result |
-|---|---|---|
-| Reproduced before the fixes | Test commit `6087632` and `.gate/codex/35/playwright-red.log` | Large opened at 100% and clipped 249 px at the left edge. Four cases using `unknown` and `constructor` failed during generation or save replay. |
-| FR-598 whole-grid fit | Both camera suites and seven Playwright specs on port 3123, one worker | “58 passed” and “43 passed”. Large opened with 34 px tiles at 1366×768 and 31 px at 1280×720. Chromium verified all 640 tiles clear the HUD. Screenshot in `.gate/codex/35/fr598-large-map-1366x768.png`. |
-| NR-038 compatibility | Original seven suites and task 33's comparison script against `.gate/codex/32/fixed-baseline.log` | “139 passed”. “All 247 deterministic output and assertion lines match.” FR-125 903/563, FR-545 15/24, FR-546 13/24, FR-497 0/280 changed plans, zero rejections, invariant breaks or idle no-pay disbands, and four identical FR-464 hashes. |
-| Verification at implementation `e1a12f3` | `npm test`, lint, TypeScript, production build, roadmap, isolated performance | “3313 passed”, “0 errors, 2 warnings” (both existing), type check and build exit 0, roadmap “PASS”, performance “3 passed” with p95 13.1 ms over 3,210 turns. Independent review found one stale camera comment, corrected in `1419f3c`. |
+Size M. Check that a compact version-1 save restores the exact historical checkpoint before writing the autosave slot.
+Continue and replay consume this checkpoint. Historical market bid order breaks ties in computer planning.
+FR-357 and FR-587 cover sparse arrays, historical key order, and the Large historical save budget. FR-362 covers malformed root changes.
+Verify with the focused store regressions, functional suite, lint, TypeScript, build, single-worker Playwright on port 3123, isolated performance suite and roadmap checker.
+A full checkpoint costs more storage. The writer uses it when restoration throws or the recovered checkpoint differs from its expected JSON. Comparing the complete JSON strings also catches differences in property order.
 
-## 2026-11-24 Task 34 — New game options and Stats (M18e T-02)
+| Verification | Result |
+|---|---|
+| Tests first, `219a0c9`, run against `84da8fb` | 4 failed and 14 passed. An undefined array element and a hole each made the slot unusable. The synthetic timestamp restored the current value. Equal bids restored in the order `cotton, timber` instead of `timber, cotton`. The final fixtures use a settled turn because turn 1 also exercises legacy replay migration. [Red output](../.gate/codex/50/gate-red-settled.log) |
+| `historicalSaveSize.test.ts` and `persistence.test.ts` | 55/55 passed. Both sparse inputs used a full checkpoint and loaded with `null`. Equal bids retained their order in a compact checkpoint. The reader also refused `null` and `[]` root edits. [Focused output](../.gate/codex/50/gate-focused.log) |
+| Storage and replay | The real historical continent fixture needed 2,370 extra characters at turn 11 and 10,854 at turn 40. The Large random game continued from a historical turn-2 checkpoint used 246,942 characters at turn 40 and 251,943 after final settlement. Both were below 2,000,000. [Measurements](../.gate/codex/50/gate-focused.log) |
+| Direct codec check | 8,450 combinations of additions, removals, reordered fields and nested edits restored identical JSON. The same inputs encoded by `84da8fb` retained their values with the new reader. [Check](../.gate/codex/50/verify-key-order.cjs) · [Output](../.gate/codex/50/key-order.log) |
+| `npm test` | 178 files and 3,511 tests passed in 243.19 seconds. [Functional log](../.gate/codex/50/gate-unit.log) |
+| `npm run lint`, `npx tsc --noEmit`, `npm run build` | All exited 0. ESLint reported the existing unused `capital` in `logisticsSystem.test.ts`. The production build generated four static pages. [Lint](../.gate/codex/50/gate-lint.log) · [Types](../.gate/codex/50/gate-types.log) · [Build](../.gate/codex/50/gate-build.log) |
+| `PORT=3123 npx playwright test --workers=1` | 180/180 passed in 12.7 minutes on Chromium. [Browser log](../.gate/codex/50/gate-browser.log) |
+| `npm run test:perf` | 3/3 passed in isolation after Playwright exited. Computer planning p95 was 12.3 ms over 3,230 turns, within the 100 ms limit. [Performance log](../.gate/codex/50/gate-perf.log) |
+| `node .gate/m12/L4-check-roadmap.cjs` | `PASS` against local `origin/main` at `765fcaa`. [Roadmap log](../.gate/codex/50/gate-roadmap.log) |
 
-Size M. Stage the map, Random size, replay seed and difficulty in the top bar. Read the founding settings from the current game in Stats.
-FR-595 uses the existing seed parser, store start and opening camera. FR-596 covers Random and version-1 saves, including a 400-turn Council game.
-Verify the keyboard and pointer paths, Continue and replay at 1366×768 and 390×844, then compare the original NR-038 guards and run the repository gates.
-Objection: a hidden seed or size could override a fixed-map start. Only visible seed input and Random size may contribute settings.
+Local handoff on `claude/m18d-terrain` in `imperialism-game-revival-fee36d`. The tests precede the implementation. Continue, advance a turn, and reload to exercise the normal browser save path. The task covers local verification only.
 
-| Claim | Command or evidence | Observed result |
-|---|---|---|
-| Tests first | `3f2ad16`, `ui-red.log`, `red-keyboard.log` | 15 failed and 53 passed across four UI suites. The old browser panel had no Map field at the first Tab stop. |
-| Options, Stats and cancellation | New game, Stats and the two existing HUD unit suites | 68/68 passed, including an actual pre-M16 save, omitted settings and a custom 400-turn game. Review strengthened the check that the inline error itself supplies the seed's accessible description. |
-| Replay and fit | Five Playwright specs on port 3123 with one worker, then the final `e2e/m18e-new-game.spec.ts` | 33/33 passed, then 4/4. At 1366×768 and 390×844 the panel stayed within the viewport. Selecting the decimal seed reproduced six capitals, the full founding state, and events and Orders after a consulate order. Continue restored the saved settings. |
-| NR-038 | Original seven suites, then task 33's comparison script against `.gate/codex/32/fixed-baseline.log` | 139/139 passed. All 247 deterministic lines matched. FR-125 minimum 903/563 (1.604×), FR-464 four identical Order hashes, FR-545 15/24, FR-546 13/24, FR-497 0/280 changed plans and zero rejected computer Orders, invariant violations or idle no-pay disbands. |
-| Roadmap | `node .gate/m12/L4-check-roadmap.cjs` | `PASS` after recording M18d and M18e and aligning the two main references with the local `origin/main` merge of PR 50 (`a52d6b4`). |
-| Repository gates at implementation `27593ff` | `npm test`, lint, TypeScript, production build, then `npm run test:perf` alone | 3,305/3,305 tests in 162 files (160.22 s), zero lint errors and two existing warnings, TypeScript and build passed. Performance 3/3 with computer planning p95 12.8 ms across 3,210 turns (100 ms limit). |
+## 2026-11-25 Task 49 — M18d review fixes
+
+Size M. Historical saves retain the original replay position using only differences from the current game. The turn-11 save shrank from 183,728 to 111,446 characters. A completed Large random campaign used 238,671 of the 2,000,000-character budget. The three rail regressions failed when the depot cash check was removed and passed with it restored. [Task 49 measurements, review and gate](journal/task-49-m18d.md)
+
+## 2026-11-25 Task 48 — Fish within the existing loading budget
+
+Size M. Kept the FR-339 limit at 20. The Fish/Coal atlas saved one request and 11,966 bytes from the Task 47 first paint. The new-depot payroll reserve, FR-616 re-records and historical replay changes passed the full gate, including 3,487 functional tests, 180 browser tests and 3 isolated performance tests. The roadmap checker reported PASS. [Task 48 results](journal/task-48-m18d.md) · [Old and new gameplay measurements](verify-and-tune.md#m18d-recorded-results)
+
+## 2026-11-25 Task 47 — new depot payroll reserve
+
+Size M for the scripted-player rule, followed by the existing Task 45 M18d closure package. A field army with four phases of weak world-market trade reserves six payrolls before ordering a new depot. All four fixed-continent games paid the army and fed healthy workers for 40 turns. The score ratio reached 1.533× at its lowest checkpoint, the diplomat won 15/24 games, and the privacy probe changed 0/280 plans. All 72 generated games passed their guards. Only one variant was needed. The full browser suite then found one additional Fish artwork request. FR-339 allows 20, and the page requests 21. The Task 45 stop rule leaves the package awaiting owner review. [Task 47 report](journal/task-47-m18d.md) · [Task 45 and 46 journal entries](journal/archive-M18d.md)
 
 ## 2026-11-24 Task 33 — Seeded random world (M18e T-01)
 

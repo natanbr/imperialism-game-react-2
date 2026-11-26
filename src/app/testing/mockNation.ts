@@ -178,7 +178,6 @@ export function createTwoNationGame(seed = 1): GameState {
         : [];
       return {
         id, x, y, terrain,
-        hasRiver: isCapital,
         resource: fixtureResource(terrain, local, y),
         ownerNationId: nationId,
         cityId: isCapital ? `capital-${nationIndex + 1}` : undefined,

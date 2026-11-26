@@ -62,6 +62,22 @@ describe('FR-125 score acceptance: 40 turns of nation 2 on seeds 1 to 4', () => 
     expect(rows).toEqual(CHECKPOINTS.map(turn => ({ turn, atLeastM4: true, withMargin: true })));
   });
 
+  // FR-616: Fish feeds both players. The new depot route and development reserve change scores.
+  // Scripted/frozen M4 at turns 15, 25 and 40:
+  // Seed 1: 760/451, 903/550, 1643/741 -> 701/445, 936/573, 1485/749.
+  // Seed 2: 751/442, 900/522, 1546/711 -> 693/437, 896/537, 1353/723.
+  // Seed 3: 757/457, 903/563, 1530/756 -> 690/450, 916/578, 1456/742.
+  // Seed 4: 759/441, 903/525, 1637/708 -> 699/436, 944/532, 1511/724.
+  it('FR-125 FR-616 records both scores at each checkpoint', () => {
+    const scores = SEEDS.map(seed => now.get(seed)!.checkpoints.map((c, i) => [c.score, m4.get(seed)!.checkpoints[i].score]));
+    expect(scores).toEqual([
+      [[701, 445], [936, 573], [1485, 749]],
+      [[693, 437], [896, 537], [1353, 723]],
+      [[690, 450], [916, 578], [1456, 742]],
+      [[699, 436], [944, 532], [1511, 724]],
+    ]);
+  });
+
   it('FR-125 no order of nation 2 is refused on any seed', () => {
     expect(SEEDS.map(seed => now.get(seed)!.refused)).toEqual(SEEDS.map(() => 0));
   });
@@ -90,6 +106,18 @@ describe('FR-125 score acceptance: 40 turns of nation 2 on seeds 1 to 4', () => 
     // The invariant can fail: the frozen M4 player lays rail to resource tiles, not to depots, and by turn 40 it
     // ends on a tile with neither on every seed
     expect(SEEDS.map(seed => m4.get(seed)!.checkpoints[2].deadEnds.length > 0)).toEqual(SEEDS.map(() => true));
+  });
+
+  it.each([1, 3, 4])('FR-125 FR-454 seed %i waits for developer cash before starting the depot at 20-10', seed => {
+    const game = now.get(seed)!;
+    const startTurn = game.orders.findIndex(orders => orders[N2].some(order => {
+      if (order.kind === 'startConstruction') return order.structure === 'depot' && order.tileId === '20-10';
+      if (order.kind === 'moveAndStartConstruction') return order.structure === 'depot' && order.toTileId === '20-10';
+      return false;
+    })) + 1;
+    const checkpoint = game.checkpoints.find(c => c.turn === 15)!;
+    // Spending the developers' cash on turn 12 starts the first rail section a turn early, leaving a tip at 18-11.
+    expect({ startTurn, deadEnds: checkpoint.deadEnds }).toEqual({ startTurn: 13, deadEnds: [] });
   });
 
   it('FR-305 two-islands has no provinces, so no Council meets: no council-met in any game, each ends by the turn limit', () => {
@@ -208,13 +236,15 @@ describe('M12 FR-389 FR-405 the scripted transport plan under exact amounts ship
     expect(orders).toContainEqual(expect.objectContaining({ kind: 'moveAndStartConstruction', structure: 'rail', toTileId: '16-12' }));
     const view = applyTurnOrders(s, { [N2]: orders }, () => {}).state;
     // FR-517: 4 -> 3 fruit before the rail, 7 -> 6 afterwards; the ranch adds 0 -> 1 horse to both.
-    expect(collectedAtLogistics(s, N2)).toEqual({ grain: 4, fruit: 3, cotton: 2, horses: 1 });
-    expect(collectedAtLogistics(view, N2)).toEqual({ grain: 5, fruit: 6, cotton: 5, timber: 2, horses: 1 });
-    // the first plan, made before the civilians, sees only the 2 cotton of the capital; the final plan ships 1 more
-    expect(ofKind(orders, 'setTransportAllocations')[0].allocations).toEqual({ livestock: 1, cotton: 2 });
+    // FR-616: the capital catch adds Fish 0 -> 1 before and after the rail joins the depot.
+    expect(collectedAtLogistics(s, N2)).toEqual({ grain: 4, fruit: 3, cotton: 2, horses: 1, fish: 1 });
+    expect(collectedAtLogistics(view, N2)).toEqual({ grain: 5, fruit: 6, cotton: 5, timber: 2, horses: 1, fish: 1 });
+    // FR-616: Fish supplies protein. Both plans change livestock from an explicit allocation of 1 to automatic.
+    // The opening plan still requests two cotton and the completed rail lets the final plan request three.
+    expect(ofKind(orders, 'setTransportAllocations')[0].allocations).toEqual({ cotton: 2 });
     const final: Order[] = [];
     planFinalTransport(s, view, N2, o => (final.push(o), true));
-    expect(final).toEqual([{ kind: 'setTransportAllocations', nationId: N2, allocations: { livestock: 1, cotton: 3 } }]);
+    expect(final).toEqual([{ kind: 'setTransportAllocations', nationId: N2, allocations: { cotton: 3 } }]);
   });
 });
 

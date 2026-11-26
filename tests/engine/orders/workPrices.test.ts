@@ -113,6 +113,7 @@ describe('FR-029 work prices - every worker type that costs money', () => {
 
   it.each(developmentCases)('deducts level 1 cost for $type', ({ type, terrain, resource }) => {
     const state = makeBaseState();
+    delete state.technologyState;
     state.nations[0].technologies = ['oilDrilling'];
     const base = state.map.tiles.flat().find(t => t.terrain !== TerrainType.Water && t.terrain !== TerrainType.River)!;
     state.map.tiles[base.y][base.x] = { ...base, terrain, resource: { type: resource, level: 0, discovered: true }, workers: [] };

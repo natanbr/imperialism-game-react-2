@@ -10,9 +10,10 @@ import { EngineerBuildDurationsTurns, WorkerLevelDurationsTurns } from "@/defini
 import { findWorker, nationById, nextResourceLevel, treasuryOf, workersOf, type WorkerLocation } from "../orders/queries";
 import { validateOrder } from "../orders/validate";
 import { bestDepotSite, nextRailSections, pendingRailTiles, tilesByReach, type DepotSite } from "./railPlan";
-import { planEconomy, planFinalTransport, turnsAfter } from "./economy";
+import { developerReserve, planEconomy, planFinalTransport, turnsAfter } from "./economy";
 import { scriptedDiplomacyOrders } from "./diplomacy";
 import { upkeepReserve } from "./scriptedArmy";
+import { upkeepOf } from "../army/armies";
 import { coastalDefenceOrder } from "./navalDefence";
 import { planWarDeclaration, planWarMoves } from "./scriptedWar";
 
@@ -156,8 +157,12 @@ function engineerOrders(view: GameState, nationId: string, workerId: string, sta
     ({ fromTileId, toTileId }): Order => ({ kind: "moveAndStartConstruction", nationId, workerId, toTileId, structure: "rail", fromTileId })
   );
   if (rail.length > 0) return rail;
-  const building = view.map.tiles.flat().some((t) => t.ownerNationId === nationId && t.constructionJob?.kind === "depot");
-  if (building) return [];
+  const own = view.map.tiles.flat().filter((t) => t.ownerNationId === nationId);
+  if (own.some((t) => t.constructionJob?.kind === "depot")) return [];
+  const reserve = upkeepOf(view, nationId) === 0
+    ? developerReserve(own, nationId)
+    : upkeepReserve(view, nationId, 0, "depot");
+  if (treasuryOf(view, nationId) < CONSTRUCTION_COST.depot + reserve) return [];
   const site = bestDepotSite(view, nationId);
   if (!site || !depotPaysBack(view, site)) return [];
   if (site.tileId === standingOn) return [{ kind: "startConstruction", nationId, workerId, tileId: site.tileId, structure: "depot" }];

@@ -3,12 +3,14 @@ import { GameMap } from "@/types/Map";
 import { Tile, TerrainType, Resource } from "@/types/Tile";
 import { ResourceType } from "@/types/Resource";
 import { ProspectorDiscoveryDurationTurns } from "@/definisions/workerDurations";
+import { DRILLING_TERRAINS } from "@/definisions/terrainDefinitions";
 import { MINERAL_RESOURCES } from "@/definisions/resourceDefinitions";
 import type { ConstructionKind } from "@/types/jobs/ConstructionJob";
 import type { Rng } from "../rng";
 import type { TurnContext } from "../turn/context";
 import { parseTileIdToArray } from "@/utils/tileIdUtils";
 import { addRailroad, addDepot, addPort, initializeRailroadNetworks } from "./railroadSystem";
+import { provinceById, startOwnerOf } from "../world/provinces";
 
 const coordsOf = (tileId: string) => {
   const [x, y] = parseTileIdToArray(tileId);
@@ -60,7 +62,7 @@ const runNationDevelopmentPhase = (state: GameState, ctx: TurnContext, finished:
   const { nextTurn, rng } = ctx;
   const tiles: Tile[][] = state.map.tiles.map(row => row.map(tile => {
     let t: Tile = tile;
-    t = resolveProspectingOnTile(t, nextTurn, rng);
+    t = resolveProspectingOnTile(state, t, nextTurn, rng);
     t = resolveDevelopmentJobOnTile(t, nextTurn);
     t = resolveConstructionJobOnTile(t, nextTurn);
     reportCompletions(tile, t, ctx, finished);
@@ -85,40 +87,26 @@ const reportCompletions = (before: Tile, after: Tile, ctx: TurnContext, finished
   }
 };
 
-const discoverResourceOnTile = (tile: Tile, rng: Rng): Resource | undefined => {
-    if (tile.resource) {
-        return { ...tile.resource, discovered: true };
-    }
-
-    let resourceType: ResourceType;
-    switch (tile.terrain) {
-        case TerrainType.BarrenHills:
-        case TerrainType.Mountains:
-            const minerals = MINERAL_RESOURCES.filter(r => r !== ResourceType.Gold && r !== ResourceType.Gems);
-            resourceType = minerals[Math.floor(rng.next() * minerals.length)];
-            break;
-        case TerrainType.Swamp:
-        case TerrainType.Desert:
-        case TerrainType.Tundra:
-            resourceType = ResourceType.Oil;
-            break;
-        default:
-            return undefined;
-    }
-
-    return {
-        type: resourceType,
-        level: 0,
-        discovered: true,
-    };
-};
-
-const resolveProspectingOnTile = (tile: Tile, nextTurn: number, rng: Rng): Tile => {
-  if (tile.prospecting && (nextTurn - tile.prospecting.startedOnTurn) >= ProspectorDiscoveryDurationTurns) {
-    return { ...tile, resource: discoverResourceOnTile(tile, rng), prospecting: undefined };
+function surveyDeposit(state: GameState, tile: Tile, rng: Rng): Resource | undefined {
+  const possible: (ResourceType | undefined)[] = [undefined];
+  if (DRILLING_TERRAINS.includes(tile.terrain)) possible.push(ResourceType.Oil);
+  if (tile.terrain === TerrainType.BarrenHills) {
+    possible.push(ResourceType.Coal, ResourceType.IronOre);
   }
-  return tile;
-};
+  if (tile.terrain === TerrainType.Mountains) {
+    const province = tile.provinceId && provinceById(state, tile.provinceId);
+    const minorOrigin = province && state.minorNations.some(minor => minor.id === startOwnerOf(province));
+    possible.push(...MINERAL_RESOURCES.filter(type => type !== ResourceType.Gems || minorOrigin));
+  }
+  const type = possible[Math.floor(rng.next() * possible.length)];
+  return type && { type, level: 0, discovered: true };
+}
+
+function resolveProspectingOnTile(state: GameState, tile: Tile, nextTurn: number, rng: Rng): Tile {
+  if (!tile.prospecting || nextTurn - tile.prospecting.startedOnTurn < ProspectorDiscoveryDurationTurns) return tile;
+  if (tile.resource) return { ...tile, resource: { ...tile.resource, discovered: true }, prospecting: undefined };
+  return { ...tile, resource: surveyDeposit(state, tile, rng), prospected: true, prospecting: undefined };
+}
 
 const resolveDevelopmentJobOnTile = (tile: Tile, nextTurn: number): Tile => {
   const job = tile.developmentJob;

@@ -11,7 +11,9 @@ import { artFileOf, goodsArt } from '@/components/art/inkArt';
 import { commodityName } from '@/components/gameText';
 import { useGameStore } from '@/store/rootStore';
 import { newGame } from '@/engine';
+import { isOcean } from '@/engine/map/mapHelpers';
 import type { GameState } from '@/types/GameState';
+import { TerrainType } from '@/types/Tile';
 import { GoodsType, MaterialType, ResourceType, type WarehouseCommodities } from '@/types/Resource';
 import { setTile, tileAt } from '../engine/fixtures';
 import { failOnActWarnings } from './actWarnings';
@@ -20,9 +22,9 @@ import { text } from './domText';
 failOnActWarnings();
 
 const ALL = [...Object.values(ResourceType), ...Object.values(MaterialType), ...Object.values(GoodsType)];
-/** Seed 1, nation 1: the capital 2-9 and its tiles deliver grain 4, fruit 4 and cotton 2 a turn. */
-// FR-607: formerly all rows in an active group; now unsourced Fish, Wool and Oil are omitted individually.
-const START_KEYS = ['grain', 'livestock', 'fruit', 'cotton', 'timber', 'coal', 'ironOre'];
+// FR-616: the adjacent fishing ground adds Fish after Fruit. Food has 3 -> 4 rows,
+// the opening popup 7 -> 8, and the horse fixture 10 -> 11. Unsourced Wool and Oil stay hidden.
+const START_KEYS = ['grain', 'livestock', 'fruit', 'fish', 'cotton', 'timber', 'coal', 'ironOre'];
 
 function show(game: GameState = newGame({ seed: 1 })) {
   useGameStore.setState({ ...useGameStore.getInitialState(), game, activeNationId: 'nation-1' });
@@ -31,10 +33,14 @@ function show(game: GameState = newGame({ seed: 1 })) {
 const dialog = () => screen.getByRole('dialog', { name: 'Transportation of Commodities' });
 const shownRows = () => [...dialog().querySelectorAll('[data-testid^="transport-row-"]')].map(r => r.getAttribute('data-testid')!.replace('transport-row-', ''));
 const shownGroups = () => within(dialog()).queryAllByRole('region').map(s => s.getAttribute('aria-label'));
-/** Nation 1's tiles without a resource: nothing to ship at all. */
+/** Dry land around the capital with no resources or fishing grounds. */
 const bareGame = () => {
   const s = newGame({ seed: 1 });
-  return { ...s, map: { ...s.map, tiles: s.map.tiles.map(row => row.map(t => (t.ownerNationId === 'nation-1' ? { ...t, resource: undefined } : t))) } };
+  const tiles = s.map.tiles.map(row => row.map(t => {
+    if (isOcean(t)) return { ...t, terrain: TerrainType.DryPlains };
+    return t.ownerNationId === 'nation-1' ? { ...t, resource: undefined, hasRiver: false } : t;
+  }));
+  return { ...s, map: { ...s.map, tiles } };
 };
 /** Horses (level 0 gives 1 a turn) on 3-9, next to nation 1's capital. */
 const withHorses = () => {
@@ -87,8 +93,8 @@ describe('FR-141 FR-142 what the popup lists', () => {
     expect(shownGroups()).toEqual(['Food', 'Raw materials']);
     expect(shownRows()).toEqual(START_KEYS);
     for (const key of ['horses', 'steel', 'clothing', 'paper', 'cannedFood', 'fuel', 'armaments']) expect(screen.queryByTestId(`transport-row-${key}`), key).toBeNull();
-    // FR-607: previously "Auto: 0" in a visible group, now absent until collected or explicitly allocated.
-    for (const name of ['Fish', 'Wool', 'Oil']) expect(screen.queryByRole('slider', { name })).toBeNull();
+    expect(text(screen.getByTestId('transport-row-fish'))).toBe('Fish Auto: 1');
+    for (const name of ['Wool', 'Oil']) expect(screen.queryByRole('slider', { name })).toBeNull();
   });
 
   it('FR-142 a group appears as soon as one of its commodities has something to ship', () => {

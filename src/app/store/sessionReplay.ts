@@ -11,7 +11,7 @@ export interface ReplayBoundary {
   appliedOrders: number;
   /** Present before national technology purchases existed. Shared permissions never changed during those games. */
   sharedTechnology?: TechnologyState;
-  /** When original orders reproduce a different game under Q145, later orders replay from the old game's saved position. */
+  /** When rules change the result of earlier orders, replay later orders from the position the player saved. */
   checkpoint?: GameState;
 }
 
@@ -31,7 +31,7 @@ export function withCurrentRules(state: GameState): GameState {
       ...(marine && { merchantMarine: { ...marine, ships: shipsOf(marine), holds: cargoHolds(marine) } }),
     };
   });
-  return { ...game, fleets: game.fleets ?? [], rulesRevision: "m16.1", nations };
+  return { ...game, fleets: game.fleets ?? [], rulesRevision: game.rulesRevision ?? "m16.1", nations };
 }
 
 function applyHumanOrders(state: GameState, orders: readonly Order[], historical = false): GameState {
@@ -88,7 +88,7 @@ export function replaySession(session: GameSession): GameState {
 
 export function usedM17CombatRules(session: GameSession): boolean {
   if (session.game.worldId !== "continent") return false;
-  if (session.replayBoundary?.checkpoint || session.game.fleets?.length) return true;
+  if (session.game.fleets?.length) return true;
   const movers = new Map<string, string>();
   const entries = [...session.orderLog, { turn: session.game.turn, orders: session.ordersThisTurn }];
   for (const { turn, orders } of entries) {
@@ -111,10 +111,14 @@ const gameJson = (state: GameState) => JSON.stringify(state, (_key, value: unkno
     ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0))
     : value);
 
-export function m17ReplayBoundary(session: GameSession): ReplayBoundary | undefined {
-  if (session.replayBoundary?.checkpoint) return session.replayBoundary;
+export function replayBoundaryForSave(session: GameSession): ReplayBoundary | undefined {
   try {
-    if (gameJson(replaySession(session)) === gameJson(session.game)) return session.replayBoundary;
+    const start = session.replayBoundary?.checkpoint?.turn ?? 1;
+    // Settling even one turn under fishing changes the rules revision of a historical campaign.
+    // Only a same-turn replay can still match this save and preserve an earlier boundary.
+    if (session.game.turn === start && gameJson(replaySession(session)) === gameJson(session.game)) {
+      return session.replayBoundary;
+    }
   } catch {
     // A formerly accepted sequence may no longer replay. Keep the authoritative position the player saved.
   }

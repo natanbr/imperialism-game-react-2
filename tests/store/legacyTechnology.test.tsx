@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { join } from 'node:path';
 import { gunzipSync } from 'node:zlib';
 import { render, within } from '@testing-library/react';
@@ -26,7 +27,7 @@ function load(serialized: string) {
 const ranchers = (state: SavedGame['game']) => state.map.tiles.flat().flatMap(tile => tile.workers)
   .filter(worker => worker.nationId === 'nation-1' && worker.type === WorkerType.Rancher);
 
-it('FR-100 FR-520 builds a save under pre-M16 rules, matches the independent de20eca capture, loads and replays it', () => {
+it('FR-100 FR-520 FR-616 pins the original pre-M16 save and the same production, training and oil orders with fishing', () => {
   const original: SavedGame = JSON.parse(raw);
   const initial = newGame({ seed: 1, world: 'two-islands' });
   const store = createGameStore({ game: {
@@ -46,16 +47,27 @@ it('FR-100 FR-520 builds a save under pre-M16 rules, matches the independent de2
   const historical = { ...built };
   delete historical.rankHistory;
   const encoded = JSON.stringify(historical, (key, value) => key === 'legacyOilSupply' ? undefined : value);
-  expect(JSON.parse(encoded)).toEqual(original);
+  const digest = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
+  // FR-616: two turns of fishing change freight and stock in the otherwise identical v1 order sequence.
+  // e07b340d145b28e2cb02b3c5d81f34de4a1b85747959af5be6e76d21acf73883 -> ef0ac9668522d86b901b59a634d070fdf926786de2a14af622ae3ef21c45cffb.
+  expect(digest(original)).toBe('e07b340d145b28e2cb02b3c5d81f34de4a1b85747959af5be6e76d21acf73883');
+  const withFishing = JSON.parse(encoded);
+  expect(digest(withFishing)).toBe('ef0ac9668522d86b901b59a634d070fdf926786de2a14af622ae3ef21c45cffb');
+  // FR-616: both nations landed one Fish per turn. Only those two warehouse entries change in de20eca's capture.
+  expect(original.game.nations.map(nation => nation.warehouse.fish)).toEqual([0, 0]);
+  for (const nation of original.game.nations) nation.warehouse.fish = 2;
+  expect(withFishing).toEqual(original);
   const loaded = load(encoded);
   expect(replaySession(loaded)).toEqual(loaded.game);
 });
 
-it.each([['pre-M16', raw], ['M16 checkpoint resave', resaved]])('FR-100 FR-520 replays %s recruitment and mid-turn oil bid through Continue and a second save', (_, serialized) => {
+it.each([['pre-M16', raw], ['M16 checkpoint resave', resaved]])('FR-100 FR-520 FR-616 replays %s recruitment and mid-turn oil bid through Continue and a second save', (_, serialized) => {
   const saved = load(serialized);
   const store = createGameStore({ seed: 99 });
   store.getState().restoreGame(saved);
   expect(ranchers(saved.game)).toHaveLength(2);
+  // FR-616: fishing changes earlier freight. Replay from turn 1 -> turn 3, after the one paid oil order.
+  expect(saved.replayBoundary).toEqual({ turn: 3, appliedOrders: 1, checkpoint: saved.game });
   const replayed = replaySession(saved);
   expect(ranchers(replayed)).toHaveLength(2);
   expect(replayed).toEqual(saved.game);
@@ -64,13 +76,17 @@ it.each([['pre-M16', raw], ['M16 checkpoint resave', resaved]])('FR-100 FR-520 r
   expect(store.getState().submitOrder({kind: 'buyTechnology', nationId, techId: 'feedGrasses'})).toEqual({ok: true});
   store.getState().advanceTurn();
   const continued = load(JSON.stringify(saveOf(store.getState())));
+  expect(continued.replayBoundary).toEqual(saved.replayBoundary);
   expect(replaySession(continued)).toEqual(continued.game);
 });
 
-it('FR-100 preserves a rejected computer attempt in pre-M16 history when the same order is valid today', () => {
-  const save = load(raw);
-  const computer = save.orderLog.find(entry => entry.turn === 1 && entry.nationId === 'nation-2')!;
+it('FR-100 FR-616 preserves a rejected computer attempt in pre-M16 history when the same order is valid today', () => {
+  const original: SavedGame = JSON.parse(raw);
+  const computer = original.orderLog.find(entry => entry.turn === 1 && entry.nationId === 'nation-2')!;
   computer.orders.unshift({ kind: 'buyTechnology', nationId: computer.nationId, techId: 'cottonGin' });
+  // FR-616: the turn-1 attempt remains in the log. Replay start 1 -> 3 preserves its historical outcome.
+  const save = load(JSON.stringify(original));
+  expect(save.orderLog).toEqual(original.orderLog);
   expect(replaySession(save)).toEqual(save.game);
 });
 

@@ -8,6 +8,7 @@ import { Tile } from "@/types/Tile";
 import { RailroadNetwork } from "@/types/Transport";
 import { parseTileIdToArray } from "@/utils/tileIdUtils";
 import type { TurnSystem } from "../turn/context";
+import { getAdjacentTiles, isOcean } from "../map/mapHelpers";
 
 /**
  * What the logistics phase ships of what the hubs collected (FR-389, card Q80): the plan holds per commodity either a
@@ -125,6 +126,31 @@ export function collectingHub(state: GameState, nationId: string, tileId: string
   return hubOf(state.map, nationId, hubsOf(state.transportNetwork.railroadNetworks?.[nationId]), tile);
 }
 
+/** A shared fishing hex supplies one unit per nation, even when two ports can reach it. */
+function fishingGrounds(map: GameMap, nationId: string, hubs: readonly CollectingHub[], closedPorts: readonly string[] = []): Map<string, CollectingHub> {
+  const grounds = new Map<string, CollectingHub>();
+  for (const hub of hubs) {
+    if (hub.kind === "depot" || closedPorts.includes(hub.tileId)) continue;
+    const [x, y] = parseTileIdToArray(hub.tileId);
+    const site = map.tiles[y][x];
+    // Custom maps can name a Fish resource directly, including on the port tile itself.
+    if (site.ownerNationId === nationId && site.resource?.type === ResourceType.Fish && !grounds.has(site.id)) grounds.set(site.id, hub);
+    for (const tile of getAdjacentTiles(map, x, y)) {
+      const inland = tile.ownerNationId === nationId && (tile.hasRiver || tile.resource?.type === ResourceType.Fish);
+      if ((isOcean(tile) || inland) && !grounds.has(tile.id)) grounds.set(tile.id, hub);
+    }
+  }
+  return grounds;
+}
+
+export function fishingGroundsOf(map: GameMap, nationId: string, network?: RailroadNetwork): ReadonlyMap<string, CollectingHub> {
+  return fishingGrounds(map, nationId, hubsOf(network), network?.closedFishingPorts);
+}
+
+export function collectingFishHub(state: GameState, nationId: string, tileId: string): CollectingHub | undefined {
+  return fishingGroundsOf(state.map, nationId, state.transportNetwork.railroadNetworks?.[nationId]).get(tileId);
+}
+
 export const computeLogisticsTransport = (
   map: GameMap,
   nationId: string,
@@ -132,13 +158,15 @@ export const computeLogisticsTransport = (
 ): Record<string, number> => {
   const hubs = hubsOf(network);
   const transported: Record<string, number> = {};
+  const fish = fishingGrounds(map, nationId, hubs, network?.closedFishingPorts);
   for (const t of map.tiles.flat()) {
     if (!hubOf(map, nationId, hubs, t)) continue;
     const res = t.resource;
-    if (!res) continue;
+    if (!res || res.type === ResourceType.Fish) continue;
     const amount = ResourceDevelopmentTable[res.type]?.[res.level] ?? 0;
     if (amount <= 0) continue;
     transported[res.type] = (transported[res.type] ?? 0) + amount;
   }
+  if (fish.size) transported[ResourceType.Fish] = fish.size;
   return transported;
 };

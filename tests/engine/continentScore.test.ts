@@ -222,15 +222,21 @@ describe('FR-260 (replaces FR-157) the continent plays: 40 turns, nation 2 scrip
     // seed 1: 225 -> 250 (11,12,20,25,32,35); seed 2: 175 -> 200 (11,12,20,24);
     // seed 3: 200 -> 225 (11,12,20,24,35); seed 4: 175 -> 200 (11,12,26,39).
     expect(SEEDS.map(seed => ({ seed, upkeep: games.get(seed)!.first.upkeep, noPay: games.get(seed)!.first.noPay }))).toEqual([
-      { seed: 1, upkeep: UPKEEP([[100, 11], [125, 1], [150, 8], [175, 5], [200, 7], [225, 3], [250, 5]]), noPay: 0 },
-      { seed: 2, upkeep: UPKEEP([[100, 11], [125, 1], [150, 8], [175, 4], [200, 16]]), noPay: 0 },
-      { seed: 3, upkeep: UPKEEP([[100, 11], [125, 1], [150, 8], [175, 4], [200, 11], [225, 5]]), noPay: 0 },
-      { seed: 4, upkeep: UPKEEP([[100, 11], [125, 1], [150, 14], [175, 13], [200, 1]]), noPay: 0 },
+      // FR-616: Fish and reserving payroll before a depot change recruiting and campaign battles.
+      // Seed 1 [upkeep, turns] [[100,11],[125,1],[150,8],[175,5],[200,7],[225,3],[250,5]] -> [[100,11],[125,1],[150,10],[175,1],[200,12],[225,5]].
+      { seed: 1, upkeep: UPKEEP([[100, 11], [125, 1], [150, 10], [175, 1], [200, 12], [225, 5]]), noPay: 0 },
+      // FR-616: Fish changes recruiting and campaign battles. [Upkeep, turns] [[100, 11], [125, 1], [150, 8], [175, 4], [200, 16]] -> [[100, 11], [125, 1], [150, 9], [175, 19]].
+      { seed: 2, upkeep: UPKEEP([[100, 11], [125, 1], [150, 9], [175, 19]]), noPay: 0 },
+      // FR-616: Seed 3 [[100,11],[125,1],[150,8],[175,4],[200,11],[225,5]] -> [[100,11],[125,1],[150,10],[175,1],[200,17]].
+      { seed: 3, upkeep: UPKEEP([[100, 11], [125, 1], [150, 10], [175, 1], [200, 17]]), noPay: 0 },
+      // FR-616: Seed 4 [[100,11],[125,1],[150,14],[175,13],[200,1]] -> [[100,11],[125,1],[150,9],[175,4],[200,12],[225,3]].
+      { seed: 4, upkeep: UPKEEP([[100, 11], [125, 1], [150, 9], [175, 4], [200, 12], [225, 3]]), noPay: 0 },
     ]);
     const capitalArms = (s: GameState) => forceSize(s.armies.find(a => a.ownerId === N2 && a.provinceId === 'province-nation-2-sw') ?? { regiments: [] });
     expect(SCRIPTED_GARRISON.capitalArms).toBe(4);
+    // FR-616: changed campaign forces leave [4,4,4,4] -> [4,7,4,4] arms at home.
     // FR-518: different recruiting and campaign dates change the old capital counts [4,7,4,7].
-    expect(SEEDS.map(seed => capitalArms(games.get(seed)!.first.final))).toEqual([4, 4, 4, 4]);
+    expect(SEEDS.map(seed => capitalArms(games.get(seed)!.first.final))).toEqual([4, 7, 4, 4]);
   });
 
   /** Nation 2's turn-40 score of each seed in one game kind. */
@@ -255,7 +261,9 @@ describe('FR-260 (replaces FR-157) the continent plays: 40 turns, nation 2 scrip
     // provinces now earn zero. Seeds 2 and 4 conquered no land and their scores stay the same.
     // FR-518: [1363,1352,1367,1430] before ranches and fleets. All four buy an Indiaman on turn 12.
     // Ship materials compete with factory expansion, changing production and the campaign's timing.
-    expect(scores('first')).toEqual([1159, 1225, 1207, 1222]);
+    // FR-616: Fish and the depot payroll reserve change production and the armed campaign.
+    // Scores [1159,1225,1207,1222] -> [1207,1225,1317,1330].
+    expect(scores('first')).toEqual([1207, 1225, 1317, 1330]);
   });
 
   it('FR-260 FR-215 FR-518 pins the army-less continent and protected two-islands turn-40 scores', () => {
@@ -265,9 +273,14 @@ describe('FR-260 (replaces FR-157) the continent plays: 40 turns, nation 2 scrip
       points: { treasury: Math.floor(treasury / 100), industry: capacity * 10, development: developedLevels * 10, workInProgress: 0 },
       total,
     });
+    // FR-616: fishing shifts investment (treasury, capacity, development levels, score).
+    // Seed 1: (10012, 80, 53, 1430) -> (6642, 88, 56, 1506).
+    // Seed 2: (9787, 76, 57, 1427) -> (9463, 76, 57, 1424).
+    // Seed 3: (11835, 80, 56, 1478) -> (9281, 84, 57, 1502).
+    // Seed 4: (10716, 80, 55, 1457) -> (9664, 88, 56, 1536).
     expect(SEEDS.map(seed => games.get(seed)!.bare.turns[N2][TURNS - 1].score)).toEqual([
-      bareScore(10012, 80, 53, 1430), bareScore(9787, 76, 57, 1427),
-      bareScore(11835, 80, 56, 1478), bareScore(10716, 80, 55, 1457),
+      bareScore(6642, 88, 56, 1506), bareScore(9463, 76, 57, 1424),
+      bareScore(9281, 84, 57, 1502), bareScore(9664, 88, 56, 1536),
     ]);
     // M12 strategy C re-record (FR-454 to FR-457, the FR-125 margin): 1493, 1496, 1490, 1476 -> 1551, 1591, 1592, 1522
     // M12 FR-459 re-record: 1551, 1591, 1592, 1522 -> 1590, 1546, 1524, 1655 (FR-125's turn-40 numbers). Every seed first
@@ -278,14 +291,16 @@ describe('FR-260 (replaces FR-157) the continent plays: 40 turns, nation 2 scrip
     // waits until the cash above the reserve pays for it; seeds 1 and 3 end higher (+53, +6), seed 4 lower (-18: 3 experts
     // at turn 40, not 5), seed 2 is unchanged. Accepted: the engineer is no longer kept from a rail section for want of
     // cash (two-islands seeds 7 and 15 joined the depot 20-2 a turn late), and the lowest FR-125 ratio rose from 1.51 to 1.60
-    expect(scores('twoIslands')).toEqual([1643, 1546, 1530, 1637]);
+    // FR-616: fishing and the new depot route move [1643,1546,1530,1637] -> [1485,1353,1456,1511].
+    expect(scores('twoIslands')).toEqual([1485, 1353, 1456, 1511]);
     console.log('FR-260 nation 2 score at turn 40, continent with the start army / without / two-islands:', JSON.stringify(SEEDS.map((seed, i) => [seed, scores('first')[i], scores('bare')[i], scores('twoIslands')[i]])));
   });
 
   it('FR-305 FR-510 each FR-260 game holds four meetings and elects its winner in Winter 1824', () => {
     const meetings = (game: Game) => game.councils.map(c => [c.turn, c.year, c.winnerId ?? null]);
     // FR-501/502: four turn-limit endings -> four Council winners. The three earlier ballots still have no winner.
-    const winners = [N2, N1, N2, N1];
+    // FR-616: changed conquests and minor ballots move winners [N2,N1,N2,N1] -> [N2,N2,N1,N1].
+    const winners = [N2, N2, N1, N1];
     expect(SEEDS.map(seed => meetings(games.get(seed)!.first))).toEqual(winners.map(id => [[10, 1817, null], [20, 1819, null], [30, 1822, null], [40, 1824, id]]));
     expect(SEEDS.map(seed => games.get(seed)!.first.final.gameOver!.reason)).toEqual(['council', 'council', 'council', 'council']);
     expect(SEEDS.map(seed => games.get(seed)!.twoIslands.councils)).toEqual(SEEDS.map(() => []));
@@ -329,12 +344,20 @@ describe('FR-260 (replaces FR-157) the continent plays: 40 turns, nation 2 scrip
     // FR-518: Arvelia falls on turns 27,26,26 for seeds 1–3. Seeds 1 and 3 also take Testland
     // North-East on turn 39. Seed 4 takes neither; standing gives Testland the four free minors.
     const afterColony = count(30, [4, 0, 0, 0, 4], [4, 1, 0, 0, 5], ['province-minor-2', 'province-minor-3', 'province-minor-4']);
-    const lateConquest = count(40, [3, 0, 0, 3, 6], [5, 1, 0, 0, 6], []);
+    // FR-616: Fish changes the campaign's timing. At turn 30 the Arvelian colony moves
+    // from seeds [1,2,3] -> [1,3,4]. The other free minors abstain.
+    // Turn 40, Testland/Valdoria (controlled, colonies, other GPs, free minors, total):
+    // seed 3 [3,0,0,3,6]/[5,1,0,0,6] -> [4,0,0,3,7]/[4,1,0,0,5].
+    // Seed 2 [4,0,0,3,7]/[4,1,0,0,5] -> [4,0,0,0,4]/[4,0,0,4,8].
+    // seed 4 [4,0,0,4,8]/[4,0,0,0,4] -> [4,0,0,3,7]/[4,1,0,0,5].
+    const testlandWins = count(40, [4, 0, 0, 3, 7], [4, 1, 0, 0, 5], []);
+    const valdoriaWins = count(40, [4, 0, 0, 0, 4], [4, 0, 0, 4, 8], []);
+    const tied = count(40, [3, 0, 0, 3, 6], [5, 1, 0, 0, 6], []);
     expect(SEEDS.map(seed => columns(games.get(seed)!.first))).toEqual([
-      [fourToFour(10), fourToFour(20), afterColony, lateConquest],
-      [fourToFour(10), fourToFour(20), afterColony, count(40, [4, 0, 0, 3, 7], [4, 1, 0, 0, 5], [])],
-      [fourToFour(10), fourToFour(20), afterColony, lateConquest],
-      [fourToFour(10), fourToFour(20), fourToFour(30), count(40, [4, 0, 0, 4, 8], [4, 0, 0, 0, 4], [])],
+      [fourToFour(10), fourToFour(20), afterColony, tied],
+      [fourToFour(10), fourToFour(20), fourToFour(30), valdoriaWins],
+      [fourToFour(10), fourToFour(20), afterColony, testlandWins],
+      [fourToFour(10), fourToFour(20), afterColony, testlandWins],
     ]);
   });
 
