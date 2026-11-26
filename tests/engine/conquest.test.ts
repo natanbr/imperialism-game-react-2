@@ -10,7 +10,7 @@ import type { Order } from '@/engine/orders/Order';
 import { resolveTurn } from '@/engine/turn/resolveTurn';
 import { createTurnContext, type GameEvent } from '@/engine/turn/context';
 import { combatSystem } from '@/engine/systems/combatSystem';
-import { addDepot, addRailroad } from '@/engine/systems/railroadSystem';
+import { addDepot, addPort, addRailroad } from '@/engine/systems/railroadSystem';
 import { migrantCap } from '@/engine/industry/industryState';
 import { scoreTable } from '@/engine/score/score';
 import { getNeighborCoords } from '@/engine/map/mapHelpers';
@@ -80,6 +80,31 @@ function northWestUndefended(): GameState {
 }
 
 describe('FR-222 a taken province', () => {
+  it.each([true, false])('FR-620 settles a captured town for the new owner with an independent route present = %s', route => {
+    let state = northWestUndefended();
+    // Facing Arvelia across this border, the captured seat can use a port outside the conquered land.
+    state = { ...state, provinces: state.provinces.map(p => p.id === NW2 ? { ...p, seatTileId: '14-3' } : p) };
+    if (route) state = addPort(setTile(state, '13-3', { port: true }), N1, tileAt(state, '13-3'));
+    const oldProgress = { ownerId: N2, connectedSettlements: 6, matured: { wood: 2, textile: 0, metal: 0 },
+      upgradeSettlements: { wood: 1, textile: 0, metal: 0 } };
+    state = { ...state, townProgress: { [NW2]: oldProgress } };
+    const captured = resolveTurn(state, { [N1]: [attack(N1, [R1], ARVELIA_P, NW2)] });
+    expect(captured.events).toContainEqual({ type: 'province-taken', nationId: N1, provinceId: NW2, fromId: N2 });
+    const progress = captured.state.townProgress?.[NW2];
+    if (route) expect(progress).toMatchObject({ ownerId: N1, connectedSettlements: 1, matured: { wood: 0 } });
+    else expect(progress).toBeUndefined();
+    expect(state.townProgress?.[NW2]).toEqual(oldProgress);
+  });
+
+  it('FR-620 clears growth on each transfer even when a town returns to its old owner before settlement', () => {
+    const growth = { ownerId: N2, connectedSettlements: 6, matured: { wood: 1, textile: 0, metal: 0 },
+      upgradeSettlements: { wood: 1, textile: 0, metal: 0 } };
+    const state = { ...continent(), townProgress: { [NW2]: growth, [NE2]: growth } };
+    expect(transferProvince(state, NW2, N2).townProgress).toEqual(state.townProgress);
+    const returned = transferProvince(transferProvince(state, NW2, N1), NW2, N2);
+    expect(returned.townProgress).toEqual({ [NE2]: growth });
+  });
+
   it('FR-222 passes to the winner: the province, its tiles, the event and the capture of this war', () => {
     const { state, events } = combat(ordered(northWestUndefended(), attack(N1, [R1], ARVELIA_P, NW2)));
 

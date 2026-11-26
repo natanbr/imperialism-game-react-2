@@ -17,7 +17,7 @@ import type { GameState } from '@/types/GameState';
 import type { Approach, Fleet } from '@/types/Navy';
 import { ResourceType } from '@/types/Resource';
 import { TerrainType } from '@/types/Tile';
-import { deepFreeze, N1, N2, put, setPair, setTechnologies, setTile, tileAt } from './fixtures';
+import { deepFreeze, N1, N2, put, setBuilding, setPair, setTechnologies, setTile, setWarehouse, tileAt } from './fixtures';
 import { addRegiments } from './armyFixtures';
 
 const engineer = 'worker-nation-1-7';
@@ -60,6 +60,38 @@ function linkRail(state: GameState, rail: string[]) {
 }
 
 describe('FR-617 town routes at a rail-served port', () => {
+  it('FR-619 settles after the real blockade check and completed factory expansion, exactly once per turn', () => {
+    const base = riverside();
+    const provinceId = tileAt(base, inland).provinceId!;
+    const provinces = base.provinces.map(p => p.id === provinceId ? { ...p, seatTileId: inland } : p);
+    const port = setTile({ ...base, provinces }, inland, { port: true });
+    let state = setBuilding(addPort(port, N1, tileAt(port, inland)), N1, 'furnitureFactory', { capacity: 2 });
+    state = setPair(state, N1, N2, { war: { since: 1, aggressors: [N2] } });
+    const settle = () => { state = resolveTurn(deepFreeze(state), {}).state; };
+    for (let turn = 1; turn <= 3; turn++) {
+      settle();
+      expect(state.townProgress?.[provinceId]?.connectedSettlements).toBe(turn);
+    }
+    const enemy = squadron(N2, portApproach(state, tileAt(state, mouth))!);
+    state = withFleets(state, [enemy]);
+    settle();
+    expect(townsOf(state, N1).find(t => t.provinceId === provinceId)?.connected).toBe(false);
+    expect(state.townProgress?.[provinceId]?.connectedSettlements).toBe(3);
+    state = withFleets(state, []);
+    settle();
+    settle();
+    state = setWarehouse(state, N1, { steel: 2, lumber: 2 });
+    const expansion = tryApplyOrder(state, { kind: 'expandBuilding', nationId: N1, building: 'furnitureFactory' });
+    expect(expansion.result).toEqual({ ok: true });
+    state = expansion.state;
+    const support = () => townsOf(state, N1).find(t => t.provinceId === provinceId)!.supported.wood;
+    expect(support()).toBe(0);
+    expect(state.townProgress?.[provinceId]).toMatchObject({ connectedSettlements: 5, matured: { wood: 0 } });
+    settle();
+    expect(support()).toBe(1);
+    expect(state.townProgress?.[provinceId]).toMatchObject({ ownerId: N1, connectedSettlements: 6, matured: { wood: 1 } });
+  });
+
   it.each([['river', inland], ['coastal', mouth]])('requires an open %s port even when rail still carries land freight', (_, siteId) => {
     const base = setTile(riverside(), siteId, { port: true });
     const site = tileAt(base, siteId);
