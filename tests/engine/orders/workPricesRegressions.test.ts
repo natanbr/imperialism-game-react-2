@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { initWorld } from '@/testing/worldInit';
 import { GameState } from '@/types/GameState';
 import { TerrainType, Tile } from '@/types/Tile';
+import { ResourceType } from '@/types/Resource';
 import { Worker, WorkerType, WorkerStatus } from '@/types/Workers';
 import {
   startProspecting,
@@ -146,17 +147,19 @@ describe('starting a job starts only the clicked worker', () => {
       expect(treasuryOf(s2)).toBe(1000 - DEVELOPMENT_COST[1]);
     });
 
-    it('developer: one click starts only the clicked developer', () => {
+    // FR-630: the Developer no longer improves land; the same click rule is checked with two Miners
+    it('miner: one click starts only the clicked miner', () => {
       const state = makeState(1000);
-      const [tileA, tileB] = tilesOf(state, TerrainType.Farm);
-      place(state, tileA, makeWorker('dev-a', WorkerType.Developer, tileA));
-      place(state, tileB, makeWorker('dev-b', WorkerType.Developer, tileB));
+      const [tileA, tileB] = tilesOf(state, TerrainType.Farm).map(t => ({ ...t, terrain: TerrainType.BarrenHills, resource: { type: ResourceType.Coal, level: 0, discovered: true } }));
+      for (const t of [tileA, tileB]) state.map.tiles[t.y][t.x] = t;
+      place(state, tileA, makeWorker('miner-a', WorkerType.Miner, tileA));
+      place(state, tileB, makeWorker('miner-b', WorkerType.Miner, tileB));
 
-      const s2 = startDevelopment(state, tileB.id, 'dev-b');
+      const s2 = startDevelopment(state, tileB.id, 'miner-b');
 
-      expect(tileAt(s2, tileB).developmentJob?.workerId).toBe('dev-b');
+      expect(tileAt(s2, tileB).developmentJob?.workerId).toBe('miner-b');
       expect(tileAt(s2, tileA).developmentJob).toBeUndefined();
-      expect(findWorker(s2, 'dev-a')!.worker.status).toBe(WorkerStatus.Available);
+      expect(findWorker(s2, 'miner-a')!.worker.status).toBe(WorkerStatus.Available);
       expect(treasuryOf(s2)).toBe(1000 - DEVELOPMENT_COST[1]);
     });
   });

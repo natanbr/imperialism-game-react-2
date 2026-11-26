@@ -11,11 +11,12 @@ import { validateOrder } from '@/engine/orders/validate';
 import { put } from './fixtures';
 
 describe('FR-517 continent Horse Ranches', () => {
-  it('FR-517 even a general Developer cannot raise a ranch level, on-site or after a move', () => {
+  // FR-630: the Developer buys land and improves nothing, so every specialist is checked instead
+  it('FR-517 FR-630 no improver can raise a ranch level, on-site or after a move', () => {
     const start = newGame({ seed: 1, world: 'continent' });
     const farmer = start.map.tiles.flatMap(row => row.flatMap(tile => tile.workers)).find(w => w.nationId === 'nation-1' && w.type === WorkerType.Farmer)!;
     const ranch = start.map.tiles.flat().find(tile => tile.ownerNationId === farmer.nationId && tile.terrain === TerrainType.HorseRanch)!;
-    for (const type of [WorkerType.Rancher, WorkerType.Developer]) {
+    for (const type of [WorkerType.Farmer, WorkerType.Rancher, WorkerType.Forester, WorkerType.Miner, WorkerType.Driller]) {
       const common = { nationId: farmer.nationId, workerId: farmer.id };
       const onRanch = put(start, farmer.id, ranch.id, { type });
       expect(validateOrder(onRanch, { ...common, kind: 'startDevelopment', tileId: ranch.id })).toEqual({ ok: false, reason: 'invalid-site' });

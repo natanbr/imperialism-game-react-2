@@ -103,7 +103,8 @@ describe('FR-029 work prices - every worker type that costs money', () => {
     { type: WorkerType.Forester, terrain: TerrainType.HardwoodForest, resource: ResourceType.Timber },
     { type: WorkerType.Miner, terrain: TerrainType.Mountains, resource: ResourceType.IronOre },
     { type: WorkerType.Driller, terrain: TerrainType.Desert, resource: ResourceType.Oil },
-    { type: WorkerType.Developer, terrain: TerrainType.Farm, resource: ResourceType.Grain },
+    // FR-630: the Developer improves nothing; a second Miner terrain replaces its case
+    { type: WorkerType.Miner, terrain: TerrainType.BarrenHills, resource: ResourceType.Coal },
   ];
 
   function place(state: GameState, tile: { x: number; y: number }, worker: Worker) {
