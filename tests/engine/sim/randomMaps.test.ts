@@ -84,6 +84,7 @@ function measure(size: Size, policy: Policy, seed: number) {
   let firstPact: number | null = null;
   let townOffered = 0;
   let townDelivered = 0;
+  let computerTownDelivered = 0;
   const embassies = new Set<string>();
   const game = runGame({
     seed, world: 'random', randomMapSize: size, human: policy,
@@ -103,11 +104,12 @@ function measure(size: Size, policy: Policy, seed: number) {
       if (firstDepot === null && hasProductiveDepot(state)) firstDepot = before.turn;
       const free = new Set(registered.minorNations.filter(m => !m.colonyOf).map(m => m.id));
       for (const event of events) {
-        // FR-628: every owner's town receipts, both Great Powers.
+        // FR-628: every owner's town receipts, both Great Powers, and the computer's own deliveries.
         if (event.type === 'town-receipt') {
           for (const line of event.lines) {
             townOffered += line.offered;
             townDelivered += line.delivered;
+            if (event.nationId === COMPUTER_ID) computerTownDelivered += line.delivered;
           }
         }
         if (event.type === 'workers-fed' && event.nationId === COMPUTER_ID) {
@@ -139,7 +141,7 @@ function measure(size: Size, policy: Policy, seed: number) {
       .reduce((total, d) => total + d.count, 0),
     meals, sick, starved, firstDepot, firstCapture: captures[0] ?? null, captures: captures.length,
     deliveries: deliveries.length, units: deliveries.reduce((sum, sale) => sum + sale.amount, 0),
-    firstPact, earned: earned ?? null, townOffered, townDelivered,
+    firstPact, earned: earned ?? null, townOffered, townDelivered, computerTownDelivered,
     compulsory: earned !== undefined && allFreeVotes !== undefined ? allFreeVotes - earned : null,
     peacefulWin: end?.reason === 'council' && end.winnerId === HUMAN_ID &&
       !turns.some(t => t.warsDeclared.some(w => w.byId === HUMAN_ID)),
@@ -213,12 +215,18 @@ for (const size of sizes) {
 }
 
 // FR-628: towns ship before ordinary automatic freight, and the computer plans for their goods. Task 55 measured
-// 778 units offered and 0 delivered across these 72 games when town offers were loaded last.
-it('FR-628 towns deliver goods across the 72 generated games', ctx => {
-  if (everyGame.length < sizes.length * policies.length * seeds.length) ctx.skip();
-  const offered = everyGame.reduce((n, g) => n + g.townOffered, 0);
-  const delivered = everyGame.reduce((n, g) => n + g.townDelivered, 0);
-  console.log('FR-628 towns ' + JSON.stringify({ games: everyGame.length, offered, delivered,
-    gamesWithDelivery: everyGame.filter(g => g.townDelivered > 0).length }));
-  expect(delivered).toBeGreaterThan(0);
+// 778 units offered and 0 delivered across these 72 games when town offers were loaded last. Task 58 pins the
+// measured totals; the computer's own towns must deliver too.
+it('FR-628 towns deliver goods across the 72 generated games', () => {
+  expect(everyGame).toHaveLength(sizes.length * policies.length * seeds.length);
+  const sum = (pick: (g: Result) => number) => everyGame.reduce((n, g) => n + pick(g), 0);
+  const towns = {
+    offered: sum(g => g.townOffered), delivered: sum(g => g.townDelivered),
+    gamesWithDelivery: everyGame.filter(g => g.townDelivered > 0).length,
+    computerDelivered: sum(g => g.computerTownDelivered),
+  };
+  console.log('FR-628 towns ' + JSON.stringify(towns));
+  expect({ offered: towns.offered, delivered: towns.delivered, gamesWithDelivery: towns.gamesWithDelivery })
+    .toEqual({ offered: 778, delivered: 344, gamesWithDelivery: 28 });
+  expect(towns.computerDelivered).toBeGreaterThan(0);
 });
