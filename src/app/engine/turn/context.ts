@@ -15,6 +15,7 @@ import type { Order, OrderRejection, RejectReason } from "../orders/Order";
 import type { TradeBarrier } from "../market/partners";
 import type { TownCommodity } from "../world/towns";
 import type { LandRefusal } from "../overseas/holdings";
+import type { OverseasProfit } from "../overseas/profit";
 import { createStreamRng, createTurnRng, RNG_STREAMS, type Rng, type RngStream } from "../rng";
 
 /** What happened during a turn, for news, UI feedback and AI players. */
@@ -114,7 +115,9 @@ export type GameEvent =
   /** FR-633: `minorId` sold `tileId` to `nationId` for `cost`, paid when ordered. The buyer's news only (FR-640). */
   | { type: "land-purchased"; nationId: NationId; workerId: string; tileId: TileId; minorId: MinorNationId; cost: number }
   /** FR-633: the purchase was refused at settlement and `cost` refunded. The buyer's news only (FR-640). */
-  | { type: "land-purchase-refused"; nationId: NationId; workerId: string; tileId: TileId; minorId: MinorNationId; cost: number; reason: LandRefusal };
+  | { type: "land-purchase-refused"; nationId: NationId; workerId: string; tileId: TileId; minorId: MinorNationId; cost: number; reason: LandRefusal }
+  /** FR-636: the trade phase paid `nationId` its share of `minorId`'s sales of its developed units. The holder's alone (FR-640). */
+  | ({ type: "overseas-profit" } & OverseasProfit);
 
 /** Why regiments were disbanded (FR-202, FR-207). */
 export type DisbandReason = "order" | "no-pay";

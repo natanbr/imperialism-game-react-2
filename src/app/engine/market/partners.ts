@@ -12,6 +12,7 @@ import { fnv1a32 } from "../rng";
 import { isGreatPower, minorNationById } from "../world/countries";
 import { isTradeCommodity, marketOf, priceOf, tradeOrdersOf } from "./market";
 import { nationById } from "../orders/queries";
+import { yieldOf } from "../map/mapHelpers";
 
 /** The market's mode (FR-242; read as "world" when the market has no mode, or there is no market). */
 export const marketModeOf = (state: GameState): MarketMode => state.market?.mode ?? "world";
@@ -20,16 +21,23 @@ export const marketModeOf = (state: GameState): MarketMode => state.market?.mode
  * What the minor offers this turn (FR-183, Q27): for each tradeable resource, one unit per tile of its
  * provinces that holds it (found), at most MINOR_OFFER_CAP; nothing for a colony or an unknown id. The
  * stock is endless: units not sold vanish and the same offer comes every turn.
+ * FR-635: a tile a Great Power holds (FR-634) leaves that count, and its `yieldOf` units at the held level join the
+ * offer outside the cap; a colony offers those developed units, which only its owner may buy (`settledTradeBarrier`).
  */
 export function minorOffers(state: GameState, minorId: MinorNationId): TradeAmounts {
   const minor = minorNationById(state, minorId);
-  if (!minor || minor.colonyOf !== undefined) return {};
+  if (!minor || (minor.colonyOf !== undefined && !state.overseasLand)) return {};
   const tileIds = new Set(state.provinces.filter((p) => p.ownerId === minorId).flatMap((p) => p.tileIds));
   const offers: TradeAmounts = {};
+  const developed: TradeAmounts = {};
   for (const tile of state.map.tiles.flat()) {
     const resource = tile.resource;
     if (!tileIds.has(tile.id) || !resource || resource.discovered === false || !isTradeCommodity(resource.type)) continue;
-    offers[resource.type] = Math.min(MINOR_OFFER_CAP, (offers[resource.type] ?? 0) + 1);
+    if (state.overseasLand?.[tile.id]) developed[resource.type] = (developed[resource.type] ?? 0) + yieldOf(tile);
+    else if (minor.colonyOf === undefined) offers[resource.type] = Math.min(MINOR_OFFER_CAP, (offers[resource.type] ?? 0) + 1);
+  }
+  for (const [commodity, units] of Object.entries(developed) as [TradeCommodity, number][]) {
+    if (units > 0) offers[commodity] = (offers[commodity] ?? 0) + units;
   }
   return offers;
 }

@@ -35,3 +35,12 @@ export const BUYABLE_LAND_TERRAINS: readonly TerrainType[] = [
   TerrainType.Tundra,
   TerrainType.Swamp,
 ];
+
+/**
+ * FR-636 (inferred, owner to confirm; gaps F15, H15): the percent of a developed unit's value the holder receives, by its
+ * relation level 0 to 8 with the Minor Nation. 75% at the unlock level follows the ledger sums; the curve is inferred.
+ */
+export const OVERSEAS_SHARE_BY_LEVEL: readonly number[] = [15, 25, 35, 45, 55, 65, 75, 90, 100];
+
+/** FR-636 (inferred, F15): the holder's own colony pays it all of the value. */
+export const COLONY_OVERSEAS_SHARE = 100;

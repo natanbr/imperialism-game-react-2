@@ -208,7 +208,8 @@ describe('FR-636 overseas profit', () => {
       expect({ label, profits: profitsOf(events) }).toEqual({ label, profits: [] });
       expect(treasury(state, N1)).toBe(treasury(s, N1));
       expect(state.overseasLand?.[COAL]).toEqual(s.overseasLand?.[COAL]);
-      const lifted = setPair(state, N1, ARVELIA, { war: undefined, boycotts: [] });
+      // Lifted on the same board (the trade phase moved the coal price)
+      const lifted = setPair(s, N1, ARVELIA, { war: undefined, boycotts: [] });
       expect(profitsOf(trade(lifted).events)).toEqual([profit(ResourceType.Coal, 2, 116, 75, 174)]);
     }
   });

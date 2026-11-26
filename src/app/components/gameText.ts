@@ -557,6 +557,9 @@ export function eventText(event: GameEvent, nameOf: (countryId: string) => strin
       return `Our Developer bought ${at(event.tileId)} from ${nameOf(event.minorId)} for ${money(event.cost)}.`;
     case "land-purchase-refused":
       return `${nameOf(event.minorId)} did not sell ${at(event.tileId)}: ${LAND_REFUSAL_TEXT[event.reason]}. ${money(event.cost)} refunded.`;
+    // FR-636, FR-639: the holder reads its overseas profit in the Deal Book, not in the news
+    case "overseas-profit":
+      return null;
     // FR-297 (M10): a line of no nation; `newsItems` puts it first (FR-306). FR-414: the nominees by votes, most first,
     // ties in standing order (the event keeps the standing order for the Council screen, FR-313)
     case "council-met": {
@@ -661,8 +664,9 @@ export function newsItems(events: readonly GameEvent[], playerId: string, nameOf
   const ownRelations = new Set(events.flatMap((e) => (e.type === "relation-changed" && e.nationId === playerId ? [e.otherId] : [])));
   for (const event of events) {
     if (event.type === "town-receipt" && event.nationId !== playerId) continue;
-    // FR-629, FR-633, FR-640: another nation's Developer arrival and land purchases are private to it
-    if ((event.type === "developer-arrived" || event.type === "land-purchased" || event.type === "land-purchase-refused") && event.nationId !== playerId) continue;
+    // FR-629, FR-633, FR-636, FR-640: another nation's Developer arrival, land purchases and overseas profit are private to it
+    if ((event.type === "developer-arrived" || event.type === "land-purchased" || event.type === "land-purchase-refused" || event.type === "overseas-profit")
+      && event.nationId !== playerId) continue;
     if (event.type === "overture-done" && event.targetId === playerId && ownDone.has(`${event.overture}|${event.nationId}`)) continue;
     if (event.type === "relation-changed" && event.otherId === playerId && ownRelations.has(event.nationId)) continue;
     if (event.type === "overture-refused" && event.targetId === playerId && event.nationId !== playerId) {
