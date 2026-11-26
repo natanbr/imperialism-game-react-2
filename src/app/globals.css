@@ -188,6 +188,12 @@ img[data-art-anchor="bottom-center"] {
   font-variant-numeric: tabular-nums;
 }
 
+.town-freight-amount {
+  grid-column: 1 / -1;
+  padding-bottom: 3px;
+  color: var(--color-text-muted);
+}
+
 /* HUD Styles. The right pane (FR-465): 250 px wide, from the top bar's bottom (components/HUD/TopBar.module.css) to the
    window's bottom */
 .hud-container {

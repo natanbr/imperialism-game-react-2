@@ -5,7 +5,7 @@ import type { Nation } from "@/types/Nation";
 import type { Province, TownTiers } from "@/types/Province";
 import { GoodsType, MaterialType, ResourceType } from "@/types/Resource";
 import { buildingOf } from "../industry/industryState";
-import { hubOf, hubsOf } from "../map/collectingHubs";
+import { hubOf, hubsOf, type CollectingHub } from "../map/collectingHubs";
 import { nationById, tileById } from "../orders/queries";
 import { provincesOf } from "./provinces";
 
@@ -14,6 +14,11 @@ export const townChains = [
   ["wood", MaterialType.Lumber, GoodsType.Furniture],
   ["metal", MaterialType.Steel, GoodsType.Hardware],
 ] as const;
+
+export const townFactories = { textile: "clothingFactory", wood: "furnitureFactory", metal: "metalWorks" } as const;
+export const TOWN_MAX_TIER = 4;
+export const TOWN_TILES_PER_TIER = 2;
+export const TOWN_CAPACITY_PER_TIER = 4;
 
 export type { TownTiers } from "@/types/Province";
 export type TownCommodity = (typeof townChains)[number][1 | 2];
@@ -24,6 +29,7 @@ export interface TownFacts {
   provinceId: ProvinceId;
   seatTileId: TileId;
   connected: boolean;
+  hub?: CollectingHub;
   resources: Record<TownResource, number>;
   supported: TownTiers;
 }
@@ -45,13 +51,11 @@ function knownResources(state: GameState, province: Province): Record<TownResour
   return counts;
 }
 
-const CAPACITY_PER_TIER = 4;
-
 function installedCapacity(nation: Nation): TownTiers {
   return {
-    textile: buildingOf(nation, "clothingFactory").capacity,
-    wood: buildingOf(nation, "furnitureFactory").capacity,
-    metal: buildingOf(nation, "metalWorks").capacity,
+    textile: buildingOf(nation, townFactories.textile).capacity,
+    wood: buildingOf(nation, townFactories.wood).capacity,
+    metal: buildingOf(nation, townFactories.metal).capacity,
   };
 }
 
@@ -60,11 +64,11 @@ export function hasTownFactoryCapacity(state: GameState, owner: NationId): boole
   const nation = nationById(state, owner);
   if (!nation) return false;
   const capacity = installedCapacity(nation);
-  return Math.max(capacity.textile, capacity.wood, capacity.metal) >= CAPACITY_PER_TIER;
+  return Math.max(capacity.textile, capacity.wood, capacity.metal) >= TOWN_CAPACITY_PER_TIER;
 }
 
 function supportedTier(tiles: number, installedCapacity: number): number {
-  return Math.min(4, Math.floor(tiles / 2), Math.floor(installedCapacity / CAPACITY_PER_TIER));
+  return Math.min(TOWN_MAX_TIER, Math.floor(tiles / TOWN_TILES_PER_TIER), Math.floor(installedCapacity / TOWN_CAPACITY_PER_TIER));
 }
 
 /** Owner-visible prerequisites in province order, using the network after its connectivity check. */
@@ -79,11 +83,13 @@ export function townsOf(state: GameState, owner: NationId, knownMap: GameMap = s
   return provincesOf(state, owner).map(province => {
     const seat = tileById(state, province.seatTileId);
     const resources = knownResources(knownState, province);
+    const hub = seat && hubOf(state.map, owner, hubs, seat);
     return {
       ownerId: owner,
       provinceId: province.id,
       seatTileId: province.seatTileId,
-      connected: !!(seat && hubOf(state.map, owner, hubs, seat)),
+      connected: !!hub,
+      hub,
       resources,
       supported: {
         textile: supportedTier(resources.cotton + resources.wool, capacity.textile),

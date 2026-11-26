@@ -1,16 +1,16 @@
 import type { NationId, ProvinceId } from "@/types/Common";
 import type { GameState } from "@/types/GameState";
 import type { GameMap } from "@/types/Map";
-import type { TownProgress } from "@/types/Province";
+import type { Province, TownProgress } from "@/types/Province";
 import { capitalProvinceOf } from "../army/armies";
 import { provinceById, startOwnerOf } from "../world/provinces";
 import { townChains, townOutput, townsOf, type TownFacts } from "../world/towns";
 
-const STARTUP_SETTLEMENTS = 6;
-const UPGRADE_SETTLEMENTS = 2;
+export const STARTUP_SETTLEMENTS = 6;
+export const UPGRADE_SETTLEMENTS = 2;
 const zeroTiers = { textile: 0, wood: 0, metal: 0 };
 
-function advanceTown(town: TownFacts, previous: TownProgress | undefined, capturedCapital: boolean): TownProgress {
+export function advanceTown(town: TownFacts, previous: TownProgress | undefined, capturedCapital: boolean): TownProgress {
   const connectedSettlements = (previous?.connectedSettlements ?? 0) + (town.connected ? 1 : 0);
   const readyToStart = capturedCapital || connectedSettlements >= STARTUP_SETTLEMENTS;
   const matured = { ...(previous?.matured ?? zeroTiers) };
@@ -35,6 +35,13 @@ function advanceTown(town: TownFacts, previous: TownProgress | undefined, captur
   return { ownerId: town.ownerId, connectedSettlements, matured, upgradeSettlements };
 }
 
+export function townCapitalKind(state: GameState, province: Province, foundingCapitalId: ProvinceId | undefined) {
+  if (province.id !== foundingCapitalId) return undefined;
+  const founder = startOwnerOf(province);
+  if (state.minorNations.some(minor => minor.id === founder)) return "minor";
+  return founder === province.ownerId ? "own" : "captured";
+}
+
 /** FR-619/620: the same one-settlement projection drives the owner’s estimate and the actual turn. */
 export function nextTownSettlements(state: GameState, owner: NationId, knownMap: GameMap = state.map) {
   const capitals = new Map<NationId, ProvinceId | undefined>();
@@ -43,11 +50,12 @@ export function nextTownSettlements(state: GameState, owner: NationId, knownMap:
     const saved = state.townProgress?.[town.provinceId];
     const previous = saved?.ownerId === owner ? saved : undefined;
     if (!town.connected && !previous) continue;
-    const founder = startOwnerOf(provinceById(state, town.provinceId)!);
+    const province = provinceById(state, town.provinceId)!;
+    const founder = startOwnerOf(province);
     if (!capitals.has(founder)) capitals.set(founder, capitalProvinceOf(state, founder)?.id);
-    const capital = capitals.get(founder) === town.provinceId;
-    if (capital && (founder === owner || state.minorNations.some(minor => minor.id === founder))) continue;
-    settlements.push({ town, progress: advanceTown(town, previous, capital) });
+    const kind = townCapitalKind(state, province, capitals.get(founder));
+    if (kind === "minor" || kind === "own") continue;
+    settlements.push({ town, progress: advanceTown(town, previous, kind === "captured") });
   }
   return settlements;
 }

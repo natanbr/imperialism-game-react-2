@@ -28,7 +28,7 @@ export const useTransportAllocations = (capacity: number) => {
   const remaining = Math.max(0, capacity - totalAllocated);
 
   const isSet = (key: string) => Object.hasOwn(allocations, key);
-  const autoAmount = (key: string) => shipments[key] ?? 0;
+  const scheduledAmount = (key: string) => shipments[key] ?? 0;
 
   const submit = (next: Record<string, number>) =>
     submitOrder({ kind: "setTransportAllocations", nationId: activeNationId, allocations: next });
@@ -60,7 +60,7 @@ export const useTransportAllocations = (capacity: number) => {
     handleAllocChange,
     setAuto,
     isSet,
-    autoAmount,
+    scheduledAmount,
     totalAllocated,
     remaining,
     collected,

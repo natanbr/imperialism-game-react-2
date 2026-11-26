@@ -24,6 +24,7 @@ import {
 } from './Tile/index';
 import type { TrayPlacement } from './Tile/TileWorkers';
 import type { MarkerView } from './army/armyView';
+import styles from './Tile/Tile.module.css';
 
 interface TileProps {
   tile: Tile;
@@ -33,6 +34,7 @@ interface TileProps {
   transportNetwork: TransportNetwork;
   /** On a province's seat: its army markers (FR-210); absent elsewhere. */
   armyMarkers?: readonly MarkerView[];
+  townMarker?: { label: string; glyph: string };
   /** The map's one Tab stop (FR-369). */
   tabbable?: boolean;
 }
@@ -53,6 +55,7 @@ const TileComponentInner: React.FC<TileProps> = ({
   selectedWorkerId,
   transportNetwork,
   armyMarkers,
+  townMarker,
   tabbable = false,
 }) => {
   // Store selectors (only for actions and map reference)
@@ -153,6 +156,7 @@ const TileComponentInner: React.FC<TileProps> = ({
     <TileBase
       tileId={tile.id}
       label={fishing ? `${tileLabel(tile, ownerName)}, fishing ground` : tileLabel(tile, ownerName)}
+      description={townMarker?.label}
       fishing={fishing}
       terrain={tile.terrain}
       hasRiver={tile.hasRiver ?? false}
@@ -166,6 +170,8 @@ const TileComponentInner: React.FC<TileProps> = ({
       tabbable={tabbable}
     >
       <TileIcon src={tileArt(tile)} crowded={crowded} />
+      {townMarker && <span aria-hidden="true" className={styles.townMarker} title={townMarker.label}
+        data-testid="town-marker">{townMarker.glyph}</span>}
       {minorCapital && <TileName minorId={minorCapital.id} name={minorCapital.name} />}
 
       {tile.resource && <TileResource resource={tile.resource} low={marksLow} />}

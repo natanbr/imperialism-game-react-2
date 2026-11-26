@@ -13,6 +13,7 @@ import { THEME } from "@/styles/theme";
 import { submitAndSay, submitOrAsk } from "@/hooks/tileClickOrders";
 import { cancelQuestion, collectingHubText, collectionText, costText, jobNote, jobOffers, type JobOffer } from "./tileSiteText";
 import { Modal } from "./Modal";
+import { TownInspection } from "./towns/TownInspection";
 
 interface TileInfoPanelProps {
   selectedTile: Tile | undefined;
@@ -259,6 +260,7 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
           <strong>Fort:</strong> level {fortLevel}
         </p>
       )}
+      {province && <TownInspection province={province} />}
       {question && (
         <Modal
           titleId={cancelTitleId}

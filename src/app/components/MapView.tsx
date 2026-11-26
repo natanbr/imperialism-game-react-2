@@ -6,6 +6,7 @@ import { selectArmyMarkersBySeat, selectAttackArrows, selectMarchArrows } from "
 import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { TileComponent } from "./Tile";
+import { selectTownMarkers } from "./towns/townView";
 import { GROUND_ART, GROUND_ART_PX } from "./art/inkArt";
 import { mapAreaOf, mapOffset, type MapArea } from "./camera";
 import { nextZoom, useMapKeyboard, zoomBy, zoomMapTo } from "@/hooks/useMapKeyboard";
@@ -68,6 +69,7 @@ export const MapView: React.FC = () => {
   const fisheries = useMemo(() => fishingGroundsOf(map, activeNationId, network), [map, activeNationId, network]);
   // Each seat tile's army markers (FR-210); every other tile gets none, so its props stay the same
   const armyMarkers = useGameStore(selectArmyMarkersBySeat);
+  const townMarkers = useGameStore(selectTownMarkers);
   // The player's march and attack orders of this turn, drawn as arrows until End Turn (FR-263, FR-273)
   const marchArrows = useGameStore(selectMarchArrows);
   const attackArrows = useGameStore(selectAttackArrows);
@@ -244,6 +246,7 @@ export const MapView: React.FC = () => {
                   selectedWorkerId={selectedWorkerId}
                   transportNetwork={transportNetwork}
                   armyMarkers={armyMarkers.get(tile.id)}
+                  townMarker={townMarkers.get(tile.id)}
                   tabbable={tile.id === tabStopId}
                 />
               ))}

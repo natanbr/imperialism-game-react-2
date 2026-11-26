@@ -10,6 +10,7 @@ export interface TileBaseProps {
   tileId: string;
   /** The accessible name (FR-095); not drawn */
   label: string;
+  description?: string;
   terrain: TerrainType;
   hasRiver: boolean;
   fishing?: boolean;
@@ -34,6 +35,7 @@ export interface TileBaseProps {
 const TileBaseInner: React.FC<TileBaseProps> = ({
   tileId,
   label,
+  description,
   terrain,
   hasRiver,
   fishing,
@@ -53,6 +55,8 @@ const TileBaseInner: React.FC<TileBaseProps> = ({
       data-tile-id={tileId}
       role="group"
       aria-label={label}
+      aria-describedby={description ? `town-seat-${tileId}` : undefined}
+      title={description}
       data-terrain={terrain}
       data-selected={isSelected ? 'true' : undefined}
       className={`${styles.tile} ${hasJobCompleted ? styles.tileJobCompleted : ''}`}
@@ -61,6 +65,7 @@ const TileBaseInner: React.FC<TileBaseProps> = ({
       onClick={onClick}
       onPointerEnter={onPointerEnter}
     >
+      {description && <span id={`town-seat-${tileId}`} hidden>{description}</span>}
       {isSelected && (
         <span className={styles.selectionRing} data-testid="selection-ring" aria-hidden="true">
           <InkPicture src={SELECTION_ART.url} alt="" width={SELECTION_ART.width} height={SELECTION_ART.height} className={styles.selectionMark} />
