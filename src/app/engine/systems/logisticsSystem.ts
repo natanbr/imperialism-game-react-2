@@ -4,11 +4,12 @@ import { GameState } from "@/types/GameState";
 import { GameMap } from "@/types/Map";
 import { Nation } from "@/types/Nation";
 import { ResourceType } from "@/types/Resource";
-import { Tile } from "@/types/Tile";
 import { RailroadNetwork } from "@/types/Transport";
 import { parseTileIdToArray } from "@/utils/tileIdUtils";
 import type { TurnSystem } from "../turn/context";
 import { getAdjacentTiles, isOcean } from "../map/mapHelpers";
+import { hubOf, hubsOf, type CollectingHub } from "../map/collectingHubs";
+export type { CollectingHub } from "../map/collectingHubs";
 
 /**
  * What the logistics phase ships of what the hubs collected (FR-389, card Q80): the plan holds per commodity either a
@@ -74,46 +75,6 @@ export const logisticsSystem: TurnSystem = (state: GameState): GameState => {
 
   return { ...state, nations: updatedNations };
 };
-
-/** The hub that collects a tile's resource (FR-391): the capital, an active depot or an active port, by its tile id. */
-export interface CollectingHub {
-  tileId: string;
-  kind: "capital" | "depot" | "port";
-}
-
-/** The network's hubs in the order a tile asks them: the capital, then the active depots, then the active ports. */
-function hubsOf(network: RailroadNetwork | undefined): CollectingHub[] {
-  if (!network) return [];
-  const id = (n: { x: number; y: number }) => `${n.x}-${n.y}`;
-  return [
-    ...(network.capital ? [{ tileId: id(network.capital), kind: "capital" as const }] : []),
-    ...network.depots.filter((d) => d.isActive).map((d) => ({ tileId: id(d), kind: "depot" as const })),
-    ...network.ports.filter((p) => p.isActive).map((p) => ({ tileId: id(p), kind: "port" as const })),
-  ];
-}
-
-/** The tile ids of the tile's hex neighbours inside the map (odd rows shifted half a tile right). */
-function neighbourIds(map: GameMap, x: number, y: number): string[] {
-  const { cols, rows } = map.config;
-  const isOddRow = y % 2 === 1;
-  const top: [number, number][] = isOddRow ? [[x, y - 1], [x + 1, y - 1]] : [[x - 1, y - 1], [x, y - 1]];
-  const bottom: [number, number][] = isOddRow ? [[x, y + 1], [x + 1, y + 1]] : [[x - 1, y + 1], [x, y + 1]];
-  const side: [number, number][] = [[x - 1, y], [x + 1, y]];
-  return [...top, ...side, ...bottom].filter(([nx, ny]) => nx >= 0 && nx < cols && ny >= 0 && ny < rows).map(([nx, ny]) => `${nx}-${ny}`);
-}
-
-/**
- * The rule of the logistics phase (FR-022, FR-391): an owned tile is collected by the hub it is, else by the first hub
- * next to it (capital, depots, ports in network order); a tile of another owner or next to no hub by none.
- */
-function hubOf(map: GameMap, nationId: string, hubs: readonly CollectingHub[], tile: Tile): CollectingHub | undefined {
-  if (tile.ownerNationId !== nationId || hubs.length === 0) return undefined;
-  const here = `${tile.x}-${tile.y}`;
-  const own = hubs.find((h) => h.tileId === here);
-  if (own) return own;
-  const around = new Set(neighbourIds(map, tile.x, tile.y));
-  return hubs.find((h) => around.has(h.tileId));
-}
 
 /**
  * Who collects the tile for the nation's warehouse (FR-391, the logistics phase's own rule): its hub's tile id and kind,

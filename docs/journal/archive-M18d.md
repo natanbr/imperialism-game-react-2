@@ -76,3 +76,25 @@ The fixed continent uses the world market, starting army, scripted nation 2 and 
 | [Random maps](../../.gate/codex/45/random-test.log) | 72/72 passed. No unpaid disbands across 940 idle turns, zero rejected computer orders, invariant violations or private-order plan changes. |
 | Save and UI drafts | A genuine v1 save from main `765fcaa` was captured. The final replay suite, browser checks and screenshots are pending. Review the cost of replaying every modern save on load and the combat revision on fishing checkpoints. |
 | Branch handoff | Development and review incomplete. No Task 45 commit, deployment or push. Full gate pending. The fixed-world draft records in [.gate/codex/45/fixed.md](../../.gate/codex/45/fixed.md) need remeasurement after a fix. |
+
+## 2026-11-25 Task 50 — Verify the saved replay checkpoint
+
+Size M. Check that a compact version-1 save restores the exact historical checkpoint before writing the autosave slot.
+Continue and replay consume this checkpoint. Historical market bid order breaks ties in computer planning.
+FR-357 and FR-587 cover sparse arrays, historical key order, and the Large historical save budget. FR-362 covers malformed root changes.
+Verify with the focused store regressions, functional suite, lint, TypeScript, build, single-worker Playwright on port 3123, isolated performance suite and roadmap checker.
+A full checkpoint costs more storage. The writer uses it when restoration throws or the recovered checkpoint differs from its expected JSON. Comparing the complete JSON strings also catches differences in property order.
+
+| Verification | Result |
+|---|---|
+| Tests first, `219a0c9`, run against `84da8fb` | 4 failed and 14 passed. An undefined array element and a hole each made the slot unusable. The synthetic timestamp restored the current value. Equal bids restored in the order `cotton, timber` instead of `timber, cotton`. The final fixtures use a settled turn because turn 1 also exercises legacy replay migration. [Red output](../../.gate/codex/50/gate-red-settled.log) |
+| `historicalSaveSize.test.ts` and `persistence.test.ts` | 55/55 passed. Both sparse inputs used a full checkpoint and loaded with `null`. Equal bids retained their order in a compact checkpoint. The reader also refused `null` and `[]` root edits. [Focused output](../../.gate/codex/50/gate-focused.log) |
+| Storage and replay | The real historical continent fixture needed 2,370 extra characters at turn 11 and 10,854 at turn 40. The Large random game continued from a historical turn-2 checkpoint used 246,942 characters at turn 40 and 251,943 after final settlement. Both were below 2,000,000. [Measurements](../../.gate/codex/50/gate-focused.log) |
+| Direct codec check | 8,450 combinations of additions, removals, reordered fields and nested edits restored identical JSON. The same inputs encoded by `84da8fb` retained their values with the new reader. [Check](../../.gate/codex/50/verify-key-order.cjs) · [Output](../../.gate/codex/50/key-order.log) |
+| `npm test` | 178 files and 3,511 tests passed in 243.19 seconds. [Functional log](../../.gate/codex/50/gate-unit.log) |
+| `npm run lint`, `npx tsc --noEmit`, `npm run build` | All exited 0. ESLint reported the existing unused `capital` in `logisticsSystem.test.ts`. The production build generated four static pages. [Lint](../../.gate/codex/50/gate-lint.log) · [Types](../../.gate/codex/50/gate-types.log) · [Build](../../.gate/codex/50/gate-build.log) |
+| `PORT=3123 npx playwright test --workers=1` | 180/180 passed in 12.7 minutes on Chromium. [Browser log](../../.gate/codex/50/gate-browser.log) |
+| `npm run test:perf` | 3/3 passed in isolation after Playwright exited. Computer planning p95 was 12.3 ms over 3,230 turns, within the 100 ms limit. [Performance log](../../.gate/codex/50/gate-perf.log) |
+| `node .gate/m12/L4-check-roadmap.cjs` | `PASS` against local `origin/main` at `765fcaa`. [Roadmap log](../../.gate/codex/50/gate-roadmap.log) |
+
+Local handoff on `claude/m18d-terrain` in `imperialism-game-revival-fee36d`. The tests precede the implementation. Continue, advance a turn, and reload to exercise the normal browser save path. The task covers local verification only.

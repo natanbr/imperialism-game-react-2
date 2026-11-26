@@ -31,6 +31,7 @@ export { collectingHub, type CollectingHub } from "./systems/logisticsSystem";
 export { WORLDS, DEFAULT_WORLD, type World } from "./world/worlds";
 export { countryName, countryOfTile, isGreatPower, isMinorNation, minorNationAt, minorNationById } from "./world/countries";
 export { adjacentProvinces, isConqueredProvince, provinceById, provinceOf, provincesOf, transferProvince } from "./world/provinces";
+export { townOutput, townsOf, type TownFacts, type TownTiers } from "./world/towns";
 export { pairKey, RELATION_SWATCHES, relationLevel, relationOf, type RelationSwatch } from "./diplomacy/relations";
 export { addIntent, byIntentOrder, intentOrder } from "./turn/intents";
 export { RNG_STREAMS, type RngStream } from "./rng";
