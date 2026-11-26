@@ -19,6 +19,12 @@ function write(save: SavedGame) {
   return window.localStorage.getItem(SAVE_KEY)!;
 }
 
+function settledSave() {
+  const store = createGameStore({ seed: 1 });
+  store.getState().advanceTurn();
+  return saveOf(store.getState());
+}
+
 it('FR-357 FR-587 keeps one full game on disk and replays every turn since a historical save', () => {
   const capture = gunzipSync(readFileSync(join(__dirname, 'fixtures/main-765fcaa-turn-10.json.gz'))).toString();
   const historical = read(capture);
@@ -47,19 +53,26 @@ it('FR-357 FR-587 keeps one full game on disk and replays every turn since a his
     expect(JSON.parse(raw).replayBoundary).not.toHaveProperty('checkpoint');
     const roundTrip = read(raw);
     expect(roundTrip.replayBoundary).toEqual(historical.replayBoundary);
+    expect(JSON.stringify(roundTrip.replayBoundary?.checkpoint)).toBe(JSON.stringify(historical.game));
     expect(roundTrip.ordersThisTurn).toEqual(current.ordersThisTurn);
     expect(replaySession(roundTrip)).toEqual(current.game);
     reload.getState().restoreGame(roundTrip);
   }
 });
 
-it('FR-357 keeps the Large random-map save at turn 40 within the 2,000,000-character app budget', () => {
+it('FR-357 keeps the Large historical random-map save at turn 40 within the 2,000,000-character app budget', () => {
   const store = createGameStore({ seed: 1, world: 'random', randomMapSize: 'large' });
-  for (let turn = 1; turn < 40; turn++) store.getState().advanceTurn();
+  store.getState().advanceTurn();
+  const early = saveOf(store.getState());
+  const historical = read(JSON.stringify({ ...early, game: { ...early.game, rulesRevision: 'm16.1' } }));
+  expect(historical.replayBoundary?.checkpoint?.turn).toBe(2);
+  store.getState().restoreGame(historical);
+  for (let turn = 2; turn < 40; turn++) store.getState().advanceTurn();
   const saved = saveOf(store.getState(), new Date(0));
   expect(saved.game.turn).toBe(40);
   expect(saved.game.randomMapSize).toBe('large');
   const raw = write(saved);
+  expect(JSON.parse(raw).replayBoundary).toHaveProperty('checkpointChanges');
   console.info(`Large seed 1 T40: ${raw.length} characters, ${Buffer.byteLength(raw)} UTF-8 bytes.`);
   expect(raw.length).toBeLessThan(2_000_000);
   expect(read(raw).game).toEqual(saved.game);
@@ -68,6 +81,7 @@ it('FR-357 keeps the Large random-map save at turn 40 within the 2,000,000-chara
   expect(finished.game.gameOver).toBeDefined();
   expect(finished.eventLog.at(-1)?.turn).toBe(40);
   const finalRaw = write(finished);
+  expect(JSON.parse(finalRaw).replayBoundary).toHaveProperty('checkpointChanges');
   console.info(`Large seed 1 after T40: ${finalRaw.length} characters, ${Buffer.byteLength(finalRaw)} UTF-8 bytes.`);
   expect(finalRaw.length).toBeLessThan(2_000_000);
   expect(read(finalRaw).game).toEqual(finished.game);
@@ -98,6 +112,48 @@ it('FR-587 restores deleted fields, nulls, changed array lengths and sparse map 
   expect(current).toStrictEqual({ old: null, new: 'present', rows: [[1, 2], [3, 4]], orders: [1, 2] });
 });
 
+it.each(['undefined', 'hole'])('FR-587 can continue a save with %s in a historical array', kind => {
+  const save = settledSave();
+  const game = { ...save.game, values: ['a', 'b'] };
+  const values: (string | undefined)[] = ['a'];
+  if (kind === 'hole') values.length = 2;
+  else values.push(undefined);
+  const checkpoint = { ...game, values };
+  const raw = write({ ...save, game, replayBoundary: { turn: game.turn, appliedOrders: 0, checkpoint } });
+  const roundTrip = read(raw);
+  expect(roundTrip.game).toMatchObject({ values: ['a', 'b'] });
+  expect(roundTrip.replayBoundary?.checkpoint).toMatchObject({ values: ['a', null] });
+  expect(JSON.parse(raw).replayBoundary).toHaveProperty('checkpoint');
+  expect(JSON.parse(raw).replayBoundary).not.toHaveProperty('checkpointChanges');
+});
+
+it('FR-587 keeps the checkpoint JSON when restoring the delta silently produces a different value', () => {
+  const save = settledSave();
+  // Dates have no enumerable fields, but serialize to distinct strings.
+  const game = { ...save.game, timestamp: new Date(1000) };
+  const checkpoint = { ...game, timestamp: new Date(0) };
+  const raw = write({ ...save, game, replayBoundary: { turn: game.turn, appliedOrders: 0, checkpoint } });
+  const roundTrip = read(raw);
+  expect(roundTrip.game).toMatchObject({ timestamp: game.timestamp.toJSON() });
+  expect(roundTrip.replayBoundary?.checkpoint).toMatchObject({ timestamp: checkpoint.timestamp.toJSON() });
+});
+
+it('FR-587 preserves historical bid order when only the order of equally sized bids changed', () => {
+  const save = settledSave();
+  const withBids = (buy: { timber: number; cotton: number }) => ({
+    ...save.game,
+    market: { ...save.game.market!, ordersTwoTurnsAgo: { 'nation-2': { sell: {}, buy } } },
+  });
+  const game = withBids({ cotton: 1, timber: 1 });
+  const checkpoint = withBids({ timber: 1, cotton: 1 });
+  const boundary = { turn: game.turn, appliedOrders: 0, checkpoint };
+  const raw = write({ ...save, game, replayBoundary: boundary });
+  expect(JSON.parse(raw).replayBoundary).toHaveProperty('checkpointChanges');
+  const loaded = read(raw);
+  const bids = loaded.replayBoundary?.checkpoint?.market?.ordersTwoTurnsAgo?.['nation-2'].buy;
+  expect(JSON.stringify(bids)).toBe(JSON.stringify(checkpoint.market.ordersTwoTurnsAgo['nation-2'].buy));
+});
+
 it('NR-039 FR-587 validates credit in both historical checkpoint formats', () => {
   const save = saveOf(createGameStore({ seed: 1 }).getState());
   const checkpoint = { ...save.game, nations: save.game.nations.map(n => ({ ...n, treasury: -1 })) };
@@ -108,6 +164,8 @@ it('NR-039 FR-587 validates credit in both historical checkpoint formats', () =>
 });
 
 it.each([
+  null,
+  [],
   false,
   { turn: [1, 2] },
   { turn: [3] },
