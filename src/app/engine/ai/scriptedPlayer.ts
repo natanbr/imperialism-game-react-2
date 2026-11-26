@@ -13,6 +13,7 @@ import { bestDepotSite, nextRailSections, pendingRailTiles, tilesByReach, type D
 import { developerReserve, planEconomy, planFinalTransport, turnsAfter } from "./economy";
 import { scriptedDiplomacyOrders } from "./diplomacy";
 import { upkeepReserve } from "./scriptedArmy";
+import { upkeepOf } from "../army/armies";
 import { coastalDefenceOrder } from "./navalDefence";
 import { planWarDeclaration, planWarMoves } from "./scriptedWar";
 
@@ -158,7 +159,8 @@ function engineerOrders(view: GameState, nationId: string, workerId: string, sta
   if (rail.length > 0) return rail;
   const own = view.map.tiles.flat().filter((t) => t.ownerNationId === nationId);
   if (own.some((t) => t.constructionJob?.kind === "depot")) return [];
-  if (treasuryOf(view, nationId) < CONSTRUCTION_COST.depot + developerReserve(own, nationId)) return [];
+  // Armed nations reserve military upkeep when validating each proposed purchase.
+  if (upkeepOf(view, nationId) === 0 && treasuryOf(view, nationId) < CONSTRUCTION_COST.depot + developerReserve(own, nationId)) return [];
   const site = bestDepotSite(view, nationId);
   if (!site || !depotPaysBack(view, site)) return [];
   if (site.tileId === standingOn) return [{ kind: "startConstruction", nationId, workerId, tileId: site.tileId, structure: "depot" }];
