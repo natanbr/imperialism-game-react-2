@@ -51,7 +51,12 @@ it('FR-100 FR-520 FR-616 pins the original pre-M16 save and the same production,
   // FR-616: two turns of fishing change freight and stock in the otherwise identical v1 order sequence.
   // e07b340d145b28e2cb02b3c5d81f34de4a1b85747959af5be6e76d21acf73883 -> ef0ac9668522d86b901b59a634d070fdf926786de2a14af622ae3ef21c45cffb.
   expect(digest(original)).toBe('e07b340d145b28e2cb02b3c5d81f34de4a1b85747959af5be6e76d21acf73883');
-  expect(digest(JSON.parse(encoded))).toBe('ef0ac9668522d86b901b59a634d070fdf926786de2a14af622ae3ef21c45cffb');
+  const withFishing = JSON.parse(encoded);
+  expect(digest(withFishing)).toBe('ef0ac9668522d86b901b59a634d070fdf926786de2a14af622ae3ef21c45cffb');
+  // FR-616: both nations landed one Fish per turn. Only those two warehouse entries change in de20eca's capture.
+  expect(original.game.nations.map(nation => nation.warehouse.fish)).toEqual([0, 0]);
+  for (const nation of original.game.nations) nation.warehouse.fish = 2;
+  expect(withFishing).toEqual(original);
   const loaded = load(encoded);
   expect(replaySession(loaded)).toEqual(loaded.game);
 });
