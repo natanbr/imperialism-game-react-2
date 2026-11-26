@@ -10,11 +10,11 @@ import { TechnologyState } from "./Technology";
 import type { DiplomacyState, Proposal } from "./Diplomacy";
 import type { Intent } from "./Intent";
 import type { MinorNation } from "./MinorNation";
-import type { Province } from "./Province";
+import type { Province, TownProgress } from "./Province";
 import type { RandomMapSize, WorldId } from "./World";
 import type { WorldMarket } from "./Market";
 import type { GameOver } from "./Score";
-import type { CountryId } from "./Common";
+import type { CountryId, ProvinceId } from "./Common";
 import type { RegimentType } from "./Unit";
 
 /**
@@ -37,6 +37,8 @@ export interface GameState {
   minorNations: MinorNation[];
   /** The provinces (FR-147); none on a world without provinces (two-islands). */
   provinces: Province[];
+  /** FR-626: a missing province starts with no elapsed development. */
+  townProgress?: Record<ProvinceId, TownProgress>;
   /** One entry per pair of countries with at least one Great Power, by `pairKey` (FR-151). */
   diplomacy: DiplomacyState;
   /** What this turn's orders that involve a second country left to resolve (FR-152). */
@@ -76,9 +78,14 @@ export interface GameState {
   /** Shared ownership in pre-M16 version-1 saves. readSave migrates it to the individual nations. */
   technologyState?: TechnologyState;
   /** Identifies current play in v1 saves; older saves need a historical replay boundary. */
-  rulesRevision?: "m16.1" | "m18d";
+  rulesRevision?: "m16.1" | "m18d" | "m18h";
 
   difficulty: Difficulty;
+}
+
+/** Province maps settle town development. Two islands retains its fishing-era replay semantics. */
+export function settlementRevision(state: GameState): "m18h" | "m18d" {
+  return state.provinces?.length ? "m18h" : "m18d";
 }
 
 /** The game's level. New games are "normal" unless the player picks "demo", a testing aid (FR-561); the rest are unused. */

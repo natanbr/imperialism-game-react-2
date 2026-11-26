@@ -430,7 +430,7 @@ store.advanceTurn()                                      (tests and headless run
        applyTurnOrders     orders given here, nations in state order (the computer nations')
        TURN_PHASES         development, diplomacy, trade (deals, then prices), disband and upkeep
                            (M8), production (freight cars first), fleet movement and interception,
-                           combat, recruits, Shipyard, transportConnectivity, logistics,
+                           combat, recruits, Shipyard, transportConnectivity, town development, logistics,
                            tradeDelivery (units bought), food, University, technology
        promoteFreightCars  the cars built this turn go into service (FR-101, NR-016)
        resetWorkers        everyone may move again; working only while the job is unfinished
@@ -500,6 +500,10 @@ development and construction job, the owner, and infrastructure (`port`, `depot`
 `connected`).
 
 ## Transport
+
+After connectivity settles, `townDevelopmentSystem` advances eligible province seats for each Great Power.
+`GameState.townProgress` stores the owner's startup clock, matured tiers and unfinished upgrades by province.
+`transferProvince` clears the record when the owner changes. See [town development](specs/m18h-towns.md) for the timing and capital exceptions.
 
 Each nation has a per-turn transport capacity. `transportConnectivitySystem` builds the rail
 graph from the capital, depots and ports; `logisticsSystem` moves collected resources into the

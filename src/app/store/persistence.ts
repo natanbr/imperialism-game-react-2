@@ -7,6 +7,7 @@ import { validSavedCredit } from "./creditSave";
 import { inventionNews } from "@/engine/technology";
 import { turnLimitOf } from "@/engine/turn/gameOver";
 import { normalizeRandomMapSize } from "@/types/World";
+import { settlementRevision } from "@/types/GameState";
 import { replayBoundaryForSave, usedM17CombatRules, withCurrentRules } from "./sessionReplay";
 import type { GameSession } from "./gameSlice";
 import { isRecord } from "./isRecord";
@@ -105,7 +106,7 @@ export function readSave(storage: Pick<Storage, "getItem"> | undefined = browser
       }
     }
     parsed.game = withCurrentRules(parsed.game);
-    if (parsed.game.rulesRevision !== "m18d") {
+    if (parsed.game.rulesRevision !== settlementRevision(parsed.game)) {
       const boundary = replayBoundaryForSave(parsed);
       if (boundary) parsed.replayBoundary = boundary;
       if (!parsed.combatRevision && usedM17CombatRules(parsed)) parsed.combatRevision = "q145";

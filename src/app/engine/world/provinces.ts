@@ -71,9 +71,17 @@ export function transferProvince(state: GameState, provinceId: ProvinceId, newOw
   const tiles = state.map.tiles.map((row) =>
     row.some((t) => moving.has(t.id)) ? row.map((t) => (moving.has(t.id) ? withOwner(t, greatPower ? newOwnerId : undefined) : t)) : row
   );
-  return {
+  const next: GameState = {
     ...state,
     provinces: state.provinces.map((p) => (p.id === provinceId ? { ...p, ownerId: newOwnerId, startOwnerId: startOwnerOf(p) } : p)),
     map: { ...state.map, tiles },
   };
+  // A province can change hands twice before the next settlement.
+  if (province.ownerId !== newOwnerId && state.townProgress?.[provinceId]) {
+    const remaining = { ...state.townProgress };
+    delete remaining[provinceId];
+    if (Object.keys(remaining).length) next.townProgress = remaining;
+    else delete next.townProgress;
+  }
+  return next;
 }

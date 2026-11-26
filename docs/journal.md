@@ -2,7 +2,7 @@
 
 ## Resuming here
 
-- M18h on `claude/m18h-towns` starts with read-only town queries. [Task 52 evidence](#2026-11-25-task-52--m18h-town-queries-t-01) · [Build split and inferred defaults](specs/m18h-towns.md#build-split) · [M18d replay handoff](#2026-11-25-task-50--verify-the-saved-replay-checkpoint)
+- M18h on `claude/m18h-towns` resolves town progress and continues historical saves from their imported position. T-03 connects the mature bundles to freight and receipts. [Task 53 evidence](journal/task-53-m18h.md) · [Build split and inferred defaults](specs/m18h-towns.md#build-split)
 - M18g on `claude/m18g-screens` in the `imperialism-game-revival-fee36d` worktree adds Stats rankings and history, Trade Book, Garrison Book and two diplomatic map modes. The owner kept Board Details and the human nation as the reference. [Implementation and gate evidence](journal/archive-M18g.md) · [Task 43 review fixes and gate](journal/archive-M18g.md#2026-11-25-task-43--m18g-review-fixes)
 - M18f (human credit, interest, forced sales, signed cash and supply notes) merged at `9d2f9eb` in pull request 52. The inferred credit numbers and FR-609 debt scoring remain open to owner revision. [M18f journal and gate evidence](journal/archive-M18f.md) · [Task 39 report](../.gate/codex/39/report.md) · [Earlier journal archives](journal/)
 - M18e merged at `21ea18b`. Choose Random, Large and `Brete` to replay seed `2813929771`. The 400-turn historical calendar remains an owner decision (FR-593, FR-594).
@@ -19,18 +19,16 @@
 - To play M17 on continent seed 1, set Armaments and Fabric production to 1. Build a Ship-of-the-Line on turn 6, declare and sail on turn 7, set the site on turn 8, and land the four-ARMS army on turn 9. On turn 10 see the survivors at Sundmark and its colony vote in Council.
 
 
+## 2026-11-25 Task 53 — M18h town settlement and saved games (T-02)
+
+Size M. Advance town growth once, after production, combat and the network check. Clear growth when ownership changes.
+FR-619 covers startup, upgrades, blockade and relief. FR-620 covers transfer and capital exceptions. FR-626 covers live continuation and replay from historical saves with paid Orders.
+T-03 will consume the mature offers for freight. Objection: replaying earlier M18d turns could develop a town before the player first loaded the save. Preserve the imported position and the number of Orders already paid.
+The focused tests passed 41/41 and Chromium passed 25/25. The full suite passed 3,550/3,551, with one protected save-hash test awaiting T-05. The gameplay floors held. [Guard comparisons, both save digests and build results](journal/task-53-m18h.md)
+
 ## 2026-11-25 Task 52 — M18h town queries (T-01)
 
-Size M. FR-617 resolves one seat per owned province and checks its owner's usable hubs after transport connectivity. FR-618 counts known tiles across the province and matches installed factory capacity to each chain's output table.
-T-02 consumes the queries for settlement progress. T-03 consumes the resulting bundles for freight. Objection: the manual and wiki differ on the factory prerequisite. The orchestrator chose the final-goods factory pending owner confirmation.
-
-| Check | Observed result |
-|---|---|
-| `vitest run tests/engine/towns.test.ts tests/engine/riverTransport.test.ts` | At tests-only commit `295f228`, both suites failed to load the missing town module. With the queries implemented, all 30 tests passed, including 22 new cases. [Red](../.gate/codex/52/red.log) · [Green](../.gate/codex/52/focused.log) |
-| `npm test` | Base `50a7441` passed 3,511/3,511. The candidate passed 3,533/3,533. All 72 generated campaigns, four Two islands runs, 12 score and rail checkpoints, 0/280 privacy changes and four historical save measurements matched. The base and candidate guard JSON files both hash to `6283d1b9e786d968cd1d629cb8a405e99bfe0f9878d98d68b6d0e4504f58dd2b`. [Base output](../.gate/codex/52/base-unit.log) · [Candidate output](../.gate/codex/52/unit.log) |
-| `npm run lint`, `npx tsc --noEmit`, `npm run build` | All exited 0. Lint reported one existing unused `capital` variable in the logistics test. The production build generated four static pages. [Lint](../.gate/codex/52/lint.log) · [Types](../.gate/codex/52/types.log) · [Build](../.gate/codex/52/build.log) |
-| Protected gameplay floors | FR-125 minimum 690/450 (1.533×). FR-545 had 15/24 peaceful wins, 12 with a paid grant. FR-260 had zero unpaid losses and 160 healthy meals. FR-597 accepted 37,557/37,557 Orders in 2,810 turns, with zero invariant or privacy changes and zero unpaid idle losses. [Base Council](../.gate/codex/52/base-council.log) · [Candidate Council](../.gate/codex/52/council.log) · [Base guard records](../.gate/codex/52/base-guards.json) · [Candidate guard records](../.gate/codex/52/candidate-guards.json) |
-| `PORT=3123 npx playwright test` with `--workers=1` | 22/22 passed across `m4-3`, `m5-world`, `m11-map`, `m17-sea-war`, `m18d-terrain` and `m18e-new-game`. FR-339 measured 20 requests and 1,990,043 bytes on both revisions. [Base first paint](../.gate/codex/52/base-browser.log) · [Candidate Chromium run](../.gate/codex/52/browser.log) |
+T-01 verified seat connections, known resources and installed factory tiers against the unchanged protected baselines. [Task 52 measurements](journal/task-52-m18h.md)
 
 ## 2026-11-25 Task 50 — Verify the saved replay checkpoint
 

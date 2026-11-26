@@ -1,0 +1,12 @@
+## 2026-11-25 Task 52 — M18h town queries (T-01)
+
+Size M. FR-617 resolves one seat per owned province and checks its owner's usable hubs after transport connectivity. FR-618 counts known tiles across the province and matches installed factory capacity to each chain's output table.
+T-02 consumes the queries for settlement progress. T-03 consumes the resulting bundles for freight. Objection: the manual and wiki differ on the factory prerequisite. The orchestrator chose the final-goods factory pending owner confirmation.
+
+| Check | Observed result |
+|---|---|
+| `vitest run tests/engine/towns.test.ts tests/engine/riverTransport.test.ts` | At tests-only commit `295f228`, both suites failed to load the missing town module. With the queries implemented, all 30 tests passed, including 22 new cases. [Red](../../.gate/codex/52/red.log) · [Green](../../.gate/codex/52/focused.log) |
+| `npm test` | Base `50a7441` passed 3,511/3,511. The candidate passed 3,533/3,533. All 72 generated campaigns, four Two islands runs, 12 score and rail checkpoints, 0/280 privacy changes and four historical save measurements matched. The base and candidate guard JSON files both hash to `6283d1b9e786d968cd1d629cb8a405e99bfe0f9878d98d68b6d0e4504f58dd2b`. [Base output](../../.gate/codex/52/base-unit.log) · [Candidate output](../../.gate/codex/52/unit.log) |
+| `npm run lint`, `npx tsc --noEmit`, `npm run build` | All exited 0. Lint reported one existing unused `capital` variable in the logistics test. The production build generated four static pages. [Lint](../../.gate/codex/52/lint.log) · [Types](../../.gate/codex/52/types.log) · [Build](../../.gate/codex/52/build.log) |
+| Protected gameplay floors | FR-125 minimum 690/450 (1.533×). FR-545 had 15/24 peaceful wins, 12 with a paid grant. FR-260 had zero unpaid losses and 160 healthy meals. FR-597 accepted 37,557/37,557 Orders in 2,810 turns, with zero invariant or privacy changes and zero unpaid idle losses. [Base Council](../../.gate/codex/52/base-council.log) · [Candidate Council](../../.gate/codex/52/council.log) · [Base guard records](../../.gate/codex/52/base-guards.json) · [Candidate guard records](../../.gate/codex/52/candidate-guards.json) |
+| `PORT=3123 npx playwright test` with `--workers=1` | 22/22 passed across `m4-3`, `m5-world`, `m11-map`, `m17-sea-war`, `m18d-terrain` and `m18e-new-game`. FR-339 measured 20 requests and 1,990,043 bytes on both revisions. [Base first paint](../../.gate/codex/52/base-browser.log) · [Candidate Chromium run](../../.gate/codex/52/browser.log) |

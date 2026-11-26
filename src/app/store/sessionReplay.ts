@@ -114,8 +114,7 @@ const gameJson = (state: GameState) => JSON.stringify(state, (_key, value: unkno
 export function replayBoundaryForSave(session: GameSession): ReplayBoundary | undefined {
   try {
     const start = session.replayBoundary?.checkpoint?.turn ?? 1;
-    // Settling even one turn under fishing changes the rules revision of a historical campaign.
-    // Only a same-turn replay can still match this save and preserve an earlier boundary.
+    // Only a same-turn replay can preserve an older boundary without settling history under newer rules.
     if (session.game.turn === start && gameJson(replaySession(session)) === gameJson(session.game)) {
       return session.replayBoundary;
     }
