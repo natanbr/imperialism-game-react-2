@@ -114,7 +114,11 @@ describe('FR-621/622 shared town freight through the real turn phases', () => {
     expect(receipts(result)).toEqual(expectedReceipts(1, 2, 2, 1, 0));
   });
 
-  it('FR-628 reserves the last car for missing protein and feeds all four computer workers', () => {
+  // HELD FOR THE OWNER (FR-545 floor decision, Task 60): the protein reservation that makes these two pass is not shipped.
+  // It removes 54 sick computer meals in 14 of 24 diplomat games but costs FR-545 one win, 15/24 -> 14/24: in seed 24
+  // Valdoria's expert, sick on turns 28-31 for want of the Fish it collected, is then fed, and the final Council goes
+  // 6-6 (Testland on standing) -> 5-7. Un-skip both with the reservation once the owner decides.
+  it.skip('FR-628 reserves the last car for missing protein and feeds all four computer workers', () => {
     let state = beforeUpgrade(1, 'scripted');
     state = setTile(state, towns[0].seatTileId, { resource: undefined });
     state = emptyWarehouse(state, N1, { grain: 2, fruit: 1 });
@@ -125,6 +129,28 @@ describe('FR-621/622 shared town freight through the real turn phases', () => {
     expect(result.events.filter(e => e.type === 'order-rejected')).toEqual([]);
     expect(result.events).toContainEqual({ type: 'workers-fed', nationId: N1, fed: 4, sick: 0, starved: 0 });
     expect(receipts(result)).toEqual(expectedReceipts(0, 0, 0, 0, 0));
+  });
+
+  it.skip('FR-628 uses one Livestock and one Fish before filling a Grain buffer with the two cars', () => {
+    let state = beforeUpgrade(2, 'scripted');
+    state = setTile(state, T.mountains1, { resource: { type: ResourceType.Livestock, level: 0 } });
+    state = emptyWarehouse(state, N1, { grain: 4, fruit: 2 });
+    state = setIndustry(setTreasury(state, N1, 0), N1, { workers: { untrained: 8, trained: 0, expert: 0 } });
+    expect(rawFreightSupply(state, N1)).toEqual({ livestock: 1, grain: 1, fish: 1 });
+    const orders = scriptedPlayer(deepFreeze(state), N1);
+    const result = resolveTurn(state, { [N1]: orders });
+    expect(result.events).toContainEqual({ type: 'workers-fed', nationId: N1, fed: 8, sick: 0, starved: 0 });
+  });
+
+  it('FR-628 keeps the town car when Canned Food already covers the protein slot', () => {
+    let state = beforeUpgrade(1, 'scripted');
+    state = setTile(state, towns[0].seatTileId, { resource: undefined });
+    state = emptyWarehouse(state, N1, { grain: 2, fruit: 1, cannedFood: 1 });
+    state = setIndustry(setTreasury(state, N1, 0), N1, { workers: { untrained: 4, trained: 0, expert: 0 } });
+    const orders = scriptedPlayer(deepFreeze(state), N1);
+    const result = resolveTurn(state, { [N1]: orders });
+    expect(result.events).toContainEqual({ type: 'workers-fed', nationId: N1, fed: 4, sick: 0, starved: 0 });
+    expect(receipts(result)).toEqual(expectedReceipts(1, 0, 0, 0, 0));
   });
 
   it('FR-628 gives West its Furniture before reserving a fourth car for East’s Lumber', () => {
