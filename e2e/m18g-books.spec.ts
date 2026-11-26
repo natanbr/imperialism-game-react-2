@@ -1,7 +1,7 @@
 import type { TestInfo } from '@playwright/test';
 import { pairKey } from '../src/app/engine';
 import { createGameStore } from '../src/app/store/rootStore';
-import { SAVE_KEY, saveOf, type SavedGame } from '../src/app/store/persistence';
+import { readSave, SAVE_KEY, saveOf, serializeSave, type SavedGame } from '../src/app/store/persistence';
 import { expect, startSeededGame, test, type Locator, type Page } from './seededGame';
 
 const viewports = [{ width: 1366, height: 768 }, { width: 1280, height: 720 }, { width: 390, height: 844 }];
@@ -27,8 +27,12 @@ async function expectPaneFits(panel: Locator) {
   expect(fit.overflow).toBeLessThanOrEqual(1);
 }
 
-async function snapshot(page: Page): Promise<SavedGame> {
-  return page.evaluate(key => JSON.parse(localStorage.getItem(key)!), SAVE_KEY);
+function rawSlot(page: Page) {
+  return page.evaluate(key => localStorage.getItem(key)!, SAVE_KEY);
+}
+
+async function snapshot(page: Page): Promise<Pick<SavedGame, 'ordersThisTurn' | 'game'>> {
+  return JSON.parse(await rawSlot(page));
 }
 
 for (const viewport of viewports) {
@@ -42,9 +46,11 @@ for (const viewport of viewports) {
       const board = page.getByRole('dialog', { name: /^Board of Trade/ });
       await board.getByRole('button', { name: 'Buy one more Coal', exact: true }).click();
       await expect.poll(async () => (await snapshot(page)).ordersThisTurn.length).toBe(1);
-      const before = await snapshot(page);
+      const before = await rawSlot(page);
+      const initial = readSave({ getItem: () => before });
+      if (initial.kind !== 'usable') throw new Error('Expected a usable Trade Book save');
       const control = createGameStore({ seed: 1 });
-      control.getState().restoreGame(before);
+      control.getState().restoreGame(initial.save);
       control.getState().advanceTurn();
 
       await board.getByRole('tab', { name: 'Trade Book' }).click();
@@ -70,12 +76,12 @@ for (const viewport of viewports) {
       await capture(page, info, 'garrison-book');
       await page.keyboard.press('Escape');
       await expect(stats).toBeFocused();
-      expect(await snapshot(page)).toEqual(before);
+      expect(await rawSlot(page)).toBe(before);
 
       await page.getByRole('button', { name: /Advance Turn/ }).click();
       await expect.poll(async () => (await snapshot(page)).game.turn).toBe(2);
-      const after = await snapshot(page);
-      expect(after).toEqual(JSON.parse(JSON.stringify(saveOf(control.getState(), new Date(after.savedAt)))));
+      const after = await rawSlot(page);
+      expect(after).toBe(serializeSave(saveOf(control.getState(), new Date(JSON.parse(after).savedAt))));
       await market.click();
       const repeat = board.getByRole('button', { name: "Repeat last turn's trades" });
       await expect(repeat).toBeVisible();

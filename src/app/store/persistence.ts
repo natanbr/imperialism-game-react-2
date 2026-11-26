@@ -117,16 +117,21 @@ export function readSave(storage: Pick<Storage, "getItem"> | undefined = browser
   }
 }
 
+/** Encode the full session in the browser slot format, including compact historical replay data. */
+export function serializeSave(save: SavedGame): string {
+  let stored: StoredGame = save;
+  if (save.replayBoundary?.checkpoint) {
+    const { checkpoint, ...boundary } = save.replayBoundary;
+    stored = { ...save, replayBoundary: { ...boundary, checkpointChanges: checkpointDifference(save.game, checkpoint) ?? {} } };
+  }
+  return JSON.stringify(stored);
+}
+
 /** Writes the save; false when the browser refused it (storage full or blocked, FR-363). */
 export function writeSave(save: SavedGame, storage: Storage | undefined = browserStorage()): boolean {
   if (!storage) return false;
   try {
-    let stored: StoredGame = save;
-    if (save.replayBoundary?.checkpoint) {
-      const { checkpoint, ...boundary } = save.replayBoundary;
-      stored = { ...save, replayBoundary: { ...boundary, checkpointChanges: checkpointDifference(save.game, checkpoint) ?? {} } };
-    }
-    storage.setItem(SAVE_KEY, JSON.stringify(stored));
+    storage.setItem(SAVE_KEY, serializeSave(save));
     return true;
   } catch {
     return false;
