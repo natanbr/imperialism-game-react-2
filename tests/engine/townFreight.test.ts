@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { GEMS_CASH_PER_UNIT, GOLD_CASH_PER_UNIT } from '@/definisions/cashValues';
+import { planFinalTransport } from '@/engine/ai/economy';
 import { scriptedPlayer } from '@/engine/ai/scriptedPlayer';
+import { tryApplyOrder } from '@/engine/orders/apply';
+import type { Order } from '@/engine/orders/Order';
 import { projectedFreightPlan, projectedFreightSupply, rawFreightSupply } from '@/engine/systems/logisticsSystem';
 import { resolveTurn, type TurnResult } from '@/engine/turn/resolveTurn';
 import type { GameState } from '@/types/GameState';
 import type { NationController } from '@/types/Nation';
 import { ResourceType } from '@/types/Resource';
-import { deepFreeze, game, N1, N2, nationOf, setBuilding, setTile, setWarehouse, stockOf, T } from './fixtures';
+import { deepFreeze, emptyWarehouse, game, N1, N2, nationOf, setBuilding, setIndustry, setTile, setTreasury, setWarehouse, stockOf, T } from './fixtures';
 
 const towns = [
   { id: 'west', name: 'West', seatTileId: '2-1', timber: ['0-3', '1-3', '2-3', '3-3'], cotton: ['3-0', '3-1'] },
@@ -95,8 +98,64 @@ describe('FR-621/622 shared town freight through the real turn phases', () => {
     const state = beforeUpgrade(6);
     const plan = { lumber: 3, fabric: 0 };
     const result = resolve(state, plan);
+    // FR-627/FR-628, Grain/Fish/Fabric/Lumber/Furniture: [1,1,0,3,1] → [1,0,0,3,2].
+    // East's Furniture now takes Fish's car after the explicit Lumber target.
+    expect(stockDeltas(state, result.state)).toEqual({ grain: 1, fish: 0, fabric: 0, lumber: 3, furniture: 2 });
     expect(receipts(result)).toEqual(expectedReceipts(0, 2, 1, 1, 1));
     expect(projectedFreightPlan(state, N1, 6, plan).shipments).toEqual({ lumber: 3, furniture: 2, grain: 1 });
+  });
+
+  it('FR-621 FR-628 sends the six automatic cars to West then East', () => {
+    const state = beforeUpgrade(6);
+    const result = resolve(state);
+    // FR-627/FR-628, Grain/Fish/Fabric/Lumber/Furniture: [1,1,1,2,1] → [0,0,1,4,1].
+    // East's two Lumber now take the cars that previously shipped Grain and Fish.
+    expect(stockDeltas(state, result.state)).toEqual({ grain: 0, fish: 0, fabric: 1, lumber: 4, furniture: 1 });
+    expect(receipts(result)).toEqual(expectedReceipts(1, 2, 2, 1, 0));
+  });
+
+  it('FR-628 reserves the last car for missing protein and feeds all four computer workers', () => {
+    let state = beforeUpgrade(1, 'scripted');
+    state = setTile(state, towns[0].seatTileId, { resource: undefined });
+    state = emptyWarehouse(state, N1, { grain: 2, fruit: 1 });
+    state = setIndustry(setTreasury(state, N1, 0), N1, { workers: { untrained: 4, trained: 0, expert: 0 } });
+    expect(rawFreightSupply(state, N1)).toEqual({ fish: 1 });
+    const orders = scriptedPlayer(deepFreeze(state), N1);
+    const result = resolveTurn(state, { [N1]: orders });
+    expect(result.events.filter(e => e.type === 'order-rejected')).toEqual([]);
+    expect(result.events).toContainEqual({ type: 'workers-fed', nationId: N1, fed: 4, sick: 0, starved: 0 });
+    expect(receipts(result)).toEqual(expectedReceipts(0, 0, 0, 0, 0));
+  });
+
+  it('FR-628 gives West its Furniture before reserving a fourth car for East’s Lumber', () => {
+    const state = deepFreeze(beforeUpgrade(4, 'scripted'));
+    const orders = scriptedPlayer(state, N1).filter(o => o.kind === 'setTransportAllocations');
+    expect(orders).toHaveLength(2);
+    for (const order of orders) {
+      const result = resolve(state, order.allocations);
+      expect(receipts(result)).toEqual(expectedReceipts(1, 2, 0, 1, 0));
+      expect(order.allocations).toMatchObject({ fabric: 1, lumber: 2, furniture: 1 });
+    }
+  });
+
+  it('FR-628 forecasts a confirmed Furniture Factory expansion in the final freight plan', () => {
+    let state = beforeUpgrade(2, 'scripted');
+    state = setBuilding(setBuilding(state, N1, 'clothingFactory', { capacity: 0 }), N1, 'furnitureFactory', { capacity: 2 });
+    state = setBuilding(state, N1, 'lumberMill', { capacity: 1 });
+    state = setTile(state, T.mountains1, { resource: { type: ResourceType.Timber, level: 1 } });
+    state = setWarehouse(state, N1, { timber: 3, lumber: 2, steel: 2 });
+    const expansion = { kind: 'expandBuilding', nationId: N1, building: 'furnitureFactory' } as const;
+    const accepted = tryApplyOrder(deepFreeze(state), expansion);
+    expect(accepted.result).toEqual({ ok: true });
+    const orders: Order[] = [expansion];
+    planFinalTransport(state, accepted.state, N1, order => (orders.push(order), true));
+    const result = resolveTurn(state, { [N1]: orders });
+    expect(result.events.filter(e => e.type === 'order-rejected')).toEqual([]);
+    expect(result.events).toContainEqual({ type: 'building-expanded', nationId: N1, building: 'furnitureFactory', capacity: 4 });
+    expect(receipts(result).map(e => [e.provinceId, e.lines])).toEqual([
+      ['west', [line('lumber', 1, 1)]], ['east', [line('lumber', 1, 0)]],
+    ]);
+    expect(stockOf(result.state, N1, 'timber') - stockOf(state, N1, 'timber')).toBe(1);
   });
 
   it('FR-628 an explicit raw allocation still ships before every town', () => {

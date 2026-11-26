@@ -39,20 +39,41 @@ import baseline from './randomMapsBaseline.json';
 // large diplomat 5: turns 30 -> 40
 // large diplomat 10: winner nation-2 -> nation-1, peacefulWin false -> true
 //
-// FR-627 under FR-628: towns now ship before automatic raw and Fish freight, and the computer plans its own town goods
-// after its mills' inputs. Town deliveries 0 -> 344 of 778 offered units, in 28 of 72 games. The other 60 games matched.
-// standard idle 2: scores [465, 680, 1162] -> [465, 680, 1141]
-// standard idle 4: scores [462, 649, 1032] -> [462, 649, 1120]
-// standard idle 8: firstCapture 36 -> null, firstPact null -> 39, compulsory 0 -> 3, scores [452, 681, 1072] -> [452, 681, 1177]
-// standard scripted 11: winner nation-1 -> nation-2
-// standard diplomat 11: winner nation-1 -> nation-2, peacefulWin true -> false
-// large idle 1: scores [472, 660, 984] -> [472, 660, 1024]
-// large idle 3: firstCapture null -> 35, compulsory 3 -> 0, scores [495, 747, 1276] -> [495, 746, 1261]
-// large idle 6: scores [502, 746, 1138] -> [502, 746, 1147]
-// large idle 10: scores [505, 652, 1239] -> [505, 652, 1234]
-// large scripted 3: winner nation-2 -> nation-1
-// large scripted 7: winner nation-1 -> nation-2
-// large diplomat 8: winner nation-2 -> nation-1, peacefulWin false -> true
+// FR-627 / FR-628, M18h -> towns-first M18i. Town materials/goods displaced automatic raw and Fish freight.
+// Changed warehouse inputs and sale income affected later plans, scores, diplomacy and payroll.
+// Twelve original fixture rows moved; 20 games changed a prior campaign measurement, and 28 delivered new town freight.
+// Totals: both owners 0 -> 344 delivered (778 offered), computer 0 -> 190, games delivering 0 -> 28,
+// accepted computer Orders 37,557 -> 37,522 (zero rejected), unpaid disbands 50 -> 51 (idle zero).
+// Standard diplomat 3: unpaid human disband turns [24,25] -> [22,23,24]. On turn 24 Testland had $1 for $25 upkeep.
+// Per-game changes below; scores are at turns 15, 25 and 40.
+// standard idle 2: submitted 523 -> 516, townDelivered 0 -> 12, computerTownDelivered 0 -> 12, scores [465,680,1162] -> [465,680,1141]
+// standard idle 4: townDelivered 0 -> 21, computerTownDelivered 0 -> 21, scores [462,649,1032] -> [462,649,1120]
+// standard idle 8: submitted 492 -> 457, firstCapture 36 -> null, captures 1 -> 0, firstPact null -> 39, townDelivered 0 -> 9, computerTownDelivered 0 -> 9, compulsory 0 -> 3, scores [452,681,1072] -> [452,681,1177]
+// standard scripted 1: townDelivered 0 -> 2
+// standard scripted 3: submitted 498 -> 499, townDelivered 0 -> 20, computerTownDelivered 0 -> 5, scores [433,715,1079] -> [433,715,1033]
+// standard scripted 4: submitted 511 -> 515, townDelivered 0 -> 22, computerTownDelivered 0 -> 22, scores [487,706,1029] -> [487,706,1089]
+// standard scripted 6: townDelivered 0 -> 8
+// standard scripted 8: townDelivered 0 -> 4, computerTownDelivered 0 -> 4
+// standard scripted 11: winner "nation-1" -> "nation-2", submitted 508 -> 507, townDelivered 0 -> 12, compulsory 1 -> 2, peacefulWin true -> false
+// standard diplomat 1: townDelivered 0 -> 2
+// standard diplomat 3: submitted 498 -> 499, noPay 2 -> 3, townDelivered 0 -> 13, computerTownDelivered 0 -> 1, scores [433,714,1080] -> [433,714,1108]
+// standard diplomat 4: townDelivered 0 -> 4, computerTownDelivered 0 -> 4, scores [443,662,1155] -> [443,662,1162]
+// standard diplomat 6: townDelivered 0 -> 9
+// standard diplomat 8: submitted 488 -> 493, firstCapture null -> 39, captures 0 -> 1, townDelivered 0 -> 15, computerTownDelivered 0 -> 10, scores [490,751,1263] -> [490,751,1254]
+// standard diplomat 11: winner "nation-1" -> "nation-2", submitted 534 -> 528, townDelivered 0 -> 15, peacefulWin true -> false, scores [437,583,835] -> [437,583,879]
+// large idle 1: submitted 593 -> 586, townDelivered 0 -> 8, computerTownDelivered 0 -> 8, scores [472,660,984] -> [472,660,1024]
+// large idle 3: submitted 513 -> 548, firstCapture null -> 35, captures 0 -> 1, townDelivered 0 -> 11, computerTownDelivered 0 -> 11, compulsory 3 -> 0, scores [495,747,1276] -> [495,746,1261]
+// large idle 6: townDelivered 0 -> 3, computerTownDelivered 0 -> 3, scores [502,746,1138] -> [502,746,1147]
+// large idle 10: submitted 567 -> 557, townDelivered 0 -> 1, computerTownDelivered 0 -> 1, scores [505,652,1239] -> [505,652,1234]
+// large scripted 1: townDelivered 0 -> 2
+// large scripted 3: winner "nation-2" -> "nation-1", submitted 536 -> 540, firstCapture 39 -> 36, earned 1 -> 0, townDelivered 0 -> 12, computerTownDelivered 0 -> 12, peacefulWin false -> true, scores [495,705,1261] -> [495,733,1289]
+// large scripted 4: townDelivered 0 -> 15, computerTownDelivered 0 -> 15, scores [484,705,1277] -> [484,705,1328]
+// large scripted 5: townDelivered 0 -> 14
+// large scripted 7: winner "nation-1" -> "nation-2", submitted 535 -> 534, townDelivered 0 -> 18, computerTownDelivered 0 -> 18, scores [453,692,1162] -> [453,692,1237]
+// large diplomat 3: submitted 529 -> 516, firstCapture 39 -> null, captures 1 -> 0, townDelivered 0 -> 10, computerTownDelivered 0 -> 10, compulsory 0 -> 3, scores [495,705,1206] -> [495,733,1335]
+// large diplomat 4: townDelivered 0 -> 16, computerTownDelivered 0 -> 16, scores [484,705,1224] -> [484,705,1248]
+// large diplomat 6: townDelivered 0 -> 8, computerTownDelivered 0 -> 8
+// large diplomat 8: winner "nation-2" -> "nation-1", submitted 578 -> 573, townDelivered 0 -> 58, peacefulWin false -> true, scores [479,600,915] -> [479,600,917]
 
 const sizes = ['standard', 'large'] as const;
 const policies = ['idle', 'scripted', 'diplomat'] as const;
@@ -139,6 +160,8 @@ function measure(size: Size, policy: Policy, seed: number) {
     violations: turns.flatMap(t => t.invariantViolations.map(message => ({ turn: t.turn, message }))),
     noPay: turns.flatMap(t => t.disbands).filter(d => d.reason === 'no-pay')
       .reduce((total, d) => total + d.count, 0),
+    humanNoPayTurns: turns.filter(t => t.disbands.some(d => d.nationId === HUMAN_ID && d.reason === 'no-pay'))
+      .map(t => t.turn),
     meals, sick, starved, firstDepot, firstCapture: captures[0] ?? null, captures: captures.length,
     deliveries: deliveries.length, units: deliveries.reduce((sum, sale) => sum + sale.amount, 0),
     firstPact, earned: earned ?? null, townOffered, townDelivered, computerTownDelivered,
@@ -150,7 +173,6 @@ function measure(size: Size, policy: Policy, seed: number) {
 }
 
 type Result = ReturnType<typeof measure>;
-const everyGame: Result[] = [];
 
 function spread(values: number[]) {
   const sorted = values.toSorted((a, b) => a - b);
@@ -165,12 +187,11 @@ function spread(values: number[]) {
 for (const size of sizes) {
   for (const policy of policies) {
     describe(`FR-597 ${size} random, ${policy}`, () => {
-      const games: Result[] = [];
+      const gamesBySeed = new Map<number, Result>();
       it.each(seeds)('seed %i finishes with legal Orders, valid turns and fair information', async seed => {
         const game = measure(size, policy, seed);
         await yieldToRunner();
-        games.push(game);
-        everyGame.push(game);
+        gamesBySeed.set(seed, game);
         console.log('FR-597 game ' + JSON.stringify(game));
         expect(game.reason).not.toBe('unfinished');
         expect(game.turns).toBeLessThanOrEqual(40);
@@ -189,6 +210,7 @@ for (const size of sizes) {
         expect(game).toMatchObject(expected!);
       });
       afterAll(() => {
+        const games = [...gamesBySeed.values()];
         const count = (predicate: (g: Result) => boolean) => games.filter(predicate).length;
         const sum = (pick: (g: Result) => number) => games.reduce((n, g) => n + pick(g), 0);
         const measured = (pick: (g: Result) => number | null) =>
@@ -214,19 +236,25 @@ for (const size of sizes) {
   }
 }
 
-// FR-628: towns ship before ordinary automatic freight, and the computer plans for their goods. Task 55 measured
-// 778 units offered and 0 delivered across these 72 games when town offers were loaded last. Task 58 pins the
-// measured totals; the computer's own towns must deliver too.
+// Each seed test reconciles its own measurements to these same rows. The aggregate can run by name or on retry.
 it('FR-628 towns deliver goods across the 72 generated games', () => {
-  expect(everyGame).toHaveLength(sizes.length * policies.length * seeds.length);
-  const sum = (pick: (g: Result) => number) => everyGame.reduce((n, g) => n + pick(g), 0);
+  const games = sizes.flatMap(size => policies.flatMap(policy => {
+    const rows = baseline[size][policy];
+    expect(rows.map(row => row.seed)).toEqual(seeds);
+    return rows;
+  }));
+  expect(games).toHaveLength(72);
+  type Row = typeof games[number];
+  const sum = (pick: (row: Row) => number) => games.reduce((total, row) => total + pick(row), 0);
   const towns = {
     offered: sum(g => g.townOffered), delivered: sum(g => g.townDelivered),
-    gamesWithDelivery: everyGame.filter(g => g.townDelivered > 0).length,
+    gamesWithDelivery: games.filter(g => g.townDelivered > 0).length,
     computerDelivered: sum(g => g.computerTownDelivered),
   };
   console.log('FR-628 towns ' + JSON.stringify(towns));
-  expect({ offered: towns.offered, delivered: towns.delivered, gamesWithDelivery: towns.gamesWithDelivery })
-    .toEqual({ offered: 778, delivered: 344, gamesWithDelivery: 28 });
-  expect(towns.computerDelivered).toBeGreaterThan(0);
+  // FR-627 / FR-628: towns before automatic freight delivers 0 -> 344 units, including 0 -> 190 to the computer.
+  expect(towns).toEqual({ offered: 778, delivered: 344, gamesWithDelivery: 28, computerDelivered: 190 });
+  // The freight changes alter subsequent plans and available payroll. Each seed above checks zero refused Orders.
+  expect(sum(g => g.submitted)).toBe(37_522); // FR-627 / FR-628: 37,557 -> 37,522 accepted computer Orders.
+  expect(sum(g => g.noPay)).toBe(51); // FR-627 / FR-628: 50 -> 51 unpaid disbands.
 });
