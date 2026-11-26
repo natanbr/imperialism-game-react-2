@@ -2,7 +2,7 @@
 
 ## Resuming here
 
-- M18d Task 48 on `claude/m18d-terrain` keeps FR-339 at 20 art requests. Fish and Coal share an atlas, and the opening continent measures 1,990,043 bytes. The payroll and FR-616 replay package passed its gameplay guards. Authored terrain and rivers in the fixed worlds and ordinary refinery Oil remain open. [Task 48 gate, screenshots and handoff](journal/task-48-m18d.md)
+- M18d Task 49 on `claude/m18d-terrain` covers compact historical saves, the depot mutation, the exact 17/24 Council result and port build warnings. Task 48 kept first paint at 20 art requests and 1,990,043 bytes. Authored terrain and rivers in the fixed worlds and ordinary refinery Oil remain open. [Task 49 verification and handoff](journal/task-49-m18d.md) · [Task 48 gate and screenshots](journal/task-48-m18d.md)
 - M18g on `claude/m18g-screens` in the `imperialism-game-revival-fee36d` worktree adds Stats rankings and history, Trade Book, Garrison Book and two diplomatic map modes. The owner kept Board Details and the human nation as the reference. [Implementation and gate evidence](journal/archive-M18g.md) · [Task 43 review fixes and gate](journal/archive-M18g.md#2026-11-25-task-43--m18g-review-fixes)
 - M18f (human credit, interest, forced sales, signed cash and supply notes) merged at `9d2f9eb` in pull request 52. The inferred credit numbers and FR-609 debt scoring remain open to owner revision. [M18f journal and gate evidence](journal/archive-M18f.md) · [Task 39 report](../.gate/codex/39/report.md) · [Earlier journal archives](journal/)
 - M18e merged at `21ea18b`. Choose Random, Large and `Brete` to replay seed `2813929771`. The 400-turn historical calendar remains an owner decision (FR-593, FR-594).
@@ -18,6 +18,10 @@
 - Task 19 passed the load trials and full gate on `claude/perf-tests`. Finish future gates with `npm run test:perf` alone. The measured results and six functional logs are indexed in `.gate/codex/19/summary.md`.
 - To play M17 on continent seed 1, set Armaments and Fabric production to 1. Build a Ship-of-the-Line on turn 6, declare and sail on turn 7, set the site on turn 8, and land the four-ARMS army on turn 9. On turn 10 see the survivors at Sundmark and its colony vote in Council.
 
+
+## 2026-11-25 Task 49 — M18d review fixes
+
+Size M. Historical saves retain the original replay position using only differences from the current game. The turn-11 save shrank from 183,728 to 111,446 characters. A completed Large random campaign used 238,671 of the 2,000,000-character budget. The three rail regressions failed when the depot cash check was removed and passed with it restored. [Task 49 measurements, review and gate](journal/task-49-m18d.md)
 
 ## 2026-11-25 Task 48 — Fish within the existing loading budget
 

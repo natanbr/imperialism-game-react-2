@@ -34,7 +34,7 @@ Army Orders store the selected transport mode on existing per-regiment intents. 
 
 The catalogue in `definisions/technologies.ts` records the manual's first year, prerequisite IDs, price and effect. The clock in `engine/technology.ts` scales the historical years to the saved game's turn limit. `TIME_CONFIG.TURN_LIMIT` remains the single default for future game lengths.
 Each Great Power owns its `Nation.technologies`. The two order kinds reserve or refund the price immediately. The technology phase grants the pending IDs at End Turn, and the invention news lists public releases. Rail, civilian recruitment, refinery and ship construction check the acting nation's holdings. The version-1 loader copies the old shared purchases into independent lists, including any legacy oil permission.
-Version-1 saves retain the original order log and record the turn and count of applied orders when the rules change. `store/sessionReplay.ts` rebuilds the game from its seeded start, validates the historical orders under their original rules, and switches to current rules at that exact point, including partway through a turn.
+Version-1 saves retain the original order log and record the turn and count of orders already applied when the rules change. For a campaign whose history would diverge under current rules, `store/sessionReplay.ts` replays from the historical position, including partway through a turn. The localStorage slot holds the current game and only the differences needed to reconstruct that position. Continue also accepts earlier saves containing a full checkpoint.
 The loader fills historical news reports from the same invention calendar as the turn engine, so Continue shows the releases for the turn being opened.
 The Capital Technology dialog lists releases, ownership and prerequisites and submits orders through the store. Development permissions and computer technology purchasing are parked pending balance decisions.
 
@@ -630,8 +630,8 @@ at turns 1, 10 and 25).
 
 - **Slot** (`store/persistence.ts`): one localStorage key, `imperialism-remake.save` (`SAVE_KEY`). A `SavedGame` is the
   `GameSession` (`game`, `activeNationId`, `eventLog`, `orderLog`, `ordersThisTurn`, `turnStartTreasuries`, declared in
-  `gameSlice.ts`) plus `version` (`SAVE_VERSION`, 1) and `savedAt`. No UI state is saved. A 40-turn save is under 2 MB
-  (a guard test; localStorage holds about 5 MB). `readSave()` never throws and returns `empty` (also when the browser
+  `gameSlice.ts`) plus `version` (`SAVE_VERSION`, 1) and `savedAt`. No UI state is saved. The 40-turn budget is
+  2,000,000 characters of serialized JSON, as measured by the persistence tests. `readSave()` never throws and returns `empty` (also when the browser
   blocks storage), `usable`, or `unusable` (does not parse, another version, no game with turn, nations and map).
   `writeSave` returns false when the browser refuses.
 - **Settled rankings (FR-610, FR-611).** The optional `GameSession.rankHistory` stores the turn played and each
