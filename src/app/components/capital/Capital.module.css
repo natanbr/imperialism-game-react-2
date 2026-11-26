@@ -196,6 +196,39 @@
   margin: 0;
 }
 
+.townIncome {
+  margin-top: 10px;
+}
+
+.townIncome h4,
+.townIncome h5,
+.townIncome p,
+.townIncome ul {
+  margin: 0;
+}
+
+.townIncome h4 {
+  border-top: 1px solid var(--color-border);
+  padding-top: 6px;
+}
+
+.townIncome h5 {
+  font-size: inherit;
+}
+
+.townIncome ul {
+  padding-inline-start: 1.25em;
+}
+
+.townOffer {
+  display: grid;
+  gap: 4px;
+}
+
+.townOffer .note {
+  display: block;
+}
+
 .orderRows {
   list-style: none;
   padding: 0;

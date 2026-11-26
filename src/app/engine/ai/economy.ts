@@ -32,7 +32,7 @@ import { councilTradeInputs, embassySaving, planInfluence } from "./scriptedInfl
 import { greatPowerTradeCaps } from "./scriptedGreatPowerTrade";
 import { mealNeeds } from "../systems/foodSystem";
 import { productionSystem } from "../systems/productionSystem";
-import { computeLogisticsTransport, logisticsSystem } from "../systems/logisticsSystem";
+import { projectedFreightPlan, projectedFreightSupply, rawFreightSupply, updateNationStateWithTransportedResources } from "../systems/logisticsSystem";
 import { transportConnectivitySystem } from "../systems/transportConnectivitySystem";
 import { developmentSystem } from "../systems/developmentSystem";
 import { createTurnContext } from "../turn/context";
@@ -139,10 +139,6 @@ export function planEconomy(view: () => GameState, nationId: string, propose: Pr
 
 // --- transport (FR-127) ---------------------------------------------------------------------
 
-/** What the tiles deliver to the capital and the active depots this turn, by resource. */
-const gatheredOf = (state: GameState, nationId: string): Stock =>
-  computeLogisticsTransport(state.map, nationId, state.transportNetwork.railroadNetworks?.[nationId]);
-
 /**
  * Units worth shipping this turn, in priority order: the meal's raw food that the warehouse lacks
  * (keeping one meal in stock), plus one canned-food batch's while the cans are fewer than the
@@ -150,10 +146,9 @@ const gatheredOf = (state: GameState, nationId: string): Stock =>
  * the textile mill's cotton and wool, each up to two turns of its mill at full capacity. The
  * logistics phase fills any cars left from the other resources.
  */
-export function shippingWants(state: GameState, nationId: string): [string, number][] {
+export function shippingWants(state: GameState, nationId: string, gathered = rawFreightSupply(state, nationId)): [string, number][] {
   const nation = nationOf(state, nationId);
   const stock = nation.warehouse as Stock;
-  const gathered = gatheredOf(state, nationId);
   const mouths = mouthsOf(nation);
   const needs = mealNeeds(mouths);
   const canning = (stock[MaterialType.CannedFood] ?? 0) < mouths;
@@ -210,7 +205,8 @@ const carsOf = (state: GameState, nationId: string): number => Math.max(0, natio
 
 /** The first plan, on what the hubs collect now: the one the trade's projection ships (`projectTurn` runs no development). */
 function planTransport(state: GameState, nationId: string, propose: Propose): void {
-  const allocations = priorityPlan(carsOf(state, nationId), gatheredOf(state, nationId), shippingWants(state, nationId));
+  const gathered = projectedFreightSupply(state, nationId);
+  const allocations = priorityPlan(carsOf(state, nationId), gathered, shippingWants(state, nationId, gathered));
   propose({ kind: "setTransportAllocations", nationId, allocations });
 }
 
@@ -220,7 +216,9 @@ function planTransport(state: GameState, nationId: string, propose: Propose): vo
  */
 export function collectedAtLogistics(view: GameState, nationId: string): Stock {
   const ctx = createTurnContext({ turn: view.turn });
-  return gatheredOf(transportConnectivitySystem(developmentSystem(view, ctx), ctx), nationId);
+  const connected = transportConnectivitySystem(developmentSystem(view, ctx), ctx);
+  // A survey can finish in the real settlement. Its result is still private while orders are being planned.
+  return projectedFreightSupply(connected, nationId, view.map);
 }
 
 /**
@@ -383,12 +381,12 @@ function make(run: Run, output: ProductionOutput, units: number): number {
 }
 
 /**
- * FR-455: the labour one turn of what the hubs gather needs (`gatheredOf`, the transport screen's figures): a timber
+ * FR-455: the labour one turn of what the hubs gather needs (the transport screen's figures): a timber
  * (half a lumber), a coal + iron ore pair (a steel) 2, a cotton or wool 1 for its half fabric and 1/2 for its quarter
  * clothing. The start stock is left out: it is spent within a few turns whatever the labour.
  */
 export function hubLabourNeed(state: GameState, nationId: string): number {
-  const gathered = gatheredOf(state, nationId);
+  const gathered = rawFreightSupply(state, nationId);
   const of = (type: ResourceType) => gathered[type] ?? 0;
   const steel = Math.min(of(ResourceType.Coal), of(ResourceType.IronOre)) * RECIPES[MaterialType.Steel].labour;
   const timber = (of(ResourceType.Timber) / RECIPES[MaterialType.Lumber].inputs[0].amount) * RECIPES[MaterialType.Lumber].labour;
@@ -598,8 +596,10 @@ function projectTurn(state: GameState, nationId: string): { leftNow: Stock; next
   const produced = productionSystem(state, ctx);
   const after = nationOf(produced, nationId).warehouse as Stock;
   const leftNow = Object.fromEntries(Object.entries(after).map(([key, n]) => [key, n - (made[key] ?? 0)]));
-  const shipped = logisticsSystem(transportConnectivitySystem(produced, ctx), ctx);
-  return { leftNow, next: { ...(nationOf(shipped, nationId).warehouse as Stock) } };
+  const connected = transportConnectivitySystem(produced, ctx);
+  const nation = nationOf(connected, nationId);
+  const { shipments } = projectedFreightPlan(connected, nationId, carsOf(connected, nationId));
+  return { leftNow, next: updateNationStateWithTransportedResources(nation, shipments).warehouse };
 }
 
 /**

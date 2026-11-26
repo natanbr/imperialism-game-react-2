@@ -1,6 +1,7 @@
 "use client";
 import React, { useId, useLayoutEffect, useRef } from "react";
 import { useTransportAllocations } from "../hooks/useTransportAllocations";
+import { townChains } from "@/engine/world/towns";
 import { transportKinds } from "./commodityKinds";
 import { GOODS_WITH_SOURCE_NOTES } from "./goodsSources";
 import { commodityName } from "./gameText";
@@ -15,6 +16,7 @@ interface TransportAllocationModalProps {
 
 /** A row: name, slider, amount, and the Auto button of a set commodity (FR-390), which the 3-column CSS grid has no cell for. */
 const ROW_COLUMNS = { gridTemplateColumns: "7.5rem minmax(4rem, 1fr) 4rem 3rem" };
+const townCommodities = new Set<string>(townChains.flatMap(([, material, good]) => [material, good]));
 
 /**
  * The transport plan (FR-133, FR-135): one slider per commodity, the commodities grouped by kind
@@ -24,7 +26,7 @@ const ROW_COLUMNS = { gridTemplateColumns: "7.5rem minmax(4rem, 1fr) 4rem 3rem" 
  * cap, "1 / 4" and an Auto button) or automatic ("Auto: 4", what it ships this turn from the capacity the set ones leave).
  */
 const TransportAllocationModal: React.FC<TransportAllocationModalProps> = ({ capacity, onClose }) => {
-  const { allocations, handleAllocChange, setAuto, isSet, autoAmount, totalAllocated, remaining, sliderMax } = useTransportAllocations(capacity);
+  const { allocations, handleAllocChange, setAuto, isSet, scheduledAmount, totalAllocated, remaining, sliderMax } = useTransportAllocations(capacity);
   const titleId = useId();
   const kinds = transportKinds((key) => sliderMax(key) > 0 || (allocations[key] ?? 0) > 0 || (GOODS_WITH_SOURCE_NOTES.includes(key) && isSet(key)));
   const closeButton = useRef<HTMLButtonElement>(null);
@@ -66,8 +68,11 @@ const TransportAllocationModal: React.FC<TransportAllocationModalProps> = ({ cap
                 const inputId = `transport-${key}`;
                 const set = isSet(key);
                 const max = sliderMax(key);
+                const scheduled = scheduledAmount(key);
                 const cap = allocations[key] ?? 0;
                 const savedAboveSupply = set && cap > max;
+                const townFreight = townCommodities.has(key) && (max > 0 || set);
+                const freightId = `${inputId}-freight`;
                 return (
                   <div key={key} className="transport-row" data-testid={`transport-row-${key}`} style={ROW_COLUMNS}>
                     <label htmlFor={inputId} className="transport-name" data-testid="name">
@@ -79,12 +84,13 @@ const TransportAllocationModal: React.FC<TransportAllocationModalProps> = ({ cap
                       min={0}
                       max={max}
                       step={1}
-                      value={set ? Math.min(cap, max) : autoAmount(key)}
+                      value={set ? Math.min(cap, max) : scheduled}
                       aria-valuetext={savedAboveSupply ? `Saved allocation ${cap}, ${max} available` : undefined}
+                      aria-describedby={townFreight ? freightId : undefined}
                       onChange={(e) => handleAllocChange(key, Number(e.target.value) || 0)}
                     />
                     <span className="transport-amount">
-                      {set ? (savedAboveSupply ? `Set: ${cap}` : `${cap} / ${max}`) : `Auto: ${autoAmount(key)}`}
+                      {set ? (savedAboveSupply ? `Set: ${cap}` : `${cap} / ${max}`) : `Auto: ${scheduled}`}
                     </span>
                     {set && (
                       <button type="button" className="btn btn-sm" aria-label={`Auto ${commodityName(key)}`} onClick={() => {
@@ -93,6 +99,11 @@ const TransportAllocationModal: React.FC<TransportAllocationModalProps> = ({ cap
                       }}>
                         Auto
                       </button>
+                    )}
+                    {townFreight && (
+                      <small id={freightId} className="town-freight-amount">
+                        Town freight · {max} available · {scheduled} scheduled
+                      </small>
                     )}
                   </div>
                 );

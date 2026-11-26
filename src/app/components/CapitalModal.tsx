@@ -7,6 +7,7 @@ import { labourView, productionCards, tradeSchoolCosts } from "./capital/capital
 import { ProductionCard } from "./capital/ProductionCard";
 import { LabourBar, TradeSchoolPanel } from "./capital/LabourPanel";
 import { FreightCars } from "./capital/FreightCars";
+import { TownIncome } from "./capital/TownIncome";
 import { UniversityPanel } from "./capital/UniversityPanel";
 import { ShipyardPanel } from "./capital/ShipyardPanel";
 import { TechnologyButton } from "./TechnologyModal";
@@ -165,6 +166,7 @@ const CapitalDialog: React.FC = () => {
                   submitOrder={submitOrder}
                   onOpenAllocations={() => setAllocOpen(true)}
                 />
+                {openSection === "transport" && <TownIncome />}
               </div>
               <div {...panelProps("university")} className={styles.sectionPanel}>
                 <UniversityPanel game={game} nation={nation} submitOrder={submitOrder} />

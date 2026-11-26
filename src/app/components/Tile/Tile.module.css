@@ -31,6 +31,23 @@
   box-shadow: var(--shadow-md);
 }
 
+/* The small gable sits on the top edge of the seat. Its centre mark varies by stage, even without colour. */
+.townMarker {
+  position: absolute;
+  left: calc(50% - 7px);
+  top: -4px;
+  z-index: 2;
+  width: 14px;
+  height: 14px;
+  padding-top: 2px;
+  background: var(--color-ink);
+  color: var(--color-surface-raised);
+  clip-path: polygon(50% 0, 100% 30%, 100% 100%, 0 100%, 0 30%);
+  font: bold 11px/12px system-ui, sans-serif;
+  text-align: center;
+  pointer-events: none;
+}
+
 /* FR-369: the tile the keyboard is on, a dashed ring inside its box: not the selection's corner brackets (FR-326), so a
    focused tile and the selected one read apart. No z-index: the tile stays no stacking context (its marks keep their
    order with the neighbours'), so a border or rail line may cross the ring. */
@@ -83,6 +100,11 @@
   height: 48px;
   /* Wider than the tile's 40 px content box: Tailwind's preflight `img { max-width: 100% }` would cap it there */
   max-width: none;
+}
+
+/* Keep the town gable at the top of the raised picture, clear of its centre and the seat's controls. */
+.iconCrowded + .townMarker {
+  top: -18px;
 }
 
 /* Each half of a 2:1 map atlas is a complete square, clipped to the same box as its source PNG. */

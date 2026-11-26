@@ -1,5 +1,15 @@
 // A province (FR-147): the unit in which land changes hands (FR-148, `transferProvince`).
-import type { CountryId, ProvinceId, TileId } from "./Common";
+import type { CountryId, NationId, ProvinceId, TileId } from "./Common";
+
+export type TownTiers = Record<"textile" | "wood" | "metal", number>;
+
+export interface TownProgress {
+  ownerId: NationId;
+  connectedSettlements: number;
+  matured: TownTiers;
+  /** Qualifying connected settlements since the last tier, independently for each chain. */
+  upgradeSettlements: TownTiers;
+}
 
 export interface Province {
   id: ProvinceId;

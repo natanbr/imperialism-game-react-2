@@ -1,0 +1,103 @@
+{
+  "oneCar": {
+    "turn": 9,
+    "furniture": 1,
+    "receipts": [
+      {
+        "type": "town-receipt",
+        "turn": 6,
+        "nationId": "nation-1",
+        "provinceId": "province-nation-1-se",
+        "seatTileId": "10-7",
+        "lines": [
+          {
+            "commodity": "lumber",
+            "offered": 1,
+            "delivered": 1
+          }
+        ]
+      },
+      {
+        "type": "town-receipt",
+        "turn": 7,
+        "nationId": "nation-1",
+        "provinceId": "province-nation-1-se",
+        "seatTileId": "10-7",
+        "lines": [
+          {
+            "commodity": "lumber",
+            "offered": 1,
+            "delivered": 1
+          }
+        ]
+      },
+      {
+        "type": "town-receipt",
+        "turn": 8,
+        "nationId": "nation-1",
+        "provinceId": "province-nation-1-se",
+        "seatTileId": "10-7",
+        "lines": [
+          {
+            "commodity": "lumber",
+            "offered": 2,
+            "delivered": 0
+          },
+          {
+            "commodity": "furniture",
+            "offered": 1,
+            "delivered": 1
+          }
+        ]
+      }
+    ]
+  },
+  "competingTowns": {
+    "value": [
+      {
+        "type": "town-receipt",
+        "turn": 8,
+        "nationId": "nation-1",
+        "provinceId": "west",
+        "seatTileId": "2-1",
+        "lines": [
+          {
+            "commodity": "fabric",
+            "offered": 1,
+            "delivered": 1
+          },
+          {
+            "commodity": "lumber",
+            "offered": 2,
+            "delivered": 2
+          },
+          {
+            "commodity": "furniture",
+            "offered": 1,
+            "delivered": 1
+          }
+        ]
+      },
+      {
+        "type": "town-receipt",
+        "turn": 8,
+        "nationId": "nation-1",
+        "provinceId": "east",
+        "seatTileId": "1-0",
+        "lines": [
+          {
+            "commodity": "lumber",
+            "offered": 2,
+            "delivered": 0
+          },
+          {
+            "commodity": "furniture",
+            "offered": 1,
+            "delivered": 0
+          }
+        ]
+      }
+    ],
+    "Count": 2
+  }
+}

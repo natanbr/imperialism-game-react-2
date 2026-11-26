@@ -55,7 +55,7 @@ const bfs = (
 };
 
 /** A coastal port binds to its own shore. Inland ports can use any open mouth on their owned river. */
-function portWaterRoute(state: GameState, nationId: string, site: Tile, fleetsAtSea: boolean): "open" | "closed" | "no-site" {
+export function portWaterRoute(state: GameState, nationId: string, site: Tile, fleetsAtSea = state.fleets.some(fleet => fleet.approach)): "open" | "closed" | "no-site" {
   const mouths = portMouths(state.map, nationId, site);
   if (!mouths.length) {
     return site.hasRiver && site.ownerNationId === nationId && isRailLand(site) ? "closed" : "no-site";

@@ -9,6 +9,7 @@ import { productionSystem } from "../systems/productionSystem";
 import { combatSystem } from "../systems/combatSystem";
 import { interceptionsSystem } from "../systems/interceptionsSystem";
 import { transportConnectivitySystem } from "../systems/transportConnectivitySystem";
+import { townDevelopmentSystem } from "../systems/townDevelopmentSystem";
 import { logisticsSystem } from "../systems/logisticsSystem";
 import { tradeDeliverySystem } from "../systems/tradeDeliverySystem";
 import { foodSystem } from "../systems/foodSystem";
@@ -37,6 +38,7 @@ export const TURN_PHASES: readonly TurnSystem[] = [
   recruitSystem,
   shipyardSystem,
   transportConnectivitySystem,
+  townDevelopmentSystem,
   logisticsSystem,
   tradeDeliverySystem,
   foodSystem,

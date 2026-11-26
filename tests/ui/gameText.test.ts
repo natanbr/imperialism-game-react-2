@@ -775,6 +775,17 @@ describe('M12 FR-375 the news names the place', () => {
     expect(newsItems([found], N1, nameOf)).toEqual([{ text: 'Tile 2-1 developed to level 1.', tileId: '2-1' }]);
     expect(newsItems([found], N1, nameOf, () => undefined)).toEqual([{ text: 'Tile 2-1 developed to level 1.', tileId: '2-1' }]);
   });
+
+  it('FR-622 names the receipt using the seat\'s province and links to the recorded seat', () => {
+    const province = world.provinces.find(p => p.ownerId === N1)!;
+    const receipt: GameEvent = { type: 'town-receipt', turn: 7, nationId: N1, provinceId: province.id,
+      seatTileId: province.seatTileId, lines: [{ commodity: MaterialType.Lumber, offered: 2, delivered: 1 }] };
+    const country = (id: string) => countryName(world, id) ?? id;
+    expect(newsItems([receipt], N1, country, placeOf)).toEqual([{
+      text: `${province.name} delivered 1 of 2 Lumber. Some town freight went unshipped.`,
+      tileId: province.seatTileId,
+    }]);
+  });
 });
 
 it('FR-521 formats a public invention without attributing it to a buyer', () => {
