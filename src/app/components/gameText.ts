@@ -379,6 +379,7 @@ function tileOf(event: GameEvent): string | undefined {
     case "resource-discovered":
     case "development-completed":
     case "construction-completed":
+    case "developer-arrived":
       return event.tileId;
     default:
       return undefined;
@@ -533,6 +534,8 @@ export function eventText(event: GameEvent, nameOf: (countryId: string) => strin
       return `${nameOf(event.fallenId)} has fallen.`;
     case "minor-colonised":
       return `${nameOf(event.minorId)} is now our colony.`;
+    case "developer-arrived":
+      return `A Developer arrived at ${at(event.tileId)}: our relations with ${nameOf(event.minorId)} earned it.`;
     // FR-297 (M10): a line of no nation; `newsItems` puts it first (FR-306). FR-414: the nominees by votes, most first,
     // ties in standing order (the event keeps the standing order for the Council screen, FR-313)
     case "council-met": {
@@ -637,6 +640,8 @@ export function newsItems(events: readonly GameEvent[], playerId: string, nameOf
   const ownRelations = new Set(events.flatMap((e) => (e.type === "relation-changed" && e.nationId === playerId ? [e.otherId] : [])));
   for (const event of events) {
     if (event.type === "town-receipt" && event.nationId !== playerId) continue;
+    // FR-629, FR-640: another nation's Developer arrival is private to it
+    if (event.type === "developer-arrived" && event.nationId !== playerId) continue;
     if (event.type === "overture-done" && event.targetId === playerId && ownDone.has(`${event.overture}|${event.nationId}`)) continue;
     if (event.type === "relation-changed" && event.otherId === playerId && ownRelations.has(event.nationId)) continue;
     if (event.type === "overture-refused" && event.targetId === playerId && event.nationId !== playerId) {
@@ -682,7 +687,6 @@ const DEVELOPMENT_JOB_PREFIX: Partial<Record<WorkerType, string>> = {
   [WorkerType.Forester]: "Forestry",
   [WorkerType.Miner]: "Mining",
   [WorkerType.Driller]: "Drilling",
-  [WorkerType.Developer]: "Developing",
 };
 
 /**
@@ -692,6 +696,8 @@ const DEVELOPMENT_JOB_PREFIX: Partial<Record<WorkerType, string>> = {
 export function workerJobLabel(tile: Tile, worker: Worker): string | undefined {
   if (worker.status === WorkerStatus.Moved) return "Moved";
   if (worker.status !== WorkerStatus.Working) return undefined;
+  // FR-630: a working Developer holds a land purchase until settlement, never a development job
+  if (worker.type === WorkerType.Developer) return "Buying land";
   if (tile.prospecting?.workerId === worker.id) return "Prospecting";
   const development = tile.developmentJob;
   if (development && development.workerId === worker.id) {

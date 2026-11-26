@@ -126,6 +126,8 @@ function developmentLevel(view: GameState, tile: Tile, worker: Worker): number |
 function candidateOrders(view: GameState, nationId: string, { worker, tile }: WorkerLocation, railTiles: Set<string>): Order[] {
   const workerId = worker.id;
   if (worker.type === WorkerType.Engineer) return engineerOrders(view, nationId, workerId, tile.id);
+  // FR-630: the Developer improves nothing, so every development candidate would be refused
+  if (worker.type === WorkerType.Developer) return [];
   const prospecting = worker.type === WorkerType.Prospector;
   let tiles = tilesByReach(view, nationId).filter((t) => !railTiles.has(t.id));
   if (!prospecting) {

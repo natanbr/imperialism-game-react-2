@@ -107,7 +107,9 @@ export type GameEvent =
   /** `fallenId` lost its capital province to `nationId`: all its land passed, its regiments are gone (FR-223). */
   | { type: "nation-fallen"; nationId: NationId; fallenId: NationId }
   /** The minor lost its capital province to `nationId` and is now its colony (FR-224). */
-  | { type: "minor-colonised"; nationId: NationId; minorId: MinorNationId };
+  | { type: "minor-colonised"; nationId: NationId; minorId: MinorNationId }
+  /** FR-629: `minorId`'s relation brought `nationId` its Developer, now on `tileId`, the capital. The owner's news only (FR-640). */
+  | { type: "developer-arrived"; nationId: NationId; workerId: string; tileId: TileId; minorId: MinorNationId };
 
 /** Why regiments were disbanded (FR-202, FR-207). */
 export type DisbandReason = "order" | "no-pay";

@@ -206,7 +206,7 @@ export function isConstructionSite(state: GameState, tile: Tile, structure: Cons
   }
 }
 
-/** Terrains each development worker may improve; the generic developer may improve any. */
+/** Terrains each development worker may improve. */
 export const DEVELOPMENT_TERRAINS: Partial<Record<WorkerType, readonly TerrainType[]>> = {
   [WorkerType.Farmer]: FARMING_TERRAINS,
   [WorkerType.Rancher]: RANCHING_TERRAINS,
@@ -221,7 +221,6 @@ export const DEVELOPMENT_WORKER_TYPES: readonly WorkerType[] = [
   WorkerType.Forester,
   WorkerType.Miner,
   WorkerType.Driller,
-  WorkerType.Developer,
 ];
 
 /** The level a development job on this tile would reach. */

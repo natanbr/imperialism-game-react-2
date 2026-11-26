@@ -44,7 +44,7 @@ export interface StartProspectingOrder extends OrderBase {
   tileId: TileId;
 }
 
-/** Farmer, rancher, forester, miner, driller or developer raises the tile's resource one level. */
+/** Farmer, rancher, forester, miner or driller raises the tile's resource one level (FR-630: never the Developer). */
 export interface StartDevelopmentOrder extends OrderBase {
   kind: "startDevelopment";
   workerId: string;
