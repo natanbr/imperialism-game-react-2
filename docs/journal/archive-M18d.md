@@ -58,3 +58,21 @@ Objection: a hidden seed or size could override a fixed-map start. Only visible 
 | NR-038 | Original seven suites, then task 33's comparison script against `.gate/codex/32/fixed-baseline.log` | 139/139 passed. All 247 deterministic lines matched. FR-125 minimum 903/563 (1.604×), FR-464 four identical Order hashes, FR-545 15/24, FR-546 13/24, FR-497 0/280 changed plans and zero rejected computer Orders, invariant violations or idle no-pay disbands. |
 | Roadmap | `node .gate/m12/L4-check-roadmap.cjs` | `PASS` after recording M18d and M18e and aligning the two main references with the local `origin/main` merge of PR 50 (`a52d6b4`). |
 | Repository gates at implementation `27593ff` | `npm test`, lint, TypeScript, production build, then `npm run test:perf` alone | 3,305/3,305 tests in 162 files (160.22 s), zero lint errors and two existing warnings, TypeScript and build passed. Performance 3/3 with computer planning p95 12.8 ms across 3,210 turns (100 ms limit). |
+
+## 2026-11-25 Task 46 — payroll fixed on seed 3, blocked on seed 2 food
+
+Size L. Local commits `a0dc8e0` (red payroll test), `c695760` (reserve candidate) and `9bbb255` (save migration tests). The health assertion reproduced on the normal test entry point. Task 45's partial re-records remain uncommitted. No deployment or push. [Report and next experiment](task-46-m18d.md)
+
+## 2026-11-25 Task 45 — stopped on four unpaid regiments
+
+Size L. Night shift 3 started on 2026-11-25 with the default allowance of 6 points and a weekly gauge of 34%. Branch `claude/m18d-terrain` started at Task 44 commit `8f277ca`.
+
+Task 44 left 55 failing tests. Q103 authorized exact re-records for fishing and terrain development in every game. The FR-125 margin, rail dead-end, FR-597 correctness and privacy checks remain acceptance conditions. [Recorded results](../verify-and-tune.md#m18d-recorded-results) · [Earlier dated entries](archive-M18d.md)
+The fixed continent uses the world market, starting army, scripted nation 2 and idle nation 1. On seed 3 the `regiments-disbanded` events with reason `no-pay` total **4**, against the FR-260 requirement of **0**. Task 44’s full output already showed the difference inside the same assertion as the changed upkeep schedule. The cause of the missed payroll is unverified. Keep the zero-loss test and trace spending before accepting any dependent campaign results.
+
+| Evidence | Result |
+|---|---|
+| [Task 45 fixed-world suite](../../.gate/codex/45/fixed-targeted.log) and [Task 44 unit log](../../.gate/codex/44/final-unit.log) | Both show seed 3, expected `noPay: 0`, received `noPay: 4`. The targeted run passed 164/166. Its other failure is an authorized turn-6 freight plan. |
+| [Random maps](../../.gate/codex/45/random-test.log) | 72/72 passed. No unpaid disbands across 940 idle turns, zero rejected computer orders, invariant violations or private-order plan changes. |
+| Save and UI drafts | A genuine v1 save from main `765fcaa` was captured. The final replay suite, browser checks and screenshots are pending. Review the cost of replaying every modern save on load and the combat revision on fishing checkpoints. |
+| Branch handoff | Development and review incomplete. No Task 45 commit, deployment or push. Full gate pending. The fixed-world draft records in [.gate/codex/45/fixed.md](../../.gate/codex/45/fixed.md) need remeasurement after a fix. |

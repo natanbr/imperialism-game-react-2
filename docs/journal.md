@@ -2,7 +2,7 @@
 
 ## Resuming here
 
-- M18d Task 46 stopped on `claude/m18d-terrain`. Payroll candidate `c695760` fixes seed 3's four unpaid regiments but delays food freight on seed 2. One worker falls sick on turn 20. FR-260 requires zero. Full gate, screenshots and re-records remain pending. [Task 46 report, per-file audit and traces](journal/task-46-m18d.md)
+- M18d Task 47 on `claude/m18d-terrain` passed the payroll, health, score, Council and privacy guards. The full browser gate stopped on FR-339: Fish raised first-paint art requests to 21, one over the limit. Production changes and re-records are uncommitted. [Task 47 measurements and delivery status](journal/task-47-m18d.md)
 - M18g on `claude/m18g-screens` in the `imperialism-game-revival-fee36d` worktree adds Stats rankings and history, Trade Book, Garrison Book and two diplomatic map modes. The owner kept Board Details and the human nation as the reference. [Implementation and gate evidence](journal/archive-M18g.md) · [Task 43 review fixes and gate](journal/archive-M18g.md#2026-11-25-task-43--m18g-review-fixes)
 - M18f (human credit, interest, forced sales, signed cash and supply notes) merged at `9d2f9eb` in pull request 52. The inferred credit numbers and FR-609 debt scoring remain open to owner revision. [M18f journal and gate evidence](journal/archive-M18f.md) · [Task 39 report](../.gate/codex/39/report.md) · [Earlier journal archives](journal/)
 - M18e merged at `21ea18b`. Choose Random, Large and `Brete` to replay seed `2813929771`. The 400-turn historical calendar remains an owner decision (FR-593, FR-594).
@@ -19,24 +19,9 @@
 - To play M17 on continent seed 1, set Armaments and Fabric production to 1. Build a Ship-of-the-Line on turn 6, declare and sail on turn 7, set the site on turn 8, and land the four-ARMS army on turn 9. On turn 10 see the survivors at Sundmark and its colony vote in Council.
 
 
-## 2026-11-25 Task 46 — payroll fixed on seed 3, blocked on seed 2 food
+## 2026-11-25 Task 47 — new depot payroll reserve
 
-Size L. Local commits `a0dc8e0` (red payroll test), `c695760` (reserve candidate) and `9bbb255` (save migration tests). The health assertion reproduced on the normal test entry point. Task 45's partial re-records remain uncommitted. No deployment or push. [Report and next experiment](journal/task-46-m18d.md)
-
-## 2026-11-25 Task 45 — stopped on four unpaid regiments
-
-Size L. Night shift 3 started on 2026-11-25 with the default allowance of 6 points and a weekly gauge of 34%. Branch `claude/m18d-terrain` started at Task 44 commit `8f277ca`.
-
-Task 44 left 55 failing tests. Q103 authorized exact re-records for fishing and terrain development in every game. The FR-125 margin, rail dead-end, FR-597 correctness and privacy checks remain acceptance conditions. [Recorded results](verify-and-tune.md#m18d-recorded-results) · [Earlier dated entries](journal/archive-M18d.md)
-The fixed continent uses the world market, starting army, scripted nation 2 and idle nation 1. On seed 3 the `regiments-disbanded` events with reason `no-pay` total **4**, against the FR-260 requirement of **0**. Task 44’s full output already showed the difference inside the same assertion as the changed upkeep schedule. The cause of the missed payroll is unverified. Keep the zero-loss test and trace spending before accepting any dependent campaign results.
-
-| Evidence | Result |
-|---|---|
-| [Task 45 fixed-world suite](../.gate/codex/45/fixed-targeted.log) and [Task 44 unit log](../.gate/codex/44/final-unit.log) | Both show seed 3, expected `noPay: 0`, received `noPay: 4`. The targeted run passed 164/166. Its other failure is an authorized turn-6 freight plan. |
-| [Random maps](../.gate/codex/45/random-test.log) | 72/72 passed. No unpaid disbands across 940 idle turns, zero rejected computer orders, invariant violations or private-order plan changes. |
-| Save and UI drafts | A genuine v1 save from main `765fcaa` was captured. The final replay suite, browser checks and screenshots are pending. Review the cost of replaying every modern save on load and the combat revision on fishing checkpoints. |
-| Branch handoff | Development and review incomplete. No Task 45 commit, deployment or push. Full gate pending. The fixed-world draft records in [.gate/codex/45/fixed.md](../.gate/codex/45/fixed.md) need remeasurement after a fix. |
-
+Size M for the scripted-player rule, followed by the existing Task 45 M18d closure package. A field army with four phases of weak world-market trade reserves six payrolls before ordering a new depot. All four fixed-continent games paid the army and fed healthy workers for 40 turns. The score ratio reached 1.533× at its lowest checkpoint, the diplomat won 15/24 games, and the privacy probe changed 0/280 plans. All 72 generated games passed their guards. Only one variant was needed. The full browser suite then found one additional Fish artwork request. FR-339 allows 20, and the page requests 21. The Task 45 stop rule leaves the package awaiting owner review. [Task 47 report](journal/task-47-m18d.md) · [Task 45 and 46 journal entries](journal/archive-M18d.md)
 
 ## 2026-11-24 Task 33 — Seeded random world (M18e T-01)
 
