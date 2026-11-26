@@ -7,11 +7,12 @@ import { tryApplyOrder } from '@/engine/orders/apply';
 import type { Order } from '@/engine/orders/Order';
 import { validateOrder } from '@/engine/orders/validate';
 import { collectingFishHub, collectingHub, computeLogisticsTransport } from '@/engine/systems/logisticsSystem';
-import { addPort, addRailroad } from '@/engine/systems/railroadSystem';
+import { addDepot, addPort, addRailroad } from '@/engine/systems/railroadSystem';
 import { transportConnectivitySystem } from '@/engine/systems/transportConnectivitySystem';
 import { createTurnContext } from '@/engine/turn/context';
 import { resolveTurn } from '@/engine/turn/resolveTurn';
 import { transferProvince } from '@/engine/world/provinces';
+import { townsOf } from '@/engine/world/towns';
 import type { GameState } from '@/types/GameState';
 import type { Approach, Fleet } from '@/types/Navy';
 import { ResourceType } from '@/types/Resource';
@@ -57,6 +58,35 @@ function linkRail(state: GameState, rail: string[]) {
   return rail.slice(1).reduce((linked, id, i) =>
     addRailroad(linked, N1, tileAt(linked, id), tileAt(linked, rail[i])), state);
 }
+
+describe('FR-617 town routes at a rail-served port', () => {
+  it.each([['river', inland], ['coastal', mouth]])('requires an open %s port even when rail still carries land freight', (_, siteId) => {
+    const base = setTile(riverside(), siteId, { port: true });
+    const site = tileAt(base, siteId);
+    const provinces = base.provinces.map(p => p.id === site.provinceId ? { ...p, seatTileId: siteId } : p);
+    const rail = ['2-9', '3-9', '4-9', '5-9', '6-9', '6-8', '6-7', ...river.slice(0, river.indexOf(siteId) + 1)];
+    const built = linkRail(addPort({ ...base, provinces }, N1, site), rail);
+    const war = setPair(built, N1, N2, { war: { since: 1, aggressors: [N2] } });
+    const outlet = portApproach(war, tileAt(war, mouth))!;
+    const enemy = squadron(N2, outlet);
+    const blockaded = withFleets(war, [enemy]);
+    const connected = (position: GameState) => {
+      const checked = transportConnectivitySystem(deepFreeze(position), createTurnContext({ turn: position.turn }));
+      expect(collectingHub(checked, N1, siteId)?.tileId).toBe(siteId);
+      return townsOf(checked, N1).find(t => t.provinceId === site.provinceId)?.connected;
+    };
+    expect(connected(war)).toBe(true);
+    expect(connected(blockaded)).toBe(false);
+    expect(connected(withFleets(war, [enemy, squadron(N1, outlet)]))).toBe(true);
+    const depotId = rail[rail.length - 2];
+    const depot = setTile(blockaded, depotId, { depot: true });
+    expect(connected(addDepot(depot, N1, tileAt(depot, depotId)))).toBe(true);
+    if (siteId === inland) {
+      const outletProvince = tileAt(war, mouth).provinceId!;
+      expect(connected(transferProvince(war, outletProvince, N2))).toBe(false);
+    }
+  });
+});
 
 describe('FR-582 river transport and rail bridges', () => {
   it('takes an inland port Order on river land and refuses otherwise identical dry land, hills and mountains', () => {
