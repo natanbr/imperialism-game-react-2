@@ -1,7 +1,6 @@
 "use client";
 import React, { useId, useMemo } from "react";
 import { useGameStore } from "../store/rootStore";
-import { validateOrder, type Order } from "@/engine";
 import { isPortSite } from "@/engine/orders/queries";
 import { parseTileIdToArray } from "@/utils/tileIdUtils";
 import { WorkerType } from "@/types/Workers";
@@ -9,7 +8,7 @@ import { Modal } from "./Modal";
 import { submitOrAsk } from "@/hooks/tileClickOrders";
 import { InkPicture } from "./art/ArtPicture";
 import { DEPOT_ART, PORT_ART, civilianArt } from "./art/inkArt";
-import { costText, jobCost, offerRefusalText } from "./tileSiteText";
+import { costText, jobOffer, type JobOffer } from "./tileSiteText";
 
 type Structure = "depot" | "port";
 
@@ -39,31 +38,27 @@ export const ConstructionOptionsModal: React.FC = () => {
   if (!isOpen || !tile || !tileId || !workerId) return null;
 
   // The dialog opens for the engineer's own tile, so each choice is a plain start
-  const orderOf = (structure: Structure): Order => ({ kind: "startConstruction", nationId: activeNationId, workerId, tileId, structure });
-  const offerOf = (structure: Structure) => {
-    const order = orderOf(structure);
-    const result = validateOrder(game, order);
-    return { order, cost: jobCost(game, order), refusal: result.ok ? undefined : offerRefusalText(game, order, result) };
-  };
-  const depot = offerOf("depot");
-  const port = offerOf("port");
+  const offerOf = (structure: Structure, name: string) =>
+    jobOffer(game, tile, { kind: "startConstruction", nationId: activeNationId, workerId, tileId, structure }, name);
+  const depot = offerOf("depot", "Build Depot");
+  const port = offerOf("port", "Build Port");
 
-  const handleConstruct = (offer: ReturnType<typeof offerOf>) => {
+  const handleConstruct = (offer: JobOffer) => {
     if (offer.refusal !== undefined) return;
     close();
     submitOrAsk(offer.order);
   };
 
-  const details = (offer: ReturnType<typeof offerOf>, reasonId: string) => (
+  const details = (offer: JobOffer, reasonId: string) => (
     <>
       {offer.cost && (
         <span className="job-price" data-testid="job-price">
           {costText(offer.cost)}
         </span>
       )}
-      {offer.refusal !== undefined && (
+      {(offer.refusal || offer.warning) && (
         <div className="job-reason" data-testid="job-reason" id={reasonId}>
-          {offer.refusal}
+          {offer.refusal ?? offer.warning}
         </div>
       )}
     </>
@@ -81,7 +76,7 @@ export const ConstructionOptionsModal: React.FC = () => {
             onClick={() => handleConstruct(depot)}
             aria-disabled={depot.refusal !== undefined ? true : undefined}
             aria-describedby={depot.refusal !== undefined ? depotReasonId : undefined}>
-            <InkPicture src={DEPOT_ART} alt="" inline />Build Depot
+            <InkPicture src={DEPOT_ART} alt="" inline />{depot.name}
           </button>
           {details(depot, depotReasonId)}
         </div>
@@ -91,14 +86,14 @@ export const ConstructionOptionsModal: React.FC = () => {
               className="btn btn-primary"
               onClick={() => handleConstruct(port)}
               aria-disabled={port.refusal !== undefined ? true : undefined}
-              aria-describedby={port.refusal !== undefined ? portReasonId : undefined}>
-              <InkPicture src={PORT_ART} alt="" inline />Build Port
+              aria-describedby={port.refusal || port.warning ? portReasonId : undefined}>
+              <InkPicture src={PORT_ART} alt="" inline />{port.name}
             </button>
             {details(port, portReasonId)}
           </div>
         ) : (
           <div className="job-offer" data-testid="port-offer">
-            <span className="job-name">Build Port</span>
+            <span className="job-name">{port.name}</span>
             {details(port, portReasonId)}
           </div>
         )}

@@ -64,6 +64,8 @@ function recruitsUpkeep(state: GameState, nationId: string): number {
  * FR-488, FR-489, FR-497: in a war it declared on a Great Power it keeps the upkeep of every turn left, since that
  * country may never accept its peace. Measured on the 24 idle sim games: 3 lost regiments for want of pay without it
  * (seeds 4, 5, 6, turns 31 to 38, sales stopped from about turn 26), none with it; mean score at turn 40 1,383 -> 1,413.
+ * Set `purchase` to `"depot"` when budgeting a new depot. In a weak world market a field army then keeps six payrolls.
+ * Omit it when funding connecting rail or other orders, which use the ordinary world-market reserve.
  */
 export const upkeepReserve = (state: GameState, nationId: string, extraUpkeep = 0, purchase?: "depot"): number => {
   const left = Math.max(0, turnLimitOf(state) - state.turn) + 1;

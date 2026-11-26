@@ -11,7 +11,7 @@ import { InkPicture } from "./art/ArtPicture";
 import { civilianArt, goodsArt } from "./art/inkArt";
 import { THEME } from "@/styles/theme";
 import { submitAndSay, submitOrAsk } from "@/hooks/tileClickOrders";
-import { cancelQuestion, collectionText, costText, jobNote, jobOffers, type JobOffer } from "./tileSiteText";
+import { cancelQuestion, collectingHubText, collectionText, costText, jobNote, jobOffers, type JobOffer } from "./tileSiteText";
 import { Modal } from "./Modal";
 
 interface TileInfoPanelProps {
@@ -35,6 +35,7 @@ const WorkerStatusIndicator: React.FC<{ status: WorkerStatus }> = ({ status }) =
  */
 const JobOfferRow: React.FC<{ offer: JobOffer; tileId: string }> = ({ offer, tileId }) => {
   const reasonId = useId();
+  const detail = offer.refusal ?? offer.warning;
   return (
     <div className="job-offer" data-testid="job-offer">
       <button
@@ -45,7 +46,7 @@ const JobOfferRow: React.FC<{ offer: JobOffer; tileId: string }> = ({ offer, til
           submitOrAsk(offer.order, tileId);
         }}
         disabled={offer.refusal !== undefined}
-        aria-describedby={offer.refusal !== undefined ? reasonId : undefined}
+        aria-describedby={detail ? reasonId : undefined}
         className="btn btn-action">
         {offer.order.kind === "startProspecting" && <InkPicture src={civilianArt(WorkerType.Prospector)} alt="" inline />}
         {offer.name}
@@ -55,9 +56,9 @@ const JobOfferRow: React.FC<{ offer: JobOffer; tileId: string }> = ({ offer, til
           {costText(offer.cost)}
         </span>
       )}
-      {offer.refusal !== undefined && (
+      {detail && (
         <div className="job-reason" data-testid="job-reason" id={reasonId}>
-          {offer.refusal}
+          {detail}
         </div>
       )}
     </div>
@@ -190,7 +191,7 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
         {resourceText}
       </p>
       {/* FR-391: who collects the player's resource, by the logistics phase's rule */}
-      {fishHub && <p>Fishing ground · 1 Fish a turn for {fishHub.kind === "capital" ? "the capital" : `the port at ${fishHub.tileId}`}.</p>}
+      {fishHub && <p>Fishing ground · 1 Fish a turn for {collectingHubText(game, fishHub)}.</p>}
       {collected && <p data-testid="tile-collected">{collected}</p>}
       <p data-testid="tile-owner">
         <strong>Owner:</strong> {ownerText}
