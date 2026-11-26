@@ -65,7 +65,7 @@ function recruitsUpkeep(state: GameState, nationId: string): number {
  * country may never accept its peace. Measured on the 24 idle sim games: 3 lost regiments for want of pay without it
  * (seeds 4, 5, 6, turns 31 to 38, sales stopped from about turn 26), none with it; mean score at turn 40 1,383 -> 1,413.
  */
-export const upkeepReserve = (state: GameState, nationId: string, extraUpkeep = 0): number => {
+export const upkeepReserve = (state: GameState, nationId: string, extraUpkeep = 0, purchase?: "depot"): number => {
   const left = Math.max(0, turnLimitOf(state) - state.turn) + 1;
   const upkeep = upkeepOf(state, nationId) + recruitsUpkeep(state, nationId) + extraUpkeep;
   const { upkeepTurns, endgameTurns } = SCRIPTED_GARRISON;
@@ -74,12 +74,13 @@ export const upkeepReserve = (state: GameState, nationId: string, extraUpkeep = 
   const ramp = field ? 2 * endgameTurns - left : 0;
   const history = nationById(state, nationId)?.merchantMarine.tradeHistory;
   let reserveTurns = Math.max(upkeepTurns, ramp);
-  if (history?.length) {
-    const closingPartners = state.market?.mode === "partners" && state.intents.some(intent => intent.nationId === nationId && intent.kind === "war");
+  const partners = state.market?.mode === "partners";
+  if (history?.length && (partners || purchase === "depot")) {
+    const closingPartners = partners && state.intents.some(intent => intent.nationId === nationId && intent.kind === "war");
     const totalHolds = history.reduce((sum, phase) => sum + phase.holds, 0);
     const usedHolds = history.reduce((sum, phase) => sum + phase.used, 0);
     const halfEmpty = field && history.length === 4 && usedHolds * 2 <= totalHolds;
-    // Even guaranteed world-market sales cannot pay the army when there is too little stock to ship.
+    // On the world market, weak sales defer a new depot while the existing railway can still be joined.
     if (closingPartners || halfEmpty) reserveTurns = Math.max(reserveTurns, SCRIPTED_GARRISON.disruptedTradeUpkeepTurns);
   }
   return upkeep * Math.min(left, reserveTurns);

@@ -159,8 +159,10 @@ function engineerOrders(view: GameState, nationId: string, workerId: string, sta
   if (rail.length > 0) return rail;
   const own = view.map.tiles.flat().filter((t) => t.ownerNationId === nationId);
   if (own.some((t) => t.constructionJob?.kind === "depot")) return [];
-  // Armed nations reserve military upkeep when validating each proposed purchase.
-  if (upkeepOf(view, nationId) === 0 && treasuryOf(view, nationId) < CONSTRUCTION_COST.depot + developerReserve(own, nationId)) return [];
+  const reserve = upkeepOf(view, nationId) === 0
+    ? developerReserve(own, nationId)
+    : upkeepReserve(view, nationId, 0, "depot");
+  if (treasuryOf(view, nationId) < CONSTRUCTION_COST.depot + reserve) return [];
   const site = bestDepotSite(view, nationId);
   if (!site || !depotPaysBack(view, site)) return [];
   if (site.tileId === standingOn) return [{ kind: "startConstruction", nationId, workerId, tileId: site.tileId, structure: "depot" }];
