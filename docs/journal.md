@@ -2,7 +2,7 @@
 
 ## Resuming here
 
-- M18d Task 47 on `claude/m18d-terrain` passed the payroll, health, score, Council and privacy guards. The full browser gate stopped on FR-339: Fish raised first-paint art requests to 21, one over the limit. Production changes and re-records are uncommitted. [Task 47 measurements and delivery status](journal/task-47-m18d.md)
+- M18d Task 48 on `claude/m18d-terrain` keeps FR-339 at 20 art requests. Fish and Coal share an atlas, and the opening continent measures 1,990,043 bytes. The payroll and FR-616 replay package passed its gameplay guards. Authored terrain and rivers in the fixed worlds and ordinary refinery Oil remain open. [Task 48 gate, screenshots and handoff](journal/task-48-m18d.md)
 - M18g on `claude/m18g-screens` in the `imperialism-game-revival-fee36d` worktree adds Stats rankings and history, Trade Book, Garrison Book and two diplomatic map modes. The owner kept Board Details and the human nation as the reference. [Implementation and gate evidence](journal/archive-M18g.md) · [Task 43 review fixes and gate](journal/archive-M18g.md#2026-11-25-task-43--m18g-review-fixes)
 - M18f (human credit, interest, forced sales, signed cash and supply notes) merged at `9d2f9eb` in pull request 52. The inferred credit numbers and FR-609 debt scoring remain open to owner revision. [M18f journal and gate evidence](journal/archive-M18f.md) · [Task 39 report](../.gate/codex/39/report.md) · [Earlier journal archives](journal/)
 - M18e merged at `21ea18b`. Choose Random, Large and `Brete` to replay seed `2813929771`. The 400-turn historical calendar remains an owner decision (FR-593, FR-594).
@@ -18,6 +18,10 @@
 - Task 19 passed the load trials and full gate on `claude/perf-tests`. Finish future gates with `npm run test:perf` alone. The measured results and six functional logs are indexed in `.gate/codex/19/summary.md`.
 - To play M17 on continent seed 1, set Armaments and Fabric production to 1. Build a Ship-of-the-Line on turn 6, declare and sail on turn 7, set the site on turn 8, and land the four-ARMS army on turn 9. On turn 10 see the survivors at Sundmark and its colony vote in Council.
 
+
+## 2026-11-25 Task 48 — Fish within the existing loading budget
+
+Size M. Kept the FR-339 limit at 20. The Fish/Coal atlas saved one request and 11,966 bytes from the Task 47 first paint. The new-depot payroll reserve, FR-616 re-records and historical replay changes passed the full gate, including 3,487 functional tests, 180 browser tests and 3 isolated performance tests. The roadmap checker reported PASS. [Task 48 results](journal/task-48-m18d.md) · [Old and new gameplay measurements](verify-and-tune.md#m18d-recorded-results)
 
 ## 2026-11-25 Task 47 — new depot payroll reserve
 
