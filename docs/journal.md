@@ -2,7 +2,7 @@
 
 ## Resuming here
 
-- M18d Task 49 on `claude/m18d-terrain` covers compact historical saves, the depot mutation, the exact 17/24 Council result and port build warnings. Task 48 kept first paint at 20 art requests and 1,990,043 bytes. Authored terrain and rivers in the fixed worlds and ordinary refinery Oil remain open. [Task 49 verification and handoff](journal/task-49-m18d.md) · [Task 48 gate and screenshots](journal/task-48-m18d.md)
+- M18d Task 50 on `claude/m18d-terrain` verifies historical checkpoints at write time and preserves tied market bid order. Authored terrain and rivers in the fixed worlds and ordinary refinery Oil remain open. [Task 50 verification](#2026-11-25-task-50--verify-the-saved-replay-checkpoint) · [Task 49 review and handoff](journal/task-49-m18d.md) · [Task 48 gate and screenshots](journal/task-48-m18d.md)
 - M18g on `claude/m18g-screens` in the `imperialism-game-revival-fee36d` worktree adds Stats rankings and history, Trade Book, Garrison Book and two diplomatic map modes. The owner kept Board Details and the human nation as the reference. [Implementation and gate evidence](journal/archive-M18g.md) · [Task 43 review fixes and gate](journal/archive-M18g.md#2026-11-25-task-43--m18g-review-fixes)
 - M18f (human credit, interest, forced sales, signed cash and supply notes) merged at `9d2f9eb` in pull request 52. The inferred credit numbers and FR-609 debt scoring remain open to owner revision. [M18f journal and gate evidence](journal/archive-M18f.md) · [Task 39 report](../.gate/codex/39/report.md) · [Earlier journal archives](journal/)
 - M18e merged at `21ea18b`. Choose Random, Large and `Brete` to replay seed `2813929771`. The 400-turn historical calendar remains an owner decision (FR-593, FR-594).
@@ -18,6 +18,28 @@
 - Task 19 passed the load trials and full gate on `claude/perf-tests`. Finish future gates with `npm run test:perf` alone. The measured results and six functional logs are indexed in `.gate/codex/19/summary.md`.
 - To play M17 on continent seed 1, set Armaments and Fabric production to 1. Build a Ship-of-the-Line on turn 6, declare and sail on turn 7, set the site on turn 8, and land the four-ARMS army on turn 9. On turn 10 see the survivors at Sundmark and its colony vote in Council.
 
+
+## 2026-11-25 Task 50 — Verify the saved replay checkpoint
+
+Size M. Check that a compact version-1 save restores the exact historical checkpoint before writing the autosave slot.
+Continue and replay consume this checkpoint. Historical market bid order breaks ties in computer planning.
+FR-357 and FR-587 cover sparse arrays, historical key order, and the Large historical save budget. FR-362 covers malformed root changes.
+Verify with the focused store regressions, functional suite, lint, TypeScript, build, single-worker Playwright on port 3123, isolated performance suite and roadmap checker.
+A full checkpoint costs more storage. The writer uses it when restoration throws or the recovered checkpoint differs from its expected JSON. Comparing the complete JSON strings also catches differences in property order.
+
+| Verification | Result |
+|---|---|
+| Tests first, `219a0c9`, run against `84da8fb` | 4 failed and 14 passed. An undefined array element and a hole each made the slot unusable. The synthetic timestamp restored the current value. Equal bids restored in the order `cotton, timber` instead of `timber, cotton`. The final fixtures use a settled turn because turn 1 also exercises legacy replay migration. [Red output](../.gate/codex/50/gate-red-settled.log) |
+| `historicalSaveSize.test.ts` and `persistence.test.ts` | 55/55 passed. Both sparse inputs used a full checkpoint and loaded with `null`. Equal bids retained their order in a compact checkpoint. The reader also refused `null` and `[]` root edits. [Focused output](../.gate/codex/50/gate-focused.log) |
+| Storage and replay | The real historical continent fixture needed 2,370 extra characters at turn 11 and 10,854 at turn 40. The Large random game continued from a historical turn-2 checkpoint used 246,942 characters at turn 40 and 251,943 after final settlement. Both were below 2,000,000. [Measurements](../.gate/codex/50/gate-focused.log) |
+| Direct codec check | 8,450 combinations of additions, removals, reordered fields and nested edits restored identical JSON. The same inputs encoded by `84da8fb` retained their values with the new reader. [Check](../.gate/codex/50/verify-key-order.cjs) · [Output](../.gate/codex/50/key-order.log) |
+| `npm test` | 178 files and 3,511 tests passed in 243.19 seconds. [Functional log](../.gate/codex/50/gate-unit.log) |
+| `npm run lint`, `npx tsc --noEmit`, `npm run build` | All exited 0. ESLint reported the existing unused `capital` in `logisticsSystem.test.ts`. The production build generated four static pages. [Lint](../.gate/codex/50/gate-lint.log) · [Types](../.gate/codex/50/gate-types.log) · [Build](../.gate/codex/50/gate-build.log) |
+| `PORT=3123 npx playwright test --workers=1` | 180/180 passed in 12.7 minutes on Chromium. [Browser log](../.gate/codex/50/gate-browser.log) |
+| `npm run test:perf` | 3/3 passed in isolation after Playwright exited. Computer planning p95 was 12.3 ms over 3,230 turns, within the 100 ms limit. [Performance log](../.gate/codex/50/gate-perf.log) |
+| `node .gate/m12/L4-check-roadmap.cjs` | `PASS` against local `origin/main` at `765fcaa`. [Roadmap log](../.gate/codex/50/gate-roadmap.log) |
+
+Local handoff on `claude/m18d-terrain` in `imperialism-game-revival-fee36d`. The tests precede the implementation. Continue, advance a turn, and reload to exercise the normal browser save path. The task covers local verification only.
 
 ## 2026-11-25 Task 49 — M18d review fixes
 

@@ -119,12 +119,19 @@ export function readSave(storage: Pick<Storage, "getItem"> | undefined = browser
 
 /** Encode the full session in the browser slot format, including compact historical replay data. */
 export function serializeSave(save: SavedGame): string {
-  let stored: StoredGame = save;
   if (save.replayBoundary?.checkpoint) {
     const { checkpoint, ...boundary } = save.replayBoundary;
-    stored = { ...save, replayBoundary: { ...boundary, checkpointChanges: checkpointDifference(save.game, checkpoint) ?? {} } };
+    try {
+      const checkpointChanges = checkpointDifference(save.game, checkpoint) ?? {};
+      const compact = JSON.stringify({ ...save, replayBoundary: { ...boundary, checkpointChanges } });
+      const stored: StoredGame = JSON.parse(compact);
+      const restored = restoreCheckpoint(stored.game, stored.replayBoundary?.checkpointChanges);
+      if (JSON.stringify(restored) === JSON.stringify(checkpoint)) return compact;
+    } catch {
+      // JSON can turn array holes into nulls, making an in-memory edit impossible to apply on reload.
+    }
   }
-  return JSON.stringify(stored);
+  return JSON.stringify(save);
 }
 
 /** Writes the save; false when the browser refused it (storage full or blocked, FR-363). */

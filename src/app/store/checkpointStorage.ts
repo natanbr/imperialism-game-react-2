@@ -11,14 +11,24 @@ export function checkpointDifference(current: unknown, historical: unknown): Che
   if ((isRecord(current) && isRecord(historical)) ||
       (Array.isArray(current) && Array.isArray(historical) && current.length === historical.length)) {
     const remaining = new Map(Object.entries(current));
+    const historicalFields = Object.entries(historical);
+    // A partial edit keeps surviving keys first and appends new keys. When that order differs,
+    // describe every field in checkpoint order so the reader can rebuild this object in order.
+    const needsFieldOrder = isRecord(current) && [...remaining.keys()]
+      .filter(key => Object.hasOwn(historical, key))
+      .some((key, index) => key !== historicalFields[index][0]);
     const edits: Record<string, CheckpointEdit> = Object.create(null);
-    for (const [key, value] of Object.entries(historical)) {
+    for (const [key, value] of historicalFields) {
       const difference = checkpointDifference(remaining.get(key), value);
       if (difference !== undefined) edits[key] = difference;
+      else if (needsFieldOrder) {
+        if (value === undefined) edits[key] = [];
+        else edits[key] = isRecord(value) || Array.isArray(value) ? {} : [value];
+      }
       remaining.delete(key);
     }
     for (const [key, value] of remaining) {
-      if (value !== undefined) edits[key] = [];
+      if (value !== undefined || needsFieldOrder) edits[key] = [];
     }
     return Object.keys(edits).length ? edits : undefined;
   }
@@ -40,9 +50,10 @@ export function restoreCheckpoint(current: unknown, edit: unknown): unknown {
     return items;
   }
   if (!isRecord(current)) throw new Error("Invalid replay checkpoint");
-  const fields = new Map(Object.entries(current));
+  const coversAllFields = Object.keys(current).every(key => Object.hasOwn(edit, key));
+  const fields = coversAllFields ? new Map<string, unknown>() : new Map(Object.entries(current));
   for (const [key, change] of Object.entries(edit)) {
-    const restored = restoreCheckpoint(fields.get(key), change);
+    const restored = restoreCheckpoint(Object.hasOwn(current, key) ? current[key] : undefined, change);
     if (restored === undefined) fields.delete(key);
     else fields.set(key, restored);
   }
