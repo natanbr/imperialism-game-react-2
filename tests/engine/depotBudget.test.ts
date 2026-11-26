@@ -1,6 +1,8 @@
 import { expect, it } from 'vitest';
 import { scriptedPlayer } from '@/engine/ai/scriptedPlayer';
 import { newGame } from '@/engine/newGame';
+import { upkeepReserve } from '@/engine/ai/scriptedArmy';
+import { addRegiments, withoutStartForces } from './armyFixtures';
 import { emptyWarehouse, N2, setTreasury } from './fixtures';
 
 it('FR-454 FR-616 a new depot leaves one level-one job for each developer, including at the exact budget', () => {
@@ -19,4 +21,17 @@ it('FR-454 FR-616 a new depot leaves one level-one job for each developer, inclu
   expect(startsDepot(start, 2500)).toBe(true);
   expect(startsDepot(withoutForester, 2399)).toBe(false);
   expect(startsDepot(withoutForester, 2400)).toBe(true);
+});
+
+it('FR-213 FR-454 an army can fund a depot down to its military upkeep reserve', () => {
+  const continent = withoutStartForces(newGame({ seed: 8, world: 'continent' }));
+  const capital = continent.map.tiles.flat().find(tile => tile.cityId === continent.nations[1].cities[0])!;
+  const armed = emptyWarehouse(addRegiments(continent, N2, capital.provinceId!, ['regulars']), N2);
+  const reserve = upkeepReserve(armed, N2);
+  expect(reserve).toBeGreaterThan(0);
+  expect(reserve).toBeLessThan(500);
+  const plansDepot = (cash: number) => scriptedPlayer(setTreasury(armed, N2, cash), N2)
+    .some(order => 'structure' in order && order.structure === 'depot');
+  expect(plansDepot(2000 + reserve - 1)).toBe(false);
+  expect(plansDepot(2000 + reserve)).toBe(true);
 });
