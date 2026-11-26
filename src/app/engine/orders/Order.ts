@@ -88,6 +88,16 @@ export interface MoveAndStartConstructionOrder extends OrderBase {
   fromTileId?: TileId;
 }
 
+/**
+ * FR-632: the Developer moves to the Minor Nation tile if needed and buys it, all or nothing (FR-007). The price, 20 x the
+ * board price, is paid now; the purchase is an intent the End Turn settles (FR-633), refunded by `cancelWorkerAction`.
+ */
+export interface BuyLandOrder extends OrderBase {
+  kind: "buyLand";
+  workerId: string;
+  tileId: TileId;
+}
+
 /** Undo this turn's move, or stop the worker's job, for the worker on `tileId`. */
 export interface CancelWorkerActionOrder extends OrderBase {
   kind: "cancelWorkerAction";
@@ -304,6 +314,7 @@ export type Order =
   | MoveAndStartProspectingOrder
   | MoveAndStartDevelopmentOrder
   | MoveAndStartConstructionOrder
+  | BuyLandOrder
   | CancelWorkerActionOrder
   | SetTransportAllocationsOrder
   | ChangeTransportCapacityOrder
@@ -342,6 +353,7 @@ export const ORDER_KINDS = [
   "moveAndStartProspecting",
   "moveAndStartDevelopment",
   "moveAndStartConstruction",
+  "buyLand",
   "cancelWorkerAction",
   "setTransportAllocations",
   "changeTransportCapacity",
@@ -402,6 +414,8 @@ export type RejectReason =
   | "already-in-place"
   /** Diplomacy (FR-162): not while at war with the target. */
   | "at-war"
+  /** FR-631: the Developer may not enter or buy where either country boycotts the other. */
+  | "boycott"
   /** Diplomacy (FR-162): peace while not at war. */
   | "not-at-war"
   /** Diplomacy (FR-224, M9 review F2): an overture, grant or trade policy toward a colony, which its owner rules. */

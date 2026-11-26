@@ -232,7 +232,7 @@ describe('FR-632 the land purchase Order and its price', () => {
 
   it('FR-632 START_PRICES where the market has no price, the start market on a state without one, gold $4,000 and gems $10,000', () => {
     const s = base();
-    const noCoal = { ...s, market: { ...s.market!, prices: Object.fromEntries(Object.entries(s.market!.prices).filter(([k]) => k !== 'coal')) } };
+    const noCoal = { ...s, market: { ...s.market!, prices: Object.fromEntries(Object.entries(s.market!.prices).filter(([k]) => k !== 'coal')) as Record<TradeCommodity, number> } };
     expect(treasury(order(noCoal, buy(COAL)), N1)).toBe(48_000);
     const noMarket = { ...setPrice(s, ResourceType.Coal, 150) };
     delete noMarket.market;

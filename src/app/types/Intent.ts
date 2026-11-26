@@ -2,7 +2,7 @@
 // applied. A turn phase resolves the turn's intents together, in `intentOrder` (engine/turn/intents.ts),
 // and resolveTurn leaves none of the resolved turn. `Intent` is the stored shape every phase can read;
 // each milestone adds its own kinds as narrower types (M6: the diplomacy intents below).
-import type { CountryId, NationId, ProvinceId, RegimentId } from "./Common";
+import type { CountryId, MinorNationId, NationId, ProvinceId, RegimentId, TileId } from "./Common";
 import type { GrantAmount, Overture, SubsidyPercent } from "./Diplomacy";
 
 export interface Intent {
@@ -89,3 +89,17 @@ export interface DisbandIntent extends Intent {
 }
 
 export type ArmyIntent = ArmyMoveIntent | AttackIntent | DisbandIntent;
+
+/**
+ * `buyLand` (FR-632): the Developer's purchase of a Minor Nation's tile, private to the buyer (FR-640). `cost` left the
+ * treasury when ordered and comes back on a cancel or a refused sale; the settlement right after the development phase
+ * resolves it (FR-633).
+ */
+export interface BuyLandIntent extends Intent {
+  kind: "buy-land";
+  /** The Minor Nation whose tile it is. */
+  targetId: MinorNationId;
+  workerId: string;
+  tileId: TileId;
+  cost: number;
+}

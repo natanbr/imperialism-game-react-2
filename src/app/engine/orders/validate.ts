@@ -21,9 +21,11 @@ import { validateTechnologyOrder } from "./technologyOrders";
 import { validateShipyard } from "./shipyardOrders";
 import { validateFleetMission } from "./fleetOrders";
 import { isGameOver } from "../turn/gameOver";
+import { holderOf, landPrice, landSiteRefusal, overseasEntryRefusal } from "../overseas/holdings";
 import { areTilesAdjacent } from "../map/mapHelpers";
 import type {
   OrdinaryRejectReason,
+  BuyLandOrder,
   CancelWorkerActionOrder,
   MoveAndBuildRailOrder,
   Order,
@@ -98,6 +100,8 @@ export function validateOrder(state: GameState, order: Order): ValidationResult 
       return validateMoveAndStart(state, order.nationId, order.workerId, order.toTileId, checkDevelopment);
     case "moveAndStartConstruction":
       return validateMoveAndStart(state, order.nationId, order.workerId, order.toTileId, constructionCheck(order.structure, order.fromTileId));
+    case "buyLand":
+      return validateBuyLand(state, order);
     case "cancelWorkerAction":
       return validateCancel(state, order);
     case "setTransportAllocations":
@@ -147,17 +151,18 @@ function checkActor(state: GameState, nationId: string, workerId: string): Check
   return { ok: true, value: loc };
 }
 
-function checkMoveTarget(state: GameState, nationId: string, from: Tile, toTileId: string): Checked<Tile> {
+/** Any land tile of the worker's nation; beyond it, an open Minor Nation for the Developer and held tiles for the holder's improvers (FR-631, FR-634). */
+function checkMoveTarget(state: GameState, worker: Worker, from: Tile, toTileId: string): Checked<Tile> {
   const to = tileById(state, toTileId);
   if (!to || to.id === from.id || !isLand(to)) return { ok: false, reason: "invalid-target" };
-  if (to.ownerNationId !== nationId) return { ok: false, reason: "not-owner" };
-  return { ok: true, value: to };
+  const refusal = to.ownerNationId === worker.nationId ? undefined : overseasEntryRefusal(state, worker, to);
+  return refusal ? { ok: false, reason: refusal } : { ok: true, value: to };
 }
 
 function validateMove(state: GameState, nationId: string, workerId: string, toTileId: string): ValidationResult {
   const actor = checkActor(state, nationId, workerId);
   if (!actor.ok) return actor;
-  const target = checkMoveTarget(state, nationId, actor.value.tile, toTileId);
+  const target = checkMoveTarget(state, actor.value.worker, actor.value.tile, toTileId);
   return target.ok ? OK : target;
 }
 
@@ -166,7 +171,7 @@ function validateMoveAndBuildRail(state: GameState, order: MoveAndBuildRailOrder
   if (!actor.ok) return actor;
   const { worker, tile: from } = actor.value;
   if (worker.type !== WorkerType.Engineer) return reject("wrong-worker-type");
-  const target = checkMoveTarget(state, order.nationId, from, order.toTileId);
+  const target = checkMoveTarget(state, worker, from, order.toTileId);
   if (!target.ok) return target;
   const to = target.value;
   if (!areTilesAdjacent(state.map, from.x, from.y, to.x, to.y)) return reject("invalid-target");
@@ -192,9 +197,22 @@ function validateMoveAndStart(state: GameState, nationId: string, workerId: stri
   const { worker, tile: from } = actor.value;
   // Already on the target (the construction modal does this): it is a plain start.
   if (toTileId === from.id) return check(state, worker, from);
-  const target = checkMoveTarget(state, nationId, from, toTileId);
+  const target = checkMoveTarget(state, worker, from, toTileId);
   if (!target.ok) return target;
   return check(state, worker, target.value);
+}
+
+/** FR-631, FR-632: the Developer, moved to the tile if needed, buys it at `landPrice` within its nation's buying power. */
+function validateBuyLand(state: GameState, order: BuyLandOrder): ValidationResult {
+  const actor = checkActor(state, order.nationId, order.workerId);
+  if (!actor.ok) return actor;
+  const { worker, tile: from } = actor.value;
+  if (worker.type !== WorkerType.Developer) return reject("wrong-worker-type");
+  const target: Checked<Tile> = order.tileId === from.id ? { ok: true, value: from } : checkMoveTarget(state, worker, from, order.tileId);
+  if (!target.ok) return target;
+  const refusal = landSiteRefusal(state, order.nationId, target.value);
+  if (refusal) return reject(refusal);
+  return canAfford(nationById(state, order.nationId)!, landPrice(state, target.value)!);
 }
 
 const checkProspecting: JobCheck = (state, worker, tile) => {
@@ -211,7 +229,8 @@ const checkProspecting: JobCheck = (state, worker, tile) => {
 
 const checkDevelopment: JobCheck = (state, worker, tile) => {
   if (!DEVELOPMENT_WORKER_TYPES.includes(worker.type)) return reject("wrong-worker-type");
-  if (tile.ownerNationId !== worker.nationId) return reject("not-owner");
+  // FR-634: the holder raises its held tile under the home rules
+  if (tile.ownerNationId !== worker.nationId && holderOf(state, tile.id) !== worker.nationId) return reject("not-owner");
   const terrains = DEVELOPMENT_TERRAINS[worker.type];
   if (FIXED_OUTPUT_TERRAINS.includes(tile.terrain) || (terrains && !terrains.includes(tile.terrain))) return reject("invalid-site");
   if (!tile.resource || tile.resource.discovered === false) return reject("invalid-target");

@@ -1,6 +1,7 @@
 import type { GameState } from "@/types/GameState";
 import type { TurnContext, TurnSystem } from "./context";
 import { developmentSystem } from "../systems/developmentSystem";
+import { landPurchaseSystem } from "../overseas/holdings";
 import { diplomacySystem } from "../systems/diplomacySystem";
 import { tradeSystem } from "../systems/tradeSystem";
 import { creditSettlementSystem, reportClosingCredit } from "../credit/settlement";
@@ -19,7 +20,7 @@ import { shipyardSystem } from "../systems/shipyardSystem";
 import { technologySystem } from "../systems/technologySystem";
 
 /**
- * The turn phases in manual order: jobs first, then diplomacy, trade (the world-market deals and
+ * The turn phases in manual order: jobs first, and the Developers' land purchases (FR-633), then diplomacy, trade (the world-market deals and
  * the price step), the ordered disbands and the army upkeep (FR-207, FR-202), credit interest and forced sales, production (which also
  * builds the freight cars ordered this turn), naval movements and contact, then combat (the marches
  * and the healing, FR-206, FR-208), the new regiments and ships, internal transport, the delivery of the units bought,
@@ -29,6 +30,8 @@ import { technologySystem } from "../systems/technologySystem";
  */
 export const TURN_PHASES: readonly TurnSystem[] = [
   developmentSystem,
+  // FR-633: right after the jobs, on the settled record, before this turn's diplomacy changes it
+  landPurchaseSystem,
   diplomacySystem,
   tradeSystem,
   disbandSystem,
