@@ -80,7 +80,7 @@
       {"seed":5,"turns":40,"reason":"council","winner":"nation-2","peacefulWin":false,"noPay":1,"submitted":590,"townOffered":0,"townDelivered":0,"computerTownDelivered":0},
       {"seed":6,"turns":40,"reason":"council","winner":"nation-1","peacefulWin":true,"noPay":0,"submitted":519,"townOffered":10,"townDelivered":8,"computerTownDelivered":8},
       {"seed":7,"turns":40,"reason":"council","winner":"nation-2","peacefulWin":false,"noPay":0,"submitted":593,"townOffered":26,"townDelivered":0,"computerTownDelivered":0},
-      {"seed":8,"turns":40,"reason":"council","winner":"nation-1","peacefulWin":true,"noPay":0,"submitted":573,"townOffered":79,"townDelivered":58,"computerTownDelivered":0},
+      {"seed":8,"turns":40,"reason":"council","winner":"nation-1","peacefulWin":true,"noPay":0,"submitted":577,"townOffered":79,"townDelivered":64,"computerTownDelivered":0},
       {"seed":9,"turns":40,"reason":"council","winner":"nation-2","peacefulWin":false,"noPay":3,"submitted":519,"townOffered":0,"townDelivered":0,"computerTownDelivered":0},
       {"seed":10,"turns":40,"reason":"council","winner":"nation-1","peacefulWin":true,"noPay":3,"submitted":555,"townOffered":16,"townDelivered":0,"computerTownDelivered":0},
       {"seed":11,"turns":40,"reason":"council","winner":"nation-2","peacefulWin":false,"noPay":0,"submitted":591,"townOffered":0,"townDelivered":0,"computerTownDelivered":0},

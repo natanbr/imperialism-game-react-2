@@ -33,7 +33,7 @@ function produceNation(nation: Nation, ctx: TurnContext): Nation {
 }
 
 /** Expansions ordered this turn take effect; food processing forgets its orders (FR-033, FR-038). */
-function finishBuildings(nationId: string, industry: IndustryState, ctx: TurnContext): IndustryState["buildings"] {
+export function finishBuildings(nationId: string, industry: IndustryState, ctx: TurnContext): IndustryState["buildings"] {
   const buildings: Partial<Record<BuildingType, IndustryBuilding>> = {};
   for (const [name, building] of Object.entries(industry.buildings) as [BuildingType, IndustryBuilding | undefined][]) {
     if (!building) continue;

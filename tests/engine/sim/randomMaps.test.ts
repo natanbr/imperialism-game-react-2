@@ -44,6 +44,8 @@ import baseline from './randomMapsBaseline.json';
 // Twelve original fixture rows moved; 20 games changed a prior campaign measurement, and 28 delivered new town freight.
 // Totals: both owners 0 -> 344 delivered (778 offered), computer 0 -> 190, games delivering 0 -> 28,
 // accepted computer Orders 37,557 -> 37,522 (zero rejected), unpaid disbands 50 -> 51 (idle zero).
+// Standard diplomat 3: on turns 11 and 12 Fabric displaced Grain, enabling a turn-14 Clothing sale ($0 -> $800).
+// The new depot/rail completed on turns 18/19; turn-21 closing cash fell $283 -> $76 before upkeep.
 // Standard diplomat 3: unpaid human disband turns [24,25] -> [22,23,24]. On turn 24 Testland had $1 for $25 upkeep.
 // Per-game changes below; scores are at turns 15, 25 and 40.
 // standard idle 2: submitted 523 -> 516, townDelivered 0 -> 12, computerTownDelivered 0 -> 12, scores [465,680,1162] -> [465,680,1141]
@@ -74,6 +76,21 @@ import baseline from './randomMapsBaseline.json';
 // large diplomat 4: townDelivered 0 -> 16, computerTownDelivered 0 -> 16, scores [484,705,1224] -> [484,705,1248]
 // large diplomat 6: townDelivered 0 -> 8, computerTownDelivered 0 -> 8
 // large diplomat 8: winner "nation-2" -> "nation-1", submitted 578 -> 573, townDelivered 0 -> 58, peacefulWin false -> true, scores [479,600,915] -> [479,600,917]
+
+// FR-627 / FR-628: the six groups aggregate the same per-seed freight changes.
+// standard idle: submitted 6169 -> 6127, firstCapture.reached 5 -> 4, firstCapture.median 35 -> 32.5, pacts 2 -> 3, compulsoryGames 6 -> 7, compulsoryVotes 14 -> 17, towns.delivered 0 -> 42, towns.games 0 -> 3, score40.median 1061.5 -> 1066
+// standard scripted: submitted 6000 -> 6004, compulsoryVotes 14 -> 15, peacefulWins 4 -> 3, towns.delivered 0 -> 68, towns.games 0 -> 6, score40.min 1029 -> 1033
+// standard diplomat: noPay 9 -> 10, firstCapture.reached 3 -> 4, firstCapture.median 32 -> 35.5, peacefulWins 6 -> 5, towns.delivered 0 -> 58, towns.games 0 -> 6, score40.min 835 -> 879
+// large idle: submitted 6538 -> 6556, firstCapture.reached 10 -> 11, firstCapture.median 26 -> 27, compulsoryGames 6 -> 5, compulsoryVotes 10 -> 7, towns.delivered 0 -> 23, towns.games 0 -> 4, score40.min 984 -> 1024, score40.median 1255 -> 1247.5
+// large scripted: submitted 6506 -> 6509, earnedGames 6 -> 5, earnedVotes 6 -> 5, peacefulWins 3 -> 4, towns.delivered 0 -> 61, towns.games 0 -> 5, score40.median 1221 -> 1231
+// large diplomat: submitted 6404 -> 6386, firstCapture.reached 9 -> 8, firstCapture.median 26 -> 25, compulsoryGames 3 -> 4, compulsoryVotes 6 -> 9, peacefulWins 2 -> 3, towns.delivered 0 -> 92, towns.games 0 -> 4, score40.min 915 -> 917, score40.median 1242.5 -> 1264.5
+//
+// FR-627 / FR-628, Task 60 (merged M18i -> per-offer cars). The scripted economy now gives its cars to each town offer
+// in province and chain order instead of one combined commodity want. Only one of the 72 games moved:
+// large diplomat 8: submitted 573 -> 577, townDelivered 58 -> 64 (Testland's own towns), scores [479,600,917] -> [479,600,907].
+// On turn 31 Testland's province-nation-1-4 town ships its Fabric before its second Lumber: delivered Fabric 0 -> 1, Lumber 2 -> 1.
+// Group large diplomat: submitted 6386 -> 6390, towns.delivered 92 -> 98, score40.min 917 -> 907.
+// Totals: delivered 344 -> 350 of 778 offered (28 games, computer still 190), accepted computer Orders 37,522 -> 37,526.
 
 const sizes = ['standard', 'large'] as const;
 const policies = ['idle', 'scripted', 'diplomat'] as const;
@@ -253,8 +270,10 @@ it('FR-628 towns deliver goods across the 72 generated games', () => {
   };
   console.log('FR-628 towns ' + JSON.stringify(towns));
   // FR-627 / FR-628: towns before automatic freight delivers 0 -> 344 units, including 0 -> 190 to the computer.
-  expect(towns).toEqual({ offered: 778, delivered: 344, gamesWithDelivery: 28, computerDelivered: 190 });
+  // Task 60 per-offer cars (large diplomat 8): 344 -> 350.
+  expect(towns).toEqual({ offered: 778, delivered: 350, gamesWithDelivery: 28, computerDelivered: 190 });
   // The freight changes alter subsequent plans and available payroll. Each seed above checks zero refused Orders.
-  expect(sum(g => g.submitted)).toBe(37_522); // FR-627 / FR-628: 37,557 -> 37,522 accepted computer Orders.
+  // FR-627 / FR-628: 37,557 -> 37,522 accepted computer Orders; Task 60 per-offer cars (large diplomat 8): 37,522 -> 37,526.
+  expect(sum(g => g.submitted)).toBe(37_526);
   expect(sum(g => g.noPay)).toBe(51); // FR-627 / FR-628: 50 -> 51 unpaid disbands.
 });

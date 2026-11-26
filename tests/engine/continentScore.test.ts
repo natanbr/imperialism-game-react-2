@@ -187,11 +187,14 @@ describe('FR-260 (replaces FR-157) the continent plays: 40 turns, nation 2 scrip
     // 2: 2b44929c3d157a198f8f5eb60a1e3ffd4eac406bebf655b998929b3ed3ffd02a → 1adcae4f69029e305010dc47b050295d4af369c05f9943901cb3503cc9fdaaed
     // 3: 8a42689cb28da980c14a0b86579dd9c6248c858b9e438ef40d3ca207708ef9b3 → 5f16981902eb0704cc1d53768ede8bc962130c863ae80ea205e6592622f65c3c
     // 4: 481ffb8030b4b5e9a0b66b7807505e889a3621638c0cf5f014256ca51627e39e → d13e5609ea44548d68400fe2c9cd116abbb048c8a26dc15ff6e07f02f3e5fd83
+    // FR-627 / FR-628, Task 60: the computer now names only the town units a car will take (per-offer cars). The
+    // explicit Lumber no car could carry drops out of those 132 Orders, so every seed is back on its M18h digest.
+    // Merged M18i → Task 60: e33a4444… → 12711a8e…, 1adcae4f… → 2b44929c…, 5f169819… → 8a42689c…, d13e5609… → 481ffb80….
     expect(SEEDS.map(seed => createHash('sha256').update(JSON.stringify(games.get(seed)!.first.orders)).digest('hex'))).toEqual([
-      'e33a44442ad7cd1a5aeabb498ebae69a3f8e958ce4575caf8046689ed95e353e',
-      '1adcae4f69029e305010dc47b050295d4af369c05f9943901cb3503cc9fdaaed',
-      '5f16981902eb0704cc1d53768ede8bc962130c863ae80ea205e6592622f65c3c',
-      'd13e5609ea44548d68400fe2c9cd116abbb048c8a26dc15ff6e07f02f3e5fd83',
+      '12711a8eace260679975a8841f9db5f10a61c80877ab0427564a30a225db5ce6',
+      '2b44929c3d157a198f8f5eb60a1e3ffd4eac406bebf655b998929b3ed3ffd02a',
+      '8a42689cb28da980c14a0b86579dd9c6248c858b9e438ef40d3ca207708ef9b3',
+      '481ffb8030b4b5e9a0b66b7807505e889a3621638c0cf5f014256ca51627e39e',
     ]);
   });
 

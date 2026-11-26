@@ -2,6 +2,8 @@
 
 ## Resuming here
 
+- **Task 60 on `claude/m18i-fixes`, not pushed.** Ships the `m18i` revision (blocker 2), per-offer town cars (blocker 3), the expansion-aware forecast and findings 5–10. FR-545 15/24 and FR-489 24/24 held. **Owner decision open:** the protein reservation (blocker 1) is held because it costs FR-545 one win (seed 24, 15/24 → 14/24) while removing 54 sick computer meals in 14 of 24 diplomat games. Its two tests are `it.skip`. [Bisect, re-records and gate](journal/task-60-m18i.md)
+
 - M18i on `claude/m18i-town-freight` (Task 58, FR-628, owner decision 2026-11-26): towns ship before automatic raw and Fish freight, and the computer plans its own town goods after its mills' inputs. Across the 72 generated games towns delivered 344 of 778 units in 28 games, 190 of them the computer's (was 0). FR-597, FR-546, FR-542, FR-247, FR-481/485 and save lengths were re-recorded under FR-627; every floor held. Ranking towns above the mills broke FR-489 and was dropped; the owner is to confirm that order. `npm test` had failed on Vitest's "Timeout calling onTaskUpdate": the synchronous Board of Trade tests blocked their worker for 89 s, past the 60 s RPC limit, so `tests/yieldBetweenTests.ts` now yields after every test. Awaiting the coordinator's full gate. · M18h merged in pull request 55 at `1cf9fd6`, [milestone journal](journal/archive-M18h.md)
 - M18g on `claude/m18g-screens` in the `imperialism-game-revival-fee36d` worktree adds Stats rankings and history, Trade Book, Garrison Book and two diplomatic map modes. The owner kept Board Details and the human nation as the reference. [Implementation and gate evidence](journal/archive-M18g.md) · [Task 43 review fixes and gate](journal/archive-M18g.md#2026-11-25-task-43--m18g-review-fixes)
 - M18f (human credit, interest, forced sales, signed cash and supply notes) merged at `9d2f9eb` in pull request 52. The inferred credit numbers and FR-609 debt scoring remain open to owner revision. [M18f journal and gate evidence](journal/archive-M18f.md) · [Task 39 report](../.gate/codex/39/report.md) · [Earlier journal archives](journal/)
@@ -17,6 +19,10 @@
 - FR-547 (Q143) is the buyer branch's proposed value rule. Measure technology availability, purchase timing and the value of the first unlocked action in the original game before tuning. See `docs/verify-and-tune.md`.
 - Task 19 passed the load trials and full gate on `claude/perf-tests`. Finish future gates with `npm run test:perf` alone. The measured results and six functional logs are indexed in `.gate/codex/19/summary.md`.
 - To play M17 on continent seed 1, set Armaments and Fabric production to 1. Build a Ship-of-the-Line on turn 6, declare and sail on turn 7, set the site on turn 8, and land the four-ARMS army on turn 9. On turn 10 see the survivors at Sundmark and its colony vote in Council.
+
+## 2026-11-26 Task 60 — M18i review fixes
+
+Size M. The first candidate fixed the one-car starvation, four-car allocation and confirmed expansion but missed three floors. The second restored FR-487 and FR-489. It missed FR-545 by one peaceful win. Development stopped under the two-attempt rule. A bisect traced the lost win to the protein reservation alone (seed 24: Valdoria's expert, sick on turns 28–31 since M18h, is fed and wins minor-3). The coordinator shipped everything else and held the reservation for the owner. [Test evidence, historical save and all measured changes](journal/task-60-m18i.md)
 
 ## 2026-11-26 Task 57 — M18h review fixes
 
