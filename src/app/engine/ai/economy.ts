@@ -143,9 +143,12 @@ export function planEconomy(view: () => GameState, nationId: string, propose: Pr
 const townCommodities = new Set<string>(townChains.flatMap(([, material, good]) => [material, good]));
 
 /**
- * FR-628: the town materials and goods of a forecast collection, in its order (province, then chain). Every unit is
- * worth a car: lumber and steel pair into capacity, fabric feeds the clothing factory and the goods sell. A raw-only
- * collection has none. The forecast reads only the nation's own towns on its own map (FR-497).
+ * FR-628: the town materials and goods of a forecast collection, one entry per commodity holding every town's units.
+ * The entries keep the order in which each commodity first entered the collection: the first producing province's
+ * chain order (material before good), then any commodity only a later province adds. That is not each town's own
+ * offer order. The whole forecast is wanted: lumber and steel build capacity, fabric feeds the clothing factory and
+ * the goods sell. A raw-only collection has none. The forecast reads only the nation's own towns on its own map
+ * (FR-497).
  */
 export const townShippingWants = (collected: Stock): [string, number][] =>
   Object.entries(collected).filter(([commodity, units]) => townCommodities.has(commodity) && units > 0);
@@ -198,7 +201,9 @@ export function shippingWants(
  * and the `collected` units: each commodity with a want is set, in the wants' order, to the larger of its want and what
  * the rule from before FR-389 (the wants first, then the cars left filled in tile order) ships of it; every other
  * commodity stays automatic and takes the cars left in tile order. The logistics phase then ships what that rule
- * shipped. Example: 15 cars, collected grain 10, livestock 4, fruit 5, cotton 2, wants livestock 1 and cotton 2:
+ * shipped. The fill follows the collection's key order, with raw tile and Fish supply before town commodities, not the
+ * logistics phase's towns-first order (FR-628). The towns lose nothing by it: `townShippingWants` makes their whole
+ * forecast a want, so they take their cars before the fill. Example: 15 cars, collected grain 10, livestock 4, fruit 5, cotton 2, wants livestock 1 and cotton 2:
  * { livestock: 3, cotton: 2 }, and the logistics phase ships livestock 3, cotton 2, grain 10.
  */
 export function priorityPlan(capacity: number, collected: Stock, wants: readonly (readonly [string, number])[]): Record<string, number> {
@@ -253,6 +258,8 @@ export function planFinalTransport(start: GameState, view: GameState, nationId: 
 function planFreightCars(view: () => GameState, nationId: string, propose: Propose): void {
   const state = view();
   if (turnsAfter(state) < CAR_MIN_TURNS) return;
+  // Raw wants only (FR-628): FR-628 changed which freight ships first, not when a car is bought. Counting town goods
+  // here would also bring back the town projection that Task 57 removed from this per-turn query.
   const wanted = shippingWants(state, nationId).reduce((sum, [, n]) => sum + n, 0);
   if (wanted > Math.max(0, nationOf(state, nationId).transportCapacity ?? 0)) propose({ kind: "changeTransportCapacity", nationId, delta: 1 });
 }

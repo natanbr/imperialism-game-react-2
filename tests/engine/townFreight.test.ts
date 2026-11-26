@@ -121,7 +121,7 @@ describe('FR-621/622 shared town freight through the real turn phases', () => {
     expect(projectedFreightPlan(ample, N1, 12, plan).shipments).toEqual({ fabric: 1, furniture: 2, fish: 1 });
   });
 
-  it('FR-628 FR-497 a computer owner with scarce cars plans its own towns after its mill’s need and before ordinary freight', () => {
+  it('FR-628 a computer owner with scarce cars plans its own towns after its mill’s need and before ordinary freight', () => {
     // Two timber next to the capital, first in collection order. The lumber mill needs one. Before FR-628 the plan's
     // fill of the spare car set timber to 2, and that explicit amount took both cars ahead of the towns.
     let state = beforeUpgrade(2, 'scripted');

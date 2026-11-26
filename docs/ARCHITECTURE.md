@@ -532,8 +532,9 @@ logistics and the scripted player's planning (`ai/railPlan.ts`, which orders mis
 read the same graph (FR-079).
 
 The scripted player's transport plan (FR-405): its wants, each raised to what the old top-up rule would ship, the
-rest automatic (`priorityPlan`, `ai/economy.ts`), so its shipments equal what they were before exact amounts. It
-plans twice: `planEconomy` on the state as it is, and `planFinalTransport` after its civilians' orders, because a
+rest automatic (`priorityPlan`, `ai/economy.ts`), so its shipments equal what they were before exact amounts. Since
+FR-628 the wants end with its own forecast town materials and goods (`townShippingWants`), after the meal's food and
+the mills' capped inputs; the freight-car purchase (`planFreightCars`) still counts raw wants only. It plans twice: `planEconomy` on the state as it is, and `planFinalTransport` after its civilians' orders, because a
 rail ordered that turn finishes in the development phase and joins a hub before logistics, and the plan must see
 that collection (`collectedAtLogistics` runs the development and connectivity phases on the planned state). The
 planned trade (`planTrade`, `projectTurn`) runs no development phase and keeps the first plan's view.
