@@ -717,6 +717,7 @@ describe('FR-191 FR-172 trade raises relations', () => {
   });
 });
 
+// FR-636 (M18j): the Deal Book also lists the turn's Overseas Profits, empty without a holding.
 describe('FR-244 deal events and the Deal Book data (replaces FR-192)', () => {
   /** Testland with a 10% subsidy toward Arvelia: sells 1 clothing, buys 2 coal, has no hold left for its iron ore. */
   function ledgerTurn() {
@@ -751,8 +752,9 @@ describe('FR-244 deal events and the Deal Book data (replaces FR-192)', () => {
       bottomLine: { sold: 810, bought: 220, militaryUpkeep: 0, net: 590 },
       diplomacy: [],
       recruits: [],
+      overseasProfits: [],
     });
-    expect(dealBook(events, N2)).toEqual({ sold: [], bought: [], notTraded: [], bottomLine: { sold: 0, bought: 0, militaryUpkeep: 0, net: 0 }, diplomacy: [], recruits: [] });
+    expect(dealBook(events, N2)).toEqual({ sold: [], bought: [], notTraded: [], bottomLine: { sold: 0, bought: 0, militaryUpkeep: 0, net: 0 }, diplomacy: [], recruits: [], overseasProfits: [] });
   });
 
   it('FR-255 dealBook lists the units not sold under Not traded, not under Sold, and reads a "world" turn too', () => {
@@ -768,6 +770,7 @@ describe('FR-244 deal events and the Deal Book data (replaces FR-192)', () => {
       bottomLine: { sold: 300, bought: 200, militaryUpkeep: 0, net: 100 },
       diplomacy: [],
       recruits: [],
+      overseasProfits: [],
     });
   });
 
