@@ -6,7 +6,7 @@ import { validSavedCredit } from "./creditSave";
 import { inventionNews } from "@/engine/technology";
 import { turnLimitOf } from "@/engine/turn/gameOver";
 import { normalizeRandomMapSize } from "@/types/World";
-import { m17ReplayBoundary, usedM17CombatRules, withCurrentRules } from "./sessionReplay";
+import { replayBoundaryForSave, usedM17CombatRules, withCurrentRules } from "./sessionReplay";
 import type { GameSession } from "./gameSlice";
 import { isRecord } from "./isRecord";
 import { readRankHistory } from "./rankHistory";
@@ -93,10 +93,10 @@ export function readSave(storage: Pick<Storage, "getItem"> | undefined = browser
       }
     }
     parsed.game = withCurrentRules(parsed.game);
-    if (!parsed.combatRevision && usedM17CombatRules(parsed)) {
-      const boundary = m17ReplayBoundary(parsed);
+    if (parsed.game.rulesRevision !== "m18d") {
+      const boundary = replayBoundaryForSave(parsed);
       if (boundary) parsed.replayBoundary = boundary;
-      parsed.combatRevision = "q145";
+      if (!parsed.combatRevision && usedM17CombatRules(parsed)) parsed.combatRevision = "q145";
     }
     if (parsed.rankHistory !== undefined) parsed.rankHistory = readRankHistory(parsed.rankHistory, parsed.game);
     return { kind: "usable", save: parsed };

@@ -297,8 +297,10 @@ describe('FR-124 AI acceptance: 15 turns of nation 2', () => {
       // M12 FR-459 re-record: links 9 -> 8, yield 36 -> 35, sold 19 -> 22, score 747 -> 760. On turn 10 the rancher took
       // 16-5, on the 5-section path of the new depot 17-4, so the rail went round it (6 sections, joined on turn 15); now
       // he works 17-5, the depot is joined on turn 14 by 5 sections and the engineer starts the depot 18-2 on turn 15
-      .toEqual({ depots: 2, links: 8, yieldPerTurn: 35, shipped: 200, sold: 22, score: 760, bound: 11, refused: 0 });
+      // FR-616: Fish changes freight and depot choice. depots 2 -> 3, links 8 -> 5, yieldPerTurn 35 -> 30, shipped 200 -> 205, sold 22 -> 23, score 760 -> 701.
+      .toEqual({ depots: 3, links: 5, yieldPerTurn: 30, shipped: 205, sold: 23, score: 701, bound: 11, refused: 0 });
     expect({ ...row(m4), bound: railBound(m4.state), refused: m4.refused })
-      .toEqual({ depots: 1, links: 10, yieldPerTurn: 21, shipped: 181, sold: 32, score: 451, bound: 11, refused: 0 });
+      // FR-616: the frozen M4 policy collects coastal Fish. Yield 21 -> 22, shipped 181 -> 195, score 451 -> 445.
+      .toEqual({ depots: 1, links: 10, yieldPerTurn: 22, shipped: 195, sold: 32, score: 445, bound: 11, refused: 0 });
   });
 });

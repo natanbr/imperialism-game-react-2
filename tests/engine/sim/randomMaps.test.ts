@@ -9,6 +9,36 @@ import { atTurn, runGame } from './harness';
 import { COMPUTER_ID, HUMAN_ID } from './humans';
 import baseline from './randomMapsBaseline.json';
 
+// FR-616 re-measured FR-597 after port fishing changed freight, food supply and subsequent computer Orders.
+// Each row lists the exact changed fields; scores are at turns 15, 25 and 40. The other 45 games matched.
+// standard idle 1: scores [476,717,1108] -> [476,717,1068]
+// standard idle 2: scores [465,680,1093] -> [465,680,1162]
+// standard idle 3: firstCapture 33 -> 35, scores [444,693,971] -> [444,693,1059]
+// standard idle 4: winner nation-2 -> nation-1, firstCapture 36 -> null, scores [462,672,1007] -> [462,649,1032]
+// standard idle 5: scores [484,555,860] -> [484,562,820]
+// standard idle 6: firstCapture null -> 37, compulsory 3 -> 0, scores [471,723,1106] -> [471,723,1122]
+// standard idle 7: scores [477,595,1131] -> [477,635,1064]
+// standard idle 12: scores [475,708,1265] -> [475,715,1200]
+// standard scripted 4: winner nation-1 -> nation-2
+// standard scripted 5: winner nation-1 -> nation-2
+// standard diplomat 2: winner nation-2 -> nation-1, peacefulWin false -> true
+// standard diplomat 6: winner nation-2 -> nation-1, peacefulWin false -> true
+// standard diplomat 10: winner nation-1 -> nation-2, peacefulWin true -> false
+// large idle 1: scores [472,660,1009] -> [472,660,984]
+// large idle 2: scores [503,664,1238] -> [503,664,1271]
+// large idle 4: firstCapture 35 -> 40, scores [503,688,1225] -> [503,688,1276]
+// large idle 6: firstCapture 30 -> 38, scores [494,717,1217] -> [502,746,1138]
+// large idle 8: scores [453,620,null] -> [453,615,null]
+// large idle 9: firstCapture 37 -> 30, scores [500,667,1189] -> [500,657,1278]
+// large idle 10: firstCapture 26 -> 25, firstPact null -> 29, compulsory 0 -> 1, scores [505,623,1302] -> [505,652,1239]
+// large idle 11: scores [457,624,1218] -> [457,623,1203]
+// large idle 12: firstCapture 31 -> null, compulsory 0 -> 3, scores [479,653,1235] -> [479,653,1349]
+// large scripted 5: turns 30 -> 40
+// large scripted 7: winner nation-2 -> nation-1
+// large scripted 12: winner nation-2 -> nation-1
+// large diplomat 5: turns 30 -> 40
+// large diplomat 10: winner nation-2 -> nation-1, peacefulWin false -> true
+
 const sizes = ['standard', 'large'] as const;
 const policies = ['idle', 'scripted', 'diplomat'] as const;
 type Size = typeof sizes[number];

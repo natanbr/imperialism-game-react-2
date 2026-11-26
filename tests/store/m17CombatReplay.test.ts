@@ -27,13 +27,14 @@ it('FR-558/560 retains a historical joint land battle and its outcome without an
   expect(loaded.orderLog).toEqual(legacy.orderLog);
 });
 
-it('FR-558 keeps from-start replay for an old naval campaign before the squadrons fought', () => {
+it('FR-558 FR-616 replays the saved position of an old naval campaign before the squadrons fought', () => {
   // Recorded after turn two with 59fe854, the last engine before Q145.
   const legacy = oldSave('pre-q145-before-engagement.json.gz');
   expect(legacy.game.turn).toBe(3);
   expect(legacy.game.fleets).toHaveLength(2);
   const loaded = load({ ...legacy, game: Object.fromEntries(Object.entries(legacy.game).reverse()) });
-  expect(loaded.replayBoundary).toBeUndefined();
+  // FR-616: fishing changes freight before combat. Replay start 1 -> 3, after zero pending orders.
+  expect(loaded.replayBoundary).toEqual({ turn: 3, appliedOrders: 0, checkpoint: legacy.game });
   expect(loaded.game).toEqual(legacy.game);
   expect(replaySession(loaded)).toEqual(legacy.game);
 });
@@ -62,4 +63,15 @@ it('FR-552/558 continues the old intact engagement, keeps its midturn order and 
   const replay = replaySession(savedAgain);
   expect(replay).toEqual(savedAgain.game);
   expect(resolveTurn(replay, {})).toEqual(resolveTurn(savedAgain.game, {}));
+});
+
+it('FR-587 FR-616 advances a previous combat checkpoint when its subsequent historical turn diverges', () => {
+  const earlier = oldSave('pre-q145-before-engagement.json.gz');
+  const later = oldSave('pre-q145-engagement.json.gz');
+  expect(later.orderLog.slice(0, earlier.orderLog.length)).toEqual(earlier.orderLog);
+  const saved = { ...later, combatRevision: 'q145', replayBoundary: { turn: 3, appliedOrders: 0, checkpoint: earlier.game } };
+  const loaded = load(saved);
+  expect(loaded.replayBoundary).toEqual({ turn: 4, appliedOrders: 0, checkpoint: later.game });
+  expect(replaySession(loaded)).toEqual(later.game);
+  expect(loaded.orderLog).toEqual(later.orderLog);
 });

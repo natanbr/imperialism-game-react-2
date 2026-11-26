@@ -70,7 +70,7 @@ const REQUIRED = {
    * (measured 21 of 24 in M13; before: 0 of 24).
    */
   overtures: { games: 18, of: 24, byTurn: 29 },
-  /** FR-546 replaces FR-542 (ii), which required 18 of 24. With FR-245 enforced, M15 earns the vote in 13 of 24. */
+  /** FR-546 replaces FR-542 (ii), which required 18 of 24. FR-616: fishing changes trade and influence spending; measured 13/24 -> 17/24. The floor stays 13. */
   votesAt40: { games: 13, of: 24, atLeast: 1, atMeeting: 40 },
   /** FR-493: trader: at least 5 units traded between the Great Powers in 40 turns (before: 0 of 24). */
   traded: { games: 18, of: 24, atLeast: 5 },

@@ -36,3 +36,15 @@ it('FR-587 preserves a fishing-only checkpoint through a resave without claiming
   expect(resaved.replayBoundary).toEqual(previous.replayBoundary);
   expect(resaved.combatRevision).toBeUndefined();
 });
+
+it('FR-587 FR-616 loads the settled pre-fishing v1 campaign without resolving its previous turns', () => {
+  const raw = gunzipSync(readFileSync(join(__dirname, 'fixtures/main-765fcaa-turn-10.json.gz'))).toString();
+  const resolve = vi.spyOn(engine, 'resolveTurn');
+  try {
+    const loaded = load(raw);
+    expect(loaded.replayBoundary).toEqual({ turn: 10, appliedOrders: 0, checkpoint: loaded.game });
+    expect(resolve).not.toHaveBeenCalled();
+  } finally {
+    resolve.mockRestore();
+  }
+});

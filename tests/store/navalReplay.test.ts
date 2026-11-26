@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { gunzipSync } from 'node:zlib';
 import { expect, it } from 'vitest';
 import { createGameStore } from '@/store/rootStore';
-import { readSave, saveOf } from '@/store/persistence';
+import { readSave, saveOf, type SavedGame } from '@/store/persistence';
 import { replaySession } from '@/store/sessionReplay';
 import { GoodsType, MaterialType } from '@/types/Resource';
 import type { Order } from '@/engine/orders/Order';
@@ -17,9 +17,14 @@ function load(raw: string) {
   return slot.save;
 }
 
-it('FR-558 continues and replays an independently captured pre-M17 continent with an edited production order', () => {
+it('FR-558 FR-587 FR-616 continues and replays an independently captured pre-M17 continent with an edited production order', () => {
   const raw = gunzipSync(readFileSync(join(__dirname,'fixtures/pre-m17-continent.json.gz'))).toString('utf8');
   const save = load(raw);
+  const original: SavedGame = JSON.parse(raw);
+  // FR-616: fishing changes the first settlement. Replay start 1 -> 2, with the one production order already applied.
+  expect(save.replayBoundary).toEqual({ turn: 2, appliedOrders: 1, checkpoint: save.game });
+  expect(save.game.map).toEqual(original.game.map);
+  expect(save.ordersThisTurn).toEqual(original.ordersThisTurn);
   expect(save.game.worldId).toBe('continent');
   expect(replaySession(save)).toEqual(save.game);
   const missingFleetFields = JSON.stringify(JSON.parse(raw), (key,value) => key === 'fleets' ? undefined : value);
@@ -37,6 +42,7 @@ it('FR-558 continues and replays an independently captured pre-M17 continent wit
   store.getState().advanceTurn();
   submit({kind:'setFleetMission',nationId,fleetId:store.getState().game.fleets[0].id,mission:'sail',provinceId:'province-minor-2'});
   const continued = load(JSON.stringify(saveOf(store.getState())));
+  expect(continued.replayBoundary).toEqual(save.replayBoundary);
   expect(replaySession(continued)).toEqual(continued.game);
 });
 

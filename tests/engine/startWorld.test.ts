@@ -157,10 +157,11 @@ describe('FR-081 the player starts on island 1', () => {
     expect(around.filter(isLand).map(t => t.resource?.level)).toEqual([1, 1, 1, 1, 1]);
   });
 
-  it('FR-081 the capital ships 4 grain, 4 fruit and 2 cotton a turn, as on the 40x40 map', () => {
+  it('FR-081 FR-616 the capital collects 4 grain, 4 fruit, 2 cotton and 1 fish a turn', () => {
     const network = g.transportNetwork.railroadNetworks!['nation-1'];
     expect(network.capital).toMatchObject({ x: capital.x, y: capital.y });
-    expect(computeLogisticsTransport(g.map, 'nation-1', network)).toEqual({ grain: 4, fruit: 4, cotton: 2 });
+    // FR-616: 10 -> 11 units. The single sea hex beside the capital supplies 0 -> 1 Fish.
+    expect(computeLogisticsTransport(g.map, 'nation-1', network)).toEqual({ grain: 4, fruit: 4, cotton: 2, fish: 1 });
   });
 
   it('FR-081 FR-054 the economy loop runs: the first meal feeds all seven, and a canned-food order makes canned food', () => {

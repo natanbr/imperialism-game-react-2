@@ -69,9 +69,9 @@ test('FR-133 FR-135 FR-142 the transport popup shows what can be shipped with it
   await expect(dialog.getByRole('region').nth(0)).toHaveAttribute('aria-label', 'Food');
   await expect(dialog.getByRole('region').nth(1)).toHaveAttribute('aria-label', 'Raw materials');
   await expect(dialog.getByRole('region').nth(2)).toHaveAttribute('aria-label', 'Other resources');
-  // FR-607: the 13 rows formerly included Fish, Wool and Oil with neither collection nor allocation.
+  // FR-616: 10 -> 11 sliders. The coast supplies Fish, so it follows Fruit in the Food group.
   expect(await dialog.getByRole('slider').evaluateAll(sliders => sliders.map(s => s.id))).toEqual([
-    'transport-grain', 'transport-livestock', 'transport-fruit', 'transport-cotton', 'transport-timber',
+    'transport-grain', 'transport-livestock', 'transport-fruit', 'transport-fish', 'transport-cotton', 'transport-timber',
     'transport-coal', 'transport-ironOre', 'transport-horses', 'transport-gold', 'transport-gems',
   ]);
   await expect(dialog.getByTestId('transport-row-cannedFood')).toHaveCount(0);

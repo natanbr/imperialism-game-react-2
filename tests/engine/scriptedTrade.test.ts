@@ -63,11 +63,11 @@ describe('FR-516 the scripted fleet', () => {
     expect(ships(stocked)).toEqual(purchase);
     expect(ships(withHumanController(stocked))).toEqual(purchase);
   });
-  it.each(['partners', 'world'] as const)('FR-260 FR-497 keeps six turns of field-army pay at half cargo usage across four %s phases', market => {
+  it.each(['partners', 'world'] as const)('FR-260 FR-497 ordinary spending keeps the established %s payroll floor after weak trade', market => {
     const start = newGame({ seed: 1, world: 'continent', market });
     const history = (used: number[]) => fixture(used, undefined, start);
     const reserve = (used: number[]) => upkeepReserve(addRegiments(history(used), N2, SW2, ['regulars']), N2);
-    expect(reserve([2, 2, 2, 2])).toBe(750); // $125 per turn for five arms.
+    expect(reserve([2, 2, 2, 2])).toBe(market === 'partners' ? 750 : 250); // $125 per turn for five arms.
     expect(reserve([3, 2, 2, 2])).toBe(250);
     expect(reserve([0, 0, 0])).toBe(250);
     expect(upkeepReserve(history([0, 0, 0, 0]), N2)).toBe(200);

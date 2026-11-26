@@ -22,9 +22,9 @@ import { text } from './domText';
 failOnActWarnings();
 
 const ALL = [...Object.values(ResourceType), ...Object.values(MaterialType), ...Object.values(GoodsType)];
-/** Seed 1, nation 1: the capital 2-9 and its tiles deliver grain 4, fruit 4 and cotton 2 a turn. */
-// FR-607: formerly all rows in an active group; now unsourced Fish, Wool and Oil are omitted individually.
-const START_KEYS = ['grain', 'livestock', 'fruit', 'cotton', 'timber', 'coal', 'ironOre'];
+// FR-616: the adjacent fishing ground adds Fish after Fruit. Food has 3 -> 4 rows,
+// the opening popup 7 -> 8, and the horse fixture 10 -> 11. Unsourced Wool and Oil stay hidden.
+const START_KEYS = ['grain', 'livestock', 'fruit', 'fish', 'cotton', 'timber', 'coal', 'ironOre'];
 
 function show(game: GameState = newGame({ seed: 1 })) {
   useGameStore.setState({ ...useGameStore.getInitialState(), game, activeNationId: 'nation-1' });
@@ -93,8 +93,8 @@ describe('FR-141 FR-142 what the popup lists', () => {
     expect(shownGroups()).toEqual(['Food', 'Raw materials']);
     expect(shownRows()).toEqual(START_KEYS);
     for (const key of ['horses', 'steel', 'clothing', 'paper', 'cannedFood', 'fuel', 'armaments']) expect(screen.queryByTestId(`transport-row-${key}`), key).toBeNull();
-    // FR-607: previously "Auto: 0" in a visible group, now absent until collected or explicitly allocated.
-    for (const name of ['Fish', 'Wool', 'Oil']) expect(screen.queryByRole('slider', { name })).toBeNull();
+    expect(text(screen.getByTestId('transport-row-fish'))).toBe('Fish Auto: 1');
+    for (const name of ['Wool', 'Oil']) expect(screen.queryByRole('slider', { name })).toBeNull();
   });
 
   it('FR-142 a group appears as soon as one of its commodities has something to ship', () => {

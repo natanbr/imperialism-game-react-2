@@ -1,7 +1,10 @@
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { gunzipSync } from 'node:zlib';
 import { expect, it } from 'vitest';
 import { newGame } from '@/engine/newGame';
-import { readSave, saveOf } from '@/store/persistence';
+import { readSave, saveOf, type SavedGame } from '@/store/persistence';
 import { createGameStore } from '@/store/rootStore';
 import { replaySession } from '@/store/sessionReplay';
 
@@ -43,13 +46,14 @@ it('NR-038 preserves the serialized seed-only, app, Normal and Demo fixed starts
   }
 });
 
-it('NR-038 loads, advances and replays the pre-M18e unmarked custom 400-turn game including its meeting at turn 10', () => {
+it('NR-038 FR-616 pins the same unmarked custom 400-turn campaign under current rules, including its meeting at turn 10', () => {
   const old = createGameStore({ game: newGame({ seed: 7, world: 'continent', turnLimit: 400 }) });
   for (let turn = 1; turn < 10; turn++) old.getState().advanceTurn();
   const { rankHistory: newHistory, ...original } = saved(old);
   expect(newHistory?.map(record => record.turn)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
-  // The digest pins this exact v1 session on the parent of the M18e implementation.
-  expect(digest(original)).toBe('544df1968c34056c07e33246c47f5a50d2ed8206ba51d2cfa7b5215831c0aa3a');
+  // FR-616: fishing changes freight, stock and later orders. The settled game also records the M18d rules revision.
+  // Turn 10: 544df1968c34056c07e33246c47f5a50d2ed8206ba51d2cfa7b5215831c0aa3a -> e842158982c0889a30494b72cdd0bffcc6f85c2836f2bbb9619a0339fc282b05.
+  expect(digest(original)).toBe('e842158982c0889a30494b72cdd0bffcc6f85c2836f2bbb9619a0339fc282b05');
   const slot = read(original);
   if (slot.kind !== 'usable') throw new Error('Expected a usable v1 save');
   const restored = createGameStore({ seed: 1 });
@@ -60,7 +64,39 @@ it('NR-038 loads, advances and replays the pre-M18e unmarked custom 400-turn gam
   expect(continuedHistory?.map(record => record.turn)).toEqual([10]);
   expect(after.eventLog.at(-1)?.events.some(e => e.type === 'council-met')).toBe(true);
   expect(replaySession(after)).toEqual(after.game);
-  expect(digest(after)).toBe('27dc351a2b8b4e08222d5de3d68c11397a9d39b2b94409e771b3f1fb739fd3b2');
+  // FR-616, turn 11: 27dc351a2b8b4e08222d5de3d68c11397a9d39b2b94409e771b3f1fb739fd3b2 -> 15436a8c378d346598bda6ca9b41ac8aac1b14d9ec62981ee4638e2f63b8f847.
+  expect(digest(after)).toBe('15436a8c378d346598bda6ca9b41ac8aac1b14d9ec62981ee4638e2f63b8f847');
+});
+
+it('FR-587 FR-616 loads the v1 save written by main, ships its first Fish, saves and replays the continued game', () => {
+  // origin/main 765fcaa: seed 7, continent, turn limit 400, nine End Turns and saveOf at the Unix epoch.
+  const raw = gunzipSync(readFileSync(join(__dirname, 'fixtures/main-765fcaa-turn-10.json.gz'))).toString();
+  const original: SavedGame = JSON.parse(raw);
+  const { rankHistory, ...historical } = original;
+  expect(digest(historical)).toBe('544df1968c34056c07e33246c47f5a50d2ed8206ba51d2cfa7b5215831c0aa3a');
+  const slot = read(original);
+  if (slot.kind !== 'usable') throw new Error('Expected the historical main save to load');
+  expect(original.version).toBe(1);
+  expect(slot.save.game).toEqual(original.game);
+  expect(slot.save.orderLog).toEqual(original.orderLog);
+  expect(slot.save.eventLog).toEqual(original.eventLog);
+  expect(slot.save.rankHistory).toEqual(rankHistory);
+  // FR-616: different freight under fishing moves the replay start 1 -> 10 with zero pending orders.
+  expect(slot.save.replayBoundary).toEqual({ turn: 10, appliedOrders: 0, checkpoint: original.game });
+  const store = createGameStore({ seed: 1 });
+  store.getState().restoreGame(slot.save);
+  const nationId = original.activeNationId;
+  expect(store.getState().submitOrder({ kind: 'setTransportAllocations', nationId, allocations: { fish: 1 } })).toEqual({ ok: true });
+  store.getState().advanceTurn();
+  const after = saved(store);
+  expect(after.game.turn).toBe(11);
+  expect(after.eventLog.at(-1)?.events.some(e => e.type === 'council-met')).toBe(true);
+  expect(original.game.nations[0].warehouse.fish).toBe(0);
+  expect(after.game.nations[0].warehouse.fish).toBe(1);
+  const continued = read(after);
+  if (continued.kind !== 'usable') throw new Error('Expected the continued save to reload');
+  expect(continued.save).toEqual(after);
+  expect(replaySession(continued.save)).toEqual(after.game);
 });
 
 it('NR-038 restores and replays a Large Random v1 save with a pending human Order and identical next-turn events', () => {

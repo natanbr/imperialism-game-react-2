@@ -45,6 +45,8 @@ export const promoteFreightCars: TurnSystem = (state: GameState): GameState => (
 /** One turn is one season; the year advances after winter (FR-027). */
 export const advanceClock: TurnSystem = (state: GameState): GameState => ({
   ...state,
+  // The first settlement under fishing marks its rules. A reconstructed pre-M16 turn still uses shared technology.
+  ...(state.rulesRevision && { rulesRevision: "m18d" }),
   turn: state.turn + 1,
   year: state.year + (isLastTurnOfYear(state.turn) ? 1 : 0),
 });
