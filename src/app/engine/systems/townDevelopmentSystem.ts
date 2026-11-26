@@ -1,5 +1,6 @@
 import type { NationId, ProvinceId } from "@/types/Common";
 import type { GameState } from "@/types/GameState";
+import type { GameMap } from "@/types/Map";
 import type { TownProgress } from "@/types/Province";
 import { capitalProvinceOf } from "../army/armies";
 import { provinceById, startOwnerOf } from "../world/provinces";
@@ -34,22 +35,29 @@ function advanceTown(town: TownFacts, previous: TownProgress | undefined, captur
   return { ownerId: town.ownerId, connectedSettlements, matured, upgradeSettlements };
 }
 
-/** FR-619/620: resolve once, after transfers, factory completions and the connectivity check. */
+/** FR-619/620: the same one-settlement projection drives the owner’s estimate and the actual turn. */
+export function nextTownSettlements(state: GameState, owner: NationId, knownMap: GameMap = state.map) {
+  const capitals = new Map<NationId, ProvinceId | undefined>();
+  const settlements: { town: TownFacts; progress: TownProgress }[] = [];
+  for (const town of townsOf(state, owner, knownMap)) {
+    const saved = state.townProgress?.[town.provinceId];
+    const previous = saved?.ownerId === owner ? saved : undefined;
+    if (!town.connected && !previous) continue;
+    const founder = startOwnerOf(provinceById(state, town.provinceId)!);
+    if (!capitals.has(founder)) capitals.set(founder, capitalProvinceOf(state, founder)?.id);
+    const capital = capitals.get(founder) === town.provinceId;
+    if (capital && (founder === owner || state.minorNations.some(minor => minor.id === founder))) continue;
+    settlements.push({ town, progress: advanceTown(town, previous, capital) });
+  }
+  return settlements;
+}
+
+/** Resolve once, after transfers, factory completions and the connectivity check. */
 export function townDevelopmentSystem(state: GameState): GameState {
   if (state.provinces.length === 0) return state;
-  const capitals = new Map([...state.nations, ...state.minorNations].map(country =>
-    [country.id, capitalProvinceOf(state, country.id)?.id]));
   const townProgress: Record<ProvinceId, TownProgress> = {};
   for (const nation of state.nations) {
-    for (const town of townsOf(state, nation.id)) {
-      const saved = state.townProgress?.[town.provinceId];
-      const previous = saved?.ownerId === nation.id ? saved : undefined;
-      if (!town.connected && !previous) continue;
-      const founder = startOwnerOf(provinceById(state, town.provinceId)!);
-      const capital = capitals.get(founder) === town.provinceId;
-      if (capital && (founder === nation.id || state.minorNations.some(minor => minor.id === founder))) continue;
-      townProgress[town.provinceId] = advanceTown(town, previous, capital);
-    }
+    for (const { town, progress } of nextTownSettlements(state, nation.id)) townProgress[town.provinceId] = progress;
   }
   if (Object.keys(townProgress).length) return { ...state, townProgress };
   if (!state.townProgress) return state;

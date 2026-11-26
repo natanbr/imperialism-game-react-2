@@ -17,7 +17,7 @@ import type { WorkerGrade } from "@/types/Industry";
 import type { Nation } from "@/types/Nation";
 import { GoodsType, ResourceType } from "@/types/Resource";
 import { fundsNeededText, money, REFUSAL_TEXT, upkeepDueText, upkeepWarningText } from "../gameText";
-import { computeLogisticsTransport, transportShipments } from "@/engine/systems/logisticsSystem";
+import { projectedFreightPlan } from "@/engine/systems/logisticsSystem";
 import { CATEGORY_TEXT } from "./armyView";
 import { buyingPower, hasOpenCredit } from "@/engine/credit/account";
 
@@ -124,9 +124,8 @@ function moreRefusalText(result: Extract<ValidationResult, { ok: false }>, natio
 }
 
 export function armouryView(state: GameState, nation: Nation): ArmouryView {
-  const collected = computeLogisticsTransport(state.map, nation.id, state.transportNetwork.railroadNetworks?.[nation.id]);
-  const shipped = transportShipments(nation.transportCapacity ?? 0, collected, state.transportAllocationsByNation?.[nation.id]);
-  const horseSupply = shipped[ResourceType.Horses] ?? 0;
+  const { shipments } = projectedFreightPlan(state, nation.id, nation.transportCapacity ?? 0);
+  const horseSupply = shipments[ResourceType.Horses] ?? 0;
   const stock = (key: GoodsType | ResourceType) => nation.warehouse[key] ?? 0;
   // FR-264: "in warehouse" is before this turn's recruit orders; each card names what its own order and the others hold
   const before = beforeRecruiting(nation);

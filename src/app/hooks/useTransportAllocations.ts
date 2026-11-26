@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useGameStore } from "../store/rootStore";
-import { computeLogisticsTransport, transportShipments } from "@/engine/systems/logisticsSystem";
+import { projectedFreightPlan } from "@/engine/systems/logisticsSystem";
 
 const NO_PLAN: Record<string, number> = {};
 
@@ -12,22 +12,16 @@ const NO_PLAN: Record<string, number> = {};
  * `setTransportAllocations` order.
  */
 export const useTransportAllocations = (capacity: number) => {
-  const map = useGameStore((s) => s.game.map);
+  const game = useGameStore((s) => s.game);
   const activeNationId = useGameStore((s) => s.activeNationId);
-  const transportAllocationsByNation = useGameStore((s) => s.game.transportAllocationsByNation);
   const submitOrder = useGameStore((s) => s.submitOrder);
-  const railroadNetworks = useGameStore((s) => s.game.transportNetwork.railroadNetworks);
 
-  const allocations = transportAllocationsByNation?.[activeNationId] ?? NO_PLAN;
+  const allocations = game.transportAllocationsByNation?.[activeNationId] ?? NO_PLAN;
 
-  const nationNetwork = railroadNetworks?.[activeNationId];
-  const collected = useMemo(
-    () => computeLogisticsTransport(map, activeNationId, nationNetwork),
-    [map, activeNationId, nationNetwork]
+  const { collected, shipments } = useMemo(
+    () => projectedFreightPlan(game, activeNationId, capacity),
+    [game, activeNationId, capacity]
   );
-
-  /** FR-390: what each commodity ships this turn under the plan, the logistics phase's own rule (FR-389). */
-  const shipments = useMemo(() => transportShipments(capacity, collected, allocations), [capacity, collected, allocations]);
 
   // A saved cap can exceed today's supply. Only its actual shipment uses capacity.
   const totalAllocated = Object.keys(allocations).reduce((sum, key) => sum + (shipments[key] ?? 0), 0);

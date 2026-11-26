@@ -2,7 +2,7 @@
 
 ## Resuming here
 
-- M18h on `claude/m18h-towns` resolves town progress and continues historical saves from their imported position. T-03 connects the mature bundles to freight and receipts. [Task 53 evidence](journal/task-53-m18h.md) · [Build split and inferred defaults](specs/m18h-towns.md#build-split)
+- M18h on `claude/m18h-towns` ships town output under the owner's freight plan and records private receipts. T-04 takes the freight estimates and receipts into the town views. T-05 owns the inherited save-hash re-record. [Task 54 verification](journal/task-54-m18h.md) · [Build split and inferred defaults](specs/m18h-towns.md#build-split)
 - M18g on `claude/m18g-screens` in the `imperialism-game-revival-fee36d` worktree adds Stats rankings and history, Trade Book, Garrison Book and two diplomatic map modes. The owner kept Board Details and the human nation as the reference. [Implementation and gate evidence](journal/archive-M18g.md) · [Task 43 review fixes and gate](journal/archive-M18g.md#2026-11-25-task-43--m18g-review-fixes)
 - M18f (human credit, interest, forced sales, signed cash and supply notes) merged at `9d2f9eb` in pull request 52. The inferred credit numbers and FR-609 debt scoring remain open to owner revision. [M18f journal and gate evidence](journal/archive-M18f.md) · [Task 39 report](../.gate/codex/39/report.md) · [Earlier journal archives](journal/)
 - M18e merged at `21ea18b`. Choose Random, Large and `Brete` to replay seed `2813929771`. The 400-turn historical calendar remains an owner decision (FR-593, FR-594).
@@ -19,12 +19,14 @@
 - To play M17 on continent seed 1, set Armaments and Fabric production to 1. Build a Ship-of-the-Line on turn 6, declare and sail on turn 7, set the site on turn 8, and land the four-ARMS army on turn 9. On turn 10 see the survivors at Sundmark and its colony vote in Council.
 
 
+## 2026-11-25 Task 54 — M18h town freight and receipts (T-03)
+
+Size M. FR-621 shares cars across ordinary freight and towns. FR-622 records each producing town's offered and delivered units. FR-625 scopes the estimate, receipts and computer Orders to their owner.
+The scarce-car case exposed a mixed-commodity ordering error. Province order now holds through the warehouse credit and receipt. All 72 protected campaigns matched T-02. [Checks and handoff](journal/task-54-m18h.md)
+
 ## 2026-11-25 Task 53 — M18h town settlement and saved games (T-02)
 
-Size M. Advance town growth once, after production, combat and the network check. Clear growth when ownership changes.
-FR-619 covers startup, upgrades, blockade and relief. FR-620 covers transfer and capital exceptions. FR-626 covers live continuation and replay from historical saves with paid Orders.
-T-03 will consume the mature offers for freight. Objection: replaying earlier M18d turns could develop a town before the player first loaded the save. Preserve the imported position and the number of Orders already paid.
-The focused tests passed 41/41 and Chromium passed 25/25. The full suite passed 3,550/3,551, with one protected save-hash test awaiting T-05. The gameplay floors held. [Guard comparisons, both save digests and build results](journal/task-53-m18h.md)
+T-02 implemented growth, ownership changes and historical v1 replay. Focused tests passed 41/41 and Chromium passed 25/25. [Task 53 evidence and the inherited save hashes](journal/task-53-m18h.md)
 
 ## 2026-11-25 Task 52 — M18h town queries (T-01)
 

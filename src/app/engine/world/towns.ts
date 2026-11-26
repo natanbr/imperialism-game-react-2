@@ -1,5 +1,7 @@
 import type { NationId, ProvinceId, TileId } from "@/types/Common";
 import type { GameState } from "@/types/GameState";
+import type { GameMap } from "@/types/Map";
+import type { Nation } from "@/types/Nation";
 import type { Province, TownTiers } from "@/types/Province";
 import { GoodsType, MaterialType, ResourceType } from "@/types/Resource";
 import { buildingOf } from "../industry/industryState";
@@ -14,7 +16,7 @@ export const townChains = [
 ] as const;
 
 export type { TownTiers } from "@/types/Province";
-type TownCommodity = (typeof townChains)[number][1 | 2];
+export type TownCommodity = (typeof townChains)[number][1 | 2];
 type TownResource = ResourceType.Cotton | ResourceType.Wool | ResourceType.Timber | ResourceType.Coal | ResourceType.IronOre;
 
 export interface TownFacts {
@@ -43,23 +45,40 @@ function knownResources(state: GameState, province: Province): Record<TownResour
   return counts;
 }
 
+const CAPACITY_PER_TIER = 4;
+
+function installedCapacity(nation: Nation): TownTiers {
+  return {
+    textile: buildingOf(nation, "clothingFactory").capacity,
+    wood: buildingOf(nation, "furnitureFactory").capacity,
+    metal: buildingOf(nation, "metalWorks").capacity,
+  };
+}
+
+/** A nation without an eligible factory has no town freight, even at a captured capital. */
+export function hasTownFactoryCapacity(state: GameState, owner: NationId): boolean {
+  const nation = nationById(state, owner);
+  if (!nation) return false;
+  const capacity = installedCapacity(nation);
+  return Math.max(capacity.textile, capacity.wood, capacity.metal) >= CAPACITY_PER_TIER;
+}
+
 function supportedTier(tiles: number, installedCapacity: number): number {
-  return Math.min(4, Math.floor(tiles / 2), Math.floor(installedCapacity / 4));
+  return Math.min(4, Math.floor(tiles / 2), Math.floor(installedCapacity / CAPACITY_PER_TIER));
 }
 
 /** Owner-visible prerequisites in province order, using the network after its connectivity check. */
-export function townsOf(state: GameState, owner: NationId): TownFacts[] {
+export function townsOf(state: GameState, owner: NationId, knownMap: GameMap = state.map): TownFacts[] {
   const nation = nationById(state, owner);
   if (!nation) return [];
   const network = state.transportNetwork.railroadNetworks?.[owner];
   const hubs = hubsOf(network).filter(hub => hub.kind !== "port" || !network?.closedFishingPorts?.includes(hub.tileId));
-  const clothing = buildingOf(nation, "clothingFactory").capacity;
-  const furniture = buildingOf(nation, "furnitureFactory").capacity;
-  const metalWorks = buildingOf(nation, "metalWorks").capacity;
+  const capacity = installedCapacity(nation);
+  const knownState = knownMap === state.map ? state : { ...state, map: knownMap };
 
   return provincesOf(state, owner).map(province => {
     const seat = tileById(state, province.seatTileId);
-    const resources = knownResources(state, province);
+    const resources = knownResources(knownState, province);
     return {
       ownerId: owner,
       provinceId: province.id,
@@ -67,9 +86,9 @@ export function townsOf(state: GameState, owner: NationId): TownFacts[] {
       connected: !!(seat && hubOf(state.map, owner, hubs, seat)),
       resources,
       supported: {
-        textile: supportedTier(resources.cotton + resources.wool, clothing),
-        wood: supportedTier(resources.timber, furniture),
-        metal: supportedTier(Math.min(resources.coal, resources.ironOre), metalWorks),
+        textile: supportedTier(resources.cotton + resources.wool, capacity.textile),
+        wood: supportedTier(resources.timber, capacity.wood),
+        metal: supportedTier(Math.min(resources.coal, resources.ironOre), capacity.metal),
       },
     };
   });

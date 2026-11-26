@@ -13,6 +13,7 @@ import type { GameOver } from "@/types/Score";
 import type { CouncilVote } from "@/types/Council";
 import type { Order, OrderRejection, RejectReason } from "../orders/Order";
 import type { TradeBarrier } from "../market/partners";
+import type { TownCommodity } from "../world/towns";
 import { createStreamRng, createTurnRng, RNG_STREAMS, type Rng, type RngStream } from "../rng";
 
 /** What happened during a turn, for news, UI feedback and AI players. */
@@ -26,6 +27,8 @@ export type GameEvent =
   | { type: "development-completed"; tileId: TileId; nationId?: NationId; level: number }
   | { type: "construction-completed"; tileId: TileId; nationId?: NationId; structure: ConstructionKind }
   | { type: "goods-produced"; nationId: NationId; output: ProductionOutput; amount: number }
+  | { type: "town-receipt"; turn: number; nationId: NationId; provinceId: ProvinceId; seatTileId: TileId;
+      lines: { commodity: TownCommodity; offered: number; delivered: number }[] }
   | { type: "freight-cars-built"; nationId: NationId; count: number }
   | { type: "building-expanded"; nationId: NationId; building: BuildingType; capacity: number }
   | { type: "workers-trained"; nationId: NationId; to: "trained" | "expert"; count: number }

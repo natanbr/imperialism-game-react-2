@@ -3,43 +3,50 @@ import { ResourceDevelopmentTable } from "@/definisions/ResourceDevelopment";
 import { GameState } from "@/types/GameState";
 import { GameMap } from "@/types/Map";
 import { Nation } from "@/types/Nation";
-import { ResourceType } from "@/types/Resource";
+import { GoodsType, MaterialType, ResourceType } from "@/types/Resource";
 import { RailroadNetwork } from "@/types/Transport";
 import { parseTileIdToArray } from "@/utils/tileIdUtils";
 import type { TurnSystem } from "../turn/context";
 import { getAdjacentTiles, isOcean } from "../map/mapHelpers";
 import { hubOf, hubsOf, type CollectingHub } from "../map/collectingHubs";
+import { nextTownSettlements, settledTownOutput } from "./townDevelopmentSystem";
+import { hasTownFactoryCapacity, townOutput, townsOf, type TownCommodity, type TownFacts } from "../world/towns";
 export type { CollectingHub } from "../map/collectingHubs";
 
 /**
  * What the logistics phase ships of what the hubs collected (FR-389, card Q80): the plan holds per commodity either a
  * set amount or nothing (automatic). A set commodity ships at most its set amount (0 ships nothing), set ones first in
- * plan order; the capacity left goes to the automatic commodities only, in tile order (the order `collected` lists
- * them). With no plan every commodity is automatic. The popup reads the same numbers (FR-390).
+ * plan order. Automatics share the rest in ordinary collection order, then by town and chain (FR-621).
  */
 export const transportShipments = (
   capacity: number,
   collected: Record<string, number>,
-  plan: Record<string, number> = {}
+  plan: Record<string, number> = {},
+  collectionOrder = Object.entries(collected)
 ): Record<string, number> => {
   const chosen: Record<string, number> = {};
   let used = 0;
   const ship = (res: string, wanted: number) => {
-    const take = Math.max(0, Math.min(wanted, collected[res] ?? 0, capacity - used));
+    const reserved = chosen[res] ?? 0;
+    const take = Math.max(0, Math.min(wanted, (collected[res] ?? 0) - reserved, capacity - used));
     if (take <= 0) return;
-    chosen[res] = take;
+    chosen[res] = reserved + take;
     used += take;
   };
   for (const [res, requested] of Object.entries(plan)) ship(res, Math.floor(requested) || 0);
-  for (const [res, amount] of Object.entries(collected)) if (!Object.hasOwn(plan, res)) ship(res, amount);
+  for (const [res, amount] of collectionOrder) if (!Object.hasOwn(plan, res)) ship(res, amount);
   return chosen;
 };
+
+const warehouseCommodities = new Set<string>([
+  ...Object.values(ResourceType), ...Object.values(MaterialType), ...Object.values(GoodsType),
+]);
 
 export const updateNationStateWithTransportedResources = (
   nation: Nation,
   transportedResources: Record<string, number>
 ): { warehouse: Record<string, number>; treasury: number } => {
-  const newWarehouse = { ...nation.warehouse };
+  const newWarehouse: Record<string, number> = { ...nation.warehouse };
   let treasury = nation.treasury;
 
   const goldUnits = transportedResources[ResourceType.Gold] ?? 0;
@@ -49,26 +56,78 @@ export const updateNationStateWithTransportedResources = (
 
   for (const [key, amt] of Object.entries(transportedResources)) {
     if (key === ResourceType.Gold || key === ResourceType.Gems) continue;
-    if (Object.hasOwn(newWarehouse, key)) {
-      newWarehouse[key as keyof typeof newWarehouse] = (newWarehouse[key as keyof typeof newWarehouse] ?? 0) + amt;
-    }
+    if (warehouseCommodities.has(key)) newWarehouse[key] = (newWarehouse[key] ?? 0) + amt;
   }
 
   return { warehouse: newWarehouse, treasury };
 };
 
-export const logisticsSystem: TurnSystem = (state: GameState): GameState => {
+interface FreightSupply {
+  collected: Record<string, number>;
+  collectionOrder?: [string, number][];
+  offers: { provinceId: string; seatTileId: string; units: [TownCommodity, number][] }[];
+}
+
+function freightSupply(state: GameState, owner: string, timing: "projected" | "settled", knownMap = state.map): FreightSupply {
+  const collected = computeLogisticsTransport(state.map, owner, state.transportNetwork.railroadNetworks?.[owner]);
+  const supply: FreightSupply = { collected, offers: [] };
+  if (!state.provinces.length || !hasTownFactoryCapacity(state, owner)) return supply;
+  const add = (town: TownFacts, bundle: ReturnType<typeof townOutput>) => {
+    const units = Object.entries(bundle) as [TownCommodity, number][];
+    if (!units.length) return;
+    // Preserve where each town's units enter the queue even when its commodity already has an aggregate total.
+    supply.collectionOrder ??= Object.entries(collected);
+    supply.collectionOrder.push(...units);
+    supply.offers.push({ provinceId: town.provinceId, seatTileId: town.seatTileId, units });
+    for (const [commodity, amount] of units) collected[commodity] = (collected[commodity] ?? 0) + amount;
+  };
+  if (timing === "projected") {
+    for (const { town, progress } of nextTownSettlements(state, owner, knownMap)) {
+      if (town.connected) add(town, townOutput(town.supported, progress.matured));
+    }
+  } else if (state.townProgress) {
+    for (const town of townsOf(state, owner)) add(town, settledTownOutput(state, owner, town));
+  }
+  return supply;
+}
+
+/** Next settlement at the supplied network and installed capacities. Forecasts can retain the survey knowledge
+ * that was available before simulating unfinished jobs. This query never advances the live town clock. */
+export function projectedFreightSupply(state: GameState, owner: string, knownMap: GameMap = state.map): Record<string, number> {
+  return freightSupply(state, owner, "projected", knownMap).collected;
+}
+
+/** The schedule for the next settlement under this owner's explicit allocations and available cars. */
+export function projectedFreightPlan(
+  state: GameState, owner: string, capacity: number,
+  plan = state.transportAllocationsByNation?.[owner], knownMap: GameMap = state.map
+) {
+  const { collected, collectionOrder } = freightSupply(state, owner, "projected", knownMap);
+  return { collected, shipments: transportShipments(capacity, collected, plan, collectionOrder) };
+}
+
+export const logisticsSystem: TurnSystem = (state, ctx) => {
   const allocations = state.transportAllocationsByNation ?? {};
-  const railroadNetworks = state.transportNetwork.railroadNetworks;
 
   const updatedNations = state.nations.map((nation) => {
-    const nationNetwork = railroadNetworks ? railroadNetworks[nation.id] : undefined;
-    const collected = computeLogisticsTransport(state.map, nation.id, nationNetwork);
+    const { collected, collectionOrder, offers } = freightSupply(state, nation.id, "settled");
     const capacity = Math.max(0, nation.transportCapacity ?? 0);
     const plan = allocations[nation.id];
 
-    const transported = transportShipments(capacity, collected, plan);
+    const transported = transportShipments(capacity, collected, plan, collectionOrder);
     const { warehouse, treasury } = updateNationStateWithTransportedResources(nation, transported);
+
+    // Town commodities can be shared by multiple provinces. Attribute the already-shipped total once.
+    const remaining = { ...transported };
+    for (const { provinceId, seatTileId, units } of offers) {
+      const lines = units.map(([commodity, offered]) => {
+        const left = remaining[commodity] ?? 0;
+        const delivered = Math.min(left, offered);
+        remaining[commodity] = left - delivered;
+        return { commodity, offered, delivered };
+      });
+      ctx.emit({ type: "town-receipt", turn: ctx.turn, nationId: nation.id, provinceId, seatTileId, lines });
+    }
 
     return { ...nation, warehouse, treasury };
   });

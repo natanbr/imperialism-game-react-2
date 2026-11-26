@@ -410,6 +410,11 @@ export function eventText(event: GameEvent, nameOf: (countryId: string) => strin
       return `${capitalize(event.structure)} finished at ${at(event.tileId)}.`;
     case "goods-produced":
       return `Produced ${event.amount} ${commodityName(event.output)}.`;
+    case "town-receipt": {
+      const deliveries = event.lines.map(line => `${line.delivered} of ${line.offered} ${commodityName(line.commodity)}`).join(", ");
+      const short = event.lines.some(line => line.delivered < line.offered);
+      return `${nameOf(event.provinceId)} delivered ${deliveries}.${short ? " Some town freight went unshipped." : ""}`;
+    }
     case "freight-cars-built":
       return `${event.count} freight car${event.count === 1 ? "" : "s"} built.`;
     case "building-expanded":
@@ -618,6 +623,7 @@ export function newsItems(events: readonly GameEvent[], playerId: string, nameOf
   const ownDone = new Set(events.flatMap((e) => (e.type === "overture-done" && e.nationId === playerId ? [`${e.overture}|${e.targetId}`] : [])));
   const ownRelations = new Set(events.flatMap((e) => (e.type === "relation-changed" && e.nationId === playerId ? [e.otherId] : [])));
   for (const event of events) {
+    if (event.type === "town-receipt" && event.nationId !== playerId) continue;
     if (event.type === "overture-done" && event.targetId === playerId && ownDone.has(`${event.overture}|${event.nationId}`)) continue;
     if (event.type === "relation-changed" && event.otherId === playerId && ownRelations.has(event.nationId)) continue;
     if (event.type === "overture-refused" && event.targetId === playerId && event.nationId !== playerId) {
