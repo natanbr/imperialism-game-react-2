@@ -5,7 +5,7 @@ import type { MinorNationId, NationId } from "@/types/Common";
 import type { GameState } from "@/types/GameState";
 import type { PairDiplomacy } from "@/types/Diplomacy";
 import type { Order } from "../orders/Order";
-import { OVERTURE_COST, SCRIPTED_INFLUENCE } from "@/definisions/diplomacyRules";
+import { GRANT_POINTS, OVERTURE_COST, SCRIPTED_INFLUENCE } from "@/definisions/diplomacyRules";
 import { COUNCIL } from "@/definisions/council";
 import { SHIPS } from "@/definisions/ships";
 import { ResourceType } from "@/types/Resource";
@@ -120,14 +120,26 @@ const grantTarget = (state: GameState, nationId: NationId, rivalId: NationId): C
 
 /**
  * FR-638 (inferred): what `planInfluence` will still give after this turn before the next meeting, kept from a land
- * purchase: one grant for each grant turn to come, while the nation is a nominee and has a `grantTarget` now; else 0. A
- * grant needs an embassy and `embassySaving` none, so at most one of the two is ever above 0.
+ * purchase, while the nation is a nominee; else 0. It reads the record its own diplomacy of this turn leaves
+ * (`diplomacyAfterThisTurn`): this turn's grant has added its points, and a war it declares now ends the courting. Each
+ * grant turn to come gives one grant to the first `grantTarget` still within the band, adding GRANT_POINTS, so a target
+ * the grants take past `toPoints` takes no more. A grant needs an embassy and `embassySaving` none, so at most one of the
+ * two is ever above 0.
  */
 export function grantSaving(state: GameState, nationId: NationId): number {
   const ahead = councilAhead(state, nationId);
-  if (ahead === undefined || grantTarget(state, nationId, ahead.rivalId) === undefined) return 0;
-  const turns = ahead.meeting - Math.max(state.turn + 1, ahead.meeting - SCRIPTED_INFLUENCE.grantTurns);
-  return Math.max(0, turns) * SCRIPTED_INFLUENCE.grant;
+  if (ahead === undefined) return 0;
+  const targets = candidates(diplomacyAfterThisTurn(state, nationId), nationId, ahead.rivalId, SCRIPTED_INFLUENCE.fromPoints)
+    .filter((c) => c.pair.embassies.includes(nationId))
+    .map((c) => ({ points: c.pair.points }));
+  let grants = 0;
+  for (let turn = Math.max(state.turn + 1, ahead.meeting - SCRIPTED_INFLUENCE.grantTurns); turn < ahead.meeting; turn++) {
+    const to = targets.find((t) => t.points <= SCRIPTED_INFLUENCE.toPoints);
+    if (!to) break;
+    to.points += GRANT_POINTS[SCRIPTED_INFLUENCE.grant];
+    grants++;
+  }
+  return grants * SCRIPTED_INFLUENCE.grant;
 }
 
 /** FR-542: embassies and pacts use the same relation band and ranking. Equal scores retain the candidates' id order. */

@@ -5,7 +5,7 @@ import { GEMS_CASH_PER_UNIT, GOLD_CASH_PER_UNIT } from "@/definisions/cashValues
 import { COLONY_OVERSEAS_SHARE, OVERSEAS_SHARE_BY_LEVEL } from "@/definisions/developerRules";
 import { BOARD_ORDER } from "@/definisions/partnersMarket";
 import type { MinorNationId, NationId } from "@/types/Common";
-import type { GameState } from "@/types/GameState";
+import type { GameState, OverseasHolding } from "@/types/GameState";
 import type { TradeCommodity } from "@/types/Market";
 import type { MinorNation } from "@/types/MinorNation";
 import { ResourceType } from "@/types/Resource";
@@ -62,6 +62,27 @@ export function overseasShare(state: GameState, holderId: NationId, minor: Minor
   return entry && OVERSEAS_SHARE_BY_LEVEL[levelOfPoints(entry.points)];
 }
 
+/** FR-636: the developed units a holding pays on: its tile still that Minor Nation's land, with a commodity and units. */
+function paidUnits(state: GameState, holding: OverseasHolding): { minor: MinorNation; commodity: OverseasCommodity; units: number } | undefined {
+  const tile = tileById(state, holding.tileId);
+  const minor = tile && minorLandOf(state, tile);
+  const type = tile?.resource?.type;
+  if (!minor || minor.id !== holding.minorId || !type || !isOverseasCommodity(type)) return undefined;
+  const units = yieldOf(tile);
+  return units > 0 ? { minor, commodity: type, units } : undefined;
+}
+
+/** FR-636, FR-638: the units the trade phase pays the holder together in the Minor Nation on the commodity. */
+export function overseasUnits(state: GameState, holderId: NationId, minorId: MinorNationId, commodity: OverseasCommodity): number {
+  let units = 0;
+  for (const holding of Object.values(state.overseasLand ?? {})) {
+    if (holding.holderId !== holderId || holding.minorId !== minorId) continue;
+    const paid = paidUnits(state, holding);
+    if (paid?.commodity === commodity) units += paid.units;
+  }
+  return units;
+}
+
 /**
  * FR-636: what every holder earns this trade phase, per Minor Nation and commodity: the developed units of its holdings
  * that are still that Minor Nation's land, valued at `overseasUnitValue` and times its share, rounded down once. Paid on
@@ -73,15 +94,11 @@ export function overseasProfits(state: GameState): OverseasProfit[] {
   if (holdings.length === 0) return [];
   const units = new Map<string, { nationId: NationId; minor: MinorNation; commodity: OverseasCommodity; units: number }>();
   for (const holding of holdings) {
-    const tile = tileById(state, holding.tileId);
-    const minor = tile && minorLandOf(state, tile);
-    const type = tile?.resource?.type;
-    if (!minor || minor.id !== holding.minorId || !type || !isOverseasCommodity(type)) continue;
-    const n = yieldOf(tile);
-    if (n <= 0) continue;
-    const key = `${minor.id}|${COMMODITY_ORDER.indexOf(type)}|${holding.holderId}`;
-    const entry = units.get(key) ?? { nationId: holding.holderId, minor, commodity: type, units: 0 };
-    units.set(key, { ...entry, units: entry.units + n });
+    const paid = paidUnits(state, holding);
+    if (!paid) continue;
+    const key = `${paid.minor.id}|${COMMODITY_ORDER.indexOf(paid.commodity)}|${holding.holderId}`;
+    const entry = units.get(key) ?? { nationId: holding.holderId, minor: paid.minor, commodity: paid.commodity, units: 0 };
+    units.set(key, { ...entry, units: entry.units + paid.units });
   }
   const order = (a: { nationId: NationId; minor: MinorNation; commodity: OverseasCommodity }, b: typeof a) =>
     compare(a.minor.id, b.minor.id) || COMMODITY_ORDER.indexOf(a.commodity) - COMMODITY_ORDER.indexOf(b.commodity) || compare(a.nationId, b.nationId);

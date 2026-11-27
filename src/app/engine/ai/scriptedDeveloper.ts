@@ -7,13 +7,15 @@ import { WorkerLevelDurationsTurns } from "@/definisions/workerDurations";
 import { DEVELOPMENT_COST } from "@/definisions/workPrices";
 import type { NationId } from "@/types/Common";
 import type { GameState } from "@/types/GameState";
+import type { MinorNation } from "@/types/MinorNation";
 import type { Tile } from "@/types/Tile";
 import { WorkerStatus, WorkerType, type Worker } from "@/types/Workers";
 import { yieldAtLevel, yieldOf } from "../map/mapHelpers";
+import { diplomacyAfterThisTurn } from "../market/partners";
 import type { Order } from "../orders/Order";
 import { DEVELOPMENT_TERRAINS, owns, treasuryOf, workersOf, type WorkerLocation } from "../orders/queries";
 import { heldTilesOf, landPrice, landSiteRefusal, minorLandOf, overseasBarrier } from "../overseas/holdings";
-import { overseasAmount, overseasShare, overseasUnitValue, type OverseasCommodity } from "../overseas/profit";
+import { overseasAmount, overseasShare, overseasUnits, overseasUnitValue, type OverseasCommodity } from "../overseas/profit";
 import { cashReserve, turnsAfter } from "./economy";
 import { upkeepReserve } from "./scriptedArmy";
 import { embassySaving, grantSaving } from "./scriptedInfluence";
@@ -37,6 +39,41 @@ function canRaise(state: GameState, nationId: NationId, type: WorkerType, tile: 
  */
 const paidPhases = (state: GameState, delay: number): number => Math.max(0, turnsAfter(state) + 1 - delay);
 
+/**
+ * FR-636, FR-638: the share this End Turn's trade phase will pay the holder as far as it knows: on the record its own
+ * diplomacy of this turn leaves (`diplomacyAfterThisTurn`), so a war it declares now pays nothing (its conquest would end
+ * the holding too) and a grant that moves the relation level counts.
+ */
+const projectedShare = (state: GameState, nationId: NationId, minor: MinorNation): number | undefined =>
+  overseasShare(diplomacyAfterThisTurn(state, nationId), nationId, minor);
+
+/**
+ * FR-636, FR-638: what `added` units on one of the nation's tiles in `minor` add to one trade phase. The phase pays the
+ * holder's units there on that commodity together, rounded down once, so this is the rounded total with them less the
+ * rounded total without them.
+ */
+function addedProfit(state: GameState, nationId: NationId, minor: MinorNation, commodity: OverseasCommodity, added: number, share: number): number {
+  const unit = overseasUnitValue(state, commodity);
+  const held = overseasUnits(state, nationId, minor.id, commodity);
+  return overseasAmount(held + added, unit, share) - overseasAmount(held, unit, share);
+}
+
+/**
+ * FR-638: an improver of `type` raising the held tile to its next level pays back: the units the level adds
+ * (`addedProfit` at the `projectedShare`), from the End Turn the job finishes to the turn limit, cover its price (the
+ * FR-028 durations; FR-634's home rules are checked by validation).
+ */
+function raisingPays(state: GameState, nationId: NationId, type: WorkerType, tile: Tile): boolean {
+  const minor = minorLandOf(state, tile);
+  const level = (tile.resource?.level ?? 0) + 1;
+  const cost = DEVELOPMENT_COST[level as 1 | 2 | 3];
+  if (!minor || cost === undefined || tile.developmentJob || !canRaise(state, nationId, type, tile, level)) return false;
+  const share = projectedShare(state, nationId, minor);
+  if (share === undefined) return false;
+  const perPhase = addedProfit(state, nationId, minor, tile.resource!.type as OverseasCommodity, yieldAtLevel(tile, level) - yieldOf(tile), share);
+  return perPhase * paidPhases(state, WorkerLevelDurationsTurns[type]![level as 1 | 2 | 3] - 1) >= cost;
+}
+
 /** A tile the Developer could buy, with what it would return before the turn limit (FR-638). */
 export interface LandCandidate {
   tile: Tile;
@@ -44,7 +81,7 @@ export interface LandCandidate {
   price: number;
   /** The level-1 job a seam or well needs before it yields ($100), else 0. */
   jobCost: number;
-  /** The profit of one trade phase at the current share (`overseasAmount`, FR-636). */
+  /** What the tile adds to one trade phase at the projected share (`addedProfit`, FR-636). */
   perPhase: number;
   /** End Turns from now to the first paid trade phase. */
   delay: number;
@@ -69,29 +106,41 @@ const idleImprovers = (state: GameState, nationId: NationId): Worker[] =>
 const waitsForImprover = (tile: Tile): boolean => yieldOf(tile) === 0 && !tile.developmentJob;
 
 /**
+ * FR-638: the idle improvers left for a new seam or well. Each held tile still waiting for one keeps the first idle
+ * improver whose job there pays (`raisingPays`); a held tile none would work, as under a war or a boycott, keeps none.
+ */
+function freeImprovers(state: GameState, nationId: NationId): Worker[] {
+  const free = idleImprovers(state, nationId);
+  for (const tile of heldTilesOf(state, nationId).filter(waitsForImprover)) {
+    const kept = free.findIndex((w) => raisingPays(state, nationId, w.type, tile));
+    if (kept >= 0) free.splice(kept, 1);
+  }
+  return free;
+}
+
+/**
  * FR-638: every tile the nation could buy now whose expected profit before the turn limit covers its price and any
- * level-1 job it needs, shortest payback first (then map order). A seam or well (yield 0 at level 0) needs an idle Miner
- * or Driller able to open it (inferred), and none of its held tiles still waiting for one. Reads the settled diplomacy
- * record, the public holdings and the board prices, never another nation's purchase of this turn.
+ * level-1 job it needs, shortest payback first (then map order). A seam or well (yield 0 at level 0) needs one of the
+ * `freeImprovers` able to open it (inferred). The profit is what the tile adds (`addedProfit`) at the `projectedShare`.
+ * Reads the settled diplomacy record with its own diplomacy of this turn, the public holdings and the board prices,
+ * never another nation's purchase of this turn.
  */
 export function landCandidates(state: GameState, nationId: NationId): LandCandidate[] {
   const open = new Set(state.minorNations.filter((m) => overseasBarrier(state, nationId, m) === undefined).map((m) => m.id));
   if (open.size === 0) return [];
-  const idle = heldTilesOf(state, nationId).some(waitsForImprover) ? [] : idleImprovers(state, nationId);
-  const freeImprover = (tile: Tile) => idle.find((w) => canRaise(state, nationId, w.type, tile, 1));
+  const free = freeImprovers(state, nationId);
   const candidates: LandCandidate[] = [];
   for (const tile of state.map.tiles.flat()) {
     if (!tile.resource) continue;
     const minor = minorLandOf(state, tile);
     if (!minor || !open.has(minor.id) || landSiteRefusal(state, nationId, tile)) continue;
     const price = landPrice(state, tile);
-    const share = overseasShare(state, nationId, minor);
+    const share = projectedShare(state, nationId, minor);
     if (price === undefined || share === undefined) continue;
     const opened = yieldAtLevel(tile, 0) === 0;
-    const improver = opened ? freeImprover(tile) : undefined;
+    const improver = opened ? free.find((w) => canRaise(state, nationId, w.type, tile, 1)) : undefined;
     if (opened && !improver) continue;
-    const units = yieldAtLevel(tile, opened ? 1 : 0);
-    const perPhase = overseasAmount(units, overseasUnitValue(state, tile.resource!.type as OverseasCommodity), share);
+    const perPhase = addedProfit(state, nationId, minor, tile.resource!.type as OverseasCommodity, yieldAtLevel(tile, opened ? 1 : 0), share);
     const delay = improver ? WorkerLevelDurationsTurns[improver.type]![1] : 0;
     const jobCost = improver ? DEVELOPMENT_COST[1] : 0;
     if (perPhase <= 0 || perPhase * paidPhases(state, delay) < price + jobCost) continue;
@@ -115,21 +164,12 @@ export function developerOrders(state: GameState, nationId: NationId, { worker }
 
 /**
  * FR-638: a Miner's or Driller's jobs on the nation's held tiles, after its home candidates: the next level of each held
- * tile it can raise, in map order, when the added units' profit at the current share, from the End Turn the job
- * finishes to the turn limit, covers its price (the FR-028 durations; FR-634's home rules are checked by validation).
+ * tile it can raise, in map order, when the job pays back (`raisingPays`).
  */
 export function heldTileOrders(state: GameState, nationId: NationId, { worker, tile: standingOn }: WorkerLocation): Order[] {
   if (!OVERSEAS_IMPROVERS.includes(worker.type)) return [];
   return heldTilesOf(state, nationId).flatMap((tile): Order[] => {
-    const minor = minorLandOf(state, tile);
-    const level = (tile.resource?.level ?? 0) + 1;
-    const cost = DEVELOPMENT_COST[level as 1 | 2 | 3];
-    const share = minor && overseasShare(state, nationId, minor);
-    if (!minor || cost === undefined || share === undefined || tile.developmentJob || !canRaise(state, nationId, worker.type, tile, level)) return [];
-    const gain = yieldAtLevel(tile, level) - yieldOf(tile);
-    const perPhase = overseasAmount(gain, overseasUnitValue(state, tile.resource!.type as OverseasCommodity), share);
-    const duration = WorkerLevelDurationsTurns[worker.type]![level as 1 | 2 | 3];
-    if (perPhase * paidPhases(state, duration - 1) < cost) return [];
+    if (!raisingPays(state, nationId, worker.type, tile)) return [];
     return [tile.id === standingOn.id
       ? { kind: "startDevelopment", nationId, workerId: worker.id, tileId: tile.id }
       : { kind: "moveAndStartDevelopment", nationId, workerId: worker.id, toTileId: tile.id }];

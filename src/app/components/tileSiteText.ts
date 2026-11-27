@@ -161,7 +161,11 @@ function landSiteText(state: GameState, order: Extract<Order, { kind: "buyLand" 
     if (tile.resource && !BUYABLE_LAND_RESOURCES.includes(tile.resource.type)) return "Food and horses are never for sale.";
     return `${TERRAIN_TEXT[tile.terrain] ?? tile.terrain} is not for sale.`;
   }
-  if (reason === "invalid-target") return tile.resource ? "No resource found here yet: nothing to buy." : "Nothing here to buy.";
+  // FR-640: worded from the survey alone, as the Resource line is: unsurveyed ground reads the same with or without a
+  // deposit under it
+  if (reason === "invalid-target") {
+    return PROSPECTABLE_TERRAIN_TYPES.includes(tile.terrain) && !tile.prospected ? "No resource found here yet: nothing to buy." : "Nothing here to buy.";
+  }
   return undefined;
 }
 

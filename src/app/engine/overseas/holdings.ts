@@ -64,9 +64,11 @@ export function overseasEntryRefusal(state: GameState, worker: Worker, tile: Til
 
 /**
  * FR-632: 20 x the commodity's board price at order time (`priceOf`: last turn's world price, else START_PRICES); gold
- * and gems, which have no market price, 20 x their cash value (inferred). Undefined for a tile with nothing to buy.
+ * and gems, which have no market price, 20 x their cash value (inferred). Undefined for a tile with nothing to buy, as
+ * one whose deposit is not yet found: a price would name the hidden seam (FR-640).
  */
 export function landPrice(state: GameState, tile: Tile): number | undefined {
+  if (tile.resource?.discovered === false) return undefined;
   const type = tile.resource?.type;
   if (type === ResourceType.Gold) return LAND_PRICE_MULTIPLE * GOLD_CASH_PER_UNIT;
   if (type === ResourceType.Gems) return LAND_PRICE_MULTIPLE * GEMS_CASH_PER_UNIT;
