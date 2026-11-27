@@ -102,7 +102,11 @@ function freightSupply(state: GameState, owner: string, timing: "projected" | "s
 /** Next settlement at the supplied network and installed capacities. Forecasts can retain the survey knowledge
  * that was available before simulating unfinished jobs. This query never advances the live town clock. */
 export function projectedFreightSupply(state: GameState, owner: string, knownMap: GameMap = state.map): Record<string, number> {
-  return freightSupply(state, owner, "projected", knownMap).collected;
+  return forecastFreight(state, owner, knownMap).collected;
+}
+
+export function forecastFreight(state: GameState, owner: string, knownMap: GameMap = state.map) {
+  return freightSupply(state, owner, "projected", knownMap);
 }
 
 /** The schedule for the next settlement under this owner's explicit allocations and available cars. */

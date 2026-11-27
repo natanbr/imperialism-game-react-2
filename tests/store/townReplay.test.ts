@@ -68,6 +68,56 @@ it.each([
   }
 });
 
+// Written by M18h (1cf9fd6) after 38 idle turns, then a $500 consulate on turn 39.
+// M18h replayed this position exactly. Replaying its history with towns first changed N2's warehouse.
+it('FR-626 FR-628 continues a paid M18h save from its saved position and replays the M18i settlement', () => {
+  const raw = fixture('m18h-large-seed-1-turn-39.json.gz');
+  const historical: SavedGame = JSON.parse(raw);
+  expect(historical.version).toBe(1);
+  expect(historical.game.rulesRevision).toBe('m18h');
+  expect(historical.replayBoundary).toBeUndefined();
+  expect(historical.ordersThisTurn).toEqual([{ kind: 'proposeOverture', nationId: N1, targetId: 'minor-1', overture: 'consulate' }]);
+  expect(historical.turnStartTreasuries![N1]).toBe(6200);
+  expect(historical.game.nations[0].treasury).toBe(5700);
+  expect(historical.game.nations[1].warehouse).toMatchObject({ cotton: 6, cannedFood: 20, lumber: 3, steel: 1, furniture: 3, armaments: 2 });
+
+  const imported = load(raw);
+  expect(imported.game).toEqual(historical.game);
+  expect(imported.orderLog).toEqual(historical.orderLog);
+  expect(imported.eventLog).toEqual(historical.eventLog);
+  expect(replaySession(imported)).toEqual(historical.game);
+  expect(imported.replayBoundary).toEqual({ turn: 39, appliedOrders: 1, checkpoint: historical.game });
+
+  const live = createGameStore();
+  live.getState().restoreGame(imported);
+  const secondOrder = { kind: 'proposeOverture', nationId: N1, targetId: 'minor-2', overture: 'consulate' } as const;
+  expect(live.getState().submitOrder(secondOrder)).toEqual({ ok: true });
+  expect(live.getState().game.nations[0].treasury).toBe(5200);
+  const midturn = load(serializeSave(saveOf(live.getState())));
+  expect(midturn.ordersThisTurn).toEqual([...historical.ordersThisTurn, secondOrder]);
+  expect(replaySession(midturn)).toEqual(live.getState().game);
+
+  const continued = createGameStore();
+  continued.getState().restoreGame(midturn);
+  continued.getState().advanceTurn();
+  live.getState().advanceTurn();
+  const settled = load(serializeSave(saveOf(continued.getState())));
+  expect(settled.version).toBe(1);
+  expect(settled.game.rulesRevision).toBe('m18i');
+  const report = settled.eventLog.at(-1)!;
+  expect(report.turn).toBe(39);
+  // FR-627 / FR-628: continuing the same saved position on M18h delivered 0 Lumber, 0 Steel.
+  // Towns-first freight gives both remaining cars to the town on the first M18i settlement.
+  expect(report.events.filter(e => e.type === 'town-receipt')).toEqual([{
+    type: 'town-receipt', turn: 39, nationId: N2, provinceId: 'province-nation-2-2', seatTileId: '20-6',
+    lines: [{ commodity: 'lumber', offered: 1, delivered: 1 }, { commodity: 'steel', offered: 1, delivered: 1 }],
+  }]);
+  expect(settled.eventLog).toEqual(live.getState().eventLog);
+  expect(settled.game).toEqual(live.getState().game);
+  expect(settled.replayBoundary).toEqual(imported.replayBoundary);
+  expect(replaySession(settled)).toEqual(live.getState().game);
+});
+
 it.each(['growing', 'blockaded', 'captured'] as const)('FR-626 round-trips a %s town and its next settlement', stage => {
   // Give the coastal seat a constructed port and a partially earned wood upgrade.
   let game = newGame({ seed: 1, world: 'continent' });
