@@ -5,6 +5,7 @@ import { relationOf } from '@/engine/diplomacy/relations';
 import { setPair, setTreasury } from '../fixtures';
 import { runGame, type GameRecord } from './harness';
 import { COMPUTER_ID, diplomat, HUMAN_ID, type HumanName, type HumanPolicy } from './humans';
+import { frozenDiplomat } from './policies';
 
 const seeds = Array.from({ length: 24 }, (_, index) => index + 1);
 async function games(human: HumanName | HumanPolicy) {
@@ -26,7 +27,8 @@ const violations: string[] = [];
 const diplomaticGames = await games({
   name: diplomat.name,
   orders(state, ctx) {
-    const orders = diplomat.orders(state, ctx);
+    // FR-638: the diplomat refuses buyLand (policies.ts), so FR-545 measures the same diplomacy
+    const orders = frozenDiplomat.orders(state, ctx);
     if (ctx.turn <= 5) {
       const consulates = orders.filter(o => o.kind === 'proposeOverture' && o.overture === 'consulate');
       const open = state.minorNations.filter(m => relationOf(state, HUMAN_ID, m.id)?.consulates.includes(HUMAN_ID));

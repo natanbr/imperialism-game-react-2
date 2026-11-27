@@ -142,6 +142,22 @@
   pointer-events: none;
 }
 
+/* FR-639: a held Minor Nation tile's holder flag, top right (such a tile has no depot or port); above the marks */
+.holdingFlag {
+  position: absolute;
+  top: 1px;
+  right: 2px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.holdingFlag :global(.nation-flag) {
+  width: 11px;
+  height: 15px;
+  margin-right: 0;
+  vertical-align: top;
+}
+
 /* The minor's flag (FR-564), sized to the 11 px tag line */
 .minorName :global(.nation-flag) {
   width: 8px;

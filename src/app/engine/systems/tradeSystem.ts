@@ -2,7 +2,8 @@
 // deals run at this turn's world price, then the price moves with all nations' volume. The cash of a sale
 // comes now; a bid was paid when ordered and its units go on their way to the warehouse, where
 // tradeDeliverySystem puts them after transport (usable next turn). In "partners" mode (FR-242 to FR-244)
-// every deal has a counterparty (market/settlePartners.ts) and the price moves with the Great Powers' deals.
+// every deal has a counterparty (market/settlePartners.ts) and the price moves with the Great Powers' deals. In both, the
+// holders of Minor Nation land then receive their overseas profit (FR-636, overseas/profit.ts).
 import type { GameState } from "@/types/GameState";
 import type { NationId } from "@/types/Common";
 import type { TradeAmounts, TradeOrders } from "@/types/Market";
@@ -12,9 +13,13 @@ import { marketModeOf } from "../market/partners";
 import { settlePartnerTrade } from "../market/settlePartners";
 import { hasOpenCredit } from "../credit/account";
 import { nextCreditAccount } from "../credit/settlement";
+import { overseasProfits } from "../overseas/profit";
 import type { TurnContext, TurnSystem } from "../turn/context";
 
-export const tradeSystem: TurnSystem = (state, ctx) => {
+/** The deals of either market, then the overseas profits (FR-636), valued on the board the deals started from. */
+export const tradeSystem: TurnSystem = (state, ctx) => payOverseasProfits(state, settleTrade(state, ctx), ctx);
+
+const settleTrade: TurnSystem = (state, ctx) => {
   const trade = marketModeOf(state) === "partners" ? partnersTrade : worldTrade;
   if (!state.nations.some(hasOpenCredit)) return trade(state, ctx);
 
@@ -29,6 +34,22 @@ export const tradeSystem: TurnSystem = (state, ctx) => {
     : nation);
   return { ...traded, nations };
 };
+
+/**
+ * FR-636: after the deals, each holder receives its overseas profit from `board` (the phase's input: last turn's prices,
+ * the relations the diplomacy phase settled), with an `overseas-profit` event for it alone. Not a sale: no relation
+ * points (FR-191), no credit receipt, no hold. Returns `traded` itself when nobody earns any.
+ */
+function payOverseasProfits(board: GameState, traded: GameState, ctx: TurnContext): GameState {
+  const profits = overseasProfits(board);
+  if (profits.length === 0) return traded;
+  const earned = new Map<NationId, number>();
+  for (const profit of profits) {
+    ctx.emit({ type: "overseas-profit", ...profit });
+    earned.set(profit.nationId, (earned.get(profit.nationId) ?? 0) + profit.amount);
+  }
+  return { ...traded, nations: traded.nations.map((n) => (earned.has(n.id) ? { ...n, treasury: (n.treasury ?? 0) + earned.get(n.id)! } : n)) };
+}
 
 /**
  * FR-243: the deals, then the FR-065 price step (one drift draw from the shared stream per commodity in

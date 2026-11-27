@@ -27,10 +27,13 @@ describe('FR-580 terrain workers, fixed production and development levels', () =
     expect(Object.entries(DEVELOPMENT_TERRAINS).filter(([, lands]) => lands.includes(terrain)).map(([type]) => type))
       .toEqual(worker ? [worker] : []);
     if (worker) return;
+    // FR-630: no generic improver is left, so each specialist is refused the fixed-output terrain
     const id = workerId(N1, W.Farmer);
-    const state = put(setTile(game(), site, { terrain, resource: { type: resource, level: 0 } }), id, site, { type: W.Developer });
-    expect(validateOrder(state, { kind: 'startDevelopment', nationId: N1, workerId: id, tileId: site }))
-      .toEqual({ ok: false, reason: 'invalid-site' });
+    for (const type of [W.Farmer, W.Rancher, W.Forester, W.Miner, W.Driller]) {
+      const state = put(setTile(game(), site, { terrain, resource: { type: resource, level: 0 } }), id, site, { type });
+      expect(validateOrder(state, { kind: 'startDevelopment', nationId: N1, workerId: id, tileId: site }))
+        .toEqual({ ok: false, reason: 'invalid-site' });
+    }
   });
 
   it('covers every raw yield series from level zero', () => {

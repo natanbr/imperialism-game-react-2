@@ -1,4 +1,4 @@
-import type { GameState } from "@/types/GameState";
+import type { GameState, RulesRevision } from "@/types/GameState";
 import type { CountryId, MinorNationId, NationId, ProvinceId, TileId } from "@/types/Common";
 import type { BattleReport } from "@/types/Battle";
 import type { NavalBattleSide, NavalEngagement } from "@/types/Navy";
@@ -14,6 +14,8 @@ import type { CouncilVote } from "@/types/Council";
 import type { Order, OrderRejection, RejectReason } from "../orders/Order";
 import type { TradeBarrier } from "../market/partners";
 import type { TownCommodity } from "../world/towns";
+import type { HoldingLoss, LandRefusal } from "../overseas/holdings";
+import type { OverseasProfit } from "../overseas/profit";
 import { createStreamRng, createTurnRng, RNG_STREAMS, type Rng, type RngStream } from "../rng";
 
 /** What happened during a turn, for news, UI feedback and AI players. */
@@ -107,7 +109,20 @@ export type GameEvent =
   /** `fallenId` lost its capital province to `nationId`: all its land passed, its regiments are gone (FR-223). */
   | { type: "nation-fallen"; nationId: NationId; fallenId: NationId }
   /** The minor lost its capital province to `nationId` and is now its colony (FR-224). */
-  | { type: "minor-colonised"; nationId: NationId; minorId: MinorNationId };
+  | { type: "minor-colonised"; nationId: NationId; minorId: MinorNationId }
+  /** FR-629: `minorId`'s relation brought `nationId` its Developer, now on `tileId`, the capital. The owner's news only (FR-640). */
+  | { type: "developer-arrived"; nationId: NationId; workerId: string; tileId: TileId; minorId: MinorNationId }
+  /** FR-633: `minorId` sold `tileId` to `nationId` for `cost`, paid when ordered. The buyer's news only (FR-640). */
+  | { type: "land-purchased"; nationId: NationId; workerId: string; tileId: TileId; minorId: MinorNationId; cost: number }
+  /** FR-633: the purchase was refused at settlement and `cost` refunded. The buyer's news only (FR-640). */
+  | { type: "land-purchase-refused"; nationId: NationId; workerId: string; tileId: TileId; minorId: MinorNationId; cost: number; reason: LandRefusal }
+  /** FR-636: the trade phase paid `nationId` its share of `minorId`'s sales of its developed units. The holder's alone (FR-640). */
+  | ({ type: "overseas-profit" } & OverseasProfit)
+  /**
+   * FR-637: `nationId`'s holding on `tileId` ended with no refund: its province was conquered or colonised by `byId`, the
+   * holder fell, or the colony's owner boycotts it. The holder's news only (FR-640).
+   */
+  | { type: "overseas-land-lost"; nationId: NationId; tileId: TileId; minorId: MinorNationId; cause: HoldingLoss; byId?: NationId };
 
 /** Why regiments were disbanded (FR-202, FR-207). */
 export type DisbandReason = "order" | "no-pay";
@@ -167,6 +182,11 @@ export interface TurnContext {
   /** Finalize a report against the resolved state when a later phase can change its outcome. */
   readonly emit: (event: GameEvent, finalize?: (end: GameState) => GameEvent) => void;
   readonly onNavalEngagement?: (engagement: NavalEngagement) => void;
+  /**
+   * FR-641: the rules a replayed historical turn settled under, which select its phases and the marker it saves;
+   * undefined for a live settlement, which runs today's rules.
+   */
+  readonly rulesRevision?: RulesRevision;
 }
 
 export type TurnSystem = (state: GameState, ctx: TurnContext) => GameState;
@@ -179,6 +199,7 @@ export interface TurnContextOptions {
   orders?: readonly Order[];
   emit?: TurnContext["emit"];
   onNavalEngagement?: TurnContext["onNavalEngagement"];
+  rulesRevision?: RulesRevision;
 }
 
 export function createTurnContext(opts: TurnContextOptions): TurnContext {
@@ -202,5 +223,6 @@ export function createTurnContext(opts: TurnContextOptions): TurnContext {
     orders: opts.orders ?? [],
     onNavalEngagement: opts.onNavalEngagement,
     emit: opts.emit ?? (() => {}),
+    ...(opts.rulesRevision && { rulesRevision: opts.rulesRevision }),
   };
 }

@@ -11,9 +11,14 @@ import { InkPicture } from "./art/ArtPicture";
 import { civilianArt, goodsArt } from "./art/inkArt";
 import { THEME } from "@/styles/theme";
 import { submitAndSay, submitOrAsk } from "@/hooks/tileClickOrders";
-import { cancelQuestion, collectingHubText, collectionText, costText, jobNote, jobOffers, type JobOffer } from "./tileSiteText";
+import { buyLandOffer, cancelQuestion, collectingHubText, collectionText, costText, holdingView, jobNote, jobOffers, landForSale, type JobOffer } from "./tileSiteText";
+import { findWorker } from "@/engine/orders/queries";
+import { minorLandOf } from "@/engine/overseas/holdings";
+import type { GameEvent } from "@/engine";
 import { Modal } from "./Modal";
 import { TownInspection } from "./towns/TownInspection";
+
+const NO_EVENTS: readonly GameEvent[] = [];
 
 interface TileInfoPanelProps {
   selectedTile: Tile | undefined;
@@ -80,6 +85,8 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
   const selectTile = useGameStore((s) => s.selectTile);
   const activeNationId = useGameStore((s) => s.activeNationId);
   const game = useGameStore((s) => s.game);
+  // FR-639: last turn's overseas profit of the player's holding
+  const lastReport = useGameStore((s) => s.eventLog[s.eventLog.length - 1]);
   // FR-386: the civilian whose Cancel is being asked about (component state: the question is this panel's)
   const [cancelling, setCancelling] = useState<string | null>(null);
   const [disbanding, setDisbanding] = useState<string | null>(null);
@@ -120,6 +127,15 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
       ? "Not yet prospected"
       : selectedTile.terrain === TerrainType.HorseRanch ? commodityName(resource.type) : `${commodityName(resource.type)} (L${resource.level})`;
   const collected = collectionText(game, activeNationId, selectedTile);
+  // FR-639, FR-640: a holding's holder (the player's own with its figures), a tile the player could buy, and Buy land for
+  // the player's Developer standing elsewhere; never another nation's pending purchase, profit or share
+  const holding = holdingView(game, activeNationId, selectedTile, lastReport?.events ?? NO_EVENTS);
+  const ownHolding = game.overseasLand?.[selectedTile.id]?.holderId === activeNationId;
+  const forSale = landForSale(game, activeNationId, selectedTile);
+  const picked = selectedWorkerId ? findWorker(game, selectedWorkerId) : undefined;
+  const developerElsewhere = picked && picked.worker.nationId === activeNationId && picked.worker.type === WorkerType.Developer &&
+    picked.tile.id !== selectedTile.id && picked.worker.status === WorkerStatus.Available && !picked.worker.pendingDisband &&
+    minorLandOf(game, selectedTile) ? picked.worker : undefined;
   const fortLevel = selectedTile.fortLevel ?? 0;
 
   // FR-386, FR-387: Cancel asks what comes back; Yes sends the cancel (two for a move and a job of one click), each said
@@ -197,6 +213,27 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
       <p data-testid="tile-owner">
         <strong>Owner:</strong> {ownerText}
       </p>
+      {holding && (
+        <div data-testid="tile-holding">
+          <p>
+            <strong>Held by:</strong> {holding.heldBy}
+          </p>
+          {holding.details.map((line) => <p key={line}>{line}</p>)}
+        </div>
+      )}
+      {forSale && (
+        <div data-testid="tile-for-sale">
+          <p>
+            <strong>For sale:</strong> {forSale.price}
+          </p>
+          <p>{forSale.output}</p>
+        </div>
+      )}
+      {developerElsewhere && (
+        <div className="job-offers">
+          <JobOfferRow offer={buyLandOffer(game, activeNationId, developerElsewhere, selectedTile)} tileId={selectedTile.id} />
+        </div>
+      )}
       {/* A minor is one province named after it, so its tile skips the line (FR-235) */}
       {province && !minor && (
         <p data-testid="tile-province">
@@ -205,7 +242,11 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
       )}
       {isTheirs && (
         <p className="tile-note">
-          {minor
+          {ownHolding
+            ? `You hold this tile in ${ownerName}: your Farmer, Rancher, Forester, Miner and Driller can work it.`
+            : forSale
+            ? `${ownerName} is a minor nation: your Developer can buy this tile.`
+            : minor
             ? `${ownerName} is a minor nation: you can watch its land, not give orders here.`
             : `${ownerName}'s land: you can watch it, not give orders here.`}
         </p>
@@ -219,13 +260,16 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
               // Only the player's civilians can be picked and given orders (FR-108)
               const own = w.nationId === activeNationId;
               const showDisband = own && w.pendingDisband;
+              // FR-640: another nation's Developer is a map unit; whether it buys or moved this turn is its own
+              const privateStatus = !own && w.type === WorkerType.Developer;
               return (
               <li key={w.id}
                 ref={own && selectedWorkerId === w.id ? selectedRow : undefined}
                 onClick={own ? () => setSelectedWorkerId(w.id) : undefined}
                 style={{ background: own && selectedWorkerId === w.id ? THEME.surfaceSunken : 'transparent', padding: '4px', borderRadius: '4px', cursor: own ? 'pointer' : 'default' }}>
-                <WorkerStatusIndicator status={showDisband ? WorkerStatus.Moved : w.status} />
-                <InkPicture src={civilianArt(w.type)} alt="" inline /><span>{w.type} - {showDisband ? "Disbanding next turn" : workerJobLabel(selectedTile, w) ?? w.status}</span>
+                {!privateStatus && <WorkerStatusIndicator status={showDisband ? WorkerStatus.Moved : w.status} />}
+                <InkPicture src={civilianArt(w.type)} alt="" inline />
+                <span>{privateStatus ? w.type : `${w.type} - ${showDisband ? "Disbanding next turn" : workerJobLabel(selectedTile, w) ?? w.status}`}</span>
                 {own && (w.status === WorkerStatus.Moved || w.status === WorkerStatus.Working) && (
                   <button
                     onClick={() => setCancelling(w.id)}

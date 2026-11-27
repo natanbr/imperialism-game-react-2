@@ -56,9 +56,14 @@ it('NR-038 FR-616 FR-626 FR-627 pins the same unmarked custom 400-turn campaign 
   // FR-626 / FR-627, seed 7 turn 10: e842158982c0889a30494b72cdd0bffcc6f85c2836f2bbb9619a0339fc282b05 -> 1cd5a212843f098b0fa773e108ac6977e5b5658eceb9496ae066dcb6d799219d.
   // Only the rules revision changed on these turns. Substituting the M18d marker must recover each old digest exactly.
   expect(digest({ ...original, game: { ...original.game, rulesRevision: 'm18d' } })).toBe('e842158982c0889a30494b72cdd0bffcc6f85c2836f2bbb9619a0339fc282b05');
-  // FR-627 / FR-628: towns-first settlement gets its own revision. T10 M18h -> M18i, marker only.
+  // Chain m18h -> m18i -> m18j, marker only at each step: substituting each older marker recovers its digest exactly.
+  // FR-627 / FR-628: towns-first settlement gets its own revision. T10 M18h -> M18i:
+  // 1cd5a212843f098b0fa773e108ac6977e5b5658eceb9496ae066dcb6d799219d -> f00cd079d245a34de9b82176c1a06086ffbe29d378c0dfa6b99a78b6a1d733da.
   expect(digest({ ...original, game: { ...original.game, rulesRevision: 'm18h' } })).toBe('1cd5a212843f098b0fa773e108ac6977e5b5658eceb9496ae066dcb6d799219d');
-  expect(digest(original)).toBe('f00cd079d245a34de9b82176c1a06086ffbe29d378c0dfa6b99a78b6a1d733da');
+  expect(digest({ ...original, game: { ...original.game, rulesRevision: 'm18i' } })).toBe('f00cd079d245a34de9b82176c1a06086ffbe29d378c0dfa6b99a78b6a1d733da');
+  // FR-642 / FR-641, seed 7 turn 10: the settled game records the M18j rules revision; no Developer is granted by then.
+  // T10 M18i -> M18j: f00cd079d245a34de9b82176c1a06086ffbe29d378c0dfa6b99a78b6a1d733da -> 8469011799cda7124c22c21b562c3dd4c925392faebceb2e7054e444f3415348.
+  expect(digest(original)).toBe('8469011799cda7124c22c21b562c3dd4c925392faebceb2e7054e444f3415348');
   const slot = read(original);
   if (slot.kind !== 'usable') throw new Error('Expected a usable v1 save');
   const restored = createGameStore({ seed: 1 });
@@ -72,9 +77,13 @@ it('NR-038 FR-616 FR-626 FR-627 pins the same unmarked custom 400-turn campaign 
   // FR-616, turn 11: 27dc351a2b8b4e08222d5de3d68c11397a9d39b2b94409e771b3f1fb739fd3b2 -> 15436a8c378d346598bda6ca9b41ac8aac1b14d9ec62981ee4638e2f63b8f847.
   // FR-626 / FR-627, seed 7 turn 11: 15436a8c378d346598bda6ca9b41ac8aac1b14d9ec62981ee4638e2f63b8f847 -> 78f6ae8d549f9361e8c46251b4f5e1a468a00bfc5582132936583218cf602b22.
   expect(digest({ ...after, game: { ...after.game, rulesRevision: 'm18d' } })).toBe('15436a8c378d346598bda6ca9b41ac8aac1b14d9ec62981ee4638e2f63b8f847');
-  // FR-627 / FR-628: T11 M18h -> M18i, again only the settlement revision changed.
+  // FR-627 / FR-628: T11 M18h -> M18i, again only the settlement revision changed:
+  // 78f6ae8d549f9361e8c46251b4f5e1a468a00bfc5582132936583218cf602b22 -> a7bb70e7c341ce56dbd873ff83b86b11e7c9c359addad6f205cc5131989e91b8.
   expect(digest({ ...after, game: { ...after.game, rulesRevision: 'm18h' } })).toBe('78f6ae8d549f9361e8c46251b4f5e1a468a00bfc5582132936583218cf602b22');
-  expect(digest(after)).toBe('a7bb70e7c341ce56dbd873ff83b86b11e7c9c359addad6f205cc5131989e91b8');
+  expect(digest({ ...after, game: { ...after.game, rulesRevision: 'm18i' } })).toBe('a7bb70e7c341ce56dbd873ff83b86b11e7c9c359addad6f205cc5131989e91b8');
+  // FR-642 / FR-641, seed 7 turn 11: T11 M18i -> M18j, only the rules revision changed again:
+  // a7bb70e7c341ce56dbd873ff83b86b11e7c9c359addad6f205cc5131989e91b8 -> 779c9c01c3e8399f8ad62cb5ae4c6090228e00074c7d19d26e5d8a3b82231fce.
+  expect(digest(after)).toBe('779c9c01c3e8399f8ad62cb5ae4c6090228e00074c7d19d26e5d8a3b82231fce');
 });
 
 it('FR-587 FR-616 loads the v1 save written by main, ships its first Fish, saves and replays the continued game', () => {

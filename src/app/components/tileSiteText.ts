@@ -2,7 +2,12 @@
 // wording for Tile Info, Construction Options, the map's status line and the spend question; and who collects a tile
 // (FR-391). Whether a job can start is the engine's validateOrder; this file only words its reason with the tile's facts.
 // It reads state, never builds it.
-import { collectingHub, isConqueredProvince, provinceOf, validateOrder, type Order, type RejectReason, type ValidationResult } from "@/engine";
+import { collectingHub, countryName, isConqueredProvince, provinceOf, validateOrder, type GameEvent, type Order, type RejectReason, type ValidationResult } from "@/engine";
+import { isBuyLandIntent, landPrice, landSiteRefusal, minorLandOf } from "@/engine/overseas/holdings";
+import { overseasAmount, overseasShare, overseasUnitValue, type OverseasCommodity } from "@/engine/overseas/profit";
+import { yieldAtLevel, yieldOf } from "@/engine/map/mapHelpers";
+import { BUYABLE_LAND_RESOURCES, LAND_PRICE_MULTIPLE } from "@/definisions/developerRules";
+import { ResourceType } from "@/types/Resource";
 import { portMouths } from "@/engine/navy/approaches";
 import type { CollectingHub } from "@/engine/systems/logisticsSystem";
 import {
@@ -73,6 +78,12 @@ function structureOf(order: JobOrder): ConstructionKind | undefined {
 
 /** What a job order would cost and how many turns it takes (workPrices.ts, workerDurations.ts); undefined for no job. */
 export function jobCost(state: GameState, order: Order): JobCost | undefined {
+  // FR-632: the land's price, paid now; the End Turn settles the sale
+  if (order.kind === "buyLand") {
+    const tile = tileById(state, order.tileId);
+    const price = tile && landPrice(state, tile);
+    return price === undefined ? undefined : { price, turns: 1 };
+  }
   if (!isJobOrder(order)) return undefined;
   const site = jobSite(state, order);
   if (!site) return undefined;
@@ -140,6 +151,24 @@ function constructionSiteText(state: GameState, tile: Tile, structure: Construct
   }
 }
 
+/** FR-639: why a land purchase is refused, worded from the tile's facts (FR-631); undefined where the engine's reason says it all. */
+function landSiteText(state: GameState, order: Extract<Order, { kind: "buyLand" }>, reason: RejectReason): string | undefined {
+  const tile = tileById(state, order.tileId);
+  if (!tile || !isLand(tile)) return undefined;
+  if (reason === "invalid-site") {
+    const minor = minorLandOf(state, tile);
+    if (minor && tile.id === minor.capitalTileId) return `The capital of ${minor.name} is not for sale.`;
+    if (tile.resource && !BUYABLE_LAND_RESOURCES.includes(tile.resource.type)) return "Food and horses are never for sale.";
+    return `${TERRAIN_TEXT[tile.terrain] ?? tile.terrain} is not for sale.`;
+  }
+  // FR-640: worded from the survey alone, as the Resource line is: unsurveyed ground reads the same with or without a
+  // deposit under it
+  if (reason === "invalid-target") {
+    return PROSPECTABLE_TERRAIN_TYPES.includes(tile.terrain) && !tile.prospected ? "No resource found here yet: nothing to buy." : "Nothing here to buy.";
+  }
+  return undefined;
+}
+
 /** The reason a job order is refused, worded from the tile's facts; undefined where the engine's reason says it all. */
 function siteReason(state: GameState, order: JobOrder, reason: RejectReason): string | undefined {
   const site = jobSite(state, order);
@@ -183,7 +212,8 @@ export function offerRefusalText(state: GameState, order: Order, result: Extract
     return cost ? `Not enough money (needs ${money(cost.price)}).` : sentence(REFUSAL_TEXT[reason]);
   }
   if (reason === "tile-has-job") return "Another civilian is already working this tile.";
-  return (isJobOrder(order) ? siteReason(state, order, reason) : undefined) ?? sentence(REFUSAL_TEXT[reason]);
+  if (order.kind === "buyLand" && reason === "already-owned") return "Another nation already holds this tile.";
+  return refusalDetail(state, order, reason) ?? sentence(REFUSAL_TEXT[reason]);
 }
 
 /**
@@ -191,6 +221,7 @@ export function offerRefusalText(state: GameState, order: Order, result: Extract
  * the engine's reason ("A farmer cannot work barren hills."); undefined otherwise.
  */
 export function refusalDetail(state: GameState, order: Order, reason: RejectReason): string | undefined {
+  if (order.kind === "buyLand") return landSiteText(state, order, reason);
   return isJobOrder(order) ? siteReason(state, order, reason) : undefined;
 }
 
@@ -231,6 +262,8 @@ export function jobOffers(state: GameState, nationId: string, worker: Worker, ti
   if (DEVELOPMENT_WORKER_TYPES.includes(worker.type) && nextResourceLevel(tile) <= 3) {
     offers.push({ name: `Develop ${worker.type} L${nextResourceLevel(tile)}`, order: { kind: "startDevelopment", ...base } });
   }
+  // FR-639: the Developer's one job, on Minor Nation land
+  if (worker.type === WorkerType.Developer && minorLandOf(state, tile)) offers.push({ name: "Buy land", order: { kind: "buyLand", ...base } });
   if (worker.type === WorkerType.Engineer) {
     for (const structure of STRUCTURES) {
       offers.push({ name: `Construct ${capitalized(structure)}`, order: { kind: "startConstruction", ...base, structure } });
@@ -239,8 +272,16 @@ export function jobOffers(state: GameState, nationId: string, worker: Worker, ti
   return offers.map(({ name, order }) => jobOffer(state, tile, order, name));
 }
 
-/** A line in place of an offer that no longer exists: a development worker on a resource at level 3. */
+/** FR-639: Buy land for the player's Developer standing elsewhere, on the selected Minor Nation tile. */
+export const buyLandOffer = (state: GameState, nationId: string, worker: Worker, tile: Tile): JobOffer =>
+  jobOffer(state, tile, { kind: "buyLand", nationId, workerId: worker.id, tileId: tile.id }, "Buy land");
+
+/**
+ * A line in place of an offer that no longer exists: a development worker on a resource at level 3; the Developer on its
+ * nation's land, where it buys nothing (FR-639).
+ */
 export function jobNote(worker: Worker, tile: Tile): string | undefined {
+  if (worker.type === WorkerType.Developer && tile.ownerNationId !== undefined) return "Select a Minor Nation's tile to buy it: an embassy there is needed.";
   return DEVELOPMENT_WORKER_TYPES.includes(worker.type) && nextResourceLevel(tile) > 3 ? "Already at level 3." : undefined;
 }
 
@@ -258,6 +299,18 @@ export interface SpendQuestion {
  * Cancelled this turn, the money comes back; later, it is lost."; undefined for a cheaper order or one that is no job.
  */
 export function spendQuestion(state: GameState, order: Order): SpendQuestion | undefined {
+  // FR-639: "Buy 10-3 from Arvelia for $2,220 (20 × $111)? ..."; the sale is settled at End Turn (FR-633)
+  if (order.kind === "buyLand") {
+    const tile = tileById(state, order.tileId);
+    const minor = tile && minorLandOf(state, tile);
+    const price = tile && landPrice(state, tile);
+    if (!tile || !minor || price === undefined || price < ASK_BEFORE_SPENDING) return undefined;
+    const unit = overseasUnitValue(state, tile.resource!.type as OverseasCommodity);
+    return {
+      price,
+      question: `Buy ${tile.id} from ${minor.name} for ${money(price)} (${LAND_PRICE_MULTIPLE} × ${money(unit)})? The sale is settled at End Turn; cancelled before then, the money comes back.`,
+    };
+  }
   if (!isJobOrder(order)) return undefined;
   const cost = jobCost(state, order);
   const site = jobSite(state, order);
@@ -309,6 +362,17 @@ function heldJob(tile: Tile, workerId: string): { paid: number; startedOnTurn: n
 export function cancelQuestion(state: GameState, nationId: string, worker: Worker, tile: Tile): CancelQuestion | undefined {
   const cancel: Order = { kind: "cancelWorkerAction", nationId, workerId: worker.id, tileId: tile.id };
   const movedFrom = worker.justMoved && worker.previousTileId ? worker.previousTileId : undefined;
+  // FR-632, FR-639: the Developer's purchase, the player's own intent; its first cancel refunds it, a second undoes the move
+  const purchase = state.intents.filter(isBuyLandIntent).find((intent) => intent.nationId === nationId && intent.workerId === worker.id);
+  if (purchase) {
+    return {
+      title: "Cancel the land purchase?",
+      consequence: `The ${money(purchase.cost)} comes back.${movedFrom ? ` The ${worker.type} goes back to ${movedFrom}.` : ""}`,
+      confirm: "Cancel the purchase",
+      keep: "Keep buying",
+      orders: movedFrom ? [cancel, cancel] : [cancel],
+    };
+  }
   const job = heldJob(tile, worker.id);
   if (job && job.startedOnTurn === state.turn) {
     return {
@@ -352,4 +416,62 @@ export function collectionText(state: GameState, nationId: string, tile: Tile): 
 
 export function collectingHubText(state: GameState, hub: CollectingHub): string {
   return hub.kind === "capital" ? "the capital" : `the ${hub.kind} at ${placeText(state, hub.tileId)}`;
+}
+
+/** The overseas profit of `units` at the share, as the trade phase pays it (FR-636); none while at war or boycotted. */
+const profitText = (units: number, unit: number, share: number | undefined): string =>
+  share === undefined ? "no share while at war or under a boycott" : `${money(overseasAmount(units, unit, share))} at a ${share}% share`;
+
+/**
+ * FR-639: what Tile Info says of a Minor Nation tile the nation could buy (FR-631), or undefined: its price with the
+ * formula ("$2,220 (20 × $111)") and what it would yield a turn and pay at the current share; a mineral or oil tile yields
+ * nothing at level 0 and names the work it needs ("Needs a Miner ($100 for level 1), then 2 Coal a turn: $174 at a 75%
+ * share"). Reads the public map, the settled relations and the board, never another nation's intents (FR-640).
+ */
+export function landForSale(state: GameState, nationId: string, tile: Tile): { price: string; output: string } | undefined {
+  if (landSiteRefusal(state, nationId, tile) !== undefined) return undefined;
+  const minor = minorLandOf(state, tile);
+  const price = landPrice(state, tile);
+  if (!minor || price === undefined || !tile.resource) return undefined;
+  const type = tile.resource.type;
+  const unit = overseasUnitValue(state, type as OverseasCommodity);
+  const share = overseasShare(state, nationId, minor);
+  const name = commodityName(type);
+  const now = yieldAtLevel(tile, 0);
+  const worker = type === ResourceType.Oil ? WorkerType.Driller : WorkerType.Miner;
+  return {
+    price: `${money(price)} (${LAND_PRICE_MULTIPLE} × ${money(unit)})`,
+    output: now > 0
+      ? `${now} ${name} a turn: ${profitText(now, unit, share)}`
+      : `Needs a ${capitalized(worker)} (${money(DEVELOPMENT_COST[1])} for level 1), then ${yieldAtLevel(tile, 1)} ${name} a turn: ${profitText(yieldAtLevel(tile, 1), unit, share)}`,
+  };
+}
+
+/**
+ * FR-639, FR-640: who holds the tile ("Valdoria"; the viewer's own "you, since turn 12"), and for the viewer's own
+ * holding only: its level, units and share, and last turn's profit from that Minor Nation on that commodity (the
+ * `overseas-profit` of the last report, `lastEvents`). The trade phase pays it once for all the viewer's tiles of that
+ * commodity there (FR-636), so a line with more units than this tile's says so. Undefined on a tile nobody holds.
+ */
+export function holdingView(state: GameState, nationId: string, tile: Tile, lastEvents: readonly GameEvent[]): { heldBy: string; details: string[] } | undefined {
+  const holding = state.overseasLand?.[tile.id];
+  if (!holding) return undefined;
+  if (holding.holderId !== nationId) return { heldBy: countryName(state, holding.holderId) ?? holding.holderId, details: [] };
+  const heldBy = `you, since turn ${holding.turn}`;
+  const minor = minorLandOf(state, tile);
+  const resource = tile.resource;
+  if (!minor || !resource) return { heldBy, details: [] };
+  const name = commodityName(resource.type);
+  const share = overseasShare(state, nationId, minor);
+  const paid = lastEvents.find((e): e is Extract<GameEvent, { type: "overseas-profit" }> =>
+    e.type === "overseas-profit" && e.nationId === nationId && e.minorId === minor.id && e.commodity === resource.type);
+  const units = yieldOf(tile);
+  const from = paid && `${paid.units} ${name} ${paid.units > units ? "on all your land in" : "in"} ${minor.name}`;
+  return {
+    heldBy,
+    details: [
+      `Level ${resource.level}: ${units} ${name} a turn${share === undefined ? ", no share while at war or under a boycott" : ` at a ${share}% share`}`,
+      `Last turn's profit: ${paid ? `${money(paid.amount)} from ${from}` : "none"}`,
+    ],
+  };
 }

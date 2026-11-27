@@ -14,7 +14,7 @@ import type { Province, TownProgress } from "./Province";
 import type { RandomMapSize, WorldId } from "./World";
 import type { WorldMarket } from "./Market";
 import type { GameOver } from "./Score";
-import type { CountryId, ProvinceId } from "./Common";
+import type { CountryId, MinorNationId, NationId, ProvinceId, TileId } from "./Common";
 import type { RegimentType } from "./Unit";
 
 /**
@@ -39,6 +39,8 @@ export interface GameState {
   provinces: Province[];
   /** FR-626: a missing province starts with no elapsed development. */
   townProgress?: Record<ProvinceId, TownProgress>;
+  /** FR-634: the Minor Nation tiles Great Powers bought with their Developer, by tile; absent when there are none. */
+  overseasLand?: Record<TileId, OverseasHolding>;
   /** One entry per pair of countries with at least one Great Power, by `pairKey` (FR-151). */
   diplomacy: DiplomacyState;
   /** What this turn's orders that involve a second country left to resolve (FR-152). */
@@ -78,15 +80,40 @@ export interface GameState {
   /** Shared ownership in pre-M16 version-1 saves. readSave migrates it to the individual nations. */
   technologyState?: TechnologyState;
   /** Identifies current play in v1 saves; older saves need a historical replay boundary. */
-  rulesRevision?: "m16.1" | "m18d" | "m18h" | "m18i";
+  rulesRevision?: RulesRevision;
 
   difficulty: Difficulty;
 }
 
-/** Province maps ship towns first. Two islands retains its fishing-era replay semantics. */
-export function settlementRevision(state: GameState): "m18i" | "m18d" {
-  return state.provinces?.length ? "m18i" : "m18d";
+/**
+ * FR-634: a Minor Nation's tile a Great Power bought (FR-633). The tile stays in the Minor Nation's province with no
+ * `ownerNationId`, and only the holder may work it. Public from the settlement that made it (FR-640).
+ */
+export interface OverseasHolding {
+  tileId: TileId;
+  holderId: NationId;
+  minorId: MinorNationId;
+  /** The turn whose End Turn settled the purchase. */
+  turn: number;
+  /** What the holder paid (FR-632). */
+  price: number;
 }
+
+/**
+ * Province maps settle town development (M18h), towns-first freight (M18i) and the Developer (M18j, FR-641); every
+ * province map has Minor Nations. Two islands, which has neither, retains its fishing-era replay semantics.
+ */
+export function settlementRevision(state: GameState): "m18j" | "m18d" {
+  return state.provinces?.length ? "m18j" : "m18d";
+}
+
+/** The settlement rules a v1 save records, oldest first. */
+export const RULES_REVISIONS = ["m16.1", "m18d", "m18h", "m18i", "m18j"] as const;
+export type RulesRevision = (typeof RULES_REVISIONS)[number];
+
+/** Whether a turn settled under `revision` ran the rules `since` added; undefined is a live settlement, today's rules. */
+export const settlesUnder = (revision: RulesRevision | undefined, since: RulesRevision): boolean =>
+  revision === undefined || RULES_REVISIONS.indexOf(revision) >= RULES_REVISIONS.indexOf(since);
 
 /** The game's level. New games are "normal" unless the player picks "demo", a testing aid (FR-561); the rest are unused. */
 export type Difficulty = "introductory" | "easy" | "normal" | "hard" | "nighOnImpossible" | "demo";

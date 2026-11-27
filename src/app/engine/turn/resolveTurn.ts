@@ -1,4 +1,4 @@
-import type { GameState } from "@/types/GameState";
+import type { GameState, RulesRevision } from "@/types/GameState";
 import type { NavalEngagement } from "@/types/Navy";
 import { rejectedOrder, type Order } from "../orders/Order";
 import { tryApplyOrder } from "../orders/apply";
@@ -72,8 +72,15 @@ export function applyTurnOrders(
  * `reason` "conquest" and `winnerId` (FR-223), and, failing that, a Council meeting with a winner, with
  * `reason` "council" (FR-290, FR-295), which writes nothing else. Once the game is over this is a no-op
  * (FR-069): the same state object comes back and every given order is reported as refused with `game-over`.
+ *
+ * `rulesRevision` replays a historical turn under the rules it settled with (FR-641); a live End Turn leaves it out.
  */
-export function resolveTurn(state: GameState, ordersByNation: OrdersByNation, seed: number = state.seed): TurnResult {
+export function resolveTurn(
+  state: GameState,
+  ordersByNation: OrdersByNation,
+  seed: number = state.seed,
+  { rulesRevision }: { rulesRevision?: RulesRevision } = {}
+): TurnResult {
   const events: GameEvent[] = [];
   const navalEngagements: NavalEngagement[] = [];
   const pendingReports: { index: number; finalize: (end: GameState) => GameEvent }[] = [];
@@ -90,7 +97,7 @@ export function resolveTurn(state: GameState, ordersByNation: OrdersByNation, se
   }
 
   const { state: ordered, accepted } = applyTurnOrders(state, ordersByNation, emit);
-  const ctx = createTurnContext({ turn: ordered.turn, seed, orders: accepted, emit,
+  const ctx = createTurnContext({ turn: ordered.turn, seed, orders: accepted, emit, rulesRevision,
     onNavalEngagement: engagement => navalEngagements.push(engagement) });
 
   let s = runTurnPhases(ordered, ctx);

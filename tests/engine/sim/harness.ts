@@ -29,7 +29,8 @@ import type { BattleResult } from '@/types/Battle';
 import type { CouncilNominee } from '@/types/Council';
 import type { WorkerGrade } from '@/types/Industry';
 import { invariantViolations, worldViolations } from '../fixtures';
-import { HUMANS, type HumanName, type HumanPolicy } from './humans';
+import type { HumanName, HumanPolicy } from './humans';
+import { POLICIES } from './policies';
 
 /** Per Great Power, keyed by nation id ("nation-1" the human's Testland, "nation-2" the computer's Valdoria). */
 export type ByNation<T> = Record<string, T>;
@@ -134,7 +135,7 @@ export interface RunOptions {
   seed: number;
   world?: NewGameOptions['world'];
   randomMapSize?: NewGameOptions['randomMapSize'];
-  /** A policy of `humans.ts` by name, or one's own. */
+  /** A policy of `humans.ts` by name (the diplomat frozen by `policies.ts`, FR-638), or one's own. */
   human: HumanName | HumanPolicy;
   /** Turns to play at most (default 40, the game's limit). */
   turns?: number;
@@ -150,7 +151,7 @@ const holdsProvince = (state: GameState, id: string): boolean => {
 
 /** Plays the requested world (Continent by default) with `human` as nation 1. Only the timings vary. */
 export function runGame({ seed, world = 'continent', randomMapSize, human, turns = 40, checkInvariants = true, observe, observePlan }: RunOptions): GameRecord {
-  const policy = typeof human === 'string' ? HUMANS[human] : human;
+  const policy = typeof human === 'string' ? POLICIES[human] : human;
   const began = performance.now();
   const start = newGame({ seed, world, randomMapSize });
   let state = start;
@@ -192,7 +193,7 @@ export function runGame({ seed, world = 'continent', randomMapSize, human, turns
     const { state: next, events } = result;
     observe?.(registered, result, beforeOrders);
     lastTrade = traded;
-    records.push(recordTurn({ turn, start, next, events, holds, humanRefused, humanOrders: accepted, computerOrdersMs, checkInvariants }));
+    records.push(recordTurn({ turn, start, previous: registered, next, events, holds, humanRefused, humanOrders: accepted, computerOrdersMs, checkInvariants }));
     state = next;
   }
 
@@ -209,6 +210,8 @@ export function runGame({ seed, world = 'continent', randomMapSize, human, turns
 function recordTurn(input: {
   turn: number;
   start: GameState;
+  /** The state End Turn resolved, with every Order of the turn applied (`worldViolations`). */
+  previous: GameState;
   next: GameState;
   events: GameEvent[];
   holds: TurnRecord['holds'];
@@ -217,7 +220,7 @@ function recordTurn(input: {
   computerOrdersMs: number;
   checkInvariants: boolean;
 }): TurnRecord {
-  const { turn, start, next, events } = input;
+  const { turn, start, previous, next, events } = input;
   const record: TurnRecord = {
     turn,
     warsDeclared: [],
@@ -252,7 +255,7 @@ function recordTurn(input: {
     ordersRejected: [],
     humanRefused: input.humanRefused,
     humanOrders: input.humanOrders,
-    invariantViolations: input.checkInvariants ? [...invariantViolations(next, events), ...worldViolations(next, start)] : [],
+    invariantViolations: input.checkInvariants ? [...invariantViolations(next, events), ...worldViolations(next, start, previous)] : [],
     computerOrdersMs: input.computerOrdersMs,
   };
   const peacePairs = new Set<string>();

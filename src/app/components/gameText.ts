@@ -64,6 +64,7 @@ const ORDER_TEXT: Record<OrderKind, string> = {
   setFleetMission: "Fleet order",
   buyTechnology: "Buy technology",
   withdrawTechnology: "Cancel technology purchase",
+  buyLand: "Buy land",
 };
 
 export const REFUSAL_TEXT: Record<RejectReason, string> = {
@@ -91,6 +92,7 @@ export const REFUSAL_TEXT: Record<RejectReason, string> = {
   "needs-embassy": "we need an embassy there first",
   "already-in-place": "that is already in place",
   "at-war": "we are at war with them",
+  boycott: "one of us boycotts the other",
   "not-at-war": "we are not at war with them",
   colony: "it is a colony, ruled by its owner",
   "no-seller": "no minor nation sells this",
@@ -103,6 +105,25 @@ export const REFUSAL_TEXT: Record<RejectReason, string> = {
   "no-port-route": "an open port on the destination's sea is required",
   "port-closed": "the port is blockaded",
   "insufficient-naval-support": "the selected troops exceed the remaining naval ARMS allowance",
+};
+
+/** FR-633: why a Minor Nation did not sell a tile its Developer bought, in the buyer's news. */
+const LAND_REFUSAL_TEXT: Record<Extract<GameEvent, { type: "land-purchase-refused" }>["reason"], string> = {
+  "not-owner": "the tile is no longer theirs",
+  "already-owned": "another nation already holds it",
+  "needs-embassy": "we no longer hold an embassy there",
+  "at-war": "we are at war with them",
+  boycott: "one of us boycotts the other",
+  colony: "it is now another power's colony",
+  outbid: "it sold to a partner it favours more",
+};
+
+/** FR-637, FR-639: why a holding ended, in the holder's news. */
+const HOLDING_LOSS_TEXT: Record<Extract<GameEvent, { type: "overseas-land-lost" }>["cause"], string> = {
+  conquest: "its province was conquered",
+  colonisation: "the Minor Nation was colonised",
+  fall: "we have fallen",
+  "colony-boycott": "the colony's owner boycotts us",
 };
 
 /** Why an offer passed the nation by, in the news and the Deal Book (FR-244). */
@@ -120,6 +141,8 @@ export function refusalText({ order, reason, cost, buyingPower }: { order: Order
   if (reason === "insufficient-funds" && cost !== undefined && buyingPower !== undefined) {
     return `${action} refused. ${fundsNeededText(cost, buyingPower, order.kind === "proposeOverture" && order.overture === "embassy")}.`;
   }
+  // FR-634: "already-owned" is worded for technology; for land it means the tile is held
+  if (order.kind === "buyLand" && reason === "already-owned") return `${action} refused: that tile is already held.`;
   return `${action} refused: ${REFUSAL_TEXT[reason]}.`;
 }
 
@@ -199,7 +222,8 @@ export const TERRAIN_TEXT: Record<TerrainType, string> = {
  * The owner is the country the tile belongs to, a Great Power or a minor nation ("owned by Arvelia",
  * FR-155), named by the caller; a tile of nobody is "not owned".
  */
-export function tileLabel(tile: Pick<Tile, "terrain" | "resource" | "ownerNationId">, ownerName: string | undefined): string {
+/** FR-639: a held Minor Nation tile adds its holder after its owner ("..., owned by Arvelia, held by Valdoria"). */
+export function tileLabel(tile: Pick<Tile, "terrain" | "resource" | "ownerNationId">, ownerName: string | undefined, holderName?: string): string {
   if (tile.terrain === TerrainType.Water) return TERRAIN_TEXT[TerrainType.Water];
   const parts = [TERRAIN_TEXT[tile.terrain]];
   const { resource } = tile;
@@ -209,6 +233,7 @@ export function tileLabel(tile: Pick<Tile, "terrain" | "resource" | "ownerNation
   }
   const owner = ownerName ?? tile.ownerNationId;
   parts.push(owner ? `owned by ${owner}` : "not owned");
+  if (holderName) parts.push(`held by ${holderName}`);
   return parts.join(", ");
 }
 
@@ -379,6 +404,10 @@ function tileOf(event: GameEvent): string | undefined {
     case "resource-discovered":
     case "development-completed":
     case "construction-completed":
+    case "developer-arrived":
+    case "land-purchased":
+    case "land-purchase-refused":
+    case "overseas-land-lost":
       return event.tileId;
     default:
       return undefined;
@@ -533,6 +562,18 @@ export function eventText(event: GameEvent, nameOf: (countryId: string) => strin
       return `${nameOf(event.fallenId)} has fallen.`;
     case "minor-colonised":
       return `${nameOf(event.minorId)} is now our colony.`;
+    case "developer-arrived":
+      return `A Developer arrived at ${at(event.tileId)}: our relations with ${nameOf(event.minorId)} earned it.`;
+    case "land-purchased":
+      // A Minor Nation is one province named after it, so its name is the tile's place
+      return `Our Developer bought ${event.tileId} in ${nameOf(event.minorId)} for ${money(event.cost)}.`;
+    case "land-purchase-refused":
+      return `${nameOf(event.minorId)} did not sell ${event.tileId}: ${LAND_REFUSAL_TEXT[event.reason]}. ${money(event.cost)} refunded.`;
+    // FR-636, FR-639: the holder reads its overseas profit in the Deal Book, not in the news
+    case "overseas-profit":
+      return null;
+    case "overseas-land-lost":
+      return `Our holding at ${event.tileId} in ${nameOf(event.minorId)} ended: ${HOLDING_LOSS_TEXT[event.cause]}${event.byId && event.cause === "conquest" ? ` by ${nameOf(event.byId)}` : ""}.`;
     // FR-297 (M10): a line of no nation; `newsItems` puts it first (FR-306). FR-414: the nominees by votes, most first,
     // ties in standing order (the event keeps the standing order for the Council screen, FR-313)
     case "council-met": {
@@ -637,6 +678,10 @@ export function newsItems(events: readonly GameEvent[], playerId: string, nameOf
   const ownRelations = new Set(events.flatMap((e) => (e.type === "relation-changed" && e.nationId === playerId ? [e.otherId] : [])));
   for (const event of events) {
     if (event.type === "town-receipt" && event.nationId !== playerId) continue;
+    // FR-629, FR-633, FR-636, FR-637, FR-640: another nation's Developer arrival, land purchases, profit and losses are private to it
+    if ((event.type === "developer-arrived" || event.type === "land-purchased" || event.type === "land-purchase-refused" || event.type === "overseas-profit"
+      || event.type === "overseas-land-lost")
+      && event.nationId !== playerId) continue;
     if (event.type === "overture-done" && event.targetId === playerId && ownDone.has(`${event.overture}|${event.nationId}`)) continue;
     if (event.type === "relation-changed" && event.otherId === playerId && ownRelations.has(event.nationId)) continue;
     if (event.type === "overture-refused" && event.targetId === playerId && event.nationId !== playerId) {
@@ -682,7 +727,6 @@ const DEVELOPMENT_JOB_PREFIX: Partial<Record<WorkerType, string>> = {
   [WorkerType.Forester]: "Forestry",
   [WorkerType.Miner]: "Mining",
   [WorkerType.Driller]: "Drilling",
-  [WorkerType.Developer]: "Developing",
 };
 
 /**
@@ -692,6 +736,8 @@ const DEVELOPMENT_JOB_PREFIX: Partial<Record<WorkerType, string>> = {
 export function workerJobLabel(tile: Tile, worker: Worker): string | undefined {
   if (worker.status === WorkerStatus.Moved) return "Moved";
   if (worker.status !== WorkerStatus.Working) return undefined;
+  // FR-630: a working Developer holds a land purchase until settlement, never a development job
+  if (worker.type === WorkerType.Developer) return "Buying land";
   if (tile.prospecting?.workerId === worker.id) return "Prospecting";
   const development = tile.developmentJob;
   if (development && development.workerId === worker.id) {

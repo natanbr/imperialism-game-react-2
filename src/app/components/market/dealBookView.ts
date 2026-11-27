@@ -22,8 +22,13 @@ export interface DealBookView {
   /** Sold, Bought and the Trade net, Sold less Bought (FR-396). */
   bottomLine: MoneyLine[];
   /**
+   * FR-639: the Overseas Profits by Minor Nation and commodity, "2 Coal from Arvelia @ $116 × 75%: $174"; absent on a
+   * turn without any. Not part of the trade net.
+   */
+  overseas?: string[];
+  /**
    * With the turn's treasuries known (FR-256): the Trade net (only on a turn with deals, FR-396), Army upkeep when not 0
-   * (FR-396), each diplomacy cost, each type recruited (FR-262), Other when not 0, Treasury change.
+   * (FR-396), the Overseas profits when any (FR-639), each diplomacy cost, each type recruited (FR-262), Other when not 0, Treasury change.
    */
   treasury?: MoneyLine[];
   /** Dated closing balances, separate from the cash movements above. Absent on pre-credit and cash-only reports. */
@@ -110,16 +115,22 @@ export function dealBookView(book: DealBook, nameOf: (countryId: string) => stri
   const tradeNet = line("Trade net", sold - bought);
   const empty = book.sold.length === 0 && book.bought.length === 0 && book.notTraded.length === 0;
   const treasury = book.treasury;
+  const overseas = book.overseasProfits.map(
+    (p) => `${p.units} ${commodityName(p.commodity)} from ${nameOf(p.minorId)} @ ${money(p.price)} × ${p.sharePercent}%: ${money(p.amount)}`
+  );
+  const overseasTotal = book.overseasProfits.reduce((sum, p) => sum + p.amount, 0);
   return {
     sold: book.sold.map((entry) => dealLineText(entry, nameOf)),
     bought: book.bought.map((entry) => dealLineText(entry, nameOf)),
     notTraded: book.notTraded.map((entry) => dealLineText(entry, nameOf)),
     bottomLine: [line("Sold", sold), line("Bought", bought), tradeNet],
+    ...(overseas.length > 0 && { overseas }),
     ...(treasury
       ? {
           treasury: [
             ...(empty ? [] : [tradeNet]),
             ...(militaryUpkeep !== 0 ? [line("Army upkeep", -militaryUpkeep)] : []),
+            ...(overseasTotal !== 0 ? [line("Overseas profits", overseasTotal)] : []),
             ...book.diplomacy.map((d) => line(`${DIPLOMACY_TEXT[d.kind]} ${nameOf(d.targetId)}`, -d.amount)),
             ...book.recruits.map((r) => line(`${r.count} ${REGIMENTS[r.regiment].name} recruited`, -r.amount)),
             ...(treasury.interest ? [line(`Interest (${treasury.interest.ratePercent}% per turn, inferred)`, -treasury.interest.amount)] : []),

@@ -9,6 +9,8 @@ import { BuildingType, IndustryBuilding, IndustryState } from '@/types/Industry'
 import { Nation } from '@/types/Nation';
 import { Tile } from '@/types/Tile';
 import { Worker, WorkerStatus, WorkerType } from '@/types/Workers';
+import type { BuyLandIntent } from '@/types/Intent';
+import { DEVELOPMENT_WORKER_TYPES } from '@/engine/orders/queries';
 import { createTileId, parseTileIdToArray } from '@/utils/tileIdUtils';
 
 export const N1 = 'nation-1';
@@ -150,13 +152,18 @@ export function deepFreeze<T>(value: T): T {
   return value;
 }
 
+/** FR-632: this turn's land purchase of the Developer on the tile, the job a buying Developer works at. */
+const buysLand = (state: GameState, workerId: string, tileId: string): boolean =>
+  state.intents.some(i => i.kind === 'buy-land' && (i as BuyLandIntent).workerId === workerId && (i as BuyLandIntent).tileId === tileId);
+
 /**
  * No worker on two tiles, finite cash within the credit limit plus any unpaid excess
  * recorded at the last settlement (zero borrowing for cash-only nations), and a working
- * worker on the tile for each job and a job for each working worker.
+ * worker on the tile for each job and a job for each working worker (a Developer's job is its
+ * land purchase, FR-632). The M18j holdings hold (`overseasViolations`).
  */
 export function invariantViolations(state: GameState, lastTurnEvents: readonly GameEvent[] = []): string[] {
-  const problems: string[] = [];
+  const problems: string[] = [...overseasViolations(state)];
   const seen = new Map<string, string>();
   for (const tile of state.map.tiles.flat()) {
     for (const w of tile.workers) {
@@ -174,7 +181,7 @@ export function invariantViolations(state: GameState, lastTurnEvents: readonly G
       else if (w.status !== WorkerStatus.Working) problems.push(`${job.name} job on ${tile.id}: worker ${w.id} is ${w.status}`);
     }
     for (const w of tile.workers) {
-      if (w.status === WorkerStatus.Working && !jobs.some(j => j.workerId === w.id)) {
+      if (w.status === WorkerStatus.Working && !jobs.some(j => j.workerId === w.id) && !(w.type === WorkerType.Developer && buysLand(state, w.id, tile.id))) {
         problems.push(`worker ${w.id} on ${tile.id} is working without a job`);
       }
     }
@@ -186,6 +193,50 @@ export function invariantViolations(state: GameState, lastTurnEvents: readonly G
     if (!Number.isFinite(n.treasury) || n.treasury < minimumCash) problems.push(`nation ${n.id} treasury ${n.treasury}`);
     problems.push(...economyViolations(n));
   }
+  return problems;
+}
+
+/**
+ * M18j (FR-631, FR-634): every holding lies on its Minor Nation's land and is held by a Great Power; a nation has at most
+ * one Developer; on Minor Nation land stand only Developers and the holder's improvers on its own held tiles; and no
+ * other nation works a held tile.
+ */
+export function overseasViolations(state: GameState): string[] {
+  const problems: string[] = [];
+  const greatPowers = new Set(state.nations.map(n => n.id));
+  const minors = new Set(state.minorNations.map(m => m.id));
+  const provinceOwner = new Map(state.provinces.map(p => [p.id, p.ownerId]));
+  const minorOf = (tile: Tile): string | undefined => {
+    const owner = tile.provinceId === undefined ? undefined : provinceOwner.get(tile.provinceId);
+    return tile.ownerNationId === undefined && owner !== undefined && minors.has(owner) ? owner : undefined;
+  };
+  const tiles = new Map(state.map.tiles.flat().map(t => [t.id, t]));
+  const holdings = state.overseasLand ?? {};
+  for (const [tileId, holding] of Object.entries(holdings)) {
+    const tile = tiles.get(tileId);
+    if (holding.tileId !== tileId || !greatPowers.has(holding.holderId) || !tile || minorOf(tile) !== holding.minorId) {
+      problems.push(`holding ${tileId} of ${holding.holderId} is not on ${holding.minorId}'s land`);
+    }
+  }
+  const developers = new Map<string, number>();
+  for (const tile of tiles.values()) {
+    const holder = holdings[tile.id]?.holderId;
+    const minor = minorOf(tile);
+    for (const w of tile.workers) {
+      if (w.type === WorkerType.Developer) developers.set(w.nationId, (developers.get(w.nationId) ?? 0) + 1);
+      else if (minor !== undefined && !(w.nationId === holder && DEVELOPMENT_WORKER_TYPES.includes(w.type))) {
+        problems.push(`${w.type} ${w.id} of ${w.nationId} stands on minor land ${tile.id}`);
+      }
+    }
+    if (holder === undefined) continue;
+    const jobWorkers = [tile.prospecting?.workerId, tile.developmentJob?.workerId, tile.constructionJob?.workerId];
+    const working = new Set([...jobWorkers.filter((id): id is string => id !== undefined), ...tile.workers.filter(w => w.status === WorkerStatus.Working).map(w => w.id)]);
+    for (const id of working) {
+      const nationId = tile.workers.find(w => w.id === id)?.nationId;
+      if (nationId !== holder) problems.push(`${id} of ${nationId} works ${tile.id}, held by ${holder}`);
+    }
+  }
+  for (const [nationId, count] of developers) if (count > 1) problems.push(`nation ${nationId} has ${count} Developers`);
   return problems;
 }
 
@@ -203,9 +254,10 @@ const canonical = (value: unknown): string =>
  * `colonyOf`, which names a Great Power holding the minor's capital province; the provinces are as at `start`
  * but for `ownerId`, and a province whose owner changed is a Great Power's; every tile of a province its start
  * minor still holds is as at `start`; the diplomacy entries are the same pairs; and no intent is left after a
- * resolved turn (FR-152).
+ * resolved turn (FR-152). `previous` is the state End Turn resolved (the start when not given): a minor tile's resource
+ * level is checked against it (M18j, below), and a purchase among its intents frees that tile's level.
  */
-export function worldViolations(state: GameState, start: GameState): string[] {
+export function worldViolations(state: GameState, start: GameState, previous: GameState = start): string[] {
   const problems: string[] = [];
   const provinces = new Map(state.provinces.map(p => [p.id, p]));
   const greatPowers = new Set(state.nations.map(n => n.id));
@@ -241,8 +293,27 @@ export function worldViolations(state: GameState, start: GameState): string[] {
     if (before && before.ownerId !== p.ownerId && !greatPowers.has(p.ownerId)) problems.push(`province ${p.id} passed to ${p.ownerId}, not a Great Power`);
   }
   const stillMinor = new Set(start.provinces.filter(p => !greatPowers.has(p.ownerId) && provinces.get(p.id)?.ownerId === p.ownerId).map(p => p.id));
+  // M18j (FR-631, FR-633, FR-634, FR-637): Developers and the holder's improvers may stand on minor land, and a held
+  // tile's development job is its holder's (`overseasViolations` checks who). A tile's level changes only while it is
+  // bought, held or released: a sale sets 0, the holder raises it, and an ended holding leaves the tile at its level. So
+  // the level is free on a tile held now, or held or bought in `previous`, and otherwise as in `previous`; nothing else
+  // of a minor tile changes from `start`
+  const heldNow = (id: string) => state.overseasLand?.[id] !== undefined;
+  const levelFree = (id: string) => heldNow(id) || previous.overseasLand?.[id] !== undefined
+    || previous.intents.some(i => i.kind === 'buy-land' && (i as BuyLandIntent).tileId === id);
+  const minorFacts = (tile: Tile | undefined, held: boolean) => {
+    if (!tile) return tile;
+    const facts: Partial<Tile> = { ...tile, workers: [] };
+    if (held) delete facts.developmentJob;
+    if (facts.resource) facts.resource = { ...facts.resource, level: 0 };
+    return facts;
+  };
+  const previousById = new Map(previous.map.tiles.flat().map(t => [t.id, t]));
   for (const before of start.map.tiles.flat().filter(t => t.provinceId && stillMinor.has(t.provinceId))) {
-    if (canonical(byId.get(before.id)) !== canonical(before)) problems.push(`minor tile ${before.id} changed`);
+    const now = byId.get(before.id);
+    const level = previousById.get(before.id)?.resource?.level;
+    if (canonical(minorFacts(now, heldNow(before.id))) !== canonical(minorFacts(before, false))
+      || (!levelFree(before.id) && now?.resource?.level !== level)) problems.push(`minor tile ${before.id} changed`);
   }
   const pairs = (s: GameState) => Object.keys(s.diplomacy).sort().join(',');
   if (pairs(state) !== pairs(start)) problems.push(`diplomacy pairs ${pairs(state)}, at the start ${pairs(start)}`);

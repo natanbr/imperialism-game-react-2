@@ -1,10 +1,11 @@
 import type { GameState } from "@/types/GameState";
 import type { Tile } from "@/types/Tile";
 import { WorkerStatus, type Worker } from "@/types/Workers";
+import type { BuyLandIntent } from "@/types/Intent";
 import type { ConstructionKind } from "@/types/jobs/ConstructionJob";
 import { DEVELOPMENT_COST, PROSPECT_COST, constructionCost } from "@/definisions/workPrices";
 import { EngineerBuildDurationsTurns, WorkerLevelDurationsTurns } from "@/definisions/workerDurations";
-import type { CancelWorkerActionOrder, Order, ValidationResult } from "./Order";
+import type { BuyLandOrder, CancelWorkerActionOrder, Order, ValidationResult } from "./Order";
 import { validateOrder } from "./validate";
 import { openCredit } from "../credit/account";
 import {
@@ -21,6 +22,8 @@ import { applyCivilianOrder } from "./civilianOrders";
 import { applyTechnologyOrder } from "./technologyOrders";
 import { applyShipyard } from "./shipyardOrders";
 import { applyFleetMission } from "./fleetOrders";
+import { addIntent, removeIntent } from "../turn/intents";
+import { isBuyLandIntent, landPrice, minorLandOf } from "../overseas/holdings";
 import {
   findWorker,
   holdsJob,
@@ -88,6 +91,8 @@ function applyValidOrder(state: GameState, order: Order): GameState {
         order.toTileId,
         construction(order.structure, railStartId(state, order.nationId, order.toTileId, order.structure, order.fromTileId))
       );
+    case "buyLand":
+      return buyLand(state, order);
     case "cancelWorkerAction":
       return cancel(state, order);
     case "setTransportAllocations":
@@ -194,6 +199,19 @@ const startDevelopment: StartJob = (state, workerId, tileId) => {
   }));
 };
 
+/**
+ * FR-632: the Developer moves to the tile if needed and works at its purchase until the End Turn settles it (FR-633).
+ * The price leaves the treasury now and is kept in the buyer's private intent toward the Minor Nation.
+ */
+function buyLand(state: GameState, order: BuyLandOrder): GameState {
+  const loc = findWorker(state, order.workerId)!;
+  const tile = tileById(state, order.tileId)!;
+  const cost = landPrice(state, tile)!;
+  const there = loc.tile.id === tile.id ? state : relocate(state, loc, tile);
+  const working = updateTile(charge(there, order.nationId, cost), tile.id, (t) => updateWorker(t, order.workerId, { status: WorkerStatus.Working }));
+  return addIntent(working, { kind: "buy-land", nationId: order.nationId, targetId: minorLandOf(state, tile)!.id, workerId: order.workerId, tileId: tile.id, cost });
+}
+
 /** The id of the tile a rail construction's section starts from (FR-137); undefined for other structures. */
 const railStartId = (state: GameState, nationId: string, tileId: string, kind: ConstructionKind, fromTileId?: string): string | undefined =>
   kind === "rail" ? railConstructionStart(state, nationId, tileById(state, tileId)!, fromTileId)!.id : undefined;
@@ -233,6 +251,12 @@ function cancel(state: GameState, order: CancelWorkerActionOrder): GameState {
 
   if (worker.status === WorkerStatus.Working || holdsJob(tile, worker.id)) {
     const movedThisTurn = worker.justMoved && !!worker.previousTileId;
+    // FR-632: a Developer's purchase is its job; cancelling drops the intent and refunds it in full
+    const purchase = state.intents.find((i): i is BuyLandIntent => isBuyLandIntent(i) && i.workerId === worker.id);
+    if (purchase) {
+      const refundedPurchase = charge(removeIntent(state, purchase.id), worker.nationId, -purchase.cost);
+      return updateTile(refundedPurchase, tile.id, (t) => updateWorker(t, worker.id, { status: movedThisTurn ? WorkerStatus.Moved : WorkerStatus.Available }));
+    }
     const refunded = charge(state, worker.nationId, -refundThisTurn(state, tile, worker.id));
     return updateTile(refunded, tile.id, (t) => ({
       ...updateWorker(t, worker.id, { status: movedThisTurn ? WorkerStatus.Moved : WorkerStatus.Available }),

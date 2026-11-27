@@ -14,6 +14,7 @@ export enum WorkerType {
   Rancher = "rancher",
   Forester = "forester",
   Driller = "driller",
+  /** FR-629, FR-630: the land buyer granted by diplomacy, one per nation; never built and never an improver. */
   Developer = "developer",
 }
 

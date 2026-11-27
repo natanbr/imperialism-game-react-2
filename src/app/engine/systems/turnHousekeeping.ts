@@ -42,11 +42,14 @@ export const promoteFreightCars: TurnSystem = (state: GameState): GameState => (
   }),
 });
 
-/** One turn is one season; the year advances after winter (FR-027). */
-export const advanceClock: TurnSystem = (state: GameState): GameState => ({
+/**
+ * One turn is one season; the year advances after winter (FR-027). The saved marker names the rules the turn settled
+ * under: today's, or a replayed historical turn's own (FR-641).
+ */
+export const advanceClock: TurnSystem = (state: GameState, ctx): GameState => ({
   ...state,
   // A reconstructed pre-M16 turn still uses shared technology.
-  ...(state.rulesRevision && { rulesRevision: settlementRevision(state) }),
+  ...(state.rulesRevision && { rulesRevision: ctx.rulesRevision ?? settlementRevision(state) }),
   turn: state.turn + 1,
   year: state.year + (isLastTurnOfYear(state.turn) ? 1 : 0),
 });

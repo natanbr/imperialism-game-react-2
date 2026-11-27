@@ -46,6 +46,15 @@ const engineerBuildingAtCapital = (s: GameState) =>
 const prospecting = (s: GameState) =>
   setTile(put(s, W.prospector, T.mountains1, working), T.mountains1, { prospecting: { startedOnTurn: 1, workerId: W.prospector } });
 
+/** FR-629: the continent with Testland's Developer on its capital (2-9) and, by default, its embassy in Arvelia. */
+const DEVELOPER = 'developer-nation-1-1';
+const developerWithEmbassy = (_s: GameState, embassies: string[] = [N1]): GameState => {
+  const s = setPair(newGame({ seed: 1, world: 'continent' }), N1, 'minor-1', { points: 60, consulates: [N1], embassies });
+  const capital = s.map.tiles[9][2];
+  const developer = { id: DEVELOPER, type: WorkerType.Developer, nationId: N1, assignedTileId: capital.id, efficiency: 100, status: WorkerStatus.Available, justMoved: false };
+  return setTile(s, capital.id, { workers: [...capital.workers, developer] });
+};
+
 /** The continent's start regiments (FR-203), named for the army order rows. */
 const ARMY = (() => {
   const s = armyContinent();
@@ -163,6 +172,10 @@ const cases: Case[] = [
   { name: 'FR-004 cancelling with nothing to cancel', order: { kind: 'cancelWorkerAction', nationId: N1, workerId: W.farmer, tileId: T.capital1 }, expected: 'invalid-target' },
   { name: 'FR-004 cancelling on a tile the worker is not on', setup: developing, order: { kind: 'cancelWorkerAction', nationId: N1, workerId: W.farmer, tileId: T.capital1 }, expected: 'invalid-target' },
   { name: 'FR-004 cancelling another nation\'s worker', order: { kind: 'cancelWorkerAction', nationId: N1, workerId: W.farmer2, tileId: T.capital2 }, expected: 'not-owner' },
+
+  // buyLand (FR-631, FR-632; the full rules are in developer/purchase.test.ts)
+  { name: 'FR-632 the Developer buying Arvelia coal with an embassy there is ok', setup: developerWithEmbassy, order: { kind: 'buyLand', nationId: N1, workerId: DEVELOPER, tileId: '12-3' }, expected: 'ok' },
+  { name: 'FR-631 the Developer buying Arvelia coal without an embassy', setup: () => developerWithEmbassy(game(), []), order: { kind: 'buyLand', nationId: N1, workerId: DEVELOPER, tileId: '12-3' }, expected: 'needs-embassy' },
 
   // setTransportAllocations
   { name: 'FR-010 setting transport allocations is ok', order: { kind: 'setTransportAllocations', nationId: N1, allocations: { grain: 3, timber: 0 } }, expected: 'ok' },

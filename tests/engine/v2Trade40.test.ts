@@ -63,13 +63,14 @@ function play(seed: number): Game {
       if (e.type === 'goods-bought') game.minorPurchases[e.nationId]++;
       if (!game.minorsDealt[e.nationId].includes(e.counterpartyId)) game.minorsDealt[e.nationId].push(e.counterpartyId);
     }
+    const previous = s;
     s = result.state;
     for (const id of NATIONS) {
       const holds = [...minors].some(m => s.diplomacy[pairKey(id, m)].consulates.includes(id));
       if (holds && game.consulateBy[id] === undefined) game.consulateBy[id] = turn;
     }
     game.n2Treasury.push(nationOf(s, N2).treasury);
-    game.violations.push(...[...invariantViolations(s), ...worldViolations(s, start)].map(v => `turn ${turn}: ${v}`));
+    game.violations.push(...[...invariantViolations(s), ...worldViolations(s, start, previous)].map(v => `turn ${turn}: ${v}`));
   }
   game.final = s;
   return game;

@@ -5,7 +5,7 @@ import type { MinorNationId, NationId } from "@/types/Common";
 import type { GameState } from "@/types/GameState";
 import type { PairDiplomacy } from "@/types/Diplomacy";
 import type { Order } from "../orders/Order";
-import { OVERTURE_COST, SCRIPTED_INFLUENCE } from "@/definisions/diplomacyRules";
+import { GRANT_POINTS, OVERTURE_COST, SCRIPTED_INFLUENCE } from "@/definisions/diplomacyRules";
 import { COUNCIL } from "@/definisions/council";
 import { SHIPS } from "@/definisions/ships";
 import { ResourceType } from "@/types/Resource";
@@ -97,22 +97,53 @@ function councilAhead(state: GameState, nationId: NationId): { meeting: number; 
  * lowest id) it holds a consulate in (FR-162). Not for the first meeting: a minor at the start's 30 points (FR-151) cannot
  * reach a vote's 50 by then with a pact and the grants (30 + 10 + 4 x 2 = 48), and an embassy on turn 7 took half of a
  * scripted Testland's start treasury: in 24 both-scripted games 3 then lost regiments for want of pay, none without.
+ * The meeting and its nominees come from `state`; the embassies and candidates from `record`, by default the same.
  */
-function wantedEmbassy(state: GameState, nationId: NationId): MinorNationId | undefined {
+function wantedEmbassy(state: GameState, nationId: NationId, record: GameState = state): MinorNationId | undefined {
   const ahead = councilAhead(state, nationId);
   if (ahead === undefined || ahead.meeting <= COUNCIL.firstTurn) return undefined;
-  if (state.minorNations.some((m) => relationOf(state, nationId, m.id)?.embassies.includes(nationId))) return undefined;
-  return embassyCandidates(state, nationId, ahead.rivalId)
+  if (record.minorNations.some((m) => relationOf(record, nationId, m.id)?.embassies.includes(nationId))) return undefined;
+  return embassyCandidates(record, nationId, ahead.rivalId)
     .find((c) => c.pair.consulates.includes(nationId))?.id;
 }
 
 /**
  * FR-542: the cash the campaign recruits (scriptedArmy.ts `wantedRegiment`) and the training (economy.ts) leave for the
  * embassy while one is wanted: its $5,000, else 0. Without it the embassy waited for a turn with $5,000 spare, which came
- * on turns 26 to 30, after the war on the player began and froze the treasury at its upkeep reserve.
+ * on turns 26 to 30, after the war on the player began and froze the treasury at its upkeep reserve. FR-638: a land
+ * purchase passes the `record` its own diplomacy of this turn leaves (`diplomacyAfterThisTurn`), as `grantSaving` reads,
+ * so an embassy it paid for this turn is not saved for again.
  */
-export const embassySaving = (state: GameState, nationId: NationId): number =>
-  wantedEmbassy(state, nationId) === undefined ? 0 : OVERTURE_COST.embassy;
+export const embassySaving = (state: GameState, nationId: NationId, record: GameState = state): number =>
+  wantedEmbassy(state, nationId, record) === undefined ? 0 : OVERTURE_COST.embassy;
+
+/** FR-490: the minor a grant goes to on a grant turn: the first of `candidates` from `fromPoints` it holds an embassy in. */
+const grantTarget = (state: GameState, nationId: NationId, rivalId: NationId): Candidate | undefined =>
+  candidates(state, nationId, rivalId, SCRIPTED_INFLUENCE.fromPoints).find((c) => c.pair.embassies.includes(nationId));
+
+/**
+ * FR-638 (inferred): what `planInfluence` will still give after this turn before the next meeting, kept from a land
+ * purchase, while the nation is a nominee; else 0. It reads the record its own diplomacy of this turn leaves
+ * (`diplomacyAfterThisTurn`): this turn's grant has added its points, and a war it declares now ends the courting. Each
+ * grant turn to come gives one grant to the first `grantTarget` still within the band, adding GRANT_POINTS, so a target
+ * the grants take past `toPoints` takes no more. A grant needs an embassy and `embassySaving` none, so at most one of the
+ * two is ever above 0.
+ */
+export function grantSaving(state: GameState, nationId: NationId): number {
+  const ahead = councilAhead(state, nationId);
+  if (ahead === undefined) return 0;
+  const targets = candidates(diplomacyAfterThisTurn(state, nationId), nationId, ahead.rivalId, SCRIPTED_INFLUENCE.fromPoints)
+    .filter((c) => c.pair.embassies.includes(nationId))
+    .map((c) => ({ points: c.pair.points }));
+  let grants = 0;
+  for (let turn = Math.max(state.turn + 1, ahead.meeting - SCRIPTED_INFLUENCE.grantTurns); turn < ahead.meeting; turn++) {
+    const to = targets.find((t) => t.points <= SCRIPTED_INFLUENCE.toPoints);
+    if (!to) break;
+    to.points += GRANT_POINTS[SCRIPTED_INFLUENCE.grant];
+    grants++;
+  }
+  return grants * SCRIPTED_INFLUENCE.grant;
+}
 
 /** FR-542: embassies and pacts use the same relation band and ranking. Equal scores retain the candidates' id order. */
 function embassyCandidates(state: GameState, nationId: NationId, rivalId: NationId): Candidate[] {
@@ -142,7 +173,7 @@ export function planInfluence(view: () => GameState, nationId: NationId, reserve
   }
 
   if (state.turn >= meeting - SCRIPTED_INFLUENCE.grantTurns) {
-    const to = candidates(view(), nationId, rivalId, SCRIPTED_INFLUENCE.fromPoints).find((c) => c.pair.embassies.includes(nationId));
+    const to = grantTarget(view(), nationId, rivalId);
     if (to) {
       const treasury = nationById(view(), nationId)?.treasury ?? 0;
       if (treasury - SCRIPTED_INFLUENCE.grant >= reserve) propose({ kind: "giveGrant", nationId, targetId: to.id, amount: SCRIPTED_INFLUENCE.grant, locked: false });

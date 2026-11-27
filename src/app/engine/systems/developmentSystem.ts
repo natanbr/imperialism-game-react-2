@@ -78,7 +78,10 @@ const reportCompletions = (before: Tile, after: Tile, ctx: TurnContext, finished
     ctx.emit({ type: "resource-discovered", tileId: after.id, nationId, resource: after.resource?.type });
   }
   if (before.developmentJob && !after.developmentJob) {
-    ctx.emit({ type: "development-completed", tileId: after.id, nationId, level: before.developmentJob.targetLevel });
+    // FR-634: a held Minor Nation tile has no owner; its news goes to the holder whose improver worked it
+    const { workerId, targetLevel } = before.developmentJob;
+    const developer = nationId ?? before.workers.find(w => w.id === workerId)?.nationId;
+    ctx.emit({ type: "development-completed", tileId: after.id, nationId: developer, level: targetLevel });
   }
   if (before.constructionJob && !after.constructionJob) {
     const { kind, railFrom } = before.constructionJob;

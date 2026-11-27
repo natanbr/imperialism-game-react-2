@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Tile } from '@/types/Tile';
-import { Worker, WorkerType } from '@/types/Workers';
+import { Worker, WorkerStatus, WorkerType } from '@/types/Workers';
+import { isLand } from '@/engine/orders/queries';
 import { GameMap } from '@/types/Map';
 import { PossibleAction } from '@/types/actions';
 import { getProspectorActions } from '@/workers/ProspectorWorker';
@@ -36,6 +37,9 @@ export function getPossibleAction(
       return getMinerActions(tile, map, selectedWorker);
     case WorkerType.Driller:
       return getDrillerActions(tile, map, selectedWorker);
+    // FR-639: land no Great Power owns, a Minor Nation's; validation decides whether it is for sale (FR-631)
+    case WorkerType.Developer:
+      return selectedWorker.status === WorkerStatus.Available && isLand(tile) && tile.ownerNationId === undefined ? { type: 'buy-land' } : null;
     default:
       return null;
   }

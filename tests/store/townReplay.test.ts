@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { gunzipSync } from 'node:zlib';
@@ -19,6 +20,8 @@ function load(raw: string) {
   if (slot.kind !== 'usable') throw new Error('Expected a usable v1 save');
   return slot.save;
 }
+
+const digest = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 
 function fixture(name: string) {
   return gunzipSync(readFileSync(join(__dirname, 'fixtures', name))).toString();
@@ -103,7 +106,9 @@ it('FR-626 FR-628 continues a paid M18h save from its saved position and replays
   live.getState().advanceTurn();
   const settled = load(serializeSave(saveOf(continued.getState())));
   expect(settled.version).toBe(1);
-  expect(settled.game.rulesRevision).toBe('m18i');
+  // Chain m18h -> m18i -> m18j: the first settlement after the import carried 'm18i' on main (FR-627 / FR-628) and
+  // carries 'm18j' here (FR-641 / FR-642), since M18j settles towns-first freight together with the Developer.
+  expect(settled.game.rulesRevision).toBe('m18j');
   const report = settled.eventLog.at(-1)!;
   expect(report.turn).toBe(39);
   // FR-627 / FR-628: continuing the same saved position on M18h delivered 0 Lumber, 0 Steel.
@@ -112,6 +117,65 @@ it('FR-626 FR-628 continues a paid M18h save from its saved position and replays
     type: 'town-receipt', turn: 39, nationId: N2, provinceId: 'province-nation-2-2', seatTileId: '20-6',
     lines: [{ commodity: 'lumber', offered: 1, delivered: 1 }, { commodity: 'steel', offered: 1, delivered: 1 }],
   }]);
+  expect(settled.eventLog).toEqual(live.getState().eventLog);
+  expect(settled.game).toEqual(live.getState().game);
+  expect(settled.replayBoundary).toEqual(imported.replayBoundary);
+  expect(replaySession(settled)).toEqual(live.getState().game);
+});
+
+// Written by M18i (main 521a7b4) with the same recipe: 38 idle turns, then a $500 consulate on turn 39.
+// Its towns had shipped first since turn 1, so N2 holds 4 Lumber where the M18h save holds 3.
+it('FR-626 FR-641 continues a paid M18i save from its saved position and settles it under M18j', () => {
+  const raw = fixture('m18i-large-seed-1-turn-39.json.gz');
+  const historical: SavedGame = JSON.parse(raw);
+  expect(historical.version).toBe(1);
+  expect(historical.game.rulesRevision).toBe('m18i');
+  expect(historical.replayBoundary).toBeUndefined();
+  expect(historical.ordersThisTurn).toEqual([{ kind: 'proposeOverture', nationId: N1, targetId: 'minor-1', overture: 'consulate' }]);
+  expect(historical.turnStartTreasuries![N1]).toBe(6200);
+  expect(historical.game.nations[0].treasury).toBe(5700);
+  expect(historical.game.nations[1].warehouse).toMatchObject({ cotton: 6, cannedFood: 20, lumber: 4, steel: 1, furniture: 3, armaments: 2 });
+
+  // FR-641 (as FR-626): 'm18i' is not this build's revision, so the boundary moves from turn 1 to the saved position.
+  const imported = load(raw);
+  expect(imported.replayBoundary).toEqual({ turn: 39, appliedOrders: 1, checkpoint: historical.game });
+  expect(imported.game).toEqual(historical.game);
+  expect(imported.orderLog).toEqual(historical.orderLog);
+  expect(imported.eventLog).toEqual(historical.eventLog);
+  expect(replaySession(imported)).toEqual(historical.game);
+  expect(imported.game.map.tiles.flat().flatMap(t => t.workers).filter(w => w.type === 'developer')).toEqual([]);
+  expect(imported.game).not.toHaveProperty('overseasLand');
+
+  const live = createGameStore();
+  live.getState().restoreGame(imported);
+  const secondOrder = { kind: 'proposeOverture', nationId: N1, targetId: 'minor-2', overture: 'consulate' } as const;
+  expect(live.getState().submitOrder(secondOrder)).toEqual({ ok: true });
+  expect(live.getState().game.nations[0].treasury).toBe(5200);
+  const midturn = load(serializeSave(saveOf(live.getState())));
+  expect(midturn.ordersThisTurn).toEqual([...historical.ordersThisTurn, secondOrder]);
+  expect(replaySession(midturn)).toEqual(live.getState().game);
+
+  const continued = createGameStore();
+  continued.getState().restoreGame(midturn);
+  continued.getState().advanceTurn();
+  live.getState().advanceTurn();
+  const settled = load(serializeSave(saveOf(continued.getState())));
+  // Chain m18h -> m18i -> m18j (FR-641 / FR-642): the first settlement after the import records 'm18i' -> 'm18j'.
+  expect(settled.game.rulesRevision).toBe('m18j');
+  const report = settled.eventLog.at(-1)!;
+  expect(report.turn).toBe(39);
+  // Main 521a7b4 continuing the same save with the same Order gives these receipts, this warehouse and these treasuries.
+  expect(report.events.filter(e => e.type === 'town-receipt')).toEqual([{
+    type: 'town-receipt', turn: 39, nationId: N2, provinceId: 'province-nation-2-2', seatTileId: '20-6',
+    lines: [{ commodity: 'lumber', offered: 1, delivered: 1 }, { commodity: 'steel', offered: 1, delivered: 1 }],
+  }]);
+  expect(report.events.filter(e => e.type === 'developer-arrived')).toEqual([]);
+  expect(settled.game.nations[1].warehouse).toMatchObject({ cotton: 18, lumber: 8, steel: 9, furniture: 0, armaments: 1 });
+  expect(settled.game.nations.map(n => n.treasury)).toEqual([5100, 4844]);
+  // No Developer arrives, so M18j settles this turn as M18i did: with the marker set back to 'm18i', the settled game
+  // and the event log match main's continuation byte for byte.
+  expect(digest({ ...settled.game, rulesRevision: 'm18i' })).toBe('9a20dc719d9828866207ec8c3c910e86dbfc3d56cdfd7a837f5f47c400a8e768');
+  expect(digest(settled.eventLog)).toBe('98c015ea9860d536502639ad3a8e4c1bc676327aad1cb57af76c773c36f7e206');
   expect(settled.eventLog).toEqual(live.getState().eventLog);
   expect(settled.game).toEqual(live.getState().game);
   expect(settled.replayBoundary).toEqual(imported.replayBoundary);

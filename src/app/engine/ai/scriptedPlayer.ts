@@ -16,6 +16,8 @@ import { upkeepReserve } from "./scriptedArmy";
 import { upkeepOf } from "../army/armies";
 import { coastalDefenceOrder } from "./navalDefence";
 import { planWarDeclaration, planWarMoves } from "./scriptedWar";
+import { developerOrders, heldTileOrders } from "./scriptedDeveloper";
+import { heldTilesOf } from "../overseas/holdings";
 
 /**
  * A player is any function from the game state to its orders for this turn. Scripted and,
@@ -31,7 +33,8 @@ export type Player = (state: GameState, nationId: string) => Order[];
  * then the civilians: the engineer joins depots to the capital by the shortest rail path or starts
  * the depot that gathers most when it pays back (FR-122, FR-132), the prospector works the gathered
  * tiles first (FR-123) and the developers start the cheapest level that pays first (FR-131); neither starts a job on
- * a tile the engineer's rail still needs (FR-459).
+ * a tile the engineer's rail still needs (FR-459). The Developer plans last, so a Miner or Driller still Available is
+ * idle when it chooses a purchase (FR-638).
  */
 export const scriptedPlayer = (state: GameState, nationId: string, allowOrder?: (order: Order, before: GameState, after: GameState) => boolean): Order[] => {
   const orders: Order[] = [];
@@ -53,10 +56,8 @@ export const scriptedPlayer = (state: GameState, nationId: string, allowOrder?: 
   planEconomy(() => view, nationId, propose);
 
   // The engineer plans first, so the depot he starts is paid for and its tiles count as gathered
-  // when the others choose (FR-123). The sort is stable: the others keep their map order.
-  const civilians = workersOf(state, nationId).sort(
-    (a, b) => Number(b.worker.type === WorkerType.Engineer) - Number(a.worker.type === WorkerType.Engineer)
-  );
+  // when the others choose (FR-123); the Developer last (FR-638). The sort is stable: the others keep their map order.
+  const civilians = workersOf(state, nationId).sort((a, b) => planRank(a.worker) - planRank(b.worker));
   // FR-459: taken before the engineer's section of this turn, whose job would hide the rest of the path from railPath
   const railTiles = pendingRailTiles(view, nationId);
   for (const { worker } of civilians) {
@@ -80,6 +81,8 @@ export const scriptedPlayer = (state: GameState, nationId: string, allowOrder?: 
   if (relief) propose(relief);
   return orders;
 };
+
+const planRank = (worker: Worker): number => (worker.type === WorkerType.Engineer ? 0 : worker.type === WorkerType.Developer ? 2 : 1);
 
 /**
  * FR-213 (a): it keeps its garrison, so no order of its own takes the treasury below `upkeepReserve` (an order that
@@ -121,11 +124,15 @@ function developmentLevel(view: GameState, tile: Tile, worker: Worker): number |
 
 /**
  * What this civilian could do, best first; validation picks the first one that is allowed. The prospector and the
- * developers leave `railTiles` (`pendingRailTiles`, FR-459) to the engineer.
+ * developers leave `railTiles` (`pendingRailTiles`, FR-459) to the engineer. The Developer buys land (FR-638); a Miner
+ * or Driller turns to the held tiles after its home candidates.
  */
-function candidateOrders(view: GameState, nationId: string, { worker, tile }: WorkerLocation, railTiles: Set<string>): Order[] {
+function candidateOrders(view: GameState, nationId: string, location: WorkerLocation, railTiles: Set<string>): Order[] {
+  const { worker, tile } = location;
   const workerId = worker.id;
   if (worker.type === WorkerType.Engineer) return engineerOrders(view, nationId, workerId, tile.id);
+  // FR-630: the Developer improves nothing, so it is offered no development candidate
+  if (worker.type === WorkerType.Developer) return developerOrders(view, nationId, location);
   const prospecting = worker.type === WorkerType.Prospector;
   let tiles = tilesByReach(view, nationId).filter((t) => !railTiles.has(t.id));
   if (!prospecting) {
@@ -136,7 +143,7 @@ function candidateOrders(view: GameState, nationId: string, { worker, tile }: Wo
       .sort((a, b) => a.level - b.level)
       .map(({ t }) => t);
   }
-  return tiles.map((t): Order => {
+  const home = tiles.map((t): Order => {
     if (t.id === tile.id) {
       return prospecting ? { kind: "startProspecting", nationId, workerId, tileId: t.id } : { kind: "startDevelopment", nationId, workerId, tileId: t.id };
     }
@@ -144,6 +151,7 @@ function candidateOrders(view: GameState, nationId: string, { worker, tile }: Wo
       ? { kind: "moveAndStartProspecting", nationId, workerId, toTileId: t.id }
       : { kind: "moveAndStartDevelopment", nationId, workerId, toTileId: t.id };
   });
+  return prospecting ? home : [...home, ...heldTileOrders(view, nationId, location)];
 }
 
 /**
@@ -160,7 +168,7 @@ function engineerOrders(view: GameState, nationId: string, workerId: string, sta
   const own = view.map.tiles.flat().filter((t) => t.ownerNationId === nationId);
   if (own.some((t) => t.constructionJob?.kind === "depot")) return [];
   const reserve = upkeepOf(view, nationId) === 0
-    ? developerReserve(own, nationId)
+    ? developerReserve([...own, ...heldTilesOf(view, nationId)], nationId)
     : upkeepReserve(view, nationId, 0, "depot");
   if (treasuryOf(view, nationId) < CONSTRUCTION_COST.depot + reserve) return [];
   const site = bestDepotSite(view, nationId);

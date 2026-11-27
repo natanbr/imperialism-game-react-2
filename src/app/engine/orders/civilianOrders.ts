@@ -3,6 +3,7 @@ import type { GameState } from "@/types/GameState";
 import { canAfford } from "../credit/account";
 import type { Nation } from "@/types/Nation";
 import { MaterialType } from "@/types/Resource";
+import { WorkerType } from "@/types/Workers";
 import { freeWorkersOf } from "../army/armies";
 import type { CivilianOrder, ValidationResult } from "./Order";
 import { findWorker, hasMovedThisTurn, isWorkerBusy, owns } from "./queries";
@@ -30,6 +31,8 @@ export function validateCivilianOrder(state: GameState, nation: Nation, order: C
   const actor = findWorker(state, order.workerId);
   if (!actor) return { ok: false, reason: "unknown-worker" };
   if (actor.worker.nationId !== nation.id) return { ok: false, reason: "not-owner" };
+  // FR-629: the Developer is a diplomatic reward with no price, so it cannot be returned to the workforce
+  if (order.kind === "disbandCivilian" && actor.worker.type === WorkerType.Developer) return { ok: false, reason: "wrong-worker-type" };
   if (order.kind === "cancelDisbandCivilian") return actor.worker.pendingDisband ? { ok: true } : { ok: false, reason: "invalid-target" };
   if (isWorkerBusy(actor.tile, actor.worker)) return { ok: false, reason: "worker-busy" };
   if (hasMovedThisTurn(actor.worker)) return { ok: false, reason: "worker-moved" };
