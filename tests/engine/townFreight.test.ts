@@ -153,6 +153,7 @@ describe('FR-621/622 shared town freight through the real turn phases', () => {
     expect(receipts(result)).toEqual(expectedReceipts(1, 0, 0, 0, 0));
   });
 
+  // FR-627/FR-628 (Task 60): explicit targets fabric 1 -> 1, lumber 4 -> 2, furniture 2 -> 1; the old planner asked for both towns' whole output.
   it('FR-628 gives West its Furniture before reserving a fourth car for East’s Lumber', () => {
     const state = deepFreeze(beforeUpgrade(4, 'scripted'));
     const orders = scriptedPlayer(state, N1).filter(o => o.kind === 'setTransportAllocations');
