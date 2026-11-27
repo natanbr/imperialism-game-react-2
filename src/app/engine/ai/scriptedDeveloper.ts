@@ -93,10 +93,12 @@ export interface LandCandidate {
  * FR-638 (inferred): what the nation keeps before a purchase: its cash reserve (FR-454) or the upkeep reserve of its
  * garrison (FR-213), and either the embassy it saves for (FR-542) or the grants its influence plan will still give before
  * the next Council meeting (FR-490, `grantSaving`); never both, as a grant needs the embassy that one is saved for. This
- * turn's grant and war plans were made before the Developer plans.
+ * turn's embassy, grant and war plans were made before the Developer plans, so both read the record its own diplomacy of
+ * this turn leaves (`diplomacyAfterThisTurn`): an embassy paid this turn is not saved for again.
  */
 export const purchaseReserve = (state: GameState, nationId: NationId): number =>
-  Math.max(cashReserve(state, nationId), upkeepReserve(state, nationId)) + Math.max(embassySaving(state, nationId), grantSaving(state, nationId));
+  Math.max(cashReserve(state, nationId), upkeepReserve(state, nationId))
+  + Math.max(embassySaving(state, nationId, diplomacyAfterThisTurn(state, nationId)), grantSaving(state, nationId));
 
 /** The nation's idle improvers: Available, at no job this turn. The Developer plans after them (scriptedPlayer). */
 const idleImprovers = (state: GameState, nationId: NationId): Worker[] =>

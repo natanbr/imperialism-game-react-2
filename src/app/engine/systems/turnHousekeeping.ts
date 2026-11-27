@@ -15,14 +15,12 @@ export const resetWorkers: TurnSystem = (state: GameState): GameState => ({
         if (tile.workers.length === 0) return tile;
         const workers = tile.workers.map((w: Worker): Worker => {
           const isWorking = holdsJob(tile, w.id);
-          const reset: Worker = {
+          return {
             ...w,
             justMoved: false,
             previousTileId: undefined,
             status: isWorking ? WorkerStatus.Working : WorkerStatus.Available,
           };
-          delete reset.previousIndex;
-          return reset;
         });
         return { ...tile, workers };
       })

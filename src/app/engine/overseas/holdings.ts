@@ -119,7 +119,6 @@ export function sendCiviliansHome(state: GameState, homeless: readonly Worker[])
     if (!capital) continue;
     const back: Worker = { ...w, status: WorkerStatus.Available, justMoved: false, assignedTileId: capital };
     delete back.previousTileId;
-    delete back.previousIndex;
     arriving.set(capital, [...(arriving.get(capital) ?? []), back]);
   }
   if (arriving.size === 0) return state;

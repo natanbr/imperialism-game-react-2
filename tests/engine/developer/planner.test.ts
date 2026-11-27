@@ -162,8 +162,9 @@ describe('FR-638 the Developer buys the tile with the shortest payback', () => {
     // Testland's own colony Arvelia keeps its Minor Nation land and needs no embassy (FR-631). It holds no embassy, so
     // its influence plan wants one in Sundmark, at 30 points with its consulate, before the turn-20 meeting (FR-542).
     const colony = (s: GameState): GameState => ({ ...s, minorNations: s.minorNations.map(m => (m.id === ARVELIA ? { ...m, colonyOf: N1 } : m)) });
-    const start = deepFreeze(setPair(setPair(colony(testland(14, 60, 9500)), N1, ARVELIA, { consulates: [], embassies: [] }),
+    const courting = (cash: number) => deepFreeze(setPair(setPair(colony(testland(14, 60, cash)), N1, ARVELIA, { consulates: [], embassies: [] }),
       N1, SUNDMARK, { points: 30, consulates: [N1], embassies: [] }));
+    const start = courting(9500);
     const proposal: Order = { kind: 'proposeOverture', nationId: N1, overture: 'embassy', targetId: SUNDMARK };
     const base = Math.max(cashReserve(start, N1), upkeepReserve(start, N1));
     expect(base).toBe(2500);
@@ -171,10 +172,16 @@ describe('FR-638 the Developer buys the tile with the shortest payback', () => {
     const paid = tryApplyOrder(start, proposal);
     expect(paid.result).toEqual({ ok: true });
     expect(treasury(paid.state, N1)).toBe(4500);
-    // Its own diplomacy of this turn establishes the embassy: no embassy and no grant left to keep (red before: $7,500)
+    // Its own diplomacy of this turn establishes the embassy: no embassy and no grant left to keep (red before: $7,500).
+    // The $4,500 leaves exactly the $2,000 for Arvelia's coal; a dollar less buys nothing.
     expect(purchaseReserve(paid.state, N1)).toBe(base);
     expect(developerPlan(paid.state)[0]).toEqual(buy(COAL));
-    const orders = scriptedPlayer(start, N1);
+    expect(developerPlan(setTreasury(paid.state, N1, 4499))).toEqual([]);
+    // The whole plan: at $9,500 its other Orders of the turn (a consulate, freight, a depot, jobs) spend the rest before
+    // the Developer plans (it plans last). At $15,000 the Developer plans on $6,300, which buys the coal after a $2,500
+    // reserve and bought nothing after the $7,500 one.
+    expect(scriptedPlayer(start, N1)).toContainEqual(proposal);
+    const orders = scriptedPlayer(courting(15_000), N1);
     expect(orders).toContainEqual(proposal);
     expect(purchases(orders)).toEqual([buy(COAL)]);
   });

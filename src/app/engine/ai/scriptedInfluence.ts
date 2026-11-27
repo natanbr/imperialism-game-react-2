@@ -97,22 +97,25 @@ function councilAhead(state: GameState, nationId: NationId): { meeting: number; 
  * lowest id) it holds a consulate in (FR-162). Not for the first meeting: a minor at the start's 30 points (FR-151) cannot
  * reach a vote's 50 by then with a pact and the grants (30 + 10 + 4 x 2 = 48), and an embassy on turn 7 took half of a
  * scripted Testland's start treasury: in 24 both-scripted games 3 then lost regiments for want of pay, none without.
+ * The meeting and its nominees come from `state`; the embassies and candidates from `record`, by default the same.
  */
-function wantedEmbassy(state: GameState, nationId: NationId): MinorNationId | undefined {
+function wantedEmbassy(state: GameState, nationId: NationId, record: GameState = state): MinorNationId | undefined {
   const ahead = councilAhead(state, nationId);
   if (ahead === undefined || ahead.meeting <= COUNCIL.firstTurn) return undefined;
-  if (state.minorNations.some((m) => relationOf(state, nationId, m.id)?.embassies.includes(nationId))) return undefined;
-  return embassyCandidates(state, nationId, ahead.rivalId)
+  if (record.minorNations.some((m) => relationOf(record, nationId, m.id)?.embassies.includes(nationId))) return undefined;
+  return embassyCandidates(record, nationId, ahead.rivalId)
     .find((c) => c.pair.consulates.includes(nationId))?.id;
 }
 
 /**
  * FR-542: the cash the campaign recruits (scriptedArmy.ts `wantedRegiment`) and the training (economy.ts) leave for the
  * embassy while one is wanted: its $5,000, else 0. Without it the embassy waited for a turn with $5,000 spare, which came
- * on turns 26 to 30, after the war on the player began and froze the treasury at its upkeep reserve.
+ * on turns 26 to 30, after the war on the player began and froze the treasury at its upkeep reserve. FR-638: a land
+ * purchase passes the `record` its own diplomacy of this turn leaves (`diplomacyAfterThisTurn`), as `grantSaving` reads,
+ * so an embassy it paid for this turn is not saved for again.
  */
-export const embassySaving = (state: GameState, nationId: NationId): number =>
-  wantedEmbassy(state, nationId) === undefined ? 0 : OVERTURE_COST.embassy;
+export const embassySaving = (state: GameState, nationId: NationId, record: GameState = state): number =>
+  wantedEmbassy(state, nationId, record) === undefined ? 0 : OVERTURE_COST.embassy;
 
 /** FR-490: the minor a grant goes to on a grant turn: the first of `candidates` from `fromPoints` it holds an embassy in. */
 const grantTarget = (state: GameState, nationId: NationId, rivalId: NationId): Candidate | undefined =>
