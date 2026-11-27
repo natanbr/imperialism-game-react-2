@@ -16,7 +16,7 @@ import { useGameStore, type TurnReport } from '@/store/rootStore';
 import { newGame, type GameEvent, type Order } from '@/engine';
 import { dealBook } from '@/engine/market/dealBook';
 import { clickCursors } from '@/hooks/tileClickOrders';
-import { cancelQuestion, holdingView } from '@/components/tileSiteText';
+import { buyLandOffer, cancelQuestion, holdingView, jobOffers, refusalDetail } from '@/components/tileSiteText';
 import { dealBookView } from '@/components/market/dealBookView';
 import { nationMark } from '@/components/nationMark';
 import { newsLines, tileLabel } from '@/components/gameText';
@@ -236,6 +236,52 @@ describe('FR-639 Buy land with the Developer selected', () => {
       keep: 'Keep buying',
       orders: [cancel, cancel],
     });
+  });
+});
+
+describe('FR-639 FR-640 an unsurveyed tile hides what lies under it (Codex task 62 finding 3)', () => {
+  const stable = (html: string) => html.replace(/«r[0-9a-z]+»|:r[0-9a-z]+:/g, 'id').replace(/\b(flag|ground)-r[0-9a-z]+/g, '$1-id');
+  /** Arvelia's coal tile 12-3 with nothing under it, or with a seam not yet prospected: the same unsurveyed hills. */
+  const site = (resource?: { type: ResourceType }) =>
+    setTile(world(), COAL, { prospected: false, resource: resource && { type: resource.type, level: 0, discovered: false } });
+  const order: Order = { kind: 'buyLand', nationId: N1, workerId: OUR_DEVELOPER, tileId: COAL };
+
+  /** The complete offer, from the Developer standing elsewhere and on the tile, its map line, and what the panel shows and says. */
+  function seen(game: GameState) {
+    const elsewhere = tileAt(game, capitalOf(game, N1)).workers.find(w => w.id === OUR_DEVELOPER)!;
+    const standing = place(setTile(game, capitalOf(game, N1), { workers: tileAt(game, capitalOf(game, N1)).workers.filter(w => w.id !== OUR_DEVELOPER) }),
+      COAL, developer(OUR_DEVELOPER, N1, COAL));
+    const views: Record<string, unknown> = {
+      offer: buyLandOffer(game, N1, elsewhere, tileAt(game, COAL)),
+      onTile: jobOffers(standing, N1, tileAt(standing, COAL).workers.find(w => w.id === OUR_DEVELOPER)!, tileAt(standing, COAL)),
+      mapLine: refusalDetail(game, order, 'invalid-target'),
+    };
+    for (const [key, state] of [['elsewhere', game], ['standing', standing]] as const) {
+      show(state, { selectedWorkerId: OUR_DEVELOPER, selectedTileId: COAL });
+      const { container, unmount } = render(<Home />);
+      views[`${key} panel`] = stable(panel().outerHTML);
+      views[`${key} names`] = [...container.querySelectorAll('[aria-label],[aria-describedby]')]
+        .map(el => `${el.getAttribute('aria-label') ?? ''}#${el.getAttribute('aria-describedby') ? document.getElementById(el.getAttribute('aria-describedby')!)?.textContent : ''}`)
+        .join('|');
+      unmount();
+    }
+    return views;
+  }
+
+  it('FR-639 the offer, its price and refusal, the map line and the accessible text are the same over hidden coal, hidden gems and nothing', () => {
+    const empty = seen(site());
+    for (const hidden of [ResourceType.Coal, ResourceType.Gems]) {
+      const views = seen(site({ type: hidden }));
+      for (const key of Object.keys(empty)) expect({ hidden, key, view: views[key] }).toEqual({ hidden, key, view: empty[key] });
+    }
+    // The Resource line reads "Not yet prospected" for each, and so does the refusal
+    expect(empty.offer).toEqual({ name: 'Buy land', order, refusal: 'No resource found here yet: nothing to buy.' });
+    expect(empty.mapLine).toBe('No resource found here yet: nothing to buy.');
+    // Surveyed and empty, the tile says so; a found seam has its price
+    expect(buyLandOffer(setTile(site(), COAL, { prospected: true }), N1, developer(OUR_DEVELOPER, N1, capitalOf(world(), N1)), tileAt(setTile(site(), COAL, { prospected: true }), COAL)))
+      .toEqual({ name: 'Buy land', order, refusal: 'Nothing here to buy.' });
+    expect(buyLandOffer(world(), N1, developer(OUR_DEVELOPER, N1, capitalOf(world(), N1)), tileAt(world(), COAL)))
+      .toEqual({ name: 'Buy land', order, cost: { price: 2320, turns: 1 } });
   });
 });
 

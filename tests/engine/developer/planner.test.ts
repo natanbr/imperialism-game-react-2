@@ -128,8 +128,9 @@ describe('FR-638 the Developer buys the tile with the shortest payback', () => {
   });
 
   it('FR-638 FR-490 it keeps the grants its influence plan will give before the next meeting, one for each grant turn still to come', () => {
-    // Sundmark at 45 points with Testland's embassy takes a $1,000 grant on each of turns 16 to 19 before the turn-20 meeting
-    const courted = (turn: number) => embassy(testland(turn), N1, 45, SUNDMARK);
+    // Sundmark at 41 points with Testland's embassy takes a $1,000 grant (+2 points) on each of turns 16 to 19 before the
+    // turn-20 meeting, staying within the grant band (40 to 49) to the last
+    const courted = (turn: number) => embassy(testland(turn), N1, 41, SUNDMARK);
     const kept = (turn: number) => purchaseReserve(courted(turn), N1) - purchaseReserve(testland(turn), N1);
     expect(scriptedPlayer(courted(16), N1).filter(o => o.kind === 'giveGrant'))
       .toEqual([{ kind: 'giveGrant', nationId: N1, targetId: SUNDMARK, amount: 1000, locked: false }]);
@@ -142,6 +143,62 @@ describe('FR-638 the Developer buys the tile with the shortest payback', () => {
     expect(reserve).toBe(Math.max(cashReserve(at(0), N1), upkeepReserve(at(0), N1)) + 4000);
     expect((developerPlan(at(2000 + reserve)))[0]).toEqual(buy(TIMBER));
     expect(developerPlan(at(2000 + reserve - 1))).toEqual([]);
+  });
+
+  it('FR-638 FR-490 the grants kept are those its targets can still take before they leave the band (Codex task 62 finding 4)', () => {
+    const courted = (turn: number, points: number) => embassy(testland(turn), N1, points, SUNDMARK);
+    const grant: Order = { kind: 'giveGrant', nationId: N1, targetId: SUNDMARK, amount: 1000, locked: false };
+    const base = (state: GameState) => Math.max(cashReserve(state, N1), upkeepReserve(state, N1));
+    // At 45 points the grants of turns 16, 17 and 18 take Sundmark to 51, past the band: no grant on turn 19
+    expect(purchaseReserve(courted(15, 45), N1) - base(courted(15, 45))).toBe(3000);
+    // On turn 16 at 49 points its plan gives the grant, which takes Sundmark to 51: no grant is left to keep
+    expect(scriptedPlayer(courted(16, 49), N1).filter(o => o.kind === 'giveGrant')).toEqual([grant]);
+    const granted = tryApplyOrder(courted(16, 49), grant);
+    expect(granted.result).toEqual({ ok: true });
+    expect(purchaseReserve(granted.state, N1)).toBe(base(granted.state));
+  });
+
+  it('FR-638 FR-636 a war it declares this turn stops the share: no purchase or held-tile job in that Minor Nation (Codex task 62 finding 4)', () => {
+    const declare: Order = { kind: 'proposeOverture', nationId: N1, overture: 'war', targetId: ARVELIA };
+    const open = embassy(hold(testland(14), '10-4'), N1, 60, SUNDMARK);
+    const war = tryApplyOrder(open, declare);
+    expect(war.result).toEqual({ ok: true });
+    const arvelian = (orders: Order[]) => orders.filter(o => 'tileId' in o && ['12-3', '10-4', '12-4', '11-5', '12-5', '10-3', '11-3', '13-3', '13-4', '13-5'].includes(o.tileId));
+    expect(arvelian(developerPlan(open)).length).toBeGreaterThan(0);
+    expect(arvelian(developerPlan(war.state))).toEqual([]);
+    expect(developerPlan(war.state)[0]).toEqual(buy('12-10'));
+    expect(heldTileOrders(open, N1, locate(open, miner(N1))!)).toEqual([{ kind: 'moveAndStartDevelopment', nationId: N1, workerId: miner(N1), toTileId: '10-4' }]);
+    expect(heldTileOrders(war.state, N1, locate(war.state, miner(N1))!)).toEqual([]);
+    // The settlement rule stays: a war declared this turn begins next turn, so the purchase is still valid
+    expect(validateOrder(war.state, buy(COAL))).toEqual({ ok: true });
+  });
+
+  it('FR-638 a held seam whose job does not pay keeps no Miner from a seam in another Minor Nation (Codex task 62 finding 6)', () => {
+    // Testland's unopened holding in Arvelia, which boycotts it: no share, so its Miner starts no job there
+    const open = embassy(testland(14), N1, 60, SUNDMARK);
+    const blocked = setPair(hold(open, '10-4'), N1, ARVELIA, { boycotts: [ARVELIA] });
+    expect(heldTileOrders(blocked, N1, locate(blocked, miner(N1))!)).toEqual([]);
+    expect(developerPlan(blocked).slice(0, 2)).toEqual([buy('12-10'), buy('12-11')]);
+    // A held seam that pays keeps one Miner; a second idle Miner still opens a new seam
+    const waiting = hold(open, '10-4');
+    expect(developerPlan(waiting)[0]).toEqual(buy(TIMBER));
+    const capital = capitalOf(waiting, N1);
+    const second: Worker = { ...locate(waiting, miner(N1))!.worker, id: 'worker-nation-1-second-miner', assignedTileId: capital };
+    const two = setTile(waiting, capital, { workers: [...tileAt(waiting, capital).workers, second] });
+    expect(developerPlan(two)[0]).toEqual(buy(COAL));
+  });
+
+  it('FR-638 FR-636 a tile is valued by what it adds to the rounded payment for its holder, Minor Nation and commodity (Codex task 62 finding 7)', () => {
+    // Timber at $50 and 75%: one tile pays floor(37.5) = $37, two pay $75, so a second adds $38. On turn 14 (27 paid End
+    // Turns) the $1,000 tile returns 27 x $38 = $1,026 beside a held one, and 27 x $37 = $999 alone
+    const cheap = (state: GameState) => busy(setPrice(state, ResourceType.Timber, 50), miner(N1));
+    expect(developerPlan(cheap(testland(14)))).not.toContainEqual(buy(TIMBER));
+    expect(developerPlan(cheap(hold(testland(14), '11-3')))).toContainEqual(buy(TIMBER));
+    // Coal at $51 and 75%: level 1 pays floor(76.5) = $76 and level 2 $153, so the $1,000 level-2 job adds $77. Ordered on
+    // turn 26 it pays from the End Turn of turn 28: 13 x $77 = $1,001
+    const mine = (turn: number) => setTechnologies(hold(setPrice(testland(turn), ResourceType.Coal, 51), COAL, N1, 1), N1, 'squareSetTimbering');
+    expect(heldTileOrders(mine(26), N1, locate(mine(26), miner(N1))!)).toEqual([{ kind: 'moveAndStartDevelopment', nationId: N1, workerId: miner(N1), toTileId: COAL }]);
+    expect(heldTileOrders(mine(27), N1, locate(mine(27), miner(N1))!)).toEqual([]);
   });
 
   it('FR-638 an oil tile needs an idle Driller with Oil Drilling', () => {
