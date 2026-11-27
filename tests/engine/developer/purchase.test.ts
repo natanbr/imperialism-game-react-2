@@ -305,33 +305,46 @@ describe('FR-632 the land purchase Order and its price', () => {
     expect(landEvents(events)).toEqual([]);
   });
 
-  it('FR-632 cancelling the purchase and its move puts the Developer back in its place in the stack, ahead of the civilian behind it', () => {
-    // Codex task 62 finding 8: the undone move appended the Developer after the Prospector on the capital tile
+  it('FR-632 FR-031 cancelling the purchase and its move restores all but the stack place: the Developer comes back last, as every undone move does', () => {
+    // Codex task 62 finding 8 asked for its old place. Keeping it (Worker.previousIndex) changed the move and the cancel
+    // under every rules revision, so a genuine Two islands save of main 521a7b4 replayed differently (Codex task 63
+    // findings 1 and 2). Main's rule stands: an undone move puts the civilian last on its tile, in the order undone. Keeping
+    // its place is deferred, the owner to decide (FR-632).
     const s = base();
     const capital = capitalOf(s, N1);
     const others = tileAt(s, capital).workers.filter(w => w.id !== developer(N1));
     const dev = locate(s, developer(N1))!.worker;
-    const behind = others.findIndex(w => w.id === civilian(N1, PROSPECTOR));
+    const prospector = civilian(N1, PROSPECTOR);
+    const behind = others.findIndex(w => w.id === prospector);
     expect(behind).toBeGreaterThanOrEqual(0);
-    const stack = [...others.slice(0, behind), dev, ...others.slice(behind)];
-    const start = deepFreeze(setTile(s, capital, { workers: stack }));
+    const start = deepFreeze(setTile(s, capital, { workers: [...others.slice(0, behind), dev, ...others.slice(behind)] }));
     const ids = (state: GameState) => tileAt(state, capital).workers.map(w => w.id);
+    const lastOnCapital = (...last: string[]) => setTile(start, capital, {
+      workers: [...tileAt(start, capital).workers.filter(w => !last.includes(w.id)), ...last.map(id => locate(start, id)!.worker)],
+    });
 
-    const cancel: Order = { kind: 'cancelWorkerAction', nationId: N1, workerId: developer(N1), tileId: TIMBER };
+    const cancel = (workerId: string, tileId: string): Order => ({ kind: 'cancelWorkerAction', nationId: N1, workerId, tileId });
     const bought = order(start, buy(TIMBER));
-    const restored = order(order(bought, cancel), cancel);
-    expect(ids(restored)).toEqual(ids(start));
+    const restored = order(order(bought, cancel(developer(N1), TIMBER)), cancel(developer(N1), TIMBER));
     expect(treasury(restored, N1)).toBe(50_000);
     expect(restored.intents).toEqual([]);
-    expect(restored).toEqual(start);
-    expect(JSON.stringify(restored)).toBe(JSON.stringify(start));
+    expect(ids(restored)).toEqual([...others.map(w => w.id), developer(N1)]);
+    expect(JSON.stringify(restored)).toBe(JSON.stringify(lastOnCapital(developer(N1))));
 
-    // The same for a plain move of another civilian with one behind it (FR-031)
-    const prospector = civilian(N1, PROSPECTOR);
-    const moved = order(start, move(prospector, TESTLAND_FOREST));
-    const back = order(moved, { kind: 'cancelWorkerAction', nationId: N1, workerId: prospector, tileId: TESTLAND_FOREST });
-    expect(ids(back)).toEqual(ids(start));
-    expect(JSON.stringify(back)).toBe(JSON.stringify(start));
+    // The same for a plain move of another civilian (FR-031)
+    const back = order(order(start, move(prospector, TESTLAND_FOREST)), cancel(prospector, TESTLAND_FOREST));
+    expect(JSON.stringify(back)).toBe(JSON.stringify(lastOnCapital(prospector)));
+
+    // Codex task 63 finding 2: buy, move the Prospector, cancel the purchase, the Developer's move, then the Prospector's
+    const both = [buy(TIMBER), move(prospector, TESTLAND_FOREST), cancel(developer(N1), TIMBER), cancel(developer(N1), TIMBER),
+      cancel(prospector, TESTLAND_FOREST)].reduce(order, start);
+    expect(treasury(both, N1)).toBe(50_000);
+    expect(both.intents).toEqual([]);
+    expect(JSON.stringify(both)).toBe(JSON.stringify(lastOnCapital(developer(N1), prospector)));
+    // Undone the other way round, they come back in that order
+    const reversed = [buy(TIMBER), move(prospector, TESTLAND_FOREST), cancel(prospector, TESTLAND_FOREST), cancel(developer(N1), TIMBER),
+      cancel(developer(N1), TIMBER)].reduce(order, start);
+    expect(JSON.stringify(reversed)).toBe(JSON.stringify(lastOnCapital(prospector, developer(N1))));
   });
 
   it('FR-632 the price recorded at order time is the one charged, and the one refunded', async () => {

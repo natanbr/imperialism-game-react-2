@@ -4,6 +4,7 @@
 // Two islands save with one Order. The M18i capture was written by main 521a7b4 with the same recipe (continent, two
 // accepted Orders); it matches the M18h one except its rules marker, since towns-first freight changes nothing by turn 7.
 // The M18i continent seed 8 capture is main 521a7b4 after 38 idle End Turns (sha256 of the JSON 005f669b…48b13ba).
+// The two Two islands seed 1 captures are main 521a7b4 too, with a moved and a cancelled Prospector (Codex task 63).
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -183,6 +184,48 @@ it('FR-641 a genuine Two islands save keeps its replay boundary and the m18d rev
   expect(after.game.rulesRevision).toBe('m18d');
   expect(after.replayBoundary).toBeUndefined();
   expect(load(serializeSave(after)).replayBoundary).toBeUndefined();
+});
+
+// Written by main 521a7b4 on Two islands seed 1 (the app's store with world 'two-islands', saveOf at the Unix epoch,
+// serializeSave): on turn 2 the Prospector worker-nation-1-1 moved from the capital 2-9 to 3-1, saved with the move
+// pending, then the move cancelled and saved again. Two islands keeps the m18d rules, so Continue installs no checkpoint:
+// the saved log itself must replay. On main an undone move puts the civilian last on its tile.
+const TWO_ISLANDS_MOVE = 'm18i-two-islands-seed-1-turn-2-move.json.gz';
+const TWO_ISLANDS_CANCELLED = 'm18i-two-islands-seed-1-turn-2-cancelled.json.gz';
+const sha256 = (text: string) => createHash('sha256').update(text).digest('hex');
+const capitalStack = (game: GameState) => tileAt(game, '2-9').workers.map(w => w.id);
+
+it.each([
+  [TWO_ISLANDS_MOVE, '922d1d32b8e756d10665392800570e4587f50d0403964841753b812894b15521', 1],
+  [TWO_ISLANDS_CANCELLED, 'e7d16b34c28e2384ed78106d2080061a021b10ef559c8a63d4d5237c40f0775b', 2],
+] as const)('FR-641 FR-642 the genuine Two islands save %s replays and continues byte for byte, with no boundary (Codex task 63 finding 1)', (file, hash, orders) => {
+  const raw = fixture(file);
+  expect(sha256(raw)).toBe(hash);
+  const original: SavedGame = JSON.parse(raw);
+  expect([original.version, original.game.turn, original.game.rulesRevision, original.replayBoundary, original.ordersThisTurn.length])
+    .toEqual([1, 2, 'm18d', undefined, orders]);
+  // Red before the fix: the replayed move recorded `previousIndex: 0`, and the replayed cancel put the Prospector first
+  expect(JSON.stringify(replaySession(original))).toBe(JSON.stringify(original.game));
+
+  const imported = load(raw);
+  expect(imported.replayBoundary).toBeUndefined();
+  const live = createGameStore();
+  live.getState().restoreGame(imported);
+  const resaved = serializeSave(saveOf(live.getState(), new Date(0)));
+  expect(resaved).toBe(raw);
+  expect(JSON.stringify(replaySession(load(resaved)))).toBe(JSON.stringify(original.game));
+  continueBeside(live, 2);
+  const after = saveOf(live.getState());
+  expect([after.game.turn, after.game.rulesRevision, after.replayBoundary]).toEqual([4, 'm18d', undefined]);
+});
+
+it('FR-641 FR-031 cancelling the genuine pending Two islands move gives main\'s cancelled save byte for byte (Codex task 63 finding 1)', () => {
+  const cancelled = fixture(TWO_ISLANDS_CANCELLED);
+  expect(capitalStack(JSON.parse(cancelled).game)).toEqual([2, 3, 4, 5, 6, 7, 1].map(n => `worker-nation-1-${n}`));
+  const live = createGameStore();
+  live.getState().restoreGame(load(fixture(TWO_ISLANDS_MOVE)));
+  expect(live.getState().submitOrder({ kind: 'cancelWorkerAction', nationId: N1, workerId: 'worker-nation-1-1', tileId: '3-1' })).toEqual({ ok: true });
+  expect(serializeSave(saveOf(live.getState(), new Date(0)))).toBe(cancelled);
 });
 
 const developer = (nationId: string) => `developer-${nationId}-1`;

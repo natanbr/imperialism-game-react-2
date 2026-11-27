@@ -158,6 +158,27 @@ describe('FR-638 the Developer buys the tile with the shortest payback', () => {
     expect(purchaseReserve(granted.state, N1)).toBe(base(granted.state));
   });
 
+  it('FR-638 FR-542 an embassy it pays for this turn is not kept a second time from a purchase (Codex task 63 finding 3)', () => {
+    // Testland's own colony Arvelia keeps its Minor Nation land and needs no embassy (FR-631). It holds no embassy, so
+    // its influence plan wants one in Sundmark, at 30 points with its consulate, before the turn-20 meeting (FR-542).
+    const colony = (s: GameState): GameState => ({ ...s, minorNations: s.minorNations.map(m => (m.id === ARVELIA ? { ...m, colonyOf: N1 } : m)) });
+    const start = deepFreeze(setPair(setPair(colony(testland(14, 60, 9500)), N1, ARVELIA, { consulates: [], embassies: [] }),
+      N1, SUNDMARK, { points: 30, consulates: [N1], embassies: [] }));
+    const proposal: Order = { kind: 'proposeOverture', nationId: N1, overture: 'embassy', targetId: SUNDMARK };
+    const base = Math.max(cashReserve(start, N1), upkeepReserve(start, N1));
+    expect(base).toBe(2500);
+    expect(purchaseReserve(start, N1)).toBe(base + 5000);
+    const paid = tryApplyOrder(start, proposal);
+    expect(paid.result).toEqual({ ok: true });
+    expect(treasury(paid.state, N1)).toBe(4500);
+    // Its own diplomacy of this turn establishes the embassy: no embassy and no grant left to keep (red before: $7,500)
+    expect(purchaseReserve(paid.state, N1)).toBe(base);
+    expect(developerPlan(paid.state)[0]).toEqual(buy(COAL));
+    const orders = scriptedPlayer(start, N1);
+    expect(orders).toContainEqual(proposal);
+    expect(purchases(orders)).toEqual([buy(COAL)]);
+  });
+
   it('FR-638 FR-636 a war it declares this turn stops the share: no purchase or held-tile job in that Minor Nation (Codex task 62 finding 4)', () => {
     const declare: Order = { kind: 'proposeOverture', nationId: N1, overture: 'war', targetId: ARVELIA };
     const open = embassy(hold(testland(14), '10-4'), N1, 60, SUNDMARK);
