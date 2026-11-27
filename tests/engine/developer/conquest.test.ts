@@ -173,6 +173,23 @@ describe('FR-637 a fallen Great Power', () => {
     expect(types.indexOf('nation-fallen')).toBeLessThan(types.indexOf('overseas-land-lost'));
     expect(overseasViolations(state)).toEqual([]);
   });
+
+  it('FR-637 its Developer visiting unheld Minor Nation land is removed too, so the fallen nation keeps no civilian', () => {
+    // Codex task 62 finding 9: the fall visited only the nation's provinces and holdings, so a visitor stayed on the map
+    let s = setPair(setTreasury(continent('partners'), N1, 50_000), N1, ARVELIA, { points: 60, consulates: [N1], embassies: [N1] });
+    s = addDeveloper(s, N1, capitalOf(s, N1)!);
+    s = deepFreeze(ordered(s, { kind: 'moveWorker', nationId: N1, workerId: developer(N1), toTileId: TIMBER }));
+    expect(locate(s, developer(N1))!.tile.id).toBe(TIMBER);
+    expect(s.overseasLand).toBeUndefined();
+    const capital = capitalProvinceOf(s, N1)!.id;
+    const { state, events } = run(s, (x, emit) => fallCapital(takeProvince(x, capital, N2, x.turn, emit), N1, N2, x.turn, emit));
+    expect(events.map(e => e.type)).toContain('nation-fallen');
+    expect(locate(state, developer(N1))).toBeUndefined();
+    expect(state.map.tiles.flat().flatMap(t => t.workers).filter(w => w.nationId === N1)).toEqual([]);
+    expect(tileAt(state, TIMBER).workers).toEqual(tileAt(s, TIMBER).workers.filter(w => w.nationId !== N1));
+    expect(lost(events)).toEqual([]);
+    expect(overseasViolations(state)).toEqual([]);
+  });
 });
 
 describe('FR-637 the world invariants after a holding ends', () => {

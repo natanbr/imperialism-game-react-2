@@ -214,6 +214,24 @@ describe('FR-636 overseas profit', () => {
     }
   });
 
+  it('FR-636 the holder\'s own colony pays 100% while open, and nothing at war (declared this turn or begun) or under a boycott either way', () => {
+    // Codex task 62 finding 5: the colony share returned before the pair's war and boycott were read ($232 under a boycott)
+    const colony = colonyOf(setPair(coalMine(30), N1, ARVELIA, { consulates: [], embassies: [] }), N1);
+    expect(profitsOf(trade(colony).events)).toEqual([profit(ResourceType.Coal, 2, 116, 100, 232)]);
+    const barred: [string, GameState][] = [
+      ['war begun', setPair(colony, N1, ARVELIA, { war: { aggressors: [N1], since: 1 } })],
+      ['war declared this turn', setPair(colony, N1, ARVELIA, { war: { aggressors: [N1], since: 2 } })],
+      ['Testland boycotts', setPair(colony, N1, ARVELIA, { boycotts: [N1] })],
+      ['Arvelia boycotts', setPair(colony, N1, ARVELIA, { boycotts: [ARVELIA] })],
+    ];
+    for (const [label, s] of barred) {
+      const { state, events } = trade(s);
+      expect({ label, profits: profitsOf(events) }).toEqual({ label, profits: [] });
+      expect(treasury(state, N1)).toBe(treasury(s, N1));
+      expect(state.overseasLand?.[COAL]).toEqual(s.overseasLand?.[COAL]);
+    }
+  });
+
   it('FR-636 buying 1 of its own timber at $110 with level 6 costs $110 and returns $82; Valdoria buying it or nobody pays the same $82', () => {
     const own = hold(embassy(setPrice(setTreasury(continent(), N1, 10_000), ResourceType.Timber, 110)), TIMBER);
     const s = ordered(own, buy(N1, ResourceType.Timber, 1));

@@ -155,6 +155,38 @@ describe('FR-631 where the Developer may go and what it may buy', () => {
     expect(validateOrder(own, buy(COAL))).toEqual({ ok: true });
   });
 
+  it('FR-631 FR-633 its own colony closes under a boycott either way and once a war has begun; a war declared this turn still sells', async () => {
+    // Codex task 62 finding 5: the own-colony exemption returned before the pair's war and boycott were read
+    const colonyOf = (state: GameState, owner: string) => ({ ...state, minorNations: state.minorNations.map(m => (m.id === ARVELIA ? { ...m, colonyOf: owner } : m)) });
+    const own = colonyOf(setPair(base(), N1, ARVELIA, { embassies: [], consulates: [] }), N1);
+    const barred: [string, GameState, string][] = [
+      ['Testland boycotts', setPair(own, N1, ARVELIA, { boycotts: [N1] }), 'boycott'],
+      ['Arvelia boycotts', setPair(own, N1, ARVELIA, { boycotts: [ARVELIA] }), 'boycott'],
+      ['war begun', setPair(own, N1, ARVELIA, { war: { aggressors: [N1], since: 1 } }), 'at-war'],
+    ];
+    for (const [label, s, reason] of barred) {
+      expect({ label, move: validateOrder(s, move(developer(N1), COAL)), buy: validateOrder(s, buy(COAL)) })
+        .toEqual({ label, move: { ok: false, reason }, buy: { ok: false, reason } });
+      // A purchase ordered while open is refused and refunded when the bar stands at settlement
+      const pending = order(own, buy(COAL));
+      const cost = 50_000 - treasury(pending, N1)!;
+      expect(cost).toBeGreaterThan(0);
+      const barredPending = { ...s, intents: pending.intents, map: pending.map, nations: pending.nations };
+      const { state, events } = await settle(barredPending);
+      expect({ label, events: landEvents(events) }).toEqual({ label, events: [{
+        type: 'land-purchase-refused', nationId: N1, workerId: developer(N1), tileId: COAL, minorId: ARVELIA, cost, reason,
+      }] });
+      expect(treasury(state, N1)).toBe(50_000);
+    }
+    // A war declared this turn begins next turn (FR-167): the End Turn of the declaration still sells, as outside a colony
+    const declared = setPair(own, N1, ARVELIA, { war: { aggressors: [N1], since: own.turn + 1 } });
+    expect(validateOrder(declared, buy(COAL))).toEqual({ ok: true });
+    const sold = await settle(order(declared, buy(COAL)));
+    expect(landEvents(sold.events).map(e => e.type)).toEqual(['land-purchased']);
+    // Open, it needs no embassy
+    expect(validateOrder(own, buy(COAL))).toEqual({ ok: true });
+  });
+
   it('FR-631 refuses the Minor Nation\'s capital, food, horses, a hidden seam, a held tile and the nation\'s own land', () => {
     const s = base();
     expect(validateOrder(s, buy(MINOR_CAPITAL))).toEqual({ ok: false, reason: 'invalid-site' });
@@ -271,6 +303,35 @@ describe('FR-632 the land purchase Order and its price', () => {
     // A cancelled purchase settles nothing
     const { events } = resolveTurn(cancelled, {});
     expect(landEvents(events)).toEqual([]);
+  });
+
+  it('FR-632 cancelling the purchase and its move puts the Developer back in its place in the stack, ahead of the civilian behind it', () => {
+    // Codex task 62 finding 8: the undone move appended the Developer after the Prospector on the capital tile
+    const s = base();
+    const capital = capitalOf(s, N1);
+    const others = tileAt(s, capital).workers.filter(w => w.id !== developer(N1));
+    const dev = locate(s, developer(N1))!.worker;
+    const behind = others.findIndex(w => w.id === civilian(N1, PROSPECTOR));
+    expect(behind).toBeGreaterThanOrEqual(0);
+    const stack = [...others.slice(0, behind), dev, ...others.slice(behind)];
+    const start = deepFreeze(setTile(s, capital, { workers: stack }));
+    const ids = (state: GameState) => tileAt(state, capital).workers.map(w => w.id);
+
+    const cancel: Order = { kind: 'cancelWorkerAction', nationId: N1, workerId: developer(N1), tileId: TIMBER };
+    const bought = order(start, buy(TIMBER));
+    const restored = order(order(bought, cancel), cancel);
+    expect(ids(restored)).toEqual(ids(start));
+    expect(treasury(restored, N1)).toBe(50_000);
+    expect(restored.intents).toEqual([]);
+    expect(restored).toEqual(start);
+    expect(JSON.stringify(restored)).toBe(JSON.stringify(start));
+
+    // The same for a plain move of another civilian with one behind it (FR-031)
+    const prospector = civilian(N1, PROSPECTOR);
+    const moved = order(start, move(prospector, TESTLAND_FOREST));
+    const back = order(moved, { kind: 'cancelWorkerAction', nationId: N1, workerId: prospector, tileId: TESTLAND_FOREST });
+    expect(ids(back)).toEqual(ids(start));
+    expect(JSON.stringify(back)).toBe(JSON.stringify(start));
   });
 
   it('FR-632 the price recorded at order time is the one charged, and the one refunded', async () => {

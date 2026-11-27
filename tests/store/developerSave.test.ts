@@ -3,6 +3,8 @@
 // with two accepted Orders (a freight allocation and a $500 consulate), on the continent and a Standard Random map, and a
 // Two islands save with one Order. The M18i capture was written by main 521a7b4 with the same recipe (continent, two
 // accepted Orders); it matches the M18h one except its rules marker, since towns-first freight changes nothing by turn 7.
+// The M18i continent seed 8 capture is main 521a7b4 after 38 idle End Turns (sha256 of the JSON 005f669b…48b13ba).
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { gunzipSync } from 'node:zlib';
@@ -11,6 +13,8 @@ import { readSave, saveOf, serializeSave, type SavedGame } from '@/store/persist
 import { createGameStore } from '@/store/rootStore';
 import { replaySession } from '@/store/sessionReplay';
 import { universityCapital } from '@/engine/orders/civilianOrders';
+import { newGame } from '@/engine/newGame';
+import { resolveTurn } from '@/engine/turn/resolveTurn';
 import type { GameState } from '@/types/GameState';
 import { WorkerStatus, WorkerType, type Worker } from '@/types/Workers';
 import { locate, N1, N2, setPair, setTile, setTreasury, tileAt, treasury } from '../engine/fixtures';
@@ -99,6 +103,70 @@ it('FR-641 FR-629 an imported save whose embassy already qualifies gets its Deve
   expect(after.game).not.toHaveProperty('overseasLand');
   expect(after.game.rulesRevision).toBe('m18j');
   expect(after.replayBoundary).toEqual(imported.replayBoundary);
+});
+
+// Written by main 521a7b4 (M18i) after 38 idle human turns on continent seed 8 (the app's store, saveOf at the Unix epoch,
+// serializeSave). Valdoria's embassy in Sundmark stands at 60 points, which the M18j rules reward with a Developer.
+it('FR-641 a genuine M18i campaign replays under its own rules, and its first continued settlement runs the M18j rules', () => {
+  const raw = fixture('m18i-continent-seed-8-turn-39.json.gz');
+  expect(createHash('sha256').update(raw).digest('hex')).toBe('005f669b350c27c34e209263177273643b1dbb03c47a67e30bfd8576348b13ba');
+  const original: SavedGame = JSON.parse(raw);
+  expect(original.version).toBe(1);
+  expect([original.game.turn, original.game.rulesRevision, original.replayBoundary, original.ordersThisTurn]).toEqual([39, 'm18i', undefined, []]);
+  expect(original.game.diplomacy[`${SUNDMARK}|${N2}`]).toMatchObject({ points: 60, embassies: [N2] });
+  expect(developers(original.game)).toEqual([]);
+
+  // Codex task 62 finding 1: replaying the log settled every turn under M18j (`m18j`, `developer-nation-2-38`).
+  // Every logged turn settles under the rules it was played with, so the replay is the saved game.
+  const replayed = replaySession(original);
+  expect(replayed.rulesRevision).toBe('m18i');
+  expect(developers(replayed)).toEqual([]);
+  expect(replayed).toEqual(original.game);
+
+  // Continue: the boundary moves to the saved position, which replays exactly
+  const imported = load(raw);
+  expect(imported.replayBoundary).toEqual({ turn: 39, appliedOrders: 0, checkpoint: original.game });
+  expect(replaySession(imported)).toEqual(original.game);
+
+  // The first live settlement after the import runs the current rules
+  const live = createGameStore();
+  live.getState().restoreGame(imported);
+  continueBeside(live, 1);
+  const after = saveOf(live.getState());
+  expect(after.game.rulesRevision).toBe('m18j');
+  expect(developers(after.game).map(w => w.id)).toEqual([`developer-${N2}-39`]);
+  expect(after.replayBoundary).toEqual(imported.replayBoundary);
+});
+
+it('FR-629 an embassy the human orders this turn counts from the next settlement: store, mid-turn reload and batched End Turn agree', () => {
+  const start = setPair(newGame({ seed: 1, world: 'continent' }), N1, ARVELIA, { points: 65, consulates: [N1], embassies: [] });
+  const embassy = { kind: 'proposeOverture', nationId: N1, overture: 'embassy', targetId: ARVELIA } as const;
+  const testland = (game: GameState) => developers(game).filter(w => w.nationId === N1).map(w => w.id);
+
+  // Batched: the Order passed to the End Turn with the turn's other Orders
+  const batched = resolveTurn(start, { [N1]: [embassy] });
+  expect(batched.state.diplomacy[`${ARVELIA}|${N1}`].embassies).toEqual([N1]);
+  expect(testland(batched.state)).toEqual([]);
+  expect(testland(resolveTurn(batched.state, {}).state)).toEqual([`developer-${N1}-2`]);
+
+  // Codex task 62 finding 2: the store applies the human's Order when submitted, so End Turn granted `developer-nation-1-1`
+  const live = createGameStore({ game: start });
+  live.setState({ replayBoundary: { turn: 1, appliedOrders: 0, checkpoint: start } });
+  expect(live.getState().submitOrder(embassy)).toEqual({ ok: true });
+  const midTurn = load(serializeSave(saveOf(live.getState())));
+  expect(midTurn.ordersThisTurn).toEqual([embassy]);
+  const reloaded = createGameStore();
+  reloaded.getState().restoreGame(midTurn);
+  for (const [label, store] of [['store', live], ['reloaded', reloaded]] as const) {
+    store.getState().advanceTurn();
+    expect({ label, granted: testland(store.getState().game) }).toEqual({ label, granted: [] });
+    expect(store.getState().game.diplomacy[`${ARVELIA}|${N1}`].embassies).toEqual([N1]);
+    store.getState().advanceTurn();
+    expect({ label, granted: testland(store.getState().game) }).toEqual({ label, granted: [`developer-${N1}-2`] });
+    const saved = load(serializeSave(saveOf(store.getState())));
+    expect(replaySession(saved)).toEqual(store.getState().game);
+  }
+  expect(reloaded.getState().game).toEqual(live.getState().game);
 });
 
 it('FR-641 a genuine Two islands save keeps its replay boundary and the m18d revision', () => {
