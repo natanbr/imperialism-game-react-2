@@ -10,6 +10,7 @@ import { useTileClickHandler } from '@/hooks/useTileClickHandler';
 import { civilianArt, resourceMarkArt, tileArt } from './art/inkArt';
 import { prefetchPictures } from './art/prefetch';
 import { tileLabel } from './gameText';
+import { NationFlag } from './NationFlag';
 import { isLandTerrain } from './map/shoreline';
 import {
   TileBase,
@@ -73,6 +74,9 @@ const TileComponentInner: React.FC<TileProps> = ({
     const country = countryOfTile(s.game, tile);
     return country ? countryName(s.game, country) : undefined;
   });
+  // FR-639: the Great Power that holds this Minor Nation tile, public from the settlement of its purchase (FR-640)
+  const holderId = useGameStore((s) => s.game.overseasLand?.[tile.id]?.holderId);
+  const holderName = useGameStore((s) => (holderId ? (s.game.nations.find((n) => n.id === holderId)?.name ?? holderId) : undefined));
   // A minor nation's capital carries its name (FR-153 d)
   const minorCapital = useGameStore((s) => s.game.minorNations.find((m) => m.capitalTileId === tile.id));
   // The other nation whose civilians stand here (FR-108); strings, so the subscription stays cheap
@@ -155,7 +159,7 @@ const TileComponentInner: React.FC<TileProps> = ({
   return (
     <TileBase
       tileId={tile.id}
-      label={fishing ? `${tileLabel(tile, ownerName)}, fishing ground` : tileLabel(tile, ownerName)}
+      label={fishing ? `${tileLabel(tile, ownerName, holderName)}, fishing ground` : tileLabel(tile, ownerName, holderName)}
       description={townMarker?.label}
       fishing={fishing}
       terrain={tile.terrain}
@@ -184,6 +188,13 @@ const TileComponentInner: React.FC<TileProps> = ({
       />
 
       {fortLevel > 0 && <TileFort level={fortLevel} rightTaken={fortRightTaken} />}
+
+      {/* FR-639: the holder's flag in its colour and pattern, drawn inline (no picture file, FR-339); the label names it */}
+      {holderId && (
+        <span className={styles.holdingFlag} data-testid="holding-flag" aria-hidden="true">
+          <NationFlag nationId={holderId} />
+        </span>
+      )}
 
       <TileWorkers
         workers={tile.workers}

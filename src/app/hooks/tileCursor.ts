@@ -4,6 +4,7 @@
 // useTileVisuals, which re-renders a tile when its cursor becomes ready.
 import { CURSOR_ART, artInfoOf, civilianArt } from "@/components/art/inkArt";
 import type { PossibleAction } from "@/types/actions";
+import { WorkerType } from "@/types/Workers";
 
 /** The cursor's size in px; its hotspot is the middle. */
 export const CURSOR_PX = 32;
@@ -30,6 +31,9 @@ export function cursorArtOf(action: CursorAction): string | undefined {
       return action.kind === "rail" ? CURSOR_ART.constructRail : CURSOR_ART.constructFort;
     case "open-construct-modal":
       return CURSOR_ART.constructModal;
+    // FR-639: the Developer's own figure, as a developing civilian's
+    case "buy-land":
+      return civilianArt(WorkerType.Developer);
   }
 }
 

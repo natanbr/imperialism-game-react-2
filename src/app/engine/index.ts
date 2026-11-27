@@ -94,6 +94,7 @@ export {
   type DealBottomLine,
   type DealEntry,
   type DiplomacyCost,
+  type OverseasProfitEntry,
   type RecruitCost,
   type TreasuryChange,
 } from "./market/dealBook";

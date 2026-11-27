@@ -11,6 +11,8 @@ import { WorkerStatus, WorkerType } from '../src/app/types/Workers';
 const N1 = 'nation-1';
 const N2 = 'nation-2';
 const ARVELIA = 'minor-1';
+/** Testland's capital tile, found by `prepare`. */
+let capitalId = '';
 
 function prepare(game: GameState) {
   const pair = game.diplomacy[pairKey(N1, ARVELIA)];
@@ -23,6 +25,7 @@ function prepare(game: GameState) {
   }
   const testland = game.nations.find(n => n.id === N1)!;
   const capital = tiles.find(t => t.cityId === testland.cities[0] && t.ownerNationId === N1)!;
+  capitalId = capital.id;
   capital.workers.push({ id: 'developer-nation-1-1', type: WorkerType.Developer, nationId: N1, assignedTileId: capital.id, efficiency: 100, status: WorkerStatus.Available, justMoved: false });
 }
 
@@ -38,8 +41,12 @@ test('FR-639 FR-640 flags, Tile Info, Buy land, News and the Deal Book\'s Overse
   await expect(tile(page, '11-3')).toHaveAttribute('aria-label', 'Hardwood forest, timber, level 0, owned by Arvelia, held by Testland');
   await expect(tile(page, '13-4').getByTestId('holding-flag')).toBeVisible();
 
-  // Keyboard: Tile Info of the rival's tile by focus and Enter shows only its holder
-  await tile(page, '13-4').focus();
+  // Keyboard (FR-369): from the selected 12-4, the arrow key to the rival's tile, which names its holder, then Enter;
+  // its Tile Info shows only the holder
+  await tile(page, '12-4').click();
+  await tile(page, '12-4').focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator(':focus')).toHaveAttribute('aria-label', /held by Valdoria$/);
   await page.keyboard.press('Enter');
   const tileInfo = page.getByTestId('tile-info');
   await expect(tileInfo.getByTestId('tile-holding')).toHaveText('Held by: Valdoria');
@@ -49,8 +56,9 @@ test('FR-639 FR-640 flags, Tile Info, Buy land, News and the Deal Book\'s Overse
   await tile(page, '10-3').click();
   await expect(tileInfo.getByTestId('tile-for-sale')).toHaveText(/^For sale: \$[\d,]+ \(20 × \$\d+\)1 Timber a turn: \$\d+ at a 75% share$/);
 
-  // Buy land with the Developer: its button on the capital, then the tile, then Spend
-  await page.locator('[data-worker-type="developer"]').click();
+  // Buy land with the Developer: picked in the capital's Tile Info, then the tile, then Spend
+  await tile(page, capitalId).click({ position: { x: 4, y: 4 } });
+  await tileInfo.getByText('developer - available').click();
   await tile(page, '10-3').click();
   const spend = page.getByRole('dialog', { name: /^Spend \$[\d,]+\?$/ });
   await expect(spend).toContainText('Buy 10-3 from Arvelia');
@@ -59,13 +67,13 @@ test('FR-639 FR-640 flags, Tile Info, Buy land, News and the Deal Book\'s Overse
   await tile(page, '10-3').click();
   await expect(tileInfo).toContainText('developer - Buying land');
 
-  // End Turn settles the purchase and pays the profit of 11-3
-  await page.getByRole('button', { name: /End Turn/ }).first().click();
+  // End Turn settles the purchase right after the development phase (FR-633), so its trade phase pays both timber tiles
+  await page.getByRole('button', { name: /Advance Turn/ }).click();
   await expect(page.getByTestId('news-list')).toContainText(/Our Developer bought 10-3 in Arvelia for \$[\d,]+\./);
   await expect(tile(page, '10-3')).toHaveAttribute('aria-label', 'Hardwood forest, timber, level 0, owned by Arvelia, held by Testland');
   await page.getByRole('button', { name: 'Deal Book', exact: true }).click();
   const book = page.getByRole('dialog', { name: /Deal Book/ });
-  await expect(book.getByTestId('overseas-profits')).toContainText(/1 Timber from Arvelia @ \$\d+ × 75%: \$\d+/);
+  await expect(book.getByTestId('overseas-profits')).toHaveText(/^Overseas Profits2 Timber from Arvelia @ \$\d+ × 75%: \$\d+$/);
   await expect(book.getByTestId('treasury')).toContainText('Overseas profits');
   await page.screenshot({ path: info.outputPath('m18j-deal-book-1280.png') });
   await page.keyboard.press('Escape');
@@ -73,7 +81,7 @@ test('FR-639 FR-640 flags, Tile Info, Buy land, News and the Deal Book\'s Overse
   // Phone width: the same views, no horizontal page scroll
   await page.setViewportSize({ width: 390, height: 844 });
   await tile(page, '11-3').click();
-  await expect(tileInfo.getByTestId('tile-holding')).toContainText(/Held by: you, since turn 1.*Last turn's profit: \$\d+ from 1 Timber in Arvelia/);
+  await expect(tileInfo.getByTestId('tile-holding')).toContainText(/Held by: you, since turn 1.*Last turn's profit: \$\d+ from 2 Timber in Arvelia/);
   expect(await noSideScroll(page)).toBe(true);
   await page.screenshot({ path: info.outputPath('m18j-holding-390.png') });
   await page.getByRole('button', { name: 'Deal Book', exact: true }).click();

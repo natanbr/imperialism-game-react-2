@@ -5,7 +5,7 @@ import { Worker } from '@/types/Workers';
 import { PossibleAction } from '@/types/actions';
 import { useGameStore } from '@/store/rootStore';
 import { attackPlanAt } from '@/components/army/attackView';
-import { clickStatusText, moveOrders, notNextToText, spendAskOf, submitFirstAccepted, tileClickOrders } from './tileClickOrders';
+import { clickStatusText, mayEnterOverseas, moveOrders, notNextToText, spendAskOf, submitFirstAccepted, tileClickOrders } from './tileClickOrders';
 
 /**
  * Click handler for a tile. A tile of another country is only selected for viewing (FR-108, FR-155). With a
@@ -69,9 +69,10 @@ export function useTileClickHandler(
     }
 
     // Another country's tile, a Great Power's or a minor nation's, is only viewed (FR-108, FR-155):
-    // no order, so no refusal in the news
+    // no order, so no refusal in the news; save the Minor Nation land the player's civilian may enter (FR-639)
     const country = countryOfTile(game, tile);
-    if (country && country !== activeNationId) {
+    const overseas = selectedWorker?.nationId === activeNationId && mayEnterOverseas(game, selectedWorker, tile);
+    if (country && country !== activeNationId && !overseas) {
       selectTile(tile.id);
       return;
     }

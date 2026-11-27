@@ -222,7 +222,8 @@ export const TERRAIN_TEXT: Record<TerrainType, string> = {
  * The owner is the country the tile belongs to, a Great Power or a minor nation ("owned by Arvelia",
  * FR-155), named by the caller; a tile of nobody is "not owned".
  */
-export function tileLabel(tile: Pick<Tile, "terrain" | "resource" | "ownerNationId">, ownerName: string | undefined): string {
+/** FR-639: a held Minor Nation tile adds its holder after its owner ("..., owned by Arvelia, held by Valdoria"). */
+export function tileLabel(tile: Pick<Tile, "terrain" | "resource" | "ownerNationId">, ownerName: string | undefined, holderName?: string): string {
   if (tile.terrain === TerrainType.Water) return TERRAIN_TEXT[TerrainType.Water];
   const parts = [TERRAIN_TEXT[tile.terrain]];
   const { resource } = tile;
@@ -232,6 +233,7 @@ export function tileLabel(tile: Pick<Tile, "terrain" | "resource" | "ownerNation
   }
   const owner = ownerName ?? tile.ownerNationId;
   parts.push(owner ? `owned by ${owner}` : "not owned");
+  if (holderName) parts.push(`held by ${holderName}`);
   return parts.join(", ");
 }
 
@@ -563,14 +565,15 @@ export function eventText(event: GameEvent, nameOf: (countryId: string) => strin
     case "developer-arrived":
       return `A Developer arrived at ${at(event.tileId)}: our relations with ${nameOf(event.minorId)} earned it.`;
     case "land-purchased":
-      return `Our Developer bought ${at(event.tileId)} from ${nameOf(event.minorId)} for ${money(event.cost)}.`;
+      // A Minor Nation is one province named after it, so its name is the tile's place
+      return `Our Developer bought ${event.tileId} in ${nameOf(event.minorId)} for ${money(event.cost)}.`;
     case "land-purchase-refused":
-      return `${nameOf(event.minorId)} did not sell ${at(event.tileId)}: ${LAND_REFUSAL_TEXT[event.reason]}. ${money(event.cost)} refunded.`;
+      return `${nameOf(event.minorId)} did not sell ${event.tileId}: ${LAND_REFUSAL_TEXT[event.reason]}. ${money(event.cost)} refunded.`;
     // FR-636, FR-639: the holder reads its overseas profit in the Deal Book, not in the news
     case "overseas-profit":
       return null;
     case "overseas-land-lost":
-      return `Our holding at ${at(event.tileId)} in ${nameOf(event.minorId)} ended: ${HOLDING_LOSS_TEXT[event.cause]}${event.byId && event.cause === "conquest" ? ` by ${nameOf(event.byId)}` : ""}.`;
+      return `Our holding at ${event.tileId} in ${nameOf(event.minorId)} ended: ${HOLDING_LOSS_TEXT[event.cause]}${event.byId && event.cause === "conquest" ? ` by ${nameOf(event.byId)}` : ""}.`;
     // FR-297 (M10): a line of no nation; `newsItems` puts it first (FR-306). FR-414: the nominees by votes, most first,
     // ties in standing order (the event keeps the standing order for the Council screen, FR-313)
     case "council-met": {

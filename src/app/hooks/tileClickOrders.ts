@@ -12,14 +12,16 @@ import {
   type ValidationResult,
 } from "@/engine";
 import { areTilesAdjacent } from "@/engine/map/mapHelpers";
-import { findWorker, isRailNode, railOnMoveStart, railSectionStart, tileById } from "@/engine/orders/queries";
+import { DEVELOPMENT_WORKER_TYPES, findWorker, isRailNode, railOnMoveStart, railSectionStart, tileById } from "@/engine/orders/queries";
+import { holderOf, minorLandOf } from "@/engine/overseas/holdings";
 import { REFUSAL_TEXT, refusalText } from "@/components/gameText";
 import { refusalDetail, spendQuestion } from "@/components/tileSiteText";
 import { useGameStore } from "@/store/rootStore";
 import type { PendingSpend } from "@/store/controls/controlsSlice";
 import type { GameState } from "@/types/GameState";
 import type { PossibleAction } from "@/types/actions";
-import { WorkerType } from "@/types/Workers";
+import type { Tile } from "@/types/Tile";
+import { WorkerType, type Worker } from "@/types/Workers";
 import type { CursorAction } from "./tileCursor";
 import { getPossibleAction } from "./useTileActions";
 
@@ -46,6 +48,15 @@ export function moveOrders(state: GameState, nationId: string, workerId: string,
     return [{ kind: "moveAndStartConstruction", nationId, workerId, toTileId, structure: "rail", fromTileId: from.tile.id }, move];
   }
   return [move];
+}
+
+/**
+ * FR-631, FR-634, FR-639: Minor Nation land a click may send the civilian onto: the Developer anywhere there (the engine
+ * checks the embassy and the sale), an improver only onto its nation's held tile. Other foreign land is only viewed.
+ */
+export function mayEnterOverseas(state: GameState, worker: Worker, tile: Tile): boolean {
+  if (!minorLandOf(state, tile)) return false;
+  return worker.type === WorkerType.Developer || (DEVELOPMENT_WORKER_TYPES.includes(worker.type) && holderOf(state, tile.id) === worker.nationId);
 }
 
 /**
@@ -81,6 +92,9 @@ export function tileClickOrders(
         : [{ kind: "moveAndStartConstruction", nationId, workerId, toTileId: tileId, structure: action.kind }, plainMove];
     case "open-construct-modal":
       return sameTile ? [] : moveOrders(state, nationId, workerId, tileId);
+    // FR-639: the purchase, then the plain move onto open Minor Nation land, as for a job (FR-631)
+    case "buy-land":
+      return sameTile ? [{ kind: "buyLand", nationId, workerId, tileId }] : [{ kind: "buyLand", nationId, workerId, tileId }, plainMove];
     default:
       return moveOrders(state, nationId, workerId, tileId);
   }
@@ -182,6 +196,8 @@ function cursorOfOrder(order: Order, action: PossibleAction): CursorAction {
     case "startConstruction":
     case "moveAndStartConstruction":
       return order.structure === "rail" || order.structure === "fort" ? { type: "construct", kind: order.structure } : { type: "open-construct-modal" };
+    case "buyLand":
+      return { type: "buy-land" };
     default:
       return null;
   }
@@ -202,9 +218,9 @@ export function clickCursors(state: GameState, nationId: string, workerId: strin
   if (!at || at.worker.nationId !== nationId) return NO_CURSORS;
   const cursors = new Map<string, CursorAction>();
   for (const tile of state.map.tiles.flat()) {
-    // Another country's tile is only viewed (FR-108, FR-155)
+    // Another country's tile is only viewed (FR-108, FR-155), save the Minor Nation land the civilian may enter (FR-639)
     const country = countryOfTile(state, tile);
-    if (country && country !== nationId) continue;
+    if (country && country !== nationId && !mayEnterOverseas(state, at.worker, tile)) continue;
     const action = getPossibleAction(tile, at.worker, state.map);
     if (action?.type === "open-construct-modal" && at.worker.assignedTileId === tile.id) {
       cursors.set(tile.id, action);

@@ -21,6 +21,8 @@ import { dealBookView } from '@/components/market/dealBookView';
 import { nationMark } from '@/components/nationMark';
 import { newsLines, tileLabel } from '@/components/gameText';
 import type { GameState } from '@/types/GameState';
+import { tryApplyOrder } from '@/engine/orders/apply';
+import { isBuyLandIntent } from '@/engine/overseas/holdings';
 import type { TradeCommodity } from '@/types/Market';
 import { GoodsType, ResourceType } from '@/types/Resource';
 import { WorkerStatus, WorkerType, type Worker } from '@/types/Workers';
@@ -156,7 +158,7 @@ describe('FR-639 Buy land with the Developer selected', () => {
     const { rerender } = render(<Home />);
     const offer = within(panel()).getByTestId('job-offer');
     const button = within(offer).getByRole('button', { name: 'Buy land' });
-    expect(button).toBeEnabled();
+    expect((button as HTMLButtonElement).disabled).toBe(false);
     expect(text(within(offer).getByTestId('job-price'))).toBe('$2,220');
 
     fireEvent.click(button);
@@ -165,14 +167,14 @@ describe('FR-639 Buy land with the Developer selected', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Spend $2,220' }));
     const after = useGameStore.getState().game;
     expect(after.intents.filter(i => i.kind === 'buy-land')).toEqual([
-      { kind: 'buy-land', nationId: N1, targetId: ARVELIA, workerId: OUR_DEVELOPER, tileId: FOR_SALE, cost: 2220 }]);
+      expect.objectContaining({ kind: 'buy-land', nationId: N1, targetId: ARVELIA, workerId: OUR_DEVELOPER, tileId: FOR_SALE, cost: 2220 })]);
     expect(after.nations.find(n => n.id === N1)!.treasury).toBe(game.nations.find(n => n.id === N1)!.treasury - 2220);
 
     // Horses: the offer stays, refused, with the engine's reason
     act(() => useGameStore.setState({ game, selectedWorkerId: OUR_DEVELOPER, selectedTileId: HORSES }));
     rerender(<Home />);
     const refused = within(panel()).getByTestId('job-offer');
-    expect(within(refused).getByRole('button', { name: 'Buy land' })).toBeDisabled();
+    expect((within(refused).getByRole('button', { name: 'Buy land' }) as HTMLButtonElement).disabled).toBe(true);
     expect(text(within(refused).getByTestId('job-reason'))).toBe('Food and horses are never for sale.');
   });
 
@@ -245,7 +247,7 @@ describe('FR-639 the Deal Book\'s Overseas Profits', () => {
     const { rerender } = render(<Home />);
     const page = within(screen.getByRole('dialog', { name: /Deal Book/ })).getByTestId('overseas-profits');
     expect(text(page)).toBe('Overseas Profits 2 Coal from Arvelia @ $116 × 75%: $174 1 Timber from Arvelia @ $111 × 75%: $83');
-    expect(text(within(screen.getByRole('dialog', { name: /Deal Book/ })).getByTestId('treasury'))).toContain('Overseas profits$257');
+    expect(text(within(screen.getByRole('dialog', { name: /Deal Book/ })).getByTestId('treasury'))).toContain('Overseas profits $257');
 
     act(() => useGameStore.setState({ eventLog: [report([profit(N1, 'timber', 1, 111, 83)], { [N1]: { start: 10000, end: 10083 } })] }));
     rerender(<Home />);
@@ -319,12 +321,10 @@ describe('FR-640 a rival\'s private facts change none of the viewer\'s views', (
   const lastTurn = [report([profit(N1, 'timber', 1, 111, 83)], { [N1]: { start: 10000, end: 10083 } })];
 
   it('FR-640 a pending purchase, with its price paid, is not seen', () => {
-    const buying = place(base, RIVAL_DEVELOPER_TILE, developer(THEIR_DEVELOPER, N2, RIVAL_DEVELOPER_TILE, { status: WorkerStatus.Working }));
-    const paid: GameState = {
-      ...buying,
-      nations: buying.nations.map(n => (n.id === N2 ? { ...n, treasury: n.treasury - 2320 } : n)),
-      intents: [...buying.intents, { kind: 'buy-land', nationId: N2, targetId: ARVELIA, workerId: THEIR_DEVELOPER, tileId: RIVAL_DEVELOPER_TILE, cost: 2320 }],
-    };
+    // The engine's own order: the Developer Working, the price charged, the private intent
+    const { state: paid, result } = tryApplyOrder(standing, { kind: 'buyLand', nationId: N2, workerId: THEIR_DEVELOPER, tileId: RIVAL_DEVELOPER_TILE });
+    expect(result).toEqual({ ok: true });
+    expect(paid.intents.filter(isBuyLandIntent).map(i => [i.nationId, i.tileId, i.cost])).toEqual([[N2, RIVAL_DEVELOPER_TILE, 2320]]);
     expectSame(views(paid, lastTurn), views(standing, lastTurn));
   });
 

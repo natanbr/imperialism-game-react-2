@@ -1,6 +1,6 @@
 "use client";
 import React, { useId, useMemo, useRef } from "react";
-import { countryName, dealBook, validateOrder, type DealEntry } from "@/engine";
+import { countryName, dealBook, validateOrder, type DealEntry, type OverseasProfitEntry } from "@/engine";
 import { buyingPower, creditDebt, hasOpenCredit } from "@/engine/credit/account";
 import { CREDIT_FLOOR, CREDIT_HIGH_RATE_PERCENT, CREDIT_LOW_RATE_PERCENT } from "@/engine/credit/definitions";
 import type { Nation } from "@/types/Nation";
@@ -53,6 +53,27 @@ const Page: React.FC<PageProps> = ({ title, entries, lines, none, testId, classN
           {none}
         </p>
       )}
+    </section>
+  );
+};
+
+/** FR-639: the turn's Overseas Profits, a line per Minor Nation and commodity with its goods picture and the minor's flag. */
+const OverseasPage: React.FC<{ entries: OverseasProfitEntry[]; lines: string[] }> = ({ entries, lines }) => {
+  const titleId = useId();
+  return (
+    <section className={`${styles.page} ${styles.wide}`} data-testid="overseas-profits">
+      <h3 id={titleId} className={styles.pageTitle}>
+        Overseas Profits
+      </h3>
+      <ul className={styles.ledger} aria-labelledby={titleId}>
+        {lines.map((line, i) => (
+          <li key={i} className={styles.ledgerLine}>
+            <InkPicture src={goodsArt(entries[i].commodity)} alt="" inline />
+            <NationFlag nationId={entries[i].minorId} />
+            {line}
+          </li>
+        ))}
+      </ul>
     </section>
   );
 };
@@ -165,6 +186,7 @@ export const DealBookModal: React.FC = () => {
           )}
         </div>
       )}
+      {book && view?.overseas && <OverseasPage entries={book.overseasProfits} lines={view.overseas} />}
 
       {view && (!view.empty || view.treasury) && (
         <div className={styles.totals}>
