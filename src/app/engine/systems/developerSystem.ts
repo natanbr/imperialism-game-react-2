@@ -15,10 +15,12 @@ const hasDeveloper = (state: GameState, nationId: string): boolean =>
 
 /**
  * The embassies ordered this turn. This turn's diplomacy phase has already written them into the record, but they
- * are not yet part of a settled position, so they count from the next settlement.
+ * are not yet part of a settled position, so they count from the next settlement. Read from the turn's embassy
+ * intents, which last until the turn is resolved: the store applies a human's Order when it is submitted, so End
+ * Turn's accepted Orders hold only the computer's.
  */
-const embassiesOrdered = (ctx: TurnContext): ReadonlySet<string> =>
-  new Set(ctx.orders.flatMap(o => (o.kind === "proposeOverture" && o.overture === "embassy" ? [pairKey(o.nationId, o.targetId)] : [])));
+const embassiesOrdered = (state: GameState, ctx: TurnContext): ReadonlySet<string> =>
+  new Set(state.intents.flatMap(i => (i.kind === "embassy" && i.turn === ctx.turn && i.targetId !== undefined ? [pairKey(i.nationId, i.targetId)] : [])));
 
 /** The first Minor Nation, in state order, whose relation with the nation earns it a Developer. */
 function sponsorOf(state: GameState, nationId: string, ordered: ReadonlySet<string>): MinorNationId | undefined {
@@ -35,7 +37,7 @@ function sponsorOf(state: GameState, nationId: string, ordered: ReadonlySet<stri
  */
 export const developerSystem: TurnSystem = (state, ctx) => {
   if (state.minorNations.length === 0) return state;
-  const ordered = embassiesOrdered(ctx);
+  const ordered = embassiesOrdered(state, ctx);
   const arrivals = new Map<TileId, Worker[]>();
   for (const nation of state.nations) {
     if (hasDeveloper(state, nation.id) || isFallen(state, nation.id)) continue;

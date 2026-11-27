@@ -80,7 +80,7 @@ export interface GameState {
   /** Shared ownership in pre-M16 version-1 saves. readSave migrates it to the individual nations. */
   technologyState?: TechnologyState;
   /** Identifies current play in v1 saves; older saves need a historical replay boundary. */
-  rulesRevision?: "m16.1" | "m18d" | "m18h" | "m18i" | "m18j";
+  rulesRevision?: RulesRevision;
 
   difficulty: Difficulty;
 }
@@ -106,6 +106,14 @@ export interface OverseasHolding {
 export function settlementRevision(state: GameState): "m18j" | "m18d" {
   return state.provinces?.length ? "m18j" : "m18d";
 }
+
+/** The settlement rules a v1 save records, oldest first. */
+export const RULES_REVISIONS = ["m16.1", "m18d", "m18h", "m18i", "m18j"] as const;
+export type RulesRevision = (typeof RULES_REVISIONS)[number];
+
+/** Whether a turn settled under `revision` ran the rules `since` added; undefined is a live settlement, today's rules. */
+export const settlesUnder = (revision: RulesRevision | undefined, since: RulesRevision): boolean =>
+  revision === undefined || RULES_REVISIONS.indexOf(revision) >= RULES_REVISIONS.indexOf(since);
 
 /** The game's level. New games are "normal" unless the player picks "demo", a testing aid (FR-561); the rest are unused. */
 export type Difficulty = "introductory" | "easy" | "normal" | "hard" | "nighOnImpossible" | "demo";

@@ -1,7 +1,7 @@
 import { newGame, resolveTurn, tryApplyOrder, type Order } from "@/engine";
 import { applyCivilianOrder, validateCivilianOrder } from "@/engine/orders/civilianOrders";
 import { cargoHolds, isWarship, shipsOf } from "@/definisions/ships";
-import type { GameState } from "@/types/GameState";
+import type { GameState, RulesRevision } from "@/types/GameState";
 import type { TechnologyState } from "@/types/Technology";
 import type { GameSession } from "./gameSlice";
 
@@ -47,6 +47,16 @@ function applyHumanOrders(state: GameState, orders: readonly Order[], historical
   return state;
 }
 
+/**
+ * FR-641: the rules a logged turn settled under. Turns before a boundary without a checkpoint predate M16.1. Every other
+ * turn, from the start or from the checkpoint, settled under the session's own marker: `readSave` moves the boundary to
+ * the saved position whenever that marker is not this build's, so the live End Turns after an import carry today's.
+ */
+function settledUnder(session: GameSession, turn: number): RulesRevision | undefined {
+  const boundary = session.replayBoundary;
+  return boundary && !boundary.checkpoint && turn < boundary.turn ? "m16.1" : session.game.rulesRevision;
+}
+
 /** Rebuild from the original settings, or the preserved position of a divergent historical campaign. */
 export function replaySession(session: GameSession): GameState {
   const { game, activeNationId, replayBoundary } = session;
@@ -81,7 +91,7 @@ export function replaySession(session: GameSession): GameState {
     } else {
       state = applyHumanOrders(state, human, !!replayBoundary && turn < replayBoundary.turn);
     }
-    if (turn < game.turn) state = resolveTurn(state, computer).state;
+    if (turn < game.turn) state = resolveTurn(state, computer, state.seed, { rulesRevision: settledUnder(session, turn) }).state;
   }
   return state;
 }

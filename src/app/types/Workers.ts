@@ -27,6 +27,11 @@ export interface Worker {
   status: WorkerStatus;
   justMoved: boolean;
   previousTileId?: string;
+  /**
+   * FR-031, FR-632: its place in the stack on `previousTileId` when another civilian stood behind it, so undoing this
+   * turn's move puts it back there. Absent when it was last, and cleared with the move.
+   */
+  previousIndex?: number;
   /** Reserved for return to industry at End Turn (FR-512). */
   pendingDisband?: boolean;
 }

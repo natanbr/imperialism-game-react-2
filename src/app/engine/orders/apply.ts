@@ -166,6 +166,9 @@ function relocate(state: GameState, { worker, tile: from }: WorkerLocation, to: 
     status: WorkerStatus.Moved,
     previousTileId: from.id,
   };
+  const index = from.workers.findIndex((w) => w.id === worker.id);
+  if (index < from.workers.length - 1) moved.previousIndex = index;
+  else delete moved.previousIndex;
   return mapTiles(state, (t) => {
     if (t.id === from.id) return { ...t, workers: t.workers.filter((w) => w.id !== worker.id) };
     if (t.id === to.id) return { ...t, workers: [...t.workers, moved] };
@@ -274,9 +277,12 @@ function cancel(state: GameState, order: CancelWorkerActionOrder): GameState {
     previousTileId: undefined,
     assignedTileId: homeId,
   };
+  delete returned.previousIndex;
   return mapTiles(state, (t) => {
     if (t.id === tile.id) return { ...t, workers: t.workers.filter((w) => w.id !== worker.id) };
-    if (t.id === homeId) return { ...t, workers: [...t.workers, returned] };
-    return t;
+    if (t.id !== homeId) return t;
+    // Back in its place in the stack (FR-632), or last when it was last
+    const at = Math.min(worker.previousIndex ?? t.workers.length, t.workers.length);
+    return { ...t, workers: [...t.workers.slice(0, at), returned, ...t.workers.slice(at)] };
   });
 }

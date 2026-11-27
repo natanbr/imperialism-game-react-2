@@ -50,15 +50,16 @@ export const overseasAmount = (units: number, unitValue: number, sharePercent: n
   Math.floor((units * unitValue * sharePercent) / 100);
 
 /**
- * FR-636: the percent the holder receives from the Minor Nation, or undefined while none is paid: 100 in its own colony;
- * otherwise by its relation level (OVERSEAS_SHARE_BY_LEVEL), and nothing while the two are at war or either boycotts the
- * other. As in the trade phase (FR-185, FR-246), a war declared this turn already counts.
+ * FR-636: the percent the holder receives from the Minor Nation, or undefined while none is paid: nothing while the two
+ * are at war or either boycotts the other, also in its own colony; otherwise 100 in its own colony and by its relation
+ * level elsewhere (OVERSEAS_SHARE_BY_LEVEL). As in the trade phase (FR-185, FR-246), a war declared this turn already
+ * counts.
  */
 export function overseasShare(state: GameState, holderId: NationId, minor: MinorNation): number | undefined {
-  if (minor.colonyOf === holderId) return COLONY_OVERSEAS_SHARE;
   const entry = relationOf(state, holderId, minor.id);
-  if (!entry || entry.war || entry.boycotts.length > 0) return undefined;
-  return OVERSEAS_SHARE_BY_LEVEL[levelOfPoints(entry.points)];
+  if (entry?.war || (entry && entry.boycotts.length > 0)) return undefined;
+  if (minor.colonyOf === holderId) return COLONY_OVERSEAS_SHARE;
+  return entry && OVERSEAS_SHARE_BY_LEVEL[levelOfPoints(entry.points)];
 }
 
 /**

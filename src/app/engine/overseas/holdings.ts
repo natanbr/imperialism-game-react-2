@@ -39,16 +39,16 @@ export type OverseasBarrier = "colony" | "at-war" | "boycott" | "needs-embassy";
 
 /**
  * FR-631, FR-633: the Developer may enter and buy in an independent Minor Nation where its nation holds an embassy in
- * the settled record, while no war between the two has begun at `turn` and neither boycotts the other; and in its own
- * colony whose land is still the Minor Nation's, which needs no embassy (overtures to a colony are refused). A war
- * declared on turn T begins on T + 1 (FR-167), so the End Turn of T still sells.
+ * the settled record, while no war between the two has begun at `turn` and neither boycotts the other; and, on the same
+ * war and boycott terms, in its own colony whose land is still the Minor Nation's, which needs no embassy (overtures to
+ * a colony are refused). A war declared on turn T begins on T + 1 (FR-167), so the End Turn of T still sells.
  */
 export function overseasBarrier(state: GameState, nationId: NationId, minor: MinorNation, turn = state.turn): OverseasBarrier | undefined {
-  if (minor.colonyOf !== undefined) return minor.colonyOf === nationId ? undefined : "colony";
+  if (minor.colonyOf !== undefined && minor.colonyOf !== nationId) return "colony";
   const entry = relationOf(state, nationId, minor.id);
   if (entry?.war && turn >= entry.war.since) return "at-war";
   if (entry && entry.boycotts.length > 0) return "boycott";
-  return entry?.embassies.includes(nationId) ? undefined : "needs-embassy";
+  return minor.colonyOf === nationId || entry?.embassies.includes(nationId) ? undefined : "needs-embassy";
 }
 
 /**
@@ -117,6 +117,7 @@ export function sendCiviliansHome(state: GameState, homeless: readonly Worker[])
     if (!capital) continue;
     const back: Worker = { ...w, status: WorkerStatus.Available, justMoved: false, assignedTileId: capital };
     delete back.previousTileId;
+    delete back.previousIndex;
     arriving.set(capital, [...(arriving.get(capital) ?? []), back]);
   }
   if (arriving.size === 0) return state;

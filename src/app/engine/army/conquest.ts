@@ -156,7 +156,8 @@ function makeColony(state: GameState, minorId: MinorNationId, ownerId: NationId,
  * FR-223 (Q34; Imp1 differs: the rest of the nation falls into anarchy, gaps F4): the fallen Great Power's other
  * provinces pass to the winner (each as FR-222), its colonies with them (review E1), its regiments are removed and its
  * wars end; `nation-fallen`, then its holdings in other provinces end, the tiles staying with their Minor Nation at their
- * level (FR-637, inferred), then a `minor-colonised` for each colony the winner gains.
+ * level (FR-637, inferred), and its civilians still elsewhere, such as a Developer visiting Minor Nation land, are removed,
+ * as it holds no capital tile to send them to; then a `minor-colonised` for each colony the winner gains.
  */
 function fallNation(state: GameState, fallenId: NationId, winnerId: NationId, turn: number, emit: Emit): GameState {
   let s = state;
@@ -169,8 +170,19 @@ function fallNation(state: GameState, fallenId: NationId, winnerId: NationId, tu
   }
   emit({ type: "nation-fallen", nationId: winnerId, fallenId });
   s = endHoldings(s, (h) => h.holderId === fallenId, "fall", emit);
+  s = withoutCiviliansOf(s, fallenId);
   for (const colony of s.minorNations.filter((m) => m.colonyOf === fallenId)) s = makeColony(s, colony.id, winnerId, emit);
   return s;
+}
+
+/** FR-637: the state without the nation's civilians on any tile; its input when it has none. */
+function withoutCiviliansOf(state: GameState, nationId: NationId): GameState {
+  const has = (t: Tile) => t.workers.some((w) => w.nationId === nationId);
+  if (!state.map.tiles.some((row) => row.some(has))) return state;
+  const tiles = state.map.tiles.map((row) => (row.some(has)
+    ? row.map((t) => (has(t) ? { ...t, workers: t.workers.filter((w) => w.nationId !== nationId) } : t))
+    : row));
+  return { ...state, map: { ...state.map, tiles } };
 }
 
 /**

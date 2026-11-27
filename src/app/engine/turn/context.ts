@@ -1,4 +1,4 @@
-import type { GameState } from "@/types/GameState";
+import type { GameState, RulesRevision } from "@/types/GameState";
 import type { CountryId, MinorNationId, NationId, ProvinceId, TileId } from "@/types/Common";
 import type { BattleReport } from "@/types/Battle";
 import type { NavalBattleSide, NavalEngagement } from "@/types/Navy";
@@ -182,6 +182,11 @@ export interface TurnContext {
   /** Finalize a report against the resolved state when a later phase can change its outcome. */
   readonly emit: (event: GameEvent, finalize?: (end: GameState) => GameEvent) => void;
   readonly onNavalEngagement?: (engagement: NavalEngagement) => void;
+  /**
+   * FR-641: the rules a replayed historical turn settled under, which select its phases and the marker it saves;
+   * undefined for a live settlement, which runs today's rules.
+   */
+  readonly rulesRevision?: RulesRevision;
 }
 
 export type TurnSystem = (state: GameState, ctx: TurnContext) => GameState;
@@ -194,6 +199,7 @@ export interface TurnContextOptions {
   orders?: readonly Order[];
   emit?: TurnContext["emit"];
   onNavalEngagement?: TurnContext["onNavalEngagement"];
+  rulesRevision?: RulesRevision;
 }
 
 export function createTurnContext(opts: TurnContextOptions): TurnContext {
@@ -217,5 +223,6 @@ export function createTurnContext(opts: TurnContextOptions): TurnContext {
     orders: opts.orders ?? [],
     onNavalEngagement: opts.onNavalEngagement,
     emit: opts.emit ?? (() => {}),
+    ...(opts.rulesRevision && { rulesRevision: opts.rulesRevision }),
   };
 }

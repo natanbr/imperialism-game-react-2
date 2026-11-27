@@ -15,12 +15,14 @@ export const resetWorkers: TurnSystem = (state: GameState): GameState => ({
         if (tile.workers.length === 0) return tile;
         const workers = tile.workers.map((w: Worker): Worker => {
           const isWorking = holdsJob(tile, w.id);
-          return {
+          const reset: Worker = {
             ...w,
             justMoved: false,
             previousTileId: undefined,
             status: isWorking ? WorkerStatus.Working : WorkerStatus.Available,
           };
+          delete reset.previousIndex;
+          return reset;
         });
         return { ...tile, workers };
       })
@@ -42,11 +44,14 @@ export const promoteFreightCars: TurnSystem = (state: GameState): GameState => (
   }),
 });
 
-/** One turn is one season; the year advances after winter (FR-027). */
-export const advanceClock: TurnSystem = (state: GameState): GameState => ({
+/**
+ * One turn is one season; the year advances after winter (FR-027). The saved marker names the rules the turn settled
+ * under: today's, or a replayed historical turn's own (FR-641).
+ */
+export const advanceClock: TurnSystem = (state: GameState, ctx): GameState => ({
   ...state,
   // A reconstructed pre-M16 turn still uses shared technology.
-  ...(state.rulesRevision && { rulesRevision: settlementRevision(state) }),
+  ...(state.rulesRevision && { rulesRevision: ctx.rulesRevision ?? settlementRevision(state) }),
   turn: state.turn + 1,
   year: state.year + (isLastTurnOfYear(state.turn) ? 1 : 0),
 });

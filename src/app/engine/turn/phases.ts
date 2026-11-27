@@ -1,4 +1,4 @@
-import type { GameState } from "@/types/GameState";
+import { settlesUnder, type GameState } from "@/types/GameState";
 import type { TurnContext, TurnSystem } from "./context";
 import { developmentSystem } from "../systems/developmentSystem";
 import { landPurchaseSystem } from "../overseas/holdings";
@@ -55,5 +55,9 @@ export const TURN_PHASES: readonly TurnSystem[] = [
   reportClosingCredit,
 ];
 
+/** FR-641: the phases M18j added, which a replayed turn settled under older rules did not run. */
+const M18J_PHASES: ReadonlySet<TurnSystem> = new Set([landPurchaseSystem, developerSystem]);
+const BEFORE_M18J = TURN_PHASES.filter((system) => !M18J_PHASES.has(system));
+
 export const runTurnPhases = (state: GameState, ctx: TurnContext): GameState =>
-  TURN_PHASES.reduce((s, system) => system(s, ctx), state);
+  (settlesUnder(ctx.rulesRevision, "m18j") ? TURN_PHASES : BEFORE_M18J).reduce((s, system) => system(s, ctx), state);
