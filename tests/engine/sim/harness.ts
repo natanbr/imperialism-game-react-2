@@ -29,7 +29,8 @@ import type { BattleResult } from '@/types/Battle';
 import type { CouncilNominee } from '@/types/Council';
 import type { WorkerGrade } from '@/types/Industry';
 import { invariantViolations, worldViolations } from '../fixtures';
-import { HUMANS, type HumanName, type HumanPolicy } from './humans';
+import type { HumanName, HumanPolicy } from './humans';
+import { POLICIES } from './policies';
 
 /** Per Great Power, keyed by nation id ("nation-1" the human's Testland, "nation-2" the computer's Valdoria). */
 export type ByNation<T> = Record<string, T>;
@@ -134,7 +135,7 @@ export interface RunOptions {
   seed: number;
   world?: NewGameOptions['world'];
   randomMapSize?: NewGameOptions['randomMapSize'];
-  /** A policy of `humans.ts` by name, or one's own. */
+  /** A policy of `humans.ts` by name (the diplomat frozen by `policies.ts`, FR-638), or one's own. */
   human: HumanName | HumanPolicy;
   /** Turns to play at most (default 40, the game's limit). */
   turns?: number;
@@ -150,7 +151,7 @@ const holdsProvince = (state: GameState, id: string): boolean => {
 
 /** Plays the requested world (Continent by default) with `human` as nation 1. Only the timings vary. */
 export function runGame({ seed, world = 'continent', randomMapSize, human, turns = 40, checkInvariants = true, observe, observePlan }: RunOptions): GameRecord {
-  const policy = typeof human === 'string' ? HUMANS[human] : human;
+  const policy = typeof human === 'string' ? POLICIES[human] : human;
   const began = performance.now();
   const start = newGame({ seed, world, randomMapSize });
   let state = start;
