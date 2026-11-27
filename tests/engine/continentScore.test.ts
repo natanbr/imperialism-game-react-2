@@ -110,8 +110,9 @@ function play(
       health.starved += e.starved;
     }
     upkeep.push(paid);
+    const previous = state;
     state = result.state;
-    health.violations.push(...[...invariantViolations(state), ...worldViolations(state, start)].map(v => `turn ${turn}: ${v}`));
+    health.violations.push(...[...invariantViolations(state), ...worldViolations(state, start, previous)].map(v => `turn ${turn}: ${v}`));
     for (const nationId of [N1, N2]) turns[nationId].push(nationTurn(state, nationId, turn));
   }
   return { turns, refused, health, upkeep, noPay, orders: ordersByTurn, councils, final: state };

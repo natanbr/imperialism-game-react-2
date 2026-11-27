@@ -190,7 +190,7 @@ describe('FR-637 the world invariants after a holding ends', () => {
     const raised = setTile(state, TIMBER, { resource: { ...tileAt(state, TIMBER).resource!, level: 3 } });
     expect(worldViolations(raised, start, state)).toEqual([`minor tile ${TIMBER} changed`]);
     // Compared with the start alone, a changed level is reported
-    expect(worldViolations(state, start)).toEqual([`minor tile ${COAL} changed`, `minor tile ${TIMBER} changed`]);
+    expect(worldViolations(state, start)).toEqual([`minor tile ${TIMBER} changed`, `minor tile ${COAL} changed`]);
   });
 
   it('FR-633 FR-637 a purchase settled and ended in one End Turn leaves its tile at level 0, which the invariants accept', () => {

@@ -114,6 +114,22 @@ function wantedEmbassy(state: GameState, nationId: NationId): MinorNationId | un
 export const embassySaving = (state: GameState, nationId: NationId): number =>
   wantedEmbassy(state, nationId) === undefined ? 0 : OVERTURE_COST.embassy;
 
+/** FR-490: the minor a grant goes to on a grant turn: the first of `candidates` from `fromPoints` it holds an embassy in. */
+const grantTarget = (state: GameState, nationId: NationId, rivalId: NationId): Candidate | undefined =>
+  candidates(state, nationId, rivalId, SCRIPTED_INFLUENCE.fromPoints).find((c) => c.pair.embassies.includes(nationId));
+
+/**
+ * FR-638 (inferred): what `planInfluence` will still give after this turn before the next meeting, kept from a land
+ * purchase: one grant for each grant turn to come, while the nation is a nominee and has a `grantTarget` now; else 0. A
+ * grant needs an embassy and `embassySaving` none, so at most one of the two is ever above 0.
+ */
+export function grantSaving(state: GameState, nationId: NationId): number {
+  const ahead = councilAhead(state, nationId);
+  if (ahead === undefined || grantTarget(state, nationId, ahead.rivalId) === undefined) return 0;
+  const turns = ahead.meeting - Math.max(state.turn + 1, ahead.meeting - SCRIPTED_INFLUENCE.grantTurns);
+  return Math.max(0, turns) * SCRIPTED_INFLUENCE.grant;
+}
+
 /** FR-542: embassies and pacts use the same relation band and ranking. Equal scores retain the candidates' id order. */
 function embassyCandidates(state: GameState, nationId: NationId, rivalId: NationId): Candidate[] {
   return candidates(state, nationId, rivalId, SCRIPTED_INFLUENCE.embassyFromPoints)
@@ -142,7 +158,7 @@ export function planInfluence(view: () => GameState, nationId: NationId, reserve
   }
 
   if (state.turn >= meeting - SCRIPTED_INFLUENCE.grantTurns) {
-    const to = candidates(view(), nationId, rivalId, SCRIPTED_INFLUENCE.fromPoints).find((c) => c.pair.embassies.includes(nationId));
+    const to = grantTarget(view(), nationId, rivalId);
     if (to) {
       const treasury = nationById(view(), nationId)?.treasury ?? 0;
       if (treasury - SCRIPTED_INFLUENCE.grant >= reserve) propose({ kind: "giveGrant", nationId, targetId: to.id, amount: SCRIPTED_INFLUENCE.grant, locked: false });

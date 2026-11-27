@@ -136,7 +136,8 @@ describe('FR-638 the Developer buys the tile with the shortest payback', () => {
     expect([15, 16, 17, 19].map(kept)).toEqual([4000, 3000, 2000, 0]);
     // No meeting is ahead on the meeting turn itself; the day after, the four grants of turns 26 to 29 are
     expect([20, 21].map(kept)).toEqual([0, 4000]);
-    const at = (cash: number) => busy(setTreasury(courted(15), N1, cash), miner(N1));
+    // Turn 14 is the last a $2,000 timber tile at 75% pays back by (27 paid End Turns); four grants are still to come
+    const at = (cash: number) => busy(setTreasury(courted(14), N1, cash), miner(N1));
     const reserve = purchaseReserve(at(0), N1);
     expect(reserve).toBe(Math.max(cashReserve(at(0), N1), upkeepReserve(at(0), N1)) + 4000);
     expect((developerPlan(at(2000 + reserve)))[0]).toEqual(buy(TIMBER));

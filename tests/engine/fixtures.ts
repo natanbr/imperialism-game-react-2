@@ -254,9 +254,10 @@ const canonical = (value: unknown): string =>
  * `colonyOf`, which names a Great Power holding the minor's capital province; the provinces are as at `start`
  * but for `ownerId`, and a province whose owner changed is a Great Power's; every tile of a province its start
  * minor still holds is as at `start`; the diplomacy entries are the same pairs; and no intent is left after a
- * resolved turn (FR-152).
+ * resolved turn (FR-152). `previous` is the state End Turn resolved (the start when not given): a minor tile's resource
+ * level is checked against it (M18j, below), and a purchase among its intents frees that tile's level.
  */
-export function worldViolations(state: GameState, start: GameState): string[] {
+export function worldViolations(state: GameState, start: GameState, previous: GameState = start): string[] {
   const problems: string[] = [];
   const provinces = new Map(state.provinces.map(p => [p.id, p]));
   const greatPowers = new Set(state.nations.map(n => n.id));
@@ -292,19 +293,27 @@ export function worldViolations(state: GameState, start: GameState): string[] {
     if (before && before.ownerId !== p.ownerId && !greatPowers.has(p.ownerId)) problems.push(`province ${p.id} passed to ${p.ownerId}, not a Great Power`);
   }
   const stillMinor = new Set(start.provinces.filter(p => !greatPowers.has(p.ownerId) && provinces.get(p.id)?.ownerId === p.ownerId).map(p => p.id));
-  // M18j (FR-631, FR-634): Developers and the holder's improvers may stand on minor land, and a held tile's level and
-  // development job are its holder's (`overseasViolations` checks who); nothing else of a minor tile changes
-  const minorFacts = (tile: Tile | undefined) => {
+  // M18j (FR-631, FR-633, FR-634, FR-637): Developers and the holder's improvers may stand on minor land, and a held
+  // tile's development job is its holder's (`overseasViolations` checks who). A tile's level changes only while it is
+  // bought, held or released: a sale sets 0, the holder raises it, and an ended holding leaves the tile at its level. So
+  // the level is free on a tile held now, or held or bought in `previous`, and otherwise as in `previous`; nothing else
+  // of a minor tile changes from `start`
+  const heldNow = (id: string) => state.overseasLand?.[id] !== undefined;
+  const levelFree = (id: string) => heldNow(id) || previous.overseasLand?.[id] !== undefined
+    || previous.intents.some(i => i.kind === 'buy-land' && (i as BuyLandIntent).tileId === id);
+  const minorFacts = (tile: Tile | undefined, held: boolean) => {
     if (!tile) return tile;
     const facts: Partial<Tile> = { ...tile, workers: [] };
-    if (state.overseasLand?.[tile.id]) {
-      delete facts.developmentJob;
-      if (facts.resource) facts.resource = { ...facts.resource, level: 0 };
-    }
+    if (held) delete facts.developmentJob;
+    if (facts.resource) facts.resource = { ...facts.resource, level: 0 };
     return facts;
   };
+  const previousById = new Map(previous.map.tiles.flat().map(t => [t.id, t]));
   for (const before of start.map.tiles.flat().filter(t => t.provinceId && stillMinor.has(t.provinceId))) {
-    if (canonical(minorFacts(byId.get(before.id))) !== canonical(minorFacts(before))) problems.push(`minor tile ${before.id} changed`);
+    const now = byId.get(before.id);
+    const level = previousById.get(before.id)?.resource?.level;
+    if (canonical(minorFacts(now, heldNow(before.id))) !== canonical(minorFacts(before, false))
+      || (!levelFree(before.id) && now?.resource?.level !== level)) problems.push(`minor tile ${before.id} changed`);
   }
   const pairs = (s: GameState) => Object.keys(s.diplomacy).sort().join(',');
   if (pairs(state) !== pairs(start)) problems.push(`diplomacy pairs ${pairs(state)}, at the start ${pairs(start)}`);

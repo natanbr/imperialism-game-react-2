@@ -28,7 +28,7 @@ export interface OverseasProfit {
   /** The value of one unit: the board price, or the cash value of gold and gems. */
   price: number;
   sharePercent: number;
-  /** floor(units x price x sharePercent / 100). */
+  /** floor(units x price x sharePercent / 100) (`overseasAmount`). */
   amount: number;
 }
 
@@ -44,6 +44,10 @@ export function overseasUnitValue(state: GameState, commodity: OverseasCommodity
   if (commodity === ResourceType.Gems) return GEMS_CASH_PER_UNIT;
   return priceOf(marketOf(state), commodity);
 }
+
+/** FR-636: what `units` developed units worth `unitValue` each pay at `sharePercent`, rounded down once. */
+export const overseasAmount = (units: number, unitValue: number, sharePercent: number): number =>
+  Math.floor((units * unitValue * sharePercent) / 100);
 
 /**
  * FR-636: the percent the holder receives from the Minor Nation, or undefined while none is paid: 100 in its own colony;
@@ -84,7 +88,7 @@ export function overseasProfits(state: GameState): OverseasProfit[] {
     const sharePercent = overseasShare(state, entry.nationId, entry.minor);
     if (sharePercent === undefined) return [];
     const price = overseasUnitValue(state, entry.commodity);
-    const amount = Math.floor((entry.units * price * sharePercent) / 100);
+    const amount = overseasAmount(entry.units, price, sharePercent);
     return amount > 0 ? [{ nationId: entry.nationId, minorId: entry.minor.id, commodity: entry.commodity, units: entry.units, price, sharePercent, amount }] : [];
   });
 }

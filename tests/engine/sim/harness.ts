@@ -193,7 +193,7 @@ export function runGame({ seed, world = 'continent', randomMapSize, human, turns
     const { state: next, events } = result;
     observe?.(registered, result, beforeOrders);
     lastTrade = traded;
-    records.push(recordTurn({ turn, start, next, events, holds, humanRefused, humanOrders: accepted, computerOrdersMs, checkInvariants }));
+    records.push(recordTurn({ turn, start, previous: registered, next, events, holds, humanRefused, humanOrders: accepted, computerOrdersMs, checkInvariants }));
     state = next;
   }
 
@@ -210,6 +210,8 @@ export function runGame({ seed, world = 'continent', randomMapSize, human, turns
 function recordTurn(input: {
   turn: number;
   start: GameState;
+  /** The state End Turn resolved, with every Order of the turn applied (`worldViolations`). */
+  previous: GameState;
   next: GameState;
   events: GameEvent[];
   holds: TurnRecord['holds'];
@@ -218,7 +220,7 @@ function recordTurn(input: {
   computerOrdersMs: number;
   checkInvariants: boolean;
 }): TurnRecord {
-  const { turn, start, next, events } = input;
+  const { turn, start, previous, next, events } = input;
   const record: TurnRecord = {
     turn,
     warsDeclared: [],
@@ -253,7 +255,7 @@ function recordTurn(input: {
     ordersRejected: [],
     humanRefused: input.humanRefused,
     humanOrders: input.humanOrders,
-    invariantViolations: input.checkInvariants ? [...invariantViolations(next, events), ...worldViolations(next, start)] : [],
+    invariantViolations: input.checkInvariants ? [...invariantViolations(next, events), ...worldViolations(next, start, previous)] : [],
     computerOrdersMs: input.computerOrdersMs,
   };
   const peacePairs = new Set<string>();

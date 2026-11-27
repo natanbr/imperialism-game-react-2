@@ -95,7 +95,7 @@ it('FR-641 FR-629 an imported save whose embassy already qualifies gets its Deve
   // The continued End Turn of turn 7 runs the M18j rules: one Developer, Available on the capital tile for turn 8
   const capital = universityCapital(after.game, after.game.nations.find(n => n.id === N1)!)!.id;
   expect(developers(after.game).map(w => [w.id, w.status, w.assignedTileId])).toEqual([[`developer-${N1}-7`, WorkerStatus.Available, capital]]);
-  expect(m18jEvents(after).map(e => [e.type, e.nationId])).toEqual([['developer-arrived', N1]]);
+  expect(m18jEvents(after)).toEqual([expect.objectContaining({ type: 'developer-arrived', nationId: N1 })]);
   expect(after.game).not.toHaveProperty('overseasLand');
   expect(after.game.rulesRevision).toBe('m18j');
   expect(after.replayBoundary).toEqual(imported.replayBoundary);

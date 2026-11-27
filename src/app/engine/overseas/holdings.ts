@@ -23,6 +23,13 @@ export const isBuyLandIntent = (intent: Intent): intent is BuyLandIntent => inte
 /** The Great Power that holds the tile (FR-634), or undefined. */
 export const holderOf = (state: GameState, tileId: TileId): NationId | undefined => state.overseasLand?.[tileId]?.holderId;
 
+/** The tiles the nation holds (FR-634), in map order; none without holdings. */
+export function heldTilesOf(state: GameState, nationId: NationId): Tile[] {
+  const held = Object.values(state.overseasLand ?? {}).filter((h) => h.holderId === nationId);
+  if (held.length === 0) return [];
+  return held.flatMap((h) => tileById(state, h.tileId) ?? []).sort((a, b) => a.y - b.y || a.x - b.x);
+}
+
 /** The Minor Nation whose land the tile is: in one of its provinces and owned by no Great Power (FR-149). */
 export const minorLandOf = (state: GameState, tile: Tile): MinorNation | undefined =>
   tile.ownerNationId === undefined ? minorNationAt(state, tile) : undefined;

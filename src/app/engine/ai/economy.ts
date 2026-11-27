@@ -43,6 +43,7 @@ import { workersKeptForCampaign } from "./scriptedWar";
 import { capitalComponent } from "./railPlan";
 import { upkeepOf } from "../army/armies";
 import { townFactories } from "../world/towns";
+import { heldTilesOf } from "../overseas/holdings";
 import { WorkerType } from "@/types/Workers";
 
 export type Propose = (order: Order) => boolean;
@@ -80,7 +81,8 @@ export function cashReserve(state: GameState, nationId: string): number {
   const own = state.map.tiles.flat().filter((t) => t.ownerNationId === nationId);
   const component = capitalComponent(state, nationId);
   const depotWork = own.some((t) => t.constructionJob?.kind === "depot" || (!!t.depot && !component.has(`${t.x},${t.y}`)));
-  return developerReserve(own, nationId) + (depotWork ? RAIL_RESERVE : CONSTRUCTION_COST.depot);
+  // FR-638: a Miner or Driller on a held tile (FR-634) still needs its next job's price
+  return developerReserve([...own, ...heldTilesOf(state, nationId)], nationId) + (depotWork ? RAIL_RESERVE : CONSTRUCTION_COST.depot);
 }
 
 /** Untrained to trained gives 1 more labour a turn from next turn on; trained to expert 2 more (FR-130). */

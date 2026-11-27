@@ -10,6 +10,10 @@ export function yieldOf(tile: Tile): number {
   return ResourceDevelopmentTable[res.type]?.[res.level] ?? 0;
 }
 
+/** What `yieldOf` would give with the tile's resource at `level`; 0 without a resource. */
+export const yieldAtLevel = (tile: Tile, level: number): number =>
+  tile.resource ? yieldOf({ ...tile, resource: { ...tile.resource, level } }) : 0;
+
 export function getNeighborCoords(map: GameMap, x: number, y: number): [number, number][] {
   const { cols, rows } = map.config;
   const inBounds = (cx: number, cy: number) => cx >= 0 && cx < cols && cy >= 0 && cy < rows;

@@ -438,7 +438,8 @@ describe('FR-634 ownership: the holding, and work on held land', () => {
 
   it('FR-634 (inferred) at war with the Minor Nation or under a boycott the holder\'s Miner may still work its held tile; its Developer may not buy', () => {
     const held = deepFreeze(hold(base(), COAL));
-    for (const [patch, barrier] of [[{ war: { aggressors: [N1], since: 1 } }, 'at-war'], [{ boycotts: [ARVELIA] }, 'boycott'], [{ boycotts: [N1] }, 'boycott']] as const) {
+    const closings: [Parameters<typeof setPair>[3], string][] = [[{ war: { aggressors: [N1], since: 1 } }, 'at-war'], [{ boycotts: [ARVELIA] }, 'boycott'], [{ boycotts: [N1] }, 'boycott']];
+    for (const [patch, barrier] of closings) {
       const closed = setPair(held, N1, ARVELIA, patch);
       expect(validateOrder(closed, develop(civilian(N1, MINER), COAL))).toEqual({ ok: true });
       expect(validateOrder(closed, buy(COAL2))).toEqual({ ok: false, reason: barrier });
@@ -498,7 +499,7 @@ describe('FR-634 ownership: the holding, and work on held land', () => {
     for (const orders of turns) {
       const next = resolveTurn(state, orders);
       expect(next.events.filter(e => e.type === 'order-rejected')).toEqual([]);
-      expect([...invariantViolations(next.state, next.events), ...worldViolations(next.state, start)]).toEqual([]);
+      expect([...invariantViolations(next.state, next.events), ...worldViolations(next.state, start, state)]).toEqual([]);
       state = next.state;
     }
     expect(tileAt(state, COAL).resource!.level).toBe(1);

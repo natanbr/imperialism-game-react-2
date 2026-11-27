@@ -4,7 +4,8 @@
 // It reads state, never builds it.
 import { collectingHub, countryName, isConqueredProvince, provinceOf, validateOrder, type GameEvent, type Order, type RejectReason, type ValidationResult } from "@/engine";
 import { isBuyLandIntent, landPrice, landSiteRefusal, minorLandOf } from "@/engine/overseas/holdings";
-import { overseasShare, overseasUnitValue, type OverseasCommodity } from "@/engine/overseas/profit";
+import { overseasAmount, overseasShare, overseasUnitValue, type OverseasCommodity } from "@/engine/overseas/profit";
+import { yieldAtLevel, yieldOf } from "@/engine/map/mapHelpers";
 import { BUYABLE_LAND_RESOURCES, LAND_PRICE_MULTIPLE } from "@/definisions/developerRules";
 import { ResourceType } from "@/types/Resource";
 import { portMouths } from "@/engine/navy/approaches";
@@ -413,10 +414,9 @@ export function collectingHubText(state: GameState, hub: CollectingHub): string 
   return hub.kind === "capital" ? "the capital" : `the ${hub.kind} at ${placeText(state, hub.tileId)}`;
 }
 
-const unitsAt = (type: ResourceType, level: number): number => ResourceDevelopmentTable[type]?.[level] ?? 0;
 /** The overseas profit of `units` at the share, as the trade phase pays it (FR-636); none while at war or boycotted. */
 const profitText = (units: number, unit: number, share: number | undefined): string =>
-  share === undefined ? "no share while at war or under a boycott" : `${money(Math.floor((units * unit * share) / 100))} at a ${share}% share`;
+  share === undefined ? "no share while at war or under a boycott" : `${money(overseasAmount(units, unit, share))} at a ${share}% share`;
 
 /**
  * FR-639: what Tile Info says of a Minor Nation tile the nation could buy (FR-631), or undefined: its price with the
@@ -433,20 +433,21 @@ export function landForSale(state: GameState, nationId: string, tile: Tile): { p
   const unit = overseasUnitValue(state, type as OverseasCommodity);
   const share = overseasShare(state, nationId, minor);
   const name = commodityName(type);
-  const now = unitsAt(type, 0);
+  const now = yieldAtLevel(tile, 0);
   const worker = type === ResourceType.Oil ? WorkerType.Driller : WorkerType.Miner;
   return {
     price: `${money(price)} (${LAND_PRICE_MULTIPLE} × ${money(unit)})`,
     output: now > 0
       ? `${now} ${name} a turn: ${profitText(now, unit, share)}`
-      : `Needs a ${capitalized(worker)} (${money(DEVELOPMENT_COST[1])} for level 1), then ${unitsAt(type, 1)} ${name} a turn: ${profitText(unitsAt(type, 1), unit, share)}`,
+      : `Needs a ${capitalized(worker)} (${money(DEVELOPMENT_COST[1])} for level 1), then ${yieldAtLevel(tile, 1)} ${name} a turn: ${profitText(yieldAtLevel(tile, 1), unit, share)}`,
   };
 }
 
 /**
  * FR-639, FR-640: who holds the tile ("Valdoria"; the viewer's own "you, since turn 12"), and for the viewer's own
  * holding only: its level, units and share, and last turn's profit from that Minor Nation on that commodity (the
- * `overseas-profit` of the last report, `lastEvents`). Undefined on a tile nobody holds.
+ * `overseas-profit` of the last report, `lastEvents`). The trade phase pays it once for all the viewer's tiles of that
+ * commodity there (FR-636), so a line with more units than this tile's says so. Undefined on a tile nobody holds.
  */
 export function holdingView(state: GameState, nationId: string, tile: Tile, lastEvents: readonly GameEvent[]): { heldBy: string; details: string[] } | undefined {
   const holding = state.overseasLand?.[tile.id];
@@ -460,11 +461,13 @@ export function holdingView(state: GameState, nationId: string, tile: Tile, last
   const share = overseasShare(state, nationId, minor);
   const paid = lastEvents.find((e): e is Extract<GameEvent, { type: "overseas-profit" }> =>
     e.type === "overseas-profit" && e.nationId === nationId && e.minorId === minor.id && e.commodity === resource.type);
+  const units = yieldOf(tile);
+  const from = paid && `${paid.units} ${name} ${paid.units > units ? "on all your land in" : "in"} ${minor.name}`;
   return {
     heldBy,
     details: [
-      `Level ${resource.level}: ${unitsAt(resource.type, resource.level)} ${name} a turn${share === undefined ? ", no share while at war or under a boycott" : ` at a ${share}% share`}`,
-      `Last turn's profit: ${paid ? `${money(paid.amount)} from ${paid.units} ${name} in ${minor.name}` : "none"}`,
+      `Level ${resource.level}: ${units} ${name} a turn${share === undefined ? ", no share while at war or under a boycott" : ` at a ${share}% share`}`,
+      `Last turn's profit: ${paid ? `${money(paid.amount)} from ${from}` : "none"}`,
     ],
   };
 }
