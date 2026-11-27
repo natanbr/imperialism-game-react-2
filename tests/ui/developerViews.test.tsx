@@ -16,7 +16,7 @@ import { useGameStore, type TurnReport } from '@/store/rootStore';
 import { newGame, type GameEvent, type Order } from '@/engine';
 import { dealBook } from '@/engine/market/dealBook';
 import { clickCursors } from '@/hooks/tileClickOrders';
-import { cancelQuestion } from '@/components/tileSiteText';
+import { cancelQuestion, holdingView } from '@/components/tileSiteText';
 import { dealBookView } from '@/components/market/dealBookView';
 import { nationMark } from '@/components/nationMark';
 import { newsLines, tileLabel } from '@/components/gameText';
@@ -148,6 +148,21 @@ describe('FR-639 Tile Info of Minor Nation land', () => {
     act(() => useGameStore.setState({ selectedTileId: OUR_HOLDING, eventLog: [] }));
     rerender(<Home />);
     expect(text(within(panel()).getByTestId('tile-holding'))).toContain('Last turn\'s profit: none');
+  });
+
+  it('FR-639 with two held tiles of one commodity in a Minor Nation, each tile says its last profit is that of all of them', () => {
+    // The trade phase pays per Minor Nation and commodity, summed before rounding down (FR-636)
+    const game = hold(world(), FOR_SALE, N1);
+    const paid = [profit(N1, 'timber', 2, 111, 166)];
+    for (const tileId of [OUR_HOLDING, FOR_SALE]) {
+      expect(holdingView(game, N1, tileAt(game, tileId), paid)!.details).toEqual([
+        'Level 0: 1 Timber a turn at a 75% share',
+        'Last turn\'s profit: $166 from 2 Timber on all your land in Arvelia',
+      ]);
+    }
+    // One tile alone keeps the plain line
+    expect(holdingView(world(), N1, tileAt(world(), OUR_HOLDING), [profit(N1, 'timber', 1, 111, 83)])!.details[1])
+      .toBe('Last turn\'s profit: $83 from 1 Timber in Arvelia');
   });
 });
 

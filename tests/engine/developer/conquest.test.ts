@@ -13,7 +13,7 @@ import { transferProvince } from '@/engine/world/provinces';
 import { newsLines } from '@/components/gameText';
 import type { GameState } from '@/types/GameState';
 import { WorkerStatus, WorkerType, type Worker } from '@/types/Workers';
-import { deepFreeze, locate, N1, N2, overseasViolations, setPair, setTile, setTreasury, tileAt, treasury } from '../fixtures';
+import { deepFreeze, locate, N1, N2, overseasViolations, setPair, setTile, setTreasury, tileAt, treasury, worldViolations } from '../fixtures';
 import { ARVELIA, ARVELIA_P, clearArmy, continent, NE1, relocate, SUNDMARK } from '../armyFixtures';
 
 const R1 = 'regiment-1';
@@ -172,6 +172,36 @@ describe('FR-637 a fallen Great Power', () => {
     const types = events.map(e => e.type);
     expect(types.indexOf('nation-fallen')).toBeLessThan(types.indexOf('overseas-land-lost'));
     expect(overseasViolations(state)).toEqual([]);
+  });
+});
+
+describe('FR-637 the world invariants after a holding ends', () => {
+  it('FR-637 a tile its ended holding left at a new level passes then and on every later turn; a level changed with no holding is still caught', () => {
+    const start = continent('partners');
+    expect([levelOf(start, COAL), levelOf(start, TIMBER)]).toEqual([1, 1]);
+    const s = deepFreeze(hold(hold(setTreasury(start, N1, 50_000), COAL, N1, 0), TIMBER, N1, 2));
+    const capital = capitalProvinceOf(s, N1)!.id;
+    const { state } = run(s, (x, emit) => fallCapital(takeProvince(x, capital, N2, x.turn, emit), N1, N2, x.turn, emit));
+    expect(state.overseasLand).toBeUndefined();
+    expect([levelOf(state, COAL), levelOf(state, TIMBER)]).toEqual([0, 2]);
+    // The End Turn that ends them (`s` is the state it resolved from), and every one after
+    expect(worldViolations(state, start, s)).toEqual([]);
+    expect(worldViolations(state, start, state)).toEqual([]);
+    const raised = setTile(state, TIMBER, { resource: { ...tileAt(state, TIMBER).resource!, level: 3 } });
+    expect(worldViolations(raised, start, state)).toEqual([`minor tile ${TIMBER} changed`]);
+    // Compared with the start alone, a changed level is reported
+    expect(worldViolations(state, start)).toEqual([`minor tile ${COAL} changed`, `minor tile ${TIMBER} changed`]);
+  });
+
+  it('FR-633 FR-637 a purchase settled and ended in one End Turn leaves its tile at level 0, which the invariants accept', () => {
+    const start = continent('partners');
+    let s = setTreasury(setPair(start, N2, ARVELIA, { points: 60, consulates: [N2], embassies: [N2] }), N2, 50_000);
+    s = addDeveloper(s, N2, capitalOf(s, N2)!);
+    const bidding = deepFreeze(ordered(s, { kind: 'buyLand', nationId: N2, workerId: developer(N2), tileId: IRON }));
+    // Sold at level 0 by the settlement, then the buyer fell in that End Turn's combat: no holding, no intent left
+    const ended = setTile({ ...bidding, intents: [] }, IRON, { resource: { ...tileAt(bidding, IRON).resource!, level: 0 } });
+    expect(worldViolations(ended, start, bidding)).toEqual([]);
+    expect(worldViolations(ended, start, { ...bidding, intents: [] })).toEqual([`minor tile ${IRON} changed`]);
   });
 });
 

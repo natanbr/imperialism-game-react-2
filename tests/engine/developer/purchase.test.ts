@@ -344,6 +344,19 @@ describe('FR-633 settlement and competing buyers', () => {
     expect(state.overseasLand?.[COAL]?.holderId).toBe(N2);
   });
 
+  it('FR-633 a cancel after the End Turn refunded an outbid purchase is refused and leaves the refunded treasury as it is', () => {
+    const ordered = order(order(deepFreeze(twoBuyers(60, 70)), buy(COAL, N2)), buy(COAL, N1));
+    const { state, events } = resolveTurn(ordered, {});
+    expect(landEvents(events).find(e => e.nationId === N1)).toMatchObject({ type: 'land-purchase-refused', reason: 'outbid', cost: 2000 });
+    expect(state.intents).toEqual([]);
+    expect(locate(state, developer(N1))).toMatchObject({ tile: { id: COAL }, worker: { status: WorkerStatus.Available } });
+    const cancel: Order = { kind: 'cancelWorkerAction', nationId: N1, workerId: developer(N1), tileId: COAL };
+    const attempt = tryApplyOrder(state, cancel);
+    expect(attempt.result).toEqual({ ok: false, reason: 'invalid-target' });
+    expect(treasury(attempt.state, N1)).toBe(treasury(state, N1));
+    expect(attempt.state).toEqual(state);
+  });
+
   it('FR-633 with equal points the FR-401 seed order decides, with no random draw', async () => {
     const winners: string[] = [];
     for (const seed of [1, 4]) {
@@ -407,6 +420,29 @@ describe('FR-634 ownership: the holding, and work on held land', () => {
     expect(validateOrder(s, develop(civilian(N2, MINER), COAL, N2))).toEqual({ ok: false, reason: 'not-owner' });
     const onIt = put(s, civilian(N2, MINER), COAL);
     expect(validateOrder(onIt, { kind: 'startDevelopment', nationId: N2, workerId: civilian(N2, MINER), tileId: COAL })).toEqual({ ok: false, reason: 'not-owner' });
+  });
+
+  it('FR-634 a rival\'s Developer may stand on the held tile, still open Minor Nation land, but never buy or work it', () => {
+    const s = deepFreeze(hold(twoBuyers(60, 60), COAL, N1));
+    const standing = order(s, move(developer(N2), COAL, N2));
+    expect(locate(standing, developer(N2))!.tile.id).toBe(COAL);
+    expect(standing.overseasLand).toEqual(s.overseasLand);
+    expect(overseasViolations(standing)).toEqual([]);
+    // On a later turn, Available on the tile: no purchase, and a Developer starts no job (FR-630)
+    const nextTurn = put(s, developer(N2), COAL);
+    expect(validateOrder(nextTurn, buy(COAL, N2))).toEqual({ ok: false, reason: 'already-owned' });
+    expect(validateOrder(nextTurn, { kind: 'startDevelopment', nationId: N2, workerId: developer(N2), tileId: COAL })).toEqual({ ok: false, reason: 'wrong-worker-type' });
+    // The holder's own work there is unchanged by it
+    expect(validateOrder(nextTurn, develop(civilian(N1, MINER), COAL))).toEqual({ ok: true });
+  });
+
+  it('FR-634 (inferred) at war with the Minor Nation or under a boycott the holder\'s Miner may still work its held tile; its Developer may not buy', () => {
+    const held = deepFreeze(hold(base(), COAL));
+    for (const [patch, barrier] of [[{ war: { aggressors: [N1], since: 1 } }, 'at-war'], [{ boycotts: [ARVELIA] }, 'boycott'], [{ boycotts: [N1] }, 'boycott']] as const) {
+      const closed = setPair(held, N1, ARVELIA, patch);
+      expect(validateOrder(closed, develop(civilian(N1, MINER), COAL))).toEqual({ ok: true });
+      expect(validateOrder(closed, buy(COAL2))).toEqual({ ok: false, reason: barrier });
+    }
   });
 
   it('FR-634 the holder\'s Miner opens a level-1 mine in 3 turns for $100, and the News reaches the holder', () => {

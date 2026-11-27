@@ -81,6 +81,26 @@ it.each([
   expect(m18jEvents(after)).toEqual([]);
 });
 
+it('FR-641 FR-629 an imported save whose embassy already qualifies gets its Developer at its first continued settlement, not at load, with no back pay', () => {
+  const original: SavedGame = JSON.parse(fixture('m18h-continent-turn-7.json.gz'));
+  // The M18h rules granted nothing; the same position with Testland's embassy in Arvelia already at 60 points (level 6)
+  const game = setPair(original.game, N1, ARVELIA, { points: 60, consulates: [N1], embassies: [N1] });
+  const imported = load(JSON.stringify({ ...original, game }));
+  expect(imported.replayBoundary).toEqual({ turn: 7, appliedOrders: 0, checkpoint: game });
+  expect(developers(imported.game)).toEqual([]);
+  const live = createGameStore();
+  live.getState().restoreGame(imported);
+  continueBeside(live, 1);
+  const after = saveOf(live.getState());
+  // The continued End Turn of turn 7 runs the M18j rules: one Developer, Available on the capital tile for turn 8
+  const capital = universityCapital(after.game, after.game.nations.find(n => n.id === N1)!)!.id;
+  expect(developers(after.game).map(w => [w.id, w.status, w.assignedTileId])).toEqual([[`developer-${N1}-7`, WorkerStatus.Available, capital]]);
+  expect(m18jEvents(after).map(e => [e.type, e.nationId])).toEqual([['developer-arrived', N1]]);
+  expect(after.game).not.toHaveProperty('overseasLand');
+  expect(after.game.rulesRevision).toBe('m18j');
+  expect(after.replayBoundary).toEqual(imported.replayBoundary);
+});
+
 it('FR-641 a genuine Two islands save keeps its replay boundary and the m18d revision', () => {
   const raw = fixture('m18d-two-islands-turn-4-midturn.json.gz');
   const original: SavedGame = JSON.parse(raw);

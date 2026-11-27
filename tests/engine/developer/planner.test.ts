@@ -9,7 +9,11 @@ import { tryApplyOrder } from '@/engine/orders/apply';
 import { validateOrder } from '@/engine/orders/validate';
 import { computerOrders } from '@/engine/ai/players';
 import { scriptedPlayer } from '@/engine/ai/scriptedPlayer';
+import { developerOrders, heldTileOrders, purchaseReserve } from '@/engine/ai/scriptedDeveloper';
+import { cashReserve } from '@/engine/ai/economy';
+import { upkeepReserve } from '@/engine/ai/scriptedArmy';
 import { resolveTurn } from '@/engine/turn/resolveTurn';
+import { marketOf, priceOf } from '@/engine/market/market';
 import type { Order } from '@/engine/orders/Order';
 import type { GameState } from '@/types/GameState';
 import type { TradeCommodity } from '@/types/Market';
@@ -17,12 +21,9 @@ import { ResourceType } from '@/types/Resource';
 import { TerrainType } from '@/types/Tile';
 import { MINING_TERRAINS } from '@/definisions/terrainDefinitions';
 import { WorkerStatus, WorkerType, type Worker } from '@/types/Workers';
-import { deepFreeze, invariantViolations, N1, N2, put, setPair, setTechnologies, setTile, setTreasury, tileAt, treasury } from '../fixtures';
+import { deepFreeze, invariantViolations, locate, N1, N2, put, setPair, setTechnologies, setTile, setTreasury, tileAt, treasury } from '../fixtures';
 import { HUMANS } from '../sim/humans';
 import { frozenDiplomat, POLICIES } from '../sim/policies';
-
-// Imported when a test runs, so each test of this file reports its own result before the module exists.
-const planner = async () => await import('@/engine/ai/scriptedDeveloper');
 
 const ARVELIA = 'minor-1';
 const SUNDMARK = 'minor-2';
@@ -76,8 +77,7 @@ const purchases = (orders: readonly Order[]) => orders.filter(o => o.kind === 'b
 const buy = (tileId: string, nationId = N1): Order => ({ kind: 'buyLand', nationId, workerId: developer(nationId), tileId });
 const ordersOf = (orders: readonly Order[], workerId: string) => orders.filter(o => 'workerId' in o && o.workerId === workerId);
 
-async function developerPlan(state: GameState, nationId = N1): Promise<Order[]> {
-  const { developerOrders } = await planner();
+function developerPlan(state: GameState, nationId = N1): Order[] {
   const loc = state.map.tiles.flat().flatMap(tile => tile.workers.filter(w => w.id === developer(nationId)).map(worker => ({ worker, tile })))[0];
   return developerOrders(state, nationId, loc);
 }
@@ -93,54 +93,69 @@ describe('FR-638 the Developer buys the tile with the shortest payback', () => {
     expect(Math.max(-1, ...civilians)).toBeLessThan(orders.findIndex(o => o.kind === 'buyLand'));
   });
 
-  it('FR-638 without an idle Miner it buys no mineral, only a tile that yields at level 0 (timber, first in map order)', async () => {
-    expect(await developerPlan(testland(14))).toEqual([buy(COAL), buy('10-4'), buy(IRON), buy('11-5'), buy('12-5'), buy(TIMBER), buy('11-3'), buy('13-3'), buy('13-4'), buy('13-5')]);
-    expect(await developerPlan(busy(testland(14), miner(N1)))).toEqual([buy(TIMBER), buy('11-3'), buy('13-3'), buy('13-4'), buy('13-5')]);
+  it('FR-638 without an idle Miner it buys no mineral, only a tile that yields at level 0 (timber, first in map order)', () => {
+    expect(developerPlan(testland(14))).toEqual([buy(COAL), buy('10-4'), buy(IRON), buy('11-5'), buy('12-5'), buy(TIMBER), buy('11-3'), buy('13-3'), buy('13-4'), buy('13-5')]);
+    expect(developerPlan(busy(testland(14), miner(N1)))).toEqual([buy(TIMBER), buy('11-3'), buy('13-3'), buy('13-4'), buy('13-5')]);
     // The Driller cannot open a seam in the hills; nor can a Miner that is already working
     expect(purchases(scriptedPlayer(busy(testland(14), miner(N1)), N1))).toEqual([buy(TIMBER)]);
   });
 
-  it('FR-638 a level-0 tile at 100%: bought on turn 21 its 20 paid End Turns return exactly the $2,000; on turn 22 it is one short', async () => {
+  it('FR-638 a level-0 tile at 100%: bought on turn 21 its 20 paid End Turns return exactly the $2,000; on turn 22 it is one short', () => {
     const at = (turn: number) => busy(testland(turn, 85), miner(N1));
-    expect((await developerPlan(at(21)))[0]).toEqual(buy(TIMBER));
-    expect(await developerPlan(at(22))).toEqual([]);
+    expect((developerPlan(at(21)))[0]).toEqual(buy(TIMBER));
+    expect(developerPlan(at(22))).toEqual([]);
   });
 
-  it('FR-638 a coal tile at $50 and 100%: bought on turn 27 its mine pays 11 x $100 = the $1,000 + $100 exactly; on turn 28 it is one short', async () => {
+  it('FR-638 a coal tile at $50 and 100%: bought on turn 27 its mine pays 11 x $100 = the $1,000 + $100 exactly; on turn 28 it is one short', () => {
     const at = (turn: number) => setPrice(setPrice(testland(turn, 85), ResourceType.Coal, 50), ResourceType.IronOre, 40);
-    expect(await developerPlan(at(27))).toEqual([buy(COAL), buy('10-4'), buy('12-5')]);
-    expect(await developerPlan(at(28))).toEqual([]);
+    expect(developerPlan(at(27))).toEqual([buy(COAL), buy('10-4'), buy('12-5')]);
+    expect(developerPlan(at(28))).toEqual([]);
   });
 
-  it('FR-638 a better relation pays back sooner: Sundmark at 100% before Arvelia at 75%', async () => {
+  it('FR-638 a better relation pays back sooner: Sundmark at 100% before Arvelia at 75%', () => {
     const both = busy(embassy(testland(14), N1, 85, SUNDMARK), miner(N1));
-    expect((await developerPlan(both))[0]).toEqual(buy(SUNDMARK_TIMBER));
+    expect((developerPlan(both))[0]).toEqual(buy(SUNDMARK_TIMBER));
   });
 
-  it('FR-638 it buys after the reserves: the cash reserve, the upkeep reserve and the grants before the next meeting', async () => {
-    const { purchaseReserve } = await planner();
+  it('FR-638 it buys after the reserves: the cash reserve and the upkeep reserve, and nothing for grants it has nobody to give to', () => {
     const at = (cash: number) => busy(testland(14, 60, cash), miner(N1));
     const reserve = purchaseReserve(at(0), N1);
-    expect(reserve).toBeGreaterThan(4000);
-    expect((await developerPlan(at(2000 + reserve)))[0]).toEqual(buy(TIMBER));
-    expect(await developerPlan(at(2000 + reserve - 1))).toEqual([]);
-    // Four $1,000 grants on turns 16 to 19 before the turn-20 meeting; two are left after turn 17
-    expect(purchaseReserve(testland(15), N1) - purchaseReserve(testland(17), N1)).toBe(2000);
+    // Arvelia borders Testland and is past the grant band (40 to 49 points), so the influence plan gives it no grant (FR-542)
+    expect(reserve).toBe(Math.max(cashReserve(at(0), N1), upkeepReserve(at(0), N1)));
+    expect(reserve).toBeGreaterThan(0);
+    expect((developerPlan(at(2000 + reserve)))[0]).toEqual(buy(TIMBER));
+    expect(developerPlan(at(2000 + reserve - 1))).toEqual([]);
   });
 
-  it('FR-638 an oil tile needs an idle Driller with Oil Drilling', async () => {
+  it('FR-638 FR-490 it keeps the grants its influence plan will give before the next meeting, one for each grant turn still to come', () => {
+    // Sundmark at 45 points with Testland's embassy takes a $1,000 grant on each of turns 16 to 19 before the turn-20 meeting
+    const courted = (turn: number) => embassy(testland(turn), N1, 45, SUNDMARK);
+    const kept = (turn: number) => purchaseReserve(courted(turn), N1) - purchaseReserve(testland(turn), N1);
+    expect(scriptedPlayer(courted(16), N1).filter(o => o.kind === 'giveGrant'))
+      .toEqual([{ kind: 'giveGrant', nationId: N1, targetId: SUNDMARK, amount: 1000, locked: false }]);
+    expect([15, 16, 17, 19].map(kept)).toEqual([4000, 3000, 2000, 0]);
+    // No meeting is ahead on the meeting turn itself; the day after, the four grants of turns 26 to 29 are
+    expect([20, 21].map(kept)).toEqual([0, 4000]);
+    const at = (cash: number) => busy(setTreasury(courted(15), N1, cash), miner(N1));
+    const reserve = purchaseReserve(at(0), N1);
+    expect(reserve).toBe(Math.max(cashReserve(at(0), N1), upkeepReserve(at(0), N1)) + 4000);
+    expect((developerPlan(at(2000 + reserve)))[0]).toEqual(buy(TIMBER));
+    expect(developerPlan(at(2000 + reserve - 1))).toEqual([]);
+  });
+
+  it('FR-638 an oil tile needs an idle Driller with Oil Drilling', () => {
     const oil = (s: GameState) => busy(setTile(s, COAL, { terrain: TerrainType.Swamp, resource: { type: ResourceType.Oil, level: 1, discovered: true } }), miner(N1));
-    expect((await developerPlan(oil(testland(14))))[0]).toEqual(buy(TIMBER));
-    expect((await developerPlan(oil(setTechnologies(testland(14), N1, 'oilDrilling'))))[0]).toEqual(buy(COAL));
-    expect((await developerPlan(busy(oil(setTechnologies(testland(14), N1, 'oilDrilling')), driller(N1))))[0]).toEqual(buy(TIMBER));
+    expect((developerPlan(oil(testland(14))))[0]).toEqual(buy(TIMBER));
+    expect((developerPlan(oil(setTechnologies(testland(14), N1, 'oilDrilling'))))[0]).toEqual(buy(COAL));
+    expect((developerPlan(busy(oil(setTechnologies(testland(14), N1, 'oilDrilling')), driller(N1))))[0]).toEqual(buy(TIMBER));
   });
 
-  it('FR-638 a held seam still waiting for its Miner takes the idle Miner: no second mineral is bought', async () => {
-    expect((await developerPlan(hold(testland(14), '10-4')))[0]).toEqual(buy(TIMBER));
-    expect((await developerPlan(hold(testland(14), '10-4', N1, 1)))[0]).toEqual(buy(COAL));
+  it('FR-638 a held seam still waiting for its Miner takes the idle Miner: no second mineral is bought', () => {
+    expect((developerPlan(hold(testland(14), '10-4')))[0]).toEqual(buy(TIMBER));
+    expect((developerPlan(hold(testland(14), '10-4', N1, 1)))[0]).toEqual(buy(COAL));
   });
 
-  it('FR-638 nothing to buy without an open Minor Nation, a Developer at work, or the cash', async () => {
+  it('FR-638 nothing to buy without an open Minor Nation, a Developer at work, or the cash', () => {
     const closed = setPair(testland(14), N1, ARVELIA, { embassies: [] });
     expect(purchases(scriptedPlayer(closed, N1))).toEqual([]);
     expect(purchases(scriptedPlayer(testland(14, 60, 3000), N1))).toEqual([]);
@@ -168,8 +183,17 @@ describe('FR-638 its Miner and Driller work held tiles after home candidates, un
     for (const order of ordersOf(scriptedPlayer(held, N1), forester(N1))) expect(order).not.toMatchObject({ toTileId: TIMBER });
   });
 
-  it('FR-638 FR-454 an improver on a held tile still counts in the cash reserve of a nation without an army', async () => {
-    const { cashReserve } = await import('@/engine/ai/economy');
+  it('FR-638 FR-636 at war with the Minor Nation or under a boycott its Miner opens no held seam there, since no share is paid', () => {
+    const held = hold(testland(15), COAL);
+    expect(heldTileOrders(held, N1, locate(held, miner(N1))!)).toEqual([{ kind: 'moveAndStartDevelopment', nationId: N1, workerId: miner(N1), toTileId: COAL }]);
+    for (const patch of [{ war: { aggressors: [N1], since: 15 } }, { boycotts: [ARVELIA] }, { boycotts: [N1] }]) {
+      const closed = setPair(held, N1, ARVELIA, patch);
+      expect(heldTileOrders(closed, N1, locate(closed, miner(N1))!)).toEqual([]);
+      expect(ordersOf(scriptedPlayer(closed, N1), miner(N1))).toEqual([]);
+    }
+  });
+
+  it('FR-638 FR-454 an improver on a held tile still counts in the cash reserve of a nation without an army', () => {
     const held: GameState = { ...hold(testland(15), COAL), armies: [] };
     expect(cashReserve(put(held, miner(N1), COAL), N1)).toBe(cashReserve(held, N1));
     expect(cashReserve(put(held, miner(N1), TIMBER), N1)).toBe(cashReserve(held, N1) - 100);
@@ -181,21 +205,29 @@ describe('FR-638 its Miner and Driller work held tiles after home candidates, un
     for (const tile of state.map.tiles.flat()) {
       if (tile.ownerNationId === N1 && (MINING_TERRAINS as readonly string[]).includes(tile.terrain)) state = setTile(state, tile.id, { resource: undefined });
     }
-    const profits: number[] = [];
+    const profits: number[][] = [];
+    const expected: number[][] = [];
     for (let turn = 14; turn <= 19; turn++) {
+      // FR-636: the trade phase pays at last turn's board price, which moves with the market from turn to turn
+      const price = priceOf(marketOf(state), ResourceType.Coal);
       const orders = scriptedPlayer(state, N1);
       if (turn === 14) expect(purchases(orders)).toEqual([buy(COAL)]);
       if (turn === 15) expect(ordersOf(orders, miner(N1))).toEqual([{ kind: 'moveAndStartDevelopment', nationId: N1, workerId: miner(N1), toTileId: COAL }]);
       const next = resolveTurn(state, { [N1]: orders });
       expect(next.events.filter(e => e.type === 'order-rejected')).toEqual([]);
       expect(invariantViolations(next.state, next.events)).toEqual([]);
-      profits.push(...next.events.flatMap(e => (e.type === 'overseas-profit' ? [e.amount] : [])));
+      for (const e of next.events) {
+        if (e.type !== 'overseas-profit') continue;
+        profits.push([e.units, e.price, e.sharePercent, e.amount]);
+        expected.push([2, price, 75, Math.floor((2 * price * 75) / 100)]);
+      }
       state = next.state;
     }
     expect(state.overseasLand?.[COAL]?.holderId).toBe(N1);
     expect(tileAt(state, COAL).resource!.level).toBe(1);
-    // The mine opens on the End Turn of turn 17 and pays on 17, 18 and 19
+    // The mine opens on the End Turn of turn 17 and pays on 17, 18 and 19: floor(2 units x that turn's price x 75 / 100)
     expect(profits.length).toBe(3);
+    expect(profits).toEqual(expected);
   });
 });
 
