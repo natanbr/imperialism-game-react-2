@@ -157,3 +157,14 @@ The commit keeps the `m18i` revision with its replay test (blocker 2), per-offer
 | FR-357 / FR-587 save lengths, NR-038 / FR-626 replay pins | As recorded above for the second attempt. They pass unchanged without the reservation | Per-offer cars and the `m18i` revision |
 
 Unchanged against main: FR-545 15/24 (12 with a paid grant, 0 early), FR-489 24/24, the whole M13 acceptance table (FR-484–FR-546), FR-247, FR-260 scores, FR-125, FR-305, FR-464 and FR-497. The other 71 generated games match every recorded field.
+
+## Gate (2026-11-26)
+
+| Check | Result |
+|---|---|
+| `npm test`, run 1 and run 2 | "Test Files  186 passed (186)", "Tests  3595 passed \| 2 skipped (3597)", exit 0, no Errors line, both runs |
+| `npm run lint` | "✖ 1 problem (0 errors, 1 warning)", the existing warning in `tests/engine/systems/logisticsSystem.test.ts` |
+| `npx tsc --noEmit` | exit 0 |
+| `npm run build` | "✓ Compiled successfully", "✓ Generating static pages (4/4)", exit 0 |
+| `PORT=3124 npx playwright test --workers=1` | "1 failed", "182 passed (17.1m)": `e2e/m12-save.spec.ts:74` expected rules marker `m18h`, received `m18i` (the new revision). Re-recorded under FR-626 / FR-627; the spec re-run gave "4 passed (1.9m)" |
+| `npm run test:perf`, last and alone | "Test Files  3 passed (3)", exit 0. FR-497 computerOrders p95 63.2 ms (max 452.4 ms, limit 100 ms) over 3,230 turns of 84 games; on the shared, loaded machine an A/B rerun of the FR-497 file alone gave main 8b0766c 50.4 ms and this branch 30.4 ms, so the rise from Task 57’s 24.6 ms is load, not the change |
