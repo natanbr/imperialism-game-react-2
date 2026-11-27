@@ -14,7 +14,7 @@ import type { CouncilVote } from "@/types/Council";
 import type { Order, OrderRejection, RejectReason } from "../orders/Order";
 import type { TradeBarrier } from "../market/partners";
 import type { TownCommodity } from "../world/towns";
-import type { LandRefusal } from "../overseas/holdings";
+import type { HoldingLoss, LandRefusal } from "../overseas/holdings";
 import type { OverseasProfit } from "../overseas/profit";
 import { createStreamRng, createTurnRng, RNG_STREAMS, type Rng, type RngStream } from "../rng";
 
@@ -117,7 +117,12 @@ export type GameEvent =
   /** FR-633: the purchase was refused at settlement and `cost` refunded. The buyer's news only (FR-640). */
   | { type: "land-purchase-refused"; nationId: NationId; workerId: string; tileId: TileId; minorId: MinorNationId; cost: number; reason: LandRefusal }
   /** FR-636: the trade phase paid `nationId` its share of `minorId`'s sales of its developed units. The holder's alone (FR-640). */
-  | ({ type: "overseas-profit" } & OverseasProfit);
+  | ({ type: "overseas-profit" } & OverseasProfit)
+  /**
+   * FR-637: `nationId`'s holding on `tileId` ended with no refund: its province was conquered or colonised by `byId`, the
+   * holder fell, or the colony's owner boycotts it. The holder's news only (FR-640).
+   */
+  | { type: "overseas-land-lost"; nationId: NationId; tileId: TileId; minorId: MinorNationId; cause: HoldingLoss; byId?: NationId };
 
 /** Why regiments were disbanded (FR-202, FR-207). */
 export type DisbandReason = "order" | "no-pay";

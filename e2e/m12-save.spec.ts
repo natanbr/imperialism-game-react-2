@@ -88,7 +88,8 @@ test('FR-626 FR-627 Continue and End Turn autosave the M18d campaign at its paid
   if (slot.kind !== 'usable') throw new Error('Expected a usable End Turn autosave');
   const { save } = slot;
   expect(save.version).toBe(1);
-  expect(save.game.rulesRevision).toBe('m18h');
+  // FR-641: the next settlement on a province map carries the M18j revision
+  expect(save.game.rulesRevision).toBe('m18j');
   expect(save.replayBoundary).toEqual({ turn: 15, appliedOrders: 1, checkpoint: original.game });
   expect(save.eventLog.slice(0, -1)).toEqual(original.eventLog);
   expect(save.eventLog.at(-1)?.turn).toBe(15);

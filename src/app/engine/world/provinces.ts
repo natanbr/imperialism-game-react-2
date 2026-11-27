@@ -83,5 +83,12 @@ export function transferProvince(state: GameState, provinceId: ProvinceId, newOw
     if (Object.keys(remaining).length) next.townProgress = remaining;
     else delete next.townProgress;
   }
+  // FR-637: a holding lies on its Minor Nation's land only, so it ends when the province changes hands
+  if (province.ownerId !== newOwnerId && state.overseasLand && province.tileIds.some((id) => state.overseasLand![id])) {
+    const remaining = { ...state.overseasLand };
+    for (const id of province.tileIds) delete remaining[id];
+    if (Object.keys(remaining).length) next.overseasLand = remaining;
+    else delete next.overseasLand;
+  }
   return next;
 }

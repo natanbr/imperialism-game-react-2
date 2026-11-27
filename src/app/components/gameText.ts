@@ -118,6 +118,14 @@ const LAND_REFUSAL_TEXT: Record<Extract<GameEvent, { type: "land-purchase-refuse
   outbid: "it sold to a partner it favours more",
 };
 
+/** FR-637, FR-639: why a holding ended, in the holder's news. */
+const HOLDING_LOSS_TEXT: Record<Extract<GameEvent, { type: "overseas-land-lost" }>["cause"], string> = {
+  conquest: "its province was conquered",
+  colonisation: "the Minor Nation was colonised",
+  fall: "we have fallen",
+  "colony-boycott": "the colony's owner boycotts us",
+};
+
 /** Why an offer passed the nation by, in the news and the Deal Book (FR-244). */
 export const MISSED_TEXT: Record<OfferMissedReason, string> = {
   "no-hold": "no free hold",
@@ -397,6 +405,7 @@ function tileOf(event: GameEvent): string | undefined {
     case "developer-arrived":
     case "land-purchased":
     case "land-purchase-refused":
+    case "overseas-land-lost":
       return event.tileId;
     default:
       return undefined;
@@ -560,6 +569,8 @@ export function eventText(event: GameEvent, nameOf: (countryId: string) => strin
     // FR-636, FR-639: the holder reads its overseas profit in the Deal Book, not in the news
     case "overseas-profit":
       return null;
+    case "overseas-land-lost":
+      return `Our holding at ${at(event.tileId)} in ${nameOf(event.minorId)} ended: ${HOLDING_LOSS_TEXT[event.cause]}${event.byId && event.cause === "conquest" ? ` by ${nameOf(event.byId)}` : ""}.`;
     // FR-297 (M10): a line of no nation; `newsItems` puts it first (FR-306). FR-414: the nominees by votes, most first,
     // ties in standing order (the event keeps the standing order for the Council screen, FR-313)
     case "council-met": {
@@ -664,8 +675,9 @@ export function newsItems(events: readonly GameEvent[], playerId: string, nameOf
   const ownRelations = new Set(events.flatMap((e) => (e.type === "relation-changed" && e.nationId === playerId ? [e.otherId] : [])));
   for (const event of events) {
     if (event.type === "town-receipt" && event.nationId !== playerId) continue;
-    // FR-629, FR-633, FR-636, FR-640: another nation's Developer arrival, land purchases and overseas profit are private to it
-    if ((event.type === "developer-arrived" || event.type === "land-purchased" || event.type === "land-purchase-refused" || event.type === "overseas-profit")
+    // FR-629, FR-633, FR-636, FR-637, FR-640: another nation's Developer arrival, land purchases, profit and losses are private to it
+    if ((event.type === "developer-arrived" || event.type === "land-purchased" || event.type === "land-purchase-refused" || event.type === "overseas-profit"
+      || event.type === "overseas-land-lost")
       && event.nationId !== playerId) continue;
     if (event.type === "overture-done" && event.targetId === playerId && ownDone.has(`${event.overture}|${event.nationId}`)) continue;
     if (event.type === "relation-changed" && event.otherId === playerId && ownRelations.has(event.nationId)) continue;

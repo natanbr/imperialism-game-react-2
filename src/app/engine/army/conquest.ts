@@ -13,6 +13,7 @@ import { isGreatPower, isMinorNation } from "../world/countries";
 import { provinceById, provincesOf, transferProvince } from "../world/provinces";
 import { capitalProvinceOf } from "./armies";
 import { withFleets } from "../navy/fleets";
+import { endHoldings, holdingsOn, sendCiviliansHome, type HoldingLoss } from "../overseas/holdings";
 
 type Emit = (event: GameEvent) => void;
 
@@ -65,19 +66,19 @@ function clearedTile(tile: Tile, leaving: (w: Worker) => boolean): Tile {
 /**
  * FR-222: the province passes to the winner (`transferProvince`); the rail, depots and ports on its tiles are removed,
  * also from the old owner's rail graph; its fort, resources and development levels stay; the jobs under way there end;
- * the old owner's civilians on its tiles go to the old owner's capital tile (removed when it has none); the winner gets
- * no militia there. A capture is recorded in the war between the two (read by FR-174 and FR-228). Event `province-taken`.
+ * every other nation's civilians on its tiles go to their own capital tiles (removed when it has none; before M18j only
+ * the old owner's could stand there); the winner gets no militia there. A capture is recorded in the war between the
+ * two (read by FR-174 and FR-228). Event `province-taken`. FR-637: the holdings on its tiles end with no refund, the
+ * winner owning them at their level, holder or not; an `overseas-land-lost` for each, with `cause`.
  */
-function passProvince(state: GameState, provinceId: ProvinceId, winnerId: NationId, turn: number, emit: Emit): GameState {
+function passProvince(state: GameState, provinceId: ProvinceId, winnerId: NationId, turn: number, emit: Emit, cause: HoldingLoss = "conquest"): GameState {
   const province = provinceById(state, provinceId)!;
   const fromId = province.ownerId;
+  const lost = holdingsOn(state, province.tileIds);
   let s = transferProvince(state, provinceId, winnerId);
 
   const taken = new Set(province.tileIds);
-  const capitalTile = state.nations.some((n) => n.id === fromId)
-    ? s.map.tiles.flat().find((t) => t.cityId === s.nations.find((n) => n.id === fromId)!.cities[0] && t.ownerNationId === fromId)
-    : undefined;
-  const leaving = (w: Worker) => w.nationId === fromId;
+  const leaving = (w: Worker) => w.nationId !== winnerId;
   const homeless: Worker[] = [];
   const keys = new Set<string>();
   const tiles = s.map.tiles.map((row) =>
@@ -90,15 +91,7 @@ function passProvince(state: GameState, provinceId: ProvinceId, winnerId: Nation
         })
       : row
   );
-  const home = (w: Worker): Worker => {
-    const back: Worker = { ...w, status: WorkerStatus.Available, justMoved: false, assignedTileId: capitalTile!.id };
-    delete back.previousTileId;
-    return back;
-  };
-  const placed = capitalTile && homeless.length > 0
-    ? tiles.map((row) => (row.some((t) => t.id === capitalTile.id) ? row.map((t) => (t.id === capitalTile.id ? { ...t, workers: [...t.workers, ...homeless.map(home)] } : t)) : row))
-    : tiles;
-  s = { ...s, map: { ...s.map, tiles: placed } };
+  s = sendCiviliansHome({ ...s, map: { ...s.map, tiles } }, homeless);
 
   const network = s.transportNetwork.railroadNetworks?.[fromId];
   if (network) {
@@ -115,6 +108,7 @@ function passProvince(state: GameState, provinceId: ProvinceId, winnerId: Nation
     s = { ...s, diplomacy: { ...s.diplomacy, [key]: { ...s.diplomacy[key], war: { ...war, captures } } } };
   }
   emit({ type: "province-taken", nationId: winnerId, provinceId, fromId });
+  for (const h of lost) emit({ type: "overseas-land-lost", nationId: h.holderId, tileId: h.tileId, minorId: h.minorId, cause, byId: winnerId });
   return s;
 }
 
@@ -161,7 +155,8 @@ function makeColony(state: GameState, minorId: MinorNationId, ownerId: NationId,
 /**
  * FR-223 (Q34; Imp1 differs: the rest of the nation falls into anarchy, gaps F4): the fallen Great Power's other
  * provinces pass to the winner (each as FR-222), its colonies with them (review E1), its regiments are removed and its
- * wars end; `nation-fallen`, then a `minor-colonised` for each colony the winner gains.
+ * wars end; `nation-fallen`, then its holdings in other provinces end, the tiles staying with their Minor Nation at their
+ * level (FR-637, inferred), then a `minor-colonised` for each colony the winner gains.
  */
 function fallNation(state: GameState, fallenId: NationId, winnerId: NationId, turn: number, emit: Emit): GameState {
   let s = state;
@@ -173,6 +168,7 @@ function fallNation(state: GameState, fallenId: NationId, winnerId: NationId, tu
       intents: s.intents.filter(i => i.kind !== "fleet-mission" || i.nationId !== fallenId) };
   }
   emit({ type: "nation-fallen", nationId: winnerId, fallenId });
+  s = endHoldings(s, (h) => h.holderId === fallenId, "fall", emit);
   for (const colony of s.minorNations.filter((m) => m.colonyOf === fallenId)) s = makeColony(s, colony.id, winnerId, emit);
   return s;
 }
@@ -183,7 +179,7 @@ function fallNation(state: GameState, fallenId: NationId, winnerId: NationId, tu
  */
 function colonise(state: GameState, minorId: MinorNationId, winnerId: NationId, turn: number, emit: Emit): GameState {
   let s = state;
-  for (const province of provincesOf(state, minorId)) s = passProvince(s, province.id, winnerId, turn, emit);
+  for (const province of provincesOf(state, minorId)) s = passProvince(s, province.id, winnerId, turn, emit, "colonisation");
   s = { ...s, diplomacy: endWarsOf(s.diplomacy, minorId) };
   return makeColony(s, minorId, winnerId, emit);
 }

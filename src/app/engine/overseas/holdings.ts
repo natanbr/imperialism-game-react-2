@@ -10,7 +10,7 @@ import type { MinorNation } from "@/types/MinorNation";
 import { ResourceType } from "@/types/Resource";
 import type { Tile } from "@/types/Tile";
 import { WorkerStatus, WorkerType, type Worker } from "@/types/Workers";
-import type { TurnSystem } from "../turn/context";
+import type { GameEvent, TurnSystem } from "../turn/context";
 import { byIntentOrder } from "../turn/intents";
 import { relationOf } from "../diplomacy/relations";
 import { isTradeCommodity, marketOf, priceOf } from "../market/market";
@@ -82,6 +82,84 @@ export function landSiteRefusal(state: GameState, nationId: NationId, tile: Tile
   if (!resource || resource.discovered === false) return "invalid-target";
   return BUYABLE_LAND_TERRAINS.includes(tile.terrain) && BUYABLE_LAND_RESOURCES.includes(resource.type) ? undefined : "invalid-site";
 }
+
+/** Why a holding ended (FR-637): its province was conquered or colonised, the holder fell, or a colony boycott. */
+export type HoldingLoss = "conquest" | "colonisation" | "fall" | "colony-boycott";
+
+/** The holdings on these tiles, in tile order (FR-637). */
+export const holdingsOn = (state: GameState, tileIds: readonly TileId[]): OverseasHolding[] =>
+  tileIds.flatMap((id) => (state.overseasLand?.[id] ? [state.overseasLand[id]] : []));
+
+/**
+ * FR-222, FR-637: each civilian goes to its own nation's capital tile, Available and unmoved; one whose nation holds no
+ * capital tile is removed. The civilians have already left their tiles. Returns its input when there are none.
+ */
+export function sendCiviliansHome(state: GameState, homeless: readonly Worker[]): GameState {
+  if (homeless.length === 0) return state;
+  const capitals = new Map<NationId, TileId | undefined>();
+  const capitalOf = (nationId: NationId) => {
+    if (!capitals.has(nationId)) {
+      const nation = state.nations.find((n) => n.id === nationId);
+      capitals.set(nationId, nation && state.map.tiles.flat().find((t) => t.cityId === nation.cities[0] && t.ownerNationId === nationId)?.id);
+    }
+    return capitals.get(nationId);
+  };
+  const arriving = new Map<TileId, Worker[]>();
+  for (const w of homeless) {
+    const capital = capitalOf(w.nationId);
+    if (!capital) continue;
+    const back: Worker = { ...w, status: WorkerStatus.Available, justMoved: false, assignedTileId: capital };
+    delete back.previousTileId;
+    arriving.set(capital, [...(arriving.get(capital) ?? []), back]);
+  }
+  if (arriving.size === 0) return state;
+  const tiles = state.map.tiles.map((row) => (row.some((t) => arriving.has(t.id))
+    ? row.map((t) => (arriving.has(t.id) ? { ...t, workers: [...t.workers, ...arriving.get(t.id)!] } : t))
+    : row));
+  return { ...state, map: { ...state.map, tiles } };
+}
+
+/**
+ * FR-637: the holdings `ends` picks end with no refund, and their tiles stay with the Minor Nation at their level. The
+ * holder's civilians on them go to its capital tile with their jobs ended (`sendCiviliansHome`). Event
+ * `overseas-land-lost`, the holder's. Returns its input when nothing ends.
+ */
+export function endHoldings(state: GameState, ends: (holding: OverseasHolding) => boolean, cause: HoldingLoss, emit: (event: GameEvent) => void): GameState {
+  const ended = Object.values(state.overseasLand ?? {}).filter(ends);
+  if (ended.length === 0) return state;
+  const holderOn = new Map(ended.map((h) => [h.tileId, h.holderId]));
+  const homeless: Worker[] = [];
+  const tiles = state.map.tiles.map((row) => (row.some((t) => holderOn.has(t.id))
+    ? row.map((tile) => {
+      const holderId = holderOn.get(tile.id);
+      if (holderId === undefined) return tile;
+      const leaving = tile.workers.filter((w) => w.nationId === holderId);
+      if (leaving.length === 0) return tile;
+      homeless.push(...leaving);
+      const copy: Tile = { ...tile, workers: tile.workers.filter((w) => w.nationId !== holderId) };
+      // Only the holder works a held tile (FR-634)
+      delete copy.developmentJob;
+      return copy;
+    })
+    : row));
+  const remaining = { ...state.overseasLand };
+  for (const h of ended) delete remaining[h.tileId];
+  const next: GameState = { ...state, map: { ...state.map, tiles } };
+  if (Object.keys(remaining).length > 0) next.overseasLand = remaining;
+  else delete next.overseasLand;
+  for (const h of ended) emit({ type: "overseas-land-lost", nationId: h.holderId, tileId: h.tileId, minorId: h.minorId, cause });
+  return sendCiviliansHome(next, homeless);
+}
+
+/**
+ * FR-637 (rules 07 §7.1): a colony owner's colony boycott of a rival ends the rival's holdings in its colonies whose land
+ * is still the Minor Nation's. Today every colony comes from conquest, which has already ended them, so nothing calls
+ * this until the boycott Order arrives with Join the Empire (card Q37, inferred).
+ */
+export const endColonyBoycottedHoldings = (state: GameState, ownerId: NationId, rivalId: NationId, emit: (event: GameEvent) => void): GameState => {
+  const colonies = new Set(state.minorNations.filter((m) => m.colonyOf === ownerId).map((m) => m.id));
+  return endHoldings(state, (h) => h.holderId === rivalId && colonies.has(h.minorId), "colony-boycott", emit);
+};
 
 /** Why the settlement refused a purchase (FR-633): its sale conditions failed, or another buyer ranked first. */
 export type LandRefusal = "not-owner" | "already-owned" | OverseasBarrier | "outbid";

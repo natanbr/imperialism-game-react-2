@@ -124,7 +124,8 @@ describe('FR-637 a holding in a conquered province', () => {
     expect([locate(state, miner(N1))!.tile.id, locate(state, developer(N1))!.tile.id]).toEqual([capitalOf(state, N1), capitalOf(state, N1)]);
     expect(tileAt(state, COAL)).toMatchObject({ workers: [] });
     expect(tileAt(state, COAL).developmentJob).toBeUndefined();
-    expect(lost(events).map(e => [e.nationId, e.tileId, e.cause, 'byId' in e && e.byId])).toEqual([[N1, COAL, 'conquest', N2], [N1, TIMBER, 'conquest', N2]]);
+    // In the province's tile order
+    expect(lost(events).map(e => [e.nationId, e.tileId, e.cause, 'byId' in e && e.byId])).toEqual([[N1, TIMBER, 'conquest', N2], [N1, COAL, 'conquest', N2]]);
     expect(state.minorNations.find(m => m.id === ARVELIA)!.colonyOf).toBe(N2);
     expect(overseasViolations(state)).toEqual([]);
   });
