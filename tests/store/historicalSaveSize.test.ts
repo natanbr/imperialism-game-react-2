@@ -53,10 +53,10 @@ it('FR-357 FR-587 keeps one full game on disk and replays every turn since a his
     // FR-622 adds 14 receipts, another 2550 characters. Total 201597 -> 204351. T11 is unchanged.
     // FR-627 under FR-628: towns ship before automatic freight, so delivered town goods change the saved warehouse and
     // the computer's later Orders. T40 204351 -> 204795, replay delta 10872 -> 10899. T11 is unchanged.
-    if (turn === 40) {
-      expect(raw.length).toBe(204795);
-      expect(raw.length - ordinarySize).toBe(10899);
-    }
+    // FR-627 / FR-628: from T26, capped car assignments omit Lumber the computer could not ship.
+    // T40 204795 -> 204351 characters, replay overhead 10899 -> 10872. T11 stays at 111446 (+2370).
+    expect(raw.length).toBe(turn === 40 ? 204351 : 111446);
+    expect(raw.length - ordinarySize).toBe(turn === 40 ? 10872 : 2370);
     expect(raw.length - ordinarySize).toBeLessThan(checkpointSize / 2);
     expect(JSON.parse(raw).replayBoundary).not.toHaveProperty('checkpoint');
     const roundTrip = read(raw);
@@ -84,7 +84,9 @@ it('FR-357 keeps the Large historical random-map save at turn 40 within the 2,00
   console.info(`Large seed 1 T40: ${raw.length} characters, ${Buffer.byteLength(raw)} UTF-8 bytes.`);
   // FR-627, Large seed 1 T40: 246942 -> 249543 (+203 FR-626 progress/checkpoint, +2398 FR-622 for 11 receipts).
   // FR-627 under FR-628: delivered town goods change the saved stock and later Orders. 249543 -> 248908.
-  expect(raw.length).toBe(248908);
+  // FR-627 / FR-628: from T29 the Orders omit Lumber and Steel that have no car. T40 248908 -> 248614.
+  expect(raw.length).toBe(248614);
+  expect(raw.length - JSON.stringify({ ...saved, replayBoundary: undefined }).length).toBe(13187);
   expect(raw.length).toBeLessThan(2_000_000);
   expect(read(raw).game).toEqual(saved.game);
   store.getState().advanceTurn();
@@ -96,7 +98,10 @@ it('FR-357 keeps the Large historical random-map save at turn 40 within the 2,00
   console.info(`Large seed 1 after T40: ${finalRaw.length} characters, ${Buffer.byteLength(finalRaw)} UTF-8 bytes.`);
   // FR-627, after T40: 251943 -> 254762 (+203 FR-626 progress/checkpoint, +2616 FR-622 for 12 receipts).
   // FR-627 under FR-628: delivered town goods change the saved stock and later Orders. 254762 -> 253596.
-  expect(finalRaw.length).toBe(253596);
+  // FR-627 / FR-628: capping the computer's town assignments also changes the last settlement's saved state.
+  // 253596 -> 253216 characters; replay overhead 13224 -> 13201.
+  expect(finalRaw.length).toBe(253216);
+  expect(finalRaw.length - JSON.stringify({ ...finished, replayBoundary: undefined }).length).toBe(13201);
   expect(finalRaw.length).toBeLessThan(2_000_000);
   expect(read(finalRaw).game).toEqual(finished.game);
 });

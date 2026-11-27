@@ -80,7 +80,7 @@ export interface GameState {
   /** Shared ownership in pre-M16 version-1 saves. readSave migrates it to the individual nations. */
   technologyState?: TechnologyState;
   /** Identifies current play in v1 saves; older saves need a historical replay boundary. */
-  rulesRevision?: "m16.1" | "m18d" | "m18h" | "m18j";
+  rulesRevision?: "m16.1" | "m18d" | "m18h" | "m18i" | "m18j";
 
   difficulty: Difficulty;
 }
@@ -100,8 +100,8 @@ export interface OverseasHolding {
 }
 
 /**
- * Province maps settle town development (M18h) and the Developer (M18j, FR-641); every province map has Minor Nations.
- * Two islands, which has neither, retains its fishing-era replay semantics.
+ * Province maps settle town development (M18h), towns-first freight (M18i) and the Developer (M18j, FR-641); every
+ * province map has Minor Nations. Two islands, which has neither, retains its fishing-era replay semantics.
  */
 export function settlementRevision(state: GameState): "m18j" | "m18d" {
   return state.provinces?.length ? "m18j" : "m18d";

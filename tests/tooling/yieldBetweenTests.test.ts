@@ -2,17 +2,12 @@
 // never reached its event loop until the file ended. In a full run tests/ui/boardOfTrade.test.tsx blocked its worker for
 // 89 s, longer than Vitest's 60 s worker-to-main RPC limit, and the run failed on "Timeout calling onTaskUpdate" with every
 // test passed. tests/yieldBetweenTests.ts (vitest.config.ts setupFiles) gives the worker one event-loop turn after each test.
-import { describe, expect, it } from 'vitest';
+import { expect, it, onTestFinished } from 'vitest';
 
-describe('the worker reaches its event loop between tests', () => {
+it('finds the macrotask already run after the configured afterEach hook', () => {
   let macrotaskRan = false;
-
-  it('schedules a macrotask and returns without waiting for it', () => {
-    setImmediate(() => { macrotaskRan = true; });
-    expect(macrotaskRan).toBe(false);
-  });
-
-  it('finds the macrotask already run when the next test starts', () => {
-    expect(macrotaskRan).toBe(true);
-  });
+  setImmediate(() => { macrotaskRan = true; });
+  expect(macrotaskRan).toBe(false);
+  // Vitest calls this after all afterEach hooks, before the next test starts.
+  onTestFinished(() => { expect(macrotaskRan).toBe(true); });
 });

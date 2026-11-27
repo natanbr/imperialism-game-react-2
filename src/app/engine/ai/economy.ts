@@ -31,8 +31,8 @@ import { partnerDemand, partnerSupply, planConsulate } from "./scriptedPartners"
 import { councilTradeInputs, embassySaving, planInfluence } from "./scriptedInfluence";
 import { greatPowerTradeCaps } from "./scriptedGreatPowerTrade";
 import { mealNeeds } from "../systems/foodSystem";
-import { productionSystem } from "../systems/productionSystem";
-import { projectedFreightPlan, projectedFreightSupply, rawFreightSupply, updateNationStateWithTransportedResources } from "../systems/logisticsSystem";
+import { finishBuildings, productionSystem } from "../systems/productionSystem";
+import { forecastFreight, projectedFreightPlan, rawFreightSupply, updateNationStateWithTransportedResources } from "../systems/logisticsSystem";
 import { transportConnectivitySystem } from "../systems/transportConnectivitySystem";
 import { developmentSystem } from "../systems/developmentSystem";
 import { createTurnContext } from "../turn/context";
@@ -42,7 +42,7 @@ import { armsWanted, planGarrison, upkeepReserve } from "./scriptedArmy";
 import { workersKeptForCampaign } from "./scriptedWar";
 import { capitalComponent } from "./railPlan";
 import { upkeepOf } from "../army/armies";
-import { townChains } from "../world/towns";
+import { townFactories } from "../world/towns";
 import { WorkerType } from "@/types/Workers";
 
 export type Propose = (order: Order) => boolean;
@@ -140,29 +140,14 @@ export function planEconomy(view: () => GameState, nationId: string, propose: Pr
 
 // --- transport (FR-127) ---------------------------------------------------------------------
 
-const townCommodities = new Set<string>(townChains.flatMap(([, material, good]) => [material, good]));
-
-/**
- * FR-628: the town materials and goods of a forecast collection, one entry per commodity holding every town's units.
- * The entries keep the order in which each commodity first entered the collection: the first producing province's
- * chain order (material before good), then any commodity only a later province adds. That is not each town's own
- * offer order. The whole forecast is wanted: lumber and steel build capacity, fabric feeds the clothing factory and
- * the goods sell. A raw-only collection has none. The forecast reads only the nation's own towns on its own map
- * (FR-497).
- */
-export const townShippingWants = (collected: Stock): [string, number][] =>
-  Object.entries(collected).filter(([commodity, units]) => townCommodities.has(commodity) && units > 0);
-
 /**
  * Units worth shipping this turn, in priority order: the meal's raw food that the warehouse lacks
  * (keeping one meal in stock), plus one canned-food batch's while the cans are fewer than the
  * workers; the steel mill's coal and iron (the scarcer in stock first), the lumber mill's timber,
- * the textile mill's cotton and wool, each up to two turns of its mill at full capacity; then the towns' materials and
- * goods (`towns`, FR-628), before the cars left for the other resources. As for a person, the planned amounts come
- * first and the towns before ordinary freight.
+ * the textile mill's cotton and wool, each up to two turns of its mill at full capacity.
  */
 export function shippingWants(
-  state: GameState, nationId: string, gathered = rawFreightSupply(state, nationId), towns = townShippingWants(gathered)
+  state: GameState, nationId: string, gathered = rawFreightSupply(state, nationId)
 ): [string, number][] {
   const nation = nationOf(state, nationId);
   const stock = nation.warehouse as Stock;
@@ -192,7 +177,6 @@ export function shippingWants(
     input(ResourceType.Timber, 2 * capacityOf(nation, "lumberMill")),
     input(ResourceType.Cotton, fibreUse),
     input(ResourceType.Wool, fibreUse),
-    ...towns,
   ];
 }
 
@@ -201,12 +185,14 @@ export function shippingWants(
  * and the `collected` units: each commodity with a want is set, in the wants' order, to the larger of its want and what
  * the rule from before FR-389 (the wants first, then the cars left filled in tile order) ships of it; every other
  * commodity stays automatic and takes the cars left in tile order. The logistics phase then ships what that rule
- * shipped. The fill follows the collection's key order, with raw tile and Fish supply before town commodities, not the
- * logistics phase's towns-first order (FR-628). The towns lose nothing by it: `townShippingWants` makes their whole
- * forecast a want, so they take their cars before the fill. Example: 15 cars, collected grain 10, livestock 4, fruit 5, cotton 2, wants livestock 1 and cotton 2:
- * { livestock: 3, cotton: 2 }, and the logistics phase ships livestock 3, cotton 2, grain 10.
+ * shipped. FR-628: after the wants, the cars left go to the individual town `offers` in province and chain order (West's
+ * Furniture before East's Lumber), then to the raw fill.
+ * Only the chosen town units enter the commodity-level Order.
  */
-export function priorityPlan(capacity: number, collected: Stock, wants: readonly (readonly [string, number])[]): Record<string, number> {
+export function priorityPlan(
+  capacity: number, collected: Stock, wants: readonly (readonly [string, number])[],
+  offers: ReturnType<typeof forecastFreight>["offers"] = [],
+): Record<string, number> {
   const shipped: Stock = {};
   let used = 0;
   const ship = (res: string, wanted: number) => {
@@ -217,16 +203,27 @@ export function priorityPlan(capacity: number, collected: Stock, wants: readonly
   };
   const wanted = wants.map(([res, want]) => [res, Math.floor(want) || 0] as const).filter(([, want]) => want > 0);
   for (const [res, want] of wanted) ship(res, want);
+  const selectedTowns: Stock = {};
+  for (const offer of offers) {
+    for (const [res, amount] of offer.units) {
+      ship(res, amount);
+      if (shipped[res]) selectedTowns[res] = shipped[res];
+    }
+  }
   for (const [res, amount] of Object.entries(collected)) ship(res, amount);
-  return Object.fromEntries(wanted.map(([res, want]) => [res, Math.max(want, shipped[res] ?? 0)]));
+  const plan = Object.fromEntries(wanted.map(([res, want]) => [res, Math.max(want, shipped[res] ?? 0)]));
+  return Object.assign(plan, selectedTowns);
 }
 
 const carsOf = (state: GameState, nationId: string): number => Math.max(0, nationOf(state, nationId).transportCapacity ?? 0);
 
+const planFreight = (view: GameState, nationId: string, { collected, offers }: ReturnType<typeof forecastFreight>, rawWants: [string, number][]) =>
+  priorityPlan(carsOf(view, nationId), collected, rawWants, offers);
+
 /** The first plan, on what the hubs collect now: the one the trade's projection ships (`projectTurn` runs no development). */
 function planTransport(state: GameState, nationId: string, propose: Propose): void {
-  const gathered = projectedFreightSupply(state, nationId);
-  const allocations = priorityPlan(carsOf(state, nationId), gathered, shippingWants(state, nationId, gathered));
+  const supply = forecastFreight(state, nationId);
+  const allocations = planFreight(state, nationId, supply, shippingWants(state, nationId, supply.collected));
   propose({ kind: "setTransportAllocations", nationId, allocations });
 }
 
@@ -234,11 +231,21 @@ function planTransport(state: GameState, nationId: string, propose: Propose): vo
  * What the hubs collect in the logistics phase of the turn `view` plans (its orders given): after the development
  * phase finishes this turn's jobs (a rail, a depot, a tile's next level) and the connectivity phase updates the hubs.
  */
-export function collectedAtLogistics(view: GameState, nationId: string): Stock {
+function freightAtLogistics(view: GameState, nationId: string) {
   const ctx = createTurnContext({ turn: view.turn });
   const connected = transportConnectivitySystem(developmentSystem(view, ctx), ctx);
+  const owner = nationOf(connected, nationId);
+  if (Object.values(townFactories).some(factory => buildingOf(owner, factory).pendingCapacity > 0)) {
+    const buildings = finishBuildings(nationId, owner.industry, ctx);
+    const nations = connected.nations.map(n => n === owner ? { ...n, industry: { ...n.industry, buildings } } : n);
+    return forecastFreight({ ...connected, nations }, nationId, view.map);
+  }
   // A survey can finish in the real settlement. Its result is still private while orders are being planned.
-  return projectedFreightSupply(connected, nationId, view.map);
+  return forecastFreight(connected, nationId, view.map);
+}
+
+export function collectedAtLogistics(view: GameState, nationId: string): Stock {
+  return freightAtLogistics(view, nationId).collected;
 }
 
 /**
@@ -248,9 +255,7 @@ export function collectedAtLogistics(view: GameState, nationId: string): Stock {
  * logistics phase's (`collectedAtLogistics(view)`); the cars ordered this turn join only after the phases.
  */
 export function planFinalTransport(start: GameState, view: GameState, nationId: string, propose: Propose): void {
-  const collected = collectedAtLogistics(view, nationId);
-  const wants = shippingWants(start, nationId, rawFreightSupply(start, nationId), townShippingWants(collected));
-  const allocations = priorityPlan(carsOf(view, nationId), collected, wants);
+  const allocations = planFreight(view, nationId, freightAtLogistics(view, nationId), shippingWants(start, nationId));
   propose({ kind: "setTransportAllocations", nationId, allocations });
 }
 

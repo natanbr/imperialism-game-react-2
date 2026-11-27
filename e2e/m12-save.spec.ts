@@ -88,7 +88,9 @@ test('FR-626 FR-627 Continue and End Turn autosave the M18d campaign at its paid
   if (slot.kind !== 'usable') throw new Error('Expected a usable End Turn autosave');
   const { save } = slot;
   expect(save.version).toBe(1);
-  // FR-641: the next settlement on a province map carries the M18j revision
+  // FR-627 / FR-628, Task 60: provincial games settle under their own revision, so an older save keeps its own replay
+  // rules. FR-641 / FR-642: the Developer's revision follows. Chain m18h -> m18i -> m18j: the autosave's marker moves
+  // 'm18h' -> 'm18i' (FR-627 / FR-628), then 'm18i' -> 'm18j' (FR-641 / FR-642); the boundary and replay are unchanged.
   expect(save.game.rulesRevision).toBe('m18j');
   expect(save.replayBoundary).toEqual({ turn: 15, appliedOrders: 1, checkpoint: original.game });
   expect(save.eventLog.slice(0, -1)).toEqual(original.eventLog);

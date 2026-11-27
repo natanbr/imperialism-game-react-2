@@ -1,7 +1,8 @@
 // M18j T-04 (FR-641): version-1 saves across the Developer's rules. The M18h and M18d captures were written by the base
 // rules at 8c03962 (seed 3, the app's store, saveOf at the Unix epoch, serializeSave): a settled save and the same turn
 // with two accepted Orders (a freight allocation and a $500 consulate), on the continent and a Standard Random map, and a
-// Two islands save with one Order.
+// Two islands save with one Order. The M18i capture was written by main 521a7b4 with the same recipe (continent, two
+// accepted Orders); it matches the M18h one except its rules marker, since towns-first freight changes nothing by turn 7.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { gunzipSync } from 'node:zlib';
@@ -51,14 +52,15 @@ function continueBeside(live: ReturnType<typeof createGameStore>, turns: number)
 }
 
 it.each([
-  ['m18h-continent-turn-7.json.gz', 7, 0],
-  ['m18h-continent-turn-7-midturn.json.gz', 7, 2],
-  ['m18h-random-turn-5.json.gz', 5, 0],
-  ['m18h-random-turn-5-midturn.json.gz', 5, 2],
-] as const)('FR-641 continues the genuine M18h save %s from its saved position with no Developer, holding or back pay', (file, turn, paid) => {
+  ['m18h-continent-turn-7.json.gz', 'm18h', 7, 0],
+  ['m18h-continent-turn-7-midturn.json.gz', 'm18h', 7, 2],
+  ['m18h-random-turn-5.json.gz', 'm18h', 5, 0],
+  ['m18h-random-turn-5-midturn.json.gz', 'm18h', 5, 2],
+  ['m18i-continent-turn-7-midturn.json.gz', 'm18i', 7, 2],
+] as const)('FR-641 continues the genuine save %s (%s) from its saved position with no Developer, holding or back pay', (file, revision, turn, paid) => {
   const raw = fixture(file);
   const original: SavedGame = JSON.parse(raw);
-  expect(original.game.rulesRevision).toBe('m18h');
+  expect(original.game.rulesRevision).toBe(revision);
   expect(original.replayBoundary).toBeUndefined();
   expect(original.ordersThisTurn).toHaveLength(paid);
   const imported = load(raw);
@@ -72,6 +74,7 @@ it.each([
   continueBeside(live, 2);
   const after = saveOf(live.getState());
   expect(after.game.turn).toBe(turn + 2);
+  // Chain m18h -> m18i -> m18j: either older marker becomes 'm18j' at the first continued settlement (FR-641 / FR-642).
   expect(after.game.rulesRevision).toBe('m18j');
   expect(after.replayBoundary).toEqual(imported.replayBoundary);
   expect(after.eventLog.slice(0, original.eventLog.length)).toEqual(original.eventLog);
