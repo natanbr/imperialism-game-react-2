@@ -81,7 +81,7 @@ test('FR-639 FR-640 flags, Tile Info, Buy land, News and the Deal Book\'s Overse
   // Phone width: the same views, no horizontal page scroll
   await page.setViewportSize({ width: 390, height: 844 });
   await tile(page, '11-3').click();
-  await expect(tileInfo.getByTestId('tile-holding')).toContainText(/Held by: you, since turn 1.*Last turn's profit: \$\d+ from 2 Timber in Arvelia/);
+  await expect(tileInfo.getByTestId('tile-holding')).toContainText(/Held by: you, since turn 1.*Last turn's profit: \$\d+ from 2 Timber on all your land in Arvelia/);
   expect(await noSideScroll(page)).toBe(true);
   await page.screenshot({ path: info.outputPath('m18j-holding-390.png') });
   await page.getByRole('button', { name: 'Deal Book', exact: true }).click();
