@@ -20,13 +20,14 @@ export type MilitaryWord = (typeof MILITARY_WORDS)[number];
 /** FR-651, inferred (spec open question 3): the ratio to our strength below which each word but Awesome applies. */
 const MILITARY_LIMITS = [0.5, 0.8, 1.25, 2];
 /**
- * The FR-226 sums round a hair under an exact step (four Regulars against eight is 0.49999999999999994), so a ratio
- * this close to a limit counts as at it and reads the higher word.
+ * The FR-226 sums round a hair under an exact step (four Regulars against eight is 0.49999999999999994, one unit in the
+ * last place), so a ratio within the float rounding of the two sums and their quotient (16 x Number.EPSILON, relative
+ * to the limit) counts as at it and reads the higher word. A force genuinely weaker, even by a billionth, reads lower.
  */
-const ROUNDING = 1e-9;
+const ROUNDING = 16 * Number.EPSILON;
 
 export function militaryWord(ratio: number): MilitaryWord {
-  const step = MILITARY_LIMITS.findIndex(limit => ratio < limit - ROUNDING);
+  const step = MILITARY_LIMITS.findIndex(limit => ratio < limit * (1 - ROUNDING));
   return MILITARY_WORDS[step === -1 ? MILITARY_LIMITS.length : step];
 }
 
