@@ -342,15 +342,15 @@ function showTile(state: GameState, tileId: string) {
   return render(<HUD />);
 }
 
-/** The game with a connected depot or port of nation 1 on `tileId`, as the logistics phase reads it. */
-function withHub(state: GameState, tileId: string, kind: 'depot' | 'port'): GameState {
+/** The game with a depot or port of `nationId` on `tileId`, as the logistics phase reads it; connected unless `active` is false. */
+function withHub(state: GameState, tileId: string, kind: 'depot' | 'port', active = true, nationId = N1): GameState {
   const [x, y] = tileId.split('-').map(Number);
   const networks = state.transportNetwork.railroadNetworks ?? {};
-  const network = networks[N1];
-  const node = [{ x, y, isActive: true }];
+  const network = networks[nationId];
+  const node = [{ x, y, isActive: active }];
   return {
     ...setTile(state, tileId, { [kind]: true }),
-    transportNetwork: { ...state.transportNetwork, railroadNetworks: { ...networks, [N1]: { ...network, ...(kind === 'depot' ? { depots: node } : { ports: node }) } } },
+    transportNetwork: { ...state.transportNetwork, railroadNetworks: { ...networks, [nationId]: { ...network, ...(kind === 'depot' ? { depots: node } : { ports: node }) } } },
   };
 }
 
@@ -402,6 +402,58 @@ describe('FR-391 Tile Info says who collects the tile', () => {
       expect(collected(), id).toBeNull();
       cleanup();
     }
+  });
+});
+
+// M18k play-test F1. FR-643: Tile Info of the player's own tile with a depot or port says whether it is connected, in
+// FR-093's words, after the civilians' list (FR-371, FR-388). FR-391's collection line stays as it is.
+describe('FR-643 Tile Info names the depot or port on the tile', () => {
+  const stations = () => within(tileInfo()).queryAllByTestId('tile-station').map(text);
+  const collected = () => text(within(tileInfo()).getByTestId('tile-collected'));
+  const NOT_CONNECTED = 'Depot: not connected. Rail must join it to the capital or a port.';
+
+  it('FR-643 an unconnected depot on the farm 7-8 says so; FR-391 still reads "Not collected"', () => {
+    showTile(withHub(newGame({ seed: 1 }), '7-8', 'depot', false), '7-8');
+    expect(stations()).toEqual([NOT_CONNECTED]);
+    expect(collected()).toBe('Not collected: no connected depot, port or capital next to it');
+  });
+
+  it('FR-643 a depot the network does not list yet reads not connected, as its map mark does', () => {
+    showTile(setTile(newGame({ seed: 1 }), '7-8', { depot: true }), '7-8');
+    expect(stations()).toEqual([NOT_CONNECTED]);
+  });
+
+  it('FR-643 a connected depot there: "Depot: connected", and the depot collects the farm', () => {
+    showTile(withHub(newGame({ seed: 1 }), '7-8', 'depot'), '7-8');
+    expect(stations()).toEqual(['Depot: connected']);
+    expect(collected()).toBe('Collected by the depot at 7-8: 1 grain a turn');
+  });
+
+  it('FR-643 a port: "Port: not connected" or "Port: connected"', () => {
+    showTile(withHub(newGame({ seed: 1 }), '7-8', 'port', false), '7-8');
+    expect(stations()).toEqual(['Port: not connected']);
+    cleanup();
+    showTile(withHub(newGame({ seed: 1 }), '7-8', 'port'), '7-8');
+    expect(stations()).toEqual(['Port: connected']);
+  });
+
+  it('FR-643 FR-497 no line on the capital, the plain farm 3-9 or the other nation\'s tile with its depot', () => {
+    const start = newGame({ seed: 1 });
+    const theirs = start.map.tiles.flat().find((t) => t.ownerNationId === 'nation-2' && t.resource && t.resource.discovered !== false)!;
+    const game = withHub(start, theirs.id, 'depot', false, 'nation-2');
+    for (const id of [CAPITAL, '3-9', theirs.id]) {
+      showTile(game, id);
+      expect(stations(), id).toEqual([]);
+      cleanup();
+    }
+  });
+
+  it('FR-643 the line follows the civilians\' list, so the first civilian row stays put (FR-371, FR-388)', () => {
+    const start = withHub(newGame({ seed: 1 }), '7-8', 'depot', false);
+    showTile(put(start, civilian(start, WorkerType.Engineer), '7-8'), '7-8');
+    const civilians = within(tileInfo()).getByRole('list');
+    const [line] = within(tileInfo()).getAllByTestId('tile-station');
+    expect(civilians.compareDocumentPosition(line) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
 

@@ -145,12 +145,14 @@ describe('FR-390 the popup shows set and automatic (M12, card Q80, audit ECONOMY
   const plan = () => useGameStore.getState().game.transportAllocationsByNation?.['nation-1'];
   const infoBar = () => text(dialog().querySelector('.modal-info-bar')!);
 
-  it('FR-390 a new game: every row automatic, reading what it ships this turn; Allocated 0, Remaining all of the capacity; no Auto button', () => {
+  // FR-646 replaces FR-390's header sentence (M18k play-test F5): "Allocated" counts every row that ships, set or
+  // automatic, and "Remaining" is the capacity left over. Before, a new game read "Allocated: 0 Remaining: 15".
+  it('FR-390 FR-646 a new game: every row automatic, reading what it ships this turn; Allocated counts what they ship (11 of 15); no Auto button', () => {
     show();
     expect(text(row('grain'))).toBe('Grain Auto: 4');
     expect(text(row('fruit'))).toBe('Fruit Auto: 4');
     expect(text(row('cotton'))).toBe('Cotton Auto: 2');
-    expect(infoBar()).toBe('Capacity: 15 Allocated: 0 Remaining: 15');
+    expect(infoBar()).toBe('Capacity: 15 Allocated: 11 Remaining: 4');
     expect(screen.queryByRole('button', { name: /^Auto / })).toBeNull();
     // The slider of an automatic row stands at what it ships
     expect((screen.getByRole('slider', { name: 'Grain' }) as HTMLInputElement).value).toBe('4');
@@ -169,7 +171,7 @@ describe('FR-390 the popup shows set and automatic (M12, card Q80, audit ECONOMY
     expect(text(row('grain'))).toBe('Grain 1 / 4 Auto');
     expect(within(row('grain')).getByRole('button', { name: 'Auto Grain' })).toBeTruthy();
     expect(text(row('fruit'))).toBe('Fruit Auto: 4');
-    expect(infoBar()).toBe('Capacity: 15 Allocated: 1 Remaining: 14');
+    expect(infoBar()).toBe('Capacity: 15 Allocated: 8 Remaining: 7');
   });
 
   it('FR-390 FR-389 a slider set to 0 is set (ships nothing), not automatic', () => {
@@ -189,7 +191,7 @@ describe('FR-390 the popup shows set and automatic (M12, card Q80, audit ECONOMY
     expect(plan()).toEqual({ fruit: 0 });
     expect(text(row('grain'))).toBe('Grain Auto: 4');
     expect(text(row('fruit'))).toBe('Fruit 0 / 4 Auto');
-    expect(infoBar()).toBe('Capacity: 15 Allocated: 0 Remaining: 15');
+    expect(infoBar()).toBe('Capacity: 15 Allocated: 7 Remaining: 8');
   });
 
   it('FR-607 a rejected Auto order leaves focus on the next slider the player edits', () => {
@@ -210,8 +212,32 @@ describe('FR-390 the popup shows set and automatic (M12, card Q80, audit ECONOMY
 
   it('FR-390 automatic rows share what the set ones leave: capacity 15 with grain set to 4 and fruit to 4 leaves cotton its 2', () => {
     show({ ...newGame({ seed: 1 }), transportAllocationsByNation: { 'nation-1': { grain: 4, fruit: 4 } } });
-    expect(infoBar()).toBe('Capacity: 15 Allocated: 8 Remaining: 7');
+    expect(infoBar()).toBe('Capacity: 15 Allocated: 11 Remaining: 4');
     expect(text(row('cotton'))).toBe('Cotton Auto: 2');
+  });
+
+  /** What each shown row ships this turn: "Auto: 4" or "1 / 4". */
+  const shippedByRows = () => shownRows().reduce((sum, key) => {
+    const found = text(row(key)).match(/Auto: (\d+)$|(\d+) \/ \d+/);
+    return sum + Number(found?.[1] ?? found?.[2] ?? 0);
+  }, 0);
+  const header = () => infoBar().match(/^Capacity: (\d+) Allocated: (\d+) Remaining: (\d+)$/)!.slice(1).map(Number);
+
+  it('FR-646 Allocated counts every row that ships, so Remaining is the capacity actually spare', () => {
+    show();
+    const [capacity, allocated, remaining] = header();
+    expect(shippedByRows()).toBe(11);
+    expect(allocated).toBe(shippedByRows());
+    expect(allocated + remaining).toBe(capacity);
+    fireEvent.change(screen.getByRole('slider', { name: 'Grain' }), { target: { value: '1' } });
+    expect(header()[1]).toBe(shippedByRows());
+  });
+
+  it('FR-646 a network full with automatic goods: "Capacity: 3 Allocated: 3 Remaining: 0"', () => {
+    useGameStore.setState({ ...useGameStore.getInitialState(), game: newGame({ seed: 1 }), activeNationId: 'nation-1' });
+    render(<TransportAllocationModal capacity={3} onClose={() => {}} />);
+    expect(infoBar()).toBe('Capacity: 3 Allocated: 3 Remaining: 0');
+    expect(shippedByRows()).toBe(3);
   });
 });
 

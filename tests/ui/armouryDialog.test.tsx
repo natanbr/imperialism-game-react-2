@@ -193,9 +193,11 @@ describe('FR-212 the Armoury: one card per recruitable regiment', () => {
     expect(text(within(card('Regulars')).getByRole('heading', { level: 3 }))).toBe('Regulars');
   });
 
-  it('FR-212 FR-199 FR-421 the stats: Firepower, Move and Range marked "(not used in battle yet)", and "Entrench: yes" or "no"', () => {
+  // M18k play-test F7 (FR-647 replaces FR-421's wording): the note names both stats, so it cannot be read as being about
+  // the regiment, Range alone or Entrench.
+  it('FR-212 FR-199 FR-647 the stats: Firepower, Move and Range marked "(neither is used in battle yet)", and "Entrench: yes" or "no"', () => {
     openArmoury(continent());
-    const NOT_USED = '(not used in battle yet)';
+    const NOT_USED = '(neither is used in battle yet)';
     expect(part('Regulars', 'stats')).toBe(`Firepower 10 Move 4 Range 5 ${NOT_USED} Entrench: yes`);
     expect(part('Skirmishers', 'stats')).toBe(`Firepower 5 Move 6 Range 5 ${NOT_USED} Entrench: yes`);
     expect(part('Hussars', 'stats')).toBe(`Firepower 7 Move 11 Range 3 ${NOT_USED} Entrench: no`);
@@ -203,13 +205,14 @@ describe('FR-212 the Armoury: one card per recruitable regiment', () => {
     expect(part('Light Artillery', 'stats')).toBe(`Firepower 10 Move 5 Range 9 ${NOT_USED} Entrench: no`);
   });
 
-  it('FR-421 every card marks Move and Range once, as one group with its note (combat ignores both, FR-219)', () => {
+  it('FR-421 FR-647 every card marks Move and Range once, as one group with its note (combat ignores both, FR-219)', () => {
     openArmoury(continent());
     const cards = within(armoury()).getAllByRole('article');
     for (const c of cards) {
       const unused = within(c).getAllByTestId('unused-stats');
       expect(unused).toHaveLength(1);
-      expect(text(unused[0])).toMatch(/^Move \d+ Range \d+ \(not used in battle yet\)$/);
+      expect(text(unused[0])).toMatch(/^Move \d+ Range \d+ \(neither is used in battle yet\)$/);
+      expect(text(unused[0])).not.toMatch(/Firepower|Entrench/);
     }
   });
 

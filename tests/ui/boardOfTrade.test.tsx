@@ -148,6 +148,15 @@ it('FR-608 shows public sources through bids, full holds, the final reserved sto
   expect(text(row('wool'))).toBe(before);
 });
 
+// M18k play-test F2 (FR-644): the Horses row names the missing consulate and its cost; the note goes once it is open.
+it('FR-644 the Horses row says "Open a consulate ($500) to buy this" until Arvelia has our consulate', () => {
+  openBoard(start());
+  expect(text(row('horses'))).toContain('Open a consulate ($500) to buy this');
+  expect(text(row('horses'))).not.toContain('potential suppliers');
+  act(() => useGameStore.setState({ game: withConsulate(now(), N1, ARVELIA) }));
+  expect(text(row('horses'))).not.toContain('Open a consulate');
+});
+
 // Re-recorded by M18c FR-573: the two lines "Holds: 8 (2 Indiamen)" (in the header) and "Holds: 8 of 8 free" are one
 // figure in the bar under the title, "Holds: 0 of 8 used (2 Indiamen)"; it still counts this turn's units live.
 it('FR-515 FR-573 names the merchant fleet in the holds figure and keeps the live hold count', () => {

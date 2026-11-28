@@ -112,6 +112,22 @@ describe('FR-613 Garrison Book in Stats', () => {
     expect(within(pane).queryByRole('table')).toBeNull();
   });
 
+  // M18k play-test F4. FR-645: one line under the roster says what Force Size counts, so Force Size 0 above militia is
+  // explained (the Army screen's Arms legend says the same, FR-265).
+  it('FR-645 a militia-only province reads Force Size 0 above its Minutemen, and the note under the roster says why', () => {
+    const pane = openGarrison(clearArmy(continent(), N1, NE1));
+    selectProvince(pane, NW1);
+    expect(text(pane)).toMatch(/Force Size:\s*0/);
+    expect(within(pane).getAllByRole('row', { name: /Minutemen.*Defending/ }).length).toBeGreaterThan(0);
+    const note = within(pane).getByTestId('force-size-note');
+    expect(text(note)).toBe('Force Size adds up the armaments of our regiments here. Militia carry none, so they add 0.');
+    expect(within(pane).getByRole('table').compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(pane).queryByRole('button')).toBeNull();
+    selectProvince(pane, NE1);
+    expect(within(pane).queryByTestId('force-size-note')).toBeNull();
+    expect(text(pane)).toContain('No regiment of ours is here.');
+  });
+
   it('NR-040 FR-497 own roster and accessible markup stay identical across rival march orders and Normal or Demo', () => {
     const game = continent();
     const rivalMarch = tryApplyOrder(game, { kind: 'moveArmy', nationId: 'nation-2', fromProvinceId: SW2, toProvinceId: NW2,
