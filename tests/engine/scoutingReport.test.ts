@@ -10,7 +10,7 @@ import { tryApplyOrder } from '@/engine/orders/apply';
 import type { Order } from '@/engine/orders/Order';
 import type { GameState } from '@/types/GameState';
 import { ShipType, type Fleet } from '@/types/Navy';
-import { deepFreeze, N1, N2 } from './fixtures';
+import { deepFreeze, N1, N2, setWarehouse } from './fixtures';
 import { addRegiments, ARVELIA, ARVELIA_P, clearArmy, continent, idOf, NE1, NE2, NW2, SE2, SW1, SW2 } from './armyFixtures';
 
 const SUNDMARK_P = 'province-minor-2';
@@ -132,7 +132,8 @@ describe('FR-650 scoutingReport: who can scout a foreign province, and what they
   });
 
   it('FR-650 FR-497 a rival\'s march or recruit queued this turn does not change the report until settlement', () => {
-    const watched = addRegiments(continent(), N1, NW2, ['regulars']);
+    // Valdoria gets the armaments a recruit takes (none at the start)
+    const watched = setWarehouse(addRegiments(continent(), N1, NW2, ['regulars']), N2, { armaments: 4 });
     const before = { sw: scoutingReport(watched, N1, SW2), ne: scoutingReport(watched, N1, NE2) };
     const queued = ordered(
       watched,
@@ -145,7 +146,8 @@ describe('FR-650 scoutingReport: who can scout a foreign province, and what they
     const settled = resolveTurn(queued, {}).state;
     const regulars = (provinceId: string) => scoutingReport(settled, N1, provinceId)!.forces.find(f => f.type === 'regulars')?.count ?? 0;
     expect(regulars(NE2)).toBe(1);
-    expect(regulars(SW2) + regulars(NE2)).toBeGreaterThanOrEqual(2);
+    // The 2nd Regulars stayed, and the recruit was raised in Valdoria's capital province
+    expect(regulars(SW2)).toBe(2);
   });
 
   it('FR-650 NR-041 a read: it leaves a deep-frozen state unchanged and draws nothing', () => {
