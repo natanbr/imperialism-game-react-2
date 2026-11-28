@@ -137,6 +137,22 @@ describe('FR-651 Information on the diplomatic map', () => {
     }
   });
 
+  it('FR-651 a large garrison exactly at a step reads the higher word: 170 Regulars against our 340 is Fair (Codex task 68)', () => {
+    // The FR-226 sums of 170 and 340 Regulars behind the level-1 capital forts round to a ratio of 0.4999999999999981,
+    // further under one half than a tolerance relative to the step allows. The exact ratio is one half.
+    const regulars = (n: number) => Array<'regulars'>(n).fill('regulars');
+    const game = onlyPowerArmies(start(), [SW1, regulars(340)], [SW2, regulars(170)]);
+    const strength = (id: string) => game.provinces.reduce((sum, p) => (p.ownerId === id ? sum + defenceOf(game, p.id) : sum), 0);
+    expect(strength(N2) / strength(N1)).toBeLessThan(0.5);
+    expect(strength(N2) / strength(N1)).toBeCloseTo(0.5, 12);
+    renderInformation(game);
+    const valdoria = map().getByRole('button', { name: /^Valdoria, Military Fair, 4 provinces/ });
+    expect(land(valdoria)).toBe(fillOf('Fair'));
+    fireEvent.click(valdoria);
+    expect(detail()).toMatch(/^Information: Valdoria Provinces 4 Military Fair Industry /);
+    expect(listRows().find(row => row.startsWith('Valdoria'))).toMatch(/^Valdoria 4 Fair /);
+  });
+
   it('FR-651 a strength a billionth under a step reads the lower word: their Regulars at 49.99999995 health against ours at 100 is Poor (Codex task 67)', () => {
     // Fractional health comes only from an edited save. The allowance at a step is the float rounding of the sums, so
     // a ratio of 0.4999999995 is below 0.5, while 0.49999999999999994 (four Regulars against eight) is at it.

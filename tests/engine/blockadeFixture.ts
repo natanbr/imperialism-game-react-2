@@ -42,6 +42,19 @@ export function blockadedPort(): GameState {
   return withFleets(s, [frigate(N2, portApproach(s, tileAt(s, '10-7'))!)]);
 }
 
+/**
+ * Codex task 68: turn 1 of `blockadedPort` with a fresh Valdorian Ship-of-the-Line (firepower 6, hull 65) blockading
+ * 10-7 instead, and our fresh Frigate (firepower 3, hull 35) at its home berth, free to sail to Testland South-East.
+ */
+export function blockadeOfTheLine(): GameState {
+  const s = blockadedPort();
+  const line: Fleet = { ...frigate(N2, portApproach(s, tileAt(s, '10-7'))!), name: 'Ships-of-the-Line',
+    ships: [{ ...WARSHIPS.shipOfTheLine, id: `ship-${N2}`, experience: 0 }] };
+  const berth: Fleet = { ...frigate(N1, homeApproach(s, N1)!), location: 'berth' };
+  delete berth.approach;
+  return withFleets(s, [berth, line]);
+}
+
 /** Turn 2 of `blockadedPort`: Valdoria proposed peace on turn 1 ("proposal-1-1"), so we may answer it now. */
 export function blockadedPortOfferedPeace(): GameState {
   const turn1 = resolveTurn(blockadedPort(), { [N2]: [{ kind: 'proposeOverture', nationId: N2, overture: 'peace', targetId: N1 }] });

@@ -8,7 +8,8 @@ import { freightAtLogistics, knownFreightPlan, ownWork } from '@/engine/systems/
 import type { GameState } from '@/types/GameState';
 import type { Tile } from '@/types/Tile';
 import { WorkerType } from '@/types/Workers';
-import { blockadedPort, blockadedPortOfferedPeace, contestedHome, deliveredAtLogistics, fleetOf, SOUTH_EAST } from './blockadeFixture';
+import { homeApproach } from '@/engine/navy/fleets';
+import { blockadedPort, blockadedPortOfferedPeace, blockadeOfTheLine, contestedHome, deliveredAtLogistics, fleetOf, SOUTH_EAST } from './blockadeFixture';
 import { ARVELIA_P, continent } from './armyFixtures';
 import { N1, N2, put, setTile, tileAt } from './fixtures';
 
@@ -29,6 +30,30 @@ describe('FR-646 the forecast applies our own diplomacy and fleet orders before 
     expect(forecast(game)).toEqual(delivered);
     // The computer planner's own calculation is unchanged: it reads the positions as they stand
     expect(freightAtLogistics(game, N1).collected.fish).toBe(1);
+  });
+
+  // Codex task 68 (blocker): the forecast changes a port only where no battle decides it. Our Frigate sailing into the
+  // Ship-of-the-Line that blockades 10-7 fights it there before connectivity: it can deal at most 3 of the 65 hull and
+  // is sent back to its berth, so the port stays closed, whatever the battle's dice.
+  it('our Frigate sailing from its berth into the Ship-of-the-Line blockading 10-7 does not open the port: 11 units and 1 Horse, as the turn ships', () => {
+    const blockaded = blockadeOfTheLine();
+    const before = forecast(blockaded);
+    expect(before).toEqual({ grain: 4, fruit: 3, fish: 1, cotton: 2, horses: 1 });
+    const game = queued(blockaded, { kind: 'setFleetMission', nationId: N1, fleetId: fleetOf(N1), mission: 'sail', provinceId: SOUTH_EAST });
+    for (const seed of [1, 2, 3, 7, 11, 42]) expect(deliveredAtLogistics({ ...game, seed }), `seed ${seed}`).toEqual(before);
+    expect(forecast(game)).toEqual(before);
+    expect(knownFreightPlan(game, N1, 15).collected.horses).toBe(1);
+  });
+
+  it('our Frigate sailing from its berth to an approach no enemy holds (the capital\'s own) changes nothing: the blockade of 10-7 holds', () => {
+    const blockaded = blockadeOfTheLine();
+    const capital = homeApproach(blockaded, N1)!.provinceId;
+    expect(capital).not.toBe(SOUTH_EAST);
+    const game = queued(blockaded, { kind: 'setFleetMission', nationId: N1, fleetId: fleetOf(N1), mission: 'sail', provinceId: capital });
+    const delivered = deliveredAtLogistics(game);
+    expect(delivered).toEqual({ grain: 4, fruit: 3, fish: 1, cotton: 2, horses: 1 });
+    expect(forecast(game)).toEqual(delivered);
+    expect(forecast(game)).toEqual(forecast(blockaded));
   });
 
   it('a refused peace keeps the blockade of 10-7: the forecast is what the turn ships', () => {
