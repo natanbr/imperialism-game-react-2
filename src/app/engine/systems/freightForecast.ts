@@ -52,7 +52,8 @@ function ownWork(state: GameState, viewerId: string): GameState {
 /**
  * FR-646: the transport plan of this End Turn as far as `viewerId` knows it: its own jobs that finish before logistics
  * (a tile's next level, a rail, a depot or a port), its town factories' expansions and the hubs those connect, shipped
- * under its plan and cars. The popup's rows and header read it, so they equal what the logistics phase ships.
+ * under its plan and cars. The popup's rows and header and the Armoury's horse supply (FR-517) read it, so they equal
+ * what the logistics phase ships.
  */
 export function knownFreightPlan(
   state: GameState, viewerId: string, capacity: number, plan = state.transportAllocationsByNation?.[viewerId]

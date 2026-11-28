@@ -49,13 +49,13 @@ export function scoutingObserver(state: GameState, viewerId: NationId, provinceI
 }
 
 /**
- * The viewer's Scouting Report on another country's province; undefined for an unknown province or one of the viewer's
- * own (a world without provinces has none). Settled positions only: an Order queued this turn moves no regiment and no
- * squadron until settlement (FR-497).
+ * The viewer's Scouting Report on another country's province; undefined for an unknown province, one of the viewer's
+ * own or one with no owner (only a damaged save has one; a world without provinces has none). Settled positions only:
+ * an Order queued this turn moves no regiment and no squadron until settlement (FR-497).
  */
 export function scoutingReport(state: GameState, viewerId: NationId, provinceId: ProvinceId): ScoutingReport | undefined {
   const province = provinceById(state, provinceId);
-  if (!province || province.ownerId === viewerId) return undefined;
+  if (!province?.ownerId || province.ownerId === viewerId) return undefined;
   const observer = scoutingObserver(state, viewerId, provinceId);
   if (!observer) return { provinceId, ownerId: province.ownerId, forces: [] };
   const counts = new Map<RegimentType, number>();
