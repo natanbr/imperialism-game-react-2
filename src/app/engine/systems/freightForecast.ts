@@ -1,7 +1,8 @@
 import type { DiplomacyState } from "@/types/Diplomacy";
 import type { GameState } from "@/types/GameState";
 import type { AnswerIntent } from "@/types/Intent";
-import type { Approach } from "@/types/Navy";
+import { isWarship } from "@/definisions/ships";
+import type { Approach, Fleet } from "@/types/Navy";
 import type { Tile } from "@/types/Tile";
 import { proposalsOf, warActive } from "../diplomacy/queries";
 import { pairKey } from "../diplomacy/relations";
@@ -84,18 +85,39 @@ function acceptedPeace(state: GameState, viewerId: string): DiplomacyState {
 const sameApproach = (a: Approach | undefined, b: Approach | undefined) =>
   !!a && !!b && a.provinceId === b.provinceId && a.seaId === b.seaId;
 
+/** A warship of a nation at war with `nationId` holds the approach, by the public positions. */
+const enemyWarshipOn = (state: GameState, nationId: string, at: Approach) =>
+  state.fleets.some(o => sameApproach(o.approach, at) && o.ships.some(ship => isWarship(ship.type)) &&
+    warActive(state, nationId, o.ownerNationId));
+
 /**
- * FR-646: the sea routes of this turn's connectivity phase as far as the viewer knows them. The diplomacy phase first
- * ends the wars whose peace it accepted; the fleet phase then sails its own squadron on its mission, the other fleets
- * staying where they publicly are (their orders are their owners' own, FR-497). A squadron left with no enemy on its
- * approach is no longer contested, as the fleet phase clears it. One that still meets an enemy fights there, and the
- * battle's result is drawn in the settlement, so the forecast keeps both on the approach.
+ * The viewer's squadron after its mission, as far as it is certain. Leaving an approach is: the squadron is no longer
+ * there. Arriving where an enemy warship holds the approach is not, as the battle there decides who stays, so the
+ * forecast keeps the squadron off it (at its berth, where a lost battle sends it) and that approach as it stands.
+ */
+function certainPosition(state: GameState, fleet: Fleet): Fleet {
+  const sailed = sailedPosition(state, fleet).fleet;
+  if (!sailed.approach || sameApproach(sailed.approach, fleet.approach) || !enemyWarshipOn(state, fleet.ownerNationId, sailed.approach)) {
+    return sailed;
+  }
+  const kept = { ...sailed, location: "berth" };
+  delete kept.approach;
+  return kept;
+}
+
+/**
+ * FR-646: the sea routes of this turn's connectivity phase as far as the viewer knows them for certain; a port changes
+ * only where no battle decides it. The diplomacy phase first ends the wars whose peace it accepted; the fleet phase then
+ * sails its own squadron on its mission (`certainPosition`), the other fleets staying where they publicly are (their
+ * orders are their owners' own, FR-497). A squadron left with no enemy on its approach is no longer contested, as the
+ * fleet phase clears it. One that still meets an enemy fights there, and the battle's result is drawn in the
+ * settlement, so the forecast keeps both on the approach as they stand.
  */
 function knownRoutes(state: GameState, viewerId: string): GameState {
   const diplomacy = acceptedPeace(state, viewerId);
   const atPeace = diplomacy === state.diplomacy ? state : { ...state, diplomacy };
   if (!atPeace.fleets.length) return atPeace;
-  const sailed = atPeace.fleets.map(f => f.ownerNationId === viewerId ? sailedPosition(atPeace, f).fleet : f);
+  const sailed = atPeace.fleets.map(f => f.ownerNationId === viewerId ? certainPosition(atPeace, f) : f);
   const fleets = sailed.map(f => {
     if (!f.contested && !f.contestedWith) return f;
     const meetsEnemy = sailed.some(o => o !== f && sameApproach(o.approach, f.approach) && warActive(atPeace, f.ownerNationId, o.ownerNationId));
@@ -111,9 +133,10 @@ function knownRoutes(state: GameState, viewerId: string): GameState {
 /**
  * FR-646: the transport plan of this End Turn as far as `viewerId` knows it: its own jobs that finish before logistics
  * (a tile's next level, a rail, a depot or a port), its town factories' expansions, the sea routes its own peace answers
- * and squadron's mission open or close, and the hubs those connect, shipped under its plan and cars. The popup's rows
- * and header and the Armoury's horse supply (FR-517) read it, so they equal what the logistics phase ships unless
- * another nation's orders or a battle change a route. The scripted player plans on `freightAtLogistics` instead.
+ * and squadron's mission certainly open or close (no battle deciding them), and the hubs those connect, shipped under
+ * its plan and cars. The popup's rows and header and the Armoury's horse supply (FR-517) read it, so they equal what the
+ * logistics phase ships unless another nation's orders or a battle change a route. The scripted player plans on
+ * `freightAtLogistics` instead.
  */
 export function knownFreightPlan(
   state: GameState, viewerId: string, capacity: number, plan = state.transportAllocationsByNation?.[viewerId]
