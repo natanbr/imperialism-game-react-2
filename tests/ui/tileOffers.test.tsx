@@ -13,6 +13,7 @@ import { ConstructionOptionsModal } from '@/components/ConstructionOptionsModal'
 import { useGameStore } from '@/store/rootStore';
 import { newGame, validateOrder, type Order } from '@/engine';
 import { getAdjacentTiles, isOcean } from '@/engine/map/mapHelpers';
+import { isDepotSite, isPortSite } from '@/engine/orders/queries';
 import type { GameState } from '@/types/GameState';
 import { WorkerType } from '@/types/Workers';
 import { ResourceType } from '@/types/Resource';
@@ -410,7 +411,9 @@ describe('FR-391 Tile Info says who collects the tile', () => {
 describe('FR-643 Tile Info names the depot or port on the tile', () => {
   const stations = () => within(tileInfo()).queryAllByTestId('tile-station').map(text);
   const collected = () => text(within(tileInfo()).getByTestId('tile-collected'));
-  const NOT_CONNECTED = 'Depot: not connected. Rail must join it to the capital or a port.';
+  // M18k review: only the capital and ports with an open sea route start the connection search
+  // (transportConnectivitySystem), so a depot railed to a closed port is not connected: the hint says "an open port".
+  const NOT_CONNECTED = 'Depot: not connected. Rail must join it to the capital or an open port.';
 
   it('FR-643 an unconnected depot on the farm 7-8 says so; FR-391 still reads "Not collected"', () => {
     showTile(withHub(newGame({ seed: 1 }), '7-8', 'depot', false), '7-8');
@@ -441,6 +444,10 @@ describe('FR-643 Tile Info names the depot or port on the tile', () => {
     const start = newGame({ seed: 1 });
     const theirs = start.map.tiles.flat().find((t) => t.ownerNationId === 'nation-2' && t.resource && t.resource.discovered !== false)!;
     const game = withHub(start, theirs.id, 'depot', false, 'nation-2');
+    // M18k review: the capital already is a depot and a port, so no depot or port is ever built on it; its "no line"
+    // rests on that rule, which this locks (a port flag there would read "Port: connected")
+    const capital = tileAt(game, CAPITAL);
+    expect([!!capital.depot, !!capital.port, isDepotSite(game, capital), isPortSite(game, capital)]).toEqual([false, false, false, false]);
     for (const id of [CAPITAL, '3-9', theirs.id]) {
       showTile(game, id);
       expect(stations(), id).toEqual([]);

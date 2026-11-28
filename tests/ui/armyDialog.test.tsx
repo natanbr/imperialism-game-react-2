@@ -113,7 +113,7 @@ describe('FR-613 Garrison Book in Stats', () => {
   });
 
   // M18k play-test F4. FR-645: one line under the roster says what Force Size counts, so Force Size 0 above militia is
-  // explained (the Army screen's Arms legend says the same, FR-265).
+  // explained (it agrees with the Army screen's Arms legend, FR-265).
   it('FR-645 a militia-only province reads Force Size 0 above its Minutemen, and the note under the roster says why', () => {
     const pane = openGarrison(clearArmy(continent(), N1, NE1));
     selectProvince(pane, NW1);
@@ -123,6 +123,11 @@ describe('FR-613 Garrison Book in Stats', () => {
     expect(text(note)).toBe('Force Size adds up the armaments of our regiments here. Militia carry none, so they add 0.');
     expect(within(pane).getByRole('table').compareDocumentPosition(note) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(within(pane).queryByRole('button')).toBeNull();
+    // M18k review: a mixed province (Regulars, Artillery and Minutemen) counts the non-militia arms and keeps the note
+    selectProvince(pane, SW1);
+    expect(text(pane)).toMatch(/Force Size:\s*4/);
+    expect(within(pane).getAllByRole('row', { name: /Minutemen.*Defending/ }).length).toBeGreaterThan(0);
+    expect(text(within(pane).getByTestId('force-size-note'))).toBe('Force Size adds up the armaments of our regiments here. Militia carry none, so they add 0.');
     selectProvince(pane, NE1);
     expect(within(pane).queryByTestId('force-size-note')).toBeNull();
     expect(text(pane)).toContain('No regiment of ours is here.');

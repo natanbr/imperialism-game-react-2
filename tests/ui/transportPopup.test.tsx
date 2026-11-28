@@ -239,6 +239,19 @@ describe('FR-390 the popup shows set and automatic (M12, card Q80, audit ECONOMY
     expect(infoBar()).toBe('Capacity: 3 Allocated: 3 Remaining: 0');
     expect(shippedByRows()).toBe(3);
   });
+
+  // M18k review: FR-646 keeps the clamp of FR-389, so "Remaining: 0" does not stop a slider; the set one takes its
+  // share from the automatic rows.
+  it('FR-646 FR-389 at "Remaining: 0" a slider still rises against the set rows alone: Cotton to 2 takes from the Auto rows', () => {
+    useGameStore.setState({ ...useGameStore.getInitialState(), game: newGame({ seed: 1 }), activeNationId: 'nation-1' });
+    render(<TransportAllocationModal capacity={3} onClose={() => {}} />);
+    expect(infoBar()).toBe('Capacity: 3 Allocated: 3 Remaining: 0');
+    fireEvent.change(screen.getByRole('slider', { name: 'Cotton' }), { target: { value: '2' } });
+    expect(plan()).toEqual({ cotton: 2 });
+    expect(text(row('cotton'))).toBe('Cotton 2 / 2 Auto');
+    expect(infoBar()).toBe('Capacity: 3 Allocated: 3 Remaining: 0');
+    expect(shippedByRows()).toBe(3);
+  });
 });
 
 describe('FR-133 FR-135 the transport popup', () => {
