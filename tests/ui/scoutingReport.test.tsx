@@ -9,12 +9,12 @@ import { describe, it, expect } from 'vitest';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { TileInfoPanel } from '@/components/TileInfoPanel';
 import { attackView } from '@/components/army/attackView';
-import { newGame, type Order } from '@/engine';
+import { newGame, resolveTurn, tryApplyOrder, type Order } from '@/engine';
 import { useGameStore } from '@/store/rootStore';
 import type { GameState } from '@/types/GameState';
 import { ShipType, type Fleet } from '@/types/Navy';
-import { N1, N2, tileAt } from '../engine/fixtures';
-import { addRegiments, ARVELIA, ARVELIA_P, clearArmy, continent, NE1, NW2, SW2 } from '../engine/armyFixtures';
+import { N1, N2, setWarehouse, tileAt } from '../engine/fixtures';
+import { addRegiments, ARVELIA, ARVELIA_P, clearArmy, continent, idOf, NE1, NE2, NW2, SW2, withoutOwner } from '../engine/armyFixtures';
 import { failOnActWarnings } from './actWarnings';
 import { text } from './domText';
 
@@ -37,6 +37,15 @@ function show(game: GameState, tileId: string) {
 const scoutButton = () => within(screen.getByTestId('tile-info')).queryByRole('button', { name: 'Scouting report' });
 const report = (name: string) => screen.getByRole('dialog', { name });
 const forcesOf = (dialog: HTMLElement) => within(within(dialog).getByRole('list', { name: 'Army forces seen' })).getAllByRole('listitem').map(li => text(li));
+/** The element's accessible description: the text of every element its aria-describedby names. */
+const description = (el: HTMLElement): string =>
+  (el.getAttribute('aria-describedby') ?? '').split(/\s+/).filter(Boolean).map(id => text(document.getElementById(id)!)).join(' ');
+/** The order applied as a player's own would be (accepted, queued for settlement). */
+function accepted(s: GameState, order: Order): GameState {
+  const { state, result } = tryApplyOrder(s, order);
+  expect(result).toEqual({ ok: true });
+  return state;
+}
 
 const squadronOff = (s: GameState, provinceId: string): GameState => {
   const fleet: Fleet = {
@@ -141,6 +150,51 @@ describe('FR-650 the Scouting report in Tile Info', () => {
     const dialog = report('Report on the army forces of Sundmark in the province of Sundmark');
     expect(forcesOf(dialog)).toEqual(['3 Minutemen']);
     expect(text(dialog)).toContain('Estimated by our fleet off Sundmark');
+  });
+
+  it('FR-650 a province with no owner (a damaged save) offers no report, though our garrison borders it (Codex task 66)', () => {
+    // Was: "Report on the army forces of undefined in the province of Arvelia"
+    show(withoutOwner(continent(), ARVELIA_P), ARVELIA_FOREST);
+    expect(scoutButton()).toBeNull();
+    expect(text(screen.getByTestId('tile-info'))).not.toContain('Scouting report');
+  });
+
+  it('NR-041 FR-497 a rival\'s accepted march, recruit and grant leave the open report as it was, in Normal and Demo; the march shows at settlement (Codex task 66)', () => {
+    // Our Regulars in Valdoria North-West see Valdoria South-West and North-East; Valdoria gets the armaments a recruit takes
+    const game = setWarehouse(addRegiments(continent(), N1, NW2, ['regulars']), N2, { armaments: 4 });
+    let pending = accepted(game, { kind: 'moveArmy', nationId: N2, fromProvinceId: SW2, regimentIds: [idOf(game, N2, '1st Regulars')], toProvinceId: NE2 });
+    pending = accepted(pending, { kind: 'setRecruitment', nationId: N2, regiment: 'regulars', count: 1 });
+    pending = accepted(pending, { kind: 'giveGrant', nationId: N2, targetId: N1, amount: 1000, locked: false });
+    expect(pending.intents.length).toBeGreaterThan(game.intents.length);
+    const northEast = game.provinces.find(p => p.id === NE2)!;
+    const reads = [
+      { tileId: VALDORIA_CAPITAL, title: 'Report on the army forces of Valdoria in the province of Valdoria South-West', forces: ['4 Minutemen', '2 Regulars', '1 Artillery'] },
+      { tileId: northEast.seatTileId, title: 'Report on the army forces of Valdoria in the province of Valdoria North-East', forces: ['4 Minutemen'] },
+    ];
+    for (const { tileId, title, forces } of reads) {
+      const { unmount } = show(game, tileId);
+      fireEvent.click(scoutButton()!);
+      const seen = () => {
+        const dialog = report(title);
+        return { text: text(dialog), description: description(dialog), html: dialog.outerHTML };
+      };
+      const before = seen();
+      expect(forcesOf(report(title))).toEqual(forces);
+      expect(before.description).toBe('Estimated by our army in Valdoria North-West');
+      for (const difficulty of ['normal', 'demo'] as const) {
+        act(() => useGameStore.setState({ game: { ...pending, difficulty } }));
+        expect(seen()).toEqual(before);
+      }
+      unmount();
+    }
+    // At settlement the 1st Regulars have arrived in the North-East; the open report there lists them
+    const settled = resolveTurn(pending, {}).state;
+    show(game, northEast.seatTileId);
+    fireEvent.click(scoutButton()!);
+    act(() => useGameStore.setState({ game: settled }));
+    const dialog = report('Report on the army forces of Valdoria in the province of Valdoria North-East');
+    expect(forcesOf(dialog)).toEqual(['4 Minutemen', '1 Regulars']);
+    expect(description(dialog)).toBe('Estimated by our army in Valdoria North-West');
   });
 
   it('FR-650 our own province offers no report', () => {

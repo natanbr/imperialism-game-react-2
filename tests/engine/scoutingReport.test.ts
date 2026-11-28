@@ -5,13 +5,13 @@
 // estimator. It counts the owner's regiments there by type, militia included, exactly as the Attack preview's defenders
 // (Q32). A province of ours, an unknown one or a world without provinces has no report; an unavailable one counts nothing.
 import { describe, it, expect } from 'vitest';
-import { defendersOf, newGame, resolveTurn, scoutingReport, type RegimentType } from '@/engine';
+import { defendersOf, newGame, resolveTurn, scoutingObserver, scoutingReport, type RegimentType } from '@/engine';
 import { tryApplyOrder } from '@/engine/orders/apply';
 import type { Order } from '@/engine/orders/Order';
 import type { GameState } from '@/types/GameState';
 import { ShipType, type Fleet } from '@/types/Navy';
 import { deepFreeze, N1, N2, setWarehouse } from './fixtures';
-import { addRegiments, ARVELIA, ARVELIA_P, clearArmy, continent, idOf, NE1, NE2, NW2, SE2, SW1, SW2 } from './armyFixtures';
+import { addRegiments, ARVELIA, ARVELIA_P, clearArmy, continent, idOf, NE1, NE2, NW2, SE2, SW1, SW2, withoutOwner } from './armyFixtures';
 
 const SUNDMARK_P = 'province-minor-2';
 
@@ -144,6 +144,14 @@ describe('FR-650 scoutingReport: who can scout a foreign province, and what they
     const islands = newGame({ seed: 1, world: 'two-islands' });
     expect(islands.provinces).toEqual([]);
     expect(scoutingReport(islands, N1, SW2)).toBeUndefined();
+  });
+
+  it('FR-650 a province with no owner (a damaged save) has no report, though our garrison borders it (Codex task 66)', () => {
+    const ownerless = withoutOwner(continent(), ARVELIA_P);
+    const province = ownerless.provinces.find(p => p.id === ARVELIA_P)!;
+    expect([province.ownerId, province.tileIds.length > 0]).toEqual([undefined, true]);
+    expect(scoutingObserver(ownerless, N1, ARVELIA_P)).toEqual({ kind: 'garrison', provinceId: NE1 });
+    expect(scoutingReport(ownerless, N1, ARVELIA_P)).toBeUndefined();
   });
 
   it('FR-650 FR-497 a rival\'s march or recruit queued this turn does not change the report until settlement', () => {

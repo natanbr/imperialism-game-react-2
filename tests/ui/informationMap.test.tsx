@@ -10,7 +10,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { TradePolicies, type MapMode } from '@/components/market/TradePolicies';
 import { diplomaticCountries, MILITARY_WORDS, militaryWord } from '@/components/market/diplomaticMapView';
 import { MarketModal } from '@/components/MarketModal';
-import { newGame, resolveTurn, transferProvince, tryApplyOrder, type Order } from '@/engine';
+import { defenceOf, newGame, resolveTurn, transferProvince, tryApplyOrder, type Order } from '@/engine';
 import { useGameStore } from '@/store/rootStore';
 import type { RankRecord } from '@/store/rankHistory';
 import { MILITARY_COLORS } from '@/styles/theme';
@@ -113,6 +113,28 @@ describe('FR-651 Information on the diplomatic map', () => {
     const rows = listRows();
     expect(rows.find(row => row.startsWith('Valdoria'))).toMatch(/^Valdoria 4 Awesome /);
     expect(rows).toContain('Arvelia 1 Excellent —');
+  });
+
+  it('FR-651 a strength exactly at a step reads the higher word, though the FR-226 sums round a hair under it (Codex task 66)', () => {
+    // Regulars behind the level-1 capital forts (14.3 each): eight of ours against four sum to 0.49999999999999994 of
+    // ours, twenty against sixteen to 0.7999999999999999, eight against ten to 1.2499999999999998, six against twelve to
+    // 1.9999999999999998. Each is exactly at its step, which once read the lower word on the map, the detail and the List.
+    const cases: [ours: number, theirs: number, limit: number, word: string][] =
+      [[8, 4, 0.5, 'Fair'], [20, 16, 0.8, 'Good'], [8, 10, 1.25, 'Excellent'], [6, 12, 2, 'Awesome']];
+    for (const [ours, theirs, limit, word] of cases) {
+      const regulars = (n: number) => Array<'regulars'>(n).fill('regulars');
+      const game = onlyPowerArmies(start(), [SW1, regulars(ours)], [SW2, regulars(theirs)]);
+      const strength = (id: string) => game.provinces.reduce((sum, p) => (p.ownerId === id ? sum + defenceOf(game, p.id) : sum), 0);
+      expect(strength(N2) / strength(N1)).toBeLessThan(limit);
+      expect(strength(N2) / strength(N1)).toBeCloseTo(limit, 12);
+      const view = renderInformation(game);
+      const valdoria = map().getByRole('button', { name: new RegExp(`^Valdoria, Military ${word}, 4 provinces`) });
+      expect(land(valdoria)).toBe(fillOf(word));
+      fireEvent.click(valdoria);
+      expect(detail()).toMatch(new RegExp(`^Information: Valdoria Provinces 4 Military ${word} Industry `));
+      expect(listRows().find(row => row.startsWith('Valdoria'))).toMatch(new RegExp(`^Valdoria 4 ${word} `));
+      view.unmount();
+    }
   });
 
   it('FR-651 a colony is counted under its ruler: its land and the ruler\'s regiments there; the colony itself has none', () => {

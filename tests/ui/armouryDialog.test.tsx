@@ -12,7 +12,10 @@ import { CapitalModal } from '@/components/CapitalModal';
 import { useGameStore } from '@/store/rootStore';
 import { applyOrder, newGame, resolveTurn, type Order } from '@/engine';
 import type { GameState } from '@/types/GameState';
-import { setIndustry, setTreasury, setWarehouse, industryOf, stockOf, treasury } from '../engine/fixtures';
+import { ResourceType } from '@/types/Resource';
+import { TerrainType } from '@/types/Tile';
+import { WorkerType } from '@/types/Workers';
+import { setIndustry, setTile, setTreasury, setWarehouse, industryOf, stockOf, tileAt, treasury } from '../engine/fixtures';
 import { continent } from '../engine/armyFixtures';
 import { failOnActWarnings } from './actWarnings';
 import { text } from './domText';
@@ -82,6 +85,36 @@ it('FR-517 shows zero horse income when freight leaves the ranch output unshippe
   const after = resolveTurn(state, {}).state;
   expect(stockOf(after, N1, 'horses')).toBe(4);
   expect(items('Hussars', 'At hand')).toContain('Horses: 4 in warehouse, +0 a turn');
+});
+
+it('FR-517 FR-646 a depot of ours finishing before logistics counts in the horse supply: "+2 a turn", what the turn delivers (Codex task 66)', () => {
+  // A second Horse Ranch, hand-built on 4-8 beyond the capital's reach. Our engineer lays rail 2-9 -> 3-9 on turn 1 and
+  // 3-9 -> 4-9 on turn 2 and starts a depot on 4-9 on turn 3 (3 turns): it finishes in turn 5's development phase,
+  // before logistics, and collects the ranch on 4-8 that same turn.
+  let game = setTile(continent(), '4-8', { terrain: TerrainType.HorseRanch, resource: { type: ResourceType.Horses, level: 0 } });
+  const engineer = game.map.tiles.flat().flatMap(t => t.workers).find(w => w.nationId === N1 && w.type === WorkerType.Engineer)!.id;
+  const orders: Order[] = [
+    { kind: 'moveAndBuildRail', nationId: N1, workerId: engineer, toTileId: '3-9' },
+    { kind: 'moveAndBuildRail', nationId: N1, workerId: engineer, toTileId: '4-9' },
+    { kind: 'startConstruction', nationId: N1, workerId: engineer, tileId: '4-9', structure: 'depot' },
+  ];
+  for (const order of orders) {
+    const turn = resolveTurn(game, { [N1]: [order] });
+    expect(turn.events.filter(e => e.type === 'order-rejected')).toEqual([]);
+    game = turn.state;
+  }
+  // Turn 4: the depot is a turn short, only the capital's ranch ships
+  expect([game.turn, tileAt(game, '4-9').constructionJob?.kind]).toEqual([4, 'depot']);
+  const view = openArmoury(game);
+  expect(items('Hussars', 'At hand')).toContain('Horses: 7 in warehouse, +1 a turn');
+  view.unmount();
+  game = resolveTurn(game, {}).state;
+  expect(stockOf(game, N1, 'horses')).toBe(8);
+  // Turn 5: the depot finishes before logistics, so both ranches ship
+  expect([game.turn, tileAt(game, '4-9').constructionJob?.kind, tileAt(game, '4-9').depot]).toEqual([5, 'depot', undefined]);
+  openArmoury(game);
+  expect(items('Hussars', 'At hand')).toContain('Horses: 8 in warehouse, +2 a turn');
+  expect(stockOf(resolveTurn(game, {}).state, N1, 'horses')).toBe(10);
 });
 
 describe('FR-212 the Armoury: how it opens', () => {
