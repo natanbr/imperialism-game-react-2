@@ -52,7 +52,7 @@ export function CountryDetail({ mode, viewer, selected }: Props) {
       {!selected ? "No counterpart is available in this view." : mode === "Information" ? <>
         <strong>Information: {selected.name}</strong>{" "}
         <span>Provinces {selected.provinces}</span>{" "}
-        <span><Swatch fill={selected.fill} /> Military {selected.status}</span>
+        <span><Swatch fill={selected.fill} /> {selected.military ? `Military ${selected.military}` : selected.status}</span>
         {selected.industry !== undefined && <>{" "}<span>Industry {selected.industry}</span></>}
       </> : <>
         <strong>{viewer} and {selected.name}</strong>{" "}

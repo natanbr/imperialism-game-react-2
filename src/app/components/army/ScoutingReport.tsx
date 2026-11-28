@@ -20,6 +20,8 @@ export function ScoutingReport({ game, viewerId, provinceId }: Props) {
   const titleId = useId();
   const estimatorId = useId();
   const view = scoutingView(game, viewerId, provinceId);
+  // A report that stops being available closes, so it cannot reopen by itself when scouting is possible again
+  if (open && (!view || view.refusal)) setOpen(false);
   if (!view) return null;
   return (
     <div className="job-offers" data-testid="tile-scouting">
@@ -45,7 +47,8 @@ export function ScoutingReport({ game, viewerId, provinceId }: Props) {
           </h2>
           <div className="scouting-estimate">
             {view.forces.length > 0 ? (
-              <ul aria-label="Army forces seen">
+              // role="list": Safari drops the list role of a list styled list-style: none
+              <ul role="list" aria-label="Army forces seen">
                 {view.forces.map((line) => (
                   <li key={line}>{line}</li>
                 ))}

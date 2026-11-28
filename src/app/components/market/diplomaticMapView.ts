@@ -36,6 +36,8 @@ export interface DiplomaticCountry {
   offices: Office[];
   /** Information only: the provinces it owns. */
   provinces?: number;
+  /** Information only: its Military word, also in `status`; absent for a colony, which is counted under its ruler. */
+  military?: MilitaryWord;
   /** Information only, Great Powers only: the settled FR-610 industry placing ("1st of 2"). */
   industry?: string;
 }
@@ -77,8 +79,9 @@ function informationCountries(game: GameState, viewer: string, history: readonly
       return { id, name, fill: UNKNOWN_FILL, status: `Colony, counted under ${countryName(game, ruler) ?? ruler}`, offices: [], provinces };
     }
     const theirs = visibleStrength(game, id);
-    const word = militaryWord(ours > 0 ? theirs / ours : theirs > 0 ? Infinity : 1);
-    const country: DiplomaticCountry = { id, name, fill: militaryFill(word), status: word, offices: [], provinces };
+    // No regiment is Poor even when we have none either (FR-651); any force against none of ours is Awesome
+    const word = militaryWord(theirs === 0 ? 0 : ours > 0 ? theirs / ours : Infinity);
+    const country: DiplomaticCountry = { id, name, fill: militaryFill(word), status: word, military: word, offices: [], provinces };
     if (game.nations.some(nation => nation.id === id)) country.industry = industryPlacing(game, history, id);
     return country;
   });

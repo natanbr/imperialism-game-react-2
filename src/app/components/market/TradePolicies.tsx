@@ -100,7 +100,8 @@ interface Props {
 }
 
 const NOTES: Record<InformationMode, string> = {
-  Information: " · Military compares each country's land forces with ours; Industry is the last settled placing.",
+  Information: " · Military compares the defence of each country's provinces with ours, militia and forts included, as the "
+    + "Attack preview counts it (the army ranking in Stats leaves them out). Industry is the last settled placing.",
   Relationships: " · Settled relationships, from bad to good.",
   "Political status": " · Markers show our offices abroad.",
 };

@@ -54,7 +54,7 @@ export function TradePolicyMap({ game, geometry, rows, information, homeInformat
       label += `, Our forces, ${provincesText(homeInformation.provinces)}, Industry ${homeInformation.industry}`;
     }
     if (info && mode === "Information") {
-      label += `, Military ${info.status}, ${provincesText(info.provinces ?? 0)}`;
+      label += `, ${info.military ? `Military ${info.military}` : info.status}, ${provincesText(info.provinces ?? 0)}`;
       if (info.industry !== undefined) label += `, Industry ${info.industry}`;
     } else if (info) {
       label += `, ${info.status}`;
