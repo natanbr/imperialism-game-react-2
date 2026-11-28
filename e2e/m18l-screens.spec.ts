@@ -76,6 +76,24 @@ async function expectPaneFits(panel: Locator) {
   expect(fit.overflow).toBeLessThanOrEqual(1);
 }
 
+/**
+ * A box can be read in full where it stands, with no scrolling: inside the panel that scrolls it, the dialog and the
+ * window. M18l browser QA: on turn 1 at 390x844 the List's detail box ran from y 726 to 820, under the dialog's bottom at
+ * 802 and the panel's at 794, cut off, and only a 26 px scroll of the panel, which shows no scroll bar, reached it.
+ */
+async function expectInView(box: Locator) {
+  const fit = await box.evaluate(el => {
+    const rect = el.getBoundingClientRect();
+    const frames = [el.closest('[role="tabpanel"]')!, el.closest('[role="dialog"]')!].map(frame => frame.getBoundingClientRect());
+    return {
+      box: { top: Math.round(rect.top), bottom: Math.round(rect.bottom) },
+      frames: frames.map(frame => ({ top: Math.round(frame.top), bottom: Math.round(frame.bottom) })),
+      inside: rect.bottom <= innerHeight && frames.every(frame => rect.top >= frame.top - 1 && rect.bottom <= frame.bottom + 1),
+    };
+  });
+  expect(fit, JSON.stringify(fit)).toMatchObject({ inside: true });
+}
+
 /** What our nation reads of Arvelia: its Scouting report, then the Information List, as text. */
 async function readViews(page: Page): Promise<string[]> {
   await inspectByKeyboard(page, '10-3');
@@ -176,6 +194,28 @@ for (const viewport of viewports) {
       await policy.press('Space');
       await panel.getByRole('checkbox', { name: 'Boycott' }).check();
       await expect(policy).toHaveAccessibleName('Valdoria, boycott');
+    });
+
+    test('FR-651 turn 1: the List\'s detail box of Valdoria, "ranked after the first turn", is in view in full', async ({ page }, info) => {
+      await startSeededGame(page);
+      const panel = await openInformation(page);
+      await panel.getByRole('button', { name: 'List', exact: true }).click();
+      const detail = panel.getByRole('region', { name: 'Selected country' });
+      await expect(detail).toContainText('Information: Valdoria');
+      await expect(detail).toContainText('Industry ranked after the first turn');
+      await expectInView(detail);
+      await expectPaneFits(panel);
+      await capture(page, info, 'information-list-turn-1');
+      // Choosing another row shows its facts in the same place; the last row can still be scrolled clear of the box
+      const table = panel.getByRole('table', { name: 'Information by country' });
+      await table.getByRole('button', { name: 'Arvelia', exact: true }).click();
+      await expect(detail).toContainText('Information: Arvelia');
+      await expectInView(detail);
+      await panel.evaluate(el => { el.scrollTop = el.scrollHeight; });
+      const last = table.getByRole('row').last();
+      const clear = await last.evaluate((row, box) => row.getBoundingClientRect().bottom <= box!.getBoundingClientRect().top + 1,
+        await detail.elementHandle());
+      expect(clear).toBe(true);
     });
 
     test('NR-041 Normal and Demo read the same Scouting report and Information; reading saves nothing', async ({ page }) => {

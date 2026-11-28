@@ -17,6 +17,8 @@ const N1 = 'nation-1';
 const N2 = 'nation-2';
 const ARVELIA = 'minor-1';
 const SUNDMARK = 'minor-2';
+const LORRAN = 'minor-3';
+const PELLIS = 'minor-4';
 
 const start = (): GameState => newGame({ seed: 1, world: 'continent' });
 const note = (s: GameState, good: WarehouseCommodities, screen: 'market' | 'warehouse' = 'market') =>
@@ -26,6 +28,12 @@ const withConsulate = (s: GameState, minorId: string): GameState =>
 const atWar = (s: GameState, countryId: string): GameState =>
   setPair(s, N1, countryId, { war: { aggressors: [N1], since: 1 }, consulates: [], embassies: [], pact: false, alliance: false });
 const boycotted = (s: GameState, countryId: string): GameState => setPair(s, N1, countryId, { boycotts: [N1] });
+/** Our diplomatic record with the country is missing (the Relationships map's "No relations"): no trade (FR-185). */
+const withoutRecord = (s: GameState, countryId: string): GameState => {
+  const diplomacy = { ...s.diplomacy };
+  delete diplomacy[pairKey(N1, countryId)];
+  return { ...s, diplomacy };
+};
 /** Sundmark sells Horses too: one of its land tiles holds them. */
 const sundmarkHorses = (s: GameState): GameState => {
   const ids = new Set(s.provinces.filter((p) => p.ownerId === SUNDMARK).flatMap((p) => p.tileIds));
@@ -89,12 +97,31 @@ describe('FR-644 the blocked source note names the barrier', () => {
     expect(note(colony, ResourceType.Horses)).toBe('Open a consulate ($500) to buy this');
   });
 
-  it('FR-644 FR-252 FR-253 barredText names colonies apart only beside war or a boycott; the consulate and the fallback stay', () => {
-    expect(barredText(['at-war', 'boycott', 'not-a-partner'], 'seller')).toBe('War or a boycott bars every seller but colonies, which trade only with their owner');
-    expect(barredText(['not-a-partner', 'boycott'], 'buyer')).toBe('A boycott bars every buyer but colonies, which trade only with their owner');
-    expect(barredText(['not-a-partner', 'no-consulate'], 'seller')).toBe('We need a consulate with a seller');
-    expect(barredText(['not-a-partner', 'not-a-partner'], 'buyer')).toBe('We may not trade with any buyer');
-    expect(barredText(['at-war', 'at-war'], 'seller')).toBe('We are at war with every seller');
+  // Codex task 65: the colony words were used for any "not-a-partner" seller, also an independent minor whose diplomatic
+  // record with us is missing (settledTradeBarrier; the Relationships map's "No relations"). Both sellers were independent.
+  it('FR-644 an independent seller with no relations with us is named, not called a colony: "We are at war with every seller but Sundmark, which has no relations with us"', () => {
+    const unrelated = withoutRecord(sundmarkHorses(atWar(start(), ARVELIA)), SUNDMARK);
+    expect(bidSellersOf(unrelated, N1, ResourceType.Horses)).toEqual([ARVELIA, SUNDMARK]);
+    expect(tradeBarrier(unrelated, N1, SUNDMARK)).toBe('not-a-partner');
+    expect(unrelated.minorNations.find((m) => m.id === SUNDMARK)?.colonyOf).toBeUndefined();
+    expect(note(unrelated, ResourceType.Horses)).toBe('We are at war with every seller but Sundmark, which has no relations with us');
+    const boycott = withoutRecord(sundmarkHorses(boycotted(withConsulate(start(), ARVELIA), ARVELIA)), SUNDMARK);
+    expect(note(boycott, ResourceType.Horses)).toBe('A boycott bars every seller but Sundmark, which has no relations with us');
+  });
+
+  it('FR-644 FR-252 FR-253 barredText names colonies and countries with no relations apart only beside war or a boycott; the consulate and the fallback stay', () => {
+    const colony = valdoriaColonyHorses(start());
+    const both = withoutRecord(colony, LORRAN);
+    expect(barredText(atWar(colony, ARVELIA), N1, [ARVELIA, SUNDMARK], 'seller')).toBe('We are at war with every seller but colonies, which trade only with their owner');
+    expect(barredText(boycotted(both, ARVELIA), N1, [ARVELIA, SUNDMARK, LORRAN], 'buyer'))
+      .toBe('A boycott bars every buyer but colonies, which trade only with their owner, and Lorran, which has no relations with us');
+    expect(barredText(atWar(withoutRecord(both, PELLIS), ARVELIA), N1, [ARVELIA, LORRAN, PELLIS], 'seller'))
+      .toBe('We are at war with every seller but Lorran and Pellis, which have no relations with us');
+    expect(barredText(boycotted(atWar(colony, ARVELIA), N2), N1, [ARVELIA, N2, SUNDMARK], 'seller'))
+      .toBe('War or a boycott bars every seller but colonies, which trade only with their owner');
+    expect(barredText(atWar(colony, ARVELIA), N1, [SUNDMARK, LORRAN], 'seller')).toBe('We need a consulate with a seller');
+    expect(barredText(both, N1, [SUNDMARK, LORRAN], 'buyer')).toBe('We may not trade with any buyer');
+    expect(barredText(atWar(atWar(start(), ARVELIA), N2), N1, [ARVELIA, N2], 'seller')).toBe('We are at war with every seller');
   });
 
   // M18k review: FR-608's verify line, "Changing a rival's private Orders cannot change the labels", for FR-644's notes.

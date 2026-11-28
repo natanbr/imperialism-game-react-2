@@ -14,10 +14,16 @@ import { useGameStore } from '@/store/rootStore';
 import { newGame, validateOrder, type Order } from '@/engine';
 import { getAdjacentTiles, isOcean } from '@/engine/map/mapHelpers';
 import { isDepotSite, isPortSite } from '@/engine/orders/queries';
+import { portApproach, withFleets } from '@/engine/navy/fleets';
+import { addDepot, addPort } from '@/engine/systems/railroadSystem';
+import { transportConnectivitySystem } from '@/engine/systems/transportConnectivitySystem';
+import { createTurnContext } from '@/engine/turn/context';
+import { WARSHIPS } from '@/definisions/ships';
 import type { GameState } from '@/types/GameState';
+import type { Approach, Fleet } from '@/types/Navy';
 import { WorkerType } from '@/types/Workers';
 import { ResourceType } from '@/types/Resource';
-import { put, setTile, setTreasury, tileAt } from '../engine/fixtures';
+import { put, setPair, setTile, setTreasury, tileAt } from '../engine/fixtures';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { text } from './domText';
@@ -337,6 +343,20 @@ describe('FR-386 FR-387 Cancel says what comes back', () => {
   });
 });
 
+/** A depot and a port on 10-7, the continent's river mouth, both in nation 1's network; no rail. */
+function sharedSite(): GameState {
+  const marked = setTile(newGame({ seed: 1, world: 'continent' }), '10-7', { depot: true, port: true });
+  return addDepot(addPort(marked, N1, tileAt(marked, '10-7')), N1, tileAt(marked, '10-7'));
+}
+/** The connectivity phase on `state`, as the map's marks read it after a settlement. */
+const settled = (state: GameState) => transportConnectivitySystem(state, createTurnContext({ turn: state.turn }));
+function squadron(nationId: string, approach: Approach): Fleet {
+  return {
+    id: `fleet-${nationId}`, ownerNationId: nationId, name: 'Frigates', location: approach.seaId, approach, aggression: 'normal',
+    ships: [{ ...WARSHIPS.frigate, id: `ship-${nationId}`, experience: 0 }],
+  };
+}
+
 /** The HUD with `tileId` selected, no civilian. */
 function showTile(state: GameState, tileId: string) {
   useGameStore.setState({ ...useGameStore.getInitialState(), game: state, activeNationId: N1, selectedTileId: tileId });
@@ -453,6 +473,27 @@ describe('FR-643 Tile Info names the depot or port on the tile', () => {
       expect(stations(), id).toEqual([]);
       cleanup();
     }
+  });
+
+  // Codex task 65: a depot may share its tile with a port (10-7, the river mouth on the continent). Under a blockade the
+  // depot read "Rail must join it to the capital or an open port", but the site needs no rail: reopening the port's sea
+  // route connects both, with no rail section at 10-7 in either state.
+  it('FR-643 a depot sharing a blockaded port\'s tile: "Reopen this port\'s sea route or connect the depot by rail."; the route reopened, both connected', () => {
+    const war = setPair(sharedSite(), N1, 'nation-2', { war: { since: 1, aggressors: ['nation-2'] } });
+    const outlet = portApproach(war, tileAt(war, '10-7'))!;
+    const blockaded = settled(withFleets(war, [squadron('nation-2', outlet)]));
+    const reopened = settled(withFleets(war, [squadron('nation-2', outlet), squadron(N1, outlet)]));
+    for (const position of [blockaded, reopened]) expect(position.transportNetwork.railroadNetworks![N1].graph['10,7'] ?? []).toEqual([]);
+
+    showTile(blockaded, '10-7');
+    expect(stations()).toEqual(["Depot: not connected. Reopen this port's sea route or connect the depot by rail.", 'Port: not connected']);
+    cleanup();
+    showTile(reopened, '10-7');
+    expect(stations()).toEqual(['Depot: connected', 'Port: connected']);
+    cleanup();
+    // A depot alone keeps the rail hint
+    showTile(withHub(newGame({ seed: 1 }), '7-8', 'depot', false), '7-8');
+    expect(stations()).toEqual([NOT_CONNECTED]);
   });
 
   it('FR-643 the line follows the civilians\' list, so the first civilian row stays put (FR-371, FR-388)', () => {

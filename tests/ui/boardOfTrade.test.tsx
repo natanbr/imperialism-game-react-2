@@ -415,8 +415,30 @@ describe('FR-252 FR-253 FR-257 the reasons beside the controls', () => {
     expect(plus('coal', 'Buy one more Coal')).toEqual(refused('We are at war with every seller'));
     choose('furniture', 'Sell');
     expect(plus('furniture', 'Sell one more Furniture')).toEqual(refused('War or a boycott bars every buyer'));
-    expect(barredText(['boycott', 'boycott'], 'buyer')).toBe('A boycott bars every buyer');
-    expect(barredText(['at-war', 'no-consulate'], 'seller')).toBe('We need a consulate with a seller');
+    expect(barredText(s, N1, [LORRAN, LORRAN], 'buyer')).toBe('A boycott bars every buyer');
+    const warAndNoConsulate = setPair(start(), N1, ARVELIA, { war: { aggressors: [N1], since: 1 } });
+    expect(barredText(warAndNoConsulate, N1, [ARVELIA, SUNDMARK], 'seller')).toBe('We need a consulate with a seller');
+  });
+
+  // Codex task 65 (FR-644): Sundmark sells Horses but our diplomatic record with it is missing (not a partner, the
+  // Relationships map's "No relations"); Arvelia is at war with us. The Buy "+" said "... but colonies, which trade only
+  // with their owner", though neither seller is a colony.
+  it('FR-252 FR-644 the Buy tooltip names a seller with no relations with us, and says colonies only of a rival colony', () => {
+    const horses = (s: GameState) => {
+      const ids = new Set(s.provinces.filter((p) => p.ownerId === SUNDMARK).flatMap((p) => p.tileIds));
+      const site = s.map.tiles.flat().find((t) => ids.has(t.id) && !t.resource)!;
+      return setTile(s, site.id, { resource: { type: ResourceType.Horses, level: 0, discovered: true } });
+    };
+    const atWar = setPair(withConsulate(horses(start()), N1, ARVELIA), N1, ARVELIA, { war: { aggressors: [N1], since: 1 } });
+    const diplomacy = { ...atWar.diplomacy };
+    delete diplomacy[pairKey(N1, SUNDMARK)];
+    const unrelated = 'We are at war with every seller but Sundmark, which has no relations with us';
+    openBoard({ ...atWar, diplomacy });
+    expect(plus('horses', 'Buy one more Horses')).toEqual(refused(unrelated));
+    expect(text(row('horses'))).toContain(unrelated);
+    expect(text(row('horses'))).not.toContain('colonies');
+    act(() => useGameStore.setState({ game: { ...atWar, minorNations: atWar.minorNations.map((m) => (m.id === SUNDMARK ? { ...m, colonyOf: N2 } : m)) } }));
+    expect(plus('horses', 'Buy one more Horses')).toEqual(refused('We are at war with every seller but colonies, which trade only with their owner'));
   });
 
   // Re-recorded by the M13 review fix round, FR-540 (UTH-1; card Q118 (a)): Valdoria's consulate in Arvelia, which sells
