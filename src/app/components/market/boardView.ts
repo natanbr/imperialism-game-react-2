@@ -34,8 +34,6 @@ import { namesText } from "./dealBookView";
 import { purchaseWarnings } from "./marketView";
 import { barredText, goodsSourceNotes } from "../goodsSources";
 
-export { barredText };
-
 /** Why the player cannot trade with a minor this turn (FR-185), as the board marks it. */
 export const BARRIER_TEXT: Record<TradeBarrier, string> = {
   "no-consulate": "no consulate",

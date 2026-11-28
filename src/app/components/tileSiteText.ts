@@ -1,7 +1,7 @@
 // What a civilian's job costs, how long it takes and why the engine would refuse it (FR-381, FR-382, FR-383): one
 // wording for Tile Info, Construction Options, the map's status line and the spend question; who collects a tile
-// (FR-391) and whether its depot or port is connected (FR-643). Whether a job can start is the engine's validateOrder; this file only words its reason with the tile's facts.
-// It reads state, never builds it.
+// (FR-391) and whether its depot or port is connected (FR-643). Whether a job can start is the engine's validateOrder;
+// this file only words its reason with the tile's facts. It reads state, never builds it.
 import { collectingHub, countryName, isConqueredProvince, provinceOf, validateOrder, type GameEvent, type Order, type RejectReason, type ValidationResult } from "@/engine";
 import { isBuyLandIntent, landPrice, landSiteRefusal, minorLandOf } from "@/engine/overseas/holdings";
 import { overseasAmount, overseasShare, overseasUnitValue, type OverseasCommodity } from "@/engine/overseas/profit";
@@ -417,15 +417,17 @@ export function collectionText(state: GameState, nationId: string, tile: Tile): 
 
 /**
  * FR-643: the depot and port on the nation's own tile, each as a label and its state in FR-093's words, read from the
- * same network node as the map's mark: "Depot:" "connected", or "not connected. Rail must join it to the capital or a
- * port."; "Port:" "connected" or "not connected" (a port can also lack a sea route). Nothing on another nation's tile.
+ * same network node as the map's mark: "Depot:" "connected", or "not connected. Rail must join it to the capital or an
+ * open port." (only the capital and ports with an open sea route start the connection search); "Port:" "connected" or
+ * "not connected" (a port can also lack a sea route; a closed fishing port stays "connected", as its mark does).
+ * Nothing on another nation's tile.
  */
 export function stationText(state: GameState, nationId: string, tile: Tile): { label: string; state: string }[] {
   if (tile.ownerNationId !== nationId) return [];
   const network = state.transportNetwork.railroadNetworks?.[nationId];
   const active = (nodes: readonly DepotNode[] | undefined) => nodes?.find((node) => node.x === tile.x && node.y === tile.y)?.isActive ?? false;
   const lines: { label: string; state: string }[] = [];
-  if (tile.depot) lines.push({ label: "Depot:", state: active(network?.depots) ? "connected" : "not connected. Rail must join it to the capital or a port." });
+  if (tile.depot) lines.push({ label: "Depot:", state: active(network?.depots) ? "connected" : "not connected. Rail must join it to the capital or an open port." });
   if (tile.port) lines.push({ label: "Port:", state: active(network?.ports) ? "connected" : "not connected" });
   return lines;
 }

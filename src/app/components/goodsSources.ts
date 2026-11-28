@@ -14,14 +14,19 @@ export const GOODS_WITH_SOURCE_NOTES: readonly WarehouseCommodities[] = [
   ResourceType.Wool, ResourceType.Fish, ResourceType.Oil, MaterialType.Fuel, ResourceType.Horses,
 ];
 
-/** "We need a consulate with a seller" (FR-252, FR-253): the barriers of every seller (or buyer), the consulate first. */
+/**
+ * "We need a consulate with a seller" (FR-252, FR-253): the barriers of every seller (or buyer), the consulate first.
+ * A rival's colony is listed among them but trades only with its owner ("not-a-partner", FR-224, FR-635), so beside war
+ * or a boycott it is named apart and "every" stays true (FR-644).
+ */
 export function barredText(barriers: readonly (TradeBarrier | undefined)[], side: "seller" | "buyer"): string {
   if (barriers.includes("no-consulate")) return `We need a consulate with a ${side}`;
   const war = barriers.includes("at-war");
   const boycott = barriers.includes("boycott");
-  if (war && boycott) return `War or a boycott bars every ${side}`;
-  if (war) return `We are at war with every ${side}`;
-  if (boycott) return `A boycott bars every ${side}`;
+  const colonies = barriers.includes("not-a-partner") ? " but colonies, which trade only with their owner" : "";
+  if (war && boycott) return `War or a boycott bars every ${side}${colonies}`;
+  if (war) return `We are at war with every ${side}${colonies}`;
+  if (boycott) return `A boycott bars every ${side}${colonies}`;
   return `We may not trade with any ${side}`;
 }
 
