@@ -17,6 +17,7 @@ import { minorLandOf } from "@/engine/overseas/holdings";
 import type { GameEvent } from "@/engine";
 import { Modal } from "./Modal";
 import { TownInspection } from "./towns/TownInspection";
+import { ScoutingReport } from "./army/ScoutingReport";
 
 const NO_EVENTS: readonly GameEvent[] = [];
 
@@ -310,6 +311,8 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
           <strong>{line.label}</strong> {line.state}
         </p>
       ))}
+      {/* FR-650: another country's province can be scouted; after the civilians too, so the first civilian row stays put */}
+      {province && <ScoutingReport key={province.id} game={game} viewerId={activeNationId} provinceId={province.id} />}
       {province && <TownInspection province={province} />}
       {question && (
         <Modal
