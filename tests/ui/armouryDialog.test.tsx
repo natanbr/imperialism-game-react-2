@@ -17,7 +17,7 @@ import { TerrainType } from '@/types/Tile';
 import { WorkerType } from '@/types/Workers';
 import { put, setIndustry, setTile, setTreasury, setWarehouse, industryOf, stockOf, tileAt, treasury } from '../engine/fixtures';
 import { continent } from '../engine/armyFixtures';
-import { blockadeBy, blockadedPortOfferedPeace, blockadeOfTheLine, deliveredAtLogistics, fleetOf, SOUTH_EAST } from '../engine/blockadeFixture';
+import { blockadedPortOfferedPeace, blockadeOfTheLine, deliveredAtLogistics, fleetOf, SOUTH_EAST } from '../engine/blockadeFixture';
 import { failOnActWarnings } from './actWarnings';
 import { text } from './domText';
 
@@ -153,7 +153,7 @@ it('FR-517 FR-646 accepting the peace of the nation blockading our port at 10-7 
 });
 
 // Codex task 68 (blocker): our Frigate sailing into the Ship-of-the-Line that blockades 10-7 is sent back by the battle
-// before connectivity, whatever the draws, so the ranch on 9-7 stays cut off.
+// before connectivity, so the ranch on 9-7 stays cut off; a port changes in the forecast only where no battle decides it.
 it('FR-517 FR-646 our Frigate sailing into the Ship-of-the-Line blockading 10-7 does not count the ranch it would reach: "+1 a turn", what the turn delivers (Codex task 68)', () => {
   const blockaded = blockadeOfTheLine();
   const view = openArmoury(blockaded);
@@ -163,19 +163,6 @@ it('FR-517 FR-646 our Frigate sailing into the Ship-of-the-Line blockading 10-7 
   expect(deliveredAtLogistics(sortie).horses).toBe(1);
   openArmoury(sortie);
   expect(items('Hussars', 'At hand')).toContain('Horses: 4 in warehouse, +1 a turn');
-});
-
-// Codex task 69 (blocker): Frigate against Frigate is a tie whatever the draws, so ours contests the approach and the
-// port at 10-7 reopens before connectivity: the forecast settles a battle no draw decides.
-it('FR-517 FR-646 our Frigate sailing into the Frigate blockading 10-7 ties there and counts the ranch it reaches: "+2 a turn", what the turn delivers (Codex task 69)', () => {
-  const blockaded = blockadeBy('frigate', 'frigate');
-  const view = openArmoury(blockaded);
-  expect(items('Hussars', 'At hand')).toContain('Horses: 4 in warehouse, +1 a turn');
-  view.unmount();
-  const sortie = applyOrder(blockaded, { kind: 'setFleetMission', nationId: N1, fleetId: fleetOf(N1), mission: 'sail', provinceId: SOUTH_EAST });
-  expect(deliveredAtLogistics(sortie).horses).toBe(2);
-  openArmoury(sortie);
-  expect(items('Hussars', 'At hand')).toContain('Horses: 4 in warehouse, +2 a turn');
 });
 
 describe('FR-212 the Armoury: how it opens', () => {

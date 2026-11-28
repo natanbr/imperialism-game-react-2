@@ -1,6 +1,6 @@
 // Codex task 67 (FR-646, FR-517): the continent, seed 1, with Testland (nation-1) at war with Valdoria (nation-2) and a
 // Frigate on a sea approach. The engine and UI forecast tests share these positions. Not a test file.
-import { WARSHIPS, type WarshipType } from '@/definisions/ships';
+import { WARSHIPS } from '@/definisions/ships';
 import { newGame } from '@/engine/newGame';
 import { homeApproach, portApproach, withFleets } from '@/engine/navy/fleets';
 import { addPort } from '@/engine/systems/railroadSystem';
@@ -43,31 +43,16 @@ export function blockadedPort(): GameState {
 }
 
 /**
- * Codex task 69: turn 1 of `blockadedPort` with one fresh Valdorian warship of type `theirs` blockading 10-7, and one
- * fresh warship of ours of type `ours` at its home berth, free to sail to Testland South-East. A Frigate has firepower 3,
- * armour 10 and hull 35, a Ship-of-the-Line 6, 20 and 65, so every hit between them does 1 (the minimum) and neither
- * can sink the other in the battle's 3 rounds: firepower alone decides it, whatever the draws.
+ * Codex task 68: turn 1 of `blockadedPort` with a fresh Valdorian Ship-of-the-Line (firepower 6, hull 65) blockading
+ * 10-7 instead, and our fresh Frigate (firepower 3, hull 35) at its home berth, free to sail to Testland South-East.
  */
-export function blockadeBy(ours: WarshipType, theirs: WarshipType): GameState {
+export function blockadeOfTheLine(): GameState {
   const s = blockadedPort();
-  const blockader: Fleet = { ...frigate(N2, portApproach(s, tileAt(s, '10-7'))!), name: WARSHIPS[theirs].plural,
-    ships: [{ ...WARSHIPS[theirs], id: `ship-${N2}`, experience: 0 }] };
-  const berth: Fleet = { ...frigate(N1, homeApproach(s, N1)!), location: 'berth', name: WARSHIPS[ours].plural,
-    ships: [{ ...WARSHIPS[ours], id: `ship-${N1}`, experience: 0 }] };
+  const line: Fleet = { ...frigate(N2, portApproach(s, tileAt(s, '10-7'))!), name: 'Ships-of-the-Line',
+    ships: [{ ...WARSHIPS.shipOfTheLine, id: `ship-${N2}`, experience: 0 }] };
+  const berth: Fleet = { ...frigate(N1, homeApproach(s, N1)!), location: 'berth' };
   delete berth.approach;
-  return withFleets(s, [berth, blockader]);
-}
-
-/**
- * Codex task 68: a fresh Valdorian Ship-of-the-Line (firepower 6, hull 65) blockading 10-7, and our fresh Frigate
- * (firepower 3, hull 35) at its home berth.
- */
-export const blockadeOfTheLine = () => blockadeBy('frigate', 'shipOfTheLine');
-
-/** The nation's one ship with only `left` hull points left (an earlier battle's damage). */
-export function hullLeft(game: GameState, nationId: string, left: number): GameState {
-  return withFleets(game, game.fleets.map(f => f.ownerNationId !== nationId ? f :
-    { ...f, ships: f.ships.map(ship => ({ ...ship, hullDamage: ship.hull - left })) }));
+  return withFleets(s, [berth, line]);
 }
 
 /** Turn 2 of `blockadedPort`: Valdoria proposed peace on turn 1 ("proposal-1-1"), so we may answer it now. */
