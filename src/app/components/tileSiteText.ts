@@ -418,16 +418,18 @@ export function collectionText(state: GameState, nationId: string, tile: Tile): 
 /**
  * FR-643: the depot and port on the nation's own tile, each as a label and its state in FR-093's words, read from the
  * same network node as the map's mark: "Depot:" "connected", or "not connected. Rail must join it to the capital or an
- * open port." (only the capital and ports with an open sea route start the connection search); "Port:" "connected" or
- * "not connected" (a port can also lack a sea route; a closed fishing port stays "connected", as its mark does).
- * Nothing on another nation's tile.
+ * open port." (only the capital and ports with an open sea route start the connection search); a depot sharing its tile
+ * with a port needs no rail once that port's route is open, so it reads "not connected. Reopen this port's sea route or
+ * connect the depot by rail."; "Port:" "connected" or "not connected" (a port can also lack a sea route; a closed
+ * fishing port stays "connected", as its mark does). Nothing on another nation's tile.
  */
 export function stationText(state: GameState, nationId: string, tile: Tile): { label: string; state: string }[] {
   if (tile.ownerNationId !== nationId) return [];
   const network = state.transportNetwork.railroadNetworks?.[nationId];
   const active = (nodes: readonly DepotNode[] | undefined) => nodes?.find((node) => node.x === tile.x && node.y === tile.y)?.isActive ?? false;
   const lines: { label: string; state: string }[] = [];
-  if (tile.depot) lines.push({ label: "Depot:", state: active(network?.depots) ? "connected" : "not connected. Rail must join it to the capital or an open port." });
+  const depotRemedy = tile.port ? "Reopen this port's sea route or connect the depot by rail." : "Rail must join it to the capital or an open port.";
+  if (tile.depot) lines.push({ label: "Depot:", state: active(network?.depots) ? "connected" : `not connected. ${depotRemedy}` });
   if (tile.port) lines.push({ label: "Port:", state: active(network?.ports) ? "connected" : "not connected" });
   return lines;
 }

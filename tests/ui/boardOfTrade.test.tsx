@@ -437,7 +437,15 @@ describe('FR-252 FR-253 FR-257 the reasons beside the controls', () => {
     expect(plus('horses', 'Buy one more Horses')).toEqual(refused(unrelated));
     expect(text(row('horses'))).toContain(unrelated);
     expect(text(row('horses'))).not.toContain('colonies');
-    act(() => useGameStore.setState({ game: { ...atWar, minorNations: atWar.minorNations.map((m) => (m.id === SUNDMARK ? { ...m, colonyOf: N2 } : m)) } }));
+    // Sundmark as Valdoria's colony, Valdoria holding its horse tile (FR-224, FR-635), as goodsSources.test.ts builds it
+    const site = atWar.map.tiles.flat().find((t) => t.resource?.type === ResourceType.Horses && t.provinceId &&
+      atWar.provinces.find((p) => p.id === t.provinceId)?.ownerId === SUNDMARK)!;
+    const colony: GameState = {
+      ...atWar,
+      minorNations: atWar.minorNations.map((m) => (m.id === SUNDMARK ? { ...m, colonyOf: N2 } : m)),
+      overseasLand: { ...atWar.overseasLand, [site.id]: { tileId: site.id, holderId: N2, minorId: SUNDMARK, turn: 1, price: 2000 } },
+    };
+    act(() => useGameStore.setState({ game: colony }));
     expect(plus('horses', 'Buy one more Horses')).toEqual(refused('We are at war with every seller but colonies, which trade only with their owner'));
   });
 

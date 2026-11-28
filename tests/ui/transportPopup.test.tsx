@@ -248,7 +248,7 @@ describe('FR-390 the popup shows set and automatic (M12, card Q80, audit ECONOMY
     const before = TURN_PHASES.slice(0, TURN_PHASES.indexOf(logisticsSystem)).reduce((s, system) => system(s, ctx), game);
     const stock = (s: GameState) => s.nations.find(n => n.id === 'nation-1')!.warehouse as Record<string, number>;
     const after = stock(logisticsSystem(before, ctx));
-    return Object.fromEntries(Object.keys(after).map(key => [key, after[key] - (stock(before)[key] ?? 0)]).filter(([, n]) => n !== 0));
+    return Object.fromEntries(Object.keys(after).map(key => [key, after[key] - (stock(before)[key] ?? 0)] as const).filter(([, n]) => n !== 0));
   };
 
   it('FR-646 the row reader knows every row: an automatic town row counts its "scheduled" units, a saved cap above supply its known shipment', () => {
@@ -284,8 +284,12 @@ describe('FR-390 the popup shows set and automatic (M12, card Q80, audit ECONOMY
     expect(infoBar()).toBe('Capacity: 15 Allocated: 12 Remaining: 3');
     expect(header()[1]).toBe(Object.values(delivered).reduce((sum, n) => sum + n, 0));
     expect(rowShipments()).toMatchObject(delivered);
-    // FR-389 still: a set slider clamps against the set rows alone, now up to the 5 the farm gives
-    fireEvent.change(screen.getByRole('slider', { name: 'Grain' }), { target: { value: '5' } });
+    // FR-389 still: a set slider clamps against the set rows alone, now up to the 5 the farm gives (the automatic slider
+    // already stands at 5, so it is moved away first: setting the same value fires no change)
+    fireEvent.change(screen.getByRole('slider', { name: 'Grain' }), { target: { value: '2' } });
+    expect(plan()).toEqual({ grain: 2 });
+    expect(infoBar()).toBe('Capacity: 15 Allocated: 9 Remaining: 6');
+    fireEvent.change(screen.getByRole('slider', { name: 'Grain' }), { target: { value: '9' } });
     expect(plan()).toEqual({ grain: 5 });
     expect(text(row('grain'))).toBe('Grain 5 / 5 Auto');
     expect(infoBar()).toBe('Capacity: 15 Allocated: 12 Remaining: 3');

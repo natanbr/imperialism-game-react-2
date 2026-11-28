@@ -83,9 +83,9 @@ export function moreRefusalText(state: GameState, nationId: string, commodity: T
       return MORE_REFUSAL_TEXT.noBuyer;
     case "sellers-barred":
       // The minors that sell it, else the other Great Powers a bid would go to (FR-492)
-      return barredText(bidSellersOf(state, nationId, commodity).map((id) => tradeBarrier(state, nationId, id)), "seller");
+      return barredText(state, nationId, bidSellersOf(state, nationId, commodity), "seller");
     case "buyers-barred":
-      return barredText(buyersOf(state, nationId, commodity).map((id) => tradeBarrier(state, nationId, id)), "buyer");
+      return barredText(state, nationId, buyersOf(state, nationId, commodity), "buyer");
     case "limit-reached":
       return tradeCapacityOf(state, nationId).free === 0 ? MORE_REFUSAL_TEXT.holds : MORE_REFUSAL_TEXT.bids;
     case "insufficient-resources":
