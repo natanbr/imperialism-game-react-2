@@ -111,9 +111,10 @@ test('FR-160 FR-153 FR-155 FR-156 a new game shows the 4 minor nations, the prov
   await expect(info.getByTestId('tile-province')).toHaveCount(0);
   await expect(info).toContainText('Terrain: Hardwood forest');
   await expect(info).toContainText('Resource: Timber (L1)');
-  // No order control: the heading's Close tile info (FR-370) is the only button
-  await expect(info.getByRole('button')).toHaveCount(1);
+  // No order control: the heading's Close tile info (FR-370) and the read-only Scouting report (FR-650) are the only buttons
+  await expect(info.getByRole('button')).toHaveCount(2);
   await expect(info.getByRole('button', { name: 'Close tile info' })).toHaveCount(1);
+  await expect(info.getByRole('button', { name: 'Scouting report' })).toHaveCount(1);
   await expect(tile(page, '10-3').locator('[data-worker-type]')).toHaveCount(0);
   if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/m5-arvelia.png` });
 

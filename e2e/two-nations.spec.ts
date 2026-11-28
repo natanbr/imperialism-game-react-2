@@ -63,9 +63,11 @@ test('FR-106 FR-107 FR-108 after five End Turns the HUD ranks both nations, the 
   const info = page.getByTestId('tile-info');
   await expect(info.getByTestId('tile-owner')).toHaveText('Owner: Valdoria');
   await expect(info).toContainText('Terrain: Capital');
-  // No order control: the heading's Close tile info (FR-370) is the only button
-  await expect(info.getByRole('button')).toHaveCount(1);
+  // No order control: the heading's Close tile info (FR-370) and the read-only Scouting report (FR-650; disabled, as no
+  // province of ours borders Valdoria South-West) are the only buttons
+  await expect(info.getByRole('button')).toHaveCount(2);
   await expect(info.getByRole('button', { name: 'Close tile info' })).toHaveCount(1);
+  await expect(info.getByRole('button', { name: 'Scouting report' })).toBeDisabled();
   if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/m4-valdoria-capital.png` });
 
   expect(errors).toEqual([]);
