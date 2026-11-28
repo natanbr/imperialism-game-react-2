@@ -4,18 +4,25 @@
 // CSS columns as groups shown (at most 3; the columns drawn are checked in the running app,
 // e2e/m4-3.spec.ts); FR-141 only what the network can carry; FR-142 a group all 0 / 0 is hidden.
 import { describe, it, expect } from 'vitest';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import TransportAllocationModal from '@/components/TransportAllocationModal';
 import { COMMODITY_KINDS, NEVER_SHIPPED, SHIPPABLE_KINDS, transportKinds } from '@/components/commodityKinds';
 import { artFileOf, goodsArt } from '@/components/art/inkArt';
 import { commodityName } from '@/components/gameText';
 import { useGameStore } from '@/store/rootStore';
-import { newGame } from '@/engine';
+import { newGame, tryApplyOrder, type Order } from '@/engine';
 import { isOcean } from '@/engine/map/mapHelpers';
+import { logisticsSystem } from '@/engine/systems/logisticsSystem';
+import { createTurnContext } from '@/engine/turn/context';
+import { TURN_PHASES } from '@/engine/turn/phases';
+import { resolveTurn } from '@/engine/turn/resolveTurn';
 import type { GameState } from '@/types/GameState';
 import { TerrainType } from '@/types/Tile';
+import { WorkerType } from '@/types/Workers';
 import { GoodsType, MaterialType, ResourceType, type WarehouseCommodities } from '@/types/Resource';
-import { setTile, tileAt } from '../engine/fixtures';
+import { put, setTile, tileAt } from '../engine/fixtures';
+import { blockadedPortOfferedPeace, blockadeOfTheLine, contestedHome, fleetOf, SOUTH_EAST } from '../engine/blockadeFixture';
+import { coastalFreightTown } from '../engine/townFreightFixture';
 import { failOnActWarnings } from './actWarnings';
 import { text } from './domText';
 
@@ -145,12 +152,14 @@ describe('FR-390 the popup shows set and automatic (M12, card Q80, audit ECONOMY
   const plan = () => useGameStore.getState().game.transportAllocationsByNation?.['nation-1'];
   const infoBar = () => text(dialog().querySelector('.modal-info-bar')!);
 
-  it('FR-390 a new game: every row automatic, reading what it ships this turn; Allocated 0, Remaining all of the capacity; no Auto button', () => {
+  // FR-646 replaces FR-390's header sentence (M18k play-test F5): "Allocated" counts every row that ships, set or
+  // automatic, and "Remaining" is the capacity left over. Before, a new game read "Allocated: 0 Remaining: 15".
+  it('FR-390 FR-646 a new game: every row automatic, reading what it ships this turn; Allocated counts what they ship (11 of 15); no Auto button', () => {
     show();
     expect(text(row('grain'))).toBe('Grain Auto: 4');
     expect(text(row('fruit'))).toBe('Fruit Auto: 4');
     expect(text(row('cotton'))).toBe('Cotton Auto: 2');
-    expect(infoBar()).toBe('Capacity: 15 Allocated: 0 Remaining: 15');
+    expect(infoBar()).toBe('Capacity: 15 Allocated: 11 Remaining: 4');
     expect(screen.queryByRole('button', { name: /^Auto / })).toBeNull();
     // The slider of an automatic row stands at what it ships
     expect((screen.getByRole('slider', { name: 'Grain' }) as HTMLInputElement).value).toBe('4');
@@ -169,7 +178,7 @@ describe('FR-390 the popup shows set and automatic (M12, card Q80, audit ECONOMY
     expect(text(row('grain'))).toBe('Grain 1 / 4 Auto');
     expect(within(row('grain')).getByRole('button', { name: 'Auto Grain' })).toBeTruthy();
     expect(text(row('fruit'))).toBe('Fruit Auto: 4');
-    expect(infoBar()).toBe('Capacity: 15 Allocated: 1 Remaining: 14');
+    expect(infoBar()).toBe('Capacity: 15 Allocated: 8 Remaining: 7');
   });
 
   it('FR-390 FR-389 a slider set to 0 is set (ships nothing), not automatic', () => {
@@ -189,7 +198,7 @@ describe('FR-390 the popup shows set and automatic (M12, card Q80, audit ECONOMY
     expect(plan()).toEqual({ fruit: 0 });
     expect(text(row('grain'))).toBe('Grain Auto: 4');
     expect(text(row('fruit'))).toBe('Fruit 0 / 4 Auto');
-    expect(infoBar()).toBe('Capacity: 15 Allocated: 0 Remaining: 15');
+    expect(infoBar()).toBe('Capacity: 15 Allocated: 7 Remaining: 8');
   });
 
   it('FR-607 a rejected Auto order leaves focus on the next slider the player edits', () => {
@@ -210,8 +219,191 @@ describe('FR-390 the popup shows set and automatic (M12, card Q80, audit ECONOMY
 
   it('FR-390 automatic rows share what the set ones leave: capacity 15 with grain set to 4 and fruit to 4 leaves cotton its 2', () => {
     show({ ...newGame({ seed: 1 }), transportAllocationsByNation: { 'nation-1': { grain: 4, fruit: 4 } } });
-    expect(infoBar()).toBe('Capacity: 15 Allocated: 8 Remaining: 7');
+    expect(infoBar()).toBe('Capacity: 15 Allocated: 11 Remaining: 4');
     expect(text(row('cotton'))).toBe('Cotton Auto: 2');
+  });
+
+  /**
+   * What one shown row ships this turn, in its own words: a town row's "n scheduled" (FR-621), "Auto: n", or a set row's
+   * "n / 4" (the fixtures here have the cars for every set amount). A saved cap above supply reads "Set: 9" and does not
+   * say what ships, so the test gives that amount (`known`). Any other row fails, so a wrong header and a wrong sum of
+   * the rows cannot agree by accident (Codex task 65: an automatic town row and "Set: 9" both counted 0).
+   */
+  const shippedBy = (key: string, known?: number): number => {
+    const reading = text(row(key));
+    const name = commodityName(key);
+    const town = new RegExp(`^${name} (?:Auto: \\d+|\\d+ / \\d+ Auto|Set: \\d+ Auto) Town freight · \\d+ available · (\\d+) scheduled$`).exec(reading);
+    if (town) return Number(town[1]);
+    const shown = new RegExp(`^${name} (?:Auto: (\\d+)|(\\d+) / \\d+ Auto)$`).exec(reading);
+    if (shown) return Number(shown[1] ?? shown[2]);
+    if (known !== undefined && new RegExp(`^${name} Set: \\d+ Auto$`).test(reading)) return known;
+    throw new Error(`${key}: no known shipment in "${reading}"`);
+  };
+  /** Every shown row's shipment, by commodity. */
+  const rowShipments = (known: Record<string, number> = {}) => Object.fromEntries(shownRows().map(key => [key, shippedBy(key, known[key])]));
+  const shippedByRows = (known: Record<string, number> = {}) => Object.values(rowShipments(known)).reduce((sum, n) => sum + n, 0);
+  const header = () => infoBar().match(/^Capacity: (\d+) Allocated: (\d+) Remaining: (\d+)$/)!.slice(1).map(Number);
+  /** What the turn's logistics phase actually ships: the warehouse just before and just after it. */
+  const deliveredAtLogistics = (game: GameState) => {
+    const ctx = createTurnContext({ turn: game.turn, seed: game.seed });
+    const before = TURN_PHASES.slice(0, TURN_PHASES.indexOf(logisticsSystem)).reduce((s, system) => system(s, ctx), game);
+    const stock = (s: GameState) => s.nations.find(n => n.id === 'nation-1')!.warehouse as Record<string, number>;
+    const after = stock(logisticsSystem(before, ctx));
+    return Object.fromEntries(Object.keys(after).map(key => [key, after[key] - (stock(before)[key] ?? 0)] as const).filter(([, n]) => n !== 0));
+  };
+
+  it('FR-646 the row reader knows every row: an automatic town row counts its "scheduled" units, a saved cap above supply its known shipment', () => {
+    const { game } = coastalFreightTown();
+    show(game);
+    expect(text(row('furniture'))).toBe('Furniture Auto: 1 Town freight · 1 available · 1 scheduled');
+    expect(rowShipments()).toMatchObject({ lumber: 2, furniture: 1 });
+    expect(header()[1]).toBe(shippedByRows());
+    cleanup();
+    show({ ...newGame({ seed: 1 }), transportAllocationsByNation: { 'nation-1': { grain: 9 } } });
+    expect(text(row('grain'))).toBe('Grain Set: 9 Auto');
+    expect(() => shippedByRows()).toThrow('grain: no known shipment in "Grain Set: 9 Auto"');
+    expect(shippedByRows({ grain: 4 })).toBe(11);
+    expect(infoBar()).toBe('Capacity: 15 Allocated: 11 Remaining: 4');
+  });
+
+  // Codex task 65 (blocker): the farmer's job on 3-9 (grain level 1 to 2, started on turn 1, 3 turns) finishes in turn 3's
+  // development phase, before logistics. The popup read the farm's old 4 grain and "Allocated: 11 Remaining: 4", while the
+  // turn shipped 5 grain, 12 in all, and left 3 cars spare.
+  it('FR-646 FR-389 our job finishing before logistics: on turn 3 the rows and the header are what the turn ships', () => {
+    const start = newGame({ seed: 1 });
+    const farmer = start.map.tiles.flat().flatMap(t => t.workers).find(w => w.nationId === 'nation-1' && w.type === WorkerType.Farmer)!;
+    const turn1 = resolveTurn(start, { 'nation-1': [{ kind: 'moveAndStartDevelopment', nationId: 'nation-1', workerId: farmer.id, toTileId: '3-9' }] });
+    expect(turn1.events.filter(e => e.type === 'order-rejected')).toEqual([]);
+    const game = resolveTurn(turn1.state, {}).state;
+    expect([game.turn, tileAt(game, '3-9').resource?.level, tileAt(game, '3-9').developmentJob?.targetLevel]).toEqual([3, 1, 2]);
+    const delivered = deliveredAtLogistics(game);
+    expect(delivered).toEqual({ grain: 5, fruit: 4, cotton: 2, fish: 1 });
+
+    show(game);
+    expect(text(row('grain'))).toBe('Grain Auto: 5');
+    expect(screen.getByRole('slider', { name: 'Grain' }).getAttribute('max')).toBe('5');
+    expect(infoBar()).toBe('Capacity: 15 Allocated: 12 Remaining: 3');
+    expect(header()[1]).toBe(Object.values(delivered).reduce((sum, n) => sum + n, 0));
+    expect(rowShipments()).toMatchObject(delivered);
+    // FR-389 still: a set slider clamps against the set rows alone, now up to the 5 the farm gives (the automatic slider
+    // already stands at 5, so it is moved away first: setting the same value fires no change)
+    fireEvent.change(screen.getByRole('slider', { name: 'Grain' }), { target: { value: '2' } });
+    expect(plan()).toEqual({ grain: 2 });
+    expect(infoBar()).toBe('Capacity: 15 Allocated: 9 Remaining: 6');
+    fireEvent.change(screen.getByRole('slider', { name: 'Grain' }), { target: { value: '9' } });
+    expect(plan()).toEqual({ grain: 5 });
+    expect(text(row('grain'))).toBe('Grain 5 / 5 Auto');
+    expect(infoBar()).toBe('Capacity: 15 Allocated: 12 Remaining: 3');
+  });
+
+  /** Turn 3 of Two islands seed 1, our farmer's job on 3-9 (grain level 1 to 2, from turn 1) due before logistics. */
+  const farmerDueOnTurn3 = () => {
+    const start = newGame({ seed: 1 });
+    const farmer = start.map.tiles.flat().flatMap(t => t.workers).find(w => w.nationId === 'nation-1' && w.type === WorkerType.Farmer)!;
+    const turn1 = resolveTurn(start, { 'nation-1': [{ kind: 'moveAndStartDevelopment', nationId: 'nation-1', workerId: farmer.id, toTileId: '3-9' }] });
+    return resolveTurn(turn1.state, {}).state;
+  };
+  const queued = (game: GameState, order: Order) => {
+    const { state, result } = tryApplyOrder(game, order);
+    expect(result).toEqual({ ok: true });
+    return state;
+  };
+
+  // Codex task 67 (FR-497): a job counts as ours only when our own worker on the tile holds it. Legal orders never let
+  // another nation's worker hold a job on our land; these saves are edited and still load.
+  it('FR-646 FR-497 our due job on 3-9 edited to name a rival\'s farmer is not counted: "Grain Auto: 4", as without the job', () => {
+    const game = farmerDueOnTurn3();
+    const rival = game.map.tiles.flat().flatMap(t => t.workers).find(w => w.nationId === 'nation-2' && w.type === WorkerType.Farmer)!.id;
+    const job = tileAt(game, '3-9').developmentJob!;
+    show(setTile(game, '3-9', { developmentJob: undefined }));
+    const withoutJob = [text(row('grain')), infoBar()];
+    expect(withoutJob).toEqual(['Grain Auto: 4', 'Capacity: 15 Allocated: 11 Remaining: 4']);
+    const named = setTile(game, '3-9', { developmentJob: { ...job, workerId: rival } });
+    for (const edited of [named, put(named, rival, '3-9')]) {
+      cleanup();
+      show(edited);
+      expect([text(row('grain')), infoBar()]).toEqual(withoutJob);
+    }
+  });
+
+  // Codex task 67 (blocker): a turn settles diplomacy and the fleet phase before connectivity, so the popup applies our own
+  // orders there against the public fleet positions. Continent seed 1, at war with Valdoria, one Frigate each.
+  it('FR-646 our Frigate ordered home leaves Valdoria\'s alone on our home approach: no Fish and "Allocated: 10 Remaining: 5", what the turn ships', () => {
+    const contested = contestedHome();
+    show(contested);
+    // While ours contests the approach the capital's Fish ships (the settlement's battle there is not forecast)
+    expect(text(row('fish'))).toBe('Fish Auto: 1');
+    expect(infoBar()).toBe('Capacity: 15 Allocated: 11 Remaining: 4');
+    cleanup();
+    const game = queued(contested, { kind: 'setFleetMission', nationId: 'nation-1', fleetId: fleetOf('nation-1'), mission: 'return' });
+    const delivered = deliveredAtLogistics(game);
+    expect(delivered).toEqual({ grain: 4, fruit: 3, cotton: 2, horses: 1 });
+    show(game);
+    expect(rowShipments().fish ?? 0).toBe(0);
+    expect(infoBar()).toBe('Capacity: 15 Allocated: 10 Remaining: 5');
+    expect(rowShipments()).toMatchObject(delivered);
+    expect(shippedByRows()).toBe(10);
+  });
+
+  it('FR-646 accepting Valdoria\'s peace reopens our port at 10-7 that its Frigate blockades: "Allocated: 15 Remaining: 0", what the turn ships', () => {
+    const offered = blockadedPortOfferedPeace();
+    show(offered);
+    expect(infoBar()).toBe('Capacity: 15 Allocated: 11 Remaining: 4');
+    cleanup();
+    const game = queued(offered, { kind: 'answerProposal', nationId: 'nation-1', proposalId: 'proposal-1-1', accept: true });
+    const delivered = deliveredAtLogistics(game);
+    expect(delivered).toEqual({ grain: 4, fruit: 3, fish: 2, cotton: 2, horses: 2, timber: 2 });
+    show(game);
+    expect(infoBar()).toBe('Capacity: 15 Allocated: 15 Remaining: 0');
+    expect(rowShipments()).toMatchObject(delivered);
+    expect(shippedByRows()).toBe(15);
+  });
+
+  // Codex task 68 (blocker): a port changes in the forecast only where no battle decides it. Our Frigate sailing into the
+  // Ship-of-the-Line that blockades 10-7 meets it there before connectivity and is sent back to its berth.
+  it('FR-646 our Frigate sailing into the Ship-of-the-Line blockading 10-7 does not open the port: "Allocated: 11 Remaining: 4", what the turn ships', () => {
+    const blockaded = blockadeOfTheLine();
+    show(blockaded);
+    expect(infoBar()).toBe('Capacity: 15 Allocated: 11 Remaining: 4');
+    cleanup();
+    const game = queued(blockaded, { kind: 'setFleetMission', nationId: 'nation-1', fleetId: fleetOf('nation-1'), mission: 'sail', provinceId: SOUTH_EAST });
+    const delivered = deliveredAtLogistics(game);
+    expect(delivered).toEqual({ grain: 4, fruit: 3, fish: 1, cotton: 2, horses: 1 });
+    show(game);
+    expect(infoBar()).toBe('Capacity: 15 Allocated: 11 Remaining: 4');
+    expect(rowShipments()).toMatchObject(delivered);
+    expect(rowShipments().timber ?? 0).toBe(0);
+    expect(shippedByRows()).toBe(11);
+  });
+
+  it('FR-646 Allocated counts every row that ships, so Remaining is the capacity actually spare', () => {
+    show();
+    const [capacity, allocated, remaining] = header();
+    expect(shippedByRows()).toBe(11);
+    expect(allocated).toBe(shippedByRows());
+    expect(allocated + remaining).toBe(capacity);
+    fireEvent.change(screen.getByRole('slider', { name: 'Grain' }), { target: { value: '1' } });
+    expect(header()[1]).toBe(shippedByRows());
+  });
+
+  it('FR-646 a network full with automatic goods: "Capacity: 3 Allocated: 3 Remaining: 0"', () => {
+    useGameStore.setState({ ...useGameStore.getInitialState(), game: newGame({ seed: 1 }), activeNationId: 'nation-1' });
+    render(<TransportAllocationModal capacity={3} onClose={() => {}} />);
+    expect(infoBar()).toBe('Capacity: 3 Allocated: 3 Remaining: 0');
+    expect(shippedByRows()).toBe(3);
+  });
+
+  // M18k review: FR-646 keeps the clamp of FR-389, so "Remaining: 0" does not stop a slider; the set one takes its
+  // share from the automatic rows.
+  it('FR-646 FR-389 at "Remaining: 0" a slider still rises against the set rows alone: Cotton to 2 takes from the Auto rows', () => {
+    useGameStore.setState({ ...useGameStore.getInitialState(), game: newGame({ seed: 1 }), activeNationId: 'nation-1' });
+    render(<TransportAllocationModal capacity={3} onClose={() => {}} />);
+    expect(infoBar()).toBe('Capacity: 3 Allocated: 3 Remaining: 0');
+    fireEvent.change(screen.getByRole('slider', { name: 'Cotton' }), { target: { value: '2' } });
+    expect(plan()).toEqual({ cotton: 2 });
+    expect(text(row('cotton'))).toBe('Cotton 2 / 2 Auto');
+    expect(infoBar()).toBe('Capacity: 3 Allocated: 3 Remaining: 0');
+    expect(shippedByRows()).toBe(3);
   });
 });
 

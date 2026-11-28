@@ -492,6 +492,22 @@ img[data-art-anchor="bottom-center"] {
   gap: 8px;
 }
 
+/* FR-650: the Scouting report's boxed estimate (Imp1 rules 11 section 5.3) */
+.scouting-estimate {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 4px;
+}
+
+.scouting-estimate ul,
+.scouting-estimate p {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  line-height: 1.5;
+}
+
 /* One row per border line: the sample, then its meaning (FR-235) */
 .map-legend {
   list-style: none;

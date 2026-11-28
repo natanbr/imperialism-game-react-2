@@ -171,6 +171,8 @@ export {
 export { battleFrames, battleOutcome, battlesFoughtBy, type BattleFrame, type BattleFrameRegiment, type BattleOutcome, type BattleResolvedEvent } from "./army/battleReport";
 export { conquestWinner, isFallen } from "./army/conquest";
 export { isAttackIntent } from "./army/armies";
+// M18l (FR-650): the Foreign Scouting Report, a read of another country's province (who scouts it, its regiments by type).
+export { scoutingObserver, scoutingReport, type ScoutedForce, type ScoutingObserver, type ScoutingReport } from "./army/scouting";
 export { COMBAT, ESTIMATE, SCRIPTED_WAR } from "@/definisions/combatRules";
 export type { BattleFate, BattleRegiment, BattleReport, BattleResult, BattleRound, BattleShot, BattleSide } from "@/types/Battle";
 // M10 (FR-290 to FR-296): the Council of Governors. `resolveTurn` holds a meeting on turns 10, 20, 30 and 40 of a world with

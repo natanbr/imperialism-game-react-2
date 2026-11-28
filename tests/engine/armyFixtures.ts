@@ -145,3 +145,16 @@ export const clearArmy = (s: GameState, ownerId: CountryId, provinceId: Province
   ...s,
   armies: s.armies.filter(a => !(a.ownerId === ownerId && a.provinceId === provinceId)),
 });
+
+/** Hand-built damage, as an edited save can bring it (Codex task 66): the province keeps its id and tiles, not its owner. */
+export function withoutOwner(s: GameState, provinceId: ProvinceId): GameState {
+  return {
+    ...s,
+    provinces: s.provinces.map(p => {
+      if (p.id !== provinceId) return p;
+      const damaged: Partial<typeof p> = { ...p };
+      delete damaged.ownerId;
+      return damaged as typeof p;
+    }),
+  };
+}

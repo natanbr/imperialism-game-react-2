@@ -31,10 +31,10 @@ import { partnerDemand, partnerSupply, planConsulate } from "./scriptedPartners"
 import { councilTradeInputs, embassySaving, planInfluence } from "./scriptedInfluence";
 import { greatPowerTradeCaps } from "./scriptedGreatPowerTrade";
 import { mealNeeds } from "../systems/foodSystem";
-import { finishBuildings, productionSystem } from "../systems/productionSystem";
+import { productionSystem } from "../systems/productionSystem";
 import { forecastFreight, projectedFreightPlan, rawFreightSupply, updateNationStateWithTransportedResources } from "../systems/logisticsSystem";
+import { freightAtLogistics } from "../systems/freightForecast";
 import { transportConnectivitySystem } from "../systems/transportConnectivitySystem";
-import { developmentSystem } from "../systems/developmentSystem";
 import { createTurnContext } from "../turn/context";
 import { turnLimitOf } from "../turn/gameOver";
 import { SCRIPTED_GARRISON } from "@/definisions/regiments";
@@ -42,7 +42,6 @@ import { armsWanted, planGarrison, upkeepReserve } from "./scriptedArmy";
 import { workersKeptForCampaign } from "./scriptedWar";
 import { capitalComponent } from "./railPlan";
 import { upkeepOf } from "../army/armies";
-import { townFactories } from "../world/towns";
 import { heldTilesOf } from "../overseas/holdings";
 import { WorkerType } from "@/types/Workers";
 
@@ -227,23 +226,6 @@ function planTransport(state: GameState, nationId: string, propose: Propose): vo
   const supply = forecastFreight(state, nationId);
   const allocations = planFreight(state, nationId, supply, shippingWants(state, nationId, supply.collected));
   propose({ kind: "setTransportAllocations", nationId, allocations });
-}
-
-/**
- * What the hubs collect in the logistics phase of the turn `view` plans (its orders given): after the development
- * phase finishes this turn's jobs (a rail, a depot, a tile's next level) and the connectivity phase updates the hubs.
- */
-function freightAtLogistics(view: GameState, nationId: string) {
-  const ctx = createTurnContext({ turn: view.turn });
-  const connected = transportConnectivitySystem(developmentSystem(view, ctx), ctx);
-  const owner = nationOf(connected, nationId);
-  if (Object.values(townFactories).some(factory => buildingOf(owner, factory).pendingCapacity > 0)) {
-    const buildings = finishBuildings(nationId, owner.industry, ctx);
-    const nations = connected.nations.map(n => n === owner ? { ...n, industry: { ...n.industry, buildings } } : n);
-    return forecastFreight({ ...connected, nations }, nationId, view.map);
-  }
-  // A survey can finish in the real settlement. Its result is still private while orders are being planned.
-  return forecastFreight(connected, nationId, view.map);
 }
 
 export function collectedAtLogistics(view: GameState, nationId: string): Stock {

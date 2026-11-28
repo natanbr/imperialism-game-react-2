@@ -3,7 +3,7 @@ import type { GameState } from "@/types/GameState";
 import { FlagDrawing } from "../NationFlag";
 import { nationMark } from "../nationMark";
 import type { TradePolicyRowView } from "../diplomacy/diplomacyView";
-import { HOME_FILL, type DiplomaticCountry } from "./diplomaticMapView";
+import { HOME_FILL, provincesText, type DiplomaticCountry, type HomeInformation } from "./diplomaticMapView";
 import type { MapMode } from "./TradePolicies";
 import { POLICY_MAP_EDGE_CLEARANCE, type TradePolicyMap as MapGeometry } from "./tradePolicyMapView";
 import styles from "./TradePolicyMap.module.css";
@@ -30,13 +30,15 @@ interface Props {
   geometry: MapGeometry;
   rows: TradePolicyRowView[];
   information: DiplomaticCountry[];
+  /** Information mode: our own provinces and placing, read on the Home country. */
+  homeInformation?: HomeInformation;
   mode: MapMode;
   viewerId: string;
   selectedId?: string;
   select: (id: string) => void;
 }
 
-export function TradePolicyMap({ game, geometry, rows, information, mode, viewerId, selectedId, select }: Props) {
+export function TradePolicyMap({ game, geometry, rows, information, homeInformation, mode, viewerId, selectedId, select }: Props) {
   const mapId = React.useId();
   const countries = [...game.nations, ...game.minorNations].flatMap(({ id, name }) => {
     const land = geometry.countries.find(country => country.id === id);
@@ -48,7 +50,13 @@ export function TradePolicyMap({ game, geometry, rows, information, mode, viewer
     const fill = info?.fill ?? (home ? HOME_FILL : mark.colour);
     let label = name;
     if (home) label += ", Home";
-    if (info) {
+    if (home && homeInformation) {
+      label += `, Our forces, ${provincesText(homeInformation.provinces)}, Industry ${homeInformation.industry}`;
+    }
+    if (info && mode === "Information") {
+      label += `, ${info.military ? `Military ${info.military}` : info.status}, ${provincesText(info.provinces ?? 0)}`;
+      if (info.industry !== undefined) label += `, Industry ${info.industry}`;
+    } else if (info) {
       label += `, ${info.status}`;
       if (info.offices.length) label += `, our offices there: ${info.offices.join(", ")}`;
     }

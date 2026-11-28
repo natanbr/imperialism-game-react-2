@@ -91,6 +91,14 @@
   border: 1px solid var(--color-border-strong);
 }
 
+/* FR-651: in the List the selected country's facts stay in view at the bottom of the panel and the rows scroll under them
+   (M18l browser QA: on turn 1 at 390x844 the box ran past the dialog's bottom, and the panel showed no scroll bar) */
+.pinned {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+}
+
 .infoTable th, .infoTable td {
   text-align: left;
   padding: 4px;

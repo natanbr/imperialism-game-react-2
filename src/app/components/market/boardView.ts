@@ -32,7 +32,7 @@ import type { Nation } from "@/types/Nation";
 import { BUILDING_TEXT, commodityName, fundsNeededText, money, REFUSAL_TEXT } from "../gameText";
 import { namesText } from "./dealBookView";
 import { purchaseWarnings } from "./marketView";
-import { goodsSourceNotes } from "../goodsSources";
+import { barredText, goodsSourceNotes } from "../goodsSources";
 
 /** Why the player cannot trade with a minor this turn (FR-185), as the board marks it. */
 export const BARRIER_TEXT: Record<TradeBarrier, string> = {
@@ -69,17 +69,6 @@ export const rivalSellerText = (names: readonly string[], minorsBuy: boolean): s
   return minorsBuy ? `${MORE_REFUSAL_TEXT.noSeller}; money ${refund}` : `Money ${refund}`;
 };
 
-/** "We need a consulate with a seller" (FR-252, FR-253): the barriers of every seller (or buyer), the consulate first. */
-export function barredText(barriers: readonly (TradeBarrier | undefined)[], side: "seller" | "buyer"): string {
-  if (barriers.includes("no-consulate")) return `We need a consulate with a ${side}`;
-  const war = barriers.includes("at-war");
-  const boycott = barriers.includes("boycott");
-  if (war && boycott) return `War or a boycott bars every ${side}`;
-  if (war) return `We are at war with every ${side}`;
-  if (boycott) return `A boycott bars every ${side}`;
-  return `We may not trade with any ${side}`;
-}
-
 /**
  * Why the engine refuses one more unit of a bid or an offer, in the Board's words (FR-248, FR-252, FR-253): the market's
  * reason, the limit the header counts ("Holds", "Bids"), the warehouse, the money. Also what a repeated unit was refused
@@ -94,9 +83,9 @@ export function moreRefusalText(state: GameState, nationId: string, commodity: T
       return MORE_REFUSAL_TEXT.noBuyer;
     case "sellers-barred":
       // The minors that sell it, else the other Great Powers a bid would go to (FR-492)
-      return barredText(bidSellersOf(state, nationId, commodity).map((id) => tradeBarrier(state, nationId, id)), "seller");
+      return barredText(state, nationId, bidSellersOf(state, nationId, commodity), "seller");
     case "buyers-barred":
-      return barredText(buyersOf(state, nationId, commodity).map((id) => tradeBarrier(state, nationId, id)), "buyer");
+      return barredText(state, nationId, buyersOf(state, nationId, commodity), "buyer");
     case "limit-reached":
       return tradeCapacityOf(state, nationId).free === 0 ? MORE_REFUSAL_TEXT.holds : MORE_REFUSAL_TEXT.bids;
     case "insufficient-resources":

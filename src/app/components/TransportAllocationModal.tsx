@@ -24,9 +24,10 @@ const townCommodities = new Set<string>(townChains.flatMap(([, material, good]) 
  * Only what the network can carry is listed (FR-141), and a group all 0 / 0 is hidden (FR-142). The title shows the
  * railyard, as the HUD button that opens it (FR-334). M12 (FR-389, FR-390): a commodity is set (its slider is a hard
  * cap, "1 / 4" and an Auto button) or automatic ("Auto: 4", what it ships this turn from the capacity the set ones leave).
+ * The header's Allocated counts every row that ships, and Remaining the capacity left over (FR-646).
  */
 const TransportAllocationModal: React.FC<TransportAllocationModalProps> = ({ capacity, onClose }) => {
-  const { allocations, handleAllocChange, setAuto, isSet, scheduledAmount, totalAllocated, remaining, sliderMax } = useTransportAllocations(capacity);
+  const { allocations, handleAllocChange, setAuto, isSet, scheduledAmount, shippedTotal, spare, sliderMax } = useTransportAllocations(capacity);
   const titleId = useId();
   const kinds = transportKinds((key) => sliderMax(key) > 0 || (allocations[key] ?? 0) > 0 || (GOODS_WITH_SOURCE_NOTES.includes(key) && isSet(key)));
   const closeButton = useRef<HTMLButtonElement>(null);
@@ -52,9 +53,9 @@ const TransportAllocationModal: React.FC<TransportAllocationModalProps> = ({ cap
           <strong>Capacity:</strong>
           <span>{capacity}</span>
           <strong>Allocated:</strong>
-          <span>{totalAllocated}</span>
+          <span>{shippedTotal}</span>
           <strong>Remaining:</strong>
-          <span>{remaining}</span>
+          <span>{spare}</span>
         </div>
         <p className="tile-note">Goods shipped this turn reach the warehouse after this turn&apos;s production.</p>
 

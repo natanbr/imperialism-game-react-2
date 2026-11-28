@@ -98,6 +98,13 @@
   --color-map-pact: #8dc8bc;
   --color-map-alliance: #827db2;
   --color-map-empire: #c7a5cf;
+  /* The Information map's Military words (FR-651), Poor to Awesome: one scale from pale sand to dark red-brown,
+     neighbours at least 10 apart (ΔE76) and apart from Home (tests/ui/palette.test.ts); the word is always given too. */
+  --color-military-0: #e8d29e;
+  --color-military-1: #d6a66a;
+  --color-military-2: #bb7444;
+  --color-military-3: #8f4630;
+  --color-military-4: #56211d;
 
   /* Map (the tiles have no tint of their own since M11: they lie on the ground, FR-321; Q71) */
   --color-job-completed: var(--color-highlight);

@@ -12,8 +12,12 @@ import { CapitalModal } from '@/components/CapitalModal';
 import { useGameStore } from '@/store/rootStore';
 import { applyOrder, newGame, resolveTurn, type Order } from '@/engine';
 import type { GameState } from '@/types/GameState';
-import { setIndustry, setTreasury, setWarehouse, industryOf, stockOf, treasury } from '../engine/fixtures';
+import { ResourceType } from '@/types/Resource';
+import { TerrainType } from '@/types/Tile';
+import { WorkerType } from '@/types/Workers';
+import { put, setIndustry, setTile, setTreasury, setWarehouse, industryOf, stockOf, tileAt, treasury } from '../engine/fixtures';
 import { continent } from '../engine/armyFixtures';
+import { blockadedPortOfferedPeace, blockadeOfTheLine, deliveredAtLogistics, fleetOf, SOUTH_EAST } from '../engine/blockadeFixture';
 import { failOnActWarnings } from './actWarnings';
 import { text } from './domText';
 
@@ -82,6 +86,83 @@ it('FR-517 shows zero horse income when freight leaves the ranch output unshippe
   const after = resolveTurn(state, {}).state;
   expect(stockOf(after, N1, 'horses')).toBe(4);
   expect(items('Hussars', 'At hand')).toContain('Horses: 4 in warehouse, +0 a turn');
+});
+
+/**
+ * Turn 4: a second Horse Ranch, hand-built on 4-8 beyond the capital's reach. Our engineer laid rail 2-9 -> 3-9 on turn 1
+ * and 3-9 -> 4-9 on turn 2 and started a depot on 4-9 on turn 3 (3 turns): it finishes in turn 5's development phase,
+ * before logistics, and collects the ranch on 4-8 that same turn.
+ */
+function depotOneTurnShort(): GameState {
+  let game = setTile(continent(), '4-8', { terrain: TerrainType.HorseRanch, resource: { type: ResourceType.Horses, level: 0 } });
+  const engineer = game.map.tiles.flat().flatMap(t => t.workers).find(w => w.nationId === N1 && w.type === WorkerType.Engineer)!.id;
+  const orders: Order[] = [
+    { kind: 'moveAndBuildRail', nationId: N1, workerId: engineer, toTileId: '3-9' },
+    { kind: 'moveAndBuildRail', nationId: N1, workerId: engineer, toTileId: '4-9' },
+    { kind: 'startConstruction', nationId: N1, workerId: engineer, tileId: '4-9', structure: 'depot' },
+  ];
+  for (const order of orders) {
+    const turn = resolveTurn(game, { [N1]: [order] });
+    expect(turn.events.filter(e => e.type === 'order-rejected')).toEqual([]);
+    game = turn.state;
+  }
+  return game;
+}
+
+it('FR-517 FR-646 a depot of ours finishing before logistics counts in the horse supply: "+2 a turn", what the turn delivers (Codex task 66)', () => {
+  let game = depotOneTurnShort();
+  // Turn 4: the depot is a turn short, only the capital's ranch ships
+  expect([game.turn, tileAt(game, '4-9').constructionJob?.kind]).toEqual([4, 'depot']);
+  const view = openArmoury(game);
+  expect(items('Hussars', 'At hand')).toContain('Horses: 7 in warehouse, +1 a turn');
+  view.unmount();
+  game = resolveTurn(game, {}).state;
+  expect(stockOf(game, N1, 'horses')).toBe(8);
+  // Turn 5: the depot finishes before logistics, so both ranches ship
+  expect([game.turn, tileAt(game, '4-9').constructionJob?.kind, tileAt(game, '4-9').depot]).toEqual([5, 'depot', undefined]);
+  openArmoury(game);
+  expect(items('Hussars', 'At hand')).toContain('Horses: 8 in warehouse, +2 a turn');
+  expect(stockOf(resolveTurn(game, {}).state, N1, 'horses')).toBe(10);
+});
+
+// Codex task 67 (FR-497): legal orders never let another nation's worker hold a job on our land; this save is edited.
+it('FR-517 FR-497 the due depot on 4-9 edited to name a rival\'s engineer is not counted: "+1 a turn", as without the job (Codex task 67)', () => {
+  const game = resolveTurn(depotOneTurnShort(), {}).state;
+  const rival = game.map.tiles.flat().flatMap(t => t.workers).find(w => w.nationId === 'nation-2' && w.type === WorkerType.Engineer)!.id;
+  const job = tileAt(game, '4-9').constructionJob!;
+  const named = setTile(game, '4-9', { constructionJob: { ...job, workerId: rival } });
+  for (const edited of [setTile(game, '4-9', { constructionJob: undefined }), named, put(named, rival, '4-9')]) {
+    const view = openArmoury(edited);
+    expect(items('Hussars', 'At hand')).toContain('Horses: 8 in warehouse, +1 a turn');
+    view.unmount();
+  }
+});
+
+// Codex task 67 (blocker): the diplomacy phase settles before connectivity, so our accepted peace reopens the port that
+// the peace's proposer blockades, in the same turn's logistics.
+it('FR-517 FR-646 accepting the peace of the nation blockading our port at 10-7 counts the ranch it collects: "+2 a turn", what the turn delivers (Codex task 67)', () => {
+  const offered = blockadedPortOfferedPeace();
+  const view = openArmoury(offered);
+  expect(items('Hussars', 'At hand')).toContain('Horses: 5 in warehouse, +1 a turn');
+  view.unmount();
+  expect(stockOf(resolveTurn(offered, {}).state, N1, 'horses')).toBe(6);
+  const answered = applyOrder(offered, { kind: 'answerProposal', nationId: N1, proposalId: 'proposal-1-1', accept: true });
+  openArmoury(answered);
+  expect(items('Hussars', 'At hand')).toContain('Horses: 5 in warehouse, +2 a turn');
+  expect(stockOf(resolveTurn(answered, {}).state, N1, 'horses')).toBe(7);
+});
+
+// Codex task 68 (blocker): our Frigate sailing into the Ship-of-the-Line that blockades 10-7 is sent back by the battle
+// before connectivity, so the ranch on 9-7 stays cut off; a port changes in the forecast only where no battle decides it.
+it('FR-517 FR-646 our Frigate sailing into the Ship-of-the-Line blockading 10-7 does not count the ranch it would reach: "+1 a turn", what the turn delivers (Codex task 68)', () => {
+  const blockaded = blockadeOfTheLine();
+  const view = openArmoury(blockaded);
+  expect(items('Hussars', 'At hand')).toContain('Horses: 4 in warehouse, +1 a turn');
+  view.unmount();
+  const sortie = applyOrder(blockaded, { kind: 'setFleetMission', nationId: N1, fleetId: fleetOf(N1), mission: 'sail', provinceId: SOUTH_EAST });
+  expect(deliveredAtLogistics(sortie).horses).toBe(1);
+  openArmoury(sortie);
+  expect(items('Hussars', 'At hand')).toContain('Horses: 4 in warehouse, +1 a turn');
 });
 
 describe('FR-212 the Armoury: how it opens', () => {
@@ -193,9 +274,11 @@ describe('FR-212 the Armoury: one card per recruitable regiment', () => {
     expect(text(within(card('Regulars')).getByRole('heading', { level: 3 }))).toBe('Regulars');
   });
 
-  it('FR-212 FR-199 FR-421 the stats: Firepower, Move and Range marked "(not used in battle yet)", and "Entrench: yes" or "no"', () => {
+  // M18k play-test F7 (FR-647 replaces FR-421's wording): the note names both stats, so it cannot be read as being about
+  // the regiment, Range alone or Entrench.
+  it('FR-212 FR-199 FR-647 the stats: Firepower, Move and Range marked "(neither is used in battle yet)", and "Entrench: yes" or "no"', () => {
     openArmoury(continent());
-    const NOT_USED = '(not used in battle yet)';
+    const NOT_USED = '(neither is used in battle yet)';
     expect(part('Regulars', 'stats')).toBe(`Firepower 10 Move 4 Range 5 ${NOT_USED} Entrench: yes`);
     expect(part('Skirmishers', 'stats')).toBe(`Firepower 5 Move 6 Range 5 ${NOT_USED} Entrench: yes`);
     expect(part('Hussars', 'stats')).toBe(`Firepower 7 Move 11 Range 3 ${NOT_USED} Entrench: no`);
@@ -203,13 +286,14 @@ describe('FR-212 the Armoury: one card per recruitable regiment', () => {
     expect(part('Light Artillery', 'stats')).toBe(`Firepower 10 Move 5 Range 9 ${NOT_USED} Entrench: no`);
   });
 
-  it('FR-421 every card marks Move and Range once, as one group with its note (combat ignores both, FR-219)', () => {
+  it('FR-421 FR-647 every card marks Move and Range once, as one group with its note (combat ignores both, FR-219)', () => {
     openArmoury(continent());
     const cards = within(armoury()).getAllByRole('article');
     for (const c of cards) {
       const unused = within(c).getAllByTestId('unused-stats');
       expect(unused).toHaveLength(1);
-      expect(text(unused[0])).toMatch(/^Move \d+ Range \d+ \(not used in battle yet\)$/);
+      expect(text(unused[0])).toMatch(/^Move \d+ Range \d+ \(neither is used in battle yet\)$/);
+      expect(text(unused[0])).not.toMatch(/Firepower|Entrench/);
     }
   });
 

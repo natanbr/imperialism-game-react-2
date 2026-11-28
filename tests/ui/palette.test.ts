@@ -7,6 +7,7 @@ import { readdirSync, readFileSync, statSync } from 'fs';
 import { join, relative } from 'path';
 import {
   HUD_PX,
+  MILITARY_COLORS,
   NATION_COLORS,
   RELATION_COLORS,
   THEME,
@@ -475,6 +476,30 @@ describe('FR-179 the nine relation colours', () => {
       lightGreen: true,
       darkGreen: true,
     });
+  });
+});
+
+describe('FR-651 the five Military colours of the Information map', () => {
+  const token = (name: string) => valueOf(`var(${name})`);
+  const names = Array.from({ length: 5 }, (_, step) => `--color-military-${step}`);
+
+  it('FR-651 tokens.css defines --color-military-0 (Poor) to --color-military-4 (Awesome), and theme.ts names them in order', () => {
+    expect(names.filter((name) => !defined.has(name))).toEqual([]);
+    expect(MILITARY_COLORS).toEqual(names.map((name) => `var(${name})`));
+    expect(themeVariables()).toEqual(expect.arrayContaining(names));
+  });
+
+  it('FR-651 one scale from light to dark, neighbours a ΔE76 of 10 or more apart, apart from Home and the colony swatch', () => {
+    const lightness = names.map((name) => lab(token(name))[0]);
+    expect(lightness.slice(1).every((l, i) => l < lightness[i])).toBe(true);
+    const close = [
+      ...names.slice(1).map((name, i) => [names[i], name]),
+      ...names.map((name) => [name, '--color-map-home']),
+      ...names.map((name) => [name, '--color-surface-sunken']),
+    ]
+      .map(([a, b]) => ({ pair: `${a} vs ${b}`, dE: Math.round(deltaE(lab(token(a)), lab(token(b))) * 10) / 10 }))
+      .filter(({ dE }) => dE < 10);
+    expect(close).toEqual([]);
   });
 });
 

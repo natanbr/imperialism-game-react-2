@@ -4,7 +4,7 @@ import { warActive } from "../diplomacy/queries";
 import { repairAtBerth, seaBattle } from "../navy/battle";
 import { fleetApproach, fleetFirepower, pendingFleetMission, withFleets } from "../navy/fleets";
 import { validateFleetMission } from "../orders/fleetOrders";
-import type { SetFleetMissionOrder } from "../orders/Order";
+import type { RejectReason, SetFleetMissionOrder } from "../orders/Order";
 import type { TurnContext, TurnSystem } from "../turn/context";
 
 function atBerth(fleet: Fleet): Fleet {
@@ -16,20 +16,27 @@ function atBerth(fleet: Fleet): Fleet {
   return home;
 }
 
-function missionPosition(state: GameState, fleet: Fleet, ctx: TurnContext): Fleet {
+/**
+ * Where its owner's mission of this turn puts the squadron before any contact; a mission no longer valid leaves it in
+ * place, with the order and the reason. Pure: the FR-646 freight forecast reads it for the viewer's own squadron.
+ */
+export function sailedPosition(state: GameState, fleet: Fleet): { fleet: Fleet; rejected?: { order: SetFleetMissionOrder; reason: RejectReason } } {
   const intent = pendingFleetMission(state, fleet.ownerNationId);
-  if (!intent || intent.fleetId !== fleet.id) return fleet;
+  if (!intent || intent.fleetId !== fleet.id) return { fleet };
   const order: SetFleetMissionOrder = {kind:"setFleetMission",nationId:intent.nationId,fleetId:intent.fleetId,mission:intent.mission,
     ...(intent.provinceId && {provinceId:intent.provinceId})};
   const result = validateFleetMission(state, order);
-  if (!result.ok) {
-    ctx.emit({type:"order-rejected", nationId:intent.nationId, order, reason:result.reason});
-    return fleet;
-  }
-  if (intent.mission === "return") return atBerth(fleet);
-  if (intent.mission === "station") return { ...fleet, siteSinceTurn: state.turn };
+  if (!result.ok) return { fleet, rejected: { order, reason: result.reason } };
+  if (intent.mission === "return") return { fleet: atBerth(fleet) };
+  if (intent.mission === "station") return { fleet: { ...fleet, siteSinceTurn: state.turn } };
   const seaId = fleetApproach(state, fleet)!.seaId;
-  return { ...atBerth(fleet), location: seaId, approach: { provinceId: intent.provinceId!, seaId } };
+  return { fleet: { ...atBerth(fleet), location: seaId, approach: { provinceId: intent.provinceId!, seaId } } };
+}
+
+function missionPosition(state: GameState, fleet: Fleet, ctx: TurnContext): Fleet {
+  const { fleet: moved, rejected } = sailedPosition(state, fleet);
+  if (rejected) ctx.emit({type:"order-rejected", nationId:rejected.order.nationId, order:rejected.order, reason:rejected.reason});
+  return moved;
 }
 
 function consolidateBerths(fleets: Fleet[]): Fleet[] {

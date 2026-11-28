@@ -24,8 +24,11 @@ const show = (game: GameState, ui: Partial<ReturnType<typeof useGameStore.getSta
   useGameStore.setState({ ...useGameStore.getInitialState(), game, activeNationId: N1, ...ui });
 const tileEl = (container: HTMLElement, id: string) => container.querySelector(`[data-tile-id="${id}"]`) as HTMLElement;
 const panel = () => screen.getByTestId('tile-info');
-// FR-370 (M12): every Tile Info holds its 'Close tile info' button, which builds no order; the other buttons are order controls
-const orderControls = (el: HTMLElement) => within(el).queryAllByRole('button').filter((b) => b.getAttribute('aria-label') !== 'Close tile info');
+// FR-370 (M12): every Tile Info holds its 'Close tile info' button, which builds no order; FR-650 (M18l): a foreign province's
+// Tile Info also offers the read-only 'Scouting report' (tests/ui/scoutingReport.test.tsx); the other buttons are order controls
+const READ_ONLY_BUTTONS = ['Close tile info', 'Scouting report'];
+const orderControls = (el: HTMLElement) =>
+  within(el).queryAllByRole('button').filter((b) => !READ_ONLY_BUTTONS.includes(b.getAttribute('aria-label') ?? b.textContent ?? ''));
 
 it('FR-513 a selected civilian waiting to disband lets a land click inspect the tile without sending a move', () => {
   const game = continent();

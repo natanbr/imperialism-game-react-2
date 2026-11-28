@@ -915,7 +915,7 @@ Orders only, every dialog renders `Modal.tsx`, only `components/art/inkArt.ts` n
   Capital column (`useCutAtBottom`), narrow rules at `max-width: 599.98px` (columns stack, Board rows become blocks).
 - **Attack, Battle, Army, Armoury** (FR-419 to FR-421): "N more below" under a scrolling list (`useMoreBelow` in
   `AttackModal.tsx`, also used by `BattleModal.tsx`); "Cancel attack on <province>" per planned attack (`attackCancels`);
-  Move and Range marked "(not used in battle yet)".
+  Move and Range marked "(neither is used in battle yet)" (FR-647).
 
 **Engine reads behind them**
 

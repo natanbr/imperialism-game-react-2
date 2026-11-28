@@ -2,14 +2,15 @@
 
 import { useMemo } from "react";
 import { useGameStore } from "../store/rootStore";
-import { projectedFreightPlan } from "@/engine/systems/logisticsSystem";
+import { knownFreightPlan } from "@/engine/systems/freightForecast";
 
 const NO_PLAN: Record<string, number> = {};
 
 /**
  * The transport plan of the popup (FR-133, FR-389, FR-390): a commodity in the plan is set (a hard cap, 0 ships nothing),
  * one not in it is automatic and shares the capacity the set ones leave. Each change sends the whole plan as one
- * `setTransportAllocations` order.
+ * `setTransportAllocations` order. Rows, sliders and header read the plan as the logistics phase will ship it, with the
+ * player's own jobs that finish before it (FR-646).
  */
 export const useTransportAllocations = (capacity: number) => {
   const game = useGameStore((s) => s.game);
@@ -19,13 +20,16 @@ export const useTransportAllocations = (capacity: number) => {
   const allocations = game.transportAllocationsByNation?.[activeNationId] ?? NO_PLAN;
 
   const { collected, shipments } = useMemo(
-    () => projectedFreightPlan(game, activeNationId, capacity),
+    () => knownFreightPlan(game, activeNationId, capacity),
     [game, activeNationId, capacity]
   );
 
-  // A saved cap can exceed today's supply. Only its actual shipment uses capacity.
+  // A saved cap can exceed today's supply. Only its actual shipment uses capacity. The set rows only: sliders clamp
+  // against it, so a set slider can still take capacity from the automatic rows.
   const totalAllocated = Object.keys(allocations).reduce((sum, key) => sum + (shipments[key] ?? 0), 0);
-  const remaining = Math.max(0, capacity - totalAllocated);
+  // FR-646: the header counts every row that ships, set or automatic, and what is left over
+  const shippedTotal = Object.values(shipments).reduce((sum, n) => sum + n, 0);
+  const spare = Math.max(0, capacity - shippedTotal);
 
   const isSet = (key: string) => Object.hasOwn(allocations, key);
   const scheduledAmount = (key: string) => shipments[key] ?? 0;
@@ -61,8 +65,8 @@ export const useTransportAllocations = (capacity: number) => {
     setAuto,
     isSet,
     scheduledAmount,
-    totalAllocated,
-    remaining,
+    shippedTotal,
+    spare,
     collected,
     sliderMax,
   };

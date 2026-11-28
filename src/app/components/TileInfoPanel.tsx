@@ -11,12 +11,13 @@ import { InkPicture } from "./art/ArtPicture";
 import { civilianArt, goodsArt } from "./art/inkArt";
 import { THEME } from "@/styles/theme";
 import { submitAndSay, submitOrAsk } from "@/hooks/tileClickOrders";
-import { buyLandOffer, cancelQuestion, collectingHubText, collectionText, costText, holdingView, jobNote, jobOffers, landForSale, type JobOffer } from "./tileSiteText";
+import { buyLandOffer, cancelQuestion, collectingHubText, collectionText, costText, holdingView, jobNote, jobOffers, landForSale, stationText, type JobOffer } from "./tileSiteText";
 import { findWorker } from "@/engine/orders/queries";
 import { minorLandOf } from "@/engine/overseas/holdings";
 import type { GameEvent } from "@/engine";
 import { Modal } from "./Modal";
 import { TownInspection } from "./towns/TownInspection";
+import { ScoutingReport } from "./army/ScoutingReport";
 
 const NO_EVENTS: readonly GameEvent[] = [];
 
@@ -304,6 +305,14 @@ export const TileInfoPanel: React.FC<TileInfoPanelProps> = ({ selectedTile }) =>
           <strong>Fort:</strong> level {fortLevel}
         </p>
       )}
+      {/* FR-643: whether the player's depot or port here is connected, also after the civilians (FR-371) */}
+      {stationText(game, activeNationId, selectedTile).map((line) => (
+        <p key={line.label} data-testid="tile-station">
+          <strong>{line.label}</strong> {line.state}
+        </p>
+      ))}
+      {/* FR-650: another country's province can be scouted; after the civilians too, so the first civilian row stays put */}
+      {province && <ScoutingReport key={province.id} game={game} viewerId={activeNationId} provinceId={province.id} />}
       {province && <TownInspection province={province} />}
       {question && (
         <Modal

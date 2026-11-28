@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { provincesOf, REGIMENTS } from "@/engine";
 import { useGameStore } from "@/store/rootStore";
-import { armyRoster } from "../army/armyView";
+import { armyRoster, FORCE_SIZE_NOTE } from "../army/armyView";
 import styles from "./Stats.module.css";
 
 export function GarrisonBook() {
@@ -27,21 +27,24 @@ export function GarrisonBook() {
         <p>Force Size: <strong>{forceSize}</strong></p>
       </div>
       {rows.length ? (
-        <table className={styles.roster} aria-label={`Regiments in ${province.name}`}>
-          <thead><tr>
-            <th scope="col">Regiment</th><th scope="col">Type</th><th scope="col">Health</th><th scope="col">Status</th>
-          </tr></thead>
-          <tbody>
-            {rows.map(row => (
-              <tr key={row.id}>
-                <th scope="row">{row.name}</th>
-                <td>{REGIMENTS[row.type].name}</td>
-                <td>{row.health}%</td>
-                <td>{row.status}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <>
+          <table className={styles.roster} aria-label={`Regiments in ${province.name}`}>
+            <thead><tr>
+              <th scope="col">Regiment</th><th scope="col">Type</th><th scope="col">Health</th><th scope="col">Status</th>
+            </tr></thead>
+            <tbody>
+              {rows.map(row => (
+                <tr key={row.id}>
+                  <th scope="row">{row.name}</th>
+                  <td>{REGIMENTS[row.type].name}</td>
+                  <td>{row.health}%</td>
+                  <td>{row.status}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className={styles.garrisonNote} data-testid="force-size-note">{FORCE_SIZE_NOTE}</p>
+        </>
       ) : <p>No regiment of ours is here.</p>}
     </div>
   );
