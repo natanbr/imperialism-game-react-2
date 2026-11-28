@@ -114,6 +114,21 @@ describe('FR-650 scoutingReport: who can scout a foreign province, and what they
     expect(scoutingReport(withFleet(continent(), { ...squadron(N1, SUNDMARK_P), ships: [] }), N1, SUNDMARK_P)?.observer).toBeUndefined();
   });
 
+  it('FR-650 a squadron sent with a real sail mission scouts from the settlement on, not while the order is queued', () => {
+    // At its home berth (hand-built, as FR-549 builds one); the setFleetMission order and settlement put it off Sundmark
+    const atHome = withFleet(continent(), squadron(N1));
+    const sailing = ordered(atHome, { kind: 'setFleetMission', nationId: N1, fleetId: `${N1}-scout`, mission: 'sail', provinceId: SUNDMARK_P });
+    expect(scoutingReport(sailing, N1, SUNDMARK_P)?.observer).toBeUndefined();
+    const settled = resolveTurn(sailing, {}).state;
+    expect(settled.fleets.find(f => f.id === `${N1}-scout`)?.approach).toEqual({ provinceId: SUNDMARK_P, seaId: '0-0' });
+    expect(scoutingReport(settled, N1, SUNDMARK_P)).toEqual({
+      provinceId: SUNDMARK_P,
+      ownerId: 'minor-2',
+      observer: { kind: 'fleet', fleetId: `${N1}-scout`, provinceId: SUNDMARK_P },
+      forces: [{ type: 'minutemen', count: 3 }],
+    });
+  });
+
   it('FR-650 the estimator is the first that applies: garrison, then army, then fleet', () => {
     const both = withFleet(continent(), squadron(N1, ARVELIA_P));
     expect(scoutingReport(both, N1, ARVELIA_P)?.observer).toEqual({ kind: 'garrison', provinceId: NE1 });

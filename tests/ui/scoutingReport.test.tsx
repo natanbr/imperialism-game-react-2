@@ -6,7 +6,7 @@
 // and says why: "We cannot scout this province without a nearby ship or neighboring armies." Our own province, a tile
 // without a province and Two islands offer no report. Opening and closing it sends no Order and leaves the game as it was.
 import { describe, it, expect } from 'vitest';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { TileInfoPanel } from '@/components/TileInfoPanel';
 import { attackView } from '@/components/army/attackView';
 import { newGame, type Order } from '@/engine';
@@ -14,7 +14,7 @@ import { useGameStore } from '@/store/rootStore';
 import type { GameState } from '@/types/GameState';
 import { ShipType, type Fleet } from '@/types/Navy';
 import { N1, N2, tileAt } from '../engine/fixtures';
-import { addRegiments, ARVELIA, ARVELIA_P, clearArmy, continent, NW2, SW2 } from '../engine/armyFixtures';
+import { addRegiments, ARVELIA, ARVELIA_P, clearArmy, continent, NE1, NW2, SW2 } from '../engine/armyFixtures';
 import { failOnActWarnings } from './actWarnings';
 import { text } from './domText';
 
@@ -71,6 +71,28 @@ describe('FR-650 the Scouting report in Tile Info', () => {
     expect(submitted).toEqual([]);
     expect(useGameStore.getState().game).toBe(game);
     expect(useGameStore.getState().ordersThisTurn).toEqual([]);
+  });
+
+  it('FR-650 the forces list keeps its list role where list-style: none would drop it (Safari)', () => {
+    show(continent(), ARVELIA_FOREST);
+    fireEvent.click(scoutButton()!);
+    const dialog = report('Report on the army forces of Arvelia in the province of Arvelia');
+    expect(within(dialog).getByRole('list', { name: 'Army forces seen' }).getAttribute('role')).toBe('list');
+  });
+
+  it('FR-650 a report that becomes unavailable while open closes, and does not reopen by itself when scouting is possible again', () => {
+    const game = continent();
+    show(game, ARVELIA_FOREST);
+    fireEvent.click(scoutButton()!);
+    expect(report('Report on the army forces of Arvelia in the province of Arvelia')).toBeTruthy();
+    // Our garrison in Testland North-East leaves (hand-built): no one of ours borders Arvelia
+    act(() => useGameStore.setState({ game: clearArmy(game, N1, NE1) }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(scoutButton()!.hasAttribute('disabled')).toBe(true);
+    // It is back: the button is enabled again and only a click opens the report
+    act(() => useGameStore.setState({ game }));
+    expect(scoutButton()!.hasAttribute('disabled')).toBe(false);
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('FR-650 Escape closes the report too', () => {

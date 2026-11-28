@@ -8,15 +8,15 @@ import { describe, expect, it, vi } from 'vitest';
 import { useState } from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { TradePolicies, type MapMode } from '@/components/market/TradePolicies';
-import { MILITARY_WORDS, militaryWord } from '@/components/market/diplomaticMapView';
+import { diplomaticCountries, MILITARY_WORDS, militaryWord } from '@/components/market/diplomaticMapView';
 import { MarketModal } from '@/components/MarketModal';
 import { newGame, resolveTurn, transferProvince, tryApplyOrder, type Order } from '@/engine';
 import { useGameStore } from '@/store/rootStore';
 import type { RankRecord } from '@/store/rankHistory';
 import { MILITARY_COLORS } from '@/styles/theme';
 import type { GameState } from '@/types/GameState';
-import { N1, N2, setWarehouse } from '../engine/fixtures';
-import { addRegiments, ARVELIA, ARVELIA_P, NE2, SW1, SW2 } from '../engine/armyFixtures';
+import { N1, N2, setPair, setWarehouse } from '../engine/fixtures';
+import { addRegiments, ARVELIA, ARVELIA_P, clearArmy, NE1, NE2, relocate, SW1, SW2 } from '../engine/armyFixtures';
 import { failOnActWarnings } from './actWarnings';
 import { text } from './domText';
 
@@ -127,7 +127,63 @@ describe('FR-651 Information on the diplomatic map', () => {
     const rows = listRows();
     expect(rows).toContain('Arvelia 0 Colony, counted under Valdoria —');
     fireEvent.click(screen.getByRole('button', { name: 'Arvelia' }));
-    expect(detail()).toBe('Information: Arvelia Provinces 0 Military Colony, counted under Valdoria');
+    // Review M18l: a colony has no Military word of its own, so its detail drops the "Military" label
+    expect(detail()).toBe('Information: Arvelia Provinces 0 Colony, counted under Valdoria');
+  });
+
+  it('FR-651 a colony won by conquest: the province and its count pass to the conqueror, the colony row names it', () => {
+    // Testland's 1st Regulars march from Testland North-East into undefended Arvelia, at war with it, and take it (FR-224)
+    let game = setPair(relocate(clearArmy(start(), ARVELIA, ARVELIA_P), ['regiment-1'], NE1), N1, ARVELIA,
+      { war: { aggressors: [N1], since: 1 }, consulates: [], embassies: [], pact: false, alliance: false });
+    game = queued(game, { kind: 'moveArmy', nationId: N1, fromProvinceId: NE1, regimentIds: ['regiment-1'], toProvinceId: ARVELIA_P });
+    game = resolveTurn(game, {}).state;
+    expect(game.minorNations.find(m => m.id === ARVELIA)!.colonyOf).toBe(N1);
+    renderInformation(game);
+    expect(map().getByRole('img', { name: /^Testland, Home, Our forces, 5 provinces,/ })).toBeTruthy();
+    expect(map().queryByRole('button', { name: /^Arvelia,/ })).toBeNull();
+    const rows = listRows();
+    expect(rows[0]).toMatch(/^Testland 5 Our forces /);
+    expect(rows).toContain('Arvelia 0 Colony, counted under Testland —');
+  });
+
+  it('FR-651 a colony that still held land would be labelled on the map without a Military word (hand-built)', () => {
+    // Conquest passes a colony's land to its ruler, so this state is hand-built: Arvelia keeps its province
+    const game = { ...start(), minorNations: start().minorNations.map(m => (m.id === ARVELIA ? { ...m, colonyOf: N2 } : m)) };
+    renderInformation(game);
+    const arvelia = map().getByRole('button', { name: 'Arvelia, Colony, counted under Valdoria, 1 province' });
+    fireEvent.click(arvelia);
+    expect(detail()).toBe('Information: Arvelia Provinces 1 Colony, counted under Valdoria');
+  });
+
+  it('FR-651 with no regiment of ours an unarmed country reads Poor and an armed one Awesome, not Good (review: 0 against 0)', () => {
+    // Testland and Arvelia without a regiment: both strengths are 0, which once fell back to a ratio of 1, Good
+    const game = { ...start(), armies: start().armies.filter(a => a.ownerId !== N1 && a.ownerId !== ARVELIA) };
+    renderInformation(game);
+    const arvelia = map().getByRole('button', { name: 'Arvelia, Military Poor, 1 province' });
+    expect(land(arvelia)).toBe(fillOf('Poor'));
+    expect(map().getByRole('button', { name: /^Valdoria, Military Awesome, 4 provinces/ })).toBeTruthy();
+    expect(map().getByRole('button', { name: 'Sundmark, Military Awesome, 1 province' })).toBeTruthy();
+    expect(listRows()).toContain('Arvelia 1 Poor —');
+  });
+
+  it('FR-651 no regiment anywhere reads Poor for every country; Two islands, which has none, offers no Information mode', () => {
+    const bare = { ...start(), armies: [] };
+    expect(diplomaticCountries(bare, N1, 'Information').map(c => c.status)).toEqual(['Poor', 'Poor', 'Poor', 'Poor', 'Poor']);
+    const islands = newGame({ world: 'two-islands', seed: 1 });
+    expect(diplomaticCountries(islands, N1, 'Information').map(c => [c.name, c.status])).toEqual([['Valdoria', 'Poor']]);
+    // Two islands keeps the world market (FR-073), whose dialog has no Trade policies tab and so no map modes
+    useGameStore.setState({ ...useGameStore.getInitialState(), game: islands, activeNationId: N1, isMarketOpen: true });
+    render(<MarketModal />);
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    expect(screen.queryByRole('tab', { name: 'Trade policies' })).toBeNull();
+    expect(screen.queryByRole('combobox', { name: 'Map mode' })).toBeNull();
+  });
+
+  it('FR-651 the note says what Military measures and how it differs from the army ranking in Stats', () => {
+    renderInformation(start());
+    const note = text(screen.getByText(/^From Testland/));
+    expect(note).toBe('From Testland · Military compares the defence of each country\'s provinces with ours, militia and forts '
+      + 'included, as the Attack preview counts it (the army ranking in Stats leaves them out). Industry is the last settled placing.');
   });
 
   it('FR-651 Industry is the settled FR-610 placing, for Great Powers only; none before the first settlement or for a missing turn', () => {
