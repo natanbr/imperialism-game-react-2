@@ -1,0 +1,31 @@
+# M18l — Scouting Report and the Information map
+
+**Design base `fcb1553` (main after M18j) plus the M18k play-test fixes. Written by the coordinator, 2026-11-27, night shift.** Two more original screens from RULES-GAP-22 that the remake can support with its present rules. The owner asked on 2026-11-27 for "missing screens, improvements, fixes, testing" and put the end game last. Both screens are read-only views. [Screens rules](../rules/11-screens.md) · [Military rules](../rules/08-military.md) · [M18g, the earlier information screens](m18g-screens.md)
+
+## What the player may know
+
+| Screen | Evidence | Consequence |
+|---|---|---|
+| Scouting Report | Rules 11 §5.3: a dialog "Report on the army forces of [nation] in the province of [name]", a boxed estimate ("2 Regular Infantry, 2 Heavy Artillery, 1 Demolitionist, 3 units of unknown type"), the estimator (garrison commander or General), OK; "opened by clicking a bordering province's question mark". Rules 08: "We cannot scout this province without a nearby ship or neighboring armies". | Card Q32 (owner) made defenders fully visible in the Attack preview, and FR-497 lets the computer read them. The report therefore lists the **exact** regiments by type, with no unknown units. A fogged estimate is an owner decision (open question 1). |
+| Information map | Rules 11 §3.1: the diplomatic map has an Information mode (Provinces, Military, Industry) that "rates Military and Industry in words (Poor, Fair, Good, Excellent, Awesome)". | Use only public facts: owned provinces (the map), visible land forces (Q32), and the FR-610 industry placing. No rival quantity that FR-610 keeps private. |
+
+## Requirements
+
+| ID | Requirement | Status |
+|---|---|---|
+| NR-041 | **Read-only screens.** Opening, selecting or closing an M18l view SHALL change only local UI selection: no new Order, AI input, RNG draw, turn phase, save gameplay field or scoring rule. Normal and Demo show the same facts. Engine decisions, saves, replay and every protected result SHALL match the base.<br>Verify: open both views before and after a rival privately queues a march, recruit or grant; the text does not change until settlement. The 72 FR-597 records and the guard evidence equal the base. Size: S. | open |
+| FR-650 | **Foreign Scouting Report.** WHEN the human selects a province of another country (Great Power or Minor Nation) on the map, Tile Info SHALL offer "Scouting report". It is available when the province borders a province we own that holds at least one of our regiments, or one of our armies stands in a bordering province, or one of our ships is in a sea zone touching it (**inferred**: "nearby ship or neighboring armies"). The dialog SHALL read "Report on the army forces of [country] in the province of [name]", list that country's regiments there by type with counts (militia included), name the estimator ("Estimated by our garrison in [province]" or "by our army in [province]" or "by our fleet in [sea zone]"; the first that applies, in that order), and show OK. With no regiment there it says "No army forces seen." When not available, the action is disabled with the reason "We cannot scout this province without a nearby ship or neighboring armies." A province of ours or with no owner offers no report.<br>Verify: a bordering minor with three Minutemen; a Great Power province with mixed regiments; an empty province; a far province (disabled, reason); scouting by army, by garrison and by ship; the counts equal the Attack preview's defenders for the same province; a rival's march queued this turn does not change the report. Two islands has no provinces: no action. Size: M. | open |
+| FR-651 | **Information on the diplomatic map.** Market → Trade policies SHALL offer Information beside Trade policies, Relationships and Political status, on the same map and List. Selecting a country shows: Provinces (the count it owns), Military (a word from the ratio of its visible land strength to ours: below 0.5 Poor, below 0.8 Fair, below 1.25 Good, below 2 Excellent, else Awesome; **inferred** thresholds; our own row says "Our forces"), and, for Great Powers only, Industry as the FR-610 placing ("1st of 2"). The map tints each country by its Military word with a five-step legend. Strength uses the FR-226 defence sum of its regiments (fully visible, Q32).<br>Verify: a minor with no regiments (Poor), a rival twice our strength (Awesome), equal strength (Good), a colony counted under its ruler, map, legend and List agree, and the existing modes still work. Size: M. | open |
+
+## Build tasks
+
+| Task | Rows | Notes |
+|---|---|---|
+| T-01 | FR-650 | Tests first. A pure helper (for example `scoutingReport(state, viewerId, provinceId)` under `src/app/components/army/` or `src/app/engine/army/` as a read-only query exported from the engine index) that returns availability, estimator and counts; Tile Info button and dialog. |
+| T-02 | FR-651, NR-041 | Tests first. Reuse `TradePolicyMap.tsx` / `TradePolicies.tsx` modes. Guard check against the base. |
+
+## Open questions and inferred defaults (owner to confirm)
+
+1. **Exact or fogged report.** Built exact, because Q32 makes defenders fully visible. The original shows "units of unknown type" and a General improves accuracy; that needs a fog rule for the Attack preview and the computer too.
+2. **Who can scout:** a bordering owned province with a regiment, a bordering army, or a ship in a touching sea zone (inferred).
+3. **Military words:** ratio thresholds 0.5 / 0.8 / 1.25 / 2 against our own strength (inferred; the original's scale is unknown).
