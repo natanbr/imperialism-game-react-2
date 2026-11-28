@@ -61,8 +61,9 @@ function queued(game: GameState, order: Order) {
 describe('FR-651 Information on the diplomatic map', () => {
   it('FR-651 the Military word steps at 0.5, 0.8, 1.25 and 2 times our strength (inferred thresholds)', () => {
     expect(MILITARY_WORDS).toEqual(['Poor', 'Fair', 'Good', 'Excellent', 'Awesome']);
-    const ratios = [0, 0.49, 0.5, 0.79, 0.8, 1, 1.24, 1.25, 1.99, 2, Infinity];
-    expect(ratios.map(militaryWord)).toEqual(
+    // Their strength against ours of 100: ratios 0, 0.49, 0.5, 0.79, 0.8, 1, 1.24, 1.25, 1.99 and 2, then any against none
+    const strengths = [[0, 100], [49, 100], [50, 100], [79, 100], [80, 100], [100, 100], [124, 100], [125, 100], [199, 100], [200, 100], [1, 0]];
+    expect(strengths.map(([theirs, ours]) => militaryWord(theirs, ours))).toEqual(
       ['Poor', 'Poor', 'Fair', 'Fair', 'Good', 'Good', 'Good', 'Excellent', 'Excellent', 'Awesome', 'Awesome']);
   });
 
@@ -154,13 +155,13 @@ describe('FR-651 Information on the diplomatic map', () => {
   });
 
   it('FR-651 a strength a billionth under a step reads the lower word: their Regulars at 49.99999995 health against ours at 100 is Poor (Codex task 67)', () => {
-    // Fractional health comes only from an edited save. The allowance at a step is the float rounding of the sums, so
-    // a ratio of 0.4999999995 is below 0.5, while 0.49999999999999994 (four Regulars against eight) is at it.
+    // Fractional health comes only from an edited save. The strengths compare exactly, so 49.99999995 against 100 is
+    // below one half, while 50 against 100 (four Regulars against eight) is at it.
     const bare = { ...start(), armies: start().armies.filter(a => a.ownerId !== N1 && a.ownerId !== N2) };
     const game = addRegiments(addRegiments(bare, N1, SW1, ['regulars']), N2, SW2, ['regulars'], 49.99999995);
     const strength = (id: string) => game.provinces.reduce((sum, p) => (p.ownerId === id ? sum + defenceOf(game, p.id) : sum), 0);
     expect(strength(N2) / strength(N1)).toBeCloseTo(0.4999999995, 15);
-    expect([militaryWord(0.4999999995), militaryWord(0.49999999999999994)]).toEqual(['Poor', 'Fair']);
+    expect([militaryWord(49.99999995, 100), militaryWord(50, 100)]).toEqual(['Poor', 'Fair']);
     renderInformation(game);
     const valdoria = map().getByRole('button', { name: /^Valdoria, Military Poor, 4 provinces/ });
     expect(land(valdoria)).toBe(fillOf('Poor'));
