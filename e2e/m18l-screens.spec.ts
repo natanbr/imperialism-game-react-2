@@ -94,9 +94,18 @@ async function expectInView(box: Locator) {
   expect(fit, JSON.stringify(fit)).toMatchObject({ inside: true });
 }
 
+/**
+ * Select a tile with a click, which is what Enter on a focused tile does (MapView). The arrow-key walk to a tile costs one
+ * re-render of the map per key press: FR-650 asserts that walk to Arvelia at both widths, NR-041 only reads what follows.
+ */
+async function inspectByClick(page: Page, targetId: string) {
+  await tile(page, targetId).click({ position: { x: 6, y: 6 } });
+  await expect(tile(page, targetId)).toHaveAttribute('data-selected', 'true');
+}
+
 /** What our nation reads of Arvelia: its Scouting report, then the Information List, as text. */
 async function readViews(page: Page): Promise<string[]> {
-  await inspectByKeyboard(page, '10-3');
+  await inspectByClick(page, '10-3');
   await page.getByTestId('tile-info').getByRole('button', { name: 'Scouting report' }).click();
   const report = page.getByRole('dialog', { name: /^Report on the army forces of Arvelia/ });
   const scouted = await report.innerText();
@@ -218,23 +227,32 @@ for (const viewport of viewports) {
       expect(clear).toBe(true);
     });
 
-    test('NR-041 Normal and Demo read the same Scouting report and Information; reading saves nothing', async ({ page }) => {
-      const normal = settledSave();
-      await continueSavedGame(page, normal);
-      const before = await rawSlot(page);
-      const normalViews = await readViews(page);
-      expect(await rawSlot(page)).toBe(before);
-      expect(normalViews[0]).toContain('Estimated by our garrison in Testland North-East');
-      expect(normalViews[1]).toMatch(new RegExp(`Arvelia\\s+1\\s+${WORD}`));
+    // Two reads in one test ran into the 30 s limit of a full run, so each read is its own test; the Demo test compares
+    // with what the Normal test read. Serial: they run in order in one worker, and a failed Normal read skips the comparison.
+    test.describe('NR-041 Normal and Demo read the same Scouting report and Information', () => {
+      test.describe.configure({ mode: 'serial' });
+      let normalViews: string[] | undefined;
 
-      const demo: SavedGame = { ...normal, game: { ...normal.game, difficulty: 'demo' } };
-      await page.evaluate(({ key, value }) => localStorage.setItem(key, value), { key: SAVE_KEY, value: JSON.stringify(demo) });
-      await page.reload();
-      await page.getByRole('dialog', { name: 'Saved game' }).getByRole('button', { name: 'Continue' }).click();
-      const demoBefore = await rawSlot(page);
-      expect(JSON.parse(demoBefore!).game.difficulty).toBe('demo');
-      expect(await readViews(page)).toEqual(normalViews);
-      expect(await rawSlot(page)).toBe(demoBefore);
+      test('NR-041 Normal reads the Scouting report and Information; reading saves nothing', async ({ page }) => {
+        await continueSavedGame(page, settledSave());
+        const before = await rawSlot(page);
+        const views = await readViews(page);
+        expect(await rawSlot(page)).toBe(before);
+        expect(views[0]).toContain('Estimated by our garrison in Testland North-East');
+        expect(views[1]).toMatch(new RegExp(`Arvelia\\s+1\\s+${WORD}`));
+        normalViews = views;
+      });
+
+      test('NR-041 Demo reads the same Scouting report and Information as Normal; reading saves nothing', async ({ page }) => {
+        expect(normalViews, 'the Normal test before this one records the texts to compare with').toBeDefined();
+        const normal = settledSave();
+        const demo: SavedGame = { ...normal, game: { ...normal.game, difficulty: 'demo' } };
+        await continueSavedGame(page, demo);
+        const demoBefore = await rawSlot(page);
+        expect(JSON.parse(demoBefore!).game.difficulty).toBe('demo');
+        expect(await readViews(page)).toEqual(normalViews);
+        expect(await rawSlot(page)).toBe(demoBefore);
+      });
     });
   });
 }
