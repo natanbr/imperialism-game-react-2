@@ -149,7 +149,7 @@ export const TradePolicies: React.FC<Props> = ({ game, nationId, submitOrder, mo
         {!isMap && (home
           ? <InformationList viewer={viewer} home={home} selected={selectedInfo} countries={information} select={setChosenId} />
           : <DiplomaticCountryList mode={mode} viewer={viewer} selected={selectedInfo} countries={information} select={setChosenId} />)}
-        <CountryDetail mode={mode} viewer={viewer} selected={selectedInfo} />
+        <CountryDetail mode={mode} viewer={viewer} selected={selectedInfo} pinned={!isMap} />
       </> : visibleRows.length > 0 ? (
         <table
           aria-label={isMap ? "Selected country policy" : "Country policies"}

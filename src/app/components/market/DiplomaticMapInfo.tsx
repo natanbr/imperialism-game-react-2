@@ -46,9 +46,10 @@ interface Props {
   selected?: DiplomaticCountry;
 }
 
-export function CountryDetail({ mode, viewer, selected }: Props) {
+/** The selected country's facts. `pinned` (the List) keeps the box at the bottom of the scrolling panel, over the rows (FR-651). */
+export function CountryDetail({ mode, viewer, selected, pinned = false }: Props & { pinned?: boolean }) {
   return (
-    <section className={styles.detail} aria-label="Selected country" aria-live="polite">
+    <section className={pinned ? `${styles.detail} ${styles.pinned}` : styles.detail} aria-label="Selected country" aria-live="polite">
       {!selected ? "No counterpart is available in this view." : mode === "Information" ? <>
         <strong>Information: {selected.name}</strong>{" "}
         <span>Provinces {selected.provinces}</span>{" "}
