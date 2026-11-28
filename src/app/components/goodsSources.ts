@@ -2,15 +2,28 @@ import { yieldOf } from "@/engine/map/mapHelpers";
 import { fishingGroundsOf } from "@/engine/systems/logisticsSystem";
 import { acceptsProductionInputs } from "@/engine/industry/productionPlan";
 import { isTradeCommodity, worldMarketSupplies } from "@/engine/market/market";
-import { bidSellersOf, marketModeOf, tradeBarrier } from "@/engine/market/partners";
+import { bidSellersOf, marketModeOf, tradeBarrier, type TradeBarrier } from "@/engine/market/partners";
 import { isGreatPower } from "@/engine/world/countries";
+import { OVERTURE_COST } from "@/definisions/diplomacyRules";
 import type { GameState } from "@/types/GameState";
 import type { Nation } from "@/types/Nation";
 import { MaterialType, ResourceType, type WarehouseCommodities } from "@/types/Resource";
+import { money } from "./gameText";
 
 export const GOODS_WITH_SOURCE_NOTES: readonly WarehouseCommodities[] = [
   ResourceType.Wool, ResourceType.Fish, ResourceType.Oil, MaterialType.Fuel, ResourceType.Horses,
 ];
+
+/** "We need a consulate with a seller" (FR-252, FR-253): the barriers of every seller (or buyer), the consulate first. */
+export function barredText(barriers: readonly (TradeBarrier | undefined)[], side: "seller" | "buyer"): string {
+  if (barriers.includes("no-consulate")) return `We need a consulate with a ${side}`;
+  const war = barriers.includes("at-war");
+  const boycott = barriers.includes("boycott");
+  if (war && boycott) return `War or a boycott bars every ${side}`;
+  if (war) return `We are at war with every ${side}`;
+  if (boycott) return `A boycott bars every ${side}`;
+  return `We may not trade with any ${side}`;
+}
 
 /** Public trade opportunities are independent of a nation's stock, cash and free holds. */
 function publicSupplier(state: GameState, nation: Nation, good: WarehouseCommodities) {
@@ -20,8 +33,13 @@ function publicSupplier(state: GameState, nation: Nation, good: WarehouseCommodi
   }
   const sellers = bidSellersOf(state, nation.id, good);
   if (!sellers.length) return undefined;
-  const open = sellers.find(id => !tradeBarrier(state, nation.id, id));
-  if (!open) return { confirmed: false, text: "Trade with potential suppliers is blocked" };
+  const barriers = sellers.map(id => tradeBarrier(state, nation.id, id));
+  const open = sellers.find((_, i) => !barriers[i]);
+  // FR-644: name the barrier; a consulate first, as the one an order removes
+  if (!open) {
+    const text = barriers.includes("no-consulate") ? `Open a consulate (${money(OVERTURE_COST.consulate)}) to buy this` : barredText(barriers, "seller");
+    return { confirmed: false, text };
+  }
   if (isGreatPower(state, open)) return { confirmed: false, text: "Another power may sell this" };
   return { confirmed: true, text: "A minor nation sells this" };
 }

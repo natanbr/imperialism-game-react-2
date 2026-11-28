@@ -426,6 +426,9 @@ const provinceName = (state: GameState, provinceId: string) => provinceById(stat
 /** FR-265: what the Arms column holds (FR-199 ARMS, FR-202 upkeep, FR-204 force size). */
 export const ARMS_LEGEND = `Arms: armaments per regiment; each costs ${money(UPKEEP_PER_ARMS)} a turn and counts toward force size`;
 
+/** FR-645: the Garrison Book's line under the roster, so Force Size 0 above militia reads as intended (FR-204). */
+export const FORCE_SIZE_NOTE = "Force Size adds up the armaments of our regiments here. Militia carry none, so they add 0.";
+
 export function armyRoster(state: GameState, nationId: string, provinceId: string) {
   const army = armyAt(state, nationId, provinceId);
   const regiments = army ? [...army.regiments.filter((r) => !isMilitia(r.type)), ...army.regiments.filter((r) => isMilitia(r.type))] : [];

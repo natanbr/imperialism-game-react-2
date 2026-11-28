@@ -23,9 +23,12 @@ export const useTransportAllocations = (capacity: number) => {
     [game, activeNationId, capacity]
   );
 
-  // A saved cap can exceed today's supply. Only its actual shipment uses capacity.
+  // A saved cap can exceed today's supply. Only its actual shipment uses capacity. The set rows only: sliders clamp
+  // against it, so a set slider can still take capacity from the automatic rows.
   const totalAllocated = Object.keys(allocations).reduce((sum, key) => sum + (shipments[key] ?? 0), 0);
-  const remaining = Math.max(0, capacity - totalAllocated);
+  // FR-646: the header counts every row that ships, set or automatic, and what is left over
+  const shippedTotal = Object.values(shipments).reduce((sum, n) => sum + n, 0);
+  const spare = Math.max(0, capacity - shippedTotal);
 
   const isSet = (key: string) => Object.hasOwn(allocations, key);
   const scheduledAmount = (key: string) => shipments[key] ?? 0;
@@ -61,8 +64,8 @@ export const useTransportAllocations = (capacity: number) => {
     setAuto,
     isSet,
     scheduledAmount,
-    totalAllocated,
-    remaining,
+    shippedTotal,
+    spare,
     collected,
     sliderMax,
   };

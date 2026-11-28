@@ -103,7 +103,7 @@ const RegimentCard: React.FC<{ card: ArmouryCardView; onChange: (count: number) 
       <span>
         Firepower <strong>{card.firepower}</strong>
       </span>
-      {/* FR-421: combat (FR-219) ignores Move and Range, so they are greyed and say so */}
+      {/* FR-421, FR-647: combat (FR-219) ignores Move and Range, so they are greyed, and the note names both */}
       <span className={styles.unusedStats} data-testid="unused-stats">
         <span>
           Move <strong>{card.move}</strong>
@@ -111,7 +111,7 @@ const RegimentCard: React.FC<{ card: ArmouryCardView; onChange: (count: number) 
         <span>
           Range <strong>{card.range}</strong>
         </span>{" "}
-        <span>(not used in battle yet)</span>
+        <span>(neither is used in battle yet)</span>
       </span>
       <span>Entrench: {card.entrench ? "yes" : "no"}</span>
     </p>
