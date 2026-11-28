@@ -10,7 +10,7 @@ import { COMMODITY_KINDS, NEVER_SHIPPED, SHIPPABLE_KINDS, transportKinds } from 
 import { artFileOf, goodsArt } from '@/components/art/inkArt';
 import { commodityName } from '@/components/gameText';
 import { useGameStore } from '@/store/rootStore';
-import { newGame } from '@/engine';
+import { newGame, tryApplyOrder, type Order } from '@/engine';
 import { isOcean } from '@/engine/map/mapHelpers';
 import { logisticsSystem } from '@/engine/systems/logisticsSystem';
 import { createTurnContext } from '@/engine/turn/context';
@@ -20,7 +20,8 @@ import type { GameState } from '@/types/GameState';
 import { TerrainType } from '@/types/Tile';
 import { WorkerType } from '@/types/Workers';
 import { GoodsType, MaterialType, ResourceType, type WarehouseCommodities } from '@/types/Resource';
-import { setTile, tileAt } from '../engine/fixtures';
+import { put, setTile, tileAt } from '../engine/fixtures';
+import { blockadedPortOfferedPeace, contestedHome, fleetOf } from '../engine/blockadeFixture';
 import { coastalFreightTown } from '../engine/townFreightFixture';
 import { failOnActWarnings } from './actWarnings';
 import { text } from './domText';
@@ -293,6 +294,69 @@ describe('FR-390 the popup shows set and automatic (M12, card Q80, audit ECONOMY
     expect(plan()).toEqual({ grain: 5 });
     expect(text(row('grain'))).toBe('Grain 5 / 5 Auto');
     expect(infoBar()).toBe('Capacity: 15 Allocated: 12 Remaining: 3');
+  });
+
+  /** Turn 3 of Two islands seed 1, our farmer's job on 3-9 (grain level 1 to 2, from turn 1) due before logistics. */
+  const farmerDueOnTurn3 = () => {
+    const start = newGame({ seed: 1 });
+    const farmer = start.map.tiles.flat().flatMap(t => t.workers).find(w => w.nationId === 'nation-1' && w.type === WorkerType.Farmer)!;
+    const turn1 = resolveTurn(start, { 'nation-1': [{ kind: 'moveAndStartDevelopment', nationId: 'nation-1', workerId: farmer.id, toTileId: '3-9' }] });
+    return resolveTurn(turn1.state, {}).state;
+  };
+  const queued = (game: GameState, order: Order) => {
+    const { state, result } = tryApplyOrder(game, order);
+    expect(result).toEqual({ ok: true });
+    return state;
+  };
+
+  // Codex task 67 (FR-497): a job counts as ours only when our own worker on the tile holds it. Legal orders never let
+  // another nation's worker hold a job on our land; these saves are edited and still load.
+  it('FR-646 FR-497 our due job on 3-9 edited to name a rival\'s farmer is not counted: "Grain Auto: 4", as without the job', () => {
+    const game = farmerDueOnTurn3();
+    const rival = game.map.tiles.flat().flatMap(t => t.workers).find(w => w.nationId === 'nation-2' && w.type === WorkerType.Farmer)!.id;
+    const job = tileAt(game, '3-9').developmentJob!;
+    show(setTile(game, '3-9', { developmentJob: undefined }));
+    const withoutJob = [text(row('grain')), infoBar()];
+    expect(withoutJob).toEqual(['Grain Auto: 4', 'Capacity: 15 Allocated: 11 Remaining: 4']);
+    const named = setTile(game, '3-9', { developmentJob: { ...job, workerId: rival } });
+    for (const edited of [named, put(named, rival, '3-9')]) {
+      cleanup();
+      show(edited);
+      expect([text(row('grain')), infoBar()]).toEqual(withoutJob);
+    }
+  });
+
+  // Codex task 67 (blocker): a turn settles diplomacy and the fleet phase before connectivity, so the popup applies our own
+  // orders there against the public fleet positions. Continent seed 1, at war with Valdoria, one Frigate each.
+  it('FR-646 our Frigate ordered home leaves Valdoria\'s alone on our home approach: no Fish and "Allocated: 10 Remaining: 5", what the turn ships', () => {
+    const contested = contestedHome();
+    show(contested);
+    // While ours contests the approach the capital's Fish ships (the settlement's battle there is not forecast)
+    expect(text(row('fish'))).toBe('Fish Auto: 1');
+    expect(infoBar()).toBe('Capacity: 15 Allocated: 11 Remaining: 4');
+    cleanup();
+    const game = queued(contested, { kind: 'setFleetMission', nationId: 'nation-1', fleetId: fleetOf('nation-1'), mission: 'return' });
+    const delivered = deliveredAtLogistics(game);
+    expect(delivered).toEqual({ grain: 4, fruit: 3, cotton: 2, horses: 1 });
+    show(game);
+    expect(rowShipments().fish ?? 0).toBe(0);
+    expect(infoBar()).toBe('Capacity: 15 Allocated: 10 Remaining: 5');
+    expect(rowShipments()).toMatchObject(delivered);
+    expect(shippedByRows()).toBe(10);
+  });
+
+  it('FR-646 accepting Valdoria\'s peace reopens our port at 10-7 that its Frigate blockades: "Allocated: 15 Remaining: 0", what the turn ships', () => {
+    const offered = blockadedPortOfferedPeace();
+    show(offered);
+    expect(infoBar()).toBe('Capacity: 15 Allocated: 11 Remaining: 4');
+    cleanup();
+    const game = queued(offered, { kind: 'answerProposal', nationId: 'nation-1', proposalId: 'proposal-1-1', accept: true });
+    const delivered = deliveredAtLogistics(game);
+    expect(delivered).toEqual({ grain: 4, fruit: 3, fish: 2, cotton: 2, horses: 2, timber: 2 });
+    show(game);
+    expect(infoBar()).toBe('Capacity: 15 Allocated: 15 Remaining: 0');
+    expect(rowShipments()).toMatchObject(delivered);
+    expect(shippedByRows()).toBe(15);
   });
 
   it('FR-646 Allocated counts every row that ships, so Remaining is the capacity actually spare', () => {

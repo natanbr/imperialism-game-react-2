@@ -137,6 +137,22 @@ describe('FR-651 Information on the diplomatic map', () => {
     }
   });
 
+  it('FR-651 a strength a billionth under a step reads the lower word: their Regulars at 49.99999995 health against ours at 100 is Poor (Codex task 67)', () => {
+    // Fractional health comes only from an edited save. The allowance at a step is the float rounding of the sums, so
+    // a ratio of 0.4999999995 is below 0.5, while 0.49999999999999994 (four Regulars against eight) is at it.
+    const bare = { ...start(), armies: start().armies.filter(a => a.ownerId !== N1 && a.ownerId !== N2) };
+    const game = addRegiments(addRegiments(bare, N1, SW1, ['regulars']), N2, SW2, ['regulars'], 49.99999995);
+    const strength = (id: string) => game.provinces.reduce((sum, p) => (p.ownerId === id ? sum + defenceOf(game, p.id) : sum), 0);
+    expect(strength(N2) / strength(N1)).toBeCloseTo(0.4999999995, 15);
+    expect([militaryWord(0.4999999995), militaryWord(0.49999999999999994)]).toEqual(['Poor', 'Fair']);
+    renderInformation(game);
+    const valdoria = map().getByRole('button', { name: /^Valdoria, Military Poor, 4 provinces/ });
+    expect(land(valdoria)).toBe(fillOf('Poor'));
+    fireEvent.click(valdoria);
+    expect(detail()).toMatch(/^Information: Valdoria Provinces 4 Military Poor Industry /);
+    expect(listRows().find(row => row.startsWith('Valdoria'))).toMatch(/^Valdoria 4 Poor /);
+  });
+
   it('FR-651 a colony is counted under its ruler: its land and the ruler\'s regiments there; the colony itself has none', () => {
     let game = transferProvince(start(), ARVELIA_P, N2);
     game = { ...game, minorNations: game.minorNations.map(m => (m.id === ARVELIA ? { ...m, colonyOf: N2 } : m)),

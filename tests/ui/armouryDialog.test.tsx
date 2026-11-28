@@ -15,8 +15,9 @@ import type { GameState } from '@/types/GameState';
 import { ResourceType } from '@/types/Resource';
 import { TerrainType } from '@/types/Tile';
 import { WorkerType } from '@/types/Workers';
-import { setIndustry, setTile, setTreasury, setWarehouse, industryOf, stockOf, tileAt, treasury } from '../engine/fixtures';
+import { put, setIndustry, setTile, setTreasury, setWarehouse, industryOf, stockOf, tileAt, treasury } from '../engine/fixtures';
 import { continent } from '../engine/armyFixtures';
+import { blockadedPortOfferedPeace } from '../engine/blockadeFixture';
 import { failOnActWarnings } from './actWarnings';
 import { text } from './domText';
 
@@ -87,10 +88,12 @@ it('FR-517 shows zero horse income when freight leaves the ranch output unshippe
   expect(items('Hussars', 'At hand')).toContain('Horses: 4 in warehouse, +0 a turn');
 });
 
-it('FR-517 FR-646 a depot of ours finishing before logistics counts in the horse supply: "+2 a turn", what the turn delivers (Codex task 66)', () => {
-  // A second Horse Ranch, hand-built on 4-8 beyond the capital's reach. Our engineer lays rail 2-9 -> 3-9 on turn 1 and
-  // 3-9 -> 4-9 on turn 2 and starts a depot on 4-9 on turn 3 (3 turns): it finishes in turn 5's development phase,
-  // before logistics, and collects the ranch on 4-8 that same turn.
+/**
+ * Turn 4: a second Horse Ranch, hand-built on 4-8 beyond the capital's reach. Our engineer laid rail 2-9 -> 3-9 on turn 1
+ * and 3-9 -> 4-9 on turn 2 and started a depot on 4-9 on turn 3 (3 turns): it finishes in turn 5's development phase,
+ * before logistics, and collects the ranch on 4-8 that same turn.
+ */
+function depotOneTurnShort(): GameState {
   let game = setTile(continent(), '4-8', { terrain: TerrainType.HorseRanch, resource: { type: ResourceType.Horses, level: 0 } });
   const engineer = game.map.tiles.flat().flatMap(t => t.workers).find(w => w.nationId === N1 && w.type === WorkerType.Engineer)!.id;
   const orders: Order[] = [
@@ -103,6 +106,11 @@ it('FR-517 FR-646 a depot of ours finishing before logistics counts in the horse
     expect(turn.events.filter(e => e.type === 'order-rejected')).toEqual([]);
     game = turn.state;
   }
+  return game;
+}
+
+it('FR-517 FR-646 a depot of ours finishing before logistics counts in the horse supply: "+2 a turn", what the turn delivers (Codex task 66)', () => {
+  let game = depotOneTurnShort();
   // Turn 4: the depot is a turn short, only the capital's ranch ships
   expect([game.turn, tileAt(game, '4-9').constructionJob?.kind]).toEqual([4, 'depot']);
   const view = openArmoury(game);
@@ -115,6 +123,33 @@ it('FR-517 FR-646 a depot of ours finishing before logistics counts in the horse
   openArmoury(game);
   expect(items('Hussars', 'At hand')).toContain('Horses: 8 in warehouse, +2 a turn');
   expect(stockOf(resolveTurn(game, {}).state, N1, 'horses')).toBe(10);
+});
+
+// Codex task 67 (FR-497): legal orders never let another nation's worker hold a job on our land; this save is edited.
+it('FR-517 FR-497 the due depot on 4-9 edited to name a rival\'s engineer is not counted: "+1 a turn", as without the job (Codex task 67)', () => {
+  const game = resolveTurn(depotOneTurnShort(), {}).state;
+  const rival = game.map.tiles.flat().flatMap(t => t.workers).find(w => w.nationId === 'nation-2' && w.type === WorkerType.Engineer)!.id;
+  const job = tileAt(game, '4-9').constructionJob!;
+  const named = setTile(game, '4-9', { constructionJob: { ...job, workerId: rival } });
+  for (const edited of [setTile(game, '4-9', { constructionJob: undefined }), named, put(named, rival, '4-9')]) {
+    const view = openArmoury(edited);
+    expect(items('Hussars', 'At hand')).toContain('Horses: 8 in warehouse, +1 a turn');
+    view.unmount();
+  }
+});
+
+// Codex task 67 (blocker): the diplomacy phase settles before connectivity, so our accepted peace reopens the port that
+// the peace's proposer blockades, in the same turn's logistics.
+it('FR-517 FR-646 accepting the peace of the nation blockading our port at 10-7 counts the ranch it collects: "+2 a turn", what the turn delivers (Codex task 67)', () => {
+  const offered = blockadedPortOfferedPeace();
+  const view = openArmoury(offered);
+  expect(items('Hussars', 'At hand')).toContain('Horses: 5 in warehouse, +1 a turn');
+  view.unmount();
+  expect(stockOf(resolveTurn(offered, {}).state, N1, 'horses')).toBe(6);
+  const answered = applyOrder(offered, { kind: 'answerProposal', nationId: N1, proposalId: 'proposal-1-1', accept: true });
+  openArmoury(answered);
+  expect(items('Hussars', 'At hand')).toContain('Horses: 5 in warehouse, +2 a turn');
+  expect(stockOf(resolveTurn(answered, {}).state, N1, 'horses')).toBe(7);
 });
 
 describe('FR-212 the Armoury: how it opens', () => {
