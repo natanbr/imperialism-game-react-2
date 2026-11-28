@@ -77,8 +77,11 @@ export const RELATION_COLORS: readonly string[] = Array.from({ length: 9 }, (_, 
 /** The swatch of a relation level, clamped to 0..8. */
 export const relationColor = (level: number): string => RELATION_COLORS[Math.min(8, Math.max(0, Math.floor(level)))];
 
+/** The Information map's five Military words, Poor (0) to Awesome (4): --color-military-<step> (FR-651). */
+export const MILITARY_COLORS: readonly string[] = Array.from({ length: 5 }, (_, step) => v(`color-military-${step}`));
+
 /** Every CSS variable this module names, without `var()`. */
 export function themeVariables(): string[] {
-  const all = [...Object.values(THEME), ...NATION_COLORS, ...MINOR_COLORS, ...RELATION_COLORS];
+  const all = [...Object.values(THEME), ...NATION_COLORS, ...MINOR_COLORS, ...RELATION_COLORS, ...MILITARY_COLORS];
   return all.map((value) => /^var\((--[\w-]+)\)$/.exec(value)![1]);
 }

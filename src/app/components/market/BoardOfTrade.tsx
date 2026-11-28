@@ -114,6 +114,7 @@ export const BoardOfTrade: React.FC = () => {
   const tabsId = useId();
 
   const orderLog = useGameStore((s) => s.orderLog);
+  const rankHistory = useGameStore((s) => s.rankHistory);
   const [repeated, setRepeated] = useState<{ turn: number; text: string } | null>(null);
   // Mounted only while the market is open (MarketModal), so each opening starts on the Board (FR-577)
   const [tab, setTab] = useState<TabId>("board");
@@ -328,7 +329,8 @@ export const BoardOfTrade: React.FC = () => {
             </table>
           )}
           {tab === "details" && <BoardDetails view={view} />}
-          {tab === "policies" && <TradePolicies game={game} nationId={nation.id} submitOrder={submitOrder} mode={mapMode} onModeChange={setMapMode} />}
+          {tab === "policies" && <TradePolicies game={game} nationId={nation.id} submitOrder={submitOrder} mode={mapMode} onModeChange={setMapMode}
+            rankHistory={rankHistory} />}
           {tab === "book" && <TradeBook game={game} nationId={nation.id} view={view} />}
         </div>
       )}
