@@ -21,7 +21,7 @@ import { TerrainType } from '@/types/Tile';
 import { WorkerType } from '@/types/Workers';
 import { GoodsType, MaterialType, ResourceType, type WarehouseCommodities } from '@/types/Resource';
 import { put, setTile, tileAt } from '../engine/fixtures';
-import { blockadedPortOfferedPeace, blockadeOfTheLine, contestedHome, fleetOf, SOUTH_EAST } from '../engine/blockadeFixture';
+import { blockadeBy, blockadedPortOfferedPeace, blockadeOfTheLine, contestedHome, fleetOf, SOUTH_EAST } from '../engine/blockadeFixture';
 import { coastalFreightTown } from '../engine/townFreightFixture';
 import { failOnActWarnings } from './actWarnings';
 import { text } from './domText';
@@ -359,8 +359,8 @@ describe('FR-390 the popup shows set and automatic (M12, card Q80, audit ECONOMY
     expect(shippedByRows()).toBe(15);
   });
 
-  // Codex task 68 (blocker): a port changes in the forecast only where no battle decides it. Our Frigate sailing into the
-  // Ship-of-the-Line that blockades 10-7 meets it there before connectivity and is sent back to its berth.
+  // Codex task 68 (blocker): our Frigate sailing into the Ship-of-the-Line that blockades 10-7 meets it there before
+  // connectivity and is sent back to its berth, whatever the draws (it loses on firepower and neither can sink).
   it('FR-646 our Frigate sailing into the Ship-of-the-Line blockading 10-7 does not open the port: "Allocated: 11 Remaining: 4", what the turn ships', () => {
     const blockaded = blockadeOfTheLine();
     show(blockaded);
@@ -374,6 +374,22 @@ describe('FR-390 the popup shows set and automatic (M12, card Q80, audit ECONOMY
     expect(rowShipments()).toMatchObject(delivered);
     expect(rowShipments().timber ?? 0).toBe(0);
     expect(shippedByRows()).toBe(11);
+  });
+
+  // Codex task 69 (blocker): the forecast settles our sortie's battle when no draw decides it. Frigate against Frigate is
+  // a tie whatever the draws (equal firepower, 1 damage a hit, 35 hull): both contest the approach, so our port opens.
+  it('FR-646 our Frigate sailing into the Frigate blockading 10-7 ties and contests the approach: "Allocated: 15 Remaining: 0", what the turn ships', () => {
+    const blockaded = blockadeBy('frigate', 'frigate');
+    show(blockaded);
+    expect(infoBar()).toBe('Capacity: 15 Allocated: 11 Remaining: 4');
+    cleanup();
+    const game = queued(blockaded, { kind: 'setFleetMission', nationId: 'nation-1', fleetId: fleetOf('nation-1'), mission: 'sail', provinceId: SOUTH_EAST });
+    const delivered = deliveredAtLogistics(game);
+    expect(delivered).toEqual({ grain: 4, fruit: 3, fish: 2, cotton: 2, horses: 2, timber: 2 });
+    show(game);
+    expect(infoBar()).toBe('Capacity: 15 Allocated: 15 Remaining: 0');
+    expect(rowShipments()).toMatchObject(delivered);
+    expect(shippedByRows()).toBe(15);
   });
 
   it('FR-646 Allocated counts every row that ships, so Remaining is the capacity actually spare', () => {
